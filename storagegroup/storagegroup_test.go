@@ -78,7 +78,7 @@ func TestNew(t *testing.T) {
 
 		// check initial values
 		require.Nil(t, sg.Members())
-		require.Nil(t, sg.ValidationDataHash())
+		require.True(t, sg.ValidationDataHash().Empty())
 		require.Zero(t, sg.ExpirationEpoch())
 		require.Zero(t, sg.ValidationDataSize())
 

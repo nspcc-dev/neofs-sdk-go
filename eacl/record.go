@@ -137,7 +137,7 @@ func (r *Record) AddObjectPayloadLengthFilter(m Match, size uint64) {
 }
 
 // AddObjectPayloadHashFilter adds filter by object payload hash value.
-func (r *Record) AddObjectPayloadHashFilter(m Match, h *checksum.Checksum) {
+func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
 	r.addObjectReservedFilter(m, fKeyObjPayloadHash, h)
 }
 
@@ -147,7 +147,7 @@ func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
 }
 
 // AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.
-func (r *Record) AddObjectHomomorphicHashFilter(m Match, h *checksum.Checksum) {
+func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
 	r.addObjectReservedFilter(m, fKeyObjHomomorphicHash, h)
 }
 
