@@ -49,7 +49,7 @@ func TestChecksum(t *testing.T) {
 }
 
 func TestEqualChecksums(t *testing.T) {
-	require.True(t, Equal(&Checksum{}, &Checksum{}))
+	require.True(t, Equal(Checksum{}, Checksum{}))
 
 	csSHA := [sha256.Size]byte{}
 	_, _ = rand.Read(csSHA[:])
@@ -60,12 +60,12 @@ func TestEqualChecksums(t *testing.T) {
 	var cs2 Checksum
 	cs2.SetSHA256(csSHA)
 
-	require.True(t, Equal(&cs1, &cs2))
+	require.True(t, Equal(cs1, cs2))
 
 	csSHA[0]++
 	cs2.SetSHA256(csSHA)
 
-	require.False(t, Equal(&cs1, &cs2))
+	require.False(t, Equal(cs1, cs2))
 }
 
 func TestChecksumEncoding(t *testing.T) {

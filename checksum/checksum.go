@@ -95,7 +95,7 @@ func (c *Checksum) SetTillichZemor(v [64]byte) {
 
 // Equal returns boolean value that means
 // the equality of the passed Checksums.
-func Equal(cs1, cs2 *Checksum) bool {
+func Equal(cs1, cs2 Checksum) bool {
 	return cs1.Type() == cs2.Type() && bytes.Equal(cs1.Sum(), cs2.Sum())
 }
 
@@ -128,6 +128,13 @@ func (c *Checksum) Parse(s string) error {
 	cV2.SetSum(data)
 
 	return nil
+}
+
+// Empty returns true if it is called on
+// zero checksum.
+func (c Checksum) Empty() bool {
+	v2 := (refs.Checksum)(c)
+	return v2.GetSum() == nil
 }
 
 // String implements fmt.Stringer interface method.

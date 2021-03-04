@@ -46,7 +46,7 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 
 		require.Zero(t, x.ExpirationEpoch())
 		require.Zero(t, x.ValidationDataSize())
-		require.Nil(t, x.ValidationDataHash())
+		require.True(t, x.ValidationDataHash().Empty())
 		require.Zero(t, x.Members())
 	})
 
@@ -68,7 +68,7 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 
 		var hash checksum.Checksum
 		hash.ReadFromV2(*hashV2)
-		require.Equal(t, hash, *x.ValidationDataHash())
+		require.Equal(t, hash, x.ValidationDataHash())
 
 		var mV2 refs.ObjectID
 
@@ -132,7 +132,7 @@ func TestStorageGroup_WriteToV2(t *testing.T) {
 		var hash checksum.Checksum
 		hash.ReadFromV2(*v2.GetValidationHash())
 
-		require.Equal(t, *x.ValidationDataHash(), hash)
+		require.Equal(t, x.ValidationDataHash(), hash)
 
 		var idV2 refs.ObjectID
 
@@ -149,7 +149,7 @@ func TestNew(t *testing.T) {
 
 		// check initial values
 		require.Nil(t, sg.Members())
-		require.Nil(t, sg.ValidationDataHash())
+		require.True(t, sg.ValidationDataHash().Empty())
 		require.Zero(t, sg.ExpirationEpoch())
 		require.Zero(t, sg.ValidationDataSize())
 	})

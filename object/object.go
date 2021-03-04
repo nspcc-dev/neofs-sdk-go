@@ -270,24 +270,22 @@ func (o *Object) SetCreationEpoch(v uint64) {
 // Zero Object has zero checksum.
 //
 // See also SetPayloadChecksum.
-func (o Object) PayloadChecksum() *checksum.Checksum {
+func (o Object) PayloadChecksum() checksum.Checksum {
 	var v checksum.Checksum
 	v2 := (object.Object)(o)
 
-	v.ReadFromV2(
-		*v2.
-			GetHeader().
-			GetPayloadHash(),
-	)
+	if hash := v2.GetHeader().GetPayloadHash(); hash != nil {
+		v.ReadFromV2(*hash)
+	}
 
-	return &v
+	return v
 }
 
 // SetPayloadChecksum sets checksum of the object payload.
 // Checksum must not be nil.
 //
 // See also PayloadChecksum.
-func (o *Object) SetPayloadChecksum(v *checksum.Checksum) {
+func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 	var v2 refs.Checksum
 	v.WriteToV2(&v2)
 
@@ -301,24 +299,22 @@ func (o *Object) SetPayloadChecksum(v *checksum.Checksum) {
 // Zero Object has zero checksum.
 //
 // See also SetPayloadHomomorphicHash.
-func (o Object) PayloadHomomorphicHash() *checksum.Checksum {
+func (o Object) PayloadHomomorphicHash() checksum.Checksum {
 	var v checksum.Checksum
 	v2 := (object.Object)(o)
 
-	v.ReadFromV2(
-		*v2.
-			GetHeader().
-			GetHomomorphicHash(),
-	)
+	if hash := v2.GetHeader().GetHomomorphicHash(); hash != nil {
+		v.ReadFromV2(*hash)
+	}
 
-	return &v
+	return v
 }
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
 // Checksum must not be nil.
 //
 // See also PayloadHomomorphicHash.
-func (o *Object) SetPayloadHomomorphicHash(v *checksum.Checksum) {
+func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 	var v2 refs.Checksum
 	v.WriteToV2(&v2)
 

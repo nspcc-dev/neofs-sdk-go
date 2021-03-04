@@ -8,7 +8,7 @@ import (
 )
 
 // Checksum returns random checksum.Checksum.
-func Checksum() *checksum.Checksum {
+func Checksum() checksum.Checksum {
 	var cs [sha256.Size]byte
 
 	rand.Read(cs[:])
@@ -17,5 +17,5 @@ func Checksum() *checksum.Checksum {
 
 	x.SetSHA256(cs)
 
-	return &x
+	return x
 }
