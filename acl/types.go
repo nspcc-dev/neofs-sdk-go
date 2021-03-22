@@ -9,6 +9,8 @@ import (
 // BasicACL is Access Control List that defines who can interact with containers and what exactly they can do.
 type BasicACL uint32
 
+// String returns BasicACL string representation
+// in hexadecimal form with 0x prefix.
 func (a BasicACL) String() string {
 	return fmt.Sprintf("0x%08x", uint32(a))
 }
