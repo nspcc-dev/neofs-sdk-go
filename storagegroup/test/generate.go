@@ -8,8 +8,8 @@ import (
 )
 
 // StorageGroup returns random storagegroup.StorageGroup.
-func StorageGroup() *storagegroup.StorageGroup {
-	x := storagegroup.New()
+func StorageGroup() storagegroup.StorageGroup {
+	var x storagegroup.StorageGroup
 
 	x.SetExpirationEpoch(66)
 	x.SetValidationDataSize(322)
