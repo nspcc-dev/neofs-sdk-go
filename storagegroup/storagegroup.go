@@ -8,44 +8,61 @@ import (
 )
 
 // StorageGroup represents v2-compatible storage group.
+//
+// StorageGroup is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/storagegroup.StorageGroup
+// message. See ReadFromMessageV2 / WriteToMessageV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
 type StorageGroup storagegroup.StorageGroup
 
-// NewFromV2 wraps v2 StorageGroup message to StorageGroup.
+// ReadFromV2 reads StorageGroup from the storagegroup.StorageGroup message.
 //
-// Nil storagegroup.StorageGroup converts to nil.
-func NewFromV2(aV2 *storagegroup.StorageGroup) *StorageGroup {
-	return (*StorageGroup)(aV2)
+// See also WriteToV2.
+func (sg *StorageGroup) ReadFromV2(m storagegroup.StorageGroup) {
+	*sg = StorageGroup(m)
 }
 
-// New creates and initializes blank StorageGroup.
+// WriteToV2 writes StorageGroup to the storagegroup.StorageGroup message.
+// The message must not be nil.
 //
-// Defaults:
-//  - size: 0;
-//  - exp: 0;
-//  - members: nil;
-//  - hash: nil.
-func New() *StorageGroup {
-	return NewFromV2(new(storagegroup.StorageGroup))
+// See also ReadFromV2.
+func (sg StorageGroup) WriteToV2(m *storagegroup.StorageGroup) {
+	*m = (storagegroup.StorageGroup)(sg)
 }
 
 // ValidationDataSize returns total size of the payloads
 // of objects in the storage group.
-func (sg *StorageGroup) ValidationDataSize() uint64 {
-	return (*storagegroup.StorageGroup)(sg).GetValidationDataSize()
+//
+// Zero StorageGroup has 0 data size.
+//
+// See also SetValidationDataSize.
+func (sg StorageGroup) ValidationDataSize() uint64 {
+	v2 := (storagegroup.StorageGroup)(sg)
+	return v2.GetValidationDataSize()
 }
 
 // SetValidationDataSize sets total size of the payloads
 // of objects in the storage group.
+//
+// See also ValidationDataSize.
 func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 	(*storagegroup.StorageGroup)(sg).SetValidationDataSize(epoch)
 }
 
 // ValidationDataHash returns homomorphic hash from the
 // concatenation of the payloads of the storage group members.
-func (sg *StorageGroup) ValidationDataHash() *checksum.Checksum {
-	if v2 := (*storagegroup.StorageGroup)(sg).GetValidationHash(); v2 != nil {
+//
+// Zero StorageGroup has zero checksum.
+//
+// See also SetValidationDataHash.
+func (sg StorageGroup) ValidationDataHash() *checksum.Checksum {
+	v2 := (storagegroup.StorageGroup)(sg)
+	if checksumV2 := v2.GetValidationHash(); checksumV2 != nil {
 		var v checksum.Checksum
-		v.ReadFromV2(*v2)
+		v.ReadFromV2(*checksumV2)
 
 		return &v
 	}
@@ -55,6 +72,8 @@ func (sg *StorageGroup) ValidationDataHash() *checksum.Checksum {
 
 // SetValidationDataHash sets homomorphic hash from the
 // concatenation of the payloads of the storage group members.
+//
+// See also ValidationDataHash.
 func (sg *StorageGroup) SetValidationDataHash(hash *checksum.Checksum) {
 	var v2 refs.Checksum
 	hash.WriteToV2(&v2)
@@ -64,20 +83,32 @@ func (sg *StorageGroup) SetValidationDataHash(hash *checksum.Checksum) {
 
 // ExpirationEpoch returns last NeoFS epoch number
 // of the storage group lifetime.
-func (sg *StorageGroup) ExpirationEpoch() uint64 {
-	return (*storagegroup.StorageGroup)(sg).GetExpirationEpoch()
+//
+// Zero StorageGroup has 0 expiration epoch.
+//
+// See also SetExpirationEpoch.
+func (sg StorageGroup) ExpirationEpoch() uint64 {
+	v2 := (storagegroup.StorageGroup)(sg)
+	return v2.GetExpirationEpoch()
 }
 
 // SetExpirationEpoch sets last NeoFS epoch number
 // of the storage group lifetime.
+//
+// See also ExpirationEpoch.
 func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
 	(*storagegroup.StorageGroup)(sg).SetExpirationEpoch(epoch)
 }
 
 // Members returns strictly ordered list of
 // storage group member objects.
-func (sg *StorageGroup) Members() []oid.ID {
-	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
+//
+// Zero StorageGroup has nil members value.
+//
+// See also SetMembers.
+func (sg StorageGroup) Members() []oid.ID {
+	v2 := (storagegroup.StorageGroup)(sg)
+	mV2 := v2.GetMembers()
 
 	if mV2 == nil {
 		return nil
@@ -94,6 +125,8 @@ func (sg *StorageGroup) Members() []oid.ID {
 
 // SetMembers sets strictly ordered list of
 // storage group member objects.
+//
+// See also Members.
 func (sg *StorageGroup) SetMembers(members []oid.ID) {
 	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
 
@@ -116,29 +149,32 @@ func (sg *StorageGroup) SetMembers(members []oid.ID) {
 	(*storagegroup.StorageGroup)(sg).SetMembers(mV2)
 }
 
-// ToV2 converts StorageGroup to v2 StorageGroup message.
-//
-// Nil StorageGroup converts to nil.
-func (sg *StorageGroup) ToV2() *storagegroup.StorageGroup {
-	return (*storagegroup.StorageGroup)(sg)
-}
-
 // Marshal marshals StorageGroup into a protobuf binary form.
-func (sg *StorageGroup) Marshal() ([]byte, error) {
-	return (*storagegroup.StorageGroup)(sg).StableMarshal(nil)
+//
+// See also Unmarshal.
+func (sg StorageGroup) Marshal() ([]byte, error) {
+	v2 := (storagegroup.StorageGroup)(sg)
+	return v2.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of StorageGroup.
+//
+// See also Marshal.
 func (sg *StorageGroup) Unmarshal(data []byte) error {
 	return (*storagegroup.StorageGroup)(sg).Unmarshal(data)
 }
 
 // MarshalJSON encodes StorageGroup to protobuf JSON format.
-func (sg *StorageGroup) MarshalJSON() ([]byte, error) {
-	return (*storagegroup.StorageGroup)(sg).MarshalJSON()
+//
+// See also UnmarshalJSON.
+func (sg StorageGroup) MarshalJSON() ([]byte, error) {
+	v2 := (storagegroup.StorageGroup)(sg)
+	return v2.MarshalJSON()
 }
 
 // UnmarshalJSON decodes StorageGroup from protobuf JSON format.
+//
+// See also MarshalJSON.
 func (sg *StorageGroup) UnmarshalJSON(data []byte) error {
 	return (*storagegroup.StorageGroup)(sg).UnmarshalJSON(data)
 }
