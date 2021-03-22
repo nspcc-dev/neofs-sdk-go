@@ -10,6 +10,14 @@ import (
 )
 
 // Checksum represents v2-compatible checksum.
+//
+// Checksum is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Checksum
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Checksum(refs.Checksum{}) // not recommended
 type Checksum refs.Checksum
 
 // Type represents the enumeration
@@ -27,25 +35,29 @@ const (
 	TZ
 )
 
-// NewFromV2 wraps v2 Checksum message to Checksum.
+// ReadFromV2 reads Checksum from the refs.Checksum message.
 //
-// Nil refs.Checksum converts to nil.
-func NewFromV2(cV2 *refs.Checksum) *Checksum {
-	return (*Checksum)(cV2)
+// See also WriteToV2.
+func (c *Checksum) ReadFromV2(m refs.Checksum) {
+	*c = Checksum(m)
 }
 
-// New creates and initializes blank Checksum.
+// WriteToV2 writes Checksum to the refs.Checksum message.
+// The message must not be nil.
 //
-// Defaults:
-//  - sum: nil;
-//  - type: Unknown.
-func New() *Checksum {
-	return NewFromV2(new(refs.Checksum))
+// See also ReadFromV2.
+func (c Checksum) WriteToV2(m *refs.Checksum) {
+	*m = (refs.Checksum)(c)
 }
 
 // Type returns checksum type.
-func (c *Checksum) Type() Type {
-	switch (*refs.Checksum)(c).GetType() {
+//
+// Zero Checksum has Unknown checksum type.
+//
+// See also SetTillichZemor and SetSHA256.
+func (c Checksum) Type() Type {
+	v2 := (refs.Checksum)(c)
+	switch v2.GetType() {
 	case refs.SHA256:
 		return SHA256
 	case refs.TillichZemor:
@@ -56,8 +68,13 @@ func (c *Checksum) Type() Type {
 }
 
 // Sum returns checksum bytes.
-func (c *Checksum) Sum() []byte {
-	return (*refs.Checksum)(c).GetSum()
+//
+// Zero Checksum has nil sum.
+//
+// See also SetTillichZemor and SetSHA256.
+func (c Checksum) Sum() []byte {
+	v2 := (refs.Checksum)(c)
+	return v2.GetSum()
 }
 
 // SetSHA256 sets checksum to SHA256 hash.
@@ -76,42 +93,19 @@ func (c *Checksum) SetTillichZemor(v [64]byte) {
 	checksum.SetSum(v[:])
 }
 
-// ToV2 converts Checksum to v2 Checksum message.
-//
-// Nil Checksum converts to nil.
-func (c *Checksum) ToV2() *refs.Checksum {
-	return (*refs.Checksum)(c)
-}
-
+// Equal returns boolean value that means
+// the equality of the passed Checksums.
 func Equal(cs1, cs2 *Checksum) bool {
 	return cs1.Type() == cs2.Type() && bytes.Equal(cs1.Sum(), cs2.Sum())
 }
 
-// Marshal marshals Checksum into a protobuf binary form.
-func (c *Checksum) Marshal() ([]byte, error) {
-	return (*refs.Checksum)(c).StableMarshal(nil)
+// String implements fmt.Stringer interface method.
+func (c Checksum) String() string {
+	v2 := (refs.Checksum)(c)
+	return hex.EncodeToString(v2.GetSum())
 }
 
-// Unmarshal unmarshals protobuf binary representation of Checksum.
-func (c *Checksum) Unmarshal(data []byte) error {
-	return (*refs.Checksum)(c).Unmarshal(data)
-}
-
-// MarshalJSON encodes Checksum to protobuf JSON format.
-func (c *Checksum) MarshalJSON() ([]byte, error) {
-	return (*refs.Checksum)(c).MarshalJSON()
-}
-
-// UnmarshalJSON decodes Checksum from protobuf JSON format.
-func (c *Checksum) UnmarshalJSON(data []byte) error {
-	return (*refs.Checksum)(c).UnmarshalJSON(data)
-}
-
-func (c *Checksum) String() string {
-	return hex.EncodeToString((*refs.Checksum)(c).GetSum())
-}
-
-// Parse parses Checksum from its string representation.
+// Parse is a reverse action to String().
 func (c *Checksum) Parse(s string) error {
 	data, err := hex.DecodeString(s)
 	if err != nil {
@@ -136,12 +130,7 @@ func (c *Checksum) Parse(s string) error {
 	return nil
 }
 
-// String returns string representation of Type.
-//
-// String mapping:
-//  * TZ: TZ;
-//  * SHA256: SHA256;
-//  * Unknown, default: CHECKSUM_TYPE_UNSPECIFIED.
+// String implements fmt.Stringer interface method.
 func (m Type) String() string {
 	var m2 refs.ChecksumType
 
@@ -157,11 +146,10 @@ func (m Type) String() string {
 	return m2.String()
 }
 
-// FromString parses Type from a string representation.
-// It is a reverse action to String().
+// Parse is a reverse action to String().
 //
 // Returns true if s was parsed successfully.
-func (m *Type) FromString(s string) bool {
+func (m *Type) Parse(s string) bool {
 	var g refs.ChecksumType
 
 	ok := g.FromString(s)

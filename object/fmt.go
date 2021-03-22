@@ -20,10 +20,10 @@ var errIncorrectID = errors.New("incorrect object identifier")
 // CalculatePayloadChecksum calculates and returns checksum of
 // object payload bytes.
 func CalculatePayloadChecksum(payload []byte) *checksum.Checksum {
-	res := checksum.New()
+	var res checksum.Checksum
 	res.SetSHA256(sha256.Sum256(payload))
 
-	return res
+	return &res
 }
 
 // CalculateAndSetPayloadChecksum calculates checksum of current

@@ -43,14 +43,23 @@ func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 // ValidationDataHash returns homomorphic hash from the
 // concatenation of the payloads of the storage group members.
 func (sg *StorageGroup) ValidationDataHash() *checksum.Checksum {
-	return checksum.NewFromV2(
-		(*storagegroup.StorageGroup)(sg).GetValidationHash())
+	if v2 := (*storagegroup.StorageGroup)(sg).GetValidationHash(); v2 != nil {
+		var v checksum.Checksum
+		v.ReadFromV2(*v2)
+
+		return &v
+	}
+
+	return nil
 }
 
 // SetValidationDataHash sets homomorphic hash from the
 // concatenation of the payloads of the storage group members.
 func (sg *StorageGroup) SetValidationDataHash(hash *checksum.Checksum) {
-	(*storagegroup.StorageGroup)(sg).SetValidationHash(hash.ToV2())
+	var v2 refs.Checksum
+	hash.WriteToV2(&v2)
+
+	(*storagegroup.StorageGroup)(sg).SetValidationHash(&v2)
 }
 
 // ExpirationEpoch returns last NeoFS epoch number

@@ -18,7 +18,7 @@ func randSHA256(t *testing.T) [sha256.Size]byte {
 }
 
 func TestChecksum(t *testing.T) {
-	c := New()
+	var c Checksum
 
 	cSHA256 := [sha256.Size]byte{}
 	_, _ = rand.Read(cSHA256[:])
@@ -28,7 +28,8 @@ func TestChecksum(t *testing.T) {
 	require.Equal(t, SHA256, c.Type())
 	require.Equal(t, cSHA256[:], c.Sum())
 
-	cV2 := c.ToV2()
+	var cV2 refs.Checksum
+	c.WriteToV2(&cV2)
 
 	require.Equal(t, refs.SHA256, cV2.GetType())
 	require.Equal(t, cSHA256[:], cV2.GetSum())
@@ -41,58 +42,38 @@ func TestChecksum(t *testing.T) {
 	require.Equal(t, TZ, c.Type())
 	require.Equal(t, cTZ[:], c.Sum())
 
-	cV2 = c.ToV2()
+	c.WriteToV2(&cV2)
 
 	require.Equal(t, refs.TillichZemor, cV2.GetType())
 	require.Equal(t, cTZ[:], cV2.GetSum())
 }
 
 func TestEqualChecksums(t *testing.T) {
-	require.True(t, Equal(nil, nil))
+	require.True(t, Equal(&Checksum{}, &Checksum{}))
 
 	csSHA := [sha256.Size]byte{}
 	_, _ = rand.Read(csSHA[:])
 
-	cs1 := New()
+	var cs1 Checksum
 	cs1.SetSHA256(csSHA)
 
-	cs2 := New()
+	var cs2 Checksum
 	cs2.SetSHA256(csSHA)
 
-	require.True(t, Equal(cs1, cs2))
+	require.True(t, Equal(&cs1, &cs2))
 
 	csSHA[0]++
 	cs2.SetSHA256(csSHA)
 
-	require.False(t, Equal(cs1, cs2))
+	require.False(t, Equal(&cs1, &cs2))
 }
 
 func TestChecksumEncoding(t *testing.T) {
-	cs := New()
+	var cs Checksum
 	cs.SetSHA256(randSHA256(t))
 
-	t.Run("binary", func(t *testing.T) {
-		data, err := cs.Marshal()
-		require.NoError(t, err)
-
-		c2 := New()
-		require.NoError(t, c2.Unmarshal(data))
-
-		require.Equal(t, cs, c2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := cs.MarshalJSON()
-		require.NoError(t, err)
-
-		cs2 := New()
-		require.NoError(t, cs2.UnmarshalJSON(data))
-
-		require.Equal(t, cs, cs2)
-	})
-
 	t.Run("string", func(t *testing.T) {
-		cs2 := New()
+		var cs2 Checksum
 
 		require.NoError(t, cs2.Parse(cs.String()))
 
@@ -100,32 +81,17 @@ func TestChecksumEncoding(t *testing.T) {
 	})
 }
 
-func TestNewChecksumFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *refs.Checksum
-
-		require.Nil(t, NewFromV2(x))
-	})
-}
-
-func TestChecksum_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Checksum
-
-		require.Nil(t, x.ToV2())
-	})
-}
-
 func TestNewChecksum(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		chs := New()
+		var chs Checksum
 
 		// check initial values
 		require.Equal(t, Unknown, chs.Type())
 		require.Nil(t, chs.Sum())
 
 		// convert to v2 message
-		chsV2 := chs.ToV2()
+		var chsV2 refs.Checksum
+		chs.WriteToV2(&chsV2)
 
 		require.Equal(t, refs.UnknownChecksum, chsV2.GetType())
 		require.Nil(t, chsV2.GetSum())
@@ -133,7 +99,7 @@ func TestNewChecksum(t *testing.T) {
 }
 
 type enumIface interface {
-	FromString(string) bool
+	Parse(string) bool
 	String() string
 }
 
@@ -148,7 +114,7 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 
 		s := item.val.String()
 
-		require.True(t, e.FromString(s), s)
+		require.True(t, e.Parse(s), s)
 
 		require.EqualValues(t, item.val, e, item.val)
 	}
@@ -158,7 +124,7 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 		"some string",
 		"undefined",
 	} {
-		require.False(t, e.FromString(str))
+		require.False(t, e.Parse(str))
 	}
 }
 

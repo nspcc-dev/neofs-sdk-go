@@ -13,9 +13,9 @@ func Checksum() *checksum.Checksum {
 
 	rand.Read(cs[:])
 
-	x := checksum.New()
+	var x checksum.Checksum
 
 	x.SetSHA256(cs)
 
-	return x
+	return &x
 }
