@@ -1,6 +1,7 @@
 package object
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
@@ -20,10 +21,10 @@ var errIncorrectID = errors.New("incorrect object identifier")
 // CalculatePayloadChecksum calculates and returns checksum of
 // object payload bytes.
 func CalculatePayloadChecksum(payload []byte) *checksum.Checksum {
-	res := checksum.New()
-	res.SetSHA256(sha256.Sum256(payload))
+	var res checksum.Checksum
+	checksum.Calculate(&res, checksum.SHA256, payload)
 
-	return res
+	return &res
 }
 
 // CalculateAndSetPayloadChecksum calculates checksum of current
@@ -38,7 +39,7 @@ func CalculateAndSetPayloadChecksum(obj *Object) {
 // corresponds to its payload.
 func VerifyPayloadChecksum(obj *Object) error {
 	actual := CalculatePayloadChecksum(obj.Payload())
-	if !checksum.Equal(obj.PayloadChecksum(), actual) {
+	if !bytes.Equal(obj.PayloadChecksum().Value(), actual.Value()) {
 		return errCheckSumMismatch
 	}
 

@@ -198,33 +198,45 @@ func (o *Object) SetCreationEpoch(v uint64) {
 
 // PayloadChecksum returns checksum of the object payload.
 func (o *Object) PayloadChecksum() *checksum.Checksum {
-	return checksum.NewFromV2(
-		(*object.Object)(o).
+	var v checksum.Checksum
+	v.ReadFromV2(
+		*(*object.Object)(o).
 			GetHeader().
 			GetPayloadHash(),
 	)
+
+	return &v
 }
 
 // SetPayloadChecksum sets checksum of the object payload.
 func (o *Object) SetPayloadChecksum(v *checksum.Checksum) {
+	var v2 refs.Checksum
+	v.WriteToV2(&v2)
+
 	o.setHeaderField(func(h *object.Header) {
-		h.SetPayloadHash(v.ToV2())
+		h.SetPayloadHash(&v2)
 	})
 }
 
 // PayloadHomomorphicHash returns homomorphic hash of the object payload.
 func (o *Object) PayloadHomomorphicHash() *checksum.Checksum {
-	return checksum.NewFromV2(
-		(*object.Object)(o).
+	var v checksum.Checksum
+	v.ReadFromV2(
+		*(*object.Object)(o).
 			GetHeader().
 			GetHomomorphicHash(),
 	)
+
+	return &v
 }
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
 func (o *Object) SetPayloadHomomorphicHash(v *checksum.Checksum) {
+	var v2 refs.Checksum
+	v.WriteToV2(&v2)
+
 	o.setHeaderField(func(h *object.Header) {
-		h.SetHomomorphicHash(v.ToV2())
+		h.SetHomomorphicHash(&v2)
 	})
 }
 
