@@ -11,7 +11,7 @@ import (
 )
 
 func TestAddress_SetContainerID(t *testing.T) {
-	a := NewAddress()
+	var a Address
 
 	id := cidtest.ID()
 
@@ -21,7 +21,7 @@ func TestAddress_SetContainerID(t *testing.T) {
 }
 
 func TestAddress_SetObjectID(t *testing.T) {
-	a := NewAddress()
+	var a Address
 
 	oid := oidtest.ID()
 
@@ -37,7 +37,7 @@ func TestAddress_Parse(t *testing.T) {
 
 	t.Run("should parse successful", func(t *testing.T) {
 		s := strings.Join([]string{cid.String(), oid.String()}, addressSeparator)
-		a := NewAddress()
+		var a Address
 
 		require.NoError(t, a.Parse(s))
 		require.Equal(t, oid, a.ObjectID())
@@ -46,22 +46,22 @@ func TestAddress_Parse(t *testing.T) {
 
 	t.Run("should fail for bad address", func(t *testing.T) {
 		s := strings.Join([]string{cid.String()}, addressSeparator)
-		require.EqualError(t, NewAddress().Parse(s), errInvalidAddressString.Error())
+		require.EqualError(t, (&Address{}).Parse(s), errInvalidAddressString.Error())
 	})
 
 	t.Run("should fail on container.ID", func(t *testing.T) {
 		s := strings.Join([]string{"1", "2"}, addressSeparator)
-		require.Error(t, NewAddress().Parse(s))
+		require.Error(t, (&Address{}).Parse(s))
 	})
 
 	t.Run("should fail on object.ID", func(t *testing.T) {
 		s := strings.Join([]string{cid.String(), "2"}, addressSeparator)
-		require.Error(t, NewAddress().Parse(s))
+		require.Error(t, (&Address{}).Parse(s))
 	})
 }
 
 func TestAddressEncoding(t *testing.T) {
-	a := NewAddress()
+	var a Address
 	a.SetObjectID(oidtest.ID())
 	a.SetContainerID(cidtest.ID())
 
@@ -69,7 +69,7 @@ func TestAddressEncoding(t *testing.T) {
 		data, err := a.Marshal()
 		require.NoError(t, err)
 
-		a2 := NewAddress()
+		var a2 Address
 		require.NoError(t, a2.Unmarshal(data))
 
 		require.Equal(t, a, a2)
@@ -79,7 +79,7 @@ func TestAddressEncoding(t *testing.T) {
 		data, err := a.MarshalJSON()
 		require.NoError(t, err)
 
-		a2 := NewAddress()
+		var a2 Address
 		require.NoError(t, a2.UnmarshalJSON(data))
 
 		require.Equal(t, a, a2)
@@ -87,33 +87,41 @@ func TestAddressEncoding(t *testing.T) {
 }
 
 func TestNewAddressFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *refs.Address
+	t.Run("from zero V2", func(t *testing.T) {
+		var (
+			x  Address
+			v2 refs.Address
+		)
 
-		require.Nil(t, NewAddressFromV2(x))
+		x.ReadFromV2(v2)
+
+		require.Nil(t, x.ObjectID())
+		require.Nil(t, x.ContainerID())
+		require.Equal(t, "/", x.String())
 	})
 }
 
 func TestAddress_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Address
+	t.Run("zero to V2", func(t *testing.T) {
+		var (
+			x  Address
+			v2 refs.Address
+		)
 
-		require.Nil(t, x.ToV2())
+		x.WriteToV2(&v2)
+
+		require.Nil(t, v2.GetObjectID())
+		require.Nil(t, v2.GetContainerID())
 	})
 }
 
 func TestNewAddress(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		a := NewAddress()
+		var a Address
 
 		// check initial values
 		require.Nil(t, a.ContainerID())
 		require.Nil(t, a.ObjectID())
-
-		// convert to v2 message
-		aV2 := a.ToV2()
-
-		require.Nil(t, aV2.GetContainerID())
-		require.Nil(t, aV2.GetObjectID())
+		require.Equal(t, "/", a.String())
 	})
 }

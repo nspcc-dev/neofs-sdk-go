@@ -5,48 +5,61 @@ import (
 	"math/rand"
 	"testing"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
-var eqV2Matches = map[object.SearchMatchType]v2object.MatchType{
-	object.MatchUnknown:        v2object.MatchUnknown,
-	object.MatchStringEqual:    v2object.MatchStringEqual,
-	object.MatchStringNotEqual: v2object.MatchStringNotEqual,
-	object.MatchNotPresent:     v2object.MatchNotPresent,
-	object.MatchCommonPrefix:   v2object.MatchCommonPrefix,
+var eqV2Matches = map[object.SearchMatchType]objectv2.MatchType{
+	object.MatchUnknown:        objectv2.MatchUnknown,
+	object.MatchStringEqual:    objectv2.MatchStringEqual,
+	object.MatchStringNotEqual: objectv2.MatchStringNotEqual,
+	object.MatchNotPresent:     objectv2.MatchNotPresent,
+	object.MatchCommonPrefix:   objectv2.MatchCommonPrefix,
 }
 
 func TestMatch(t *testing.T) {
 	t.Run("known matches", func(t *testing.T) {
+		var (
+			x  object.SearchMatchType
+			v2 objectv2.MatchType
+		)
+
 		for matchType, matchTypeV2 := range eqV2Matches {
-			require.Equal(t, matchTypeV2, matchType.ToV2())
-			require.Equal(t, object.SearchMatchFromV2(matchTypeV2), matchType)
+			matchType.WriteToV2(&v2)
+			x.ReadFromV2(matchTypeV2)
+
+			require.Equal(t, matchTypeV2, v2)
+			require.Equal(t, x, matchType)
 		}
 	})
 
 	t.Run("unknown matches", func(t *testing.T) {
-		var unknownMatchType object.SearchMatchType
+		var (
+			unknownMatchType object.SearchMatchType
+			v2               objectv2.MatchType
+		)
 
 		for matchType := range eqV2Matches {
 			unknownMatchType += matchType
 		}
 
 		unknownMatchType++
+		unknownMatchType.WriteToV2(&v2)
 
-		require.Equal(t, unknownMatchType.ToV2(), v2object.MatchUnknown)
+		require.Equal(t, v2, objectv2.MatchUnknown)
 
-		var unknownMatchTypeV2 v2object.MatchType
+		var unknownMatchTypeV2 objectv2.MatchType
 
 		for _, matchTypeV2 := range eqV2Matches {
 			unknownMatchTypeV2 += matchTypeV2
 		}
 
 		unknownMatchTypeV2++
+		unknownMatchType.ReadFromV2(unknownMatchTypeV2)
 
-		require.Equal(t, object.SearchMatchFromV2(unknownMatchTypeV2), object.MatchUnknown)
+		require.Equal(t, unknownMatchType, object.MatchUnknown)
 	})
 }
 
@@ -55,7 +68,7 @@ func TestFilter(t *testing.T) {
 		{"user-header", "user-value"},
 	}
 
-	filters := object.NewSearchFilters()
+	var filters object.SearchFilters
 	for i := range inputs {
 		filters.AddFilter(inputs[i][0], inputs[i][1], object.MatchStringEqual)
 	}
@@ -67,8 +80,12 @@ func TestFilter(t *testing.T) {
 		require.Equal(t, object.MatchStringEqual, filters[i].Operation())
 	}
 
-	v2 := filters.ToV2()
-	newFilters := object.NewSearchFiltersFromV2(v2)
+	v2 := make([]objectv2.SearchFilter, 0, 0)
+	filters.WriteToV2(&v2)
+
+	var newFilters object.SearchFilters
+	newFilters.ReadFromV2(v2)
+
 	require.Equal(t, filters, newFilters)
 }
 
@@ -82,7 +99,7 @@ func TestSearchFilters_AddRootFilter(t *testing.T) {
 	f := (*fs)[0]
 
 	require.Equal(t, object.MatchUnknown, f.Operation())
-	require.Equal(t, v2object.FilterPropertyRoot, f.Header())
+	require.Equal(t, objectv2.FilterPropertyRoot, f.Header())
 	require.Equal(t, "", f.Value())
 }
 
@@ -96,7 +113,7 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 	f := (*fs)[0]
 
 	require.Equal(t, object.MatchUnknown, f.Operation())
-	require.Equal(t, v2object.FilterPropertyPhy, f.Header())
+	require.Equal(t, objectv2.FilterPropertyPhy, f.Header())
 	require.Equal(t, "", f.Value())
 }
 
@@ -105,10 +122,10 @@ func testOID() *oid.ID {
 
 	rand.Read(cs[:])
 
-	id := oid.NewID()
+	var id oid.ID
 	id.SetSHA256(cs)
 
-	return id
+	return &id
 }
 
 func TestSearchFilters_AddParentIDFilter(t *testing.T) {
@@ -117,13 +134,14 @@ func TestSearchFilters_AddParentIDFilter(t *testing.T) {
 	fs := object.SearchFilters{}
 	fs.AddParentIDFilter(object.MatchStringEqual, par)
 
-	fsV2 := fs.ToV2()
+	fsV2 := make([]objectv2.SearchFilter, 0, 0)
+	fs.WriteToV2(&fsV2)
 
 	require.Len(t, fsV2, 1)
 
-	require.Equal(t, v2object.FilterHeaderParent, fsV2[0].GetKey())
+	require.Equal(t, objectv2.FilterHeaderParent, fsV2[0].GetKey())
 	require.Equal(t, par.String(), fsV2[0].GetValue())
-	require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	require.Equal(t, objectv2.MatchStringEqual, fsV2[0].GetMatchType())
 }
 
 func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
@@ -133,13 +151,14 @@ func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
 	fs.AddObjectIDFilter(object.MatchStringEqual, id)
 
 	t.Run("v2", func(t *testing.T) {
-		fsV2 := fs.ToV2()
+		fsV2 := make([]objectv2.SearchFilter, 0, 0)
+		fs.WriteToV2(&fsV2)
 
 		require.Len(t, fsV2, 1)
 
-		require.Equal(t, v2object.FilterHeaderObjectID, fsV2[0].GetKey())
+		require.Equal(t, objectv2.FilterHeaderObjectID, fsV2[0].GetKey())
 		require.Equal(t, id.String(), fsV2[0].GetValue())
-		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+		require.Equal(t, objectv2.MatchStringEqual, fsV2[0].GetMatchType())
 	})
 }
 
@@ -150,13 +169,14 @@ func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
 	fs.AddSplitIDFilter(object.MatchStringEqual, id)
 
 	t.Run("v2", func(t *testing.T) {
-		fsV2 := fs.ToV2()
+		fsV2 := make([]objectv2.SearchFilter, 0, 0)
+		fs.WriteToV2(&fsV2)
 
 		require.Len(t, fsV2, 1)
 
-		require.Equal(t, v2object.FilterHeaderSplitID, fsV2[0].GetKey())
+		require.Equal(t, objectv2.FilterHeaderSplitID, fsV2[0].GetKey())
 		require.Equal(t, id.String(), fsV2[0].GetValue())
-		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+		require.Equal(t, objectv2.MatchStringEqual, fsV2[0].GetMatchType())
 	})
 }
 
@@ -167,30 +187,14 @@ func TestSearchFilters_AddTypeFilter(t *testing.T) {
 	fs.AddTypeFilter(object.MatchStringEqual, typ)
 
 	t.Run("v2", func(t *testing.T) {
-		fsV2 := fs.ToV2()
+		fsV2 := make([]objectv2.SearchFilter, 0, 0)
+		fs.WriteToV2(&fsV2)
 
 		require.Len(t, fsV2, 1)
 
-		require.Equal(t, v2object.FilterHeaderObjectType, fsV2[0].GetKey())
+		require.Equal(t, objectv2.FilterHeaderObjectType, fsV2[0].GetKey())
 		require.Equal(t, typ.String(), fsV2[0].GetValue())
-		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
-	})
-}
-
-func TestSearchFiltersEncoding(t *testing.T) {
-	fs := object.NewSearchFilters()
-	fs.AddFilter("key 1", "value 2", object.MatchStringEqual)
-	fs.AddFilter("key 2", "value 2", object.MatchStringNotEqual)
-	fs.AddFilter("key 2", "value 2", object.MatchCommonPrefix)
-
-	t.Run("json", func(t *testing.T) {
-		data, err := fs.MarshalJSON()
-		require.NoError(t, err)
-
-		fs2 := object.NewSearchFilters()
-		require.NoError(t, fs2.UnmarshalJSON(data))
-
-		require.Equal(t, fs, fs2)
+		require.Equal(t, objectv2.MatchStringEqual, fsV2[0].GetMatchType())
 	})
 }
 

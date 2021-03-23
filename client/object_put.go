@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -25,7 +25,7 @@ type PrmObjectPutInit struct{}
 type ResObjectPut struct {
 	statusRes
 
-	resp v2object.PutResponse
+	resp objectv2.PutResponse
 }
 
 // ReadStoredObjectID reads identifier of the saved object.
@@ -36,7 +36,7 @@ func (x *ResObjectPut) ReadStoredObjectID(id *oid.ID) bool {
 		return false
 	}
 
-	*id = *oid.NewIDFromV2(idv2) // need smth better
+	id.ReadFromV2(*idv2) // need smth better
 
 	return true
 }
@@ -54,11 +54,11 @@ type ObjectWriter struct {
 	metaHdr v2session.RequestMetaHeader
 
 	// initially bound to contextCall
-	partInit v2object.PutObjectPartInit
+	partInit objectv2.PutObjectPartInit
 
 	chunkCalled bool
 
-	partChunk v2object.PutObjectPartChunk
+	partChunk objectv2.PutObjectPartChunk
 }
 
 // UseKey specifies private key to sign the requests.
@@ -99,11 +99,12 @@ func (x *ObjectWriter) WithXHeaders(hs ...string) {
 // WriteHeader writes header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {
-	v2Hdr := hdr.ToV2()
+	var hdrV2 objectv2.Object
+	hdr.WriteToV2(&hdrV2)
 
-	x.partInit.SetObjectID(v2Hdr.GetObjectID())
-	x.partInit.SetHeader(v2Hdr.GetHeader())
-	x.partInit.SetSignature(v2Hdr.GetSignature())
+	x.partInit.SetObjectID(hdrV2.GetObjectID())
+	x.partInit.SetHeader(hdrV2.GetHeader())
+	x.partInit.SetSignature(hdrV2.GetSignature())
 
 	return x.ctxCall.writeRequest()
 }
@@ -113,7 +114,7 @@ func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {
 func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 	if !x.chunkCalled {
 		x.chunkCalled = true
-		x.ctxCall.req.(*v2object.PutRequest).GetBody().SetObjectPart(&x.partChunk)
+		x.ctxCall.req.(*objectv2.PutRequest).GetBody().SetObjectPart(&x.partChunk)
 	}
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
@@ -209,10 +210,10 @@ func (c *Client) ObjectPutInit(ctx context.Context, _ PrmObjectPutInit) (*Object
 	}
 
 	// form request body
-	var body v2object.PutRequestBody
+	var body objectv2.PutRequestBody
 
 	// form request
-	var req v2object.PutRequest
+	var req objectv2.PutRequest
 
 	req.SetBody(&body)
 

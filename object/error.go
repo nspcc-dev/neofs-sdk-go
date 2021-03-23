@@ -1,5 +1,7 @@
 package object
 
+// SplitInfoError is an error returned
+// on split object encounter.
 type SplitInfoError struct {
 	si *SplitInfo
 }
@@ -10,10 +12,13 @@ func (s *SplitInfoError) Error() string {
 	return splitInfoErrorMsg
 }
 
+// SplitInfo returns object SplitInfo.
 func (s *SplitInfoError) SplitInfo() *SplitInfo {
 	return s.si
 }
 
-func NewSplitInfoError(v *SplitInfo) *SplitInfoError {
+// NewSplitInfoError creates new SplitInfoError
+// with provided SplitInfo.
+func NewSplitInfoError(v *SplitInfo) error {
 	return &SplitInfoError{si: v}
 }

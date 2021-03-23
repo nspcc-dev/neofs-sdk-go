@@ -1,92 +1,135 @@
 package object
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// SearchMatchType indicates match operation on specified header.
+// SearchMatchType indicates match operation for selectable object properties.
+//
+// SearchMatchType is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/object.MatchType
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = SearchMatchType(object.MatchType{}) // not recommended
 type SearchMatchType uint32
 
 const (
+	// MatchUnknown is a default SearchMatchType.
 	MatchUnknown SearchMatchType = iota
+	// MatchStringEqual is a SearchMatchType for exact
+	// string matching.
 	MatchStringEqual
+	// MatchStringNotEqual is a SearchMatchType for
+	// string mismatching.
 	MatchStringNotEqual
+	// MatchNotPresent is a SearchMatchType for
+	// missing object headers.
 	MatchNotPresent
+	// MatchCommonPrefix is a SearchMatchType for
+	// matching object header prefixes.
 	MatchCommonPrefix
 )
 
-func (m SearchMatchType) ToV2() v2object.MatchType {
+// ReadFromV2 reads SearchMatchType from the object.MatchType message.
+//
+// See also WriteToV2.
+func (s *SearchMatchType) ReadFromV2(m objectv2.MatchType) {
 	switch m {
+	case objectv2.MatchStringEqual:
+		*s = MatchStringEqual
+	case objectv2.MatchStringNotEqual:
+		*s = MatchStringNotEqual
+	case objectv2.MatchNotPresent:
+		*s = MatchNotPresent
+	case objectv2.MatchCommonPrefix:
+		*s = MatchCommonPrefix
+	default:
+		*s = MatchUnknown
+	}
+}
+
+// WriteToV2 writes SearchMatchType to the object.MatchType message.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (s SearchMatchType) WriteToV2(m *objectv2.MatchType) {
+	switch s {
 	case MatchStringEqual:
-		return v2object.MatchStringEqual
+		*m = objectv2.MatchStringEqual
 	case MatchStringNotEqual:
-		return v2object.MatchStringNotEqual
+		*m = objectv2.MatchStringNotEqual
 	case MatchNotPresent:
-		return v2object.MatchNotPresent
+		*m = objectv2.MatchNotPresent
 	case MatchCommonPrefix:
-		return v2object.MatchCommonPrefix
+		*m = objectv2.MatchCommonPrefix
 	default:
-		return v2object.MatchUnknown
+		*m = objectv2.MatchUnknown
 	}
 }
 
-func SearchMatchFromV2(t v2object.MatchType) (m SearchMatchType) {
-	switch t {
-	case v2object.MatchStringEqual:
-		m = MatchStringEqual
-	case v2object.MatchStringNotEqual:
-		m = MatchStringNotEqual
-	case v2object.MatchNotPresent:
-		m = MatchNotPresent
-	case v2object.MatchCommonPrefix:
-		m = MatchCommonPrefix
-	default:
-		m = MatchUnknown
-	}
+// String implements fmt.Stringer interface method.
+func (s SearchMatchType) String() string {
+	var v2 objectv2.MatchType
+	s.WriteToV2(&v2)
 
-	return m
+	return v2.String()
 }
 
-// String returns string representation of SearchMatchType.
-//
-// String mapping:
-//  * MatchStringEqual: STRING_EQUAL;
-//  * MatchStringNotEqual: STRING_NOT_EQUAL;
-//  * MatchNotPresent: NOT_PRESENT;
-//  * MatchCommonPrefix: COMMON_PREFIX;
-//  * MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
-func (m SearchMatchType) String() string {
-	return m.ToV2().String()
-}
+// Parse is a reverse action to String().
+func (s *SearchMatchType) Parse(str string) bool {
+	var g objectv2.MatchType
 
-// FromString parses SearchMatchType from a string representation.
-// It is a reverse action to String().
-//
-// Returns true if s was parsed successfully.
-func (m *SearchMatchType) FromString(s string) bool {
-	var g v2object.MatchType
-
-	ok := g.FromString(s)
+	ok := g.FromString(str)
 
 	if ok {
-		*m = SearchMatchFromV2(g)
+
+		*s = (SearchMatchType)(g)
 	}
 
 	return ok
 }
 
+// SearchFilter groups information about
+// certain search filter:
+// 	* header key;
+// 	* search filter type;
+// 	* operand of the filter.
 type SearchFilter struct {
 	header filterKey
 	value  fmt.Stringer
 	op     SearchMatchType
+}
+
+// Header returns header that filter is
+// applied to.
+//
+// Zero SearchFilter has empty header.
+func (f SearchFilter) Header() string {
+	return f.header.String()
+}
+
+// Value returns filter's operand.
+//
+// Calling that method on zero SearchFilter
+// leads to panic.
+func (f SearchFilter) Value() string {
+	return f.value.String()
+}
+
+// Operation returns filter's match type.
+//
+// Zero SearchFilter has MatchUnknown search type.
+func (f SearchFilter) Operation() SearchMatchType {
+	return f.op
 }
 
 type staticStringer string
@@ -100,7 +143,43 @@ type filterKey struct {
 // enumeration of reserved filter keys.
 type filterKeyType int
 
+// SearchFilters groups search filters.
 type SearchFilters []SearchFilter
+
+// ReadFromV2 reads SearchFilters from the []object.SearchFilter messages.
+//
+// See also WriteToV2.
+func (f *SearchFilters) ReadFromV2(v2 []objectv2.SearchFilter) {
+	*f = make(SearchFilters, 0, len(v2))
+
+	var smt SearchMatchType
+
+	for i := range v2 {
+		smt.ReadFromV2(v2[i].GetMatchType())
+		f.AddFilter(
+			v2[i].GetKey(),
+			v2[i].GetValue(),
+			smt,
+		)
+	}
+}
+
+// WriteToV2 writes SearchFilters to the []object.SearchFilter messages.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (f SearchFilters) WriteToV2(v2 *[]objectv2.SearchFilter) {
+	*v2 = make([]objectv2.SearchFilter, len(f))
+	var mtv2 objectv2.MatchType
+
+	for i := range f {
+		f[i].op.WriteToV2(&mtv2)
+
+		(*v2)[i].SetKey(f[i].header.String())
+		(*v2)[i].SetValue(f[i].value.String())
+		(*v2)[i].SetMatchType(mtv2)
+	}
+}
 
 const (
 	_ filterKeyType = iota
@@ -119,143 +198,80 @@ const (
 	fKeyPropPhy
 )
 
+// String implements fmt.Stringer interface method.// String implements fmt.Stringer interface method.
 func (k filterKey) String() string {
 	switch k.typ {
 	default:
 		return k.str
 	case fKeyVersion:
-		return v2object.FilterHeaderVersion
+		return objectv2.FilterHeaderVersion
 	case fKeyObjectID:
-		return v2object.FilterHeaderObjectID
+		return objectv2.FilterHeaderObjectID
 	case fKeyContainerID:
-		return v2object.FilterHeaderContainerID
+		return objectv2.FilterHeaderContainerID
 	case fKeyOwnerID:
-		return v2object.FilterHeaderOwnerID
+		return objectv2.FilterHeaderOwnerID
 	case fKeyCreationEpoch:
-		return v2object.FilterHeaderCreationEpoch
+		return objectv2.FilterHeaderCreationEpoch
 	case fKeyPayloadLength:
-		return v2object.FilterHeaderPayloadLength
+		return objectv2.FilterHeaderPayloadLength
 	case fKeyPayloadHash:
-		return v2object.FilterHeaderPayloadHash
+		return objectv2.FilterHeaderPayloadHash
 	case fKeyType:
-		return v2object.FilterHeaderObjectType
+		return objectv2.FilterHeaderObjectType
 	case fKeyHomomorphicHash:
-		return v2object.FilterHeaderHomomorphicHash
+		return objectv2.FilterHeaderHomomorphicHash
 	case fKeyParent:
-		return v2object.FilterHeaderParent
+		return objectv2.FilterHeaderParent
 	case fKeySplitID:
-		return v2object.FilterHeaderSplitID
+		return objectv2.FilterHeaderSplitID
 	case fKeyPropRoot:
-		return v2object.FilterPropertyRoot
+		return objectv2.FilterPropertyRoot
 	case fKeyPropPhy:
-		return v2object.FilterPropertyPhy
+		return objectv2.FilterPropertyPhy
 	}
 }
 
+// String implements fmt.Stringer interface method.
 func (s staticStringer) String() string {
 	return string(s)
 }
 
-func (f *SearchFilter) Header() string {
-	return f.header.String()
-}
-
-func (f *SearchFilter) Value() string {
-	return f.value.String()
-}
-
-func (f *SearchFilter) Operation() SearchMatchType {
-	return f.op
-}
-
-func NewSearchFilters() SearchFilters {
-	return SearchFilters{}
-}
-
-func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
-	filters := make(SearchFilters, 0, len(v2))
-
-	for i := range v2 {
-		filters.AddFilter(
-			v2[i].GetKey(),
-			v2[i].GetValue(),
-			SearchMatchFromV2(v2[i].GetMatchType()),
-		)
-	}
-
-	return filters
-}
-
-func (f *SearchFilters) addFilter(op SearchMatchType, keyTyp filterKeyType, key string, val fmt.Stringer) {
-	if *f == nil {
-		*f = make(SearchFilters, 0, 1)
-	}
-
-	*f = append(*f, SearchFilter{
-		header: filterKey{
-			typ: keyTyp,
-			str: key,
-		},
-		value: val,
-		op:    op,
-	})
-}
-
+// AddFilter appends SearchFilters with the provided search operation.
 func (f *SearchFilters) AddFilter(header, value string, op SearchMatchType) {
 	f.addFilter(op, 0, header, staticStringer(value))
 }
 
-func (f *SearchFilters) addReservedFilter(op SearchMatchType, keyTyp filterKeyType, val fmt.Stringer) {
-	f.addFilter(op, keyTyp, "", val)
-}
-
-// addFlagFilters adds filters that works like flags: they don't need to have
-// specific match type or value. They processed by NeoFS nodes by the fact
-// of presence in search query. E.g.: PHY, ROOT.
-func (f *SearchFilters) addFlagFilter(keyTyp filterKeyType) {
-	f.addFilter(MatchUnknown, keyTyp, "", staticStringer(""))
-}
-
+// AddObjectVersionFilter appends SearchFilters with object version
+// search filter.
 func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v *version.Version) {
 	f.addReservedFilter(op, fKeyVersion, v)
 }
 
+// AddObjectContainerIDFilter appends SearchFilters with container ID
+// search filter.
 func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id *cid.ID) {
 	f.addReservedFilter(m, fKeyContainerID, id)
 }
 
+// AddObjectOwnerIDFilter appends SearchFilters with owner ID
+// search filter.
 func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id *owner.ID) {
 	f.addReservedFilter(m, fKeyOwnerID, id)
 }
 
+// AddNotificationEpochFilter appends SearchFilters with a filter
+// that matches object notification epoch tick with provided value.
 func (f *SearchFilters) AddNotificationEpochFilter(epoch uint64) {
-	f.addFilter(MatchStringEqual, 0, v2object.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
+	f.addFilter(MatchStringEqual, 0, objectv2.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
 }
 
-func (f SearchFilters) ToV2() []v2object.SearchFilter {
-	result := make([]v2object.SearchFilter, len(f))
-
-	for i := range f {
-		result[i].SetKey(f[i].header.String())
-		result[i].SetValue(f[i].value.String())
-		result[i].SetMatchType(f[i].op.ToV2())
-	}
-
-	return result
-}
-
-func (f *SearchFilters) addRootFilter() {
-	f.addFlagFilter(fKeyPropRoot)
-}
-
+// AddRootFilter appends SearchFilters with ROOT flag.
 func (f *SearchFilters) AddRootFilter() {
 	f.addRootFilter()
 }
 
-func (f *SearchFilters) addPhyFilter() {
-	f.addFlagFilter(fKeyPropPhy)
-}
-
+// AddPhyFilter appends SearchFilters with PHY flag.
 func (f *SearchFilters) AddPhyFilter() {
 	f.addPhyFilter()
 }
@@ -279,20 +295,36 @@ func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
 	f.addReservedFilter(m, fKeyType, typ)
 }
 
-// MarshalJSON encodes SearchFilters to protobuf JSON format.
-func (f *SearchFilters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(f.ToV2())
+func (f *SearchFilters) addReservedFilter(op SearchMatchType, keyTyp filterKeyType, val fmt.Stringer) {
+	f.addFilter(op, keyTyp, "", val)
 }
 
-// UnmarshalJSON decodes SearchFilters from protobuf JSON format.
-func (f *SearchFilters) UnmarshalJSON(data []byte) error {
-	var fsV2 []v2object.SearchFilter
+// addFlagFilters adds filters that works like flags: they don't need to have
+// specific match type or value. They processed by NeoFS nodes by the fact
+// of presence in search query. E.g.: PHY, ROOT.
+func (f *SearchFilters) addFlagFilter(keyTyp filterKeyType) {
+	f.addFilter(MatchUnknown, keyTyp, "", staticStringer(""))
+}
 
-	if err := json.Unmarshal(data, &fsV2); err != nil {
-		return err
+func (f *SearchFilters) addPhyFilter() {
+	f.addFlagFilter(fKeyPropPhy)
+}
+
+func (f *SearchFilters) addRootFilter() {
+	f.addFlagFilter(fKeyPropRoot)
+}
+
+func (f *SearchFilters) addFilter(op SearchMatchType, keyTyp filterKeyType, key string, val fmt.Stringer) {
+	if *f == nil {
+		*f = make(SearchFilters, 0, 1)
 	}
 
-	*f = NewSearchFiltersFromV2(fsV2)
-
-	return nil
+	*f = append(*f, SearchFilter{
+		header: filterKey{
+			typ: keyTyp,
+			str: key,
+		},
+		value: val,
+		op:    op,
+	})
 }

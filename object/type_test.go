@@ -3,7 +3,7 @@ package object_test
 import (
 	"testing"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/stretchr/testify/require"
 )
@@ -11,32 +11,37 @@ import (
 func TestType_ToV2(t *testing.T) {
 	typs := []struct {
 		t  object.Type
-		t2 v2object.Type
+		t2 objectv2.Type
 	}{
 		{
 			t:  object.TypeRegular,
-			t2: v2object.TypeRegular,
+			t2: objectv2.TypeRegular,
 		},
 		{
 			t:  object.TypeTombstone,
-			t2: v2object.TypeTombstone,
+			t2: objectv2.TypeTombstone,
 		},
 		{
 			t:  object.TypeStorageGroup,
-			t2: v2object.TypeStorageGroup,
+			t2: objectv2.TypeStorageGroup,
 		},
 		{
 			t:  object.TypeLock,
-			t2: v2object.TypeLock,
+			t2: objectv2.TypeLock,
 		},
 	}
 
+	var t2 objectv2.Type
+
 	for _, item := range typs {
-		t2 := item.t.ToV2()
+		item.t.WriteToV2(&t2)
 
 		require.Equal(t, item.t2, t2)
 
-		require.Equal(t, item.t, object.TypeFromV2(item.t2))
+		var newItem object.Type
+		newItem.ReadFromV2(item.t2)
+
+		require.Equal(t, item.t, newItem)
 	}
 }
 
@@ -54,7 +59,7 @@ func TestType_String(t *testing.T) {
 }
 
 type enumIface interface {
-	FromString(string) bool
+	Parse(string) bool
 	String() string
 }
 
@@ -69,7 +74,7 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 
 		s := item.val.String()
 
-		require.True(t, e.FromString(s), s)
+		require.True(t, e.Parse(s), s)
 
 		require.EqualValues(t, item.val, e, item.val)
 	}
@@ -79,6 +84,6 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 		"some string",
 		"undefined",
 	} {
-		require.False(t, e.FromString(str))
+		require.False(t, e.Parse(str))
 	}
 }

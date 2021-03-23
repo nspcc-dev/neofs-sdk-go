@@ -129,8 +129,11 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 		read = len(buf)
 	}
 
+	var id oid.ID
+
 	for i := 0; i < read; i++ {
-		buf[i] = *oid.NewIDFromV2(&x.tail[i]) // need smth better
+		id.ReadFromV2(x.tail[i])
+		buf[i] = id // need smth better
 	}
 
 	x.tail = x.tail[read:]
@@ -163,8 +166,11 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			ln = rem
 		}
 
+		var loopID oid.ID
+
 		for i = 0; i < ln; i++ {
-			buf[read+i] = *oid.NewIDFromV2(&ids[i]) // need smth better
+			loopID.ReadFromV2(ids[i])
+			buf[read+i] = loopID // need smth better
 		}
 
 		read += ln
@@ -243,11 +249,16 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	}
 
 	// form request body
-	var body v2object.SearchRequestBody
+	var (
+		body v2object.SearchRequestBody
+		ffV2 []v2object.SearchFilter
+	)
+
+	prm.filters.WriteToV2(&ffV2)
 
 	body.SetVersion(1)
 	body.SetContainerID(prm.cnr.ToV2())
-	body.SetFilters(prm.filters.ToV2())
+	body.SetFilters(ffV2)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader

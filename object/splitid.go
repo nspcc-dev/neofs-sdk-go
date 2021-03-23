@@ -19,11 +19,11 @@ func NewSplitID() *SplitID {
 	}
 }
 
-// NewSplitIDFromV2 returns parsed UUID from bytes.
+// NewSplitIDFromBytes returns parsed UUID from bytes.
 // If v is invalid UUIDv4 byte sequence, then function returns nil.
 //
 // Nil converts to nil.
-func NewSplitIDFromV2(v []byte) *SplitID {
+func NewSplitIDFromBytes(v []byte) *SplitID {
 	if v == nil {
 		return nil
 	}
@@ -40,7 +40,7 @@ func NewSplitIDFromV2(v []byte) *SplitID {
 	}
 }
 
-// Parse converts UUIDv4 string representation into SplitID.
+// Parse is a reverse action to String().
 func (id *SplitID) Parse(s string) (err error) {
 	id.uuid, err = uuid.Parse(s)
 	if err != nil {
@@ -50,7 +50,7 @@ func (id *SplitID) Parse(s string) (err error) {
 	return nil
 }
 
-// String returns UUIDv4 string representation of SplitID.
+// String implements fmt.Stringer interface method.
 func (id *SplitID) String() string {
 	if id == nil {
 		return ""
@@ -66,10 +66,10 @@ func (id *SplitID) SetUUID(v uuid.UUID) {
 	}
 }
 
-// ToV2 converts SplitID to a representation of SplitID in neofs-api v2.
+// ToBytes converts SplitID to a representation of SplitID in neofs-api v2.
 //
 // Nil SplitID converts to nil.
-func (id *SplitID) ToV2() []byte {
+func (id *SplitID) ToBytes() []byte {
 	if id == nil {
 		return nil
 	}

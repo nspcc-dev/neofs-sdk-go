@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"io"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -38,7 +38,7 @@ type prmObjectRead struct {
 	cnr    cid.ID
 
 	objSet bool
-	obj    oid.ID
+	objID  oid.ID
 }
 
 func (x prmObjectRead) writeToMetaHeader(h *v2session.RequestMetaHeader) {
@@ -98,7 +98,7 @@ func (x *prmObjectRead) FromContainer(id cid.ID) {
 // ByID specifies identifier of the requested object.
 // Required parameter.
 func (x *prmObjectRead) ByID(id oid.ID) {
-	x.obj = id
+	x.objID = id
 	x.objSet = true
 }
 
@@ -122,7 +122,7 @@ type ObjectReader struct {
 	ctxCall contextCall
 
 	// initially bound to contextCall
-	bodyResp v2object.GetResponseBody
+	bodyResp objectv2.GetResponseBody
 
 	tailPayload []byte
 
@@ -135,8 +135,11 @@ func (x *ObjectReader) UseKey(key ecdsa.PrivateKey) {
 	x.ctxCall.key = key
 }
 
-func handleSplitInfo(ctx *contextCall, i *v2object.SplitInfo) {
-	ctx.err = object.NewSplitInfoError(object.NewSplitInfoFromV2(i))
+func handleSplitInfo(ctx *contextCall, i *objectv2.SplitInfo) {
+	var si object.SplitInfo
+	si.ReadFromV2(*i)
+
+	ctx.err = object.NewSplitInfoError(&si)
 }
 
 // ReadHeader reads header of the object. Result means success.
@@ -146,20 +149,20 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 		return false
 	}
 
-	var partInit *v2object.GetObjectPartInit
+	var partInit *objectv2.GetObjectPartInit
 
 	switch v := x.bodyResp.GetObjectPart().(type) {
 	default:
 		x.ctxCall.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
 		return false
-	case *v2object.SplitInfo:
+	case *objectv2.SplitInfo:
 		handleSplitInfo(&x.ctxCall, v)
 		return false
-	case *v2object.GetObjectPartInit:
+	case *objectv2.GetObjectPartInit:
 		partInit = v
 	}
 
-	var objv2 v2object.Object
+	var objv2 objectv2.Object
 
 	objv2.SetObjectID(partInit.GetObjectID())
 	objv2.SetHeader(partInit.GetHeader())
@@ -167,7 +170,7 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 
 	x.remainingPayloadLen = int(objv2.GetHeader().GetPayloadLength())
 
-	*dst = *object.NewFromV2(&objv2) // need smth better
+	dst.ReadFromV2(objv2) // need smth better
 
 	return true
 }
@@ -185,7 +188,7 @@ func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
 	}
 
 	var ok bool
-	var part v2object.GetObjectPart
+	var part objectv2.GetObjectPart
 	var chunk []byte
 	var lastRead int
 
@@ -199,9 +202,9 @@ func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
 		// get chunk part message
 		part = x.bodyResp.GetObjectPart()
 
-		var partChunk *v2object.GetObjectPartChunk
+		var partChunk *objectv2.GetObjectPartChunk
 
-		partChunk, ok = part.(*v2object.GetObjectPartChunk)
+		partChunk, ok = part.(*objectv2.GetObjectPartChunk)
 		if !ok {
 			x.ctxCall.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
 			return read, false
@@ -315,13 +318,18 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 		panic("missing object")
 	}
 
-	var addr v2refs.Address
+	var (
+		addr v2refs.Address
+		idV2 v2refs.ObjectID
+	)
+
+	prm.objID.WriteToV2(&idV2)
 
 	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(prm.obj.ToV2())
+	addr.SetObjectID(&idV2)
 
 	// form request body
-	var body v2object.GetRequestBody
+	var body objectv2.GetRequestBody
 
 	body.SetRaw(prm.raw)
 	body.SetAddress(&addr)
@@ -332,7 +340,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	prm.prmObjectRead.writeToMetaHeader(&meta)
 
 	// form request
-	var req v2object.GetRequest
+	var req objectv2.GetRequest
 
 	req.SetBody(&body)
 	req.SetMetaHeader(&meta)
@@ -340,7 +348,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	// init reader
 	var (
 		r      ObjectReader
-		resp   v2object.GetResponse
+		resp   objectv2.GetResponse
 		stream *rpcapi.GetResponseReader
 	)
 
@@ -392,7 +400,7 @@ type ResObjectHead struct {
 	// requested object (response doesn't carry the ID)
 	idObj oid.ID
 
-	hdr *v2object.HeaderWithSignature
+	hdr *objectv2.HeaderWithSignature
 }
 
 // ReadHeader reads header of the requested object.
@@ -402,15 +410,18 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 		return false
 	}
 
-	var objv2 v2object.Object
+	var (
+		objv2 objectv2.Object
+		obj   object.Object
+	)
 
 	objv2.SetHeader(x.hdr.GetHeader())
 	objv2.SetSignature(x.hdr.GetSignature())
 
-	obj := object.NewFromV2(&objv2)
+	obj.ReadFromV2(objv2)
 	obj.SetID(&x.idObj)
 
-	*dst = *obj
+	*dst = obj
 
 	return true
 }
@@ -446,16 +457,21 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		panic("missing object")
 	}
 
-	var addr v2refs.Address
+	var (
+		addrV2 v2refs.Address
+		idV2   v2refs.ObjectID
+	)
 
-	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(prm.obj.ToV2())
+	prm.objID.WriteToV2(&idV2)
+
+	addrV2.SetContainerID(prm.cnr.ToV2())
+	addrV2.SetObjectID(&idV2)
 
 	// form request body
-	var body v2object.HeadRequestBody
+	var body objectv2.HeadRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
+	body.SetAddress(&addrV2)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -463,7 +479,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	prm.prmObjectRead.writeToMetaHeader(&meta)
 
 	// form request
-	var req v2object.HeadRequest
+	var req objectv2.HeadRequest
 
 	req.SetBody(&body)
 	req.SetMetaHeader(&meta)
@@ -475,7 +491,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		res ResObjectHead
 	)
 
-	res.idObj = prm.obj
+	res.idObj = prm.objID
 
 	if prm.keySet {
 		c.initCallContextWithoutKey(&cc)
@@ -490,12 +506,12 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		return rpcapi.HeadObject(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
-		switch v := r.(*v2object.HeadResponse).GetBody().GetHeaderPart().(type) {
+		switch v := r.(*objectv2.HeadResponse).GetBody().GetHeaderPart().(type) {
 		default:
 			cc.err = fmt.Errorf("unexpected header type %T", v)
-		case *v2object.SplitInfo:
+		case *objectv2.SplitInfo:
 			handleSplitInfo(&cc, v)
-		case *v2object.HeaderWithSignature:
+		case *objectv2.HeaderWithSignature:
 			res.hdr = v
 		}
 	}
@@ -545,7 +561,7 @@ type ObjectRangeReader struct {
 	reqWritten bool
 
 	// initially bound to contextCall
-	bodyResp v2object.GetRangeResponseBody
+	bodyResp objectv2.GetRangeResponseBody
 
 	tailPayload []byte
 
@@ -579,7 +595,7 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 	}
 
 	var ok bool
-	var partChunk *v2object.GetRangePartChunk
+	var partChunk *objectv2.GetRangePartChunk
 	var chunk []byte
 	var lastRead int
 
@@ -595,10 +611,10 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 		default:
 			x.ctxCall.err = fmt.Errorf("unexpected message received: %T", v)
 			return read, false
-		case *v2object.SplitInfo:
+		case *objectv2.SplitInfo:
 			handleSplitInfo(&x.ctxCall, v)
 			return read, false
-		case *v2object.GetRangePartChunk:
+		case *objectv2.GetRangePartChunk:
 			partChunk = v
 		}
 
@@ -712,21 +728,26 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		panic("zero range length")
 	}
 
-	var addr v2refs.Address
+	var (
+		addrV2 v2refs.Address
+		idV2   v2refs.ObjectID
+	)
 
-	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(prm.obj.ToV2())
+	prm.objID.WriteToV2(&idV2)
 
-	var rng v2object.Range
+	addrV2.SetContainerID(prm.cnr.ToV2())
+	addrV2.SetObjectID(&idV2)
+
+	var rng objectv2.Range
 
 	rng.SetOffset(prm.off)
 	rng.SetLength(prm.ln)
 
 	// form request body
-	var body v2object.GetRangeRequestBody
+	var body objectv2.GetRangeRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
+	body.SetAddress(&addrV2)
 	body.SetRange(&rng)
 
 	// form meta header
@@ -735,7 +756,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	prm.prmObjectRead.writeToMetaHeader(&meta)
 
 	// form request
-	var req v2object.GetRangeRequest
+	var req objectv2.GetRangeRequest
 
 	req.SetBody(&body)
 	req.SetMetaHeader(&meta)
@@ -743,7 +764,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	// init reader
 	var (
 		r      ObjectRangeReader
-		resp   v2object.GetRangeResponse
+		resp   objectv2.GetRangeResponse
 		stream *rpcapi.ObjectRangeResponseReader
 	)
 

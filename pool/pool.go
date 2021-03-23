@@ -1558,7 +1558,7 @@ func sessionTokenForOwner(id *owner.ID, cliRes *sdkClient.ResSessionCreate) *ses
 }
 
 func newAddressFromCnrID(cnrID *cid.ID) *address.Address {
-	addr := address.NewAddress()
+	var addr address.Address
 	addr.SetContainerID(cnrID)
-	return addr
+	return &addr
 }

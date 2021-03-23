@@ -16,8 +16,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func newOID() *oid.ID {
+	return &oid.ID{}
+}
+
+func newObj() Object {
+	return Object{}
+}
+
 func randID(t *testing.T) *oid.ID {
-	id := oid.NewID()
+	id := newOID()
 	id.SetSHA256(randSHA256Checksum(t))
 
 	return id
@@ -38,7 +46,7 @@ func randTZChecksum(t *testing.T) (cs [64]byte) {
 }
 
 func TestObject_SetID(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	id := randID(t)
 
@@ -48,7 +56,7 @@ func TestObject_SetID(t *testing.T) {
 }
 
 func TestObject_SetSignature(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	sig := signature.New()
 	sig.SetKey([]byte{1, 2, 3})
@@ -60,7 +68,7 @@ func TestObject_SetSignature(t *testing.T) {
 }
 
 func TestObject_SetPayload(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	payload := make([]byte, 10)
 	_, _ = rand.Read(payload)
@@ -71,7 +79,7 @@ func TestObject_SetPayload(t *testing.T) {
 }
 
 func TestObject_SetVersion(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	ver := version.New()
 	ver.SetMajor(1)
@@ -83,7 +91,7 @@ func TestObject_SetVersion(t *testing.T) {
 }
 
 func TestObject_SetPayloadSize(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	sz := uint64(133)
 	obj.SetPayloadSize(sz)
@@ -92,7 +100,7 @@ func TestObject_SetPayloadSize(t *testing.T) {
 }
 
 func TestObject_SetContainerID(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	cid := cidtest.ID()
 
@@ -102,7 +110,7 @@ func TestObject_SetContainerID(t *testing.T) {
 }
 
 func TestObject_SetOwnerID(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	ownerID := ownertest.ID()
 
@@ -112,7 +120,7 @@ func TestObject_SetOwnerID(t *testing.T) {
 }
 
 func TestObject_SetCreationEpoch(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	creat := uint64(228)
 	obj.SetCreationEpoch(creat)
@@ -121,7 +129,7 @@ func TestObject_SetCreationEpoch(t *testing.T) {
 }
 
 func TestObject_SetPayloadChecksum(t *testing.T) {
-	obj := New()
+	obj := newObj()
 	var cs checksum.Checksum
 	cs.SetSHA256(randSHA256Checksum(t))
 
@@ -131,7 +139,7 @@ func TestObject_SetPayloadChecksum(t *testing.T) {
 }
 
 func TestObject_SetPayloadHomomorphicHash(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	var cs checksum.Checksum
 	cs.SetTillichZemor(randTZChecksum(t))
@@ -142,23 +150,27 @@ func TestObject_SetPayloadHomomorphicHash(t *testing.T) {
 }
 
 func TestObject_SetAttributes(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
-	a1 := NewAttribute()
+	var aa Attributes
+
+	var a1 Attribute
 	a1.SetKey("key1")
 	a1.SetValue("val1")
 
-	a2 := NewAttribute()
+	var a2 Attribute
 	a2.SetKey("key2")
 	a2.SetValue("val2")
 
-	obj.SetAttributes(*a1, *a2)
+	aa.Append(a1, a2)
 
-	require.Equal(t, []Attribute{*a1, *a2}, obj.Attributes())
+	obj.SetAttributes(aa)
+
+	require.Equal(t, Attributes{a1, a2}, obj.Attributes())
 }
 
 func TestObject_SetPreviousID(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	prev := randID(t)
 
@@ -168,7 +180,7 @@ func TestObject_SetPreviousID(t *testing.T) {
 }
 
 func TestObject_SetChildren(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	id1 := randID(t)
 	id2 := randID(t)
@@ -179,7 +191,7 @@ func TestObject_SetChildren(t *testing.T) {
 }
 
 func TestObject_SetSplitID(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	require.Nil(t, obj.SplitID())
 
@@ -190,31 +202,35 @@ func TestObject_SetSplitID(t *testing.T) {
 }
 
 func TestObject_SetParent(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	require.Nil(t, obj.Parent())
 
-	par := New()
+	par := newObj()
 	par.SetID(randID(t))
 	par.SetContainerID(cidtest.ID())
 	par.SetSignature(signature.New())
 
-	obj.SetParent(par)
+	obj.SetParent(&par)
 
-	require.Equal(t, par, obj.Parent())
+	require.Equal(t, par, *obj.Parent())
 }
 
 func TestObject_ToV2(t *testing.T) {
 	objV2 := new(object.Object)
 	objV2.SetPayload([]byte{1, 2, 3})
 
-	obj := NewFromV2(objV2)
+	var obj Object
+	obj.ReadFromV2(*objV2)
 
-	require.Equal(t, objV2, obj.ToV2())
+	objV2New := new(object.Object)
+	obj.WriteToV2(objV2New)
+
+	require.Equal(t, objV2, objV2New)
 }
 
 func TestObject_SetSessionToken(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	tok := sessiontest.Token()
 
@@ -224,7 +240,7 @@ func TestObject_SetSessionToken(t *testing.T) {
 }
 
 func TestObject_SetType(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	typ := TypeStorageGroup
 
@@ -234,7 +250,7 @@ func TestObject_SetType(t *testing.T) {
 }
 
 func TestObject_CutPayload(t *testing.T) {
-	o1 := New()
+	o1 := newObj()
 
 	p1 := []byte{12, 3}
 	o1.SetPayload(p1)
@@ -261,7 +277,7 @@ func TestObject_CutPayload(t *testing.T) {
 }
 
 func TestObject_SetParentID(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	id := randID(t)
 	obj.SetParentID(id)
@@ -270,7 +286,7 @@ func TestObject_SetParentID(t *testing.T) {
 }
 
 func TestObject_ResetRelations(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	obj.SetPreviousID(randID(t))
 
@@ -280,7 +296,7 @@ func TestObject_ResetRelations(t *testing.T) {
 }
 
 func TestObject_HasParent(t *testing.T) {
-	obj := New()
+	obj := newObj()
 
 	obj.InitRelations()
 
@@ -289,29 +305,4 @@ func TestObject_HasParent(t *testing.T) {
 	obj.ResetRelations()
 
 	require.False(t, obj.HasParent())
-}
-
-func TestObjectEncoding(t *testing.T) {
-	o := New()
-	o.SetID(randID(t))
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := o.Marshal()
-		require.NoError(t, err)
-
-		o2 := New()
-		require.NoError(t, o2.Unmarshal(data))
-
-		require.Equal(t, o, o2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := o.MarshalJSON()
-		require.NoError(t, err)
-
-		o2 := New()
-		require.NoError(t, o2.UnmarshalJSON(data))
-
-		require.Equal(t, o, o2)
-	})
 }

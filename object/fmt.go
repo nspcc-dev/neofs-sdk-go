@@ -6,6 +6,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -47,15 +49,18 @@ func VerifyPayloadChecksum(obj *Object) error {
 
 // CalculateID calculates identifier for the object.
 func CalculateID(obj *Object) (*oid.ID, error) {
-	data, err := obj.ToV2().GetHeader().StableMarshal(nil)
+	var v2 object.Object
+	obj.WriteToV2(&v2)
+
+	data, err := v2.GetHeader().StableMarshal(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	id := oid.NewID()
+	var id oid.ID
 	id.SetSHA256(sha256.Sum256(data))
 
-	return id, nil
+	return &id, nil
 }
 
 // CalculateAndSetID calculates identifier for the object
@@ -79,21 +84,29 @@ func VerifyID(obj *Object) error {
 		return err
 	}
 
-	if !id.Equal(obj.ID()) {
+	if !id.Equals(obj.ID()) {
 		return errIncorrectID
 	}
 
 	return nil
 }
 
+// CalculateIDSignature signs object id with provided key.
 func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signature, error) {
-	return sigutil.SignData(
-		key,
+	var idV2 refs.ObjectID
+	id.WriteToV2(&idV2)
+
+	sign, err := sigutil.SignData(key,
 		signatureV2.StableMarshalerWrapper{
-			SM: id.ToV2(),
-		})
+			SM: &idV2,
+		},
+	)
+
+	return sign, err
 }
 
+// CalculateAndSetSignature signs id with provided key and sets that signature to
+// the object.
 func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
 	sig, err := CalculateIDSignature(key, obj.ID())
 	if err != nil {
@@ -105,13 +118,19 @@ func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
 	return nil
 }
 
-func VerifyIDSignature(obj *Object) error {
-	return sigutil.VerifyData(
+// VerifyIDSignature verifies object ID signature.
+func VerifyIDSignature(obj *Object) bool {
+	var idV2 refs.ObjectID
+	obj.ID().WriteToV2(&idV2)
+
+	err := sigutil.VerifyData(
 		signatureV2.StableMarshalerWrapper{
-			SM: obj.ID().ToV2(),
+			SM: &idV2,
 		},
 		obj.Signature(),
 	)
+
+	return err == nil
 }
 
 // SetIDWithSignature sets object identifier and signature.
@@ -147,10 +166,12 @@ func CheckVerificationFields(obj *Object) error {
 	return nil
 }
 
+var errInvalidSignature = errors.New("invalid signature")
+
 // CheckHeaderVerificationFields checks all verification fields except payload.
 func CheckHeaderVerificationFields(obj *Object) error {
-	if err := VerifyIDSignature(obj); err != nil {
-		return fmt.Errorf("invalid signature: %w", err)
+	if !VerifyIDSignature(obj) {
+		return errInvalidSignature
 	}
 
 	if err := VerifyID(obj); err != nil {

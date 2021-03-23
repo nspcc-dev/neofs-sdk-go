@@ -15,7 +15,7 @@ func generateIDList(sz int) []oid.ID {
 	cs := [sha256.Size]byte{}
 
 	for i := 0; i < sz; i++ {
-		res[i] = *oid.NewID()
+		res[i] = oid.ID{}
 		rand.Read(cs[:])
 		res[i].SetSHA256(cs)
 	}
@@ -24,7 +24,7 @@ func generateIDList(sz int) []oid.ID {
 }
 
 func TestTombstone(t *testing.T) {
-	ts := NewTombstone()
+	var ts Tombstone
 
 	exp := uint64(13)
 	ts.SetExpirationEpoch(exp)
@@ -40,7 +40,7 @@ func TestTombstone(t *testing.T) {
 }
 
 func TestTombstoneEncoding(t *testing.T) {
-	ts := NewTombstone()
+	var ts Tombstone
 	ts.SetExpirationEpoch(13)
 	ts.SetSplitID(NewSplitID())
 	ts.SetMembers(generateIDList(5))
@@ -49,7 +49,7 @@ func TestTombstoneEncoding(t *testing.T) {
 		data, err := ts.Marshal()
 		require.NoError(t, err)
 
-		ts2 := NewTombstone()
+		var ts2 Tombstone
 		require.NoError(t, ts2.Unmarshal(data))
 
 		require.Equal(t, ts, ts2)
@@ -59,7 +59,7 @@ func TestTombstoneEncoding(t *testing.T) {
 		data, err := ts.MarshalJSON()
 		require.NoError(t, err)
 
-		ts2 := NewTombstone()
+		var ts2 Tombstone
 		require.NoError(t, ts2.UnmarshalJSON(data))
 
 		require.Equal(t, ts, ts2)
@@ -67,27 +67,27 @@ func TestTombstoneEncoding(t *testing.T) {
 }
 
 func TestNewTombstoneFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *tombstone.Tombstone
+	t.Run("from zero V2", func(t *testing.T) {
+		var (
+			v2 tombstone.Tombstone
+			x  Tombstone
+		)
 
-		require.Nil(t, NewTombstoneFromV2(x))
+		x.ReadFromV2(v2)
+
+		require.Nil(t, x.SplitID())
+		require.Nil(t, x.Members())
+		require.Zero(t, x.ExpirationEpoch())
 	})
 }
 
 func TestNewTombstone(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		ts := NewTombstone()
+		var ts Tombstone
 
 		// check initial values
 		require.Nil(t, ts.SplitID())
 		require.Nil(t, ts.Members())
 		require.Zero(t, ts.ExpirationEpoch())
-
-		// convert to v2 message
-		tsV2 := ts.ToV2()
-
-		require.Nil(t, tsV2.GetSplitID())
-		require.Nil(t, tsV2.GetMembers())
-		require.Zero(t, tsV2.GetExpirationEpoch())
 	})
 }

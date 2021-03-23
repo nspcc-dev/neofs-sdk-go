@@ -15,22 +15,22 @@ import (
 
 // Range returns random object.Range.
 func Range() *object.Range {
-	x := object.NewRange()
+	var x object.Range
 
 	x.SetOffset(1024)
 	x.SetLength(2048)
 
-	return x
+	return &x
 }
 
 // Attribute returns random object.Attribute.
 func Attribute() *object.Attribute {
-	x := object.NewAttribute()
+	var x object.Attribute
 
 	x.SetKey("key")
 	x.SetValue("value")
 
-	return x
+	return &x
 }
 
 // SplitID returns random object.SplitID.
@@ -43,7 +43,7 @@ func SplitID() *object.SplitID {
 }
 
 func generate(withParent bool) *object.Object {
-	x := object.New()
+	var x object.Object
 
 	x.SetID(oidtest.ID())
 	x.SetSessionToken(sessiontest.Token())
@@ -57,7 +57,7 @@ func generate(withParent bool) *object.Object {
 	x.SetPreviousID(oidtest.ID())
 	x.SetParentID(oidtest.ID())
 	x.SetChildren(*oidtest.ID(), *oidtest.ID())
-	x.SetAttributes(*Attribute(), *Attribute())
+	x.SetAttributes(object.Attributes{*Attribute(), *Attribute()})
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
 	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
@@ -67,7 +67,7 @@ func generate(withParent bool) *object.Object {
 		x.SetParent(generate(false))
 	}
 
-	return x
+	return &x
 }
 
 // Raw returns random object.Object.
@@ -83,29 +83,29 @@ func Object() *object.Object {
 
 // Tombstone returns random object.Tombstone.
 func Tombstone() *object.Tombstone {
-	x := object.NewTombstone()
+	var x object.Tombstone
 
 	x.SetSplitID(SplitID())
 	x.SetExpirationEpoch(13)
 	x.SetMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
 
-	return x
+	return &x
 }
 
 // SplitInfo returns random object.SplitInfo.
 func SplitInfo() *object.SplitInfo {
-	x := object.NewSplitInfo()
+	var x object.SplitInfo
 
 	x.SetSplitID(SplitID())
 	x.SetLink(oidtest.ID())
 	x.SetLastPart(oidtest.ID())
 
-	return x
+	return &x
 }
 
 // SearchFilters returns random object.SearchFilters.
 func SearchFilters() object.SearchFilters {
-	x := object.NewSearchFilters()
+	var x object.SearchFilters
 
 	x.AddObjectIDFilter(object.MatchStringEqual, oidtest.ID())
 	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.ID())

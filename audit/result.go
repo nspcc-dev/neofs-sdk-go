@@ -2,6 +2,7 @@ package audit
 
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/audit"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -171,8 +172,12 @@ func (r *Result) SetRetriesPoR(v uint32) {
 func (r Result) IteratePassedStorageGroups(f func(oid.ID) bool) {
 	r2 := r.v2.GetPassSG()
 
+	var id oid.ID
+
 	for i := range r2 {
-		if !f(*oid.NewIDFromV2(&r2[i])) {
+		id.ReadFromV2(r2[i])
+
+		if !f(id) {
 			return
 		}
 	}
@@ -183,7 +188,10 @@ func (r Result) IteratePassedStorageGroups(f func(oid.ID) bool) {
 //
 // See also IteratePassedStorageGroups.
 func (r *Result) SubmitPassedStorageGroup(sg oid.ID) {
-	r.v2.SetPassSG(append(r.v2.GetPassSG(), *sg.ToV2()))
+	var idV2 refs.ObjectID
+	sg.WriteToV2(&idV2)
+
+	r.v2.SetPassSG(append(r.v2.GetPassSG(), idV2))
 }
 
 // IterateFailedStorageGroups is similar to IteratePassedStorageGroups but for failed groups.
@@ -191,9 +199,11 @@ func (r *Result) SubmitPassedStorageGroup(sg oid.ID) {
 // See also SubmitFailedStorageGroup.
 func (r Result) IterateFailedStorageGroups(f func(oid.ID) bool) {
 	v := r.v2.GetFailSG()
+	var id oid.ID
 
 	for i := range v {
-		if !f(*oid.NewIDFromV2(&v[i])) {
+		id.ReadFromV2(v[i])
+		if !f(id) {
 			return
 		}
 	}
@@ -203,7 +213,10 @@ func (r Result) IterateFailedStorageGroups(f func(oid.ID) bool) {
 //
 // See also IterateFailedStorageGroups.
 func (r *Result) SubmitFailedStorageGroup(sg oid.ID) {
-	r.v2.SetFailSG(append(r.v2.GetFailSG(), *sg.ToV2()))
+	var idV2 refs.ObjectID
+	sg.WriteToV2(&idV2)
+
+	r.v2.SetFailSG(append(r.v2.GetFailSG(), idV2))
 }
 
 // Hits returns number of sampled objects under audit placed

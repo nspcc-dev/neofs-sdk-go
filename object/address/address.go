@@ -10,6 +10,14 @@ import (
 )
 
 // Address represents v2-compatible object address.
+//
+// Address is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Address
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Address(refs.Address{}) // not recommended
 type Address refs.Address
 
 var errInvalidAddressString = errors.New("incorrect format of the string object address")
@@ -19,58 +27,95 @@ const (
 	addressSeparator = "/"
 )
 
-// NewAddressFromV2 converts v2 Address message to Address.
+// ReadFromV2 reads Address from the refs.Address message.
 //
-// Nil refs.Address converts to nil.
-func NewAddressFromV2(aV2 *refs.Address) *Address {
-	return (*Address)(aV2)
+// See also WriteToV2.
+func (a *Address) ReadFromV2(m refs.Address) {
+	*a = Address(m)
 }
 
-// NewAddress creates and initializes blank Address.
+// WriteToV2 writes Address to the refs.Address message.
+// The message must not be nil.
 //
-// Works similar as NewAddressFromV2(new(Address)).
-//
-// Defaults:
-// 	- cid: nil;
-//	- oid: nil.
-func NewAddress() *Address {
-	return NewAddressFromV2(new(refs.Address))
-}
-
-// ToV2 converts Address to v2 Address message.
-//
-// Nil Address converts to nil.
-func (a *Address) ToV2() *refs.Address {
-	return (*refs.Address)(a)
+// See also ReadFromV2.
+func (a Address) WriteToV2(m *refs.Address) {
+	*m = (refs.Address)(a)
 }
 
 // ContainerID returns container identifier.
-func (a *Address) ContainerID() *cid.ID {
-	return cid.NewFromV2(
-		(*refs.Address)(a).GetContainerID())
+//
+// Zero Address has nil container ID.
+//
+// See also SetContainerID.
+func (a Address) ContainerID() *cid.ID {
+	v2 := (refs.Address)(a)
+	return cid.NewFromV2(v2.GetContainerID())
 }
 
 // SetContainerID sets container identifier.
+// Container ID must not be nil.
+//
+// See also ContainerID.
 func (a *Address) SetContainerID(id *cid.ID) {
 	(*refs.Address)(a).SetContainerID(id.ToV2())
 }
 
 // ObjectID returns object identifier.
-func (a *Address) ObjectID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*refs.Address)(a).GetObjectID())
+//
+// Zero Address has nil object ID.
+//
+// See also SetObjectID.
+func (a Address) ObjectID() *oid.ID {
+	v2 := (refs.Address)(a)
+
+	oidV2 := v2.GetObjectID()
+	if oidV2 == nil {
+		return nil
+	}
+
+	var id oid.ID
+	id.ReadFromV2(*oidV2)
+
+	return &id
 }
 
 // SetObjectID sets object identifier.
+// Object ID must not be nil.
+//
+// See also ObjectID.
 func (a *Address) SetObjectID(id *oid.ID) {
-	(*refs.Address)(a).SetObjectID(id.ToV2())
+	var idV2 refs.ObjectID
+	id.WriteToV2(&idV2)
+
+	(*refs.Address)(a).SetObjectID(&idV2)
 }
 
-// Parse converts base58 string representation into Address.
+// String implements fmt.Stringer interface method.
+func (a Address) String() string {
+	var (
+		stringCID string
+		stringOID string
+	)
+
+	if cID := a.ContainerID(); cID != nil {
+		stringCID = cID.String()
+	}
+
+	if oID := a.ObjectID(); oID != nil {
+		stringOID = oID.String()
+	}
+
+	return strings.Join([]string{
+		stringCID,
+		stringOID,
+	}, addressSeparator)
+}
+
+// Parse is a reverse action to String().
 func (a *Address) Parse(s string) error {
 	var (
 		err   error
-		oid   = oid.NewID()
+		oid   oid.ID
 		id    = cid.New()
 		parts = strings.Split(s, addressSeparator)
 	)
@@ -83,23 +128,16 @@ func (a *Address) Parse(s string) error {
 		return err
 	}
 
-	a.SetObjectID(oid)
+	a.SetObjectID(&oid)
 	a.SetContainerID(id)
 
 	return nil
 }
 
-// String returns string representation of Object.Address.
-func (a *Address) String() string {
-	return strings.Join([]string{
-		a.ContainerID().String(),
-		a.ObjectID().String(),
-	}, addressSeparator)
-}
-
 // Marshal marshals Address into a protobuf binary form.
-func (a *Address) Marshal() ([]byte, error) {
-	return (*refs.Address)(a).StableMarshal(nil)
+func (a Address) Marshal() ([]byte, error) {
+	v2 := (refs.Address)(a)
+	return v2.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Address.
@@ -108,8 +146,9 @@ func (a *Address) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Address to protobuf JSON format.
-func (a *Address) MarshalJSON() ([]byte, error) {
-	return (*refs.Address)(a).MarshalJSON()
+func (a Address) MarshalJSON() ([]byte, error) {
+	v2 := (refs.Address)(a)
+	return v2.MarshalJSON()
 }
 
 // UnmarshalJSON decodes Address from protobuf JSON format.

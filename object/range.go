@@ -5,47 +5,61 @@ import (
 )
 
 // Range represents v2-compatible object payload range.
+//
+// Range is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/object.Range
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Range(object.Range{}) // not recommended
 type Range object.Range
 
-// NewRangeFromV2 wraps v2 Range message to Range.
+// ReadFromV2 reads Range from the object.Range message.
 //
-// Nil object.Range converts to nil.
-func NewRangeFromV2(rV2 *object.Range) *Range {
-	return (*Range)(rV2)
+// See also WriteToV2.
+func (r *Range) ReadFromV2(m object.Range) {
+	*r = Range(m)
 }
 
-// NewRange creates and initializes blank Range.
+// WriteToV2 writes Range to the object.Range message.
+// The message must not be nil.
 //
-// Defaults:
-//  - offset: 0;
-//  - length: 0.
-func NewRange() *Range {
-	return NewRangeFromV2(new(object.Range))
+// See also ReadFromV2.
+func (r Range) WriteToV2(m *object.Range) {
+	*m = (object.Range)(r)
 }
 
-// ToV2 converts Range to v2 Range message.
+// Length returns payload range size.
 //
-// Nil Range converts to nil.
-func (r *Range) ToV2() *object.Range {
-	return (*object.Range)(r)
-}
-
-// GetLength returns payload range size.
-func (r *Range) GetLength() uint64 {
-	return (*object.Range)(r).GetLength()
+// Zero Range has 0 length.
+//
+// See also SetLength.
+func (r Range) Length() uint64 {
+	v2 := (object.Range)(r)
+	return v2.GetLength()
 }
 
 // SetLength sets payload range size.
+//
+// See also Length.
 func (r *Range) SetLength(v uint64) {
 	(*object.Range)(r).SetLength(v)
 }
 
-// GetOffset sets payload range offset from start.
-func (r *Range) GetOffset() uint64 {
-	return (*object.Range)(r).GetOffset()
+// Offset sets payload range offset from start.
+//
+// Zero Range has 0 offset.
+//
+// See also SetOffset.
+func (r Range) Offset() uint64 {
+	v2 := (object.Range)(r)
+	return v2.GetOffset()
 }
 
 // SetOffset gets payload range offset from start.
+//
+// See also Offset.
 func (r *Range) SetOffset(v uint64) {
 	(*object.Range)(r).SetOffset(v)
 }

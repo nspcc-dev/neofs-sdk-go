@@ -176,8 +176,11 @@ func testListReaderResponse(t *testing.T) (*ObjectListReader, func(id []oid.ID) 
 		resp.SetBody(new(object.SearchResponseBody))
 
 		v2id := make([]refs.ObjectID, len(id))
+		var idV2 refs.ObjectID
+
 		for i := range id {
-			v2id[i] = *id[i].ToV2()
+			id[i].WriteToV2(&idV2)
+			v2id[i] = idV2
 		}
 		resp.GetBody().SetIDList(v2id)
 		err := signatureV2.SignServiceMessage(&p.PrivateKey, resp)

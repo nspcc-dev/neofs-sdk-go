@@ -1,4 +1,4 @@
-package address
+package addresstest
 
 import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -8,10 +8,10 @@ import (
 
 // Address returns random object.Address.
 func Address() *address.Address {
-	x := address.NewAddress()
+	var x address.Address
 
 	x.SetContainerID(cidtest.ID())
 	x.SetObjectID(oidtest.ID())
 
-	return x
+	return &x
 }

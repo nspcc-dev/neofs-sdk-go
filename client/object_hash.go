@@ -3,7 +3,7 @@ package client
 import (
 	"context"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -18,7 +18,7 @@ import (
 type PrmObjectHash struct {
 	meta v2session.RequestMetaHeader
 
-	body v2object.GetRangeHashRequestBody
+	body objectv2.GetRangeHashRequestBody
 
 	tillichZemor bool
 
@@ -58,7 +58,10 @@ func (x *PrmObjectHash) FromContainer(id cid.ID) {
 // ByID specifies identifier of the requested object.
 // Required parameter.
 func (x *PrmObjectHash) ByID(id oid.ID) {
-	x.addr.SetObjectID(id.ToV2())
+	var idV2 v2refs.ObjectID
+	id.WriteToV2(&idV2)
+
+	x.addr.SetObjectID(&idV2)
 }
 
 // SetRangeList sets list of ranges in (offset, length) pair format.
@@ -71,7 +74,7 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 		panic("odd number of range parameters")
 	}
 
-	rs := make([]v2object.Range, ln/2)
+	rs := make([]objectv2.Range, ln/2)
 
 	for i := 0; i < ln/2; i++ {
 		rs[i].SetOffset(r[2*i])
@@ -164,7 +167,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	}
 
 	// form request
-	var req v2object.GetRangeHashRequest
+	var req objectv2.GetRangeHashRequest
 	req.SetBody(&prm.body)
 	req.SetMetaHeader(&prm.meta)
 
@@ -181,7 +184,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 		return rpcapi.HashObjectRange(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
-		res.checksums = r.(*v2object.GetRangeHashResponse).GetBody().GetHashList()
+		res.checksums = r.(*objectv2.GetRangeHashResponse).GetBody().GetHashList()
 	}
 
 	// process call

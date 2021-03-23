@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func randID(t *testing.T) *ID {
-	id := NewID()
+func randID(t *testing.T) ID {
+	var id ID
 	id.SetSHA256(randSHA256Checksum(t))
 
 	return id
@@ -26,7 +26,7 @@ func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
 }
 
 func TestIDV2(t *testing.T) {
-	id := NewID()
+	var id ID
 
 	checksum := [sha256.Size]byte{}
 
@@ -35,7 +35,8 @@ func TestIDV2(t *testing.T) {
 
 	id.SetSHA256(checksum)
 
-	idV2 := id.ToV2()
+	var idV2 refs.ObjectID
+	id.WriteToV2(&idV2)
 
 	require.Equal(t, checksum[:], idV2.GetValue())
 }
@@ -43,17 +44,17 @@ func TestIDV2(t *testing.T) {
 func TestID_Equal(t *testing.T) {
 	cs := randSHA256Checksum(t)
 
-	id1 := NewID()
+	var id1 ID
 	id1.SetSHA256(cs)
 
-	id2 := NewID()
+	var id2 ID
 	id2.SetSHA256(cs)
 
-	id3 := NewID()
+	var id3 ID
 	id3.SetSHA256(randSHA256Checksum(t))
 
-	require.True(t, id1.Equal(id2))
-	require.False(t, id1.Equal(id3))
+	require.True(t, id1.Equals(&id2))
+	require.False(t, id1.Equals(&id3))
 }
 
 func TestID_Parse(t *testing.T) {
@@ -62,10 +63,14 @@ func TestID_Parse(t *testing.T) {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				cs := randSHA256Checksum(t)
 				str := base58.Encode(cs[:])
-				oid := NewID()
+				var oid ID
 
 				require.NoError(t, oid.Parse(str))
-				require.Equal(t, cs[:], oid.ToV2().GetValue())
+
+				var oidV2 refs.ObjectID
+				oid.WriteToV2(&oidV2)
+
+				require.Equal(t, cs[:], oidV2.GetValue())
 			})
 		}
 	})
@@ -76,7 +81,7 @@ func TestID_Parse(t *testing.T) {
 			t.Run(strconv.Itoa(j), func(t *testing.T) {
 				cs := []byte{1, 2, 3, 4, 5, byte(j)}
 				str := base58.Encode(cs)
-				oid := NewID()
+				var oid ID
 
 				require.Error(t, oid.Parse(str))
 			})
@@ -86,7 +91,7 @@ func TestID_Parse(t *testing.T) {
 
 func TestID_String(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
-		id := NewID()
+		var id ID
 		require.Empty(t, id.String())
 	})
 
@@ -95,7 +100,7 @@ func TestID_String(t *testing.T) {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				cs := randSHA256Checksum(t)
 				str := base58.Encode(cs[:])
-				oid := NewID()
+				var oid ID
 
 				require.NoError(t, oid.Parse(str))
 				require.Equal(t, str, oid.String())
@@ -111,7 +116,7 @@ func TestObjectIDEncoding(t *testing.T) {
 		data, err := id.Marshal()
 		require.NoError(t, err)
 
-		id2 := NewID()
+		var id2 ID
 		require.NoError(t, id2.Unmarshal(data))
 
 		require.Equal(t, id, id2)
@@ -121,7 +126,7 @@ func TestObjectIDEncoding(t *testing.T) {
 		data, err := id.MarshalJSON()
 		require.NoError(t, err)
 
-		a2 := NewID()
+		var a2 ID
 		require.NoError(t, a2.UnmarshalJSON(data))
 
 		require.Equal(t, id, a2)
@@ -129,28 +134,27 @@ func TestObjectIDEncoding(t *testing.T) {
 }
 
 func TestNewIDFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *refs.ObjectID
+	t.Run("from zero", func(t *testing.T) {
+		var (
+			x  ID
+			v2 refs.ObjectID
+		)
 
-		require.Nil(t, NewIDFromV2(x))
+		x.ReadFromV2(v2)
+
+		require.Empty(t, x.String())
 	})
 }
 
 func TestID_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *ID
+	t.Run("zero to v2", func(t *testing.T) {
+		var (
+			x  ID
+			v2 refs.ObjectID
+		)
 
-		require.Nil(t, x.ToV2())
-	})
-}
+		x.WriteToV2(&v2)
 
-func TestNewID(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		id := NewID()
-
-		// convert to v2 message
-		idV2 := id.ToV2()
-
-		require.Nil(t, idV2.GetValue())
+		require.Nil(t, v2.GetValue())
 	})
 }

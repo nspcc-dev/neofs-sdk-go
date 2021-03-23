@@ -1,6 +1,8 @@
 package object
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -12,13 +14,18 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Object represents in-memory structure of the NeoFS object.
-// Type is compatible with NeoFS API V2 protocol.
+// Object represents in-memory descriptor of the NeoFS object.
+//
+// Object is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/object.Object
+// message. See ReadFromV2 / WriteToV2 methods.
+//
 //
 // Instance can be created depending on scenario:
 //   * InitCreation (an object to be placed in container);
-//   * New (blank instance, usually needed for decoding);
-//   * NewFromV2 (when working under NeoFS API V2 protocol).
+//   * var declaration (blank instance, usually needed for decoding).
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Object(object.Object{}) // not recommended
 type Object object.Object
 
 // RequiredFields contains the minimum set of object data that must be set
@@ -38,27 +45,19 @@ func InitCreation(dst *Object, rf RequiredFields) {
 	dst.SetOwnerID(&rf.Owner)
 }
 
-// NewFromV2 wraps v2 Object message to Object.
-func NewFromV2(oV2 *object.Object) *Object {
-	return (*Object)(oV2)
-}
-
-// New creates and initializes blank Object.
+// ReadFromV2 reads Object from the object.Object message.
 //
-// Works similar as NewFromV2(new(Object)).
-func New() *Object {
-	return NewFromV2(new(object.Object))
+// See also WriteToV2.
+func (o *Object) ReadFromV2(m object.Object) {
+	*o = Object(m)
 }
 
-// ToV2 converts Object to v2 Object message.
-func (o *Object) ToV2() *object.Object {
-	return (*object.Object)(o)
-}
-
-// MarshalHeaderJSON marshals object's header
-// into JSON format.
-func (o *Object) MarshalHeaderJSON() ([]byte, error) {
-	return (*object.Object)(o).GetHeader().MarshalJSON()
+// WriteToV2 writes Object to the object.Object message.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (o Object) WriteToV2(m *object.Object) {
+	*m = (object.Object)(o)
 }
 
 func (o *Object) setHeaderField(setter func(*object.Header)) {
@@ -86,50 +85,84 @@ func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
 }
 
 // ID returns object identifier.
-func (o *Object) ID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.Object)(o).
-			GetObjectID(),
-	)
+//
+// Zero Object has nil ID.
+//
+// See also SetID.
+func (o Object) ID() *oid.ID {
+	var v oid.ID
+
+	v2 := (object.Object)(o)
+	v.ReadFromV2(*v2.GetObjectID())
+
+	return &v
 }
 
-// SetID sets object identifier.
+// SetID sets object identifier. ID must not be nil.
+//
+// See also ID.
 func (o *Object) SetID(v *oid.ID) {
+	var v2 refs.ObjectID
+	v.WriteToV2(&v2)
+
 	(*object.Object)(o).
-		SetObjectID(v.ToV2())
+		SetObjectID(&v2)
 }
 
 // Signature returns signature of the object identifier.
-func (o *Object) Signature() *signature.Signature {
+//
+// Zero Object has nil Signature.
+//
+// See also SetSignature.
+func (o Object) Signature() *signature.Signature {
+	v2 := (object.Object)(o)
 	return signature.NewFromV2(
-		(*object.Object)(o).GetSignature())
+		v2.GetSignature())
 }
 
 // SetSignature sets signature of the object identifier.
+// Signature must not be nil.
+//
+// See also Signature.
 func (o *Object) SetSignature(v *signature.Signature) {
 	(*object.Object)(o).SetSignature(v.ToV2())
 }
 
 // Payload returns payload bytes.
-func (o *Object) Payload() []byte {
-	return (*object.Object)(o).GetPayload()
+//
+// Zero Object has nil payload.
+//
+// See also SetPayload.
+func (o Object) Payload() []byte {
+	v2 := (object.Object)(o)
+	return v2.GetPayload()
 }
 
 // SetPayload sets payload bytes.
+//
+// See also Payload.
 func (o *Object) SetPayload(v []byte) {
 	(*object.Object)(o).SetPayload(v)
 }
 
 // Version returns version of the object.
-func (o *Object) Version() *version.Version {
+//
+// Zero Object has nil version.
+//
+// See also SetVersion.
+func (o Object) Version() *version.Version {
+	v2 := (object.Object)(o)
 	return version.NewFromV2(
-		(*object.Object)(o).
+		v2.
 			GetHeader().
 			GetVersion(),
 	)
 }
 
 // SetVersion sets version of the object.
+// Version must not be nil.
+//
+// See also Version.
 func (o *Object) SetVersion(v *version.Version) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetVersion(v.ToV2())
@@ -137,13 +170,18 @@ func (o *Object) SetVersion(v *version.Version) {
 }
 
 // PayloadSize returns payload length of the object.
-func (o *Object) PayloadSize() uint64 {
-	return (*object.Object)(o).
-		GetHeader().
-		GetPayloadLength()
+//
+// Zero Object has 0 payload size.
+//
+// See also SetPayloadSize.
+func (o Object) PayloadSize() uint64 {
+	v2 := (object.Object)(o)
+	return v2.GetHeader().GetPayloadLength()
 }
 
 // SetPayloadSize sets payload length of the object.
+//
+// See also PayloadSize.
 func (o *Object) SetPayloadSize(v uint64) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetPayloadLength(v)
@@ -151,15 +189,23 @@ func (o *Object) SetPayloadSize(v uint64) {
 }
 
 // ContainerID returns identifier of the related container.
-func (o *Object) ContainerID() *cid.ID {
-	return cid.NewFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetContainerID(),
+//
+// Zero Object has nil ID.
+//
+// See also SetContainerID.
+func (o Object) ContainerID() *cid.ID {
+	v2 := (object.Object)(o)
+
+	return cid.NewFromV2(v2.
+		GetHeader().
+		GetContainerID(),
 	)
 }
 
 // SetContainerID sets identifier of the related container.
+// Container ID must not be nil.
+//
+// See also ContainerID.
 func (o *Object) SetContainerID(v *cid.ID) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetContainerID(v.ToV2())
@@ -167,15 +213,23 @@ func (o *Object) SetContainerID(v *cid.ID) {
 }
 
 // OwnerID returns identifier of the object owner.
-func (o *Object) OwnerID() *owner.ID {
+//
+// Zero Object has nil ID.
+//
+// See also SetOwnerID.
+func (o Object) OwnerID() *owner.ID {
+	v2 := (object.Object)(o)
 	return owner.NewIDFromV2(
-		(*object.Object)(o).
+		v2.
 			GetHeader().
 			GetOwnerID(),
 	)
 }
 
 // SetOwnerID sets identifier of the object owner.
+// Owner ID must not be nil.
+//
+// See also OwnerID.
 func (o *Object) SetOwnerID(v *owner.ID) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetOwnerID(v.ToV2())
@@ -183,13 +237,20 @@ func (o *Object) SetOwnerID(v *owner.ID) {
 }
 
 // CreationEpoch returns epoch number in which object was created.
-func (o *Object) CreationEpoch() uint64 {
-	return (*object.Object)(o).
+//
+// Zero Object has 0 creation epoch.
+//
+// See also SetCreationEpoch.
+func (o Object) CreationEpoch() uint64 {
+	v2 := (object.Object)(o)
+	return v2.
 		GetHeader().
 		GetCreationEpoch()
 }
 
 // SetCreationEpoch sets epoch number in which object was created.
+//
+// See also CreationEpoch.
 func (o *Object) SetCreationEpoch(v uint64) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetCreationEpoch(v)
@@ -197,10 +258,16 @@ func (o *Object) SetCreationEpoch(v uint64) {
 }
 
 // PayloadChecksum returns checksum of the object payload.
-func (o *Object) PayloadChecksum() *checksum.Checksum {
+//
+// Zero Object has zero checksum.
+//
+// See also SetPayloadChecksum.
+func (o Object) PayloadChecksum() *checksum.Checksum {
 	var v checksum.Checksum
+	v2 := (object.Object)(o)
+
 	v.ReadFromV2(
-		*(*object.Object)(o).
+		*v2.
 			GetHeader().
 			GetPayloadHash(),
 	)
@@ -209,6 +276,9 @@ func (o *Object) PayloadChecksum() *checksum.Checksum {
 }
 
 // SetPayloadChecksum sets checksum of the object payload.
+// Checksum must not be nil.
+//
+// See also PayloadChecksum.
 func (o *Object) SetPayloadChecksum(v *checksum.Checksum) {
 	var v2 refs.Checksum
 	v.WriteToV2(&v2)
@@ -219,10 +289,16 @@ func (o *Object) SetPayloadChecksum(v *checksum.Checksum) {
 }
 
 // PayloadHomomorphicHash returns homomorphic hash of the object payload.
-func (o *Object) PayloadHomomorphicHash() *checksum.Checksum {
+//
+// Zero Object has zero checksum.
+//
+// See also SetPayloadHomomorphicHash.
+func (o Object) PayloadHomomorphicHash() *checksum.Checksum {
 	var v checksum.Checksum
+	v2 := (object.Object)(o)
+
 	v.ReadFromV2(
-		*(*object.Object)(o).
+		*v2.
 			GetHeader().
 			GetHomomorphicHash(),
 	)
@@ -231,6 +307,9 @@ func (o *Object) PayloadHomomorphicHash() *checksum.Checksum {
 }
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
+// Checksum must not be nil.
+//
+// See also PayloadHomomorphicHash.
 func (o *Object) SetPayloadHomomorphicHash(v *checksum.Checksum) {
 	var v2 refs.Checksum
 	v.WriteToV2(&v2)
@@ -241,26 +320,38 @@ func (o *Object) SetPayloadHomomorphicHash(v *checksum.Checksum) {
 }
 
 // Attributes returns object attributes.
-func (o *Object) Attributes() []Attribute {
-	attrs := (*object.Object)(o).
-		GetHeader().
-		GetAttributes()
+//
+// Zero Object has empty Attribute slice.
+//
+// See also SetAttributes.
+func (o Object) Attributes() Attributes {
+	v2 := (object.Object)(o)
+	attrsV2 := v2.GetHeader().GetAttributes()
 
-	res := make([]Attribute, len(attrs))
+	var (
+		res  = make(Attributes, len(attrsV2))
+		attr Attribute
+	)
 
-	for i := range attrs {
-		res[i] = *NewAttributeFromV2(&attrs[i])
+	for i := range attrsV2 {
+		attr.ReadFromV2(attrsV2[i])
+		res[i] = attr
 	}
 
 	return res
 }
 
 // SetAttributes sets object attributes.
-func (o *Object) SetAttributes(v ...Attribute) {
+//
+// See also Attributes.
+func (o *Object) SetAttributes(v Attributes) {
 	attrs := make([]object.Attribute, len(v))
 
+	var attrV2 object.Attribute
+
 	for i := range v {
-		attrs[i] = *v[i].ToV2()
+		v[i].WriteToV2(&attrV2)
+		attrs[i] = attrV2
 	}
 
 	o.setHeaderField(func(h *object.Header) {
@@ -269,44 +360,71 @@ func (o *Object) SetAttributes(v ...Attribute) {
 }
 
 // PreviousID returns identifier of the previous sibling object.
-func (o *Object) PreviousID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetSplit().
-			GetPrevious(),
-	)
+//
+// Zero Object has nil ID.
+//
+// See also SetPreviousID.
+func (o Object) PreviousID() *oid.ID {
+	var v oid.ID
+	v2 := (object.Object)(o)
+
+	v2Prev := v2.GetHeader().GetSplit().GetPrevious()
+	if v2Prev == nil {
+		return nil
+	}
+
+	v.ReadFromV2(*v2Prev)
+
+	return &v
 }
 
 // SetPreviousID sets identifier of the previous sibling object.
+// Object ID must not be nil.
+//
+// See also PreviousID.
 func (o *Object) SetPreviousID(v *oid.ID) {
+	var v2 refs.ObjectID
+	v.WriteToV2(&v2)
+
 	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetPrevious(v.ToV2())
+		split.SetPrevious(&v2)
 	})
 }
 
-// Children return list of the identifiers of the child objects.
-func (o *Object) Children() []oid.ID {
-	ids := (*object.Object)(o).
-		GetHeader().
-		GetSplit().
-		GetChildren()
+// Children returns list of the identifiers of the child objects.
+//
+// Zero Object has zero empty children slice.
+//
+// See also SetChildren.
+func (o Object) Children() []oid.ID {
+	v2 := (object.Object)(o)
+	ids := v2.GetHeader().GetSplit().GetChildren()
 
-	res := make([]oid.ID, len(ids))
+	var (
+		id  oid.ID
+		res = make([]oid.ID, len(ids))
+	)
 
 	for i := range ids {
-		res[i] = *oid.NewIDFromV2(&ids[i])
+		id.ReadFromV2(ids[i])
+		res[i] = id
 	}
 
 	return res
 }
 
 // SetChildren sets list of the identifiers of the child objects.
+//
+// See also Children.
 func (o *Object) SetChildren(v ...oid.ID) {
-	ids := make([]refs.ObjectID, len(v))
+	var (
+		v2  refs.ObjectID
+		ids = make([]refs.ObjectID, len(v))
+	)
 
 	for i := range v {
-		ids[i] = *v[i].ToV2()
+		v[i].WriteToV2(&v2)
+		ids[i] = v2
 	}
 
 	o.setSplitFields(func(split *object.SplitHeader) {
@@ -324,35 +442,61 @@ type NotificationInfo struct {
 
 // Epoch returns object notification tick
 // epoch.
+//
+// Zero NotificationInfo has 0 epoch.
+//
+// See also SetEpoch.
 func (n NotificationInfo) Epoch() uint64 {
 	return n.ni.Epoch()
 }
 
 // SetEpoch sets object notification tick
 // epoch.
+//
+// See also Epoch.
 func (n *NotificationInfo) SetEpoch(epoch uint64) {
 	n.ni.SetEpoch(epoch)
 }
 
-// Topic return optional object notification
+// Topic returns optional object notification
 // topic.
+//
+// Zero NotificationInfo has empty topic.
+//
+// See also SetTopic.
 func (n NotificationInfo) Topic() string {
 	return n.ni.Topic()
 }
 
 // SetTopic sets optional object notification
 // topic.
+//
+// See also Topic.
 func (n *NotificationInfo) SetTopic(topic string) {
 	n.ni.SetTopic(topic)
 }
+
+// ErrNotificationNotSet means that object does not have notification.
+var ErrNotificationNotSet = object.ErrNotificationNotSet
 
 // NotificationInfo returns notification info
 // read from the object structure.
 // Returns any error that appeared during notification
 // information parsing.
-func (o *Object) NotificationInfo() (*NotificationInfo, error) {
-	ni, err := object.GetNotificationInfo((*object.Object)(o))
+//
+// Zero object does not have any notifications set.
+//
+// Returns ErrNotificationNotSet if no object notification
+// has been set.
+//
+// See also SetNotification.
+func (o Object) NotificationInfo() (*NotificationInfo, error) {
+	ni, err := object.GetNotificationInfo((*object.Object)(&o))
 	if err != nil {
+		if errors.Is(err, object.ErrNotificationNotSet) {
+			return nil, ErrNotificationNotSet
+		}
+
 		return nil, err
 	}
 
@@ -362,15 +506,22 @@ func (o *Object) NotificationInfo() (*NotificationInfo, error) {
 }
 
 // SetNotification writes NotificationInfo to the object structure.
+//
+// See also NotificationInfo.
 func (o *Object) SetNotification(ni NotificationInfo) {
 	object.WriteNotificationInfo((*object.Object)(o), ni.ni)
 }
 
-// SplitID return split identity of split object. If object is not split
+// SplitID returns split identity of split object. If object is not split
 // returns nil.
-func (o *Object) SplitID() *SplitID {
-	return NewSplitIDFromV2(
-		(*object.Object)(o).
+//
+// Zero Object has nil SplitID.
+//
+// See also SetSplitID.
+func (o Object) SplitID() *SplitID {
+	v2 := (object.Object)(o)
+	return NewSplitIDFromBytes(
+		v2.
 			GetHeader().
 			GetSplit().
 			GetSplitID(),
@@ -378,34 +529,54 @@ func (o *Object) SplitID() *SplitID {
 }
 
 // SetSplitID sets split identifier for the split object.
+//
+// See also SplitID.
 func (o *Object) SetSplitID(id *SplitID) {
 	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetSplitID(id.ToV2())
+		split.SetSplitID(id.ToBytes())
 	})
 }
 
 // ParentID returns identifier of the parent object.
-func (o *Object) ParentID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.Object)(o).
+//
+// Zero Object has nil ParentID.
+//
+// See also SetParentID.
+func (o Object) ParentID() *oid.ID {
+	var v oid.ID
+	v2 := (object.Object)(o)
+
+	v.ReadFromV2(
+		*v2.
 			GetHeader().
 			GetSplit().
 			GetParent(),
 	)
+
+	return &v
 }
 
 // SetParentID sets identifier of the parent object.
+// Parent ID must not be nil.
+//
+// See also ParentID.
 func (o *Object) SetParentID(v *oid.ID) {
+	var v2 refs.ObjectID
+	v.WriteToV2(&v2)
+
 	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetParent(v.ToV2())
+		split.SetParent(&v2)
 	})
 }
 
 // Parent returns parent object w/o payload.
-func (o *Object) Parent() *Object {
-	h := (*object.Object)(o).
-		GetHeader().
-		GetSplit()
+//
+// Zero Object has nil parent object.
+//
+// See also SetParent.
+func (o Object) Parent() *Object {
+	v2 := (object.Object)(o)
+	h := v2.GetHeader().GetSplit()
 
 	parSig := h.GetParentSignature()
 	parHdr := h.GetParentHeader()
@@ -414,15 +585,21 @@ func (o *Object) Parent() *Object {
 		return nil
 	}
 
-	oV2 := new(object.Object)
+	var oV2 object.Object
 	oV2.SetObjectID(h.GetParent())
 	oV2.SetSignature(parSig)
 	oV2.SetHeader(parHdr)
 
-	return NewFromV2(oV2)
+	var obj Object
+	obj.ReadFromV2(oV2)
+
+	return &obj
 }
 
 // SetParent sets parent object w/o payload.
+// Parent must not be nil.
+//
+// See also Parent.
 func (o *Object) SetParent(v *Object) {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetParent((*object.Object)(v).GetObjectID())
@@ -445,16 +622,23 @@ func (o *Object) resetRelations() {
 
 // SessionToken returns token of the session
 // within which object was created.
-func (o *Object) SessionToken() *session.Token {
-	return session.NewTokenFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetSessionToken(),
+//
+// Zero Object has nil token.
+//
+// See also SetSessionToken.
+func (o Object) SessionToken() *session.Token {
+	v2 := (object.Object)(o)
+	return session.NewTokenFromV2(v2.
+		GetHeader().
+		GetSessionToken(),
 	)
 }
 
 // SetSessionToken sets token of the session
-// within which object was created.
+// within which object was created. Session token
+// must not be nil.
+//
+// See also SessionToken.
 func (o *Object) SetSessionToken(v *session.Token) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetSessionToken(v.ToV2())
@@ -462,36 +646,50 @@ func (o *Object) SetSessionToken(v *session.Token) {
 }
 
 // Type returns type of the object.
-func (o *Object) Type() Type {
-	return TypeFromV2(
-		(*object.Object)(o).
+//
+// Zero Object has zero Type.
+//
+// See also SetType.
+func (o Object) Type() Type {
+	var (
+		v2 = (object.Object)(o)
+		t  Type
+	)
+
+	t.ReadFromV2(
+		v2.
 			GetHeader().
 			GetObjectType(),
 	)
+
+	return t
 }
 
 // SetType sets type of the object.
+//
+// See also Type.
 func (o *Object) SetType(v Type) {
+	var tV2 object.Type
+	v.WriteToV2(&tV2)
+
 	o.setHeaderField(func(h *object.Header) {
-		h.SetObjectType(v.ToV2())
+		h.SetObjectType(tV2)
 	})
 }
 
 // CutPayload returns Object w/ empty payload.
 //
 // Changes of non-payload fields affect source object.
-func (o *Object) CutPayload() *Object {
-	ov2 := new(object.Object)
-	*ov2 = *(*object.Object)(o)
-	ov2.SetPayload(nil)
+func (o Object) CutPayload() Object {
+	o.SetPayload(nil)
 
-	return (*Object)(ov2)
+	return o
 }
 
-func (o *Object) HasParent() bool {
-	return (*object.Object)(o).
-		GetHeader().
-		GetSplit() != nil
+// HasParent returns true if the object has a parent.
+func (o Object) HasParent() bool {
+	v2 := (object.Object)(o)
+	return v2.GetHeader().GetSplit() != nil
 }
 
 // ResetRelations removes all fields of links with other objects.
@@ -505,8 +703,9 @@ func (o *Object) InitRelations() {
 }
 
 // Marshal marshals object into a protobuf binary form.
-func (o *Object) Marshal() ([]byte, error) {
-	return (*object.Object)(o).StableMarshal(nil)
+func (o Object) Marshal() ([]byte, error) {
+	v2 := (object.Object)(o)
+	return v2.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of object.
@@ -515,8 +714,9 @@ func (o *Object) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes object to protobuf JSON format.
-func (o *Object) MarshalJSON() ([]byte, error) {
-	return (*object.Object)(o).MarshalJSON()
+func (o Object) MarshalJSON() ([]byte, error) {
+	v2 := (object.Object)(o)
+	return v2.MarshalJSON()
 }
 
 // UnmarshalJSON decodes object from protobuf JSON format.

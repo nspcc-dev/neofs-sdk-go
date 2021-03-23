@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/stretchr/testify/require"
 )
 
 func TestVerificationFields(t *testing.T) {
-	obj := New()
+	var obj Object
 
 	payload := make([]byte, 10)
 	_, _ = rand.Read(payload)
@@ -19,9 +20,9 @@ func TestVerificationFields(t *testing.T) {
 
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	require.NoError(t, SetVerificationFields(&p.PrivateKey, obj))
+	require.NoError(t, SetVerificationFields(&p.PrivateKey, &obj))
 
-	require.NoError(t, CheckVerificationFields(obj))
+	require.NoError(t, CheckVerificationFields(&obj))
 
 	items := []struct {
 		corrupt func()
@@ -45,26 +46,36 @@ func TestVerificationFields(t *testing.T) {
 		},
 		{
 			corrupt: func() {
-				obj.ID().ToV2().GetValue()[0]++
+				var idV2 refs.ObjectID
+				obj.ID().WriteToV2(&idV2)
+
+				idV2.GetValue()[0]++
 			},
 			restore: func() {
-				obj.ID().ToV2().GetValue()[0]--
+				var idV2 refs.ObjectID
+				obj.ID().WriteToV2(&idV2)
+
+				idV2.GetValue()[0]--
 			},
 		},
 		{
 			corrupt: func() {
-				obj.Signature().Key()[0]++
+				v2 := obj.Signature()
+				v2.Key()[0]++
 			},
 			restore: func() {
-				obj.Signature().Key()[0]--
+				v2 := obj.Signature()
+				v2.Key()[0]--
 			},
 		},
 		{
 			corrupt: func() {
-				obj.Signature().Sign()[0]++
+				v2 := obj.Signature()
+				v2.Sign()[0]++
 			},
 			restore: func() {
-				obj.Signature().Sign()[0]--
+				v2 := obj.Signature()
+				v2.Sign()[0]--
 			},
 		},
 	}
@@ -72,10 +83,10 @@ func TestVerificationFields(t *testing.T) {
 	for _, item := range items {
 		item.corrupt()
 
-		require.Error(t, CheckVerificationFields(obj))
+		require.Error(t, CheckVerificationFields(&obj))
 
 		item.restore()
 
-		require.NoError(t, CheckVerificationFields(obj))
+		require.NoError(t, CheckVerificationFields(&obj))
 	}
 }

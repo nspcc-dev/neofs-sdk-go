@@ -3,6 +3,7 @@ package storagegroup_test
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	storagegroupV2 "github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	storagegroupv2test "github.com/nspcc-dev/neofs-api-go/v2/storagegroup/test"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -69,8 +70,11 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 		hash.ReadFromV2(*hashV2)
 		require.Equal(t, hash, *x.ValidationDataHash())
 
+		var mV2 refs.ObjectID
+
 		for i, m := range mm {
-			require.Equal(t, m, *x.Members()[i].ToV2())
+			x.Members()[i].WriteToV2(&mV2)
+			require.Equal(t, m, mV2)
 		}
 	})
 }
@@ -130,8 +134,11 @@ func TestStorageGroup_WriteToV2(t *testing.T) {
 
 		require.Equal(t, *x.ValidationDataHash(), hash)
 
+		var idV2 refs.ObjectID
+
 		for i, m := range x.Members() {
-			require.Equal(t, *m.ToV2(), v2.GetMembers()[i])
+			m.WriteToV2(&idV2)
+			require.Equal(t, idV2, v2.GetMembers()[i])
 		}
 	})
 }

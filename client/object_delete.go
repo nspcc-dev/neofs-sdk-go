@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/ecdsa"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	objectv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -19,7 +19,7 @@ import (
 type PrmObjectDelete struct {
 	meta v2session.RequestMetaHeader
 
-	body v2object.DeleteRequestBody
+	body objectv2.DeleteRequestBody
 
 	addr v2refs.Address
 
@@ -55,7 +55,10 @@ func (x *PrmObjectDelete) FromContainer(id cid.ID) {
 // ByID specifies identifier of the requested object.
 // Required parameter.
 func (x *PrmObjectDelete) ByID(id oid.ID) {
-	x.addr.SetObjectID(id.ToV2())
+	var idV2 v2refs.ObjectID
+	id.WriteToV2(&idV2)
+
+	x.addr.SetObjectID(&idV2)
 }
 
 // UseKey specifies private key to sign the requests.
@@ -87,8 +90,11 @@ type ResObjectDelete struct {
 // ReadTombstoneID reads identifier of the created tombstone object.
 // Returns false if ID is missing (not read).
 func (x ResObjectDelete) ReadTombstoneID(dst *oid.ID) bool {
+	var id oid.ID
+	id.ReadFromV2(*x.idTomb)
+
 	if x.idTomb != nil {
-		*dst = *oid.NewIDFromV2(x.idTomb) // need smth better
+		*dst = id // need smth better
 		return true
 	}
 
@@ -132,7 +138,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	prm.body.SetAddress(&prm.addr)
 
 	// form request
-	var req v2object.DeleteRequest
+	var req objectv2.DeleteRequest
 	req.SetBody(&prm.body)
 	req.SetMetaHeader(&prm.meta)
 
@@ -155,7 +161,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 		return rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
-		res.idTomb = r.(*v2object.DeleteResponse).GetBody().GetTombstone().GetObjectID()
+		res.idTomb = r.(*objectv2.DeleteResponse).GetBody().GetTombstone().GetObjectID()
 	}
 
 	// process call

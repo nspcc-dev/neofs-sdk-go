@@ -1,6 +1,7 @@
 package object
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -10,21 +11,23 @@ import (
 func TestAttribute(t *testing.T) {
 	key, val := "some key", "some value"
 
-	a := NewAttribute()
+	var a Attribute
 	a.SetKey(key)
 	a.SetValue(val)
 
 	require.Equal(t, key, a.Key())
 	require.Equal(t, val, a.Value())
 
-	aV2 := a.ToV2()
+	var aV2 object.Attribute
+
+	a.WriteToV2(&aV2)
 
 	require.Equal(t, key, aV2.GetKey())
 	require.Equal(t, val, aV2.GetValue())
 }
 
 func TestAttributeEncoding(t *testing.T) {
-	a := NewAttribute()
+	var a Attribute
 	a.SetKey("key")
 	a.SetValue("value")
 
@@ -32,7 +35,7 @@ func TestAttributeEncoding(t *testing.T) {
 		data, err := a.Marshal()
 		require.NoError(t, err)
 
-		a2 := NewAttribute()
+		var a2 Attribute
 		require.NoError(t, a2.Unmarshal(data))
 
 		require.Equal(t, a, a2)
@@ -42,7 +45,7 @@ func TestAttributeEncoding(t *testing.T) {
 		data, err := a.MarshalJSON()
 		require.NoError(t, err)
 
-		a2 := NewAttribute()
+		var a2 Attribute
 		require.NoError(t, a2.UnmarshalJSON(data))
 
 		require.Equal(t, a, a2)
@@ -50,33 +53,80 @@ func TestAttributeEncoding(t *testing.T) {
 }
 
 func TestNewAttributeFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *object.Attribute
+	t.Run("from zero", func(t *testing.T) {
+		var (
+			v2 object.Attribute
+			x  Attribute
+		)
 
-		require.Nil(t, NewAttributeFromV2(x))
+		x.ReadFromV2(v2)
+
+		require.Empty(t, x.Key())
+		require.Empty(t, x.Value())
 	})
 }
 
 func TestAttribute_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Attribute
+	t.Run("zero to V2", func(t *testing.T) {
+		var (
+			x  Attribute
+			v2 object.Attribute
+		)
 
-		require.Nil(t, x.ToV2())
+		x.WriteToV2(&v2)
+
+		require.Empty(t, v2.GetKey())
+		require.Empty(t, v2.GetValue())
 	})
 }
 
 func TestNewAttribute(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		a := NewAttribute()
+		var a Attribute
 
 		// check initial values
 		require.Empty(t, a.Key())
 		require.Empty(t, a.Value())
+	})
+}
 
-		// convert to v2 message
-		aV2 := a.ToV2()
+func TestAttributes_Slice(t *testing.T) {
+	var (
+		aa Attributes
 
-		require.Empty(t, aV2.GetKey())
-		require.Empty(t, aV2.GetValue())
+		a1 Attribute
+		a2 Attribute
+		a3 Attribute
+		a4 Attribute
+		a5 Attribute
+	)
+
+	require.Zero(t, aa.Len())
+
+	a1.SetKey("key1")
+	a1.SetValue("value1")
+	a2.SetKey("key2")
+	a2.SetValue("value2")
+	a3.SetKey("key3")
+	a3.SetValue("value3")
+	a4.SetKey("key4")
+	a4.SetValue("value4")
+	a5.SetKey("key5")
+	a5.SetValue("value5")
+
+	aa.Append(a1)
+	require.Equal(t, 1, aa.Len())
+
+	aa.Append(a2, a3, a4, a5)
+	require.Equal(t, 5, aa.Len())
+
+	number := 1
+	aa.Iterate(func(attribute Attribute) bool {
+		require.Equal(t, fmt.Sprintf("key%d", number), attribute.Key())
+		require.Equal(t, fmt.Sprintf("value%d", number), attribute.Value())
+
+		number++
+
+		return false
 	})
 }

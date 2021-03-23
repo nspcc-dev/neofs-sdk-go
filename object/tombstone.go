@@ -7,72 +7,94 @@ import (
 )
 
 // Tombstone represents v2-compatible tombstone structure.
+//
+// Tombstone is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/tombstone.Tombstone
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Tombstone(tombstone.Tombstone{}) // not recommended
 type Tombstone tombstone.Tombstone
 
-// NewTombstoneFromV2 wraps v2 Tombstone message to Tombstone.
+// ReadFromV2 reads Tombstone from the tombstone.Tombstone message.
 //
-// Nil tombstone.Tombstone converts to nil.
-func NewTombstoneFromV2(tV2 *tombstone.Tombstone) *Tombstone {
-	return (*Tombstone)(tV2)
+// See also WriteToV2.
+func (t *Tombstone) ReadFromV2(m tombstone.Tombstone) {
+	*t = Tombstone(m)
 }
 
-// NewTombstone creates and initializes blank Tombstone.
+// WriteToV2 writes Tombstone to the tombstone.Tombstone message.
+// The message must not be nil.
 //
-// Defaults:
-//  - exp: 0;
-//  - splitID: nil;
-//  - members: nil.
-func NewTombstone() *Tombstone {
-	return NewTombstoneFromV2(new(tombstone.Tombstone))
+// See also ReadFromV2.
+func (t Tombstone) WriteToV2(m *tombstone.Tombstone) {
+	*m = (tombstone.Tombstone)(t)
 }
 
-// ToV2 converts Tombstone to v2 Tombstone message.
+// ExpirationEpoch returns number of tombstone expiration epoch.
 //
-// Nil Tombstone converts to nil.
-func (t *Tombstone) ToV2() *tombstone.Tombstone {
-	return (*tombstone.Tombstone)(t)
-}
-
-// ExpirationEpoch return number of tombstone expiration epoch.
-func (t *Tombstone) ExpirationEpoch() uint64 {
-	return (*tombstone.Tombstone)(t).GetExpirationEpoch()
+// Zero Tombstone has 0 expiration epoch.
+//
+// See also SetExpirationEpoch.
+func (t Tombstone) ExpirationEpoch() uint64 {
+	v2 := (tombstone.Tombstone)(t)
+	return v2.GetExpirationEpoch()
 }
 
 // SetExpirationEpoch sets number of tombstone expiration epoch.
+//
+// See also ExpirationEpoch.
 func (t *Tombstone) SetExpirationEpoch(v uint64) {
 	(*tombstone.Tombstone)(t).SetExpirationEpoch(v)
 }
 
 // SplitID returns identifier of object split hierarchy.
-func (t *Tombstone) SplitID() *SplitID {
-	return NewSplitIDFromV2(
-		(*tombstone.Tombstone)(t).GetSplitID())
+//
+// Zero Tombstone has nil SplitID.
+//
+// See also SetExpirationEpoch.
+func (t Tombstone) SplitID() *SplitID {
+	v2 := (tombstone.Tombstone)(t)
+	return NewSplitIDFromBytes(v2.GetSplitID())
 }
 
 // SetSplitID sets identifier of object split hierarchy.
+//
+// See also SplitID.
 func (t *Tombstone) SetSplitID(v *SplitID) {
-	(*tombstone.Tombstone)(t).SetSplitID(v.ToV2())
+	(*tombstone.Tombstone)(t).SetSplitID(v.ToBytes())
 }
 
 // Members returns list of objects to be deleted.
-func (t *Tombstone) Members() []oid.ID {
-	msV2 := (*tombstone.Tombstone)(t).
-		GetMembers()
+//
+// Zero Tombstone has nil members.
+//
+// See also SetMembers.
+func (t Tombstone) Members() []oid.ID {
+	v2 := (tombstone.Tombstone)(t)
+	msV2 := v2.GetMembers()
 
 	if msV2 == nil {
 		return nil
 	}
 
-	ms := make([]oid.ID, len(msV2))
+	var (
+		ms = make([]oid.ID, len(msV2))
+		id oid.ID
+	)
 
 	for i := range msV2 {
-		ms[i] = *oid.NewIDFromV2(&msV2[i])
+		id.ReadFromV2(msV2[i])
+		ms[i] = id
 	}
 
 	return ms
 }
 
 // SetMembers sets list of objects to be deleted.
+//
+// See also Members.
 func (t *Tombstone) SetMembers(v []oid.ID) {
 	var ms []refs.ObjectID
 
@@ -86,8 +108,11 @@ func (t *Tombstone) SetMembers(v []oid.ID) {
 			ms = make([]refs.ObjectID, 0, ln)
 		}
 
+		var idV2 refs.ObjectID
+
 		for i := range v {
-			ms = append(ms, *v[i].ToV2())
+			v[i].WriteToV2(&idV2)
+			ms = append(ms, idV2)
 		}
 	}
 
@@ -95,8 +120,9 @@ func (t *Tombstone) SetMembers(v []oid.ID) {
 }
 
 // Marshal marshals Tombstone into a protobuf binary form.
-func (t *Tombstone) Marshal() ([]byte, error) {
-	return (*tombstone.Tombstone)(t).StableMarshal(nil)
+func (t Tombstone) Marshal() ([]byte, error) {
+	v2 := (tombstone.Tombstone)(t)
+	return v2.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Tombstone.
@@ -105,8 +131,9 @@ func (t *Tombstone) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Tombstone to protobuf JSON format.
-func (t *Tombstone) MarshalJSON() ([]byte, error) {
-	return (*tombstone.Tombstone)(t).MarshalJSON()
+func (t Tombstone) MarshalJSON() ([]byte, error) {
+	v2 := (tombstone.Tombstone)(t)
+	return v2.MarshalJSON()
 }
 
 // UnmarshalJSON decodes Tombstone from protobuf JSON format.

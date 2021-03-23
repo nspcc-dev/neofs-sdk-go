@@ -11,25 +11,31 @@ import (
 )
 
 // ID represents v2-compatible object identifier.
+//
+// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ObjectID
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = ObjectID(refs.ObjectID{}) // not recommended
 type ID refs.ObjectID
 
 var errInvalidIDString = errors.New("incorrect format of the string object ID")
 
-// NewIDFromV2 wraps v2 ObjectID message to ID.
+// ReadFromV2 reads ID from the refs.ObjectID message.
 //
-// Nil refs.ObjectID converts to nil.
-func NewIDFromV2(idV2 *refs.ObjectID) *ID {
-	return (*ID)(idV2)
+// See also WriteToV2.
+func (id *ID) ReadFromV2(m refs.ObjectID) {
+	*id = ID(m)
 }
 
-// NewID creates and initializes blank ID.
+// WriteToV2 writes ID to the refs.ObjectID message.
+// The message must not be nil.
 //
-// Works similar as NewIDFromV2(new(ObjectID)).
-//
-// Defaults:
-// 	- value: nil.
-func NewID() *ID {
-	return NewIDFromV2(new(refs.ObjectID))
+// See also ReadFromV2.
+func (id ID) WriteToV2(m *refs.ObjectID) {
+	*m = (refs.ObjectID)(id)
 }
 
 // SetSHA256 sets object identifier value to SHA256 checksum.
@@ -37,22 +43,13 @@ func (id *ID) SetSHA256(v [sha256.Size]byte) {
 	(*refs.ObjectID)(id).SetValue(v[:])
 }
 
-// Equal returns true if identifiers are identical.
-func (id *ID) Equal(id2 *ID) bool {
-	return bytes.Equal(
-		(*refs.ObjectID)(id).GetValue(),
-		(*refs.ObjectID)(id2).GetValue(),
-	)
+// Equals returns true if identifiers are identical.
+func (id ID) Equals(id2 *ID) bool {
+	v2 := (refs.ObjectID)(id)
+	return bytes.Equal(v2.GetValue(), (*refs.ObjectID)(id2).GetValue())
 }
 
-// ToV2 converts ID to v2 ObjectID message.
-//
-// Nil ID converts to nil.
-func (id *ID) ToV2() *refs.ObjectID {
-	return (*refs.ObjectID)(id)
-}
-
-// Parse converts base58 string representation into ID.
+// Parse is a reverse action to String().
 func (id *ID) Parse(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
@@ -66,14 +63,16 @@ func (id *ID) Parse(s string) error {
 	return nil
 }
 
-// String returns base58 string representation of ID.
-func (id *ID) String() string {
-	return base58.Encode((*refs.ObjectID)(id).GetValue())
+// String implements fmt.Stringer interface method.
+func (id ID) String() string {
+	v2 := (refs.ObjectID)(id)
+	return base58.Encode(v2.GetValue())
 }
 
 // Marshal marshals ID into a protobuf binary form.
-func (id *ID) Marshal() ([]byte, error) {
-	return (*refs.ObjectID)(id).StableMarshal(nil)
+func (id ID) Marshal() ([]byte, error) {
+	v2 := (refs.ObjectID)(id)
+	return v2.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of ID.
@@ -82,8 +81,9 @@ func (id *ID) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes ID to protobuf JSON format.
-func (id *ID) MarshalJSON() ([]byte, error) {
-	return (*refs.ObjectID)(id).MarshalJSON()
+func (id ID) MarshalJSON() ([]byte, error) {
+	v2 := (refs.ObjectID)(id)
+	return v2.MarshalJSON()
 }
 
 // UnmarshalJSON decodes ID from protobuf JSON format.

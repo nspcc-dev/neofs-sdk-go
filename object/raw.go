@@ -15,7 +15,10 @@ type RawObject = Object
 //
 // Deprecated: (v1.0.0) use NewFromV2 function instead.
 func NewRawFromV2(oV2 *object.Object) *Object {
-	return NewFromV2(oV2)
+	var v Object
+	v.ReadFromV2(*oV2)
+
+	return &v
 }
 
 // NewRawFrom wraps Object instance to Object.
@@ -29,7 +32,7 @@ func NewRawFrom(obj *Object) *Object {
 //
 // Deprecated: (v1.0.0) use New instead.
 func NewRaw() *Object {
-	return New()
+	return &Object{}
 }
 
 // Object returns object instance.

@@ -1,4 +1,4 @@
-package test
+package oidtest
 
 import (
 	"crypto/sha256"
@@ -19,8 +19,8 @@ func ID() *oid.ID {
 // idWithChecksum returns object.ID initialized
 // with specified checksum.
 func idWithChecksum(cs [sha256.Size]byte) *oid.ID {
-	id := oid.NewID()
+	var id oid.ID
 	id.SetSHA256(cs)
 
-	return id
+	return &id
 }

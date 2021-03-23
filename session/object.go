@@ -1,6 +1,7 @@
 package session
 
 import (
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
 )
@@ -37,18 +38,34 @@ func (x *ObjectContext) ToV2() *session.ObjectSessionContext {
 }
 
 // ApplyTo specifies which object the ObjectContext applies to.
-func (x *ObjectContext) ApplyTo(id *address.Address) {
+func (x *ObjectContext) ApplyTo(a *address.Address) {
 	v2 := (*session.ObjectSessionContext)(x)
 
-	v2.SetAddress(id.ToV2())
+	if a == nil {
+		v2.SetAddress(nil)
+		return
+	}
+
+	var aV2 refs.Address
+	a.WriteToV2(&aV2)
+
+	v2.SetAddress(&aV2)
 }
 
 // Address returns identifier of the object
 // to which the ObjectContext applies.
 func (x *ObjectContext) Address() *address.Address {
 	v2 := (*session.ObjectSessionContext)(x)
+	var a address.Address
 
-	return address.NewAddressFromV2(v2.GetAddress())
+	v2Addr := v2.GetAddress()
+	if v2Addr == nil {
+		return nil
+	}
+
+	a.ReadFromV2(*v2Addr)
+
+	return &a
 }
 
 func (x *ObjectContext) forVerb(v session.ObjectSessionVerb) {

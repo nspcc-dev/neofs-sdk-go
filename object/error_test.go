@@ -12,7 +12,7 @@ func TestNewSplitInfoError(t *testing.T) {
 	var (
 		si = generateSplitInfo()
 
-		err         error = object.NewSplitInfoError(si)
+		err         = object.NewSplitInfoError(si)
 		expectedErr *object.SplitInfoError
 	)
 
@@ -24,10 +24,10 @@ func TestNewSplitInfoError(t *testing.T) {
 }
 
 func generateSplitInfo() *object.SplitInfo {
-	si := object.NewSplitInfo()
+	var si object.SplitInfo
 	si.SetSplitID(object.NewSplitID())
 	si.SetLastPart(generateID())
 	si.SetLink(generateID())
 
-	return si
+	return &si
 }

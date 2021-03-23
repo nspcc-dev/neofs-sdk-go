@@ -106,9 +106,9 @@ func TestResultData(t *testing.T) {
 	called1, called2 := false, false
 
 	require.EqualValues(t, 2, countPassSG(func(id oid.ID) {
-		if id.Equal(&passSG1) {
+		if id.Equals(&passSG1) {
 			called1 = true
-		} else if id.Equal(&passSG2) {
+		} else if id.Equals(&passSG2) {
 			called2 = true
 		}
 	}))
@@ -122,9 +122,9 @@ func TestResultData(t *testing.T) {
 	called1, called2 = false, false
 
 	require.EqualValues(t, 2, countFailSG(func(id oid.ID) {
-		if id.Equal(&failSG1) {
+		if id.Equals(&failSG1) {
 			called1 = true
-		} else if id.Equal(&failSG2) {
+		} else if id.Equals(&failSG2) {
 			called2 = true
 		}
 	}))
