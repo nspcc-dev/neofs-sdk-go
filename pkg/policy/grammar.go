@@ -1,3 +1,4 @@
+//nolint:govet,golint // fails on struct tags here, but participle needs this syntax
 package policy
 
 import (
