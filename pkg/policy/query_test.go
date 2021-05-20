@@ -62,7 +62,6 @@ func TestFromSelectNoAttribute(t *testing.T) {
 		r, err := Parse(q)
 		require.NoError(t, err)
 		require.EqualValues(t, expected, r)
-
 	})
 
 	t.Run("with filter", func(t *testing.T) {
@@ -232,7 +231,6 @@ func TestValidation(t *testing.T) {
 		_, err := Parse(q)
 		require.True(t, errors.Is(err, ErrInvalidNumber), "got: %v", err)
 	})
-
 }
 
 func TestFilterStringSymbols(t *testing.T) {

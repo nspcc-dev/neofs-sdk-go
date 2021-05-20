@@ -9,10 +9,15 @@ import (
 )
 
 var (
-	ErrInvalidNumber   = errors.New("policy: expected positive integer")
-	ErrUnknownClause   = errors.New("policy: unknown clause")
-	ErrUnknownOp       = errors.New("policy: unknown operation")
-	ErrUnknownFilter   = errors.New("policy: filter not found")
+	// ErrInvalidNumber is returned when a value of SELECT is 0.
+	ErrInvalidNumber = errors.New("policy: expected positive integer")
+	// ErrUnknownClause is returned when a statement(clause) in a query is unknown.
+	ErrUnknownClause = errors.New("policy: unknown clause")
+	// ErrUnknownOp is returned when an operation in a query is unknown.
+	ErrUnknownOp = errors.New("policy: unknown operation")
+	// ErrUnknownFilter is returned when a value of FROM in a query is unknown.
+	ErrUnknownFilter = errors.New("policy: filter not found")
+	// ErrUnknownSelector is returned when a value of IN is unknown.
 	ErrUnknownSelector = errors.New("policy: selector not found")
 )
 
