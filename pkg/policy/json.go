@@ -54,7 +54,7 @@ func ToJSON(np *netmap.PlacementPolicy) ([]byte, error) {
 	return json.Marshal(p)
 }
 
-// ToJSON creates placement policy from JSON.
+// FromJSON creates placement policy from JSON.
 func FromJSON(data []byte) (*netmap.PlacementPolicy, error) {
 	p := new(placement)
 	if err := json.Unmarshal(data, p); err != nil {

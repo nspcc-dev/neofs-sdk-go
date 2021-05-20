@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
+//Encode parses data of PlacementPolicy to a string.
 func Encode(p *netmap.PlacementPolicy) []string {
 	if p == nil {
 		return nil
