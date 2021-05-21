@@ -3,15 +3,17 @@
 //
 // Current limitations:
 // 1. Filters must be defined before they are used.
-// 	This requirement may be relaxed in future.
+//    This requirement may be relaxed in future.
+// 2. Keywords are key-sensitive. This can be changed if necessary
+//    https://github.com/antlr/antlr4/blob/master/doc/case-insensitive-lexing.md .
 //
 // Example query:
-// REP 1 in SPB
-// REP 2 in Americas
+// REP 1 IN SPB
+// REP 2 IN Americas
 // CBF 4
-// SELECT 1 Node IN City FROM SPBSSD AS SPB
-// SELECT 2 Node IN SAME City FROM Americas AS Americas
+// SELECT 1 IN City FROM SPBSSD AS SPB
+// SELECT 2 IN SAME City FROM Americas AS Americas
 // FILTER SSD EQ true AS IsSSD
-// FILTER @IsSSD AND Country eq "RU" AND City eq "St.Petersburg" AS SPBSSD
-// FILTER 'Continent' == 'North America' OR Continent == 'South America' AS Americas
+// FILTER @IsSSD AND Country EQ "RU" AND City EQ "St.Petersburg" AS SPBSSD
+// FILTER 'Continent' EQ 'North America' OR Continent EQ 'South America' AS Americas
 package policy
