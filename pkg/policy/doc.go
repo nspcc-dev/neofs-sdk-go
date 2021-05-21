@@ -1,5 +1,5 @@
 // Package policy provides facilities for creating policy from SQL-like language.
-//   eBNF grammar is provided in `grammar.ebnf` for illustration.
+//   ANTLRv4 grammar is provided in `parser/Query.g4` and `parser/QueryLexer.g4`.
 //
 // Current limitations:
 // 1. Grouping filter expressions in parenthesis is not supported right now.

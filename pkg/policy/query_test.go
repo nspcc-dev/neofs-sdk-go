@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
@@ -78,6 +79,32 @@ func TestFromSelectNoAttribute(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, expected, r)
 	})
+}
+
+func TestString(t *testing.T) {
+	qTemplate := `REP 1
+SELECT 1 IN City FROM Filt
+FILTER Property EQ %s AND Something NE 7 AS Filt`
+
+	testCases := []string{
+		`"double-quoted"`,
+		`"with ' single"`,
+		`'single-quoted'`,
+		`'with " double'`,
+	}
+
+	for _, s := range testCases {
+		t.Run(s, func(t *testing.T) {
+			q := fmt.Sprintf(qTemplate, s)
+			r, err := Parse(q)
+			require.NoError(t, err)
+
+			expected := newFilter("Filt", "", "", netmap.AND,
+				newFilter("", "Property", s[1:len(s)-1], netmap.EQ),
+				newFilter("", "Something", "7", netmap.NE))
+			require.EqualValues(t, []*netmap.Filter{expected}, r.Filters())
+		})
+	}
 }
 
 func TestFromSelectClause(t *testing.T) {
@@ -205,12 +232,12 @@ func TestValidation(t *testing.T) {
               SELECT 1 IN City FROM F
 			  FILTER Country KEK RU AS F`
 		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrUnknownOp), "got: %v", err)
+		require.True(t, errors.Is(err, ErrSyntaxError), "got: %v", err)
 	})
 	t.Run("TypoInREP", func(t *testing.T) {
 		q := `REK 3`
 		_, err := Parse(q)
-		require.Error(t, err)
+		require.True(t, errors.Is(err, ErrSyntaxError))
 	})
 	t.Run("InvalidFilterName", func(t *testing.T) {
 		q := `REP 3
@@ -223,13 +250,13 @@ func TestValidation(t *testing.T) {
 	t.Run("InvalidNumberInREP", func(t *testing.T) {
 		q := `REP 0`
 		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrInvalidNumber), "got: %v", err)
+		require.True(t, errors.Is(err, ErrSyntaxError), "got: %v", err)
 	})
 	t.Run("InvalidNumberInREP", func(t *testing.T) {
 		q := `REP 1 IN Good
 			  SELECT 0 IN City FROM *`
 		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrInvalidNumber), "got: %v", err)
+		require.True(t, errors.Is(err, ErrSyntaxError), "got: %v", err)
 	})
 }
 

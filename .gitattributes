@@ -1,0 +1,4 @@
+/pkg/policy/parser/*.go -diff
+/pkg/policy/parser/generate.go diff
+**/*.interp -diff
+**/*.tokens -diff

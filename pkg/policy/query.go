@@ -3,9 +3,12 @@ package policy
 import (
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/pkg/policy/parser"
 )
 
 var (
@@ -19,83 +22,252 @@ var (
 	ErrUnknownFilter = errors.New("policy: filter not found")
 	// ErrUnknownSelector is returned when a value of IN is unknown.
 	ErrUnknownSelector = errors.New("policy: selector not found")
+	// ErrSyntaxError is returned for errors found by ANTLR parser.
+	ErrSyntaxError = errors.New("policy: syntax error")
 )
 
-func parse(s string) (*query, error) {
-	q := new(query)
-	err := parser.Parse(strings.NewReader(s), q)
-	if err != nil {
-		return nil, err
-	}
-	return q, nil
+type policyVisitor struct {
+	errors []error
+	parser.BaseQueryVisitor
+	antlr.DefaultErrorListener
 }
 
 // Parse parses s into a placement policy.
 func Parse(s string) (*netmap.PlacementPolicy, error) {
-	q, err := parse(s)
-	if err != nil {
+	return parse(s)
+}
+
+func newPolicyVisitor() *policyVisitor {
+	return &policyVisitor{}
+}
+
+func parse(s string) (*netmap.PlacementPolicy, error) {
+	input := antlr.NewInputStream(s)
+	lexer := parser.NewQueryLexer(input)
+	stream := antlr.NewCommonTokenStream(lexer, 0)
+
+	p := parser.NewQuery(stream)
+	p.BuildParseTrees = true
+
+	v := newPolicyVisitor()
+	p.RemoveErrorListeners()
+	p.AddErrorListener(v)
+	pl := p.Policy().Accept(v)
+
+	if len(v.errors) != 0 {
+		return nil, v.errors[0]
+	}
+	if err := validatePolicy(pl.(*netmap.PlacementPolicy)); err != nil {
 		return nil, err
 	}
+	return pl.(*netmap.PlacementPolicy), nil
+}
 
-	seenFilters := map[string]bool{}
-	fs := make([]*netmap.Filter, 0, len(q.Filters))
-	for _, qf := range q.Filters {
-		f, err := filterFromOrChain(qf.Value, seenFilters)
-		if err != nil {
-			return nil, err
+func (p *policyVisitor) SyntaxError(recognizer antlr.Recognizer, offendingSymbol interface{}, line, column int, msg string, e antlr.RecognitionException) {
+	p.reportError(fmt.Errorf("%w: line %d:%d %s", ErrSyntaxError, line, column, msg))
+}
+
+func (p *policyVisitor) reportError(err error) interface{} {
+	p.errors = append(p.errors, err)
+	return nil
+}
+
+// VisitPolicy implements parser.QueryVisitor interface.
+func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) interface{} {
+	if len(p.errors) != 0 {
+		return nil
+	}
+
+	pl := new(netmap.PlacementPolicy)
+
+	repStmts := ctx.AllRepStmt()
+	rs := make([]*netmap.Replica, 0, len(repStmts))
+	for _, r := range repStmts {
+		res, ok := r.Accept(p).(*netmap.Replica)
+		if !ok {
+			return nil
 		}
-		f.SetName(qf.Name)
-		fs = append(fs, f)
-		seenFilters[qf.Name] = true
+
+		rs = append(rs, res)
+	}
+	pl.SetReplicas(rs...)
+
+	if cbfStmt := ctx.CbfStmt(); cbfStmt != nil {
+		cbf, ok := cbfStmt.(*parser.CbfStmtContext).Accept(p).(uint32)
+		if !ok {
+			return nil
+		}
+		pl.SetContainerBackupFactor(cbf)
+	}
+
+	selStmts := ctx.AllSelectStmt()
+	ss := make([]*netmap.Selector, 0, len(selStmts))
+	for _, s := range selStmts {
+		res, ok := s.Accept(p).(*netmap.Selector)
+		if !ok {
+			return nil
+		}
+
+		ss = append(ss, res)
+	}
+	pl.SetSelectors(ss...)
+
+	filtStmts := ctx.AllFilterStmt()
+	fs := make([]*netmap.Filter, 0, len(filtStmts))
+	for _, f := range filtStmts {
+		fs = append(fs, f.Accept(p).(*netmap.Filter))
+	}
+	pl.SetFilters(fs...)
+
+	return pl
+}
+
+func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) interface{} {
+	cbf, err := strconv.ParseUint(ctx.GetBackupFactor().GetText(), 10, 32)
+	if err != nil {
+		return p.reportError(ErrInvalidNumber)
+	}
+
+	return uint32(cbf)
+}
+
+// VisitRepStmt implements parser.QueryVisitor interface.
+func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) interface{} {
+	num, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
+	if err != nil {
+		return p.reportError(ErrInvalidNumber)
+	}
+
+	rs := new(netmap.Replica)
+	rs.SetCount(uint32(num))
+
+	if sel := ctx.GetSelector(); sel != nil {
+		rs.SetSelector(sel.GetText())
+	}
+
+	return rs
+}
+
+// VisitSelectStmt implements parser.QueryVisitor interface.
+func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) interface{} {
+	res, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
+	if err != nil {
+		return p.reportError(ErrInvalidNumber)
+	}
+
+	s := new(netmap.Selector)
+	s.SetCount(uint32(res))
+
+	if clStmt := ctx.Clause(); clStmt != nil {
+		s.SetClause(clauseFromString(clStmt.GetText()))
+	}
+
+	if bStmt := ctx.GetBucket(); bStmt != nil {
+		s.SetAttribute(ctx.GetBucket().GetText())
+	}
+
+	s.SetFilter(ctx.GetFilter().GetText()) // either ident or wildcard
+
+	if ctx.AS() != nil {
+		s.SetName(ctx.GetName().GetText())
+	}
+	return s
+}
+
+// VisitFilterStmt implements parser.QueryVisitor interface.
+func (p *policyVisitor) VisitFilterStmt(ctx *parser.FilterStmtContext) interface{} {
+	f := p.VisitFilterExpr(ctx.GetExpr().(*parser.FilterExprContext)).(*netmap.Filter)
+	f.SetName(ctx.GetName().GetText())
+	return f
+}
+
+func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) interface{} {
+	if eCtx := ctx.Expr(); eCtx != nil {
+		return eCtx.Accept(p)
+	}
+
+	f := new(netmap.Filter)
+	op := operationFromString(ctx.GetOp().GetText())
+	f.SetOperation(op)
+
+	f1 := ctx.GetF1().Accept(p).(*netmap.Filter)
+	f2 := ctx.GetF2().Accept(p).(*netmap.Filter)
+
+	// Consider f1=(.. AND ..) AND f2. This can be merged because our AND operation
+	// is of arbitrary arity. ANTLR generates left-associative parse-tree by default.
+	if f1.Operation() == op {
+		f.SetInnerFilters(append(f1.InnerFilters(), f2)...)
+		return f
+	}
+
+	f.SetInnerFilters(f1, f2)
+	return f
+}
+
+// VisitFilterKey implements parser.QueryVisitor interface.
+func (p *policyVisitor) VisitFilterKey(ctx *parser.FilterKeyContext) interface{} {
+	if id := ctx.Ident(); id != nil {
+		return id.GetText()
+	}
+
+	str := ctx.STRING().GetText()
+	return str[1 : len(str)-1]
+}
+
+func (p *policyVisitor) VisitFilterValue(ctx *parser.FilterValueContext) interface{} {
+	if id := ctx.Ident(); id != nil {
+		return id.GetText()
+	}
+
+	if num := ctx.Number(); num != nil {
+		return num.GetText()
+	}
+
+	str := ctx.STRING().GetText()
+	return str[1 : len(str)-1]
+}
+
+// VisitExpr implements parser.QueryVisitor interface.
+func (p *policyVisitor) VisitExpr(ctx *parser.ExprContext) interface{} {
+	f := new(netmap.Filter)
+	if flt := ctx.GetFilter(); flt != nil {
+		f.SetName(flt.GetText())
+		return f
+	}
+
+	key := ctx.GetKey().Accept(p)
+	opStr := ctx.SIMPLE_OP().GetText()
+	value := ctx.GetValue().Accept(p)
+
+	f.SetKey(key.(string))
+	f.SetOperation(operationFromString(opStr))
+	f.SetValue(value.(string))
+	return f
+}
+
+// validatePolicy checks high-level constraints such as filter link in SELECT
+// being actually defined in FILTER section.
+func validatePolicy(p *netmap.PlacementPolicy) error {
+	seenFilters := map[string]bool{}
+	for _, f := range p.Filters() {
+		seenFilters[f.Name()] = true
 	}
 
 	seenSelectors := map[string]bool{}
-	ss := make([]*netmap.Selector, 0, len(q.Selectors))
-	for _, qs := range q.Selectors {
-		if qs.Filter != netmap.MainFilterName && !seenFilters[qs.Filter] {
-			return nil, fmt.Errorf("%w: '%s'", ErrUnknownFilter, qs.Filter)
+	for _, s := range p.Selectors() {
+		if flt := s.Filter(); flt != netmap.MainFilterName && !seenFilters[flt] {
+			return fmt.Errorf("%w: '%s'", ErrUnknownFilter, flt)
 		}
-		s := netmap.NewSelector()
-		switch len(qs.Bucket) {
-		case 1: // only bucket
-			s.SetAttribute(qs.Bucket[0])
-		case 2: // clause + bucket
-			s.SetClause(clauseFromString(qs.Bucket[0]))
-			s.SetAttribute(qs.Bucket[1])
-		}
-		s.SetName(qs.Name)
-		seenSelectors[qs.Name] = true
-		s.SetFilter(qs.Filter)
-		if qs.Count == 0 {
-			return nil, fmt.Errorf("%w: SELECT", ErrInvalidNumber)
-		}
-		s.SetCount(qs.Count)
-		ss = append(ss, s)
+		seenSelectors[s.Name()] = true
 	}
 
-	rs := make([]*netmap.Replica, 0, len(q.Replicas))
-	for _, qr := range q.Replicas {
-		r := netmap.NewReplica()
-		if qr.Selector != "" {
-			if !seenSelectors[qr.Selector] {
-				return nil, fmt.Errorf("%w: '%s'", ErrUnknownSelector, qr.Selector)
-			}
-			r.SetSelector(qr.Selector)
+	for _, r := range p.Replicas() {
+		if sel := r.Selector(); sel != "" && !seenSelectors[sel] {
+			return fmt.Errorf("%w: '%s'", ErrUnknownSelector, sel)
 		}
-		if qr.Count == 0 {
-			return nil, fmt.Errorf("%w: REP", ErrInvalidNumber)
-		}
-		r.SetCount(uint32(qr.Count))
-		rs = append(rs, r)
 	}
 
-	p := new(netmap.PlacementPolicy)
-	p.SetFilters(fs...)
-	p.SetSelectors(ss...)
-	p.SetReplicas(rs...)
-	p.SetContainerBackupFactor(q.CBF)
-
-	return p, nil
+	return nil
 }
 
 func clauseFromString(s string) netmap.Clause {
@@ -105,74 +277,31 @@ func clauseFromString(s string) netmap.Clause {
 	case "DISTINCT":
 		return netmap.ClauseDistinct
 	default:
-		return 0
+		// Such errors should be handled by ANTLR code thus this panic.
+		panic(fmt.Errorf("BUG: invalid clause: %s", s))
 	}
 }
 
-func filterFromOrChain(expr *orChain, seen map[string]bool) (*netmap.Filter, error) {
-	var fs []*netmap.Filter
-	for _, ac := range expr.Clauses {
-		f, err := filterFromAndChain(ac, seen)
-		if err != nil {
-			return nil, err
-		}
-		fs = append(fs, f)
-	}
-	if len(fs) == 1 {
-		return fs[0], nil
-	}
-
-	f := netmap.NewFilter()
-	f.SetOperation(netmap.OpOR)
-	f.SetInnerFilters(fs...)
-	return f, nil
-}
-
-func filterFromAndChain(expr *andChain, seen map[string]bool) (*netmap.Filter, error) {
-	var fs []*netmap.Filter
-	for _, fe := range expr.Clauses {
-		var f *netmap.Filter
-		var err error
-		if fe.Expr != nil {
-			f, err = filterFromSimpleExpr(fe.Expr, seen)
-		} else {
-			f = netmap.NewFilter()
-			f.SetName(fe.Reference)
-		}
-		if err != nil {
-			return nil, err
-		}
-		fs = append(fs, f)
-	}
-	if len(fs) == 1 {
-		return fs[0], nil
-	}
-
-	f := netmap.NewFilter()
-	f.SetOperation(netmap.OpAND)
-	f.SetInnerFilters(fs...)
-	return f, nil
-}
-
-func filterFromSimpleExpr(se *simpleExpr, seen map[string]bool) (*netmap.Filter, error) {
-	f := netmap.NewFilter()
-	f.SetKey(se.Key)
-	switch se.Op {
+func operationFromString(op string) netmap.Operation {
+	switch strings.ToUpper(op) {
+	case "AND":
+		return netmap.OpAND
+	case "OR":
+		return netmap.OpOR
 	case "EQ":
-		f.SetOperation(netmap.OpEQ)
+		return netmap.OpEQ
 	case "NE":
-		f.SetOperation(netmap.OpNE)
+		return netmap.OpNE
 	case "GE":
-		f.SetOperation(netmap.OpGE)
+		return netmap.OpGE
 	case "GT":
-		f.SetOperation(netmap.OpGT)
+		return netmap.OpGT
 	case "LE":
-		f.SetOperation(netmap.OpLE)
+		return netmap.OpLE
 	case "LT":
-		f.SetOperation(netmap.OpLT)
+		return netmap.OpLT
 	default:
-		return nil, fmt.Errorf("%w: '%s'", ErrUnknownOp, se.Op)
+		// Such errors should be handled by ANTLR code thus this panic.
+		panic(fmt.Errorf("BUG: invalid operation: %s", op))
 	}
-	f.SetValue(se.Value)
-	return f, nil
 }
