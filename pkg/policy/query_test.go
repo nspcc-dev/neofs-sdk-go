@@ -3,6 +3,7 @@ package policy
 import (
 	"errors"
 	"fmt"
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
@@ -271,17 +272,28 @@ func TestValidation(t *testing.T) {
 		_, err := Parse(q)
 		require.Error(t, err)
 	})
-	t.Run("InvalidNumberInREP", func(t *testing.T) {
-		q := `REP 0`
-		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrSyntaxError), "got: %v", err)
-	})
-	t.Run("InvalidNumberInREP", func(t *testing.T) {
-		q := `REP 1 IN Good
-			  SELECT 0 IN City FROM *`
-		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrSyntaxError), "got: %v", err)
-	})
+}
+
+// Checks that an error is returned in cases when positive 32-bit integer is expected.
+func TestInvalidNumbers(t *testing.T) {
+	tmpls := []string{
+		"REP %d",
+		"REP 1 CBF %d",
+		"REP 1 SELECT %d FROM *",
+	}
+	for i := range tmpls {
+		zero := fmt.Sprintf(tmpls[i], 0)
+		t.Run(zero, func(t *testing.T) {
+			_, err := Parse(zero)
+			require.Error(t, err)
+		})
+
+		big := fmt.Sprintf(tmpls[i], int64(math.MaxUint32)+1)
+		t.Run(big, func(t *testing.T) {
+			_, err := Parse(big)
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestFilterStringSymbols(t *testing.T) {
