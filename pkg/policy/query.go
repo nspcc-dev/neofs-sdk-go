@@ -186,6 +186,10 @@ func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) interface
 		return eCtx.Accept(p)
 	}
 
+	if inner := ctx.GetInner(); inner != nil {
+		return inner.Accept(p)
+	}
+
 	f := new(netmap.Filter)
 	op := operationFromString(ctx.GetOp().GetText())
 	f.SetOperation(op)

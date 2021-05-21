@@ -215,6 +215,30 @@ FILTER City EQ "SPB" AND SSD EQ true OR City EQ "SPB" AND Rating GE 5 AS SPBSSD`
 	require.EqualValues(t, expected, r)
 }
 
+func TestBrackets(t *testing.T) {
+	q := `REP 7 IN SPB
+SELECT 1 IN City FROM SPBSSD AS SPB
+FILTER ( City EQ "SPB" OR SSD EQ true ) AND (City EQ "SPB" OR Rating GE 5) AS SPBSSD`
+
+	expected := new(netmap.PlacementPolicy)
+	expected.SetReplicas([]*netmap.Replica{newReplica("SPB", 7)})
+	expected.SetSelectors([]*netmap.Selector{
+		newSelector(1, netmap.UnspecifiedClause, "City", "SPBSSD", "SPB"),
+	})
+	expected.SetFilters([]*netmap.Filter{
+		newFilter("SPBSSD", "", "", netmap.AND,
+			newFilter("", "", "", netmap.OR,
+				newFilter("", "City", "SPB", netmap.EQ),
+				newFilter("", "SSD", "true", netmap.EQ)),
+			newFilter("", "", "", netmap.OR,
+				newFilter("", "City", "SPB", netmap.EQ),
+				newFilter("", "Rating", "5", netmap.GE)))})
+
+	r, err := Parse(q)
+	require.NoError(t, err)
+	require.EqualValues(t, expected, r)
+}
+
 func TestValidation(t *testing.T) {
 	t.Run("MissingSelector", func(t *testing.T) {
 		q := `REP 3 IN RU`

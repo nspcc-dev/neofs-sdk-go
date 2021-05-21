@@ -2,10 +2,7 @@
 //   ANTLRv4 grammar is provided in `parser/Query.g4` and `parser/QueryLexer.g4`.
 //
 // Current limitations:
-// 1. Grouping filter expressions in parenthesis is not supported right now.
-//    Requiring this will make query too verbose, making it optional makes
-//    our grammar not LL(1). This can be supported in future.
-// 2. Filters must be defined before they are used.
+// 1. Filters must be defined before they are used.
 // 	This requirement may be relaxed in future.
 //
 // Example query:

@@ -24,6 +24,7 @@ clause: CLAUSE_SAME | CLAUSE_DISTINCT; // nodes from distinct buckets
 filterExpr:
     F1 = filterExpr Op = AND_OP F2 = filterExpr
     | F1 = filterExpr Op = OR_OP F2 = filterExpr
+    | '(' Inner = filterExpr ')'
     | expr
     ;
 
