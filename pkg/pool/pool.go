@@ -15,8 +15,8 @@ import (
 	"google.golang.org/grpc/keepalive"
 )
 
-// PoolBuilderOptions contains options used to build connection pool.
-type PoolBuilderOptions struct {
+// BuilderOptions contains options used to build connection pool.
+type BuilderOptions struct {
 	Key                     *ecdsa.PrivateKey
 	NodeConnectionTimeout   time.Duration
 	NodeRequestTimeout      time.Duration
@@ -29,22 +29,22 @@ type PoolBuilderOptions struct {
 	connections             []*grpc.ClientConn
 }
 
-// PoolBuilder is an interim structure used to collect node addresses/weights and
+// Builder is an interim structure used to collect node addresses/weights and
 // build connection pool subsequently.
-type PoolBuilder struct {
+type Builder struct {
 	addresses []string
 	weights   []float64
 }
 
 // AddNode adds address/weight pair to node PoolBuilder list.
-func (pb *PoolBuilder) AddNode(address string, weight float64) *PoolBuilder {
+func (pb *Builder) AddNode(address string, weight float64) *Builder {
 	pb.addresses = append(pb.addresses, address)
 	pb.weights = append(pb.weights, weight)
 	return pb
 }
 
 // Build creates new pool based on current PoolBuilder state and options.
-func (pb *PoolBuilder) Build(ctx context.Context, options *PoolBuilderOptions) (Pool, error) {
+func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	if len(pb.addresses) == 0 {
 		return nil, errors.New("no NeoFS peers configured")
 	}
@@ -97,7 +97,7 @@ type pool struct {
 	clientPacks []*clientPack
 }
 
-func new(ctx context.Context, options *PoolBuilderOptions) (Pool, error) {
+func new(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	clientPacks := make([]*clientPack, len(options.weights))
 	for i, con := range options.connections {
 		c, err := client.New(client.WithDefaultPrivateKey(options.Key), client.WithGRPCConnection(con))
