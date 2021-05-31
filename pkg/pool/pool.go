@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
+	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
 	"github.com/nspcc-dev/neofs-api-go/pkg/token"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
@@ -77,12 +78,13 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 	}
 	options.weights = pb.weights
 	options.connections = cons
-	return new(ctx, options)
+	return newPool(ctx, options)
 }
 
 // Pool is an interface providing connection artifacts on request.
 type Pool interface {
-	ConnectionArtifacts() (client.Client, *token.SessionToken, error)
+	Connection() (client.Client, *token.SessionToken, error)
+	OwnerID() *owner.ID
 }
 
 type clientPack struct {
@@ -94,10 +96,11 @@ type clientPack struct {
 type pool struct {
 	lock        sync.RWMutex
 	sampler     *Sampler
+	owner       *owner.ID
 	clientPacks []*clientPack
 }
 
-func new(ctx context.Context, options *BuilderOptions) (Pool, error) {
+func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	clientPacks := make([]*clientPack, len(options.weights))
 	for i, con := range options.connections {
 		c, err := client.New(client.WithDefaultPrivateKey(options.Key), client.WithGRPCConnection(con))
@@ -116,7 +119,13 @@ func new(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	}
 	source := rand.NewSource(time.Now().UnixNano())
 	sampler := NewSampler(options.weights, source)
-	pool := &pool{sampler: sampler, clientPacks: clientPacks}
+	wallet, err := owner.NEO3WalletFromPublicKey(&options.Key.PublicKey)
+	if err != nil {
+		return nil, err
+	}
+	ownerID := owner.NewIDFromNeo3Wallet(wallet)
+
+	pool := &pool{sampler: sampler, owner: ownerID, clientPacks: clientPacks}
 	go func() {
 		ticker := time.NewTimer(options.ClientRebalanceInterval)
 		for range ticker.C {
@@ -139,7 +148,7 @@ func new(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	return pool, nil
 }
 
-func (p *pool) ConnectionArtifacts() (client.Client, *token.SessionToken, error) {
+func (p *pool) Connection() (client.Client, *token.SessionToken, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if len(p.clientPacks) == 1 {
@@ -157,4 +166,8 @@ func (p *pool) ConnectionArtifacts() (client.Client, *token.SessionToken, error)
 		}
 	}
 	return nil, nil, errors.New("no healthy client")
+}
+
+func (p *pool) OwnerID() *owner.ID {
+	return p.owner
 }
