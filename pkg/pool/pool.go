@@ -11,7 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
 	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
-	"github.com/nspcc-dev/neofs-api-go/pkg/token"
+	"github.com/nspcc-dev/neofs-api-go/pkg/session"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 )
@@ -83,13 +83,13 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 
 // Pool is an interface providing connection artifacts on request.
 type Pool interface {
-	Connection() (client.Client, *token.SessionToken, error)
+	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
 }
 
 type clientPack struct {
 	client       client.Client
-	sessionToken *token.SessionToken
+	sessionToken *session.Token
 	healthy      bool
 }
 
@@ -148,7 +148,7 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	return pool, nil
 }
 
-func (p *pool) Connection() (client.Client, *token.SessionToken, error) {
+func (p *pool) Connection() (client.Client, *session.Token, error) {
 	p.lock.RLock()
 	defer p.lock.RUnlock()
 	if len(p.clientPacks) == 1 {
