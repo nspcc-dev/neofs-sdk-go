@@ -12,8 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
 	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
 )
 
 // BuilderOptions contains options used to build connection pool.
@@ -22,12 +20,9 @@ type BuilderOptions struct {
 	NodeConnectionTimeout   time.Duration
 	NodeRequestTimeout      time.Duration
 	ClientRebalanceInterval time.Duration
-	KeepaliveTime           time.Duration
-	KeepaliveTimeout        time.Duration
-	KeepalivePermitWoStream bool
 	SessionExpirationEpoch  uint64
 	weights                 []float64
-	connections             []*grpc.ClientConn
+	addresses               []string
 }
 
 // Builder is an interim structure used to collect node addresses/weights and
@@ -56,28 +51,9 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 	for i, w := range pb.weights {
 		pb.weights[i] = w / totalWeight
 	}
-	var cons = make([]*grpc.ClientConn, len(pb.addresses))
-	for i, address := range pb.addresses {
-		con, err := func() (*grpc.ClientConn, error) {
-			toctx, c := context.WithTimeout(ctx, options.NodeConnectionTimeout)
-			defer c()
-			return grpc.DialContext(toctx, address,
-				grpc.WithInsecure(),
-				grpc.WithBlock(),
-				grpc.WithKeepaliveParams(keepalive.ClientParameters{
-					Time:                options.KeepaliveTime,
-					Timeout:             options.KeepaliveTimeout,
-					PermitWithoutStream: options.KeepalivePermitWoStream,
-				}),
-			)
-		}()
-		if err != nil {
-			return nil, err
-		}
-		cons[i] = con
-	}
+
 	options.weights = pb.weights
-	options.connections = cons
+	options.addresses = pb.addresses
 	return newPool(ctx, options)
 }
 
@@ -102,8 +78,10 @@ type pool struct {
 
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	clientPacks := make([]*clientPack, len(options.weights))
-	for i, con := range options.connections {
-		c, err := client.New(client.WithDefaultPrivateKey(options.Key), client.WithGRPCConnection(con))
+	for i, address := range options.addresses {
+		c, err := client.New(client.WithDefaultPrivateKey(options.Key),
+			client.WithURIAddress(address, nil),
+			client.WithDialTimeout(options.NodeConnectionTimeout))
 		if err != nil {
 			return nil, err
 		}
