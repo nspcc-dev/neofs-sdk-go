@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
+	"github.com/nspcc-dev/neofs-api-go/pkg/object"
 	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
 )
@@ -59,6 +60,7 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 
 // Pool is an interface providing connection artifacts on request.
 type Pool interface {
+	client.Object
 	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
 }
@@ -148,4 +150,76 @@ func (p *pool) Connection() (client.Client, *session.Token, error) {
 
 func (p *pool) OwnerID() *owner.ID {
 	return p.owner
+}
+
+func (p *pool) conn(option []client.CallOption) (client.Client, []client.CallOption, error) {
+	conn, token, err := p.Connection()
+	if err != nil {
+		return nil, nil, err
+	}
+	return conn, append(option, client.WithSession(token)), nil
+}
+
+func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, option ...client.CallOption) (*object.ID, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.PutObject(ctx, params, options...)
+}
+
+func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectParams, option ...client.CallOption) error {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return err
+	}
+	return conn.DeleteObject(ctx, params, options...)
+}
+
+func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, option ...client.CallOption) (*object.Object, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.GetObject(ctx, params, options...)
+}
+
+func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, option ...client.CallOption) (*object.Object, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.GetObjectHeader(ctx, params, options...)
+}
+
+func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, option ...client.CallOption) ([]byte, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.ObjectPayloadRangeData(ctx, params, options...)
+}
+
+func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, option ...client.CallOption) ([][32]byte, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.ObjectPayloadRangeSHA256(ctx, params, options...)
+}
+
+func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, option ...client.CallOption) ([][64]byte, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.ObjectPayloadRangeTZ(ctx, params, options...)
+}
+
+func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, option ...client.CallOption) ([]*object.ID, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.SearchObject(ctx, params, options...)
 }
