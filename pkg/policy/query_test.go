@@ -2,6 +2,8 @@ package policy
 
 import (
 	"errors"
+	"fmt"
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
@@ -78,6 +80,32 @@ func TestFromSelectNoAttribute(t *testing.T) {
 		require.NoError(t, err)
 		require.EqualValues(t, expected, r)
 	})
+}
+
+func TestString(t *testing.T) {
+	qTemplate := `REP 1
+SELECT 1 IN City FROM Filt
+FILTER Property EQ %s AND Something NE 7 AS Filt`
+
+	testCases := []string{
+		`"double-quoted"`,
+		`"with ' single"`,
+		`'single-quoted'`,
+		`'with " double'`,
+	}
+
+	for _, s := range testCases {
+		t.Run(s, func(t *testing.T) {
+			q := fmt.Sprintf(qTemplate, s)
+			r, err := Parse(q)
+			require.NoError(t, err)
+
+			expected := newFilter("Filt", "", "", netmap.AND,
+				newFilter("", "Property", s[1:len(s)-1], netmap.EQ),
+				newFilter("", "Something", "7", netmap.NE))
+			require.EqualValues(t, []*netmap.Filter{expected}, r.Filters())
+		})
+	}
 }
 
 func TestFromSelectClause(t *testing.T) {
@@ -188,6 +216,30 @@ FILTER City EQ "SPB" AND SSD EQ true OR City EQ "SPB" AND Rating GE 5 AS SPBSSD`
 	require.EqualValues(t, expected, r)
 }
 
+func TestBrackets(t *testing.T) {
+	q := `REP 7 IN SPB
+SELECT 1 IN City FROM SPBSSD AS SPB
+FILTER ( City EQ "SPB" OR SSD EQ true ) AND (City EQ "SPB" OR Rating GE 5) AS SPBSSD`
+
+	expected := new(netmap.PlacementPolicy)
+	expected.SetReplicas([]*netmap.Replica{newReplica("SPB", 7)})
+	expected.SetSelectors([]*netmap.Selector{
+		newSelector(1, netmap.UnspecifiedClause, "City", "SPBSSD", "SPB"),
+	})
+	expected.SetFilters([]*netmap.Filter{
+		newFilter("SPBSSD", "", "", netmap.AND,
+			newFilter("", "", "", netmap.OR,
+				newFilter("", "City", "SPB", netmap.EQ),
+				newFilter("", "SSD", "true", netmap.EQ)),
+			newFilter("", "", "", netmap.OR,
+				newFilter("", "City", "SPB", netmap.EQ),
+				newFilter("", "Rating", "5", netmap.GE)))})
+
+	r, err := Parse(q)
+	require.NoError(t, err)
+	require.EqualValues(t, expected, r)
+}
+
 func TestValidation(t *testing.T) {
 	t.Run("MissingSelector", func(t *testing.T) {
 		q := `REP 3 IN RU`
@@ -205,12 +257,12 @@ func TestValidation(t *testing.T) {
               SELECT 1 IN City FROM F
 			  FILTER Country KEK RU AS F`
 		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrUnknownOp), "got: %v", err)
+		require.True(t, errors.Is(err, ErrSyntaxError), "got: %v", err)
 	})
 	t.Run("TypoInREP", func(t *testing.T) {
 		q := `REK 3`
 		_, err := Parse(q)
-		require.Error(t, err)
+		require.True(t, errors.Is(err, ErrSyntaxError))
 	})
 	t.Run("InvalidFilterName", func(t *testing.T) {
 		q := `REP 3
@@ -220,17 +272,28 @@ func TestValidation(t *testing.T) {
 		_, err := Parse(q)
 		require.Error(t, err)
 	})
-	t.Run("InvalidNumberInREP", func(t *testing.T) {
-		q := `REP 0`
-		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrInvalidNumber), "got: %v", err)
-	})
-	t.Run("InvalidNumberInREP", func(t *testing.T) {
-		q := `REP 1 IN Good
-			  SELECT 0 IN City FROM *`
-		_, err := Parse(q)
-		require.True(t, errors.Is(err, ErrInvalidNumber), "got: %v", err)
-	})
+}
+
+// Checks that an error is returned in cases when positive 32-bit integer is expected.
+func TestInvalidNumbers(t *testing.T) {
+	tmpls := []string{
+		"REP %d",
+		"REP 1 CBF %d",
+		"REP 1 SELECT %d FROM *",
+	}
+	for i := range tmpls {
+		zero := fmt.Sprintf(tmpls[i], 0)
+		t.Run(zero, func(t *testing.T) {
+			_, err := Parse(zero)
+			require.Error(t, err)
+		})
+
+		big := fmt.Sprintf(tmpls[i], int64(math.MaxUint32)+1)
+		t.Run(big, func(t *testing.T) {
+			_, err := Parse(big)
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestFilterStringSymbols(t *testing.T) {

@@ -1,7 +1,6 @@
 package policy_test
 
 import (
-	"fmt"
 	"strings"
 	"testing"
 
@@ -30,7 +29,6 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 		require.NoError(t, err)
 
 		got := policy.Encode(q)
-		fmt.Println(strings.Join(got, "\n"))
 		require.Equal(t, testCase, strings.Join(got, "\n"))
 	}
 }
