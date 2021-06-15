@@ -71,6 +71,8 @@ type clientPack struct {
 	healthy      bool
 }
 
+var _ Pool = (*pool)(nil)
+
 type pool struct {
 	lock        sync.RWMutex
 	sampler     *Sampler
