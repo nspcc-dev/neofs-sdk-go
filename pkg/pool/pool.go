@@ -45,15 +45,8 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 	if len(pb.addresses) == 0 {
 		return nil, errors.New("no NeoFS peers configured")
 	}
-	totalWeight := 0.0
-	for _, w := range pb.weights {
-		totalWeight += w
-	}
-	for i, w := range pb.weights {
-		pb.weights[i] = w / totalWeight
-	}
 
-	options.weights = pb.weights
+	options.weights = adjustWeights(pb.weights)
 	options.addresses = pb.addresses
 	return newPool(ctx, options)
 }
@@ -108,26 +101,73 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	ownerID := owner.NewIDFromNeo3Wallet(wallet)
 
 	pool := &pool{sampler: sampler, owner: ownerID, clientPacks: clientPacks}
-	go func() {
-		ticker := time.NewTimer(options.ClientRebalanceInterval)
-		for range ticker.C {
-			ok := true
-			for i, clientPack := range pool.clientPacks {
-				func() {
-					tctx, c := context.WithTimeout(ctx, options.NodeRequestTimeout)
-					defer c()
-					if _, err := clientPack.client.EndpointInfo(tctx); err != nil {
-						ok = false
-					}
-					pool.lock.Lock()
-					pool.clientPacks[i].healthy = ok
-					pool.lock.Unlock()
-				}()
-			}
-			ticker.Reset(options.ClientRebalanceInterval)
-		}
-	}()
+	go startRebalance(ctx, pool, options)
 	return pool, nil
+}
+
+func startRebalance(ctx context.Context, p *pool, options *BuilderOptions) {
+	ticker := time.NewTimer(options.ClientRebalanceInterval)
+	buffer := make([]float64, len(options.weights))
+
+	for range ticker.C {
+		updateNodesHealth(ctx, p, options, buffer)
+		ticker.Reset(options.ClientRebalanceInterval)
+	}
+}
+
+func updateNodesHealth(ctx context.Context, p *pool, options *BuilderOptions, bufferWeights []float64) {
+	if len(bufferWeights) != len(p.clientPacks) {
+		bufferWeights = make([]float64, len(p.clientPacks))
+	}
+	healthyChanged := false
+	wg := sync.WaitGroup{}
+	for i, cPack := range p.clientPacks {
+		wg.Add(1)
+		go func(i int, netmap client.Netmap) {
+			defer wg.Done()
+			ok := true
+			tctx, c := context.WithTimeout(ctx, options.NodeRequestTimeout)
+			defer c()
+			if _, err := netmap.EndpointInfo(tctx); err != nil {
+				ok = false
+				bufferWeights[i] = 0
+			}
+			if ok {
+				bufferWeights[i] = options.weights[i]
+			}
+
+			p.lock.Lock()
+			if p.clientPacks[i].healthy != ok {
+				p.clientPacks[i].healthy = ok
+				healthyChanged = true
+			}
+			p.lock.Unlock()
+		}(i, cPack.client)
+	}
+	wg.Wait()
+
+	if healthyChanged {
+		probabilities := adjustWeights(bufferWeights)
+		source := rand.NewSource(time.Now().UnixNano())
+		p.lock.Lock()
+		p.sampler = NewSampler(probabilities, source)
+		p.lock.Unlock()
+	}
+}
+
+func adjustWeights(weights []float64) []float64 {
+	adjusted := make([]float64, len(weights))
+	sum := 0.0
+	for _, weight := range weights {
+		sum += weight
+	}
+	if sum > 0 {
+		for i, weight := range weights {
+			adjusted[i] = weight / sum
+		}
+	}
+
+	return adjusted
 }
 
 func (p *pool) Connection() (client.Client, *session.Token, error) {
