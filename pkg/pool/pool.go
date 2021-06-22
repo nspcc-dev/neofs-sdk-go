@@ -74,6 +74,7 @@ type Pool interface {
 	client.Container
 	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
+	WaitForContainerPresence(context.Context, *cid.ID, *ContainerPollingParams) error
 }
 
 type clientPack struct {
