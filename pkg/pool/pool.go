@@ -9,7 +9,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nspcc-dev/neofs-api-go/pkg/acl/eacl"
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
+	"github.com/nspcc-dev/neofs-api-go/pkg/container"
+	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
 	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
@@ -31,6 +34,20 @@ type BuilderOptions struct {
 type Builder struct {
 	addresses []string
 	weights   []float64
+}
+
+// ContainerPollingParams contains parameters used in polling is a container created or not.
+type ContainerPollingParams struct {
+	CreationTimeout time.Duration
+	PollInterval    time.Duration
+}
+
+// DefaultPollingParams creates ContainerPollingParams with default values.
+func DefaultPollingParams() *ContainerPollingParams {
+	return &ContainerPollingParams{
+		CreationTimeout: 120 * time.Second,
+		PollInterval:    5 * time.Second,
+	}
 }
 
 // AddNode adds address/weight pair to node PoolBuilder list.
@@ -61,6 +78,7 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 // Pool is an interface providing connection artifacts on request.
 type Pool interface {
 	client.Object
+	client.Container
 	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
 }
@@ -224,4 +242,87 @@ func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectPara
 		return nil, err
 	}
 	return conn.SearchObject(ctx, params, options...)
+}
+
+func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, option ...client.CallOption) (*cid.ID, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.PutContainer(ctx, cnr, options...)
+}
+
+func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, option ...client.CallOption) (*container.Container, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.GetContainer(ctx, cid, options...)
+}
+
+func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, option ...client.CallOption) ([]*cid.ID, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.ListContainers(ctx, ownerID, options...)
+}
+
+func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, option ...client.CallOption) error {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return err
+	}
+	return conn.DeleteContainer(ctx, cid, options...)
+}
+
+func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, option ...client.CallOption) (*client.EACLWithSignature, error) {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return nil, err
+	}
+	return conn.GetEACL(ctx, cid, options...)
+}
+
+func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, option ...client.CallOption) error {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return err
+	}
+	return conn.SetEACL(ctx, table, options...)
+}
+
+func (p *pool) AnnounceContainerUsedSpace(ctx context.Context, announce []container.UsedSpaceAnnouncement, option ...client.CallOption) error {
+	conn, options, err := p.conn(option)
+	if err != nil {
+		return err
+	}
+	return conn.AnnounceContainerUsedSpace(ctx, announce, options...)
+}
+
+func (p *pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollParams *ContainerPollingParams) error {
+	conn, _, err := p.Connection()
+	if err != nil {
+		return err
+	}
+	wctx, cancel := context.WithTimeout(ctx, pollParams.CreationTimeout)
+	defer cancel()
+	ticker := time.NewTimer(pollParams.PollInterval)
+	defer ticker.Stop()
+	wdone := wctx.Done()
+	done := ctx.Done()
+	for {
+		select {
+		case <-done:
+			return ctx.Err()
+		case <-wdone:
+			return wctx.Err()
+		case <-ticker.C:
+			_, err = conn.GetContainer(ctx, cid)
+			if err == nil {
+				return nil
+			}
+			ticker.Reset(pollParams.PollInterval)
+		}
+	}
 }
