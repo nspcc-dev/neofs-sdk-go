@@ -218,7 +218,7 @@ func (p *pool) conn(option []client.CallOption) (client.Client, []client.CallOpt
 	if err != nil {
 		return nil, nil, err
 	}
-	return conn, append(option, client.WithSession(token)), nil
+	return conn, append([]client.CallOption{client.WithSession(token)}, option...), nil
 }
 
 func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, option ...client.CallOption) (*object.ID, error) {
