@@ -19,6 +19,11 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
 )
 
+// Client is a wrapper for client.Client to generate mock.
+type Client interface {
+	client.Client
+}
+
 // BuilderOptions contains options used to build connection pool.
 type BuilderOptions struct {
 	Key                     *ecdsa.PrivateKey
@@ -28,6 +33,7 @@ type BuilderOptions struct {
 	SessionExpirationEpoch  uint64
 	weights                 []float64
 	addresses               []string
+	clientBuilder           func(opts ...client.Option) (client.Client, error)
 }
 
 // Builder is an interim structure used to collect node addresses/weights and
@@ -66,6 +72,11 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 
 	options.weights = adjustWeights(pb.weights)
 	options.addresses = pb.addresses
+
+	if options.clientBuilder == nil {
+		options.clientBuilder = client.New
+	}
+
 	return newPool(ctx, options)
 }
 
@@ -96,7 +107,7 @@ type pool struct {
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	clientPacks := make([]*clientPack, len(options.weights))
 	for i, address := range options.addresses {
-		c, err := client.New(client.WithDefaultPrivateKey(options.Key),
+		c, err := options.clientBuilder(client.WithDefaultPrivateKey(options.Key),
 			client.WithURIAddress(address, nil),
 			client.WithDialTimeout(options.NodeConnectionTimeout))
 		if err != nil {
@@ -139,9 +150,14 @@ func startRebalance(ctx context.Context, p *pool, options *BuilderOptions) {
 	ticker := time.NewTimer(options.ClientRebalanceInterval)
 	buffer := make([]float64, len(options.weights))
 
-	for range ticker.C {
-		updateNodesHealth(ctx, p, options, buffer)
-		ticker.Reset(options.ClientRebalanceInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			updateNodesHealth(ctx, p, options, buffer)
+			ticker.Reset(options.ClientRebalanceInterval)
+		}
 	}
 }
 
