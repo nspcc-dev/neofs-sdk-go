@@ -94,6 +94,7 @@ func TestHealthyReweight(t *testing.T) {
 	p.lock.Unlock()
 
 	updateNodesHealth(context.TODO(), p, options, buffer)
+	p.sampler = NewSampler(weights, rand.NewSource(0))
 
 	connection0, _, err = p.Connection()
 	require.NoError(t, err)
