@@ -169,6 +169,7 @@ func updateNodesHealth(ctx context.Context, p *pool, options *BuilderOptions, bu
 	wg := sync.WaitGroup{}
 	for i, cPack := range p.clientPacks {
 		wg.Add(1)
+
 		go func(i int, client client.Client) {
 			defer wg.Done()
 			var (
