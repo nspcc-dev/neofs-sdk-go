@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-sdk-go/pkg/policy"
+	"github.com/nspcc-dev/neofs-sdk-go/policy"
 	"github.com/stretchr/testify/require"
 )
 
