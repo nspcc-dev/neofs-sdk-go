@@ -8,7 +8,7 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
-	"github.com/nspcc-dev/neofs-sdk-go/pkg/policy/parser"
+	"github.com/nspcc-dev/neofs-sdk-go/policy/parser"
 )
 
 var (
