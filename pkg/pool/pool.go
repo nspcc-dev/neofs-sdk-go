@@ -169,22 +169,35 @@ func updateNodesHealth(ctx context.Context, p *pool, options *BuilderOptions, bu
 	wg := sync.WaitGroup{}
 	for i, cPack := range p.clientPacks {
 		wg.Add(1)
-		go func(i int, netmap client.Netmap) {
+		go func(i int, client client.Client) {
 			defer wg.Done()
+			var (
+				tkn *session.Token
+				err error
+			)
 			ok := true
 			tctx, c := context.WithTimeout(ctx, options.NodeRequestTimeout)
 			defer c()
-			if _, err := netmap.EndpointInfo(tctx); err != nil {
+			if _, err = client.EndpointInfo(tctx); err != nil {
 				ok = false
 				bufferWeights[i] = 0
 			}
 			if ok {
 				bufferWeights[i] = options.weights[i]
+				p.lock.RLock()
+				if !p.clientPacks[i].healthy {
+					if tkn, err = client.CreateSession(ctx, options.SessionExpirationEpoch); err != nil {
+						ok = false
+						bufferWeights[i] = 0
+					}
+				}
+				p.lock.RUnlock()
 			}
 
 			p.lock.Lock()
 			if p.clientPacks[i].healthy != ok {
 				p.clientPacks[i].healthy = ok
+				p.clientPacks[i].sessionToken = tkn
 				healthyChanged = true
 			}
 			p.lock.Unlock()
