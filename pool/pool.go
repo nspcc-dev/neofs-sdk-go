@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/pkg/client"
 	"github.com/nspcc-dev/neofs-api-go/pkg/container"
 	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
-	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
 	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
@@ -115,20 +114,6 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 		}
 		st, err := c.CreateSession(ctx, options.SessionExpirationEpoch)
 		if err != nil {
-			var address interface{} = "unknown"
-
-			if epi, err := c.EndpointInfo(ctx); err == nil {
-				ni := epi.NodeInfo()
-
-				addresses := make([]string, 0, ni.NumberOfAddresses())
-
-				netmap.IterateAllAddresses(ni, func(addr string) {
-					addresses = append(addresses, addr)
-				})
-
-				address = addresses
-			}
-
 			return nil, fmt.Errorf("failed to create neofs session token for client %v: %w", address, err)
 		}
 		clientPacks[i] = &clientPack{client: c, sessionToken: st, healthy: true}
