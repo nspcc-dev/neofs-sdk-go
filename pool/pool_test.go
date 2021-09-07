@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/zap"
 )
 
 func TestBuildPoolClientFailed(t *testing.T) {
@@ -48,8 +49,8 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session"))
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfo{}, nil)
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -63,7 +64,69 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 
 	_, err = pb.Build(context.TODO(), opts)
 	require.Error(t, err)
-	require.Contains(t, err.Error(), "client []: error session")
+}
+
+func TestBuildPoolOneNodeFailed(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	ctrl2 := gomock.NewController(t)
+	defer ctrl2.Finish()
+
+	key, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	ni := &netmap.NodeInfo{}
+	ni.SetAddresses("addr1", "addr2")
+
+	var expectedToken *session.Token
+	clientCount := -1
+	clientBuilder := func(opts ...client.Option) (client.Client, error) {
+		clientCount++
+		mockClient := NewMockClient(ctrl)
+		mockInvokes := 0
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+			mockInvokes++
+			if mockInvokes == 1 {
+				expectedToken = newToken(t)
+				return nil, fmt.Errorf("error session")
+			}
+			return expectedToken, nil
+		}).AnyTimes()
+
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+
+		mockClient2 := NewMockClient(ctrl2)
+		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+
+		if clientCount == 0 {
+			return mockClient, nil
+		}
+		return mockClient2, nil
+	}
+
+	pb := new(Builder)
+	pb.AddNode("peer0", 9)
+	pb.AddNode("peer1", 1)
+
+	log, err := zap.NewProduction()
+	require.NoError(t, err)
+	opts := &BuilderOptions{
+		Key:                     &key.PrivateKey,
+		clientBuilder:           clientBuilder,
+		ClientRebalanceInterval: 1000 * time.Millisecond,
+		Logger:                  log,
+	}
+
+	clientPool, err := pb.Build(context.TODO(), opts)
+	require.NoError(t, err)
+
+	condition := func() bool {
+		_, st, err := clientPool.Connection()
+		return err == nil && st == expectedToken
+	}
+	require.Never(t, condition, 900*time.Millisecond, 100*time.Millisecond)
+	require.Eventually(t, condition, 3*time.Second, 300*time.Millisecond)
 }
 
 func TestBuildPoolZeroNodes(t *testing.T) {
