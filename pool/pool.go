@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/pkg/object"
 	"github.com/nspcc-dev/neofs-api-go/pkg/owner"
 	"github.com/nspcc-dev/neofs-api-go/pkg/session"
+	"go.uber.org/zap"
 )
 
 // Client is a wrapper for client.Client to generate mock.
@@ -26,6 +27,7 @@ type Client interface {
 // BuilderOptions contains options used to build connection pool.
 type BuilderOptions struct {
 	Key                     *ecdsa.PrivateKey
+	Logger                  *zap.Logger
 	NodeConnectionTimeout   time.Duration
 	NodeRequestTimeout      time.Duration
 	ClientRebalanceInterval time.Duration
@@ -105,6 +107,7 @@ type pool struct {
 
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	clientPacks := make([]*clientPack, len(options.weights))
+	var atLeastOneHealthy bool
 	for i, address := range options.addresses {
 		c, err := options.clientBuilder(client.WithDefaultPrivateKey(options.Key),
 			client.WithURIAddress(address, nil),
@@ -112,12 +115,22 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 		if err != nil {
 			return nil, err
 		}
+		var healthy bool
 		st, err := c.CreateSession(ctx, options.SessionExpirationEpoch)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create neofs session token for client %v: %w", address, err)
+		if err != nil && options.Logger != nil {
+			options.Logger.Warn("failed to create neofs session token for client",
+				zap.String("address", address),
+				zap.Error(err))
+		} else if err == nil {
+			healthy, atLeastOneHealthy = true, true
 		}
-		clientPacks[i] = &clientPack{client: c, sessionToken: st, healthy: true}
+		clientPacks[i] = &clientPack{client: c, sessionToken: st, healthy: healthy}
 	}
+
+	if !atLeastOneHealthy {
+		return nil, fmt.Errorf("at least one node must be healthy")
+	}
+
 	source := rand.NewSource(time.Now().UnixNano())
 	sampler := NewSampler(options.weights, source)
 	wallet, err := owner.NEO3WalletFromPublicKey(&options.Key.PublicKey)
