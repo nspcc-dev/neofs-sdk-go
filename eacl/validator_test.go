@@ -9,6 +9,113 @@ import (
 	"go.uber.org/zap/zaptest"
 )
 
+func TestFilterMatch(t *testing.T) {
+	tgt := NewTarget()
+	tgt.SetRole(RoleOthers)
+
+	t.Run("simple header match", func(t *testing.T) {
+		tb := NewTable()
+
+		r := newRecord(ActionDeny, OperationUnknown, tgt)
+		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
+		tb.AddRecord(r)
+
+		r = newRecord(ActionDeny, OperationUnknown, tgt)
+		r.AddFilter(HeaderFromRequest, MatchStringNotEqual, "b", "yyy")
+		tb.AddRecord(r)
+
+		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
+
+		v := newValidator(t, tb)
+		vu := newValidationUnit(RoleOthers, nil)
+		hs := headers{}
+		vu.hdrSrc = &hs
+
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+
+		hs.obj = makeHeaders("b", "yyy")
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+
+		hs.obj = makeHeaders("a", "xxx")
+		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+
+		hs.obj = nil
+		hs.req = makeHeaders("b", "yyy")
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+
+		hs.req = makeHeaders("b", "abc")
+		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+	})
+
+	t.Run("all filters must match", func(t *testing.T) {
+		tb := NewTable()
+		r := newRecord(ActionDeny, OperationUnknown, tgt)
+		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
+		r.AddFilter(HeaderFromRequest, MatchStringEqual, "b", "yyy")
+		tb.AddRecord(r)
+		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
+
+		v := newValidator(t, tb)
+		vu := newValidationUnit(RoleOthers, nil)
+		hs := headers{}
+		vu.hdrSrc = &hs
+
+		hs.obj = makeHeaders("a", "xxx")
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+
+		hs.req = makeHeaders("b", "yyy")
+		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+
+		hs.obj = nil
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+	})
+
+	t.Run("filters with unknown type are skipped", func(t *testing.T) {
+		tb := NewTable()
+		r := newRecord(ActionDeny, OperationUnknown, tgt)
+		r.AddFilter(HeaderTypeUnknown, MatchStringEqual, "a", "xxx")
+		tb.AddRecord(r)
+
+		r = newRecord(ActionDeny, OperationUnknown, tgt)
+		r.AddFilter(0xFF, MatchStringEqual, "b", "yyy")
+		tb.AddRecord(r)
+
+		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+
+		v := newValidator(t, tb)
+		vu := newValidationUnit(RoleOthers, nil)
+		hs := headers{}
+		vu.hdrSrc = &hs
+
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+
+		hs.obj = makeHeaders("a", "xxx")
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+
+		hs.obj = nil
+		hs.req = makeHeaders("b", "yyy")
+		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+	})
+
+	t.Run("filters with match function are skipped", func(t *testing.T) {
+		tb := NewTable()
+		r := newRecord(ActionAllow, OperationUnknown, tgt)
+		r.AddFilter(HeaderFromObject, 0xFF, "a", "xxx")
+		tb.AddRecord(r)
+		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+
+		v := newValidator(t, tb)
+		vu := newValidationUnit(RoleOthers, nil)
+		hs := headers{}
+		vu.hdrSrc = &hs
+
+		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+
+		hs.obj = makeHeaders("a", "xxx")
+		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+	})
+}
+
 func TestOperationMatch(t *testing.T) {
 	tgt := NewTarget()
 	tgt.SetRole(RoleOthers)
@@ -84,6 +191,39 @@ func makeKeys(t *testing.T, n int) [][]byte {
 		require.NoError(t, err)
 	}
 	return pubs
+}
+
+type (
+	hdr struct {
+		key, value string
+	}
+
+	headers struct {
+		obj []Header
+		req []Header
+	}
+)
+
+func (h hdr) Key() string   { return h.key }
+func (h hdr) Value() string { return h.value }
+
+func makeHeaders(kv ...string) []Header {
+	hs := make([]Header, len(kv)/2)
+	for i := 0; i < len(kv); i += 2 {
+		hs[i/2] = hdr{kv[i], kv[i+1]}
+	}
+	return hs
+}
+
+func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool) {
+	switch ht {
+	case HeaderFromRequest:
+		return h.req, true
+	case HeaderFromObject:
+		return h.obj, true
+	default:
+		return nil, false
+	}
 }
 
 func newRecord(a Action, op Operation, tgt ...*Target) *Record {
