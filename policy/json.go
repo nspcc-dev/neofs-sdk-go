@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
 )
 
 type (
@@ -38,17 +38,17 @@ type (
 // ToJSON converts placement policy to JSON.
 func ToJSON(np *netmap.PlacementPolicy) ([]byte, error) {
 	p := new(placement)
-	p.CBF = np.GetContainerBackupFactor()
-	p.Filters = make([]filter, len(np.GetFilters()))
-	for i, f := range np.GetFilters() {
+	p.CBF = np.ContainerBackupFactor()
+	p.Filters = make([]filter, len(np.Filters()))
+	for i, f := range np.Filters() {
 		p.Filters[i].fromNetmap(f)
 	}
-	p.Selectors = make([]selector, len(np.GetSelectors()))
-	for i, s := range np.GetSelectors() {
+	p.Selectors = make([]selector, len(np.Selectors()))
+	for i, s := range np.Selectors() {
 		p.Selectors[i].fromNetmap(s)
 	}
-	p.Replicas = make([]replica, len(np.GetReplicas()))
-	for i, r := range np.GetReplicas() {
+	p.Replicas = make([]replica, len(np.Replicas()))
+	for i, r := range np.Replicas() {
 		p.Replicas[i].fromNetmap(r)
 	}
 	return json.Marshal(p)
@@ -91,10 +91,10 @@ func FromJSON(data []byte) (*netmap.PlacementPolicy, error) {
 	}
 
 	pp := new(netmap.PlacementPolicy)
-	pp.SetReplicas(rs)
+	pp.SetReplicas(rs...)
 	pp.SetContainerBackupFactor(p.CBF)
-	pp.SetFilters(fs)
-	pp.SetSelectors(ss)
+	pp.SetFilters(fs...)
+	pp.SetSelectors(ss...)
 	return pp, nil
 }
 
@@ -106,31 +106,30 @@ func (r *replica) toNetmap() *netmap.Replica {
 }
 
 func (r *replica) fromNetmap(nr *netmap.Replica) {
-	r.Count = nr.GetCount()
-	r.Selector = nr.GetSelector()
+	r.Count = nr.Count()
+	r.Selector = nr.Selector()
 }
 
 func (f *filter) toNetmap() (*netmap.Filter, error) {
 	var op netmap.Operation
 	switch strings.ToUpper(f.Op) {
 	case "EQ":
-		op = netmap.EQ
+		op = netmap.OpEQ
 	case "NE":
-		op = netmap.NE
+		op = netmap.OpNE
 	case "GT":
-		op = netmap.GT
+		op = netmap.OpGT
 	case "GE":
-		op = netmap.GE
+		op = netmap.OpGE
 	case "LT":
-		op = netmap.LT
+		op = netmap.OpLT
 	case "LE":
-		op = netmap.LE
+		op = netmap.OpLE
 	case "AND":
-		op = netmap.AND
+		op = netmap.OpAND
 	case "OR":
-		op = netmap.OR
+		op = netmap.OpOR
 	case "":
-		op = netmap.UnspecifiedOperation
 	default:
 		return nil, fmt.Errorf("%w: '%s'", ErrUnknownOp, f.Op)
 	}
@@ -148,8 +147,8 @@ func (f *filter) toNetmap() (*netmap.Filter, error) {
 	}
 
 	nf := new(netmap.Filter)
-	nf.SetFilters(fs)
-	nf.SetOp(op)
+	nf.SetInnerFilters(fs...)
+	nf.SetOperation(op)
 	nf.SetName(f.Name)
 	nf.SetValue(f.Value)
 	nf.SetKey(f.Key)
@@ -157,32 +156,32 @@ func (f *filter) toNetmap() (*netmap.Filter, error) {
 }
 
 func (f *filter) fromNetmap(nf *netmap.Filter) {
-	f.Name = nf.GetName()
-	f.Key = nf.GetKey()
-	f.Value = nf.GetValue()
-	switch nf.GetOp() {
-	case netmap.EQ:
+	f.Name = nf.Name()
+	f.Key = nf.Key()
+	f.Value = nf.Value()
+	switch nf.Operation() {
+	case netmap.OpEQ:
 		f.Op = "EQ"
-	case netmap.NE:
+	case netmap.OpNE:
 		f.Op = "NE"
-	case netmap.GT:
+	case netmap.OpGT:
 		f.Op = "GT"
-	case netmap.GE:
+	case netmap.OpGE:
 		f.Op = "GE"
-	case netmap.LT:
+	case netmap.OpLT:
 		f.Op = "LT"
-	case netmap.LE:
+	case netmap.OpLE:
 		f.Op = "LE"
-	case netmap.AND:
+	case netmap.OpAND:
 		f.Op = "AND"
-	case netmap.OR:
+	case netmap.OpOR:
 		f.Op = "OR"
 	default:
 		// do nothing
 	}
-	if nf.GetFilters() != nil {
-		f.Filters = make([]filter, len(nf.GetFilters()))
-		for i, sf := range nf.GetFilters() {
+	if nf.InnerFilters() != nil {
+		f.Filters = make([]filter, len(nf.InnerFilters()))
+		for i, sf := range nf.InnerFilters() {
 			f.Filters[i].fromNetmap(sf)
 		}
 	}
@@ -192,9 +191,9 @@ func (s *selector) toNetmap() (*netmap.Selector, error) {
 	var c netmap.Clause
 	switch strings.ToUpper(s.Clause) {
 	case "SAME":
-		c = netmap.Same
+		c = netmap.ClauseSame
 	case "DISTINCT":
-		c = netmap.Distinct
+		c = netmap.ClauseDistinct
 	case "":
 	default:
 		return nil, fmt.Errorf("%w: '%s'", ErrUnknownClause, s.Clause)
@@ -209,17 +208,17 @@ func (s *selector) toNetmap() (*netmap.Selector, error) {
 }
 
 func (s *selector) fromNetmap(ns *netmap.Selector) {
-	s.Name = ns.GetName()
-	s.Filter = ns.GetFilter()
-	s.Count = ns.GetCount()
-	s.Attribute = ns.GetAttribute()
-	switch ns.GetClause() {
-	case netmap.Same:
+	s.Name = ns.Name()
+	s.Filter = ns.Filter()
+	s.Count = ns.Count()
+	s.Attribute = ns.Attribute()
+	switch ns.Clause() {
+	case netmap.ClauseSame:
 		s.Clause = "same"
-	case netmap.Distinct:
+	case netmap.ClauseDistinct:
 		s.Clause = "distinct"
 	default:
 		// do nothing
 	}
-	s.Name = ns.GetName()
+	s.Name = ns.Name()
 }

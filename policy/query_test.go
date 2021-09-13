@@ -6,16 +6,16 @@ import (
 	"math"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSimple(t *testing.T) {
 	q := `REP 3`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{})
-	expected.SetSelectors([]*netmap.Selector{})
-	expected.SetReplicas([]*netmap.Replica{newReplica("", 3)})
+	expected.SetFilters([]*netmap.Filter{}...)
+	expected.SetSelectors([]*netmap.Selector{}...)
+	expected.SetReplicas(newReplica("", 3))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -25,9 +25,9 @@ func TestSimple(t *testing.T) {
 func TestSimpleWithHRWB(t *testing.T) {
 	q := `REP 3 CBF 4`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{})
-	expected.SetSelectors([]*netmap.Selector{})
-	expected.SetReplicas([]*netmap.Replica{newReplica("", 3)})
+	expected.SetFilters([]*netmap.Filter{}...)
+	expected.SetSelectors([]*netmap.Selector{}...)
+	expected.SetReplicas(newReplica("", 3))
 	expected.SetContainerBackupFactor(4)
 
 	r, err := Parse(q)
@@ -39,11 +39,9 @@ func TestFromSelect(t *testing.T) {
 	q := `REP 1 IN SPB
 SELECT 1 IN City FROM * AS SPB`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(1, netmap.UnspecifiedClause, "City", "*", "SPB"),
-	})
-	expected.SetReplicas([]*netmap.Replica{newReplica("SPB", 1)})
+	expected.SetFilters([]*netmap.Filter{}...)
+	expected.SetSelectors(newSelector(1, netmap.ClauseUnspecified, "City", "*", "SPB"))
+	expected.SetReplicas(newReplica("SPB", 1))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -57,9 +55,9 @@ func TestFromSelectNoAttribute(t *testing.T) {
 		SELECT 6 FROM *`
 
 		expected := new(netmap.PlacementPolicy)
-		expected.SetFilters([]*netmap.Filter{})
-		expected.SetSelectors([]*netmap.Selector{newSelector(6, netmap.UnspecifiedClause, "", "*", "")})
-		expected.SetReplicas([]*netmap.Replica{newReplica("", 2)})
+		expected.SetFilters([]*netmap.Filter{}...)
+		expected.SetSelectors(newSelector(6, netmap.ClauseUnspecified, "", "*", ""))
+		expected.SetReplicas(newReplica("", 2))
 
 		r, err := Parse(q)
 		require.NoError(t, err)
@@ -72,9 +70,9 @@ func TestFromSelectNoAttribute(t *testing.T) {
 		FILTER StorageType EQ SSD AS F`
 
 		expected := new(netmap.PlacementPolicy)
-		expected.SetFilters([]*netmap.Filter{newFilter("F", "StorageType", "SSD", netmap.EQ)})
-		expected.SetSelectors([]*netmap.Selector{newSelector(6, netmap.UnspecifiedClause, "", "F", "")})
-		expected.SetReplicas([]*netmap.Replica{newReplica("", 2)})
+		expected.SetFilters(newFilter("F", "StorageType", "SSD", netmap.OpEQ))
+		expected.SetSelectors(newSelector(6, netmap.ClauseUnspecified, "", "F", ""))
+		expected.SetReplicas(newReplica("", 2))
 
 		r, err := Parse(q)
 		require.NoError(t, err)
@@ -100,9 +98,9 @@ FILTER Property EQ %s AND Something NE 7 AS Filt`
 			r, err := Parse(q)
 			require.NoError(t, err)
 
-			expected := newFilter("Filt", "", "", netmap.AND,
-				newFilter("", "Property", s[1:len(s)-1], netmap.EQ),
-				newFilter("", "Something", "7", netmap.NE))
+			expected := newFilter("Filt", "", "", netmap.OpAND,
+				newFilter("", "Property", s[1:len(s)-1], netmap.OpEQ),
+				newFilter("", "Something", "7", netmap.OpNE))
 			require.EqualValues(t, []*netmap.Filter{expected}, r.Filters())
 		})
 	}
@@ -114,13 +112,12 @@ SELECT 3 IN Country FROM *
 SELECT 2 IN SAME City FROM *
 SELECT 1 IN DISTINCT Continent FROM *`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(3, netmap.UnspecifiedClause, "Country", "*", ""),
-		newSelector(2, netmap.Same, "City", "*", ""),
-		newSelector(1, netmap.Distinct, "Continent", "*", ""),
-	})
-	expected.SetReplicas([]*netmap.Replica{newReplica("", 4)})
+	expected.SetFilters([]*netmap.Filter{}...)
+	expected.SetSelectors(
+		newSelector(3, netmap.ClauseUnspecified, "Country", "*", ""),
+		newSelector(2, netmap.ClauseSame, "City", "*", ""),
+		newSelector(1, netmap.ClauseDistinct, "Continent", "*", ""))
+	expected.SetReplicas(newReplica("", 4))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -132,13 +129,10 @@ func TestSimpleFilter(t *testing.T) {
 SELECT 1 IN City FROM Good
 FILTER Rating GT 7 AS Good`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetReplicas([]*netmap.Replica{newReplica("", 1)})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(1, netmap.UnspecifiedClause, "City", "Good", ""),
-	})
-	expected.SetFilters([]*netmap.Filter{
-		newFilter("Good", "Rating", "7", netmap.GT),
-	})
+	expected.SetReplicas(newReplica("", 1))
+	expected.SetSelectors(
+		newSelector(1, netmap.ClauseUnspecified, "City", "Good", ""))
+	expected.SetFilters(newFilter("Good", "Rating", "7", netmap.OpGT))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -151,16 +145,15 @@ SELECT 2 IN City FROM Good
 FILTER Country EQ "RU" AS FromRU
 FILTER @FromRU AND Rating GT 7 AS Good`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetReplicas([]*netmap.Replica{newReplica("", 1)})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(2, netmap.UnspecifiedClause, "City", "Good", ""),
-	})
-	expected.SetFilters([]*netmap.Filter{
-		newFilter("FromRU", "Country", "RU", netmap.EQ),
-		newFilter("Good", "", "", netmap.AND,
-			newFilter("FromRU", "", "", netmap.UnspecifiedOperation),
-			newFilter("", "Rating", "7", netmap.GT)),
-	})
+	expected.SetReplicas(newReplica("", 1))
+	expected.SetSelectors(
+		newSelector(2, netmap.ClauseUnspecified, "City", "Good", ""))
+	expected.SetFilters(
+		newFilter("FromRU", "Country", "RU", netmap.OpEQ),
+		newFilter("Good", "", "", netmap.OpAND,
+			newFilter("FromRU", "", "", 0),
+			newFilter("", "Rating", "7", netmap.OpGT)),
+	)
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -173,19 +166,16 @@ SELECT 2 IN City FROM Good
 FILTER A GT 1 AND B GE 2 AND C LT 3 AND D LE 4
   AND E EQ 5 AND F NE 6 AS Good`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetReplicas([]*netmap.Replica{newReplica("", 1)})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(2, netmap.UnspecifiedClause, "City", "Good", ""),
-	})
-	expected.SetFilters([]*netmap.Filter{
-		newFilter("Good", "", "", netmap.AND,
-			newFilter("", "A", "1", netmap.GT),
-			newFilter("", "B", "2", netmap.GE),
-			newFilter("", "C", "3", netmap.LT),
-			newFilter("", "D", "4", netmap.LE),
-			newFilter("", "E", "5", netmap.EQ),
-			newFilter("", "F", "6", netmap.NE)),
-	})
+	expected.SetReplicas(newReplica("", 1))
+	expected.SetSelectors(
+		newSelector(2, netmap.ClauseUnspecified, "City", "Good", ""))
+	expected.SetFilters(newFilter("Good", "", "", netmap.OpAND,
+		newFilter("", "A", "1", netmap.OpGT),
+		newFilter("", "B", "2", netmap.OpGE),
+		newFilter("", "C", "3", netmap.OpLT),
+		newFilter("", "D", "4", netmap.OpLE),
+		newFilter("", "E", "5", netmap.OpEQ),
+		newFilter("", "F", "6", netmap.OpNE)))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -197,19 +187,17 @@ func TestWithFilterPrecedence(t *testing.T) {
 SELECT 1 IN City FROM SPBSSD AS SPB
 FILTER City EQ "SPB" AND SSD EQ true OR City EQ "SPB" AND Rating GE 5 AS SPBSSD`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetReplicas([]*netmap.Replica{newReplica("SPB", 7)})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(1, netmap.UnspecifiedClause, "City", "SPBSSD", "SPB"),
-	})
-	expected.SetFilters([]*netmap.Filter{
-		newFilter("SPBSSD", "", "", netmap.OR,
-			newFilter("", "", "", netmap.AND,
-				newFilter("", "City", "SPB", netmap.EQ),
-				newFilter("", "SSD", "true", netmap.EQ)),
-			newFilter("", "", "", netmap.AND,
-				newFilter("", "City", "SPB", netmap.EQ),
-				newFilter("", "Rating", "5", netmap.GE))),
-	})
+	expected.SetReplicas(newReplica("SPB", 7))
+	expected.SetSelectors(
+		newSelector(1, netmap.ClauseUnspecified, "City", "SPBSSD", "SPB"))
+	expected.SetFilters(
+		newFilter("SPBSSD", "", "", netmap.OpOR,
+			newFilter("", "", "", netmap.OpAND,
+				newFilter("", "City", "SPB", netmap.OpEQ),
+				newFilter("", "SSD", "true", netmap.OpEQ)),
+			newFilter("", "", "", netmap.OpAND,
+				newFilter("", "City", "SPB", netmap.OpEQ),
+				newFilter("", "Rating", "5", netmap.OpGE))))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -222,18 +210,17 @@ SELECT 1 IN City FROM SPBSSD AS SPB
 FILTER ( City EQ "SPB" OR SSD EQ true ) AND (City EQ "SPB" OR Rating GE 5) AS SPBSSD`
 
 	expected := new(netmap.PlacementPolicy)
-	expected.SetReplicas([]*netmap.Replica{newReplica("SPB", 7)})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(1, netmap.UnspecifiedClause, "City", "SPBSSD", "SPB"),
-	})
-	expected.SetFilters([]*netmap.Filter{
-		newFilter("SPBSSD", "", "", netmap.AND,
-			newFilter("", "", "", netmap.OR,
-				newFilter("", "City", "SPB", netmap.EQ),
-				newFilter("", "SSD", "true", netmap.EQ)),
-			newFilter("", "", "", netmap.OR,
-				newFilter("", "City", "SPB", netmap.EQ),
-				newFilter("", "Rating", "5", netmap.GE)))})
+	expected.SetReplicas(newReplica("SPB", 7))
+	expected.SetSelectors(
+		newSelector(1, netmap.ClauseUnspecified, "City", "SPBSSD", "SPB"))
+	expected.SetFilters(
+		newFilter("SPBSSD", "", "", netmap.OpAND,
+			newFilter("", "", "", netmap.OpOR,
+				newFilter("", "City", "SPB", netmap.OpEQ),
+				newFilter("", "SSD", "true", netmap.OpEQ)),
+			newFilter("", "", "", netmap.OpOR,
+				newFilter("", "City", "SPB", netmap.OpEQ),
+				newFilter("", "Rating", "5", netmap.OpGE))))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -302,15 +289,10 @@ SELECT 1 FROM F AS S
 FILTER "UN-LOCODE" EQ "RU LED" AS F`
 
 	expected := new(netmap.PlacementPolicy)
-	expected.SetReplicas([]*netmap.Replica{
-		newReplica("S", 1),
-	})
-	expected.SetSelectors([]*netmap.Selector{
-		newSelector(1, netmap.UnspecifiedClause, "", "F", "S"),
-	})
-	expected.SetFilters([]*netmap.Filter{
-		newFilter("F", "UN-LOCODE", "RU LED", netmap.EQ),
-	})
+	expected.SetReplicas(newReplica("S", 1))
+	expected.SetSelectors(
+		newSelector(1, netmap.ClauseUnspecified, "", "F", "S"))
+	expected.SetFilters(newFilter("F", "UN-LOCODE", "RU LED", netmap.OpEQ))
 
 	r, err := Parse(q)
 	require.NoError(t, err)
@@ -322,8 +304,8 @@ func newFilter(name, key, value string, op netmap.Operation, sub ...*netmap.Filt
 	f.SetName(name)
 	f.SetKey(key)
 	f.SetValue(value)
-	f.SetOp(op)
-	f.SetFilters(sub)
+	f.SetOperation(op)
+	f.SetInnerFilters(sub...)
 	return f
 }
 

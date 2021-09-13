@@ -3,7 +3,7 @@ package policy
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,22 +19,21 @@ func TestToJSON(t *testing.T) {
 	}
 	t.Run("SimpleREP", func(t *testing.T) {
 		p := new(netmap.PlacementPolicy)
-		p.SetReplicas([]*netmap.Replica{newReplica("", 3)})
+		p.SetReplicas(newReplica("", 3))
 		check(t, p, `{"replicas":[{"count":3}]}`)
 	})
 	t.Run("REPWithCBF", func(t *testing.T) {
 		p := new(netmap.PlacementPolicy)
-		p.SetReplicas([]*netmap.Replica{newReplica("", 3)})
+		p.SetReplicas(newReplica("", 3))
 		p.SetContainerBackupFactor(3)
 		check(t, p, `{"replicas":[{"count":3}],"container_backup_factor":3}`)
 	})
 	t.Run("REPFromSelector", func(t *testing.T) {
 		p := new(netmap.PlacementPolicy)
-		p.SetReplicas([]*netmap.Replica{newReplica("Nodes", 3)})
+		p.SetReplicas(newReplica("Nodes", 3))
 		p.SetContainerBackupFactor(3)
-		p.SetSelectors([]*netmap.Selector{
-			newSelector(1, netmap.Distinct, "City", "", "Nodes"),
-		})
+		p.SetSelectors(
+			newSelector(1, netmap.ClauseDistinct, "City", "", "Nodes"))
 		check(t, p, `{
 			"replicas":[{"count":3,"selector":"Nodes"}],
 			"container_backup_factor":3,
@@ -47,22 +46,21 @@ func TestToJSON(t *testing.T) {
 	})
 	t.Run("FilterOps", func(t *testing.T) {
 		p := new(netmap.PlacementPolicy)
-		p.SetReplicas([]*netmap.Replica{newReplica("Nodes", 3)})
+		p.SetReplicas(newReplica("Nodes", 3))
 		p.SetContainerBackupFactor(3)
-		p.SetSelectors([]*netmap.Selector{
-			newSelector(1, netmap.Same, "City", "Good", "Nodes"),
-		})
-		p.SetFilters([]*netmap.Filter{
-			newFilter("GoodRating", "Rating", "5", netmap.GE),
-			newFilter("Good", "", "", netmap.OR,
-				newFilter("GoodRating", "", "", netmap.UnspecifiedOperation),
-				newFilter("", "Attr1", "Val1", netmap.EQ),
-				newFilter("", "Attr2", "Val2", netmap.NE),
-				newFilter("", "", "", netmap.AND,
-					newFilter("", "Attr4", "2", netmap.LT),
-					newFilter("", "Attr5", "3", netmap.LE)),
-				newFilter("", "Attr3", "1", netmap.GT)),
-		})
+		p.SetSelectors(
+			newSelector(1, netmap.ClauseSame, "City", "Good", "Nodes"))
+		p.SetFilters(
+			newFilter("GoodRating", "Rating", "5", netmap.OpGE),
+			newFilter("Good", "", "", netmap.OpOR,
+				newFilter("GoodRating", "", "", 0),
+				newFilter("", "Attr1", "Val1", netmap.OpEQ),
+				newFilter("", "Attr2", "Val2", netmap.OpNE),
+				newFilter("", "", "", netmap.OpAND,
+					newFilter("", "Attr4", "2", netmap.OpLT),
+					newFilter("", "Attr5", "3", netmap.OpLE)),
+				newFilter("", "Attr3", "1", netmap.OpGT)),
+		)
 		check(t, p, `{
 			"replicas":[{"count":3,"selector":"Nodes"}],
 			"container_backup_factor":3,
