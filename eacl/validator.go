@@ -2,29 +2,17 @@ package eacl
 
 import (
 	"bytes"
-	"errors"
-
-	"go.uber.org/zap"
 )
 
 // Validator is a tool that calculates
 // the action on a request according
 // to the extended ACL rule table.
 type Validator struct {
-	*cfg
 }
 
 // NewValidator creates and initializes a new Validator using options.
-func NewValidator(opts ...Option) *Validator {
-	cfg := defaultCfg()
-
-	for i := range opts {
-		opts[i](cfg)
-	}
-
-	return &Validator{
-		cfg: cfg,
-	}
+func NewValidator() *Validator {
+	return &Validator{}
 }
 
 // CalculateAction calculates action on the request according
@@ -33,40 +21,9 @@ func NewValidator(opts ...Option) *Validator {
 // The action is calculated according to the application of
 // eACL table of rules to the request.
 //
-// If the eACL table is not available at the time of the call,
-// ActionUnknown is returned.
-//
 // If no matching table entry is found, ActionAllow is returned.
 func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
-	var (
-		err   error
-		table *Table
-	)
-
-	if unit.bearer != nil {
-		table = NewTableFromV2(unit.bearer.GetBody().GetEACL())
-	} else {
-		// get eACL table by container ID
-		table, err = v.storage.GetEACL(unit.cid)
-		if err != nil {
-			if errors.Is(err, ErrEACLNotFound) {
-				return ActionAllow
-			}
-
-			v.logger.Error("could not get eACL table",
-				zap.String("error", err.Error()),
-			)
-
-			return ActionUnknown
-		}
-	}
-
-	return tableAction(unit, table)
-}
-
-// tableAction calculates action on the request based on the eACL rules.
-func tableAction(unit *ValidationUnit, table *Table) Action {
-	for _, record := range table.Records() {
+	for _, record := range unit.table.Records() {
 		// check type of operation
 		if record.Operation() != unit.op {
 			continue

@@ -1,24 +1,8 @@
 package eacl
 
 import (
-	"errors"
-
-	bearer "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
-
-// Source is the interface that wraps
-// basic methods of extended ACL table source.
-type Source interface {
-	// GetEACL reads the table from the source by identifier.
-	// It returns any error encountered.
-	//
-	// GetEACL must return exactly one non-nil value.
-	//
-	// Must return pkg/core/container.ErrEACLNotFound if requested
-	// eACL table is not in source.
-	GetEACL(*cid.ID) (*Table, error)
-}
 
 // Header is an interface of string key-value header.
 type Header interface {
@@ -49,12 +33,8 @@ type ValidationUnit struct {
 
 	key []byte
 
-	bearer *bearer.BearerToken
+	table *Table
 }
-
-// ErrEACLNotFound is returned by eACL storage implementations when
-// requested eACL table is not in storage.
-var ErrEACLNotFound = errors.New("extended ACL table is not set for this container")
 
 // WithContainerID configures ValidationUnit to use v as request's container ID.
 func (u *ValidationUnit) WithContainerID(v *cid.ID) *ValidationUnit {
@@ -102,9 +82,9 @@ func (u *ValidationUnit) WithSenderKey(v []byte) *ValidationUnit {
 }
 
 // WithBearerToken configures ValidationUnit to use v as request's bearer token.
-func (u *ValidationUnit) WithBearerToken(bearer *bearer.BearerToken) *ValidationUnit {
+func (u *ValidationUnit) WithEACLTable(table *Table) *ValidationUnit {
 	if u != nil {
-		u.bearer = bearer
+		u.table = table
 	}
 
 	return u

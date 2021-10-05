@@ -4,9 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zaptest"
 )
 
 func TestFilterMatch(t *testing.T) {
@@ -26,8 +24,8 @@ func TestFilterMatch(t *testing.T) {
 
 		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
 
-		v := newValidator(t, tb)
-		vu := newValidationUnit(RoleOthers, nil)
+		v := NewValidator()
+		vu := newValidationUnit(RoleOthers, nil, tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -55,8 +53,8 @@ func TestFilterMatch(t *testing.T) {
 		tb.AddRecord(r)
 		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
 
-		v := newValidator(t, tb)
-		vu := newValidationUnit(RoleOthers, nil)
+		v := NewValidator()
+		vu := newValidationUnit(RoleOthers, nil, tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -82,8 +80,8 @@ func TestFilterMatch(t *testing.T) {
 
 		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
 
-		v := newValidator(t, tb)
-		vu := newValidationUnit(RoleOthers, nil)
+		v := NewValidator()
+		vu := newValidationUnit(RoleOthers, nil, tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -104,8 +102,8 @@ func TestFilterMatch(t *testing.T) {
 		tb.AddRecord(r)
 		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
 
-		v := newValidator(t, tb)
-		vu := newValidationUnit(RoleOthers, nil)
+		v := NewValidator()
+		vu := newValidationUnit(RoleOthers, nil, tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -125,8 +123,8 @@ func TestOperationMatch(t *testing.T) {
 		tb.AddRecord(newRecord(ActionDeny, OperationPut, tgt))
 		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
 
-		v := newValidator(t, tb)
-		vu := newValidationUnit(RoleOthers, nil)
+		v := NewValidator()
+		vu := newValidationUnit(RoleOthers, nil, tb)
 
 		vu.op = OperationPut
 		require.Equal(t, ActionDeny, v.CalculateAction(vu))
@@ -140,8 +138,8 @@ func TestOperationMatch(t *testing.T) {
 		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
 		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
 
-		v := newValidator(t, tb)
-		vu := newValidationUnit(RoleOthers, nil)
+		v := NewValidator()
+		vu := newValidationUnit(RoleOthers, nil, tb)
 
 		// TODO discuss if both next tests should result in DENY
 		vu.op = OperationPut
@@ -165,19 +163,19 @@ func TestTargetMatches(t *testing.T) {
 	r := NewRecord()
 	r.SetTargets(tgt1, tgt2)
 
-	u := newValidationUnit(RoleUser, pubs[0])
+	u := newValidationUnit(RoleUser, pubs[0], nil)
 	require.True(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleUser, pubs[2])
+	u = newValidationUnit(RoleUser, pubs[2], nil)
 	require.False(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleUnknown, pubs[1])
+	u = newValidationUnit(RoleUnknown, pubs[1], nil)
 	require.True(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleOthers, pubs[2])
+	u = newValidationUnit(RoleOthers, pubs[2], nil)
 	require.True(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleSystem, pubs[2])
+	u = newValidationUnit(RoleSystem, pubs[2], nil)
 	require.False(t, targetMatches(u, r))
 }
 
@@ -234,23 +232,9 @@ func newRecord(a Action, op Operation, tgt ...*Target) *Record {
 	return r
 }
 
-type dummySource struct {
-	tb *Table
-}
-
-func (d dummySource) GetEACL(*cid.ID) (*Table, error) {
-	return d.tb, nil
-}
-
-func newValidator(t *testing.T, tb *Table) *Validator {
-	return NewValidator(
-		WithLogger(zaptest.NewLogger(t)),
-		WithEACLSource(dummySource{tb}))
-}
-
-func newValidationUnit(role Role, key []byte) *ValidationUnit {
-	return &ValidationUnit{
-		role: role,
-		key:  key,
-	}
+func newValidationUnit(role Role, key []byte, table *Table) *ValidationUnit {
+	return new(ValidationUnit).
+		WithRole(role).
+		WithSenderKey(key).
+		WithEACLTable(table)
 }
