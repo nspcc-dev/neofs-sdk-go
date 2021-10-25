@@ -93,21 +93,21 @@ type Pool interface {
 	WaitForContainerPresence(context.Context, *cid.ID, *ContainerPollingParams) error
 	Close()
 
-	PutObjectParam(ctx context.Context, params *client.PutObjectParams, callParam CallParam) (*object.ID, error)
-	DeleteObjectParam(ctx context.Context, params *client.DeleteObjectParams, callParam CallParam) error
-	GetObjectParam(ctx context.Context, params *client.GetObjectParams, callParam CallParam) (*object.Object, error)
-	GetObjectHeaderParam(ctx context.Context, params *client.ObjectHeaderParams, callParam CallParam) (*object.Object, error)
-	ObjectPayloadRangeDataParam(ctx context.Context, params *client.RangeDataParams, callParam CallParam) ([]byte, error)
-	ObjectPayloadRangeSHA256Param(ctx context.Context, params *client.RangeChecksumParams, callParam CallParam) ([][32]byte, error)
-	ObjectPayloadRangeTZParam(ctx context.Context, params *client.RangeChecksumParams, callParam CallParam) ([][64]byte, error)
-	SearchObjectParam(ctx context.Context, params *client.SearchObjectParams, callParam CallParam) ([]*object.ID, error)
-	PutContainerParam(ctx context.Context, cnr *container.Container, callParam CallParam) (*cid.ID, error)
-	GetContainerParam(ctx context.Context, cid *cid.ID, callParam CallParam) (*container.Container, error)
-	ListContainersParam(ctx context.Context, ownerID *owner.ID, callParam CallParam) ([]*cid.ID, error)
-	DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam CallParam) error
-	GetEACLParam(ctx context.Context, cid *cid.ID, callParam CallParam) (*client.EACLWithSignature, error)
-	SetEACLParam(ctx context.Context, table *eacl.Table, callParam CallParam) error
-	AnnounceContainerUsedSpaceParam(ctx context.Context, announce []container.UsedSpaceAnnouncement, callParam CallParam) error
+	PutObjectParam(ctx context.Context, params *client.PutObjectParams, callParam *CallParam) (*object.ID, error)
+	DeleteObjectParam(ctx context.Context, params *client.DeleteObjectParams, callParam *CallParam) error
+	GetObjectParam(ctx context.Context, params *client.GetObjectParams, callParam *CallParam) (*object.Object, error)
+	GetObjectHeaderParam(ctx context.Context, params *client.ObjectHeaderParams, callParam *CallParam) (*object.Object, error)
+	ObjectPayloadRangeDataParam(ctx context.Context, params *client.RangeDataParams, callParam *CallParam) ([]byte, error)
+	ObjectPayloadRangeSHA256Param(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][32]byte, error)
+	ObjectPayloadRangeTZParam(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][64]byte, error)
+	SearchObjectParam(ctx context.Context, params *client.SearchObjectParams, callParam *CallParam) ([]*object.ID, error)
+	PutContainerParam(ctx context.Context, cnr *container.Container, callParam *CallParam) (*cid.ID, error)
+	GetContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*container.Container, error)
+	ListContainersParam(ctx context.Context, ownerID *owner.ID, callParam *CallParam) ([]*cid.ID, error)
+	DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) error
+	GetEACLParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*client.EACLWithSignature, error)
+	SetEACLParam(ctx context.Context, table *eacl.Table, callParam *CallParam) error
+	AnnounceContainerUsedSpaceParam(ctx context.Context, announce []container.UsedSpaceAnnouncement, callParam *CallParam) error
 }
 
 type clientPack struct {
@@ -319,7 +319,7 @@ func formCacheKey(address string, key *ecdsa.PrivateKey) string {
 	return address + k.String()
 }
 
-func (p *pool) connParam(ctx context.Context, param CallParam) (*clientPack, []client.CallOption, error) {
+func (p *pool) connParam(ctx context.Context, param *CallParam) (*clientPack, []client.CallOption, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return nil, nil, err
@@ -474,7 +474,7 @@ func (p *pool) checkSessionTokenErr(err error, address string) {
 	}
 }
 
-func (p *pool) PutObjectParam(ctx context.Context, params *client.PutObjectParams, callParam CallParam) (*object.ID, error) {
+func (p *pool) PutObjectParam(ctx context.Context, params *client.PutObjectParams, callParam *CallParam) (*object.ID, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -484,7 +484,7 @@ func (p *pool) PutObjectParam(ctx context.Context, params *client.PutObjectParam
 	return res, err
 }
 
-func (p *pool) DeleteObjectParam(ctx context.Context, params *client.DeleteObjectParams, callParam CallParam) error {
+func (p *pool) DeleteObjectParam(ctx context.Context, params *client.DeleteObjectParams, callParam *CallParam) error {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return err
@@ -494,7 +494,7 @@ func (p *pool) DeleteObjectParam(ctx context.Context, params *client.DeleteObjec
 	return err
 }
 
-func (p *pool) GetObjectParam(ctx context.Context, params *client.GetObjectParams, callParam CallParam) (*object.Object, error) {
+func (p *pool) GetObjectParam(ctx context.Context, params *client.GetObjectParams, callParam *CallParam) (*object.Object, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -504,7 +504,7 @@ func (p *pool) GetObjectParam(ctx context.Context, params *client.GetObjectParam
 	return res, err
 }
 
-func (p *pool) GetObjectHeaderParam(ctx context.Context, params *client.ObjectHeaderParams, callParam CallParam) (*object.Object, error) {
+func (p *pool) GetObjectHeaderParam(ctx context.Context, params *client.ObjectHeaderParams, callParam *CallParam) (*object.Object, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -514,7 +514,7 @@ func (p *pool) GetObjectHeaderParam(ctx context.Context, params *client.ObjectHe
 	return res, err
 }
 
-func (p *pool) ObjectPayloadRangeDataParam(ctx context.Context, params *client.RangeDataParams, callParam CallParam) ([]byte, error) {
+func (p *pool) ObjectPayloadRangeDataParam(ctx context.Context, params *client.RangeDataParams, callParam *CallParam) ([]byte, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -524,7 +524,7 @@ func (p *pool) ObjectPayloadRangeDataParam(ctx context.Context, params *client.R
 	return res, err
 }
 
-func (p *pool) ObjectPayloadRangeSHA256Param(ctx context.Context, params *client.RangeChecksumParams, callParam CallParam) ([][32]byte, error) {
+func (p *pool) ObjectPayloadRangeSHA256Param(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][32]byte, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -534,7 +534,7 @@ func (p *pool) ObjectPayloadRangeSHA256Param(ctx context.Context, params *client
 	return res, err
 }
 
-func (p *pool) ObjectPayloadRangeTZParam(ctx context.Context, params *client.RangeChecksumParams, callParam CallParam) ([][64]byte, error) {
+func (p *pool) ObjectPayloadRangeTZParam(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][64]byte, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -544,7 +544,7 @@ func (p *pool) ObjectPayloadRangeTZParam(ctx context.Context, params *client.Ran
 	return res, err
 }
 
-func (p *pool) SearchObjectParam(ctx context.Context, params *client.SearchObjectParams, callParam CallParam) ([]*object.ID, error) {
+func (p *pool) SearchObjectParam(ctx context.Context, params *client.SearchObjectParams, callParam *CallParam) ([]*object.ID, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -554,7 +554,7 @@ func (p *pool) SearchObjectParam(ctx context.Context, params *client.SearchObjec
 	return res, err
 }
 
-func (p *pool) PutContainerParam(ctx context.Context, cnr *container.Container, callParam CallParam) (*cid.ID, error) {
+func (p *pool) PutContainerParam(ctx context.Context, cnr *container.Container, callParam *CallParam) (*cid.ID, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -564,7 +564,7 @@ func (p *pool) PutContainerParam(ctx context.Context, cnr *container.Container, 
 	return res, err
 }
 
-func (p *pool) GetContainerParam(ctx context.Context, cid *cid.ID, callParam CallParam) (*container.Container, error) {
+func (p *pool) GetContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*container.Container, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -574,7 +574,7 @@ func (p *pool) GetContainerParam(ctx context.Context, cid *cid.ID, callParam Cal
 	return res, err
 }
 
-func (p *pool) ListContainersParam(ctx context.Context, ownerID *owner.ID, callParam CallParam) ([]*cid.ID, error) {
+func (p *pool) ListContainersParam(ctx context.Context, ownerID *owner.ID, callParam *CallParam) ([]*cid.ID, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -584,7 +584,7 @@ func (p *pool) ListContainersParam(ctx context.Context, ownerID *owner.ID, callP
 	return res, err
 }
 
-func (p *pool) DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam CallParam) error {
+func (p *pool) DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) error {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return err
@@ -594,7 +594,7 @@ func (p *pool) DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam 
 	return err
 }
 
-func (p *pool) GetEACLParam(ctx context.Context, cid *cid.ID, callParam CallParam) (*client.EACLWithSignature, error) {
+func (p *pool) GetEACLParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*client.EACLWithSignature, error) {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return nil, err
@@ -604,7 +604,7 @@ func (p *pool) GetEACLParam(ctx context.Context, cid *cid.ID, callParam CallPara
 	return res, err
 }
 
-func (p *pool) SetEACLParam(ctx context.Context, table *eacl.Table, callParam CallParam) error {
+func (p *pool) SetEACLParam(ctx context.Context, table *eacl.Table, callParam *CallParam) error {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return err
@@ -614,7 +614,7 @@ func (p *pool) SetEACLParam(ctx context.Context, table *eacl.Table, callParam Ca
 	return err
 }
 
-func (p *pool) AnnounceContainerUsedSpaceParam(ctx context.Context, announce []container.UsedSpaceAnnouncement, callParam CallParam) error {
+func (p *pool) AnnounceContainerUsedSpaceParam(ctx context.Context, announce []container.UsedSpaceAnnouncement, callParam *CallParam) error {
 	cp, options, err := p.connParam(ctx, callParam)
 	if err != nil {
 		return err

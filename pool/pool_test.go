@@ -308,7 +308,114 @@ func TestTwoFailed(t *testing.T) {
 }
 
 func TestSessionCache(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
 
+	var tokens []*session.Token
+	clientBuilder := func(opts ...client.Option) (client.Client, error) {
+		mockClient := NewMockClient(ctrl)
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+			tok := session.NewToken()
+			uid, err := uuid.New().MarshalBinary()
+			require.NoError(t, err)
+			tok.SetID(uid)
+			tokens = append(tokens, tok)
+			return tok, err
+		}).MaxTimes(2)
+
+		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
+		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+
+		return mockClient, nil
+	}
+
+	key, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	pb := new(Builder)
+	pb.AddNode("peer0", 1)
+
+	opts := &BuilderOptions{
+		Key:           &key.PrivateKey,
+		clientBuilder: clientBuilder,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := pb.Build(ctx, opts)
+	require.NoError(t, err)
+
+	// cache must contain session token
+	_, st, err := pool.Connection()
+	require.NoError(t, err)
+	require.Contains(t, tokens, st)
+
+	_, err = pool.GetObjectParam(ctx, nil, &CallParam{})
+	require.Error(t, err)
+
+	// cache must not contain session token
+	_, st, err = pool.Connection()
+	require.NoError(t, err)
+	require.Nil(t, st)
+
+	_, err = pool.PutObjectParam(ctx, nil, &CallParam{})
+	require.NoError(t, err)
+
+	// cache must contain session token
+	_, st, err = pool.Connection()
+	require.NoError(t, err)
+	require.Contains(t, tokens, st)
+}
+
+func TestSessionCacheWithKey(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	var tokens []*session.Token
+	clientBuilder := func(opts ...client.Option) (client.Client, error) {
+		mockClient := NewMockClient(ctrl)
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+			tok := session.NewToken()
+			uid, err := uuid.New().MarshalBinary()
+			require.NoError(t, err)
+			tok.SetID(uid)
+			tokens = append(tokens, tok)
+			return tok, err
+		}).MaxTimes(2)
+
+		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+
+		return mockClient, nil
+	}
+
+	key, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+	key2, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	pb := new(Builder)
+	pb.AddNode("peer0", 1)
+
+	opts := &BuilderOptions{
+		Key:           &key.PrivateKey,
+		clientBuilder: clientBuilder,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := pb.Build(ctx, opts)
+	require.NoError(t, err)
+
+	// cache must contain session token
+	_, st, err := pool.Connection()
+	require.NoError(t, err)
+	require.Contains(t, tokens, st)
+
+	_, err = pool.GetObjectParam(ctx, nil, &CallParam{Key: &key2.PrivateKey})
+	require.NoError(t, err)
+	require.Len(t, tokens, 2)
 }
 
 func newToken(t *testing.T) *session.Token {
