@@ -4,6 +4,7 @@ go 1.16
 
 require (
 	github.com/antlr/antlr4/runtime/Go/antlr v0.0.0-20210521073959-f0d4d129b7f1
+	github.com/bluele/gcache v0.0.2
 	github.com/golang/mock v1.6.0
 	github.com/google/uuid v1.2.0
 	github.com/mr-tron/base58 v1.2.0

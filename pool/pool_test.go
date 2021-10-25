@@ -307,6 +307,10 @@ func TestTwoFailed(t *testing.T) {
 	require.Contains(t, err.Error(), "no healthy")
 }
 
+func TestSessionCache(t *testing.T) {
+
+}
+
 func newToken(t *testing.T) *session.Token {
 	tok := session.NewToken()
 	uid, err := uuid.New().MarshalBinary()
@@ -324,12 +328,17 @@ func TestWaitPresence(t *testing.T) {
 	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
+	key, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
 	p := &pool{
 		sampler: NewSampler([]float64{1}, rand.NewSource(0)),
 		clientPacks: []*clientPack{{
 			client:  mockClient,
 			healthy: true,
 		}},
+		key:   &key.PrivateKey,
+		cache: NewCache(),
 	}
 
 	t.Run("context canceled", func(t *testing.T) {
