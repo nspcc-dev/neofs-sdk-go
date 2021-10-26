@@ -117,6 +117,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 
 	clientPool, err := pb.Build(context.TODO(), opts)
 	require.NoError(t, err)
+	t.Cleanup(clientPool.Close)
 
 	condition := func() bool {
 		_, st, err := clientPool.Connection()
@@ -163,11 +164,9 @@ func TestOneNode(t *testing.T) {
 		clientBuilder: clientBuilder,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	pool, err := pb.Build(ctx, opts)
+	pool, err := pb.Build(context.Background(), opts)
 	require.NoError(t, err)
+	t.Cleanup(pool.Close)
 
 	_, st, err := pool.Connection()
 	require.NoError(t, err)
@@ -203,11 +202,9 @@ func TestTwoNodes(t *testing.T) {
 		clientBuilder: clientBuilder,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	pool, err := pb.Build(ctx, opts)
+	pool, err := pb.Build(context.Background(), opts)
 	require.NoError(t, err)
+	t.Cleanup(pool.Close)
 
 	_, st, err := pool.Connection()
 	require.NoError(t, err)
@@ -259,11 +256,9 @@ func TestOneOfTwoFailed(t *testing.T) {
 		ClientRebalanceInterval: 200 * time.Millisecond,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	pool, err := pb.Build(ctx, opts)
+	pool, err := pb.Build(context.Background(), opts)
 	require.NoError(t, err)
+	t.Cleanup(pool.Close)
 
 	time.Sleep(2 * time.Second)
 
@@ -297,11 +292,9 @@ func TestTwoFailed(t *testing.T) {
 		ClientRebalanceInterval: 200 * time.Millisecond,
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	pool, err := pb.Build(ctx, opts)
+	pool, err := pb.Build(context.Background(), opts)
 	require.NoError(t, err)
+	t.Cleanup(pool.Close)
 
 	time.Sleep(2 * time.Second)
 

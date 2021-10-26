@@ -88,6 +88,7 @@ type Pool interface {
 	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
 	WaitForContainerPresence(context.Context, *cid.ID, *ContainerPollingParams) error
+	Close()
 }
 
 type clientPack struct {
@@ -103,6 +104,8 @@ type pool struct {
 	sampler     *Sampler
 	owner       *owner.ID
 	clientPacks []*clientPack
+	cancel      context.CancelFunc
+	closedCh    chan struct{}
 }
 
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
@@ -139,7 +142,8 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	}
 	ownerID := owner.NewIDFromNeo3Wallet(wallet)
 
-	pool := &pool{sampler: sampler, owner: ownerID, clientPacks: clientPacks}
+	ctx, cancel := context.WithCancel(ctx)
+	pool := &pool{sampler: sampler, owner: ownerID, clientPacks: clientPacks, cancel: cancel, closedCh: make(chan struct{})}
 	go startRebalance(ctx, pool, options)
 	return pool, nil
 }
@@ -151,6 +155,7 @@ func startRebalance(ctx context.Context, p *pool, options *BuilderOptions) {
 	for {
 		select {
 		case <-ctx.Done():
+			close(p.closedCh)
 			return
 		case <-ticker.C:
 			updateNodesHealth(ctx, p, options, buffer)
@@ -405,4 +410,10 @@ func (p *pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollPa
 			ticker.Reset(pollParams.PollInterval)
 		}
 	}
+}
+
+// Cloce closes the pool and releases all the associated resources.
+func (p *pool) Close() {
+	p.cancel()
+	<-p.closedCh
 }
