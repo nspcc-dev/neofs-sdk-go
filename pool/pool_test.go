@@ -1,5 +1,7 @@
 package pool
 
+//go:generate mockgen -destination mock_test.go -package pool . Client
+
 import (
 	"context"
 	"fmt"
