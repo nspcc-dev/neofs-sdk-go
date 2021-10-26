@@ -152,6 +152,7 @@ func TestOneNode(t *testing.T) {
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(tok, nil)
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -189,6 +190,7 @@ func TestTwoNodes(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, err
 		})
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
