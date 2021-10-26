@@ -39,7 +39,6 @@ func TestBuildPoolClientFailed(t *testing.T) {
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	key, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -68,9 +67,7 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 
 func TestBuildPoolOneNodeFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctrl2 := gomock.NewController(t)
-	defer ctrl2.Finish()
 
 	key, err := keys.NewPrivateKey()
 	require.NoError(t, err)
@@ -143,7 +140,6 @@ func TestBuildPoolZeroNodes(t *testing.T) {
 
 func TestOneNode(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	tok := session.NewToken()
 	uid, err := uuid.New().MarshalBinary()
@@ -180,7 +176,6 @@ func TestOneNode(t *testing.T) {
 
 func TestTwoNodes(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	var tokens []*session.Token
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
@@ -221,9 +216,7 @@ func TestTwoNodes(t *testing.T) {
 
 func TestOneOfTwoFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 	ctrl2 := gomock.NewController(t)
-	defer ctrl2.Finish()
 
 	var tokens []*session.Token
 	clientCount := -1
@@ -283,7 +276,6 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 func TestTwoFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
 		mockClient := NewMockClient(ctrl)
@@ -329,7 +321,6 @@ func newToken(t *testing.T) *session.Token {
 
 func TestWaitPresence(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	mockClient := NewMockClient(ctrl)
 	mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
