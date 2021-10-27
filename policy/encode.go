@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 )
 
 // Encode parses data of PlacementPolicy to a string.

@@ -6,7 +6,7 @@ import (
 	"math"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/pkg/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
 )
 
