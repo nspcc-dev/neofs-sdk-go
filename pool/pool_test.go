@@ -321,10 +321,11 @@ func TestSessionCache(t *testing.T) {
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
 			return tok, err
-		}).MaxTimes(2)
+		}).MaxTimes(3)
 
 		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
-		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
+		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -351,7 +352,7 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObjectParam(ctx, nil, &CallParam{})
+	_, err = pool.GetObjectParam(ctx, nil, &CallParam{isRetry: true})
 	require.Error(t, err)
 
 	// cache must not contain session token
