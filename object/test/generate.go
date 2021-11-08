@@ -5,12 +5,12 @@ import (
 	"math/rand"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
+	sigtest "github.com/nspcc-dev/neofs-sdk-go/signature/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -88,10 +88,9 @@ func generateRaw(withParent bool) *object.RawObject {
 	x.SetChildren(ID(), ID())
 	x.SetAttributes(Attribute(), Attribute())
 	x.SetSplitID(SplitID())
-	// TODO reuse generators
-	x.SetPayloadChecksum(checksum.New())
-	x.SetPayloadHomomorphicHash(checksum.New())
-	x.SetSignature(signature.New())
+	x.SetPayloadChecksum(checksumtest.Checksum())
+	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
+	x.SetSignature(sigtest.Signature())
 
 	if withParent {
 		x.SetParent(generateRaw(false).Object())
