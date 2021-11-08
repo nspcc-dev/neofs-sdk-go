@@ -48,7 +48,7 @@ func GetNodesCount(_ *PlacementPolicy, s *Selector) (int, int) {
 }
 
 // getSelection returns nodes grouped by s.attribute.
-// Last argument specifies if more buckets can be used to fullfill CBF.
+// Last argument specifies if more buckets can be used to fulfill CBF.
 func (c *Context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error) {
 	bucketCount, nodesInBucket := GetNodesCount(p, s)
 	buckets := c.getSelectionBase(s)
