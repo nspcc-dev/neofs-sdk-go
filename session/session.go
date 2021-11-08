@@ -250,17 +250,9 @@ func GetContainerContext(t *Token) *ContainerContext {
 }
 
 // Marshal marshals Token into a protobuf binary form.
-//
-// Buffer is allocated when the argument is empty.
-// Otherwise, the first buffer is used.
-func (t *Token) Marshal(bs ...[]byte) ([]byte, error) {
-	var buf []byte
-	if len(bs) > 0 {
-		buf = bs[0]
-	}
-
+func (t *Token) Marshal() ([]byte, error) {
 	return (*session.SessionToken)(t).
-		StableMarshal(buf)
+		StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Token.

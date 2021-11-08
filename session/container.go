@@ -115,12 +115,8 @@ func (x *ContainerContext) IsForSetEACL() bool {
 }
 
 // Marshal marshals ContainerContext into a protobuf binary form.
-func (x *ContainerContext) Marshal(bs ...[]byte) ([]byte, error) {
-	var buf []byte
-	if len(bs) > 0 {
-		buf = bs[0]
-	}
-	return x.ToV2().StableMarshal(buf)
+func (x *ContainerContext) Marshal() ([]byte, error) {
+	return x.ToV2().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of ContainerContext.
