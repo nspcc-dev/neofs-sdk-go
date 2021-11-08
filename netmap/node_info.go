@@ -317,25 +317,6 @@ func (i *NodeInfo) SetPublicKey(key []byte) {
 	(*netmap.NodeInfo)(i).SetPublicKey(key)
 }
 
-// Address returns network endpoint address of the node.
-//
-// Deprecated: use IterateAddresses method.
-func (i *NodeInfo) Address() (addr string) {
-	i.IterateAddresses(func(s string) bool {
-		addr = s
-		return true
-	})
-
-	return
-}
-
-// SetAddress sets network endpoint address of the node.
-//
-// Deprecated: use SetAddresses method.
-func (i *NodeInfo) SetAddress(addr string) {
-	i.SetAddresses(addr)
-}
-
 // NumberOfAddresses returns number of network addresses of the node.
 func (i *NodeInfo) NumberOfAddresses() int {
 	return (*netmap.NodeInfo)(i).NumberOfAddresses()
