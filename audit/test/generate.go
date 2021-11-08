@@ -5,14 +5,14 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
+	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
 // Generate returns random audit.Result.
 func Generate() *audit.Result {
 	x := audit.NewResult()
 
-	x.SetVersion(version.Current())
+	x.SetVersion(versiontest.Version())
 	x.SetContainerID(cidtest.GenerateID())
 	x.SetPublicKey([]byte("key"))
 	x.SetComplete(true)
