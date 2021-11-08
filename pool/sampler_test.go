@@ -77,12 +77,15 @@ func TestHealthyReweight(t *testing.T) {
 	key, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
+	cache, err := NewCache()
+	require.NoError(t, err)
+
 	p := &pool{
 		sampler: NewSampler(weights, rand.NewSource(0)),
 		clientPacks: []*clientPack{
 			{client: newNetmapMock(names[0], true), healthy: true, address: "address0"},
 			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
-		cache: NewCache(),
+		cache: cache,
 		key:   &key.PrivateKey,
 	}
 

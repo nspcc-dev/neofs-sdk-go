@@ -142,7 +142,10 @@ type pool struct {
 }
 
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
-	cache := NewCache()
+	cache, err := NewCache()
+	if err != nil {
+		return nil, fmt.Errorf("couldn't create cache: %w", err)
+	}
 
 	clientPacks := make([]*clientPack, len(options.weights))
 	var atLeastOneHealthy bool

@@ -309,7 +309,6 @@ func TestTwoFailed(t *testing.T) {
 
 func TestSessionCache(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	var tokens []*session.Token
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
@@ -337,8 +336,9 @@ func TestSessionCache(t *testing.T) {
 	pb.AddNode("peer0", 1)
 
 	opts := &BuilderOptions{
-		Key:           &key.PrivateKey,
-		clientBuilder: clientBuilder,
+		Key:                     &key.PrivateKey,
+		clientBuilder:           clientBuilder,
+		ClientRebalanceInterval: 30 * time.Second,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -371,7 +371,6 @@ func TestSessionCache(t *testing.T) {
 
 func TestSessionCacheWithKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
 
 	var tokens []*session.Token
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
@@ -439,6 +438,9 @@ func TestWaitPresence(t *testing.T) {
 	key, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
+	cache, err := NewCache()
+	require.NoError(t, err)
+
 	p := &pool{
 		sampler: NewSampler([]float64{1}, rand.NewSource(0)),
 		clientPacks: []*clientPack{{
@@ -446,7 +448,7 @@ func TestWaitPresence(t *testing.T) {
 			healthy: true,
 		}},
 		key:   &key.PrivateKey,
-		cache: NewCache(),
+		cache: cache,
 	}
 
 	t.Run("context canceled", func(t *testing.T) {
