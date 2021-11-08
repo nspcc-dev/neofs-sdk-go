@@ -32,11 +32,11 @@ type Container struct {
 //  - attr: nil;
 //  - policy: nil;
 //  - ownerID: nil.
-func New(opts ...NewOption) *Container {
+func New(opts ...Option) *Container {
 	cnrOptions := defaultContainerOptions()
 
 	for i := range opts {
-		opts[i].apply(&cnrOptions)
+		opts[i](&cnrOptions)
 	}
 
 	cnr := new(Container)
