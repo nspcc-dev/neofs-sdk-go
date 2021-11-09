@@ -10,16 +10,16 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	accounting "github.com/nspcc-dev/neofs-api-go/pkg/accounting"
-	eacl "github.com/nspcc-dev/neofs-api-go/pkg/acl/eacl"
-	client "github.com/nspcc-dev/neofs-api-go/pkg/client"
-	container "github.com/nspcc-dev/neofs-api-go/pkg/container"
-	cid "github.com/nspcc-dev/neofs-api-go/pkg/container/id"
-	netmap "github.com/nspcc-dev/neofs-api-go/pkg/netmap"
-	object "github.com/nspcc-dev/neofs-api-go/pkg/object"
-	owner "github.com/nspcc-dev/neofs-api-go/pkg/owner"
-	session "github.com/nspcc-dev/neofs-api-go/pkg/session"
-	client0 "github.com/nspcc-dev/neofs-api-go/rpc/client"
+	client "github.com/nspcc-dev/neofs-api-go/rpc/client"
+	accounting "github.com/nspcc-dev/neofs-sdk-go/accounting"
+	client0 "github.com/nspcc-dev/neofs-sdk-go/client"
+	container "github.com/nspcc-dev/neofs-sdk-go/container"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	eacl "github.com/nspcc-dev/neofs-sdk-go/eacl"
+	netmap "github.com/nspcc-dev/neofs-sdk-go/netmap"
+	object "github.com/nspcc-dev/neofs-sdk-go/object"
+	owner "github.com/nspcc-dev/neofs-sdk-go/owner"
+	session "github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
 // MockClient is a mock of Client interface.
@@ -46,7 +46,7 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // AnnounceContainerUsedSpace mocks base method.
-func (m *MockClient) AnnounceContainerUsedSpace(arg0 context.Context, arg1 []container.UsedSpaceAnnouncement, arg2 ...client.CallOption) error {
+func (m *MockClient) AnnounceContainerUsedSpace(arg0 context.Context, arg1 []container.UsedSpaceAnnouncement, arg2 ...client0.CallOption) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -65,14 +65,14 @@ func (mr *MockClientMockRecorder) AnnounceContainerUsedSpace(arg0, arg1 interfac
 }
 
 // AnnounceIntermediateTrust mocks base method.
-func (m *MockClient) AnnounceIntermediateTrust(arg0 context.Context, arg1 client.AnnounceIntermediateTrustPrm, arg2 ...client.CallOption) (*client.AnnounceIntermediateTrustRes, error) {
+func (m *MockClient) AnnounceIntermediateTrust(arg0 context.Context, arg1 client0.AnnounceIntermediateTrustPrm, arg2 ...client0.CallOption) (*client0.AnnounceIntermediateTrustRes, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AnnounceIntermediateTrust", varargs...)
-	ret0, _ := ret[0].(*client.AnnounceIntermediateTrustRes)
+	ret0, _ := ret[0].(*client0.AnnounceIntermediateTrustRes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -85,14 +85,14 @@ func (mr *MockClientMockRecorder) AnnounceIntermediateTrust(arg0, arg1 interface
 }
 
 // AnnounceLocalTrust mocks base method.
-func (m *MockClient) AnnounceLocalTrust(arg0 context.Context, arg1 client.AnnounceLocalTrustPrm, arg2 ...client.CallOption) (*client.AnnounceLocalTrustRes, error) {
+func (m *MockClient) AnnounceLocalTrust(arg0 context.Context, arg1 client0.AnnounceLocalTrustPrm, arg2 ...client0.CallOption) (*client0.AnnounceLocalTrustRes, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "AnnounceLocalTrust", varargs...)
-	ret0, _ := ret[0].(*client.AnnounceLocalTrustRes)
+	ret0, _ := ret[0].(*client0.AnnounceLocalTrustRes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -119,7 +119,7 @@ func (mr *MockClientMockRecorder) Conn() *gomock.Call {
 }
 
 // CreateSession mocks base method.
-func (m *MockClient) CreateSession(arg0 context.Context, arg1 uint64, arg2 ...client.CallOption) (*session.Token, error) {
+func (m *MockClient) CreateSession(arg0 context.Context, arg1 uint64, arg2 ...client0.CallOption) (*session.Token, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -139,7 +139,7 @@ func (mr *MockClientMockRecorder) CreateSession(arg0, arg1 interface{}, arg2 ...
 }
 
 // DeleteContainer mocks base method.
-func (m *MockClient) DeleteContainer(arg0 context.Context, arg1 *cid.ID, arg2 ...client.CallOption) error {
+func (m *MockClient) DeleteContainer(arg0 context.Context, arg1 *cid.ID, arg2 ...client0.CallOption) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -158,7 +158,7 @@ func (mr *MockClientMockRecorder) DeleteContainer(arg0, arg1 interface{}, arg2 .
 }
 
 // DeleteObject mocks base method.
-func (m *MockClient) DeleteObject(arg0 context.Context, arg1 *client.DeleteObjectParams, arg2 ...client.CallOption) error {
+func (m *MockClient) DeleteObject(arg0 context.Context, arg1 *client0.DeleteObjectParams, arg2 ...client0.CallOption) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -177,14 +177,14 @@ func (mr *MockClientMockRecorder) DeleteObject(arg0, arg1 interface{}, arg2 ...i
 }
 
 // EndpointInfo mocks base method.
-func (m *MockClient) EndpointInfo(arg0 context.Context, arg1 ...client.CallOption) (*client.EndpointInfo, error) {
+func (m *MockClient) EndpointInfo(arg0 context.Context, arg1 ...client0.CallOption) (*client0.EndpointInfo, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0}
 	for _, a := range arg1 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "EndpointInfo", varargs...)
-	ret0, _ := ret[0].(*client.EndpointInfo)
+	ret0, _ := ret[0].(*client0.EndpointInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -197,7 +197,7 @@ func (mr *MockClientMockRecorder) EndpointInfo(arg0 interface{}, arg1 ...interfa
 }
 
 // GetBalance mocks base method.
-func (m *MockClient) GetBalance(arg0 context.Context, arg1 *owner.ID, arg2 ...client.CallOption) (*accounting.Decimal, error) {
+func (m *MockClient) GetBalance(arg0 context.Context, arg1 *owner.ID, arg2 ...client0.CallOption) (*accounting.Decimal, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -217,7 +217,7 @@ func (mr *MockClientMockRecorder) GetBalance(arg0, arg1 interface{}, arg2 ...int
 }
 
 // GetContainer mocks base method.
-func (m *MockClient) GetContainer(arg0 context.Context, arg1 *cid.ID, arg2 ...client.CallOption) (*container.Container, error) {
+func (m *MockClient) GetContainer(arg0 context.Context, arg1 *cid.ID, arg2 ...client0.CallOption) (*container.Container, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -237,14 +237,14 @@ func (mr *MockClientMockRecorder) GetContainer(arg0, arg1 interface{}, arg2 ...i
 }
 
 // GetEACL mocks base method.
-func (m *MockClient) GetEACL(arg0 context.Context, arg1 *cid.ID, arg2 ...client.CallOption) (*client.EACLWithSignature, error) {
+func (m *MockClient) GetEACL(arg0 context.Context, arg1 *cid.ID, arg2 ...client0.CallOption) (*client0.EACLWithSignature, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
 		varargs = append(varargs, a)
 	}
 	ret := m.ctrl.Call(m, "GetEACL", varargs...)
-	ret0, _ := ret[0].(*client.EACLWithSignature)
+	ret0, _ := ret[0].(*client0.EACLWithSignature)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -257,7 +257,7 @@ func (mr *MockClientMockRecorder) GetEACL(arg0, arg1 interface{}, arg2 ...interf
 }
 
 // GetObject mocks base method.
-func (m *MockClient) GetObject(arg0 context.Context, arg1 *client.GetObjectParams, arg2 ...client.CallOption) (*object.Object, error) {
+func (m *MockClient) GetObject(arg0 context.Context, arg1 *client0.GetObjectParams, arg2 ...client0.CallOption) (*object.Object, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -277,7 +277,7 @@ func (mr *MockClientMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...inte
 }
 
 // GetObjectHeader mocks base method.
-func (m *MockClient) GetObjectHeader(arg0 context.Context, arg1 *client.ObjectHeaderParams, arg2 ...client.CallOption) (*object.Object, error) {
+func (m *MockClient) GetObjectHeader(arg0 context.Context, arg1 *client0.ObjectHeaderParams, arg2 ...client0.CallOption) (*object.Object, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -297,7 +297,7 @@ func (mr *MockClientMockRecorder) GetObjectHeader(arg0, arg1 interface{}, arg2 .
 }
 
 // ListContainers mocks base method.
-func (m *MockClient) ListContainers(arg0 context.Context, arg1 *owner.ID, arg2 ...client.CallOption) ([]*cid.ID, error) {
+func (m *MockClient) ListContainers(arg0 context.Context, arg1 *owner.ID, arg2 ...client0.CallOption) ([]*cid.ID, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -317,7 +317,7 @@ func (mr *MockClientMockRecorder) ListContainers(arg0, arg1 interface{}, arg2 ..
 }
 
 // NetworkInfo mocks base method.
-func (m *MockClient) NetworkInfo(arg0 context.Context, arg1 ...client.CallOption) (*netmap.NetworkInfo, error) {
+func (m *MockClient) NetworkInfo(arg0 context.Context, arg1 ...client0.CallOption) (*netmap.NetworkInfo, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0}
 	for _, a := range arg1 {
@@ -337,7 +337,7 @@ func (mr *MockClientMockRecorder) NetworkInfo(arg0 interface{}, arg1 ...interfac
 }
 
 // ObjectPayloadRangeData mocks base method.
-func (m *MockClient) ObjectPayloadRangeData(arg0 context.Context, arg1 *client.RangeDataParams, arg2 ...client.CallOption) ([]byte, error) {
+func (m *MockClient) ObjectPayloadRangeData(arg0 context.Context, arg1 *client0.RangeDataParams, arg2 ...client0.CallOption) ([]byte, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -357,7 +357,7 @@ func (mr *MockClientMockRecorder) ObjectPayloadRangeData(arg0, arg1 interface{},
 }
 
 // ObjectPayloadRangeSHA256 mocks base method.
-func (m *MockClient) ObjectPayloadRangeSHA256(arg0 context.Context, arg1 *client.RangeChecksumParams, arg2 ...client.CallOption) ([][32]byte, error) {
+func (m *MockClient) ObjectPayloadRangeSHA256(arg0 context.Context, arg1 *client0.RangeChecksumParams, arg2 ...client0.CallOption) ([][32]byte, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -377,7 +377,7 @@ func (mr *MockClientMockRecorder) ObjectPayloadRangeSHA256(arg0, arg1 interface{
 }
 
 // ObjectPayloadRangeTZ mocks base method.
-func (m *MockClient) ObjectPayloadRangeTZ(arg0 context.Context, arg1 *client.RangeChecksumParams, arg2 ...client.CallOption) ([][64]byte, error) {
+func (m *MockClient) ObjectPayloadRangeTZ(arg0 context.Context, arg1 *client0.RangeChecksumParams, arg2 ...client0.CallOption) ([][64]byte, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -397,7 +397,7 @@ func (mr *MockClientMockRecorder) ObjectPayloadRangeTZ(arg0, arg1 interface{}, a
 }
 
 // PutContainer mocks base method.
-func (m *MockClient) PutContainer(arg0 context.Context, arg1 *container.Container, arg2 ...client.CallOption) (*cid.ID, error) {
+func (m *MockClient) PutContainer(arg0 context.Context, arg1 *container.Container, arg2 ...client0.CallOption) (*cid.ID, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -417,7 +417,7 @@ func (mr *MockClientMockRecorder) PutContainer(arg0, arg1 interface{}, arg2 ...i
 }
 
 // PutObject mocks base method.
-func (m *MockClient) PutObject(arg0 context.Context, arg1 *client.PutObjectParams, arg2 ...client.CallOption) (*object.ID, error) {
+func (m *MockClient) PutObject(arg0 context.Context, arg1 *client0.PutObjectParams, arg2 ...client0.CallOption) (*object.ID, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -437,10 +437,10 @@ func (mr *MockClientMockRecorder) PutObject(arg0, arg1 interface{}, arg2 ...inte
 }
 
 // Raw mocks base method.
-func (m *MockClient) Raw() *client0.Client {
+func (m *MockClient) Raw() *client.Client {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Raw")
-	ret0, _ := ret[0].(*client0.Client)
+	ret0, _ := ret[0].(*client.Client)
 	return ret0
 }
 
@@ -451,7 +451,7 @@ func (mr *MockClientMockRecorder) Raw() *gomock.Call {
 }
 
 // SearchObject mocks base method.
-func (m *MockClient) SearchObject(arg0 context.Context, arg1 *client.SearchObjectParams, arg2 ...client.CallOption) ([]*object.ID, error) {
+func (m *MockClient) SearchObject(arg0 context.Context, arg1 *client0.SearchObjectParams, arg2 ...client0.CallOption) ([]*object.ID, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
@@ -471,7 +471,7 @@ func (mr *MockClientMockRecorder) SearchObject(arg0, arg1 interface{}, arg2 ...i
 }
 
 // SetEACL mocks base method.
-func (m *MockClient) SetEACL(arg0 context.Context, arg1 *eacl.Table, arg2 ...client.CallOption) error {
+func (m *MockClient) SetEACL(arg0 context.Context, arg1 *eacl.Table, arg2 ...client0.CallOption) error {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	for _, a := range arg2 {
