@@ -21,7 +21,7 @@ func TestResult(t *testing.T) {
 	r.SetAuditEpoch(epoch)
 	require.Equal(t, epoch, r.AuditEpoch())
 
-	cid := cidtest.GenerateID()
+	cid := cidtest.ID()
 	r.SetContainerID(cid)
 	require.Equal(t, cid, r.ContainerID())
 
@@ -70,7 +70,7 @@ func TestResult(t *testing.T) {
 }
 
 func TestStorageGroupEncoding(t *testing.T) {
-	r := audittest.Generate()
+	r := audittest.Result()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := r.Marshal()

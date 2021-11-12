@@ -11,7 +11,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func GeneratePeerID() *reputation.PeerID {
+func PeerID() *reputation.PeerID {
 	v := reputation.NewPeerID()
 
 	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -26,32 +26,32 @@ func GeneratePeerID() *reputation.PeerID {
 	return v
 }
 
-func GenerateTrust() *reputation.Trust {
+func Trust() *reputation.Trust {
 	v := reputation.NewTrust()
-	v.SetPeer(GeneratePeerID())
+	v.SetPeer(PeerID())
 	v.SetValue(1.5)
 
 	return v
 }
 
-func GeneratePeerToPeerTrust() *reputation.PeerToPeerTrust {
+func PeerToPeerTrust() *reputation.PeerToPeerTrust {
 	v := reputation.NewPeerToPeerTrust()
-	v.SetTrustingPeer(GeneratePeerID())
-	v.SetTrust(GenerateTrust())
+	v.SetTrustingPeer(PeerID())
+	v.SetTrust(Trust())
 
 	return v
 }
 
-func GenerateGlobalTrust() *reputation.GlobalTrust {
+func GlobalTrust() *reputation.GlobalTrust {
 	v := reputation.NewGlobalTrust()
-	v.SetManager(GeneratePeerID())
-	v.SetTrust(GenerateTrust())
+	v.SetManager(PeerID())
+	v.SetTrust(Trust())
 
 	return v
 }
 
-func GenerateSignedGlobalTrust(t testing.TB) *reputation.GlobalTrust {
-	gt := GenerateGlobalTrust()
+func SignedGlobalTrust(t testing.TB) *reputation.GlobalTrust {
+	gt := GlobalTrust()
 
 	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)

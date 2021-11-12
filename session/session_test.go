@@ -22,7 +22,7 @@ func TestSessionToken_SetID(t *testing.T) {
 func TestSessionToken_SetOwnerID(t *testing.T) {
 	token := session.NewToken()
 
-	ownerID := ownertest.GenerateID()
+	ownerID := ownertest.ID()
 
 	token.SetOwnerID(ownerID)
 
@@ -39,7 +39,7 @@ func TestSessionToken_SetSessionKey(t *testing.T) {
 }
 
 func TestSessionTokenEncoding(t *testing.T) {
-	tok := sessiontest.Generate()
+	tok := sessiontest.Token()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := tok.Marshal()
@@ -70,13 +70,13 @@ func TestToken_VerifySignature(t *testing.T) {
 	})
 
 	t.Run("unsigned", func(t *testing.T) {
-		tok := sessiontest.Generate()
+		tok := sessiontest.Token()
 
 		require.False(t, tok.VerifySignature())
 	})
 
 	t.Run("signed", func(t *testing.T) {
-		tok := sessiontest.GenerateSigned()
+		tok := sessiontest.SignedToken()
 
 		require.True(t, tok.VerifySignature())
 	})

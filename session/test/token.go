@@ -22,10 +22,10 @@ func init() {
 	}
 }
 
-// Generate returns random session.Token.
+// Token returns random session.Token.
 //
 // Resulting token is unsigned.
-func Generate() *session.Token {
+func Token() *session.Token {
 	tok := session.NewToken()
 
 	uid, err := uuid.New().MarshalBinary()
@@ -51,11 +51,11 @@ func Generate() *session.Token {
 	return tok
 }
 
-// GenerateSigned returns signed random session.Token.
+// SignedToken returns signed random session.Token.
 //
 // Panics if token could not be signed (actually unexpected).
-func GenerateSigned() *session.Token {
-	tok := Generate()
+func SignedToken() *session.Token {
+	tok := Token()
 
 	err := tok.Sign(p)
 	if err != nil {

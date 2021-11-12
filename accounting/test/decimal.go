@@ -6,8 +6,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 )
 
-// GenerateDecimal returns random accounting.Decimal.
-func GenerateDecimal() *accounting.Decimal {
+// Decimal returns random accounting.Decimal.
+func Decimal() *accounting.Decimal {
 	d := accounting.NewDecimal()
 	d.SetValue(rand.Int63())
 	d.SetPrecision(rand.Uint32())

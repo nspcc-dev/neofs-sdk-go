@@ -20,7 +20,7 @@ func TestNewContainer(t *testing.T) {
 
 	nonce := uuid.New()
 
-	ownerID := ownertest.GenerateID()
+	ownerID := ownertest.ID()
 	policy := netmaptest.PlacementPolicy()
 
 	c.SetBasicACL(acl.PublicBasicRule)
@@ -75,7 +75,7 @@ func TestContainerEncoding(t *testing.T) {
 }
 
 func TestContainer_SessionToken(t *testing.T) {
-	tok := sessiontest.Generate()
+	tok := sessiontest.Token()
 
 	cnr := container.New()
 

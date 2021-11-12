@@ -12,7 +12,7 @@ import (
 func TestAddress_SetContainerID(t *testing.T) {
 	a := NewAddress()
 
-	id := cidtest.GenerateID()
+	id := cidtest.ID()
 
 	a.SetContainerID(id)
 
@@ -30,7 +30,7 @@ func TestAddress_SetObjectID(t *testing.T) {
 }
 
 func TestAddress_Parse(t *testing.T) {
-	cid := cidtest.GenerateID()
+	cid := cidtest.ID()
 
 	oid := NewID()
 	oid.SetSHA256(randSHA256Checksum(t))
@@ -63,7 +63,7 @@ func TestAddress_Parse(t *testing.T) {
 func TestAddressEncoding(t *testing.T) {
 	a := NewAddress()
 	a.SetObjectID(randID(t))
-	a.SetContainerID(cidtest.GenerateID())
+	a.SetContainerID(cidtest.ID())
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := a.Marshal()

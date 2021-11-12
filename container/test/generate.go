@@ -29,7 +29,7 @@ func Container() *container.Container {
 
 	x.SetVersion(versiontest.Version())
 	x.SetAttributes(Attributes())
-	x.SetOwnerID(ownertest.GenerateID())
+	x.SetOwnerID(ownertest.ID())
 	x.SetBasicACL(123)
 	x.SetPlacementPolicy(netmaptest.PlacementPolicy())
 
@@ -40,7 +40,7 @@ func Container() *container.Container {
 func UsedSpaceAnnouncement() *container.UsedSpaceAnnouncement {
 	x := container.NewAnnouncement()
 
-	x.SetContainerID(cidtest.GenerateID())
+	x.SetContainerID(cidtest.ID())
 	x.SetEpoch(55)
 	x.SetUsedSpace(999)
 

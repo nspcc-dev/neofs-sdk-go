@@ -20,7 +20,7 @@ func TestID_ToV2(t *testing.T) {
 	t.Run("non-nil", func(t *testing.T) {
 		checksum := randSHA256Checksum()
 
-		id := cidtest.GenerateIDWithChecksum(checksum)
+		id := cidtest.IDWithChecksum(checksum)
 
 		idV2 := id.ToV2()
 
@@ -46,19 +46,19 @@ func TestID_ToV2(t *testing.T) {
 func TestID_Equal(t *testing.T) {
 	cs := randSHA256Checksum()
 
-	id1 := cidtest.GenerateIDWithChecksum(cs)
-	id2 := cidtest.GenerateIDWithChecksum(cs)
+	id1 := cidtest.IDWithChecksum(cs)
+	id2 := cidtest.IDWithChecksum(cs)
 
 	require.True(t, id1.Equal(id2))
 
-	id3 := cidtest.GenerateID()
+	id3 := cidtest.ID()
 
 	require.False(t, id1.Equal(id3))
 }
 
 func TestID_String(t *testing.T) {
 	t.Run("Parse/String", func(t *testing.T) {
-		id := cidtest.GenerateID()
+		id := cidtest.ID()
 		id2 := cid.New()
 
 		require.NoError(t, id2.Parse(id.String()))
@@ -73,7 +73,7 @@ func TestID_String(t *testing.T) {
 }
 
 func TestContainerIDEncoding(t *testing.T) {
-	id := cidtest.GenerateID()
+	id := cidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := id.Marshal()

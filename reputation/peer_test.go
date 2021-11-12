@@ -17,7 +17,7 @@ func TestPeerID_ToV2(t *testing.T) {
 	})
 
 	t.Run("nil", func(t *testing.T) {
-		peerID := reputationtest.GeneratePeerID()
+		peerID := reputationtest.PeerID()
 
 		require.Equal(t, peerID, reputation.PeerIDFromV2(peerID.ToV2()))
 	})
@@ -25,7 +25,7 @@ func TestPeerID_ToV2(t *testing.T) {
 
 func TestPeerID_String(t *testing.T) {
 	t.Run("Parse/String", func(t *testing.T) {
-		id := reputationtest.GeneratePeerID()
+		id := reputationtest.PeerID()
 
 		strID := id.String()
 
@@ -45,7 +45,7 @@ func TestPeerID_String(t *testing.T) {
 }
 
 func TestPeerIDEncoding(t *testing.T) {
-	id := reputationtest.GeneratePeerID()
+	id := reputationtest.PeerID()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := id.Marshal()

@@ -14,7 +14,7 @@ import (
 )
 
 func TestIDV2(t *testing.T) {
-	id := ownertest.GenerateID()
+	id := ownertest.ID()
 
 	idV2 := id.ToV2()
 
@@ -22,7 +22,7 @@ func TestIDV2(t *testing.T) {
 }
 
 func TestID_Valid(t *testing.T) {
-	id := ownertest.GenerateID()
+	id := ownertest.ID()
 	require.True(t, id.Valid())
 
 	val := id.ToV2().GetValue()
@@ -32,13 +32,13 @@ func TestID_Valid(t *testing.T) {
 		copy(v, val)
 		v[0] ^= 0xFF
 
-		id := ownertest.GenerateIDFromBytes(v)
+		id := ownertest.IDFromBytes(v)
 		require.False(t, id.Valid())
 	})
 	t.Run("invalid size", func(t *testing.T) {
 		val := val[:NEO3WalletSize-1]
 
-		id := ownertest.GenerateIDFromBytes(val)
+		id := ownertest.IDFromBytes(val)
 		require.False(t, id.Valid())
 	})
 	t.Run("invalid checksum", func(t *testing.T) {
@@ -46,7 +46,7 @@ func TestID_Valid(t *testing.T) {
 		copy(v, val)
 		v[NEO3WalletSize-1] ^= 0xFF
 
-		id := ownertest.GenerateIDFromBytes(v)
+		id := ownertest.IDFromBytes(v)
 		require.False(t, id.Valid())
 	})
 }
@@ -87,7 +87,7 @@ func TestID_Parse(t *testing.T) {
 }
 
 func TestIDEncoding(t *testing.T) {
-	id := ownertest.GenerateID()
+	id := ownertest.ID()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := id.Marshal()
@@ -117,14 +117,14 @@ func TestID_Equal(t *testing.T) {
 		data3 = append(data1, 255)
 	)
 
-	id1 := ownertest.GenerateIDFromBytes(data1)
+	id1 := ownertest.IDFromBytes(data1)
 
 	require.True(t, id1.Equal(
-		ownertest.GenerateIDFromBytes(data2),
+		ownertest.IDFromBytes(data2),
 	))
 
 	require.False(t, id1.Equal(
-		ownertest.GenerateIDFromBytes(data3),
+		ownertest.IDFromBytes(data3),
 	))
 }
 

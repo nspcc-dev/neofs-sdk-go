@@ -93,7 +93,7 @@ func TestRawObject_SetPayloadSize(t *testing.T) {
 func TestRawObject_SetContainerID(t *testing.T) {
 	obj := NewRaw()
 
-	cid := cidtest.GenerateID()
+	cid := cidtest.ID()
 
 	obj.SetContainerID(cid)
 
@@ -103,7 +103,7 @@ func TestRawObject_SetContainerID(t *testing.T) {
 func TestRawObject_SetOwnerID(t *testing.T) {
 	obj := NewRaw()
 
-	ownerID := ownertest.GenerateID()
+	ownerID := ownertest.ID()
 
 	obj.SetOwnerID(ownerID)
 
@@ -196,7 +196,7 @@ func TestRawObject_SetParent(t *testing.T) {
 
 	par := NewRaw()
 	par.SetID(randID(t))
-	par.SetContainerID(cidtest.GenerateID())
+	par.SetContainerID(cidtest.ID())
 	par.SetSignature(signature.New())
 
 	parObj := par.Object()
@@ -218,7 +218,7 @@ func TestRawObject_ToV2(t *testing.T) {
 func TestRawObject_SetSessionToken(t *testing.T) {
 	obj := NewRaw()
 
-	tok := sessiontest.Generate()
+	tok := sessiontest.Token()
 
 	obj.SetSessionToken(tok)
 

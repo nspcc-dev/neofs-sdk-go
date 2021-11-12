@@ -1,4 +1,4 @@
-package test
+package netmaptest
 
 import "github.com/nspcc-dev/neofs-sdk-go/netmap"
 

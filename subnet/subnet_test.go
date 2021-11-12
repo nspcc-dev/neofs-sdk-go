@@ -40,7 +40,7 @@ func TestInfo_SetOwner(t *testing.T) {
 		info Info
 	)
 
-	id = *ownertest.GenerateID()
+	id = *ownertest.ID()
 
 	require.False(t, IsOwner(info, id))
 

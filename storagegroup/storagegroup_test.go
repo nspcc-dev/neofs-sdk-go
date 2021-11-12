@@ -33,7 +33,7 @@ func TestStorageGroup(t *testing.T) {
 }
 
 func TestStorageGroupEncoding(t *testing.T) {
-	sg := storagegrouptest.Generate()
+	sg := storagegrouptest.StorageGroup()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := sg.Marshal()

@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	test "github.com/nspcc-dev/neofs-sdk-go/accounting/test"
+	accountingtest "github.com/nspcc-dev/neofs-sdk-go/accounting/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,7 +20,7 @@ func TestDecimal(t *testing.T) {
 }
 
 func TestDecimalEncoding(t *testing.T) {
-	d := test.GenerateDecimal()
+	d := accountingtest.Decimal()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := d.Marshal()

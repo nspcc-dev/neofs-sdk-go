@@ -36,7 +36,7 @@ func IDWithChecksum(cs [sha256.Size]byte) *object.ID {
 func Address() *object.Address {
 	x := object.NewAddress()
 
-	x.SetContainerID(cidtest.GenerateID())
+	x.SetContainerID(cidtest.ID())
 	x.SetObjectID(ID())
 
 	return x
@@ -75,10 +75,10 @@ func generateRaw(withParent bool) *object.RawObject {
 	x := object.NewRaw()
 
 	x.SetID(ID())
-	x.SetSessionToken(sessiontest.Generate())
+	x.SetSessionToken(sessiontest.Token())
 	x.SetPayload([]byte{1, 2, 3})
-	x.SetOwnerID(ownertest.GenerateID())
-	x.SetContainerID(cidtest.GenerateID())
+	x.SetOwnerID(ownertest.ID())
+	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
 	x.SetVersion(version.Current())
 	x.SetPayloadSize(111)
@@ -136,7 +136,7 @@ func SearchFilters() object.SearchFilters {
 	x := object.NewSearchFilters()
 
 	x.AddObjectIDFilter(object.MatchStringEqual, ID())
-	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.GenerateID())
+	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.ID())
 
 	return x
 }

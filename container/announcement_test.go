@@ -17,7 +17,7 @@ func TestAnnouncement(t *testing.T) {
 	const epoch, usedSpace uint64 = 10, 100
 
 	cidValue := [sha256.Size]byte{1, 2, 3}
-	id := cidtest.GenerateIDWithChecksum(cidValue)
+	id := cidtest.IDWithChecksum(cidValue)
 
 	a := container.NewAnnouncement()
 	a.SetEpoch(epoch)

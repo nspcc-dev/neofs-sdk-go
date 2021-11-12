@@ -1,4 +1,4 @@
-package test
+package checksumtest
 
 import (
 	"crypto/sha256"
