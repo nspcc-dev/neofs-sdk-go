@@ -70,7 +70,7 @@ func TestID_Equals(t *testing.T) {
 }
 
 func TestSubnetIDEncoding(t *testing.T) {
-	id := subnetidtest.GenerateID()
+	id := subnetidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := id.Marshal()

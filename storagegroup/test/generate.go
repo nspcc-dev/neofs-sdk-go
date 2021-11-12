@@ -7,8 +7,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 )
 
-// Generate returns random storagegroup.StorageGroup.
-func Generate() *storagegroup.StorageGroup {
+// StorageGroup returns random storagegroup.StorageGroup.
+func StorageGroup() *storagegroup.StorageGroup {
 	x := storagegroup.New()
 
 	x.SetExpirationEpoch(66)

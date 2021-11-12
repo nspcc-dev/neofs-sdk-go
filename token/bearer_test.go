@@ -36,7 +36,7 @@ func TestBearerToken_Issuer(t *testing.T) {
 }
 
 func TestFilterEncoding(t *testing.T) {
-	f := tokentest.Generate()
+	f := tokentest.BearerToken()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := f.Marshal()

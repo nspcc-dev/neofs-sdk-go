@@ -8,12 +8,12 @@ import (
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
-// Generate returns random audit.Result.
-func Generate() *audit.Result {
+// Result returns random audit.Result.
+func Result() *audit.Result {
 	x := audit.NewResult()
 
 	x.SetVersion(versiontest.Version())
-	x.SetContainerID(cidtest.GenerateID())
+	x.SetContainerID(cidtest.ID())
 	x.SetPublicKey([]byte("key"))
 	x.SetComplete(true)
 	x.SetAuditEpoch(44)

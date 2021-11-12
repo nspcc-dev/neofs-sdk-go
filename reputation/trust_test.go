@@ -14,7 +14,7 @@ import (
 func TestTrust(t *testing.T) {
 	trust := reputation.NewTrust()
 
-	id := reputationtest.GeneratePeerID()
+	id := reputationtest.PeerID()
 	trust.SetPeer(id)
 	require.Equal(t, id, trust.Peer())
 
@@ -23,7 +23,7 @@ func TestTrust(t *testing.T) {
 	require.Equal(t, val, trust.Value())
 
 	t.Run("binary encoding", func(t *testing.T) {
-		trust := reputationtest.GenerateTrust()
+		trust := reputationtest.Trust()
 		data, err := trust.Marshal()
 		require.NoError(t, err)
 
@@ -33,7 +33,7 @@ func TestTrust(t *testing.T) {
 	})
 
 	t.Run("JSON encoding", func(t *testing.T) {
-		trust := reputationtest.GenerateTrust()
+		trust := reputationtest.Trust()
 		data, err := trust.MarshalJSON()
 		require.NoError(t, err)
 
@@ -58,17 +58,17 @@ func TestPeerToPeerTrust(t *testing.T) {
 		require.Nil(t, p2pt.TrustingPeer())
 		require.Nil(t, p2pt.Trust())
 
-		trusting := reputationtest.GeneratePeerID()
+		trusting := reputationtest.PeerID()
 		p2pt.SetTrustingPeer(trusting)
 		require.Equal(t, trusting, p2pt.TrustingPeer())
 
-		trust := reputationtest.GenerateTrust()
+		trust := reputationtest.Trust()
 		p2pt.SetTrust(trust)
 		require.Equal(t, trust, p2pt.Trust())
 	})
 
 	t.Run("encoding", func(t *testing.T) {
-		p2pt := reputationtest.GeneratePeerToPeerTrust()
+		p2pt := reputationtest.PeerToPeerTrust()
 
 		t.Run("binary", func(t *testing.T) {
 			data, err := p2pt.Marshal()
@@ -112,17 +112,17 @@ func TestGlobalTrust(t *testing.T) {
 		gt.SetVersion(version)
 		require.Equal(t, version, gt.Version())
 
-		mngr := reputationtest.GeneratePeerID()
+		mngr := reputationtest.PeerID()
 		gt.SetManager(mngr)
 		require.Equal(t, mngr, gt.Manager())
 
-		trust := reputationtest.GenerateTrust()
+		trust := reputationtest.Trust()
 		gt.SetTrust(trust)
 		require.Equal(t, trust, gt.Trust())
 	})
 
 	t.Run("sign+verify", func(t *testing.T) {
-		gt := reputationtest.GenerateSignedGlobalTrust(t)
+		gt := reputationtest.SignedGlobalTrust(t)
 
 		err := gt.VerifySignature()
 		require.NoError(t, err)
@@ -130,7 +130,7 @@ func TestGlobalTrust(t *testing.T) {
 
 	t.Run("encoding", func(t *testing.T) {
 		t.Run("binary", func(t *testing.T) {
-			gt := reputationtest.GenerateSignedGlobalTrust(t)
+			gt := reputationtest.SignedGlobalTrust(t)
 
 			data, err := gt.Marshal()
 			require.NoError(t, err)
@@ -141,7 +141,7 @@ func TestGlobalTrust(t *testing.T) {
 		})
 
 		t.Run("JSON", func(t *testing.T) {
-			gt := reputationtest.GenerateSignedGlobalTrust(t)
+			gt := reputationtest.SignedGlobalTrust(t)
 			data, err := gt.MarshalJSON()
 			require.NoError(t, err)
 

@@ -17,7 +17,7 @@ func TestTable(t *testing.T) {
 	var v version.Version
 
 	sha := sha256.Sum256([]byte("container id"))
-	id := cidtest.GenerateIDWithChecksum(sha)
+	id := cidtest.IDWithChecksum(sha)
 
 	v.SetMajor(3)
 	v.SetMinor(2)
@@ -42,7 +42,7 @@ func TestTable(t *testing.T) {
 	})
 
 	t.Run("create table", func(t *testing.T) {
-		id := cidtest.GenerateID()
+		id := cidtest.ID()
 
 		table := eacl.CreateTable(*id)
 		require.Equal(t, id, table.CID())
@@ -91,7 +91,7 @@ func TestTableEncoding(t *testing.T) {
 }
 
 func TestTable_SessionToken(t *testing.T) {
-	tok := sessiontest.Generate()
+	tok := sessiontest.Token()
 
 	table := eacl.NewTable()
 	table.SetSessionToken(tok)

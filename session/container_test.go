@@ -36,7 +36,7 @@ func TestContainerContextVerbs(t *testing.T) {
 
 func TestContainerContext_ApplyTo(t *testing.T) {
 	c := session.NewContainerContext()
-	id := cidtest.GenerateID()
+	id := cidtest.ID()
 
 	t.Run("method", func(t *testing.T) {
 		c.ApplyTo(id)

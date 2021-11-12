@@ -1,4 +1,4 @@
-package test
+package sigtest
 
 import (
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
