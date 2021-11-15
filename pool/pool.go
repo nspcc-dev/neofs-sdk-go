@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/token"
 	"go.uber.org/zap"
 )
 
@@ -86,33 +87,33 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 
 // Pool is an interface providing connection artifacts on request.
 type Pool interface {
-	client.Object
-	client.Container
+	Object
+	Container
 	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
 	WaitForContainerPresence(context.Context, *cid.ID, *ContainerPollingParams) error
 	Close()
-
-	ClientParam
 }
 
-// ClientParam is analogue client.Object, client.Container but uses session token cache.
-type ClientParam interface {
-	PutObjectParam(ctx context.Context, params *client.PutObjectParams, callParam *CallParam) (*object.ID, error)
-	DeleteObjectParam(ctx context.Context, params *client.DeleteObjectParams, callParam *CallParam) error
-	GetObjectParam(ctx context.Context, params *client.GetObjectParams, callParam *CallParam) (*object.Object, error)
-	GetObjectHeaderParam(ctx context.Context, params *client.ObjectHeaderParams, callParam *CallParam) (*object.Object, error)
-	ObjectPayloadRangeDataParam(ctx context.Context, params *client.RangeDataParams, callParam *CallParam) ([]byte, error)
-	ObjectPayloadRangeSHA256Param(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][32]byte, error)
-	ObjectPayloadRangeTZParam(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][64]byte, error)
-	SearchObjectParam(ctx context.Context, params *client.SearchObjectParams, callParam *CallParam) ([]*object.ID, error)
-	PutContainerParam(ctx context.Context, cnr *container.Container, callParam *CallParam) (*cid.ID, error)
-	GetContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*container.Container, error)
-	ListContainersParam(ctx context.Context, ownerID *owner.ID, callParam *CallParam) ([]*cid.ID, error)
-	DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) error
-	GetEACLParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*client.EACLWithSignature, error)
-	SetEACLParam(ctx context.Context, table *eacl.Table, callParam *CallParam) error
-	AnnounceContainerUsedSpaceParam(ctx context.Context, announce []container.UsedSpaceAnnouncement, callParam *CallParam) error
+type Object interface {
+	PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*object.ID, error)
+	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
+	GetObject(ctx context.Context, params *client.GetObjectParams, opts ...CallOption) (*object.Object, error)
+	GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error)
+	ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error)
+	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
+	ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error)
+	SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*object.ID, error)
+}
+
+type Container interface {
+	PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*cid.ID, error)
+	GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) (*container.Container, error)
+	ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]*cid.ID, error)
+	DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) error
+	GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*client.EACLWithSignature, error)
+	SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOption) error
+	AnnounceContainerUsedSpace(ctx context.Context, announce []container.UsedSpaceAnnouncement, opts ...CallOption) error
 }
 
 type clientPack struct {
@@ -121,11 +122,46 @@ type clientPack struct {
 	address string
 }
 
-type CallParam struct {
-	isRetry bool
-	Key     *ecdsa.PrivateKey
+type CallOption func(config *callConfig)
 
-	Options []client.CallOption
+type callConfig struct {
+	isRetry bool
+
+	key    *ecdsa.PrivateKey
+	btoken *token.BearerToken
+	stoken *session.Token
+}
+
+func WithKey(key *ecdsa.PrivateKey) CallOption {
+	return func(config *callConfig) {
+		config.key = key
+	}
+}
+
+func WithBearer(token *token.BearerToken) CallOption {
+	return func(config *callConfig) {
+		config.btoken = token
+	}
+}
+
+func WithSession(token *session.Token) CallOption {
+	return func(config *callConfig) {
+		config.stoken = token
+	}
+}
+
+func retry() CallOption {
+	return func(config *callConfig) {
+		config.isRetry = true
+	}
+}
+
+func cfgFromOpts(opts ...CallOption) *callConfig {
+	var cfg = new(callConfig)
+	for _, opt := range opts {
+		opt(cfg)
+	}
+	return cfg
 }
 
 var _ Pool = (*pool)(nil)
@@ -315,162 +351,44 @@ func (p *pool) OwnerID() *owner.ID {
 	return p.owner
 }
 
-func (p *pool) conn(option []client.CallOption) (client.Client, []client.CallOption, error) {
-	conn, token, err := p.Connection()
-	if err != nil {
-		return nil, nil, err
-	}
-	return conn, append([]client.CallOption{client.WithSession(token)}, option...), nil
-}
-
 func formCacheKey(address string, key *ecdsa.PrivateKey) string {
 	k := keys.PrivateKey{PrivateKey: *key}
 	return address + k.String()
 }
 
-func (p *pool) connParam(ctx context.Context, param *CallParam) (*clientPack, []client.CallOption, error) {
+func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client.CallOption, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return nil, nil, err
 	}
 
+	clientCallOptions := make([]client.CallOption, 0, 3)
+
 	key := p.key
-	if param.Key != nil {
-		key = param.Key
+	if cfg.key != nil {
+		key = cfg.key
 	}
+	clientCallOptions = append(clientCallOptions, client.WithKey(key))
 
-	param.Options = append(param.Options, client.WithKey(key))
-	cacheKey := formCacheKey(cp.address, key)
-	token := p.cache.Get(cacheKey)
-	if token == nil {
-		token, err = cp.client.CreateSession(ctx, math.MaxUint32, param.Options...)
-		if err != nil {
-			return nil, nil, err
+	sessionToken := cfg.stoken
+	if sessionToken == nil {
+		cacheKey := formCacheKey(cp.address, key)
+		sessionToken = p.cache.Get(cacheKey)
+		if sessionToken == nil {
+			sessionToken, err = cp.client.CreateSession(ctx, math.MaxUint32, clientCallOptions...)
+			if err != nil {
+				return nil, nil, err
+			}
+			_ = p.cache.Put(cacheKey, sessionToken)
 		}
-		_ = p.cache.Put(cacheKey, token)
+	}
+	clientCallOptions = append(clientCallOptions, client.WithSession(sessionToken))
+
+	if cfg.btoken != nil {
+		clientCallOptions = append(clientCallOptions, client.WithBearer(cfg.btoken))
 	}
 
-	return cp, append([]client.CallOption{client.WithSession(token)}, param.Options...), nil
-}
-
-func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, option ...client.CallOption) (*object.ID, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.PutObject(ctx, params, options...)
-}
-
-func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectParams, option ...client.CallOption) error {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return err
-	}
-	return conn.DeleteObject(ctx, params, options...)
-}
-
-func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, option ...client.CallOption) (*object.Object, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.GetObject(ctx, params, options...)
-}
-
-func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, option ...client.CallOption) (*object.Object, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.GetObjectHeader(ctx, params, options...)
-}
-
-func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, option ...client.CallOption) ([]byte, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.ObjectPayloadRangeData(ctx, params, options...)
-}
-
-func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, option ...client.CallOption) ([][32]byte, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.ObjectPayloadRangeSHA256(ctx, params, options...)
-}
-
-func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, option ...client.CallOption) ([][64]byte, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.ObjectPayloadRangeTZ(ctx, params, options...)
-}
-
-func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, option ...client.CallOption) ([]*object.ID, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.SearchObject(ctx, params, options...)
-}
-
-func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, option ...client.CallOption) (*cid.ID, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.PutContainer(ctx, cnr, options...)
-}
-
-func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, option ...client.CallOption) (*container.Container, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.GetContainer(ctx, cid, options...)
-}
-
-func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, option ...client.CallOption) ([]*cid.ID, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.ListContainers(ctx, ownerID, options...)
-}
-
-func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, option ...client.CallOption) error {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return err
-	}
-	return conn.DeleteContainer(ctx, cid, options...)
-}
-
-func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, option ...client.CallOption) (*client.EACLWithSignature, error) {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return nil, err
-	}
-	return conn.GetEACL(ctx, cid, options...)
-}
-
-func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, option ...client.CallOption) error {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return err
-	}
-	return conn.SetEACL(ctx, table, options...)
-}
-
-func (p *pool) AnnounceContainerUsedSpace(ctx context.Context, announce []container.UsedSpaceAnnouncement, option ...client.CallOption) error {
-	conn, options, err := p.conn(option)
-	if err != nil {
-		return err
-	}
-	return conn.AnnounceContainerUsedSpace(ctx, announce, options...)
+	return cp, clientCallOptions, nil
 }
 
 func (p *pool) checkSessionTokenErr(err error, address string) bool {
@@ -486,197 +404,212 @@ func (p *pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func (p *pool) PutObjectParam(ctx context.Context, params *client.PutObjectParams, callParam *CallParam) (*object.ID, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*object.ID, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.PutObject(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.PutObjectParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.PutObject(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) DeleteObjectParam(ctx context.Context, params *client.DeleteObjectParams, callParam *CallParam) error {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	err = cp.client.DeleteObject(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.DeleteObjectParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.DeleteObject(ctx, params, opts...)
 	}
 	return err
 }
 
-func (p *pool) GetObjectParam(ctx context.Context, params *client.GetObjectParams, callParam *CallParam) (*object.Object, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, opts ...CallOption) (*object.Object, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.GetObject(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.GetObjectParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.GetObject(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) GetObjectHeaderParam(ctx context.Context, params *client.ObjectHeaderParams, callParam *CallParam) (*object.Object, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.GetObjectHeader(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.GetObjectHeaderParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.GetObjectHeader(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) ObjectPayloadRangeDataParam(ctx context.Context, params *client.RangeDataParams, callParam *CallParam) ([]byte, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.ObjectPayloadRangeData(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.ObjectPayloadRangeDataParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.ObjectPayloadRangeData(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) ObjectPayloadRangeSHA256Param(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][32]byte, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.ObjectPayloadRangeSHA256(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.ObjectPayloadRangeSHA256Param(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.ObjectPayloadRangeSHA256(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) ObjectPayloadRangeTZParam(ctx context.Context, params *client.RangeChecksumParams, callParam *CallParam) ([][64]byte, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.ObjectPayloadRangeTZ(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.ObjectPayloadRangeTZParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.ObjectPayloadRangeTZ(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) SearchObjectParam(ctx context.Context, params *client.SearchObjectParams, callParam *CallParam) ([]*object.ID, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*object.ID, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.SearchObject(ctx, params, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.SearchObjectParam(ctx, params, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.SearchObject(ctx, params, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) PutContainerParam(ctx context.Context, cnr *container.Container, callParam *CallParam) (*cid.ID, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*cid.ID, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.PutContainer(ctx, cnr, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.PutContainerParam(ctx, cnr, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.PutContainer(ctx, cnr, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) GetContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*container.Container, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) (*container.Container, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.GetContainer(ctx, cid, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.GetContainerParam(ctx, cid, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.GetContainer(ctx, cid, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) ListContainersParam(ctx context.Context, ownerID *owner.ID, callParam *CallParam) ([]*cid.ID, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]*cid.ID, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.ListContainers(ctx, ownerID, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.ListContainersParam(ctx, ownerID, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.ListContainers(ctx, ownerID, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) DeleteContainerParam(ctx context.Context, cid *cid.ID, callParam *CallParam) error {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) error {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	err = cp.client.DeleteContainer(ctx, cid, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.DeleteContainerParam(ctx, cid, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.DeleteContainer(ctx, cid, opts...)
 	}
 	return err
 }
 
-func (p *pool) GetEACLParam(ctx context.Context, cid *cid.ID, callParam *CallParam) (*client.EACLWithSignature, error) {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*client.EACLWithSignature, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
 	res, err := cp.client.GetEACL(ctx, cid, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.GetEACLParam(ctx, cid, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.GetEACL(ctx, cid, opts...)
 	}
 	return res, err
 }
 
-func (p *pool) SetEACLParam(ctx context.Context, table *eacl.Table, callParam *CallParam) error {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOption) error {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	err = cp.client.SetEACL(ctx, table, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.SetEACLParam(ctx, table, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.SetEACL(ctx, table, opts...)
 	}
 	return err
 }
 
-func (p *pool) AnnounceContainerUsedSpaceParam(ctx context.Context, announce []container.UsedSpaceAnnouncement, callParam *CallParam) error {
-	cp, options, err := p.connParam(ctx, callParam)
+func (p *pool) AnnounceContainerUsedSpace(ctx context.Context, announce []container.UsedSpaceAnnouncement, opts ...CallOption) error {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
 	}
 	err = cp.client.AnnounceContainerUsedSpace(ctx, announce, options...)
-	if p.checkSessionTokenErr(err, cp.address) && !callParam.isRetry {
-		callParam.isRetry = true
-		return p.AnnounceContainerUsedSpaceParam(ctx, announce, callParam)
+	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
+		opts = append(opts, retry())
+		return p.AnnounceContainerUsedSpace(ctx, announce, opts...)
 	}
 	return err
 }

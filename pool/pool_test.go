@@ -323,8 +323,7 @@ func TestSessionCache(t *testing.T) {
 		}).MaxTimes(3)
 
 		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
-		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
-		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -352,7 +351,7 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObjectParam(ctx, nil, &CallParam{isRetry: true})
+	_, err = pool.GetObject(ctx, nil, retry())
 	require.Error(t, err)
 
 	// cache must not contain session token
@@ -360,7 +359,7 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, st)
 
-	_, err = pool.PutObjectParam(ctx, nil, &CallParam{})
+	_, err = pool.PutObject(ctx, nil)
 	require.NoError(t, err)
 
 	// cache must contain session token
@@ -413,7 +412,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObjectParam(ctx, nil, &CallParam{Key: &key2.PrivateKey})
+	_, err = pool.GetObject(ctx, nil, WithKey(&key2.PrivateKey))
 	require.NoError(t, err)
 	require.Len(t, tokens, 2)
 }
