@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
@@ -71,13 +73,35 @@ func (id *ID) Parse(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
 		return fmt.Errorf("could not parse owner.ID from string: %w", err)
-	} else if len(data) != NEO3WalletSize {
+	} else if !valid(data) {
 		return errInvalidIDString
 	}
 
 	(*refs.OwnerID)(id).SetValue(data)
 
 	return nil
+}
+
+// Valid returns true if id is a valid owner id.
+// The rules for v2 are the following:
+// 1. Must be 25 bytes in length.
+// 2. Must have N3 address prefix-byte.
+// 3. Last 4 bytes must contain the address checksum.
+func (id *ID) Valid() bool {
+	rawID := id.ToV2().GetValue()
+	return valid(rawID)
+}
+
+func valid(rawID []byte) bool {
+	if len(rawID) != NEO3WalletSize {
+		return false
+	}
+	if rawID[0] != address.NEO3Prefix {
+		return false
+	}
+
+	const boundIndex = NEO3WalletSize - 4
+	return bytes.Equal(rawID[boundIndex:], hash.Checksum(rawID[:boundIndex]))
 }
 
 // Marshal marshals ID into a protobuf binary form.

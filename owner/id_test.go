@@ -6,6 +6,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	. "github.com/nspcc-dev/neofs-sdk-go/owner"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
@@ -18,6 +19,34 @@ func TestIDV2(t *testing.T) {
 	idV2 := id.ToV2()
 
 	require.Equal(t, id, NewIDFromV2(idV2))
+}
+
+func TestID_Valid(t *testing.T) {
+	id := ownertest.GenerateID()
+	require.True(t, id.Valid())
+
+	val := id.ToV2().GetValue()
+
+	t.Run("invalid prefix", func(t *testing.T) {
+		val := slice.Copy(val)
+		val[0] ^= 0xFF
+
+		id := ownertest.GenerateIDFromBytes(val)
+		require.False(t, id.Valid())
+	})
+	t.Run("invalid size", func(t *testing.T) {
+		val := val[:NEO3WalletSize-1]
+
+		id := ownertest.GenerateIDFromBytes(val)
+		require.False(t, id.Valid())
+	})
+	t.Run("invalid checksum", func(t *testing.T) {
+		val := slice.Copy(val)
+		val[NEO3WalletSize-1] ^= 0xFF
+
+		id := ownertest.GenerateIDFromBytes(val)
+		require.False(t, id.Valid())
+	})
 }
 
 func TestNewIDFromNeo3Wallet(t *testing.T) {

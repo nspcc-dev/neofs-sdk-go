@@ -3,6 +3,9 @@ package ownertest
 import (
 	"math/rand"
 
+	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 )
@@ -10,10 +13,14 @@ import (
 // GenerateID returns owner.ID calculated
 // from a random owner.NEO3Wallet.
 func GenerateID() *owner.ID {
-	data := make([]byte, owner.NEO3WalletSize)
+	u := util.Uint160{}
+	rand.Read(u[:])
 
-	rand.Read(data)
-
+	addr := address.Uint160ToString(u)
+	data, err := base58.Decode(addr)
+	if err != nil {
+		panic(err)
+	}
 	return GenerateIDFromBytes(data)
 }
 
