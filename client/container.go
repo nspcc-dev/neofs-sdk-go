@@ -370,7 +370,6 @@ func (c *clientImpl) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...Call
 
 	reqBody := new(v2container.SetExtendedACLRequestBody)
 	reqBody.SetEACL(eacl.ToV2())
-	reqBody.GetEACL().SetVersion(version.Current().ToV2())
 
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetEACL()}
 
