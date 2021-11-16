@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/rpc/client"
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 )

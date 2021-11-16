@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/nspcc-dev/neofs-api-go/rpc/client"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"

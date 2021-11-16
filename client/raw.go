@@ -3,7 +3,7 @@ package client
 import (
 	"io"
 
-	"github.com/nspcc-dev/neofs-api-go/rpc/client"
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 )
 
 // Raw returns underlying raw protobuf client.
