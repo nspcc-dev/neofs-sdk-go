@@ -17,10 +17,10 @@ type Netmap interface {
 	// EndpointInfo returns attributes, address and public key of the node, specified
 	// in client constructor via address or open connection. This can be used as a
 	// health check to see if node is alive and responses to requests.
-	EndpointInfo(context.Context, ...CallOption) (*EndpointInfo, error)
+	EndpointInfo(context.Context, ...CallOption) (*EndpointInfoRes, error)
 
 	// NetworkInfo returns information about the NeoFS network of which the remote server is a part.
-	NetworkInfo(context.Context, ...CallOption) (*netmap.NetworkInfo, error)
+	NetworkInfo(context.Context, ...CallOption) (*NetworkInfoRes, error)
 }
 
 // EACLWithSignature represents eACL table/signature pair.
@@ -40,10 +40,24 @@ func (e *EndpointInfo) NodeInfo() *netmap.NodeInfo {
 	return e.ni
 }
 
+type EndpointInfoRes struct {
+	statusRes
+
+	info *EndpointInfo
+}
+
+func (x EndpointInfoRes) Info() *EndpointInfo {
+	return x.info
+}
+
+func (x *EndpointInfoRes) setInfo(info *EndpointInfo) {
+	x.info = info
+}
+
 // EndpointInfo returns attributes, address and public key of the node, specified
 // in client constructor via address or open connection. This can be used as a
 // health check to see if node is alive and responses to requests.
-func (c *clientImpl) EndpointInfo(ctx context.Context, opts ...CallOption) (*EndpointInfo, error) {
+func (c *clientImpl) EndpointInfo(ctx context.Context, opts ...CallOption) (*EndpointInfoRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -67,26 +81,52 @@ func (c *clientImpl) EndpointInfo(ctx context.Context, opts ...CallOption) (*End
 		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
-	}
+	var (
+		res     = new(EndpointInfoRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
 	body := resp.GetBody()
 
-	return &EndpointInfo{
+	res.setInfo(&EndpointInfo{
 		version: version.NewFromV2(body.GetVersion()),
 		ni:      netmap.NewNodeInfoFromV2(body.GetNodeInfo()),
-	}, nil
+	})
+
+	return res, nil
+}
+
+type NetworkInfoRes struct {
+	statusRes
+
+	info *netmap.NetworkInfo
+}
+
+func (x NetworkInfoRes) Info() *netmap.NetworkInfo {
+	return x.info
+}
+
+func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
+	x.info = info
 }
 
 // NetworkInfo returns information about the NeoFS network of which the remote server is a part.
-func (c *clientImpl) NetworkInfo(ctx context.Context, opts ...CallOption) (*netmap.NetworkInfo, error) {
+func (c *clientImpl) NetworkInfo(ctx context.Context, opts ...CallOption) (*NetworkInfoRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -110,15 +150,27 @@ func (c *clientImpl) NetworkInfo(ctx context.Context, opts ...CallOption) (*netm
 		return nil, fmt.Errorf("v2 NetworkInfo RPC failure: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
+	var (
+		res     = new(NetworkInfoRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("response message verification failed: %w", err)
-	}
+	res.setInfo(netmap.NewNetworkInfoFromV2(resp.GetBody().GetNetworkInfo()))
 
-	return netmap.NewNetworkInfoFromV2(resp.GetBody().GetNetworkInfo()), nil
+	return res, nil
 }

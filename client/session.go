@@ -10,18 +10,41 @@ import (
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
 // Session contains session-related methods.
 type Session interface {
 	// CreateSession creates session using provided expiration time.
-	CreateSession(context.Context, uint64, ...CallOption) (*session.Token, error)
+	CreateSession(context.Context, uint64, ...CallOption) (*CreateSessionRes, error)
 }
 
 var errMalformedResponseBody = errors.New("malformed response body")
 
-func (c *clientImpl) CreateSession(ctx context.Context, expiration uint64, opts ...CallOption) (*session.Token, error) {
+type CreateSessionRes struct {
+	statusRes
+
+	id []byte
+
+	sessionKey []byte
+}
+
+func (x *CreateSessionRes) setID(id []byte) {
+	x.id = id
+}
+
+func (x CreateSessionRes) ID() []byte {
+	return x.id
+}
+
+func (x *CreateSessionRes) setSessionKey(key []byte) {
+	x.sessionKey = key
+}
+
+func (x CreateSessionRes) SessionKey() []byte {
+	return x.sessionKey
+}
+
+func (c *clientImpl) CreateSession(ctx context.Context, expiration uint64, opts ...CallOption) (*CreateSessionRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -55,25 +78,30 @@ func (c *clientImpl) CreateSession(ctx context.Context, expiration uint64, opts 
 		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
-	}
+	var (
+		res     = new(CreateSessionRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
 	body := resp.GetBody()
-	if body == nil {
-		return nil, errMalformedResponseBody
-	}
 
-	sessionToken := session.NewToken()
-	sessionToken.SetID(body.GetID())
-	sessionToken.SetSessionKey(body.GetSessionKey())
-	sessionToken.SetOwnerID(ownerID)
+	res.setID(body.GetID())
+	res.setSessionKey(body.GetSessionKey())
 
-	return sessionToken, nil
+	return res, nil
 }
