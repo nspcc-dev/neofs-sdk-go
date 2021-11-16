@@ -62,20 +62,23 @@ func TestHealthyReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
-		options = &BuilderOptions{weights: weights}
+		options = &BuilderOptions{nodesParams: []*NodesParam{{weights: weights}}}
 		buffer  = make([]float64, len(weights))
 	)
 
 	cache, err := NewCache()
 	require.NoError(t, err)
 
-	p := &pool{
+	inner := &innerPool{
 		sampler: NewSampler(weights, rand.NewSource(0)),
 		clientPacks: []*clientPack{
 			{client: newNetmapMock(names[0], true), healthy: true, address: "address0"},
 			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
-		cache: cache,
-		key:   newPrivateKey(t),
+	}
+	p := &pool{
+		innerPools: []*innerPool{inner},
+		cache:      cache,
+		key:        newPrivateKey(t),
 	}
 
 	// check getting first node connection before rebalance happened
@@ -84,7 +87,7 @@ func TestHealthyReweight(t *testing.T) {
 	mock0 := connection0.(clientMock)
 	require.Equal(t, names[0], mock0.name)
 
-	updateNodesHealth(context.TODO(), p, options, buffer)
+	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
 
 	connection1, _, err := p.Connection()
 	require.NoError(t, err)
@@ -92,12 +95,12 @@ func TestHealthyReweight(t *testing.T) {
 	require.Equal(t, names[1], mock1.name)
 
 	// enabled first node again
-	p.lock.Lock()
-	p.clientPacks[0].client = newNetmapMock(names[0], false)
-	p.lock.Unlock()
+	inner.lock.Lock()
+	inner.clientPacks[0].client = newNetmapMock(names[0], false)
+	inner.lock.Unlock()
 
-	updateNodesHealth(context.TODO(), p, options, buffer)
-	p.sampler = NewSampler(weights, rand.NewSource(0))
+	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
+	inner.sampler = NewSampler(weights, rand.NewSource(0))
 
 	connection0, _, err = p.Connection()
 	require.NoError(t, err)
@@ -111,21 +114,24 @@ func TestHealthyNoReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
-		options = &BuilderOptions{weights: weights}
+		options = &BuilderOptions{nodesParams: []*NodesParam{{weights: weights}}}
 		buffer  = make([]float64, len(weights))
 	)
 
 	sampler := NewSampler(weights, rand.NewSource(0))
-	p := &pool{
+	inner := &innerPool{
 		sampler: sampler,
 		clientPacks: []*clientPack{
 			{client: newNetmapMock(names[0], false), healthy: true},
 			{client: newNetmapMock(names[1], false), healthy: true}},
 	}
+	p := &pool{
+		innerPools: []*innerPool{inner},
+	}
 
-	updateNodesHealth(context.TODO(), p, options, buffer)
+	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
 
-	p.lock.RLock()
-	defer p.lock.RUnlock()
-	require.Truef(t, sampler == p.sampler, "Sampler must not be changed. Expected: %p, actual: %p", sampler, p.sampler)
+	inner.lock.RLock()
+	defer inner.lock.RUnlock()
+	require.Equal(t, inner.sampler, sampler)
 }
