@@ -5,8 +5,8 @@ import (
 	"crypto/tls"
 	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/rpc/client"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/token"

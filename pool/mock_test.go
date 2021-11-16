@@ -10,7 +10,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	client "github.com/nspcc-dev/neofs-api-go/rpc/client"
+	client "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	accounting "github.com/nspcc-dev/neofs-sdk-go/accounting"
 	client0 "github.com/nspcc-dev/neofs-sdk-go/client"
 	container "github.com/nspcc-dev/neofs-sdk-go/container"
