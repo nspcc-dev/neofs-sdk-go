@@ -27,7 +27,7 @@ func TestBuildPoolClientFailed(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
+	pb.AddNode("peer0", 1, 1)
 
 	opts := &BuilderOptions{
 		Key:           newPrivateKey(t),
@@ -54,7 +54,7 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
+	pb.AddNode("peer0", 1, 1)
 
 	opts := &BuilderOptions{
 		Key:           newPrivateKey(t),
@@ -108,8 +108,8 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 9)
-	pb.AddNode("peer1", 1)
+	pb.AddNode("peer0", 9, 1)
+	pb.AddNode("peer1", 1, 1)
 
 	log, err := zap.NewProduction()
 	require.NoError(t, err)
@@ -159,7 +159,7 @@ func TestOneNode(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
+	pb.AddNode("peer0", 1, 1)
 
 	opts := &BuilderOptions{
 		Key:           newPrivateKey(t),
@@ -196,8 +196,8 @@ func TestTwoNodes(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
-	pb.AddNode("peer1", 1)
+	pb.AddNode("peer0", 1, 1)
+	pb.AddNode("peer1", 1, 1)
 
 	opts := &BuilderOptions{
 		Key:           newPrivateKey(t),
@@ -248,8 +248,8 @@ func TestOneOfTwoFailed(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
-	pb.AddNode("peer1", 9)
+	pb.AddNode("peer0", 1, 1)
+	pb.AddNode("peer1", 9, 1)
 
 	opts := &BuilderOptions{
 		Key:                     newPrivateKey(t),
@@ -283,8 +283,8 @@ func TestTwoFailed(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
-	pb.AddNode("peer1", 1)
+	pb.AddNode("peer0", 1, 1)
+	pb.AddNode("peer1", 1, 1)
 
 	opts := &BuilderOptions{
 		Key:                     newPrivateKey(t),
@@ -327,7 +327,7 @@ func TestSessionCache(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
+	pb.AddNode("peer0", 1, 1)
 
 	opts := &BuilderOptions{
 		Key:                     newPrivateKey(t),
@@ -340,6 +340,7 @@ func TestSessionCache(t *testing.T) {
 
 	pool, err := pb.Build(ctx, opts)
 	require.NoError(t, err)
+	t.Cleanup(pool.Close)
 
 	// cache must contain session token
 	_, st, err := pool.Connection()
@@ -361,6 +362,71 @@ func TestSessionCache(t *testing.T) {
 	_, st, err = pool.Connection()
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
+}
+
+func TestPriority(t *testing.T) {
+	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
+
+	ctrl := gomock.NewController(t)
+	ctrl2 := gomock.NewController(t)
+
+	var tokens []*session.Token
+	clientCount := -1
+	clientBuilder := func(opts ...client.Option) (client.Client, error) {
+		clientCount++
+		mockClient := NewMockClient(ctrl)
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+			tok := newToken(t)
+			tokens = append(tokens, tok)
+			return tok, nil
+		}).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
+
+		mockClient2 := NewMockClient(ctrl2)
+		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+			tok := newToken(t)
+			tokens = append(tokens, tok)
+			return tok, nil
+		}).AnyTimes()
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+
+		if clientCount == 0 {
+			return mockClient, nil
+		}
+		return mockClient2, nil
+	}
+
+	pb := new(Builder)
+	pb.AddNode("peer0", 1, 1)
+	pb.AddNode("peer1", 2, 100)
+
+	opts := &BuilderOptions{
+		Key:                     newPrivateKey(t),
+		clientBuilder:           clientBuilder,
+		ClientRebalanceInterval: 1500 * time.Millisecond,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := pb.Build(ctx, opts)
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	firstNode := func() bool {
+		_, st, err := pool.Connection()
+		require.NoError(t, err)
+		return st == tokens[0]
+	}
+	secondNode := func() bool {
+		_, st, err := pool.Connection()
+		require.NoError(t, err)
+		return st == tokens[1]
+	}
+	require.Never(t, secondNode, time.Second, 200*time.Millisecond)
+
+	require.Eventually(t, secondNode, time.Second, 200*time.Millisecond)
+	require.Never(t, firstNode, time.Second, 200*time.Millisecond)
 }
 
 func TestSessionCacheWithKey(t *testing.T) {
@@ -386,11 +452,12 @@ func TestSessionCacheWithKey(t *testing.T) {
 	}
 
 	pb := new(Builder)
-	pb.AddNode("peer0", 1)
+	pb.AddNode("peer0", 1, 1)
 
 	opts := &BuilderOptions{
-		Key:           newPrivateKey(t),
-		clientBuilder: clientBuilder,
+		Key:                     newPrivateKey(t),
+		clientBuilder:           clientBuilder,
+		ClientRebalanceInterval: 30 * time.Second,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -431,14 +498,18 @@ func TestWaitPresence(t *testing.T) {
 	cache, err := NewCache()
 	require.NoError(t, err)
 
-	p := &pool{
+	inner := &innerPool{
 		sampler: NewSampler([]float64{1}, rand.NewSource(0)),
 		clientPacks: []*clientPack{{
 			client:  mockClient,
 			healthy: true,
 		}},
-		key:   newPrivateKey(t),
-		cache: cache,
+	}
+
+	p := &pool{
+		innerPools: []*innerPool{inner},
+		key:        newPrivateKey(t),
+		cache:      cache,
 	}
 
 	t.Run("context canceled", func(t *testing.T) {
