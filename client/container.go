@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
@@ -10,6 +9,7 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
@@ -23,25 +23,25 @@ import (
 // Container contains methods related to container and ACL.
 type Container interface {
 	// PutContainer creates new container in the NeoFS network.
-	PutContainer(context.Context, *container.Container, ...CallOption) (*cid.ID, error)
+	PutContainer(context.Context, *container.Container, ...CallOption) (*ContainerPutRes, error)
 
 	// GetContainer returns container by ID.
-	GetContainer(context.Context, *cid.ID, ...CallOption) (*container.Container, error)
+	GetContainer(context.Context, *cid.ID, ...CallOption) (*ContainerGetRes, error)
 
 	// ListContainers return container list with the provided owner.
-	ListContainers(context.Context, *owner.ID, ...CallOption) ([]*cid.ID, error)
+	ListContainers(context.Context, *owner.ID, ...CallOption) (*ContainerListRes, error)
 
 	// DeleteContainer removes container from NeoFS network.
-	DeleteContainer(context.Context, *cid.ID, ...CallOption) error
+	DeleteContainer(context.Context, *cid.ID, ...CallOption) (*ContainerDeleteRes, error)
 
-	// GetEACL returns extended ACL for a given container.
-	GetEACL(context.Context, *cid.ID, ...CallOption) (*EACLWithSignature, error)
+	// EACL returns extended ACL for a given container.
+	EACL(context.Context, *cid.ID, ...CallOption) (*EACLRes, error)
 
 	// SetEACL sets extended ACL.
-	SetEACL(context.Context, *eacl.Table, ...CallOption) error
+	SetEACL(context.Context, *eacl.Table, ...CallOption) (*SetEACLRes, error)
 
 	// AnnounceContainerUsedSpace announces amount of space which is taken by stored objects.
-	AnnounceContainerUsedSpace(context.Context, []container.UsedSpaceAnnouncement, ...CallOption) error
+	AnnounceContainerUsedSpace(context.Context, []container.UsedSpaceAnnouncement, ...CallOption) (*AnnounceSpaceRes, error)
 }
 
 type delContainerSignWrapper struct {
@@ -73,7 +73,21 @@ func (e EACLWithSignature) Signature() *signature.Signature {
 	return e.table.Signature()
 }
 
-func (c *clientImpl) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*cid.ID, error) {
+type ContainerPutRes struct {
+	statusRes
+
+	id *cid.ID
+}
+
+func (x ContainerPutRes) ID() *cid.ID {
+	return x.id
+}
+
+func (x *ContainerPutRes) setID(id *cid.ID) {
+	x.id = id
+}
+
+func (c *clientImpl) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*ContainerPutRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -131,23 +145,56 @@ func (c *clientImpl) PutContainer(ctx context.Context, cnr *container.Container,
 		return nil, err
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
+	var (
+		res     = new(ContainerPutRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
+	// sets result status
+	st := apistatus.FromStatusV2(resp.GetMetaHeader().GetStatus())
+
+	res.setStatus(st)
+
+	if apistatus.IsSuccessful(st) {
+		res.setID(cid.NewFromV2(resp.GetBody().GetContainerID()))
 	}
 
-	return cid.NewFromV2(resp.GetBody().GetContainerID()), nil
+	return res, nil
+}
+
+type ContainerGetRes struct {
+	statusRes
+
+	cnr *container.Container
+}
+
+func (x ContainerGetRes) Container() *container.Container {
+	return x.cnr
+}
+
+func (x *ContainerGetRes) setContainer(cnr *container.Container) {
+	x.cnr = cnr
 }
 
 // GetContainer receives container structure through NeoFS API call.
 //
 // Returns error if container structure is received but does not meet NeoFS API specification.
-func (c *clientImpl) GetContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*container.Container, error) {
+func (c *clientImpl) GetContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerGetRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -172,43 +219,58 @@ func (c *clientImpl) GetContainer(ctx context.Context, id *cid.ID, opts ...CallO
 		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
-	}
+	var (
+		res     = new(ContainerGetRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
 	body := resp.GetBody()
 
 	cnr := container.NewContainerFromV2(body.GetContainer())
-	cnr.SetSessionToken(session.NewTokenFromV2(body.GetSessionToken()))
-	cnr.SetSignature(signature.NewFromV2(body.GetSignature()))
 
-	return cnr, nil
+	cnr.SetSessionToken(
+		session.NewTokenFromV2(body.GetSessionToken()),
+	)
+
+	cnr.SetSignature(
+		signature.NewFromV2(body.GetSignature()),
+	)
+
+	res.setContainer(cnr)
+
+	return res, nil
 }
 
-// GetVerifiedContainerStructure is a wrapper over Client.GetContainer method
-// which checks if the structure of the resulting container matches its identifier.
-//
-// Returns an error if container does not match the identifier.
-func GetVerifiedContainerStructure(ctx context.Context, c Client, id *cid.ID, opts ...CallOption) (*container.Container, error) {
-	cnr, err := c.GetContainer(ctx, id, opts...)
-	if err != nil {
-		return nil, err
-	}
+type ContainerListRes struct {
+	statusRes
 
-	if !container.CalculateID(cnr).Equal(id) {
-		return nil, errors.New("container structure does not match the identifier")
-	}
-
-	return cnr, nil
+	ids []*cid.ID
 }
 
-func (c *clientImpl) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]*cid.ID, error) {
+func (x ContainerListRes) IDList() []*cid.ID {
+	return x.ids
+}
+
+func (x *ContainerListRes) setIDList(ids []*cid.ID) {
+	x.ids = ids
+}
+
+func (c *clientImpl) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) (*ContainerListRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -243,25 +305,42 @@ func (c *clientImpl) ListContainers(ctx context.Context, ownerID *owner.ID, opts
 		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
+	var (
+		res     = new(ContainerListRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
-	}
+	ids := make([]*cid.ID, 0, len(resp.GetBody().GetContainerIDs()))
 
-	result := make([]*cid.ID, 0, len(resp.GetBody().GetContainerIDs()))
 	for _, cidV2 := range resp.GetBody().GetContainerIDs() {
-		result = append(result, cid.NewFromV2(cidV2))
+		ids = append(ids, cid.NewFromV2(cidV2))
 	}
 
-	return result, nil
+	res.setIDList(ids)
+
+	return res, nil
 }
 
-func (c *clientImpl) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOption) error {
+type ContainerDeleteRes struct {
+	statusRes
+}
+
+func (c *clientImpl) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerDeleteRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -285,7 +364,7 @@ func (c *clientImpl) DeleteContainer(ctx context.Context, id *cid.ID, opts ...Ca
 		},
 		sigutil.SignWithRFC6979())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	req := new(v2container.DeleteRequest)
@@ -294,27 +373,52 @@ func (c *clientImpl) DeleteContainer(ctx context.Context, id *cid.ID, opts ...Ca
 
 	err = v2signature.SignServiceMessage(callOptions.key, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := rpcapi.DeleteContainer(c.Raw(), req, client.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("transport error: %w", err)
+		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return err
+	var (
+		res     = new(ContainerDeleteRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	if err := v2signature.VerifyServiceMessage(resp); err != nil {
-		return fmt.Errorf("can't verify response message: %w", err)
-	}
-
-	return nil
+	return res, nil
 }
 
-func (c *clientImpl) GetEACL(ctx context.Context, id *cid.ID, opts ...CallOption) (*EACLWithSignature, error) {
+type EACLRes struct {
+	statusRes
+
+	table *eacl.Table
+}
+
+func (x EACLRes) Table() *eacl.Table {
+	return x.table
+}
+
+func (x *EACLRes) SetTable(table *eacl.Table) {
+	x.table = table
+}
+
+func (c *clientImpl) EACL(ctx context.Context, id *cid.ID, opts ...CallOption) (*EACLRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -339,28 +443,48 @@ func (c *clientImpl) GetEACL(ctx context.Context, id *cid.ID, opts ...CallOption
 		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
-	}
+	var (
+		res     = new(EACLRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
 	body := resp.GetBody()
 
 	table := eacl.NewTableFromV2(body.GetEACL())
-	table.SetSessionToken(session.NewTokenFromV2(body.GetSessionToken()))
-	table.SetSignature(signature.NewFromV2(body.GetSignature()))
 
-	return &EACLWithSignature{
-		table: table,
-	}, nil
+	table.SetSessionToken(
+		session.NewTokenFromV2(body.GetSessionToken()),
+	)
+
+	table.SetSignature(
+		signature.NewFromV2(body.GetSignature()),
+	)
+
+	res.SetTable(table)
+
+	return res, nil
 }
 
-func (c *clientImpl) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOption) error {
+type SetEACLRes struct {
+	statusRes
+}
+
+func (c *clientImpl) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOption) (*SetEACLRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -380,37 +504,52 @@ func (c *clientImpl) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...Call
 		reqBody.SetSignature(eaclSignature)
 	}, sigutil.SignWithRFC6979())
 	if err != nil {
-		return err
+		return nil, err
 	}
+
+	req := new(v2container.SetExtendedACLRequest)
+	req.SetBody(reqBody)
 
 	meta := v2MetaHeaderFromOpts(callOptions)
 	meta.SetSessionToken(eacl.SessionToken().ToV2())
 
-	req := new(v2container.SetExtendedACLRequest)
-	req.SetBody(reqBody)
 	req.SetMetaHeader(meta)
 
 	err = v2signature.SignServiceMessage(callOptions.key, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := rpcapi.SetEACL(c.Raw(), req, client.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("transport error: %w", err)
+		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return err
+	var (
+		res     = new(SetEACLRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return fmt.Errorf("can't verify response message: %w", err)
-	}
+	return res, nil
+}
 
-	return nil
+type AnnounceSpaceRes struct {
+	statusRes
 }
 
 // AnnounceContainerUsedSpace used by storage nodes to estimate their container
@@ -418,7 +557,8 @@ func (c *clientImpl) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...Call
 func (c *clientImpl) AnnounceContainerUsedSpace(
 	ctx context.Context,
 	announce []container.UsedSpaceAnnouncement,
-	opts ...CallOption) error {
+	opts ...CallOption,
+) (*AnnounceSpaceRes, error) {
 	callOptions := c.defaultCallOptions() // apply all available options
 
 	for i := range opts {
@@ -442,23 +582,33 @@ func (c *clientImpl) AnnounceContainerUsedSpace(
 	// sign the request
 	err := v2signature.SignServiceMessage(callOptions.key, req)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	resp, err := rpcapi.AnnounceUsedSpace(c.Raw(), req, client.WithContext(ctx))
 	if err != nil {
-		return fmt.Errorf("transport error: %w", err)
+		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return err
+	var (
+		res     = new(AnnounceSpaceRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return fmt.Errorf("can't verify response message: %w", err)
-	}
-
-	return nil
+	return res, nil
 }

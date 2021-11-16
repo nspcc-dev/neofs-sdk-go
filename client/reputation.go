@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
@@ -49,7 +48,9 @@ func (x *AnnounceLocalTrustPrm) SetTrusts(trusts []*reputation.Trust) {
 }
 
 // AnnounceLocalTrustRes groups results of AnnounceLocalTrust operation.
-type AnnounceLocalTrustRes struct{}
+type AnnounceLocalTrustRes struct {
+	statusRes
+}
 
 func (c *clientImpl) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustPrm, opts ...CallOption) (*AnnounceLocalTrustRes, error) {
 	// apply all available options
@@ -77,17 +78,27 @@ func (c *clientImpl) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTr
 		return nil, err
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
+	var (
+		res     = new(AnnounceLocalTrustRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
-	}
-
-	return new(AnnounceLocalTrustRes), nil
+	return res, nil
 }
 
 // AnnounceIntermediateTrustPrm groups parameters of AnnounceIntermediateTrust operation.
@@ -128,7 +139,9 @@ func (x *AnnounceIntermediateTrustPrm) SetTrust(trust *reputation.PeerToPeerTrus
 }
 
 // AnnounceIntermediateTrustRes groups results of AnnounceIntermediateTrust operation.
-type AnnounceIntermediateTrustRes struct{}
+type AnnounceIntermediateTrustRes struct {
+	statusRes
+}
 
 func (c *clientImpl) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceIntermediateTrustPrm, opts ...CallOption) (*AnnounceIntermediateTrustRes, error) {
 	// apply all available options
@@ -157,15 +170,25 @@ func (c *clientImpl) AnnounceIntermediateTrust(ctx context.Context, prm Announce
 		return nil, err
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
+	var (
+		res     = new(AnnounceIntermediateTrustRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
-	}
-
-	return new(AnnounceIntermediateTrustRes), nil
+	return res, nil
 }

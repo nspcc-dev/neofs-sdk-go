@@ -7,7 +7,8 @@ type ResponseMetaInfo struct {
 	key []byte
 }
 
-type verificationHeaderGetter interface {
+type responseV2 interface {
+	GetMetaHeader() *session.ResponseMetaHeader
 	GetVerificationHeader() *session.ResponseVerificationHeader
 }
 
@@ -26,7 +27,7 @@ func WithResponseInfoHandler(f func(ResponseMetaInfo) error) Option {
 	}
 }
 
-func (c *clientImpl) handleResponseInfoV2(_ *callOptions, resp verificationHeaderGetter) error {
+func (c *clientImpl) handleResponseInfoV2(opts *callOptions, resp responseV2) error {
 	if c.opts.cbRespInfo == nil {
 		return nil
 	}

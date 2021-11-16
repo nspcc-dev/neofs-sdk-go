@@ -15,10 +15,24 @@ import (
 // Accounting contains methods related to balance querying.
 type Accounting interface {
 	// GetBalance returns balance of provided account.
-	GetBalance(context.Context, *owner.ID, ...CallOption) (*accounting.Decimal, error)
+	GetBalance(context.Context, *owner.ID, ...CallOption) (*BalanceOfRes, error)
 }
 
-func (c *clientImpl) GetBalance(ctx context.Context, owner *owner.ID, opts ...CallOption) (*accounting.Decimal, error) {
+type BalanceOfRes struct {
+	statusRes
+
+	amount *accounting.Decimal
+}
+
+func (x *BalanceOfRes) setAmount(v *accounting.Decimal) {
+	x.amount = v
+}
+
+func (x BalanceOfRes) Amount() *accounting.Decimal {
+	return x.amount
+}
+
+func (c *clientImpl) GetBalance(ctx context.Context, owner *owner.ID, opts ...CallOption) (*BalanceOfRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -43,15 +57,27 @@ func (c *clientImpl) GetBalance(ctx context.Context, owner *owner.ID, opts ...Ca
 		return nil, fmt.Errorf("transport error: %w", err)
 	}
 
-	// handle response meta info
-	if err := c.handleResponseInfoV2(callOptions, resp); err != nil {
-		return nil, err
+	var (
+		res     = new(BalanceOfRes)
+		procPrm processResponseV2Prm
+		procRes processResponseV2Res
+	)
+
+	procPrm.callOpts = callOptions
+	procPrm.resp = resp
+
+	procRes.statusRes = res
+
+	// process response in general
+	if c.processResponseV2(&procRes, procPrm) {
+		if procRes.cliErr != nil {
+			return nil, procRes.cliErr
+		}
+
+		return res, nil
 	}
 
-	err = v2signature.VerifyServiceMessage(resp)
-	if err != nil {
-		return nil, fmt.Errorf("can't verify response message: %w", err)
-	}
+	res.setAmount(accounting.NewDecimalFromV2(resp.GetBody().GetBalance()))
 
-	return accounting.NewDecimalFromV2(resp.GetBody().GetBalance()), nil
+	return res, nil
 }
