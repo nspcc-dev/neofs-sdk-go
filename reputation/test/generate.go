@@ -1,9 +1,11 @@
 package reputationtest
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/util/signature"
 	"github.com/stretchr/testify/require"
@@ -12,13 +14,13 @@ import (
 func GeneratePeerID() *reputation.PeerID {
 	v := reputation.NewPeerID()
 
-	p, err := keys.NewPrivateKey()
+	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		panic(err)
 	}
 
 	key := [signature.PublicKeyCompressedSize]byte{}
-	copy(key[:], p.Bytes())
+	copy(key[:], elliptic.MarshalCompressed(p.Curve, p.X, p.Y))
 	v.SetPublicKey(key)
 
 	return v
@@ -51,9 +53,9 @@ func GenerateGlobalTrust() *reputation.GlobalTrust {
 func GenerateSignedGlobalTrust(t testing.TB) *reputation.GlobalTrust {
 	gt := GenerateGlobalTrust()
 
-	priv, err := keys.NewPrivateKey()
+	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	require.NoError(t, gt.Sign(&priv.PrivateKey))
+	require.NoError(t, gt.Sign(p))
 
 	return gt
 }

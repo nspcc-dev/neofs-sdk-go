@@ -2,9 +2,10 @@ package token_test
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/token"
@@ -20,16 +21,16 @@ func TestBearerToken_Issuer(t *testing.T) {
 	})
 
 	t.Run("signed token", func(t *testing.T) {
-		p, err := keys.NewPrivateKey()
+		p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 		require.NoError(t, err)
 
-		wallet, err := owner.NEO3WalletFromPublicKey((*ecdsa.PublicKey)(p.PublicKey()))
+		wallet, err := owner.NEO3WalletFromPublicKey(&p.PublicKey)
 		require.NoError(t, err)
 
 		ownerID := owner.NewIDFromNeo3Wallet(wallet)
 
 		bearerToken.SetEACLTable(eacl.NewTable())
-		require.NoError(t, bearerToken.SignToken(&p.PrivateKey))
+		require.NoError(t, bearerToken.SignToken(p))
 		require.True(t, ownerID.Equal(bearerToken.Issuer()))
 	})
 }

@@ -2,10 +2,11 @@ package eacl
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 	"fmt"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -251,8 +252,7 @@ func TestReservedRecords(t *testing.T) {
 }
 
 func randomPublicKey(t *testing.T) *ecdsa.PublicKey {
-	p, err := keys.NewPrivateKey()
+	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-
-	return (*ecdsa.PublicKey)(p.PublicKey())
+	return &p.PublicKey
 }
