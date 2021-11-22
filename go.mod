@@ -9,10 +9,11 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
-	github.com/nspcc-dev/neo-go v0.96.1
 	github.com/nspcc-dev/neofs-api-go v1.30.0
 	github.com/nspcc-dev/neofs-crypto v0.3.0
+	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.18.1
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
 	google.golang.org/grpc v1.41.0
 )

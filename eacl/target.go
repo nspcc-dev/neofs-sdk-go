@@ -2,8 +2,8 @@ package eacl
 
 import (
 	"crypto/ecdsa"
+	"crypto/elliptic"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
@@ -51,7 +51,8 @@ func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 	}
 
 	for i := 0; i < ln; i++ {
-		binKeys = append(binKeys, (*keys.PublicKey)(pubs[i]).Bytes())
+		b := elliptic.MarshalCompressed(pubs[i].Curve, pubs[i].X, pubs[i].Y)
+		binKeys = append(binKeys, b)
 	}
 
 	t.SetBinaryKeys(binKeys)
@@ -67,9 +68,13 @@ func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
 	pubs := make([]*ecdsa.PublicKey, ln)
 
 	for i := 0; i < ln; i++ {
-		p := new(keys.PublicKey)
-		if p.DecodeBytes(binKeys[i]) == nil {
-			pubs[i] = (*ecdsa.PublicKey)(p)
+		x, y := elliptic.UnmarshalCompressed(elliptic.P256(), binKeys[i])
+		if x != nil && y != nil {
+			pubs[i] = &ecdsa.PublicKey{
+				Curve: elliptic.P256(),
+				X:     x,
+				Y:     y,
+			}
 		}
 	}
 

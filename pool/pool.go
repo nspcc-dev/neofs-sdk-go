@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"crypto/ecdsa"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"math"
@@ -11,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -352,8 +352,9 @@ func (p *pool) OwnerID() *owner.ID {
 }
 
 func formCacheKey(address string, key *ecdsa.PrivateKey) string {
-	k := keys.PrivateKey{PrivateKey: *key}
-	return address + k.String()
+	buf := make([]byte, 32)
+	key.D.FillBytes(buf)
+	return address + hex.EncodeToString(buf)
 }
 
 func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client.CallOption, error) {

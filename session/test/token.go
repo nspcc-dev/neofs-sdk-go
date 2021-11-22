@@ -1,20 +1,22 @@
 package sessiontest
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"math/rand"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
-var p *keys.PrivateKey
+var p *ecdsa.PrivateKey
 
 func init() {
 	var err error
 
-	p, err = keys.NewPrivateKey()
+	p, err = ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
 	if err != nil {
 		panic(err)
 	}
@@ -37,7 +39,7 @@ func Generate() *session.Token {
 	ownerID := owner.NewID()
 	ownerID.SetNeo3Wallet(w)
 
-	keyBin := p.PublicKey().Bytes()
+	keyBin := elliptic.MarshalCompressed(p.PublicKey.Curve, p.PublicKey.X, p.PublicKey.Y)
 
 	tok.SetID(uid)
 	tok.SetOwnerID(ownerID)
@@ -55,7 +57,7 @@ func Generate() *session.Token {
 func GenerateSigned() *session.Token {
 	tok := Generate()
 
-	err := tok.Sign(&p.PrivateKey)
+	err := tok.Sign(p)
 	if err != nil {
 		panic(err)
 	}

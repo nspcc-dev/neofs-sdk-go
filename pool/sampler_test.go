@@ -6,7 +6,6 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/stretchr/testify/require"
@@ -74,9 +73,6 @@ func TestHealthyReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	cache, err := NewCache()
 	require.NoError(t, err)
 
@@ -86,7 +82,7 @@ func TestHealthyReweight(t *testing.T) {
 			{client: newNetmapMock(names[0], true), healthy: true, address: "address0"},
 			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
 		cache: cache,
-		key:   &key.PrivateKey,
+		key:   newPrivateKey(t),
 	}
 
 	// check getting first node connection before rebalance happened

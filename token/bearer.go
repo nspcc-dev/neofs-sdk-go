@@ -5,7 +5,6 @@ import (
 	"crypto/elliptic"
 	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
@@ -90,8 +89,14 @@ func (b *BearerToken) SignToken(key *ecdsa.PrivateKey) error {
 // To pass node validation it should be owner of requested container. Returns
 // nil if token is not signed.
 func (b *BearerToken) Issuer() *owner.ID {
-	pub, _ := keys.NewPublicKeyFromBytes(b.token.GetSignature().GetKey(), elliptic.P256())
-	wallet, err := owner.NEO3WalletFromPublicKey((*ecdsa.PublicKey)(pub))
+	var pub *ecdsa.PublicKey
+
+	x, y := elliptic.UnmarshalCompressed(elliptic.P256(), b.token.GetSignature().GetKey())
+	if x != nil && y != nil {
+		pub = &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}
+	}
+
+	wallet, err := owner.NEO3WalletFromPublicKey(pub)
 	if err != nil {
 		return nil
 	}

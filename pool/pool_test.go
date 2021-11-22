@@ -4,6 +4,9 @@ package pool
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -11,7 +14,6 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -20,9 +22,6 @@ import (
 )
 
 func TestBuildPoolClientFailed(t *testing.T) {
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
 		return nil, fmt.Errorf("error")
 	}
@@ -31,19 +30,16 @@ func TestBuildPoolClientFailed(t *testing.T) {
 	pb.AddNode("peer0", 1)
 
 	opts := &BuilderOptions{
-		Key:           &key.PrivateKey,
+		Key:           newPrivateKey(t),
 		clientBuilder: clientBuilder,
 	}
 
-	_, err = pb.Build(context.TODO(), opts)
+	_, err := pb.Build(context.TODO(), opts)
 	require.Error(t, err)
 }
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
-
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
 
 	ni := &netmap.NodeInfo{}
 	ni.SetAddresses("addr1", "addr2")
@@ -59,20 +55,23 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	pb.AddNode("peer0", 1)
 
 	opts := &BuilderOptions{
-		Key:           &key.PrivateKey,
+		Key:           newPrivateKey(t),
 		clientBuilder: clientBuilder,
 	}
 
-	_, err = pb.Build(context.TODO(), opts)
+	_, err := pb.Build(context.TODO(), opts)
 	require.Error(t, err)
+}
+
+func newPrivateKey(t *testing.T) *ecdsa.PrivateKey {
+	p, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	require.NoError(t, err)
+	return p
 }
 
 func TestBuildPoolOneNodeFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
-
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
 
 	ni := &netmap.NodeInfo{}
 	ni.SetAddresses("addr1", "addr2")
@@ -111,7 +110,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	log, err := zap.NewProduction()
 	require.NoError(t, err)
 	opts := &BuilderOptions{
-		Key:                     &key.PrivateKey,
+		Key:                     newPrivateKey(t),
 		clientBuilder:           clientBuilder,
 		ClientRebalanceInterval: 1000 * time.Millisecond,
 		Logger:                  log,
@@ -130,14 +129,11 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 }
 
 func TestBuildPoolZeroNodes(t *testing.T) {
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	opts := &BuilderOptions{
-		Key: &key.PrivateKey,
+		Key: newPrivateKey(t),
 	}
-	_, err = pb.Build(context.TODO(), opts)
+	_, err := pb.Build(context.TODO(), opts)
 	require.Error(t, err)
 }
 
@@ -156,14 +152,11 @@ func TestOneNode(t *testing.T) {
 		return mockClient, nil
 	}
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	pb.AddNode("peer0", 1)
 
 	opts := &BuilderOptions{
-		Key:           &key.PrivateKey,
+		Key:           newPrivateKey(t),
 		clientBuilder: clientBuilder,
 	}
 
@@ -194,15 +187,12 @@ func TestTwoNodes(t *testing.T) {
 		return mockClient, nil
 	}
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	pb.AddNode("peer0", 1)
 	pb.AddNode("peer1", 1)
 
 	opts := &BuilderOptions{
-		Key:           &key.PrivateKey,
+		Key:           newPrivateKey(t),
 		clientBuilder: clientBuilder,
 	}
 
@@ -247,15 +237,12 @@ func TestOneOfTwoFailed(t *testing.T) {
 		return mockClient2, nil
 	}
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	pb.AddNode("peer0", 1)
 	pb.AddNode("peer1", 9)
 
 	opts := &BuilderOptions{
-		Key:                     &key.PrivateKey,
+		Key:                     newPrivateKey(t),
 		clientBuilder:           clientBuilder,
 		ClientRebalanceInterval: 200 * time.Millisecond,
 	}
@@ -283,15 +270,12 @@ func TestTwoFailed(t *testing.T) {
 		return mockClient, nil
 	}
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	pb.AddNode("peer0", 1)
 	pb.AddNode("peer1", 1)
 
 	opts := &BuilderOptions{
-		Key:                     &key.PrivateKey,
+		Key:                     newPrivateKey(t),
 		clientBuilder:           clientBuilder,
 		ClientRebalanceInterval: 200 * time.Millisecond,
 	}
@@ -328,14 +312,11 @@ func TestSessionCache(t *testing.T) {
 		return mockClient, nil
 	}
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	pb.AddNode("peer0", 1)
 
 	opts := &BuilderOptions{
-		Key:                     &key.PrivateKey,
+		Key:                     newPrivateKey(t),
 		clientBuilder:           clientBuilder,
 		ClientRebalanceInterval: 30 * time.Second,
 	}
@@ -388,16 +369,11 @@ func TestSessionCacheWithKey(t *testing.T) {
 		return mockClient, nil
 	}
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	key2, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	pb := new(Builder)
 	pb.AddNode("peer0", 1)
 
 	opts := &BuilderOptions{
-		Key:           &key.PrivateKey,
+		Key:           newPrivateKey(t),
 		clientBuilder: clientBuilder,
 	}
 
@@ -412,7 +388,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObject(ctx, nil, WithKey(&key2.PrivateKey))
+	_, err = pool.GetObject(ctx, nil, WithKey(newPrivateKey(t)))
 	require.NoError(t, err)
 	require.Len(t, tokens, 2)
 }
@@ -434,9 +410,6 @@ func TestWaitPresence(t *testing.T) {
 	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	cache, err := NewCache()
 	require.NoError(t, err)
 
@@ -446,7 +419,7 @@ func TestWaitPresence(t *testing.T) {
 			client:  mockClient,
 			healthy: true,
 		}},
-		key:   &key.PrivateKey,
+		key:   newPrivateKey(t),
 		cache: cache,
 	}
 

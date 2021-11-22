@@ -1,10 +1,11 @@
 package object
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,9 +18,9 @@ func TestVerificationFields(t *testing.T) {
 	obj.SetPayload(payload)
 	obj.SetPayloadSize(uint64(len(payload)))
 
-	p, err := keys.NewPrivateKey()
+	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	require.NoError(t, err)
-	require.NoError(t, SetVerificationFields(&p.PrivateKey, obj))
+	require.NoError(t, SetVerificationFields(p, obj))
 
 	require.NoError(t, CheckVerificationFields(obj.Object()))
 
