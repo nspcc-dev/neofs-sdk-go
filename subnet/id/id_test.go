@@ -92,3 +92,15 @@ func TestSubnetIDEncoding(t *testing.T) {
 		require.True(t, id2.Equals(id))
 	})
 }
+
+func TestMakeZero(t *testing.T) {
+	var id subnetid.ID
+
+	id.SetNumber(13)
+
+	require.False(t, subnetid.IsZero(id))
+
+	subnetid.MakeZero(&id)
+
+	require.True(t, subnetid.IsZero(id))
+}

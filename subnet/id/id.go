@@ -87,3 +87,10 @@ func (x *ID) SetNumber(num uint32) {
 func IsZero(id ID) bool {
 	return id.Equals(nil)
 }
+
+// MakeZero makes ID to refer to zero subnet. Arg must not be nil (it is already zero).
+//
+// Makes no sense to call on zero value (e.g. declared using var).
+func MakeZero(id *ID) {
+	id.SetNumber(0)
+}
