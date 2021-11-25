@@ -39,8 +39,6 @@ func TestBuildPoolClientFailed(t *testing.T) {
 }
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	ni := &netmap.NodeInfo{}
@@ -49,7 +47,7 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	clientBuilder := func(opts ...client.Option) (client.Client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -486,8 +484,6 @@ func newToken(t *testing.T) *session.Token {
 }
 
 func TestWaitPresence(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	mockClient := NewMockClient(ctrl)

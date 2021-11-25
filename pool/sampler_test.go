@@ -48,17 +48,23 @@ type clientMock struct {
 	err  error
 }
 
-func newNetmapMock(name string, needErr bool) clientMock {
+func (c *clientMock) EndpointInfo(context.Context, ...client.CallOption) (*client.EndpointInfoRes, error) {
+	return nil, nil
+}
+
+func (c *clientMock) NetworkInfo(context.Context, ...client.CallOption) (*client.NetworkInfoRes, error) {
+	return nil, nil
+}
+
+func newNetmapMock(name string, needErr bool) *clientMock {
 	var err error
 	if needErr {
 		err = fmt.Errorf("not available")
 	}
-	return clientMock{name: name, err: err}
+	return &clientMock{name: name, err: err}
 }
 
 func TestHealthyReweight(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
@@ -84,14 +90,14 @@ func TestHealthyReweight(t *testing.T) {
 	// check getting first node connection before rebalance happened
 	connection0, _, err := p.Connection()
 	require.NoError(t, err)
-	mock0 := connection0.(clientMock)
+	mock0 := connection0.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 
 	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
 
 	connection1, _, err := p.Connection()
 	require.NoError(t, err)
-	mock1 := connection1.(clientMock)
+	mock1 := connection1.(*clientMock)
 	require.Equal(t, names[1], mock1.name)
 
 	// enabled first node again
@@ -104,13 +110,11 @@ func TestHealthyReweight(t *testing.T) {
 
 	connection0, _, err = p.Connection()
 	require.NoError(t, err)
-	mock0 = connection0.(clientMock)
+	mock0 = connection0.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 }
 
 func TestHealthyNoReweight(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
