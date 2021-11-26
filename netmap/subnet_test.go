@@ -86,6 +86,30 @@ func TestNodeInfoSubnets(t *testing.T) {
 	})
 }
 
+func TestEnterSubnet(t *testing.T) {
+	var (
+		id   subnetid.ID
+		node netmap.NodeInfo
+	)
+
+	require.True(t, netmap.BelongsToSubnet(&node, id))
+
+	node.EnterSubnet(id)
+	require.True(t, netmap.BelongsToSubnet(&node, id))
+
+	node.ExitSubnet(id)
+	require.False(t, netmap.BelongsToSubnet(&node, id))
+
+	id.SetNumber(10)
+	node.EnterSubnet(id)
+	require.True(t, netmap.BelongsToSubnet(&node, id))
+	require.False(t, netmap.BelongsToSubnet(&node, subnetid.ID{}))
+
+	node.ExitSubnet(id)
+	require.False(t, netmap.BelongsToSubnet(&node, id))
+	require.False(t, netmap.BelongsToSubnet(&node, subnetid.ID{}))
+}
+
 func TestBelongsToSubnet(t *testing.T) {
 	var id, idMiss, idZero subnetid.ID
 
