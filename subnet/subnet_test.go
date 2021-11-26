@@ -7,61 +7,51 @@ import (
 	subnettest "github.com/nspcc-dev/neofs-api-go/v2/subnet/test"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
-	"github.com/nspcc-dev/neofs-sdk-go/subnet"
+	. "github.com/nspcc-dev/neofs-sdk-go/subnet"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInfoZero(t *testing.T) {
-	var info subnet.Info
+	var info Info
 
 	var id subnetid.ID
 	info.ReadID(&id)
 
 	require.True(t, subnetid.IsZero(id))
-
-	require.False(t, info.HasOwner())
 }
 
 func TestInfo_SetID(t *testing.T) {
 	var (
-		idFrom, idTo subnetid.ID
-
-		info subnet.Info
+		id   subnetid.ID
+		info Info
 	)
 
-	idFrom.SetNumber(222)
+	id.SetNumber(222)
 
-	info.SetID(idFrom)
+	info.SetID(id)
 
-	info.ReadID(&idTo)
-
-	require.True(t, idTo.Equals(&idFrom))
+	require.True(t, IDEquals(info, id))
 }
 
 func TestInfo_SetOwner(t *testing.T) {
 	var (
-		idFrom, idTo owner.ID
-
-		info subnet.Info
+		id   owner.ID
+		info Info
 	)
 
-	idFrom = *ownertest.GenerateID()
+	id = *ownertest.GenerateID()
 
-	require.False(t, info.HasOwner())
+	require.False(t, IsOwner(info, id))
 
-	info.SetOwner(idFrom)
+	info.SetOwner(id)
 
-	require.True(t, info.HasOwner())
-
-	info.ReadOwner(&idTo)
-
-	require.True(t, idTo.Equal(&idFrom))
+	require.True(t, IsOwner(info, id))
 }
 
 func TestInfo_WriteToV2(t *testing.T) {
 	var (
-		infoTo, infoFrom subnet.Info
+		infoTo, infoFrom Info
 
 		infoV2From, infoV2To subnetv2.Info
 	)
