@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 )
 
 // Selector represents v2-compatible netmap selector.
@@ -51,7 +52,7 @@ func GetNodesCount(_ *PlacementPolicy, s *Selector) (int, int) {
 // Last argument specifies if more buckets can be used to fulfill CBF.
 func (c *Context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error) {
 	bucketCount, nodesInBucket := GetNodesCount(p, s)
-	buckets := c.getSelectionBase(s)
+	buckets := c.getSelectionBase(p.SubnetID(), s)
 
 	if len(buckets) < bucketCount {
 		return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.Name())
@@ -121,7 +122,7 @@ type nodeAttrPair struct {
 
 // getSelectionBase returns nodes grouped by selector attribute.
 // It it guaranteed that each pair will contain at least one node.
-func (c *Context) getSelectionBase(s *Selector) []nodeAttrPair {
+func (c *Context) getSelectionBase(subnetID *subnetid.ID, s *Selector) []nodeAttrPair {
 	f := c.Filters[s.Filter()]
 	isMain := s.Filter() == MainFilterName
 	result := []nodeAttrPair{}
@@ -129,6 +130,14 @@ func (c *Context) getSelectionBase(s *Selector) []nodeAttrPair {
 	attr := s.Attribute()
 
 	for i := range c.Netmap.Nodes {
+		var sid subnetid.ID
+		if subnetID != nil {
+			sid = *subnetID
+		}
+		// TODO(fyrchik): make `BelongsToSubnet` to accept pointer
+		if !BelongsToSubnet(c.Netmap.Nodes[i].NodeInfo, sid) {
+			continue
+		}
 		if isMain || c.match(f, c.Netmap.Nodes[i]) {
 			if attr == "" {
 				// Default attribute is transparent identifier which is different for every node.
