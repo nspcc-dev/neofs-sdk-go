@@ -76,17 +76,36 @@ func (x *Info) SetOwner(id owner.ID) {
 	*idv2 = *id.ToV2()
 }
 
-// HasOwner checks if subnet owner is set.
-func (x Info) HasOwner() bool {
-	return (*subnet.Info)(&x).Owner() != nil
-}
-
 // ReadOwner reads the identifier of the subnet that Info describes.
 // Must be called only if owner is set (see HasOwner). Arg must not be nil.
 func (x Info) ReadOwner(id *owner.ID) {
 	infov2 := (subnet.Info)(x)
 
-	// FIXME: we need to implement and use owner.ID.FromV2 method
-	id2 := owner.NewIDFromV2(infov2.Owner())
-	*id = *id2
+	id2 := infov2.Owner()
+	if id2 == nil {
+		// TODO: implement owner.ID.Reset
+		*id = owner.ID{}
+		return
+	}
+
+	// TODO: we need to implement and use owner.ID.FromV2 method
+	*id = *owner.NewIDFromV2(infov2.Owner())
+}
+
+// IsOwner checks subnet ownership.
+func IsOwner(info Info, id owner.ID) bool {
+	id2 := new(owner.ID)
+
+	info.ReadOwner(id2)
+
+	return id.Equal(id2)
+}
+
+// IDEquals checks if ID refers to subnet that Info describes.
+func IDEquals(info Info, id subnetid.ID) bool {
+	id2 := new(subnetid.ID)
+
+	info.ReadID(id2)
+
+	return id.Equals(id2)
 }
