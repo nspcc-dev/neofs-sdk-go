@@ -11,6 +11,15 @@ import (
 // EnterSubnet writes to NodeInfo the intention to enter the subnet. Must not be called on nil.
 // Zero NodeInfo belongs to zero subnet.
 func (i *NodeInfo) EnterSubnet(id subnetid.ID) {
+	i.changeSubnet(id, true)
+}
+
+// ExitSubnet writes to NodeInfo the intention to exit subnet. Must not be called on nil.
+func (i *NodeInfo) ExitSubnet(id subnetid.ID) {
+	i.changeSubnet(id, false)
+}
+
+func (i *NodeInfo) changeSubnet(id subnetid.ID, isMember bool) {
 	var (
 		idv2 refs.SubnetID
 		info netmap.NodeSubnetInfo
@@ -19,7 +28,7 @@ func (i *NodeInfo) EnterSubnet(id subnetid.ID) {
 	id.WriteToV2(&idv2)
 
 	info.SetID(&idv2)
-	info.SetEntryFlag(true)
+	info.SetEntryFlag(isMember)
 
 	netmap.WriteSubnetInfo((*netmap.NodeInfo)(i), info)
 }
