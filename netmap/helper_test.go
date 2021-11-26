@@ -3,6 +3,7 @@ package netmap
 import (
 	"testing"
 
+	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,6 +41,12 @@ func newReplica(c uint32, s string) *Replica {
 	r.SetCount(c)
 	r.SetSelector(s)
 	return r
+}
+
+func newSubnetID(id uint32) *subnetid.ID {
+	var s subnetid.ID
+	s.SetNumber(id)
+	return &s
 }
 
 func nodeInfoFromAttributes(props ...string) NodeInfo {

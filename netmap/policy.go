@@ -2,6 +2,8 @@ package netmap
 
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 )
 
 // PlacementPolicy represents v2-compatible placement policy.
@@ -30,6 +32,17 @@ func NewPlacementPolicyFromV2(f *netmap.PlacementPolicy) *PlacementPolicy {
 // Nil PlacementPolicy converts to nil.
 func (p *PlacementPolicy) ToV2() *netmap.PlacementPolicy {
 	return (*netmap.PlacementPolicy)(p)
+}
+
+// SubnetID returns subnet to select nodes from.
+func (p *PlacementPolicy) SubnetID() *subnetid.ID {
+	return (*subnetid.ID)(
+		(*netmap.PlacementPolicy)(p).GetSubnetID())
+}
+
+// SetSubnetID sets subnet to select nodes from.
+func (p *PlacementPolicy) SetSubnetID(subnet *subnetid.ID) {
+	(*netmap.PlacementPolicy)(p).SetSubnetID((*refs.SubnetID)(subnet))
 }
 
 // Replicas returns list of object replica descriptors.
