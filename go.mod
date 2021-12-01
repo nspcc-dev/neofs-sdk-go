@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
-	github.com/nspcc-dev/neofs-api-go/v2 v2.11.0-pre.0.20211124141318-d93828f46514
+	github.com/nspcc-dev/neofs-api-go/v2 v2.11.0-pre.0.20211201134523-3604d96f3fe1
 	github.com/nspcc-dev/neofs-crypto v0.3.0
 	github.com/nspcc-dev/rfc6979 v0.2.0
 	github.com/stretchr/testify v1.7.0
