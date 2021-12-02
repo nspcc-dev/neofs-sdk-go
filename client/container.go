@@ -2,14 +2,13 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
@@ -17,44 +16,35 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-type delContainerSignWrapper struct {
-	body *v2container.DeleteRequestBody
+// ContainerPutPrm groups parameters of PutContainer operation.
+type ContainerPutPrm struct {
+	prmSession
+
+	cnrSet bool
+	cnr    container.Container
 }
 
-// EACLWithSignature represents eACL table/signature pair.
-type EACLWithSignature struct {
-	table *eacl.Table
+// SetContainer sets structured information about new NeoFS container.
+// Required parameter.
+func (x *ContainerPutPrm) SetContainer(cnr container.Container) {
+	x.cnr = cnr
+	x.cnrSet = true
 }
 
-func (c delContainerSignWrapper) ReadSignedData(bytes []byte) ([]byte, error) {
-	return c.body.GetContainerID().GetValue(), nil
-}
-
-func (c delContainerSignWrapper) SignedDataSize() int {
-	return len(c.body.GetContainerID().GetValue())
-}
-
-// EACL returns eACL table.
-func (e EACLWithSignature) EACL() *eacl.Table {
-	return e.table
-}
-
-// Signature returns table signature.
-//
-// Deprecated: use EACL().Signature() instead.
-func (e EACLWithSignature) Signature() *signature.Signature {
-	return e.table.Signature()
-}
-
+// ContainerPutRes groups resulting values of PutContainer operation.
 type ContainerPutRes struct {
 	statusRes
 
 	id *cid.ID
 }
 
+// ID returns identifier of the container declared to be stored in the system.
+// Used as a link to information about the container (in particular, you can
+// asynchronously check if the save was successful).
+//
+// Client doesn't retain value so modification is safe.
 func (x ContainerPutRes) ID() *cid.ID {
 	return x.id
 }
@@ -63,37 +53,42 @@ func (x *ContainerPutRes) setID(id *cid.ID) {
 	x.id = id
 }
 
-// PutContainer puts container through NeoFS API call.
+// PutContainer sends request to save container in NeoFS.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*ContainerPutRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Operation is asynchronous and no guaranteed even in the absence of errors.
+// The required time is also not predictable.
+//
+// Success can be verified by reading by identifier (see ContainerPutRes.ID).
+//
+// Immediately panics if parameters are set incorrectly (see ContainerPutPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in ContainerPutRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) PutContainer(ctx context.Context, prm ContainerPutPrm) (*ContainerPutRes, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.cnrSet:
+		panic(panicMsgMissingContainer)
 	}
 
-	// set transport version
-	cnr.SetVersion(version.Current())
+	// TODO: check private key is set before forming the request
 
-	// if container owner is not set, then use client key as owner
-	if cnr.OwnerID() == nil {
-		ownerID := owner.NewIDFromPublicKey(&callOptions.key.PublicKey)
-
-		cnr.SetOwnerID(ownerID)
-	}
-
+	// form request body
 	reqBody := new(v2container.PutRequestBody)
-	reqBody.SetContainer(cnr.ToV2())
+	reqBody.SetContainer(prm.cnr.ToV2())
 
 	// sign container
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
 
-	err := sigutil.SignDataWithHandler(callOptions.key, signWrapper, func(key []byte, sig []byte) {
+	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(key []byte, sig []byte) {
 		containerSignature := new(refs.Signature)
 		containerSignature.SetKey(key)
 		containerSignature.SetSign(sig)
@@ -103,62 +98,66 @@ func (c *Client) PutContainer(ctx context.Context, cnr *container.Container, opt
 		return nil, err
 	}
 
-	req := new(v2container.PutRequest)
+	// form meta header
+	var meta v2session.RequestMetaHeader
+
+	prm.prmSession.writeToMetaHeader(&meta)
+
+	// form request
+	var req v2container.PutRequest
+
 	req.SetBody(reqBody)
+	req.SetMetaHeader(&meta)
 
-	meta := v2MetaHeaderFromOpts(callOptions)
-	meta.SetSessionToken(cnr.SessionToken().ToV2())
-
-	req.SetMetaHeader(meta)
-
-	err = v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.PutContainer(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, err
-	}
+	// init call context
 
 	var (
-		res     = new(ContainerPutRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res ContainerPutRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.PutContainer(c.Raw(), &req, client.WithContext(ctx))
 	}
-
-	// sets result status
-	st := apistatus.FromStatusV2(resp.GetMetaHeader().GetStatus())
-
-	res.setStatus(st)
-
-	if apistatus.IsSuccessful(st) {
+	cc.result = func(r responseV2) {
+		resp := r.(*v2container.PutResponse)
 		res.setID(cid.NewFromV2(resp.GetBody().GetContainerID()))
 	}
 
-	return res, nil
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
+
+	return &res, nil
 }
 
+// ContainerGetPrm groups parameters of GetContainer operation.
+type ContainerGetPrm struct {
+	idSet bool
+	id    cid.ID
+}
+
+// SetContainer sets identifier of the container to be read.
+// Required parameter.
+func (x *ContainerGetPrm) SetContainer(id cid.ID) {
+	x.id = id
+	x.idSet = true
+}
+
+// ContainerGetRes groups resulting values of GetContainer operation.
 type ContainerGetRes struct {
 	statusRes
 
 	cnr *container.Container
 }
 
+// Container returns structured information about the requested container.
+//
+// Client doesn't retain value so modification is safe.
 func (x ContainerGetRes) Container() *container.Container {
 	return x.cnr
 }
@@ -167,177 +166,235 @@ func (x *ContainerGetRes) setContainer(cnr *container.Container) {
 	x.cnr = cnr
 }
 
-// GetContainer receives container structure through NeoFS API call.
+// GetContainer reads NeoFS container from by ID.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) GetContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerGetRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Immediately panics if parameters are set incorrectly (see ContainerGetPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in ContainerGetRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) GetContainer(ctx context.Context, prm ContainerGetPrm) (*ContainerGetRes, error) {
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.idSet:
+		panic(panicMsgMissingContainer)
 	}
 
+	// form request body
 	reqBody := new(v2container.GetRequestBody)
-	reqBody.SetContainerID(id.ToV2())
+	reqBody.SetContainerID(prm.id.ToV2())
 
-	req := new(v2container.GetRequest)
+	// form request
+	var req v2container.GetRequest
+
 	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
 
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.GetContainer(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(ContainerGetRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res ContainerGetRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.GetContainer(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2container.GetResponse)
 
-	procRes.statusRes = res
+		body := resp.GetBody()
 
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
+		cnr := container.NewContainerFromV2(body.GetContainer())
 
-		return res, nil
+		cnr.SetSessionToken(
+			session.NewTokenFromV2(body.GetSessionToken()),
+		)
+
+		cnr.SetSignature(
+			signature.NewFromV2(body.GetSignature()),
+		)
+
+		res.setContainer(cnr)
 	}
 
-	body := resp.GetBody()
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
 
-	cnr := container.NewContainerFromV2(body.GetContainer())
-
-	cnr.SetSessionToken(
-		session.NewTokenFromV2(body.GetSessionToken()),
-	)
-
-	cnr.SetSignature(
-		signature.NewFromV2(body.GetSignature()),
-	)
-
-	res.setContainer(cnr)
-
-	return res, nil
+	return &res, nil
 }
 
+// ContainerListPrm groups parameters of ListContainers operation.
+type ContainerListPrm struct {
+	ownerSet bool
+	ownerID  owner.ID
+}
+
+// SetAccount sets identifier of the NeoFS account to list the containers.
+// Required parameter. Must be a valid ID according to NeoFS API protocol.
+func (x *ContainerListPrm) SetAccount(id owner.ID) {
+	x.ownerID = id
+	x.ownerSet = true
+}
+
+// ContainerListRes groups resulting values of ListContainers operation.
 type ContainerListRes struct {
 	statusRes
 
 	ids []*cid.ID
 }
 
-func (x ContainerListRes) IDList() []*cid.ID {
+// Containers returns list of identifiers of the account-owned containers.
+//
+// Client doesn't retain value so modification is safe.
+func (x ContainerListRes) Containers() []*cid.ID {
 	return x.ids
 }
 
-func (x *ContainerListRes) setIDList(ids []*cid.ID) {
+func (x *ContainerListRes) setContainers(ids []*cid.ID) {
 	x.ids = ids
 }
 
-// ListContainers receives all owner's containers through NeoFS API call.
+// ListContainers requests identifiers of the account-owned containers.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) (*ContainerListRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Immediately panics if parameters are set incorrectly (see ContainerListPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in ContainerListRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) ListContainers(ctx context.Context, prm ContainerListPrm) (*ContainerListRes, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.ownerSet:
+		panic("account not set")
+	case !prm.ownerID.Valid():
+		panic("invalid account")
 	}
 
-	if ownerID == nil {
-		ownerID = owner.NewIDFromPublicKey(&callOptions.key.PublicKey)
-	}
-
+	// form request body
 	reqBody := new(v2container.ListRequestBody)
-	reqBody.SetOwnerID(ownerID.ToV2())
+	reqBody.SetOwnerID(prm.ownerID.ToV2())
 
-	req := new(v2container.ListRequest)
+	// form request
+	var req v2container.ListRequest
+
 	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
 
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.ListContainers(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(ContainerListRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res ContainerListRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.ListContainers(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2container.ListResponse)
 
-	procRes.statusRes = res
+		ids := make([]*cid.ID, 0, len(resp.GetBody().GetContainerIDs()))
 
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
+		for _, cidV2 := range resp.GetBody().GetContainerIDs() {
+			ids = append(ids, cid.NewFromV2(cidV2))
 		}
 
-		return res, nil
+		res.setContainers(ids)
 	}
 
-	ids := make([]*cid.ID, 0, len(resp.GetBody().GetContainerIDs()))
-
-	for _, cidV2 := range resp.GetBody().GetContainerIDs() {
-		ids = append(ids, cid.NewFromV2(cidV2))
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
 	}
 
-	res.setIDList(ids)
-
-	return res, nil
+	return &res, nil
 }
 
+// ContainerDeletePrm groups parameters of DeleteContainer operation.
+type ContainerDeletePrm struct {
+	prmSession
+
+	idSet bool
+	id    cid.ID
+}
+
+// SetContainer sets identifier of the NeoFS container to be removed.
+// Required parameter.
+func (x *ContainerDeletePrm) SetContainer(id cid.ID) {
+	x.id = id
+	x.idSet = true
+}
+
+// ContainerDeleteRes groups resulting values of DeleteContainer operation.
 type ContainerDeleteRes struct {
 	statusRes
 }
 
-// DeleteContainer deletes specified container through NeoFS API call.
+// implements github.com/nspcc-dev/neofs-sdk-go/util/signature.DataSource.
+type delContainerSignWrapper struct {
+	body *v2container.DeleteRequestBody
+}
+
+func (c delContainerSignWrapper) ReadSignedData([]byte) ([]byte, error) {
+	return c.body.GetContainerID().GetValue(), nil
+}
+
+func (c delContainerSignWrapper) SignedDataSize() int {
+	return len(c.body.GetContainerID().GetValue())
+}
+
+// DeleteContainer sends request to remove the NeoFS container.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerDeleteRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Operation is asynchronous and no guaranteed even in the absence of errors.
+// The required time is also not predictable.
+//
+// Success can be verified by reading by identifier (see GetContainer).
+//
+// Immediately panics if parameters are set incorrectly (see ContainerDeletePrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in ContainerDeleteRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) DeleteContainer(ctx context.Context, prm ContainerDeletePrm) (*ContainerDeleteRes, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.idSet:
+		panic(panicMsgMissingContainer)
 	}
 
+	// form request body
 	reqBody := new(v2container.DeleteRequestBody)
-	reqBody.SetContainerID(id.ToV2())
+	reqBody.SetContainerID(prm.id.ToV2())
 
 	// sign container
-	err := sigutil.SignDataWithHandler(callOptions.key,
+	err := sigutil.SignDataWithHandler(c.opts.key,
 		delContainerSignWrapper{
 			body: reqBody,
 		},
@@ -352,149 +409,193 @@ func (c *Client) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOp
 		return nil, err
 	}
 
-	req := new(v2container.DeleteRequest)
+	// form meta header
+	var meta v2session.RequestMetaHeader
+
+	prm.prmSession.writeToMetaHeader(&meta)
+
+	// form request
+	var req v2container.DeleteRequest
+
 	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
+	req.SetMetaHeader(&meta)
 
-	err = v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.DeleteContainer(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(ContainerDeleteRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res ContainerDeleteRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.DeleteContainer(c.Raw(), &req, client.WithContext(ctx))
 	}
 
-	return res, nil
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
+
+	return &res, nil
 }
 
+// EACLPrm groups parameters of EACL operation.
+type EACLPrm struct {
+	idSet bool
+	id    cid.ID
+}
+
+// SetContainer sets identifier of the NeoFS container to read the eACL table.
+// Required parameter.
+func (x *EACLPrm) SetContainer(id cid.ID) {
+	x.id = id
+	x.idSet = true
+}
+
+// EACLRes groups resulting values of EACL operation.
 type EACLRes struct {
 	statusRes
 
 	table *eacl.Table
 }
 
+// Table returns eACL table of the requested container.
+//
+// Client doesn't retain value so modification is safe.
 func (x EACLRes) Table() *eacl.Table {
 	return x.table
 }
 
-func (x *EACLRes) SetTable(table *eacl.Table) {
+func (x *EACLRes) setTable(table *eacl.Table) {
 	x.table = table
 }
 
-// EACL receives eACL of the specified container through NeoFS API call.
+// EACL reads eACL table of the NeoFS container.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) EACL(ctx context.Context, id *cid.ID, opts ...CallOption) (*EACLRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Immediately panics if parameters are set incorrectly (see EACLPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in EACLRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) EACL(ctx context.Context, prm EACLPrm) (*EACLRes, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.idSet:
+		panic(panicMsgMissingContainer)
 	}
 
+	// form request body
 	reqBody := new(v2container.GetExtendedACLRequestBody)
-	reqBody.SetContainerID(id.ToV2())
+	reqBody.SetContainerID(prm.id.ToV2())
 
-	req := new(v2container.GetExtendedACLRequest)
+	// form request
+	var req v2container.GetExtendedACLRequest
+
 	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
 
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.GetEACL(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(EACLRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res EACLRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.GetEACL(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2container.GetExtendedACLResponse)
 
-	procRes.statusRes = res
+		body := resp.GetBody()
 
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
+		table := eacl.NewTableFromV2(body.GetEACL())
 
-		return res, nil
+		table.SetSessionToken(
+			session.NewTokenFromV2(body.GetSessionToken()),
+		)
+
+		table.SetSignature(
+			signature.NewFromV2(body.GetSignature()),
+		)
+
+		res.setTable(table)
 	}
 
-	body := resp.GetBody()
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
 
-	table := eacl.NewTableFromV2(body.GetEACL())
-
-	table.SetSessionToken(
-		session.NewTokenFromV2(body.GetSessionToken()),
-	)
-
-	table.SetSignature(
-		signature.NewFromV2(body.GetSignature()),
-	)
-
-	res.SetTable(table)
-
-	return res, nil
+	return &res, nil
 }
 
+// SetEACLPrm groups parameters of SetEACL operation.
+type SetEACLPrm struct {
+	prmSession
+
+	tableSet bool
+	table    eacl.Table
+}
+
+// SetTable sets eACL table structure to be set for the container.
+// Required parameter.
+func (x *SetEACLPrm) SetTable(table eacl.Table) {
+	x.table = table
+	x.tableSet = true
+}
+
+// SetEACLRes groups resulting values of SetEACL operation.
 type SetEACLRes struct {
 	statusRes
 }
 
-// SetEACL sets eACL through NeoFS API call.
+// SetEACL sends request to update eACL table of the NeoFS container.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOption) (*SetEACLRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Operation is asynchronous and no guaranteed even in the absence of errors.
+// The required time is also not predictable.
+//
+// Success can be verified by reading by identifier (see EACL).
+//
+// Immediately panics if parameters are set incorrectly (see SetEACLPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in ContainerDeleteRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) SetEACL(ctx context.Context, prm SetEACLPrm) (*SetEACLRes, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.tableSet:
+		panic("eACL table not set")
 	}
 
+	// form request body
 	reqBody := new(v2container.SetExtendedACLRequestBody)
-	reqBody.SetEACL(eacl.ToV2())
+	reqBody.SetEACL(prm.table.ToV2())
 
+	// sign the eACL table
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetEACL()}
 
-	err := sigutil.SignDataWithHandler(callOptions.key, signWrapper, func(key []byte, sig []byte) {
+	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(key []byte, sig []byte) {
 		eaclSignature := new(refs.Signature)
 		eaclSignature.SetKey(key)
 		eaclSignature.SetSign(sig)
@@ -504,113 +605,116 @@ func (c *Client) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOpti
 		return nil, err
 	}
 
-	req := new(v2container.SetExtendedACLRequest)
+	// form meta header
+	var meta v2session.RequestMetaHeader
+
+	prm.prmSession.writeToMetaHeader(&meta)
+
+	// form request
+	var req v2container.SetExtendedACLRequest
+
 	req.SetBody(reqBody)
+	req.SetMetaHeader(&meta)
 
-	meta := v2MetaHeaderFromOpts(callOptions)
-	meta.SetSessionToken(eacl.SessionToken().ToV2())
-
-	req.SetMetaHeader(meta)
-
-	err = v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.SetEACL(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(SetEACLRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res SetEACLRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.SetEACL(c.Raw(), &req, client.WithContext(ctx))
 	}
 
-	return res, nil
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
+
+	return &res, nil
 }
 
+// AnnounceSpacePrm groups parameters of AnnounceContainerUsedSpace operation.
+type AnnounceSpacePrm struct {
+	announcements []container.UsedSpaceAnnouncement
+}
+
+// SetValues sets values describing volume of space that is used for the container objects.
+// Required parameter. Must not be empty.
+//
+// Must not be mutated before the end of the operation.
+func (x *AnnounceSpacePrm) SetValues(announcements []container.UsedSpaceAnnouncement) {
+	x.announcements = announcements
+}
+
+// AnnounceSpaceRes groups resulting values of AnnounceContainerUsedSpace operation.
 type AnnounceSpaceRes struct {
 	statusRes
 }
 
-// AnnounceContainerUsedSpace used by storage nodes to estimate their container
-// sizes during lifetime. Use it only in storage node applications.
+// AnnounceContainerUsedSpace sends request to announce volume of the space used for the container objects.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) AnnounceContainerUsedSpace(
-	ctx context.Context,
-	announce []container.UsedSpaceAnnouncement,
-	opts ...CallOption,
-) (*AnnounceSpaceRes, error) {
-	callOptions := c.defaultCallOptions() // apply all available options
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Operation is asynchronous and no guaranteed even in the absence of errors.
+// The required time is also not predictable.
+//
+// At this moment success can not be checked.
+//
+// Immediately panics if parameters are set incorrectly (see AnnounceSpacePrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in AnnounceSpaceRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) AnnounceContainerUsedSpace(ctx context.Context, prm AnnounceSpacePrm) (*AnnounceSpaceRes, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case len(prm.announcements) == 0:
+		panic("missing announcements")
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list
-	v2announce := make([]*v2container.UsedSpaceAnnouncement, 0, len(announce))
-	for i := range announce {
-		v2announce = append(v2announce, announce[i].ToV2())
+	v2announce := make([]*v2container.UsedSpaceAnnouncement, 0, len(prm.announcements))
+	for i := range prm.announcements {
+		v2announce = append(v2announce, prm.announcements[i].ToV2())
 	}
 
 	// prepare body of the NeoFS-API v2 request and request itself
 	reqBody := new(v2container.AnnounceUsedSpaceRequestBody)
 	reqBody.SetAnnouncements(v2announce)
 
-	req := new(v2container.AnnounceUsedSpaceRequest)
+	// form request
+	var req v2container.AnnounceUsedSpaceRequest
+
 	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
 
-	// sign the request
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.AnnounceUsedSpace(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(AnnounceSpaceRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res AnnounceSpaceRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.AnnounceUsedSpace(c.Raw(), &req, client.WithContext(ctx))
 	}
 
-	return res, nil
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
+
+	return &res, nil
 }

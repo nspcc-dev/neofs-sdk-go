@@ -2,116 +2,120 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// EndpointInfo represents versioned information about the node
-// specified in the client.
-type EndpointInfo struct {
+// EndpointInfoPrm groups parameters of EndpointInfo operation.
+//
+// At the moment the operation is not parameterized, however,
+// the structure is still declared for backward compatibility.
+type EndpointInfoPrm struct{}
+
+// EndpointInfoRes group resulting values of EndpointInfo operation.
+type EndpointInfoRes struct {
+	statusRes
+
 	version *version.Version
 
 	ni *netmap.NodeInfo
 }
 
-// LatestVersion returns latest NeoFS API version in use.
-func (e *EndpointInfo) LatestVersion() *version.Version {
-	return e.version
+// LatestVersion returns latest NeoFS API protocol's version in use.
+//
+// Client doesn't retain value so modification is safe.
+func (x EndpointInfoRes) LatestVersion() *version.Version {
+	return x.version
 }
 
-// NodeInfo returns information about the NeoFS node.
-func (e *EndpointInfo) NodeInfo() *netmap.NodeInfo {
-	return e.ni
+func (x *EndpointInfoRes) setLatestVersion(ver *version.Version) {
+	x.version = ver
 }
 
-type EndpointInfoRes struct {
-	statusRes
-
-	info *EndpointInfo
+// NodeInfo returns information about the NeoFS node served on the remote endpoint.
+//
+// Client doesn't retain value so modification is safe.
+func (x EndpointInfoRes) NodeInfo() *netmap.NodeInfo {
+	return x.ni
 }
 
-func (x EndpointInfoRes) Info() *EndpointInfo {
-	return x.info
+func (x *EndpointInfoRes) setNodeInfo(info *netmap.NodeInfo) {
+	x.ni = info
 }
 
-func (x *EndpointInfoRes) setInfo(info *EndpointInfo) {
-	x.info = info
-}
-
-// EndpointInfo returns attributes, address and public key of the node, specified
-// in client constructor via address or open connection. This can be used as a
-// health check to see if node is alive and responses to requests.
+// EndpointInfo requests information about the storage node served on the remote endpoint.
+//
+// Method can be used as a health check to see if node is alive and responds to requests.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) EndpointInfo(ctx context.Context, opts ...CallOption) (*EndpointInfoRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Immediately panics if parameters are set incorrectly (see EndpointInfoPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in EndpointInfoRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) EndpointInfo(ctx context.Context, _ EndpointInfoPrm) (*EndpointInfoRes, error) {
+	// check context
+	if ctx == nil {
+		panic(panicMsgMissingContext)
 	}
 
-	reqBody := new(v2netmap.LocalNodeInfoRequestBody)
+	// form request
+	var req v2netmap.LocalNodeInfoRequest
 
-	req := new(v2netmap.LocalNodeInfoRequest)
-	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
-
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.LocalNodeInfo(c.Raw(), req)
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(EndpointInfoRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res EndpointInfoRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.LocalNodeInfo(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2netmap.LocalNodeInfoResponse)
 
-	procRes.statusRes = res
+		body := resp.GetBody()
 
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+		res.setLatestVersion(version.NewFromV2(body.GetVersion()))
+		res.setNodeInfo(netmap.NewNodeInfoFromV2(body.GetNodeInfo()))
 	}
 
-	body := resp.GetBody()
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
 
-	res.setInfo(&EndpointInfo{
-		version: version.NewFromV2(body.GetVersion()),
-		ni:      netmap.NewNodeInfoFromV2(body.GetNodeInfo()),
-	})
-
-	return res, nil
+	return &res, nil
 }
 
+// NetworkInfoPrm groups parameters of NetworkInfo operation.
+//
+// At the moment the operation is not parameterized, however,
+// the structure is still declared for backward compatibility.
+type NetworkInfoPrm struct{}
+
+// NetworkInfoRes groups resulting values of NetworkInfo operation.
 type NetworkInfoRes struct {
 	statusRes
 
 	info *netmap.NetworkInfo
 }
 
+// Info returns structured information about the NeoFS network.
+//
+// Client doesn't retain value so modification is safe.
 func (x NetworkInfoRes) Info() *netmap.NetworkInfo {
 	return x.info
 }
@@ -120,57 +124,50 @@ func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
 	x.info = info
 }
 
-// NetworkInfo returns information about the NeoFS network of which the remote server is a part.
+// NetworkInfo requests information about the NeoFS network of which the remote server is a part.
 //
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) NetworkInfo(ctx context.Context, opts ...CallOption) (*NetworkInfoRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Immediately panics if parameters are set incorrectly (see NetworkInfoPrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in NetworkInfoRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) NetworkInfo(ctx context.Context, _ NetworkInfoPrm) (*NetworkInfoRes, error) {
+	// check context
+	if ctx == nil {
+		panic(panicMsgMissingContext)
 	}
 
-	reqBody := new(v2netmap.NetworkInfoRequestBody)
+	// form request
+	var req v2netmap.NetworkInfoRequest
 
-	req := new(v2netmap.NetworkInfoRequest)
-	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
-
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
-
-	resp, err := rpcapi.NetworkInfo(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("v2 NetworkInfo RPC failure: %w", err)
-	}
+	// init call context
 
 	var (
-		res     = new(NetworkInfoRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res NetworkInfoRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.NetworkInfo(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2netmap.NetworkInfoResponse)
 
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+		res.setInfo(netmap.NewNetworkInfoFromV2(resp.GetBody().GetNetworkInfo()))
 	}
 
-	res.setInfo(netmap.NewNetworkInfoFromV2(resp.GetBody().GetNetworkInfo()))
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
 
-	return res, nil
+	return &res, nil
 }

@@ -2,82 +2,99 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 )
 
-type BalanceOfRes struct {
+// GetBalancePrm groups parameters of GetBalance operation.
+type GetBalancePrm struct {
+	ownerSet bool
+	ownerID  owner.ID
+}
+
+// SetAccount sets identifier of the NeoFS account for which the balance is requested.
+// Required parameter. Must be a valid ID according to NeoFS API protocol.
+func (x *GetBalancePrm) SetAccount(id owner.ID) {
+	x.ownerID = id
+	x.ownerSet = true
+}
+
+// GetBalanceRes groups resulting values of GetBalance operation.
+type GetBalanceRes struct {
 	statusRes
 
 	amount *accounting.Decimal
 }
 
-func (x *BalanceOfRes) setAmount(v *accounting.Decimal) {
+func (x *GetBalanceRes) setAmount(v *accounting.Decimal) {
 	x.amount = v
 }
 
-func (x BalanceOfRes) Amount() *accounting.Decimal {
+// Amount returns current amount of funds on the NeoFS account as decimal number.
+//
+// Client doesn't retain value so modification is safe.
+func (x GetBalanceRes) Amount() *accounting.Decimal {
 	return x.amount
 }
 
-// GetBalance receives owner balance through NeoFS API call.
+// GetBalance requests current balance of the NeoFS account.
 //
 // Any client's internal or transport errors are returned as `error`,
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
-func (c *Client) GetBalance(ctx context.Context, owner *owner.ID, opts ...CallOption) (*BalanceOfRes, error) {
-	// apply all available options
-	callOptions := c.defaultCallOptions()
-
-	for i := range opts {
-		opts[i](callOptions)
+//
+// Immediately panics if parameters are set incorrectly (see GetBalancePrm docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in GetBalanceRes.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+func (c *Client) GetBalance(ctx context.Context, prm GetBalancePrm) (*GetBalanceRes, error) {
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.ownerSet:
+		panic("account not set")
+	case !prm.ownerID.Valid():
+		panic("invalid account ID")
 	}
 
-	reqBody := new(v2accounting.BalanceRequestBody)
-	reqBody.SetOwnerID(owner.ToV2())
+	// form request body
+	var body v2accounting.BalanceRequestBody
 
-	req := new(v2accounting.BalanceRequest)
-	req.SetBody(reqBody)
-	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
+	body.SetOwnerID(prm.ownerID.ToV2())
 
-	err := v2signature.SignServiceMessage(callOptions.key, req)
-	if err != nil {
-		return nil, err
-	}
+	// form request
+	var req v2accounting.BalanceRequest
 
-	resp, err := rpcapi.Balance(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("transport error: %w", err)
-	}
+	req.SetBody(&body)
+
+	// init call context
 
 	var (
-		res     = new(BalanceOfRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
+		cc  contextCall
+		res GetBalanceRes
 	)
 
-	procPrm.callOpts = callOptions
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.Balance(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2accounting.BalanceResponse)
+		res.setAmount(accounting.NewDecimalFromV2(resp.GetBody().GetBalance()))
 	}
 
-	res.setAmount(accounting.NewDecimalFromV2(resp.GetBody().GetBalance()))
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
 
-	return res, nil
+	return &res, nil
 }

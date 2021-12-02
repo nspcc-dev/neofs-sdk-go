@@ -1461,17 +1461,11 @@ func (c *Client) attachV2SessionToken(opts *callOptions, hdr *v2session.RequestM
 	opCtx.SetAddress(info.addr)
 	opCtx.SetVerb(info.verb)
 
-	lt := new(v2session.TokenLifetime)
-	lt.SetIat(info.iat)
-	lt.SetNbf(info.nbf)
-	lt.SetExp(info.exp)
-
 	body := new(v2session.SessionTokenBody)
 	body.SetID(opts.session.ID())
 	body.SetOwnerID(opts.session.OwnerID().ToV2())
 	body.SetSessionKey(opts.session.SessionKey())
 	body.SetContext(opCtx)
-	body.SetLifetime(lt)
 
 	token := new(v2session.SessionToken)
 	token.SetBody(body)
