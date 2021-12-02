@@ -51,8 +51,6 @@ type (
 	v2SessionReqInfo struct {
 		addr *refs.Address
 		verb v2session.ObjectSessionVerb
-
-		exp, nbf, iat uint64
 	}
 )
 
