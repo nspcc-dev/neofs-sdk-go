@@ -5,8 +5,6 @@ package pool
 import (
 	"context"
 	"crypto/ecdsa"
-	"crypto/elliptic"
-	crand "crypto/rand"
 	"fmt"
 	"math/rand"
 	"testing"
@@ -14,6 +12,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -64,9 +63,9 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 }
 
 func newPrivateKey(t *testing.T) *ecdsa.PrivateKey {
-	p, err := ecdsa.GenerateKey(elliptic.P256(), crand.Reader)
+	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	return p
+	return &p.PrivateKey
 }
 
 func TestBuildPoolOneNodeFailed(t *testing.T) {

@@ -6,6 +6,8 @@ import (
 	"fmt"
 
 	"github.com/mr-tron/base58"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
@@ -94,12 +96,12 @@ func valid(rawID []byte) bool {
 	if len(rawID) != NEO3WalletSize {
 		return false
 	}
-	if rawID[0] != addressPrefixN3 {
+	if rawID[0] != address.NEO3Prefix {
 		return false
 	}
 
 	const boundIndex = NEO3WalletSize - 4
-	return bytes.Equal(rawID[boundIndex:], addressChecksum(rawID[:boundIndex]))
+	return bytes.Equal(rawID[boundIndex:], hash.Checksum(rawID[:boundIndex]))
 }
 
 // Marshal marshals ID into a protobuf binary form.
