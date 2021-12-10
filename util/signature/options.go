@@ -8,7 +8,7 @@ import (
 	"crypto/sha512"
 	"math/big"
 
-	"github.com/nspcc-dev/rfc6979"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 )
 
 var curve = elliptic.P256()
@@ -77,31 +77,15 @@ func SignWithRFC6979() SignOption {
 }
 
 func signRFC6979(key *ecdsa.PrivateKey, msg []byte) ([]byte, error) {
-	digest := sha256.Sum256(msg)
-	r, s := rfc6979.SignECDSA(key, digest[:], sha256.New)
-	return getSignatureSlice(key.Curve, r, s), nil
+	p := &keys.PrivateKey{PrivateKey: *key}
+	return p.Sign(msg), nil
 }
 
-func verifyRFC6979(pub *ecdsa.PublicKey, msg []byte, sig []byte) error {
+func verifyRFC6979(key *ecdsa.PublicKey, msg []byte, sig []byte) error {
+	p := (*keys.PublicKey)(key)
 	h := sha256.Sum256(msg)
-	if pub.X == nil || pub.Y == nil || len(sig) != 64 {
-		return ErrInvalidSignature
-	}
-
-	rBytes := new(big.Int).SetBytes(sig[0:32])
-	sBytes := new(big.Int).SetBytes(sig[32:64])
-	if ecdsa.Verify(pub, h[:], rBytes, sBytes) {
+	if p.Verify(sig, h[:]) {
 		return nil
 	}
 	return ErrInvalidSignature
-}
-
-func getSignatureSlice(curve elliptic.Curve, r, s *big.Int) []byte {
-	params := curve.Params()
-	curveOrderByteSize := params.P.BitLen() / 8
-	signature := make([]byte, curveOrderByteSize*2)
-	_ = r.FillBytes(signature[:curveOrderByteSize])
-	_ = s.FillBytes(signature[curveOrderByteSize:])
-
-	return signature
 }

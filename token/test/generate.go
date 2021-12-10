@@ -1,10 +1,7 @@
 package tokentest
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
-
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	"github.com/nspcc-dev/neofs-sdk-go/token"
@@ -29,12 +26,12 @@ func BearerToken() *token.BearerToken {
 func SignedBearerToken() *token.BearerToken {
 	tok := BearerToken()
 
-	p, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	p, err := keys.NewPrivateKey()
 	if err != nil {
 		panic(err)
 	}
 
-	err = tok.SignToken(p)
+	err = tok.SignToken(&p.PrivateKey)
 	if err != nil {
 		panic(err)
 	}

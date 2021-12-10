@@ -2,9 +2,9 @@ package eacl
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/stretchr/testify/require"
@@ -25,8 +25,7 @@ func TestTarget(t *testing.T) {
 	require.Equal(t, v2acl.RoleSystem, v2.GetRole())
 	require.Len(t, v2.GetKeys(), len(pubs))
 	for i, key := range v2.GetKeys() {
-		b := elliptic.MarshalCompressed(pubs[i].Curve, pubs[i].X, pubs[i].Y)
-		require.Equal(t, key, b)
+		require.Equal(t, key, (*keys.PublicKey)(pubs[i]).Bytes())
 	}
 
 	newTarget := NewTargetFromV2(v2)

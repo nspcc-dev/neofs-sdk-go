@@ -4,6 +4,9 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
+	"fmt"
+
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 )
 
 type DataSource interface {
@@ -72,8 +75,8 @@ func SignDataWithHandler(key *ecdsa.PrivateKey, src DataSource, handler KeySigna
 		return err
 	}
 
-	b := elliptic.MarshalCompressed(key.Curve, key.X, key.Y)
-	handler(b, sig)
+	pub := (*keys.PublicKey)(&key.PublicKey)
+	handler(pub.Bytes(), sig)
 
 	return nil
 }
@@ -93,16 +96,19 @@ func VerifyDataWithSource(dataSrc DataSource, sigSrc KeySignatureSource, opts ..
 
 	key, sig := sigSrc()
 
-	var pub *ecdsa.PublicKey
+	var pub *keys.PublicKey
 	if len(key) != 0 {
-		x, y := elliptic.UnmarshalCompressed(elliptic.P256(), key)
-		if x == nil || y == nil {
-			return ErrInvalidPublicKey
+		pub, err = keys.NewPublicKeyFromBytes(key, elliptic.P256())
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrInvalidPublicKey, err)
 		}
-		pub = &ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y}
 	}
 
-	return cfg.verifyFunc(pub, data, sig)
+	return cfg.verifyFunc(
+		(*ecdsa.PublicKey)(pub),
+		data,
+		sig,
+	)
 }
 
 func SignData(key *ecdsa.PrivateKey, v DataWithSignature, opts ...SignOption) error {
