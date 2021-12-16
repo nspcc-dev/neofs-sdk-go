@@ -158,7 +158,8 @@ type clientPack struct {
 type CallOption func(config *callConfig)
 
 type callConfig struct {
-	isRetry bool
+	isRetry           bool
+	useDefaultSession bool
 
 	key    *ecdsa.PrivateKey
 	btoken *token.BearerToken
@@ -186,6 +187,12 @@ func WithSession(token *session.Token) CallOption {
 func retry() CallOption {
 	return func(config *callConfig) {
 		config.isRetry = true
+	}
+}
+
+func useDefaultSession() CallOption {
+	return func(config *callConfig) {
+		config.useDefaultSession = true
 	}
 }
 
@@ -449,7 +456,7 @@ func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client
 	clientCallOptions = append(clientCallOptions, client.WithKey(key))
 
 	sessionToken := cfg.stoken
-	if sessionToken == nil {
+	if sessionToken == nil && cfg.useDefaultSession {
 		cacheKey := formCacheKey(cp.address, key)
 		sessionToken = p.cache.Get(cacheKey)
 		if sessionToken == nil {
@@ -486,7 +493,7 @@ func (p *pool) checkSessionTokenErr(err error, address string) bool {
 }
 
 func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*object.ID, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -510,7 +517,7 @@ func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, op
 }
 
 func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
@@ -533,7 +540,7 @@ func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectPara
 }
 
 func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, opts ...CallOption) (*object.Object, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -557,7 +564,7 @@ func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, op
 }
 
 func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -581,7 +588,7 @@ func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderP
 }
 
 func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -615,7 +622,7 @@ func copyRangeChecksumParams(prm *client.RangeChecksumParams) *client.RangeCheck
 }
 
 func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -657,7 +664,7 @@ func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.Rang
 }
 
 func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -699,7 +706,7 @@ func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChe
 }
 
 func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*object.ID, error) {
-	cfg := cfgFromOpts(opts...)
+	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
