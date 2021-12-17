@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -122,6 +123,7 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 type Pool interface {
 	Object
 	Container
+	Accounting
 	Connection() (client.Client, *session.Token, error)
 	OwnerID() *owner.ID
 	WaitForContainerPresence(context.Context, *cid.ID, *ContainerPollingParams) error
@@ -147,6 +149,10 @@ type Container interface {
 	GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*eacl.Table, error)
 	SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOption) error
 	AnnounceContainerUsedSpace(ctx context.Context, announce []container.UsedSpaceAnnouncement, opts ...CallOption) error
+}
+
+type Accounting interface {
+	Balance(ctx context.Context, owner *owner.ID, opts ...CallOption) (*accounting.Decimal, error)
 }
 
 type clientPack struct {
@@ -889,6 +895,26 @@ func (p *pool) AnnounceContainerUsedSpace(ctx context.Context, announce []contai
 	// here err already carries both status and client errors
 
 	return err
+}
+
+func (p *pool) Balance(ctx context.Context, o *owner.ID, opts ...CallOption) (*accounting.Decimal, error) {
+	cfg := cfgFromOpts(opts...)
+	cp, options, err := p.conn(ctx, cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	res, err := cp.client.GetBalance(ctx, o, options...)
+	if err == nil {
+		// reflect status failures in err
+		err = apistatus.ErrFromStatus(res.Status())
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return res.Amount(), nil
 }
 
 func (p *pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollParams *ContainerPollingParams) error {
