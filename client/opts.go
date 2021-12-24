@@ -137,6 +137,14 @@ func WithDialTimeout(dur time.Duration) Option {
 	}
 }
 
+// WithRWTimeout returns option to set timeout for single read and write
+// operation on protobuf message.
+func WithRWTimeout(dur time.Duration) Option {
+	return func(opts *clientOptions) {
+		opts.rawOpts = append(opts.rawOpts, client.WithRWTimeout(dur))
+	}
+}
+
 // WithTLSConfig returns option to set connection's TLS config to the remote node.
 //
 // Ignored if WithGRPCConnection is provided.
