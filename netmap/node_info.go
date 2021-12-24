@@ -96,6 +96,16 @@ func (n Node) Hash() uint64 {
 	return n.ID
 }
 
+// Hash is a function from hrw.Hasher interface. It is implemented
+// to support weighted hrw sorting of buckets. Each bucket is already sorted by hrw,
+// thus giving us needed "randomness".
+func (n Nodes) Hash() uint64 {
+	if len(n) > 0 {
+		return n[0].Hash()
+	}
+	return 0
+}
+
 // NodesFromInfo converts slice of NodeInfo to a generic node slice.
 func NodesFromInfo(infos []NodeInfo) Nodes {
 	nodes := make(Nodes, len(infos))
