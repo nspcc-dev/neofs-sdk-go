@@ -58,8 +58,11 @@ func (c *Context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error)
 		return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.Name())
 	}
 
+	// We need deterministic output in case there is no pivot.
+	// If pivot is set, buckets are sorted by HRW.
+	// However, because initial order influences HRW order for buckets with equal weights,
+	// we also need to have deterministic input to HRW sorting routine.
 	if len(c.pivot) == 0 {
-		// Deterministic order in case of zero seed.
 		if s.Attribute() == "" {
 			sort.Slice(buckets, func(i, j int) bool {
 				return buckets[i].nodes[0].ID < buckets[j].nodes[0].ID
@@ -98,7 +101,7 @@ func (c *Context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error)
 			weights[i] = GetBucketWeight(nodes[i], c.aggregator(), c.weightFunc)
 		}
 
-		hrw.SortSliceByWeightIndex(nodes, weights, c.pivotHash)
+		hrw.SortSliceByWeightValue(nodes, weights, c.pivotHash)
 	}
 
 	if s.Attribute() == "" {
