@@ -12,12 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 )
 
-// Accounting contains methods related to balance querying.
-type Accounting interface {
-	// GetBalance returns balance of provided account.
-	GetBalance(context.Context, *owner.ID, ...CallOption) (*BalanceOfRes, error)
-}
-
 type BalanceOfRes struct {
 	statusRes
 
@@ -32,7 +26,7 @@ func (x BalanceOfRes) Amount() *accounting.Decimal {
 	return x.amount
 }
 
-func (c *clientImpl) GetBalance(ctx context.Context, owner *owner.ID, opts ...CallOption) (*BalanceOfRes, error) {
+func (c *Client) GetBalance(ctx context.Context, owner *owner.ID, opts ...CallOption) (*BalanceOfRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 

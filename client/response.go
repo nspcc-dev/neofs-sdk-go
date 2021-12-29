@@ -27,7 +27,7 @@ func WithResponseInfoHandler(f func(ResponseMetaInfo) error) Option {
 	}
 }
 
-func (c *clientImpl) handleResponseInfoV2(opts *callOptions, resp responseV2) error {
+func (c *Client) handleResponseInfoV2(opts *callOptions, resp responseV2) error {
 	if c.opts.cbRespInfo == nil {
 		return nil
 	}

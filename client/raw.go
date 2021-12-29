@@ -7,11 +7,11 @@ import (
 )
 
 // Raw returns underlying raw protobuf client.
-func (c *clientImpl) Raw() *client.Client {
+func (c *Client) Raw() *client.Client {
 	return c.raw
 }
 
 // implements Client.Conn method.
-func (c *clientImpl) Conn() io.Closer {
+func (c *Client) Conn() io.Closer {
 	return c.raw.Conn()
 }

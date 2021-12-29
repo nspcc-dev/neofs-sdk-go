@@ -10,16 +10,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 )
 
-// Reputation contains methods for working with Reputation system values.
-type Reputation interface {
-	// AnnounceLocalTrust announces local trust values of local peer.
-	AnnounceLocalTrust(context.Context, AnnounceLocalTrustPrm, ...CallOption) (*AnnounceLocalTrustRes, error)
-
-	// AnnounceIntermediateTrust announces the intermediate result of the iterative algorithm for calculating
-	// the global reputation of the node.
-	AnnounceIntermediateTrust(context.Context, AnnounceIntermediateTrustPrm, ...CallOption) (*AnnounceIntermediateTrustRes, error)
-}
-
 // AnnounceLocalTrustPrm groups parameters of AnnounceLocalTrust operation.
 type AnnounceLocalTrustPrm struct {
 	epoch uint64
@@ -52,7 +42,7 @@ type AnnounceLocalTrustRes struct {
 	statusRes
 }
 
-func (c *clientImpl) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustPrm, opts ...CallOption) (*AnnounceLocalTrustRes, error) {
+func (c *Client) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustPrm, opts ...CallOption) (*AnnounceLocalTrustRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -143,7 +133,7 @@ type AnnounceIntermediateTrustRes struct {
 	statusRes
 }
 
-func (c *clientImpl) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceIntermediateTrustPrm, opts ...CallOption) (*AnnounceIntermediateTrustRes, error) {
+func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceIntermediateTrustPrm, opts ...CallOption) (*AnnounceIntermediateTrustRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 

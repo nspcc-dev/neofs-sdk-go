@@ -59,7 +59,7 @@ type processResponseV2Res struct {
 // Actions:
 //  * verify signature (internal);
 //  * call response callback (internal).
-func (c *clientImpl) processResponseV2(res *processResponseV2Res, prm processResponseV2Prm) bool {
+func (c *Client) processResponseV2(res *processResponseV2Res, prm processResponseV2Prm) bool {
 	// verify response structure
 	if isInvalidSignatureV2(res, prm.resp) {
 		return true
