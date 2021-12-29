@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"sort"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	apiclient "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -29,7 +31,30 @@ import (
 
 // Client is a wrapper for client.Client to generate mock.
 type Client interface {
-	client.Client
+	GetBalance(context.Context, *owner.ID, ...client.CallOption) (*client.BalanceOfRes, error)
+	PutContainer(context.Context, *container.Container, ...client.CallOption) (*client.ContainerPutRes, error)
+	GetContainer(context.Context, *cid.ID, ...client.CallOption) (*client.ContainerGetRes, error)
+	ListContainers(context.Context, *owner.ID, ...client.CallOption) (*client.ContainerListRes, error)
+	DeleteContainer(context.Context, *cid.ID, ...client.CallOption) (*client.ContainerDeleteRes, error)
+	EACL(context.Context, *cid.ID, ...client.CallOption) (*client.EACLRes, error)
+	SetEACL(context.Context, *eacl.Table, ...client.CallOption) (*client.SetEACLRes, error)
+	AnnounceContainerUsedSpace(context.Context, []container.UsedSpaceAnnouncement, ...client.CallOption) (*client.AnnounceSpaceRes, error)
+	EndpointInfo(context.Context, ...client.CallOption) (*client.EndpointInfoRes, error)
+	NetworkInfo(context.Context, ...client.CallOption) (*client.NetworkInfoRes, error)
+	PutObject(context.Context, *client.PutObjectParams, ...client.CallOption) (*client.ObjectPutRes, error)
+	DeleteObject(context.Context, *client.DeleteObjectParams, ...client.CallOption) (*client.ObjectDeleteRes, error)
+	GetObject(context.Context, *client.GetObjectParams, ...client.CallOption) (*client.ObjectGetRes, error)
+	HeadObject(context.Context, *client.ObjectHeaderParams, ...client.CallOption) (*client.ObjectHeadRes, error)
+	ObjectPayloadRangeData(context.Context, *client.RangeDataParams, ...client.CallOption) (*client.ObjectRangeRes, error)
+	HashObjectPayloadRanges(context.Context, *client.RangeChecksumParams, ...client.CallOption) (*client.ObjectRangeHashRes, error)
+	SearchObjects(context.Context, *client.SearchObjectParams, ...client.CallOption) (*client.ObjectSearchRes, error)
+	AnnounceLocalTrust(context.Context, client.AnnounceLocalTrustPrm, ...client.CallOption) (*client.AnnounceLocalTrustRes, error)
+	AnnounceIntermediateTrust(context.Context, client.AnnounceIntermediateTrustPrm, ...client.CallOption) (*client.AnnounceIntermediateTrustRes, error)
+	CreateSession(context.Context, uint64, ...client.CallOption) (*client.CreateSessionRes, error)
+
+	Raw() *apiclient.Client
+
+	Conn() io.Closer
 }
 
 // BuilderOptions contains options used to build connection pool.
@@ -41,7 +66,7 @@ type BuilderOptions struct {
 	ClientRebalanceInterval time.Duration
 	SessionExpirationEpoch  uint64
 	nodesParams             []*NodesParam
-	clientBuilder           func(opts ...client.Option) (client.Client, error)
+	clientBuilder           func(opts ...client.Option) (Client, error)
 }
 
 type NodesParam struct {
@@ -113,7 +138,9 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 	})
 
 	if options.clientBuilder == nil {
-		options.clientBuilder = client.New
+		options.clientBuilder = func(opts ...client.Option) (Client, error) {
+			return client.New(opts...)
+		}
 	}
 
 	return newPool(ctx, options)
@@ -124,7 +151,7 @@ type Pool interface {
 	Object
 	Container
 	Accounting
-	Connection() (client.Client, *session.Token, error)
+	Connection() (Client, *session.Token, error)
 	OwnerID() *owner.ID
 	WaitForContainerPresence(context.Context, *cid.ID, *ContainerPollingParams) error
 	Close()
@@ -156,7 +183,7 @@ type Accounting interface {
 }
 
 type clientPack struct {
-	client  client.Client
+	client  Client
 	healthy bool
 	address string
 }
@@ -333,7 +360,7 @@ func updateInnerNodesHealth(ctx context.Context, pool *pool, i int, options *Bui
 	wg := sync.WaitGroup{}
 	for j, cPack := range p.clientPacks {
 		wg.Add(1)
-		go func(j int, client client.Client) {
+		go func(j int, client Client) {
 			defer wg.Done()
 			ok := true
 			tctx, c := context.WithTimeout(ctx, options.NodeRequestTimeout)
@@ -396,7 +423,7 @@ func adjustWeights(weights []float64) []float64 {
 	return adjusted
 }
 
-func (p *pool) Connection() (client.Client, *session.Token, error) {
+func (p *pool) Connection() (Client, *session.Token, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return nil, nil, err
