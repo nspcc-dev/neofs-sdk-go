@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
+	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
@@ -128,8 +129,8 @@ func (c *Container) BasicACL() uint32 {
 	return c.v2.GetBasicACL()
 }
 
-func (c *Container) SetBasicACL(v uint32) {
-	c.v2.SetBasicACL(v)
+func (c *Container) SetBasicACL(v acl.BasicACL) {
+	c.v2.SetBasicACL(uint32(v))
 }
 
 func (c *Container) Attributes() Attributes {
