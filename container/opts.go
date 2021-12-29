@@ -11,7 +11,7 @@ type (
 	Option func(*containerOptions)
 
 	containerOptions struct {
-		acl        uint32
+		acl        acl.BasicACL
 		policy     *netmap.PlacementPolicy
 		attributes Attributes
 		owner      *owner.ID
@@ -43,7 +43,7 @@ func WithReadOnlyBasicACL() Option {
 	}
 }
 
-func WithCustomBasicACL(acl uint32) Option {
+func WithCustomBasicACL(acl acl.BasicACL) Option {
 	return func(option *containerOptions) {
 		option.acl = acl
 	}

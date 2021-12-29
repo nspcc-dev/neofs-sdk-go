@@ -9,7 +9,7 @@ import (
 func TestParser(t *testing.T) {
 	for _, tc := range []struct {
 		acl      string
-		expected uint32
+		expected BasicACL
 		err      bool
 	}{
 		{
@@ -78,5 +78,5 @@ func TestString(t *testing.T) {
 
 	acl2, err := ParseBasicACL(PrivateBasicName)
 	require.NoError(t, err)
-	require.Equal(t, "0x1c8c8ccc", BasicACL(acl2).String())
+	require.Equal(t, "0x1c8c8ccc", acl2.String())
 }

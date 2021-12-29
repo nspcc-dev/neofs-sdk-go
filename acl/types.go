@@ -6,36 +6,37 @@ import (
 	"strings"
 )
 
+// BasicACL is Access Control List that defines who can interact with containers and what exactly they can do.
 type BasicACL uint32
 
 func (a BasicACL) String() string {
-	return fmt.Sprintf("0x%x", uint32(a))
+	return fmt.Sprintf("0x%08x", uint32(a))
 }
 
 const (
 	// PublicBasicRule is a basic ACL value for final public-read-write container for which extended ACL CANNOT be set.
-	PublicBasicRule = 0x1FBFBFFF
+	PublicBasicRule BasicACL = 0x1FBFBFFF
 
 	// PrivateBasicRule is a basic ACL value for final private container for which extended ACL CANNOT be set.
-	PrivateBasicRule = 0x1C8C8CCC
+	PrivateBasicRule BasicACL = 0x1C8C8CCC
 
 	// ReadOnlyBasicRule is a basic ACL value for final public-read container for which extended ACL CANNOT be set.
-	ReadOnlyBasicRule = 0x1FBF8CFF
+	ReadOnlyBasicRule BasicACL = 0x1FBF8CFF
 
 	// PublicAppendRule is a basic ACL value for final public-append container for which extended ACL CANNOT be set.
-	PublicAppendRule = 0x1FBF9FFF
+	PublicAppendRule BasicACL = 0x1FBF9FFF
 
 	// EACLPublicBasicRule is a basic ACL value for non-final public-read-write container for which extended ACL CAN be set.
-	EACLPublicBasicRule = 0x0FBFBFFF
+	EACLPublicBasicRule BasicACL = 0x0FBFBFFF
 
 	// EACLPrivateBasicRule is a basic ACL value for non-final private container for which extended ACL CAN be set.
-	EACLPrivateBasicRule = 0x0C8C8CCC
+	EACLPrivateBasicRule BasicACL = 0x0C8C8CCC
 
 	// EACLReadOnlyBasicRule is a basic ACL value for non-final public-read container for which extended ACL CAN be set.
-	EACLReadOnlyBasicRule = 0x0FBF8CFF
+	EACLReadOnlyBasicRule BasicACL = 0x0FBF8CFF
 
 	// EACLPublicAppendRule is a basic ACL value for non-final public-append container for which extended ACL CAN be set.
-	EACLPublicAppendRule = 0x0FBF9FFF
+	EACLPublicAppendRule BasicACL = 0x0FBF9FFF
 )
 
 const (
@@ -65,7 +66,7 @@ const (
 )
 
 // ParseBasicACL parse string ACL (well-known names or hex representation).
-func ParseBasicACL(basicACL string) (uint32, error) {
+func ParseBasicACL(basicACL string) (BasicACL, error) {
 	switch basicACL {
 	case PublicBasicName:
 		return PublicBasicRule, nil
@@ -84,13 +85,13 @@ func ParseBasicACL(basicACL string) (uint32, error) {
 	case EACLPublicAppendName:
 		return EACLPublicAppendRule, nil
 	default:
-		basicACL = strings.Trim(strings.ToLower(basicACL), "0x")
+		basicACL = strings.TrimPrefix(strings.ToLower(basicACL), "0x")
 
 		value, err := strconv.ParseUint(basicACL, 16, 32)
 		if err != nil {
 			return 0, fmt.Errorf("can't parse basic ACL: %s", basicACL)
 		}
 
-		return uint32(value), nil
+		return BasicACL(value), nil
 	}
 }
