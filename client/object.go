@@ -20,30 +20,6 @@ import (
 	signer "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
-// Object contains methods for working with objects.
-type Object interface {
-	// PutObject puts new object to NeoFS.
-	PutObject(context.Context, *PutObjectParams, ...CallOption) (*ObjectPutRes, error)
-
-	// DeleteObject deletes object to NeoFS.
-	DeleteObject(context.Context, *DeleteObjectParams, ...CallOption) (*ObjectDeleteRes, error)
-
-	// GetObject returns object stored in NeoFS.
-	GetObject(context.Context, *GetObjectParams, ...CallOption) (*ObjectGetRes, error)
-
-	// HeadObject returns object header.
-	HeadObject(context.Context, *ObjectHeaderParams, ...CallOption) (*ObjectHeadRes, error)
-
-	// ObjectPayloadRangeData returns range of object payload.
-	ObjectPayloadRangeData(context.Context, *RangeDataParams, ...CallOption) (*ObjectRangeRes, error)
-
-	// HashObjectPayloadRanges returns hashes of the object payload ranges from NeoFS.
-	HashObjectPayloadRanges(context.Context, *RangeChecksumParams, ...CallOption) (*ObjectRangeHashRes, error)
-
-	// SearchObjects searches for objects in NeoFS using provided parameters.
-	SearchObjects(context.Context, *SearchObjectParams, ...CallOption) (*ObjectSearchRes, error)
-}
-
 type PutObjectParams struct {
 	obj *object.Object
 
@@ -221,7 +197,7 @@ func (x ObjectPutRes) ID() *object.ID {
 	return x.id
 }
 
-func (c *clientImpl) PutObject(ctx context.Context, p *PutObjectParams, opts ...CallOption) (*ObjectPutRes, error) {
+func (c *Client) PutObject(ctx context.Context, p *PutObjectParams, opts ...CallOption) (*ObjectPutRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -393,7 +369,7 @@ func (x *ObjectDeleteRes) setTombstoneAddress(addr *object.Address) {
 // DeleteObject removes object by address.
 //
 // If target of tombstone address is not set, the address is ignored.
-func (c *clientImpl) DeleteObject(ctx context.Context, p *DeleteObjectParams, opts ...CallOption) (*ObjectDeleteRes, error) {
+func (c *Client) DeleteObject(ctx context.Context, p *DeleteObjectParams, opts ...CallOption) (*ObjectDeleteRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -615,7 +591,7 @@ func writeUnexpectedMessageTypeErr(res resCommon, val interface{}) {
 	res.setStatus(st)
 }
 
-func (c *clientImpl) GetObject(ctx context.Context, p *GetObjectParams, opts ...CallOption) (*ObjectGetRes, error) {
+func (c *Client) GetObject(ctx context.Context, p *GetObjectParams, opts ...CallOption) (*ObjectGetRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -823,7 +799,7 @@ type ObjectHeadRes struct {
 	objectRes
 }
 
-func (c *clientImpl) HeadObject(ctx context.Context, p *ObjectHeaderParams, opts ...CallOption) (*ObjectHeadRes, error) {
+func (c *Client) HeadObject(ctx context.Context, p *ObjectHeaderParams, opts ...CallOption) (*ObjectHeadRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -1016,7 +992,7 @@ func (x ObjectRangeRes) Data() []byte {
 	return x.data
 }
 
-func (c *clientImpl) ObjectPayloadRangeData(ctx context.Context, p *RangeDataParams, opts ...CallOption) (*ObjectRangeRes, error) {
+func (c *Client) ObjectPayloadRangeData(ctx context.Context, p *RangeDataParams, opts ...CallOption) (*ObjectRangeRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -1203,7 +1179,7 @@ func (x ObjectRangeHashRes) Hashes() [][]byte {
 	return x.hashes
 }
 
-func (c *clientImpl) HashObjectPayloadRanges(ctx context.Context, p *RangeChecksumParams, opts ...CallOption) (*ObjectRangeHashRes, error) {
+func (c *Client) HashObjectPayloadRanges(ctx context.Context, p *RangeChecksumParams, opts ...CallOption) (*ObjectRangeHashRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -1328,7 +1304,7 @@ func (x ObjectSearchRes) IDList() []*object.ID {
 	return x.ids
 }
 
-func (c *clientImpl) SearchObjects(ctx context.Context, p *SearchObjectParams, opts ...CallOption) (*ObjectSearchRes, error) {
+func (c *Client) SearchObjects(ctx context.Context, p *SearchObjectParams, opts ...CallOption) (*ObjectSearchRes, error) {
 	callOpts := c.defaultCallOptions()
 
 	for i := range opts {
@@ -1428,7 +1404,7 @@ func (c *clientImpl) SearchObjects(ctx context.Context, p *SearchObjectParams, o
 	return res, nil
 }
 
-func (c *clientImpl) attachV2SessionToken(opts *callOptions, hdr *v2session.RequestMetaHeader, info v2SessionReqInfo) error {
+func (c *Client) attachV2SessionToken(opts *callOptions, hdr *v2session.RequestMetaHeader, info v2SessionReqInfo) error {
 	if opts.session == nil {
 		return nil
 	}

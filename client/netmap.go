@@ -12,17 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Netmap contains methods related to netmap.
-type Netmap interface {
-	// EndpointInfo returns attributes, address and public key of the node, specified
-	// in client constructor via address or open connection. This can be used as a
-	// health check to see if node is alive and responses to requests.
-	EndpointInfo(context.Context, ...CallOption) (*EndpointInfoRes, error)
-
-	// NetworkInfo returns information about the NeoFS network of which the remote server is a part.
-	NetworkInfo(context.Context, ...CallOption) (*NetworkInfoRes, error)
-}
-
 // EACLWithSignature represents eACL table/signature pair.
 type EndpointInfo struct {
 	version *version.Version
@@ -57,7 +46,7 @@ func (x *EndpointInfoRes) setInfo(info *EndpointInfo) {
 // EndpointInfo returns attributes, address and public key of the node, specified
 // in client constructor via address or open connection. This can be used as a
 // health check to see if node is alive and responses to requests.
-func (c *clientImpl) EndpointInfo(ctx context.Context, opts ...CallOption) (*EndpointInfoRes, error) {
+func (c *Client) EndpointInfo(ctx context.Context, opts ...CallOption) (*EndpointInfoRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -126,7 +115,7 @@ func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
 }
 
 // NetworkInfo returns information about the NeoFS network of which the remote server is a part.
-func (c *clientImpl) NetworkInfo(ctx context.Context, opts ...CallOption) (*NetworkInfoRes, error) {
+func (c *Client) NetworkInfo(ctx context.Context, opts ...CallOption) (*NetworkInfoRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 

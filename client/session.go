@@ -12,12 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 )
 
-// Session contains session-related methods.
-type Session interface {
-	// CreateSession creates session using provided expiration time.
-	CreateSession(context.Context, uint64, ...CallOption) (*CreateSessionRes, error)
-}
-
 var errMalformedResponseBody = errors.New("malformed response body")
 
 type CreateSessionRes struct {
@@ -44,7 +38,7 @@ func (x CreateSessionRes) SessionKey() []byte {
 	return x.sessionKey
 }
 
-func (c *clientImpl) CreateSession(ctx context.Context, expiration uint64, opts ...CallOption) (*CreateSessionRes, error) {
+func (c *Client) CreateSession(ctx context.Context, expiration uint64, opts ...CallOption) (*CreateSessionRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 

@@ -45,7 +45,7 @@ type (
 	}
 )
 
-func (c *clientImpl) defaultCallOptions() *callOptions {
+func (c *Client) defaultCallOptions() *callOptions {
 	return &callOptions{
 		version: version.Current(),
 		ttl:     2,

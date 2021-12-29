@@ -20,30 +20,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Container contains methods related to container and ACL.
-type Container interface {
-	// PutContainer creates new container in the NeoFS network.
-	PutContainer(context.Context, *container.Container, ...CallOption) (*ContainerPutRes, error)
-
-	// GetContainer returns container by ID.
-	GetContainer(context.Context, *cid.ID, ...CallOption) (*ContainerGetRes, error)
-
-	// ListContainers return container list with the provided owner.
-	ListContainers(context.Context, *owner.ID, ...CallOption) (*ContainerListRes, error)
-
-	// DeleteContainer removes container from NeoFS network.
-	DeleteContainer(context.Context, *cid.ID, ...CallOption) (*ContainerDeleteRes, error)
-
-	// EACL returns extended ACL for a given container.
-	EACL(context.Context, *cid.ID, ...CallOption) (*EACLRes, error)
-
-	// SetEACL sets extended ACL.
-	SetEACL(context.Context, *eacl.Table, ...CallOption) (*SetEACLRes, error)
-
-	// AnnounceContainerUsedSpace announces amount of space which is taken by stored objects.
-	AnnounceContainerUsedSpace(context.Context, []container.UsedSpaceAnnouncement, ...CallOption) (*AnnounceSpaceRes, error)
-}
-
 type delContainerSignWrapper struct {
 	body *v2container.DeleteRequestBody
 }
@@ -87,7 +63,7 @@ func (x *ContainerPutRes) setID(id *cid.ID) {
 	x.id = id
 }
 
-func (c *clientImpl) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*ContainerPutRes, error) {
+func (c *Client) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*ContainerPutRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -194,7 +170,7 @@ func (x *ContainerGetRes) setContainer(cnr *container.Container) {
 // GetContainer receives container structure through NeoFS API call.
 //
 // Returns error if container structure is received but does not meet NeoFS API specification.
-func (c *clientImpl) GetContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerGetRes, error) {
+func (c *Client) GetContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerGetRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -270,7 +246,7 @@ func (x *ContainerListRes) setIDList(ids []*cid.ID) {
 	x.ids = ids
 }
 
-func (c *clientImpl) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) (*ContainerListRes, error) {
+func (c *Client) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) (*ContainerListRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -340,7 +316,7 @@ type ContainerDeleteRes struct {
 	statusRes
 }
 
-func (c *clientImpl) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerDeleteRes, error) {
+func (c *Client) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerDeleteRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -418,7 +394,7 @@ func (x *EACLRes) SetTable(table *eacl.Table) {
 	x.table = table
 }
 
-func (c *clientImpl) EACL(ctx context.Context, id *cid.ID, opts ...CallOption) (*EACLRes, error) {
+func (c *Client) EACL(ctx context.Context, id *cid.ID, opts ...CallOption) (*EACLRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -484,7 +460,7 @@ type SetEACLRes struct {
 	statusRes
 }
 
-func (c *clientImpl) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOption) (*SetEACLRes, error) {
+func (c *Client) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOption) (*SetEACLRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
 
@@ -554,7 +530,7 @@ type AnnounceSpaceRes struct {
 
 // AnnounceContainerUsedSpace used by storage nodes to estimate their container
 // sizes during lifetime. Use it only in storage node applications.
-func (c *clientImpl) AnnounceContainerUsedSpace(
+func (c *Client) AnnounceContainerUsedSpace(
 	ctx context.Context,
 	announce []container.UsedSpaceAnnouncement,
 	opts ...CallOption,
