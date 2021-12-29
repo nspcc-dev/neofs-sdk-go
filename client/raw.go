@@ -11,7 +11,7 @@ func (c *Client) Raw() *client.Client {
 	return c.raw
 }
 
-// implements Client.Conn method.
+// Conn implements Client.Conn method.
 func (c *Client) Conn() io.Closer {
 	return c.raw.Conn()
 }
