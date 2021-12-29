@@ -63,6 +63,10 @@ func (x *ContainerPutRes) setID(id *cid.ID) {
 	x.id = id
 }
 
+// PutContainer puts container through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*ContainerPutRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -169,7 +173,8 @@ func (x *ContainerGetRes) setContainer(cnr *container.Container) {
 
 // GetContainer receives container structure through NeoFS API call.
 //
-// Returns error if container structure is received but does not meet NeoFS API specification.
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) GetContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerGetRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -246,6 +251,10 @@ func (x *ContainerListRes) setIDList(ids []*cid.ID) {
 	x.ids = ids
 }
 
+// ListContainers receives all owner's containers through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) (*ContainerListRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -316,6 +325,10 @@ type ContainerDeleteRes struct {
 	statusRes
 }
 
+// DeleteContainer deletes specified container through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) DeleteContainer(ctx context.Context, id *cid.ID, opts ...CallOption) (*ContainerDeleteRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -394,6 +407,10 @@ func (x *EACLRes) SetTable(table *eacl.Table) {
 	x.table = table
 }
 
+// EACL receives eACL of the specified container through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) EACL(ctx context.Context, id *cid.ID, opts ...CallOption) (*EACLRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -460,6 +477,10 @@ type SetEACLRes struct {
 	statusRes
 }
 
+// SetEACL sets eACL through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) SetEACL(ctx context.Context, eacl *eacl.Table, opts ...CallOption) (*SetEACLRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -530,6 +551,9 @@ type AnnounceSpaceRes struct {
 
 // AnnounceContainerUsedSpace used by storage nodes to estimate their container
 // sizes during lifetime. Use it only in storage node applications.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) AnnounceContainerUsedSpace(
 	ctx context.Context,
 	announce []container.UsedSpaceAnnouncement,

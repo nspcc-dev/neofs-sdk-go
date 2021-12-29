@@ -197,6 +197,10 @@ func (x ObjectPutRes) ID() *object.ID {
 	return x.id
 }
 
+// PutObject puts object through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) PutObject(ctx context.Context, p *PutObjectParams, opts ...CallOption) (*ObjectPutRes, error) {
 	callOpts := c.defaultCallOptions()
 
@@ -369,6 +373,9 @@ func (x *ObjectDeleteRes) setTombstoneAddress(addr *object.Address) {
 // DeleteObject removes object by address.
 //
 // If target of tombstone address is not set, the address is ignored.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) DeleteObject(ctx context.Context, p *DeleteObjectParams, opts ...CallOption) (*ObjectDeleteRes, error) {
 	callOpts := c.defaultCallOptions()
 
@@ -591,6 +598,10 @@ func writeUnexpectedMessageTypeErr(res resCommon, val interface{}) {
 	res.setStatus(st)
 }
 
+// GetObject receives object through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) GetObject(ctx context.Context, p *GetObjectParams, opts ...CallOption) (*ObjectGetRes, error) {
 	callOpts := c.defaultCallOptions()
 
@@ -799,6 +810,10 @@ type ObjectHeadRes struct {
 	objectRes
 }
 
+// HeadObject receives object's header through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) HeadObject(ctx context.Context, p *ObjectHeaderParams, opts ...CallOption) (*ObjectHeadRes, error) {
 	callOpts := c.defaultCallOptions()
 
@@ -992,6 +1007,10 @@ func (x ObjectRangeRes) Data() []byte {
 	return x.data
 }
 
+// ObjectPayloadRangeData receives object's range payload data through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) ObjectPayloadRangeData(ctx context.Context, p *RangeDataParams, opts ...CallOption) (*ObjectRangeRes, error) {
 	callOpts := c.defaultCallOptions()
 
@@ -1179,6 +1198,11 @@ func (x ObjectRangeHashRes) Hashes() [][]byte {
 	return x.hashes
 }
 
+// HashObjectPayloadRanges receives range hash of the object
+// payload data through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) HashObjectPayloadRanges(ctx context.Context, p *RangeChecksumParams, opts ...CallOption) (*ObjectRangeHashRes, error) {
 	callOpts := c.defaultCallOptions()
 
@@ -1304,6 +1328,10 @@ func (x ObjectSearchRes) IDList() []*object.ID {
 	return x.ids
 }
 
+// SearchObjects searches for the objects through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) SearchObjects(ctx context.Context, p *SearchObjectParams, opts ...CallOption) (*ObjectSearchRes, error) {
 	callOpts := c.defaultCallOptions()
 

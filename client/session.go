@@ -38,6 +38,10 @@ func (x CreateSessionRes) SessionKey() []byte {
 	return x.sessionKey
 }
 
+// CreateSession creates session through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) CreateSession(ctx context.Context, expiration uint64, opts ...CallOption) (*CreateSessionRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()

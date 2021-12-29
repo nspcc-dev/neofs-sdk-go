@@ -42,6 +42,10 @@ type AnnounceLocalTrustRes struct {
 	statusRes
 }
 
+// AnnounceLocalTrust announces node's local trusts through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustPrm, opts ...CallOption) (*AnnounceLocalTrustRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -133,6 +137,10 @@ type AnnounceIntermediateTrustRes struct {
 	statusRes
 }
 
+// AnnounceIntermediateTrust announces node's intermediate trusts through NeoFS API call.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceIntermediateTrustPrm, opts ...CallOption) (*AnnounceIntermediateTrustRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
