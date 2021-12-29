@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+type BasicACL uint32
+
+func (a BasicACL) String() string {
+	return fmt.Sprintf("0x%x", uint32(a))
+}
+
 const (
 	// PublicBasicRule is a basic ACL value for final public-read-write container for which extended ACL CANNOT be set.
 	PublicBasicRule = 0x1FBFBFFF
