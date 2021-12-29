@@ -25,3 +25,29 @@ const (
 	// EACLPublicAppendRule is a basic ACL value for non-final public-append container for which extended ACL CAN be set.
 	EACLPublicAppendRule = 0x0FBF9FFF
 )
+
+const (
+	// PublicBasicName is a well-known name for 0x1FBFBFFF basic ACL.
+	PublicBasicName = "public-read-write"
+
+	// PrivateBasicName is a well-known name for 0x1C8C8CCC basic ACL.
+	PrivateBasicName = "private"
+
+	// ReadOnlyBasicName is a well-known name for 0x1FBF8CFF basic ACL.
+	ReadOnlyBasicName = "public-read"
+
+	// PublicAppendName is a well-known name for 0x1FBF9FFF basic ACL.
+	PublicAppendName = "public-append"
+
+	// EACLPublicBasicName is a well-known name for 0x0FBFBFFF basic ACL.
+	EACLPublicBasicName = "eacl-public-read-write"
+
+	// EACLPrivateBasicName is a well-known name for 0x0C8C8CCC basic ACL.
+	EACLPrivateBasicName = "eacl-private"
+
+	// EACLReadOnlyBasicName is a well-known name for 0x0FBF8CFF basic ACL.
+	EACLReadOnlyBasicName = "eacl-public-read"
+
+	// EACLPublicAppendName is a well-known name for 0x0FBF9FFF basic ACL.
+	EACLPublicAppendName = "eacl-public-append"
+)
