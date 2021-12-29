@@ -12,7 +12,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// EACLWithSignature represents eACL table/signature pair.
+// EndpointInfo represents versioned information about the node
+// specified in the client.
 type EndpointInfo struct {
 	version *version.Version
 
@@ -24,7 +25,7 @@ func (e *EndpointInfo) LatestVersion() *version.Version {
 	return e.version
 }
 
-// NodeInfo returns returns information about the NeoFS node.
+// NodeInfo returns information about the NeoFS node.
 func (e *EndpointInfo) NodeInfo() *netmap.NodeInfo {
 	return e.ni
 }

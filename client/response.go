@@ -19,7 +19,7 @@ func (x ResponseMetaInfo) ResponderKey() []byte {
 	return x.key
 }
 
-// WithResponseInfoHandler allows to specify handler of response meta information for the all Client operations.
+// WithResponseInfoHandler allows specifying handler of response meta information for the all Client operations.
 // The handler is called right after the response is received. Client returns handler's error immediately.
 func WithResponseInfoHandler(f func(ResponseMetaInfo) error) Option {
 	return func(opts *clientOptions) {
