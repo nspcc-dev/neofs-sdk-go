@@ -1,5 +1,11 @@
 package acl
 
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
 const (
 	// PublicBasicRule is a basic ACL value for final public-read-write container for which extended ACL CANNOT be set.
 	PublicBasicRule = 0x1FBFBFFF
@@ -51,3 +57,34 @@ const (
 	// EACLPublicAppendName is a well-known name for 0x0FBF9FFF basic ACL.
 	EACLPublicAppendName = "eacl-public-append"
 )
+
+// ParseBasicACL parse string ACL (well-known names or hex representation).
+func ParseBasicACL(basicACL string) (uint32, error) {
+	switch basicACL {
+	case PublicBasicName:
+		return PublicBasicRule, nil
+	case PrivateBasicName:
+		return PrivateBasicRule, nil
+	case ReadOnlyBasicName:
+		return ReadOnlyBasicRule, nil
+	case PublicAppendName:
+		return PublicAppendRule, nil
+	case EACLPublicBasicName:
+		return EACLPublicBasicRule, nil
+	case EACLPrivateBasicName:
+		return EACLPrivateBasicRule, nil
+	case EACLReadOnlyBasicName:
+		return EACLReadOnlyBasicRule, nil
+	case EACLPublicAppendName:
+		return EACLPublicAppendRule, nil
+	default:
+		basicACL = strings.Trim(strings.ToLower(basicACL), "0x")
+
+		value, err := strconv.ParseUint(basicACL, 16, 32)
+		if err != nil {
+			return 0, fmt.Errorf("can't parse basic ACL: %s", basicACL)
+		}
+
+		return uint32(value), nil
+	}
+}
