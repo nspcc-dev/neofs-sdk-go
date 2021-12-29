@@ -47,6 +47,9 @@ func (x *EndpointInfoRes) setInfo(info *EndpointInfo) {
 // EndpointInfo returns attributes, address and public key of the node, specified
 // in client constructor via address or open connection. This can be used as a
 // health check to see if node is alive and responses to requests.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) EndpointInfo(ctx context.Context, opts ...CallOption) (*EndpointInfoRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
@@ -116,6 +119,9 @@ func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
 }
 
 // NetworkInfo returns information about the NeoFS network of which the remote server is a part.
+//
+// Any client's internal or transport errors are returned as error,
+// NeoFS status codes are included in the returned results.
 func (c *Client) NetworkInfo(ctx context.Context, opts ...CallOption) (*NetworkInfoRes, error) {
 	// apply all available options
 	callOptions := c.defaultCallOptions()
