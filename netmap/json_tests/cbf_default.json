@@ -1,0 +1,100 @@
+{
+  "name": "default CBF is 3",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "St.Petersburg"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "DE"
+        },
+        {
+          "key": "City",
+          "value": "Berlin"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "FR"
+        },
+        {
+          "key": "City",
+          "value": "Paris"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "set default CBF": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "EU"
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [
+          {
+            "name": "EU",
+            "count": 1,
+            "clause": "SAME",
+            "attribute": "Location",
+            "filter": "*"
+          }
+        ],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2
+        ]
+      ]
+    }
+  }
+}

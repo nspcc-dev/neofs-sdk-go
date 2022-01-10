@@ -1,0 +1,159 @@
+{
+  "name": "CBF requirements",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "1"
+        },
+        {
+          "key": "Attr",
+          "value": "Same"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "2"
+        },
+        {
+          "key": "Attr",
+          "value": "Same"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "3"
+        },
+        {
+          "key": "Attr",
+          "value": "Same"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "4"
+        },
+        {
+          "key": "Attr",
+          "value": "Same"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "default CBF, no selector": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 2,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          2,
+          1,
+          3
+        ]
+      ]
+    },
+    "explicit CBF, no selector": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 2,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 3,
+        "selectors": [],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          2,
+          1,
+          3
+        ]
+      ]
+    },
+    "select distinct, weak CBF": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 2,
+            "selector": "X"
+          }
+        ],
+        "containerBackupFactor": 3,
+        "selectors": [
+          {
+            "name": "X",
+            "count": 2,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "*"
+          }
+        ],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          2,
+          1,
+          3
+        ]
+      ]
+    },
+    "select same, weak CBF": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 2,
+            "selector": "X"
+          }
+        ],
+        "containerBackupFactor": 3,
+        "selectors": [
+          {
+            "name": "X",
+            "count": 2,
+            "clause": "SAME",
+            "attribute": "Attr",
+            "filter": "*"
+          }
+        ],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2,
+          3
+        ]
+      ]
+    }
+  }
+}

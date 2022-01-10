@@ -1,0 +1,109 @@
+{
+  "name": "unnamed selector (nspcc-dev/neofs-api-go#213)",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "City",
+          "value": "Saint-Petersburg"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "Sweden"
+        },
+        {
+          "key": "City",
+          "value": "Stockholm"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Location",
+          "value": "Europe"
+        },
+        {
+          "key": "Country",
+          "value": "Finalnd"
+        },
+        {
+          "key": "City",
+          "value": "Helsinki"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "test": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 4,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "",
+            "count": 4,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "LOC_EU"
+          }
+        ],
+        "filters": [
+          {
+            "name": "LOC_EU",
+            "key": "Location",
+            "op": "EQ",
+            "value": "Europe",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2,
+          3
+        ]
+      ]
+    }
+  }
+}

@@ -1,0 +1,254 @@
+{
+  "name": "subnet tests",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "0"
+        },
+        {
+          "key": "City",
+          "value": "Paris"
+        },
+        {
+          "key": "__NEOFS__SUBNET_0",
+          "value": "False"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "1"
+        },
+        {
+          "key": "City",
+          "value": "Paris"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "2"
+        },
+        {
+          "key": "City",
+          "value": "London"
+        },
+        {
+          "key": "__NEOFS__SUBNET_1",
+          "value": "True"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "3"
+        },
+        {
+          "key": "City",
+          "value": "London"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "4"
+        },
+        {
+          "key": "City",
+          "value": "Toronto"
+        },
+        {
+          "key": "__NEOFS__SUBNET_1",
+          "value": "True"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "5"
+        },
+        {
+          "key": "City",
+          "value": "Toronto"
+        },
+        {
+          "key": "__NEOFS__SUBNET_2",
+          "value": "True"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "6"
+        },
+        {
+          "key": "City",
+          "value": "Tokyo"
+        },
+        {
+          "key": "__NEOFS__SUBNET_2",
+          "value": "True"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "7"
+        },
+        {
+          "key": "City",
+          "value": "Tokyo"
+        },
+        {
+          "key": "__NEOFS__SUBNET_2",
+          "value": "True"
+        }
+      ],
+      "state": "UNSPECIFIED"
+    }
+  ],
+  "tests": {
+    "select from default subnet, fail": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 2,
+            "clause": "SAME",
+            "attribute": "City",
+            "filter": "F"
+          }
+        ],
+        "filters": [
+          {
+            "name": "F",
+            "key": "City",
+            "op": "EQ",
+            "value": "Paris",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "select from default subnet, success": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 2,
+            "clause": "SAME",
+            "attribute": "City",
+            "filter": "F"
+          }
+        ],
+        "filters": [
+          {
+            "name": "F",
+            "key": "City",
+            "op": "EQ",
+            "value": "Toronto",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          4,
+          5
+        ]
+      ]
+    },
+    "select from non-default subnet, success": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 3,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [],
+        "filters": [],
+        "subnetId": {
+          "value": 2
+        }
+      },
+      "result": [
+        [
+          5,
+          6,
+          7
+        ]
+      ]
+    },
+    "select subnet via filters": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "SAME",
+            "attribute": "City",
+            "filter": "F"
+          }
+        ],
+        "filters": [
+          {
+            "name": "F",
+            "key": "__NEOFS_SUBNET.2.ENABLED",
+            "op": "EQ",
+            "value": "True"
+          }
+        ]
+      },
+      "error": "not enough nodes"
+    }
+  }
+}

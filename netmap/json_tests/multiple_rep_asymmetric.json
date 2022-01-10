@@ -1,0 +1,332 @@
+{
+  "name": "multiple REP, asymmetric",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "1"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "St.Petersburg"
+        },
+        {
+          "key": "SSD",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "2"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "St.Petersburg"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "3"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "4"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "5"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "St.Petersburg"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "6"
+        },
+        {
+          "key": "Continent",
+          "value": "NA"
+        },
+        {
+          "key": "City",
+          "value": "NewYork"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "7"
+        },
+        {
+          "key": "Continent",
+          "value": "AF"
+        },
+        {
+          "key": "City",
+          "value": "Cairo"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "8"
+        },
+        {
+          "key": "Continent",
+          "value": "AF"
+        },
+        {
+          "key": "City",
+          "value": "Cairo"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "9"
+        },
+        {
+          "key": "Continent",
+          "value": "SA"
+        },
+        {
+          "key": "City",
+          "value": "Lima"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "10"
+        },
+        {
+          "key": "Continent",
+          "value": "AF"
+        },
+        {
+          "key": "City",
+          "value": "Cairo"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "11"
+        },
+        {
+          "key": "Continent",
+          "value": "NA"
+        },
+        {
+          "key": "City",
+          "value": "NewYork"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "12"
+        },
+        {
+          "key": "Continent",
+          "value": "NA"
+        },
+        {
+          "key": "City",
+          "value": "LosAngeles"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "13"
+        },
+        {
+          "key": "Continent",
+          "value": "SA"
+        },
+        {
+          "key": "City",
+          "value": "Lima"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "test": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "SPB"
+          },
+          {
+            "count": 2,
+            "selector": "Americas"
+          }
+        ],
+        "containerBackupFactor": 2,
+        "selectors": [
+          {
+            "name": "SPB",
+            "count": 1,
+            "clause": "SAME",
+            "attribute": "City",
+            "filter": "SPBSSD"
+          },
+          {
+            "name": "Americas",
+            "count": 2,
+            "clause": "DISTINCT",
+            "attribute": "City",
+            "filter": "Americas"
+          }
+        ],
+        "filters": [
+          {
+            "name": "SPBSSD",
+            "key": "",
+            "op": "AND",
+            "value": "",
+            "filters": [
+              {
+                "name": "",
+                "key": "Country",
+                "op": "EQ",
+                "value": "RU",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "City",
+                "op": "EQ",
+                "value": "St.Petersburg",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "SSD",
+                "op": "EQ",
+                "value": "1",
+                "filters": []
+              }
+            ]
+          },
+          {
+            "name": "Americas",
+            "key": "",
+            "op": "OR",
+            "value": "",
+            "filters": [
+              {
+                "name": "",
+                "key": "Continent",
+                "op": "EQ",
+                "value": "NA",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "Continent",
+                "op": "EQ",
+                "value": "SA",
+                "filters": []
+              }
+            ]
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          1,
+          4
+        ],
+        [
+          8,
+          12,
+          5,
+          10
+        ]
+      ]
+    }
+  }
+}

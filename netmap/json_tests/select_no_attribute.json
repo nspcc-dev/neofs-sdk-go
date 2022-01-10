@@ -1,0 +1,117 @@
+{
+  "name": "select with unspecified attribute",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "1"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "St.Petersburg"
+        },
+        {
+          "key": "SSD",
+          "value": "0"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "2"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "St.Petersburg"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "3"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "4"
+        },
+        {
+          "key": "Country",
+          "value": "RU"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        },
+        {
+          "key": "SSD",
+          "value": "1"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "test": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "X"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "X",
+            "count": 4,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "*"
+          }
+        ],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2,
+          3
+        ]
+      ]
+    }
+  }
+}
