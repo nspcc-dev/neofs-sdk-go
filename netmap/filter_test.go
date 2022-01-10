@@ -85,121 +85,20 @@ func TestContext_ProcessFiltersInvalid(t *testing.T) {
 	}
 }
 
-func TestFilter_MatchSimple(t *testing.T) {
+func TestFilter_MatchSimple_InvalidOp(t *testing.T) {
 	b := &Node{AttrMap: map[string]string{
 		"Rating":  "4",
 		"Country": "Germany",
 	}}
-	testCases := []struct {
-		name string
-		ok   bool
-		f    *Filter
-	}{
-		{
-			"GE_true", true,
-			newFilter("Main", "Rating", "4", OpGE),
-		},
-		{
-			"GE_false", false,
-			newFilter("Main", "Rating", "5", OpGE),
-		},
-		{
-			"GT_true", true,
-			newFilter("Main", "Rating", "3", OpGT),
-		},
-		{
-			"GT_false", false,
-			newFilter("Main", "Rating", "4", OpGT),
-		},
-		{
-			"LE_true", true,
-			newFilter("Main", "Rating", "4", OpLE),
-		},
-		{
-			"LE_false", false,
-			newFilter("Main", "Rating", "3", OpLE),
-		},
-		{
-			"LT_true", true,
-			newFilter("Main", "Rating", "5", OpLT),
-		},
-		{
-			"LT_false", false,
-			newFilter("Main", "Rating", "4", OpLT),
-		},
-		{
-			"EQ_true", true,
-			newFilter("Main", "Country", "Germany", OpEQ),
-		},
-		{
-			"EQ_false", false,
-			newFilter("Main", "Country", "China", OpEQ),
-		},
-		{
-			"NE_true", true,
-			newFilter("Main", "Country", "France", OpNE),
-		},
-		{
-			"NE_false", false,
-			newFilter("Main", "Country", "Germany", OpNE),
-		},
-	}
-	for _, tc := range testCases {
-		c := NewContext(new(Netmap))
-		p := newPlacementPolicy(1, nil, nil, []*Filter{tc.f})
-		require.NoError(t, c.processFilters(p))
-		require.Equal(t, tc.ok, c.match(tc.f, b))
-	}
 
-	t.Run("InvalidOp", func(t *testing.T) {
-		f := newFilter("Main", "Rating", "5", OpEQ)
-		c := NewContext(new(Netmap))
-		p := newPlacementPolicy(1, nil, nil, []*Filter{f})
-		require.NoError(t, c.processFilters(p))
-
-		// just for the coverage
-		f.SetOperation(0)
-		require.False(t, c.match(f, b))
-	})
-}
-
-func TestFilter_Match(t *testing.T) {
-	fs := []*Filter{
-		newFilter("StorageSSD", "Storage", "SSD", OpEQ),
-		newFilter("GoodRating", "Rating", "4", OpGE),
-		newFilter("Main", "", "", OpAND,
-			newFilter("StorageSSD", "", "", 0),
-			newFilter("", "IntField", "123", OpLT),
-			newFilter("GoodRating", "", "", 0),
-			newFilter("", "", "", OpOR,
-				newFilter("", "Param", "Value1", OpEQ),
-				newFilter("", "Param", "Value2", OpEQ),
-			)),
-	}
+	f := newFilter("Main", "Rating", "5", OpEQ)
 	c := NewContext(new(Netmap))
-	p := newPlacementPolicy(1, nil, nil, fs)
+	p := newPlacementPolicy(1, nil, nil, []*Filter{f})
 	require.NoError(t, c.processFilters(p))
 
-	t.Run("Good", func(t *testing.T) {
-		n := getTestNode("Storage", "SSD", "Rating", "10", "IntField", "100", "Param", "Value1")
-		require.True(t, c.applyFilter("Main", n))
-	})
-	t.Run("InvalidStorage", func(t *testing.T) {
-		n := getTestNode("Storage", "HDD", "Rating", "10", "IntField", "100", "Param", "Value1")
-		require.False(t, c.applyFilter("Main", n))
-	})
-	t.Run("InvalidRating", func(t *testing.T) {
-		n := getTestNode("Storage", "SSD", "Rating", "3", "IntField", "100", "Param", "Value1")
-		require.False(t, c.applyFilter("Main", n))
-	})
-	t.Run("InvalidIntField", func(t *testing.T) {
-		n := getTestNode("Storage", "SSD", "Rating", "3", "IntField", "str", "Param", "Value1")
-		require.False(t, c.applyFilter("Main", n))
-	})
-	t.Run("InvalidParam", func(t *testing.T) {
-		n := getTestNode("Storage", "SSD", "Rating", "3", "IntField", "100", "Param", "NotValue")
-		require.False(t, c.applyFilter("Main", n))
-	})
+	// just for the coverage
+	f.SetOperation(0)
+	require.False(t, c.match(f, b))
 }
 
 func testFilter() *Filter {

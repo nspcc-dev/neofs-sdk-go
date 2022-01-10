@@ -1,0 +1,101 @@
+{
+  "name": "Real node count multiplier is in range [1, specified CBF]",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "1"
+        },
+        {
+          "key": "Country",
+          "value": "DE"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "2"
+        },
+        {
+          "key": "Country",
+          "value": "DE"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "ID",
+          "value": "3"
+        },
+        {
+          "key": "Country",
+          "value": "DE"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "select 2, CBF is 2": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "X"
+          }
+        ],
+        "containerBackupFactor": 2,
+        "selectors": [
+          {
+            "name": "X",
+            "count": 2,
+            "clause": "SAME",
+            "attribute": "Country",
+            "filter": "*"
+          }
+        ],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2
+        ]
+      ]
+    },
+    "select 3, CBF is 2": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "X"
+          }
+        ],
+        "containerBackupFactor": 2,
+        "selectors": [
+          {
+            "name": "X",
+            "count": 3,
+            "clause": "SAME",
+            "attribute": "Country",
+            "filter": "*"
+          }
+        ],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2
+        ]
+      ]
+    }
+  }
+}

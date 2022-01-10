@@ -1,0 +1,113 @@
+{
+  "name": "REP X",
+  "nodes": [
+    {
+      "publicKey": "",
+      "addresses": [],
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Saint-Petersburg",
+          "parents": []
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "publicKey": "",
+      "addresses": [],
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Moscow",
+          "parents": []
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "publicKey": "",
+      "addresses": [],
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Berlin",
+          "parents": []
+        }
+      ],
+      "state": "UNSPECIFIED"
+    },
+    {
+      "publicKey": "",
+      "addresses": [],
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Paris",
+          "parents": []
+        }
+      ],
+      "state": "UNSPECIFIED"
+    }
+  ],
+  "tests": {
+    "REP 1": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          1,
+          2
+        ]
+      ]
+    },
+    "REP 3": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 3,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [],
+        "filters": [],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0,
+          3,
+          1,
+          2
+        ]
+      ]
+    },
+    "REP 5": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 5,
+            "selector": ""
+          }
+        ],
+        "containerBackupFactor": 0,
+        "selectors": [],
+        "filters": [],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    }
+  }
+}

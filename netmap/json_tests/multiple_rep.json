@@ -1,0 +1,95 @@
+{
+  "name": "multiple replicas (#215)",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Saint-Petersburg"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Moscow"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Berlin"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "City",
+          "value": "Paris"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "test": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "LOC_SPB_PLACE"
+          },
+          {
+            "count": 1,
+            "selector": "LOC_MSK_PLACE"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "LOC_SPB_PLACE",
+            "count": 1,
+            "clause": "CLAUSE_UNSPECIFIED",
+            "attribute": "",
+            "filter": "LOC_SPB"
+          },
+          {
+            "name": "LOC_MSK_PLACE",
+            "count": 1,
+            "clause": "CLAUSE_UNSPECIFIED",
+            "attribute": "",
+            "filter": "LOC_MSK"
+          }
+        ],
+        "filters": [
+          {
+            "name": "LOC_SPB",
+            "key": "City",
+            "op": "EQ",
+            "value": "Saint-Petersburg",
+            "filters": []
+          },
+          {
+            "name": "LOC_MSK",
+            "key": "City",
+            "op": "EQ",
+            "value": "Moscow",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ],
+        [
+          1
+        ]
+      ]
+    }
+  }
+}

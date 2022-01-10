@@ -1,0 +1,104 @@
+{
+  "name": "invalid selections",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Germany"
+        }
+      ]
+    },
+    {
+      "attributes": []
+    }
+  ],
+  "tests": {
+    "missing filter": {
+      "policy": {
+        "replicas": [],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "MyStore",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "Country",
+            "filter": "FromNL"
+          }
+        ],
+        "filters": [
+          {
+            "name": "FromRU",
+            "key": "Country",
+            "op": "EQ",
+            "value": "Russia",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "filter not found"
+    },
+    "not enough nodes (backup factor)": {
+      "policy": {
+        "replicas": [],
+        "containerBackupFactor": 2,
+        "selectors": [
+          {
+            "name": "MyStore",
+            "count": 2,
+            "clause": "DISTINCT",
+            "attribute": "Country",
+            "filter": "FromRU"
+          }
+        ],
+        "filters": [
+          {
+            "name": "FromRU",
+            "key": "Country",
+            "op": "EQ",
+            "value": "Russia",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "not enough nodes (buckets)": {
+      "policy": {
+        "replicas": [],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "MyStore",
+            "count": 2,
+            "clause": "DISTINCT",
+            "attribute": "Country",
+            "filter": "FromRU"
+          }
+        ],
+        "filters": [
+          {
+            "name": "FromRU",
+            "key": "Country",
+            "op": "EQ",
+            "value": "Russia",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    }
+  }
+}

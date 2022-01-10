@@ -1,0 +1,387 @@
+{
+  "name": "compound filter",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "Storage",
+          "value": "SSD"
+        },
+        {
+          "key": "Rating",
+          "value": "10"
+        },
+        {
+          "key": "IntField",
+          "value": "100"
+        },
+        {
+          "key": "Param",
+          "value": "Value1"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "good": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "StorageSSD",
+            "key": "Storage",
+            "op": "EQ",
+            "value": "SSD",
+            "filters": []
+          },
+          {
+            "name": "GoodRating",
+            "key": "Rating",
+            "op": "GE",
+            "value": "4",
+            "filters": []
+          },
+          {
+            "name": "Main",
+            "key": "",
+            "op": "AND",
+            "value": "",
+            "filters": [
+              {
+                "name": "StorageSSD",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "IntField",
+                "op": "LT",
+                "value": "123",
+                "filters": []
+              },
+              {
+                "name": "GoodRating",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "",
+                "op": "OR",
+                "value": "",
+                "filters": [
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value1",
+                    "filters": []
+                  },
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value2",
+                    "filters": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "bad storage type": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "StorageSSD",
+            "key": "Storage",
+            "op": "EQ",
+            "value": "HDD",
+            "filters": []
+          },
+          {
+            "name": "GoodRating",
+            "key": "Rating",
+            "op": "GE",
+            "value": "4",
+            "filters": []
+          },
+          {
+            "name": "Main",
+            "key": "",
+            "op": "AND",
+            "value": "",
+            "filters": [
+              {
+                "name": "StorageSSD",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "IntField",
+                "op": "LT",
+                "value": "123",
+                "filters": []
+              },
+              {
+                "name": "GoodRating",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "",
+                "op": "OR",
+                "value": "",
+                "filters": [
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value1",
+                    "filters": []
+                  },
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value2",
+                    "filters": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "bad rating": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "StorageSSD",
+            "key": "Storage",
+            "op": "EQ",
+            "value": "SSD",
+            "filters": []
+          },
+          {
+            "name": "GoodRating",
+            "key": "Rating",
+            "op": "GE",
+            "value": "15",
+            "filters": []
+          },
+          {
+            "name": "Main",
+            "key": "",
+            "op": "AND",
+            "value": "",
+            "filters": [
+              {
+                "name": "StorageSSD",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "IntField",
+                "op": "LT",
+                "value": "123",
+                "filters": []
+              },
+              {
+                "name": "GoodRating",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "",
+                "op": "OR",
+                "value": "",
+                "filters": [
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value1",
+                    "filters": []
+                  },
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value2",
+                    "filters": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "bad param": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "StorageSSD",
+            "key": "Storage",
+            "op": "EQ",
+            "value": "SSD",
+            "filters": []
+          },
+          {
+            "name": "GoodRating",
+            "key": "Rating",
+            "op": "GE",
+            "value": "4",
+            "filters": []
+          },
+          {
+            "name": "Main",
+            "key": "",
+            "op": "AND",
+            "value": "",
+            "filters": [
+              {
+                "name": "StorageSSD",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "IntField",
+                "op": "LT",
+                "value": "123",
+                "filters": []
+              },
+              {
+                "name": "GoodRating",
+                "key": "",
+                "op": "OPERATION_UNSPECIFIED",
+                "value": "",
+                "filters": []
+              },
+              {
+                "name": "",
+                "key": "",
+                "op": "OR",
+                "value": "",
+                "filters": [
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value0",
+                    "filters": []
+                  },
+                  {
+                    "name": "",
+                    "key": "Param",
+                    "op": "EQ",
+                    "value": "Value2",
+                    "filters": []
+                  }
+                ]
+              }
+            ]
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    }
+  }
+}

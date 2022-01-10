@@ -1,0 +1,415 @@
+{
+  "name": "single-op filters",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "Rating",
+          "value": "4"
+        },
+        {
+          "key": "Country",
+          "value": "Germany"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "GE true": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "GE",
+            "value": "4",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "GE false": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "GE",
+            "value": "5",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "GT true": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "GT",
+            "value": "3",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "GT false": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "GT",
+            "value": "4",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "LE true": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "LE",
+            "value": "4",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "LE false": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "LE",
+            "value": "3",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "LT true": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "LT",
+            "value": "5",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "LT false": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Rating",
+            "op": "LT",
+            "value": "4",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "EQ true": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Country",
+            "op": "EQ",
+            "value": "Germany",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "EQ false": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Country",
+            "op": "EQ",
+            "value": "China",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    },
+    "NE true": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Country",
+            "op": "NE",
+            "value": "France",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "result": [
+        [
+          0
+        ]
+      ]
+    },
+    "NE false": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "Country",
+            "op": "NE",
+            "value": "Germany",
+            "filters": []
+          }
+        ],
+        "subnetId": null
+      },
+      "error": "not enough nodes"
+    }
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "name": "invalid integer field",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "IntegerField",
+          "value": ""
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "IntegerField",
+          "value": "str"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "empty string is not casted to 0": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "IntegerField",
+            "op": "LE",
+            "value": "8",
+            "filters": []
+          }
+        ]
+      },
+      "error": "not enough nodes"
+    },
+    "non-empty string is not casted to a number": {
+      "policy": {
+        "replicas": [
+          {
+            "count": 1,
+            "selector": "S"
+          }
+        ],
+        "containerBackupFactor": 1,
+        "selectors": [
+          {
+            "name": "S",
+            "count": 1,
+            "clause": "DISTINCT",
+            "attribute": "",
+            "filter": "Main"
+          }
+        ],
+        "filters": [
+          {
+            "name": "Main",
+            "key": "IntegerField",
+            "op": "GE",
+            "value": "0",
+            "filters": []
+          }
+        ]
+      },
+      "error": "not enough nodes"
+    }
+  }
+}
