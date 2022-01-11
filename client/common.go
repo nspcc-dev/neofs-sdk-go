@@ -58,7 +58,8 @@ type processResponseV2Res struct {
 //
 // Actions:
 //  * verify signature (internal);
-//  * call response callback (internal).
+//  * call response callback (internal);
+//  * unwrap status error (optional).
 func (c *Client) processResponseV2(res *processResponseV2Res, prm processResponseV2Prm) bool {
 	// verify response structure
 	if isInvalidSignatureV2(res, prm.resp) {
@@ -71,10 +72,18 @@ func (c *Client) processResponseV2(res *processResponseV2Res, prm processRespons
 		return true
 	}
 
-	// set result status
+	// get result status
 	st := apistatus.FromStatusV2(prm.resp.GetMetaHeader().GetStatus())
+
+	// unwrap unsuccessful status and return it
+	// as error if client has been configured so
+	unsuccessfulStatus := !apistatus.IsSuccessful(st)
+	if unsuccessfulStatus && c.opts.parseNeoFSErrors {
+		res.cliErr = apistatus.ErrFromStatus(st)
+		return true
+	}
 
 	res.statusRes.setStatus(st)
 
-	return !apistatus.IsSuccessful(st)
+	return unsuccessfulStatus
 }

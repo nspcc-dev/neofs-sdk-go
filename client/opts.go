@@ -35,6 +35,12 @@ type (
 		rawOpts []client.Option
 
 		cbRespInfo func(ResponseMetaInfo) error
+
+		// defines if client parses erroneous NeoFS
+		// statuses and returns them as `error`
+		//
+		// default is false
+		parseNeoFSErrors bool
 	}
 
 	v2SessionReqInfo struct {
@@ -193,5 +199,14 @@ func WithURIAddress(addr string, tlsCfg *tls.Config) Option {
 func WithGRPCConnection(grpcConn *grpc.ClientConn) Option {
 	return func(opts *clientOptions) {
 		opts.rawOpts = append(opts.rawOpts, client.WithGRPCConn(grpcConn))
+	}
+}
+
+// WithNeoFSErrorParsing returns option that makes client parse
+// erroneous NeoFS statuses and return them as `error` of the method
+// call.
+func WithNeoFSErrorParsing() Option {
+	return func(opts *clientOptions) {
+		opts.parseNeoFSErrors = true
 	}
 }
