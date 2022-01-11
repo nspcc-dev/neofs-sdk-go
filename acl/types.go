@@ -41,27 +41,35 @@ const (
 
 const (
 	// PublicBasicName is a well-known name for 0x1FBFBFFF basic ACL.
+	// It represents fully-public container without eACL.
 	PublicBasicName = "public-read-write"
 
 	// PrivateBasicName is a well-known name for 0x1C8C8CCC basic ACL.
+	// It represents fully-private container without eACL.
 	PrivateBasicName = "private"
 
 	// ReadOnlyBasicName is a well-known name for 0x1FBF8CFF basic ACL.
+	// It represents public read-only container without eACL.
 	ReadOnlyBasicName = "public-read"
 
 	// PublicAppendName is a well-known name for 0x1FBF9FFF basic ACL.
+	// It represents fully-public container without eACL except DELETE operation is only allowed on the owner.
 	PublicAppendName = "public-append"
 
 	// EACLPublicBasicName is a well-known name for 0x0FBFBFFF basic ACL.
+	// It represents fully-public container that allows eACL.
 	EACLPublicBasicName = "eacl-public-read-write"
 
 	// EACLPrivateBasicName is a well-known name for 0x0C8C8CCC basic ACL.
+	// It represents fully-private container that allows eACL.
 	EACLPrivateBasicName = "eacl-private"
 
 	// EACLReadOnlyBasicName is a well-known name for 0x0FBF8CFF basic ACL.
+	// It represents public read-only container that allows eACL.
 	EACLReadOnlyBasicName = "eacl-public-read"
 
 	// EACLPublicAppendName is a well-known name for 0x0FBF9FFF basic ACL.
+	// It represents fully-public container that allows eACL except DELETE operation is only allowed on the owner.
 	EACLPublicAppendName = "eacl-public-append"
 )
 
