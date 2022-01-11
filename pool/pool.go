@@ -18,7 +18,6 @@ import (
 	apiclient "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
@@ -274,7 +273,8 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 		for j, address := range params.addresses {
 			c, err := options.clientBuilder(client.WithDefaultPrivateKey(options.Key),
 				client.WithURIAddress(address, nil),
-				client.WithDialTimeout(options.NodeConnectionTimeout))
+				client.WithDialTimeout(options.NodeConnectionTimeout),
+				client.WithNeoFSErrorParsing())
 			if err != nil {
 				return nil, err
 			}
@@ -531,11 +531,8 @@ func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, op
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.PutObject(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -556,11 +553,7 @@ func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectPara
 		return err
 	}
 
-	res, err := cp.client.DeleteObject(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
+	_, err = cp.client.DeleteObject(ctx, params, options...)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -578,11 +571,8 @@ func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, op
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.GetObject(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -602,11 +592,8 @@ func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderP
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.HeadObject(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -626,11 +613,8 @@ func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeD
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.ObjectPayloadRangeData(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -667,10 +651,6 @@ func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.Rang
 	// SHA256 by default, no need to do smth
 
 	res, err := cp.client.HashObjectPayloadRanges(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -709,10 +689,6 @@ func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChe
 	params.TZ()
 
 	res, err := cp.client.HashObjectPayloadRanges(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -744,11 +720,8 @@ func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectPara
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.SearchObjects(ctx, params, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -768,11 +741,8 @@ func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts 
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.PutContainer(ctx, cnr, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -792,11 +762,8 @@ func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.GetContainer(ctx, cid, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -816,11 +783,8 @@ func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...Ca
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.ListContainers(ctx, ownerID, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -840,11 +804,8 @@ func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOpt
 	if err != nil {
 		return err
 	}
-	res, err := cp.client.DeleteContainer(ctx, cid, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
+
+	_, err = cp.client.DeleteContainer(ctx, cid, options...)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -862,11 +823,8 @@ func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*e
 	if err != nil {
 		return nil, err
 	}
+
 	res, err := cp.client.EACL(ctx, cid, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -886,11 +844,8 @@ func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOptio
 	if err != nil {
 		return err
 	}
-	res, err := cp.client.SetEACL(ctx, table, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
+
+	_, err = cp.client.SetEACL(ctx, table, options...)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -908,11 +863,8 @@ func (p *pool) AnnounceContainerUsedSpace(ctx context.Context, announce []contai
 	if err != nil {
 		return err
 	}
-	res, err := cp.client.AnnounceContainerUsedSpace(ctx, announce, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
+
+	_, err = cp.client.AnnounceContainerUsedSpace(ctx, announce, options...)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -932,12 +884,7 @@ func (p *pool) Balance(ctx context.Context, o *owner.ID, opts ...CallOption) (*a
 	}
 
 	res, err := cp.client.GetBalance(ctx, o, options...)
-	if err == nil {
-		// reflect status failures in err
-		err = apistatus.ErrFromStatus(res.Status())
-	}
-
-	if err != nil {
+	if err != nil { // here err already carries both status and client errors
 		return nil, err
 	}
 
