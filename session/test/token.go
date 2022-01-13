@@ -1,7 +1,9 @@
 package sessiontest
 
 import (
-	"math/rand"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -31,11 +33,13 @@ func Token() *session.Token {
 		panic(err)
 	}
 
-	w := new(owner.NEO3Wallet)
-	rand.Read(w.Bytes())
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	if err != nil {
+		panic(err)
+	}
 
 	ownerID := owner.NewID()
-	ownerID.SetNeo3Wallet(w)
+	ownerID.SetPublicKey(&priv.PublicKey)
 
 	keyBin := p.PublicKey().Bytes()
 

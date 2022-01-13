@@ -2,12 +2,15 @@ package owner
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
@@ -15,6 +18,12 @@ import (
 type ID refs.OwnerID
 
 var errInvalidIDString = errors.New("incorrect format of the string owner ID")
+
+// ErrEmptyPublicKey when public key passed to Verify method is nil.
+var ErrEmptyPublicKey = errors.New("empty public key")
+
+// NEO3WalletSize contains size of neo3 wallet.
+const NEO3WalletSize = 25
 
 // NewIDFromV2 wraps v2 OwnerID message to ID.
 //
@@ -33,9 +42,9 @@ func NewID() *ID {
 	return NewIDFromV2(new(refs.OwnerID))
 }
 
-// SetNeo3Wallet sets owner identifier value to NEO3 wallet address.
-func (id *ID) SetNeo3Wallet(v *NEO3Wallet) {
-	(*refs.OwnerID)(id).SetValue(v.Bytes())
+// SetPublicKey sets owner identifier value to the provided NEO3 public key.
+func (id *ID) SetPublicKey(pub *ecdsa.PublicKey) {
+	(*refs.OwnerID)(id).SetValue(PublicKeyToIDBytes(pub))
 }
 
 // ToV2 returns the v2 owner ID message.
@@ -60,12 +69,18 @@ func (id *ID) Equal(id2 *ID) bool {
 	)
 }
 
-// NewIDFromNeo3Wallet creates new owner identity from 25-byte neo wallet.
-func NewIDFromNeo3Wallet(v *NEO3Wallet) *ID {
+// NewIDFromPublicKey creates new owner identity from ECDSA public key.
+func NewIDFromPublicKey(pub *ecdsa.PublicKey) *ID {
 	id := NewID()
-	id.SetNeo3Wallet(v)
+	id.SetPublicKey(pub)
 
 	return id
+}
+
+// NewIDFromPublicKey creates new owner identity from N3 wallet account.
+func NewIDFromN3Account(acc *wallet.Account) *ID {
+	return NewIDFromPublicKey(
+		(*ecdsa.PublicKey)(acc.PrivateKey().PublicKey()))
 }
 
 // Parse converts base58 string representation into ID.
@@ -122,4 +137,16 @@ func (id *ID) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes ID from protobuf JSON format.
 func (id *ID) UnmarshalJSON(data []byte) error {
 	return (*refs.OwnerID)(id).UnmarshalJSON(data)
+}
+
+// PublicKeyToIDBytes converts public key to a byte slice of NEO3WalletSize length.
+// It is similar to decoding a NEO3 address but is inlined to skip base58 encoding-decoding step
+// make it clear that no errors can occur.
+func PublicKeyToIDBytes(pub *ecdsa.PublicKey) []byte {
+	sh := (*keys.PublicKey)(pub).GetScriptHash()
+	b := make([]byte, NEO3WalletSize)
+	b[0] = address.Prefix
+	copy(b[1:], sh.BytesBE())
+	copy(b[21:], hash.Checksum(b[:21]))
+	return b
 }

@@ -23,10 +23,7 @@ func TestBearerToken_Issuer(t *testing.T) {
 		p, err := keys.NewPrivateKey()
 		require.NoError(t, err)
 
-		wallet, err := owner.NEO3WalletFromPublicKey((*ecdsa.PublicKey)(p.PublicKey()))
-		require.NoError(t, err)
-
-		ownerID := owner.NewIDFromNeo3Wallet(wallet)
+		ownerID := owner.NewIDFromPublicKey((*ecdsa.PublicKey)(p.PublicKey()))
 
 		bearerToken.SetEACLTable(eacl.NewTable())
 		require.NoError(t, bearerToken.SignToken(&p.PrivateKey))

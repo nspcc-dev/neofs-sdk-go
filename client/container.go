@@ -82,13 +82,7 @@ func (c *Client) PutContainer(ctx context.Context, cnr *container.Container, opt
 
 	// if container owner is not set, then use client key as owner
 	if cnr.OwnerID() == nil {
-		w, err := owner.NEO3WalletFromPublicKey(&callOptions.key.PublicKey)
-		if err != nil {
-			return nil, err
-		}
-
-		ownerID := new(owner.ID)
-		ownerID.SetNeo3Wallet(w)
+		ownerID := owner.NewIDFromPublicKey(&callOptions.key.PublicKey)
 
 		cnr.SetOwnerID(ownerID)
 	}
@@ -270,13 +264,7 @@ func (c *Client) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...
 	}
 
 	if ownerID == nil {
-		w, err := owner.NEO3WalletFromPublicKey(&callOptions.key.PublicKey)
-		if err != nil {
-			return nil, err
-		}
-
-		ownerID = new(owner.ID)
-		ownerID.SetNeo3Wallet(w)
+		ownerID = owner.NewIDFromPublicKey(&callOptions.key.PublicKey)
 	}
 
 	reqBody := new(v2container.ListRequestBody)

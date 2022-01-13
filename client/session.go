@@ -50,13 +50,7 @@ func (c *Client) CreateSession(ctx context.Context, expiration uint64, opts ...C
 		opts[i](callOptions)
 	}
 
-	w, err := owner.NEO3WalletFromPublicKey(&callOptions.key.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
-	ownerID := new(owner.ID)
-	ownerID.SetNeo3Wallet(w)
+	ownerID := owner.NewIDFromPublicKey(&callOptions.key.PublicKey)
 
 	reqBody := new(v2session.CreateRequestBody)
 	reqBody.SetOwnerID(ownerID.ToV2())
@@ -66,7 +60,7 @@ func (c *Client) CreateSession(ctx context.Context, expiration uint64, opts ...C
 	req.SetBody(reqBody)
 	req.SetMetaHeader(v2MetaHeaderFromOpts(callOptions))
 
-	err = v2signature.SignServiceMessage(callOptions.key, req)
+	err := v2signature.SignServiceMessage(callOptions.key, req)
 	if err != nil {
 		return nil, err
 	}

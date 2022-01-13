@@ -91,12 +91,10 @@ func (b *BearerToken) SignToken(key *ecdsa.PrivateKey) error {
 // nil if token is not signed.
 func (b *BearerToken) Issuer() *owner.ID {
 	pub, _ := keys.NewPublicKeyFromBytes(b.token.GetSignature().GetKey(), elliptic.P256())
-	wallet, err := owner.NEO3WalletFromPublicKey((*ecdsa.PublicKey)(pub))
-	if err != nil {
+	if pub == nil {
 		return nil
 	}
-
-	return owner.NewIDFromNeo3Wallet(wallet)
+	return owner.NewIDFromPublicKey((*ecdsa.PublicKey)(pub))
 }
 
 // NewBearerToken creates and initializes blank BearerToken.
