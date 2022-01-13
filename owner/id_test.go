@@ -7,6 +7,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	. "github.com/nspcc-dev/neofs-sdk-go/owner"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
@@ -49,26 +50,28 @@ func TestID_Valid(t *testing.T) {
 	})
 }
 
-func TestNewIDFromNeo3Wallet(t *testing.T) {
+func TestNewIDFromN3Account(t *testing.T) {
+	acc, err := wallet.NewAccount()
+	require.NoError(t, err)
+
+	id := NewIDFromN3Account(acc)
+	require.Equal(t, id.String(), acc.Address)
+}
+
+func TestNewIDFromPublicKey(t *testing.T) {
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	wallet, err := NEO3WalletFromPublicKey((*ecdsa.PublicKey)(p.PublicKey()))
-	require.NoError(t, err)
-
-	id := NewIDFromNeo3Wallet(wallet)
-	require.Equal(t, id.ToV2().GetValue(), wallet.Bytes())
+	id := NewIDFromPublicKey((*ecdsa.PublicKey)(p.PublicKey()))
+	require.Equal(t, id.String(), p.Address())
 }
 
 func TestID_Parse(t *testing.T) {
 	t.Run("should parse successful", func(t *testing.T) {
-		p, err := keys.NewPrivateKey()
+		acc, err := wallet.NewAccount()
 		require.NoError(t, err)
 
-		wallet, err := NEO3WalletFromPublicKey((*ecdsa.PublicKey)(p.PublicKey()))
-		require.NoError(t, err)
-
-		eid := NewIDFromNeo3Wallet(wallet)
+		eid := NewIDFromN3Account(acc)
 		aid := NewID()
 
 		require.NoError(t, aid.Parse(eid.String()))

@@ -254,17 +254,12 @@ type innerPool struct {
 }
 
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
-	wallet, err := owner.NEO3WalletFromPublicKey(&options.Key.PublicKey)
-	if err != nil {
-		return nil, err
-	}
-
 	cache, err := NewCache()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
 
-	ownerID := owner.NewIDFromNeo3Wallet(wallet)
+	ownerID := owner.NewIDFromPublicKey(&options.Key.PublicKey)
 
 	inner := make([]*innerPool, len(options.nodesParams))
 	var atLeastOneHealthy bool
@@ -498,11 +493,7 @@ func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client
 				return nil, nil, err
 			}
 
-			wallet, err := owner.NEO3WalletFromPublicKey(&key.PublicKey)
-			if err != nil {
-				return nil, nil, err
-			}
-			ownerID := owner.NewIDFromNeo3Wallet(wallet)
+			ownerID := owner.NewIDFromPublicKey(&key.PublicKey)
 			sessionToken = sessionTokenForOwner(ownerID, cliRes)
 
 			_ = p.cache.Put(cacheKey, sessionToken)

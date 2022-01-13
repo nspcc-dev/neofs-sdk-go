@@ -511,9 +511,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.True(t, ok)
 
 	anonKey := newPrivateKey(t)
-	wallet, err := owner.NEO3WalletFromPublicKey(&anonKey.PublicKey)
-	require.NoError(t, err)
-	anonOwner := owner.NewIDFromNeo3Wallet(wallet)
+	anonOwner := owner.NewIDFromPublicKey(&anonKey.PublicKey)
 
 	cfg := cfgFromOpts(WithKey(anonKey), useDefaultSession())
 	cp, _, err := p.conn(ctx, cfg)

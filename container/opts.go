@@ -1,6 +1,8 @@
 package container
 
 import (
+	"crypto/ecdsa"
+
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -61,13 +63,13 @@ func WithOwnerID(id *owner.ID) Option {
 	}
 }
 
-func WithNEO3Wallet(w *owner.NEO3Wallet) Option {
+func WithOwnerPublicKey(pub *ecdsa.PublicKey) Option {
 	return func(option *containerOptions) {
 		if option.owner == nil {
 			option.owner = new(owner.ID)
 		}
 
-		option.owner.SetNeo3Wallet(w)
+		option.owner.SetPublicKey(pub)
 	}
 }
 
