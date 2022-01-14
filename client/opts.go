@@ -27,6 +27,9 @@ type (
 		key      *ecdsa.PrivateKey
 		session  *session.Token
 		bearer   *token.BearerToken
+		// network magic is a client config, but it's convenient to copy it here (see v2MetaHeaderFromOpts)
+		// the value remains the same between calls
+		netMagic uint64
 	}
 
 	clientOptions struct {
@@ -41,6 +44,8 @@ type (
 		//
 		// default is false
 		parseNeoFSErrors bool
+
+		netMagic uint64
 	}
 
 	v2SessionReqInfo struct {
@@ -56,6 +61,8 @@ func (c *Client) defaultCallOptions() *callOptions {
 		version: version.Current(),
 		ttl:     2,
 		key:     c.opts.key,
+		// copy client's static value is a bit overhead, but it is the easiest way at the time of feature intro
+		netMagic: c.opts.netMagic,
 	}
 }
 
@@ -114,6 +121,8 @@ func v2MetaHeaderFromOpts(options *callOptions) *v2session.RequestMetaHeader {
 	}
 
 	meta.SetSessionToken(options.session.ToV2())
+
+	meta.SetNetworkMagic(options.netMagic)
 
 	return meta
 }
@@ -208,5 +217,12 @@ func WithGRPCConnection(grpcConn *grpc.ClientConn) Option {
 func WithNeoFSErrorParsing() Option {
 	return func(opts *clientOptions) {
 		opts.parseNeoFSErrors = true
+	}
+}
+
+// WithNetworkMagic returns option to specify NeoFS network magic.
+func WithNetworkMagic(magic uint64) Option {
+	return func(opts *clientOptions) {
+		opts.netMagic = magic
 	}
 }
