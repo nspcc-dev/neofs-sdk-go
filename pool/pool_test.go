@@ -15,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -480,6 +481,46 @@ func newToken(t *testing.T) *session.Token {
 	tok.SetID(uid)
 
 	return tok
+}
+
+func TestSessionTokenOwner(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	clientBuilder := func(opts ...client.Option) (Client, error) {
+		mockClient := NewMockClient(ctrl)
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any(), gomock.Any()).Return(&client.CreateSessionRes{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
+		return mockClient, nil
+	}
+
+	pb := new(Builder)
+	pb.AddNode("peer0", 1, 1)
+
+	opts := &BuilderOptions{
+		Key:           newPrivateKey(t),
+		clientBuilder: clientBuilder,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pp, err := pb.Build(ctx, opts)
+	require.NoError(t, err)
+	t.Cleanup(pp.Close)
+
+	p, ok := pp.(*pool)
+	require.True(t, ok)
+
+	anonKey := newPrivateKey(t)
+	wallet, err := owner.NEO3WalletFromPublicKey(&anonKey.PublicKey)
+	require.NoError(t, err)
+	anonOwner := owner.NewIDFromNeo3Wallet(wallet)
+
+	cfg := cfgFromOpts(WithKey(anonKey), useDefaultSession())
+	cp, _, err := p.conn(ctx, cfg)
+	require.NoError(t, err)
+
+	tkn := p.cache.Get(formCacheKey(cp.address, anonKey))
+	require.True(t, anonOwner.Equal(tkn.OwnerID()))
 }
 
 func TestWaitPresence(t *testing.T) {
