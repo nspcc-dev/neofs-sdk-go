@@ -498,7 +498,12 @@ func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client
 				return nil, nil, err
 			}
 
-			sessionToken = p.newSessionToken(cliRes)
+			wallet, err := owner.NEO3WalletFromPublicKey(&key.PublicKey)
+			if err != nil {
+				return nil, nil, err
+			}
+			ownerID := owner.NewIDFromNeo3Wallet(wallet)
+			sessionToken = sessionTokenForOwner(ownerID, cliRes)
 
 			_ = p.cache.Put(cacheKey, sessionToken)
 		}
