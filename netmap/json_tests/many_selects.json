@@ -1,0 +1,192 @@
+{
+  "name": "single-op filters",
+  "nodes": [
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "Rating",
+          "value": "1"
+        },
+        {
+          "key": "City",
+          "value": "SPB"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Germany"
+        },
+        {
+          "key": "Rating",
+          "value": "5"
+        },
+        {
+          "key": "City",
+          "value": "Berlin"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "Rating",
+          "value": "6"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "France"
+        },
+        {
+          "key": "Rating",
+          "value": "4"
+        },
+        {
+          "key": "City",
+          "value": "Paris"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "France"
+        },
+        {
+          "key": "Rating",
+          "value": "1"
+        },
+        {
+          "key": "City",
+          "value": "Lyon"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "Rating",
+          "value": "5"
+        },
+        {
+          "key": "City",
+          "value": "SPB"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "Rating",
+          "value": "7"
+        },
+        {
+          "key": "City",
+          "value": "Moscow"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Germany"
+        },
+        {
+          "key": "Rating",
+          "value": "3"
+        },
+        {
+          "key": "City",
+          "value": "Darmstadt"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Germany"
+        },
+        {
+          "key": "Rating",
+          "value": "7"
+        },
+        {
+          "key": "City",
+          "value": "Frankfurt"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "Rating",
+          "value": "9"
+        },
+        {
+          "key": "City",
+          "value": "SPB"
+        }
+      ]
+    },
+    {
+      "attributes": [
+        {
+          "key": "Country",
+          "value": "Russia"
+        },
+        {
+          "key": "Rating",
+          "value": "9"
+        },
+        {
+          "key": "City",
+          "value": "SPB"
+        }
+      ]
+    }
+  ],
+  "tests": {
+    "Select": {
+      "policy": {"replicas":[{"count":1,"selector":"SameRU"},{"count":1,"selector":"DistinctRU"},{"count":1,"selector":"Good"},{"count":1,"selector":"Main"}],"containerBackupFactor":2,"selectors":[{"name":"SameRU","count":2,"clause":"SAME","attribute":"City","filter":"FromRU"},{"name":"DistinctRU","count":2,"clause":"DISTINCT","attribute":"City","filter":"FromRU"},{"name":"Good","count":2,"clause":"DISTINCT","attribute":"Country","filter":"Good"},{"name":"Main","count":3,"clause":"DISTINCT","attribute":"Country","filter":"*"}],"filters":[{"name":"FromRU","key":"Country","op":"EQ","value":"Russia"},{"name":"Good","key":"Rating","op":"GE","value":"4"}]},
+      "result": [
+        [0, 5, 9, 10],
+        [2, 6, 0, 5],
+        [1, 8, 2, 5],
+        [3, 4, 1, 7, 0, 2]
+      ]
+    }
+  }
+}
