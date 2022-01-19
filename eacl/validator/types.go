@@ -1,7 +1,8 @@
-package eacl
+package validator
 
 import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 )
 
 // Header is an interface of string key-value header.
@@ -18,22 +19,22 @@ type TypedHeaderSource interface {
 	//
 	// It returns any problem encountered through the boolean
 	// false value.
-	HeadersOfType(FilterHeaderType) ([]Header, bool)
+	HeadersOfType(eacl.FilterHeaderType) ([]Header, bool)
 }
 
 // ValidationUnit represents unit of check for Validator.
 type ValidationUnit struct {
 	cid *cid.ID
 
-	role Role
+	role eacl.Role
 
-	op Operation
+	op eacl.Operation
 
 	hdrSrc TypedHeaderSource
 
 	key []byte
 
-	table *Table
+	table *eacl.Table
 }
 
 // WithContainerID configures ValidationUnit to use v as request's container ID.
@@ -46,7 +47,7 @@ func (u *ValidationUnit) WithContainerID(v *cid.ID) *ValidationUnit {
 }
 
 // WithRole configures ValidationUnit to use v as request's role.
-func (u *ValidationUnit) WithRole(v Role) *ValidationUnit {
+func (u *ValidationUnit) WithRole(v eacl.Role) *ValidationUnit {
 	if u != nil {
 		u.role = v
 	}
@@ -55,7 +56,7 @@ func (u *ValidationUnit) WithRole(v Role) *ValidationUnit {
 }
 
 // WithOperation configures ValidationUnit to use v as request's operation.
-func (u *ValidationUnit) WithOperation(v Operation) *ValidationUnit {
+func (u *ValidationUnit) WithOperation(v eacl.Operation) *ValidationUnit {
 	if u != nil {
 		u.op = v
 	}
@@ -81,10 +82,10 @@ func (u *ValidationUnit) WithSenderKey(v []byte) *ValidationUnit {
 	return u
 }
 
-// WithBearerToken configures ValidationUnit to use v as request's bearer token.
-func (u *ValidationUnit) WithEACLTable(table *Table) *ValidationUnit {
+// WithEACLTable configures ValidationUnit to use v as request's eACL table.
+func (u *ValidationUnit) WithEACLTable(v *eacl.Table) *ValidationUnit {
 	if u != nil {
-		u.table = table
+		u.table = v
 	}
 
 	return u

@@ -1,7 +1,9 @@
-package eacl
+package validator
 
 import (
 	"bytes"
+
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 )
 
 // Validator is a tool that calculates
@@ -10,8 +12,8 @@ import (
 type Validator struct {
 }
 
-// NewValidator creates and initializes a new Validator using options.
-func NewValidator() *Validator {
+// New creates and initializes a new Validator using options.
+func New() *Validator {
 	return &Validator{}
 }
 
@@ -22,7 +24,7 @@ func NewValidator() *Validator {
 // eACL table of rules to the request.
 //
 // If no matching table entry is found, ActionAllow is returned.
-func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
+func (v *Validator) CalculateAction(unit *ValidationUnit) eacl.Action {
 	for _, record := range unit.table.Records() {
 		// check type of operation
 		if record.Operation() != unit.op {
@@ -38,20 +40,20 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
 		switch val := matchFilters(unit.hdrSrc, record.Filters()); {
 		case val < 0:
 			// headers of some type could not be composed => allow
-			return ActionAllow
+			return eacl.ActionAllow
 		case val == 0:
 			return record.Action()
 		}
 	}
 
-	return ActionAllow
+	return eacl.ActionAllow
 }
 
 // returns:
 //  - positive value if no matching header is found for at least one filter;
 //  - zero if at least one suitable header is found for all filters;
 //  - negative value if the headers of at least one filter cannot be obtained.
-func matchFilters(hdrSrc TypedHeaderSource, filters []*Filter) int {
+func matchFilters(hdrSrc TypedHeaderSource, filters []*eacl.Filter) int {
 	matched := 0
 
 	for _, filter := range filters {
@@ -95,7 +97,7 @@ func matchFilters(hdrSrc TypedHeaderSource, filters []*Filter) int {
 
 // returns true if one of ExtendedACLTarget has
 // suitable target OR suitable public key.
-func targetMatches(unit *ValidationUnit, record *Record) bool {
+func targetMatches(unit *ValidationUnit, record *eacl.Record) bool {
 	for _, target := range record.Targets() {
 		// check public key match
 		if pubs := target.BinaryKeys(); len(pubs) != 0 {
@@ -117,12 +119,12 @@ func targetMatches(unit *ValidationUnit, record *Record) bool {
 }
 
 // Maps match type to corresponding function.
-var mMatchFns = map[Match]func(Header, *Filter) bool{
-	MatchStringEqual: func(header Header, filter *Filter) bool {
+var mMatchFns = map[eacl.Match]func(Header, *eacl.Filter) bool{
+	eacl.MatchStringEqual: func(header Header, filter *eacl.Filter) bool {
 		return header.Value() == filter.Value()
 	},
 
-	MatchStringNotEqual: func(header Header, filter *Filter) bool {
+	eacl.MatchStringNotEqual: func(header Header, filter *eacl.Filter) bool {
 		return header.Value() != filter.Value()
 	},
 }
