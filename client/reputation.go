@@ -37,6 +37,7 @@ type AnnounceLocalTrustRes struct {
 
 // AnnounceLocalTrust sends client's trust values to the NeoFS network participants.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -45,8 +46,8 @@ type AnnounceLocalTrustRes struct {
 // Immediately panics if parameters are set incorrectly (see AnnounceLocalTrustPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in AnnounceLocalTrustRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustPrm) (*AnnounceLocalTrustRes, error) {
 	// check parameters
 	switch {
@@ -134,6 +135,7 @@ type AnnounceIntermediateTrustRes struct {
 // AnnounceIntermediateTrust sends global trust values calculated for the specified NeoFS network participants
 // at some stage of client's calculation algorithm.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -142,8 +144,8 @@ type AnnounceIntermediateTrustRes struct {
 // Immediately panics if parameters are set incorrectly (see AnnounceIntermediateTrustPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in AnnounceIntermediateTrustRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceIntermediateTrustPrm) (*AnnounceIntermediateTrustRes, error) {
 	// check parameters
 	switch {

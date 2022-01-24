@@ -43,6 +43,7 @@ func (x GetBalanceRes) Amount() *accounting.Decimal {
 
 // GetBalance requests current balance of the NeoFS account.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -51,8 +52,8 @@ func (x GetBalanceRes) Amount() *accounting.Decimal {
 // Immediately panics if parameters are set incorrectly (see GetBalancePrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in GetBalanceRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) GetBalance(ctx context.Context, prm GetBalancePrm) (*GetBalanceRes, error) {
 	switch {
 	case ctx == nil:
