@@ -52,6 +52,7 @@ func (x CreateSessionRes) PublicKey() []byte {
 // The session lifetime coincides with the server lifetime. Results can be written
 // to session token which can be later attached to the requests.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -60,8 +61,8 @@ func (x CreateSessionRes) PublicKey() []byte {
 // Immediately panics if parameters are set incorrectly (see CreateSessionPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in CreateSessionRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) CreateSession(ctx context.Context, prm CreateSessionPrm) (*CreateSessionRes, error) {
 	// check context
 	if ctx == nil {

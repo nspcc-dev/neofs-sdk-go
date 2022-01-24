@@ -55,6 +55,7 @@ func (x *ContainerPutRes) setID(id *cid.ID) {
 
 // PutContainer sends request to save container in NeoFS.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -68,8 +69,8 @@ func (x *ContainerPutRes) setID(id *cid.ID) {
 // Immediately panics if parameters are set incorrectly (see ContainerPutPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ContainerPutRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) PutContainer(ctx context.Context, prm ContainerPutPrm) (*ContainerPutRes, error) {
 	// check parameters
 	switch {
@@ -166,8 +167,9 @@ func (x *ContainerGetRes) setContainer(cnr *container.Container) {
 	x.cnr = cnr
 }
 
-// GetContainer reads NeoFS container from by ID.
+// GetContainer reads NeoFS container by ID.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -176,8 +178,8 @@ func (x *ContainerGetRes) setContainer(cnr *container.Container) {
 // Immediately panics if parameters are set incorrectly (see ContainerGetPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ContainerGetRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) GetContainer(ctx context.Context, prm ContainerGetPrm) (*ContainerGetRes, error) {
 	switch {
 	case ctx == nil:
@@ -267,6 +269,7 @@ func (x *ContainerListRes) setContainers(ids []*cid.ID) {
 
 // ListContainers requests identifiers of the account-owned containers.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -275,8 +278,8 @@ func (x *ContainerListRes) setContainers(ids []*cid.ID) {
 // Immediately panics if parameters are set incorrectly (see ContainerListPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ContainerListRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) ListContainers(ctx context.Context, prm ContainerListPrm) (*ContainerListRes, error) {
 	// check parameters
 	switch {
@@ -365,6 +368,7 @@ func (c delContainerSignWrapper) SignedDataSize() int {
 
 // DeleteContainer sends request to remove the NeoFS container.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -380,6 +384,9 @@ func (c delContainerSignWrapper) SignedDataSize() int {
 //
 // Exactly one return value is non-nil. Server status return is returned in ContainerDeleteRes.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
+//
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) DeleteContainer(ctx context.Context, prm ContainerDeletePrm) (*ContainerDeleteRes, error) {
 	// check parameters
 	switch {
@@ -475,6 +482,7 @@ func (x *EACLRes) setTable(table *eacl.Table) {
 
 // EACL reads eACL table of the NeoFS container.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -483,8 +491,8 @@ func (x *EACLRes) setTable(table *eacl.Table) {
 // Immediately panics if parameters are set incorrectly (see EACLPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in EACLRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) EACL(ctx context.Context, prm EACLPrm) (*EACLRes, error) {
 	// check parameters
 	switch {
@@ -564,6 +572,7 @@ type SetEACLRes struct {
 
 // SetEACL sends request to update eACL table of the NeoFS container.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -577,8 +586,8 @@ type SetEACLRes struct {
 // Immediately panics if parameters are set incorrectly (see SetEACLPrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ContainerDeleteRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) SetEACL(ctx context.Context, prm SetEACLPrm) (*SetEACLRes, error) {
 	// check parameters
 	switch {
@@ -658,6 +667,7 @@ type AnnounceSpaceRes struct {
 
 // AnnounceContainerUsedSpace sends request to announce volume of the space used for the container objects.
 //
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
 // If WithNeoFSErrorParsing option has been provided, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
@@ -671,8 +681,8 @@ type AnnounceSpaceRes struct {
 // Immediately panics if parameters are set incorrectly (see AnnounceSpacePrm docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in AnnounceSpaceRes.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) AnnounceContainerUsedSpace(ctx context.Context, prm AnnounceSpacePrm) (*AnnounceSpaceRes, error) {
 	// check parameters
 	switch {

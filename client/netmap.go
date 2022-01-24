@@ -61,6 +61,9 @@ func (x *EndpointInfoRes) setNodeInfo(info *netmap.NodeInfo) {
 //
 // Exactly one return value is non-nil. Server status return is returned in EndpointInfoRes.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
+//
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) EndpointInfo(ctx context.Context, _ EndpointInfoPrm) (*EndpointInfoRes, error) {
 	// check context
 	if ctx == nil {
@@ -136,6 +139,9 @@ func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
 //
 // Exactly one return value is non-nil. Server status return is returned in NetworkInfoRes.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
+//
+// Return statuses:
+//  - global (see Client docs).
 func (c *Client) NetworkInfo(ctx context.Context, _ NetworkInfoPrm) (*NetworkInfoRes, error) {
 	// check context
 	if ctx == nil {
