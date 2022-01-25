@@ -237,6 +237,8 @@ func (t *Token) Context() interface{} {
 		return nil
 	case *session.ContainerSessionContext:
 		return ContainerContextFromV2(c)
+	case *session.ObjectSessionContext:
+		return ObjectContextFromV2(c)
 	}
 }
 

@@ -57,7 +57,7 @@ func TestContainerContext_ApplyTo(t *testing.T) {
 	})
 }
 
-func TestFilter_ToV2(t *testing.T) {
+func TestContextFilter_ToV2(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		var x *session.ContainerContext
 
