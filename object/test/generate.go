@@ -1,46 +1,17 @@
 package objecttest
 
 import (
-	"crypto/sha256"
-	"math/rand"
-
 	"github.com/google/uuid"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	sigtest "github.com/nspcc-dev/neofs-sdk-go/signature/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
-
-// ID returns random object.ID.
-func ID() *object.ID {
-	checksum := [sha256.Size]byte{}
-
-	rand.Read(checksum[:])
-
-	return IDWithChecksum(checksum)
-}
-
-// IDWithChecksum returns object.ID initialized
-// with specified checksum.
-func IDWithChecksum(cs [sha256.Size]byte) *object.ID {
-	id := object.NewID()
-	id.SetSHA256(cs)
-
-	return id
-}
-
-// Address returns random object.Address.
-func Address() *object.Address {
-	x := object.NewAddress()
-
-	x.SetContainerID(cidtest.ID())
-	x.SetObjectID(ID())
-
-	return x
-}
 
 // Range returns random object.Range.
 func Range() *object.Range {
@@ -74,7 +45,7 @@ func SplitID() *object.SplitID {
 func generateRaw(withParent bool) *object.RawObject {
 	x := object.NewRaw()
 
-	x.SetID(ID())
+	x.SetID(test.ID())
 	x.SetSessionToken(sessiontest.Token())
 	x.SetPayload([]byte{1, 2, 3})
 	x.SetOwnerID(ownertest.ID())
@@ -83,9 +54,9 @@ func generateRaw(withParent bool) *object.RawObject {
 	x.SetVersion(version.Current())
 	x.SetPayloadSize(111)
 	x.SetCreationEpoch(222)
-	x.SetPreviousID(ID())
-	x.SetParentID(ID())
-	x.SetChildren(ID(), ID())
+	x.SetPreviousID(test.ID())
+	x.SetParentID(test.ID())
+	x.SetChildren(test.ID(), test.ID())
 	x.SetAttributes(Attribute(), Attribute())
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
@@ -115,7 +86,7 @@ func Tombstone() *object.Tombstone {
 
 	x.SetSplitID(SplitID())
 	x.SetExpirationEpoch(13)
-	x.SetMembers([]*object.ID{ID(), ID()})
+	x.SetMembers([]*oid.ID{test.ID(), test.ID()})
 
 	return x
 }
@@ -125,8 +96,8 @@ func SplitInfo() *object.SplitInfo {
 	x := object.NewSplitInfo()
 
 	x.SetSplitID(SplitID())
-	x.SetLink(ID())
-	x.SetLastPart(ID())
+	x.SetLink(test.ID())
+	x.SetLastPart(test.ID())
 
 	return x
 }
@@ -135,7 +106,7 @@ func SplitInfo() *object.SplitInfo {
 func SearchFilters() object.SearchFilters {
 	x := object.NewSearchFilters()
 
-	x.AddObjectIDFilter(object.MatchStringEqual, ID())
+	x.AddObjectIDFilter(object.MatchStringEqual, test.ID())
 	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.ID())
 
 	return x

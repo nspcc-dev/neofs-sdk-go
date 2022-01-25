@@ -7,8 +7,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/audit"
 	audittest "github.com/nspcc-dev/neofs-sdk-go/audit/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -40,11 +40,11 @@ func TestResult(t *testing.T) {
 	r.SetRetries(retries)
 	require.Equal(t, retries, r.Retries())
 
-	passSG := []*object.ID{objecttest.ID(), objecttest.ID()}
+	passSG := []*oid.ID{test.ID(), test.ID()}
 	r.SetPassSG(passSG)
 	require.Equal(t, passSG, r.PassSG())
 
-	failSG := []*object.ID{objecttest.ID(), objecttest.ID()}
+	failSG := []*oid.ID{test.ID(), test.ID()}
 	r.SetFailSG(failSG)
 	require.Equal(t, failSG, r.FailSG())
 

@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/audit"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -141,7 +141,7 @@ func (r *Result) SetRetries(v uint32) {
 }
 
 // PassSG returns list of Storage Groups that passed audit PoR stage.
-func (r *Result) PassSG() []*object.ID {
+func (r *Result) PassSG() []*oid.ID {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetPassSG()
 
@@ -149,17 +149,17 @@ func (r *Result) PassSG() []*object.ID {
 		return nil
 	}
 
-	m := make([]*object.ID, len(mV2))
+	m := make([]*oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = object.NewIDFromV2(mV2[i])
+		m[i] = oid.NewIDFromV2(mV2[i])
 	}
 
 	return m
 }
 
 // SetPassSG sets list of Storage Groups that passed audit PoR stage.
-func (r *Result) SetPassSG(list []*object.ID) {
+func (r *Result) SetPassSG(list []*oid.ID) {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetPassSG()
 
@@ -183,7 +183,7 @@ func (r *Result) SetPassSG(list []*object.ID) {
 }
 
 // FailSG returns list of Storage Groups that failed audit PoR stage.
-func (r *Result) FailSG() []*object.ID {
+func (r *Result) FailSG() []*oid.ID {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetFailSG()
 
@@ -191,17 +191,17 @@ func (r *Result) FailSG() []*object.ID {
 		return nil
 	}
 
-	m := make([]*object.ID, len(mV2))
+	m := make([]*oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = object.NewIDFromV2(mV2[i])
+		m[i] = oid.NewIDFromV2(mV2[i])
 	}
 
 	return m
 }
 
 // SetFailSG sets list of Storage Groups that failed audit PoR stage.
-func (r *Result) SetFailSG(list []*object.ID) {
+func (r *Result) SetFailSG(list []*oid.ID) {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetFailSG()
 

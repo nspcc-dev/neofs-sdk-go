@@ -17,6 +17,8 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	"github.com/nspcc-dev/neofs-sdk-go/object/address"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	signer "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
@@ -29,17 +31,17 @@ type PutObjectParams struct {
 // ObjectAddressWriter is an interface of the
 // component that writes the object address.
 type ObjectAddressWriter interface {
-	SetAddress(*object.Address)
+	SetAddress(*address.Address)
 }
 
 type DeleteObjectParams struct {
-	addr *object.Address
+	addr *address.Address
 
 	tombTgt ObjectAddressWriter
 }
 
 type GetObjectParams struct {
-	addr *object.Address
+	addr *address.Address
 
 	raw bool
 
@@ -49,7 +51,7 @@ type GetObjectParams struct {
 }
 
 type ObjectHeaderParams struct {
-	addr *object.Address
+	addr *address.Address
 
 	raw bool
 
@@ -57,7 +59,7 @@ type ObjectHeaderParams struct {
 }
 
 type RangeDataParams struct {
-	addr *object.Address
+	addr *address.Address
 
 	raw bool
 
@@ -69,7 +71,7 @@ type RangeDataParams struct {
 type RangeChecksumParams struct {
 	tz bool
 
-	addr *object.Address
+	addr *address.Address
 
 	rs []*object.Range
 
@@ -186,14 +188,14 @@ func (p *PutObjectParams) PayloadReader() io.Reader {
 type ObjectPutRes struct {
 	statusRes
 
-	id *object.ID
+	id *oid.ID
 }
 
-func (x *ObjectPutRes) setID(id *object.ID) {
+func (x *ObjectPutRes) setID(id *oid.ID) {
 	x.id = id
 }
 
-func (x ObjectPutRes) ID() *object.ID {
+func (x ObjectPutRes) ID() *oid.ID {
 	return x.id
 }
 
@@ -317,14 +319,14 @@ func (c *Client) PutObject(ctx context.Context, p *PutObjectParams, opts ...Call
 	}
 
 	// convert object identifier
-	id := object.NewIDFromV2(resp.GetBody().GetObjectID())
+	id := oid.NewIDFromV2(resp.GetBody().GetObjectID())
 
 	res.setID(id)
 
 	return res, nil
 }
 
-func (p *DeleteObjectParams) WithAddress(v *object.Address) *DeleteObjectParams {
+func (p *DeleteObjectParams) WithAddress(v *address.Address) *DeleteObjectParams {
 	if p != nil {
 		p.addr = v
 	}
@@ -332,7 +334,7 @@ func (p *DeleteObjectParams) WithAddress(v *object.Address) *DeleteObjectParams 
 	return p
 }
 
-func (p *DeleteObjectParams) Address() *object.Address {
+func (p *DeleteObjectParams) Address() *address.Address {
 	if p != nil {
 		return p.addr
 	}
@@ -361,14 +363,14 @@ func (p *DeleteObjectParams) TombstoneAddressTarget() ObjectAddressWriter {
 type ObjectDeleteRes struct {
 	statusRes
 
-	tombAddr *object.Address
+	tombAddr *address.Address
 }
 
-func (x ObjectDeleteRes) TombstoneAddress() *object.Address {
+func (x ObjectDeleteRes) TombstoneAddress() *address.Address {
 	return x.tombAddr
 }
 
-func (x *ObjectDeleteRes) setTombstoneAddress(addr *object.Address) {
+func (x *ObjectDeleteRes) setTombstoneAddress(addr *address.Address) {
 	x.tombAddr = addr
 }
 
@@ -444,12 +446,12 @@ func (c *Client) DeleteObject(ctx context.Context, p *DeleteObjectParams, opts .
 
 	addrv2 := resp.GetBody().GetTombstone()
 
-	res.setTombstoneAddress(object.NewAddressFromV2(addrv2))
+	res.setTombstoneAddress(address.NewAddressFromV2(addrv2))
 
 	return res, nil
 }
 
-func (p *GetObjectParams) WithAddress(v *object.Address) *GetObjectParams {
+func (p *GetObjectParams) WithAddress(v *address.Address) *GetObjectParams {
 	if p != nil {
 		p.addr = v
 	}
@@ -457,7 +459,7 @@ func (p *GetObjectParams) WithAddress(v *object.Address) *GetObjectParams {
 	return p
 }
 
-func (p *GetObjectParams) Address() *object.Address {
+func (p *GetObjectParams) Address() *address.Address {
 	if p != nil {
 		return p.addr
 	}
@@ -753,7 +755,7 @@ loop:
 	return res, nil
 }
 
-func (p *ObjectHeaderParams) WithAddress(v *object.Address) *ObjectHeaderParams {
+func (p *ObjectHeaderParams) WithAddress(v *address.Address) *ObjectHeaderParams {
 	if p != nil {
 		p.addr = v
 	}
@@ -761,7 +763,7 @@ func (p *ObjectHeaderParams) WithAddress(v *object.Address) *ObjectHeaderParams 
 	return p
 }
 
-func (p *ObjectHeaderParams) Address() *object.Address {
+func (p *ObjectHeaderParams) Address() *address.Address {
 	if p != nil {
 		return p.addr
 	}
@@ -937,7 +939,7 @@ func (c *Client) HeadObject(ctx context.Context, p *ObjectHeaderParams, opts ...
 	return res, nil
 }
 
-func (p *RangeDataParams) WithAddress(v *object.Address) *RangeDataParams {
+func (p *RangeDataParams) WithAddress(v *address.Address) *RangeDataParams {
 	if p != nil {
 		p.addr = v
 	}
@@ -945,7 +947,7 @@ func (p *RangeDataParams) WithAddress(v *object.Address) *RangeDataParams {
 	return p
 }
 
-func (p *RangeDataParams) Address() *object.Address {
+func (p *RangeDataParams) Address() *address.Address {
 	if p != nil {
 		return p.addr
 	}
@@ -1141,7 +1143,7 @@ func (c *Client) ObjectPayloadRangeData(ctx context.Context, p *RangeDataParams,
 	return res, nil
 }
 
-func (p *RangeChecksumParams) WithAddress(v *object.Address) *RangeChecksumParams {
+func (p *RangeChecksumParams) WithAddress(v *address.Address) *RangeChecksumParams {
 	if p != nil {
 		p.addr = v
 	}
@@ -1149,7 +1151,7 @@ func (p *RangeChecksumParams) WithAddress(v *object.Address) *RangeChecksumParam
 	return p
 }
 
-func (p *RangeChecksumParams) Address() *object.Address {
+func (p *RangeChecksumParams) Address() *address.Address {
 	if p != nil {
 		return p.addr
 	}
@@ -1329,14 +1331,14 @@ func (p *SearchObjectParams) SearchFilters() object.SearchFilters {
 type ObjectSearchRes struct {
 	statusRes
 
-	ids []*object.ID
+	ids []*oid.ID
 }
 
-func (x *ObjectSearchRes) setIDList(v []*object.ID) {
+func (x *ObjectSearchRes) setIDList(v []*oid.ID) {
 	x.ids = v
 }
 
-func (x ObjectSearchRes) IDList() []*object.ID {
+func (x ObjectSearchRes) IDList() []*oid.ID {
 	return x.ids
 }
 
@@ -1394,7 +1396,7 @@ func (c *Client) SearchObjects(ctx context.Context, p *SearchObjectParams, opts 
 	}
 
 	var (
-		searchResult []*object.ID
+		searchResult []*oid.ID
 		resp         = new(v2object.SearchResponse)
 
 		messageWas bool
@@ -1437,7 +1439,7 @@ func (c *Client) SearchObjects(ctx context.Context, p *SearchObjectParams, opts 
 
 		chunk := resp.GetBody().GetIDList()
 		for i := range chunk {
-			searchResult = append(searchResult, object.NewIDFromV2(chunk[i]))
+			searchResult = append(searchResult, oid.NewIDFromV2(chunk[i]))
 		}
 	}
 

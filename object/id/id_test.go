@@ -1,4 +1,4 @@
-package object
+package oid
 
 import (
 	"crypto/rand"
@@ -10,6 +10,20 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/stretchr/testify/require"
 )
+
+func randID(t *testing.T) *ID {
+	id := NewID()
+	id.SetSHA256(randSHA256Checksum(t))
+
+	return id
+}
+
+func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
+	_, err := rand.Read(cs[:])
+	require.NoError(t, err)
+
+	return
+}
 
 func TestIDV2(t *testing.T) {
 	id := NewID()

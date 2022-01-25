@@ -1,4 +1,4 @@
-package object
+package address
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
 // Address represents v2-compatible object address.
@@ -55,13 +56,13 @@ func (a *Address) SetContainerID(id *cid.ID) {
 }
 
 // ObjectID returns object identifier.
-func (a *Address) ObjectID() *ID {
-	return NewIDFromV2(
+func (a *Address) ObjectID() *oid.ID {
+	return oid.NewIDFromV2(
 		(*refs.Address)(a).GetObjectID())
 }
 
 // SetObjectID sets object identifier.
-func (a *Address) SetObjectID(id *ID) {
+func (a *Address) SetObjectID(id *oid.ID) {
 	(*refs.Address)(a).SetObjectID(id.ToV2())
 }
 
@@ -69,7 +70,7 @@ func (a *Address) SetObjectID(id *ID) {
 func (a *Address) Parse(s string) error {
 	var (
 		err   error
-		oid   = NewID()
+		oid   = oid.NewID()
 		id    = cid.New()
 		parts = strings.Split(s, addressSeparator)
 	)

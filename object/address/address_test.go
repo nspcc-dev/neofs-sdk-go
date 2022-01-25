@@ -1,4 +1,4 @@
-package object
+package address
 
 import (
 	"strings"
@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +23,7 @@ func TestAddress_SetContainerID(t *testing.T) {
 func TestAddress_SetObjectID(t *testing.T) {
 	a := NewAddress()
 
-	oid := randID(t)
+	oid := oidtest.ID()
 
 	a.SetObjectID(oid)
 
@@ -32,8 +33,7 @@ func TestAddress_SetObjectID(t *testing.T) {
 func TestAddress_Parse(t *testing.T) {
 	cid := cidtest.ID()
 
-	oid := NewID()
-	oid.SetSHA256(randSHA256Checksum(t))
+	oid := oidtest.ID()
 
 	t.Run("should parse successful", func(t *testing.T) {
 		s := strings.Join([]string{cid.String(), oid.String()}, addressSeparator)
@@ -62,7 +62,7 @@ func TestAddress_Parse(t *testing.T) {
 
 func TestAddressEncoding(t *testing.T) {
 	a := NewAddress()
-	a.SetObjectID(randID(t))
+	a.SetObjectID(oidtest.ID())
 	a.SetContainerID(cidtest.ID())
 
 	t.Run("binary", func(t *testing.T) {

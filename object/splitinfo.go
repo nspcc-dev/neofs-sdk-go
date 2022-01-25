@@ -2,6 +2,7 @@ package object
 
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
 type SplitInfo object.SplitInfo
@@ -39,21 +40,21 @@ func (s *SplitInfo) SetSplitID(v *SplitID) {
 	(*object.SplitInfo)(s).SetSplitID(v.ToV2())
 }
 
-func (s *SplitInfo) LastPart() *ID {
-	return NewIDFromV2(
+func (s *SplitInfo) LastPart() *oid.ID {
+	return oid.NewIDFromV2(
 		(*object.SplitInfo)(s).GetLastPart())
 }
 
-func (s *SplitInfo) SetLastPart(v *ID) {
+func (s *SplitInfo) SetLastPart(v *oid.ID) {
 	(*object.SplitInfo)(s).SetLastPart(v.ToV2())
 }
 
-func (s *SplitInfo) Link() *ID {
-	return NewIDFromV2(
+func (s *SplitInfo) Link() *oid.ID {
+	return oid.NewIDFromV2(
 		(*object.SplitInfo)(s).GetLink())
 }
 
-func (s *SplitInfo) SetLink(v *ID) {
+func (s *SplitInfo) SetLink(v *oid.ID) {
 	(*object.SplitInfo)(s).SetLink(v.ToV2())
 }
 

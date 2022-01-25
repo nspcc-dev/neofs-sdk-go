@@ -22,6 +22,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/token"
@@ -157,14 +158,14 @@ type Pool interface {
 }
 
 type Object interface {
-	PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*object.ID, error)
+	PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*oid.ID, error)
 	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
 	GetObject(ctx context.Context, params *client.GetObjectParams, opts ...CallOption) (*object.Object, error)
 	GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error)
 	ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error)
 	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
 	ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error)
-	SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*object.ID, error)
+	SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*oid.ID, error)
 }
 
 type Container interface {
@@ -540,7 +541,7 @@ func (p *pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*object.ID, error) {
+func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*oid.ID, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {
@@ -729,7 +730,7 @@ func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChe
 	return hs, nil
 }
 
-func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*object.ID, error) {
+func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*oid.ID, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 	cp, options, err := p.conn(ctx, cfg)
 	if err != nil {

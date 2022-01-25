@@ -8,6 +8,7 @@ import (
 
 	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
@@ -45,13 +46,13 @@ func VerifyPayloadChecksum(obj *Object) error {
 }
 
 // CalculateID calculates identifier for the object.
-func CalculateID(obj *Object) (*ID, error) {
+func CalculateID(obj *Object) (*oid.ID, error) {
 	data, err := obj.ToV2().GetHeader().StableMarshal(nil)
 	if err != nil {
 		return nil, err
 	}
 
-	id := NewID()
+	id := oid.NewID()
 	id.SetSHA256(sha256.Sum256(data))
 
 	return id, nil
@@ -85,7 +86,7 @@ func VerifyID(obj *Object) error {
 	return nil
 }
 
-func CalculateIDSignature(key *ecdsa.PrivateKey, id *ID) (*signature.Signature, error) {
+func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signature, error) {
 	sig := signature.New()
 
 	if err := sigutil.SignDataWithHandler(

@@ -6,6 +6,7 @@ import (
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -262,12 +263,12 @@ func (f *SearchFilters) AddPhyFilter() {
 }
 
 // AddParentIDFilter adds filter by parent identifier.
-func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id *ID) {
+func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id *oid.ID) {
 	f.addReservedFilter(m, fKeyParent, id)
 }
 
 // AddObjectIDFilter adds filter by object identifier.
-func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id *ID) {
+func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id *oid.ID) {
 	f.addReservedFilter(m, fKeyObjectID, id)
 }
 
