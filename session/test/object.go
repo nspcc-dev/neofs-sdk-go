@@ -1,0 +1,30 @@
+package sessiontest
+
+import (
+	"math/rand"
+
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
+)
+
+// ObjectContext returns session.ObjectContext
+// which applies to random operation on a random object.
+func ObjectContext() *session.ObjectContext {
+	c := session.NewObjectContext()
+
+	setters := []func(){
+		c.ForPut,
+		c.ForDelete,
+		c.ForHead,
+		c.ForRange,
+		c.ForRangeHash,
+		c.ForSearch,
+		c.ForGet,
+	}
+
+	setters[rand.Uint32()%uint32(len(setters))]()
+
+	c.ApplyTo(oidtest.Address())
+
+	return c
+}
