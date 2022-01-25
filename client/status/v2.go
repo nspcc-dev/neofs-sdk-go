@@ -44,6 +44,8 @@ func FromStatusV2(st *status.Status) Status {
 		switch status.LocalizeCommonFail(&code); code {
 		case status.Internal:
 			decoder = new(ServerInternal)
+		case status.WrongMagicNumber:
+			decoder = new(WrongMagicNumber)
 		}
 	}
 
