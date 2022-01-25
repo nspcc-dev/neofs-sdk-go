@@ -1,6 +1,8 @@
 package apistatus
 
 import (
+	"encoding/binary"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
@@ -52,4 +54,72 @@ func (x ServerInternal) Message() string {
 // WriteInternalServerErr writes err message to ServerInternal instance.
 func WriteInternalServerErr(x *ServerInternal, err error) {
 	x.SetMessage(err.Error())
+}
+
+// WrongMagicNumber describes failure status related to incorrect network magic.
+// Instances provide Status and StatusV2 interfaces.
+type WrongMagicNumber struct {
+	v2 status.Status
+}
+
+func (x WrongMagicNumber) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(status.WrongMagicNumber, status.GlobalizeCommonFail),
+		x.v2.Message(),
+	)
+}
+
+// implements method of the FromStatusV2 local interface.
+func (x *WrongMagicNumber) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//  * code: WRONG_MAGIC_NUMBER;
+//  * string message: empty;
+//  * details: empty.
+func (x WrongMagicNumber) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(status.WrongMagicNumber, status.GlobalizeCommonFail))
+	return &x.v2
+}
+
+// WriteCorrectMagic writes correct network magic.
+func (x *WrongMagicNumber) WriteCorrectMagic(magic uint64) {
+	// serialize the number
+	buf := make([]byte, 8)
+
+	binary.BigEndian.PutUint64(buf, magic)
+
+	// create corresponding detail
+	var d status.Detail
+
+	d.SetID(status.DetailIDCorrectMagic)
+	d.SetValue(buf)
+
+	// attach the detail
+	x.v2.AppendDetails(&d)
+}
+
+// CorrectMagic returns network magic returned by the server.
+// Second value indicates presence status:
+//   * -1 if number is presented in incorrect format
+//   * 0 if number is not presented
+//   * +1 otherwise
+func (x WrongMagicNumber) CorrectMagic() (magic uint64, ok int8) {
+	x.v2.IterateDetails(func(d *status.Detail) bool {
+		if d.ID() == status.DetailIDCorrectMagic {
+			if val := d.Value(); len(val) == 8 {
+				magic = binary.BigEndian.Uint64(val)
+				ok = 1
+			} else {
+				ok = -1
+			}
+		}
+
+		return ok != 0
+	})
+
+	return
 }

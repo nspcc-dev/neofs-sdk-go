@@ -49,6 +49,16 @@ func TestToStatusV2(t *testing.T) {
 			}),
 			codeV2: 1024,
 		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				var st apistatus.WrongMagicNumber
+
+				st.WriteCorrectMagic(322)
+
+				return st
+			}),
+			codeV2: 1025,
+		},
 	} {
 		var st apistatus.Status
 
@@ -116,6 +126,16 @@ func TestFromStatusV2(t *testing.T) {
 				return st
 			}),
 			codeV2: 1024,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				var st apistatus.WrongMagicNumber
+
+				st.WriteCorrectMagic(322)
+
+				return st
+			}),
+			codeV2: 1025,
 		},
 	} {
 		var st apistatus.Status
