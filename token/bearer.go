@@ -11,7 +11,8 @@ import (
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
-	"github.com/nspcc-dev/neofs-sdk-go/util/signature"
+	"github.com/nspcc-dev/neofs-sdk-go/signature"
+	util "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 var (
@@ -35,6 +36,10 @@ func (b *BearerToken) ToV2() *acl.BearerToken {
 	return &b.token
 }
 
+func (b *BearerToken) Empty() bool {
+	return b == nil || b.token.GetBody() == nil && b.token.GetSignature() == nil
+}
+
 func (b *BearerToken) SetLifetime(exp, nbf, iat uint64) {
 	body := b.token.GetBody()
 	if body == nil {
@@ -50,6 +55,18 @@ func (b *BearerToken) SetLifetime(exp, nbf, iat uint64) {
 	b.token.SetBody(body)
 }
 
+func (b BearerToken) Expiration() uint64 {
+	return b.token.GetBody().GetLifetime().GetExp()
+}
+
+func (b BearerToken) NotBeforeTime() uint64 {
+	return b.token.GetBody().GetLifetime().GetNbf()
+}
+
+func (b BearerToken) IssuedAt() uint64 {
+	return b.token.GetBody().GetLifetime().GetIat()
+}
+
 func (b *BearerToken) SetEACLTable(table *eacl.Table) {
 	body := b.token.GetBody()
 	if body == nil {
@@ -58,6 +75,10 @@ func (b *BearerToken) SetEACLTable(table *eacl.Table) {
 
 	body.SetEACL(table.ToV2())
 	b.token.SetBody(body)
+}
+
+func (b BearerToken) EACLTable() *eacl.Table {
+	return eacl.NewTableFromV2(b.token.GetBody().GetEACL())
 }
 
 func (b *BearerToken) SetOwner(id *owner.ID) {
@@ -70,6 +91,10 @@ func (b *BearerToken) SetOwner(id *owner.ID) {
 	b.token.SetBody(body)
 }
 
+func (b BearerToken) OwnerID() *owner.ID {
+	return owner.NewIDFromV2(b.token.GetBody().GetOwnerID())
+}
+
 func (b *BearerToken) SignToken(key *ecdsa.PrivateKey) error {
 	err := sanityCheck(b)
 	if err != nil {
@@ -78,12 +103,29 @@ func (b *BearerToken) SignToken(key *ecdsa.PrivateKey) error {
 
 	signWrapper := v2signature.StableMarshalerWrapper{SM: b.token.GetBody()}
 
-	return signature.SignDataWithHandler(key, signWrapper, func(key []byte, sig []byte) {
+	return util.SignDataWithHandler(key, signWrapper, func(key []byte, sig []byte) {
 		bearerSignature := new(refs.Signature)
 		bearerSignature.SetKey(key)
 		bearerSignature.SetSign(sig)
 		b.token.SetSignature(bearerSignature)
 	})
+}
+
+func (b BearerToken) Signature() *signature.Signature {
+	return signature.NewFromV2(b.token.GetSignature())
+}
+
+func (b BearerToken) VerifySignature() error {
+	if b.Empty() {
+		return nil
+	}
+
+	return util.VerifyDataWithSource(
+		v2signature.StableMarshalerWrapper{SM: b.token.GetBody()},
+		func() (key, sig []byte) {
+			sigV2 := b.token.GetSignature()
+			return sigV2.GetKey(), sigV2.GetSign()
+		})
 }
 
 // Issuer returns owner.ID associated with the key that signed bearer token.
