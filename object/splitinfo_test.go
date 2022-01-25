@@ -6,6 +6,7 @@ import (
 
 	objv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,11 +44,11 @@ func TestSplitInfo(t *testing.T) {
 	})
 }
 
-func generateID() *object.ID {
+func generateID() *oid.ID {
 	var buf [32]byte
 	_, _ = rand.Read(buf[:])
 
-	id := object.NewID()
+	id := oid.NewID()
 	id.SetSHA256(buf)
 
 	return id

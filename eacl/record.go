@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -111,7 +112,7 @@ func (r *Record) AddObjectVersionFilter(m Match, v *version.Version) {
 }
 
 // AddObjectIDFilter adds filter by object ID.
-func (r *Record) AddObjectIDFilter(m Match, id *object.ID) {
+func (r *Record) AddObjectIDFilter(m Match, id *oid.ID) {
 	r.addObjectReservedFilter(m, fKeyObjID, id)
 }
 

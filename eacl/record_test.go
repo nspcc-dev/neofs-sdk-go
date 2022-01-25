@@ -10,7 +10,7 @@ import (
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
@@ -156,7 +156,7 @@ func TestRecord_ToV2(t *testing.T) {
 func TestReservedRecords(t *testing.T) {
 	var (
 		v       = versiontest.Version()
-		oid     = objecttest.ID()
+		oid     = test.ID()
 		cid     = cidtest.ID()
 		ownerid = ownertest.ID()
 		h       = checksumtest.Checksum()

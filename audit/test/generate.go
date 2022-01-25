@@ -3,8 +3,8 @@ package audittest
 import (
 	"github.com/nspcc-dev/neofs-sdk-go/audit"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
@@ -30,8 +30,8 @@ func Result() *audit.Result {
 		[]byte("node3"),
 		[]byte("node4"),
 	})
-	x.SetPassSG([]*object.ID{objecttest.ID(), objecttest.ID()})
-	x.SetFailSG([]*object.ID{objecttest.ID(), objecttest.ID()})
+	x.SetPassSG([]*oid.ID{test.ID(), test.ID()})
+	x.SetFailSG([]*oid.ID{test.ID(), test.ID()})
 
 	return x
 }

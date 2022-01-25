@@ -7,6 +7,7 @@ import (
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -99,12 +100,12 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 	require.Equal(t, "", f.Value())
 }
 
-func testOID() *object.ID {
+func testOID() *oid.ID {
 	cs := [sha256.Size]byte{}
 
 	rand.Read(cs[:])
 
-	id := object.NewID()
+	id := oid.NewID()
 	id.SetSHA256(cs)
 
 	return id

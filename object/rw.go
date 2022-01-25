@@ -5,6 +5,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
@@ -45,14 +46,14 @@ func (o *rwObject) setSplitFields(setter func(*object.SplitHeader)) {
 }
 
 // ID returns object identifier.
-func (o *rwObject) ID() *ID {
-	return NewIDFromV2(
+func (o *rwObject) ID() *oid.ID {
+	return oid.NewIDFromV2(
 		(*object.Object)(o).
 			GetObjectID(),
 	)
 }
 
-func (o *rwObject) setID(v *ID) {
+func (o *rwObject) setID(v *oid.ID) {
 	(*object.Object)(o).
 		SetObjectID(v.ToV2())
 }
@@ -205,8 +206,8 @@ func (o *rwObject) setAttributes(v ...*Attribute) {
 }
 
 // PreviousID returns identifier of the previous sibling object.
-func (o *rwObject) PreviousID() *ID {
-	return NewIDFromV2(
+func (o *rwObject) PreviousID() *oid.ID {
+	return oid.NewIDFromV2(
 		(*object.Object)(o).
 			GetHeader().
 			GetSplit().
@@ -214,29 +215,29 @@ func (o *rwObject) PreviousID() *ID {
 	)
 }
 
-func (o *rwObject) setPreviousID(v *ID) {
+func (o *rwObject) setPreviousID(v *oid.ID) {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetPrevious(v.ToV2())
 	})
 }
 
 // Children return list of the identifiers of the child objects.
-func (o *rwObject) Children() []*ID {
+func (o *rwObject) Children() []*oid.ID {
 	ids := (*object.Object)(o).
 		GetHeader().
 		GetSplit().
 		GetChildren()
 
-	res := make([]*ID, 0, len(ids))
+	res := make([]*oid.ID, 0, len(ids))
 
 	for i := range ids {
-		res = append(res, NewIDFromV2(ids[i]))
+		res = append(res, oid.NewIDFromV2(ids[i]))
 	}
 
 	return res
 }
 
-func (o *rwObject) setChildren(v ...*ID) {
+func (o *rwObject) setChildren(v ...*oid.ID) {
 	ids := make([]*refs.ObjectID, 0, len(v))
 
 	for i := range v {
@@ -266,8 +267,8 @@ func (o *rwObject) setSplitID(id *SplitID) {
 }
 
 // ParentID returns identifier of the parent object.
-func (o *rwObject) ParentID() *ID {
-	return NewIDFromV2(
+func (o *rwObject) ParentID() *oid.ID {
+	return oid.NewIDFromV2(
 		(*object.Object)(o).
 			GetHeader().
 			GetSplit().
@@ -275,7 +276,7 @@ func (o *rwObject) ParentID() *ID {
 	)
 }
 
-func (o *rwObject) setParentID(v *ID) {
+func (o *rwObject) setParentID(v *oid.ID) {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetParent(v.ToV2())
 	})

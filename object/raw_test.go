@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
@@ -15,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func randID(t *testing.T) *ID {
-	id := NewID()
+func randID(t *testing.T) *oid.ID {
+	id := oid.NewID()
 	id.SetSHA256(randSHA256Checksum(t))
 
 	return id
@@ -121,7 +122,6 @@ func TestRawObject_SetCreationEpoch(t *testing.T) {
 
 func TestRawObject_SetPayloadChecksum(t *testing.T) {
 	obj := NewRaw()
-
 	cs := checksum.New()
 	cs.SetSHA256(randSHA256Checksum(t))
 
@@ -175,7 +175,7 @@ func TestRawObject_SetChildren(t *testing.T) {
 
 	obj.SetChildren(id1, id2)
 
-	require.Equal(t, []*ID{id1, id2}, obj.Children())
+	require.Equal(t, []*oid.ID{id1, id2}, obj.Children())
 }
 
 func TestRawObject_SetSplitID(t *testing.T) {

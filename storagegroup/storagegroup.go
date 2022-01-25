@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
 // StorageGroup represents v2-compatible storage group.
@@ -67,17 +67,17 @@ func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
 
 // Members returns strictly ordered list of
 // storage group member objects.
-func (sg *StorageGroup) Members() []*object.ID {
+func (sg *StorageGroup) Members() []*oid.ID {
 	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
 
 	if mV2 == nil {
 		return nil
 	}
 
-	m := make([]*object.ID, len(mV2))
+	m := make([]*oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = object.NewIDFromV2(mV2[i])
+		m[i] = oid.NewIDFromV2(mV2[i])
 	}
 
 	return m
@@ -85,7 +85,7 @@ func (sg *StorageGroup) Members() []*object.ID {
 
 // SetMembers sets strictly ordered list of
 // storage group member objects.
-func (sg *StorageGroup) SetMembers(members []*object.ID) {
+func (sg *StorageGroup) SetMembers(members []*oid.ID) {
 	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
 
 	if members == nil {

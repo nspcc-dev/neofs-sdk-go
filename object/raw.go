@@ -4,6 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
@@ -48,7 +49,7 @@ func (o *RawObject) Object() *Object {
 }
 
 // SetID sets object identifier.
-func (o *RawObject) SetID(v *ID) {
+func (o *RawObject) SetID(v *oid.ID) {
 	o.setID(v)
 }
 
@@ -103,12 +104,12 @@ func (o *RawObject) SetAttributes(v ...*Attribute) {
 }
 
 // SetPreviousID sets identifier of the previous sibling object.
-func (o *RawObject) SetPreviousID(v *ID) {
+func (o *RawObject) SetPreviousID(v *oid.ID) {
 	o.setPreviousID(v)
 }
 
 // SetChildren sets list of the identifiers of the child objects.
-func (o *RawObject) SetChildren(v ...*ID) {
+func (o *RawObject) SetChildren(v ...*oid.ID) {
 	o.setChildren(v...)
 }
 
@@ -118,7 +119,7 @@ func (o *RawObject) SetSplitID(id *SplitID) {
 }
 
 // SetParentID sets identifier of the parent object.
-func (o *RawObject) SetParentID(v *ID) {
+func (o *RawObject) SetParentID(v *oid.ID) {
 	o.setParentID(v)
 }
 

@@ -3,6 +3,7 @@ package object
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/tombstone"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
 // Tombstone represents v2-compatible tombstone structure.
@@ -54,7 +55,7 @@ func (t *Tombstone) SetSplitID(v *SplitID) {
 }
 
 // Members returns list of objects to be deleted.
-func (t *Tombstone) Members() []*ID {
+func (t *Tombstone) Members() []*oid.ID {
 	msV2 := (*tombstone.Tombstone)(t).
 		GetMembers()
 
@@ -62,17 +63,17 @@ func (t *Tombstone) Members() []*ID {
 		return nil
 	}
 
-	ms := make([]*ID, 0, len(msV2))
+	ms := make([]*oid.ID, 0, len(msV2))
 
 	for i := range msV2 {
-		ms = append(ms, NewIDFromV2(msV2[i]))
+		ms = append(ms, oid.NewIDFromV2(msV2[i]))
 	}
 
 	return ms
 }
 
 // SetMembers sets list of objects to be deleted.
-func (t *Tombstone) SetMembers(v []*ID) {
+func (t *Tombstone) SetMembers(v []*oid.ID) {
 	var ms []*refs.ObjectID
 
 	if v != nil {

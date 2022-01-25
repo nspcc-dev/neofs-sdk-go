@@ -6,15 +6,16 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/tombstone"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
-func generateIDList(sz int) []*ID {
-	res := make([]*ID, sz)
+func generateIDList(sz int) []*oid.ID {
+	res := make([]*oid.ID, sz)
 	cs := [sha256.Size]byte{}
 
 	for i := 0; i < sz; i++ {
-		res[i] = NewID()
+		res[i] = oid.NewID()
 		rand.Read(cs[:])
 		res[i].SetSHA256(cs)
 	}
