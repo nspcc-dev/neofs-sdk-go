@@ -21,12 +21,12 @@ type ObjectContext session.ObjectSessionContext
 func NewObjectContext() *ObjectContext {
 	v2 := new(session.ObjectSessionContext)
 
-	return ObjectContextFromV2(v2)
+	return NewObjectContextFromV2(v2)
 }
 
-// ObjectContextFromV2 wraps session.ObjectSessionContext
+// NewObjectContextFromV2 wraps session.ObjectSessionContext
 // into ObjectContext.
-func ObjectContextFromV2(v *session.ObjectSessionContext) *ObjectContext {
+func NewObjectContextFromV2(v *session.ObjectSessionContext) *ObjectContext {
 	return (*ObjectContext)(v)
 }
 
