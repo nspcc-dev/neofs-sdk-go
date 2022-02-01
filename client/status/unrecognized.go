@@ -12,7 +12,7 @@ func (x unrecognizedStatusV2) Error() string {
 	return errMessageStatusV2("unrecognized", x.v2.Message())
 }
 
-// implements method of the FromStatusV2 local interface.
+// implements local interface defined in FromStatusV2 func.
 func (x *unrecognizedStatusV2) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }

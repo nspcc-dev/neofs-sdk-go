@@ -11,7 +11,7 @@ type SuccessDefaultV2 struct {
 	v2 *status.Status
 }
 
-// implements method of the FromStatusV2 local interface.
+// implements local interface defined in FromStatusV2 func.
 func (x *SuccessDefaultV2) fromStatusV2(st *status.Status) {
 	x.isNil = st == nil
 	x.v2 = st

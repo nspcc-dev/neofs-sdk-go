@@ -21,7 +21,7 @@ func (x ServerInternal) Error() string {
 	)
 }
 
-// implements method of the FromStatusV2 local interface.
+// implements local interface defined in FromStatusV2 func.
 func (x *ServerInternal) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
@@ -69,7 +69,7 @@ func (x WrongMagicNumber) Error() string {
 	)
 }
 
-// implements method of the FromStatusV2 local interface.
+// implements local interface defined in FromStatusV2 func.
 func (x *WrongMagicNumber) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
