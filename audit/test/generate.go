@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/audit"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
@@ -30,8 +30,8 @@ func Result() *audit.Result {
 		[]byte("node3"),
 		[]byte("node4"),
 	})
-	x.SetPassSG([]*oid.ID{test.ID(), test.ID()})
-	x.SetFailSG([]*oid.ID{test.ID(), test.ID()})
+	x.SetPassSG([]*oid.ID{oidtest.ID(), oidtest.ID()})
+	x.SetFailSG([]*oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return x
 }

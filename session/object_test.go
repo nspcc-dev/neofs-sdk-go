@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
+	addresstest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/stretchr/testify/require"
@@ -52,7 +52,7 @@ func TestObjectContextVerbs(t *testing.T) {
 
 func TestObjectContext_ApplyTo(t *testing.T) {
 	c := session.NewObjectContext()
-	id := objecttest.Address()
+	id := addresstest.Address()
 
 	t.Run("method", func(t *testing.T) {
 		c.ApplyTo(id)

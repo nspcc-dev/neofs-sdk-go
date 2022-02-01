@@ -6,7 +6,7 @@ import (
 	storagegroupV2 "github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 	storagegrouptest "github.com/nspcc-dev/neofs-sdk-go/storagegroup/test"
 	"github.com/stretchr/testify/require"
@@ -27,7 +27,7 @@ func TestStorageGroup(t *testing.T) {
 	sg.SetExpirationEpoch(exp)
 	require.Equal(t, exp, sg.ExpirationEpoch())
 
-	members := []*oid.ID{test.ID(), test.ID()}
+	members := []*oid.ID{oidtest.ID(), oidtest.ID()}
 	sg.SetMembers(members)
 	require.Equal(t, members, sg.Members())
 }

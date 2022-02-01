@@ -6,7 +6,7 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	sigtest "github.com/nspcc-dev/neofs-sdk-go/signature/test"
@@ -45,7 +45,7 @@ func SplitID() *object.SplitID {
 func generateRaw(withParent bool) *object.RawObject {
 	x := object.NewRaw()
 
-	x.SetID(test.ID())
+	x.SetID(oidtest.ID())
 	x.SetSessionToken(sessiontest.Token())
 	x.SetPayload([]byte{1, 2, 3})
 	x.SetOwnerID(ownertest.ID())
@@ -54,9 +54,9 @@ func generateRaw(withParent bool) *object.RawObject {
 	x.SetVersion(version.Current())
 	x.SetPayloadSize(111)
 	x.SetCreationEpoch(222)
-	x.SetPreviousID(test.ID())
-	x.SetParentID(test.ID())
-	x.SetChildren(test.ID(), test.ID())
+	x.SetPreviousID(oidtest.ID())
+	x.SetParentID(oidtest.ID())
+	x.SetChildren(oidtest.ID(), oidtest.ID())
 	x.SetAttributes(Attribute(), Attribute())
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
@@ -86,7 +86,7 @@ func Tombstone() *object.Tombstone {
 
 	x.SetSplitID(SplitID())
 	x.SetExpirationEpoch(13)
-	x.SetMembers([]*oid.ID{test.ID(), test.ID()})
+	x.SetMembers([]*oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return x
 }
@@ -96,8 +96,8 @@ func SplitInfo() *object.SplitInfo {
 	x := object.NewSplitInfo()
 
 	x.SetSplitID(SplitID())
-	x.SetLink(test.ID())
-	x.SetLastPart(test.ID())
+	x.SetLink(oidtest.ID())
+	x.SetLastPart(oidtest.ID())
 
 	return x
 }
@@ -106,7 +106,7 @@ func SplitInfo() *object.SplitInfo {
 func SearchFilters() object.SearchFilters {
 	x := object.NewSearchFilters()
 
-	x.AddObjectIDFilter(object.MatchStringEqual, test.ID())
+	x.AddObjectIDFilter(object.MatchStringEqual, oidtest.ID())
 	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.ID())
 
 	return x

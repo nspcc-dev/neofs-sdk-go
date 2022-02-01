@@ -3,7 +3,7 @@ package sessiontest
 import (
 	"math/rand"
 
-	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
+	addresstest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -24,7 +24,7 @@ func ObjectContext() *session.ObjectContext {
 
 	setters[rand.Uint32()%uint32(len(setters))]()
 
-	c.ApplyTo(oidtest.Address())
+	c.ApplyTo(addresstest.Address())
 
 	return c
 }
