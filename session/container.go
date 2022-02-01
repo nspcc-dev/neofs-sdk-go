@@ -22,12 +22,12 @@ func NewContainerContext() *ContainerContext {
 	v2 := new(session.ContainerSessionContext)
 	v2.SetWildcard(true)
 
-	return ContainerContextFromV2(v2)
+	return NewContainerContextFromV2(v2)
 }
 
-// ContainerContextFromV2 wraps session.ContainerSessionContext
+// NewContainerContextFromV2 wraps session.ContainerSessionContext
 // into ContainerContext.
-func ContainerContextFromV2(v *session.ContainerSessionContext) *ContainerContext {
+func NewContainerContextFromV2(v *session.ContainerSessionContext) *ContainerContext {
 	return (*ContainerContext)(v)
 }
 
@@ -47,7 +47,7 @@ func (x *ContainerContext) ApplyTo(id *cid.ID) {
 	v2.SetContainerID(id.ToV2())
 }
 
-// ActOnAllContainers is a helper function that conveniently
+// ApplyToAllContainers is a helper function that conveniently
 // applies ContainerContext to all containers.
 func ApplyToAllContainers(c *ContainerContext) {
 	c.ApplyTo(nil)
