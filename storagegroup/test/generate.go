@@ -3,7 +3,7 @@ package storagegrouptest
 import (
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 )
 
@@ -14,7 +14,7 @@ func StorageGroup() *storagegroup.StorageGroup {
 	x.SetExpirationEpoch(66)
 	x.SetValidationDataSize(322)
 	x.SetValidationDataHash(checksumtest.Checksum())
-	x.SetMembers([]*oid.ID{test.ID(), test.ID()})
+	x.SetMembers([]*oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return x
 }
