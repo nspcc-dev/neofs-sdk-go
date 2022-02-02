@@ -523,7 +523,8 @@ func (p *pool) checkSessionTokenErr(err error, address string) bool {
 		return false
 	}
 
-	if strings.Contains(err.Error(), "session token does not exist") {
+	if strings.Contains(err.Error(), "session token does not exist") ||
+		strings.Contains(err.Error(), "session token has been expired") {
 		p.cache.DeleteByPrefix(address)
 		return true
 	}
