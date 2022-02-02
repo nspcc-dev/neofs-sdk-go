@@ -254,6 +254,8 @@ type innerPool struct {
 	clientPacks []*clientPack
 }
 
+const DefaultSessionTokenExpirationDuration = 100 // in blocks
+
 func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	cache, err := NewCache()
 	if err != nil {
@@ -299,6 +301,10 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 
 	if !atLeastOneHealthy {
 		return nil, fmt.Errorf("at least one node must be healthy")
+	}
+
+	if options.SessionExpirationDuration == 0 {
+		options.SessionExpirationDuration = DefaultSessionTokenExpirationDuration
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
