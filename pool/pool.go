@@ -764,10 +764,6 @@ func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts 
 		cliPrm.SetContainer(*cnr)
 	}
 
-	if cfg.stoken != nil {
-		cliPrm.SetSessionToken(*cfg.stoken)
-	}
-
 	res, err := cp.client.PutContainer(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
