@@ -20,8 +20,6 @@ import (
 
 // ContainerPutPrm groups parameters of PutContainer operation.
 type ContainerPutPrm struct {
-	prmSession
-
 	cnrSet bool
 	cnr    container.Container
 }
@@ -101,8 +99,7 @@ func (c *Client) PutContainer(ctx context.Context, prm ContainerPutPrm) (*Contai
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-
-	prm.prmSession.writeToMetaHeader(&meta)
+	meta.SetSessionToken(prm.cnr.SessionToken().ToV2())
 
 	// form request
 	var req v2container.PutRequest
