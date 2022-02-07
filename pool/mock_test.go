@@ -224,15 +224,11 @@ func (mr *MockClientMockRecorder) GetContainer(arg0, arg1 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContainer", reflect.TypeOf((*MockClient)(nil).GetContainer), varargs...)
 }
 
-// GetObject mocks base method.
-func (m *MockClient) GetObject(arg0 context.Context, arg1 *client0.GetObjectParams, arg2 ...client0.CallOption) (*client0.ObjectGetRes, error) {
+// ObjectGetInitmocks base method.
+func (m *MockClient) ObjectGetInit(arg0 context.Context, arg1 client0.PrmObjectGet) (*client0.ObjectReader, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "GetObject", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectGetRes)
+	ret := m.ctrl.Call(m, "GetObject", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ObjectReader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -241,7 +237,7 @@ func (m *MockClient) GetObject(arg0 context.Context, arg1 *client0.GetObjectPara
 func (mr *MockClientMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetObject", reflect.TypeOf((*MockClient)(nil).GetObject), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectGetInit", reflect.TypeOf((*MockClient)(nil).ObjectGetInit), varargs...)
 }
 
 // HashObjectPayloadRanges mocks base method.
@@ -355,24 +351,20 @@ func (mr *MockClientMockRecorder) PutContainer(arg0, arg1 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutContainer", reflect.TypeOf((*MockClient)(nil).PutContainer), varargs...)
 }
 
-// PutObject mocks base method.
-func (m *MockClient) PutObject(arg0 context.Context, arg1 *client0.PutObjectParams, arg2 ...client0.CallOption) (*client0.ObjectPutRes, error) {
+// ObjectPutInitmocks base method.
+func (m *MockClient) ObjectPutInit(arg0 context.Context, arg1 client0.PrmObjectPutInit) (*client0.ObjectWriter, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "PutObject", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectPutRes)
+	ret := m.ctrl.Call(m, "PutObject", arg0)
+	ret0, _ := ret[0].(*client0.ObjectWriter)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // PutObject indicates an expected call of PutObject.
-func (mr *MockClientMockRecorder) PutObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+func (mr *MockClientMockRecorder) PutObject(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutObject", reflect.TypeOf((*MockClient)(nil).PutObject), varargs...)
+	varargs := append([]interface{}{arg0, arg1})
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectPutInit", reflect.TypeOf((*MockClient)(nil).ObjectPutInit), varargs...)
 }
 
 // Raw mocks base method.

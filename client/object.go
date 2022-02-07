@@ -1,9 +1,7 @@
 package client
 
 import (
-	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -22,12 +20,6 @@ import (
 	signer "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
-type PutObjectParams struct {
-	obj *object.Object
-
-	r io.Reader
-}
-
 // ObjectAddressWriter is an interface of the
 // component that writes the object address.
 type ObjectAddressWriter interface {
@@ -38,16 +30,6 @@ type DeleteObjectParams struct {
 	addr *address.Address
 
 	tombTgt ObjectAddressWriter
-}
-
-type GetObjectParams struct {
-	addr *address.Address
-
-	raw bool
-
-	w io.Writer
-
-	readerHandler ReaderHandler
 }
 
 type ObjectHeaderParams struct {
@@ -84,20 +66,6 @@ type SearchObjectParams struct {
 	filters object.SearchFilters
 }
 
-type putObjectV2Reader struct {
-	r io.Reader
-}
-
-type putObjectV2Writer struct {
-	key *ecdsa.PrivateKey
-
-	chunkPart *v2object.PutObjectPartChunk
-
-	req *v2object.PutRequest
-
-	stream *rpcapi.PutRequestWriter
-}
-
 type checksumType int
 
 const (
@@ -105,8 +73,6 @@ const (
 	checksumSHA256
 	checksumTZ
 )
-
-const chunkSize = 3 * (1 << 20)
 
 const TZSize = 64
 
@@ -131,199 +97,6 @@ func (t checksumType) toV2() v2refs.ChecksumType {
 	default:
 		panic(fmt.Sprintf("invalid checksum type %d", t))
 	}
-}
-
-func (w *putObjectV2Reader) Read(p []byte) (int, error) {
-	return w.r.Read(p)
-}
-
-func (w *putObjectV2Writer) Write(p []byte) (int, error) {
-	w.chunkPart.SetChunk(p)
-
-	w.req.SetVerificationHeader(nil)
-
-	if err := signature.SignServiceMessage(w.key, w.req); err != nil {
-		return 0, fmt.Errorf("could not sign chunk request message: %w", err)
-	}
-
-	if err := w.stream.Write(w.req); err != nil {
-		return 0, fmt.Errorf("could not send chunk request message: %w", err)
-	}
-
-	return len(p), nil
-}
-
-func (p *PutObjectParams) WithObject(v *object.Object) *PutObjectParams {
-	if p != nil {
-		p.obj = v
-	}
-
-	return p
-}
-
-func (p *PutObjectParams) Object() *object.Object {
-	if p != nil {
-		return p.obj
-	}
-
-	return nil
-}
-
-func (p *PutObjectParams) WithPayloadReader(v io.Reader) *PutObjectParams {
-	if p != nil {
-		p.r = v
-	}
-
-	return p
-}
-
-func (p *PutObjectParams) PayloadReader() io.Reader {
-	if p != nil {
-		return p.r
-	}
-
-	return nil
-}
-
-type ObjectPutRes struct {
-	statusRes
-
-	id *oid.ID
-}
-
-func (x *ObjectPutRes) setID(id *oid.ID) {
-	x.id = id
-}
-
-func (x ObjectPutRes) ID() *oid.ID {
-	return x.id
-}
-
-// PutObject puts object through NeoFS API call.
-//
-// Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
-func (c *Client) PutObject(ctx context.Context, p *PutObjectParams, opts ...CallOption) (*ObjectPutRes, error) {
-	callOpts := c.defaultCallOptions()
-
-	for i := range opts {
-		if opts[i] != nil {
-			opts[i](callOpts)
-		}
-	}
-
-	// create request
-	req := new(v2object.PutRequest)
-
-	// initialize request body
-	body := new(v2object.PutRequestBody)
-	req.SetBody(body)
-
-	v2Addr := new(v2refs.Address)
-	v2Addr.SetObjectID(p.obj.ID().ToV2())
-	v2Addr.SetContainerID(p.obj.ContainerID().ToV2())
-
-	// set meta header
-	meta := v2MetaHeaderFromOpts(callOpts)
-
-	if err := c.attachV2SessionToken(callOpts, meta, v2SessionReqInfo{
-		addr: v2Addr,
-		verb: v2session.ObjectVerbPut,
-	}); err != nil {
-		return nil, fmt.Errorf("could not attach session token: %w", err)
-	}
-
-	req.SetMetaHeader(meta)
-
-	// initialize init part
-	initPart := new(v2object.PutObjectPartInit)
-	body.SetObjectPart(initPart)
-
-	obj := p.obj.ToV2()
-
-	// set init part fields
-	initPart.SetObjectID(obj.GetObjectID())
-	initPart.SetSignature(obj.GetSignature())
-	initPart.SetHeader(obj.GetHeader())
-
-	// sign the request
-	if err := signature.SignServiceMessage(callOpts.key, req); err != nil {
-		return nil, fmt.Errorf("signing the request failed: %w", err)
-	}
-
-	// open stream
-	resp := new(v2object.PutResponse)
-
-	stream, err := rpcapi.PutObject(c.Raw(), resp, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("stream opening failed: %w", err)
-	}
-
-	// send init part
-	err = stream.Write(req)
-	if err != nil {
-		return nil, fmt.Errorf("sending the initial message to stream failed: %w", err)
-	}
-
-	// create payload bytes reader
-	var rPayload io.Reader = bytes.NewReader(obj.GetPayload())
-	if p.r != nil {
-		rPayload = io.MultiReader(rPayload, p.r)
-	}
-
-	// create v2 payload stream writer
-	chunkPart := new(v2object.PutObjectPartChunk)
-	body.SetObjectPart(chunkPart)
-
-	w := &putObjectV2Writer{
-		key:       callOpts.key,
-		chunkPart: chunkPart,
-		req:       req,
-		stream:    stream,
-	}
-
-	r := &putObjectV2Reader{r: rPayload}
-
-	// copy payload from reader to stream writer
-	_, err = io.CopyBuffer(w, r, make([]byte, chunkSize))
-	if err != nil && !errors.Is(err, io.EOF) {
-		return nil, fmt.Errorf("payload streaming failed: %w", err)
-	}
-
-	// close object stream and receive response from remote node
-	err = stream.Close()
-	if err != nil {
-		return nil, fmt.Errorf("closing the stream failed: %w", err)
-	}
-
-	var (
-		res     = new(ObjectPutRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
-	)
-
-	procPrm.callOpts = callOpts
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-	// process response in general
-	if c.processResponseV2(&procRes, procPrm) {
-		if procRes.cliErr != nil {
-			return nil, procRes.cliErr
-		}
-
-		return res, nil
-	}
-
-	// convert object identifier
-	id := oid.NewIDFromV2(resp.GetBody().GetObjectID())
-
-	res.setID(id)
-
-	return res, nil
 }
 
 func (p *DeleteObjectParams) WithAddress(v *address.Address) *DeleteObjectParams {
@@ -451,132 +224,6 @@ func (c *Client) DeleteObject(ctx context.Context, p *DeleteObjectParams, opts .
 	return res, nil
 }
 
-func (p *GetObjectParams) WithAddress(v *address.Address) *GetObjectParams {
-	if p != nil {
-		p.addr = v
-	}
-
-	return p
-}
-
-func (p *GetObjectParams) Address() *address.Address {
-	if p != nil {
-		return p.addr
-	}
-
-	return nil
-}
-
-func (p *GetObjectParams) WithPayloadWriter(w io.Writer) *GetObjectParams {
-	if p != nil {
-		p.w = w
-	}
-
-	return p
-}
-
-func (p *GetObjectParams) PayloadWriter() io.Writer {
-	if p != nil {
-		return p.w
-	}
-
-	return nil
-}
-
-func (p *GetObjectParams) WithRawFlag(v bool) *GetObjectParams {
-	if p != nil {
-		p.raw = v
-	}
-
-	return p
-}
-
-func (p *GetObjectParams) RawFlag() bool {
-	if p != nil {
-		return p.raw
-	}
-
-	return false
-}
-
-// ReaderHandler is a function over io.Reader.
-type ReaderHandler func(io.Reader)
-
-// WithPayloadReaderHandler sets handler of the payload reader.
-//
-// If provided, payload reader is composed after receiving the header.
-// In this case payload writer set via WithPayloadWriter is ignored.
-//
-// Handler should not be nil.
-func (p *GetObjectParams) WithPayloadReaderHandler(f ReaderHandler) *GetObjectParams {
-	if p != nil {
-		p.readerHandler = f
-	}
-
-	return p
-}
-
-// wrapper over the Object Get stream that provides io.Reader.
-type objectPayloadReader struct {
-	stream interface {
-		Read(*v2object.GetResponse) error
-	}
-
-	resp v2object.GetResponse
-
-	tail []byte
-}
-
-func (x *objectPayloadReader) Read(p []byte) (read int, err error) {
-	// read remaining tail
-	read = copy(p, x.tail)
-
-	x.tail = x.tail[read:]
-
-	if len(p)-read == 0 {
-		return
-	}
-
-	// receive message from server stream
-	err = x.stream.Read(&x.resp)
-	if err != nil {
-		if errors.Is(err, io.EOF) {
-			err = io.EOF
-			return
-		}
-
-		err = fmt.Errorf("reading the response failed: %w", err)
-		return
-	}
-
-	// get chunk part message
-	part := x.resp.GetBody().GetObjectPart()
-
-	chunkPart, ok := part.(*v2object.GetObjectPartChunk)
-	if !ok {
-		err = errWrongMessageSeq
-		return
-	}
-
-	// verify response structure
-	if err = signature.VerifyServiceMessage(&x.resp); err != nil {
-		err = fmt.Errorf("response verification failed: %w", err)
-		return
-	}
-
-	// read new chunk
-	chunk := chunkPart.GetChunk()
-
-	tailOffset := copy(p[read:], chunk)
-
-	read += tailOffset
-
-	// save the tail
-	x.tail = append(x.tail, chunk[tailOffset:]...)
-
-	return
-}
-
 var errWrongMessageSeq = errors.New("incorrect message sequence")
 
 type ObjectGetRes struct {
@@ -602,157 +249,6 @@ func writeUnexpectedMessageTypeErr(res resCommon, val interface{}) {
 	apistatus.WriteInternalServerErr(&st, fmt.Errorf("unexpected message type %T", val))
 
 	res.setStatus(st)
-}
-
-// GetObject receives object through NeoFS API call.
-//
-// Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
-func (c *Client) GetObject(ctx context.Context, p *GetObjectParams, opts ...CallOption) (*ObjectGetRes, error) {
-	callOpts := c.defaultCallOptions()
-
-	for i := range opts {
-		if opts[i] != nil {
-			opts[i](callOpts)
-		}
-	}
-
-	// create request
-	req := new(v2object.GetRequest)
-
-	// initialize request body
-	body := new(v2object.GetRequestBody)
-	req.SetBody(body)
-
-	// set meta header
-	meta := v2MetaHeaderFromOpts(callOpts)
-
-	if err := c.attachV2SessionToken(callOpts, meta, v2SessionReqInfo{
-		addr: p.addr.ToV2(),
-		verb: v2session.ObjectVerbGet,
-	}); err != nil {
-		return nil, fmt.Errorf("could not attach session token: %w", err)
-	}
-
-	req.SetMetaHeader(meta)
-
-	// fill body fields
-	body.SetAddress(p.addr.ToV2())
-	body.SetRaw(p.raw)
-
-	// sign the request
-	if err := signature.SignServiceMessage(callOpts.key, req); err != nil {
-		return nil, fmt.Errorf("signing the request failed: %w", err)
-	}
-
-	// open stream
-	stream, err := rpcapi.GetObject(c.Raw(), req, client.WithContext(ctx))
-	if err != nil {
-		return nil, fmt.Errorf("stream opening failed: %w", err)
-	}
-
-	var (
-		headWas bool
-		payload []byte
-		obj     = new(v2object.Object)
-		resp    = new(v2object.GetResponse)
-
-		messageWas bool
-
-		res     = new(ObjectGetRes)
-		procPrm processResponseV2Prm
-		procRes processResponseV2Res
-	)
-
-	procPrm.callOpts = callOpts
-	procPrm.resp = resp
-
-	procRes.statusRes = res
-
-loop:
-	for {
-		// receive message from server stream
-		err := stream.Read(resp)
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				if !messageWas {
-					return nil, errWrongMessageSeq
-				}
-
-				break
-			}
-
-			return nil, fmt.Errorf("reading the response failed: %w", err)
-		}
-
-		messageWas = true
-
-		// process response in general
-		if c.processResponseV2(&procRes, procPrm) {
-			if procRes.cliErr != nil {
-				return nil, procRes.cliErr
-			}
-
-			return res, nil
-		}
-
-		switch v := resp.GetBody().GetObjectPart().(type) {
-		default:
-			return nil, errWrongMessageSeq
-		case *v2object.GetObjectPartInit:
-			if headWas {
-				return nil, errWrongMessageSeq
-			}
-
-			headWas = true
-
-			obj.SetObjectID(v.GetObjectID())
-			obj.SetSignature(v.GetSignature())
-
-			hdr := v.GetHeader()
-			obj.SetHeader(hdr)
-
-			if p.readerHandler != nil {
-				p.readerHandler(&objectPayloadReader{
-					stream: stream,
-				})
-
-				break loop
-			}
-
-			if p.w == nil {
-				payload = make([]byte, 0, hdr.GetPayloadLength())
-			}
-		case *v2object.GetObjectPartChunk:
-			if !headWas {
-				return nil, errWrongMessageSeq
-			}
-
-			if p.w != nil {
-				if _, err := p.w.Write(v.GetChunk()); err != nil {
-					return nil, fmt.Errorf("could not write payload chunk: %w", err)
-				}
-			} else {
-				payload = append(payload, v.GetChunk()...)
-			}
-		case *v2object.SplitInfo:
-			if headWas {
-				return nil, errWrongMessageSeq
-			}
-
-			si := object.NewSplitInfoFromV2(v)
-			return nil, object.NewSplitInfoError(si)
-		}
-	}
-
-	obj.SetPayload(payload)
-
-	// convert the object
-	res.setObject(object.NewFromV2(obj))
-
-	return res, nil
 }
 
 func (p *ObjectHeaderParams) WithAddress(v *address.Address) *ObjectHeaderParams {

@@ -151,15 +151,26 @@ type contextCall struct {
 	req interface {
 		GetMetaHeader() *v2session.RequestMetaHeader
 		SetMetaHeader(*v2session.RequestMetaHeader)
+		SetVerificationHeader(*v2session.RequestVerificationHeader)
 	}
 
 	// function to send a request (unary) and receive a response
 	call func() (responseV2, error)
 
+	// function to send the request (req field)
+	wReq func() error
+
+	// function to recv the response (resp field)
+	rResp func() error
+
+	// function to close the message stream
+	closer func() error
+
 	// function of writing response fields to the resulting structure (optional)
 	result func(v2 responseV2)
 }
 
+// sets needed fields of the request meta header.
 func (x contextCall) prepareRequest() {
 	meta := x.req.GetMetaHeader()
 	if meta == nil {
@@ -176,6 +187,29 @@ func (x contextCall) prepareRequest() {
 	}
 
 	meta.SetNetworkMagic(x.netMagic)
+}
+
+// prepares, signs and writes the request. Result means success.
+// If failed, contextCall.err contains the reason.
+func (x *contextCall) writeRequest() bool {
+	x.prepareRequest()
+
+	x.req.SetVerificationHeader(nil)
+
+	// sign the request
+	x.err = signature.SignServiceMessage(&x.key, x.req)
+	if x.err != nil {
+		x.err = fmt.Errorf("sign request: %w", x.err)
+		return false
+	}
+
+	x.err = x.wReq()
+	if x.err != nil {
+		x.err = fmt.Errorf("write request: %w", x.err)
+		return false
+	}
+
+	return true
 }
 
 // performs common actions of response processing and writes any problem as a result status or client error
@@ -220,32 +254,32 @@ func (x *contextCall) processResponse() bool {
 
 	x.statusRes.setStatus(st)
 
-	return successfulStatus
+	return successfulStatus || !x.resolveAPIFailures
 }
 
-// goes through all stages of sending a request and processing a response. Returns true if successful.
-func (x *contextCall) processCall() bool {
-	// prepare the request
-	x.prepareRequest()
-
-	// sign the request
-	x.err = signature.SignServiceMessage(&x.key, x.req)
-	if x.err != nil {
-		x.err = fmt.Errorf("sign request: %w", x.err)
-		return false
+// reads response (if rResp is set) and processes it. Result means success.
+// If failed, contextCall.err contains the reason.
+func (x *contextCall) readResponse() bool {
+	if x.rResp != nil {
+		x.err = x.rResp()
+		if x.err != nil {
+			x.err = fmt.Errorf("read response: %w", x.err)
+			return false
+		}
 	}
 
-	// perform RPC
-	x.resp, x.err = x.call()
-	if x.err != nil {
-		x.err = fmt.Errorf("transport error: %w", x.err)
-		return false
-	}
+	return x.processResponse()
+}
 
-	// process the response
-	ok := x.processResponse()
-	if !ok {
-		return false
+// closes the message stream (if closer is set) and writes the results (if resuls is set).
+// Return means success. If failed, contextCall.err contains the reason.
+func (x *contextCall) close() bool {
+	if x.closer != nil {
+		x.err = x.closer()
+		if x.err != nil {
+			x.err = fmt.Errorf("close RPC: %w", x.err)
+			return false
+		}
 	}
 
 	// write response to resulting structure
@@ -254,6 +288,34 @@ func (x *contextCall) processCall() bool {
 	}
 
 	return true
+}
+
+// goes through all stages of sending a request and processing a response. Returns true if successful.
+// If failed, contextCall.err contains the reason.
+func (x *contextCall) processCall() bool {
+	// set request writer
+	x.wReq = func() error {
+		var err error
+		x.resp, err = x.call()
+		return err
+	}
+
+	// write request
+	ok := x.writeRequest()
+	if !ok {
+		return false
+	}
+
+	// read response
+	ok = x.readResponse()
+	if !ok {
+		return false
+	}
+
+	// close and write response to resulting structure
+	ok = x.close()
+
+	return ok
 }
 
 // initializes static cross-call parameters inherited from client.

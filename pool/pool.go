@@ -1,6 +1,7 @@
 package pool
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"crypto/sha256"
@@ -22,6 +23,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	"github.com/nspcc-dev/neofs-sdk-go/object/address"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -41,9 +43,9 @@ type Client interface {
 	AnnounceContainerUsedSpace(context.Context, client.AnnounceSpacePrm) (*client.AnnounceSpaceRes, error)
 	EndpointInfo(context.Context, client.EndpointInfoPrm) (*client.EndpointInfoRes, error)
 	NetworkInfo(context.Context, client.NetworkInfoPrm) (*client.NetworkInfoRes, error)
-	PutObject(context.Context, *client.PutObjectParams, ...client.CallOption) (*client.ObjectPutRes, error)
+	ObjectPutInit(context.Context, client.PrmObjectPutInit) (*client.ObjectWriter, error)
 	DeleteObject(context.Context, *client.DeleteObjectParams, ...client.CallOption) (*client.ObjectDeleteRes, error)
-	GetObject(context.Context, *client.GetObjectParams, ...client.CallOption) (*client.ObjectGetRes, error)
+	ObjectGetInit(context.Context, client.PrmObjectGet) (*client.ObjectReader, error)
 	HeadObject(context.Context, *client.ObjectHeaderParams, ...client.CallOption) (*client.ObjectHeadRes, error)
 	ObjectPayloadRangeData(context.Context, *client.RangeDataParams, ...client.CallOption) (*client.ObjectRangeRes, error)
 	HashObjectPayloadRanges(context.Context, *client.RangeChecksumParams, ...client.CallOption) (*client.ObjectRangeHashRes, error)
@@ -159,9 +161,9 @@ type Pool interface {
 }
 
 type Object interface {
-	PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*oid.ID, error)
+	PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error)
 	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
-	GetObject(ctx context.Context, params *client.GetObjectParams, opts ...CallOption) (*object.Object, error)
+	GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error)
 	GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error)
 	ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error)
 	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
@@ -282,9 +284,9 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 
 	for i, params := range options.nodesParams {
 		clientPacks := make([]*clientPack, len(params.weights))
-		for j, address := range params.addresses {
+		for j, addr := range params.addresses {
 			c, err := options.clientBuilder(client.WithDefaultPrivateKey(options.Key),
-				client.WithURIAddress(address, nil),
+				client.WithURIAddress(addr, nil),
 				client.WithDialTimeout(options.NodeConnectionTimeout),
 				client.WithNeoFSErrorParsing())
 			if err != nil {
@@ -294,14 +296,14 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 			cliRes, err := createSessionTokenForDuration(ctx, c, options.SessionExpirationDuration)
 			if err != nil && options.Logger != nil {
 				options.Logger.Warn("failed to create neofs session token for client",
-					zap.String("address", address),
+					zap.String("address", addr),
 					zap.Error(err))
 			} else if err == nil {
 				healthy, atLeastOneHealthy = true, true
 				st := sessionTokenForOwner(ownerID, cliRes)
-				_ = cache.Put(formCacheKey(address, options.Key), st)
+				_ = cache.Put(formCacheKey(addr, options.Key), st)
 			}
-			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: address}
+			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
 		}
 		source := rand.NewSource(time.Now().UnixNano())
 		sampler := NewSampler(params.weights, source)
@@ -448,8 +450,8 @@ func (p *pool) Connection() (Client, *session.Token, error) {
 		return nil, nil, err
 	}
 
-	token := p.cache.Get(formCacheKey(cp.address, p.key))
-	return cp.client, token, nil
+	tok := p.cache.Get(formCacheKey(cp.address, p.key))
+	return cp.client, tok, nil
 }
 
 func (p *pool) connection() (*clientPack, error) {
@@ -585,7 +587,68 @@ func (p *pool) removeSessionTokenAfterThreshold(cfg *callConfig) error {
 	return nil
 }
 
-func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, opts ...CallOption) (*oid.ID, error) {
+type callContext struct {
+	// context for RPC
+	ctxBase context.Context
+
+	client Client
+
+	// client endpoint
+	endpoint string
+
+	// request signer
+	key *ecdsa.PrivateKey
+
+	// flag to open default session if session token is missing
+	sessionDefault bool
+	sessionToken   *session.Token
+}
+
+func (p *pool) prepareCallContext(ctx *callContext, cfg *callConfig) error {
+	cp, err := p.connection()
+	if err != nil {
+		return err
+	}
+
+	ctx.endpoint = cp.address
+	ctx.client = cp.client
+
+	ctx.key = cfg.key
+	if ctx.key == nil {
+		ctx.key = p.key
+	}
+
+	ctx.sessionDefault = cfg.useDefaultSession
+	ctx.sessionToken = cfg.stoken
+
+	if ctx.sessionToken == nil && ctx.sessionDefault {
+		cacheKey := formCacheKey(ctx.endpoint, ctx.key)
+
+		ctx.sessionToken = p.cache.Get(cacheKey)
+		if ctx.sessionToken == nil {
+			var cliPrm client.CreateSessionPrm
+
+			cliPrm.SetExp(math.MaxUint32)
+
+			cliRes, err := ctx.client.CreateSession(ctx.ctxBase, cliPrm)
+			if err != nil {
+				return fmt.Errorf("default session: %w", err)
+			}
+
+			ctx.sessionToken = sessionTokenForOwner(owner.NewIDFromPublicKey(&ctx.key.PublicKey), cliRes)
+
+			_ = p.cache.Put(cacheKey, ctx.sessionToken)
+		}
+	}
+
+	if ctx.sessionToken != nil && ctx.sessionToken.Signature() == nil {
+		err = ctx.sessionToken.Sign(ctx.key)
+	}
+
+	return err
+}
+
+func (p *pool) PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 
 	// Put object is different from other object service methods. Put request
@@ -603,21 +666,90 @@ func (p *pool) PutObject(ctx context.Context, params *client.PutObjectParams, op
 		return nil, err
 	}
 
-	cp, options, err := p.conn(ctx, cfg)
+	var ctxCall callContext
+
+	ctxCall.ctxBase = ctx
+
+	err = p.prepareCallContext(&ctxCall, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := cp.client.PutObject(ctx, params, options...)
+	var prm client.PrmObjectPutInit
 
-	// removes session token from cache in case of token error
-	_ = p.checkSessionTokenErr(err, cp.address)
-
-	if err != nil { // here err already carries both status and client errors
-		return nil, err
+	wObj, err := ctxCall.client.ObjectPutInit(ctx, prm)
+	if err != nil {
+		return nil, fmt.Errorf("init writing on API client: %w", err)
 	}
 
-	return res.ID(), nil
+	wObj.UseKey(*ctxCall.key)
+
+	if ctxCall.sessionToken != nil {
+		wObj.WithinSession(*ctxCall.sessionToken)
+	}
+
+	if cfg.btoken != nil {
+		wObj.WithBearerToken(*cfg.btoken)
+	}
+
+	if wObj.WriteHeader(hdr) {
+		sz := hdr.PayloadSize()
+
+		if data := hdr.Payload(); len(data) > 0 {
+			if payload != nil {
+				payload = io.MultiReader(bytes.NewReader(data), payload)
+			} else {
+				payload = bytes.NewReader(data)
+				sz = uint64(len(data))
+			}
+		}
+
+		if payload != nil {
+			const defaultBufferSizePut = 4096 // configure?
+
+			if sz == 0 || sz > defaultBufferSizePut {
+				sz = defaultBufferSizePut
+			}
+
+			buf := make([]byte, sz)
+
+			var n int
+			var ok bool
+
+			for {
+				n, err = payload.Read(buf)
+				if n > 0 {
+					ok = wObj.WritePayloadChunk(buf[:n])
+					if !ok {
+						break
+					}
+
+					continue
+				}
+
+				if errors.Is(err, io.EOF) {
+					break
+				}
+
+				return nil, fmt.Errorf("read payload: %w", err)
+			}
+		}
+	}
+
+	res, err := wObj.Close()
+	if err != nil { // here err already carries both status and client errors
+		// removes session token from cache in case of token error
+		p.checkSessionTokenErr(err, ctxCall.endpoint)
+		return nil, fmt.Errorf("client failure: %w", err)
+	}
+
+	var id oid.ID
+
+	if !res.ReadStoredObject(&id) {
+		return nil, errors.New("missing ID of the stored object")
+	}
+
+	return &id, nil
 }
 
 func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error {
@@ -639,25 +771,74 @@ func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectPara
 	return err
 }
 
-func (p *pool) GetObject(ctx context.Context, params *client.GetObjectParams, opts ...CallOption) (*object.Object, error) {
+type objectReadCloser client.ObjectReader
+
+func (x *objectReadCloser) Read(p []byte) (int, error) {
+	return (*client.ObjectReader)(x).Read(p)
+}
+
+func (x *objectReadCloser) Close() error {
+	_, err := (*client.ObjectReader)(x).Close()
+	return err
+}
+
+type ResGetObject struct {
+	Header object.Object
+
+	Payload io.ReadCloser
+}
+
+func (p *pool) GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
+
+	var ctxCall callContext
+
+	ctxCall.ctxBase = ctx
+
+	err := p.prepareCallContext(&ctxCall, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := cp.client.GetObject(ctx, params, options...)
+	var prm client.PrmObjectGet
 
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.GetObject(ctx, params, opts...)
+	if cnr := addr.ContainerID(); cnr != nil {
+		prm.FromContainer(*cnr)
 	}
 
-	if err != nil { // here err already carries both status and client errors
+	if obj := addr.ObjectID(); obj != nil {
+		prm.ByID(*obj)
+	}
+
+	if ctxCall.sessionToken != nil {
+		prm.WithinSession(*ctxCall.sessionToken)
+	}
+
+	if cfg.btoken != nil {
+		prm.WithBearerToken(*cfg.btoken)
+	}
+
+	rObj, err := ctxCall.client.ObjectGetInit(ctx, prm)
+	if err != nil {
 		return nil, err
 	}
 
-	return res.Object(), nil
+	rObj.UseKey(*ctxCall.key)
+
+	var res ResGetObject
+
+	if !rObj.ReadHeader(&res.Header) {
+		_, err = rObj.Close()
+		if p.checkSessionTokenErr(err, ctxCall.endpoint) && !cfg.isRetry {
+			return p.GetObject(ctx, addr, append(opts, retry())...)
+		}
+
+		return nil, fmt.Errorf("read header: %w", err)
+	}
+
+	res.Payload = (*objectReadCloser)(rObj)
+
+	return &res, nil
 }
 
 func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error) {
