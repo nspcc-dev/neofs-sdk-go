@@ -28,7 +28,7 @@ type Container struct {
 //  - token: nil;
 //  - sig: nil;
 //  - basicACL: acl.PrivateBasicRule;
-//  - version: nil;
+//  - version: version.Current;
 //  - nonce: random UUID;
 //  - attr: nil;
 //  - policy: nil;
@@ -53,6 +53,7 @@ func New(opts ...Option) *Container {
 	}
 
 	cnr.SetAttributes(cnrOptions.attributes)
+	cnr.SetVersion(version.Current())
 
 	return cnr
 }

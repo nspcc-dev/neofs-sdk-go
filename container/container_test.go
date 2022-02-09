@@ -11,6 +11,7 @@ import (
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	sigtest "github.com/nspcc-dev/neofs-sdk-go/signature/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
 )
@@ -106,12 +107,12 @@ func TestContainer_ToV2(t *testing.T) {
 		// check initial values
 		require.Nil(t, cnt.SessionToken())
 		require.Nil(t, cnt.Signature())
-		require.Nil(t, cnt.Version())
 		require.Nil(t, cnt.Attributes())
 		require.Nil(t, cnt.PlacementPolicy())
 		require.Nil(t, cnt.OwnerID())
 
 		require.EqualValues(t, acl.PrivateBasicRule, cnt.BasicACL())
+		require.Equal(t, version.Current(), cnt.Version())
 
 		nonce, err := cnt.NonceUUID()
 		require.NoError(t, err)
@@ -125,11 +126,11 @@ func TestContainer_ToV2(t *testing.T) {
 
 		require.Equal(t, nonce.String(), nonceV2.String())
 
-		require.Nil(t, cntV2.GetVersion())
 		require.Nil(t, cntV2.GetAttributes())
 		require.Nil(t, cntV2.GetPlacementPolicy())
 		require.Nil(t, cntV2.GetOwnerID())
 
 		require.Equal(t, uint32(acl.PrivateBasicRule), cntV2.GetBasicACL())
+		require.Equal(t, version.Current().ToV2(), cntV2.GetVersion())
 	})
 }
