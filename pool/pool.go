@@ -262,6 +262,10 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
 
+	if options.SessionExpirationDuration == 0 {
+		options.SessionExpirationDuration = DefaultSessionTokenExpirationDuration
+	}
+
 	ownerID := owner.NewIDFromPublicKey(&options.Key.PublicKey)
 
 	inner := make([]*innerPool, len(options.nodesParams))
@@ -301,10 +305,6 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 
 	if !atLeastOneHealthy {
 		return nil, fmt.Errorf("at least one node must be healthy")
-	}
-
-	if options.SessionExpirationDuration == 0 {
-		options.SessionExpirationDuration = DefaultSessionTokenExpirationDuration
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
