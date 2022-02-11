@@ -793,7 +793,7 @@ func (p *pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 
 	var id oid.ID
 
-	if !res.ReadStoredObject(&id) {
+	if !res.ReadStoredObjectID(&id) {
 		return nil, errors.New("missing ID of the stored object")
 	}
 

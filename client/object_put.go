@@ -28,9 +28,9 @@ type ResObjectPut struct {
 	resp v2object.PutResponse
 }
 
-// ReadStoredObject reads identifier of the saved object.
+// ReadStoredObjectID reads identifier of the saved object.
 // Returns false if ID is missing (not read).
-func (x *ResObjectPut) ReadStoredObject(id *oid.ID) bool {
+func (x *ResObjectPut) ReadStoredObjectID(id *oid.ID) bool {
 	idv2 := x.resp.GetBody().GetObjectID()
 	if idv2 == nil {
 		return false
