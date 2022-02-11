@@ -714,13 +714,11 @@ func (p *pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 			buf := make([]byte, sz)
 
 			var n int
-			var ok bool
 
 			for {
 				n, err = payload.Read(buf)
 				if n > 0 {
-					ok = wObj.WritePayloadChunk(buf[:n])
-					if !ok {
+					if !wObj.WritePayloadChunk(buf[:n]) {
 						break
 					}
 
