@@ -895,6 +895,9 @@ func (p *pool) GetObject(ctx context.Context, addr address.Address, opts ...Call
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return &res, nil
 }
@@ -936,6 +939,9 @@ func (p *pool) HeadObject(ctx context.Context, addr address.Address, opts ...Cal
 
 		return nil
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	return &obj, nil
 }
