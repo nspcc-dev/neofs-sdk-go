@@ -271,7 +271,7 @@ func (x *contextCall) readResponse() bool {
 	return x.processResponse()
 }
 
-// closes the message stream (if closer is set) and writes the results (if resuls is set).
+// closes the message stream (if closer is set) and writes the results (if result is set).
 // Return means success. If failed, contextCall.err contains the reason.
 func (x *contextCall) close() bool {
 	if x.closer != nil {
