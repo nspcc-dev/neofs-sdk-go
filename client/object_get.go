@@ -20,8 +20,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/token"
 )
 
-// PrmObjectGet groups parameters of ObjectGetInit operation.
-type PrmObjectGet struct {
+// shared parameters of GET/HEAD/RANGE.
+type prmObjectRead struct {
 	raw bool
 
 	local bool
@@ -40,39 +40,53 @@ type PrmObjectGet struct {
 }
 
 // MarkRaw marks an intent to read physically stored object.
-func (x *PrmObjectGet) MarkRaw() {
+func (x *prmObjectRead) MarkRaw() {
 	x.raw = true
 }
 
 // MarkLocal tells the server to execute the operation locally.
-func (x *PrmObjectGet) MarkLocal() {
+func (x *prmObjectRead) MarkLocal() {
 	x.local = true
 }
 
 // WithinSession specifies session within which object should be read.
-func (x *PrmObjectGet) WithinSession(t session.Token) {
+//
+// Creator of the session acquires the authorship of the request.
+// This may affect the execution of an operation (e.g. access control).
+//
+// Must be signed.
+func (x *prmObjectRead) WithinSession(t session.Token) {
 	x.session = t
 	x.sessionSet = true
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
-func (x *PrmObjectGet) WithBearerToken(t token.BearerToken) {
+//
+// If set, underlying eACL rules will be used in access control.
+//
+// Must be signed.
+func (x *prmObjectRead) WithBearerToken(t token.BearerToken) {
 	x.bearer = t
 	x.bearerSet = true
 }
 
 // FromContainer specifies NeoFS container of the object.
 // Required parameter.
-func (x *PrmObjectGet) FromContainer(id cid.ID) {
+func (x *prmObjectRead) FromContainer(id cid.ID) {
 	x.cnr = id
 	x.cnrSet = true
 }
 
 // ByID specifies identifier of the requested object.
 // Required parameter.
-func (x *PrmObjectGet) ByID(id oid.ID) {
+func (x *prmObjectRead) ByID(id oid.ID) {
 	x.obj = id
 	x.objSet = true
+}
+
+// PrmObjectGet groups parameters of ObjectGetInit operation.
+type PrmObjectGet struct {
+	prmObjectRead
 }
 
 // ResObjectGet groups the final result values of ObjectGetInit operation.
@@ -101,6 +115,10 @@ func (x *ObjectReader) UseKey(key ecdsa.PrivateKey) {
 	x.ctxCall.key = key
 }
 
+func handleSplitInfo(ctx *contextCall, i *v2object.SplitInfo) {
+	ctx.err = object.NewSplitInfoError(object.NewSplitInfoFromV2(i))
+}
+
 // ReadHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
@@ -117,7 +135,7 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 		x.ctxCall.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
 		return false
 	case *v2object.SplitInfo:
-		x.ctxCall.err = object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+		handleSplitInfo(&x.ctxCall, v)
 		return false
 	case *v2object.GetObjectPartInit:
 		partInit = v
@@ -231,7 +249,7 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
 //
-// The call only opens the transmission channel, explicit fetching is done using the ObjectWriter.
+// The call only opens the transmission channel, explicit fetching is done using the ObjectReader.
 // Exactly one return value is non-nil. Resulting reader must be finally closed.
 //
 // Immediately panics if parameters are set incorrectly (see PrmObjectGet docs).
@@ -310,4 +328,131 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	}
 
 	return &r, nil
+}
+
+// PrmObjectHead groups parameters of ObjectHead operation.
+type PrmObjectHead struct {
+	prmObjectRead
+}
+
+// ResObjectHead groups resulting values of ObjectHead operation.
+type ResObjectHead struct {
+	statusRes
+
+	// requested object (response doesn't carry the ID)
+	idObj oid.ID
+
+	hdr *v2object.HeaderWithSignature
+}
+
+// ReadHeader reads header of the requested object.
+// Returns false if header is missing in the response (not read).
+func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
+	if x.hdr == nil {
+		return false
+	}
+
+	var objv2 v2object.Object
+
+	objv2.SetHeader(x.hdr.GetHeader())
+	objv2.SetSignature(x.hdr.GetSignature())
+
+	raw := object.NewRawFromV2(&objv2)
+	raw.SetID(&x.idObj)
+
+	*dst = *raw.Object()
+
+	return true
+}
+
+// ObjectHead reads object header through a remote server using NeoFS API protocol.
+//
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
+// Any client's internal or transport errors are returned as `error`,
+// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// NeoFS status codes are returned as `error`, otherwise, are included
+// in the returned result structure.
+//
+// Immediately panics if parameters are set incorrectly (see PrmObjectHead docs).
+// Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   *object.SplitInfoError (returned on virtual objects with PrmObjectHead.MakeRaw).
+//
+// Return statuses:
+//  - global (see Client docs).
+func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.cnrSet:
+		panic(panicMsgMissingContainer)
+	case !prm.objSet:
+		panic("missing object")
+	}
+
+	var addr v2refs.Address
+
+	addr.SetContainerID(prm.cnr.ToV2())
+	addr.SetObjectID(prm.obj.ToV2())
+
+	// form request body
+	var body v2object.HeadRequestBody
+
+	body.SetRaw(prm.raw)
+	body.SetAddress(&addr)
+
+	// form meta header
+	var meta v2session.RequestMetaHeader
+
+	if prm.local {
+		meta.SetTTL(1)
+	}
+
+	if prm.bearerSet {
+		meta.SetBearerToken(prm.bearer.ToV2())
+	}
+
+	if prm.sessionSet {
+		meta.SetSessionToken(prm.session.ToV2())
+	}
+
+	// form request
+	var req v2object.HeadRequest
+
+	req.SetBody(&body)
+	req.SetMetaHeader(&meta)
+
+	// init call context
+
+	var (
+		cc  contextCall
+		res ResObjectHead
+	)
+
+	res.idObj = prm.obj
+
+	c.initCallContext(&cc)
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.HeadObject(c.Raw(), &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		switch v := r.(*v2object.HeadResponse).GetBody().GetHeaderPart().(type) {
+		default:
+			cc.err = fmt.Errorf("unexpected header type %T", v)
+		case *v2object.SplitInfo:
+			handleSplitInfo(&cc, v)
+		case *v2object.HeaderWithSignature:
+			res.hdr = v
+		}
+	}
+
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
+
+	return &res, nil
 }

@@ -260,15 +260,11 @@ func (mr *MockClientMockRecorder) HashObjectPayloadRanges(arg0, arg1 interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashObjectPayloadRanges", reflect.TypeOf((*MockClient)(nil).HashObjectPayloadRanges), varargs...)
 }
 
-// HeadObject mocks base method.
-func (m *MockClient) HeadObject(arg0 context.Context, arg1 *client0.ObjectHeaderParams, arg2 ...client0.CallOption) (*client0.ObjectHeadRes, error) {
+// ObjectHead mocks base method.
+func (m *MockClient) ObjectHead(arg0 context.Context, arg1 client0.PrmObjectHead) (*client0.ResObjectHead, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "HeadObject", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectHeadRes)
+	ret := m.ctrl.Call(m, "HeadObject", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ResObjectHead)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -277,7 +273,7 @@ func (m *MockClient) HeadObject(arg0 context.Context, arg1 *client0.ObjectHeader
 func (mr *MockClientMockRecorder) HeadObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*MockClient)(nil).HeadObject), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*MockClient)(nil).ObjectHead), varargs...)
 }
 
 // ListContainers mocks base method.

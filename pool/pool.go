@@ -46,7 +46,7 @@ type Client interface {
 	ObjectPutInit(context.Context, client.PrmObjectPutInit) (*client.ObjectWriter, error)
 	DeleteObject(context.Context, *client.DeleteObjectParams, ...client.CallOption) (*client.ObjectDeleteRes, error)
 	ObjectGetInit(context.Context, client.PrmObjectGet) (*client.ObjectReader, error)
-	HeadObject(context.Context, *client.ObjectHeaderParams, ...client.CallOption) (*client.ObjectHeadRes, error)
+	ObjectHead(context.Context, client.PrmObjectHead) (*client.ResObjectHead, error)
 	ObjectPayloadRangeData(context.Context, *client.RangeDataParams, ...client.CallOption) (*client.ObjectRangeRes, error)
 	HashObjectPayloadRanges(context.Context, *client.RangeChecksumParams, ...client.CallOption) (*client.ObjectRangeHashRes, error)
 	SearchObjects(context.Context, *client.SearchObjectParams, ...client.CallOption) (*client.ObjectSearchRes, error)
@@ -164,7 +164,7 @@ type Object interface {
 	PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error)
 	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
 	GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error)
-	GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error)
+	HeadObject(context.Context, address.Address, ...CallOption) (*object.Object, error)
 	ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error)
 	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
 	ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error)
@@ -648,6 +648,8 @@ func (p *pool) initCallContextWithRetry(ctx *callContextWithRetry, cfg *callConf
 	return nil
 }
 
+// opens new session or uses cached one.
+// Must be called only on initialized callContext with set sessionTarget.
 func (p *pool) openDefaultSession(ctx *callContext) error {
 	cacheKey := formCacheKey(ctx.endpoint, ctx.key)
 
@@ -684,14 +686,29 @@ func (p *pool) openDefaultSession(ctx *callContext) error {
 	return nil
 }
 
-func (p *pool) handleAttemptError(ctx *callContextWithRetry, err error) bool {
-	isTokenErr := p.checkSessionTokenErr(err, ctx.endpoint)
-	// note that checkSessionTokenErr must be called
-	res := isTokenErr && !ctx.noRetry
+// opens default session (if sessionDefault is set), and calls f. If f returns
+// session-related error (*), and retrying is enabled, then f is called once more.
+//
+// (*) in this case cached token is removed.
+func (p *pool) callWithRetry(ctx *callContextWithRetry, f func() error) error {
+	var err error
 
-	ctx.noRetry = true
+	if ctx.sessionDefault {
+		err = p.openDefaultSession(&ctx.callContext)
+		if err != nil {
+			return fmt.Errorf("open default session: %w", err)
+		}
+	}
 
-	return res
+	err = f()
+
+	if p.checkSessionTokenErr(err, ctx.endpoint) && !ctx.noRetry {
+		// don't retry anymore
+		ctx.noRetry = true
+		return p.callWithRetry(ctx, f)
+	}
+
+	return err
 }
 
 func (p *pool) PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error) {
@@ -836,27 +853,6 @@ type ResGetObject struct {
 	Payload io.ReadCloser
 }
 
-func (p *pool) callWithRetry(ctx *callContextWithRetry, f func() error) error {
-	var err error
-
-	if ctx.sessionDefault {
-		err = p.openDefaultSession(&ctx.callContext)
-		if err != nil {
-			return fmt.Errorf("open default session: %w", err)
-		}
-	}
-
-	err = f()
-
-	if p.checkSessionTokenErr(err, ctx.endpoint) && !ctx.noRetry {
-		// don't retry anymore
-		ctx.noRetry = true
-		return p.callWithRetry(ctx, f)
-	}
-
-	return err
-}
-
 func (p *pool) GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
 
@@ -903,25 +899,45 @@ func (p *pool) GetObject(ctx context.Context, addr address.Address, opts ...Call
 	return &res, nil
 }
 
-func (p *pool) GetObjectHeader(ctx context.Context, params *client.ObjectHeaderParams, opts ...CallOption) (*object.Object, error) {
+func (p *pool) HeadObject(ctx context.Context, addr address.Address, opts ...CallOption) (*object.Object, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
+
+	var prm client.PrmObjectHead
+
+	var cc callContextWithRetry
+
+	cc.Context = ctx
+	cc.sessionTarget = prm.WithinSession
+
+	err := p.initCallContextWithRetry(&cc, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := cp.client.HeadObject(ctx, params, options...)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.GetObjectHeader(ctx, params, opts...)
+	if cnr := addr.ContainerID(); cnr != nil {
+		prm.FromContainer(*cnr)
 	}
 
-	if err != nil { // here err already carries both status and client errors
-		return nil, err
+	if obj := addr.ObjectID(); obj != nil {
+		prm.ByID(*obj)
 	}
 
-	return res.Object(), nil
+	var obj object.Object
+
+	err = p.callWithRetry(&cc, func() error {
+		res, err := cc.client.ObjectHead(ctx, prm)
+		if err != nil {
+			return fmt.Errorf("read object header via client: %w", err)
+		}
+
+		if !res.ReadHeader(&obj) {
+			return errors.New("missing object header in response")
+		}
+
+		return nil
+	})
+
+	return &obj, nil
 }
 
 func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error) {
