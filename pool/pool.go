@@ -47,7 +47,7 @@ type Client interface {
 	DeleteObject(context.Context, *client.DeleteObjectParams, ...client.CallOption) (*client.ObjectDeleteRes, error)
 	ObjectGetInit(context.Context, client.PrmObjectGet) (*client.ObjectReader, error)
 	ObjectHead(context.Context, client.PrmObjectHead) (*client.ResObjectHead, error)
-	ObjectPayloadRangeData(context.Context, *client.RangeDataParams, ...client.CallOption) (*client.ObjectRangeRes, error)
+	ObjectRangeInit(context.Context, client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	HashObjectPayloadRanges(context.Context, *client.RangeChecksumParams, ...client.CallOption) (*client.ObjectRangeHashRes, error)
 	SearchObjects(context.Context, *client.SearchObjectParams, ...client.CallOption) (*client.ObjectSearchRes, error)
 	AnnounceLocalTrust(context.Context, client.AnnounceLocalTrustPrm) (*client.AnnounceLocalTrustRes, error)
@@ -165,7 +165,7 @@ type Object interface {
 	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
 	GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error)
 	HeadObject(context.Context, address.Address, ...CallOption) (*object.Object, error)
-	ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error)
+	ObjectRange(ctx context.Context, addr address.Address, off, ln uint64, opts ...CallOption) (*ResObjectRange, error)
 	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
 	ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error)
 	SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*oid.ID, error)
@@ -946,25 +946,64 @@ func (p *pool) HeadObject(ctx context.Context, addr address.Address, opts ...Cal
 	return &obj, nil
 }
 
-func (p *pool) ObjectPayloadRangeData(ctx context.Context, params *client.RangeDataParams, opts ...CallOption) ([]byte, error) {
+type ResObjectRange struct {
+	payload *client.ObjectRangeReader
+}
+
+func (x *ResObjectRange) Read(p []byte) (int, error) {
+	return x.payload.Read(p)
+}
+
+func (x *ResObjectRange) Close() error {
+	_, err := x.payload.Close()
+	return err
+}
+
+func (p *pool) ObjectRange(ctx context.Context, addr address.Address, off, ln uint64, opts ...CallOption) (*ResObjectRange, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
+
+	var prm client.PrmObjectRange
+
+	prm.SetOffset(off)
+	prm.SetLength(ln)
+
+	var cc callContextWithRetry
+
+	cc.Context = ctx
+	cc.sessionTarget = prm.WithinSession
+
+	err := p.initCallContextWithRetry(&cc, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := cp.client.ObjectPayloadRangeData(ctx, params, options...)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.ObjectPayloadRangeData(ctx, params, opts...)
+	if cnr := addr.ContainerID(); cnr != nil {
+		prm.FromContainer(*cnr)
 	}
 
-	if err != nil { // here err already carries both status and client errors
+	if obj := addr.ObjectID(); obj != nil {
+		prm.ByID(*obj)
+	}
+
+	var res ResObjectRange
+
+	err = p.callWithRetry(&cc, func() error {
+		var err error
+
+		res.payload, err = cc.client.ObjectRangeInit(ctx, prm)
+		if err != nil {
+			return fmt.Errorf("init payload range reading on client: %w", err)
+		}
+
+		res.payload.UseKey(*cc.key)
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	return res.Data(), nil
+	return &res, nil
 }
 
 func copyRangeChecksumParams(prm *client.RangeChecksumParams) *client.RangeChecksumParams {

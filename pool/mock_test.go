@@ -310,24 +310,20 @@ func (mr *MockClientMockRecorder) NetworkInfo(arg0, arg1 interface{}) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkInfo", reflect.TypeOf((*MockClient)(nil).NetworkInfo), varargs...)
 }
 
-// ObjectPayloadRangeData mocks base method.
-func (m *MockClient) ObjectPayloadRangeData(arg0 context.Context, arg1 *client0.RangeDataParams, arg2 ...client0.CallOption) (*client0.ObjectRangeRes, error) {
+// ObjectRangeInit mocks base method.
+func (m *MockClient) ObjectRangeInit(arg0 context.Context, arg1 client0.PrmObjectRange) (*client0.ObjectRangeReader, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "ObjectPayloadRangeData", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectRangeRes)
+	ret := m.ctrl.Call(m, "ObjectRangeInit", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ObjectRangeReader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ObjectPayloadRangeData indicates an expected call of ObjectPayloadRangeData.
-func (mr *MockClientMockRecorder) ObjectPayloadRangeData(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// ObjectRange indicates an expected call of ObjectRangeInit.
+func (mr *MockClientMockRecorder) ObjectRange(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectPayloadRangeData", reflect.TypeOf((*MockClient)(nil).ObjectPayloadRangeData), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectRangeInit", reflect.TypeOf((*MockClient)(nil).ObjectRangeInit), varargs...)
 }
 
 // PutContainer mocks base method.
