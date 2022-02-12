@@ -49,7 +49,7 @@ type Client interface {
 	ObjectHead(context.Context, client.PrmObjectHead) (*client.ResObjectHead, error)
 	ObjectRangeInit(context.Context, client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	HashObjectPayloadRanges(context.Context, *client.RangeChecksumParams, ...client.CallOption) (*client.ObjectRangeHashRes, error)
-	SearchObjects(context.Context, *client.SearchObjectParams, ...client.CallOption) (*client.ObjectSearchRes, error)
+	ObjectSearchInit(context.Context, client.PrmObjectSearch) (*client.ObjectListReader, error)
 	AnnounceLocalTrust(context.Context, client.AnnounceLocalTrustPrm) (*client.AnnounceLocalTrustRes, error)
 	AnnounceIntermediateTrust(context.Context, client.AnnounceIntermediateTrustPrm) (*client.AnnounceIntermediateTrustRes, error)
 	CreateSession(context.Context, client.CreateSessionPrm) (*client.CreateSessionRes, error)
@@ -163,12 +163,12 @@ type Pool interface {
 type Object interface {
 	PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error)
 	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
-	GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error)
+	GetObject(context.Context, address.Address, ...CallOption) (*ResGetObject, error)
 	HeadObject(context.Context, address.Address, ...CallOption) (*object.Object, error)
 	ObjectRange(ctx context.Context, addr address.Address, off, ln uint64, opts ...CallOption) (*ResObjectRange, error)
 	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
 	ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error)
-	SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*oid.ID, error)
+	SearchObjects(context.Context, cid.ID, object.SearchFilters, ...CallOption) (*ResObjectSearch, error)
 }
 
 type Container interface {
@@ -1092,25 +1092,65 @@ func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChe
 	return hs, nil
 }
 
-func (p *pool) SearchObject(ctx context.Context, params *client.SearchObjectParams, opts ...CallOption) ([]*oid.ID, error) {
+type ResObjectSearch struct {
+	r *client.ObjectListReader
+}
+
+func (x *ResObjectSearch) Read(buf []oid.ID) (int, error) {
+	n, ok := x.r.Read(buf)
+	if !ok {
+		_, err := x.r.Close()
+		if err == nil {
+			return n, io.EOF
+		}
+
+		return n, err
+	}
+
+	return n, nil
+}
+
+func (x *ResObjectSearch) Close() {
+	_, _ = x.r.Close()
+}
+
+func (p *pool) SearchObjects(ctx context.Context, idCnr cid.ID, filters object.SearchFilters, opts ...CallOption) (*ResObjectSearch, error) {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
+
+	var prm client.PrmObjectSearch
+
+	prm.InContainer(idCnr)
+	prm.SetFilters(filters)
+
+	var cc callContextWithRetry
+
+	cc.Context = ctx
+	cc.sessionTarget = prm.WithinSession
+
+	err := p.initCallContextWithRetry(&cc, cfg)
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := cp.client.SearchObjects(ctx, params, options...)
+	var res ResObjectSearch
 
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.SearchObject(ctx, params, opts...)
-	}
+	err = p.callWithRetry(&cc, func() error {
+		var err error
 
-	if err != nil { // here err already carries both status and client errors
+		res.r, err = cc.client.ObjectSearchInit(ctx, prm)
+		if err != nil {
+			return fmt.Errorf("init object searching on client: %w", err)
+		}
+
+		res.r.UseKey(*cc.key)
+
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
 
-	return res.IDList(), nil
+	return &res, nil
 }
 
 func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*cid.ID, error) {
