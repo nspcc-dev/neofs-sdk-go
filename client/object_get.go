@@ -456,3 +456,249 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 
 	return &res, nil
 }
+
+// PrmObjectRange groups parameters of ObjectRange operation.
+type PrmObjectRange struct {
+	prmObjectRead
+
+	off, ln uint64
+}
+
+// SetOffset sets offset of the payload range to be read.
+// Zero by default.
+func (x *PrmObjectRange) SetOffset(off uint64) {
+	x.off = off
+}
+
+// SetLength sets length of the payload range to be read.
+// Must be positive.
+func (x *PrmObjectRange) SetLength(ln uint64) {
+	x.ln = ln
+}
+
+// ResObjectRange groups the final result values of ObjectRange operation.
+type ResObjectRange struct {
+	statusRes
+}
+
+// ObjectRangeReader is designed to read payload range of one object
+// from NeoFS system.
+//
+// Must be initialized using Client.ObjectRangeInit, any other
+// usage is unsafe.
+type ObjectRangeReader struct {
+	cancelCtxStream context.CancelFunc
+
+	ctxCall contextCall
+
+	reqWritten bool
+
+	// initially bound to contextCall
+	bodyResp v2object.GetRangeResponseBody
+
+	tailPayload []byte
+}
+
+// UseKey specifies private key to sign the requests.
+// If key is not provided, then Client default key is used.
+func (x *ObjectRangeReader) UseKey(key ecdsa.PrivateKey) {
+	x.ctxCall.key = key
+}
+
+func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
+	if !x.reqWritten {
+		if !x.ctxCall.writeRequest() {
+			return 0, false
+		}
+
+		x.reqWritten = true
+	}
+
+	var read int
+
+	// read remaining tail
+	read = copy(buf, x.tailPayload)
+
+	x.tailPayload = x.tailPayload[read:]
+
+	if len(buf) == read {
+		return read, true
+	}
+
+	// receive next message
+	ok := x.ctxCall.readResponse()
+	if !ok {
+		return read, false
+	}
+
+	// get chunk message
+	var partChunk *v2object.GetRangePartChunk
+
+	switch v := x.bodyResp.GetRangePart().(type) {
+	default:
+		x.ctxCall.err = fmt.Errorf("unexpected message received: %T", v)
+		return read, false
+	case *v2object.SplitInfo:
+		handleSplitInfo(&x.ctxCall, v)
+		return read, false
+	case *v2object.GetRangePartChunk:
+		partChunk = v
+	}
+
+	// read new chunk
+	chunk := partChunk.GetChunk()
+
+	tailOffset := copy(buf[read:], chunk)
+
+	read += tailOffset
+
+	// save the tail
+	x.tailPayload = append(x.tailPayload, chunk[tailOffset:]...)
+
+	return read, true
+}
+
+// ReadChunk reads another chunk of the object payload range.
+// Works similar to io.Reader.Read but returns success flag instead of error.
+//
+// Failure reason can be received via Close.
+func (x *ObjectRangeReader) ReadChunk(buf []byte) (int, bool) {
+	return x.readChunk(buf)
+}
+
+func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
+	defer x.cancelCtxStream()
+
+	if x.ctxCall.err != nil {
+		if !errors.Is(x.ctxCall.err, io.EOF) {
+			return nil, x.ctxCall.err
+		} else if !ignoreEOF {
+			return nil, io.EOF
+		}
+	}
+
+	return x.ctxCall.statusRes.(*ResObjectRange), nil
+}
+
+// Close ends reading the payload range and returns the result of the operation
+// along with the final results. Must be called after using the ObjectRangeReader.
+//
+// Exactly one return value is non-nil. By default, server status is returned in res structure.
+// Any client's internal or transport errors are returned as Go built-in error.
+// If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
+// codes are returned as error.
+//
+// Return errors:
+//   *object.SplitInfoError (returned on virtual objects with PrmObjectRange.MakeRaw).
+//
+// Return statuses:
+//   global (see Client docs).
+func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
+	return x.close(true)
+}
+
+func (x *ObjectRangeReader) Read(p []byte) (int, error) {
+	n, ok := x.readChunk(p)
+	if !ok {
+		res, err := x.close(false)
+		if err != nil {
+			return n, err
+		} else if !x.ctxCall.resolveAPIFailures {
+			return n, apistatus.ErrFromStatus(res.Status())
+		}
+	}
+
+	return n, nil
+}
+
+// ObjectRangeInit initiates reading an object's payload range through a remote
+// server using NeoFS API protocol.
+//
+// The call only opens the transmission channel, explicit fetching is done using the ObjectRangeReader.
+// Exactly one return value is non-nil. Resulting reader must be finally closed.
+//
+// Immediately panics if parameters are set incorrectly (see PrmObjectRange docs).
+// Context is required and must not be nil. It is used for network communication.
+func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*ObjectRangeReader, error) {
+	// check parameters
+	switch {
+	case ctx == nil:
+		panic(panicMsgMissingContext)
+	case !prm.cnrSet:
+		panic(panicMsgMissingContainer)
+	case !prm.objSet:
+		panic("missing object")
+	case prm.ln == 0:
+		panic("zero range length")
+	}
+
+	var addr v2refs.Address
+
+	addr.SetContainerID(prm.cnr.ToV2())
+	addr.SetObjectID(prm.obj.ToV2())
+
+	var rng v2object.Range
+
+	rng.SetOffset(prm.off)
+	rng.SetLength(prm.ln)
+
+	// form request body
+	var body v2object.GetRangeRequestBody
+
+	body.SetRaw(prm.raw)
+	body.SetAddress(&addr)
+	body.SetRange(&rng)
+
+	// form meta header
+	var meta v2session.RequestMetaHeader
+
+	if prm.local {
+		meta.SetTTL(1)
+	}
+
+	if prm.bearerSet {
+		meta.SetBearerToken(prm.bearer.ToV2())
+	}
+
+	if prm.sessionSet {
+		meta.SetSessionToken(prm.session.ToV2())
+	}
+
+	// form request
+	var req v2object.GetRangeRequest
+
+	req.SetBody(&body)
+	req.SetMetaHeader(&meta)
+
+	// init reader
+	var (
+		r      ObjectRangeReader
+		resp   v2object.GetRangeResponse
+		stream *rpcapi.ObjectRangeResponseReader
+	)
+
+	ctx, r.cancelCtxStream = context.WithCancel(ctx)
+
+	resp.SetBody(&r.bodyResp)
+
+	// init call context
+	c.initCallContext(&r.ctxCall)
+	r.ctxCall.req = &req
+	r.ctxCall.statusRes = new(ResObjectRange)
+	r.ctxCall.resp = &resp
+	r.ctxCall.wReq = func() error {
+		var err error
+
+		stream, err = rpcapi.GetObjectRange(c.Raw(), &req, client.WithContext(ctx))
+		if err != nil {
+			return fmt.Errorf("open stream: %w", err)
+		}
+
+		return nil
+	}
+	r.ctxCall.rResp = func() error {
+		return stream.Read(&resp)
+	}
+
+	return &r, nil
+}
