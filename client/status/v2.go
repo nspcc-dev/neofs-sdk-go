@@ -3,6 +3,7 @@ package apistatus
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
@@ -29,6 +30,10 @@ type StatusV2 interface {
 //
 // Common failures:
 //   * status.Internal: *ServerInternal.
+//
+// Object failures:
+//   * object.StatusLocked: *ObjectLocked;
+//   * object.StatusLockNonRegularObject: *LockNonRegularObject.
 func FromStatusV2(st *status.Status) Status {
 	var decoder interface {
 		fromStatusV2(*status.Status)
@@ -47,6 +52,13 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(ServerInternal)
 		case status.WrongMagicNumber:
 			decoder = new(WrongMagicNumber)
+		}
+	case object.LocalizeFailStatus(&code):
+		switch code {
+		case object.StatusLocked:
+			decoder = new(ObjectLocked)
+		case object.StatusLockNonRegularObject:
+			decoder = new(LockNonRegularObject)
 		}
 	}
 
