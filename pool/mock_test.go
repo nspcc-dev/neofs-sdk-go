@@ -6,11 +6,9 @@ package pool
 
 import (
 	context "context"
-	io "io"
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
-	client "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	client0 "github.com/nspcc-dev/neofs-sdk-go/client"
 )
 
@@ -35,71 +33,6 @@ func NewMockClient(ctrl *gomock.Controller) *MockClient {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockClient) EXPECT() *MockClientMockRecorder {
 	return m.recorder
-}
-
-// AnnounceContainerUsedSpace mocks base method.
-func (m *MockClient) AnnounceContainerUsedSpace(arg0 context.Context, arg1 client0.AnnounceSpacePrm) (*client0.AnnounceSpaceRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "AnnounceContainerUsedSpace", varargs...)
-	ret0, _ := ret[0].(*client0.AnnounceSpaceRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AnnounceContainerUsedSpace indicates an expected call of AnnounceContainerUsedSpace.
-func (mr *MockClientMockRecorder) AnnounceContainerUsedSpace(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AnnounceContainerUsedSpace", reflect.TypeOf((*MockClient)(nil).AnnounceContainerUsedSpace), varargs...)
-}
-
-// AnnounceIntermediateTrust mocks base method.
-func (m *MockClient) AnnounceIntermediateTrust(arg0 context.Context, arg1 client0.AnnounceIntermediateTrustPrm) (*client0.AnnounceIntermediateTrustRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "AnnounceIntermediateTrust", varargs...)
-	ret0, _ := ret[0].(*client0.AnnounceIntermediateTrustRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AnnounceIntermediateTrust indicates an expected call of AnnounceIntermediateTrust.
-func (mr *MockClientMockRecorder) AnnounceIntermediateTrust(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AnnounceIntermediateTrust", reflect.TypeOf((*MockClient)(nil).AnnounceIntermediateTrust), varargs...)
-}
-
-// AnnounceLocalTrust mocks base method.
-func (m *MockClient) AnnounceLocalTrust(arg0 context.Context, arg1 client0.AnnounceLocalTrustPrm) (*client0.AnnounceLocalTrustRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "AnnounceLocalTrust", varargs...)
-	ret0, _ := ret[0].(*client0.AnnounceLocalTrustRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// AnnounceLocalTrust indicates an expected call of AnnounceLocalTrust.
-func (mr *MockClientMockRecorder) AnnounceLocalTrust(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AnnounceLocalTrust", reflect.TypeOf((*MockClient)(nil).AnnounceLocalTrust), varargs...)
-}
-
-// Conn mocks base method.
-func (m *MockClient) Conn() io.Closer {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Conn")
-	ret0, _ := ret[0].(io.Closer)
-	return ret0
-}
-
-// Conn indicates an expected call of Conn.
-func (mr *MockClientMockRecorder) Conn() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Conn", reflect.TypeOf((*MockClient)(nil).Conn))
 }
 
 // CreateSession mocks base method.
@@ -136,15 +69,11 @@ func (mr *MockClientMockRecorder) DeleteContainer(arg0, arg1 interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContainer", reflect.TypeOf((*MockClient)(nil).DeleteContainer), varargs...)
 }
 
-// DeleteObject mocks base method.
-func (m *MockClient) DeleteObject(arg0 context.Context, arg1 *client0.DeleteObjectParams, arg2 ...client0.CallOption) (*client0.ObjectDeleteRes, error) {
+// ObjectDelete mocks base method.
+func (m *MockClient) ObjectDelete(arg0 context.Context, arg1 client0.PrmObjectDelete) (*client0.ResObjectDelete, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "DeleteObject", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectDeleteRes)
+	ret := m.ctrl.Call(m, "ObjectDelete", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ResObjectDelete)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -153,7 +82,7 @@ func (m *MockClient) DeleteObject(arg0 context.Context, arg1 *client0.DeleteObje
 func (mr *MockClientMockRecorder) DeleteObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockClient)(nil).DeleteObject), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockClient)(nil).ObjectDelete), varargs...)
 }
 
 // EACL mocks base method.
@@ -238,26 +167,6 @@ func (mr *MockClientMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...inte
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectGetInit", reflect.TypeOf((*MockClient)(nil).ObjectGetInit), varargs...)
-}
-
-// HashObjectPayloadRanges mocks base method.
-func (m *MockClient) HashObjectPayloadRanges(arg0 context.Context, arg1 *client0.RangeChecksumParams, arg2 ...client0.CallOption) (*client0.ObjectRangeHashRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "HashObjectPayloadRanges", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectRangeHashRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// HashObjectPayloadRanges indicates an expected call of HashObjectPayloadRanges.
-func (mr *MockClientMockRecorder) HashObjectPayloadRanges(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HashObjectPayloadRanges", reflect.TypeOf((*MockClient)(nil).HashObjectPayloadRanges), varargs...)
 }
 
 // ObjectHead mocks base method.
@@ -359,29 +268,11 @@ func (mr *MockClientMockRecorder) PutObject(arg0, arg1 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectPutInit", reflect.TypeOf((*MockClient)(nil).ObjectPutInit), varargs...)
 }
 
-// Raw mocks base method.
-func (m *MockClient) Raw() *client.Client {
+// ObjectSearchInitmocks base method.
+func (m *MockClient) ObjectSearchInit(arg0 context.Context, arg1 client0.PrmObjectSearch) (*client0.ObjectListReader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Raw")
-	ret0, _ := ret[0].(*client.Client)
-	return ret0
-}
-
-// Raw indicates an expected call of Raw.
-func (mr *MockClientMockRecorder) Raw() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Raw", reflect.TypeOf((*MockClient)(nil).Raw))
-}
-
-// SearchObjects mocks base method.
-func (m *MockClient) SearchObjects(arg0 context.Context, arg1 *client0.SearchObjectParams, arg2 ...client0.CallOption) (*client0.ObjectSearchRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	for _, a := range arg2 {
-		varargs = append(varargs, a)
-	}
-	ret := m.ctrl.Call(m, "SearchObjects", varargs...)
-	ret0, _ := ret[0].(*client0.ObjectSearchRes)
+	ret := m.ctrl.Call(m, "ObjectSearchInit", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ObjectListReader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -390,7 +281,7 @@ func (m *MockClient) SearchObjects(arg0 context.Context, arg1 *client0.SearchObj
 func (mr *MockClientMockRecorder) SearchObjects(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchObjects", reflect.TypeOf((*MockClient)(nil).SearchObjects), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchObjects", reflect.TypeOf((*MockClient)(nil).ObjectSearchInit), varargs...)
 }
 
 // SetEACL mocks base method.

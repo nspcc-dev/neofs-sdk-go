@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/ecdsa"
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
@@ -16,7 +15,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	apiclient "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -40,23 +38,15 @@ type Client interface {
 	DeleteContainer(context.Context, client.ContainerDeletePrm) (*client.ContainerDeleteRes, error)
 	EACL(context.Context, client.EACLPrm) (*client.EACLRes, error)
 	SetEACL(context.Context, client.SetEACLPrm) (*client.SetEACLRes, error)
-	AnnounceContainerUsedSpace(context.Context, client.AnnounceSpacePrm) (*client.AnnounceSpaceRes, error)
 	EndpointInfo(context.Context, client.EndpointInfoPrm) (*client.EndpointInfoRes, error)
 	NetworkInfo(context.Context, client.NetworkInfoPrm) (*client.NetworkInfoRes, error)
 	ObjectPutInit(context.Context, client.PrmObjectPutInit) (*client.ObjectWriter, error)
-	DeleteObject(context.Context, *client.DeleteObjectParams, ...client.CallOption) (*client.ObjectDeleteRes, error)
+	ObjectDelete(context.Context, client.PrmObjectDelete) (*client.ResObjectDelete, error)
 	ObjectGetInit(context.Context, client.PrmObjectGet) (*client.ObjectReader, error)
 	ObjectHead(context.Context, client.PrmObjectHead) (*client.ResObjectHead, error)
 	ObjectRangeInit(context.Context, client.PrmObjectRange) (*client.ObjectRangeReader, error)
-	HashObjectPayloadRanges(context.Context, *client.RangeChecksumParams, ...client.CallOption) (*client.ObjectRangeHashRes, error)
 	ObjectSearchInit(context.Context, client.PrmObjectSearch) (*client.ObjectListReader, error)
-	AnnounceLocalTrust(context.Context, client.AnnounceLocalTrustPrm) (*client.AnnounceLocalTrustRes, error)
-	AnnounceIntermediateTrust(context.Context, client.AnnounceIntermediateTrustPrm) (*client.AnnounceIntermediateTrustRes, error)
 	CreateSession(context.Context, client.CreateSessionPrm) (*client.CreateSessionRes, error)
-
-	Raw() *apiclient.Client
-
-	Conn() io.Closer
 }
 
 // BuilderOptions contains options used to build connection pool.
@@ -162,12 +152,10 @@ type Pool interface {
 
 type Object interface {
 	PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error)
-	DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error
+	DeleteObject(ctx context.Context, addr address.Address, opts ...CallOption) error
 	GetObject(context.Context, address.Address, ...CallOption) (*ResGetObject, error)
 	HeadObject(context.Context, address.Address, ...CallOption) (*object.Object, error)
 	ObjectRange(ctx context.Context, addr address.Address, off, ln uint64, opts ...CallOption) (*ResObjectRange, error)
-	ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error)
-	ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error)
 	SearchObjects(context.Context, cid.ID, object.SearchFilters, ...CallOption) (*ResObjectSearch, error)
 }
 
@@ -817,23 +805,37 @@ func (p *pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 	return &id, nil
 }
 
-func (p *pool) DeleteObject(ctx context.Context, params *client.DeleteObjectParams, opts ...CallOption) error {
+func (p *pool) DeleteObject(ctx context.Context, addr address.Address, opts ...CallOption) error {
 	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
+
+	var prm client.PrmObjectDelete
+
+	var cc callContextWithRetry
+
+	cc.Context = ctx
+	cc.sessionTarget = prm.WithinSession
+
+	err := p.initCallContextWithRetry(&cc, cfg)
 	if err != nil {
 		return err
 	}
 
-	_, err = cp.client.DeleteObject(ctx, params, options...)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.DeleteObject(ctx, params, opts...)
+	if cnr := addr.ContainerID(); cnr != nil {
+		prm.FromContainer(*cnr)
 	}
 
-	// here err already carries both status and client errors
+	if obj := addr.ObjectID(); obj != nil {
+		prm.ByID(*obj)
+	}
 
-	return err
+	return p.callWithRetry(&cc, func() error {
+		_, err := cc.client.ObjectDelete(ctx, prm)
+		if err != nil {
+			return fmt.Errorf("remove object via client: %w", err)
+		}
+
+		return nil
+	})
 }
 
 type objectReadCloser client.ObjectReader
@@ -1004,92 +1006,6 @@ func (p *pool) ObjectRange(ctx context.Context, addr address.Address, off, ln ui
 	}
 
 	return &res, nil
-}
-
-func copyRangeChecksumParams(prm *client.RangeChecksumParams) *client.RangeChecksumParams {
-	var prmCopy client.RangeChecksumParams
-
-	prmCopy.WithAddress(prm.Address())
-	prmCopy.WithSalt(prm.Salt())
-	prmCopy.WithRangeList(prm.RangeList()...)
-
-	return &prmCopy
-}
-
-func (p *pool) ObjectPayloadRangeSHA256(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][32]byte, error) {
-	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	// FIXME: pretty bad approach but we should not mutate params through the pointer
-	//  If non-SHA256 algo is set then we need to reset it.
-	params = copyRangeChecksumParams(params)
-	// SHA256 by default, no need to do smth
-
-	res, err := cp.client.HashObjectPayloadRanges(ctx, params, options...)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.ObjectPayloadRangeSHA256(ctx, params, opts...)
-	}
-
-	if err != nil { // here err already carries both status and client errors
-		return nil, err
-	}
-
-	cliHashes := res.Hashes()
-
-	hs := make([][sha256.Size]byte, len(cliHashes))
-
-	for i := range cliHashes {
-		if ln := len(cliHashes[i]); ln != sha256.Size {
-			return nil, fmt.Errorf("invalid SHA256 checksum size %d", ln)
-		}
-
-		copy(hs[i][:], cliHashes[i])
-	}
-
-	return hs, nil
-}
-
-func (p *pool) ObjectPayloadRangeTZ(ctx context.Context, params *client.RangeChecksumParams, opts ...CallOption) ([][64]byte, error) {
-	cfg := cfgFromOpts(append(opts, useDefaultSession())...)
-	cp, options, err := p.conn(ctx, cfg)
-	if err != nil {
-		return nil, err
-	}
-
-	// FIXME: pretty bad approach but we should not mutate params through the pointer
-	//  We need to set Tillich-Zemor algo.
-	params = copyRangeChecksumParams(params)
-	params.TZ()
-
-	res, err := cp.client.HashObjectPayloadRanges(ctx, params, options...)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.ObjectPayloadRangeTZ(ctx, params, opts...)
-	}
-
-	if err != nil { // here err already carries both status and client errors
-		return nil, err
-	}
-
-	cliHashes := res.Hashes()
-
-	hs := make([][client.TZSize]byte, len(cliHashes))
-
-	for i := range cliHashes {
-		if ln := len(cliHashes[i]); ln != client.TZSize {
-			return nil, fmt.Errorf("invalid TZ checksum size %d", ln)
-		}
-
-		copy(hs[i][:], cliHashes[i])
-	}
-
-	return hs, nil
 }
 
 type ResObjectSearch struct {
