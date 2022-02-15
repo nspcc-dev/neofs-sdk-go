@@ -59,6 +59,18 @@ func TestToStatusV2(t *testing.T) {
 			}),
 			codeV2: 1025,
 		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.ObjectLocked)
+			}),
+			codeV2: 2050,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.LockNonRegularObject)
+			}),
+			codeV2: 2051,
+		},
 	} {
 		var st apistatus.Status
 
@@ -136,6 +148,18 @@ func TestFromStatusV2(t *testing.T) {
 				return st
 			}),
 			codeV2: 1025,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.ObjectLocked)
+			}),
+			codeV2: 2050,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.LockNonRegularObject)
+			}),
+			codeV2: 2051,
 		},
 	} {
 		var st apistatus.Status

@@ -25,6 +25,10 @@ func TestType_ToV2(t *testing.T) {
 			t:  object.TypeStorageGroup,
 			t2: v2object.TypeStorageGroup,
 		},
+		{
+			t:  object.TypeLock,
+			t2: v2object.TypeLock,
+		},
 	}
 
 	for _, item := range typs {
@@ -45,6 +49,7 @@ func TestType_String(t *testing.T) {
 		{val: toPtr(object.TypeTombstone), str: "TOMBSTONE"},
 		{val: toPtr(object.TypeStorageGroup), str: "STORAGE_GROUP"},
 		{val: toPtr(object.TypeRegular), str: "REGULAR"},
+		{val: toPtr(object.TypeLock), str: "LOCK"},
 	})
 }
 

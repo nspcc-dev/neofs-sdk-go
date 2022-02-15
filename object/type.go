@@ -4,34 +4,21 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
-type Type uint8
+type Type object.Type
 
 const (
 	TypeRegular Type = iota
 	TypeTombstone
 	TypeStorageGroup
+	TypeLock
 )
 
 func (t Type) ToV2() object.Type {
-	switch t {
-	case TypeTombstone:
-		return object.TypeTombstone
-	case TypeStorageGroup:
-		return object.TypeStorageGroup
-	default:
-		return object.TypeRegular
-	}
+	return object.Type(t)
 }
 
 func TypeFromV2(t object.Type) Type {
-	switch t {
-	case object.TypeTombstone:
-		return TypeTombstone
-	case object.TypeStorageGroup:
-		return TypeStorageGroup
-	default:
-		return TypeRegular
-	}
+	return Type(t)
 }
 
 // String returns string representation of Type.
@@ -39,6 +26,7 @@ func TypeFromV2(t object.Type) Type {
 // String mapping:
 //  * TypeTombstone: TOMBSTONE;
 //  * TypeStorageGroup: STORAGE_GROUP;
+//  * TypeLock: LOCK;
 //  * TypeRegular, default: REGULAR.
 func (t Type) String() string {
 	return t.ToV2().String()
