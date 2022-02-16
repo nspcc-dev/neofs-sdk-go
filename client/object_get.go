@@ -107,6 +107,8 @@ type ObjectReader struct {
 	bodyResp v2object.GetResponseBody
 
 	tailPayload []byte
+
+	remainingPayloadLen int
 }
 
 // UseKey specifies private key to sign the requests.
@@ -146,6 +148,8 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 	objv2.SetObjectID(partInit.GetObjectID())
 	objv2.SetHeader(partInit.GetHeader())
 	objv2.SetSignature(partInit.GetSignature())
+
+	x.remainingPayloadLen = int(objv2.GetHeader().GetPayloadLength())
 
 	*dst = *object.NewFromV2(&objv2) // need smth better
 
@@ -208,6 +212,8 @@ func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
 	if x.ctxCall.err != nil {
 		if !errors.Is(x.ctxCall.err, io.EOF) {
 			return nil, x.ctxCall.err
+		} else if x.remainingPayloadLen > 0 {
+			return nil, io.ErrUnexpectedEOF
 		} else if !ignoreEOF {
 			return nil, io.EOF
 		}
@@ -239,10 +245,16 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 		res, err := x.close(false)
 		if err != nil {
 			return n, err
-		} else if !x.ctxCall.resolveAPIFailures {
-			return n, apistatus.ErrFromStatus(res.Status())
 		}
+
+		return n, apistatus.ErrFromStatus(res.Status())
 	}
+
+	if n > x.remainingPayloadLen {
+		return n, errors.New("payload size overflow")
+	}
+
+	x.remainingPayloadLen -= n
 
 	return n, nil
 }
@@ -497,6 +509,8 @@ type ObjectRangeReader struct {
 	bodyResp v2object.GetRangeResponseBody
 
 	tailPayload []byte
+
+	remainingPayloadLen int
 }
 
 // UseKey specifies private key to sign the requests.
@@ -572,6 +586,8 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 	if x.ctxCall.err != nil {
 		if !errors.Is(x.ctxCall.err, io.EOF) {
 			return nil, x.ctxCall.err
+		} else if x.remainingPayloadLen > 0 {
+			return nil, io.ErrUnexpectedEOF
 		} else if !ignoreEOF {
 			return nil, io.EOF
 		}
@@ -603,10 +619,16 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 		res, err := x.close(false)
 		if err != nil {
 			return n, err
-		} else if !x.ctxCall.resolveAPIFailures {
-			return n, apistatus.ErrFromStatus(res.Status())
 		}
+
+		return n, apistatus.ErrFromStatus(res.Status())
 	}
+
+	if n > x.remainingPayloadLen {
+		return n, errors.New("payload range size overflow")
+	}
+
+	x.remainingPayloadLen -= n
 
 	return n, nil
 }
@@ -676,6 +698,8 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		resp   v2object.GetRangeResponse
 		stream *rpcapi.ObjectRangeResponseReader
 	)
+
+	r.remainingPayloadLen = int(prm.ln)
 
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
