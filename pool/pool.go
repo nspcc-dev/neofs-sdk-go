@@ -484,19 +484,16 @@ func formCacheKey(address string, key *ecdsa.PrivateKey) string {
 	return address + k.String()
 }
 
-func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client.CallOption, error) {
+func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, error) {
 	cp, err := p.connection()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-
-	clientCallOptions := make([]client.CallOption, 0, 3)
 
 	key := p.key
 	if cfg.key != nil {
 		key = cfg.key
 	}
-	clientCallOptions = append(clientCallOptions, client.WithKey(key))
 
 	sessionToken := cfg.stoken
 	if sessionToken == nil && cfg.useDefaultSession {
@@ -505,7 +502,7 @@ func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client
 		if sessionToken == nil {
 			cliRes, err := createSessionTokenForDuration(ctx, cp.client, p.stokenDuration)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
 
 			ownerID := owner.NewIDFromPublicKey(&key.PublicKey)
@@ -516,13 +513,8 @@ func (p *pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, []client
 			_ = p.cache.Put(cacheKey, sessionToken)
 		}
 	}
-	clientCallOptions = append(clientCallOptions, client.WithSession(sessionToken))
 
-	if cfg.btoken != nil {
-		clientCallOptions = append(clientCallOptions, client.WithBearer(cfg.btoken))
-	}
-
-	return cp, clientCallOptions, nil
+	return cp, nil
 }
 
 func (p *pool) checkSessionTokenErr(err error, address string) bool {
@@ -1067,7 +1059,7 @@ func (p *pool) SearchObjects(ctx context.Context, idCnr cid.ID, filters object.S
 
 func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*cid.ID, error) {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1094,7 +1086,7 @@ func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts 
 
 func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) (*container.Container, error) {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1121,7 +1113,7 @@ func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption
 
 func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]*cid.ID, error) {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1148,7 +1140,7 @@ func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...Ca
 
 func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) error {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1177,7 +1169,7 @@ func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOpt
 
 func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*eacl.Table, error) {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
@@ -1204,7 +1196,7 @@ func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*e
 
 func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOption) error {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return err
 	}
@@ -1233,7 +1225,7 @@ func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOptio
 
 func (p *pool) Balance(ctx context.Context, o *owner.ID, opts ...CallOption) (*accounting.Decimal, error) {
 	cfg := cfgFromOpts(opts...)
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
