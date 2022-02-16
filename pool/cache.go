@@ -2,6 +2,7 @@ package pool
 
 import (
 	"strings"
+	"sync/atomic"
 	"time"
 
 	lru "github.com/hashicorp/golang-lru"
@@ -9,7 +10,8 @@ import (
 )
 
 type SessionCache struct {
-	cache *lru.Cache
+	cache        *lru.Cache
+	currentEpoch uint64
 }
 
 type cacheValue struct {
@@ -33,6 +35,11 @@ func (c *SessionCache) Get(key string) *session.Token {
 	}
 
 	value := valueRaw.(*cacheValue)
+	if c.expired(value) {
+		c.cache.Remove(key)
+		return nil
+	}
+
 	value.atime = time.Now()
 
 	return value.token
@@ -60,4 +67,13 @@ func (c *SessionCache) DeleteByPrefix(prefix string) {
 			c.cache.Remove(key)
 		}
 	}
+}
+
+func (c *SessionCache) UpdateEpoch(epoch uint64) {
+	atomic.StoreUint64(&c.currentEpoch, epoch)
+}
+
+func (c *SessionCache) expired(val *cacheValue) bool {
+	epoch := atomic.LoadUint64(&c.currentEpoch)
+	return val.token.Exp() <= epoch
 }
