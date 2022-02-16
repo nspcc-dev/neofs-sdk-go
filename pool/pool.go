@@ -1671,6 +1671,7 @@ func sessionTokenForOwner(id *owner.ID, cliRes *sdkClient.ResSessionCreate) *ses
 	st.SetOwnerID(id)
 	st.SetID(cliRes.ID())
 	st.SetSessionKey(cliRes.PublicKey())
+	st.SetExp(cliRes.Expiration())
 
 	return st
 }

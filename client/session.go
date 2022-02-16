@@ -28,6 +28,8 @@ type ResSessionCreate struct {
 	id []byte
 
 	sessionKey []byte
+
+	exp uint64
 }
 
 func (x *ResSessionCreate) setID(id []byte) {
@@ -48,6 +50,15 @@ func (x *ResSessionCreate) setSessionKey(key []byte) {
 // PublicKey returns public key of the opened session in a binary NeoFS API protocol format.
 func (x ResSessionCreate) PublicKey() []byte {
 	return x.sessionKey
+}
+
+func (x *ResSessionCreate) setExp(exp uint64) {
+	x.exp = exp
+}
+
+// Expiration returns epoch number of the token expiration.
+func (x ResSessionCreate) Expiration() uint64 {
+	return x.exp
 }
 
 // SessionCreate opens a session with the node server on the remote endpoint.
@@ -104,6 +115,7 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 
 		res.setID(body.GetID())
 		res.setSessionKey(body.GetSessionKey())
+		res.setExp(reqBody.GetExpiration())
 	}
 
 	// process call
