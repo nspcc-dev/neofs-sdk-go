@@ -3,6 +3,7 @@ package object
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -229,6 +230,10 @@ func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id *cid.ID
 
 func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id *owner.ID) {
 	f.addReservedFilter(m, fKeyOwnerID, id)
+}
+
+func (f *SearchFilters) AddNotificationEpochFilter(epoch uint64) {
+	f.addFilter(MatchStringEqual, 0, v2object.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
 }
 
 func (f SearchFilters) ToV2() []*v2object.SearchFilter {
