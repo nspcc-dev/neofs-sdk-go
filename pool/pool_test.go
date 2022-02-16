@@ -529,7 +529,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	anonOwner := owner.NewIDFromPublicKey(&anonKey.PublicKey)
 
 	cfg := cfgFromOpts(WithKey(anonKey), useDefaultSession())
-	cp, _, err := p.conn(ctx, cfg)
+	cp, err := p.conn(ctx, cfg)
 	require.NoError(t, err)
 
 	tkn := p.cache.Get(formCacheKey(cp.address, anonKey))

@@ -26,13 +26,3 @@ func WithResponseInfoHandler(f func(ResponseMetaInfo) error) Option {
 		opts.cbRespInfo = f
 	}
 }
-
-func (c *Client) handleResponseInfoV2(opts *callOptions, resp responseV2) error {
-	if c.opts.cbRespInfo == nil {
-		return nil
-	}
-
-	return c.opts.cbRespInfo(ResponseMetaInfo{
-		key: resp.GetVerificationHeader().GetBodySignature().GetKey(),
-	})
-}

@@ -33,65 +33,6 @@ func (x statusRes) Status() apistatus.Status {
 	return x.st
 }
 
-// checks response signature and write client error if it is not correct (in this case returns true).
-func isInvalidSignatureV2(res *processResponseV2Res, resp responseV2) bool {
-	err := signature.VerifyServiceMessage(resp)
-
-	isErr := err != nil
-	if isErr {
-		res.cliErr = fmt.Errorf("invalid response signature: %w", err)
-	}
-
-	return isErr
-}
-
-type processResponseV2Prm struct {
-	callOpts *callOptions
-
-	resp responseV2
-}
-
-type processResponseV2Res struct {
-	statusRes resCommon
-
-	cliErr error
-}
-
-// performs common actions of response processing and writes any problem as a result status or client error
-// (in both cases returns true).
-//
-// Actions:
-//  * verify signature (internal);
-//  * call response callback (internal);
-//  * unwrap status error (optional).
-func (c *Client) processResponseV2(res *processResponseV2Res, prm processResponseV2Prm) bool {
-	// verify response structure
-	if isInvalidSignatureV2(res, prm.resp) {
-		return true
-	}
-
-	// handle response meta info
-	if err := c.handleResponseInfoV2(prm.callOpts, prm.resp); err != nil {
-		res.cliErr = err
-		return true
-	}
-
-	// get result status
-	st := apistatus.FromStatusV2(prm.resp.GetMetaHeader().GetStatus())
-
-	// unwrap unsuccessful status and return it
-	// as error if client has been configured so
-	unsuccessfulStatus := !apistatus.IsSuccessful(st)
-	if unsuccessfulStatus && c.opts.parseNeoFSErrors {
-		res.cliErr = apistatus.ErrFromStatus(st)
-		return true
-	}
-
-	res.statusRes.setStatus(st)
-
-	return unsuccessfulStatus
-}
-
 type prmSession struct {
 	tokenSessionSet bool
 	tokenSession    session.Token
