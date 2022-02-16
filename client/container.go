@@ -549,8 +549,6 @@ func (c *Client) EACL(ctx context.Context, prm EACLPrm) (*EACLRes, error) {
 
 // SetEACLPrm groups parameters of SetEACL operation.
 type SetEACLPrm struct {
-	prmSession
-
 	tableSet bool
 	table    eacl.Table
 }
@@ -613,8 +611,7 @@ func (c *Client) SetEACL(ctx context.Context, prm SetEACLPrm) (*SetEACLRes, erro
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-
-	prm.prmSession.writeToMetaHeader(&meta)
+	meta.SetSessionToken(prm.table.SessionToken().ToV2())
 
 	// form request
 	var req v2container.SetExtendedACLRequest
