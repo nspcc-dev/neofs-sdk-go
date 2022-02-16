@@ -49,11 +49,11 @@ type clientMock struct {
 }
 
 func (c *clientMock) EndpointInfo(context.Context, client.EndpointInfoPrm) (*client.EndpointInfoRes, error) {
-	return nil, nil
+	return &client.EndpointInfoRes{}, nil
 }
 
 func (c *clientMock) NetworkInfo(context.Context, client.NetworkInfoPrm) (*client.NetworkInfoRes, error) {
-	return nil, nil
+	return &client.NetworkInfoRes{}, nil
 }
 
 func newNetmapMock(name string, needErr bool) *clientMock {
@@ -129,8 +129,12 @@ func TestHealthyNoReweight(t *testing.T) {
 			{client: newNetmapMock(names[0], false), healthy: true},
 			{client: newNetmapMock(names[1], false), healthy: true}},
 	}
+
+	cache, err := NewCache()
+	require.NoError(t, err)
 	p := &pool{
 		innerPools: []*innerPool{inner},
+		cache:      cache,
 	}
 
 	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)

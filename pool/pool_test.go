@@ -96,12 +96,12 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 			return expectedToken, nil
 		}).AnyTimes()
 
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
 		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
 		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
 		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
 
 		if clientCount == 0 {
@@ -234,7 +234,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, nil
 		}).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
 		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
@@ -399,7 +399,7 @@ func TestPriority(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
 		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
 		if clientCount == 0 {
@@ -498,6 +498,8 @@ func newToken(t *testing.T) *session.Token {
 }
 
 func TestSessionTokenOwner(t *testing.T) {
+	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
+
 	ctrl := gomock.NewController(t)
 	clientBuilder := func(opts ...client.Option) (Client, error) {
 		mockClient := NewMockClient(ctrl)
@@ -541,7 +543,7 @@ func TestWaitPresence(t *testing.T) {
 
 	mockClient := NewMockClient(ctrl)
 	mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
 	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
 	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
