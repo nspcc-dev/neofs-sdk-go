@@ -161,3 +161,8 @@ func (o *RawObject) ResetRelations() {
 func (o *RawObject) InitRelations() {
 	o.initRelations()
 }
+
+// SetNotification writes NotificationInfo to the object structure.
+func (o *RawObject) SetNotification(ni NotificationInfo) {
+	o.setNotification(ni)
+}
