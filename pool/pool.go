@@ -608,7 +608,7 @@ func (p *pool) initCallContext(ctx *callContext, cfg *callConfig) error {
 	ctx.endpoint = cp.address
 	ctx.client = cp.client
 
-	if ctx.sessionTarget == nil && cfg.stoken != nil {
+	if ctx.sessionTarget != nil && cfg.stoken != nil {
 		ctx.sessionTarget(*cfg.stoken)
 	}
 
@@ -649,11 +649,7 @@ func (p *pool) openDefaultSession(ctx *callContext) error {
 	}
 
 	// open new session
-	var cliPrm client.CreateSessionPrm
-
-	cliPrm.SetExp(math.MaxUint32)
-
-	cliRes, err := ctx.client.CreateSession(ctx, cliPrm)
+	cliRes, err := createSessionTokenForDuration(ctx, ctx.client, p.stokenDuration)
 	if err != nil {
 		return fmt.Errorf("session API client: %w", err)
 	}
