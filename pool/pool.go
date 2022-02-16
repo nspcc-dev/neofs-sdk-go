@@ -1207,10 +1207,6 @@ func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOptio
 		cliPrm.SetTable(*table)
 	}
 
-	if cfg.stoken != nil {
-		cliPrm.SetSessionToken(*cfg.stoken)
-	}
-
 	_, err = cp.client.SetEACL(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
