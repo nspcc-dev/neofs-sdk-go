@@ -290,7 +290,11 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 			} else if err == nil {
 				healthy, atLeastOneHealthy = true, true
 				st := sessionTokenForOwner(ownerID, cliRes)
-				_ = cache.Put(formCacheKey(addr, options.Key), st)
+
+				// sign the session token and cache it on success
+				if err = st.Sign(options.Key); err == nil {
+					_ = cache.Put(formCacheKey(addr, options.Key), st)
+				}
 			}
 			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
 		}
