@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	apiClient "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -27,6 +28,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/token"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 // Client is a wrapper for client.Client to generate mock.
@@ -47,6 +50,8 @@ type Client interface {
 	ObjectRangeInit(context.Context, client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	ObjectSearchInit(context.Context, client.PrmObjectSearch) (*client.ObjectListReader, error)
 	CreateSession(context.Context, client.CreateSessionPrm) (*client.CreateSessionRes, error)
+
+	Raw() *apiClient.Client
 }
 
 // BuilderOptions contains options used to build connection pool.
@@ -330,8 +335,35 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 		stokenDuration:  options.SessionExpirationDuration,
 		stokenThreshold: options.SessionTokenThreshold,
 	}
+
+	startGRPCMonitor(ctx, pool, options)
 	go startRebalance(ctx, pool, options)
+
 	return pool, nil
+}
+
+func startGRPCMonitor(ctx context.Context, p *pool, options *BuilderOptions) {
+	for _, inPool := range p.innerPools {
+		for _, cl := range inPool.clientPacks {
+			go monitorState(ctx, *cl, p.cache, options.Logger)
+		}
+	}
+}
+
+func monitorState(ctx context.Context, cl clientPack, cache *SessionCache, logger *zap.Logger) {
+	grpcClient, ok := cl.client.Raw().Conn().(*grpc.ClientConn)
+	if !ok {
+		logger.Warn("couldn't get grpc client to monitor state", zap.String("address", cl.address))
+		return
+	}
+
+	for {
+		if changed := grpcClient.WaitForStateChange(ctx, connectivity.Ready); changed {
+			cache.DeleteByPrefix(cl.address)
+		} else {
+			return
+		}
+	}
 }
 
 func startRebalance(ctx context.Context, p *pool, options *BuilderOptions) {
