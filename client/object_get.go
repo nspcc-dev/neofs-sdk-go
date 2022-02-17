@@ -124,9 +124,7 @@ func handleSplitInfo(ctx *contextCall, i *v2object.SplitInfo) {
 // ReadHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
-	if !x.ctxCall.writeRequest() {
-		return false
-	} else if !x.ctxCall.readResponse() {
+	if !x.ctxCall.writeRequest() || !x.ctxCall.readResponse() {
 		return false
 	}
 
