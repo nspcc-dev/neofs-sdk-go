@@ -7,7 +7,7 @@ import (
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
-// Target is a group of request senders to match EACL. Defined by role enum
+// Target is a group of request senders to match ContainerEACL. Defined by role enum
 // and set of public keys.
 //
 // Target is compatible with v2 acl.EACLRecord.Target message.

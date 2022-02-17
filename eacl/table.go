@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Table is a group of EACL records for single container.
+// Table is a group of ContainerEACL records for single container.
 //
 // Table is compatible with v2 acl.EACLTable message.
 type Table struct {

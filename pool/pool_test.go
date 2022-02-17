@@ -49,8 +49,8 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	clientBuilder := func(opts ...client.Option) (Client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -97,12 +97,12 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		}).AnyTimes()
 
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
 		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 
 		if clientCount == 0 {
 			return mockClient, nil
@@ -157,8 +157,8 @@ func TestOneNode(t *testing.T) {
 	clientBuilder := func(opts ...client.Option) (Client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(tok, nil)
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -195,8 +195,8 @@ func TestTwoNodes(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, err
 		})
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -235,7 +235,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 			return tok, nil
 		}).AnyTimes()
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
 		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
@@ -243,10 +243,10 @@ func TestOneOfTwoFailed(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*client.EndpointInfoRes, error) {
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*client.ResEndpointInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*client.NetworkInfoRes, error) {
+		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*client.ResNetworkInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
 
@@ -501,9 +501,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	clientBuilder := func(opts ...client.Option) (Client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(&client.CreateSessionRes{}, nil).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.EndpointInfoRes{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(&client.ResSessionCreate{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -542,7 +542,7 @@ func TestWaitPresence(t *testing.T) {
 	mockClient := NewMockClient(ctrl)
 	mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.NetworkInfoRes{}, nil).AnyTimes()
+	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
 	cache, err := NewCache()

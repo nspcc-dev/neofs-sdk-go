@@ -8,7 +8,7 @@ import (
 )
 
 // Filter defines check conditions if request header is matched or not. Matched
-// header means that request should be processed according to EACL action.
+// header means that request should be processed according to ContainerEACL action.
 //
 // Filter is compatible with v2 acl.EACLRecord.Filter message.
 type Filter struct {

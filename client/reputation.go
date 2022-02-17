@@ -9,8 +9,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 )
 
-// AnnounceLocalTrustPrm groups parameters of AnnounceLocalTrust operation.
-type AnnounceLocalTrustPrm struct {
+// PrmAnnounceLocalTrust groups parameters of AnnounceLocalTrust operation.
+type PrmAnnounceLocalTrust struct {
 	epoch uint64
 
 	trusts []reputation.Trust
@@ -18,7 +18,7 @@ type AnnounceLocalTrustPrm struct {
 
 // SetEpoch sets number of NeoFS epoch in which the trust was assessed.
 // Required parameter, must not be zero.
-func (x *AnnounceLocalTrustPrm) SetEpoch(epoch uint64) {
+func (x *PrmAnnounceLocalTrust) SetEpoch(epoch uint64) {
 	x.epoch = epoch
 }
 
@@ -26,12 +26,12 @@ func (x *AnnounceLocalTrustPrm) SetEpoch(epoch uint64) {
 // Required parameter. Must not be empty.
 //
 // Must not be mutated before the end of the operation.
-func (x *AnnounceLocalTrustPrm) SetValues(trusts []reputation.Trust) {
+func (x *PrmAnnounceLocalTrust) SetValues(trusts []reputation.Trust) {
 	x.trusts = trusts
 }
 
-// AnnounceLocalTrustRes groups results of AnnounceLocalTrust operation.
-type AnnounceLocalTrustRes struct {
+// ResAnnounceLocalTrust groups results of AnnounceLocalTrust operation.
+type ResAnnounceLocalTrust struct {
 	statusRes
 }
 
@@ -43,12 +43,12 @@ type AnnounceLocalTrustRes struct {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see AnnounceLocalTrustPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmAnnounceLocalTrust docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustPrm) (*AnnounceLocalTrustRes, error) {
+func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) (*ResAnnounceLocalTrust, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -80,7 +80,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustP
 
 	var (
 		cc  contextCall
-		res AnnounceLocalTrustRes
+		res ResAnnounceLocalTrust
 	)
 
 	c.initCallContext(&cc)
@@ -98,8 +98,8 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm AnnounceLocalTrustP
 	return &res, nil
 }
 
-// AnnounceIntermediateTrustPrm groups parameters of AnnounceIntermediateTrust operation.
-type AnnounceIntermediateTrustPrm struct {
+// PrmAnnounceIntermediateTrust groups parameters of AnnounceIntermediateTrust operation.
+type PrmAnnounceIntermediateTrust struct {
 	epoch uint64
 
 	iter uint32
@@ -110,25 +110,25 @@ type AnnounceIntermediateTrustPrm struct {
 
 // SetEpoch sets number of NeoFS epoch with which client's calculation algorithm is initialized.
 // Required parameter, must not be zero.
-func (x *AnnounceIntermediateTrustPrm) SetEpoch(epoch uint64) {
+func (x *PrmAnnounceIntermediateTrust) SetEpoch(epoch uint64) {
 	x.epoch = epoch
 }
 
 // SetIteration sets current sequence number of the client's calculation algorithm.
 // By default, corresponds to initial (zero) iteration.
-func (x *AnnounceIntermediateTrustPrm) SetIteration(iter uint32) {
+func (x *PrmAnnounceIntermediateTrust) SetIteration(iter uint32) {
 	x.iter = iter
 }
 
 // SetCurrentValue sets current global trust value computed at the specified iteration
-//of the client's calculation algorithm. Required parameter.
-func (x *AnnounceIntermediateTrustPrm) SetCurrentValue(trust reputation.PeerToPeerTrust) {
+// of the client's calculation algorithm. Required parameter.
+func (x *PrmAnnounceIntermediateTrust) SetCurrentValue(trust reputation.PeerToPeerTrust) {
 	x.trust = trust
 	x.trustSet = true
 }
 
-// AnnounceIntermediateTrustRes groups results of AnnounceIntermediateTrust operation.
-type AnnounceIntermediateTrustRes struct {
+// ResAnnounceIntermediateTrust groups results of AnnounceIntermediateTrust operation.
+type ResAnnounceIntermediateTrust struct {
 	statusRes
 }
 
@@ -141,12 +141,12 @@ type AnnounceIntermediateTrustRes struct {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see AnnounceIntermediateTrustPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmAnnounceIntermediateTrust docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceIntermediateTrustPrm) (*AnnounceIntermediateTrustRes, error) {
+func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) (*ResAnnounceIntermediateTrust, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -172,7 +172,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm AnnounceInte
 
 	var (
 		cc  contextCall
-		res AnnounceIntermediateTrustRes
+		res ResAnnounceIntermediateTrust
 	)
 
 	c.initCallContext(&cc)

@@ -10,38 +10,38 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 )
 
-// GetBalancePrm groups parameters of GetBalance operation.
-type GetBalancePrm struct {
+// PrmBalanceGet groups parameters of BalanceGet operation.
+type PrmBalanceGet struct {
 	ownerSet bool
 	ownerID  owner.ID
 }
 
 // SetAccount sets identifier of the NeoFS account for which the balance is requested.
 // Required parameter. Must be a valid ID according to NeoFS API protocol.
-func (x *GetBalancePrm) SetAccount(id owner.ID) {
+func (x *PrmBalanceGet) SetAccount(id owner.ID) {
 	x.ownerID = id
 	x.ownerSet = true
 }
 
-// GetBalanceRes groups resulting values of GetBalance operation.
-type GetBalanceRes struct {
+// ResBalanceGet groups resulting values of BalanceGet operation.
+type ResBalanceGet struct {
 	statusRes
 
 	amount *accounting.Decimal
 }
 
-func (x *GetBalanceRes) setAmount(v *accounting.Decimal) {
+func (x *ResBalanceGet) setAmount(v *accounting.Decimal) {
 	x.amount = v
 }
 
 // Amount returns current amount of funds on the NeoFS account as decimal number.
 //
 // Client doesn't retain value so modification is safe.
-func (x GetBalanceRes) Amount() *accounting.Decimal {
+func (x ResBalanceGet) Amount() *accounting.Decimal {
 	return x.amount
 }
 
-// GetBalance requests current balance of the NeoFS account.
+// BalanceGet requests current balance of the NeoFS account.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
@@ -49,12 +49,12 @@ func (x GetBalanceRes) Amount() *accounting.Decimal {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see GetBalancePrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmBalanceGet docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) GetBalance(ctx context.Context, prm GetBalancePrm) (*GetBalanceRes, error) {
+func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
 	switch {
 	case ctx == nil:
 		panic(panicMsgMissingContext)
@@ -78,7 +78,7 @@ func (c *Client) GetBalance(ctx context.Context, prm GetBalancePrm) (*GetBalance
 
 	var (
 		cc  contextCall
-		res GetBalanceRes
+		res ResBalanceGet
 	)
 
 	c.initCallContext(&cc)

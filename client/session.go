@@ -9,18 +9,18 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 )
 
-// CreateSessionPrm groups parameters of CreateSession operation.
-type CreateSessionPrm struct {
+// PrmSessionCreate groups parameters of SessionCreate operation.
+type PrmSessionCreate struct {
 	exp uint64
 }
 
 // SetExp sets number of the last NepFS epoch in the lifetime of the session after which it will be expired.
-func (x *CreateSessionPrm) SetExp(exp uint64) {
+func (x *PrmSessionCreate) SetExp(exp uint64) {
 	x.exp = exp
 }
 
-// CreateSessionRes groups resulting values of CreateSession operation.
-type CreateSessionRes struct {
+// ResSessionCreate groups resulting values of SessionCreate operation.
+type ResSessionCreate struct {
 	statusRes
 
 	id []byte
@@ -28,27 +28,27 @@ type CreateSessionRes struct {
 	sessionKey []byte
 }
 
-func (x *CreateSessionRes) setID(id []byte) {
+func (x *ResSessionCreate) setID(id []byte) {
 	x.id = id
 }
 
 // ID returns identifier of the opened session in a binary NeoFS API protocol format.
 //
 // Client doesn't retain value so modification is safe.
-func (x CreateSessionRes) ID() []byte {
+func (x ResSessionCreate) ID() []byte {
 	return x.id
 }
 
-func (x *CreateSessionRes) setSessionKey(key []byte) {
+func (x *ResSessionCreate) setSessionKey(key []byte) {
 	x.sessionKey = key
 }
 
 // PublicKey returns public key of the opened session in a binary NeoFS API protocol format.
-func (x CreateSessionRes) PublicKey() []byte {
+func (x ResSessionCreate) PublicKey() []byte {
 	return x.sessionKey
 }
 
-// CreateSession opens a session with the node server on the remote endpoint.
+// SessionCreate opens a session with the node server on the remote endpoint.
 // The session lifetime coincides with the server lifetime. Results can be written
 // to session token which can be later attached to the requests.
 //
@@ -58,12 +58,12 @@ func (x CreateSessionRes) PublicKey() []byte {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see CreateSessionPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmSessionCreate docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) CreateSession(ctx context.Context, prm CreateSessionPrm) (*CreateSessionRes, error) {
+func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	// check context
 	if ctx == nil {
 		panic(panicMsgMissingContext)
@@ -85,7 +85,7 @@ func (c *Client) CreateSession(ctx context.Context, prm CreateSessionPrm) (*Crea
 
 	var (
 		cc  contextCall
-		res CreateSessionRes
+		res ResSessionCreate
 	)
 
 	c.initCallContext(&cc)

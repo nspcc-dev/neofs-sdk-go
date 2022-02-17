@@ -36,11 +36,11 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 }
 
 // CreateSession mocks base method.
-func (m *MockClient) CreateSession(arg0 context.Context, arg1 client0.CreateSessionPrm) (*client0.CreateSessionRes, error) {
+func (m *MockClient) SessionCreate(arg0 context.Context, arg1 client0.PrmSessionCreate) (*client0.ResSessionCreate, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "CreateSession", varargs...)
-	ret0, _ := ret[0].(*client0.CreateSessionRes)
+	ret := m.ctrl.Call(m, "SessionCreate", varargs...)
+	ret0, _ := ret[0].(*client0.ResSessionCreate)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -49,15 +49,15 @@ func (m *MockClient) CreateSession(arg0 context.Context, arg1 client0.CreateSess
 func (mr *MockClientMockRecorder) CreateSession(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSession", reflect.TypeOf((*MockClient)(nil).CreateSession), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SessionCreate", reflect.TypeOf((*MockClient)(nil).SessionCreate), varargs...)
 }
 
 // DeleteContainer mocks base method.
-func (m *MockClient) DeleteContainer(arg0 context.Context, arg1 client0.ContainerDeletePrm) (*client0.ContainerDeleteRes, error) {
+func (m *MockClient) ContainerDelete(arg0 context.Context, arg1 client0.PrmContainerDelete) (*client0.ResContainerDelete, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "DeleteContainer", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerDeleteRes)
+	ret := m.ctrl.Call(m, "ContainerDelete", varargs...)
+	ret0, _ := ret[0].(*client0.ResContainerDelete)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -66,7 +66,7 @@ func (m *MockClient) DeleteContainer(arg0 context.Context, arg1 client0.Containe
 func (mr *MockClientMockRecorder) DeleteContainer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContainer", reflect.TypeOf((*MockClient)(nil).DeleteContainer), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainerDelete", reflect.TypeOf((*MockClient)(nil).ContainerDelete), varargs...)
 }
 
 // ObjectDelete mocks base method.
@@ -86,11 +86,11 @@ func (mr *MockClientMockRecorder) DeleteObject(arg0, arg1 interface{}, arg2 ...i
 }
 
 // EACL mocks base method.
-func (m *MockClient) EACL(arg0 context.Context, arg1 client0.EACLPrm) (*client0.EACLRes, error) {
+func (m *MockClient) ContainerEACL(arg0 context.Context, arg1 client0.PrmContainerEACL) (*client0.ResContainerEACL, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "EACL", varargs...)
-	ret0, _ := ret[0].(*client0.EACLRes)
+	ret := m.ctrl.Call(m, "ContainerEACL", varargs...)
+	ret0, _ := ret[0].(*client0.ResContainerEACL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -99,15 +99,15 @@ func (m *MockClient) EACL(arg0 context.Context, arg1 client0.EACLPrm) (*client0.
 func (mr *MockClientMockRecorder) EACL(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EACL", reflect.TypeOf((*MockClient)(nil).EACL), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainerEACL", reflect.TypeOf((*MockClient)(nil).ContainerEACL), varargs...)
 }
 
 // EndpointInfo mocks base method.
-func (m *MockClient) EndpointInfo(arg0 context.Context, arg1 client0.EndpointInfoPrm) (*client0.EndpointInfoRes, error) {
+func (m *MockClient) EndpointInfo(arg0 context.Context, arg1 client0.PrmEndpointInfo) (*client0.ResEndpointInfo, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	ret := m.ctrl.Call(m, "EndpointInfo", varargs...)
-	ret0, _ := ret[0].(*client0.EndpointInfoRes)
+	ret0, _ := ret[0].(*client0.ResEndpointInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -120,11 +120,11 @@ func (mr *MockClientMockRecorder) EndpointInfo(arg0, arg1 interface{}) *gomock.C
 }
 
 // GetBalance mocks base method.
-func (m *MockClient) GetBalance(arg0 context.Context, arg1 client0.GetBalancePrm) (*client0.GetBalanceRes, error) {
+func (m *MockClient) BalanceGet(arg0 context.Context, arg1 client0.PrmBalanceGet) (*client0.ResBalanceGet, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "GetBalance", varargs...)
-	ret0, _ := ret[0].(*client0.GetBalanceRes)
+	ret := m.ctrl.Call(m, "BalanceGet", varargs...)
+	ret0, _ := ret[0].(*client0.ResBalanceGet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -133,15 +133,15 @@ func (m *MockClient) GetBalance(arg0 context.Context, arg1 client0.GetBalancePrm
 func (mr *MockClientMockRecorder) GetBalance(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockClient)(nil).GetBalance), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BalanceGet", reflect.TypeOf((*MockClient)(nil).BalanceGet), varargs...)
 }
 
 // GetContainer mocks base method.
-func (m *MockClient) GetContainer(arg0 context.Context, arg1 client0.ContainerGetPrm) (*client0.ContainerGetRes, error) {
+func (m *MockClient) ContainerGet(arg0 context.Context, arg1 client0.PrmContainerGet) (*client0.ResContainerGet, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "GetContainer", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerGetRes)
+	ret := m.ctrl.Call(m, "ContainerGet", varargs...)
+	ret0, _ := ret[0].(*client0.ResContainerGet)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -150,7 +150,7 @@ func (m *MockClient) GetContainer(arg0 context.Context, arg1 client0.ContainerGe
 func (mr *MockClientMockRecorder) GetContainer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContainer", reflect.TypeOf((*MockClient)(nil).GetContainer), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainerGet", reflect.TypeOf((*MockClient)(nil).ContainerGet), varargs...)
 }
 
 // ObjectGetInitmocks base method.
@@ -186,11 +186,11 @@ func (mr *MockClientMockRecorder) HeadObject(arg0, arg1 interface{}, arg2 ...int
 }
 
 // ListContainers mocks base method.
-func (m *MockClient) ListContainers(arg0 context.Context, arg1 client0.ContainerListPrm) (*client0.ContainerListRes, error) {
+func (m *MockClient) ContainerList(arg0 context.Context, arg1 client0.PrmContainerList) (*client0.ResContainerList, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "ListContainers", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerListRes)
+	ret := m.ctrl.Call(m, "ContainerList", varargs...)
+	ret0, _ := ret[0].(*client0.ResContainerList)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -199,15 +199,15 @@ func (m *MockClient) ListContainers(arg0 context.Context, arg1 client0.Container
 func (mr *MockClientMockRecorder) ListContainers(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListContainers", reflect.TypeOf((*MockClient)(nil).ListContainers), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainerList", reflect.TypeOf((*MockClient)(nil).ContainerList), varargs...)
 }
 
 // NetworkInfo mocks base method.
-func (m *MockClient) NetworkInfo(arg0 context.Context, arg1 client0.NetworkInfoPrm) (*client0.NetworkInfoRes, error) {
+func (m *MockClient) NetworkInfo(arg0 context.Context, arg1 client0.PrmNetworkInfo) (*client0.ResNetworkInfo, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
 	ret := m.ctrl.Call(m, "NetworkInfo", varargs...)
-	ret0, _ := ret[0].(*client0.NetworkInfoRes)
+	ret0, _ := ret[0].(*client0.ResNetworkInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -236,11 +236,11 @@ func (mr *MockClientMockRecorder) ObjectRange(arg0, arg1 interface{}, arg2 ...in
 }
 
 // PutContainer mocks base method.
-func (m *MockClient) PutContainer(arg0 context.Context, arg1 client0.ContainerPutPrm) (*client0.ContainerPutRes, error) {
+func (m *MockClient) ContainerPut(arg0 context.Context, arg1 client0.PrmContainerPut) (*client0.ResContainerPut, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "PutContainer", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerPutRes)
+	ret := m.ctrl.Call(m, "ContainerPut", varargs...)
+	ret0, _ := ret[0].(*client0.ResContainerPut)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -249,7 +249,7 @@ func (m *MockClient) PutContainer(arg0 context.Context, arg1 client0.ContainerPu
 func (mr *MockClientMockRecorder) PutContainer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutContainer", reflect.TypeOf((*MockClient)(nil).PutContainer), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainerPut", reflect.TypeOf((*MockClient)(nil).ContainerPut), varargs...)
 }
 
 // ObjectPutInitmocks base method.
@@ -285,11 +285,11 @@ func (mr *MockClientMockRecorder) SearchObjects(arg0, arg1 interface{}, arg2 ...
 }
 
 // SetEACL mocks base method.
-func (m *MockClient) SetEACL(arg0 context.Context, arg1 client0.SetEACLPrm) (*client0.SetEACLRes, error) {
+func (m *MockClient) ContainerSetEACL(arg0 context.Context, arg1 client0.PrmContainerSetEACL) (*client0.ResContainerSetEACL, error) {
 	m.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "SetEACL", varargs...)
-	ret0, _ := ret[0].(*client0.SetEACLRes)
+	ret := m.ctrl.Call(m, "ContainerSetEACL", varargs...)
+	ret0, _ := ret[0].(*client0.ResContainerSetEACL)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -298,5 +298,5 @@ func (m *MockClient) SetEACL(arg0 context.Context, arg1 client0.SetEACLPrm) (*cl
 func (mr *MockClientMockRecorder) SetEACL(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetEACL", reflect.TypeOf((*MockClient)(nil).SetEACL), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ContainerSetEACL", reflect.TypeOf((*MockClient)(nil).ContainerSetEACL), varargs...)
 }

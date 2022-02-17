@@ -10,14 +10,14 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// EndpointInfoPrm groups parameters of EndpointInfo operation.
+// PrmEndpointInfo groups parameters of EndpointInfo operation.
 //
 // At the moment the operation is not parameterized, however,
 // the structure is still declared for backward compatibility.
-type EndpointInfoPrm struct{}
+type PrmEndpointInfo struct{}
 
-// EndpointInfoRes group resulting values of EndpointInfo operation.
-type EndpointInfoRes struct {
+// ResEndpointInfo group resulting values of EndpointInfo operation.
+type ResEndpointInfo struct {
 	statusRes
 
 	version *version.Version
@@ -28,22 +28,22 @@ type EndpointInfoRes struct {
 // LatestVersion returns latest NeoFS API protocol's version in use.
 //
 // Client doesn't retain value so modification is safe.
-func (x EndpointInfoRes) LatestVersion() *version.Version {
+func (x ResEndpointInfo) LatestVersion() *version.Version {
 	return x.version
 }
 
-func (x *EndpointInfoRes) setLatestVersion(ver *version.Version) {
+func (x *ResEndpointInfo) setLatestVersion(ver *version.Version) {
 	x.version = ver
 }
 
 // NodeInfo returns information about the NeoFS node served on the remote endpoint.
 //
 // Client doesn't retain value so modification is safe.
-func (x EndpointInfoRes) NodeInfo() *netmap.NodeInfo {
+func (x ResEndpointInfo) NodeInfo() *netmap.NodeInfo {
 	return x.ni
 }
 
-func (x *EndpointInfoRes) setNodeInfo(info *netmap.NodeInfo) {
+func (x *ResEndpointInfo) setNodeInfo(info *netmap.NodeInfo) {
 	x.ni = info
 }
 
@@ -56,15 +56,15 @@ func (x *EndpointInfoRes) setNodeInfo(info *netmap.NodeInfo) {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see EndpointInfoPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmEndpointInfo docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in EndpointInfoRes.
+// Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) EndpointInfo(ctx context.Context, _ EndpointInfoPrm) (*EndpointInfoRes, error) {
+func (c *Client) EndpointInfo(ctx context.Context, _ PrmEndpointInfo) (*ResEndpointInfo, error) {
 	// check context
 	if ctx == nil {
 		panic(panicMsgMissingContext)
@@ -77,7 +77,7 @@ func (c *Client) EndpointInfo(ctx context.Context, _ EndpointInfoPrm) (*Endpoint
 
 	var (
 		cc  contextCall
-		res EndpointInfoRes
+		res ResEndpointInfo
 	)
 
 	c.initCallContext(&cc)
@@ -103,14 +103,14 @@ func (c *Client) EndpointInfo(ctx context.Context, _ EndpointInfoPrm) (*Endpoint
 	return &res, nil
 }
 
-// NetworkInfoPrm groups parameters of NetworkInfo operation.
+// PrmNetworkInfo groups parameters of NetworkInfo operation.
 //
 // At the moment the operation is not parameterized, however,
 // the structure is still declared for backward compatibility.
-type NetworkInfoPrm struct{}
+type PrmNetworkInfo struct{}
 
-// NetworkInfoRes groups resulting values of NetworkInfo operation.
-type NetworkInfoRes struct {
+// ResNetworkInfo groups resulting values of NetworkInfo operation.
+type ResNetworkInfo struct {
 	statusRes
 
 	info *netmap.NetworkInfo
@@ -119,11 +119,11 @@ type NetworkInfoRes struct {
 // Info returns structured information about the NeoFS network.
 //
 // Client doesn't retain value so modification is safe.
-func (x NetworkInfoRes) Info() *netmap.NetworkInfo {
+func (x ResNetworkInfo) Info() *netmap.NetworkInfo {
 	return x.info
 }
 
-func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
+func (x *ResNetworkInfo) setInfo(info *netmap.NetworkInfo) {
 	x.info = info
 }
 
@@ -134,15 +134,15 @@ func (x *NetworkInfoRes) setInfo(info *netmap.NetworkInfo) {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see NetworkInfoPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmNetworkInfo docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in NetworkInfoRes.
+// Exactly one return value is non-nil. Server status return is returned in ResNetworkInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) NetworkInfo(ctx context.Context, _ NetworkInfoPrm) (*NetworkInfoRes, error) {
+func (c *Client) NetworkInfo(ctx context.Context, _ PrmNetworkInfo) (*ResNetworkInfo, error) {
 	// check context
 	if ctx == nil {
 		panic(panicMsgMissingContext)
@@ -155,7 +155,7 @@ func (c *Client) NetworkInfo(ctx context.Context, _ NetworkInfoPrm) (*NetworkInf
 
 	var (
 		cc  contextCall
-		res NetworkInfoRes
+		res ResNetworkInfo
 	)
 
 	c.initCallContext(&cc)
