@@ -86,7 +86,7 @@ func (x ResObjectDelete) ReadTombstoneID(dst *oid.ID) bool {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectHash docs).
+// Immediately panics if parameters are set incorrectly (see PrmObjectDelete docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
