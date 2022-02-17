@@ -239,6 +239,7 @@ func (x *ObjectReader) Close() (*ResObjectGet, error) {
 	return x.close(true)
 }
 
+// Read implements io.Reader of the object payload.
 func (x *ObjectReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
 	if !ok {
@@ -613,6 +614,7 @@ func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
 	return x.close(true)
 }
 
+// Read implements io.Reader of the object payload.
 func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
 	if !ok {
