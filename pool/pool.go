@@ -31,22 +31,22 @@ import (
 
 // Client is a wrapper for client.Client to generate mock.
 type Client interface {
-	GetBalance(context.Context, client.GetBalancePrm) (*client.GetBalanceRes, error)
-	PutContainer(context.Context, client.ContainerPutPrm) (*client.ContainerPutRes, error)
-	GetContainer(context.Context, client.ContainerGetPrm) (*client.ContainerGetRes, error)
-	ListContainers(context.Context, client.ContainerListPrm) (*client.ContainerListRes, error)
-	DeleteContainer(context.Context, client.ContainerDeletePrm) (*client.ContainerDeleteRes, error)
-	EACL(context.Context, client.EACLPrm) (*client.EACLRes, error)
-	SetEACL(context.Context, client.SetEACLPrm) (*client.SetEACLRes, error)
-	EndpointInfo(context.Context, client.EndpointInfoPrm) (*client.EndpointInfoRes, error)
-	NetworkInfo(context.Context, client.NetworkInfoPrm) (*client.NetworkInfoRes, error)
+	BalanceGet(context.Context, client.PrmBalanceGet) (*client.ResBalanceGet, error)
+	ContainerPut(context.Context, client.PrmContainerPut) (*client.ResContainerPut, error)
+	ContainerGet(context.Context, client.PrmContainerGet) (*client.ResContainerGet, error)
+	ContainerList(context.Context, client.PrmContainerList) (*client.ResContainerList, error)
+	ContainerDelete(context.Context, client.PrmContainerDelete) (*client.ResContainerDelete, error)
+	ContainerEACL(context.Context, client.PrmContainerEACL) (*client.ResContainerEACL, error)
+	ContainerSetEACL(context.Context, client.PrmContainerSetEACL) (*client.ResContainerSetEACL, error)
+	EndpointInfo(context.Context, client.PrmEndpointInfo) (*client.ResEndpointInfo, error)
+	NetworkInfo(context.Context, client.PrmNetworkInfo) (*client.ResNetworkInfo, error)
 	ObjectPutInit(context.Context, client.PrmObjectPutInit) (*client.ObjectWriter, error)
 	ObjectDelete(context.Context, client.PrmObjectDelete) (*client.ResObjectDelete, error)
 	ObjectGetInit(context.Context, client.PrmObjectGet) (*client.ObjectReader, error)
 	ObjectHead(context.Context, client.PrmObjectHead) (*client.ResObjectHead, error)
 	ObjectRangeInit(context.Context, client.PrmObjectRange) (*client.ObjectRangeReader, error)
 	ObjectSearchInit(context.Context, client.PrmObjectSearch) (*client.ObjectListReader, error)
-	CreateSession(context.Context, client.CreateSessionPrm) (*client.CreateSessionRes, error)
+	SessionCreate(context.Context, client.PrmSessionCreate) (*client.ResSessionCreate, error)
 }
 
 // BuilderOptions contains options used to build connection pool.
@@ -368,7 +368,7 @@ func updateInnerNodesHealth(ctx context.Context, pool *pool, i int, options *Bui
 	healthyChanged := false
 	wg := sync.WaitGroup{}
 
-	var prmEndpoint client.EndpointInfoPrm
+	var prmEndpoint client.PrmEndpointInfo
 
 	for j, cPack := range p.clientPacks {
 		wg.Add(1)
@@ -535,22 +535,22 @@ func (p *pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func createSessionTokenForDuration(ctx context.Context, c Client, dur uint64) (*client.CreateSessionRes, error) {
-	ni, err := c.NetworkInfo(ctx, client.NetworkInfoPrm{})
+func createSessionTokenForDuration(ctx context.Context, c Client, dur uint64) (*client.ResSessionCreate, error) {
+	ni, err := c.NetworkInfo(ctx, client.PrmNetworkInfo{})
 	if err != nil {
 		return nil, err
 	}
 
 	epoch := ni.Info().CurrentEpoch()
 
-	var prm client.CreateSessionPrm
+	var prm client.PrmSessionCreate
 	if math.MaxUint64-epoch < dur {
 		prm.SetExp(math.MaxUint64)
 	} else {
 		prm.SetExp(epoch + dur)
 	}
 
-	return c.CreateSession(ctx, prm)
+	return c.SessionCreate(ctx, prm)
 }
 
 func (p *pool) removeSessionTokenAfterThreshold(cfg *callConfig) error {
@@ -1068,13 +1068,13 @@ func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts 
 		return nil, err
 	}
 
-	var cliPrm client.ContainerPutPrm
+	var cliPrm client.PrmContainerPut
 
 	if cnr != nil {
 		cliPrm.SetContainer(*cnr)
 	}
 
-	res, err := cp.client.PutContainer(ctx, cliPrm)
+	res, err := cp.client.ContainerPut(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -1095,13 +1095,13 @@ func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption
 		return nil, err
 	}
 
-	var cliPrm client.ContainerGetPrm
+	var cliPrm client.PrmContainerGet
 
 	if cid != nil {
 		cliPrm.SetContainer(*cid)
 	}
 
-	res, err := cp.client.GetContainer(ctx, cliPrm)
+	res, err := cp.client.ContainerGet(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -1122,13 +1122,13 @@ func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...Ca
 		return nil, err
 	}
 
-	var cliPrm client.ContainerListPrm
+	var cliPrm client.PrmContainerList
 
 	if ownerID != nil {
 		cliPrm.SetAccount(*ownerID)
 	}
 
-	res, err := cp.client.ListContainers(ctx, cliPrm)
+	res, err := cp.client.ContainerList(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -1149,7 +1149,7 @@ func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOpt
 		return err
 	}
 
-	var cliPrm client.ContainerDeletePrm
+	var cliPrm client.PrmContainerDelete
 
 	if cid != nil {
 		cliPrm.SetContainer(*cid)
@@ -1159,7 +1159,7 @@ func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOpt
 		cliPrm.SetSessionToken(*cfg.stoken)
 	}
 
-	_, err = cp.client.DeleteContainer(ctx, cliPrm)
+	_, err = cp.client.ContainerDelete(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -1178,13 +1178,13 @@ func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*e
 		return nil, err
 	}
 
-	var cliPrm client.EACLPrm
+	var cliPrm client.PrmContainerEACL
 
 	if cid != nil {
 		cliPrm.SetContainer(*cid)
 	}
 
-	res, err := cp.client.EACL(ctx, cliPrm)
+	res, err := cp.client.ContainerEACL(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -1205,13 +1205,13 @@ func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOptio
 		return err
 	}
 
-	var cliPrm client.SetEACLPrm
+	var cliPrm client.PrmContainerSetEACL
 
 	if table != nil {
 		cliPrm.SetTable(*table)
 	}
 
-	_, err = cp.client.SetEACL(ctx, cliPrm)
+	_, err = cp.client.ContainerSetEACL(ctx, cliPrm)
 
 	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
 		opts = append(opts, retry())
@@ -1230,13 +1230,13 @@ func (p *pool) Balance(ctx context.Context, o *owner.ID, opts ...CallOption) (*a
 		return nil, err
 	}
 
-	var cliPrm client.GetBalancePrm
+	var cliPrm client.PrmBalanceGet
 
 	if o != nil {
 		cliPrm.SetAccount(*o)
 	}
 
-	res, err := cp.client.GetBalance(ctx, cliPrm)
+	res, err := cp.client.BalanceGet(ctx, cliPrm)
 	if err != nil { // here err already carries both status and client errors
 		return nil, err
 	}
@@ -1256,7 +1256,7 @@ func (p *pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollPa
 	wdone := wctx.Done()
 	done := ctx.Done()
 
-	var cliPrm client.ContainerGetPrm
+	var cliPrm client.PrmContainerGet
 
 	if cid != nil {
 		cliPrm.SetContainer(*cid)
@@ -1269,7 +1269,7 @@ func (p *pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollPa
 		case <-wdone:
 			return wctx.Err()
 		case <-ticker.C:
-			_, err = conn.GetContainer(ctx, cliPrm)
+			_, err = conn.ContainerGet(ctx, cliPrm)
 			if err == nil {
 				return nil
 			}
@@ -1284,13 +1284,13 @@ func (p *pool) Close() {
 	<-p.closedCh
 }
 
-// creates new session token from CreateSession call result.
-func (p *pool) newSessionToken(cliRes *client.CreateSessionRes) *session.Token {
+// creates new session token from SessionCreate call result.
+func (p *pool) newSessionToken(cliRes *client.ResSessionCreate) *session.Token {
 	return sessionTokenForOwner(p.owner, cliRes)
 }
 
-// creates new session token with specified owner from CreateSession call result.
-func sessionTokenForOwner(id *owner.ID, cliRes *client.CreateSessionRes) *session.Token {
+// creates new session token with specified owner from SessionCreate call result.
+func sessionTokenForOwner(id *owner.ID, cliRes *client.ResSessionCreate) *session.Token {
 	st := session.NewToken()
 	st.SetOwnerID(id)
 	st.SetID(cliRes.ID())

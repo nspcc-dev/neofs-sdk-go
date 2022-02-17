@@ -4,7 +4,7 @@ import (
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
-// Action taken if EACL record matched request.
+// Action taken if ContainerEACL record matched request.
 // Action is compatible with v2 acl.Action enum.
 type Action uint32
 

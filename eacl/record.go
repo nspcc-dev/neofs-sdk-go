@@ -13,7 +13,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Record of the EACL rule, that defines EACL action, targets for this action,
+// Record of the ContainerEACL rule, that defines ContainerEACL action, targets for this action,
 // object service operation and filters for request headers.
 //
 // Record is compatible with v2 acl.EACLRecord message.

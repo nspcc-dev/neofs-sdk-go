@@ -18,7 +18,7 @@ import (
 var (
 	errNilBearerToken     = errors.New("bearer token is not set")
 	errNilBearerTokenBody = errors.New("bearer token body is not set")
-	errNilBearerTokenEACL = errors.New("bearer token EACL table is not set")
+	errNilBearerTokenEACL = errors.New("bearer token ContainerEACL table is not set")
 )
 
 type BearerToken struct {
@@ -178,7 +178,7 @@ func sanityCheck(b *BearerToken) error {
 		return errNilBearerTokenEACL
 	}
 
-	// consider checking EACL sanity there, lifetime correctness, etc.
+	// consider checking ContainerEACL sanity there, lifetime correctness, etc.
 
 	return nil
 }

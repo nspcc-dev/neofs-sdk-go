@@ -49,7 +49,7 @@ c, _ := client.New(
 ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 defer cancel()
 
-res, err := c.GetBalance(ctx, owner)
+res, err := c.BalanceGet(ctx, owner)
 if err != nil {
     return
 }

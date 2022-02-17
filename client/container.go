@@ -18,21 +18,21 @@ import (
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
-// ContainerPutPrm groups parameters of PutContainer operation.
-type ContainerPutPrm struct {
+// PrmContainerPut groups parameters of ContainerPut operation.
+type PrmContainerPut struct {
 	cnrSet bool
 	cnr    container.Container
 }
 
 // SetContainer sets structured information about new NeoFS container.
 // Required parameter.
-func (x *ContainerPutPrm) SetContainer(cnr container.Container) {
+func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 	x.cnr = cnr
 	x.cnrSet = true
 }
 
-// ContainerPutRes groups resulting values of PutContainer operation.
-type ContainerPutRes struct {
+// ResContainerPut groups resulting values of ContainerPut operation.
+type ResContainerPut struct {
 	statusRes
 
 	id *cid.ID
@@ -43,15 +43,15 @@ type ContainerPutRes struct {
 // asynchronously check if the save was successful).
 //
 // Client doesn't retain value so modification is safe.
-func (x ContainerPutRes) ID() *cid.ID {
+func (x ResContainerPut) ID() *cid.ID {
 	return x.id
 }
 
-func (x *ContainerPutRes) setID(id *cid.ID) {
+func (x *ResContainerPut) setID(id *cid.ID) {
 	x.id = id
 }
 
-// PutContainer sends request to save container in NeoFS.
+// ContainerPut sends request to save container in NeoFS.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -62,14 +62,14 @@ func (x *ContainerPutRes) setID(id *cid.ID) {
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
 //
-// Success can be verified by reading by identifier (see ContainerPutRes.ID).
+// Success can be verified by reading by identifier (see ResContainerPut.ID).
 //
-// Immediately panics if parameters are set incorrectly (see ContainerPutPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmContainerPut docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) PutContainer(ctx context.Context, prm ContainerPutPrm) (*ContainerPutRes, error) {
+func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -111,7 +111,7 @@ func (c *Client) PutContainer(ctx context.Context, prm ContainerPutPrm) (*Contai
 
 	var (
 		cc  contextCall
-		res ContainerPutRes
+		res ResContainerPut
 	)
 
 	c.initCallContext(&cc)
@@ -133,21 +133,21 @@ func (c *Client) PutContainer(ctx context.Context, prm ContainerPutPrm) (*Contai
 	return &res, nil
 }
 
-// ContainerGetPrm groups parameters of GetContainer operation.
-type ContainerGetPrm struct {
+// PrmContainerGet groups parameters of ContainerGet operation.
+type PrmContainerGet struct {
 	idSet bool
 	id    cid.ID
 }
 
 // SetContainer sets identifier of the container to be read.
 // Required parameter.
-func (x *ContainerGetPrm) SetContainer(id cid.ID) {
+func (x *PrmContainerGet) SetContainer(id cid.ID) {
 	x.id = id
 	x.idSet = true
 }
 
-// ContainerGetRes groups resulting values of GetContainer operation.
-type ContainerGetRes struct {
+// ResContainerGet groups resulting values of ContainerGet operation.
+type ResContainerGet struct {
 	statusRes
 
 	cnr *container.Container
@@ -156,15 +156,15 @@ type ContainerGetRes struct {
 // Container returns structured information about the requested container.
 //
 // Client doesn't retain value so modification is safe.
-func (x ContainerGetRes) Container() *container.Container {
+func (x ResContainerGet) Container() *container.Container {
 	return x.cnr
 }
 
-func (x *ContainerGetRes) setContainer(cnr *container.Container) {
+func (x *ResContainerGet) setContainer(cnr *container.Container) {
 	x.cnr = cnr
 }
 
-// GetContainer reads NeoFS container by ID.
+// ContainerGet reads NeoFS container by ID.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -172,12 +172,12 @@ func (x *ContainerGetRes) setContainer(cnr *container.Container) {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see ContainerGetPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmContainerGet docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) GetContainer(ctx context.Context, prm ContainerGetPrm) (*ContainerGetRes, error) {
+func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
 	switch {
 	case ctx == nil:
 		panic(panicMsgMissingContext)
@@ -198,7 +198,7 @@ func (c *Client) GetContainer(ctx context.Context, prm ContainerGetPrm) (*Contai
 
 	var (
 		cc  contextCall
-		res ContainerGetRes
+		res ResContainerGet
 	)
 
 	c.initCallContext(&cc)
@@ -233,21 +233,21 @@ func (c *Client) GetContainer(ctx context.Context, prm ContainerGetPrm) (*Contai
 	return &res, nil
 }
 
-// ContainerListPrm groups parameters of ListContainers operation.
-type ContainerListPrm struct {
+// PrmContainerList groups parameters of ContainerList operation.
+type PrmContainerList struct {
 	ownerSet bool
 	ownerID  owner.ID
 }
 
 // SetAccount sets identifier of the NeoFS account to list the containers.
 // Required parameter. Must be a valid ID according to NeoFS API protocol.
-func (x *ContainerListPrm) SetAccount(id owner.ID) {
+func (x *PrmContainerList) SetAccount(id owner.ID) {
 	x.ownerID = id
 	x.ownerSet = true
 }
 
-// ContainerListRes groups resulting values of ListContainers operation.
-type ContainerListRes struct {
+// ResContainerList groups resulting values of ContainerList operation.
+type ResContainerList struct {
 	statusRes
 
 	ids []*cid.ID
@@ -256,15 +256,15 @@ type ContainerListRes struct {
 // Containers returns list of identifiers of the account-owned containers.
 //
 // Client doesn't retain value so modification is safe.
-func (x ContainerListRes) Containers() []*cid.ID {
+func (x ResContainerList) Containers() []*cid.ID {
 	return x.ids
 }
 
-func (x *ContainerListRes) setContainers(ids []*cid.ID) {
+func (x *ResContainerList) setContainers(ids []*cid.ID) {
 	x.ids = ids
 }
 
-// ListContainers requests identifiers of the account-owned containers.
+// ContainerList requests identifiers of the account-owned containers.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -272,12 +272,12 @@ func (x *ContainerListRes) setContainers(ids []*cid.ID) {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see ContainerListPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmContainerList docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) ListContainers(ctx context.Context, prm ContainerListPrm) (*ContainerListRes, error) {
+func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -301,7 +301,7 @@ func (c *Client) ListContainers(ctx context.Context, prm ContainerListPrm) (*Con
 
 	var (
 		cc  contextCall
-		res ContainerListRes
+		res ResContainerList
 	)
 
 	c.initCallContext(&cc)
@@ -330,8 +330,8 @@ func (c *Client) ListContainers(ctx context.Context, prm ContainerListPrm) (*Con
 	return &res, nil
 }
 
-// ContainerDeletePrm groups parameters of DeleteContainer operation.
-type ContainerDeletePrm struct {
+// PrmContainerDelete groups parameters of ContainerDelete operation.
+type PrmContainerDelete struct {
 	prmSession
 
 	idSet bool
@@ -340,13 +340,13 @@ type ContainerDeletePrm struct {
 
 // SetContainer sets identifier of the NeoFS container to be removed.
 // Required parameter.
-func (x *ContainerDeletePrm) SetContainer(id cid.ID) {
+func (x *PrmContainerDelete) SetContainer(id cid.ID) {
 	x.id = id
 	x.idSet = true
 }
 
-// ContainerDeleteRes groups resulting values of DeleteContainer operation.
-type ContainerDeleteRes struct {
+// ResContainerDelete groups resulting values of ContainerDelete operation.
+type ResContainerDelete struct {
 	statusRes
 }
 
@@ -363,7 +363,7 @@ func (c delContainerSignWrapper) SignedDataSize() int {
 	return len(c.body.GetContainerID().GetValue())
 }
 
-// DeleteContainer sends request to remove the NeoFS container.
+// ContainerDelete sends request to remove the NeoFS container.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -376,15 +376,15 @@ func (c delContainerSignWrapper) SignedDataSize() int {
 //
 // Success can be verified by reading by identifier (see GetContainer).
 //
-// Immediately panics if parameters are set incorrectly (see ContainerDeletePrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmContainerDelete docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ContainerDeleteRes.
+// Exactly one return value is non-nil. Server status return is returned in ResContainerDelete.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) DeleteContainer(ctx context.Context, prm ContainerDeletePrm) (*ContainerDeleteRes, error) {
+func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*ResContainerDelete, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -428,7 +428,7 @@ func (c *Client) DeleteContainer(ctx context.Context, prm ContainerDeletePrm) (*
 
 	var (
 		cc  contextCall
-		res ContainerDeleteRes
+		res ResContainerDelete
 	)
 
 	c.initCallContext(&cc)
@@ -446,21 +446,21 @@ func (c *Client) DeleteContainer(ctx context.Context, prm ContainerDeletePrm) (*
 	return &res, nil
 }
 
-// EACLPrm groups parameters of EACL operation.
-type EACLPrm struct {
+// PrmContainerEACL groups parameters of ContainerEACL operation.
+type PrmContainerEACL struct {
 	idSet bool
 	id    cid.ID
 }
 
 // SetContainer sets identifier of the NeoFS container to read the eACL table.
 // Required parameter.
-func (x *EACLPrm) SetContainer(id cid.ID) {
+func (x *PrmContainerEACL) SetContainer(id cid.ID) {
 	x.id = id
 	x.idSet = true
 }
 
-// EACLRes groups resulting values of EACL operation.
-type EACLRes struct {
+// ResContainerEACL groups resulting values of ContainerEACL operation.
+type ResContainerEACL struct {
 	statusRes
 
 	table *eacl.Table
@@ -469,15 +469,15 @@ type EACLRes struct {
 // Table returns eACL table of the requested container.
 //
 // Client doesn't retain value so modification is safe.
-func (x EACLRes) Table() *eacl.Table {
+func (x ResContainerEACL) Table() *eacl.Table {
 	return x.table
 }
 
-func (x *EACLRes) setTable(table *eacl.Table) {
+func (x *ResContainerEACL) setTable(table *eacl.Table) {
 	x.table = table
 }
 
-// EACL reads eACL table of the NeoFS container.
+// ContainerEACL reads eACL table of the NeoFS container.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -485,12 +485,12 @@ func (x *EACLRes) setTable(table *eacl.Table) {
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
-// Immediately panics if parameters are set incorrectly (see EACLPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmContainerEACL docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) EACL(ctx context.Context, prm EACLPrm) (*EACLRes, error) {
+func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -512,7 +512,7 @@ func (c *Client) EACL(ctx context.Context, prm EACLPrm) (*EACLRes, error) {
 
 	var (
 		cc  contextCall
-		res EACLRes
+		res ResContainerEACL
 	)
 
 	c.initCallContext(&cc)
@@ -547,25 +547,25 @@ func (c *Client) EACL(ctx context.Context, prm EACLPrm) (*EACLRes, error) {
 	return &res, nil
 }
 
-// SetEACLPrm groups parameters of SetEACL operation.
-type SetEACLPrm struct {
+// PrmContainerSetEACL groups parameters of ContainerSetEACL operation.
+type PrmContainerSetEACL struct {
 	tableSet bool
 	table    eacl.Table
 }
 
 // SetTable sets eACL table structure to be set for the container.
 // Required parameter.
-func (x *SetEACLPrm) SetTable(table eacl.Table) {
+func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 	x.table = table
 	x.tableSet = true
 }
 
-// SetEACLRes groups resulting values of SetEACL operation.
-type SetEACLRes struct {
+// ResContainerSetEACL groups resulting values of ContainerSetEACL operation.
+type ResContainerSetEACL struct {
 	statusRes
 }
 
-// SetEACL sends request to update eACL table of the NeoFS container.
+// ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -578,12 +578,12 @@ type SetEACLRes struct {
 //
 // Success can be verified by reading by identifier (see EACL).
 //
-// Immediately panics if parameters are set incorrectly (see SetEACLPrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmContainerSetEACL docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) SetEACL(ctx context.Context, prm SetEACLPrm) (*SetEACLRes, error) {
+func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) (*ResContainerSetEACL, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -623,7 +623,7 @@ func (c *Client) SetEACL(ctx context.Context, prm SetEACLPrm) (*SetEACLRes, erro
 
 	var (
 		cc  contextCall
-		res SetEACLRes
+		res ResContainerSetEACL
 	)
 
 	c.initCallContext(&cc)
@@ -641,8 +641,8 @@ func (c *Client) SetEACL(ctx context.Context, prm SetEACLPrm) (*SetEACLRes, erro
 	return &res, nil
 }
 
-// AnnounceSpacePrm groups parameters of AnnounceContainerUsedSpace operation.
-type AnnounceSpacePrm struct {
+// PrmAnnounceSpace groups parameters of ContainerAnnounceUsedSpace operation.
+type PrmAnnounceSpace struct {
 	announcements []container.UsedSpaceAnnouncement
 }
 
@@ -650,16 +650,16 @@ type AnnounceSpacePrm struct {
 // Required parameter. Must not be empty.
 //
 // Must not be mutated before the end of the operation.
-func (x *AnnounceSpacePrm) SetValues(announcements []container.UsedSpaceAnnouncement) {
+func (x *PrmAnnounceSpace) SetValues(announcements []container.UsedSpaceAnnouncement) {
 	x.announcements = announcements
 }
 
-// AnnounceSpaceRes groups resulting values of AnnounceContainerUsedSpace operation.
-type AnnounceSpaceRes struct {
+// ResAnnounceSpace groups resulting values of ContainerAnnounceUsedSpace operation.
+type ResAnnounceSpace struct {
 	statusRes
 }
 
-// AnnounceContainerUsedSpace sends request to announce volume of the space used for the container objects.
+// ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
@@ -672,12 +672,12 @@ type AnnounceSpaceRes struct {
 //
 // At this moment success can not be checked.
 //
-// Immediately panics if parameters are set incorrectly (see AnnounceSpacePrm docs).
+// Immediately panics if parameters are set incorrectly (see PrmAnnounceSpace docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) AnnounceContainerUsedSpace(ctx context.Context, prm AnnounceSpacePrm) (*AnnounceSpaceRes, error) {
+func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) (*ResAnnounceSpace, error) {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -705,7 +705,7 @@ func (c *Client) AnnounceContainerUsedSpace(ctx context.Context, prm AnnounceSpa
 
 	var (
 		cc  contextCall
-		res AnnounceSpaceRes
+		res ResAnnounceSpace
 	)
 
 	c.initCallContext(&cc)
