@@ -495,12 +495,12 @@ func NewPool(options InitParameters) (*Pool, error) {
 		return nil, err
 	}
 
-	fillDefaultInitParams(&options)
-
 	cache, err := newCache()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
+
+	fillDefaultInitParams(&options, cache)
 
 	pool := &Pool{
 		key:             options.key,
@@ -575,7 +575,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 	return nil
 }
 
-func fillDefaultInitParams(params *InitParameters) {
+func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 	if params.sessionExpirationDuration == 0 {
 		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
 	}
@@ -599,6 +599,10 @@ func fillDefaultInitParams(params *InitParameters) {
 			var prmInit sdkClient.PrmInit
 			prmInit.ResolveNeoFSFailures()
 			prmInit.SetDefaultPrivateKey(*params.key)
+			prmInit.SetResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
+				cache.UpdateEpoch(info.Epoch())
+				return nil
+			})
 
 			c.Init(prmInit)
 

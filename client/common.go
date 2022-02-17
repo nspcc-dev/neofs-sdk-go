@@ -201,7 +201,8 @@ func (x *contextCall) processResponse() bool {
 	// call response callback if set
 	if x.callbackResp != nil {
 		x.err = x.callbackResp(ResponseMetaInfo{
-			key: x.resp.GetVerificationHeader().GetBodySignature().GetKey(),
+			key:   x.resp.GetVerificationHeader().GetBodySignature().GetKey(),
+			epoch: x.resp.GetMetaHeader().GetEpoch(),
 		})
 		if x.err != nil {
 			x.err = fmt.Errorf("response callback error: %w", x.err)
