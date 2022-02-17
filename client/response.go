@@ -5,6 +5,8 @@ import "github.com/nspcc-dev/neofs-api-go/v2/session"
 // ResponseMetaInfo groups meta information about any NeoFS API response.
 type ResponseMetaInfo struct {
 	key []byte
+
+	epoch uint64
 }
 
 type responseV2 interface {
@@ -17,4 +19,9 @@ type responseV2 interface {
 // Result must not be mutated.
 func (x ResponseMetaInfo) ResponderKey() []byte {
 	return x.key
+}
+
+// Epoch return current epoch.
+func (x ResponseMetaInfo) Epoch() uint64 {
+	return x.epoch
 }
