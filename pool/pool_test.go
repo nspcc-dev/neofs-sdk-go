@@ -330,8 +330,8 @@ func TestSessionCache(t *testing.T) {
 			return tok, err
 		}).MaxTimes(3)
 
-		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
-		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().ObjectGetInit(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
+		mockClient.EXPECT().ObjectPutInit(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -458,7 +458,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 			return tok, err
 		}).MaxTimes(2)
 
-		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().ObjectGetInit(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}

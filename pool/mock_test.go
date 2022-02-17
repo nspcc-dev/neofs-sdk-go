@@ -9,6 +9,7 @@ import (
 	reflect "reflect"
 
 	gomock "github.com/golang/mock/gomock"
+	client "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	client0 "github.com/nspcc-dev/neofs-sdk-go/client"
 )
 
@@ -38,8 +39,7 @@ func (m *MockClient) EXPECT() *MockClientMockRecorder {
 // CreateSession mocks base method.
 func (m *MockClient) CreateSession(arg0 context.Context, arg1 client0.CreateSessionPrm) (*client0.CreateSessionRes, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "CreateSession", varargs...)
+	ret := m.ctrl.Call(m, "CreateSession", arg0, arg1)
 	ret0, _ := ret[0].(*client0.CreateSessionRes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -48,15 +48,13 @@ func (m *MockClient) CreateSession(arg0 context.Context, arg1 client0.CreateSess
 // CreateSession indicates an expected call of CreateSession.
 func (mr *MockClientMockRecorder) CreateSession(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSession", reflect.TypeOf((*MockClient)(nil).CreateSession), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateSession", reflect.TypeOf((*MockClient)(nil).CreateSession), arg0, arg1)
 }
 
 // DeleteContainer mocks base method.
 func (m *MockClient) DeleteContainer(arg0 context.Context, arg1 client0.ContainerDeletePrm) (*client0.ContainerDeleteRes, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "DeleteContainer", varargs...)
+	ret := m.ctrl.Call(m, "DeleteContainer", arg0, arg1)
 	ret0, _ := ret[0].(*client0.ContainerDeleteRes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -65,8 +63,97 @@ func (m *MockClient) DeleteContainer(arg0 context.Context, arg1 client0.Containe
 // DeleteContainer indicates an expected call of DeleteContainer.
 func (mr *MockClientMockRecorder) DeleteContainer(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContainer", reflect.TypeOf((*MockClient)(nil).DeleteContainer), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContainer", reflect.TypeOf((*MockClient)(nil).DeleteContainer), arg0, arg1)
+}
+
+// EACL mocks base method.
+func (m *MockClient) EACL(arg0 context.Context, arg1 client0.EACLPrm) (*client0.EACLRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EACL", arg0, arg1)
+	ret0, _ := ret[0].(*client0.EACLRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EACL indicates an expected call of EACL.
+func (mr *MockClientMockRecorder) EACL(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EACL", reflect.TypeOf((*MockClient)(nil).EACL), arg0, arg1)
+}
+
+// EndpointInfo mocks base method.
+func (m *MockClient) EndpointInfo(arg0 context.Context, arg1 client0.EndpointInfoPrm) (*client0.EndpointInfoRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EndpointInfo", arg0, arg1)
+	ret0, _ := ret[0].(*client0.EndpointInfoRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EndpointInfo indicates an expected call of EndpointInfo.
+func (mr *MockClientMockRecorder) EndpointInfo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EndpointInfo", reflect.TypeOf((*MockClient)(nil).EndpointInfo), arg0, arg1)
+}
+
+// GetBalance mocks base method.
+func (m *MockClient) GetBalance(arg0 context.Context, arg1 client0.GetBalancePrm) (*client0.GetBalanceRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBalance", arg0, arg1)
+	ret0, _ := ret[0].(*client0.GetBalanceRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBalance indicates an expected call of GetBalance.
+func (mr *MockClientMockRecorder) GetBalance(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockClient)(nil).GetBalance), arg0, arg1)
+}
+
+// GetContainer mocks base method.
+func (m *MockClient) GetContainer(arg0 context.Context, arg1 client0.ContainerGetPrm) (*client0.ContainerGetRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContainer", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ContainerGetRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetContainer indicates an expected call of GetContainer.
+func (mr *MockClientMockRecorder) GetContainer(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContainer", reflect.TypeOf((*MockClient)(nil).GetContainer), arg0, arg1)
+}
+
+// ListContainers mocks base method.
+func (m *MockClient) ListContainers(arg0 context.Context, arg1 client0.ContainerListPrm) (*client0.ContainerListRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListContainers", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ContainerListRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListContainers indicates an expected call of ListContainers.
+func (mr *MockClientMockRecorder) ListContainers(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListContainers", reflect.TypeOf((*MockClient)(nil).ListContainers), arg0, arg1)
+}
+
+// NetworkInfo mocks base method.
+func (m *MockClient) NetworkInfo(arg0 context.Context, arg1 client0.NetworkInfoPrm) (*client0.NetworkInfoRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NetworkInfo", arg0, arg1)
+	ret0, _ := ret[0].(*client0.NetworkInfoRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NetworkInfo indicates an expected call of NetworkInfo.
+func (mr *MockClientMockRecorder) NetworkInfo(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkInfo", reflect.TypeOf((*MockClient)(nil).NetworkInfo), arg0, arg1)
 }
 
 // ObjectDelete mocks base method.
@@ -78,145 +165,55 @@ func (m *MockClient) ObjectDelete(arg0 context.Context, arg1 client0.PrmObjectDe
 	return ret0, ret1
 }
 
-// DeleteObject indicates an expected call of DeleteObject.
-func (mr *MockClientMockRecorder) DeleteObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// ObjectDelete indicates an expected call of ObjectDelete.
+func (mr *MockClientMockRecorder) ObjectDelete(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockClient)(nil).ObjectDelete), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectDelete", reflect.TypeOf((*MockClient)(nil).ObjectDelete), arg0, arg1)
 }
 
-// EACL mocks base method.
-func (m *MockClient) EACL(arg0 context.Context, arg1 client0.EACLPrm) (*client0.EACLRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "EACL", varargs...)
-	ret0, _ := ret[0].(*client0.EACLRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EACL indicates an expected call of EACL.
-func (mr *MockClientMockRecorder) EACL(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EACL", reflect.TypeOf((*MockClient)(nil).EACL), varargs...)
-}
-
-// EndpointInfo mocks base method.
-func (m *MockClient) EndpointInfo(arg0 context.Context, arg1 client0.EndpointInfoPrm) (*client0.EndpointInfoRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "EndpointInfo", varargs...)
-	ret0, _ := ret[0].(*client0.EndpointInfoRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EndpointInfo indicates an expected call of EndpointInfo.
-func (mr *MockClientMockRecorder) EndpointInfo(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EndpointInfo", reflect.TypeOf((*MockClient)(nil).EndpointInfo), varargs...)
-}
-
-// GetBalance mocks base method.
-func (m *MockClient) GetBalance(arg0 context.Context, arg1 client0.GetBalancePrm) (*client0.GetBalanceRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "GetBalance", varargs...)
-	ret0, _ := ret[0].(*client0.GetBalanceRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetBalance indicates an expected call of GetBalance.
-func (mr *MockClientMockRecorder) GetBalance(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBalance", reflect.TypeOf((*MockClient)(nil).GetBalance), varargs...)
-}
-
-// GetContainer mocks base method.
-func (m *MockClient) GetContainer(arg0 context.Context, arg1 client0.ContainerGetPrm) (*client0.ContainerGetRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "GetContainer", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerGetRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetContainer indicates an expected call of GetContainer.
-func (mr *MockClientMockRecorder) GetContainer(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContainer", reflect.TypeOf((*MockClient)(nil).GetContainer), varargs...)
-}
-
-// ObjectGetInitmocks base method.
+// ObjectGetInit mocks base method.
 func (m *MockClient) ObjectGetInit(arg0 context.Context, arg1 client0.PrmObjectGet) (*client0.ObjectReader, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetObject", arg0, arg1)
+	ret := m.ctrl.Call(m, "ObjectGetInit", arg0, arg1)
 	ret0, _ := ret[0].(*client0.ObjectReader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetObject indicates an expected call of GetObject.
-func (mr *MockClientMockRecorder) GetObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// ObjectGetInit indicates an expected call of ObjectGetInit.
+func (mr *MockClientMockRecorder) ObjectGetInit(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectGetInit", reflect.TypeOf((*MockClient)(nil).ObjectGetInit), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectGetInit", reflect.TypeOf((*MockClient)(nil).ObjectGetInit), arg0, arg1)
 }
 
 // ObjectHead mocks base method.
 func (m *MockClient) ObjectHead(arg0 context.Context, arg1 client0.PrmObjectHead) (*client0.ResObjectHead, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "HeadObject", arg0, arg1)
+	ret := m.ctrl.Call(m, "ObjectHead", arg0, arg1)
 	ret0, _ := ret[0].(*client0.ResObjectHead)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// HeadObject indicates an expected call of HeadObject.
-func (mr *MockClientMockRecorder) HeadObject(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// ObjectHead indicates an expected call of ObjectHead.
+func (mr *MockClientMockRecorder) ObjectHead(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HeadObject", reflect.TypeOf((*MockClient)(nil).ObjectHead), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectHead", reflect.TypeOf((*MockClient)(nil).ObjectHead), arg0, arg1)
 }
 
-// ListContainers mocks base method.
-func (m *MockClient) ListContainers(arg0 context.Context, arg1 client0.ContainerListPrm) (*client0.ContainerListRes, error) {
+// ObjectPutInit mocks base method.
+func (m *MockClient) ObjectPutInit(arg0 context.Context, arg1 client0.PrmObjectPutInit) (*client0.ObjectWriter, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "ListContainers", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerListRes)
+	ret := m.ctrl.Call(m, "ObjectPutInit", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ObjectWriter)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// ListContainers indicates an expected call of ListContainers.
-func (mr *MockClientMockRecorder) ListContainers(arg0, arg1 interface{}) *gomock.Call {
+// ObjectPutInit indicates an expected call of ObjectPutInit.
+func (mr *MockClientMockRecorder) ObjectPutInit(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListContainers", reflect.TypeOf((*MockClient)(nil).ListContainers), varargs...)
-}
-
-// NetworkInfo mocks base method.
-func (m *MockClient) NetworkInfo(arg0 context.Context, arg1 client0.NetworkInfoPrm) (*client0.NetworkInfoRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "NetworkInfo", varargs...)
-	ret0, _ := ret[0].(*client0.NetworkInfoRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NetworkInfo indicates an expected call of NetworkInfo.
-func (mr *MockClientMockRecorder) NetworkInfo(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NetworkInfo", reflect.TypeOf((*MockClient)(nil).NetworkInfo), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectPutInit", reflect.TypeOf((*MockClient)(nil).ObjectPutInit), arg0, arg1)
 }
 
 // ObjectRangeInit mocks base method.
@@ -228,47 +225,13 @@ func (m *MockClient) ObjectRangeInit(arg0 context.Context, arg1 client0.PrmObjec
 	return ret0, ret1
 }
 
-// ObjectRange indicates an expected call of ObjectRangeInit.
-func (mr *MockClientMockRecorder) ObjectRange(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// ObjectRangeInit indicates an expected call of ObjectRangeInit.
+func (mr *MockClientMockRecorder) ObjectRangeInit(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectRangeInit", reflect.TypeOf((*MockClient)(nil).ObjectRangeInit), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectRangeInit", reflect.TypeOf((*MockClient)(nil).ObjectRangeInit), arg0, arg1)
 }
 
-// PutContainer mocks base method.
-func (m *MockClient) PutContainer(arg0 context.Context, arg1 client0.ContainerPutPrm) (*client0.ContainerPutRes, error) {
-	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "PutContainer", varargs...)
-	ret0, _ := ret[0].(*client0.ContainerPutRes)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PutContainer indicates an expected call of PutContainer.
-func (mr *MockClientMockRecorder) PutContainer(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutContainer", reflect.TypeOf((*MockClient)(nil).PutContainer), varargs...)
-}
-
-// ObjectPutInitmocks base method.
-func (m *MockClient) ObjectPutInit(arg0 context.Context, arg1 client0.PrmObjectPutInit) (*client0.ObjectWriter, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "PutObject", arg0)
-	ret0, _ := ret[0].(*client0.ObjectWriter)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// PutObject indicates an expected call of PutObject.
-func (mr *MockClientMockRecorder) PutObject(arg0, arg1 interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1})
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectPutInit", reflect.TypeOf((*MockClient)(nil).ObjectPutInit), varargs...)
-}
-
-// ObjectSearchInitmocks base method.
+// ObjectSearchInit mocks base method.
 func (m *MockClient) ObjectSearchInit(arg0 context.Context, arg1 client0.PrmObjectSearch) (*client0.ObjectListReader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ObjectSearchInit", arg0, arg1)
@@ -277,18 +240,45 @@ func (m *MockClient) ObjectSearchInit(arg0 context.Context, arg1 client0.PrmObje
 	return ret0, ret1
 }
 
-// SearchObjects indicates an expected call of SearchObjects.
-func (mr *MockClientMockRecorder) SearchObjects(arg0, arg1 interface{}, arg2 ...interface{}) *gomock.Call {
+// ObjectSearchInit indicates an expected call of ObjectSearchInit.
+func (mr *MockClientMockRecorder) ObjectSearchInit(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := append([]interface{}{arg0, arg1}, arg2...)
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SearchObjects", reflect.TypeOf((*MockClient)(nil).ObjectSearchInit), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ObjectSearchInit", reflect.TypeOf((*MockClient)(nil).ObjectSearchInit), arg0, arg1)
+}
+
+// PutContainer mocks base method.
+func (m *MockClient) PutContainer(arg0 context.Context, arg1 client0.ContainerPutPrm) (*client0.ContainerPutRes, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutContainer", arg0, arg1)
+	ret0, _ := ret[0].(*client0.ContainerPutRes)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PutContainer indicates an expected call of PutContainer.
+func (mr *MockClientMockRecorder) PutContainer(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutContainer", reflect.TypeOf((*MockClient)(nil).PutContainer), arg0, arg1)
+}
+
+// Raw mocks base method.
+func (m *MockClient) Raw() *client.Client {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Raw")
+	ret0, _ := ret[0].(*client.Client)
+	return ret0
+}
+
+// Raw indicates an expected call of Raw.
+func (mr *MockClientMockRecorder) Raw() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Raw", reflect.TypeOf((*MockClient)(nil).Raw))
 }
 
 // SetEACL mocks base method.
 func (m *MockClient) SetEACL(arg0 context.Context, arg1 client0.SetEACLPrm) (*client0.SetEACLRes, error) {
 	m.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	ret := m.ctrl.Call(m, "SetEACL", varargs...)
+	ret := m.ctrl.Call(m, "SetEACL", arg0, arg1)
 	ret0, _ := ret[0].(*client0.SetEACLRes)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
@@ -297,6 +287,5 @@ func (m *MockClient) SetEACL(arg0 context.Context, arg1 client0.SetEACLPrm) (*cl
 // SetEACL indicates an expected call of SetEACL.
 func (mr *MockClientMockRecorder) SetEACL(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	varargs := []interface{}{arg0, arg1}
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetEACL", reflect.TypeOf((*MockClient)(nil).SetEACL), varargs...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetEACL", reflect.TypeOf((*MockClient)(nil).SetEACL), arg0, arg1)
 }
