@@ -240,6 +240,9 @@ func (x *ObjectReader) Close() (*ResObjectGet, error) {
 // Read implements io.Reader of the object payload.
 func (x *ObjectReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
+
+	x.remainingPayloadLen -= n
+
 	if !ok {
 		res, err := x.close(false)
 		if err != nil {
@@ -249,11 +252,9 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 		return n, apistatus.ErrFromStatus(res.Status())
 	}
 
-	if n > x.remainingPayloadLen {
+	if x.remainingPayloadLen < 0 {
 		return n, errors.New("payload size overflow")
 	}
-
-	x.remainingPayloadLen -= n
 
 	return n, nil
 }
@@ -615,6 +616,9 @@ func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
 // Read implements io.Reader of the object payload.
 func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
+
+	x.remainingPayloadLen -= n
+
 	if !ok {
 		res, err := x.close(false)
 		if err != nil {
@@ -624,11 +628,9 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 		return n, apistatus.ErrFromStatus(res.Status())
 	}
 
-	if n > x.remainingPayloadLen {
+	if x.remainingPayloadLen < 0 {
 		return n, errors.New("payload range size overflow")
 	}
-
-	x.remainingPayloadLen -= n
 
 	return n, nil
 }
