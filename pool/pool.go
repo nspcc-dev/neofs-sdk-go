@@ -277,7 +277,11 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 			c, err := options.clientBuilder(client.WithDefaultPrivateKey(options.Key),
 				client.WithURIAddress(addr, nil),
 				client.WithDialTimeout(options.NodeConnectionTimeout),
-				client.WithNeoFSErrorParsing())
+				client.WithNeoFSErrorParsing(),
+				client.WithResponseInfoHandler(func(info client.ResponseMetaInfo) error {
+					cache.UpdateEpoch(info.Epoch())
+					return nil
+				}))
 			if err != nil {
 				return nil, err
 			}
