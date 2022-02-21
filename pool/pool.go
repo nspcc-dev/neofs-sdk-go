@@ -820,6 +820,8 @@ func (p *pool) DeleteObject(ctx context.Context, addr address.Address, opts ...C
 		prm.ByID(*obj)
 	}
 
+	prm.UseKey(*cc.key)
+
 	return p.callWithRetry(&cc, func() error {
 		_, err := cc.client.ObjectDelete(ctx, prm)
 		if err != nil {
@@ -918,6 +920,8 @@ func (p *pool) HeadObject(ctx context.Context, addr address.Address, opts ...Cal
 	if obj := addr.ObjectID(); obj != nil {
 		prm.ByID(*obj)
 	}
+
+	prm.UseKey(*cc.key)
 
 	var obj object.Object
 
