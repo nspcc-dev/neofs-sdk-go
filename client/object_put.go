@@ -105,10 +105,26 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 	}
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
-		if ln > 512 {
-			ln = 512
+		// maxChunkLen restricts maximum byte length of the chunk
+		// transmitted in a single stream message. It depends on
+		// server settings and other message fields, but for now
+		// we simply assume that 3MB is large enough to reduce the
+		// number of messages, and not to exceed the limit
+		// (4MB by default for gRPC servers).
+		const maxChunkLen = 3 << 20
+		if ln > maxChunkLen {
+			ln = maxChunkLen
 		}
 
+		// we deal with size limit overflow above, but there is another case:
+		// what if method is called with "small" chunk many times? We write
+		// a message to the stream on each call. Alternatively, we could use buffering.
+		// In most cases, the chunk length does not vary between calls. Given this
+		// assumption, as well as the length of the payload from the header, it is
+		// possible to buffer the data of intermediate chunks, and send a message when
+		// the allocated buffer is filled, or when the last chunk is received.
+		// It is mentally assumed that allocating and filling the buffer is better than
+		// synchronous sending, but this needs to be tested.
 		x.partChunk.SetChunk(chunk[:ln])
 
 		if !x.ctxCall.writeRequest() {
