@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/ecdsa"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -21,6 +22,9 @@ type PrmObjectDelete struct {
 	body v2object.DeleteRequestBody
 
 	addr v2refs.Address
+
+	keySet bool
+	key    ecdsa.PrivateKey
 }
 
 // WithinSession specifies session within which object should be read.
@@ -52,6 +56,13 @@ func (x *PrmObjectDelete) FromContainer(id cid.ID) {
 // Required parameter.
 func (x *PrmObjectDelete) ByID(id oid.ID) {
 	x.addr.SetObjectID(id.ToV2())
+}
+
+// UseKey specifies private key to sign the requests.
+// If key is not provided, then Client default key is used.
+func (x *PrmObjectDelete) UseKey(key ecdsa.PrivateKey) {
+	x.keySet = true
+	x.key = key
 }
 
 // ResObjectDelete groups resulting values of ObjectDelete operation.
@@ -115,7 +126,13 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 		res ResObjectDelete
 	)
 
-	c.initCallContext(&cc)
+	if prm.keySet {
+		c.initCallContextWithoutKey(&cc)
+		cc.key = prm.key
+	} else {
+		c.initCallContext(&cc)
+	}
+
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {

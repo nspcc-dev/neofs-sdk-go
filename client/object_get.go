@@ -383,6 +383,16 @@ func GetFullObject(ctx context.Context, c *Client, idCnr cid.ID, idObj oid.ID) (
 // PrmObjectHead groups parameters of ObjectHead operation.
 type PrmObjectHead struct {
 	prmObjectRead
+
+	keySet bool
+	key    ecdsa.PrivateKey
+}
+
+// UseKey specifies private key to sign the requests.
+// If key is not provided, then Client default key is used.
+func (x *PrmObjectHead) UseKey(key ecdsa.PrivateKey) {
+	x.keySet = true
+	x.key = key
 }
 
 // ResObjectHead groups resulting values of ObjectHead operation.
@@ -482,7 +492,13 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 
 	res.idObj = prm.obj
 
-	c.initCallContext(&cc)
+	if prm.keySet {
+		c.initCallContextWithoutKey(&cc)
+		cc.key = prm.key
+	} else {
+		c.initCallContext(&cc)
+	}
+
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
