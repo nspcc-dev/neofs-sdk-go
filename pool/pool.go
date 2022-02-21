@@ -752,7 +752,7 @@ func (p *pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 		}
 
 		if payload != nil {
-			const defaultBufferSizePut = 4096 // configure?
+			const defaultBufferSizePut = 3 << 20 // configure?
 
 			if sz == 0 || sz > defaultBufferSizePut {
 				sz = defaultBufferSizePut
