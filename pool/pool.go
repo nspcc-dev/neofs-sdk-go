@@ -1079,12 +1079,6 @@ func (p *pool) PutContainer(ctx context.Context, cnr *container.Container, opts 
 	}
 
 	res, err := cp.client.ContainerPut(ctx, cliPrm)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.PutContainer(ctx, cnr, opts...)
-	}
-
 	if err != nil { // here err already carries both status and client errors
 		return nil, err
 	}
@@ -1106,12 +1100,6 @@ func (p *pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption
 	}
 
 	res, err := cp.client.ContainerGet(ctx, cliPrm)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.GetContainer(ctx, cid, opts...)
-	}
-
 	if err != nil { // here err already carries both status and client errors
 		return nil, err
 	}
@@ -1133,12 +1121,6 @@ func (p *pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...Ca
 	}
 
 	res, err := cp.client.ContainerList(ctx, cliPrm)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.ListContainers(ctx, ownerID, opts...)
-	}
-
 	if err != nil { // here err already carries both status and client errors
 		return nil, err
 	}
@@ -1165,11 +1147,6 @@ func (p *pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOpt
 
 	_, err = cp.client.ContainerDelete(ctx, cliPrm)
 
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.DeleteContainer(ctx, cid, opts...)
-	}
-
 	// here err already carries both status and client errors
 
 	return err
@@ -1189,12 +1166,6 @@ func (p *pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*e
 	}
 
 	res, err := cp.client.ContainerEACL(ctx, cliPrm)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.GetEACL(ctx, cid, opts...)
-	}
-
 	if err != nil { // here err already carries both status and client errors
 		return nil, err
 	}
@@ -1216,11 +1187,6 @@ func (p *pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOptio
 	}
 
 	_, err = cp.client.ContainerSetEACL(ctx, cliPrm)
-
-	if p.checkSessionTokenErr(err, cp.address) && !cfg.isRetry {
-		opts = append(opts, retry())
-		return p.SetEACL(ctx, table, opts...)
-	}
 
 	// here err already carries both status and client errors
 
