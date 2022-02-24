@@ -32,3 +32,15 @@ func TestPublicKeyToBytes(t *testing.T) {
 	require.Equal(t, expected, actual)
 	require.Equal(t, NEO3WalletSize, len(actual))
 }
+
+func TestScriptHashToIDBytes(t *testing.T) {
+	p, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	expected, err := base58.Decode(p.PublicKey().Address())
+	require.NoError(t, err)
+
+	actual := ScriptHashToIDBytes(p.GetScriptHash())
+	require.Equal(t, expected, actual)
+	require.Equal(t, NEO3WalletSize, len(actual))
+}

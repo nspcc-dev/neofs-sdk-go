@@ -163,3 +163,12 @@ func TestNewID(t *testing.T) {
 		require.Nil(t, idV2.GetValue())
 	})
 }
+
+func TestID_SetScriptHash(t *testing.T) {
+	p, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	id := NewID()
+	id.SetScriptHash(p.GetScriptHash())
+	require.Equal(t, p.Address(), id.String())
+}
