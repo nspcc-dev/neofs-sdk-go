@@ -36,6 +36,7 @@ func FromStatusV2(st *status.Status) Status {
 
 	switch code := st.Code(); {
 	case status.IsSuccess(code):
+		//nolint:exhaustive
 		switch status.LocalizeSuccess(&code); code {
 		case status.OK:
 			decoder = new(SuccessDefaultV2)

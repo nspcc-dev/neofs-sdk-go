@@ -181,7 +181,6 @@ type clientPack struct {
 type CallOption func(config *callConfig)
 
 type callConfig struct {
-	isRetry           bool
 	useDefaultSession bool
 
 	key    *ecdsa.PrivateKey
@@ -204,12 +203,6 @@ func WithBearer(token *token.BearerToken) CallOption {
 func WithSession(token *session.Token) CallOption {
 	return func(config *callConfig) {
 		config.stoken = token
-	}
-}
-
-func retry() CallOption {
-	return func(config *callConfig) {
-		config.isRetry = true
 	}
 }
 
