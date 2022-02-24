@@ -87,21 +87,11 @@ func VerifyID(obj *Object) error {
 }
 
 func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signature, error) {
-	sig := signature.New()
-
-	if err := sigutil.SignDataWithHandler(
+	return sigutil.SignData(
 		key,
 		signatureV2.StableMarshalerWrapper{
 			SM: id.ToV2(),
-		},
-		func(s *signature.Signature) {
-			*sig = *s
-		},
-	); err != nil {
-		return nil, err
-	}
-
-	return sig, nil
+		})
 }
 
 func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *RawObject) error {
@@ -116,11 +106,11 @@ func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *RawObject) error {
 }
 
 func VerifyIDSignature(obj *Object) error {
-	return sigutil.VerifyDataWithSource(
+	return sigutil.VerifyData(
 		signatureV2.StableMarshalerWrapper{
 			SM: obj.ID().ToV2(),
 		},
-		obj.Signature,
+		obj.Signature(),
 	)
 }
 

@@ -168,9 +168,13 @@ func (t *Token) Sign(key *ecdsa.PrivateKey) error {
 		SM: tV2.GetBody(),
 	}
 
-	return sigutil.SignDataWithHandler(key, signedData, func(sig *signature.Signature) {
-		tV2.SetSignature(sig.ToV2())
-	})
+	sig, err := sigutil.SignData(key, signedData)
+	if err != nil {
+		return err
+	}
+
+	tV2.SetSignature(sig.ToV2())
+	return nil
 }
 
 // VerifySignature checks if token signature is
@@ -182,7 +186,7 @@ func (t *Token) VerifySignature() bool {
 		SM: tV2.GetBody(),
 	}
 
-	return sigutil.VerifyDataWithSource(signedData, t.Signature) == nil
+	return sigutil.VerifyData(signedData, t.Signature()) == nil
 }
 
 // Signature returns Token signature.
