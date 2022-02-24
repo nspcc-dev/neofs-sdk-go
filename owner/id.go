@@ -77,7 +77,7 @@ func NewIDFromPublicKey(pub *ecdsa.PublicKey) *ID {
 	return id
 }
 
-// NewIDFromPublicKey creates new owner identity from N3 wallet account.
+// NewIDFromN3Account creates new owner identity from N3 wallet account.
 func NewIDFromN3Account(acc *wallet.Account) *ID {
 	return NewIDFromPublicKey(
 		(*ecdsa.PublicKey)(acc.PrivateKey().PublicKey()))
