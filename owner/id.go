@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/wallet"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
@@ -45,6 +46,11 @@ func NewID() *ID {
 // SetPublicKey sets owner identifier value to the provided NEO3 public key.
 func (id *ID) SetPublicKey(pub *ecdsa.PublicKey) {
 	(*refs.OwnerID)(id).SetValue(PublicKeyToIDBytes(pub))
+}
+
+// SetScriptHash sets owner identifier value to the provided NEO3 script hash.
+func (id *ID) SetScriptHash(u util.Uint160) {
+	(*refs.OwnerID)(id).SetValue(ScriptHashToIDBytes(u))
 }
 
 // ToV2 returns the v2 owner ID message.
@@ -144,6 +150,11 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 // make it clear that no errors can occur.
 func PublicKeyToIDBytes(pub *ecdsa.PublicKey) []byte {
 	sh := (*keys.PublicKey)(pub).GetScriptHash()
+	return ScriptHashToIDBytes(sh)
+}
+
+// ScriptHashToIDBytes converts NEO3 script hash to a byte slice of NEO3WalletSize length.
+func ScriptHashToIDBytes(sh util.Uint160) []byte {
 	b := make([]byte, NEO3WalletSize)
 	b[0] = address.Prefix
 	copy(b[1:], sh.BytesBE())
