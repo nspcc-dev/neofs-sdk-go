@@ -166,13 +166,13 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 
 		read += ln
 
-		// save the tail and break
-		x.tail = append(x.tail, ids[ln:]...)
+		if read == len(buf) {
+			// save the tail
+			x.tail = append(x.tail, ids[ln:]...)
 
-		break
+			return read, true
+		}
 	}
-
-	return read, true
 }
 
 // Close ends reading list of the matched objects and returns the result of the operation
