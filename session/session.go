@@ -3,7 +3,6 @@ package session
 import (
 	"crypto/ecdsa"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
@@ -169,16 +168,8 @@ func (t *Token) Sign(key *ecdsa.PrivateKey) error {
 		SM: tV2.GetBody(),
 	}
 
-	return sigutil.SignDataWithHandler(key, signedData, func(key, sig []byte) {
-		tSig := tV2.GetSignature()
-		if tSig == nil {
-			tSig = new(refs.Signature)
-		}
-
-		tSig.SetKey(key)
-		tSig.SetSign(sig)
-
-		tV2.SetSignature(tSig)
+	return sigutil.SignDataWithHandler(key, signedData, func(sig *signature.Signature) {
+		tV2.SetSignature(sig.ToV2())
 	})
 }
 
@@ -191,10 +182,7 @@ func (t *Token) VerifySignature() bool {
 		SM: tV2.GetBody(),
 	}
 
-	return sigutil.VerifyDataWithSource(signedData, func() (key, sig []byte) {
-		tSig := tV2.GetSignature()
-		return tSig.GetKey(), tSig.GetSign()
-	}) == nil
+	return sigutil.VerifyDataWithSource(signedData, t.Signature) == nil
 }
 
 // Signature returns Token signature.

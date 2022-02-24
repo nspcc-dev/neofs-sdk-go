@@ -7,12 +7,11 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
-	util "github.com/nspcc-dev/neofs-sdk-go/util/signature"
+	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 var (
@@ -103,11 +102,8 @@ func (b *BearerToken) SignToken(key *ecdsa.PrivateKey) error {
 
 	signWrapper := v2signature.StableMarshalerWrapper{SM: b.token.GetBody()}
 
-	return util.SignDataWithHandler(key, signWrapper, func(key []byte, sig []byte) {
-		bearerSignature := new(refs.Signature)
-		bearerSignature.SetKey(key)
-		bearerSignature.SetSign(sig)
-		b.token.SetSignature(bearerSignature)
+	return sigutil.SignDataWithHandler(key, signWrapper, func(sig *signature.Signature) {
+		b.token.SetSignature(sig.ToV2())
 	})
 }
 
@@ -120,11 +116,11 @@ func (b BearerToken) VerifySignature() error {
 		return nil
 	}
 
-	return util.VerifyDataWithSource(
+	return sigutil.VerifyDataWithSource(
 		v2signature.StableMarshalerWrapper{SM: b.token.GetBody()},
-		func() (key, sig []byte) {
+		func() *signature.Signature {
 			sigV2 := b.token.GetSignature()
-			return sigV2.GetKey(), sigV2.GetSign()
+			return signature.NewFromV2(sigV2)
 		})
 }
 

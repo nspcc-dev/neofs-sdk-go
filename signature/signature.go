@@ -7,6 +7,16 @@ import (
 // Signature represents v2-compatible signature.
 type Signature refs.Signature
 
+// Scheme represents signature scheme.
+type Scheme uint32
+
+// Supported signature schemes.
+const (
+	Unspecified Scheme = iota
+	ECDSAWithSHA512
+	RFC6979WithSHA256
+)
+
 // NewFromV2 wraps v2 Signature message to Signature.
 //
 // Nil refs.Signature converts to nil.
@@ -41,6 +51,16 @@ func (s *Signature) Sign() []byte {
 // SetSign sets signature value.
 func (s *Signature) SetSign(v []byte) {
 	(*refs.Signature)(s).SetSign(v)
+}
+
+// Scheme returns signature scheme.
+func (s *Signature) Scheme() Scheme {
+	return Scheme((*refs.Signature)(s).GetScheme())
+}
+
+// SetScheme sets signature scheme.
+func (s *Signature) SetScheme(v Scheme) {
+	(*refs.Signature)(s).SetScheme(refs.SignatureScheme(v))
 }
 
 // ToV2 converts Signature to v2 Signature message.
