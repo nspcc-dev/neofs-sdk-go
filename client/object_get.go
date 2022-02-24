@@ -223,9 +223,11 @@ func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
 	if x.ctxCall.err != nil {
 		if !errors.Is(x.ctxCall.err, io.EOF) {
 			return nil, x.ctxCall.err
-		} else if x.remainingPayloadLen > 0 {
-			return nil, io.ErrUnexpectedEOF
 		} else if !ignoreEOF {
+			if x.remainingPayloadLen > 0 {
+				return nil, io.ErrUnexpectedEOF
+			}
+
 			return nil, io.EOF
 		}
 	}
@@ -663,9 +665,11 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 	if x.ctxCall.err != nil {
 		if !errors.Is(x.ctxCall.err, io.EOF) {
 			return nil, x.ctxCall.err
-		} else if x.remainingPayloadLen > 0 {
-			return nil, io.ErrUnexpectedEOF
 		} else if !ignoreEOF {
+			if x.remainingPayloadLen > 0 {
+				return nil, io.ErrUnexpectedEOF
+			}
+
 			return nil, io.EOF
 		}
 	}
