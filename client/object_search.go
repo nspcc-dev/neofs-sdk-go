@@ -136,33 +136,41 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 		return read, true
 	}
 
-	// receive next message
-	ok := x.ctxCall.readResponse()
-	if !ok {
-		return read, false
+	var ok bool
+	var ids []*v2refs.ObjectID
+	var i, ln, rem int
+
+	for {
+		// receive next message
+		ok = x.ctxCall.readResponse()
+		if !ok {
+			return read, false
+		}
+
+		// read new chunk of objects
+		ids = x.bodyResp.GetIDList()
+
+		ln = len(ids)
+		if ln == 0 {
+			// just skip empty lists since they are not prohibited by protocol
+			continue
+		}
+
+		if rem = len(buf) - read; ln > rem {
+			ln = rem
+		}
+
+		for i = 0; i < ln; i++ {
+			buf[read+i] = *oid.NewIDFromV2(ids[i]) // need smth better
+		}
+
+		read += ln
+
+		// save the tail and break
+		x.tail = append(x.tail, ids[ln:]...)
+
+		break
 	}
-
-	// read new chunk of objects
-	ids := x.bodyResp.GetIDList()
-	ln := len(ids)
-	if ln == 0 {
-		x.ctxCall.err = io.EOF
-		return read, false
-	}
-
-	buf = buf[read:]
-	if ln > len(buf) {
-		ln = len(buf)
-	}
-
-	for i := 0; i < ln; i++ {
-		buf[i] = *oid.NewIDFromV2(ids[i]) // need smth better
-	}
-
-	read += ln
-
-	// save the tail
-	x.tail = append(x.tail, ids[ln:]...)
 
 	return read, true
 }
