@@ -260,13 +260,14 @@ func (x *GlobalTrust) Trust() *Trust {
 func (x *GlobalTrust) Sign(key *ecdsa.PrivateKey) error {
 	v2 := (*reputation.GlobalTrust)(x)
 
-	return sigutil.SignDataWithHandler(
-		key,
-		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()},
-		func(sig *signature.Signature) {
-			v2.SetSignature(sig.ToV2())
-		},
-	)
+	sig, err := sigutil.SignData(key,
+		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()})
+	if err != nil {
+		return err
+	}
+
+	v2.SetSignature(sig.ToV2())
+	return nil
 }
 
 // VerifySignature verifies global trust signature.
@@ -278,11 +279,9 @@ func (x *GlobalTrust) VerifySignature() error {
 		sigV2 = new(refs.Signature)
 	}
 
-	return sigutil.VerifyDataWithSource(
+	return sigutil.VerifyData(
 		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()},
-		func() *signature.Signature {
-			return signature.NewFromV2(sigV2)
-		},
+		signature.NewFromV2(sigV2),
 	)
 }
 

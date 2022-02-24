@@ -102,9 +102,13 @@ func (b *BearerToken) SignToken(key *ecdsa.PrivateKey) error {
 
 	signWrapper := v2signature.StableMarshalerWrapper{SM: b.token.GetBody()}
 
-	return sigutil.SignDataWithHandler(key, signWrapper, func(sig *signature.Signature) {
-		b.token.SetSignature(sig.ToV2())
-	})
+	sig, err := sigutil.SignData(key, signWrapper)
+	if err != nil {
+		return err
+	}
+
+	b.token.SetSignature(sig.ToV2())
+	return nil
 }
 
 func (b BearerToken) Signature() *signature.Signature {
@@ -116,12 +120,10 @@ func (b BearerToken) VerifySignature() error {
 		return nil
 	}
 
-	return sigutil.VerifyDataWithSource(
+	sigV2 := b.token.GetSignature()
+	return sigutil.VerifyData(
 		v2signature.StableMarshalerWrapper{SM: b.token.GetBody()},
-		func() *signature.Signature {
-			sigV2 := b.token.GetSignature()
-			return signature.NewFromV2(sigV2)
-		})
+		signature.NewFromV2(sigV2))
 }
 
 // Issuer returns owner.ID associated with the key that signed bearer token.

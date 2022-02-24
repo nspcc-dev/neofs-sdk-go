@@ -86,12 +86,12 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	// sign container
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
 
-	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(sig *signature.Signature) {
-		reqBody.SetSignature(sig.ToV2())
-	}, sigutil.SignWithRFC6979())
+	sig, err := sigutil.SignData(c.opts.key, signWrapper, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
 	}
+
+	reqBody.SetSignature(sig.ToV2())
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -393,18 +393,15 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	reqBody := new(v2container.DeleteRequestBody)
 	reqBody.SetContainerID(prm.id.ToV2())
 
+	signWrapper := delContainerSignWrapper{body: reqBody}
+
 	// sign container
-	err := sigutil.SignDataWithHandler(c.opts.key,
-		delContainerSignWrapper{
-			body: reqBody,
-		},
-		func(sig *signature.Signature) {
-			reqBody.SetSignature(sig.ToV2())
-		},
-		sigutil.SignWithRFC6979())
+	sig, err := sigutil.SignData(c.opts.key, signWrapper, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
 	}
+
+	reqBody.SetSignature(sig.ToV2())
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -592,12 +589,12 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	// sign the eACL table
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetEACL()}
 
-	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(sig *signature.Signature) {
-		reqBody.SetSignature(sig.ToV2())
-	}, sigutil.SignWithRFC6979())
+	sig, err := sigutil.SignData(c.opts.key, signWrapper, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
 	}
+
+	reqBody.SetSignature(sig.ToV2())
 
 	// form meta header
 	var meta v2session.RequestMetaHeader

@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -49,19 +50,31 @@ func sign(scheme signature.Scheme, key *ecdsa.PrivateKey, msg []byte) ([]byte, e
 	}
 }
 
-func verify(scheme signature.Scheme, key *ecdsa.PublicKey, msg []byte, sig []byte) error {
+func verify(cfg *cfg, msg []byte, sig *signature.Signature) error {
+	pub, err := keys.NewPublicKeyFromBytes(sig.Key(), elliptic.P256())
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidPublicKey, err)
+	}
+
+	scheme := sig.Scheme()
+	if scheme == signature.Unspecified {
+		scheme = cfg.defaultScheme
+	}
+	if cfg.restrictScheme != signature.Unspecified && scheme != cfg.restrictScheme {
+		return fmt.Errorf("%w: unexpected signature scheme", ErrInvalidSignature)
+	}
+
 	switch scheme {
 	case signature.ECDSAWithSHA512:
 		h := sha512.Sum512(msg)
-		r, s := unmarshalXY(sig)
-		if r != nil && s != nil && ecdsa.Verify(key, h[:], r, s) {
+		r, s := unmarshalXY(sig.Sign())
+		if r != nil && s != nil && ecdsa.Verify((*ecdsa.PublicKey)(pub), h[:], r, s) {
 			return nil
 		}
 		return ErrInvalidSignature
 	case signature.RFC6979WithSHA256:
-		p := (*keys.PublicKey)(key)
 		h := sha256.Sum256(msg)
-		if p.Verify(sig, h[:]) {
+		if pub.Verify(sig.Sign(), h[:]) {
 			return nil
 		}
 		return ErrInvalidSignature
