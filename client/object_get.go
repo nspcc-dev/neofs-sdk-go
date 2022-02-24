@@ -166,34 +166,47 @@ func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
 		return read, true
 	}
 
-	// receive next message
-	ok := x.ctxCall.readResponse()
-	if !ok {
-		return read, false
+	var ok bool
+	var part v2object.GetObjectPart
+	var chunk []byte
+	var lastRead int
+
+	for {
+		// receive next message
+		ok = x.ctxCall.readResponse()
+		if !ok {
+			return read, false
+		}
+
+		// get chunk part message
+		part = x.bodyResp.GetObjectPart()
+
+		var partChunk *v2object.GetObjectPartChunk
+
+		partChunk, ok = part.(*v2object.GetObjectPartChunk)
+		if !ok {
+			x.ctxCall.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
+			return read, false
+		}
+
+		// read new chunk
+		chunk = partChunk.GetChunk()
+		if len(chunk) == 0 {
+			// just skip empty chunks since they are not prohibited by protocol
+			continue
+		}
+
+		lastRead = copy(buf[read:], chunk)
+
+		read += lastRead
+
+		if read == len(buf) {
+			// save the tail
+			x.tailPayload = append(x.tailPayload, chunk[lastRead:]...)
+
+			return read, true
+		}
 	}
-
-	// get chunk part message
-	part := x.bodyResp.GetObjectPart()
-
-	var partChunk *v2object.GetObjectPartChunk
-
-	partChunk, ok = part.(*v2object.GetObjectPartChunk)
-	if !ok {
-		x.ctxCall.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
-		return read, false
-	}
-
-	// read new chunk
-	chunk := partChunk.GetChunk()
-
-	tailOffset := copy(buf[read:], chunk)
-
-	read += tailOffset
-
-	// save the tail
-	x.tailPayload = append(x.tailPayload, chunk[tailOffset:]...)
-
-	return read, true
 }
 
 // ReadChunk reads another chunk of the object payload. Works similar to
@@ -593,37 +606,47 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 		return read, true
 	}
 
-	// receive next message
-	ok := x.ctxCall.readResponse()
-	if !ok {
-		return read, false
-	}
-
-	// get chunk message
+	var ok bool
 	var partChunk *v2object.GetRangePartChunk
+	var chunk []byte
+	var lastRead int
 
-	switch v := x.bodyResp.GetRangePart().(type) {
-	default:
-		x.ctxCall.err = fmt.Errorf("unexpected message received: %T", v)
-		return read, false
-	case *v2object.SplitInfo:
-		handleSplitInfo(&x.ctxCall, v)
-		return read, false
-	case *v2object.GetRangePartChunk:
-		partChunk = v
+	for {
+		// receive next message
+		ok = x.ctxCall.readResponse()
+		if !ok {
+			return read, false
+		}
+
+		// get chunk message
+		switch v := x.bodyResp.GetRangePart().(type) {
+		default:
+			x.ctxCall.err = fmt.Errorf("unexpected message received: %T", v)
+			return read, false
+		case *v2object.SplitInfo:
+			handleSplitInfo(&x.ctxCall, v)
+			return read, false
+		case *v2object.GetRangePartChunk:
+			partChunk = v
+		}
+
+		chunk = partChunk.GetChunk()
+		if len(chunk) == 0 {
+			// just skip empty chunks since they are not prohibited by protocol
+			continue
+		}
+
+		lastRead = copy(buf[read:], chunk)
+
+		read += lastRead
+
+		if read == len(buf) {
+			// save the tail
+			x.tailPayload = append(x.tailPayload, chunk[lastRead:]...)
+
+			return read, true
+		}
 	}
-
-	// read new chunk
-	chunk := partChunk.GetChunk()
-
-	tailOffset := copy(buf[read:], chunk)
-
-	read += tailOffset
-
-	// save the tail
-	x.tailPayload = append(x.tailPayload, chunk[tailOffset:]...)
-
-	return read, true
 }
 
 // ReadChunk reads another chunk of the object payload range.
