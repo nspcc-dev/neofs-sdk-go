@@ -3,7 +3,6 @@ package netmap
 import (
 	"testing"
 
-	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,12 +42,6 @@ func newReplica(c uint32, s string) *Replica {
 	return r
 }
 
-func newSubnetID(id uint32) *subnetid.ID {
-	var s subnetid.ID
-	s.SetNumber(id)
-	return &s
-}
-
 func nodeInfoFromAttributes(props ...string) NodeInfo {
 	attrs := make([]*NodeAttribute, len(props)/2)
 	for i := range attrs {
@@ -59,14 +52,6 @@ func nodeInfoFromAttributes(props ...string) NodeInfo {
 	n := NewNodeInfo()
 	n.SetAttributes(attrs...)
 	return *n
-}
-
-func getTestNode(props ...string) *Node {
-	m := make(map[string]string, len(props)/2)
-	for i := 0; i < len(props); i += 2 {
-		m[props[i]] = props[i+1]
-	}
-	return &Node{AttrMap: m}
 }
 
 type enumIface interface {

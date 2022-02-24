@@ -357,7 +357,7 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObject(ctx, address.Address{}, retry())
+	_, err = pool.GetObject(ctx, address.Address{})
 	require.Error(t, err)
 
 	// cache must not contain session token
