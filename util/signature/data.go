@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-sdk-go/signature"
 )
 
 type DataSource interface {
@@ -16,15 +17,15 @@ type DataSource interface {
 
 type DataWithSignature interface {
 	DataSource
-	GetSignatureWithKey() (key, sig []byte)
-	SetSignatureWithKey(key, sig []byte)
+	GetSignature() *signature.Signature
+	SetSignature(*signature.Signature)
 }
 
 type SignOption func(*cfg)
 
-type KeySignatureHandler func(key []byte, sig []byte)
+type KeySignatureHandler func(*signature.Signature)
 
-type KeySignatureSource func() (key, sig []byte)
+type KeySignatureSource func() *signature.Signature
 
 const (
 	// PrivateKeyCompressedSize is constant with compressed size of private key (SK).
@@ -49,34 +50,30 @@ var (
 	ErrInvalidSignature = errors.New("invalid signature")
 )
 
-func DataSignature(key *ecdsa.PrivateKey, src DataSource, opts ...SignOption) ([]byte, error) {
+func SignDataWithHandler(key *ecdsa.PrivateKey, src DataSource, handler KeySignatureHandler, opts ...SignOption) error {
 	if key == nil {
-		return nil, ErrEmptyPrivateKey
+		return ErrEmptyPrivateKey
 	}
 
 	data, err := dataForSignature(src)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer bytesPool.Put(&data)
 
-	cfg := defaultCfg()
+	cfg := getConfig(opts...)
 
-	for i := range opts {
-		opts[i](cfg)
-	}
-
-	return cfg.signFunc(key, data)
-}
-
-func SignDataWithHandler(key *ecdsa.PrivateKey, src DataSource, handler KeySignatureHandler, opts ...SignOption) error {
-	sig, err := DataSignature(key, src, opts...)
+	sigData, err := sign(cfg.defaultScheme, key, data)
 	if err != nil {
 		return err
 	}
 
-	pub := (*keys.PublicKey)(&key.PublicKey)
-	handler(pub.Bytes(), sig)
+	sig := signature.New()
+	sig.SetKey((*keys.PublicKey)(&key.PublicKey).Bytes())
+	sig.SetSign(sigData)
+	sig.SetScheme(cfg.defaultScheme)
+
+	handler(sig)
 
 	return nil
 }
@@ -88,33 +85,38 @@ func VerifyDataWithSource(dataSrc DataSource, sigSrc KeySignatureSource, opts ..
 	}
 	defer bytesPool.Put(&data)
 
-	cfg := defaultCfg()
+	cfg := getConfig(opts...)
 
-	for i := range opts {
-		opts[i](cfg)
-	}
-
-	key, sig := sigSrc()
+	sig := sigSrc()
 
 	var pub *keys.PublicKey
-	if len(key) != 0 {
-		pub, err = keys.NewPublicKeyFromBytes(key, elliptic.P256())
+	if len(sig.Key()) != 0 {
+		pub, err = keys.NewPublicKeyFromBytes(sig.Key(), elliptic.P256())
 		if err != nil {
 			return fmt.Errorf("%w: %v", ErrInvalidPublicKey, err)
 		}
 	}
 
-	return cfg.verifyFunc(
+	scheme := sig.Scheme()
+	if scheme == signature.Unspecified {
+		scheme = cfg.defaultScheme
+	}
+	if cfg.restrictScheme != signature.Unspecified && scheme != cfg.restrictScheme {
+		return fmt.Errorf("%w: unexpected signature scheme", ErrInvalidSignature)
+	}
+
+	return verify(
+		scheme,
 		(*ecdsa.PublicKey)(pub),
 		data,
-		sig,
+		sig.Sign(),
 	)
 }
 
 func SignData(key *ecdsa.PrivateKey, v DataWithSignature, opts ...SignOption) error {
-	return SignDataWithHandler(key, v, v.SetSignatureWithKey, opts...)
+	return SignDataWithHandler(key, v, v.SetSignature, opts...)
 }
 
 func VerifyData(src DataWithSignature, opts ...SignOption) error {
-	return VerifyDataWithSource(src, src.GetSignatureWithKey, opts...)
+	return VerifyDataWithSource(src, src.GetSignature, opts...)
 }

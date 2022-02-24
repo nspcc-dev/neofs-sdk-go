@@ -4,7 +4,6 @@ import (
 	"context"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -87,11 +86,8 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	// sign container
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
 
-	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(key []byte, sig []byte) {
-		containerSignature := new(refs.Signature)
-		containerSignature.SetKey(key)
-		containerSignature.SetSign(sig)
-		reqBody.SetSignature(containerSignature)
+	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(sig *signature.Signature) {
+		reqBody.SetSignature(sig.ToV2())
 	}, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
@@ -402,11 +398,8 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 		delContainerSignWrapper{
 			body: reqBody,
 		},
-		func(key []byte, sig []byte) {
-			containerSignature := new(refs.Signature)
-			containerSignature.SetKey(key)
-			containerSignature.SetSign(sig)
-			reqBody.SetSignature(containerSignature)
+		func(sig *signature.Signature) {
+			reqBody.SetSignature(sig.ToV2())
 		},
 		sigutil.SignWithRFC6979())
 	if err != nil {
@@ -599,11 +592,8 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	// sign the eACL table
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetEACL()}
 
-	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(key []byte, sig []byte) {
-		eaclSignature := new(refs.Signature)
-		eaclSignature.SetKey(key)
-		eaclSignature.SetSign(sig)
-		reqBody.SetSignature(eaclSignature)
+	err := sigutil.SignDataWithHandler(c.opts.key, signWrapper, func(sig *signature.Signature) {
+		reqBody.SetSignature(sig.ToV2())
 	}, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err

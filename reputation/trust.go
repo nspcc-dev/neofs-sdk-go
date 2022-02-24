@@ -6,7 +6,8 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
-	"github.com/nspcc-dev/neofs-sdk-go/util/signature"
+	"github.com/nspcc-dev/neofs-sdk-go/signature"
+	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -259,18 +260,11 @@ func (x *GlobalTrust) Trust() *Trust {
 func (x *GlobalTrust) Sign(key *ecdsa.PrivateKey) error {
 	v2 := (*reputation.GlobalTrust)(x)
 
-	sigV2 := v2.GetSignature()
-	if sigV2 == nil {
-		sigV2 = new(refs.Signature)
-		v2.SetSignature(sigV2)
-	}
-
-	return signature.SignDataWithHandler(
+	return sigutil.SignDataWithHandler(
 		key,
 		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()},
-		func(key, sig []byte) {
-			sigV2.SetKey(key)
-			sigV2.SetSign(sig)
+		func(sig *signature.Signature) {
+			v2.SetSignature(sig.ToV2())
 		},
 	)
 }
@@ -284,10 +278,10 @@ func (x *GlobalTrust) VerifySignature() error {
 		sigV2 = new(refs.Signature)
 	}
 
-	return signature.VerifyDataWithSource(
+	return sigutil.VerifyDataWithSource(
 		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()},
-		func() ([]byte, []byte) {
-			return sigV2.GetKey(), sigV2.GetSign()
+		func() *signature.Signature {
+			return signature.NewFromV2(sigV2)
 		},
 	)
 }

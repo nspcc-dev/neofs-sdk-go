@@ -94,9 +94,8 @@ func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signatu
 		signatureV2.StableMarshalerWrapper{
 			SM: id.ToV2(),
 		},
-		func(key, sign []byte) {
-			sig.SetKey(key)
-			sig.SetSign(sign)
+		func(s *signature.Signature) {
+			*sig = *s
 		},
 	); err != nil {
 		return nil, err
@@ -121,11 +120,7 @@ func VerifyIDSignature(obj *Object) error {
 		signatureV2.StableMarshalerWrapper{
 			SM: obj.ID().ToV2(),
 		},
-		func() ([]byte, []byte) {
-			sig := obj.Signature()
-
-			return sig.Key(), sig.Sign()
-		},
+		obj.Signature,
 	)
 }
 
