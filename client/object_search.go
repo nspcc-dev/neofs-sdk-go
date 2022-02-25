@@ -12,6 +12,7 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -171,6 +172,30 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			x.tail = append(x.tail, ids[ln:]...)
 
 			return read, true
+		}
+	}
+}
+
+// Iterate iterates over the list of found object identifiers.
+// f can return true to stop iteration earlier.
+//
+// Returns an error if object can't be read.
+func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
+	buf := make([]oid.ID, 1)
+
+	for {
+		// Do not check first return value because `len(buf) == 1`,
+		// so false means nothing was read.
+		_, ok := x.Read(buf)
+		if !ok {
+			res, err := x.Close()
+			if err != nil {
+				return err
+			}
+			return apistatus.ErrFromStatus(res.Status())
+		}
+		if f(buf[0]) {
+			return nil
 		}
 	}
 }
