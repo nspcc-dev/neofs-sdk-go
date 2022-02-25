@@ -1015,6 +1015,10 @@ func (x *ResObjectSearch) Read(buf []oid.ID) (int, error) {
 	return n, nil
 }
 
+func (x *ResObjectSearch) Iterate(f func(oid.ID) bool) error {
+	return x.r.Iterate(f)
+}
+
 func (x *ResObjectSearch) Close() {
 	_, _ = x.r.Close()
 }
