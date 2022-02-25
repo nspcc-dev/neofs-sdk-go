@@ -166,7 +166,7 @@ func TestToken_Iat(t *testing.T) {
 
 func TestNewTokenFromV2(t *testing.T) {
 	t.Run("from nil", func(t *testing.T) {
-		var x *sessionv2.SessionToken
+		var x *sessionv2.Token
 
 		require.Nil(t, session.NewTokenFromV2(x))
 	})

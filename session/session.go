@@ -13,13 +13,13 @@ import (
 
 // Token represents NeoFS API v2-compatible
 // session token.
-type Token session.SessionToken
+type Token session.Token
 
-// NewTokenFromV2 wraps session.SessionToken message structure
+// NewTokenFromV2 wraps session.Token message structure
 // into Token.
 //
-// Nil session.SessionToken converts to nil.
-func NewTokenFromV2(tV2 *session.SessionToken) *Token {
+// Nil session.Token converts to nil.
+func NewTokenFromV2(tV2 *session.Token) *Token {
 	return (*Token)(tV2)
 }
 
@@ -34,22 +34,22 @@ func NewTokenFromV2(tV2 *session.SessionToken) *Token {
 //  - iat: 0;
 //  - nbf: 0;
 func NewToken() *Token {
-	return NewTokenFromV2(new(session.SessionToken))
+	return NewTokenFromV2(new(session.Token))
 }
 
-// ToV2 converts Token to session.SessionToken message structure.
+// ToV2 converts Token to session.Token message structure.
 //
 // Nil Token converts to nil.
-func (t *Token) ToV2() *session.SessionToken {
-	return (*session.SessionToken)(t)
+func (t *Token) ToV2() *session.Token {
+	return (*session.Token)(t)
 }
 
-func (t *Token) setBodyField(setter func(*session.SessionTokenBody)) {
-	token := (*session.SessionToken)(t)
+func (t *Token) setBodyField(setter func(*session.TokenBody)) {
+	token := (*session.Token)(t)
 	body := token.GetBody()
 
 	if body == nil {
-		body = new(session.SessionTokenBody)
+		body = new(session.TokenBody)
 		token.SetBody(body)
 	}
 
@@ -58,14 +58,14 @@ func (t *Token) setBodyField(setter func(*session.SessionTokenBody)) {
 
 // ID returns Token identifier.
 func (t *Token) ID() []byte {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		GetBody().
 		GetID()
 }
 
 // SetID sets Token identifier.
 func (t *Token) SetID(v []byte) {
-	t.setBodyField(func(body *session.SessionTokenBody) {
+	t.setBodyField(func(body *session.TokenBody) {
 		body.SetID(v)
 	})
 }
@@ -73,7 +73,7 @@ func (t *Token) SetID(v []byte) {
 // OwnerID returns Token's owner identifier.
 func (t *Token) OwnerID() *owner.ID {
 	return owner.NewIDFromV2(
-		(*session.SessionToken)(t).
+		(*session.Token)(t).
 			GetBody().
 			GetOwnerID(),
 	)
@@ -81,7 +81,7 @@ func (t *Token) OwnerID() *owner.ID {
 
 // SetOwnerID sets Token's owner identifier.
 func (t *Token) SetOwnerID(v *owner.ID) {
-	t.setBodyField(func(body *session.SessionTokenBody) {
+	t.setBodyField(func(body *session.TokenBody) {
 		body.SetOwnerID(v.ToV2())
 	})
 }
@@ -89,7 +89,7 @@ func (t *Token) SetOwnerID(v *owner.ID) {
 // SessionKey returns public key of the session
 // in a binary format.
 func (t *Token) SessionKey() []byte {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		GetBody().
 		GetSessionKey()
 }
@@ -97,13 +97,13 @@ func (t *Token) SessionKey() []byte {
 // SetSessionKey sets public key of the session
 // in a binary format.
 func (t *Token) SetSessionKey(v []byte) {
-	t.setBodyField(func(body *session.SessionTokenBody) {
+	t.setBodyField(func(body *session.TokenBody) {
 		body.SetSessionKey(v)
 	})
 }
 
 func (t *Token) setLifetimeField(f func(*session.TokenLifetime)) {
-	t.setBodyField(func(body *session.SessionTokenBody) {
+	t.setBodyField(func(body *session.TokenBody) {
 		lt := body.GetLifetime()
 		if lt == nil {
 			lt = new(session.TokenLifetime)
@@ -116,7 +116,7 @@ func (t *Token) setLifetimeField(f func(*session.TokenLifetime)) {
 
 // Exp returns epoch number of the token expiration.
 func (t *Token) Exp() uint64 {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		GetBody().
 		GetLifetime().
 		GetExp()
@@ -131,7 +131,7 @@ func (t *Token) SetExp(exp uint64) {
 
 // Nbf returns starting epoch number of the token.
 func (t *Token) Nbf() uint64 {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		GetBody().
 		GetLifetime().
 		GetNbf()
@@ -146,7 +146,7 @@ func (t *Token) SetNbf(nbf uint64) {
 
 // Iat returns starting epoch number of the token.
 func (t *Token) Iat() uint64 {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		GetBody().
 		GetLifetime().
 		GetIat()
@@ -163,7 +163,7 @@ func (t *Token) SetIat(iat uint64) {
 //
 // Returns signature calculation errors.
 func (t *Token) Sign(key *ecdsa.PrivateKey) error {
-	tV2 := (*session.SessionToken)(t)
+	tV2 := (*session.Token)(t)
 
 	signedData := v2signature.StableMarshalerWrapper{
 		SM: tV2.GetBody(),
@@ -185,7 +185,7 @@ func (t *Token) Sign(key *ecdsa.PrivateKey) error {
 // VerifySignature checks if token signature is
 // presented and valid.
 func (t *Token) VerifySignature() bool {
-	tV2 := (*session.SessionToken)(t)
+	tV2 := (*session.Token)(t)
 
 	signedData := v2signature.StableMarshalerWrapper{
 		SM: tV2.GetBody(),
@@ -200,7 +200,7 @@ func (t *Token) VerifySignature() bool {
 // Signature returns Token signature.
 func (t *Token) Signature() *signature.Signature {
 	return signature.NewFromV2(
-		(*session.SessionToken)(t).
+		(*session.Token)(t).
 			GetSignature(),
 	)
 }
@@ -212,14 +212,14 @@ func (t *Token) Signature() *signature.Signature {
 //
 // Resets context if it is not supported.
 func (t *Token) SetContext(v interface{}) {
-	var cV2 session.SessionTokenContext
+	var cV2 session.TokenContext
 
 	switch c := v.(type) {
 	case *ContainerContext:
 		cV2 = c.ToV2()
 	}
 
-	t.setBodyField(func(body *session.SessionTokenBody) {
+	t.setBodyField(func(body *session.TokenBody) {
 		body.SetContext(cV2)
 	})
 }
@@ -230,7 +230,7 @@ func (t *Token) SetContext(v interface{}) {
 //
 // Returns nil if context is not supported.
 func (t *Token) Context() interface{} {
-	switch v := (*session.SessionToken)(t).
+	switch v := (*session.Token)(t).
 		GetBody().
 		GetContext(); c := v.(type) {
 	default:
@@ -253,24 +253,24 @@ func GetContainerContext(t *Token) *ContainerContext {
 
 // Marshal marshals Token into a protobuf binary form.
 func (t *Token) Marshal() ([]byte, error) {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Token.
 func (t *Token) Unmarshal(data []byte) error {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		Unmarshal(data)
 }
 
 // MarshalJSON encodes Token to protobuf JSON format.
 func (t *Token) MarshalJSON() ([]byte, error) {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		MarshalJSON()
 }
 
 // UnmarshalJSON decodes Token from protobuf JSON format.
 func (t *Token) UnmarshalJSON(data []byte) error {
-	return (*session.SessionToken)(t).
+	return (*session.Token)(t).
 		UnmarshalJSON(data)
 }
