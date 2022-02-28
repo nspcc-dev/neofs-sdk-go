@@ -99,6 +99,18 @@ func TestToStatusV2(t *testing.T) {
 			}),
 			codeV2: 3072,
 		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.SessionTokenNotFound)
+			}),
+			codeV2: 4096,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.SessionTokenExpired)
+			}),
+			codeV2: 4097,
+		},
 	} {
 		var st apistatus.Status
 
@@ -216,6 +228,18 @@ func TestFromStatusV2(t *testing.T) {
 				return new(apistatus.ContainerNotFound)
 			}),
 			codeV2: 3072,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.SessionTokenNotFound)
+			}),
+			codeV2: 4096,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.SessionTokenExpired)
+			}),
+			codeV2: 4097,
 		},
 	} {
 		var st apistatus.Status

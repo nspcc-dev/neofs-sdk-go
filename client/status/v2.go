@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
@@ -73,6 +74,14 @@ func FromStatusV2(st *status.Status) Status {
 		switch code {
 		case container.StatusNotFound:
 			decoder = new(ContainerNotFound)
+		}
+	case session.LocalizeFailStatus(&code):
+		//nolint:exhaustive
+		switch code {
+		case session.StatusTokenNotFound:
+			decoder = new(SessionTokenNotFound)
+		case session.StatusTokenExpired:
+			decoder = new(SessionTokenExpired)
 		}
 	}
 
