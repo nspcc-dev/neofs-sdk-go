@@ -34,6 +34,7 @@ type StatusV2 interface {
 // Object failures:
 //   * object.StatusLocked: *ObjectLocked;
 //   * object.StatusLockNonRegularObject: *LockNonRegularObject.
+//   * object.StatusAccessDenied: *ObjectAccessDenied.
 func FromStatusV2(st *status.Status) Status {
 	var decoder interface {
 		fromStatusV2(*status.Status)
@@ -59,6 +60,8 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(ObjectLocked)
 		case object.StatusLockNonRegularObject:
 			decoder = new(LockNonRegularObject)
+		case object.StatusAccessDenied:
+			decoder = new(ObjectAccessDenied)
 		}
 	}
 

@@ -71,6 +71,16 @@ func TestToStatusV2(t *testing.T) {
 			}),
 			codeV2: 2051,
 		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				var st apistatus.ObjectAccessDenied
+
+				st.WriteReason("any reason")
+
+				return st
+			}),
+			codeV2: 2048,
+		},
 	} {
 		var st apistatus.Status
 
@@ -160,6 +170,16 @@ func TestFromStatusV2(t *testing.T) {
 				return new(apistatus.LockNonRegularObject)
 			}),
 			codeV2: 2051,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				var st apistatus.ObjectAccessDenied
+
+				st.WriteReason("any reason")
+
+				return st
+			}),
+			codeV2: 2048,
 		},
 	} {
 		var st apistatus.Status
