@@ -3,6 +3,7 @@ package apistatus
 import (
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
@@ -66,6 +67,12 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(ObjectNotFound)
 		case object.StatusAlreadyRemoved:
 			decoder = new(ObjectAlreadyRemoved)
+		}
+	case container.LocalizeFailStatus(&code):
+		//nolint:exhaustive
+		switch code {
+		case container.StatusNotFound:
+			decoder = new(ContainerNotFound)
 		}
 	}
 
