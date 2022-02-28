@@ -105,3 +105,33 @@ func (x *ObjectAccessDenied) WriteReason(reason string) {
 func (x ObjectAccessDenied) Reason() string {
 	return object.ReadAccessDeniedDesc(x.v2)
 }
+
+// ObjectNotFound describes status of the failure because of the missing object.
+// Instances provide Status and StatusV2 interfaces.
+type ObjectNotFound struct {
+	v2 status.Status
+}
+
+func (x ObjectNotFound) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail),
+		x.v2.Message(),
+	)
+}
+
+// implements local interface defined in FromStatusV2 func.
+func (x *ObjectNotFound) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//  * code: OBJECT_NOT_FOUND;
+//  * string message: "object not found";
+//  * details: empty.
+func (x ObjectNotFound) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail))
+	x.v2.SetMessage("object not found")
+	return &x.v2
+}

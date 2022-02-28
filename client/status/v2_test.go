@@ -81,6 +81,12 @@ func TestToStatusV2(t *testing.T) {
 			}),
 			codeV2: 2048,
 		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.ObjectNotFound)
+			}),
+			codeV2: 2049,
+		},
 	} {
 		var st apistatus.Status
 
@@ -180,6 +186,12 @@ func TestFromStatusV2(t *testing.T) {
 				return st
 			}),
 			codeV2: 2048,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.ObjectNotFound)
+			}),
+			codeV2: 2049,
 		},
 	} {
 		var st apistatus.Status
