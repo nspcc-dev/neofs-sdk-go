@@ -19,7 +19,8 @@ import (
 // Status responses are returned in the result structure, and can be cast
 // to built-in error instance (or in the returned error if the client is
 // configured accordingly). Certain statuses can be checked using `apistatus`
-// and standard `errors` packages.
+// and standard `errors` packages. Note that package provides some helper
+// functions to work with status returns (e.g. IsErrContainerNotFound).
 // All possible responses are documented in methods, however, some may be
 // returned from all of them (pay attention to the presence of the pointer sign):
 //  - *apistatus.ServerInternal on internal server error;

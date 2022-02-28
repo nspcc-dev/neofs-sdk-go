@@ -209,7 +209,10 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 // codes are returned as error.
 //
 // Return statuses:
-//   global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.SessionTokenExpired.
 func (x *ObjectListReader) Close() (*ResObjectSearch, error) {
 	defer x.cancelCtxStream()
 

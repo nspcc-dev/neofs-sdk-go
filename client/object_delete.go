@@ -101,7 +101,11 @@ func (x ResObjectDelete) ReadTombstoneID(dst *oid.ID) bool {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs)
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.ObjectLocked;
+//   - *apistatus.SessionTokenExpired.
 func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
 	switch {
 	case ctx == nil:
