@@ -135,3 +135,33 @@ func (x ObjectNotFound) ToStatusV2() *status.Status {
 	x.v2.SetMessage("object not found")
 	return &x.v2
 }
+
+// ObjectAlreadyRemoved describes status of the failure because object has been
+// already removed. Instances provide Status and StatusV2 interfaces.
+type ObjectAlreadyRemoved struct {
+	v2 status.Status
+}
+
+func (x ObjectAlreadyRemoved) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail),
+		x.v2.Message(),
+	)
+}
+
+// implements local interface defined in FromStatusV2 func.
+func (x *ObjectAlreadyRemoved) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//  * code: OBJECT_ALREADY_REMOVED;
+//  * string message: "object already removed";
+//  * details: empty.
+func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail))
+	x.v2.SetMessage("object already removed")
+	return &x.v2
+}

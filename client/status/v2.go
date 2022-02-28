@@ -64,6 +64,8 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(ObjectAccessDenied)
 		case object.StatusNotFound:
 			decoder = new(ObjectNotFound)
+		case object.StatusAlreadyRemoved:
+			decoder = new(ObjectAlreadyRemoved)
 		}
 	}
 

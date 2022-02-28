@@ -87,6 +87,12 @@ func TestToStatusV2(t *testing.T) {
 			}),
 			codeV2: 2049,
 		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.ObjectAlreadyRemoved)
+			}),
+			codeV2: 2052,
+		},
 	} {
 		var st apistatus.Status
 
@@ -192,6 +198,12 @@ func TestFromStatusV2(t *testing.T) {
 				return new(apistatus.ObjectNotFound)
 			}),
 			codeV2: 2049,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.ObjectAlreadyRemoved)
+			}),
+			codeV2: 2052,
 		},
 	} {
 		var st apistatus.Status
