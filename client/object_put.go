@@ -146,7 +146,13 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 // codes are returned as error.
 //
 // Return statuses:
-//   global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.ObjectLocked;
+//   - *apistatus.LockNonRegularObject;
+//   - *apistatus.SessionTokenNotFound;
+//   - *apistatus.SessionTokenExpired.
 func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 	defer x.cancelCtxStream()
 

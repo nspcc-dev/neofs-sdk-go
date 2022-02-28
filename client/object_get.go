@@ -247,7 +247,12 @@ func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
 //   *object.SplitInfoError (returned on virtual objects with PrmObjectGet.MakeRaw).
 //
 // Return statuses:
-//   global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.ObjectAlreadyRemoved;
+//   - *apistatus.SessionTokenExpired.
 func (x *ObjectReader) Close() (*ResObjectGet, error) {
 	return x.close(true)
 }
@@ -455,7 +460,12 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   *object.SplitInfoError (returned on virtual objects with PrmObjectHead.MakeRaw).
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.ObjectAlreadyRemoved;
+//   - *apistatus.SessionTokenExpired.
 func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
 	switch {
 	case ctx == nil:
@@ -689,7 +699,12 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 //   *object.SplitInfoError (returned on virtual objects with PrmObjectRange.MakeRaw).
 //
 // Return statuses:
-//   global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.ObjectAlreadyRemoved;
+//   - *apistatus.SessionTokenExpired.
 func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
 	return x.close(true)
 }

@@ -172,7 +172,8 @@ func (x *ResContainerGet) setContainer(cnr *container.Container) {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound.
 func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
 	switch {
 	case ctx == nil:
@@ -479,7 +480,8 @@ func (x *ResContainerEACL) setTable(table *eacl.Table) {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound.
 func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {

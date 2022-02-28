@@ -125,7 +125,11 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs);
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.ObjectNotFound;
+//   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.SessionTokenExpired.
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
 	case ctx == nil:
