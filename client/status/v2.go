@@ -62,6 +62,8 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(LockNonRegularObject)
 		case object.StatusAccessDenied:
 			decoder = new(ObjectAccessDenied)
+		case object.StatusNotFound:
+			decoder = new(ObjectNotFound)
 		}
 	}
 
