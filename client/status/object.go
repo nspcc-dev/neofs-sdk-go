@@ -64,3 +64,44 @@ func (x LockNonRegularObject) ToStatusV2() *status.Status {
 	x.v2.SetMessage("locking non-regular object is forbidden")
 	return &x.v2
 }
+
+// ObjectAccessDenied describes status of the failure because of the access control violation.
+// Instances provide Status and StatusV2 interfaces.
+type ObjectAccessDenied struct {
+	v2 status.Status
+}
+
+func (x ObjectAccessDenied) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail),
+		x.v2.Message(),
+	)
+}
+
+// implements local interface defined in FromStatusV2 func.
+func (x *ObjectAccessDenied) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//  * code: ACCESS_DENIED;
+//  * string message: "access to object operation denied";
+//  * details: empty.
+func (x ObjectAccessDenied) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail))
+	x.v2.SetMessage("access to object operation denied")
+	return &x.v2
+}
+
+// WriteReason writes human-readable access rejection reason.
+func (x *ObjectAccessDenied) WriteReason(reason string) {
+	object.WriteAccessDeniedDesc(&x.v2, reason)
+}
+
+// Reason returns human-readable access rejection reason returned by the server.
+// Returns empty value is reason is not presented.
+func (x ObjectAccessDenied) Reason() string {
+	return object.ReadAccessDeniedDesc(x.v2)
+}
