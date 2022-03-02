@@ -12,10 +12,13 @@ type Scheme uint32
 
 // Supported signature schemes.
 const (
-	Unspecified Scheme = iota
-	ECDSAWithSHA512
+	ECDSAWithSHA512 Scheme = iota
 	RFC6979WithSHA256
 )
+
+func (x Scheme) String() string {
+	return refs.SignatureScheme(x).String()
+}
 
 // NewFromV2 wraps v2 Signature message to Signature.
 //
