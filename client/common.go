@@ -255,8 +255,11 @@ func (x *contextCall) processCall() bool {
 
 	// close and write response to resulting structure
 	ok = x.close()
+	if !ok {
+		return false
+	}
 
-	return ok
+	return x.err == nil
 }
 
 // initializes static cross-call parameters inherited from client.
