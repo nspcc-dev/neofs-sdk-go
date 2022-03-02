@@ -200,7 +200,8 @@ func (t *Token) Signature() *signature.Signature {
 // SetContext sets context of the Token.
 //
 // Supported contexts:
-//  - *ContainerContext.
+//  - *ContainerContext,
+//  - *ObjectContext.
 //
 // Resets context if it is not supported.
 func (t *Token) SetContext(v interface{}) {
@@ -208,6 +209,8 @@ func (t *Token) SetContext(v interface{}) {
 
 	switch c := v.(type) {
 	case *ContainerContext:
+		cV2 = c.ToV2()
+	case *ObjectContext:
 		cV2 = c.ToV2()
 	}
 
