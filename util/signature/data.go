@@ -44,14 +44,42 @@ var (
 	ErrInvalidSignature = errors.New("invalid signature")
 )
 
-func SignData(key *ecdsa.PrivateKey, src DataSource, opts ...SignOption) (*signature.Signature, error) {
+func SignData(key *ecdsa.PrivateKey, src DataSource, opts ...SignOption) (res *signature.Signature, err error) {
+	err = signDataWithHandler(key, src, func(key, sig []byte, scheme signature.Scheme) {
+		res = new(signature.Signature)
+		res.SetKey(key)
+		res.SetSign(sig)
+		res.SetScheme(scheme)
+	}, opts...)
+
+	return
+}
+
+func VerifyData(dataSrc DataSource, sig *signature.Signature, opts ...SignOption) error {
+	return verifyDataWithSource(dataSrc, func() ([]byte, []byte, signature.Scheme) {
+		return sig.Key(), sig.Sign(), sig.Scheme()
+	}, opts...)
+}
+
+func SignDataWithHandler(key *ecdsa.PrivateKey, src DataSource, handler func(key, sig []byte)) error {
+	return signDataWithHandler(key, src, func(key, sig []byte, scheme signature.Scheme) {
+		handler(key, sig)
+	})
+}
+
+func signDataWithHandler(
+	key *ecdsa.PrivateKey,
+	src DataSource,
+	handler func(key, sig []byte, scheme signature.Scheme),
+	opts ...SignOption,
+) error {
 	if key == nil {
-		return nil, ErrEmptyPrivateKey
+		return ErrEmptyPrivateKey
 	}
 
 	data, err := dataForSignature(src)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer bytesPool.Put(&data)
 
@@ -59,17 +87,26 @@ func SignData(key *ecdsa.PrivateKey, src DataSource, opts ...SignOption) (*signa
 
 	sigData, err := sign(cfg.scheme, key, data)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	sig := signature.New()
-	sig.SetKey((*keys.PublicKey)(&key.PublicKey).Bytes())
-	sig.SetSign(sigData)
-	sig.SetScheme(cfg.scheme)
-	return sig, nil
+	handler((*keys.PublicKey)(&key.PublicKey).Bytes(), sigData, cfg.scheme)
+
+	return nil
 }
 
-func VerifyData(dataSrc DataSource, sig *signature.Signature, opts ...SignOption) error {
+func VerifyDataWithSource(dataSrc DataSource, sigSrc func() (key, sig []byte)) error {
+	return verifyDataWithSource(dataSrc, func() ([]byte, []byte, signature.Scheme) {
+		key, sign := sigSrc()
+		return key, sign, signature.ECDSAWithSHA512
+	})
+}
+
+func verifyDataWithSource(
+	dataSrc DataSource,
+	sigSrc func() (key, sig []byte, scheme signature.Scheme),
+	opts ...SignOption,
+) error {
 	data, err := dataForSignature(dataSrc)
 	if err != nil {
 		return err
@@ -78,5 +115,5 @@ func VerifyData(dataSrc DataSource, sig *signature.Signature, opts ...SignOption
 
 	cfg := getConfig(opts...)
 
-	return verify(cfg, data, sig)
+	return verify(cfg, data, sigSrc)
 }
