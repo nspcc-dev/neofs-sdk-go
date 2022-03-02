@@ -57,7 +57,7 @@ func SignData(key *ecdsa.PrivateKey, src DataSource, opts ...SignOption) (*signa
 
 	cfg := getConfig(opts...)
 
-	sigData, err := sign(cfg.defaultScheme, key, data)
+	sigData, err := sign(cfg.scheme, key, data)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +65,7 @@ func SignData(key *ecdsa.PrivateKey, src DataSource, opts ...SignOption) (*signa
 	sig := signature.New()
 	sig.SetKey((*keys.PublicKey)(&key.PublicKey).Bytes())
 	sig.SetSign(sigData)
-	sig.SetScheme(cfg.defaultScheme)
+	sig.SetScheme(cfg.scheme)
 	return sig, nil
 }
 

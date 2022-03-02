@@ -16,14 +16,13 @@ import (
 var curve = elliptic.P256()
 
 type cfg struct {
-	defaultScheme  signature.Scheme
-	restrictScheme signature.Scheme
+	schemeFixed bool
+	scheme      signature.Scheme
 }
 
 func getConfig(opts ...SignOption) *cfg {
 	cfg := &cfg{
-		defaultScheme:  signature.ECDSAWithSHA512,
-		restrictScheme: signature.Unspecified,
+		scheme: signature.ECDSAWithSHA512,
 	}
 
 	for i := range opts {
@@ -46,7 +45,7 @@ func sign(scheme signature.Scheme, key *ecdsa.PrivateKey, msg []byte) ([]byte, e
 		p := &keys.PrivateKey{PrivateKey: *key}
 		return p.Sign(msg), nil
 	default:
-		panic("unsupported scheme")
+		panic(fmt.Sprintf("unsupported scheme %s", scheme))
 	}
 }
 
@@ -56,15 +55,11 @@ func verify(cfg *cfg, msg []byte, sig *signature.Signature) error {
 		return fmt.Errorf("%w: %v", ErrInvalidPublicKey, err)
 	}
 
-	scheme := sig.Scheme()
-	if scheme == signature.Unspecified {
-		scheme = cfg.defaultScheme
-	}
-	if cfg.restrictScheme != signature.Unspecified && scheme != cfg.restrictScheme {
-		return fmt.Errorf("%w: unexpected signature scheme", ErrInvalidSignature)
+	if !cfg.schemeFixed {
+		cfg.scheme = sig.Scheme()
 	}
 
-	switch scheme {
+	switch cfg.scheme {
 	case signature.ECDSAWithSHA512:
 		h := sha512.Sum512(msg)
 		r, s := unmarshalXY(sig.Sign())
@@ -79,7 +74,7 @@ func verify(cfg *cfg, msg []byte, sig *signature.Signature) error {
 		}
 		return ErrInvalidSignature
 	default:
-		return ErrInvalidSignature
+		return fmt.Errorf("unsupported signature scheme %s", cfg.scheme)
 	}
 }
 
@@ -111,7 +106,7 @@ func unmarshalXY(data []byte) (x *big.Int, y *big.Int) {
 
 func SignWithRFC6979() SignOption {
 	return func(c *cfg) {
-		c.defaultScheme = signature.RFC6979WithSHA256
-		c.restrictScheme = signature.RFC6979WithSHA256
+		c.schemeFixed = true
+		c.scheme = signature.RFC6979WithSHA256
 	}
 }
