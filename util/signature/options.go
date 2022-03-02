@@ -49,27 +49,29 @@ func sign(scheme signature.Scheme, key *ecdsa.PrivateKey, msg []byte) ([]byte, e
 	}
 }
 
-func verify(cfg *cfg, msg []byte, sig *signature.Signature) error {
-	pub, err := keys.NewPublicKeyFromBytes(sig.Key(), elliptic.P256())
+func verify(cfg *cfg, msg []byte, f func() (key, sign []byte, scheme signature.Scheme)) error {
+	key, sign, scheme := f()
+
+	pub, err := keys.NewPublicKeyFromBytes(key, elliptic.P256())
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInvalidPublicKey, err)
 	}
 
 	if !cfg.schemeFixed {
-		cfg.scheme = sig.Scheme()
+		cfg.scheme = scheme
 	}
 
 	switch cfg.scheme {
 	case signature.ECDSAWithSHA512:
 		h := sha512.Sum512(msg)
-		r, s := unmarshalXY(sig.Sign())
+		r, s := unmarshalXY(sign)
 		if r != nil && s != nil && ecdsa.Verify((*ecdsa.PublicKey)(pub), h[:], r, s) {
 			return nil
 		}
 		return ErrInvalidSignature
 	case signature.RFC6979WithSHA256:
 		h := sha256.Sum256(msg)
-		if pub.Verify(sig.Sign(), h[:]) {
+		if pub.Verify(sign, h[:]) {
 			return nil
 		}
 		return ErrInvalidSignature
