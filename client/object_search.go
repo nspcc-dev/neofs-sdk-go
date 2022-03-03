@@ -22,6 +22,8 @@ import (
 
 // PrmObjectSearch groups parameters of ObjectSearch operation.
 type PrmObjectSearch struct {
+	prmCommonMeta
+
 	local bool
 
 	sessionSet bool
@@ -261,6 +263,8 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	if prm.sessionSet {
 		meta.SetSessionToken(prm.session.ToV2())
 	}
+
+	prm.prmCommonMeta.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2object.SearchRequest

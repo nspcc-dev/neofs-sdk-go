@@ -50,6 +50,40 @@ func (x prmSession) writeToMetaHeader(meta *v2session.RequestMetaHeader) {
 	}
 }
 
+// groups meta parameters shared between all Client operations.
+type prmCommonMeta struct {
+	// NeoFS request X-Headers
+	xHeaders []string
+}
+
+// WithXHeaders specifies list of extended headers (string key-value pairs)
+// to be attached to the request. Must have an even length.
+//
+// Slice must not be mutated until the operation completes.
+func (x *prmCommonMeta) WithXHeaders(hs ...string) {
+	if len(hs)%2 != 0 {
+		panic("slice of X-Headers with odd length")
+	}
+
+	x.xHeaders = hs
+}
+
+func (x prmCommonMeta) writeToMetaHeader(h *v2session.RequestMetaHeader) {
+	if len(x.xHeaders) > 0 {
+		hs := make([]*v2session.XHeader, 0, len(x.xHeaders)/2)
+
+		for i := 0; i < len(x.xHeaders); i += 2 {
+			var h v2session.XHeader
+			h.SetKey(x.xHeaders[i])
+			h.SetValue(x.xHeaders[i+1])
+
+			hs = append(hs, &h)
+		}
+
+		h.SetXHeaders(hs)
+	}
+}
+
 // panic messages.
 const (
 	panicMsgMissingContext   = "missing context"
@@ -81,6 +115,9 @@ type contextCall struct {
 
 	// NeoFS network magic
 	netMagic uint64
+
+	// Meta parameters
+	meta prmCommonMeta
 
 	// ==================================================
 	// custom call parameters
@@ -128,6 +165,8 @@ func (x contextCall) prepareRequest() {
 	}
 
 	meta.SetNetworkMagic(x.netMagic)
+
+	x.meta.writeToMetaHeader(meta)
 }
 
 // prepares, signs and writes the request. Result means success.

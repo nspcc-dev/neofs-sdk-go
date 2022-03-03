@@ -12,6 +12,8 @@ import (
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
 type PrmBalanceGet struct {
+	prmCommonMeta
+
 	ownerSet bool
 	ownerID  owner.ID
 }
@@ -82,6 +84,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {

@@ -11,6 +11,8 @@ import (
 
 // PrmSessionCreate groups parameters of SessionCreate operation.
 type PrmSessionCreate struct {
+	prmCommonMeta
+
 	exp uint64
 }
 
@@ -89,6 +91,7 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {

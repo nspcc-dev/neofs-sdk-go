@@ -84,6 +84,18 @@ func (x *ObjectWriter) MarkLocal() {
 	x.metaHdr.SetTTL(1)
 }
 
+// WithXHeaders specifies list of extended headers (string key-value pairs)
+// to be attached to the request. Must have an even length.
+//
+// Slice must not be mutated until the operation completes.
+func (x *ObjectWriter) WithXHeaders(hs ...string) {
+	if len(hs)%2 != 0 {
+		panic("slice of X-Headers with odd length")
+	}
+
+	prmCommonMeta{xHeaders: hs}.writeToMetaHeader(&x.metaHdr)
+}
+
 // WriteHeader writes header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {

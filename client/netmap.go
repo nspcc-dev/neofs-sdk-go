@@ -11,10 +11,9 @@ import (
 )
 
 // PrmEndpointInfo groups parameters of EndpointInfo operation.
-//
-// At the moment the operation is not parameterized, however,
-// the structure is still declared for backward compatibility.
-type PrmEndpointInfo struct{}
+type PrmEndpointInfo struct {
+	prmCommonMeta
+}
 
 // ResEndpointInfo group resulting values of EndpointInfo operation.
 type ResEndpointInfo struct {
@@ -64,7 +63,7 @@ func (x *ResEndpointInfo) setNodeInfo(info *netmap.NodeInfo) {
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) EndpointInfo(ctx context.Context, _ PrmEndpointInfo) (*ResEndpointInfo, error) {
+func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
 	// check context
 	if ctx == nil {
 		panic(panicMsgMissingContext)
@@ -81,6 +80,7 @@ func (c *Client) EndpointInfo(ctx context.Context, _ PrmEndpointInfo) (*ResEndpo
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
@@ -104,10 +104,9 @@ func (c *Client) EndpointInfo(ctx context.Context, _ PrmEndpointInfo) (*ResEndpo
 }
 
 // PrmNetworkInfo groups parameters of NetworkInfo operation.
-//
-// At the moment the operation is not parameterized, however,
-// the structure is still declared for backward compatibility.
-type PrmNetworkInfo struct{}
+type PrmNetworkInfo struct {
+	prmCommonMeta
+}
 
 // ResNetworkInfo groups resulting values of NetworkInfo operation.
 type ResNetworkInfo struct {
@@ -142,7 +141,7 @@ func (x *ResNetworkInfo) setInfo(info *netmap.NetworkInfo) {
 //
 // Return statuses:
 //  - global (see Client docs).
-func (c *Client) NetworkInfo(ctx context.Context, _ PrmNetworkInfo) (*ResNetworkInfo, error) {
+func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetworkInfo, error) {
 	// check context
 	if ctx == nil {
 		panic(panicMsgMissingContext)
@@ -159,6 +158,7 @@ func (c *Client) NetworkInfo(ctx context.Context, _ PrmNetworkInfo) (*ResNetwork
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
