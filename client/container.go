@@ -19,6 +19,8 @@ import (
 
 // PrmContainerPut groups parameters of ContainerPut operation.
 type PrmContainerPut struct {
+	prmCommonMeta
+
 	cnrSet bool
 	cnr    container.Container
 }
@@ -96,6 +98,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	// form meta header
 	var meta v2session.RequestMetaHeader
 	meta.SetSessionToken(prm.cnr.SessionToken().ToV2())
+	prm.prmCommonMeta.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2container.PutRequest
@@ -131,6 +134,8 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 // PrmContainerGet groups parameters of ContainerGet operation.
 type PrmContainerGet struct {
+	prmCommonMeta
+
 	idSet bool
 	id    cid.ID
 }
@@ -199,6 +204,7 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
@@ -232,6 +238,8 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 
 // PrmContainerList groups parameters of ContainerList operation.
 type PrmContainerList struct {
+	prmCommonMeta
+
 	ownerSet bool
 	ownerID  owner.ID
 }
@@ -302,6 +310,7 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
@@ -329,6 +338,7 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 
 // PrmContainerDelete groups parameters of ContainerDelete operation.
 type PrmContainerDelete struct {
+	prmCommonMeta
 	prmSession
 
 	idSet bool
@@ -408,6 +418,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	var meta v2session.RequestMetaHeader
 
 	prm.prmSession.writeToMetaHeader(&meta)
+	prm.prmCommonMeta.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2container.DeleteRequest
@@ -439,6 +450,8 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 
 // PrmContainerEACL groups parameters of ContainerEACL operation.
 type PrmContainerEACL struct {
+	prmCommonMeta
+
 	idSet bool
 	id    cid.ID
 }
@@ -508,6 +521,7 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
@@ -541,6 +555,8 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 
 // PrmContainerSetEACL groups parameters of ContainerSetEACL operation.
 type PrmContainerSetEACL struct {
+	prmCommonMeta
+
 	tableSet bool
 	table    eacl.Table
 }
@@ -601,6 +617,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	// form meta header
 	var meta v2session.RequestMetaHeader
 	meta.SetSessionToken(prm.table.SessionToken().ToV2())
+	prm.prmCommonMeta.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2container.SetExtendedACLRequest
@@ -632,6 +649,8 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 
 // PrmAnnounceSpace groups parameters of ContainerAnnounceUsedSpace operation.
 type PrmAnnounceSpace struct {
+	prmCommonMeta
+
 	announcements []container.UsedSpaceAnnouncement
 }
 
@@ -698,6 +717,7 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {

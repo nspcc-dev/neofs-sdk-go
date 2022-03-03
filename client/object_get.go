@@ -22,6 +22,8 @@ import (
 
 // shared parameters of GET/HEAD/RANGE.
 type prmObjectRead struct {
+	prmCommonMeta
+
 	raw bool
 
 	local bool
@@ -37,6 +39,22 @@ type prmObjectRead struct {
 
 	objSet bool
 	obj    oid.ID
+}
+
+func (x prmObjectRead) writeToMetaHeader(h *v2session.RequestMetaHeader) {
+	if x.local {
+		h.SetTTL(1)
+	}
+
+	if x.bearerSet {
+		h.SetBearerToken(x.bearer.ToV2())
+	}
+
+	if x.sessionSet {
+		h.SetSessionToken(x.session.ToV2())
+	}
+
+	x.prmCommonMeta.writeToMetaHeader(h)
 }
 
 // MarkRaw marks an intent to read physically stored object.
@@ -311,17 +329,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	// form meta header
 	var meta v2session.RequestMetaHeader
 
-	if prm.local {
-		meta.SetTTL(1)
-	}
-
-	if prm.bearerSet {
-		meta.SetBearerToken(prm.bearer.ToV2())
-	}
-
-	if prm.sessionSet {
-		meta.SetSessionToken(prm.session.ToV2())
-	}
+	prm.prmObjectRead.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2object.GetRequest
@@ -490,17 +498,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	// form meta header
 	var meta v2session.RequestMetaHeader
 
-	if prm.local {
-		meta.SetTTL(1)
-	}
-
-	if prm.bearerSet {
-		meta.SetBearerToken(prm.bearer.ToV2())
-	}
-
-	if prm.sessionSet {
-		meta.SetSessionToken(prm.session.ToV2())
-	}
+	prm.prmObjectRead.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2object.HeadRequest
@@ -772,17 +770,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	// form meta header
 	var meta v2session.RequestMetaHeader
 
-	if prm.local {
-		meta.SetTTL(1)
-	}
-
-	if prm.bearerSet {
-		meta.SetBearerToken(prm.bearer.ToV2())
-	}
-
-	if prm.sessionSet {
-		meta.SetSessionToken(prm.session.ToV2())
-	}
+	prm.prmObjectRead.writeToMetaHeader(&meta)
 
 	// form request
 	var req v2object.GetRangeRequest

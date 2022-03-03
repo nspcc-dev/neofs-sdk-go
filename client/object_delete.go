@@ -65,6 +65,18 @@ func (x *PrmObjectDelete) UseKey(key ecdsa.PrivateKey) {
 	x.key = key
 }
 
+// WithXHeaders specifies list of extended headers (string key-value pairs)
+// to be attached to the request. Must have an even length.
+//
+// Slice must not be mutated until the operation completes.
+func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
+	if len(hs)%2 != 0 {
+		panic("slice of X-Headers with odd length")
+	}
+
+	prmCommonMeta{xHeaders: hs}.writeToMetaHeader(&x.meta)
+}
+
 // ResObjectDelete groups resulting values of ObjectDelete operation.
 type ResObjectDelete struct {
 	statusRes

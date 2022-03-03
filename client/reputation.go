@@ -11,6 +11,8 @@ import (
 
 // PrmAnnounceLocalTrust groups parameters of AnnounceLocalTrust operation.
 type PrmAnnounceLocalTrust struct {
+	prmCommonMeta
+
 	epoch uint64
 
 	trusts []reputation.Trust
@@ -84,6 +86,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
@@ -100,6 +103,8 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 
 // PrmAnnounceIntermediateTrust groups parameters of AnnounceIntermediateTrust operation.
 type PrmAnnounceIntermediateTrust struct {
+	prmCommonMeta
+
 	epoch uint64
 
 	iter uint32
@@ -176,6 +181,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 	)
 
 	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
