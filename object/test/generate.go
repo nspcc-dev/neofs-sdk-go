@@ -42,8 +42,8 @@ func SplitID() *object.SplitID {
 	return x
 }
 
-func generateRaw(withParent bool) *object.RawObject {
-	x := object.NewRaw()
+func generate(withParent bool) *object.Object {
+	x := object.New()
 
 	x.SetID(oidtest.ID())
 	x.SetSessionToken(sessiontest.Token())
@@ -64,20 +64,21 @@ func generateRaw(withParent bool) *object.RawObject {
 	x.SetSignature(sigtest.Signature())
 
 	if withParent {
-		x.SetParent(generateRaw(false).Object())
+		x.SetParent(generate(false))
 	}
 
 	return x
 }
 
-// Raw returns random object.RawObject.
-func Raw() *object.RawObject {
-	return generateRaw(true)
+// Raw returns random object.Object.
+// Deprecated: (v1.0.0) use Object instead.
+func Raw() *object.Object {
+	return Object()
 }
 
 // Object returns random object.Object.
 func Object() *object.Object {
-	return Raw().Object()
+	return generate(true)
 }
 
 // Tombstone returns random object.Tombstone.

@@ -393,7 +393,7 @@ func GetFullObject(ctx context.Context, c *Client, idCnr cid.ID, idObj oid.ID) (
 			return nil, fmt.Errorf("read payload: %w", err)
 		}
 
-		object.NewRawFrom(&obj).SetPayload(payload)
+		obj.SetPayload(payload)
 	}
 
 	res, err := rdr.Close()
@@ -445,10 +445,10 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 	objv2.SetHeader(x.hdr.GetHeader())
 	objv2.SetSignature(x.hdr.GetSignature())
 
-	raw := object.NewRawFromV2(&objv2)
-	raw.SetID(&x.idObj)
+	obj := object.NewFromV2(&objv2)
+	obj.SetID(&x.idObj)
 
-	*dst = *raw.Object()
+	*dst = *obj
 
 	return true
 }

@@ -28,7 +28,7 @@ func CalculatePayloadChecksum(payload []byte) *checksum.Checksum {
 
 // CalculateAndSetPayloadChecksum calculates checksum of current
 // object payload and writes it to the object.
-func CalculateAndSetPayloadChecksum(obj *RawObject) {
+func CalculateAndSetPayloadChecksum(obj *Object) {
 	obj.SetPayloadChecksum(
 		CalculatePayloadChecksum(obj.Payload()),
 	)
@@ -60,8 +60,8 @@ func CalculateID(obj *Object) (*oid.ID, error) {
 
 // CalculateAndSetID calculates identifier for the object
 // and writes the result to it.
-func CalculateAndSetID(obj *RawObject) error {
-	id, err := CalculateID(obj.Object())
+func CalculateAndSetID(obj *Object) error {
+	id, err := CalculateID(obj)
 	if err != nil {
 		return err
 	}
@@ -94,7 +94,7 @@ func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signatu
 		})
 }
 
-func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *RawObject) error {
+func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
 	sig, err := CalculateIDSignature(key, obj.ID())
 	if err != nil {
 		return err
@@ -115,7 +115,7 @@ func VerifyIDSignature(obj *Object) error {
 }
 
 // SetIDWithSignature sets object identifier and signature.
-func SetIDWithSignature(key *ecdsa.PrivateKey, obj *RawObject) error {
+func SetIDWithSignature(key *ecdsa.PrivateKey, obj *Object) error {
 	if err := CalculateAndSetID(obj); err != nil {
 		return fmt.Errorf("could not set identifier: %w", err)
 	}
@@ -128,7 +128,7 @@ func SetIDWithSignature(key *ecdsa.PrivateKey, obj *RawObject) error {
 }
 
 // SetVerificationFields calculates and sets all verification fields of the object.
-func SetVerificationFields(key *ecdsa.PrivateKey, obj *RawObject) error {
+func SetVerificationFields(key *ecdsa.PrivateKey, obj *Object) error {
 	CalculateAndSetPayloadChecksum(obj)
 
 	return SetIDWithSignature(key, obj)
