@@ -9,7 +9,7 @@ import (
 )
 
 func TestVerificationFields(t *testing.T) {
-	obj := NewRaw()
+	obj := New()
 
 	payload := make([]byte, 10)
 	_, _ = rand.Read(payload)
@@ -21,7 +21,7 @@ func TestVerificationFields(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, SetVerificationFields(&p.PrivateKey, obj))
 
-	require.NoError(t, CheckVerificationFields(obj.Object()))
+	require.NoError(t, CheckVerificationFields(obj))
 
 	items := []struct {
 		corrupt func()
@@ -72,10 +72,10 @@ func TestVerificationFields(t *testing.T) {
 	for _, item := range items {
 		item.corrupt()
 
-		require.Error(t, CheckVerificationFields(obj.Object()))
+		require.Error(t, CheckVerificationFields(obj))
 
 		item.restore()
 
-		require.NoError(t, CheckVerificationFields(obj.Object()))
+		require.NoError(t, CheckVerificationFields(obj))
 	}
 }

@@ -37,8 +37,8 @@ func randTZChecksum(t *testing.T) (cs [64]byte) {
 	return
 }
 
-func TestRawObject_SetID(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetID(t *testing.T) {
+	obj := New()
 
 	id := randID(t)
 
@@ -47,8 +47,8 @@ func TestRawObject_SetID(t *testing.T) {
 	require.Equal(t, id, obj.ID())
 }
 
-func TestRawObject_SetSignature(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetSignature(t *testing.T) {
+	obj := New()
 
 	sig := signature.New()
 	sig.SetKey([]byte{1, 2, 3})
@@ -59,8 +59,8 @@ func TestRawObject_SetSignature(t *testing.T) {
 	require.Equal(t, sig, obj.Signature())
 }
 
-func TestRawObject_SetPayload(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetPayload(t *testing.T) {
+	obj := New()
 
 	payload := make([]byte, 10)
 	_, _ = rand.Read(payload)
@@ -70,8 +70,8 @@ func TestRawObject_SetPayload(t *testing.T) {
 	require.Equal(t, payload, obj.Payload())
 }
 
-func TestRawObject_SetVersion(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetVersion(t *testing.T) {
+	obj := New()
 
 	ver := version.New()
 	ver.SetMajor(1)
@@ -82,8 +82,8 @@ func TestRawObject_SetVersion(t *testing.T) {
 	require.Equal(t, ver, obj.Version())
 }
 
-func TestRawObject_SetPayloadSize(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetPayloadSize(t *testing.T) {
+	obj := New()
 
 	sz := uint64(133)
 	obj.SetPayloadSize(sz)
@@ -91,8 +91,8 @@ func TestRawObject_SetPayloadSize(t *testing.T) {
 	require.Equal(t, sz, obj.PayloadSize())
 }
 
-func TestRawObject_SetContainerID(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetContainerID(t *testing.T) {
+	obj := New()
 
 	cid := cidtest.ID()
 
@@ -101,8 +101,8 @@ func TestRawObject_SetContainerID(t *testing.T) {
 	require.Equal(t, cid, obj.ContainerID())
 }
 
-func TestRawObject_SetOwnerID(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetOwnerID(t *testing.T) {
+	obj := New()
 
 	ownerID := ownertest.ID()
 
@@ -111,17 +111,17 @@ func TestRawObject_SetOwnerID(t *testing.T) {
 	require.Equal(t, ownerID, obj.OwnerID())
 }
 
-func TestRawObject_SetCreationEpoch(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetCreationEpoch(t *testing.T) {
+	obj := New()
 
 	creat := uint64(228)
-	obj.setCreationEpoch(creat)
+	obj.SetCreationEpoch(creat)
 
 	require.Equal(t, creat, obj.CreationEpoch())
 }
 
-func TestRawObject_SetPayloadChecksum(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetPayloadChecksum(t *testing.T) {
+	obj := New()
 	cs := checksum.New()
 	cs.SetSHA256(randSHA256Checksum(t))
 
@@ -130,8 +130,8 @@ func TestRawObject_SetPayloadChecksum(t *testing.T) {
 	require.Equal(t, cs, obj.PayloadChecksum())
 }
 
-func TestRawObject_SetPayloadHomomorphicHash(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetPayloadHomomorphicHash(t *testing.T) {
+	obj := New()
 
 	cs := checksum.New()
 	cs.SetTillichZemor(randTZChecksum(t))
@@ -141,8 +141,8 @@ func TestRawObject_SetPayloadHomomorphicHash(t *testing.T) {
 	require.Equal(t, cs, obj.PayloadHomomorphicHash())
 }
 
-func TestRawObject_SetAttributes(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetAttributes(t *testing.T) {
+	obj := New()
 
 	a1 := NewAttribute()
 	a1.SetKey("key1")
@@ -157,8 +157,8 @@ func TestRawObject_SetAttributes(t *testing.T) {
 	require.Equal(t, []*Attribute{a1, a2}, obj.Attributes())
 }
 
-func TestRawObject_SetPreviousID(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetPreviousID(t *testing.T) {
+	obj := New()
 
 	prev := randID(t)
 
@@ -167,8 +167,8 @@ func TestRawObject_SetPreviousID(t *testing.T) {
 	require.Equal(t, prev, obj.PreviousID())
 }
 
-func TestRawObject_SetChildren(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetChildren(t *testing.T) {
+	obj := New()
 
 	id1 := randID(t)
 	id2 := randID(t)
@@ -178,8 +178,8 @@ func TestRawObject_SetChildren(t *testing.T) {
 	require.Equal(t, []*oid.ID{id1, id2}, obj.Children())
 }
 
-func TestRawObject_SetSplitID(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetSplitID(t *testing.T) {
+	obj := New()
 
 	require.Nil(t, obj.SplitID())
 
@@ -189,34 +189,32 @@ func TestRawObject_SetSplitID(t *testing.T) {
 	require.Equal(t, obj.SplitID(), splitID)
 }
 
-func TestRawObject_SetParent(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetParent(t *testing.T) {
+	obj := New()
 
 	require.Nil(t, obj.Parent())
 
-	par := NewRaw()
+	par := New()
 	par.SetID(randID(t))
 	par.SetContainerID(cidtest.ID())
 	par.SetSignature(signature.New())
 
-	parObj := par.Object()
+	obj.SetParent(par)
 
-	obj.SetParent(parObj)
-
-	require.Equal(t, parObj, obj.Parent())
+	require.Equal(t, par, obj.Parent())
 }
 
-func TestRawObject_ToV2(t *testing.T) {
+func TestObject_ToV2(t *testing.T) {
 	objV2 := new(object.Object)
 	objV2.SetPayload([]byte{1, 2, 3})
 
-	obj := NewRawFromV2(objV2)
+	obj := NewFromV2(objV2)
 
 	require.Equal(t, objV2, obj.ToV2())
 }
 
-func TestRawObject_SetSessionToken(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetSessionToken(t *testing.T) {
+	obj := New()
 
 	tok := sessiontest.Token()
 
@@ -225,8 +223,8 @@ func TestRawObject_SetSessionToken(t *testing.T) {
 	require.Equal(t, tok, obj.SessionToken())
 }
 
-func TestRawObject_SetType(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetType(t *testing.T) {
+	obj := New()
 
 	typ := TypeStorageGroup
 
@@ -235,8 +233,8 @@ func TestRawObject_SetType(t *testing.T) {
 	require.Equal(t, typ, obj.Type())
 }
 
-func TestRawObject_CutPayload(t *testing.T) {
-	o1 := NewRaw()
+func TestObject_CutPayload(t *testing.T) {
+	o1 := New()
 
 	p1 := []byte{12, 3}
 	o1.SetPayload(p1)
@@ -262,17 +260,17 @@ func TestRawObject_CutPayload(t *testing.T) {
 	require.Equal(t, p1, o1.Payload())
 }
 
-func TestRawObject_SetParentID(t *testing.T) {
-	obj := NewRaw()
+func TestObject_SetParentID(t *testing.T) {
+	obj := New()
 
 	id := randID(t)
-	obj.setParentID(id)
+	obj.SetParentID(id)
 
 	require.Equal(t, id, obj.ParentID())
 }
 
-func TestRawObject_ResetRelations(t *testing.T) {
-	obj := NewRaw()
+func TestObject_ResetRelations(t *testing.T) {
+	obj := New()
 
 	obj.SetPreviousID(randID(t))
 
@@ -281,8 +279,8 @@ func TestRawObject_ResetRelations(t *testing.T) {
 	require.Nil(t, obj.PreviousID())
 }
 
-func TestRwObject_HasParent(t *testing.T) {
-	obj := NewRaw()
+func TestObject_HasParent(t *testing.T) {
+	obj := New()
 
 	obj.InitRelations()
 
@@ -293,15 +291,15 @@ func TestRwObject_HasParent(t *testing.T) {
 	require.False(t, obj.HasParent())
 }
 
-func TestRWObjectEncoding(t *testing.T) {
-	o := NewRaw()
+func TestObjectEncoding(t *testing.T) {
+	o := New()
 	o.SetID(randID(t))
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := o.Marshal()
 		require.NoError(t, err)
 
-		o2 := NewRaw()
+		o2 := New()
 		require.NoError(t, o2.Unmarshal(data))
 
 		require.Equal(t, o, o2)
@@ -311,7 +309,7 @@ func TestRWObjectEncoding(t *testing.T) {
 		data, err := o.MarshalJSON()
 		require.NoError(t, err)
 
-		o2 := NewRaw()
+		o2 := New()
 		require.NoError(t, o2.UnmarshalJSON(data))
 
 		require.Equal(t, o, o2)
