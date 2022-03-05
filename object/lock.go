@@ -8,7 +8,27 @@ import (
 
 // Lock represents record with locked objects. It is compatible with
 // NeoFS API V2 protocol.
+//
+// Lock instance can be written to the Object, see WriteLock/ReadLock.
 type Lock v2object.Lock
+
+// WriteLock writes Lock to the Object, and sets its type to TypeLock.
+// The object must not be nil.
+//
+// See also ReadLock.
+func WriteLock(obj *Object, l Lock) {
+	obj.SetType(TypeLock)
+	obj.SetPayload(l.Marshal())
+}
+
+// ReadLock reads Lock from the Object. The lock must not be nil.
+// Returns an error describing incorrect format. Makes sense only
+// if object has TypeLock type.
+//
+// See also WriteLock.
+func ReadLock(l *Lock, obj Object) error {
+	return l.Unmarshal(obj.Payload())
+}
 
 // NumberOfMembers returns number of members in lock list.
 func (x Lock) NumberOfMembers() int {

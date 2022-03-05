@@ -112,3 +112,11 @@ func SearchFilters() object.SearchFilters {
 
 	return x
 }
+
+// Lock returns random object.Lock.
+func Lock() *object.Lock {
+	var l object.Lock
+	l.WriteMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
+
+	return &l
+}
