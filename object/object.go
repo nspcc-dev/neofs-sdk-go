@@ -12,10 +12,31 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Object represents v2-compatible NeoFS object that provides
-// a convenient interface for working in isolation
-// from the internal structure of an object.
+// Object represents in-memory structure of the NeoFS object.
+// Type is compatible with NeoFS API V2 protocol.
+//
+// Instance can be created depending on scenario:
+//   * InitCreation (an object to be placed in container);
+//   * New (blank instance, usually needed for decoding);
+//   * NewFromV2 (when working under NeoFS API V2 protocol).
 type Object object.Object
+
+// RequiredFields contains the minimum set of object data that must be set
+// by the NeoFS user at the stage of creation.
+type RequiredFields struct {
+	// Identifier of the NeoFS container associated with the object.
+	Container cid.ID
+
+	// Object owner ID in the NeoFS system.
+	Owner owner.ID
+}
+
+// InitCreation initializes the object instance with minimum set of required fields.
+// Object is expected (but not required) to be blank. Object must not be nil.
+func InitCreation(dst *Object, rf RequiredFields) {
+	dst.SetContainerID(&rf.Container)
+	dst.SetOwnerID(&rf.Owner)
+}
 
 // NewFromV2 wraps v2 Object message to Object.
 func NewFromV2(oV2 *object.Object) *Object {
