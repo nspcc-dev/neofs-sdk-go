@@ -84,7 +84,7 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.LocalNodeInfo(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.LocalNodeInfo(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.LocalNodeInfoResponse)
@@ -162,7 +162,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.NetworkInfo(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.NetworkInfo(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.NetworkInfoResponse)

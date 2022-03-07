@@ -291,7 +291,7 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	r.ctxCall.wReq = func() error {
 		var err error
 
-		stream, err = rpcapi.SearchObjects(c.Raw(), &req, client.WithContext(ctx))
+		stream, err = rpcapi.SearchObjects(&c.c, &req, client.WithContext(ctx))
 		if err != nil {
 			return fmt.Errorf("open stream: %w", err)
 		}

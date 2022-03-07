@@ -152,7 +152,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.DeleteObject(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		res.idTomb = r.(*v2object.DeleteResponse).GetBody().GetTombstone().GetObjectID()

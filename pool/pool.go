@@ -60,7 +60,7 @@ type BuilderOptions struct {
 	SessionTokenThreshold     time.Duration
 	SessionExpirationDuration uint64
 	nodesParams               []*NodesParam
-	clientBuilder             func(opts ...client.Option) (Client, error)
+	clientBuilder             func(endpoint string) (Client, error)
 }
 
 type NodesParam struct {
@@ -130,12 +130,6 @@ func (pb *Builder) Build(ctx context.Context, options *BuilderOptions) (Pool, er
 	sort.Slice(options.nodesParams, func(i, j int) bool {
 		return options.nodesParams[i].priority < options.nodesParams[j].priority
 	})
-
-	if options.clientBuilder == nil {
-		options.clientBuilder = func(opts ...client.Option) (Client, error) {
-			return client.New(opts...)
-		}
-	}
 
 	return newPool(ctx, options)
 }
@@ -279,13 +273,28 @@ func newPool(ctx context.Context, options *BuilderOptions) (Pool, error) {
 	inner := make([]*innerPool, len(options.nodesParams))
 	var atLeastOneHealthy bool
 
+	if options.clientBuilder == nil {
+		options.clientBuilder = func(addr string) (Client, error) {
+			var c client.Client
+
+			var prmInit client.PrmInit
+			prmInit.ResolveNeoFSFailures()
+			prmInit.SetDefaultPrivateKey(*options.Key)
+
+			c.Init(prmInit)
+
+			var prmDial client.PrmDial
+			prmDial.SetServerURI(addr)
+			prmDial.SetTimeout(options.NodeConnectionTimeout)
+
+			return &c, c.Dial(prmDial)
+		}
+	}
+
 	for i, params := range options.nodesParams {
 		clientPacks := make([]*clientPack, len(params.weights))
 		for j, addr := range params.addresses {
-			c, err := options.clientBuilder(client.WithDefaultPrivateKey(options.Key),
-				client.WithURIAddress(addr, nil),
-				client.WithDialTimeout(options.NodeConnectionTimeout),
-				client.WithNeoFSErrorParsing())
+			c, err := options.clientBuilder(addr)
 			if err != nil {
 				return nil, err
 			}

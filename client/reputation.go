@@ -90,7 +90,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.AnnounceLocalTrust(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.AnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
@@ -185,7 +185,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.AnnounceIntermediateResult(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.AnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
