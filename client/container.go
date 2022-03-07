@@ -88,7 +88,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	// sign container
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
 
-	sig, err := sigutil.SignData(c.opts.key, signWrapper, sigutil.SignWithRFC6979())
+	sig, err := sigutil.SignData(&c.prm.key, signWrapper, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.PutContainer(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.PutContainer(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
@@ -208,7 +208,7 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.GetContainer(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.GetContainer(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetResponse)
@@ -314,7 +314,7 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.ListContainers(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.ListContainers(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
@@ -407,7 +407,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	signWrapper := delContainerSignWrapper{body: reqBody}
 
 	// sign container
-	sig, err := sigutil.SignData(c.opts.key, signWrapper, sigutil.SignWithRFC6979())
+	sig, err := sigutil.SignData(&c.prm.key, signWrapper, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
 	}
@@ -437,7 +437,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.DeleteContainer(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.DeleteContainer(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
@@ -525,7 +525,7 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.GetEACL(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.GetEACL(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
@@ -607,7 +607,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	// sign the eACL table
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetEACL()}
 
-	sig, err := sigutil.SignData(c.opts.key, signWrapper, sigutil.SignWithRFC6979())
+	sig, err := sigutil.SignData(&c.prm.key, signWrapper, sigutil.SignWithRFC6979())
 	if err != nil {
 		return nil, err
 	}
@@ -636,7 +636,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.SetEACL(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.SetEACL(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
@@ -721,7 +721,7 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.AnnounceUsedSpace(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.AnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call

@@ -179,7 +179,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.HashObjectRange(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.HashObjectRange(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		res.checksums = r.(*v2object.GetRangeHashResponse).GetBody().GetHashList()

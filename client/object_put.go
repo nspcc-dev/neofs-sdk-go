@@ -203,7 +203,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, _ PrmObjectPutInit) (*Object
 
 	ctx, w.cancelCtxStream = context.WithCancel(ctx)
 
-	stream, err := rpcapi.PutObject(c.Raw(), &res.resp, client.WithContext(ctx))
+	stream, err := rpcapi.PutObject(&c.c, &res.resp, client.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("open stream: %w", err)
 	}

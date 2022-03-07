@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -303,13 +304,29 @@ func (x *contextCall) processCall() bool {
 
 // initializes static cross-call parameters inherited from client.
 func (c *Client) initCallContext(ctx *contextCall) {
-	ctx.key = *c.opts.key
+	ctx.key = c.prm.key
 	c.initCallContextWithoutKey(ctx)
 }
 
 // initializes static cross-call parameters inherited from client except private key.
 func (c *Client) initCallContextWithoutKey(ctx *contextCall) {
-	ctx.resolveAPIFailures = c.opts.parseNeoFSErrors
-	ctx.callbackResp = c.opts.cbRespInfo
-	ctx.netMagic = c.opts.netMagic
+	ctx.resolveAPIFailures = c.prm.resolveNeoFSErrors
+	ctx.callbackResp = c.prm.cbRespInfo
+	ctx.netMagic = c.prm.netMagic
+}
+
+// ExecRaw executes f with underlying github.com/nspcc-dev/neofs-api-go/v2/rpc/client.Client
+// instance. Communicate over the Protocol Buffers protocol in a more flexible way:
+// most often used to transmit data over a fixed version of the NeoFS protocol, as well
+// as to support custom services.
+//
+// The f must not manipulate the client connection passed into it.
+//
+// Like all other operations, must be called after connecting to the server and
+// before closing the connection.
+//
+// See also Dial and Close.
+// See also github.com/nspcc-dev/neofs-api-go/v2/rpc/client package docs.
+func (c *Client) ExecRaw(f func(client *client.Client) error) error {
+	return f(&c.c)
 }

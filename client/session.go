@@ -71,7 +71,7 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 		panic(panicMsgMissingContext)
 	}
 
-	ownerID := owner.NewIDFromPublicKey(&c.opts.key.PublicKey)
+	ownerID := owner.NewIDFromPublicKey(&c.prm.key.PublicKey)
 
 	// form request body
 	reqBody := new(v2session.CreateRequestBody)
@@ -95,7 +95,7 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.CreateSession(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.CreateSession(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2session.CreateResponse)

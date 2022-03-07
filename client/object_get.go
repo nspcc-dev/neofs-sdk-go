@@ -356,7 +356,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	r.ctxCall.wReq = func() error {
 		var err error
 
-		stream, err = rpcapi.GetObject(c.Raw(), &req, client.WithContext(ctx))
+		stream, err = rpcapi.GetObject(&c.c, &req, client.WithContext(ctx))
 		if err != nil {
 			return fmt.Errorf("open stream: %w", err)
 		}
@@ -368,44 +368,6 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	}
 
 	return &r, nil
-}
-
-// GetFullObject reads object header and full payload to the memory and returns
-// the result.
-//
-// Function behavior equivalent to Client.ObjectGetInit, see documentation for details.
-func GetFullObject(ctx context.Context, c *Client, idCnr cid.ID, idObj oid.ID) (*object.Object, error) {
-	var prm PrmObjectGet
-
-	prm.FromContainer(idCnr)
-	prm.ByID(idObj)
-
-	rdr, err := c.ObjectGetInit(ctx, prm)
-	if err != nil {
-		return nil, fmt.Errorf("init object reading: %w", err)
-	}
-
-	var obj object.Object
-
-	if rdr.ReadHeader(&obj) {
-		payload, err := io.ReadAll(rdr)
-		if err != nil {
-			return nil, fmt.Errorf("read payload: %w", err)
-		}
-
-		obj.SetPayload(payload)
-	}
-
-	res, err := rdr.Close()
-	if err == nil {
-		err = apistatus.ErrFromStatus(res.Status())
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("finish object reading: %w", err)
-	}
-
-	return &obj, nil
 }
 
 // PrmObjectHead groups parameters of ObjectHead operation.
@@ -525,7 +487,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.HeadObject(c.Raw(), &req, client.WithContext(ctx))
+		return rpcapi.HeadObject(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		switch v := r.(*v2object.HeadResponse).GetBody().GetHeaderPart().(type) {
@@ -799,7 +761,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	r.ctxCall.wReq = func() error {
 		var err error
 
-		stream, err = rpcapi.GetObjectRange(c.Raw(), &req, client.WithContext(ctx))
+		stream, err = rpcapi.GetObjectRange(&c.c, &req, client.WithContext(ctx))
 		if err != nil {
 			return fmt.Errorf("open stream: %w", err)
 		}
