@@ -81,7 +81,7 @@ func TestHealthyReweight(t *testing.T) {
 			{client: newNetmapMock(names[0], true), healthy: true, address: "address0"},
 			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
 	}
-	p := &pool{
+	p := &Pool{
 		innerPools: []*innerPool{inner},
 		cache:      cache,
 		key:        newPrivateKey(t),
@@ -129,7 +129,7 @@ func TestHealthyNoReweight(t *testing.T) {
 			{client: newNetmapMock(names[0], false), healthy: true},
 			{client: newNetmapMock(names[1], false), healthy: true}},
 	}
-	p := &pool{
+	p := &Pool{
 		innerPools: []*innerPool{inner},
 	}
 
