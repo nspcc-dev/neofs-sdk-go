@@ -518,12 +518,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pp, err := pb.Build(ctx, opts)
+	p, err := pb.Build(ctx, opts)
 	require.NoError(t, err)
-	t.Cleanup(pp.Close)
-
-	p, ok := pp.(*pool)
-	require.True(t, ok)
+	t.Cleanup(p.Close)
 
 	anonKey := newPrivateKey(t)
 	anonOwner := owner.NewIDFromPublicKey(&anonKey.PublicKey)
@@ -556,7 +553,7 @@ func TestWaitPresence(t *testing.T) {
 		}},
 	}
 
-	p := &pool{
+	p := &Pool{
 		innerPools: []*innerPool{inner},
 		key:        newPrivateKey(t),
 		cache:      cache,
