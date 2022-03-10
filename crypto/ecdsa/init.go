@@ -10,4 +10,8 @@ func init() {
 	neofscrypto.RegisterScheme(neofscrypto.ECDSA_DETERMINISTIC_SHA256, func() neofscrypto.PublicKey {
 		return new(PublicKeyRFC6979)
 	})
+
+	neofscrypto.RegisterScheme(neofscrypto.ECDSA_WALLETCONNECT, func() neofscrypto.PublicKey {
+		return new(PublicKeyWalletConnect)
+	})
 }
