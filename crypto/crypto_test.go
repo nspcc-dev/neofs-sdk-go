@@ -28,6 +28,9 @@ func TestSignature(t *testing.T) {
 		func() neofscrypto.Signer {
 			return neofsecdsa.SignerRFC6979(k.PrivateKey)
 		},
+		func() neofscrypto.Signer {
+			return neofsecdsa.SignerWalletConnect(k.PrivateKey)
+		},
 	} {
 		signer := f()
 
@@ -39,6 +42,6 @@ func TestSignature(t *testing.T) {
 		s.ReadFromV2(m)
 
 		valid := s.Verify(data)
-		require.True(t, valid)
+		require.True(t, valid, "type %T", signer)
 	}
 }
