@@ -14,6 +14,7 @@ type Scheme uint32
 const (
 	ECDSAWithSHA512 Scheme = iota
 	RFC6979WithSHA256
+	RFC6979WalletConnect
 )
 
 func (x Scheme) String() string {

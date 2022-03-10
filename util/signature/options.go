@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
+	"github.com/nspcc-dev/neofs-sdk-go/util/signature/walletconnect"
 )
 
 var curve = elliptic.P256()
@@ -44,6 +45,9 @@ func sign(scheme signature.Scheme, key *ecdsa.PrivateKey, msg []byte) ([]byte, e
 	case signature.RFC6979WithSHA256:
 		p := &keys.PrivateKey{PrivateKey: *key}
 		return p.Sign(msg), nil
+	case signature.RFC6979WalletConnect:
+		p := &keys.PrivateKey{PrivateKey: *key}
+		return walletconnect.Sign(p, msg)
 	default:
 		panic(fmt.Sprintf("unsupported scheme %s", scheme))
 	}
@@ -72,6 +76,11 @@ func verify(cfg *cfg, msg []byte, f func() (key, sign []byte, scheme signature.S
 	case signature.RFC6979WithSHA256:
 		h := sha256.Sum256(msg)
 		if pub.Verify(sign, h[:]) {
+			return nil
+		}
+		return ErrInvalidSignature
+	case signature.RFC6979WalletConnect:
+		if walletconnect.Verify(pub, msg, sign) {
 			return nil
 		}
 		return ErrInvalidSignature
@@ -110,5 +119,11 @@ func SignWithRFC6979() SignOption {
 	return func(c *cfg) {
 		c.schemeFixed = true
 		c.scheme = signature.RFC6979WithSHA256
+	}
+}
+
+func SignWithWalletConnect() SignOption {
+	return func(c *cfg) {
+		c.scheme = signature.RFC6979WalletConnect
 	}
 }
