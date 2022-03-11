@@ -13,8 +13,8 @@ import (
 func TestSimple(t *testing.T) {
 	q := `REP 3`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{}...)
-	expected.SetSelectors([]*netmap.Selector{}...)
+	expected.SetFilters([]netmap.Filter{}...)
+	expected.SetSelectors([]netmap.Selector{}...)
 	expected.SetReplicas(newReplica("", 3))
 
 	r, err := Parse(q)
@@ -25,8 +25,8 @@ func TestSimple(t *testing.T) {
 func TestSimpleWithHRWB(t *testing.T) {
 	q := `REP 3 CBF 4`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{}...)
-	expected.SetSelectors([]*netmap.Selector{}...)
+	expected.SetFilters([]netmap.Filter{}...)
+	expected.SetSelectors([]netmap.Selector{}...)
 	expected.SetReplicas(newReplica("", 3))
 	expected.SetContainerBackupFactor(4)
 
@@ -39,7 +39,7 @@ func TestFromSelect(t *testing.T) {
 	q := `REP 1 IN SPB
 SELECT 1 IN City FROM * AS SPB`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{}...)
+	expected.SetFilters([]netmap.Filter{}...)
 	expected.SetSelectors(newSelector(1, netmap.ClauseUnspecified, "City", "*", "SPB"))
 	expected.SetReplicas(newReplica("SPB", 1))
 
@@ -55,7 +55,7 @@ func TestFromSelectNoAttribute(t *testing.T) {
 		SELECT 6 FROM *`
 
 		expected := new(netmap.PlacementPolicy)
-		expected.SetFilters([]*netmap.Filter{}...)
+		expected.SetFilters([]netmap.Filter{}...)
 		expected.SetSelectors(newSelector(6, netmap.ClauseUnspecified, "", "*", ""))
 		expected.SetReplicas(newReplica("", 2))
 
@@ -101,7 +101,7 @@ FILTER Property EQ %s AND Something NE 7 AS Filt`
 			expected := newFilter("Filt", "", "", netmap.OpAND,
 				newFilter("", "Property", s[1:len(s)-1], netmap.OpEQ),
 				newFilter("", "Something", "7", netmap.OpNE))
-			require.EqualValues(t, []*netmap.Filter{expected}, r.Filters())
+			require.EqualValues(t, []netmap.Filter{expected}, r.Filters())
 		})
 	}
 }
@@ -112,7 +112,7 @@ SELECT 3 IN Country FROM *
 SELECT 2 IN SAME City FROM *
 SELECT 1 IN DISTINCT Continent FROM *`
 	expected := new(netmap.PlacementPolicy)
-	expected.SetFilters([]*netmap.Filter{}...)
+	expected.SetFilters([]netmap.Filter{}...)
 	expected.SetSelectors(
 		newSelector(3, netmap.ClauseUnspecified, "Country", "*", ""),
 		newSelector(2, netmap.ClauseSame, "City", "*", ""),
@@ -299,8 +299,7 @@ FILTER "UN-LOCODE" EQ "RU LED" AS F`
 	require.EqualValues(t, expected, r)
 }
 
-func newFilter(name, key, value string, op netmap.Operation, sub ...*netmap.Filter) *netmap.Filter {
-	f := new(netmap.Filter)
+func newFilter(name, key, value string, op netmap.Operation, sub ...netmap.Filter) (f netmap.Filter) {
 	f.SetName(name)
 	f.SetKey(key)
 	f.SetValue(value)
@@ -309,15 +308,13 @@ func newFilter(name, key, value string, op netmap.Operation, sub ...*netmap.Filt
 	return f
 }
 
-func newReplica(s string, c uint32) *netmap.Replica {
-	r := new(netmap.Replica)
+func newReplica(s string, c uint32) (r netmap.Replica) {
 	r.SetSelector(s)
 	r.SetCount(c)
 	return r
 }
 
-func newSelector(count uint32, c netmap.Clause, attr, f, name string) *netmap.Selector {
-	s := new(netmap.Selector)
+func newSelector(count uint32, c netmap.Clause, attr, f, name string) (s netmap.Selector) {
 	s.SetCount(count)
 	s.SetClause(c)
 	s.SetAttribute(attr)

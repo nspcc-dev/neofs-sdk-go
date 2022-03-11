@@ -41,15 +41,15 @@ func ToJSON(np *netmap.PlacementPolicy) ([]byte, error) {
 	p.CBF = np.ContainerBackupFactor()
 	p.Filters = make([]filter, len(np.Filters()))
 	for i, f := range np.Filters() {
-		p.Filters[i].fromNetmap(f)
+		p.Filters[i].fromNetmap(&f)
 	}
 	p.Selectors = make([]selector, len(np.Selectors()))
 	for i, s := range np.Selectors() {
-		p.Selectors[i].fromNetmap(s)
+		p.Selectors[i].fromNetmap(&s)
 	}
 	p.Replicas = make([]replica, len(np.Replicas()))
 	for i, r := range np.Replicas() {
-		p.Replicas[i].fromNetmap(r)
+		p.Replicas[i].fromNetmap(&r)
 	}
 	return json.Marshal(p)
 }
@@ -61,32 +61,32 @@ func FromJSON(data []byte) (*netmap.PlacementPolicy, error) {
 		return nil, err
 	}
 
-	rs := make([]*netmap.Replica, len(p.Replicas))
+	rs := make([]netmap.Replica, len(p.Replicas))
 	for i := range p.Replicas {
-		rs[i] = p.Replicas[i].toNetmap()
+		rs[i] = *p.Replicas[i].toNetmap()
 	}
 
-	var fs []*netmap.Filter
+	var fs []netmap.Filter
 	if len(p.Filters) != 0 {
-		fs = make([]*netmap.Filter, len(p.Filters))
+		fs = make([]netmap.Filter, len(p.Filters))
 		for i := range p.Filters {
 			f, err := p.Filters[i].toNetmap()
 			if err != nil {
 				return nil, err
 			}
-			fs[i] = f
+			fs[i] = *f
 		}
 	}
 
-	var ss []*netmap.Selector
+	var ss []netmap.Selector
 	if len(p.Selectors) != 0 {
-		ss = make([]*netmap.Selector, len(p.Selectors))
+		ss = make([]netmap.Selector, len(p.Selectors))
 		for i := range p.Selectors {
 			s, err := p.Selectors[i].toNetmap()
 			if err != nil {
 				return nil, err
 			}
-			ss[i] = s
+			ss[i] = *s
 		}
 	}
 
@@ -134,15 +134,16 @@ func (f *filter) toNetmap() (*netmap.Filter, error) {
 		return nil, fmt.Errorf("%w: '%s'", ErrUnknownOp, f.Op)
 	}
 
-	var fs []*netmap.Filter
+	var fs []netmap.Filter
 	if len(f.Filters) != 0 {
-		fs = make([]*netmap.Filter, len(f.Filters))
+		fs = make([]netmap.Filter, len(f.Filters))
 		for i := range f.Filters {
 			var err error
-			fs[i], err = f.Filters[i].toNetmap()
+			fsp, err := f.Filters[i].toNetmap()
 			if err != nil {
 				return nil, err
 			}
+			fs[i] = *fsp
 		}
 	}
 
@@ -182,7 +183,7 @@ func (f *filter) fromNetmap(nf *netmap.Filter) {
 	if nf.InnerFilters() != nil {
 		f.Filters = make([]filter, len(nf.InnerFilters()))
 		for i, sf := range nf.InnerFilters() {
-			f.Filters[i].fromNetmap(sf)
+			f.Filters[i].fromNetmap(&sf)
 		}
 	}
 }

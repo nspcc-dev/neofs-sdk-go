@@ -40,7 +40,7 @@ func Encode(p *netmap.PlacementPolicy) []string {
 	return result
 }
 
-func encodeReplicas(replicas []*netmap.Replica, dst *[]string) {
+func encodeReplicas(replicas []netmap.Replica, dst *[]string) {
 	builder := new(strings.Builder)
 
 	for _, replica := range replicas {
@@ -57,7 +57,7 @@ func encodeReplicas(replicas []*netmap.Replica, dst *[]string) {
 	}
 }
 
-func encodeSelectors(selectors []*netmap.Selector, dst *[]string) {
+func encodeSelectors(selectors []netmap.Selector, dst *[]string) {
 	builder := new(strings.Builder)
 
 	for _, selector := range selectors {
@@ -94,13 +94,13 @@ func encodeSelectors(selectors []*netmap.Selector, dst *[]string) {
 	}
 }
 
-func encodeFilters(filters []*netmap.Filter, dst *[]string) {
+func encodeFilters(filters []netmap.Filter, dst *[]string) {
 	builder := new(strings.Builder)
 
 	for _, filter := range filters {
 		builder.WriteString("FILTER ")
 
-		builder.WriteString(encodeFilter(filter))
+		builder.WriteString(encodeFilter(&filter))
 
 		*dst = append(*dst, builder.String())
 		builder.Reset()
@@ -129,7 +129,7 @@ func encodeFilter(filter *netmap.Filter) string {
 			builder.WriteString(" ")
 		}
 
-		builder.WriteString(encodeFilter(subfilter))
+		builder.WriteString(encodeFilter(&subfilter))
 	}
 
 	if n := filter.Name(); n != "" && !unspecified {
