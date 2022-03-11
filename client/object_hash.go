@@ -71,10 +71,9 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 		panic("odd number of range parameters")
 	}
 
-	rs := make([]*v2object.Range, ln/2)
+	rs := make([]v2object.Range, ln/2)
 
 	for i := 0; i < ln/2; i++ {
-		rs[i] = new(v2object.Range)
 		rs[i].SetOffset(r[2*i])
 		rs[i].SetLength(r[2*i+1])
 	}

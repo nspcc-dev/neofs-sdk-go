@@ -71,14 +71,11 @@ func (x *prmCommonMeta) WithXHeaders(hs ...string) {
 
 func (x prmCommonMeta) writeToMetaHeader(h *v2session.RequestMetaHeader) {
 	if len(x.xHeaders) > 0 {
-		hs := make([]*v2session.XHeader, 0, len(x.xHeaders)/2)
+		hs := make([]v2session.XHeader, len(x.xHeaders)/2)
 
 		for i := 0; i < len(x.xHeaders); i += 2 {
-			var h v2session.XHeader
-			h.SetKey(x.xHeaders[i])
-			h.SetValue(x.xHeaders[i+1])
-
-			hs = append(hs, &h)
+			hs[i].SetKey(x.xHeaders[i])
+			hs[i].SetValue(x.xHeaders[i+1])
 		}
 
 		h.SetXHeaders(hs)

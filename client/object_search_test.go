@@ -175,9 +175,9 @@ func testListReaderResponse(t *testing.T) (*ObjectListReader, func(id []oid.ID) 
 		resp := new(object.SearchResponse)
 		resp.SetBody(new(object.SearchResponseBody))
 
-		v2id := make([]*refs.ObjectID, len(id))
+		v2id := make([]refs.ObjectID, len(id))
 		for i := range id {
-			v2id[i] = id[i].ToV2()
+			v2id[i] = *id[i].ToV2()
 		}
 		resp.GetBody().SetIDList(v2id)
 		err := signatureV2.SignServiceMessage(&p.PrivateKey, resp)

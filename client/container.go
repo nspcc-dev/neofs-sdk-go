@@ -255,17 +255,17 @@ func (x *PrmContainerList) SetAccount(id owner.ID) {
 type ResContainerList struct {
 	statusRes
 
-	ids []*cid.ID
+	ids []cid.ID
 }
 
 // Containers returns list of identifiers of the account-owned containers.
 //
 // Client doesn't retain value so modification is safe.
-func (x ResContainerList) Containers() []*cid.ID {
+func (x ResContainerList) Containers() []cid.ID {
 	return x.ids
 }
 
-func (x *ResContainerList) setContainers(ids []*cid.ID) {
+func (x *ResContainerList) setContainers(ids []cid.ID) {
 	x.ids = ids
 }
 
@@ -319,10 +319,10 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
 
-		ids := make([]*cid.ID, 0, len(resp.GetBody().GetContainerIDs()))
+		ids := make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
-		for _, cidV2 := range resp.GetBody().GetContainerIDs() {
-			ids = append(ids, cid.NewFromV2(cidV2))
+		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
+			ids[i] = *cid.NewFromV2(&cidV2)
 		}
 
 		res.setContainers(ids)
@@ -695,9 +695,9 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list
-	v2announce := make([]*v2container.UsedSpaceAnnouncement, 0, len(prm.announcements))
+	v2announce := make([]v2container.UsedSpaceAnnouncement, len(prm.announcements))
 	for i := range prm.announcements {
-		v2announce = append(v2announce, prm.announcements[i].ToV2())
+		v2announce[i] = *prm.announcements[i].ToV2()
 	}
 
 	// prepare body of the NeoFS-API v2 request and request itself

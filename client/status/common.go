@@ -99,7 +99,7 @@ func (x *WrongMagicNumber) WriteCorrectMagic(magic uint64) {
 	d.SetValue(buf)
 
 	// attach the detail
-	x.v2.AppendDetails(&d)
+	x.v2.AppendDetails(d)
 }
 
 // CorrectMagic returns network magic returned by the server.

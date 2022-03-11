@@ -95,7 +95,7 @@ type ObjectListReader struct {
 	// initially bound to contextCall
 	bodyResp v2object.SearchResponseBody
 
-	tail []*v2refs.ObjectID
+	tail []v2refs.ObjectID
 }
 
 // UseKey specifies private key to sign the requests.
@@ -130,7 +130,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 	}
 
 	for i := 0; i < read; i++ {
-		buf[i] = *oid.NewIDFromV2(x.tail[i]) // need smth better
+		buf[i] = *oid.NewIDFromV2(&x.tail[i]) // need smth better
 	}
 
 	x.tail = x.tail[read:]
@@ -140,7 +140,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 	}
 
 	var ok bool
-	var ids []*v2refs.ObjectID
+	var ids []v2refs.ObjectID
 	var i, ln, rem int
 
 	for {
@@ -164,7 +164,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 		}
 
 		for i = 0; i < ln; i++ {
-			buf[read+i] = *oid.NewIDFromV2(ids[i]) // need smth better
+			buf[read+i] = *oid.NewIDFromV2(&ids[i]) // need smth better
 		}
 
 		read += ln
