@@ -68,7 +68,7 @@ func TestHealthyReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
-		options = &BuilderOptions{nodesParams: []*NodesParam{{weights: weights}}}
+		options = rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}}
 		buffer  = make([]float64, len(weights))
 	)
 
@@ -118,7 +118,7 @@ func TestHealthyNoReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
-		options = &BuilderOptions{nodesParams: []*NodesParam{{weights: weights}}}
+		options = rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}}
 		buffer  = make([]float64, len(weights))
 	)
 
