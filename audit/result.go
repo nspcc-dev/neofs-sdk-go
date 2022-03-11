@@ -141,7 +141,7 @@ func (r *Result) SetRetries(v uint32) {
 }
 
 // PassSG returns list of Storage Groups that passed audit PoR stage.
-func (r *Result) PassSG() []*oid.ID {
+func (r *Result) PassSG() []oid.ID {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetPassSG()
 
@@ -149,17 +149,17 @@ func (r *Result) PassSG() []*oid.ID {
 		return nil
 	}
 
-	m := make([]*oid.ID, len(mV2))
+	m := make([]oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = oid.NewIDFromV2(mV2[i])
+		m[i] = *oid.NewIDFromV2(&mV2[i])
 	}
 
 	return m
 }
 
 // SetPassSG sets list of Storage Groups that passed audit PoR stage.
-func (r *Result) SetPassSG(list []*oid.ID) {
+func (r *Result) SetPassSG(list []oid.ID) {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetPassSG()
 
@@ -171,11 +171,11 @@ func (r *Result) SetPassSG(list []*oid.ID) {
 		if cap(mV2) >= ln {
 			mV2 = mV2[:0]
 		} else {
-			mV2 = make([]*refs.ObjectID, 0, ln)
+			mV2 = make([]refs.ObjectID, ln)
 		}
 
 		for i := 0; i < ln; i++ {
-			mV2 = append(mV2, list[i].ToV2())
+			mV2[i] = *list[i].ToV2()
 		}
 	}
 
@@ -183,7 +183,7 @@ func (r *Result) SetPassSG(list []*oid.ID) {
 }
 
 // FailSG returns list of Storage Groups that failed audit PoR stage.
-func (r *Result) FailSG() []*oid.ID {
+func (r *Result) FailSG() []oid.ID {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetFailSG()
 
@@ -191,17 +191,17 @@ func (r *Result) FailSG() []*oid.ID {
 		return nil
 	}
 
-	m := make([]*oid.ID, len(mV2))
+	m := make([]oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = oid.NewIDFromV2(mV2[i])
+		m[i] = *oid.NewIDFromV2(&mV2[i])
 	}
 
 	return m
 }
 
 // SetFailSG sets list of Storage Groups that failed audit PoR stage.
-func (r *Result) SetFailSG(list []*oid.ID) {
+func (r *Result) SetFailSG(list []oid.ID) {
 	mV2 := (*audit.DataAuditResult)(r).
 		GetFailSG()
 
@@ -213,11 +213,11 @@ func (r *Result) SetFailSG(list []*oid.ID) {
 		if cap(mV2) >= ln {
 			mV2 = mV2[:0]
 		} else {
-			mV2 = make([]*refs.ObjectID, 0, ln)
+			mV2 = make([]refs.ObjectID, ln)
 		}
 
 		for i := 0; i < ln; i++ {
-			mV2 = append(mV2, list[i].ToV2())
+			mV2[i] = *list[i].ToV2()
 		}
 	}
 
