@@ -51,14 +51,14 @@ func TestTable(t *testing.T) {
 }
 
 func TestTable_AddRecord(t *testing.T) {
-	records := []*eacl.Record{
-		eacl.CreateRecord(eacl.ActionDeny, eacl.OperationDelete),
-		eacl.CreateRecord(eacl.ActionAllow, eacl.OperationPut),
+	records := []eacl.Record{
+		*eacl.CreateRecord(eacl.ActionDeny, eacl.OperationDelete),
+		*eacl.CreateRecord(eacl.ActionAllow, eacl.OperationPut),
 	}
 
 	table := eacl.NewTable()
 	for _, record := range records {
-		table.AddRecord(record)
+		table.AddRecord(&record)
 	}
 
 	require.Equal(t, records, table.Records())

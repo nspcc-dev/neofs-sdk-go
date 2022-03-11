@@ -63,18 +63,14 @@ func TestAddFormedTarget(t *testing.T) {
 		},
 	}
 
-	targets := make([]*Target, 0, len(items))
+	targets := make([]Target, len(items))
 
 	r := NewRecord()
 
-	for _, item := range items {
-		tgt := NewTarget()
-		tgt.SetRole(item.role)
-		SetTargetECDSAKeys(tgt, ecdsaKeysToPtrs(item.keys)...)
-
-		targets = append(targets, tgt)
-
-		AddFormedTarget(r, item.role, item.keys...)
+	for i := range items {
+		targets[i].SetRole(items[i].role)
+		SetTargetECDSAKeys(&targets[i], ecdsaKeysToPtrs(items[i].keys)...)
+		AddFormedTarget(r, items[i].role, items[i].keys...)
 	}
 
 	tgts := r.Targets()
@@ -86,9 +82,9 @@ func TestAddFormedTarget(t *testing.T) {
 }
 
 func TestRecord_AddFilter(t *testing.T) {
-	filters := []*Filter{
-		newObjectFilter(MatchStringEqual, "some name", "ContainerID"),
-		newObjectFilter(MatchStringNotEqual, "X-Header-Name", "X-Header-Value"),
+	filters := []Filter{
+		*newObjectFilter(MatchStringEqual, "some name", "ContainerID"),
+		*newObjectFilter(MatchStringNotEqual, "X-Header-Name", "X-Header-Value"),
 	}
 
 	r := NewRecord()

@@ -8,7 +8,7 @@ import (
 )
 
 func TestFilterMatch(t *testing.T) {
-	tgt := NewTarget()
+	tgt := *NewTarget()
 	tgt.SetRole(RoleOthers)
 
 	t.Run("simple header match", func(t *testing.T) {
@@ -115,7 +115,7 @@ func TestFilterMatch(t *testing.T) {
 }
 
 func TestOperationMatch(t *testing.T) {
-	tgt := NewTarget()
+	tgt := *NewTarget()
 	tgt.SetRole(RoleOthers)
 
 	t.Run("single operation", func(t *testing.T) {
@@ -161,7 +161,7 @@ func TestTargetMatches(t *testing.T) {
 	tgt2.SetRole(RoleOthers)
 
 	r := NewRecord()
-	r.SetTargets(tgt1, tgt2)
+	r.SetTargets(*tgt1, *tgt2)
 
 	u := newValidationUnit(RoleUser, pubs[0], nil)
 	require.True(t, targetMatches(u, r))
@@ -224,7 +224,7 @@ func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool) {
 	}
 }
 
-func newRecord(a Action, op Operation, tgt ...*Target) *Record {
+func newRecord(a Action, op Operation, tgt ...Target) *Record {
 	r := NewRecord()
 	r.SetAction(a)
 	r.SetOperation(op)

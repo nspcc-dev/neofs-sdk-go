@@ -30,7 +30,7 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
 		}
 
 		// check target
-		if !targetMatches(unit, record) {
+		if !targetMatches(unit, &record) {
 			continue
 		}
 
@@ -51,7 +51,7 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
 //  - positive value if no matching header is found for at least one filter;
 //  - zero if at least one suitable header is found for all filters;
 //  - negative value if the headers of at least one filter cannot be obtained.
-func matchFilters(hdrSrc TypedHeaderSource, filters []*Filter) int {
+func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
 	matched := 0
 
 	for _, filter := range filters {
@@ -79,7 +79,7 @@ func matchFilters(hdrSrc TypedHeaderSource, filters []*Filter) int {
 			}
 
 			// check match
-			if !matchFn(header, filter) {
+			if !matchFn(header, &filter) {
 				continue
 			}
 

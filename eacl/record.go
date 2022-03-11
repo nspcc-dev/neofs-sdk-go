@@ -20,22 +20,22 @@ import (
 type Record struct {
 	action    Action
 	operation Operation
-	filters   []*Filter
-	targets   []*Target
+	filters   []Filter
+	targets   []Target
 }
 
 // Targets returns list of target subjects to apply ACL rule to.
-func (r Record) Targets() []*Target {
+func (r Record) Targets() []Target {
 	return r.targets
 }
 
 // SetTargets sets list of target subjects to apply ACL rule to.
-func (r *Record) SetTargets(targets ...*Target) {
+func (r *Record) SetTargets(targets ...Target) {
 	r.targets = targets
 }
 
 // Filters returns list of filters to match and see if rule is applicable.
-func (r Record) Filters() []*Filter {
+func (r Record) Filters() []Filter {
 	return r.filters
 }
 
@@ -61,7 +61,7 @@ func (r *Record) SetAction(action Action) {
 
 // AddRecordTarget adds single Target to the Record.
 func AddRecordTarget(r *Record, t *Target) {
-	r.SetTargets(append(r.Targets(), t)...)
+	r.SetTargets(append(r.Targets(), *t)...)
 }
 
 // AddFormedTarget forms Target with specified Role and list of
@@ -75,7 +75,7 @@ func AddFormedTarget(r *Record, role Role, keys ...ecdsa.PublicKey) {
 }
 
 func (r *Record) addFilter(from FilterHeaderType, m Match, keyTyp filterKeyType, key string, val fmt.Stringer) {
-	filter := &Filter{
+	filter := Filter{
 		from: from,
 		key: filterKey{
 			typ: keyTyp,
@@ -162,18 +162,18 @@ func (r *Record) ToV2() *v2acl.Record {
 	v2 := new(v2acl.Record)
 
 	if r.targets != nil {
-		targets := make([]*v2acl.Target, 0, len(r.targets))
-		for _, target := range r.targets {
-			targets = append(targets, target.ToV2())
+		targets := make([]v2acl.Target, len(r.targets))
+		for i := range r.targets {
+			targets[i] = *r.targets[i].ToV2()
 		}
 
 		v2.SetTargets(targets)
 	}
 
 	if r.filters != nil {
-		filters := make([]*v2acl.HeaderFilter, 0, len(r.filters))
-		for _, filter := range r.filters {
-			filters = append(filters, filter.ToV2())
+		filters := make([]v2acl.HeaderFilter, len(r.filters))
+		for i := range r.filters {
+			filters[i] = *r.filters[i].ToV2()
 		}
 
 		v2.SetFilters(filters)
@@ -201,8 +201,8 @@ func CreateRecord(action Action, operation Operation) *Record {
 	r := NewRecord()
 	r.action = action
 	r.operation = operation
-	r.targets = []*Target{}
-	r.filters = []*Filter{}
+	r.targets = []Target{}
+	r.filters = []Filter{}
 
 	return r
 }
@@ -221,14 +221,14 @@ func NewRecordFromV2(record *v2acl.Record) *Record {
 	v2targets := record.GetTargets()
 	v2filters := record.GetFilters()
 
-	r.targets = make([]*Target, 0, len(v2targets))
+	r.targets = make([]Target, len(v2targets))
 	for i := range v2targets {
-		r.targets = append(r.targets, NewTargetFromV2(v2targets[i]))
+		r.targets[i] = *NewTargetFromV2(&v2targets[i])
 	}
 
-	r.filters = make([]*Filter, 0, len(v2filters))
+	r.filters = make([]Filter, len(v2filters))
 	for i := range v2filters {
-		r.filters = append(r.filters, NewFilterFromV2(v2filters[i]))
+		r.filters[i] = *NewFilterFromV2(&v2filters[i])
 	}
 
 	return r
