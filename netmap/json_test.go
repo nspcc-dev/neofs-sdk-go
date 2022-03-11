@@ -80,3 +80,27 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 		})
 	}
 }
+func BenchmarkManySelects(b *testing.B) {
+	testsFile := filepath.Join("json_tests", "many_selects.json")
+	bs, err := ioutil.ReadFile(testsFile)
+	require.NoError(b, err)
+
+	var tc TestCase
+	require.NoError(b, json.Unmarshal(bs, &tc))
+	tt, ok := tc.Tests["Select"]
+	require.True(b, ok)
+
+	nodes := NodesFromInfo(tc.Nodes)
+	nm, err := NewNetmap(nodes)
+	require.NoError(b, err)
+
+	b.ResetTimer()
+	b.ReportAllocs()
+
+	for i := 0; i < b.N; i++ {
+		_, err = nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+		if err != nil {
+			b.FailNow()
+		}
+	}
+}
