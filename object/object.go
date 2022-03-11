@@ -229,26 +229,26 @@ func (o *Object) SetPayloadHomomorphicHash(v *checksum.Checksum) {
 }
 
 // Attributes returns object attributes.
-func (o *Object) Attributes() []*Attribute {
+func (o *Object) Attributes() []Attribute {
 	attrs := (*object.Object)(o).
 		GetHeader().
 		GetAttributes()
 
-	res := make([]*Attribute, 0, len(attrs))
+	res := make([]Attribute, len(attrs))
 
 	for i := range attrs {
-		res = append(res, NewAttributeFromV2(attrs[i]))
+		res[i] = *NewAttributeFromV2(&attrs[i])
 	}
 
 	return res
 }
 
 // SetAttributes sets object attributes.
-func (o *Object) SetAttributes(v ...*Attribute) {
-	attrs := make([]*object.Attribute, 0, len(v))
+func (o *Object) SetAttributes(v ...Attribute) {
+	attrs := make([]object.Attribute, len(v))
 
 	for i := range v {
-		attrs = append(attrs, v[i].ToV2())
+		attrs[i] = *v[i].ToV2()
 	}
 
 	o.setHeaderField(func(h *object.Header) {
@@ -274,27 +274,27 @@ func (o *Object) SetPreviousID(v *oid.ID) {
 }
 
 // Children return list of the identifiers of the child objects.
-func (o *Object) Children() []*oid.ID {
+func (o *Object) Children() []oid.ID {
 	ids := (*object.Object)(o).
 		GetHeader().
 		GetSplit().
 		GetChildren()
 
-	res := make([]*oid.ID, 0, len(ids))
+	res := make([]oid.ID, len(ids))
 
 	for i := range ids {
-		res = append(res, oid.NewIDFromV2(ids[i]))
+		res[i] = *oid.NewIDFromV2(&ids[i])
 	}
 
 	return res
 }
 
 // SetChildren sets list of the identifiers of the child objects.
-func (o *Object) SetChildren(v ...*oid.ID) {
-	ids := make([]*refs.ObjectID, 0, len(v))
+func (o *Object) SetChildren(v ...oid.ID) {
+	ids := make([]refs.ObjectID, len(v))
 
 	for i := range v {
-		ids = append(ids, v[i].ToV2())
+		ids[i] = *v[i].ToV2()
 	}
 
 	o.setSplitFields(func(split *object.SplitHeader) {

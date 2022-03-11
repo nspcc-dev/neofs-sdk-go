@@ -55,7 +55,7 @@ func (t *Tombstone) SetSplitID(v *SplitID) {
 }
 
 // Members returns list of objects to be deleted.
-func (t *Tombstone) Members() []*oid.ID {
+func (t *Tombstone) Members() []oid.ID {
 	msV2 := (*tombstone.Tombstone)(t).
 		GetMembers()
 
@@ -63,18 +63,18 @@ func (t *Tombstone) Members() []*oid.ID {
 		return nil
 	}
 
-	ms := make([]*oid.ID, 0, len(msV2))
+	ms := make([]oid.ID, len(msV2))
 
 	for i := range msV2 {
-		ms = append(ms, oid.NewIDFromV2(msV2[i]))
+		ms[i] = *oid.NewIDFromV2(&msV2[i])
 	}
 
 	return ms
 }
 
 // SetMembers sets list of objects to be deleted.
-func (t *Tombstone) SetMembers(v []*oid.ID) {
-	var ms []*refs.ObjectID
+func (t *Tombstone) SetMembers(v []oid.ID) {
+	var ms []refs.ObjectID
 
 	if v != nil {
 		ms = (*tombstone.Tombstone)(t).
@@ -83,11 +83,11 @@ func (t *Tombstone) SetMembers(v []*oid.ID) {
 		if ln := len(v); cap(ms) >= ln {
 			ms = ms[:0]
 		} else {
-			ms = make([]*refs.ObjectID, 0, ln)
+			ms = make([]refs.ObjectID, 0, ln)
 		}
 
 		for i := range v {
-			ms = append(ms, v[i].ToV2())
+			ms = append(ms, *v[i].ToV2())
 		}
 	}
 

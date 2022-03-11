@@ -10,12 +10,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func generateIDList(sz int) []*oid.ID {
-	res := make([]*oid.ID, sz)
+func generateIDList(sz int) []oid.ID {
+	res := make([]oid.ID, sz)
 	cs := [sha256.Size]byte{}
 
 	for i := 0; i < sz; i++ {
-		res[i] = oid.NewID()
+		res[i] = *oid.NewID()
 		rand.Read(cs[:])
 		res[i].SetSHA256(cs)
 	}

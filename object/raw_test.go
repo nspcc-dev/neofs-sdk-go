@@ -152,9 +152,9 @@ func TestObject_SetAttributes(t *testing.T) {
 	a2.SetKey("key2")
 	a2.SetValue("val2")
 
-	obj.SetAttributes(a1, a2)
+	obj.SetAttributes(*a1, *a2)
 
-	require.Equal(t, []*Attribute{a1, a2}, obj.Attributes())
+	require.Equal(t, []Attribute{*a1, *a2}, obj.Attributes())
 }
 
 func TestObject_SetPreviousID(t *testing.T) {
@@ -173,9 +173,9 @@ func TestObject_SetChildren(t *testing.T) {
 	id1 := randID(t)
 	id2 := randID(t)
 
-	obj.SetChildren(id1, id2)
+	obj.SetChildren(*id1, *id2)
 
-	require.Equal(t, []*oid.ID{id1, id2}, obj.Children())
+	require.Equal(t, []oid.ID{*id1, *id2}, obj.Children())
 }
 
 func TestObject_SetSplitID(t *testing.T) {
