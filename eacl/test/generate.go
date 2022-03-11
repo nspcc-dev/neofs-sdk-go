@@ -26,7 +26,7 @@ func Record() *eacl.Record {
 
 	x.SetAction(eacl.ActionAllow)
 	x.SetOperation(eacl.OperationRangeHash)
-	x.SetTargets(Target(), Target())
+	x.SetTargets(*Target(), *Target())
 	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
 	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, ownertest.ID())
 

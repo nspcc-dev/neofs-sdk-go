@@ -18,7 +18,7 @@ type Table struct {
 	cid     *cid.ID
 	token   *session.Token
 	sig     *signature.Signature
-	records []*Record
+	records []Record
 }
 
 // CID returns identifier of the container that should use given access control rules.
@@ -42,14 +42,14 @@ func (t *Table) SetVersion(version version.Version) {
 }
 
 // Records returns list of extended ACL rules.
-func (t Table) Records() []*Record {
+func (t Table) Records() []Record {
 	return t.records
 }
 
 // AddRecord adds single eACL rule.
 func (t *Table) AddRecord(r *Record) {
 	if r != nil {
-		t.records = append(t.records, r)
+		t.records = append(t.records, *r)
 	}
 }
 
@@ -90,9 +90,9 @@ func (t *Table) ToV2() *v2acl.Table {
 	}
 
 	if t.records != nil {
-		records := make([]*v2acl.Record, 0, len(t.records))
-		for _, record := range t.records {
-			records = append(records, record.ToV2())
+		records := make([]v2acl.Record, len(t.records))
+		for i := range t.records {
+			records[i] = *t.records[i].ToV2()
 		}
 
 		v2.SetRecords(records)
@@ -157,10 +157,10 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 
 	// set eacl records
 	v2records := table.GetRecords()
-	t.records = make([]*Record, 0, len(v2records))
+	t.records = make([]Record, len(v2records))
 
 	for i := range v2records {
-		t.records = append(t.records, NewRecordFromV2(v2records[i]))
+		t.records[i] = *NewRecordFromV2(&v2records[i])
 	}
 
 	return t
