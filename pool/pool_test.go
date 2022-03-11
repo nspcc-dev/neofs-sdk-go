@@ -28,15 +28,13 @@ func TestBuildPoolClientFailed(t *testing.T) {
 		return nil, fmt.Errorf("error")
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-
-	opts := &BuilderOptions{
+	opts := InitParameters{
 		Key:           newPrivateKey(t),
+		NodeParams:    []NodeParam{{1, "peer0", 1}},
 		clientBuilder: clientBuilder,
 	}
 
-	_, err := pb.Build(context.TODO(), opts)
+	_, err := NewPool(context.TODO(), opts)
 	require.Error(t, err)
 }
 
@@ -54,15 +52,13 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-
-	opts := &BuilderOptions{
+	opts := InitParameters{
 		Key:           newPrivateKey(t),
+		NodeParams:    []NodeParam{{1, "peer0", 1}},
 		clientBuilder: clientBuilder,
 	}
 
-	_, err := pb.Build(context.TODO(), opts)
+	_, err := NewPool(context.TODO(), opts)
 	require.Error(t, err)
 }
 
@@ -110,20 +106,20 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		return mockClient2, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 9, 1)
-	pb.AddNode("peer1", 1, 1)
-
 	log, err := zap.NewProduction()
 	require.NoError(t, err)
-	opts := &BuilderOptions{
+	opts := InitParameters{
 		Key:                     newPrivateKey(t),
 		clientBuilder:           clientBuilder,
 		ClientRebalanceInterval: 1000 * time.Millisecond,
 		Logger:                  log,
+		NodeParams: []NodeParam{
+			{9, "peer0", 1},
+			{1, "peer1", 1},
+		},
 	}
 
-	clientPool, err := pb.Build(context.TODO(), opts)
+	clientPool, err := NewPool(context.TODO(), opts)
 	require.NoError(t, err)
 	t.Cleanup(clientPool.Close)
 
@@ -136,11 +132,10 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 }
 
 func TestBuildPoolZeroNodes(t *testing.T) {
-	pb := new(Builder)
-	opts := &BuilderOptions{
+	opts := InitParameters{
 		Key: newPrivateKey(t),
 	}
-	_, err := pb.Build(context.TODO(), opts)
+	_, err := NewPool(context.TODO(), opts)
 	require.Error(t, err)
 }
 
@@ -162,15 +157,13 @@ func TestOneNode(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-
-	opts := &BuilderOptions{
+	opts := InitParameters{
 		Key:           newPrivateKey(t),
+		NodeParams:    []NodeParam{{1, "peer0", 1}},
 		clientBuilder: clientBuilder,
 	}
 
-	pool, err := pb.Build(context.Background(), opts)
+	pool, err := NewPool(context.Background(), opts)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -200,16 +193,16 @@ func TestTwoNodes(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-	pb.AddNode("peer1", 1, 1)
-
-	opts := &BuilderOptions{
-		Key:           newPrivateKey(t),
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+			{1, "peer1", 1},
+		},
 		clientBuilder: clientBuilder,
 	}
 
-	pool, err := pb.Build(context.Background(), opts)
+	pool, err := NewPool(context.Background(), opts)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -256,17 +249,18 @@ func TestOneOfTwoFailed(t *testing.T) {
 		return mockClient2, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-	pb.AddNode("peer1", 9, 1)
-
-	opts := &BuilderOptions{
-		Key:                     newPrivateKey(t),
-		clientBuilder:           clientBuilder,
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+			{9, "peer1", 1},
+		},
 		ClientRebalanceInterval: 200 * time.Millisecond,
+		clientBuilder:           clientBuilder,
 	}
 
-	pool, err := pb.Build(context.Background(), opts)
+	pool, err := NewPool(context.Background(), opts)
+
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -292,17 +286,17 @@ func TestTwoFailed(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-	pb.AddNode("peer1", 1, 1)
-
-	opts := &BuilderOptions{
-		Key:                     newPrivateKey(t),
-		clientBuilder:           clientBuilder,
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+			{1, "peer1", 1},
+		},
 		ClientRebalanceInterval: 200 * time.Millisecond,
+		clientBuilder:           clientBuilder,
 	}
 
-	pool, err := pb.Build(context.Background(), opts)
+	pool, err := NewPool(context.Background(), opts)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -336,19 +330,19 @@ func TestSessionCache(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-
-	opts := &BuilderOptions{
-		Key:                     newPrivateKey(t),
-		clientBuilder:           clientBuilder,
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+		},
 		ClientRebalanceInterval: 30 * time.Second,
+		clientBuilder:           clientBuilder,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := pb.Build(ctx, opts)
+	pool, err := NewPool(ctx, opts)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -408,20 +402,20 @@ func TestPriority(t *testing.T) {
 		return mockClient2, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-	pb.AddNode("peer1", 2, 100)
-
-	opts := &BuilderOptions{
-		Key:                     newPrivateKey(t),
-		clientBuilder:           clientBuilder,
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+			{2, "peer1", 100},
+		},
 		ClientRebalanceInterval: 1500 * time.Millisecond,
+		clientBuilder:           clientBuilder,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := pb.Build(ctx, opts)
+	pool, err := NewPool(ctx, opts)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -463,19 +457,19 @@ func TestSessionCacheWithKey(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-
-	opts := &BuilderOptions{
-		Key:                     newPrivateKey(t),
-		clientBuilder:           clientBuilder,
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+		},
 		ClientRebalanceInterval: 30 * time.Second,
+		clientBuilder:           clientBuilder,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := pb.Build(ctx, opts)
+	pool, err := NewPool(ctx, opts)
 	require.NoError(t, err)
 
 	// cache must contain session token
@@ -507,18 +501,18 @@ func TestSessionTokenOwner(t *testing.T) {
 		return mockClient, nil
 	}
 
-	pb := new(Builder)
-	pb.AddNode("peer0", 1, 1)
-
-	opts := &BuilderOptions{
-		Key:           newPrivateKey(t),
+	opts := InitParameters{
+		Key: newPrivateKey(t),
+		NodeParams: []NodeParam{
+			{1, "peer0", 1},
+		},
 		clientBuilder: clientBuilder,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p, err := pb.Build(ctx, opts)
+	p, err := NewPool(ctx, opts)
 	require.NoError(t, err)
 	t.Cleanup(p.Close)
 
