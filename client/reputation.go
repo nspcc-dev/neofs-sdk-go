@@ -65,11 +65,8 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 	reqBody := new(v2reputation.AnnounceLocalTrustRequestBody)
 	reqBody.SetEpoch(prm.epoch)
 
-	trusts := make([]*reputation.Trust, 0, len(prm.trusts))
-
-	for i := range prm.trusts {
-		trusts = append(trusts, &prm.trusts[i])
-	}
+	trusts := make([]reputation.Trust, len(prm.trusts))
+	copy(trusts, prm.trusts)
 
 	reqBody.SetTrusts(reputation.TrustsToV2(trusts))
 
