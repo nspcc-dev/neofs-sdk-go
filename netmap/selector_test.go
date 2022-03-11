@@ -94,13 +94,13 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 	const netmapSize = 100
 
 	p := newPlacementPolicy(1,
-		[]*Replica{
+		[]Replica{
 			newReplica(1, "loc1"),
 			newReplica(1, "loc2")},
-		[]*Selector{
+		[]Selector{
 			newSelector("loc1", "Location", ClauseSame, 1, "loc1"),
 			newSelector("loc2", "Location", ClauseSame, 1, "loc2")},
-		[]*Filter{
+		[]Filter{
 			newFilter("loc1", "Location", "Shanghai", OpEQ),
 			newFilter("loc2", "Location", "Shanghai", OpNE),
 		})
@@ -139,13 +139,13 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 	const netmapSize = 100
 
 	p := newPlacementPolicy(1,
-		[]*Replica{
+		[]Replica{
 			newReplica(1, "loc1"),
 			newReplica(1, "loc2")},
-		[]*Selector{
+		[]Selector{
 			newSelector("loc1", "Location", ClauseSame, 1, "loc1"),
 			newSelector("loc2", "Location", ClauseSame, 1, "loc2")},
-		[]*Filter{
+		[]Filter{
 			newFilter("loc1", "Location", "Shanghai", OpEQ),
 			newFilter("loc2", "Location", "Shanghai", OpNE),
 		})
@@ -188,13 +188,13 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 
 func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 	p := newPlacementPolicy(2, nil,
-		[]*Selector{
+		[]Selector{
 			newSelector("SameRU", "City", ClauseSame, 2, "FromRU"),
 			newSelector("DistinctRU", "City", ClauseDistinct, 2, "FromRU"),
 			newSelector("Good", "Country", ClauseDistinct, 2, "Good"),
 			newSelector("Main", "Country", ClauseDistinct, 3, "*"),
 		},
-		[]*Filter{
+		[]Filter{
 			newFilter("FromRU", "Country", "Russia", OpEQ),
 			newFilter("Good", "Rating", "4", OpGE),
 		})
@@ -229,7 +229,7 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 		for _, res := range sel {
 			require.Equal(t, nodesInBucket, len(res), targ)
 			for j := range res {
-				require.True(t, c.applyFilter(s.Filter(), res[j]), targ)
+				require.True(t, c.applyFilter(s.Filter(), &res[j]), targ)
 			}
 		}
 	}
@@ -298,7 +298,7 @@ func TestSelectorEncoding(t *testing.T) {
 		data, err := s.Marshal()
 		require.NoError(t, err)
 
-		s2 := NewSelector()
+		s2 := *NewSelector()
 		require.NoError(t, s2.Unmarshal(data))
 
 		require.Equal(t, s, s2)
@@ -308,7 +308,7 @@ func TestSelectorEncoding(t *testing.T) {
 		data, err := s.MarshalJSON()
 		require.NoError(t, err)
 
-		s2 := NewSelector()
+		s2 := *NewSelector()
 		require.NoError(t, s2.UnmarshalJSON(data))
 
 		require.Equal(t, s, s2)

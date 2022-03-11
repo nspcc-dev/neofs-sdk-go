@@ -187,16 +187,16 @@ func (x *NetworkConfig) IterateParameters(f func(*NetworkParameter) bool) {
 }
 
 // Value returns value of the network parameter.
-func (x *NetworkConfig) SetParameters(ps ...*NetworkParameter) {
-	var psV2 []*netmap.NetworkParameter
+func (x *NetworkConfig) SetParameters(ps ...NetworkParameter) {
+	var psV2 []netmap.NetworkParameter
 
 	if ps != nil {
 		ln := len(ps)
 
-		psV2 = make([]*netmap.NetworkParameter, 0, ln)
+		psV2 = make([]netmap.NetworkParameter, ln)
 
 		for i := 0; i < ln; i++ {
-			psV2 = append(psV2, ps[i].ToV2())
+			psV2[i] = *ps[i].ToV2()
 		}
 	}
 

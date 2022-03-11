@@ -6,8 +6,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newFilter(name string, k, v string, op Operation, fs ...*Filter) *Filter {
-	f := NewFilter()
+func newFilter(name string, k, v string, op Operation, fs ...Filter) (f Filter) {
 	f.SetName(name)
 	f.SetKey(k)
 	f.SetOperation(op)
@@ -16,8 +15,7 @@ func newFilter(name string, k, v string, op Operation, fs ...*Filter) *Filter {
 	return f
 }
 
-func newSelector(name string, attr string, c Clause, count uint32, filter string) *Selector {
-	s := NewSelector()
+func newSelector(name string, attr string, c Clause, count uint32, filter string) (s Selector) {
 	s.SetName(name)
 	s.SetAttribute(attr)
 	s.SetCount(count)
@@ -26,7 +24,7 @@ func newSelector(name string, attr string, c Clause, count uint32, filter string
 	return s
 }
 
-func newPlacementPolicy(bf uint32, rs []*Replica, ss []*Selector, fs []*Filter) *PlacementPolicy {
+func newPlacementPolicy(bf uint32, rs []Replica, ss []Selector, fs []Filter) *PlacementPolicy {
 	p := NewPlacementPolicy()
 	p.SetContainerBackupFactor(bf)
 	p.SetReplicas(rs...)
@@ -35,17 +33,15 @@ func newPlacementPolicy(bf uint32, rs []*Replica, ss []*Selector, fs []*Filter) 
 	return p
 }
 
-func newReplica(c uint32, s string) *Replica {
-	r := NewReplica()
+func newReplica(c uint32, s string) (r Replica) {
 	r.SetCount(c)
 	r.SetSelector(s)
 	return r
 }
 
 func nodeInfoFromAttributes(props ...string) NodeInfo {
-	attrs := make([]*NodeAttribute, len(props)/2)
+	attrs := make([]NodeAttribute, len(props)/2)
 	for i := range attrs {
-		attrs[i] = NewNodeAttribute()
 		attrs[i].SetKey(props[i*2])
 		attrs[i].SetValue(props[i*2+1])
 	}

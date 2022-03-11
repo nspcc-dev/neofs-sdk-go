@@ -152,7 +152,7 @@ func TestNodeInfo_State(t *testing.T) {
 
 func TestNodeInfo_Attributes(t *testing.T) {
 	i := new(NodeInfo)
-	as := []*NodeAttribute{testNodeAttribute(), testNodeAttribute()}
+	as := []NodeAttribute{*testNodeAttribute(), *testNodeAttribute()}
 
 	i.SetAttributes(as...)
 
@@ -188,7 +188,7 @@ func TestNodeInfoEncoding(t *testing.T) {
 	i.SetPublicKey([]byte{1, 2, 3})
 	i.SetAddresses("192.168.0.1", "192.168.0.2")
 	i.SetState(NodeStateOnline)
-	i.SetAttributes(testNodeAttribute())
+	i.SetAttributes(*testNodeAttribute())
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := i.Marshal()

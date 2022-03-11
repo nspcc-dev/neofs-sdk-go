@@ -10,21 +10,21 @@ import (
 func TestPlacementPolicyFromV2(t *testing.T) {
 	pV2 := new(netmap.PlacementPolicy)
 
-	pV2.SetReplicas([]*netmap.Replica{
-		testReplica().ToV2(),
-		testReplica().ToV2(),
+	pV2.SetReplicas([]netmap.Replica{
+		*testReplica().ToV2(),
+		*testReplica().ToV2(),
 	})
 
 	pV2.SetContainerBackupFactor(3)
 
-	pV2.SetSelectors([]*netmap.Selector{
-		testSelector().ToV2(),
-		testSelector().ToV2(),
+	pV2.SetSelectors([]netmap.Selector{
+		*testSelector().ToV2(),
+		*testSelector().ToV2(),
 	})
 
-	pV2.SetFilters([]*netmap.Filter{
-		testFilter().ToV2(),
-		testFilter().ToV2(),
+	pV2.SetFilters([]netmap.Filter{
+		*testFilter().ToV2(),
+		*testFilter().ToV2(),
 	})
 
 	p := NewPlacementPolicyFromV2(pV2)
@@ -34,7 +34,7 @@ func TestPlacementPolicyFromV2(t *testing.T) {
 
 func TestPlacementPolicy_Replicas(t *testing.T) {
 	p := NewPlacementPolicy()
-	rs := []*Replica{testReplica(), testReplica()}
+	rs := []Replica{*testReplica(), *testReplica()}
 
 	p.SetReplicas(rs...)
 
@@ -52,7 +52,7 @@ func TestPlacementPolicy_ContainerBackupFactor(t *testing.T) {
 
 func TestPlacementPolicy_Selectors(t *testing.T) {
 	p := NewPlacementPolicy()
-	ss := []*Selector{testSelector(), testSelector()}
+	ss := []Selector{*testSelector(), *testSelector()}
 
 	p.SetSelectors(ss...)
 
@@ -61,7 +61,7 @@ func TestPlacementPolicy_Selectors(t *testing.T) {
 
 func TestPlacementPolicy_Filters(t *testing.T) {
 	p := NewPlacementPolicy()
-	fs := []*Filter{testFilter(), testFilter()}
+	fs := []Filter{*testFilter(), *testFilter()}
 
 	p.SetFilters(fs...)
 

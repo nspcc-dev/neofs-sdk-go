@@ -14,19 +14,18 @@ type Selector netmap.Selector
 
 // processSelectors processes selectors and returns error is any of them is invalid.
 func (c *Context) processSelectors(p *PlacementPolicy) error {
-	for _, s := range p.Selectors() {
-		if s == nil {
-			return fmt.Errorf("%w: SELECT", ErrMissingField)
-		} else if s.Filter() != MainFilterName {
+	selectors := p.Selectors()
+	for i, s := range selectors {
+		if s.Filter() != MainFilterName {
 			_, ok := c.Filters[s.Filter()]
 			if !ok {
 				return fmt.Errorf("%w: SELECT FROM '%s'", ErrFilterNotFound, s.Filter())
 			}
 		}
 
-		c.Selectors[s.Name()] = s
+		c.Selectors[s.Name()] = &selectors[i]
 
-		result, err := c.getSelection(p, s)
+		result, err := c.getSelection(p, &s)
 		if err != nil {
 			return err
 		}
@@ -141,7 +140,7 @@ func (c *Context) getSelectionBase(subnetID *subnetid.ID, s *Selector) []nodeAtt
 		if !BelongsToSubnet(c.Netmap.Nodes[i].NodeInfo, sid) {
 			continue
 		}
-		if isMain || c.match(f, c.Netmap.Nodes[i]) {
+		if isMain || c.match(f, &c.Netmap.Nodes[i]) {
 			if attr == "" {
 				// Default attribute is transparent identifier which is different for every node.
 				result = append(result, nodeAttrPair{attr: "", nodes: Nodes{c.Netmap.Nodes[i]}})

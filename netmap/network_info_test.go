@@ -72,19 +72,19 @@ func TestNetworkConfig_SetParameters(t *testing.T) {
 
 	require.Zero(t, called)
 
-	pps := []*NetworkParameter{
-		netmaptest.NetworkParameter(),
-		netmaptest.NetworkParameter(),
+	pps := []NetworkParameter{
+		*netmaptest.NetworkParameter(),
+		*netmaptest.NetworkParameter(),
 	}
 
 	x.SetParameters(pps...)
 
 	require.EqualValues(t, len(pps), x.NumberOfParameters())
 
-	var dst []*NetworkParameter
+	var dst []NetworkParameter
 
 	x.IterateParameters(func(p *NetworkParameter) bool {
-		dst = append(dst, p)
+		dst = append(dst, *p)
 		called++
 		return false
 	})

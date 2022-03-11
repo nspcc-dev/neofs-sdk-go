@@ -63,10 +63,6 @@ func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) (ContainerN
 	result := make([]Nodes, len(p.Replicas()))
 
 	for i, r := range p.Replicas() {
-		if r == nil {
-			return nil, fmt.Errorf("%w: REPLICA", ErrMissingField)
-		}
-
 		if r.Selector() == "" {
 			if len(p.Selectors()) == 0 {
 				s := new(Selector)
