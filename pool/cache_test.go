@@ -10,7 +10,7 @@ import (
 func TestSessionCache_GetAccessTime(t *testing.T) {
 	const key = "Foo"
 
-	cache, err := NewCache()
+	cache, err := newCache()
 	require.NoError(t, err)
 
 	cache.Put(key, nil)

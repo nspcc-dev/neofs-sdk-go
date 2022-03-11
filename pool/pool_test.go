@@ -536,11 +536,11 @@ func TestWaitPresence(t *testing.T) {
 	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
 	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
-	cache, err := NewCache()
+	cache, err := newCache()
 	require.NoError(t, err)
 
 	inner := &innerPool{
-		sampler: NewSampler([]float64{1}, rand.NewSource(0)),
+		sampler: newSampler([]float64{1}, rand.NewSource(0)),
 		clientPacks: []*clientPack{{
 			client:  mockClient,
 			healthy: true,
