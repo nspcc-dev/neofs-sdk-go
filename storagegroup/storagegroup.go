@@ -67,17 +67,17 @@ func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
 
 // Members returns strictly ordered list of
 // storage group member objects.
-func (sg *StorageGroup) Members() []*oid.ID {
+func (sg *StorageGroup) Members() []oid.ID {
 	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
 
 	if mV2 == nil {
 		return nil
 	}
 
-	m := make([]*oid.ID, len(mV2))
+	m := make([]oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = oid.NewIDFromV2(mV2[i])
+		m[i] = *oid.NewIDFromV2(&mV2[i])
 	}
 
 	return m
@@ -85,7 +85,7 @@ func (sg *StorageGroup) Members() []*oid.ID {
 
 // SetMembers sets strictly ordered list of
 // storage group member objects.
-func (sg *StorageGroup) SetMembers(members []*oid.ID) {
+func (sg *StorageGroup) SetMembers(members []oid.ID) {
 	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
 
 	if members == nil {
@@ -96,11 +96,11 @@ func (sg *StorageGroup) SetMembers(members []*oid.ID) {
 		if cap(mV2) >= ln {
 			mV2 = mV2[:0]
 		} else {
-			mV2 = make([]*refs.ObjectID, 0, ln)
+			mV2 = make([]refs.ObjectID, ln)
 		}
 
 		for i := 0; i < ln; i++ {
-			mV2 = append(mV2, members[i].ToV2())
+			mV2[i] = *members[i].ToV2()
 		}
 	}
 
