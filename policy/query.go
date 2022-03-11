@@ -81,14 +81,14 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) interface{} {
 	pl := new(netmap.PlacementPolicy)
 
 	repStmts := ctx.AllRepStmt()
-	rs := make([]*netmap.Replica, 0, len(repStmts))
+	rs := make([]netmap.Replica, 0, len(repStmts))
 	for _, r := range repStmts {
 		res, ok := r.Accept(p).(*netmap.Replica)
 		if !ok {
 			return nil
 		}
 
-		rs = append(rs, res)
+		rs = append(rs, *res)
 	}
 	pl.SetReplicas(rs...)
 
@@ -101,21 +101,21 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) interface{} {
 	}
 
 	selStmts := ctx.AllSelectStmt()
-	ss := make([]*netmap.Selector, 0, len(selStmts))
+	ss := make([]netmap.Selector, 0, len(selStmts))
 	for _, s := range selStmts {
 		res, ok := s.Accept(p).(*netmap.Selector)
 		if !ok {
 			return nil
 		}
 
-		ss = append(ss, res)
+		ss = append(ss, *res)
 	}
 	pl.SetSelectors(ss...)
 
 	filtStmts := ctx.AllFilterStmt()
-	fs := make([]*netmap.Filter, 0, len(filtStmts))
+	fs := make([]netmap.Filter, 0, len(filtStmts))
 	for _, f := range filtStmts {
-		fs = append(fs, f.Accept(p).(*netmap.Filter))
+		fs = append(fs, *f.Accept(p).(*netmap.Filter))
 	}
 	pl.SetFilters(fs...)
 
@@ -194,8 +194,8 @@ func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) interface
 	op := operationFromString(ctx.GetOp().GetText())
 	f.SetOperation(op)
 
-	f1 := ctx.GetF1().Accept(p).(*netmap.Filter)
-	f2 := ctx.GetF2().Accept(p).(*netmap.Filter)
+	f1 := *ctx.GetF1().Accept(p).(*netmap.Filter)
+	f2 := *ctx.GetF2().Accept(p).(*netmap.Filter)
 
 	// Consider f1=(.. AND ..) AND f2. This can be merged because our AND operation
 	// is of arbitrary arity. ANTLR generates left-associative parse-tree by default.
