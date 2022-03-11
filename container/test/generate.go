@@ -20,7 +20,7 @@ func Attribute() *container.Attribute {
 
 // Attributes returns random container.Attributes.
 func Attributes() container.Attributes {
-	return container.Attributes{Attribute(), Attribute()}
+	return container.Attributes{*Attribute(), *Attribute()}
 }
 
 // Container returns random container.Container.

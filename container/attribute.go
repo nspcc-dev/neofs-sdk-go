@@ -6,7 +6,7 @@ import (
 
 type (
 	Attribute  container.Attribute
-	Attributes []*Attribute
+	Attributes []Attribute
 )
 
 // NewAttribute creates and initializes blank Attribute.
@@ -49,27 +49,27 @@ func (a *Attribute) ToV2() *container.Attribute {
 	return (*container.Attribute)(a)
 }
 
-func NewAttributesFromV2(v []*container.Attribute) Attributes {
+func NewAttributesFromV2(v []container.Attribute) Attributes {
 	if v == nil {
 		return nil
 	}
 
-	attrs := make(Attributes, 0, len(v))
+	attrs := make(Attributes, len(v))
 	for i := range v {
-		attrs = append(attrs, NewAttributeFromV2(v[i]))
+		attrs[i] = *NewAttributeFromV2(&v[i])
 	}
 
 	return attrs
 }
 
-func (a Attributes) ToV2() []*container.Attribute {
+func (a Attributes) ToV2() []container.Attribute {
 	if a == nil {
 		return nil
 	}
 
-	attrs := make([]*container.Attribute, 0, len(a))
+	attrs := make([]container.Attribute, len(a))
 	for i := range a {
-		attrs = append(attrs, a[i].ToV2())
+		attrs[i] = *a[i].ToV2()
 	}
 
 	return attrs
@@ -91,7 +91,7 @@ func setAttribute(c *Container, key, value string) {
 		a = NewAttribute()
 		a.SetKey(key)
 
-		c.SetAttributes(append(c.Attributes(), a))
+		c.SetAttributes(append(c.Attributes(), *a))
 	}
 
 	a.SetValue(value)
@@ -102,7 +102,7 @@ func setAttribute(c *Container, key, value string) {
 // Handler must not be nil.
 func iterateAttributes(c *Container, f func(*Attribute) bool) {
 	for _, a := range c.Attributes() {
-		if f(a) {
+		if f(&a) {
 			return
 		}
 	}

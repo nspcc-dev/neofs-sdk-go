@@ -74,14 +74,11 @@ func TestAttributes(t *testing.T) {
 		vals = []string{"val1", "val2", "val3"}
 	)
 
-	attrs := make(container.Attributes, 0, len(keys))
+	attrs := make(container.Attributes, len(keys))
 
 	for i := range keys {
-		attr := container.NewAttribute()
-		attr.SetKey(keys[i])
-		attr.SetValue(vals[i])
-
-		attrs = append(attrs, attr)
+		attrs[i].SetKey(keys[i])
+		attrs[i].SetValue(vals[i])
 	}
 
 	t.Run("test v2", func(t *testing.T) {
