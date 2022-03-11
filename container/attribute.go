@@ -77,32 +77,34 @@ func (a Attributes) ToV2() []container.Attribute {
 
 // sets value of the attribute by key.
 func setAttribute(c *Container, key, value string) {
-	var a *Attribute
+	attrs := c.Attributes()
+	found := false
 
-	iterateAttributes(c, func(a_ *Attribute) bool {
-		if a_.Key() == key {
-			a = a_
+	for i := range attrs {
+		if attrs[i].Key() == key {
+			attrs[i].SetValue(value)
+			found = true
+			break
 		}
-
-		return a != nil
-	})
-
-	if a == nil {
-		a = NewAttribute()
-		a.SetKey(key)
-
-		c.SetAttributes(append(c.Attributes(), *a))
 	}
 
-	a.SetValue(value)
+	if !found {
+		index := len(attrs)
+		attrs = append(attrs, Attribute{})
+		attrs[index].SetKey(key)
+		attrs[index].SetValue(value)
+	}
+
+	c.SetAttributes(attrs)
 }
 
 // iterates over container attributes. Stops at f's true return.
 //
 // Handler must not be nil.
 func iterateAttributes(c *Container, f func(*Attribute) bool) {
-	for _, a := range c.Attributes() {
-		if f(&a) {
+	attrs := c.Attributes()
+	for i := range attrs {
+		if f(&attrs[i]) {
 			return
 		}
 	}
