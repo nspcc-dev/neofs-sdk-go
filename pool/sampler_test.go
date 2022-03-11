@@ -68,7 +68,6 @@ func TestHealthyReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
-		options = rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}}
 		buffer  = make([]float64, len(weights))
 	)
 
@@ -82,9 +81,10 @@ func TestHealthyReweight(t *testing.T) {
 			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
 	}
 	p := &Pool{
-		innerPools: []*innerPool{inner},
-		cache:      cache,
-		key:        newPrivateKey(t),
+		innerPools:      []*innerPool{inner},
+		cache:           cache,
+		key:             newPrivateKey(t),
+		rebalanceParams: rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}},
 	}
 
 	// check getting first node connection before rebalance happened
@@ -93,7 +93,7 @@ func TestHealthyReweight(t *testing.T) {
 	mock0 := connection0.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 
-	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
+	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 
 	connection1, _, err := p.Connection()
 	require.NoError(t, err)
@@ -105,7 +105,7 @@ func TestHealthyReweight(t *testing.T) {
 	inner.clientPacks[0].client = newNetmapMock(names[0], false)
 	inner.lock.Unlock()
 
-	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
+	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 	inner.sampler = newSampler(weights, rand.NewSource(0))
 
 	connection0, _, err = p.Connection()
@@ -118,7 +118,6 @@ func TestHealthyNoReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
 		names   = []string{"node0", "node1"}
-		options = rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}}
 		buffer  = make([]float64, len(weights))
 	)
 
@@ -130,10 +129,11 @@ func TestHealthyNoReweight(t *testing.T) {
 			{client: newNetmapMock(names[1], false), healthy: true}},
 	}
 	p := &Pool{
-		innerPools: []*innerPool{inner},
+		innerPools:      []*innerPool{inner},
+		rebalanceParams: rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}},
 	}
 
-	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
+	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 
 	inner.lock.RLock()
 	defer inner.lock.RUnlock()

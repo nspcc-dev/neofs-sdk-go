@@ -34,7 +34,9 @@ func TestBuildPoolClientFailed(t *testing.T) {
 		clientBuilder: clientBuilder,
 	}
 
-	_, err := NewPool(context.TODO(), opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(context.Background())
 	require.Error(t, err)
 }
 
@@ -58,7 +60,9 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 		clientBuilder: clientBuilder,
 	}
 
-	_, err := NewPool(context.TODO(), opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(context.Background())
 	require.Error(t, err)
 }
 
@@ -119,7 +123,9 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		},
 	}
 
-	clientPool, err := NewPool(context.TODO(), opts)
+	clientPool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = clientPool.Dial(context.Background())
 	require.NoError(t, err)
 	t.Cleanup(clientPool.Close)
 
@@ -135,7 +141,7 @@ func TestBuildPoolZeroNodes(t *testing.T) {
 	opts := InitParameters{
 		Key: newPrivateKey(t),
 	}
-	_, err := NewPool(context.TODO(), opts)
+	_, err := NewPool(opts)
 	require.Error(t, err)
 }
 
@@ -163,7 +169,9 @@ func TestOneNode(t *testing.T) {
 		clientBuilder: clientBuilder,
 	}
 
-	pool, err := NewPool(context.Background(), opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(context.Background())
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -202,7 +210,9 @@ func TestTwoNodes(t *testing.T) {
 		clientBuilder: clientBuilder,
 	}
 
-	pool, err := NewPool(context.Background(), opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(context.Background())
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -259,7 +269,10 @@ func TestOneOfTwoFailed(t *testing.T) {
 		clientBuilder:           clientBuilder,
 	}
 
-	pool, err := NewPool(context.Background(), opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(context.Background())
+	require.NoError(t, err)
 
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
@@ -296,8 +309,11 @@ func TestTwoFailed(t *testing.T) {
 		clientBuilder:           clientBuilder,
 	}
 
-	pool, err := NewPool(context.Background(), opts)
+	pool, err := NewPool(opts)
 	require.NoError(t, err)
+	err = pool.Dial(context.Background())
+	require.NoError(t, err)
+
 	t.Cleanup(pool.Close)
 
 	time.Sleep(2 * time.Second)
@@ -342,7 +358,9 @@ func TestSessionCache(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := NewPool(ctx, opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(ctx)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -421,7 +439,9 @@ func TestPriority(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := NewPool(ctx, opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(ctx)
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
@@ -475,7 +495,9 @@ func TestSessionCacheWithKey(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	pool, err := NewPool(ctx, opts)
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(ctx)
 	require.NoError(t, err)
 
 	// cache must contain session token
@@ -522,7 +544,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	p, err := NewPool(ctx, opts)
+	p, err := NewPool(opts)
+	require.NoError(t, err)
+	err = p.Dial(ctx)
 	require.NoError(t, err)
 	t.Cleanup(p.Close)
 
