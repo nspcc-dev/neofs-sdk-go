@@ -56,8 +56,8 @@ func generate(withParent bool) *object.Object {
 	x.SetCreationEpoch(222)
 	x.SetPreviousID(oidtest.ID())
 	x.SetParentID(oidtest.ID())
-	x.SetChildren(oidtest.ID(), oidtest.ID())
-	x.SetAttributes(Attribute(), Attribute())
+	x.SetChildren(*oidtest.ID(), *oidtest.ID())
+	x.SetAttributes(*Attribute(), *Attribute())
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
 	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
@@ -87,7 +87,7 @@ func Tombstone() *object.Tombstone {
 
 	x.SetSplitID(SplitID())
 	x.SetExpirationEpoch(13)
-	x.SetMembers([]*oid.ID{oidtest.ID(), oidtest.ID()})
+	x.SetMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
 
 	return x
 }

@@ -172,14 +172,10 @@ func NewSearchFilters() SearchFilters {
 	return SearchFilters{}
 }
 
-func NewSearchFiltersFromV2(v2 []*v2object.SearchFilter) SearchFilters {
+func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
 	filters := make(SearchFilters, 0, len(v2))
 
 	for i := range v2 {
-		if v2[i] == nil {
-			continue
-		}
-
 		filters.AddFilter(
 			v2[i].GetKey(),
 			v2[i].GetValue(),
@@ -236,16 +232,13 @@ func (f *SearchFilters) AddNotificationEpochFilter(epoch uint64) {
 	f.addFilter(MatchStringEqual, 0, v2object.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
 }
 
-func (f SearchFilters) ToV2() []*v2object.SearchFilter {
-	result := make([]*v2object.SearchFilter, 0, len(f))
+func (f SearchFilters) ToV2() []v2object.SearchFilter {
+	result := make([]v2object.SearchFilter, len(f))
 
 	for i := range f {
-		v2 := new(v2object.SearchFilter)
-		v2.SetKey(f[i].header.String())
-		v2.SetValue(f[i].value.String())
-		v2.SetMatchType(f[i].op.ToV2())
-
-		result = append(result, v2)
+		result[i].SetKey(f[i].header.String())
+		result[i].SetValue(f[i].value.String())
+		result[i].SetMatchType(f[i].op.ToV2())
 	}
 
 	return result
@@ -293,7 +286,7 @@ func (f *SearchFilters) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes SearchFilters from protobuf JSON format.
 func (f *SearchFilters) UnmarshalJSON(data []byte) error {
-	var fsV2 []*v2object.SearchFilter
+	var fsV2 []v2object.SearchFilter
 
 	if err := json.Unmarshal(data, &fsV2); err != nil {
 		return err
