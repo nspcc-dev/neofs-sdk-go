@@ -330,6 +330,9 @@ type Pool struct {
 	cache           *sessionCache
 	stokenDuration  uint64
 	stokenThreshold time.Duration
+	rebalanceParams rebalanceParameters
+	clientBuilder   func(endpoint string) (Client, error)
+	logger          *zap.Logger
 }
 
 type innerPool struct {
@@ -347,7 +350,7 @@ const (
 )
 
 // NewPool create connection pool using parameters.
-func NewPool(ctx context.Context, options InitParameters) (*Pool, error) {
+func NewPool(options InitParameters) (*Pool, error) {
 	if options.Key == nil {
 		return nil, fmt.Errorf("missed required parameter 'Key'")
 	}
@@ -364,65 +367,72 @@ func NewPool(ctx context.Context, options InitParameters) (*Pool, error) {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
 
-	ownerID := owner.NewIDFromPublicKey(&options.Key.PublicKey)
+	pool := &Pool{
+		key:             options.Key,
+		owner:           owner.NewIDFromPublicKey(&options.Key.PublicKey),
+		cache:           cache,
+		logger:          options.Logger,
+		stokenDuration:  options.SessionExpirationDuration,
+		stokenThreshold: options.SessionTokenThreshold,
+		rebalanceParams: rebalanceParameters{
+			nodesParams:               nodesParams,
+			nodeRequestTimeout:        options.NodeRequestTimeout,
+			clientRebalanceInterval:   options.ClientRebalanceInterval,
+			sessionExpirationDuration: options.SessionExpirationDuration,
+		},
+		clientBuilder: options.clientBuilder,
+	}
 
-	inner := make([]*innerPool, len(nodesParams))
+	return pool, nil
+}
+
+// Dial establishes a connection to the servers from the NeoFS network.
+// Returns an error describing failure reason. If failed, the Pool
+// SHOULD NOT be used.
+func (p *Pool) Dial(ctx context.Context) error {
+	inner := make([]*innerPool, len(p.rebalanceParams.nodesParams))
 	var atLeastOneHealthy bool
 
-	for i, params := range nodesParams {
+	for i, params := range p.rebalanceParams.nodesParams {
 		clientPacks := make([]*clientPack, len(params.weights))
 		for j, addr := range params.addresses {
-			c, err := options.clientBuilder(addr)
+			c, err := p.clientBuilder(addr)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			var healthy bool
-			cliRes, err := createSessionTokenForDuration(ctx, c, options.SessionExpirationDuration)
-			if err != nil && options.Logger != nil {
-				options.Logger.Warn("failed to create neofs session token for client",
+			cliRes, err := createSessionTokenForDuration(ctx, c, p.rebalanceParams.sessionExpirationDuration)
+			if err != nil && p.logger != nil {
+				p.logger.Warn("failed to create neofs session token for client",
 					zap.String("Address", addr),
 					zap.Error(err))
 			} else if err == nil {
 				healthy, atLeastOneHealthy = true, true
-				st := sessionTokenForOwner(ownerID, cliRes)
-				_ = cache.Put(formCacheKey(addr, options.Key), st)
+				st := sessionTokenForOwner(p.owner, cliRes)
+				_ = p.cache.Put(formCacheKey(addr, p.key), st)
 			}
 			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
 		}
 		source := rand.NewSource(time.Now().UnixNano())
-		sampler := newSampler(params.weights, source)
+		sampl := newSampler(params.weights, source)
 
 		inner[i] = &innerPool{
-			sampler:     sampler,
+			sampler:     sampl,
 			clientPacks: clientPacks,
 		}
 	}
 
 	if !atLeastOneHealthy {
-		return nil, fmt.Errorf("at least one node must be healthy")
+		return fmt.Errorf("at least one node must be healthy")
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	pool := &Pool{
-		innerPools:      inner,
-		key:             options.Key,
-		owner:           ownerID,
-		cancel:          cancel,
-		closedCh:        make(chan struct{}),
-		cache:           cache,
-		stokenDuration:  options.SessionExpirationDuration,
-		stokenThreshold: options.SessionTokenThreshold,
-	}
+	p.cancel = cancel
+	p.closedCh = make(chan struct{})
+	p.innerPools = inner
 
-	rebalanceParams := rebalanceParameters{
-		nodesParams:               nodesParams,
-		nodeRequestTimeout:        options.NodeRequestTimeout,
-		clientRebalanceInterval:   options.ClientRebalanceInterval,
-		sessionExpirationDuration: options.SessionExpirationDuration,
-	}
-
-	go startRebalance(ctx, pool, rebalanceParams)
-	return pool, nil
+	go p.startRebalance(ctx)
+	return nil
 }
 
 func fillDefaultInitParams(params *InitParameters) {
@@ -490,10 +500,10 @@ func adjustNodeParams(nodeParams []NodeParam) ([]*nodesParam, error) {
 	return nodesParams, nil
 }
 
-func startRebalance(ctx context.Context, p *Pool, options rebalanceParameters) {
-	ticker := time.NewTimer(options.clientRebalanceInterval)
-	buffers := make([][]float64, len(options.nodesParams))
-	for i, params := range options.nodesParams {
+func (p *Pool) startRebalance(ctx context.Context) {
+	ticker := time.NewTimer(p.rebalanceParams.clientRebalanceInterval)
+	buffers := make([][]float64, len(p.rebalanceParams.nodesParams))
+	for i, params := range p.rebalanceParams.nodesParams {
 		buffers[i] = make([]float64, len(params.weights))
 	}
 
@@ -503,13 +513,13 @@ func startRebalance(ctx context.Context, p *Pool, options rebalanceParameters) {
 			close(p.closedCh)
 			return
 		case <-ticker.C:
-			updateNodesHealth(ctx, p, options, buffers)
-			ticker.Reset(options.clientRebalanceInterval)
+			p.updateNodesHealth(ctx, buffers)
+			ticker.Reset(p.rebalanceParams.clientRebalanceInterval)
 		}
 	}
 }
 
-func updateNodesHealth(ctx context.Context, p *Pool, options rebalanceParameters, buffers [][]float64) {
+func (p *Pool) updateNodesHealth(ctx context.Context, buffers [][]float64) {
 	wg := sync.WaitGroup{}
 	for i, inner := range p.innerPools {
 		wg.Add(1)
@@ -517,24 +527,25 @@ func updateNodesHealth(ctx context.Context, p *Pool, options rebalanceParameters
 		bufferWeights := buffers[i]
 		go func(i int, innerPool *innerPool) {
 			defer wg.Done()
-			updateInnerNodesHealth(ctx, p, i, options, bufferWeights)
+			p.updateInnerNodesHealth(ctx, i, bufferWeights)
 		}(i, inner)
 	}
 	wg.Wait()
 }
 
-func updateInnerNodesHealth(ctx context.Context, pool *Pool, i int, options rebalanceParameters, bufferWeights []float64) {
-	if i > len(pool.innerPools)-1 {
+func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights []float64) {
+	if i > len(p.innerPools)-1 {
 		return
 	}
-	p := pool.innerPools[i]
+	pool := p.innerPools[i]
+	options := p.rebalanceParams
 
 	healthyChanged := false
 	wg := sync.WaitGroup{}
 
 	var prmEndpoint client.PrmEndpointInfo
 
-	for j, cPack := range p.clientPacks {
+	for j, cPack := range pool.clientPacks {
 		wg.Add(1)
 		go func(j int, cli Client) {
 			defer wg.Done()
@@ -546,9 +557,9 @@ func updateInnerNodesHealth(ctx context.Context, pool *Pool, i int, options reba
 				ok = false
 				bufferWeights[j] = 0
 			}
-			p.lock.RLock()
-			cp := *p.clientPacks[j]
-			p.lock.RUnlock()
+			pool.lock.RLock()
+			cp := *pool.clientPacks[j]
+			pool.lock.RUnlock()
 
 			if ok {
 				bufferWeights[j] = options.nodesParams[i].weights[j]
@@ -558,21 +569,21 @@ func updateInnerNodesHealth(ctx context.Context, pool *Pool, i int, options reba
 						ok = false
 						bufferWeights[j] = 0
 					} else {
-						tkn := pool.newSessionToken(cliRes)
+						tkn := p.newSessionToken(cliRes)
 
-						_ = pool.cache.Put(formCacheKey(cp.address, pool.key), tkn)
+						_ = p.cache.Put(formCacheKey(cp.address, p.key), tkn)
 					}
 				}
 			} else {
-				pool.cache.DeleteByPrefix(cp.address)
+				p.cache.DeleteByPrefix(cp.address)
 			}
 
-			p.lock.Lock()
-			if p.clientPacks[j].healthy != ok {
-				p.clientPacks[j].healthy = ok
+			pool.lock.Lock()
+			if pool.clientPacks[j].healthy != ok {
+				pool.clientPacks[j].healthy = ok
 				healthyChanged = true
 			}
-			p.lock.Unlock()
+			pool.lock.Unlock()
 		}(j, cPack.client)
 	}
 	wg.Wait()
@@ -580,9 +591,9 @@ func updateInnerNodesHealth(ctx context.Context, pool *Pool, i int, options reba
 	if healthyChanged {
 		probabilities := adjustWeights(bufferWeights)
 		source := rand.NewSource(time.Now().UnixNano())
-		p.lock.Lock()
-		p.sampler = newSampler(probabilities, source)
-		p.lock.Unlock()
+		pool.lock.Lock()
+		pool.sampler = newSampler(probabilities, source)
+		pool.lock.Unlock()
 	}
 }
 
