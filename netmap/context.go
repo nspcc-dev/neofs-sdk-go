@@ -18,7 +18,7 @@ type Context struct {
 	Selections map[string][]Nodes
 
 	// numCache stores parsed numeric values.
-	numCache map[*Filter]uint64
+	numCache map[string]uint64
 	// pivot is a seed for HRW.
 	pivot []byte
 	// pivotHash is a saved HRW hash of pivot
@@ -56,7 +56,7 @@ func NewContext(nm *Netmap) *Context {
 		Selectors:  make(map[string]*Selector),
 		Selections: make(map[string][]Nodes),
 
-		numCache:   make(map[*Filter]uint64),
+		numCache:   make(map[string]uint64),
 		aggregator: newMeanIQRAgg,
 		weightFunc: GetDefaultWeightFunc(nm.Nodes),
 		cbf:        defaultCBF,

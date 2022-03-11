@@ -20,7 +20,7 @@ type (
 	}
 
 	// Nodes represents slice of graph leafs.
-	Nodes []*Node
+	Nodes []Node
 )
 
 // NodeState is an enumeration of various states of the NeoFS node.
@@ -110,7 +110,7 @@ func (n Nodes) Hash() uint64 {
 func NodesFromInfo(infos []NodeInfo) Nodes {
 	nodes := make(Nodes, len(infos))
 	for i := range infos {
-		nodes[i] = newNodeV2(i, &infos[i])
+		nodes[i] = *newNodeV2(i, &infos[i])
 	}
 
 	return nodes
@@ -142,7 +142,7 @@ func newNodeV2(index int, ni *NodeInfo) *Node {
 func (n Nodes) Weights(wf weightFunc) []float64 {
 	w := make([]float64, 0, len(n))
 	for i := range n {
-		w = append(w, wf(n[i]))
+		w = append(w, wf(&n[i]))
 	}
 
 	return w
@@ -156,7 +156,7 @@ func (n *Node) Attribute(k string) string {
 // GetBucketWeight computes weight for a Bucket.
 func GetBucketWeight(ns Nodes, a aggregator, wf weightFunc) float64 {
 	for i := range ns {
-		a.Add(wf(ns[i]))
+		a.Add(wf(&ns[i]))
 	}
 
 	return a.Compute()
@@ -355,7 +355,7 @@ func (i *NodeInfo) SetAddresses(v ...string) {
 }
 
 // Attributes returns list of the node attributes.
-func (i *NodeInfo) Attributes() []*NodeAttribute {
+func (i *NodeInfo) Attributes() []NodeAttribute {
 	if i == nil {
 		return nil
 	}
@@ -366,21 +366,21 @@ func (i *NodeInfo) Attributes() []*NodeAttribute {
 		return nil
 	}
 
-	res := make([]*NodeAttribute, 0, len(as))
+	res := make([]NodeAttribute, len(as))
 
-	for i := range as {
-		res = append(res, NewNodeAttributeFromV2(as[i]))
+	for ind := range as {
+		res[ind] = *NewNodeAttributeFromV2(&as[ind])
 	}
 
 	return res
 }
 
 // SetAttributes sets list of the node attributes.
-func (i *NodeInfo) SetAttributes(as ...*NodeAttribute) {
-	asV2 := make([]*netmap.Attribute, 0, len(as))
+func (i *NodeInfo) SetAttributes(as ...NodeAttribute) {
+	asV2 := make([]netmap.Attribute, len(as))
 
-	for i := range as {
-		asV2 = append(asV2, as[i].ToV2())
+	for ind := range as {
+		asV2[ind] = *as[ind].ToV2()
 	}
 
 	(*netmap.NodeInfo)(i).

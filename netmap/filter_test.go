@@ -9,7 +9,7 @@ import (
 )
 
 func TestContext_ProcessFilters(t *testing.T) {
-	fs := []*Filter{
+	fs := []Filter{
 		newFilter("StorageSSD", "Storage", "SSD", OpEQ),
 		newFilter("GoodRating", "Rating", "4", OpGE),
 		newFilter("Main", "", "", OpAND,
@@ -24,17 +24,17 @@ func TestContext_ProcessFilters(t *testing.T) {
 	require.NoError(t, c.processFilters(p))
 	require.Equal(t, 3, len(c.Filters))
 	for _, f := range fs {
-		require.Equal(t, f, c.Filters[f.Name()])
+		require.Equal(t, f, *c.Filters[f.Name()])
 	}
 
-	require.Equal(t, uint64(4), c.numCache[fs[1]])
-	require.Equal(t, uint64(123), c.numCache[fs[2].InnerFilters()[1]])
+	require.Equal(t, uint64(4), c.numCache[fs[1].Value()])
+	require.Equal(t, uint64(123), c.numCache[fs[2].InnerFilters()[1].Value()])
 }
 
 func TestContext_ProcessFiltersInvalid(t *testing.T) {
 	errTestCases := []struct {
 		name   string
-		filter *Filter
+		filter Filter
 		err    error
 	}{
 		{
@@ -69,16 +69,11 @@ func TestContext_ProcessFiltersInvalid(t *testing.T) {
 			newFilter("*", "Rating", "3", OpGE),
 			ErrInvalidFilterName,
 		},
-		{
-			"MissingFilter",
-			nil,
-			ErrMissingField,
-		},
 	}
 	for _, tc := range errTestCases {
 		t.Run(tc.name, func(t *testing.T) {
 			c := NewContext(new(Netmap))
-			p := newPlacementPolicy(1, nil, nil, []*Filter{tc.filter})
+			p := newPlacementPolicy(1, nil, nil, []Filter{tc.filter})
 			err := c.processFilters(p)
 			require.True(t, errors.Is(err, tc.err), "got: %v", err)
 		})
@@ -93,12 +88,12 @@ func TestFilter_MatchSimple_InvalidOp(t *testing.T) {
 
 	f := newFilter("Main", "Rating", "5", OpEQ)
 	c := NewContext(new(Netmap))
-	p := newPlacementPolicy(1, nil, nil, []*Filter{f})
+	p := newPlacementPolicy(1, nil, nil, []Filter{f})
 	require.NoError(t, c.processFilters(p))
 
 	// just for the coverage
 	f.SetOperation(0)
-	require.False(t, c.match(f, b))
+	require.False(t, c.match(&f, b))
 }
 
 func testFilter() *Filter {
@@ -174,11 +169,11 @@ func TestFilter_Operation(t *testing.T) {
 func TestFilter_InnerFilters(t *testing.T) {
 	f := NewFilter()
 
-	f1, f2 := testFilter(), testFilter()
+	f1, f2 := *testFilter(), *testFilter()
 
 	f.SetInnerFilters(f1, f2)
 
-	require.Equal(t, []*Filter{f1, f2}, f.InnerFilters())
+	require.Equal(t, []Filter{f1, f2}, f.InnerFilters())
 }
 
 func TestFilterEncoding(t *testing.T) {
@@ -190,7 +185,7 @@ func TestFilterEncoding(t *testing.T) {
 		data, err := f.Marshal()
 		require.NoError(t, err)
 
-		f2 := NewFilter()
+		f2 := *NewFilter()
 		require.NoError(t, f2.Unmarshal(data))
 
 		require.Equal(t, f, f2)
@@ -200,7 +195,7 @@ func TestFilterEncoding(t *testing.T) {
 		data, err := f.MarshalJSON()
 		require.NoError(t, err)
 
-		f2 := NewFilter()
+		f2 := *NewFilter()
 		require.NoError(t, f2.UnmarshalJSON(data))
 
 		require.Equal(t, f, f2)

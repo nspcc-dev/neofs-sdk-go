@@ -11,7 +11,7 @@ func filter(withInner bool) *netmap.Filter {
 	x.SetOperation(netmap.OpAND)
 
 	if withInner {
-		x.SetInnerFilters(filter(false), filter(false))
+		x.SetInnerFilters(*filter(false), *filter(false))
 	}
 
 	return x
@@ -50,9 +50,9 @@ func PlacementPolicy() *netmap.PlacementPolicy {
 	x := netmap.NewPlacementPolicy()
 
 	x.SetContainerBackupFactor(9)
-	x.SetFilters(Filter(), Filter())
-	x.SetReplicas(Replica(), Replica())
-	x.SetSelectors(Selector(), Selector())
+	x.SetFilters(*Filter(), *Filter())
+	x.SetReplicas(*Replica(), *Replica())
+	x.SetSelectors(*Selector(), *Selector())
 
 	return x
 }
@@ -72,8 +72,8 @@ func NetworkConfig() *netmap.NetworkConfig {
 	x := netmap.NewNetworkConfig()
 
 	x.SetParameters(
-		NetworkParameter(),
-		NetworkParameter(),
+		*NetworkParameter(),
+		*NetworkParameter(),
 	)
 
 	return x

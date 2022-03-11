@@ -46,7 +46,7 @@ func (p *PlacementPolicy) SetSubnetID(subnet *subnetid.ID) {
 }
 
 // Replicas returns list of object replica descriptors.
-func (p *PlacementPolicy) Replicas() []*Replica {
+func (p *PlacementPolicy) Replicas() []Replica {
 	rs := (*netmap.PlacementPolicy)(p).
 		GetReplicas()
 
@@ -54,24 +54,24 @@ func (p *PlacementPolicy) Replicas() []*Replica {
 		return nil
 	}
 
-	res := make([]*Replica, 0, len(rs))
+	res := make([]Replica, len(rs))
 
 	for i := range rs {
-		res = append(res, NewReplicaFromV2(rs[i]))
+		res[i] = *NewReplicaFromV2(&rs[i])
 	}
 
 	return res
 }
 
 // SetReplicas sets list of object replica descriptors.
-func (p *PlacementPolicy) SetReplicas(rs ...*Replica) {
-	var rsV2 []*netmap.Replica
+func (p *PlacementPolicy) SetReplicas(rs ...Replica) {
+	var rsV2 []netmap.Replica
 
 	if rs != nil {
-		rsV2 = make([]*netmap.Replica, 0, len(rs))
+		rsV2 = make([]netmap.Replica, len(rs))
 
 		for i := range rs {
-			rsV2 = append(rsV2, rs[i].ToV2())
+			rsV2[i] = *rs[i].ToV2()
 		}
 	}
 
@@ -91,7 +91,7 @@ func (p *PlacementPolicy) SetContainerBackupFactor(f uint32) {
 }
 
 // Selector returns set of selectors to form the container's nodes subset.
-func (p *PlacementPolicy) Selectors() []*Selector {
+func (p *PlacementPolicy) Selectors() []Selector {
 	rs := (*netmap.PlacementPolicy)(p).
 		GetSelectors()
 
@@ -99,24 +99,24 @@ func (p *PlacementPolicy) Selectors() []*Selector {
 		return nil
 	}
 
-	res := make([]*Selector, 0, len(rs))
+	res := make([]Selector, len(rs))
 
 	for i := range rs {
-		res = append(res, NewSelectorFromV2(rs[i]))
+		res[i] = *NewSelectorFromV2(&rs[i])
 	}
 
 	return res
 }
 
 // SetSelectors sets set of selectors to form the container's nodes subset.
-func (p *PlacementPolicy) SetSelectors(ss ...*Selector) {
-	var ssV2 []*netmap.Selector
+func (p *PlacementPolicy) SetSelectors(ss ...Selector) {
+	var ssV2 []netmap.Selector
 
 	if ss != nil {
-		ssV2 = make([]*netmap.Selector, 0, len(ss))
+		ssV2 = make([]netmap.Selector, len(ss))
 
 		for i := range ss {
-			ssV2 = append(ssV2, ss[i].ToV2())
+			ssV2[i] = *ss[i].ToV2()
 		}
 	}
 
@@ -124,7 +124,7 @@ func (p *PlacementPolicy) SetSelectors(ss ...*Selector) {
 }
 
 // Filters returns list of named filters to reference in selectors.
-func (p *PlacementPolicy) Filters() []*Filter {
+func (p *PlacementPolicy) Filters() []Filter {
 	return filtersFromV2(
 		(*netmap.PlacementPolicy)(p).
 			GetFilters(),
@@ -132,7 +132,7 @@ func (p *PlacementPolicy) Filters() []*Filter {
 }
 
 // SetFilters sets list of named filters to reference in selectors.
-func (p *PlacementPolicy) SetFilters(fs ...*Filter) {
+func (p *PlacementPolicy) SetFilters(fs ...Filter) {
 	(*netmap.PlacementPolicy)(p).
 		SetFilters(filtersToV2(fs))
 }
