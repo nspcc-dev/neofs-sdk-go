@@ -165,14 +165,14 @@ type Pool struct {
 	owner           *owner.ID
 	cancel          context.CancelFunc
 	closedCh        chan struct{}
-	cache           *SessionCache
+	cache           *sessionCache
 	stokenDuration  uint64
 	stokenThreshold time.Duration
 }
 
 type innerPool struct {
 	lock        sync.RWMutex
-	sampler     *Sampler
+	sampler     *sampler
 	clientPacks []*clientPack
 }
 
@@ -197,7 +197,7 @@ func NewPool(ctx context.Context, options InitParameters) (*Pool, error) {
 
 	fillDefaultInitParams(&options)
 
-	cache, err := NewCache()
+	cache, err := newCache()
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
@@ -228,7 +228,7 @@ func NewPool(ctx context.Context, options InitParameters) (*Pool, error) {
 			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
 		}
 		source := rand.NewSource(time.Now().UnixNano())
-		sampler := NewSampler(params.weights, source)
+		sampler := newSampler(params.weights, source)
 
 		inner[i] = &innerPool{
 			sampler:     sampler,
@@ -419,7 +419,7 @@ func updateInnerNodesHealth(ctx context.Context, pool *Pool, i int, options reba
 		probabilities := adjustWeights(bufferWeights)
 		source := rand.NewSource(time.Now().UnixNano())
 		p.lock.Lock()
-		p.sampler = NewSampler(probabilities, source)
+		p.sampler = newSampler(probabilities, source)
 		p.lock.Unlock()
 	}
 }

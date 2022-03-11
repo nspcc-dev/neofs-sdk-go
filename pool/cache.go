@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
-type SessionCache struct {
+type sessionCache struct {
 	cache *lru.Cache
 }
 
@@ -17,16 +17,16 @@ type cacheValue struct {
 	token *session.Token
 }
 
-func NewCache() (*SessionCache, error) {
+func newCache() (*sessionCache, error) {
 	cache, err := lru.New(100)
 	if err != nil {
 		return nil, err
 	}
 
-	return &SessionCache{cache: cache}, nil
+	return &sessionCache{cache: cache}, nil
 }
 
-func (c *SessionCache) Get(key string) *session.Token {
+func (c *sessionCache) Get(key string) *session.Token {
 	valueRaw, ok := c.cache.Get(key)
 	if !ok {
 		return nil
@@ -38,7 +38,7 @@ func (c *SessionCache) Get(key string) *session.Token {
 	return value.token
 }
 
-func (c *SessionCache) GetAccessTime(key string) (time.Time, bool) {
+func (c *sessionCache) GetAccessTime(key string) (time.Time, bool) {
 	valueRaw, ok := c.cache.Peek(key)
 	if !ok {
 		return time.Time{}, false
@@ -47,14 +47,14 @@ func (c *SessionCache) GetAccessTime(key string) (time.Time, bool) {
 	return valueRaw.(*cacheValue).atime, true
 }
 
-func (c *SessionCache) Put(key string, token *session.Token) bool {
+func (c *sessionCache) Put(key string, token *session.Token) bool {
 	return c.cache.Add(key, &cacheValue{
 		atime: time.Now(),
 		token: token,
 	})
 }
 
-func (c *SessionCache) DeleteByPrefix(prefix string) {
+func (c *sessionCache) DeleteByPrefix(prefix string) {
 	for _, key := range c.cache.Keys() {
 		if strings.HasPrefix(key.(string), prefix) {
 			c.cache.Remove(key)

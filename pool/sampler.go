@@ -2,19 +2,19 @@ package pool
 
 import "math/rand"
 
-// Sampler implements weighted random number generation using Vose's Alias
+// sampler implements weighted random number generation using Vose's Alias
 // Method (https://www.keithschwarz.com/darts-dice-coins/).
-type Sampler struct {
+type sampler struct {
 	randomGenerator *rand.Rand
 	probabilities   []float64
 	alias           []int
 }
 
-// NewSampler creates new Sampler with a given set of probabilities using
-// given source of randomness. Created Sampler will produce numbers from
+// newSampler creates new sampler with a given set of probabilities using
+// given source of randomness. Created sampler will produce numbers from
 // 0 to len(probabilities).
-func NewSampler(probabilities []float64, source rand.Source) *Sampler {
-	sampler := &Sampler{}
+func newSampler(probabilities []float64, source rand.Source) *sampler {
+	sampler := &sampler{}
 	var (
 		small workList
 		large workList
@@ -57,8 +57,8 @@ func NewSampler(probabilities []float64, source rand.Source) *Sampler {
 	return sampler
 }
 
-// Next returns the next (not so) random number from Sampler.
-func (g *Sampler) Next() int {
+// Next returns the next (not so) random number from sampler.
+func (g *sampler) Next() int {
 	n := len(g.alias)
 	i := g.randomGenerator.Intn(n)
 	if g.randomGenerator.Float64() < g.probabilities[i] {

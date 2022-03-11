@@ -32,7 +32,7 @@ func TestSamplerStability(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		sampler := NewSampler(tc.probabilities, rand.NewSource(0))
+		sampler := newSampler(tc.probabilities, rand.NewSource(0))
 		res := make([]int, len(tc.probabilities))
 		for i := 0; i < COUNT; i++ {
 			res[sampler.Next()]++
@@ -72,11 +72,11 @@ func TestHealthyReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	cache, err := NewCache()
+	cache, err := newCache()
 	require.NoError(t, err)
 
 	inner := &innerPool{
-		sampler: NewSampler(weights, rand.NewSource(0)),
+		sampler: newSampler(weights, rand.NewSource(0)),
 		clientPacks: []*clientPack{
 			{client: newNetmapMock(names[0], true), healthy: true, address: "address0"},
 			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
@@ -106,7 +106,7 @@ func TestHealthyReweight(t *testing.T) {
 	inner.lock.Unlock()
 
 	updateInnerNodesHealth(context.TODO(), p, 0, options, buffer)
-	inner.sampler = NewSampler(weights, rand.NewSource(0))
+	inner.sampler = newSampler(weights, rand.NewSource(0))
 
 	connection0, _, err = p.Connection()
 	require.NoError(t, err)
@@ -122,7 +122,7 @@ func TestHealthyNoReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	sampler := NewSampler(weights, rand.NewSource(0))
+	sampler := newSampler(weights, rand.NewSource(0))
 	inner := &innerPool{
 		sampler: sampler,
 		clientPacks: []*clientPack{
