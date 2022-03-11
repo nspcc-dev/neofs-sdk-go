@@ -81,10 +81,9 @@ func WithPolicy(policy *netmap.PlacementPolicy) Option {
 
 func WithAttribute(key, value string) Option {
 	return func(option *containerOptions) {
-		attr := NewAttribute()
-		attr.SetKey(key)
-		attr.SetValue(value)
-
-		option.attributes = append(option.attributes, attr)
+		index := len(option.attributes)
+		option.attributes = append(option.attributes, Attribute{})
+		option.attributes[index].SetKey(key)
+		option.attributes[index].SetValue(value)
 	}
 }
