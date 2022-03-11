@@ -1110,7 +1110,7 @@ func (p *Pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption
 	return res.Container(), nil
 }
 
-func (p *Pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]*cid.ID, error) {
+func (p *Pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]cid.ID, error) {
 	cfg := cfgFromOpts(opts...)
 	cp, err := p.conn(ctx, cfg)
 	if err != nil {
