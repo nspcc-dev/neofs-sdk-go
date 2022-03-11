@@ -41,12 +41,12 @@ func (x *Trust) ToV2() *reputation.Trust {
 
 // TrustsToV2 converts slice of Trust's to slice of
 // NeoFS API v2 reputation.Trust message structures.
-func TrustsToV2(xs []*Trust) (res []*reputation.Trust) {
+func TrustsToV2(xs []Trust) (res []reputation.Trust) {
 	if xs != nil {
-		res = make([]*reputation.Trust, 0, len(xs))
+		res = make([]reputation.Trust, len(xs))
 
 		for i := range xs {
-			res = append(res, xs[i].ToV2())
+			res[i] = *xs[i].ToV2()
 		}
 	}
 
