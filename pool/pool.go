@@ -103,60 +103,222 @@ type clientPack struct {
 	address string
 }
 
-type CallOption func(config *callConfig)
-
-type callConfig struct {
-	useDefaultSession bool
-	verb              sessionv2.ObjectSessionVerb
-	addr              *address.Address
+type prmCommon struct {
+	defaultSession bool
+	verb           sessionv2.ObjectSessionVerb
+	addr           *address.Address
 
 	key    *ecdsa.PrivateKey
 	btoken *token.BearerToken
 	stoken *session.Token
 }
 
-func WithKey(key *ecdsa.PrivateKey) CallOption {
-	return func(config *callConfig) {
-		config.key = key
-	}
+func (x *prmCommon) useDefaultSession() {
+	x.defaultSession = true
 }
 
-func WithBearer(token *token.BearerToken) CallOption {
-	return func(config *callConfig) {
-		config.btoken = token
-	}
+func (x *prmCommon) useAddress(addr *address.Address) {
+	x.addr = addr
 }
 
-func WithSession(token *session.Token) CallOption {
-	return func(config *callConfig) {
-		config.stoken = token
-	}
+func (x *prmCommon) useVerb(verb sessionv2.ObjectSessionVerb) {
+	x.verb = verb
 }
 
-func useDefaultSession() CallOption {
-	return func(config *callConfig) {
-		config.useDefaultSession = true
-	}
+// UseKey specifies private key to sign the requests.
+// If key is not provided, then Pool default key is used.
+func (x *prmCommon) UseKey(key *ecdsa.PrivateKey) {
+	x.key = key
 }
 
-func useAddress(addr *address.Address) CallOption {
-	return func(config *callConfig) {
-		config.addr = addr
-	}
+// UseBearer attaches bearer token to be used for the operation.
+func (x *prmCommon) UseBearer(token *token.BearerToken) {
+	x.btoken = token
 }
 
-func useVerb(verb sessionv2.ObjectSessionVerb) CallOption {
-	return func(config *callConfig) {
-		config.verb = verb
-	}
+// UseSession specifies session within which object should be read.
+func (x *prmCommon) UseSession(token *session.Token) {
+	x.stoken = token
 }
 
-func cfgFromOpts(opts ...CallOption) *callConfig {
-	var cfg = new(callConfig)
-	for _, opt := range opts {
-		opt(cfg)
-	}
-	return cfg
+// PrmObjectPut groups parameters of PutObject operation.
+type PrmObjectPut struct {
+	prmCommon
+
+	hdr object.Object
+
+	payload io.Reader
+}
+
+// SetHeader specifies header of the object.
+func (x *PrmObjectPut) SetHeader(hdr object.Object) {
+	x.hdr = hdr
+}
+
+// SetPayload specifies payload of the object.
+func (x *PrmObjectPut) SetPayload(payload io.Reader) {
+	x.payload = payload
+}
+
+// PrmObjectDelete groups parameters of DeleteObject operation.
+type PrmObjectDelete struct {
+	prmCommon
+
+	addr address.Address
+}
+
+// SetAddress specifies NeoFS address of the object.
+func (x *PrmObjectDelete) SetAddress(addr address.Address) {
+	x.addr = addr
+}
+
+// PrmObjectGet groups parameters of GetObject operation.
+type PrmObjectGet struct {
+	prmCommon
+
+	addr address.Address
+}
+
+// SetAddress specifies NeoFS address of the object.
+func (x *PrmObjectGet) SetAddress(addr address.Address) {
+	x.addr = addr
+}
+
+// PrmObjectHead groups parameters of HeadObject operation.
+type PrmObjectHead struct {
+	prmCommon
+
+	addr address.Address
+}
+
+// SetAddress specifies NeoFS address of the object.
+func (x *PrmObjectHead) SetAddress(addr address.Address) {
+	x.addr = addr
+}
+
+// PrmObjectRange groups parameters of RangeObject operation.
+type PrmObjectRange struct {
+	prmCommon
+
+	addr    address.Address
+	off, ln uint64
+}
+
+// SetAddress specifies NeoFS address of the object.
+func (x *PrmObjectRange) SetAddress(addr address.Address) {
+	x.addr = addr
+}
+
+// SetOffset sets offset of the payload range to be read.
+func (x *PrmObjectRange) SetOffset(offset uint64) {
+	x.off = offset
+}
+
+// SetLength sets length of the payload range to be read.
+func (x *PrmObjectRange) SetLength(length uint64) {
+	x.ln = length
+}
+
+// PrmObjectSearch groups parameters of SearchObjects operation.
+type PrmObjectSearch struct {
+	prmCommon
+
+	cnrID   cid.ID
+	filters object.SearchFilters
+}
+
+// SetContainerID specifies the container in which to look for objects.
+func (x *PrmObjectSearch) SetContainerID(cnrID cid.ID) {
+	x.cnrID = cnrID
+}
+
+// SetFilters specifies filters by which to select objects.
+func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
+	x.filters = filters
+}
+
+// PrmContainerPut groups parameters of PutContainer operation.
+type PrmContainerPut struct {
+	prmCommon
+
+	cnr *container.Container
+}
+
+// SetContainer specifies structured information about new NeoFS container.
+func (x *PrmContainerPut) SetContainer(cnr *container.Container) {
+	x.cnr = cnr
+}
+
+// PrmContainerGet groups parameters of GetContainer operation.
+type PrmContainerGet struct {
+	prmCommon
+
+	cnrID *cid.ID
+}
+
+// SetContainerID specifies identifier of the container to be read.
+func (x *PrmContainerGet) SetContainerID(cnrID *cid.ID) {
+	x.cnrID = cnrID
+}
+
+// PrmContainerList groups parameters of ListContainers operation.
+type PrmContainerList struct {
+	prmCommon
+
+	ownerID *owner.ID
+}
+
+// SetOwnerID specifies identifier of the NeoFS account to list the containers.
+func (x *PrmContainerList) SetOwnerID(ownerID *owner.ID) {
+	x.ownerID = ownerID
+}
+
+// PrmContainerDelete groups parameters of DeleteContainer operation.
+type PrmContainerDelete struct {
+	prmCommon
+
+	cnrID *cid.ID
+}
+
+// SetContainerID specifies identifier of the NeoFS container to be removed.
+func (x *PrmContainerDelete) SetContainerID(cnrID *cid.ID) {
+	x.cnrID = cnrID
+}
+
+// PrmContainerEACL groups parameters of GetEACL operation.
+type PrmContainerEACL struct {
+	prmCommon
+
+	cnrID *cid.ID
+}
+
+// SetContainerID specifies identifier of the NeoFS container to read the eACL table.
+func (x *PrmContainerEACL) SetContainerID(cnrID *cid.ID) {
+	x.cnrID = cnrID
+}
+
+// PrmContainerSetEACL groups parameters of SetEACL operation.
+type PrmContainerSetEACL struct {
+	prmCommon
+
+	table *eacl.Table
+}
+
+// SetTable specifies eACL table structure to be set for the container.
+func (x *PrmContainerSetEACL) SetTable(table *eacl.Table) {
+	x.table = table
+}
+
+// PrmBalanceGet groups parameters of Balance operation.
+type PrmBalanceGet struct {
+	prmCommon
+
+	ownerID *owner.ID
+}
+
+// SetOwnerID specifies identifier of the NeoFS account for which the balance is requested.
+func (x *PrmBalanceGet) SetOwnerID(ownerID *owner.ID) {
+	x.ownerID = ownerID
 }
 
 type Pool struct {
@@ -490,7 +652,7 @@ func formCacheKey(address string, key *ecdsa.PrivateKey) string {
 	return address + k.String()
 }
 
-func (p *Pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, error) {
+func (p *Pool) conn(ctx context.Context, cfg prmCommon) (*clientPack, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return nil, err
@@ -502,7 +664,7 @@ func (p *Pool) conn(ctx context.Context, cfg *callConfig) (*clientPack, error) {
 	}
 
 	sessionToken := cfg.stoken
-	if sessionToken == nil && cfg.useDefaultSession {
+	if sessionToken == nil && cfg.defaultSession {
 		cacheKey := formCacheKey(cp.address, key)
 		sessionToken = p.cache.Get(cacheKey)
 		if sessionToken == nil {
@@ -555,7 +717,7 @@ func createSessionTokenForDuration(ctx context.Context, c Client, dur uint64) (*
 	return c.SessionCreate(ctx, prm)
 }
 
-func (p *Pool) removeSessionTokenAfterThreshold(cfg *callConfig) error {
+func (p *Pool) removeSessionTokenAfterThreshold(cfg prmCommon) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err
@@ -592,7 +754,7 @@ type callContext struct {
 	sessionContext *session.ObjectContext
 }
 
-func (p *Pool) initCallContext(ctx *callContext, cfg *callConfig) error {
+func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err
@@ -612,7 +774,7 @@ func (p *Pool) initCallContext(ctx *callContext, cfg *callConfig) error {
 	}
 
 	// note that we don't override session provided by the caller
-	ctx.sessionDefault = cfg.stoken == nil && cfg.useDefaultSession
+	ctx.sessionDefault = cfg.stoken == nil && cfg.defaultSession
 	if ctx.sessionDefault {
 		ctx.sessionContext = session.NewObjectContext()
 		ctx.sessionContext.ToV2().SetVerb(cfg.verb)
@@ -628,7 +790,7 @@ type callContextWithRetry struct {
 	noRetry bool
 }
 
-func (p *Pool) initCallContextWithRetry(ctx *callContextWithRetry, cfg *callConfig) error {
+func (p *Pool) initCallContextWithRetry(ctx *callContextWithRetry, cfg prmCommon) error {
 	err := p.initCallContext(&ctx.callContext, cfg)
 	if err != nil {
 		return err
@@ -696,11 +858,10 @@ func (p *Pool) callWithRetry(ctx *callContextWithRetry, f func() error) error {
 	return err
 }
 
-func (p *Pool) PutObject(ctx context.Context, hdr object.Object, payload io.Reader, opts ...CallOption) (*oid.ID, error) {
-	cfg := cfgFromOpts(append(opts,
-		useDefaultSession(),
-		useVerb(sessionv2.ObjectVerbPut),
-		useAddress(newAddressFromCnrID(hdr.ContainerID())))...)
+func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
+	prm.useDefaultSession()
+	prm.useVerb(sessionv2.ObjectVerbPut)
+	prm.useAddress(newAddressFromCnrID(prm.hdr.ContainerID()))
 
 	// Put object is different from other object service methods. Put request
 	// can't be resent in case of session token failures (i.e. session token is
@@ -712,7 +873,7 @@ func (p *Pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 	// by checking when the session token was accessed for the last time. If it
 	// hits a threshold, session token is removed from cache for a new one to be
 	// issued.
-	err := p.removeSessionTokenAfterThreshold(cfg)
+	err := p.removeSessionTokenAfterThreshold(prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
@@ -721,14 +882,14 @@ func (p *Pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 
 	ctxCall.Context = ctx
 
-	err = p.initCallContext(&ctxCall, cfg)
+	err = p.initCallContext(&ctxCall, prm.prmCommon)
 	if err != nil {
 		return nil, fmt.Errorf("init call context")
 	}
 
-	var prm client.PrmObjectPutInit
+	var cliPrm client.PrmObjectPutInit
 
-	wObj, err := ctxCall.client.ObjectPutInit(ctx, prm)
+	wObj, err := ctxCall.client.ObjectPutInit(ctx, cliPrm)
 	if err != nil {
 		return nil, fmt.Errorf("init writing on API client: %w", err)
 	}
@@ -743,23 +904,23 @@ func (p *Pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 
 	wObj.UseKey(*ctxCall.key)
 
-	if cfg.btoken != nil {
-		wObj.WithBearerToken(*cfg.btoken)
+	if prm.btoken != nil {
+		wObj.WithBearerToken(*prm.btoken)
 	}
 
-	if wObj.WriteHeader(hdr) {
-		sz := hdr.PayloadSize()
+	if wObj.WriteHeader(prm.hdr) {
+		sz := prm.hdr.PayloadSize()
 
-		if data := hdr.Payload(); len(data) > 0 {
-			if payload != nil {
-				payload = io.MultiReader(bytes.NewReader(data), payload)
+		if data := prm.hdr.Payload(); len(data) > 0 {
+			if prm.payload != nil {
+				prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
 			} else {
-				payload = bytes.NewReader(data)
+				prm.payload = bytes.NewReader(data)
 				sz = uint64(len(data))
 			}
 		}
 
-		if payload != nil {
+		if prm.payload != nil {
 			const defaultBufferSizePut = 3 << 20 // configure?
 
 			if sz == 0 || sz > defaultBufferSizePut {
@@ -771,7 +932,7 @@ func (p *Pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 			var n int
 
 			for {
-				n, err = payload.Read(buf)
+				n, err = prm.payload.Read(buf)
 				if n > 0 {
 					if !wObj.WritePayloadChunk(buf[:n]) {
 						break
@@ -805,36 +966,35 @@ func (p *Pool) PutObject(ctx context.Context, hdr object.Object, payload io.Read
 	return &id, nil
 }
 
-func (p *Pool) DeleteObject(ctx context.Context, addr address.Address, opts ...CallOption) error {
-	cfg := cfgFromOpts(append(opts,
-		useDefaultSession(),
-		useVerb(sessionv2.ObjectVerbDelete),
-		useAddress(&addr))...)
+func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
+	prm.useDefaultSession()
+	prm.useVerb(sessionv2.ObjectVerbDelete)
+	prm.useAddress(&prm.addr)
 
-	var prm client.PrmObjectDelete
+	var cliPrm client.PrmObjectDelete
 
 	var cc callContextWithRetry
 
 	cc.Context = ctx
-	cc.sessionTarget = prm.WithinSession
+	cc.sessionTarget = cliPrm.WithinSession
 
-	err := p.initCallContextWithRetry(&cc, cfg)
+	err := p.initCallContextWithRetry(&cc, prm.prmCommon)
 	if err != nil {
 		return err
 	}
 
-	if cnr := addr.ContainerID(); cnr != nil {
-		prm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); cnr != nil {
+		cliPrm.FromContainer(*cnr)
 	}
 
-	if obj := addr.ObjectID(); obj != nil {
-		prm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); obj != nil {
+		cliPrm.ByID(*obj)
 	}
 
-	prm.UseKey(*cc.key)
+	cliPrm.UseKey(*cc.key)
 
 	return p.callWithRetry(&cc, func() error {
-		_, err := cc.client.ObjectDelete(ctx, prm)
+		_, err := cc.client.ObjectDelete(ctx, cliPrm)
 		if err != nil {
 			return fmt.Errorf("remove object via client: %w", err)
 		}
@@ -860,36 +1020,35 @@ type ResGetObject struct {
 	Payload io.ReadCloser
 }
 
-func (p *Pool) GetObject(ctx context.Context, addr address.Address, opts ...CallOption) (*ResGetObject, error) {
-	cfg := cfgFromOpts(append(opts,
-		useDefaultSession(),
-		useVerb(sessionv2.ObjectVerbGet),
-		useAddress(&addr))...)
+func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
+	prm.useDefaultSession()
+	prm.useVerb(sessionv2.ObjectVerbGet)
+	prm.useAddress(&prm.addr)
 
-	var prm client.PrmObjectGet
+	var cliPrm client.PrmObjectGet
 
 	var cc callContextWithRetry
 
 	cc.Context = ctx
-	cc.sessionTarget = prm.WithinSession
+	cc.sessionTarget = cliPrm.WithinSession
 
-	err := p.initCallContextWithRetry(&cc, cfg)
+	err := p.initCallContextWithRetry(&cc, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
-	if cnr := addr.ContainerID(); cnr != nil {
-		prm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); cnr != nil {
+		cliPrm.FromContainer(*cnr)
 	}
 
-	if obj := addr.ObjectID(); obj != nil {
-		prm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); obj != nil {
+		cliPrm.ByID(*obj)
 	}
 
 	var res ResGetObject
 
 	err = p.callWithRetry(&cc, func() error {
-		rObj, err := cc.client.ObjectGetInit(ctx, prm)
+		rObj, err := cc.client.ObjectGetInit(ctx, cliPrm)
 		if err != nil {
 			return fmt.Errorf("init object reading on client: %w", err)
 		}
@@ -912,38 +1071,37 @@ func (p *Pool) GetObject(ctx context.Context, addr address.Address, opts ...Call
 	return &res, nil
 }
 
-func (p *Pool) HeadObject(ctx context.Context, addr address.Address, opts ...CallOption) (*object.Object, error) {
-	cfg := cfgFromOpts(append(opts,
-		useDefaultSession(),
-		useVerb(sessionv2.ObjectVerbHead),
-		useAddress(&addr))...)
+func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
+	prm.useDefaultSession()
+	prm.useVerb(sessionv2.ObjectVerbHead)
+	prm.useAddress(&prm.addr)
 
-	var prm client.PrmObjectHead
+	var cliPrm client.PrmObjectHead
 
 	var cc callContextWithRetry
 
 	cc.Context = ctx
-	cc.sessionTarget = prm.WithinSession
+	cc.sessionTarget = cliPrm.WithinSession
 
-	err := p.initCallContextWithRetry(&cc, cfg)
+	err := p.initCallContextWithRetry(&cc, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
-	if cnr := addr.ContainerID(); cnr != nil {
-		prm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); cnr != nil {
+		cliPrm.FromContainer(*cnr)
 	}
 
-	if obj := addr.ObjectID(); obj != nil {
-		prm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); obj != nil {
+		cliPrm.ByID(*obj)
 	}
 
-	prm.UseKey(*cc.key)
+	cliPrm.UseKey(*cc.key)
 
 	var obj object.Object
 
 	err = p.callWithRetry(&cc, func() error {
-		res, err := cc.client.ObjectHead(ctx, prm)
+		res, err := cc.client.ObjectHead(ctx, cliPrm)
 		if err != nil {
 			return fmt.Errorf("read object header via client: %w", err)
 		}
@@ -974,33 +1132,32 @@ func (x *ResObjectRange) Close() error {
 	return err
 }
 
-func (p *Pool) ObjectRange(ctx context.Context, addr address.Address, off, ln uint64, opts ...CallOption) (*ResObjectRange, error) {
-	cfg := cfgFromOpts(append(opts,
-		useDefaultSession(),
-		useVerb(sessionv2.ObjectVerbRange),
-		useAddress(&addr))...)
+func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
+	prm.useDefaultSession()
+	prm.useVerb(sessionv2.ObjectVerbRange)
+	prm.useAddress(&prm.addr)
 
-	var prm client.PrmObjectRange
+	var cliPrm client.PrmObjectRange
 
-	prm.SetOffset(off)
-	prm.SetLength(ln)
+	cliPrm.SetOffset(prm.off)
+	cliPrm.SetLength(prm.ln)
 
 	var cc callContextWithRetry
 
 	cc.Context = ctx
-	cc.sessionTarget = prm.WithinSession
+	cc.sessionTarget = cliPrm.WithinSession
 
-	err := p.initCallContextWithRetry(&cc, cfg)
+	err := p.initCallContextWithRetry(&cc, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
-	if cnr := addr.ContainerID(); cnr != nil {
-		prm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); cnr != nil {
+		cliPrm.FromContainer(*cnr)
 	}
 
-	if obj := addr.ObjectID(); obj != nil {
-		prm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); obj != nil {
+		cliPrm.ByID(*obj)
 	}
 
 	var res ResObjectRange
@@ -1008,7 +1165,7 @@ func (p *Pool) ObjectRange(ctx context.Context, addr address.Address, off, ln ui
 	err = p.callWithRetry(&cc, func() error {
 		var err error
 
-		res.payload, err = cc.client.ObjectRangeInit(ctx, prm)
+		res.payload, err = cc.client.ObjectRangeInit(ctx, cliPrm)
 		if err != nil {
 			return fmt.Errorf("init payload range reading on client: %w", err)
 		}
@@ -1050,23 +1207,22 @@ func (x *ResObjectSearch) Close() {
 	_, _ = x.r.Close()
 }
 
-func (p *Pool) SearchObjects(ctx context.Context, idCnr cid.ID, filters object.SearchFilters, opts ...CallOption) (*ResObjectSearch, error) {
-	cfg := cfgFromOpts(append(opts,
-		useDefaultSession(),
-		useVerb(sessionv2.ObjectVerbSearch),
-		useAddress(newAddressFromCnrID(&idCnr)))...)
+func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
+	prm.useDefaultSession()
+	prm.useVerb(sessionv2.ObjectVerbSearch)
+	prm.useAddress(newAddressFromCnrID(&prm.cnrID))
 
-	var prm client.PrmObjectSearch
+	var cliPrm client.PrmObjectSearch
 
-	prm.InContainer(idCnr)
-	prm.SetFilters(filters)
+	cliPrm.InContainer(prm.cnrID)
+	cliPrm.SetFilters(prm.filters)
 
 	var cc callContextWithRetry
 
 	cc.Context = ctx
-	cc.sessionTarget = prm.WithinSession
+	cc.sessionTarget = cliPrm.WithinSession
 
-	err := p.initCallContextWithRetry(&cc, cfg)
+	err := p.initCallContextWithRetry(&cc, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
@@ -1076,7 +1232,7 @@ func (p *Pool) SearchObjects(ctx context.Context, idCnr cid.ID, filters object.S
 	err = p.callWithRetry(&cc, func() error {
 		var err error
 
-		res.r, err = cc.client.ObjectSearchInit(ctx, prm)
+		res.r, err = cc.client.ObjectSearchInit(ctx, cliPrm)
 		if err != nil {
 			return fmt.Errorf("init object searching on client: %w", err)
 		}
@@ -1092,17 +1248,16 @@ func (p *Pool) SearchObjects(ctx context.Context, idCnr cid.ID, filters object.S
 	return &res, nil
 }
 
-func (p *Pool) PutContainer(ctx context.Context, cnr *container.Container, opts ...CallOption) (*cid.ID, error) {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
 	var cliPrm client.PrmContainerPut
 
-	if cnr != nil {
-		cliPrm.SetContainer(*cnr)
+	if prm.cnr != nil {
+		cliPrm.SetContainer(*prm.cnr)
 	}
 
 	res, err := cp.client.ContainerPut(ctx, cliPrm)
@@ -1113,17 +1268,16 @@ func (p *Pool) PutContainer(ctx context.Context, cnr *container.Container, opts 
 	return res.ID(), nil
 }
 
-func (p *Pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) (*container.Container, error) {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) GetContainer(ctx context.Context, prm PrmContainerGet) (*container.Container, error) {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
 	var cliPrm client.PrmContainerGet
 
-	if cid != nil {
-		cliPrm.SetContainer(*cid)
+	if prm.cnrID != nil {
+		cliPrm.SetContainer(*prm.cnrID)
 	}
 
 	res, err := cp.client.ContainerGet(ctx, cliPrm)
@@ -1134,17 +1288,16 @@ func (p *Pool) GetContainer(ctx context.Context, cid *cid.ID, opts ...CallOption
 	return res.Container(), nil
 }
 
-func (p *Pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...CallOption) ([]cid.ID, error) {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
 	var cliPrm client.PrmContainerList
 
-	if ownerID != nil {
-		cliPrm.SetAccount(*ownerID)
+	if prm.ownerID != nil {
+		cliPrm.SetAccount(*prm.ownerID)
 	}
 
 	res, err := cp.client.ContainerList(ctx, cliPrm)
@@ -1155,21 +1308,20 @@ func (p *Pool) ListContainers(ctx context.Context, ownerID *owner.ID, opts ...Ca
 	return res.Containers(), nil
 }
 
-func (p *Pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOption) error {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) error {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return err
 	}
 
 	var cliPrm client.PrmContainerDelete
 
-	if cid != nil {
-		cliPrm.SetContainer(*cid)
+	if prm.cnrID != nil {
+		cliPrm.SetContainer(*prm.cnrID)
 	}
 
-	if cfg.stoken != nil {
-		cliPrm.SetSessionToken(*cfg.stoken)
+	if prm.stoken != nil {
+		cliPrm.SetSessionToken(*prm.stoken)
 	}
 
 	_, err = cp.client.ContainerDelete(ctx, cliPrm)
@@ -1179,17 +1331,16 @@ func (p *Pool) DeleteContainer(ctx context.Context, cid *cid.ID, opts ...CallOpt
 	return err
 }
 
-func (p *Pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*eacl.Table, error) {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, error) {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
 	var cliPrm client.PrmContainerEACL
 
-	if cid != nil {
-		cliPrm.SetContainer(*cid)
+	if prm.cnrID != nil {
+		cliPrm.SetContainer(*prm.cnrID)
 	}
 
 	res, err := cp.client.ContainerEACL(ctx, cliPrm)
@@ -1200,17 +1351,16 @@ func (p *Pool) GetEACL(ctx context.Context, cid *cid.ID, opts ...CallOption) (*e
 	return res.Table(), nil
 }
 
-func (p *Pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOption) error {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return err
 	}
 
 	var cliPrm client.PrmContainerSetEACL
 
-	if table != nil {
-		cliPrm.SetTable(*table)
+	if prm.table != nil {
+		cliPrm.SetTable(*prm.table)
 	}
 
 	_, err = cp.client.ContainerSetEACL(ctx, cliPrm)
@@ -1220,17 +1370,16 @@ func (p *Pool) SetEACL(ctx context.Context, table *eacl.Table, opts ...CallOptio
 	return err
 }
 
-func (p *Pool) Balance(ctx context.Context, o *owner.ID, opts ...CallOption) (*accounting.Decimal, error) {
-	cfg := cfgFromOpts(opts...)
-	cp, err := p.conn(ctx, cfg)
+func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
+	cp, err := p.conn(ctx, prm.prmCommon)
 	if err != nil {
 		return nil, err
 	}
 
 	var cliPrm client.PrmBalanceGet
 
-	if o != nil {
-		cliPrm.SetAccount(*o)
+	if prm.ownerID != nil {
+		cliPrm.SetAccount(*prm.ownerID)
 	}
 
 	res, err := cp.client.BalanceGet(ctx, cliPrm)

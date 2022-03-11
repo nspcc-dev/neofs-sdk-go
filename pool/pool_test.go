@@ -351,7 +351,10 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObject(ctx, address.Address{})
+	var prm PrmObjectGet
+	prm.SetAddress(address.Address{})
+
+	_, err = pool.GetObject(ctx, prm)
 	require.Error(t, err)
 
 	// cache must not contain session token
@@ -359,7 +362,10 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, st)
 
-	_, err = pool.PutObject(ctx, object.Object{}, nil)
+	var prm2 PrmObjectPut
+	prm2.SetHeader(object.Object{})
+
+	_, err = pool.PutObject(ctx, prm2)
 	require.NoError(t, err)
 
 	// cache must contain session token
@@ -477,7 +483,11 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.NoError(t, err)
 	require.Contains(t, tokens, st)
 
-	_, err = pool.GetObject(ctx, address.Address{}, WithKey(newPrivateKey(t)))
+	var prm PrmObjectGet
+	prm.SetAddress(address.Address{})
+	prm.UseKey(newPrivateKey(t))
+
+	_, err = pool.GetObject(ctx, prm)
 	require.NoError(t, err)
 	require.Len(t, tokens, 2)
 }
@@ -519,8 +529,10 @@ func TestSessionTokenOwner(t *testing.T) {
 	anonKey := newPrivateKey(t)
 	anonOwner := owner.NewIDFromPublicKey(&anonKey.PublicKey)
 
-	cfg := cfgFromOpts(WithKey(anonKey), useDefaultSession())
-	cp, err := p.conn(ctx, cfg)
+	var prm prmCommon
+	prm.UseKey(anonKey)
+	prm.useDefaultSession()
+	cp, err := p.conn(ctx, prm)
 	require.NoError(t, err)
 
 	tkn := p.cache.Get(formCacheKey(cp.address, anonKey))
