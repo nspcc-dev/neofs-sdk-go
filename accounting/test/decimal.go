@@ -8,9 +8,9 @@ import (
 
 // Decimal returns random accounting.Decimal.
 func Decimal() *accounting.Decimal {
-	d := accounting.NewDecimal()
+	var d accounting.Decimal
 	d.SetValue(rand.Int63())
 	d.SetPrecision(rand.Uint32())
 
-	return d
+	return &d
 }

@@ -3,15 +3,19 @@ package accounting_test
 import (
 	"testing"
 
+	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	accountingtest "github.com/nspcc-dev/neofs-sdk-go/accounting/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDecimal(t *testing.T) {
+func TestDecimalData(t *testing.T) {
 	const v, p = 4, 2
 
-	d := accounting.NewDecimal()
+	var d accounting.Decimal
+
+	require.Zero(t, d.Value())
+	require.Zero(t, d.Precision())
+
 	d.SetValue(v)
 	d.SetPrecision(p)
 
@@ -19,26 +23,24 @@ func TestDecimal(t *testing.T) {
 	require.EqualValues(t, p, d.Precision())
 }
 
-func TestDecimalEncoding(t *testing.T) {
-	d := accountingtest.Decimal()
+func TestDecimalMessageV2(t *testing.T) {
+	var (
+		d accounting.Decimal
+		m v2accounting.Decimal
+	)
 
-	t.Run("binary", func(t *testing.T) {
-		data, err := d.Marshal()
-		require.NoError(t, err)
+	m.SetValue(7)
+	m.SetPrecision(8)
 
-		d2 := accounting.NewDecimal()
-		require.NoError(t, d2.Unmarshal(data))
+	d.ReadFromMessageV2(m)
 
-		require.Equal(t, d, d2)
-	})
+	require.EqualValues(t, m.GetValue(), d.Value())
+	require.EqualValues(t, m.GetPrecision(), d.Precision())
 
-	t.Run("json", func(t *testing.T) {
-		data, err := d.MarshalJSON()
-		require.NoError(t, err)
+	var m2 v2accounting.Decimal
 
-		d2 := accounting.NewDecimal()
-		require.NoError(t, d2.UnmarshalJSON(data))
+	d.WriteToMessageV2(&m2)
 
-		require.Equal(t, d, d2)
-	})
+	require.EqualValues(t, d.Value(), m2.GetValue())
+	require.EqualValues(t, d.Precision(), m2.GetPrecision())
 }

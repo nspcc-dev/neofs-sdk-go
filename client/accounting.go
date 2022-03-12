@@ -92,7 +92,13 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)
-		res.setAmount(accounting.NewDecimalFromV2(resp.GetBody().GetBalance()))
+
+		if bal := resp.GetBody().GetBalance(); bal != nil {
+			var d accounting.Decimal
+			d.ReadFromMessageV2(*bal)
+
+			res.setAmount(&d)
+		}
 	}
 
 	// process call
