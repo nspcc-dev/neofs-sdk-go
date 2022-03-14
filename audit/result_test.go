@@ -1,154 +1,188 @@
 package audit_test
 
 import (
+	"bytes"
 	"testing"
 
-	auditv2 "github.com/nspcc-dev/neofs-api-go/v2/audit"
 	"github.com/nspcc-dev/neofs-sdk-go/audit"
 	audittest "github.com/nspcc-dev/neofs-sdk-go/audit/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
-func TestResult(t *testing.T) {
-	r := audit.NewResult()
-	require.Equal(t, version.Current(), r.Version())
+func TestResultData(t *testing.T) {
+	var r audit.Result
+
+	countSG := func(passed bool, f func(oid.ID)) int {
+		called := 0
+
+		ff := func(arg oid.ID) bool {
+			called++
+
+			if f != nil {
+				f(arg)
+			}
+
+			return true
+		}
+
+		if passed {
+			r.IteratePassedStorageGroups(ff)
+		} else {
+			r.IterateFailedStorageGroups(ff)
+		}
+
+		return called
+	}
+
+	countPassSG := func(f func(oid.ID)) int { return countSG(true, f) }
+	countFailSG := func(f func(oid.ID)) int { return countSG(false, f) }
+
+	countNodes := func(passed bool, f func([]byte)) int {
+		called := 0
+
+		ff := func(arg []byte) bool {
+			called++
+
+			if f != nil {
+				f(arg)
+			}
+
+			return true
+		}
+
+		if passed {
+			r.IteratePassedStorageNodes(ff)
+		} else {
+			r.IterateFailedStorageNodes(ff)
+		}
+
+		return called
+	}
+
+	countPassNodes := func(f func([]byte)) int { return countNodes(true, f) }
+	countFailNodes := func(f func([]byte)) int { return countNodes(false, f) }
+
+	require.Zero(t, r.Epoch())
+	require.Nil(t, r.Container())
+	require.Nil(t, r.AuditorKey())
+	require.False(t, r.Completed())
+	require.Zero(t, r.RequestsPoR())
+	require.Zero(t, r.RetriesPoR())
+	require.Zero(t, countPassSG(nil))
+	require.Zero(t, countFailSG(nil))
+	require.Zero(t, countPassNodes(nil))
+	require.Zero(t, countFailNodes(nil))
 
 	epoch := uint64(13)
-	r.SetAuditEpoch(epoch)
-	require.Equal(t, epoch, r.AuditEpoch())
+	r.ForEpoch(epoch)
+	require.Equal(t, epoch, r.Epoch())
 
-	cid := cidtest.ID()
-	r.SetContainerID(cid)
-	require.Equal(t, cid, r.ContainerID())
+	cnr := cidtest.ID()
+	r.ForContainer(*cnr)
+	require.Equal(t, cnr, r.Container())
 
 	key := []byte{1, 2, 3}
-	r.SetPublicKey(key)
-	require.Equal(t, key, r.PublicKey())
+	r.SetAuditorKey(key)
+	require.Equal(t, key, r.AuditorKey())
 
-	r.SetComplete(true)
-	require.True(t, r.Complete())
+	r.Complete()
+	require.True(t, r.Completed())
 
 	requests := uint32(2)
-	r.SetRequests(requests)
-	require.Equal(t, requests, r.Requests())
+	r.SetRequestsPoR(requests)
+	require.Equal(t, requests, r.RequestsPoR())
 
 	retries := uint32(1)
-	r.SetRetries(retries)
-	require.Equal(t, retries, r.Retries())
+	r.SetRetriesPoR(retries)
+	require.Equal(t, retries, r.RetriesPoR())
 
-	passSG := []oid.ID{*oidtest.ID(), *oidtest.ID()}
-	r.SetPassSG(passSG)
-	require.Equal(t, passSG, r.PassSG())
+	passSG1, passSG2 := *oidtest.ID(), *oidtest.ID()
+	r.SubmitPassedStorageGroup(passSG1)
+	r.SubmitPassedStorageGroup(passSG2)
 
-	failSG := []oid.ID{*oidtest.ID(), *oidtest.ID()}
-	r.SetFailSG(failSG)
-	require.Equal(t, failSG, r.FailSG())
+	called1, called2 := false, false
+
+	require.EqualValues(t, 2, countPassSG(func(id oid.ID) {
+		if id.Equal(&passSG1) {
+			called1 = true
+		} else if id.Equal(&passSG2) {
+			called2 = true
+		}
+	}))
+	require.True(t, called1)
+	require.True(t, called2)
+
+	failSG1, failSG2 := *oidtest.ID(), *oidtest.ID()
+	r.SubmitFailedStorageGroup(failSG1)
+	r.SubmitFailedStorageGroup(failSG2)
+
+	called1, called2 = false, false
+
+	require.EqualValues(t, 2, countFailSG(func(id oid.ID) {
+		if id.Equal(&failSG1) {
+			called1 = true
+		} else if id.Equal(&failSG2) {
+			called2 = true
+		}
+	}))
+	require.True(t, called1)
+	require.True(t, called2)
 
 	hit := uint32(1)
-	r.SetHit(hit)
-	require.Equal(t, hit, r.Hit())
+	r.SetHits(hit)
+	require.Equal(t, hit, r.Hits())
 
 	miss := uint32(2)
-	r.SetMiss(miss)
-	require.Equal(t, miss, r.Miss())
+	r.SetMisses(miss)
+	require.Equal(t, miss, r.Misses())
 
 	fail := uint32(3)
-	r.SetFail(fail)
-	require.Equal(t, fail, r.Fail())
+	r.SetFailures(fail)
+	require.Equal(t, fail, r.Failures())
 
 	passNodes := [][]byte{{1}, {2}}
-	r.SetPassNodes(passNodes)
-	require.Equal(t, passNodes, r.PassNodes())
+	r.SubmitPassedStorageNodes(passNodes)
+
+	called1, called2 = false, false
+
+	require.EqualValues(t, 2, countPassNodes(func(arg []byte) {
+		if bytes.Equal(arg, passNodes[0]) {
+			called1 = true
+		} else if bytes.Equal(arg, passNodes[1]) {
+			called2 = true
+		}
+	}))
+	require.True(t, called1)
+	require.True(t, called2)
 
 	failNodes := [][]byte{{3}, {4}}
-	r.SetFailNodes(failNodes)
-	require.Equal(t, failNodes, r.FailNodes())
+	r.SubmitFailedStorageNodes(failNodes)
+
+	called1, called2 = false, false
+
+	require.EqualValues(t, 2, countFailNodes(func(arg []byte) {
+		if bytes.Equal(arg, failNodes[0]) {
+			called1 = true
+		} else if bytes.Equal(arg, failNodes[1]) {
+			called2 = true
+		}
+	}))
+	require.True(t, called1)
+	require.True(t, called2)
 }
 
-func TestStorageGroupEncoding(t *testing.T) {
-	r := audittest.Result()
+func TestResultEncoding(t *testing.T) {
+	r := *audittest.Result()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := r.Marshal()
-		require.NoError(t, err)
+		data := r.Marshal()
 
-		r2 := audit.NewResult()
+		var r2 audit.Result
 		require.NoError(t, r2.Unmarshal(data))
 
 		require.Equal(t, r, r2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := r.MarshalJSON()
-		require.NoError(t, err)
-
-		r2 := audit.NewResult()
-		require.NoError(t, r2.UnmarshalJSON(data))
-
-		require.Equal(t, r, r2)
-	})
-}
-
-func TestResult_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *audit.Result
-
-		require.Nil(t, x.ToV2())
-	})
-
-	t.Run("default values", func(t *testing.T) {
-		result := audit.NewResult()
-
-		// check initial values
-		require.Equal(t, version.Current(), result.Version())
-
-		require.False(t, result.Complete())
-
-		require.Nil(t, result.ContainerID())
-		require.Nil(t, result.PublicKey())
-		require.Nil(t, result.PassSG())
-		require.Nil(t, result.FailSG())
-		require.Nil(t, result.PassNodes())
-		require.Nil(t, result.FailNodes())
-
-		require.Zero(t, result.Hit())
-		require.Zero(t, result.Miss())
-		require.Zero(t, result.Fail())
-		require.Zero(t, result.Requests())
-		require.Zero(t, result.Retries())
-		require.Zero(t, result.AuditEpoch())
-
-		// convert to v2 message
-		resultV2 := result.ToV2()
-
-		require.Equal(t, version.Current().ToV2(), resultV2.GetVersion())
-
-		require.False(t, resultV2.GetComplete())
-
-		require.Nil(t, resultV2.GetContainerID())
-		require.Nil(t, resultV2.GetPublicKey())
-		require.Nil(t, resultV2.GetPassSG())
-		require.Nil(t, resultV2.GetFailSG())
-		require.Nil(t, resultV2.GetPassNodes())
-		require.Nil(t, resultV2.GetFailNodes())
-
-		require.Zero(t, resultV2.GetHit())
-		require.Zero(t, resultV2.GetMiss())
-		require.Zero(t, resultV2.GetFail())
-		require.Zero(t, resultV2.GetRequests())
-		require.Zero(t, resultV2.GetRetries())
-		require.Zero(t, resultV2.GetAuditEpoch())
-	})
-}
-
-func TestNewResultFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *auditv2.DataAuditResult
-
-		require.Nil(t, audit.NewResultFromV2(x))
 	})
 }
