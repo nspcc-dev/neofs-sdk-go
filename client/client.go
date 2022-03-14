@@ -86,9 +86,9 @@ func (c *Client) Dial(prm PrmDial) error {
 	)...)
 
 	// TODO: (neofs-api-go#382) perform generic dial stage of the client.Client
-	_, err := rpc.Balance(&c.c, new(v2accounting.BalanceRequest))
+	_, _ = rpc.Balance(&c.c, new(v2accounting.BalanceRequest))
 
-	return err
+	return nil
 }
 
 // Close closes underlying connection to the NeoFS server. Implements io.Closer.
