@@ -2,6 +2,7 @@ package object_test
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"testing"
 
 	objv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -86,4 +87,18 @@ func TestNewSplitInfo(t *testing.T) {
 		require.Nil(t, siV2.GetLastPart())
 		require.Nil(t, siV2.GetLink())
 	})
+}
+
+func TestSplitInfoMarshalJSON(t *testing.T) {
+	s := object.NewSplitInfo()
+	s.SetSplitID(object.NewSplitID())
+	s.SetLastPart(generateID())
+	s.SetLink(generateID())
+
+	data, err := s.MarshalJSON()
+	require.NoError(t, err)
+
+	actual := object.NewSplitInfo()
+	require.NoError(t, json.Unmarshal(data, actual))
+	require.Equal(t, s, actual)
 }

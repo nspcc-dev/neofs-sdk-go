@@ -65,3 +65,13 @@ func (s *SplitInfo) Marshal() ([]byte, error) {
 func (s *SplitInfo) Unmarshal(data []byte) error {
 	return (*object.SplitInfo)(s).Unmarshal(data)
 }
+
+// MarshalJSON implements json.Marshaler.
+func (s *SplitInfo) MarshalJSON() ([]byte, error) {
+	return (*object.SplitInfo)(s).MarshalJSON()
+}
+
+// UnmarshalJSON implements json.Unmarshaler.
+func (s *SplitInfo) UnmarshalJSON(data []byte) error {
+	return (*object.SplitInfo)(s).UnmarshalJSON(data)
+}
