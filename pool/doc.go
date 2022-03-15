@@ -9,14 +9,12 @@ Create pool instance with 3 nodes connection.
 This InitParameters will make pool use 192.168.130.71 node while it is healthy. Otherwise, it will make the pool use
 192.168.130.72 for 90% of requests and 192.168.130.73 for remaining 10%.
 :
-	prm := pool.InitParameters{
-		Key: key,
-		NodeParams: []NodeParam{
-			{ Priority: 1, Address: "192.168.130.71", Weight: 1 },
-			{ Priority: 2, Address: "192.168.130.72", Weight: 9 },
-			{ Priority: 2, Address: "192.168.130.73", Weight: 1 },
-		// ...
-	}
+	var prm pool.InitParameters
+	prm.SetKey(key)
+	prm.AddNode(NewNodeParam(1, "192.168.130.71", 1))
+	prm.AddNode(NewNodeParam(2, "192.168.130.72", 9))
+	prm.AddNode(NewNodeParam(2, "192.168.130.73", 1))
+	// ...
 
 	p, err := pool.NewPool(prm)
 	// ...

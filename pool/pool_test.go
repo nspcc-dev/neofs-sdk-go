@@ -29,8 +29,8 @@ func TestBuildPoolClientFailed(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key:           newPrivateKey(t),
-		NodeParams:    []NodeParam{{1, "peer0", 1}},
+		key:           newPrivateKey(t),
+		nodeParams:    []NodeParam{{1, "peer0", 1}},
 		clientBuilder: clientBuilder,
 	}
 
@@ -55,8 +55,8 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key:           newPrivateKey(t),
-		NodeParams:    []NodeParam{{1, "peer0", 1}},
+		key:           newPrivateKey(t),
+		nodeParams:    []NodeParam{{1, "peer0", 1}},
 		clientBuilder: clientBuilder,
 	}
 
@@ -113,11 +113,11 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	log, err := zap.NewProduction()
 	require.NoError(t, err)
 	opts := InitParameters{
-		Key:                     newPrivateKey(t),
+		key:                     newPrivateKey(t),
 		clientBuilder:           clientBuilder,
-		ClientRebalanceInterval: 1000 * time.Millisecond,
-		Logger:                  log,
-		NodeParams: []NodeParam{
+		clientRebalanceInterval: 1000 * time.Millisecond,
+		logger:                  log,
+		nodeParams: []NodeParam{
 			{9, "peer0", 1},
 			{1, "peer1", 1},
 		},
@@ -143,7 +143,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 
 func TestBuildPoolZeroNodes(t *testing.T) {
 	opts := InitParameters{
-		Key: newPrivateKey(t),
+		key: newPrivateKey(t),
 	}
 	_, err := NewPool(opts)
 	require.Error(t, err)
@@ -168,8 +168,8 @@ func TestOneNode(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key:           newPrivateKey(t),
-		NodeParams:    []NodeParam{{1, "peer0", 1}},
+		key:           newPrivateKey(t),
+		nodeParams:    []NodeParam{{1, "peer0", 1}},
 		clientBuilder: clientBuilder,
 	}
 
@@ -207,8 +207,8 @@ func TestTwoNodes(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{1, "peer1", 1},
 		},
@@ -266,12 +266,12 @@ func TestOneOfTwoFailed(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{9, "peer1", 1},
 		},
-		ClientRebalanceInterval: 200 * time.Millisecond,
+		clientRebalanceInterval: 200 * time.Millisecond,
 		clientBuilder:           clientBuilder,
 	}
 
@@ -307,12 +307,12 @@ func TestTwoFailed(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{1, "peer1", 1},
 		},
-		ClientRebalanceInterval: 200 * time.Millisecond,
+		clientRebalanceInterval: 200 * time.Millisecond,
 		clientBuilder:           clientBuilder,
 	}
 
@@ -354,11 +354,11 @@ func TestSessionCache(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
-		ClientRebalanceInterval: 30 * time.Second,
+		clientRebalanceInterval: 30 * time.Second,
 		clientBuilder:           clientBuilder,
 	}
 
@@ -437,12 +437,12 @@ func TestPriority(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{2, "peer1", 100},
 		},
-		ClientRebalanceInterval: 1500 * time.Millisecond,
+		clientRebalanceInterval: 1500 * time.Millisecond,
 		clientBuilder:           clientBuilder,
 	}
 
@@ -496,11 +496,11 @@ func TestSessionCacheWithKey(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
-		ClientRebalanceInterval: 30 * time.Second,
+		clientRebalanceInterval: 30 * time.Second,
 		clientBuilder:           clientBuilder,
 	}
 
@@ -547,8 +547,8 @@ func TestSessionTokenOwner(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		Key: newPrivateKey(t),
-		NodeParams: []NodeParam{
+		key: newPrivateKey(t),
+		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
 		clientBuilder: clientBuilder,
@@ -617,8 +617,8 @@ func TestWaitPresence(t *testing.T) {
 	t.Run("context deadline exceeded", func(t *testing.T) {
 		ctx := context.Background()
 		err := p.WaitForContainerPresence(ctx, nil, &ContainerPollingParams{
-			CreationTimeout: 500 * time.Millisecond,
-			PollInterval:    5 * time.Second,
+			timeout:      500 * time.Millisecond,
+			pollInterval: 5 * time.Second,
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "context deadline exceeded")
@@ -627,8 +627,8 @@ func TestWaitPresence(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
 		err := p.WaitForContainerPresence(ctx, nil, &ContainerPollingParams{
-			CreationTimeout: 10 * time.Second,
-			PollInterval:    500 * time.Millisecond,
+			timeout:      10 * time.Second,
+			pollInterval: 500 * time.Millisecond,
 		})
 		require.NoError(t, err)
 	})
