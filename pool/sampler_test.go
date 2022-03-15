@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-sdk-go/client"
+	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,16 +43,16 @@ func TestSamplerStability(t *testing.T) {
 }
 
 type clientMock struct {
-	client.Client
+	sdkClient.Client
 	name string
 	err  error
 }
 
-func (c *clientMock) EndpointInfo(context.Context, client.PrmEndpointInfo) (*client.ResEndpointInfo, error) {
+func (c *clientMock) EndpointInfo(context.Context, sdkClient.PrmEndpointInfo) (*sdkClient.ResEndpointInfo, error) {
 	return nil, nil
 }
 
-func (c *clientMock) NetworkInfo(context.Context, client.PrmNetworkInfo) (*client.ResNetworkInfo, error) {
+func (c *clientMock) NetworkInfo(context.Context, sdkClient.PrmNetworkInfo) (*sdkClient.ResNetworkInfo, error) {
 	return nil, nil
 }
 
@@ -88,16 +88,16 @@ func TestHealthyReweight(t *testing.T) {
 	}
 
 	// check getting first node connection before rebalance happened
-	connection0, _, err := p.Connection()
+	connection0, err := p.connection()
 	require.NoError(t, err)
-	mock0 := connection0.(*clientMock)
+	mock0 := connection0.client.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 
-	connection1, _, err := p.Connection()
+	connection1, err := p.connection()
 	require.NoError(t, err)
-	mock1 := connection1.(*clientMock)
+	mock1 := connection1.client.(*clientMock)
 	require.Equal(t, names[1], mock1.name)
 
 	// enabled first node again
@@ -108,9 +108,9 @@ func TestHealthyReweight(t *testing.T) {
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 	inner.sampler = newSampler(weights, rand.NewSource(0))
 
-	connection0, _, err = p.Connection()
+	connection0, err = p.connection()
 	require.NoError(t, err)
-	mock0 = connection0.(*clientMock)
+	mock0 = connection0.client.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 }
 

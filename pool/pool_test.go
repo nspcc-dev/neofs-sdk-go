@@ -13,7 +13,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-sdk-go/client"
+	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
@@ -24,7 +24,7 @@ import (
 )
 
 func TestBuildPoolClientFailed(t *testing.T) {
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		return nil, fmt.Errorf("error")
 	}
 
@@ -46,11 +46,11 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	ni := &netmap.NodeInfo{}
 	ni.SetAddresses("addr1", "addr2")
 
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -83,7 +83,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 
 	var expectedToken *session.Token
 	clientCount := -1
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
 		mockInvokes := 0
@@ -97,12 +97,12 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		}).AnyTimes()
 
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
 		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 
 		if clientCount == 0 {
 			return mockClient, nil
@@ -130,8 +130,12 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	t.Cleanup(clientPool.Close)
 
 	condition := func() bool {
-		_, st, err := clientPool.Connection()
-		return err == nil && st == expectedToken
+		cp, err := clientPool.connection()
+		if err != nil {
+			return false
+		}
+		st := clientPool.cache.Get(formCacheKey(cp.address, clientPool.key))
+		return st == expectedToken
 	}
 	require.Never(t, condition, 900*time.Millisecond, 100*time.Millisecond)
 	require.Eventually(t, condition, 3*time.Second, 300*time.Millisecond)
@@ -155,11 +159,11 @@ func TestOneNode(t *testing.T) {
 	require.NoError(t, err)
 	tok.SetID(uid)
 
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(tok, nil)
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -175,8 +179,9 @@ func TestOneNode(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	_, st, err := pool.Connection()
+	cp, err := pool.connection()
 	require.NoError(t, err)
+	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 	require.Equal(t, tok, st)
 }
 
@@ -186,7 +191,7 @@ func TestTwoNodes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	var tokens []*session.Token
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
 			tok := session.NewToken()
@@ -196,8 +201,8 @@ func TestTwoNodes(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, err
 		})
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -216,8 +221,9 @@ func TestTwoNodes(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	_, st, err := pool.Connection()
+	cp, err := pool.connection()
 	require.NoError(t, err)
+	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 	require.Contains(t, tokens, st)
 }
 
@@ -229,7 +235,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 	var tokens []*session.Token
 	clientCount := -1
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
@@ -238,7 +244,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 			return tok, nil
 		}).AnyTimes()
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
 		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
@@ -246,10 +252,10 @@ func TestOneOfTwoFailed(t *testing.T) {
 			tokens = append(tokens, tok)
 			return tok, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*client.ResEndpointInfo, error) {
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*sdkClient.ResEndpointInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*client.ResNetworkInfo, error) {
+		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*sdkClient.ResNetworkInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
 
@@ -280,8 +286,9 @@ func TestOneOfTwoFailed(t *testing.T) {
 	time.Sleep(2 * time.Second)
 
 	for i := 0; i < 5; i++ {
-		_, st, err := pool.Connection()
+		cp, err := pool.connection()
 		require.NoError(t, err)
+		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 		require.Equal(t, tokens[0], st)
 	}
 }
@@ -291,7 +298,7 @@ func TestTwoFailed(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
@@ -318,7 +325,7 @@ func TestTwoFailed(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	_, _, err = pool.Connection()
+	_, err = pool.connection()
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "no healthy")
 }
@@ -329,7 +336,7 @@ func TestSessionCache(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	var tokens []*session.Token
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
 			tok := session.NewToken()
@@ -365,8 +372,9 @@ func TestSessionCache(t *testing.T) {
 	t.Cleanup(pool.Close)
 
 	// cache must contain session token
-	_, st, err := pool.Connection()
+	cp, err := pool.connection()
 	require.NoError(t, err)
+	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 	require.Contains(t, tokens, st)
 
 	var prm PrmObjectGet
@@ -376,8 +384,9 @@ func TestSessionCache(t *testing.T) {
 	require.Error(t, err)
 
 	// cache must not contain session token
-	_, st, err = pool.Connection()
+	cp, err = pool.connection()
 	require.NoError(t, err)
+	st = pool.cache.Get(formCacheKey(cp.address, pool.key))
 	require.Nil(t, st)
 
 	var prm2 PrmObjectPut
@@ -387,8 +396,9 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 
 	// cache must contain session token
-	_, st, err = pool.Connection()
+	cp, err = pool.connection()
 	require.NoError(t, err)
+	st = pool.cache.Get(formCacheKey(cp.address, pool.key))
 	require.Contains(t, tokens, st)
 }
 
@@ -400,7 +410,7 @@ func TestPriority(t *testing.T) {
 
 	var tokens []*session.Token
 	clientCount := -1
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
@@ -446,13 +456,15 @@ func TestPriority(t *testing.T) {
 	t.Cleanup(pool.Close)
 
 	firstNode := func() bool {
-		_, st, err := pool.Connection()
+		cp, err := pool.connection()
 		require.NoError(t, err)
+		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 		return st == tokens[0]
 	}
 	secondNode := func() bool {
-		_, st, err := pool.Connection()
+		cp, err := pool.connection()
 		require.NoError(t, err)
+		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 		return st == tokens[1]
 	}
 	require.Never(t, secondNode, time.Second, 200*time.Millisecond)
@@ -467,7 +479,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	var tokens []*session.Token
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
 			tok := session.NewToken()
@@ -501,8 +513,9 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.NoError(t, err)
 
 	// cache must contain session token
-	_, st, err := pool.Connection()
+	cp, err := pool.connection()
 	require.NoError(t, err)
+	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
 	require.Contains(t, tokens, st)
 
 	var prm PrmObjectGet
@@ -525,11 +538,11 @@ func newToken(t *testing.T) *session.Token {
 
 func TestSessionTokenOwner(t *testing.T) {
 	ctrl := gomock.NewController(t)
-	clientBuilder := func(_ string) (Client, error) {
+	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(&client.ResSessionCreate{}, nil).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&client.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(&sdkClient.ResSessionCreate{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -569,7 +582,7 @@ func TestWaitPresence(t *testing.T) {
 	mockClient := NewMockClient(ctrl)
 	mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&client.ResNetworkInfo{}, nil).AnyTimes()
+	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
 	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 
 	cache, err := newCache()
