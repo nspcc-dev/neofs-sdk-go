@@ -583,7 +583,7 @@ func TestWaitPresence(t *testing.T) {
 	mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
-	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(&sdkClient.ResContainerGet{}, nil).AnyTimes()
 
 	cache, err := newCache()
 	require.NoError(t, err)
@@ -609,14 +609,14 @@ func TestWaitPresence(t *testing.T) {
 			cancel()
 		}()
 
-		err := p.WaitForContainerPresence(ctx, nil, DefaultPollingParams())
+		err := WaitForContainerPresence(ctx, p, nil, DefaultPollingParams())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "context canceled")
 	})
 
 	t.Run("context deadline exceeded", func(t *testing.T) {
 		ctx := context.Background()
-		err := p.WaitForContainerPresence(ctx, nil, &ContainerPollingParams{
+		err := WaitForContainerPresence(ctx, p, nil, &ContainerPollingParams{
 			timeout:      500 * time.Millisecond,
 			pollInterval: 5 * time.Second,
 		})
@@ -626,7 +626,7 @@ func TestWaitPresence(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
-		err := p.WaitForContainerPresence(ctx, nil, &ContainerPollingParams{
+		err := WaitForContainerPresence(ctx, p, nil, &ContainerPollingParams{
 			timeout:      10 * time.Second,
 			pollInterval: 500 * time.Millisecond,
 		})
