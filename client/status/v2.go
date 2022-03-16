@@ -97,7 +97,8 @@ func FromStatusV2(st *status.Status) Status {
 // ToStatusV2 converts Status instance to status.Status message structure. Inverse to FromStatusV2 operation.
 //
 // If argument is the StatusV2 instance, it is converted directly.
-// Otherwise, successes are converted with status.OK code w/o details and message, failures - with status.Internal.
+// Otherwise, successes are converted with status.OK code w/o details and message,
+// failures - with status.Internal and error text message w/o details.
 func ToStatusV2(st Status) *status.Status {
 	if v, ok := st.(StatusV2); ok {
 		return v.ToStatusV2()
@@ -107,7 +108,10 @@ func ToStatusV2(st Status) *status.Status {
 		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
 	}
 
-	return newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
+	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
+	internalErrorStatus.SetMessage(st.(error).Error()) // type cast never panics because IsSuccessful() checks cast
+
+	return internalErrorStatus
 }
 
 func errMessageStatusV2(code interface{}, msg string) string {
