@@ -12,12 +12,14 @@ func TestToStatusV2(t *testing.T) {
 	type statusConstructor func() apistatus.Status
 
 	for _, testItem := range [...]struct {
-		status interface{} // Status or statusConstructor
-		codeV2 uint64
+		status    interface{} // Status or statusConstructor
+		codeV2    uint64
+		messageV2 string
 	}{
 		{
-			status: errors.New("some error"),
-			codeV2: 1024,
+			status:    errors.New("some error"),
+			codeV2:    1024,
+			messageV2: "some error",
 		},
 		{
 			status: 1,
@@ -124,6 +126,9 @@ func TestToStatusV2(t *testing.T) {
 
 		// must generate the same status.Status message
 		require.EqualValues(t, testItem.codeV2, stv2.Code())
+		if len(testItem.messageV2) > 0 {
+			require.Equal(t, testItem.messageV2, stv2.Message())
+		}
 
 		_, ok := st.(apistatus.StatusV2)
 		if ok {
@@ -142,12 +147,14 @@ func TestFromStatusV2(t *testing.T) {
 	type statusConstructor func() apistatus.Status
 
 	for _, testItem := range [...]struct {
-		status interface{} // Status or statusConstructor
-		codeV2 uint64
+		status    interface{} // Status or statusConstructor
+		codeV2    uint64
+		messageV2 string
 	}{
 		{
-			status: errors.New("some error"),
-			codeV2: 1024,
+			status:    errors.New("some error"),
+			codeV2:    1024,
+			messageV2: "some error",
 		},
 		{
 			status: 1,
@@ -254,6 +261,9 @@ func TestFromStatusV2(t *testing.T) {
 
 		// must generate the same status.Status message
 		require.EqualValues(t, testItem.codeV2, stv2.Code())
+		if len(testItem.messageV2) > 0 {
+			require.Equal(t, testItem.messageV2, stv2.Message())
+		}
 
 		_, ok := st.(apistatus.StatusV2)
 		if ok {
