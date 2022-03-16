@@ -1536,11 +1536,7 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Deci
 }
 
 // WaitForContainerPresence waits until the container is found on the NeoFS network.
-func (p *Pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollParams *ContainerPollingParams) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
+func WaitForContainerPresence(ctx context.Context, pool *Pool, cid *cid.ID, pollParams *ContainerPollingParams) error {
 	wctx, cancel := context.WithTimeout(ctx, pollParams.timeout)
 	defer cancel()
 	ticker := time.NewTimer(pollParams.pollInterval)
@@ -1548,10 +1544,9 @@ func (p *Pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollPa
 	wdone := wctx.Done()
 	done := ctx.Done()
 
-	var cliPrm sdkClient.PrmContainerGet
-
+	var prm PrmContainerGet
 	if cid != nil {
-		cliPrm.SetContainer(*cid)
+		prm.SetContainerID(*cid)
 	}
 
 	for {
@@ -1561,7 +1556,7 @@ func (p *Pool) WaitForContainerPresence(ctx context.Context, cid *cid.ID, pollPa
 		case <-wdone:
 			return wctx.Err()
 		case <-ticker.C:
-			_, err = cp.client.ContainerGet(ctx, cliPrm)
+			_, err := pool.GetContainer(ctx, prm)
 			if err == nil {
 				return nil
 			}
