@@ -14,7 +14,7 @@ On client side:
 	import "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 
 	var msg accounting.Decimal
-	dec.WriteToMessageV2(&msg)
+	dec.WriteToV2(&msg)
 
 	// send msg
 
@@ -22,7 +22,7 @@ On server side:
 	// recv msg
 
 	var dec accounting.Decimal
-	dec.ReadFromMessageV2(msg)
+	dec.ReadFromV2(msg)
 
 	// process dec
 

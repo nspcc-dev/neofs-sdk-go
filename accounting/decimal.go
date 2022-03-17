@@ -5,7 +5,7 @@ import "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 // Decimal represents decimal number for accounting operations.
 //
 // Decimal is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/accounting.Decimal
-// message. See ReadFromMessageV2 / WriteToMessageV2 methods.
+// message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances can be created using built-in var declaration.
 //
@@ -13,18 +13,18 @@ import "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 // 	_ = Decimal(accounting.Decimal{}) // not recommended
 type Decimal accounting.Decimal
 
-// ReadFromMessageV2 reads Decimal from the accounting.Decimal message.
+// ReadFromV2 reads Decimal from the accounting.Decimal message.
 //
-// See also WriteToMessageV2.
-func (d *Decimal) ReadFromMessageV2(m accounting.Decimal) {
+// See also WriteToV2.
+func (d *Decimal) ReadFromV2(m accounting.Decimal) {
 	*d = Decimal(m)
 }
 
-// WriteToMessageV2 writes Decimal to the accounting.Decimal message.
+// WriteToV2 writes Decimal to the accounting.Decimal message.
 // The message must not be nil.
 //
-// See also ReadFromMessageV2.
-func (d Decimal) WriteToMessageV2(m *accounting.Decimal) {
+// See also ReadFromV2.
+func (d Decimal) WriteToV2(m *accounting.Decimal) {
 	*m = (accounting.Decimal)(d)
 }
 

@@ -32,14 +32,14 @@ func TestDecimalMessageV2(t *testing.T) {
 	m.SetValue(7)
 	m.SetPrecision(8)
 
-	d.ReadFromMessageV2(m)
+	d.ReadFromV2(m)
 
 	require.EqualValues(t, m.GetValue(), d.Value())
 	require.EqualValues(t, m.GetPrecision(), d.Precision())
 
 	var m2 v2accounting.Decimal
 
-	d.WriteToMessageV2(&m2)
+	d.WriteToV2(&m2)
 
 	require.EqualValues(t, d.Value(), m2.GetValue())
 	require.EqualValues(t, d.Precision(), m2.GetPrecision())
