@@ -218,7 +218,7 @@ func (x *prmCommon) UseBearer(token *token.BearerToken) {
 	x.btoken = token
 }
 
-// UseSession specifies session within which object should be read.
+// UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token *session.Token) {
 	x.stoken = token
 }
@@ -321,8 +321,6 @@ func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 
 // PrmContainerPut groups parameters of PutContainer operation.
 type PrmContainerPut struct {
-	prmCommon
-
 	cnr container.Container
 }
 
@@ -333,8 +331,6 @@ func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 
 // PrmContainerGet groups parameters of GetContainer operation.
 type PrmContainerGet struct {
-	prmCommon
-
 	cnrID cid.ID
 }
 
@@ -345,8 +341,6 @@ func (x *PrmContainerGet) SetContainerID(cnrID cid.ID) {
 
 // PrmContainerList groups parameters of ListContainers operation.
 type PrmContainerList struct {
-	prmCommon
-
 	ownerID owner.ID
 }
 
@@ -357,9 +351,8 @@ func (x *PrmContainerList) SetOwnerID(ownerID owner.ID) {
 
 // PrmContainerDelete groups parameters of DeleteContainer operation.
 type PrmContainerDelete struct {
-	prmCommon
-
-	cnrID cid.ID
+	stoken session.Token
+	cnrID  cid.ID
 }
 
 // SetContainerID specifies identifier of the NeoFS container to be removed.
@@ -367,10 +360,13 @@ func (x *PrmContainerDelete) SetContainerID(cnrID cid.ID) {
 	x.cnrID = cnrID
 }
 
+// SetSessionToken specifies session within which operation should be performed.
+func (x *PrmContainerDelete) SetSessionToken(token session.Token) {
+	x.stoken = token
+}
+
 // PrmContainerEACL groups parameters of GetEACL operation.
 type PrmContainerEACL struct {
-	prmCommon
-
 	cnrID cid.ID
 }
 
@@ -381,8 +377,6 @@ func (x *PrmContainerEACL) SetContainerID(cnrID cid.ID) {
 
 // PrmContainerSetEACL groups parameters of SetEACL operation.
 type PrmContainerSetEACL struct {
-	prmCommon
-
 	table eacl.Table
 }
 
@@ -393,8 +387,6 @@ func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 
 // PrmBalanceGet groups parameters of Balance operation.
 type PrmBalanceGet struct {
-	prmCommon
-
 	ownerID owner.ID
 }
 
@@ -759,39 +751,6 @@ func (p *Pool) OwnerID() *owner.ID {
 func formCacheKey(address string, key *ecdsa.PrivateKey) string {
 	k := keys.PrivateKey{PrivateKey: *key}
 	return address + k.String()
-}
-
-func (p *Pool) conn(ctx context.Context, cfg prmCommon) (*clientPack, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return nil, err
-	}
-
-	key := p.key
-	if cfg.key != nil {
-		key = cfg.key
-	}
-
-	sessionToken := cfg.stoken
-	if sessionToken == nil && cfg.defaultSession {
-		cacheKey := formCacheKey(cp.address, key)
-		sessionToken = p.cache.Get(cacheKey)
-		if sessionToken == nil {
-			cliRes, err := createSessionTokenForDuration(ctx, cp.client, p.stokenDuration)
-			if err != nil {
-				return nil, err
-			}
-
-			ownerID := owner.NewIDFromPublicKey(&key.PublicKey)
-			sessionToken = sessionTokenForOwner(ownerID, cliRes)
-
-			cfg.stoken = sessionToken
-
-			_ = p.cache.Put(cacheKey, sessionToken)
-		}
-	}
-
-	return cp, nil
 }
 
 func (p *Pool) checkSessionTokenErr(err error, address string) bool {
@@ -1399,7 +1358,7 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 //
 // Success can be verified by reading by identifier (see GetContainer).
 func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return nil, err
 	}
@@ -1417,7 +1376,7 @@ func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, 
 
 // GetContainer reads NeoFS container by ID.
 func (p *Pool) GetContainer(ctx context.Context, prm PrmContainerGet) (*container.Container, error) {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return nil, err
 	}
@@ -1435,7 +1394,7 @@ func (p *Pool) GetContainer(ctx context.Context, prm PrmContainerGet) (*containe
 
 // ListContainers requests identifiers of the account-owned containers.
 func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return nil, err
 	}
@@ -1458,17 +1417,14 @@ func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.
 //
 // Success can be verified by reading by identifier (see GetContainer).
 func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) error {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return err
 	}
 
 	var cliPrm sdkClient.PrmContainerDelete
 	cliPrm.SetContainer(prm.cnrID)
-
-	if prm.stoken != nil {
-		cliPrm.SetSessionToken(*prm.stoken)
-	}
+	cliPrm.SetSessionToken(prm.stoken)
 
 	_, err = cp.client.ContainerDelete(ctx, cliPrm)
 
@@ -1479,7 +1435,7 @@ func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) erro
 
 // GetEACL reads eACL table of the NeoFS container.
 func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, error) {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return nil, err
 	}
@@ -1502,7 +1458,7 @@ func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, 
 //
 // Success can be verified by reading by identifier (see GetEACL).
 func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return err
 	}
@@ -1519,7 +1475,7 @@ func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 
 // Balance requests current balance of the NeoFS account.
 func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
-	cp, err := p.conn(ctx, prm.prmCommon)
+	cp, err := p.connection()
 	if err != nil {
 		return nil, err
 	}
