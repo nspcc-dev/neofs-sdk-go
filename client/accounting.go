@@ -95,7 +95,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 
 		if bal := resp.GetBody().GetBalance(); bal != nil {
 			var d accounting.Decimal
-			d.ReadFromMessageV2(*bal)
+			d.ReadFromV2(*bal)
 
 			res.setAmount(&d)
 		}
