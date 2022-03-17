@@ -569,10 +569,16 @@ func TestSessionTokenOwner(t *testing.T) {
 	var prm prmCommon
 	prm.UseKey(anonKey)
 	prm.useDefaultSession()
-	cp, err := p.conn(ctx, prm)
+	var cc callContext
+	cc.Context = ctx
+	cc.sessionTarget = func(session.Token) {}
+	err = p.initCallContext(&cc, prm)
 	require.NoError(t, err)
 
-	tkn := p.cache.Get(formCacheKey(cp.address, anonKey))
+	err = p.openDefaultSession(&cc)
+	require.NoError(t, err)
+
+	tkn := p.cache.Get(formCacheKey("peer0", anonKey))
 	require.True(t, anonOwner.Equal(tkn.OwnerID()))
 }
 
