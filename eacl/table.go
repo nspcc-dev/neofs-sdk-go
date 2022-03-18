@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"crypto/sha256"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -198,4 +199,61 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 	*t = *NewTableFromV2(tV2)
 
 	return nil
+}
+
+// EqualTo compares Table between each other.
+func (t *Table) EqualTo(table *Table) bool {
+	if t == nil || table == nil {
+		return false
+	}
+
+	if !t.cid.Equal(table.cid) {
+		return false
+	}
+
+	if len(t.records) != len(table.records) {
+		return false
+	}
+
+	for i := 0; i < len(t.records); i++ {
+		tRec, tableRec := t.records[i], table.records[i]
+		if tRec.operation != tableRec.operation ||
+			tRec.action != tableRec.action {
+			return false
+		}
+
+		if len(tRec.filters) != len(tableRec.filters) ||
+			len(tRec.targets) != len(tableRec.targets) {
+			return false
+		}
+
+		for j := 0; j < len(tRec.filters); j++ {
+			if tRec.filters[j].from != tableRec.filters[j].from ||
+				tRec.filters[j].matcher != tableRec.filters[j].matcher ||
+				tRec.filters[j].Value() != tableRec.filters[j].Value() ||
+				tRec.filters[j].key.typ != tableRec.filters[j].key.typ ||
+				tRec.filters[j].key.str != tableRec.filters[j].key.str {
+				return false
+			}
+		}
+
+		for j := 0; j < len(tRec.targets); j++ {
+			if tRec.targets[j].role != tableRec.targets[j].role {
+				return false
+			}
+
+			if len(tRec.targets[j].keys) != len(tableRec.targets[j].keys) {
+				return false
+			}
+
+			tKeys, tableKeys := tRec.targets[j].keys, tableRec.targets[j].keys
+			for k := 0; k < len(tKeys); k++ {
+				if !bytes.Equal(tKeys[k], tableKeys[k]) {
+					return false
+				}
+			}
+		}
+	}
+
+	return true
 }
