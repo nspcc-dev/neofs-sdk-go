@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
@@ -34,7 +35,7 @@ func TestNewContainer(t *testing.T) {
 	c.SetOwnerID(ownerID)
 
 	ver := versiontest.Version()
-	c.SetVersion(ver)
+	c.SetVersion(&ver)
 
 	v2 := c.ToV2()
 	newContainer := container.NewContainerFromV2(v2)
@@ -48,7 +49,7 @@ func TestNewContainer(t *testing.T) {
 
 	require.EqualValues(t, newNonce, nonce)
 	require.EqualValues(t, newContainer.OwnerID(), ownerID)
-	require.EqualValues(t, newContainer.Version(), ver)
+	require.EqualValues(t, *newContainer.Version(), ver)
 }
 
 func TestContainerEncoding(t *testing.T) {
@@ -112,7 +113,7 @@ func TestContainer_ToV2(t *testing.T) {
 		require.Nil(t, cnt.OwnerID())
 
 		require.EqualValues(t, acl.PrivateBasicRule, cnt.BasicACL())
-		require.Equal(t, version.Current(), cnt.Version())
+		require.Equal(t, version.Current(), *cnt.Version())
 
 		nonce, err := cnt.NonceUUID()
 		require.NoError(t, err)
@@ -131,6 +132,9 @@ func TestContainer_ToV2(t *testing.T) {
 		require.Nil(t, cntV2.GetOwnerID())
 
 		require.Equal(t, uint32(acl.PrivateBasicRule), cntV2.GetBasicACL())
-		require.Equal(t, version.Current().ToV2(), cntV2.GetVersion())
+
+		var verV2 refs.Version
+		version.Current().WriteToV2(&verV2)
+		require.Equal(t, verV2, *cntV2.GetVersion())
 	})
 }

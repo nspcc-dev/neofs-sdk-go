@@ -122,17 +122,20 @@ func (o *Object) SetPayload(v []byte) {
 
 // Version returns version of the object.
 func (o *Object) Version() *version.Version {
-	return version.NewFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetVersion(),
-	)
+	var ver version.Version
+	if verV2 := (*object.Object)(o).GetHeader().GetVersion(); verV2 != nil {
+		ver.ReadFromV2(*verV2)
+	}
+	return &ver
 }
 
 // SetVersion sets version of the object.
 func (o *Object) SetVersion(v *version.Version) {
+	var verV2 refs.Version
+	v.WriteToV2(&verV2)
+
 	o.setHeaderField(func(h *object.Header) {
-		h.SetVersion(v.ToV2())
+		h.SetVersion(&verV2)
 	})
 }
 

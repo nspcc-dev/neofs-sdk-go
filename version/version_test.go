@@ -9,31 +9,33 @@ import (
 
 func TestNewVersion(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		v := New()
+		var v Version
 
 		// check initial values
 		require.Zero(t, v.Major())
 		require.Zero(t, v.Minor())
 
 		// convert to v2 message
-		vV2 := v.ToV2()
+		var vV2 refs.Version
+		v.WriteToV2(&vV2)
 
-		require.Empty(t, vV2.GetMajor())
-		require.Empty(t, vV2.GetMinor())
+		require.Zero(t, vV2.GetMajor())
+		require.Zero(t, vV2.GetMinor())
 	})
 
 	t.Run("setting values", func(t *testing.T) {
-		v := New()
+		var v Version
 
 		var mjr, mnr uint32 = 1, 2
 
 		v.SetMajor(mjr)
 		v.SetMinor(mnr)
-
 		require.Equal(t, mjr, v.Major())
 		require.Equal(t, mnr, v.Minor())
 
-		ver := v.ToV2()
+		// convert to v2 message
+		var ver refs.Version
+		v.WriteToV2(&ver)
 
 		require.Equal(t, mjr, ver.GetMajor())
 		require.Equal(t, mnr, ver.GetMinor())
@@ -45,46 +47,4 @@ func TestSDKVersion(t *testing.T) {
 
 	require.Equal(t, uint32(sdkMjr), v.Major())
 	require.Equal(t, uint32(sdkMnr), v.Minor())
-}
-
-func TestVersionEncoding(t *testing.T) {
-	v := New()
-	v.SetMajor(1)
-	v.SetMinor(2)
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := v.Marshal()
-		require.NoError(t, err)
-
-		v2 := New()
-		require.NoError(t, v2.Unmarshal(data))
-
-		require.Equal(t, v, v2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := v.MarshalJSON()
-		require.NoError(t, err)
-
-		v2 := New()
-		require.NoError(t, v2.UnmarshalJSON(data))
-
-		require.Equal(t, v, v2)
-	})
-}
-
-func TestNewVersionFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *refs.Version
-
-		require.Nil(t, NewFromV2(x))
-	})
-}
-
-func TestVersion_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Version
-
-		require.Nil(t, x.ToV2())
-	})
 }

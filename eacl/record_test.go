@@ -170,7 +170,7 @@ func TestReservedRecords(t *testing.T) {
 			value: "bar",
 		},
 		{
-			f:     func(r *Record) { r.AddObjectVersionFilter(MatchStringEqual, v) },
+			f:     func(r *Record) { r.AddObjectVersionFilter(MatchStringEqual, &v) },
 			key:   v2acl.FilterObjectVersion,
 			value: v.String(),
 		},

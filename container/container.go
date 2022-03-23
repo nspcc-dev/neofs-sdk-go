@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -53,7 +54,8 @@ func New(opts ...Option) *Container {
 	}
 
 	cnr.SetAttributes(cnrOptions.attributes)
-	cnr.SetVersion(version.Current())
+	ver := version.Current()
+	cnr.SetVersion(&ver)
 
 	return cnr
 }
@@ -98,11 +100,17 @@ func CalculateID(c *Container) *cid.ID {
 }
 
 func (c *Container) Version() *version.Version {
-	return version.NewFromV2(c.v2.GetVersion())
+	var ver version.Version
+	if v2ver := c.v2.GetVersion(); v2ver != nil {
+		ver.ReadFromV2(*c.v2.GetVersion())
+	}
+	return &ver
 }
 
 func (c *Container) SetVersion(v *version.Version) {
-	c.v2.SetVersion(v.ToV2())
+	var verV2 refs.Version
+	v.WriteToV2(&verV2)
+	c.v2.SetVersion(&verV2)
 }
 
 func (c *Container) OwnerID() *owner.ID {

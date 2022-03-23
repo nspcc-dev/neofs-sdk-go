@@ -2,6 +2,7 @@ package audit
 
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/audit"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -28,7 +29,9 @@ type Result struct {
 // See also Unmarshal.
 func (r *Result) Marshal() []byte {
 	if !r.versionEncoded {
-		r.v2.SetVersion(version.Current().ToV2())
+		var verV2 refs.Version
+		version.Current().WriteToV2(&verV2)
+		r.v2.SetVersion(&verV2)
 		r.versionEncoded = true
 	}
 

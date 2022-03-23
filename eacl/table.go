@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
@@ -98,7 +99,9 @@ func (t *Table) ToV2() *v2acl.Table {
 		v2.SetRecords(records)
 	}
 
-	v2.SetVersion(t.version.ToV2())
+	var verV2 refs.Version
+	t.version.WriteToV2(&verV2)
+	v2.SetVersion(&verV2)
 
 	return v2
 }
@@ -113,7 +116,7 @@ func (t *Table) ToV2() *v2acl.Table {
 //  - signature: nil.
 func NewTable() *Table {
 	t := new(Table)
-	t.SetVersion(*version.Current())
+	t.SetVersion(version.Current())
 
 	return t
 }

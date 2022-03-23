@@ -102,15 +102,15 @@ func TestGlobalTrust(t *testing.T) {
 	t.Run("getters+setters", func(t *testing.T) {
 		gt := reputation.NewGlobalTrust()
 
-		require.Equal(t, version.Current(), gt.Version())
+		require.Equal(t, version.Current(), *gt.Version())
 		require.Nil(t, gt.Manager())
 		require.Nil(t, gt.Trust())
 
-		version := version.New()
-		version.SetMajor(13)
-		version.SetMinor(31)
-		gt.SetVersion(version)
-		require.Equal(t, version, gt.Version())
+		var ver version.Version
+		ver.SetMajor(13)
+		ver.SetMinor(31)
+		gt.SetVersion(&ver)
+		require.Equal(t, ver, *gt.Version())
 
 		mngr := reputationtest.PeerID()
 		gt.SetManager(mngr)
@@ -240,7 +240,7 @@ func TestNewGlobalTrust(t *testing.T) {
 		require.Nil(t, trust.Manager())
 		require.Nil(t, trust.Trust())
 
-		require.Equal(t, version.Current().String(), trust.Version().String())
+		require.Equal(t, version.Current(), *trust.Version())
 
 		// convert to v2 message
 		trustV2 := trust.ToV2()

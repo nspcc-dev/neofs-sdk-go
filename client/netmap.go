@@ -91,7 +91,11 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 		body := resp.GetBody()
 
-		res.setLatestVersion(version.NewFromV2(body.GetVersion()))
+		var ver version.Version
+		if v2ver := body.GetVersion(); v2ver != nil {
+			ver.ReadFromV2(*v2ver)
+		}
+		res.setLatestVersion(&ver)
 		res.setNodeInfo(netmap.NewNodeInfoFromV2(body.GetNodeInfo()))
 	}
 

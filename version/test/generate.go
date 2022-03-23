@@ -7,11 +7,8 @@ import (
 )
 
 // Version returns random version.Version.
-func Version() *version.Version {
-	x := version.New()
-
-	x.SetMajor(rand.Uint32())
-	x.SetMinor(rand.Uint32())
-
-	return x
+func Version() (v version.Version) {
+	v.SetMajor(rand.Uint32())
+	v.SetMinor(rand.Uint32())
+	return v
 }

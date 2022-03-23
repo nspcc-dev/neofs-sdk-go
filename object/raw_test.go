@@ -73,13 +73,13 @@ func TestObject_SetPayload(t *testing.T) {
 func TestObject_SetVersion(t *testing.T) {
 	obj := New()
 
-	ver := version.New()
+	var ver version.Version
 	ver.SetMajor(1)
 	ver.SetMinor(2)
 
-	obj.SetVersion(ver)
+	obj.SetVersion(&ver)
 
-	require.Equal(t, ver, obj.Version())
+	require.Equal(t, ver, *obj.Version())
 }
 
 func TestObject_SetPayloadSize(t *testing.T) {

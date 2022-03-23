@@ -6,34 +6,24 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
-// Version represents v2-compatible version.
+// Version represents revision number in SemVer scheme.
+//
+// Version is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Version
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Version(refs.Version{}) // not recommended
 type Version refs.Version
 
-const sdkMjr, sdkMnr = 2, 11
+const sdkMjr, sdkMnr = 2, 12
 
-// NewFromV2 wraps v2 Version message to Version.
-//
-// Nil refs.Version converts to nil.
-func NewFromV2(v *refs.Version) *Version {
-	return (*Version)(v)
-}
-
-// New creates and initializes blank Version.
-//
-// Defaults:
-//  - major: 0;
-//  - minor: 0.
-func New() *Version {
-	return NewFromV2(new(refs.Version))
-}
-
-// Current returns Version instance that
-// initialized to current SDK revision number.
-func Current() *Version {
-	v := New()
+// Current returns Version instance that initialized to the
+// latest supported NeoFS API revision number in SDK.
+func Current() (v Version) {
 	v.SetMajor(sdkMjr)
 	v.SetMinor(sdkMnr)
-
 	return v
 }
 
@@ -57,35 +47,25 @@ func (v *Version) SetMinor(val uint32) {
 	(*refs.Version)(v).SetMinor(val)
 }
 
-// ToV2 converts Version to v2 Version message.
+// WriteToV2 writes Version to the refs.Version message.
+// The message must not be nil.
 //
-// Nil Version converts to nil.
-func (v *Version) ToV2() *refs.Version {
-	return (*refs.Version)(v)
+// See also ReadFromV2.
+func (v Version) WriteToV2(m *refs.Version) {
+	*m = (refs.Version)(v)
 }
 
-func (v *Version) String() string {
+// ReadFromV2 reads Version from the refs.Version message.
+//
+// See also WriteToV2.
+func (v *Version) ReadFromV2(m refs.Version) {
+	*v = Version(m)
+}
+
+// String returns semver formatted value without patch and with v prefix,
+// e.g. 'v2.1'.
+func (v Version) String() string {
 	return fmt.Sprintf("v%d.%d", v.Major(), v.Minor())
-}
-
-// Marshal marshals Version into a protobuf binary form.
-func (v *Version) Marshal() ([]byte, error) {
-	return (*refs.Version)(v).StableMarshal(nil)
-}
-
-// Unmarshal unmarshals protobuf binary representation of Version.
-func (v *Version) Unmarshal(data []byte) error {
-	return (*refs.Version)(v).Unmarshal(data)
-}
-
-// MarshalJSON encodes Version to protobuf JSON format.
-func (v *Version) MarshalJSON() ([]byte, error) {
-	return (*refs.Version)(v).MarshalJSON()
-}
-
-// UnmarshalJSON decodes Version from protobuf JSON format.
-func (v *Version) UnmarshalJSON(data []byte) error {
-	return (*refs.Version)(v).UnmarshalJSON(data)
 }
 
 // Equal returns true if versions are identical.

@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
@@ -46,7 +47,7 @@ func TestTable(t *testing.T) {
 
 		table := eacl.CreateTable(*id)
 		require.Equal(t, id, table.CID())
-		require.Equal(t, *version.Current(), table.Version())
+		require.Equal(t, version.Current(), table.Version())
 	})
 }
 
@@ -121,7 +122,7 @@ func TestTable_ToV2(t *testing.T) {
 		table := eacl.NewTable()
 
 		// check initial values
-		require.Equal(t, *version.Current(), table.Version())
+		require.Equal(t, version.Current(), table.Version())
 		require.Nil(t, table.Records())
 		require.Nil(t, table.CID())
 		require.Nil(t, table.SessionToken())
@@ -130,7 +131,9 @@ func TestTable_ToV2(t *testing.T) {
 		// convert to v2 message
 		tableV2 := table.ToV2()
 
-		require.Equal(t, version.Current().ToV2(), tableV2.GetVersion())
+		var verV2 refs.Version
+		version.Current().WriteToV2(&verV2)
+		require.Equal(t, verV2, *tableV2.GetVersion())
 		require.Nil(t, tableV2.GetRecords())
 		require.Nil(t, tableV2.GetContainerID())
 	})
