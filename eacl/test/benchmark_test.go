@@ -110,7 +110,7 @@ func TableN(n int) *eacl.Table {
 		x.AddRecord(RecordN(n))
 	}
 
-	x.SetVersion(*versiontest.Version())
+	x.SetVersion(versiontest.Version())
 
 	return x
 }

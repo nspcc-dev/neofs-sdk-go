@@ -44,6 +44,7 @@ func SplitID() *object.SplitID {
 
 func generate(withParent bool) *object.Object {
 	x := object.New()
+	ver := version.Current()
 
 	x.SetID(oidtest.ID())
 	x.SetSessionToken(sessiontest.Token())
@@ -51,7 +52,7 @@ func generate(withParent bool) *object.Object {
 	x.SetOwnerID(ownertest.ID())
 	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
-	x.SetVersion(version.Current())
+	x.SetVersion(&ver)
 	x.SetPayloadSize(111)
 	x.SetCreationEpoch(222)
 	x.SetPreviousID(oidtest.ID())

@@ -39,7 +39,7 @@ func Table() *eacl.Table {
 	x.SetCID(cidtest.ID())
 	x.AddRecord(Record())
 	x.AddRecord(Record())
-	x.SetVersion(*versiontest.Version())
+	x.SetVersion(versiontest.Version())
 
 	return x
 }

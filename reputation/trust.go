@@ -178,7 +178,8 @@ type GlobalTrust reputation.GlobalTrust
 //  - trust: nil.
 func NewGlobalTrust() *GlobalTrust {
 	gt := GlobalTrustFromV2(new(reputation.GlobalTrust))
-	gt.SetVersion(version.Current())
+	ver := version.Current()
+	gt.SetVersion(&ver)
 
 	return gt
 }
@@ -201,13 +202,18 @@ func (x *GlobalTrust) ToV2() *reputation.GlobalTrust {
 
 // SetVersion sets GlobalTrust's protocol version.
 func (x *GlobalTrust) SetVersion(version *version.Version) {
-	(*reputation.GlobalTrust)(x).SetVersion(version.ToV2())
+	var verV2 refs.Version
+	version.WriteToV2(&verV2)
+	(*reputation.GlobalTrust)(x).SetVersion(&verV2)
 }
 
 // Version returns GlobalTrust's protocol version.
 func (x *GlobalTrust) Version() *version.Version {
-	return version.NewFromV2(
-		(*reputation.GlobalTrust)(x).GetVersion())
+	var ver version.Version
+	if verV2 := (*reputation.GlobalTrust)(x).GetVersion(); verV2 != nil {
+		ver.ReadFromV2(*verV2)
+	}
+	return &ver
 }
 
 func (x *GlobalTrust) setBodyField(setter func(*reputation.GlobalTrustBody)) {

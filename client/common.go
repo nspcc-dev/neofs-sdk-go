@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/signature"
@@ -159,7 +160,9 @@ func (x contextCall) prepareRequest() {
 	}
 
 	if meta.GetVersion() == nil {
-		meta.SetVersion(version.Current().ToV2())
+		var verV2 refs.Version
+		version.Current().WriteToV2(&verV2)
+		meta.SetVersion(&verV2)
 	}
 
 	meta.SetNetworkMagic(x.netMagic)

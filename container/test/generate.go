@@ -26,8 +26,9 @@ func Attributes() container.Attributes {
 // Container returns random container.Container.
 func Container() *container.Container {
 	x := container.New()
+	ver := versiontest.Version()
 
-	x.SetVersion(versiontest.Version())
+	x.SetVersion(&ver)
 	x.SetAttributes(Attributes())
 	x.SetOwnerID(ownertest.ID())
 	x.SetBasicACL(123)
