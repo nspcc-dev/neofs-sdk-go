@@ -615,14 +615,14 @@ func TestWaitPresence(t *testing.T) {
 			cancel()
 		}()
 
-		err := WaitForContainerPresence(ctx, p, nil, DefaultPollingParams())
+		err := WaitForContainerPresence(ctx, p, nil, DefaultWaitParams())
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "context canceled")
 	})
 
 	t.Run("context deadline exceeded", func(t *testing.T) {
 		ctx := context.Background()
-		err := WaitForContainerPresence(ctx, p, nil, &ContainerPollingParams{
+		err := WaitForContainerPresence(ctx, p, nil, &WaitParams{
 			timeout:      500 * time.Millisecond,
 			pollInterval: 5 * time.Second,
 		})
@@ -632,7 +632,7 @@ func TestWaitPresence(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
-		err := WaitForContainerPresence(ctx, p, nil, &ContainerPollingParams{
+		err := WaitForContainerPresence(ctx, p, nil, &WaitParams{
 			timeout:      10 * time.Second,
 			pollInterval: 500 * time.Millisecond,
 		})

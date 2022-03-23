@@ -155,25 +155,25 @@ func (x *NodeParam) SetWeight(weight float64) {
 	x.weight = weight
 }
 
-// ContainerPollingParams contains parameters used in polling is a container created or not.
-type ContainerPollingParams struct {
+// WaitParams contains parameters used in polling is a something applied on NeoFS network.
+type WaitParams struct {
 	timeout      time.Duration
 	pollInterval time.Duration
 }
 
 // SetTimeout specifies the time to wait for the operation to complete.
-func (x *ContainerPollingParams) SetTimeout(timeout time.Duration) {
+func (x *WaitParams) SetTimeout(timeout time.Duration) {
 	x.timeout = timeout
 }
 
 // SetPollInterval specifies the interval, once it will check the completion of the operation.
-func (x *ContainerPollingParams) SetPollInterval(tick time.Duration) {
+func (x *WaitParams) SetPollInterval(tick time.Duration) {
 	x.pollInterval = tick
 }
 
-// DefaultPollingParams creates ContainerPollingParams with default values.
-func DefaultPollingParams() *ContainerPollingParams {
-	return &ContainerPollingParams{
+// DefaultWaitParams creates WaitParams with default values.
+func DefaultWaitParams() *WaitParams {
+	return &WaitParams{
 		timeout:      120 * time.Second,
 		pollInterval: 5 * time.Second,
 	}
@@ -1492,19 +1492,42 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Deci
 }
 
 // WaitForContainerPresence waits until the container is found on the NeoFS network.
-func WaitForContainerPresence(ctx context.Context, pool *Pool, cid *cid.ID, pollParams *ContainerPollingParams) error {
-	wctx, cancel := context.WithTimeout(ctx, pollParams.timeout)
+func WaitForContainerPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, waitParams *WaitParams) error {
+	var prm PrmContainerGet
+	if cnrID != nil {
+		prm.SetContainerID(*cnrID)
+	}
+
+	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
+		_, err := pool.GetContainer(ctx, prm)
+		return err == nil
+	})
+}
+
+// WaitForEACLPresence waits until the container eacl is applied on the NeoFS network.
+func WaitForEACLPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, table *eacl.Table, waitParams *WaitParams) error {
+	var prm PrmContainerEACL
+	if cnrID != nil {
+		prm.SetContainerID(*cnrID)
+	}
+
+	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
+		eaclTable, err := pool.GetEACL(ctx, prm)
+		if err == nil {
+			return table.EqualTo(eaclTable)
+		}
+		return false
+	})
+}
+
+// waitFor await that given condition will be met in waitParams time.
+func waitFor(ctx context.Context, params *WaitParams, condition func(context.Context) bool) error {
+	wctx, cancel := context.WithTimeout(ctx, params.timeout)
 	defer cancel()
-	ticker := time.NewTimer(pollParams.pollInterval)
+	ticker := time.NewTimer(params.pollInterval)
 	defer ticker.Stop()
 	wdone := wctx.Done()
 	done := ctx.Done()
-
-	var prm PrmContainerGet
-	if cid != nil {
-		prm.SetContainerID(*cid)
-	}
-
 	for {
 		select {
 		case <-done:
@@ -1512,11 +1535,10 @@ func WaitForContainerPresence(ctx context.Context, pool *Pool, cid *cid.ID, poll
 		case <-wdone:
 			return wctx.Err()
 		case <-ticker.C:
-			_, err := pool.GetContainer(ctx, prm)
-			if err == nil {
+			if condition(ctx) {
 				return nil
 			}
-			ticker.Reset(pollParams.pollInterval)
+			ticker.Reset(params.pollInterval)
 		}
 	}
 }
