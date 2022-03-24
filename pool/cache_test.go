@@ -16,7 +16,10 @@ func TestSessionCache_GetAccessTime(t *testing.T) {
 	cache, err := newCache()
 	require.NoError(t, err)
 
-	cache.Put(key, nil)
+	st := session.NewToken()
+	st.SetExp(1)
+
+	cache.Put(key, st)
 
 	t1, ok := cache.GetAccessTime(key)
 	require.True(t, ok)
