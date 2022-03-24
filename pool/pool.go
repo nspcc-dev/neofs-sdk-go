@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -27,7 +28,6 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/token"
 	"go.uber.org/zap"
 )
 
@@ -620,7 +620,7 @@ func (x *prmContext) useVerb(verb sessionv2.ObjectSessionVerb) {
 
 type prmCommon struct {
 	key    *ecdsa.PrivateKey
-	btoken *token.BearerToken
+	btoken *bearer.Token
 	stoken *session.Token
 }
 
@@ -631,8 +631,8 @@ func (x *prmCommon) UseKey(key *ecdsa.PrivateKey) {
 }
 
 // UseBearer attaches bearer token to be used for the operation.
-func (x *prmCommon) UseBearer(token *token.BearerToken) {
-	x.btoken = token
+func (x *prmCommon) UseBearer(token bearer.Token) {
+	x.btoken = &token
 }
 
 // UseSession specifies session within which operation should be performed.
