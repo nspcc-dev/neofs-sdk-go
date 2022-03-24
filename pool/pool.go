@@ -1520,6 +1520,19 @@ func WaitForEACLPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, table *
 	})
 }
 
+// WaitForContainerRemoved waits until the container is removed from the NeoFS network.
+func WaitForContainerRemoved(ctx context.Context, pool *Pool, cnrID *cid.ID, waitParams *WaitParams) error {
+	var prm PrmContainerGet
+	if cnrID != nil {
+		prm.SetContainerID(*cnrID)
+	}
+
+	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
+		_, err := pool.GetContainer(ctx, prm)
+		return sdkClient.IsErrContainerNotFound(err)
+	})
+}
+
 // waitFor await that given condition will be met in waitParams time.
 func waitFor(ctx context.Context, params *WaitParams, condition func(context.Context) bool) error {
 	wctx, cancel := context.WithTimeout(ctx, params.timeout)
