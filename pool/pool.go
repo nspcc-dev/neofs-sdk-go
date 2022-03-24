@@ -58,7 +58,6 @@ type InitParameters struct {
 	nodeDialTimeout           time.Duration
 	healthcheckTimeout        time.Duration
 	clientRebalanceInterval   time.Duration
-	sessionTokenThreshold     time.Duration
 	sessionExpirationDuration uint64
 	nodeParams                []NodeParam
 
@@ -92,11 +91,6 @@ func (x *InitParameters) SetHealthcheckTimeout(timeout time.Duration) {
 // See also Pool.Dial.
 func (x *InitParameters) SetClientRebalanceInterval(interval time.Duration) {
 	x.clientRebalanceInterval = interval
-}
-
-// SetSessionThreshold specifies the max session token life time for PutObject operation.
-func (x *InitParameters) SetSessionThreshold(threshold time.Duration) {
-	x.sessionTokenThreshold = threshold
 }
 
 // SetSessionExpirationDuration specifies the session token lifetime in epochs.
@@ -464,7 +458,6 @@ type Pool struct {
 	closedCh        chan struct{}
 	cache           *sessionCache
 	stokenDuration  uint64
-	stokenThreshold time.Duration
 	rebalanceParams rebalanceParameters
 	clientBuilder   func(endpoint string) (client, error)
 	logger          *zap.Logger
@@ -479,9 +472,8 @@ type innerPool struct {
 const (
 	defaultSessionTokenExpirationDuration = 100 // in blocks
 
-	defaultSessionTokenThreshold = 5 * time.Second
-	defaultRebalanceInterval     = 25 * time.Second
-	defaultRequestTimeout        = 4 * time.Second
+	defaultRebalanceInterval = 25 * time.Second
+	defaultRequestTimeout    = 4 * time.Second
 )
 
 // NewPool creates connection pool using parameters.
@@ -503,12 +495,11 @@ func NewPool(options InitParameters) (*Pool, error) {
 	fillDefaultInitParams(&options, cache)
 
 	pool := &Pool{
-		key:             options.key,
-		owner:           owner.NewIDFromPublicKey(&options.key.PublicKey),
-		cache:           cache,
-		logger:          options.logger,
-		stokenDuration:  options.sessionExpirationDuration,
-		stokenThreshold: options.sessionTokenThreshold,
+		key:            options.key,
+		owner:          owner.NewIDFromPublicKey(&options.key.PublicKey),
+		cache:          cache,
+		logger:         options.logger,
+		stokenDuration: options.sessionExpirationDuration,
 		rebalanceParams: rebalanceParameters{
 			nodesParams:               nodesParams,
 			nodeRequestTimeout:        options.healthcheckTimeout,
@@ -578,10 +569,6 @@ func (p *Pool) Dial(ctx context.Context) error {
 func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 	if params.sessionExpirationDuration == 0 {
 		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
-	}
-
-	if params.sessionTokenThreshold <= 0 {
-		params.sessionTokenThreshold = defaultSessionTokenThreshold
 	}
 
 	if params.clientRebalanceInterval <= 0 {
@@ -818,25 +805,6 @@ func createSessionTokenForDuration(ctx context.Context, c client, dur uint64) (*
 	return c.SessionCreate(ctx, prm)
 }
 
-func (p *Pool) removeSessionTokenAfterThreshold(cfg prmCommon) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
-
-	key := p.key
-	if cfg.key != nil {
-		key = cfg.key
-	}
-
-	ts, ok := p.cache.GetAccessTime(formCacheKey(cp.address, key))
-	if ok && time.Since(ts) > p.stokenThreshold {
-		p.cache.DeleteByPrefix(cp.address)
-	}
-
-	return nil
-}
-
 type callContext struct {
 	// base context for RPC
 	context.Context
@@ -940,27 +908,11 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 	prm.useVerb(sessionv2.ObjectVerbPut)
 	prm.useAddress(newAddressFromCnrID(prm.hdr.ContainerID()))
 
-	// Put object is different from other object service methods. Put request
-	// can't be resent in case of session token failures (i.e. session token is
-	// invalid due to lifetime expiration or server restart). The reason is that
-	// object's payload can be provided as a stream that should be read only once.
-	//
-	// To solve this issue, pool regenerates session tokens upon each request.
-	// In case of subsequent requests, pool avoids session token initialization
-	// by checking when the session token was accessed for the last time. If it
-	// hits a threshold, session token is removed from cache for a new one to be
-	// issued.
-	err := p.removeSessionTokenAfterThreshold(prm.prmCommon)
-	if err != nil {
-		return nil, err
-	}
-
 	var ctxCall callContext
 
 	ctxCall.Context = ctx
 
-	err = p.initCallContext(&ctxCall, prm.prmCommon)
-	if err != nil {
+	if err := p.initCallContext(&ctxCall, prm.prmCommon); err != nil {
 		return nil, fmt.Errorf("init call context")
 	}
 

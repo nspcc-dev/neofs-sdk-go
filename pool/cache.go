@@ -3,7 +3,6 @@ package pool
 import (
 	"strings"
 	"sync/atomic"
-	"time"
 
 	lru "github.com/hashicorp/golang-lru"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -15,7 +14,6 @@ type sessionCache struct {
 }
 
 type cacheValue struct {
-	atime time.Time
 	token *session.Token
 }
 
@@ -43,8 +41,6 @@ func (c *sessionCache) Get(key string) *session.Token {
 		return nil
 	}
 
-	value.atime = time.Now()
-
 	if value.token == nil {
 		return nil
 	}
@@ -54,18 +50,8 @@ func (c *sessionCache) Get(key string) *session.Token {
 	return &res
 }
 
-func (c *sessionCache) GetAccessTime(key string) (time.Time, bool) {
-	valueRaw, ok := c.cache.Peek(key)
-	if !ok {
-		return time.Time{}, false
-	}
-
-	return valueRaw.(*cacheValue).atime, true
-}
-
 func (c *sessionCache) Put(key string, token *session.Token) bool {
 	return c.cache.Add(key, &cacheValue{
-		atime: time.Now(),
 		token: token,
 	})
 }
