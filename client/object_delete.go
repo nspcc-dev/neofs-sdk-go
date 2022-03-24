@@ -4,15 +4,16 @@ import (
 	"context"
 	"crypto/ecdsa"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/token"
 )
 
 // PrmObjectDelete groups parameters of ObjectDelete operation.
@@ -42,8 +43,10 @@ func (x *PrmObjectDelete) WithinSession(t session.Token) {
 // If set, underlying eACL rules will be used in access control.
 //
 // Must be signed.
-func (x *PrmObjectDelete) WithBearerToken(t token.BearerToken) {
-	x.meta.SetBearerToken(t.ToV2())
+func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
+	var v2token acl.BearerToken
+	t.WriteToV2(&v2token)
+	x.meta.SetBearerToken(&v2token)
 }
 
 // FromContainer specifies NeoFS container of the object.

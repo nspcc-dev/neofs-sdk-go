@@ -7,17 +7,18 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/token"
 )
 
 // PrmObjectSearch groups parameters of ObjectSearch operation.
@@ -30,7 +31,7 @@ type PrmObjectSearch struct {
 	session    session.Token
 
 	bearerSet bool
-	bearer    token.BearerToken
+	bearer    bearer.Token
 
 	cnrSet bool
 	cnr    cid.ID
@@ -59,7 +60,7 @@ func (x *PrmObjectSearch) WithinSession(t session.Token) {
 // If set, underlying eACL rules will be used in access control.
 //
 // Must be signed.
-func (x *PrmObjectSearch) WithBearerToken(t token.BearerToken) {
+func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
 	x.bearer = t
 	x.bearerSet = true
 }
@@ -257,7 +258,9 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	}
 
 	if prm.bearerSet {
-		meta.SetBearerToken(prm.bearer.ToV2())
+		var v2token acl.BearerToken
+		prm.bearer.WriteToV2(&v2token)
+		meta.SetBearerToken(&v2token)
 	}
 
 	if prm.sessionSet {

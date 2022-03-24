@@ -5,14 +5,15 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/token"
 )
 
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
@@ -69,8 +70,10 @@ func (x *ObjectWriter) UseKey(key ecdsa.PrivateKey) {
 
 // WithBearerToken attaches bearer token to be used for the operation.
 // Should be called once before any writing steps.
-func (x *ObjectWriter) WithBearerToken(t token.BearerToken) {
-	x.metaHdr.SetBearerToken(t.ToV2())
+func (x *ObjectWriter) WithBearerToken(t bearer.Token) {
+	var v2token acl.BearerToken
+	t.WriteToV2(&v2token)
+	x.metaHdr.SetBearerToken(&v2token)
 }
 
 // WithinSession specifies session within which object should be stored.
