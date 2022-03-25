@@ -11,7 +11,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
-	"github.com/nspcc-dev/neofs-sdk-go/storagegroup/test"
+	storagegrouptest "github.com/nspcc-dev/neofs-sdk-go/storagegroup/test"
 	"github.com/stretchr/testify/require"
 )
 

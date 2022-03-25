@@ -80,7 +80,7 @@ func TestFilter(t *testing.T) {
 		require.Equal(t, object.MatchStringEqual, filters[i].Operation())
 	}
 
-	v2 := make([]objectv2.SearchFilter, 0, 0)
+	v2 := make([]objectv2.SearchFilter, 0)
 	filters.WriteToV2(&v2)
 
 	var newFilters object.SearchFilters
@@ -134,7 +134,7 @@ func TestSearchFilters_AddParentIDFilter(t *testing.T) {
 	fs := object.SearchFilters{}
 	fs.AddParentIDFilter(object.MatchStringEqual, par)
 
-	fsV2 := make([]objectv2.SearchFilter, 0, 0)
+	fsV2 := make([]objectv2.SearchFilter, 0)
 	fs.WriteToV2(&fsV2)
 
 	require.Len(t, fsV2, 1)
@@ -151,7 +151,7 @@ func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
 	fs.AddObjectIDFilter(object.MatchStringEqual, id)
 
 	t.Run("v2", func(t *testing.T) {
-		fsV2 := make([]objectv2.SearchFilter, 0, 0)
+		fsV2 := make([]objectv2.SearchFilter, 0)
 		fs.WriteToV2(&fsV2)
 
 		require.Len(t, fsV2, 1)
@@ -169,7 +169,7 @@ func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
 	fs.AddSplitIDFilter(object.MatchStringEqual, id)
 
 	t.Run("v2", func(t *testing.T) {
-		fsV2 := make([]objectv2.SearchFilter, 0, 0)
+		fsV2 := make([]objectv2.SearchFilter, 0)
 		fs.WriteToV2(&fsV2)
 
 		require.Len(t, fsV2, 1)
@@ -187,7 +187,7 @@ func TestSearchFilters_AddTypeFilter(t *testing.T) {
 	fs.AddTypeFilter(object.MatchStringEqual, typ)
 
 	t.Run("v2", func(t *testing.T) {
-		fsV2 := make([]objectv2.SearchFilter, 0, 0)
+		fsV2 := make([]objectv2.SearchFilter, 0)
 		fs.WriteToV2(&fsV2)
 
 		require.Len(t, fsV2, 1)

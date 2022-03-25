@@ -50,6 +50,7 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(SuccessDefaultV2)
 		}
 	case status.IsCommonFail(code):
+		//nolint:exhaustive
 		switch status.LocalizeCommonFail(&code); code {
 		case status.Internal:
 			decoder = new(ServerInternal)
@@ -57,6 +58,7 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(WrongMagicNumber)
 		}
 	case object.LocalizeFailStatus(&code):
+		//nolint:exhaustive
 		switch code {
 		case object.StatusLocked:
 			decoder = new(ObjectLocked)

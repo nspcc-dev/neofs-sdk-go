@@ -91,7 +91,6 @@ func (s *SearchMatchType) Parse(str string) bool {
 	ok := g.FromString(str)
 
 	if ok {
-
 		*s = (SearchMatchType)(g)
 	}
 
