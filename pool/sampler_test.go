@@ -6,7 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
-	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,16 +43,16 @@ func TestSamplerStability(t *testing.T) {
 }
 
 type clientMock struct {
-	sdkClient.Client
+	clientWrapper
 	name string
 	err  error
 }
 
-func (c *clientMock) EndpointInfo(context.Context, sdkClient.PrmEndpointInfo) (*sdkClient.ResEndpointInfo, error) {
+func (c *clientMock) EndpointInfo(context.Context, PrmEndpointInfo) (*netmap.NodeInfo, error) {
 	return nil, nil
 }
 
-func (c *clientMock) NetworkInfo(context.Context, sdkClient.PrmNetworkInfo) (*sdkClient.ResNetworkInfo, error) {
+func (c *clientMock) NetworkInfo(context.Context, PrmNetworkInfo) (*netmap.NetworkInfo, error) {
 	return nil, nil
 }
 
