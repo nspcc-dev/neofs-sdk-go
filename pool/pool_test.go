@@ -1,8 +1,10 @@
 package pool
 
+// To generate mock define 'type Client client' in pool.go
 //go:generate mockgen -destination mock_test.go -package pool . Client
 
 import (
+	"bytes"
 	"context"
 	"crypto/ecdsa"
 	"fmt"
@@ -13,7 +15,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
@@ -49,9 +51,9 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -74,8 +76,6 @@ func newPrivateKey(t *testing.T) *ecdsa.PrivateKey {
 }
 
 func TestBuildPoolOneNodeFailed(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
@@ -88,22 +88,25 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
 		mockInvokes := 0
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*ResCreateSession, error) {
 			mockInvokes++
 			if mockInvokes == 1 {
 				expectedToken = newToken(t)
 				return nil, fmt.Errorf("error session")
 			}
-			return expectedToken, nil
+			return &ResCreateSession{
+				sessionKey: expectedToken.SessionKey(),
+				id:         expectedToken.ID(),
+			}, nil
 		}).AnyTimes()
 
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient2.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(&ResCreateSession{}, nil).AnyTimes()
 		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		if clientCount == 0 {
 			return mockClient, nil
@@ -136,7 +139,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 			return false
 		}
 		st := clientPool.cache.Get(formCacheKey(cp.address, clientPool.key))
-		return st == expectedToken
+		return areEqualTokens(st, expectedToken)
 	}
 	require.Never(t, condition, 900*time.Millisecond, 100*time.Millisecond)
 	require.Eventually(t, condition, 3*time.Second, 300*time.Millisecond)
@@ -151,8 +154,6 @@ func TestBuildPoolZeroNodes(t *testing.T) {
 }
 
 func TestOneNode(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	tok := session.NewToken()
@@ -160,11 +161,16 @@ func TestOneNode(t *testing.T) {
 	require.NoError(t, err)
 	tok.SetID(uid)
 
+	tokRes := &ResCreateSession{
+		id:         tok.ID(),
+		sessionKey: tok.SessionKey(),
+	}
+
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(tok, nil)
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(tokRes, nil)
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -183,27 +189,36 @@ func TestOneNode(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.Equal(t, tok, st)
+	require.True(t, areEqualTokens(tok, st))
+}
+
+func areEqualTokens(t1, t2 *session.Token) bool {
+	if t1 == nil || t2 == nil {
+		return false
+	}
+	return bytes.Equal(t1.ID(), t2.ID()) &&
+		bytes.Equal(t1.SessionKey(), t2.SessionKey())
 }
 
 func TestTwoNodes(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	var tokens []*session.Token
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
 			tok := session.NewToken()
 			uid, err := uuid.New().MarshalBinary()
 			require.NoError(t, err)
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
-			return tok, err
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, err
 		})
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -225,12 +240,19 @@ func TestTwoNodes(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.Contains(t, tokens, st)
+	require.True(t, containsTokens(tokens, st))
+}
+
+func containsTokens(list []*session.Token, item *session.Token) bool {
+	for _, tok := range list {
+		if areEqualTokens(tok, item) {
+			return true
+		}
+	}
+	return false
 }
 
 func TestOneOfTwoFailed(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
@@ -239,24 +261,30 @@ func TestOneOfTwoFailed(t *testing.T) {
 	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
 			tok := newToken(t)
 			tokens = append(tokens, tok)
-			return tok, nil
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, nil
 		}).AnyTimes()
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient2.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
 			tok := newToken(t)
 			tokens = append(tokens, tok)
-			return tok, nil
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*sdkClient.ResEndpointInfo, error) {
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NodeInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*sdkClient.ResNetworkInfo, error) {
+		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NetworkInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
 
@@ -290,20 +318,18 @@ func TestOneOfTwoFailed(t *testing.T) {
 		cp, err := pool.connection()
 		require.NoError(t, err)
 		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-		require.Equal(t, tokens[0], st)
+		require.True(t, areEqualTokens(tokens[0], st))
 	}
 }
 
 func TestTwoFailed(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(&ResCreateSession{}, nil).AnyTimes()
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -332,24 +358,26 @@ func TestTwoFailed(t *testing.T) {
 }
 
 func TestSessionCache(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	var tokens []*session.Token
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*ResCreateSession, error) {
 			tok := session.NewToken()
 			uid, err := uuid.New().MarshalBinary()
 			require.NoError(t, err)
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
-			return tok, err
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, err
 		}).MaxTimes(3)
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
-		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
-		mockClient.EXPECT().PutObject(gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().ObjectGet(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
+		mockClient.EXPECT().ObjectPut(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -376,10 +404,11 @@ func TestSessionCache(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.Contains(t, tokens, st)
+	require.True(t, containsTokens(tokens, st))
 
 	var prm PrmObjectGet
 	prm.SetAddress(address.Address{})
+	prm.UseSession(*session.NewToken())
 
 	_, err = pool.GetObject(ctx, prm)
 	require.Error(t, err)
@@ -400,38 +429,40 @@ func TestSessionCache(t *testing.T) {
 	cp, err = pool.connection()
 	require.NoError(t, err)
 	st = pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.Contains(t, tokens, st)
+	require.True(t, containsTokens(tokens, st))
 }
 
 func TestPriority(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
-	var tokens []*session.Token
-	clientCount := -1
-	clientBuilder := func(_ string) (client, error) {
-		clientCount++
+	tokens := make([]*session.Token, 2)
+	clientBuilder := func(endpoint string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
 			tok := newToken(t)
-			tokens = append(tokens, tok)
-			return tok, nil
+			tokens[0] = tok
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, nil
 		}).AnyTimes()
 		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient2.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
 			tok := newToken(t)
-			tokens = append(tokens, tok)
-			return tok, nil
+			tokens[1] = tok
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
-		if clientCount == 0 {
+		if endpoint == "peer0" {
 			return mockClient, nil
 		}
 		return mockClient2, nil
@@ -460,13 +491,13 @@ func TestPriority(t *testing.T) {
 		cp, err := pool.connection()
 		require.NoError(t, err)
 		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-		return st == tokens[0]
+		return areEqualTokens(st, tokens[0])
 	}
 	secondNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
 		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-		return st == tokens[1]
+		return areEqualTokens(st, tokens[1])
 	}
 	require.Never(t, secondNode, time.Second, 200*time.Millisecond)
 
@@ -475,23 +506,25 @@ func TestPriority(t *testing.T) {
 }
 
 func TestSessionCacheWithKey(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked") // neofs-sdk-go#85
-
 	ctrl := gomock.NewController(t)
 
 	var tokens []*session.Token
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*session.Token, error) {
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
 			tok := session.NewToken()
 			uid, err := uuid.New().MarshalBinary()
 			require.NoError(t, err)
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
-			return tok, err
+			return &ResCreateSession{
+				id:         tok.ID(),
+				sessionKey: tok.SessionKey(),
+			}, err
 		}).MaxTimes(2)
 
-		mockClient.EXPECT().GetObject(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().ObjectGet(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -517,7 +550,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.Contains(t, tokens, st)
+	require.True(t, containsTokens(tokens, st))
 
 	var prm PrmObjectGet
 	prm.SetAddress(address.Address{})
@@ -543,9 +576,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(&sdkClient.ResSessionCreate{}, nil).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResEndpointInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(&ResCreateSession{}, nil).AnyTimes()
+		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -571,11 +604,13 @@ func TestSessionTokenOwner(t *testing.T) {
 
 	var prm prmCommon
 	prm.UseKey(anonKey)
-	prm.useDefaultSession()
+	var prmCtx prmContext
+	prmCtx.useDefaultSession()
+
 	var cc callContext
 	cc.Context = ctx
 	cc.sessionTarget = func(session.Token) {}
-	err = p.initCallContext(&cc, prm)
+	err = p.initCallContext(&cc, prm, prmCtx)
 	require.NoError(t, err)
 
 	err = p.openDefaultSession(&cc)
@@ -589,10 +624,10 @@ func TestWaitPresence(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	mockClient := NewMockClient(ctrl)
-	mockClient.EXPECT().CreateSession(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&sdkClient.ResNetworkInfo{}, nil).AnyTimes()
-	mockClient.EXPECT().GetContainer(gomock.Any(), gomock.Any()).Return(&sdkClient.ResContainerGet{}, nil).AnyTimes()
+	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+	mockClient.EXPECT().ContainerGet(gomock.Any(), gomock.Any()).Return(&container.Container{}, nil).AnyTimes()
 
 	cache, err := newCache()
 	require.NoError(t, err)
