@@ -1,6 +1,7 @@
 package session
 
 import (
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
@@ -42,9 +43,17 @@ func (x *ContainerContext) ToV2() *session.ContainerSessionContext {
 // If id is nil, ContainerContext is applied to all containers.
 func (x *ContainerContext) ApplyTo(id *cid.ID) {
 	v2 := (*session.ContainerSessionContext)(x)
+	var cidV2 *refs.ContainerID
+
+	if id != nil {
+		var c refs.ContainerID
+		id.WriteToV2(&c)
+
+		cidV2 = &c
+	}
 
 	v2.SetWildcard(id == nil)
-	v2.SetContainerID(id.ToV2())
+	v2.SetContainerID(cidV2)
 }
 
 // ApplyToAllContainers is a helper function that conveniently
@@ -65,7 +74,15 @@ func (x *ContainerContext) Container() *cid.ID {
 		return nil
 	}
 
-	return cid.NewFromV2(v2.ContainerID())
+	cidV2 := v2.ContainerID()
+	if cidV2 == nil {
+		return nil
+	}
+
+	var cID cid.ID
+	cID.ReadFromV2(*cidV2)
+
+	return &cID
 }
 
 func (x *ContainerContext) forVerb(v session.ContainerSessionVerb) {

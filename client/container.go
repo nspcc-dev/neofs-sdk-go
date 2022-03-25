@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -81,9 +82,12 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 	// TODO: check private key is set before forming the request
 
+	var cnrV2 v2container.Container
+	prm.cnr.WriteToV2(&cnrV2)
+
 	// form request body
 	reqBody := new(v2container.PutRequestBody)
-	reqBody.SetContainer(prm.cnr.ToV2())
+	reqBody.SetContainer(&cnrV2)
 
 	// sign container
 	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
@@ -121,7 +125,17 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
-		res.setID(cid.NewFromV2(resp.GetBody().GetContainerID()))
+		var cID *cid.ID
+
+		cidV2 := resp.GetBody().GetContainerID()
+		if cidV2 != nil {
+			var c cid.ID
+			c.ReadFromV2(*cidV2)
+
+			cID = &c
+		}
+
+		res.setID(cID)
 	}
 
 	// process call
@@ -187,9 +201,12 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 		panic(panicMsgMissingContainer)
 	}
 
+	var cidV2 refs.ContainerID
+	prm.id.WriteToV2(&cidV2)
+
 	// form request body
 	reqBody := new(v2container.GetRequestBody)
-	reqBody.SetContainerID(prm.id.ToV2())
+	reqBody.SetContainerID(&cidV2)
 
 	// form request
 	var req v2container.GetRequest
@@ -215,7 +232,8 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 
 		body := resp.GetBody()
 
-		cnr := container.NewContainerFromV2(body.GetContainer())
+		var cnr container.Container
+		cnr.ReadFromV2(*body.GetContainer())
 
 		cnr.SetSessionToken(
 			session.NewTokenFromV2(body.GetSessionToken()),
@@ -225,7 +243,7 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 			signature.NewFromV2(body.GetSignature()),
 		)
 
-		res.setContainer(cnr)
+		res.setContainer(&cnr)
 	}
 
 	// process call
@@ -321,8 +339,11 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 
 		ids := make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
+		var cID cid.ID
+
 		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			ids[i] = *cid.NewFromV2(&cidV2)
+			cID.ReadFromV2(cidV2)
+			ids[i] = cID
 		}
 
 		res.setContainers(ids)
@@ -400,9 +421,12 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 		panic(panicMsgMissingContainer)
 	}
 
+	var cidV2 refs.ContainerID
+	prm.id.WriteToV2(&cidV2)
+
 	// form request body
 	reqBody := new(v2container.DeleteRequestBody)
-	reqBody.SetContainerID(prm.id.ToV2())
+	reqBody.SetContainerID(&cidV2)
 
 	signWrapper := delContainerSignWrapper{body: reqBody}
 
@@ -504,9 +528,12 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 		panic(panicMsgMissingContainer)
 	}
 
+	var cidV2 refs.ContainerID
+	prm.id.WriteToV2(&cidV2)
+
 	// form request body
 	reqBody := new(v2container.GetExtendedACLRequestBody)
-	reqBody.SetContainerID(prm.id.ToV2())
+	reqBody.SetContainerID(&cidV2)
 
 	// form request
 	var req v2container.GetExtendedACLRequest
@@ -696,8 +723,11 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list
 	v2announce := make([]v2container.UsedSpaceAnnouncement, len(prm.announcements))
+	var usaV2 v2container.UsedSpaceAnnouncement
+
 	for i := range prm.announcements {
-		v2announce[i] = *prm.announcements[i].ToV2()
+		prm.announcements[i].WriteToV2(&usaV2)
+		v2announce[i] = usaV2
 	}
 
 	// prepare body of the NeoFS-API v2 request and request itself

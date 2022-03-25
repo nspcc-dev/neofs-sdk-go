@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	containerv2 "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
@@ -17,7 +18,7 @@ import (
 )
 
 func TestNewContainer(t *testing.T) {
-	c := container.New()
+	var c container.Container
 
 	nonce := uuid.New()
 
@@ -36,8 +37,11 @@ func TestNewContainer(t *testing.T) {
 	ver := versiontest.Version()
 	c.SetVersion(ver)
 
-	v2 := c.ToV2()
-	newContainer := container.NewContainerFromV2(v2)
+	var v2 containerv2.Container
+	c.WriteToV2(&v2)
+
+	var newContainer container.Container
+	newContainer.ReadFromV2(v2)
 
 	require.EqualValues(t, newContainer.PlacementPolicy(), policy)
 	require.EqualValues(t, newContainer.Attributes(), attrs)
@@ -58,7 +62,7 @@ func TestContainerEncoding(t *testing.T) {
 		data, err := c.Marshal()
 		require.NoError(t, err)
 
-		c2 := container.New()
+		c2 := container.InitCreation()
 		require.NoError(t, c2.Unmarshal(data))
 
 		require.Equal(t, c, c2)
@@ -68,7 +72,7 @@ func TestContainerEncoding(t *testing.T) {
 		data, err := c.MarshalJSON()
 		require.NoError(t, err)
 
-		c2 := container.New()
+		c2 := container.InitCreation()
 		require.NoError(t, c2.UnmarshalJSON(data))
 
 		require.Equal(t, c, c2)
@@ -78,7 +82,7 @@ func TestContainerEncoding(t *testing.T) {
 func TestContainer_SessionToken(t *testing.T) {
 	tok := sessiontest.Token()
 
-	cnr := container.New()
+	var cnr container.Container
 
 	cnr.SetSessionToken(tok)
 
@@ -88,26 +92,38 @@ func TestContainer_SessionToken(t *testing.T) {
 func TestContainer_Signature(t *testing.T) {
 	sig := sigtest.Signature()
 
-	cnr := container.New()
+	var cnr container.Container
 	cnr.SetSignature(sig)
 
 	require.Equal(t, sig, cnr.Signature())
 }
 
 func TestContainer_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *container.Container
+	t.Run("zero to V2", func(t *testing.T) {
+		var (
+			x  = container.InitCreation()
+			v2 containerv2.Container
+		)
 
-		require.Nil(t, x.ToV2())
+		x.WriteToV2(&v2)
+
+		nonce, err := x.NonceUUID()
+		require.NoError(t, err)
+
+		require.Equal(t, nonce[:], v2.GetNonce())
+		require.Empty(t, v2.GetAttributes())
+		require.Equal(t, version.Current().ToV2(), v2.GetVersion())
+		require.Nil(t, v2.GetOwnerID())
+		require.Equal(t, acl.PrivateBasicRule, acl.BasicACL(v2.GetBasicACL()))
 	})
 
 	t.Run("default values", func(t *testing.T) {
-		cnt := container.New()
+		cnt := container.InitCreation()
 
 		// check initial values
 		require.Nil(t, cnt.SessionToken())
 		require.Nil(t, cnt.Signature())
-		require.Nil(t, cnt.Attributes())
+		require.Empty(t, cnt.Attributes())
 		require.Nil(t, cnt.PlacementPolicy())
 		require.Nil(t, cnt.OwnerID())
 
@@ -119,14 +135,15 @@ func TestContainer_ToV2(t *testing.T) {
 		require.NotNil(t, nonce)
 
 		// convert to v2 message
-		cntV2 := cnt.ToV2()
+		var cntV2 containerv2.Container
+		cnt.WriteToV2(&cntV2)
 
 		nonceV2, err := uuid.FromBytes(cntV2.GetNonce())
 		require.NoError(t, err)
 
 		require.Equal(t, nonce.String(), nonceV2.String())
 
-		require.Nil(t, cntV2.GetAttributes())
+		require.Empty(t, cntV2.GetAttributes())
 		require.Nil(t, cntV2.GetPlacementPolicy())
 		require.Nil(t, cntV2.GetOwnerID())
 

@@ -196,10 +196,15 @@ func (o *Object) SetPayloadSize(v uint64) {
 func (o Object) ContainerID() *cid.ID {
 	v2 := (object.Object)(o)
 
-	return cid.NewFromV2(v2.
-		GetHeader().
-		GetContainerID(),
-	)
+	cidV2 := v2.GetHeader().GetContainerID()
+	if cidV2 == nil {
+		return nil
+	}
+
+	var cID cid.ID
+	cID.ReadFromV2(*cidV2)
+
+	return &cID
 }
 
 // SetContainerID sets identifier of the related container.
@@ -207,8 +212,11 @@ func (o Object) ContainerID() *cid.ID {
 //
 // See also ContainerID.
 func (o *Object) SetContainerID(v *cid.ID) {
+	var cidV2 refs.ContainerID
+	v.WriteToV2(&cidV2)
+
 	o.setHeaderField(func(h *object.Header) {
-		h.SetContainerID(v.ToV2())
+		h.SetContainerID(&cidV2)
 	})
 }
 

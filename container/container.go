@@ -14,6 +14,12 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
+// Container represents in-memory descriptor of the NeoFS container.
+//
+// Container is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/container.Container
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration or via .
 type Container struct {
 	v2 container.Container
 
@@ -22,7 +28,26 @@ type Container struct {
 	sig *signature.Signature
 }
 
-// New creates, initializes and returns blank Container instance.
+// ReadFromV2 reads Container from the container.Container message.
+//
+// Does not verify if the message meets NeoFS API V2 specification.
+//
+// See also WriteToV2.
+func (c *Container) ReadFromV2(m container.Container) {
+	if c != nil {
+		c.v2 = m
+	}
+}
+
+// WriteToV2 writes Container to the container.Container message.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (c Container) WriteToV2(m *container.Container) {
+	*m = c.v2
+}
+
+// InitCreation creates, initializes and returns blank Container instance.
 //
 // Defaults:
 //  - token: nil;
@@ -33,7 +58,7 @@ type Container struct {
 //  - attr: nil;
 //  - policy: nil;
 //  - ownerID: nil.
-func New(opts ...Option) *Container {
+func InitCreation(opts ...Option) *Container {
 	cnrOptions := defaultContainerOptions()
 
 	for i := range opts {
@@ -58,122 +83,172 @@ func New(opts ...Option) *Container {
 	return cnr
 }
 
-// ToV2 returns the v2 Container message.
-//
-// Nil Container converts to nil.
-func (c *Container) ToV2() *container.Container {
-	if c == nil {
-		return nil
-	}
-
-	return &c.v2
-}
-
-// NewVerifiedFromV2 constructs Container from NeoFS API V2 Container message.
-//
-// Does not perform if message meets NeoFS API V2 specification. To do this
-// use NewVerifiedFromV2 constructor.
-func NewContainerFromV2(c *container.Container) *Container {
-	cnr := new(Container)
-
-	if c != nil {
-		cnr.v2 = *c
-	}
-
-	return cnr
-}
-
 // CalculateID calculates container identifier
 // based on its structure.
-func CalculateID(c *Container) *cid.ID {
-	data, err := c.ToV2().StableMarshal(nil)
+func (c Container) CalculateID() *cid.ID {
+	var v2 container.Container
+	c.WriteToV2(&v2)
+
+	data, err := v2.StableMarshal(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	id := cid.New()
+	var id cid.ID
 	id.SetSHA256(sha256.Sum256(data))
 
-	return id
+	return &id
 }
 
-func (c *Container) Version() *version.Version {
+// Version returns version of the NeoFS API
+// protocol by which the container was created.
+//
+// Zero Container has version.Current version.
+//
+// See also SetVersion.
+func (c Container) Version() *version.Version {
 	return version.NewFromV2(c.v2.GetVersion())
 }
 
+// SetVersion sets container's version.
+// Version must not be nil.
+//
+// See also Version.
 func (c *Container) SetVersion(v *version.Version) {
 	c.v2.SetVersion(v.ToV2())
 }
 
-func (c *Container) OwnerID() *owner.ID {
+// OwnerID returns container's owner.
+//
+// Zero Container has nil value.
+//
+// See also SetOwnerID.
+func (c Container) OwnerID() *owner.ID {
 	return owner.NewIDFromV2(c.v2.GetOwnerID())
 }
 
+// SetOwnerID sets container's owner.
+// Owner must not be nil.
+//
+// See also OwnerID.
 func (c *Container) SetOwnerID(v *owner.ID) {
 	c.v2.SetOwnerID(v.ToV2())
 }
 
-// Returns container nonce in UUID format.
+// NonceUUID returns container's nonce in UUID format.
 //
 // Returns error if container nonce is not a valid UUID.
-func (c *Container) NonceUUID() (uuid.UUID, error) {
+//
+// See also SetNonceUUID.
+func (c Container) NonceUUID() (uuid.UUID, error) {
 	return uuid.FromBytes(c.v2.GetNonce())
 }
 
 // SetNonceUUID sets container nonce as UUID.
+//
+// See also NonceUUID.
 func (c *Container) SetNonceUUID(v uuid.UUID) {
 	data, _ := v.MarshalBinary()
 	c.v2.SetNonce(data)
 }
 
-func (c *Container) BasicACL() uint32 {
-	return c.v2.GetBasicACL()
+// BasicACL returns container's basic ACL.
+//
+// Zero Container has PrivateBasicRule ALC.
+//
+// See also SetBasicACL.
+func (c Container) BasicACL() acl.BasicACL {
+	return acl.BasicACL(c.v2.GetBasicACL())
 }
 
+// SetBasicACL sets basic ALC rule.
+//
+// See also BasicACL.
 func (c *Container) SetBasicACL(v acl.BasicACL) {
 	c.v2.SetBasicACL(uint32(v))
 }
 
-func (c *Container) Attributes() Attributes {
-	return NewAttributesFromV2(c.v2.GetAttributes())
+// Attributes returns container's attributes.
+//
+// Zero Container has nil attributes.
+//
+// See also SetAttributes.
+func (c Container) Attributes() Attributes {
+	attrsV2 := c.v2.GetAttributes()
+	if attrsV2 == nil {
+		return nil
+	}
+
+	var attrs Attributes
+	attrs.ReadFromV2(attrsV2)
+
+	return attrs
 }
 
+// SetAttributes sets container's attributes.
+// Attributes must not be nil.
+//
+// See also Attributes.
 func (c *Container) SetAttributes(v Attributes) {
-	c.v2.SetAttributes(v.ToV2())
+	var attrsV2 []container.Attribute
+	v.WriteToV2(&attrsV2)
+
+	c.v2.SetAttributes(attrsV2)
 }
 
-func (c *Container) PlacementPolicy() *netmap.PlacementPolicy {
+// PlacementPolicy returns container's placement policy.
+//
+// Zero Container has nil policy.
+//
+// See also SetPlacementPolicy.
+func (c Container) PlacementPolicy() *netmap.PlacementPolicy {
 	return netmap.NewPlacementPolicyFromV2(c.v2.GetPlacementPolicy())
 }
 
+// SetPlacementPolicy sets placement policy.
+// Policy must not be nil.
+//
+// See also PlacementPolicy.
 func (c *Container) SetPlacementPolicy(v *netmap.PlacementPolicy) {
 	c.v2.SetPlacementPolicy(v.ToV2())
 }
 
 // SessionToken returns token of the session within
 // which container was created.
+//
+// Zero Container has nil token.
+//
+// See also SetSessionToken.
 func (c Container) SessionToken() *session.Token {
 	return c.token
 }
 
 // SetSessionToken sets token of the session within
 // which container was created.
+//
+// See also SessionToken.
 func (c *Container) SetSessionToken(t *session.Token) {
 	c.token = t
 }
 
 // Signature returns signature of the marshaled container.
+//
+// Zero Container has nil signature.
+//
+// See also SetSignature.
 func (c Container) Signature() *signature.Signature {
 	return c.sig
 }
 
 // SetSignature sets signature of the marshaled container.
+//
+// See also Signature.
 func (c *Container) SetSignature(sig *signature.Signature) {
 	c.sig = sig
 }
 
 // Marshal marshals Container into a protobuf binary form.
-func (c *Container) Marshal() ([]byte, error) {
+func (c Container) Marshal() ([]byte, error) {
 	return c.v2.StableMarshal(nil)
 }
 
@@ -183,7 +258,7 @@ func (c *Container) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Container to protobuf JSON format.
-func (c *Container) MarshalJSON() ([]byte, error) {
+func (c Container) MarshalJSON() ([]byte, error) {
 	return c.v2.MarshalJSON()
 }
 

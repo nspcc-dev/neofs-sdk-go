@@ -17,28 +17,40 @@ func randSHA256Checksum() (cs [sha256.Size]byte) {
 }
 
 func TestID_ToV2(t *testing.T) {
-	t.Run("non-nil", func(t *testing.T) {
+	t.Run("non-zero", func(t *testing.T) {
 		checksum := randSHA256Checksum()
 
 		id := cidtest.IDWithChecksum(checksum)
 
-		idV2 := id.ToV2()
+		var idV2 refs.ContainerID
+		id.WriteToV2(&idV2)
 
-		require.Equal(t, id, cid.NewFromV2(idV2))
+		var newID cid.ID
+		newID.ReadFromV2(idV2)
+
+		require.Equal(t, *id, newID)
 		require.Equal(t, checksum[:], idV2.GetValue())
 	})
 
-	t.Run("nil", func(t *testing.T) {
-		var x *cid.ID
+	t.Run("zero", func(t *testing.T) {
+		var (
+			x  cid.ID
+			v2 refs.ContainerID
+		)
 
-		require.Nil(t, x.ToV2())
+		x.WriteToV2(&v2)
+
+		require.Nil(t, v2.GetValue())
 	})
 
 	t.Run("default values", func(t *testing.T) {
-		id := cid.New()
+		var (
+			id    cid.ID
+			cidV2 refs.ContainerID
+		)
 
 		// convert to v2 message
-		cidV2 := id.ToV2()
+		id.WriteToV2(&cidV2)
 		require.Nil(t, cidV2.GetValue())
 	})
 }
@@ -49,57 +61,38 @@ func TestID_Equal(t *testing.T) {
 	id1 := cidtest.IDWithChecksum(cs)
 	id2 := cidtest.IDWithChecksum(cs)
 
-	require.True(t, id1.Equal(id2))
+	require.True(t, id1.Equals(id2))
 
 	id3 := cidtest.ID()
 
-	require.False(t, id1.Equal(id3))
+	require.False(t, id1.Equals(id3))
 }
 
 func TestID_String(t *testing.T) {
 	t.Run("Parse/String", func(t *testing.T) {
 		id := cidtest.ID()
-		id2 := cid.New()
+		var id2 cid.ID
 
 		require.NoError(t, id2.Parse(id.String()))
-		require.Equal(t, id, id2)
+		require.Equal(t, *id, id2)
 	})
 
-	t.Run("nil", func(t *testing.T) {
-		id := cid.New()
+	t.Run("zero", func(t *testing.T) {
+		var id cid.ID
 
 		require.Empty(t, id.String())
 	})
 }
 
-func TestContainerIDEncoding(t *testing.T) {
-	id := cidtest.ID()
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
-
-		id2 := cid.New()
-		require.NoError(t, id2.Unmarshal(data))
-
-		require.Equal(t, id, id2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := id.MarshalJSON()
-		require.NoError(t, err)
-
-		a2 := cid.New()
-		require.NoError(t, a2.UnmarshalJSON(data))
-
-		require.Equal(t, id, a2)
-	})
-}
-
 func TestNewFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *refs.ContainerID
+	t.Run("from zero", func(t *testing.T) {
+		var (
+			x  cid.ID
+			v2 refs.ContainerID
+		)
 
-		require.Nil(t, cid.NewFromV2(x))
+		x.ReadFromV2(v2)
+
+		require.Empty(t, x.String())
 	})
 }

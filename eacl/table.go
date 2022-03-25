@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/signature"
@@ -84,9 +85,11 @@ func (t *Table) ToV2() *v2acl.Table {
 	}
 
 	v2 := new(v2acl.Table)
+	var cidV2 refs.ContainerID
 
 	if t.cid != nil {
-		v2.SetContainerID(t.cid.ToV2())
+		t.cid.WriteToV2(&cidV2)
+		v2.SetContainerID(&cidV2)
 	}
 
 	if t.records != nil {

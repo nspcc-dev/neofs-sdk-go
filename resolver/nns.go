@@ -64,12 +64,12 @@ func (n *nnsResolver) ResolveContainerName(name string) (*cid.ID, error) {
 		return nil, err
 	}
 
-	cnrID := cid.New()
+	var cnrID cid.ID
 	for _, rec := range arr {
 		if err = cnrID.Parse(rec); err != nil {
 			continue
 		}
-		return cnrID, nil
+		return &cnrID, nil
 	}
 
 	return nil, fmt.Errorf("not found")

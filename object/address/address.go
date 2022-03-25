@@ -48,8 +48,17 @@ func (a Address) WriteToV2(m *refs.Address) {
 //
 // See also SetContainerID.
 func (a Address) ContainerID() *cid.ID {
+	var cID cid.ID
 	v2 := (refs.Address)(a)
-	return cid.NewFromV2(v2.GetContainerID())
+
+	cidV2 := v2.GetContainerID()
+	if cidV2 == nil {
+		return nil
+	}
+
+	cID.ReadFromV2(*cidV2)
+
+	return &cID
 }
 
 // SetContainerID sets container identifier.
@@ -57,7 +66,10 @@ func (a Address) ContainerID() *cid.ID {
 //
 // See also ContainerID.
 func (a *Address) SetContainerID(id *cid.ID) {
-	(*refs.Address)(a).SetContainerID(id.ToV2())
+	var cidV2 refs.ContainerID
+	id.WriteToV2(&cidV2)
+
+	(*refs.Address)(a).SetContainerID(&cidV2)
 }
 
 // ObjectID returns object identifier.
@@ -116,7 +128,7 @@ func (a *Address) Parse(s string) error {
 	var (
 		err   error
 		oid   oid.ID
-		id    = cid.New()
+		id    cid.ID
 		parts = strings.Split(s, addressSeparator)
 	)
 
@@ -129,7 +141,7 @@ func (a *Address) Parse(s string) error {
 	}
 
 	a.SetObjectID(&oid)
-	a.SetContainerID(id)
+	a.SetContainerID(&id)
 
 	return nil
 }

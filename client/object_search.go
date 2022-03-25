@@ -33,7 +33,7 @@ type PrmObjectSearch struct {
 	bearer    token.BearerToken
 
 	cnrSet bool
-	cnr    cid.ID
+	cnrID  cid.ID
 
 	filters object.SearchFilters
 }
@@ -67,7 +67,7 @@ func (x *PrmObjectSearch) WithBearerToken(t token.BearerToken) {
 // InContainer specifies the container in which to look for objects.
 // Required parameter.
 func (x *PrmObjectSearch) InContainer(id cid.ID) {
-	x.cnr = id
+	x.cnrID = id
 	x.cnrSet = true
 }
 
@@ -250,14 +250,16 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 
 	// form request body
 	var (
-		body v2object.SearchRequestBody
-		ffV2 []v2object.SearchFilter
+		body  v2object.SearchRequestBody
+		ffV2  []v2object.SearchFilter
+		cidV2 v2refs.ContainerID
 	)
 
 	prm.filters.WriteToV2(&ffV2)
+	prm.cnrID.WriteToV2(&cidV2)
 
 	body.SetVersion(1)
-	body.SetContainerID(prm.cnr.ToV2())
+	body.SetContainerID(&cidV2)
 	body.SetFilters(ffV2)
 
 	// form meta header

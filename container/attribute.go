@@ -4,75 +4,132 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
 )
 
-type (
-	Attribute  container.Attribute
-	Attributes []Attribute
-)
-
-// NewAttribute creates and initializes blank Attribute.
+// Attribute represents v2-compatible container attribute.
 //
-// Defaults:
-//  - key: "";
-//  - value: "".
-func NewAttribute() *Attribute {
-	return NewAttributeFromV2(new(container.Attribute))
+// Attribute is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/container.Attribute
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = Attribute(container.Attribute{}) // not recommended
+type Attribute container.Attribute
+
+// Attributes groups container attributes.
+type Attributes []Attribute
+
+// ReadFromV2 reads Attribute from the container.Attribute message.
+//
+// See also WriteToV2.
+func (a *Attribute) ReadFromV2(m container.Attribute) {
+	*a = Attribute(m)
 }
 
+// WriteToV2 writes Attribute to the container.Attribute message.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (a Attribute) WriteToV2(m *container.Attribute) {
+	*m = (container.Attribute)(a)
+}
+
+// Key returns attribute's key.
+//
+// Zero Attribute has empty key.
+//
+// See also SetKey.
+func (a Attribute) Key() string {
+	v2 := (container.Attribute)(a)
+	return v2.GetKey()
+}
+
+// SetKey sets attribute's key.
+//
+// See also Key.
 func (a *Attribute) SetKey(v string) {
 	(*container.Attribute)(a).SetKey(v)
 }
 
+// Value returns attribute's value.
+//
+// Zero Attribute has empty value.
+//
+// See also SetValue.
+func (a Attribute) Value() string {
+	v2 := (container.Attribute)(a)
+	return v2.GetValue()
+}
+
+// SetValue sets attribute's value.
+//
+// See also Value.
 func (a *Attribute) SetValue(v string) {
 	(*container.Attribute)(a).SetValue(v)
 }
 
-func (a *Attribute) Key() string {
-	return (*container.Attribute)(a).GetKey()
-}
-
-func (a *Attribute) Value() string {
-	return (*container.Attribute)(a).GetValue()
-}
-
-// NewAttributeFromV2 wraps protocol dependent version of
-// Attribute message.
+// ReadFromV2 reads Attributes from the []container.Attribute.
 //
-// Nil container.Attribute converts to nil.
-func NewAttributeFromV2(v *container.Attribute) *Attribute {
-	return (*Attribute)(v)
+// See also WriteToV2.
+func (aa *Attributes) ReadFromV2(m []container.Attribute) {
+	attrs := make(Attributes, len(m))
+	var attr Attribute
+
+	for i := range m {
+		attr.ReadFromV2(m[i])
+		attrs[i] = attr
+	}
+
+	*aa = attrs
 }
 
-// ToV2 converts Attribute to v2 Attribute message.
+// WriteToV2 writes Attributes to the []container.Attribute.
+// The message must not be nil.
 //
-// Nil Attribute converts to nil.
-func (a *Attribute) ToV2() *container.Attribute {
-	return (*container.Attribute)(a)
+// See also ReadFromV2.
+func (aa Attributes) WriteToV2(m *[]container.Attribute) {
+	attrs := make([]container.Attribute, len(aa))
+	var attrV2 container.Attribute
+
+	for i := range aa {
+		aa[i].WriteToV2(&attrV2)
+		attrs[i] = attrV2
+	}
+
+	*m = attrs
 }
 
-func NewAttributesFromV2(v []container.Attribute) Attributes {
-	if v == nil {
-		return nil
-	}
-
-	attrs := make(Attributes, len(v))
-	for i := range v {
-		attrs[i] = *NewAttributeFromV2(&v[i])
-	}
-
-	return attrs
+// Len returns the number of attributes.
+//
+// Zero Attributes has 0 length.
+func (aa Attributes) Len() int {
+	return len(aa)
 }
 
-func (a Attributes) ToV2() []container.Attribute {
-	if a == nil {
-		return nil
+// Append appends attributes.
+func (aa *Attributes) Append(newA ...Attribute) {
+	newLen := len(newA) + len(*aa)
+
+	if newLen > cap(*aa) {
+		newSlice := make([]Attribute, 0, newLen)
+		newSlice = append(newSlice, append(*aa, newA...)...)
+
+		*aa = newSlice
+
+		return
 	}
 
-	attrs := make([]container.Attribute, len(a))
-	for i := range a {
-		attrs[i] = *a[i].ToV2()
-	}
+	*aa = append(*aa, newA...)
+}
 
-	return attrs
+// Iterate iterates attributes and calls passes function on
+// them. Stops when either all attributes have been handled,
+// or the passed functions returned `true`.
+func (aa Attributes) Iterate(f func(attribute Attribute) bool) {
+	for i := range aa {
+		if f(aa[i]) {
+			return
+		}
+	}
 }
 
 // sets value of the attribute by key.
@@ -113,6 +170,8 @@ func iterateAttributes(c *Container, f func(*Attribute) bool) {
 // SetNativeNameWithZone sets container native name and its zone.
 //
 // Use SetNativeName to set default zone.
+//
+// See also GetNativeNameWithZone.
 func SetNativeNameWithZone(c *Container, name, zone string) {
 	setAttribute(c, container.SysAttributeName, name)
 	setAttribute(c, container.SysAttributeZone, zone)
@@ -124,6 +183,8 @@ func SetNativeName(c *Container, name string) {
 }
 
 // GetNativeNameWithZone returns container native name and its zone.
+//
+// See also SetNativeNameWithZone.
 func GetNativeNameWithZone(c *Container) (name string, zone string) {
 	iterateAttributes(c, func(a *Attribute) bool {
 		if key := a.Key(); key == container.SysAttributeName {

@@ -52,7 +52,10 @@ func (x *PrmObjectHash) WithBearerToken(t token.BearerToken) {
 // FromContainer specifies NeoFS container of the object.
 // Required parameter.
 func (x *PrmObjectHash) FromContainer(id cid.ID) {
-	x.addr.SetContainerID(id.ToV2())
+	var cidV2 v2refs.ContainerID
+	id.WriteToV2(&cidV2)
+
+	x.addr.SetContainerID(&cidV2)
 }
 
 // ByID specifies identifier of the requested object.

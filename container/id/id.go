@@ -10,21 +10,29 @@ import (
 )
 
 // ID represents v2-compatible container identifier.
+//
+// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ContainerID
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+//
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = ID(refs.ContainerID) // not recommended
 type ID refs.ContainerID
 
-// NewFromV2 wraps v2 ContainerID message to ID.
+// ReadFromV2 reads ID from the refs.ContainerID message.
 //
-// Nil refs.ContainerID converts to nil.
-func NewFromV2(idV2 *refs.ContainerID) *ID {
-	return (*ID)(idV2)
+// See also WriteToV2.
+func (id *ID) ReadFromV2(m refs.ContainerID) {
+	*id = ID(m)
 }
 
-// New creates and initializes blank ID.
+// WriteToV2 writes ID to the refs.ContainerID message.
+// The message must not be nil.
 //
-// Defaults:
-//  - value: nil.
-func New() *ID {
-	return NewFromV2(new(refs.ContainerID))
+// See also ReadFromV2.
+func (id ID) WriteToV2(m *refs.ContainerID) {
+	*m = (refs.ContainerID)(id)
 }
 
 // SetSHA256 sets container identifier value to SHA256 checksum of container body.
@@ -32,25 +40,16 @@ func (id *ID) SetSHA256(v [sha256.Size]byte) {
 	(*refs.ContainerID)(id).SetValue(v[:])
 }
 
-// ToV2 returns the v2 container ID message.
-//
-// Nil ID converts to nil.
-func (id *ID) ToV2() *refs.ContainerID {
-	return (*refs.ContainerID)(id)
-}
-
-// Equal returns true if identifiers are identical.
-func (id *ID) Equal(id2 *ID) bool {
+// Equals returns true if identifiers are identical.
+func (id ID) Equals(id2 *ID) bool {
+	v2 := (refs.ContainerID)(id)
 	return bytes.Equal(
-		(*refs.ContainerID)(id).GetValue(),
+		v2.GetValue(),
 		(*refs.ContainerID)(id2).GetValue(),
 	)
 }
 
-// Parse parses string representation of ID.
-//
-// Returns error if s is not a base58 encoded
-// ID data.
+// Parse is a reverse action to String().
 func (id *ID) Parse(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
@@ -64,27 +63,8 @@ func (id *ID) Parse(s string) error {
 	return nil
 }
 
-// String returns base58 string representation of ID.
-func (id *ID) String() string {
-	return base58.Encode((*refs.ContainerID)(id).GetValue())
-}
-
-// Marshal marshals ID into a protobuf binary form.
-func (id *ID) Marshal() ([]byte, error) {
-	return (*refs.ContainerID)(id).StableMarshal(nil)
-}
-
-// Unmarshal unmarshals protobuf binary representation of ID.
-func (id *ID) Unmarshal(data []byte) error {
-	return (*refs.ContainerID)(id).Unmarshal(data)
-}
-
-// MarshalJSON encodes ID to protobuf JSON format.
-func (id *ID) MarshalJSON() ([]byte, error) {
-	return (*refs.ContainerID)(id).MarshalJSON()
-}
-
-// UnmarshalJSON decodes ID from protobuf JSON format.
-func (id *ID) UnmarshalJSON(data []byte) error {
-	return (*refs.ContainerID)(id).UnmarshalJSON(data)
+// String implements fmt.Stringer interface method.
+func (id ID) String() string {
+	v2 := (refs.ContainerID)(id)
+	return base58.Encode(v2.GetValue())
 }

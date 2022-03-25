@@ -35,7 +35,7 @@ type prmObjectRead struct {
 	bearer    token.BearerToken
 
 	cnrSet bool
-	cnr    cid.ID
+	cnrID  cid.ID
 
 	objSet bool
 	objID  oid.ID
@@ -91,7 +91,7 @@ func (x *prmObjectRead) WithBearerToken(t token.BearerToken) {
 // FromContainer specifies NeoFS container of the object.
 // Required parameter.
 func (x *prmObjectRead) FromContainer(id cid.ID) {
-	x.cnr = id
+	x.cnrID = id
 	x.cnrSet = true
 }
 
@@ -319,14 +319,16 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	}
 
 	var (
-		addr v2refs.Address
-		idV2 v2refs.ObjectID
+		addr  v2refs.Address
+		oidV2 v2refs.ObjectID
+		cidV2 v2refs.ContainerID
 	)
 
-	prm.objID.WriteToV2(&idV2)
+	prm.objID.WriteToV2(&oidV2)
+	prm.cnrID.WriteToV2(&cidV2)
 
-	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(&idV2)
+	addr.SetContainerID(&cidV2)
+	addr.SetObjectID(&oidV2)
 
 	// form request body
 	var body objectv2.GetRequestBody
@@ -459,13 +461,15 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 
 	var (
 		addrV2 v2refs.Address
-		idV2   v2refs.ObjectID
+		oidV2  v2refs.ObjectID
+		cidV2  v2refs.ContainerID
 	)
 
-	prm.objID.WriteToV2(&idV2)
+	prm.objID.WriteToV2(&oidV2)
+	prm.cnrID.WriteToV2(&cidV2)
 
-	addrV2.SetContainerID(prm.cnr.ToV2())
-	addrV2.SetObjectID(&idV2)
+	addrV2.SetContainerID(&cidV2)
+	addrV2.SetObjectID(&oidV2)
 
 	// form request body
 	var body objectv2.HeadRequestBody
@@ -730,13 +734,15 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 
 	var (
 		addrV2 v2refs.Address
-		idV2   v2refs.ObjectID
+		oidV2  v2refs.ObjectID
+		cidV2  v2refs.ContainerID
 	)
 
-	prm.objID.WriteToV2(&idV2)
+	prm.objID.WriteToV2(&oidV2)
+	prm.cnrID.WriteToV2(&cidV2)
 
-	addrV2.SetContainerID(prm.cnr.ToV2())
-	addrV2.SetObjectID(&idV2)
+	addrV2.SetContainerID(&cidV2)
+	addrV2.SetObjectID(&oidV2)
 
 	var rng objectv2.Range
 

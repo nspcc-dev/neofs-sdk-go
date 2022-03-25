@@ -29,12 +29,12 @@ func ResolveContainerDomainName(domain string) (*cid.ID, error) {
 		return nil, err
 	}
 
-	cnrID := cid.New()
+	var cnrID cid.ID
 	for _, res := range results {
 		if err = cnrID.Parse(res); err != nil {
 			continue
 		}
-		return cnrID, nil
+		return &cnrID, nil
 	}
 
 	return nil, fmt.Errorf("not found")

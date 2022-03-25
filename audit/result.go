@@ -78,7 +78,16 @@ func (r *Result) ForEpoch(epoch uint64) {
 //
 // See also ForContainer.
 func (r Result) Container() *cid.ID {
-	return cid.NewFromV2(r.v2.GetContainerID())
+	var cID cid.ID
+
+	cidV2 := r.v2.GetContainerID()
+	if cidV2 == nil {
+		return nil
+	}
+
+	cID.ReadFromV2(*cidV2)
+
+	return &cID
 }
 
 // ForContainer returns identifier of the container with which the data audit Result
@@ -86,7 +95,10 @@ func (r Result) Container() *cid.ID {
 //
 // See also Container.
 func (r *Result) ForContainer(cnr cid.ID) {
-	r.v2.SetContainerID(cnr.ToV2())
+	var cidV2 refs.ContainerID
+	cnr.WriteToV2(&cidV2)
+
+	r.v2.SetContainerID(&cidV2)
 }
 
 // AuditorKey returns public key of the auditing NeoFS Inner Ring node in

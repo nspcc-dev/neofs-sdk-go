@@ -19,8 +19,8 @@ func ID() *cid.ID {
 // IDWithChecksum returns cid.ID initialized
 // with specified checksum.
 func IDWithChecksum(cs [sha256.Size]byte) *cid.ID {
-	id := cid.New()
+	var id cid.ID
 	id.SetSHA256(cs)
 
-	return id
+	return &id
 }
