@@ -93,11 +93,8 @@ type ResObjectDelete struct {
 // ReadTombstoneID reads identifier of the created tombstone object.
 // Returns false if ID is missing (not read).
 func (x ResObjectDelete) ReadTombstoneID(dst *oid.ID) bool {
-	var id oid.ID
-	id.ReadFromV2(*x.idTomb)
-
 	if x.idTomb != nil {
-		*dst = id // need smth better
+		dst.ReadFromV2(*x.idTomb)
 		return true
 	}
 

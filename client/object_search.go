@@ -129,11 +129,8 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 		read = len(buf)
 	}
 
-	var id oid.ID
-
 	for i := 0; i < read; i++ {
-		id.ReadFromV2(x.tail[i])
-		buf[i] = id // need smth better
+		buf[i].ReadFromV2(x.tail[i])
 	}
 
 	x.tail = x.tail[read:]
@@ -166,11 +163,8 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			ln = rem
 		}
 
-		var loopID oid.ID
-
 		for i = 0; i < ln; i++ {
-			loopID.ReadFromV2(ids[i])
-			buf[read+i] = loopID // need smth better
+			buf[read+i].ReadFromV2(ids[i])
 		}
 
 		read += ln

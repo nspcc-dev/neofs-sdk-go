@@ -36,7 +36,7 @@ func (x *ResObjectPut) ReadStoredObjectID(id *oid.ID) bool {
 		return false
 	}
 
-	id.ReadFromV2(*idv2) // need smth better
+	id.ReadFromV2(*idv2)
 
 	return true
 }

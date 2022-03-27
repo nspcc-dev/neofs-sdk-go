@@ -170,7 +170,7 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 
 	x.remainingPayloadLen = int(objv2.GetHeader().GetPayloadLength())
 
-	dst.ReadFromV2(objv2) // need smth better
+	dst.ReadFromV2(objv2)
 
 	return true
 }
@@ -412,18 +412,13 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 		return false
 	}
 
-	var (
-		objv2 objectv2.Object
-		obj   object.Object
-	)
+	var objv2 objectv2.Object
 
 	objv2.SetHeader(x.hdr.GetHeader())
 	objv2.SetSignature(x.hdr.GetSignature())
 
-	obj.ReadFromV2(objv2)
-	obj.SetID(&x.idObj)
-
-	*dst = obj
+	dst.ReadFromV2(objv2)
+	dst.SetID(&x.idObj)
 
 	return true
 }

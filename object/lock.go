@@ -42,10 +42,7 @@ func (x Lock) ReadMembers(buf []oid.ID) {
 	var i int
 
 	(*v2object.Lock)(&x).IterateMembers(func(idV2 refs.ObjectID) {
-		var id oid.ID
-		id.ReadFromV2(idV2)
-
-		buf[i] = id // need smth better
+		buf[i].ReadFromV2(idV2)
 		i++
 	})
 }

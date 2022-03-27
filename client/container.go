@@ -339,11 +339,8 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 
 		ids := make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
-		var cID cid.ID
-
 		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			cID.ReadFromV2(cidV2)
-			ids[i] = cID
+			ids[i].ReadFromV2(cidV2)
 		}
 
 		res.setContainers(ids)
