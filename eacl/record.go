@@ -267,3 +267,33 @@ func (r *Record) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// equalRecords compares Record with each other.
+func equalRecords(r1, r2 Record) bool {
+	if r1.Operation() != r2.Operation() ||
+		r1.Action() != r2.Action() {
+		return false
+	}
+
+	fs1, fs2 := r1.Filters(), r2.Filters()
+	ts1, ts2 := r1.Targets(), r2.Targets()
+
+	if len(fs1) != len(fs2) ||
+		len(ts1) != len(ts2) {
+		return false
+	}
+
+	for i := 0; i < len(fs1); i++ {
+		if !equalFilters(fs1[i], fs2[i]) {
+			return false
+		}
+	}
+
+	for i := 0; i < len(ts1); i++ {
+		if !equalTargets(ts1[i], ts2[i]) {
+			return false
+		}
+	}
+
+	return true
+}

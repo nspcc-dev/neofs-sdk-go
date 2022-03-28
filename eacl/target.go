@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -154,4 +155,25 @@ func (t *Target) UnmarshalJSON(data []byte) error {
 	*t = *NewTargetFromV2(tV2)
 
 	return nil
+}
+
+// equalTargets compares Target with each other.
+func equalTargets(t1, t2 Target) bool {
+	if t1.Role() != t2.Role() {
+		return false
+	}
+
+	keys1, keys2 := t1.BinaryKeys(), t2.BinaryKeys()
+
+	if len(keys1) != len(keys2) {
+		return false
+	}
+
+	for i := 0; i < len(keys1); i++ {
+		if !bytes.Equal(keys1[i], keys2[i]) {
+			return false
+		}
+	}
+
+	return true
 }

@@ -27,7 +27,7 @@ func baseBenchmarkTableBinaryComparison(b *testing.B, factor int) {
 	}
 }
 
-func baseBenchmarkTableEqualToComparison(b *testing.B, factor int) {
+func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	t := TableN(factor)
 	data, err := t.Marshal()
 	require.NoError(b, err)
@@ -39,7 +39,7 @@ func baseBenchmarkTableEqualToComparison(b *testing.B, factor int) {
 	b.ResetTimer()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		if !t.EqualTo(t2) {
+		if !eacl.EqualTables(*t, *t2) {
 			b.Fail()
 		}
 	}
@@ -49,24 +49,24 @@ func BenchmarkTableBinaryComparison(b *testing.B) {
 	baseBenchmarkTableBinaryComparison(b, 1)
 }
 
-func BenchmarkTableEqualToComparison(b *testing.B) {
-	baseBenchmarkTableEqualToComparison(b, 1)
+func BenchmarkTableEqualsComparison(b *testing.B) {
+	baseBenchmarkTableEqualsComparison(b, 1)
 }
 
 func BenchmarkTableBinaryComparison10(b *testing.B) {
 	baseBenchmarkTableBinaryComparison(b, 10)
 }
 
-func BenchmarkTableEqualToComparison10(b *testing.B) {
-	baseBenchmarkTableEqualToComparison(b, 10)
+func BenchmarkTableEqualsComparison10(b *testing.B) {
+	baseBenchmarkTableEqualsComparison(b, 10)
 }
 
 func BenchmarkTableBinaryComparison100(b *testing.B) {
 	baseBenchmarkTableBinaryComparison(b, 100)
 }
 
-func BenchmarkTableEqualToComparison100(b *testing.B) {
-	baseBenchmarkTableEqualToComparison(b, 100)
+func BenchmarkTableEqualsComparison100(b *testing.B) {
+	baseBenchmarkTableEqualsComparison(b, 100)
 }
 
 // Target returns random eacl.Target.

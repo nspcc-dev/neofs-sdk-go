@@ -174,3 +174,11 @@ func (f *Filter) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+// equalFilters compares Filter with each other.
+func equalFilters(f1, f2 Filter) bool {
+	return f1.From() == f2.From() &&
+		f1.Matcher() == f2.Matcher() &&
+		f1.Key() == f2.Key() &&
+		f1.Value() == f2.Value()
+}
