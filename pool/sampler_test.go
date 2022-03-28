@@ -48,11 +48,11 @@ type clientMock struct {
 	err  error
 }
 
-func (c *clientMock) EndpointInfo(context.Context, PrmEndpointInfo) (*netmap.NodeInfo, error) {
+func (c *clientMock) endpointInfo(context.Context, prmEndpointInfo) (*netmap.NodeInfo, error) {
 	return nil, nil
 }
 
-func (c *clientMock) NetworkInfo(context.Context, PrmNetworkInfo) (*netmap.NetworkInfo, error) {
+func (c *clientMock) networkInfo(context.Context, prmNetworkInfo) (*netmap.NetworkInfo, error) {
 	return nil, nil
 }
 
