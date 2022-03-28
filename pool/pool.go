@@ -1597,7 +1597,7 @@ func waitForEACLPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, table *
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		eaclTable, err := pool.GetEACL(ctx, prm)
 		if err == nil {
-			return table.EqualTo(eaclTable)
+			return eacl.EqualTables(*table, *eaclTable)
 		}
 		return false
 	})

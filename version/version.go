@@ -87,3 +87,9 @@ func (v *Version) MarshalJSON() ([]byte, error) {
 func (v *Version) UnmarshalJSON(data []byte) error {
 	return (*refs.Version)(v).UnmarshalJSON(data)
 }
+
+// Equal returns true if versions are identical.
+func (v Version) Equal(v2 Version) bool {
+	return v.Major() == v2.Major() &&
+		v.Minor() == v2.Minor()
+}
