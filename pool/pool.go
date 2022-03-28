@@ -33,22 +33,22 @@ import (
 
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
 type client interface {
-	BalanceGet(context.Context, PrmBalanceGet) (*accounting.Decimal, error)
-	ContainerPut(context.Context, PrmContainerPut) (*cid.ID, error)
-	ContainerGet(context.Context, PrmContainerGet) (*container.Container, error)
-	ContainerList(context.Context, PrmContainerList) ([]cid.ID, error)
-	ContainerDelete(context.Context, PrmContainerDelete) error
-	ContainerEACL(context.Context, PrmContainerEACL) (*eacl.Table, error)
-	ContainerSetEACL(context.Context, PrmContainerSetEACL) error
-	EndpointInfo(context.Context, PrmEndpointInfo) (*netmap.NodeInfo, error)
-	NetworkInfo(context.Context, PrmNetworkInfo) (*netmap.NetworkInfo, error)
-	ObjectPut(context.Context, PrmObjectPut) (*oid.ID, error)
-	ObjectDelete(context.Context, PrmObjectDelete) error
-	ObjectGet(context.Context, PrmObjectGet) (*ResGetObject, error)
-	ObjectHead(context.Context, PrmObjectHead) (*object.Object, error)
-	ObjectRange(context.Context, PrmObjectRange) (*ResObjectRange, error)
-	ObjectSearch(context.Context, PrmObjectSearch) (*ResObjectSearch, error)
-	SessionCreate(context.Context, PrmCreateSession) (*ResCreateSession, error)
+	balanceGet(context.Context, PrmBalanceGet) (*accounting.Decimal, error)
+	containerPut(context.Context, PrmContainerPut) (*cid.ID, error)
+	containerGet(context.Context, PrmContainerGet) (*container.Container, error)
+	containerList(context.Context, PrmContainerList) ([]cid.ID, error)
+	containerDelete(context.Context, PrmContainerDelete) error
+	containerEACL(context.Context, PrmContainerEACL) (*eacl.Table, error)
+	containerSetEACL(context.Context, PrmContainerSetEACL) error
+	endpointInfo(context.Context, prmEndpointInfo) (*netmap.NodeInfo, error)
+	networkInfo(context.Context, prmNetworkInfo) (*netmap.NetworkInfo, error)
+	objectPut(context.Context, PrmObjectPut) (*oid.ID, error)
+	objectDelete(context.Context, PrmObjectDelete) error
+	objectGet(context.Context, PrmObjectGet) (*ResGetObject, error)
+	objectHead(context.Context, PrmObjectHead) (*object.Object, error)
+	objectRange(context.Context, PrmObjectRange) (*ResObjectRange, error)
+	objectSearch(context.Context, PrmObjectSearch) (*ResObjectSearch, error)
+	sessionCreate(context.Context, prmCreateSession) (*resCreateSession, error)
 }
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
@@ -96,7 +96,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	return &clientWrapper{client: &c, key: prm.key}, c.Dial(prmDial)
 }
 
-func (c *clientWrapper) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
+func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
 	var cliPrm sdkClient.PrmBalanceGet
 	cliPrm.SetAccount(prm.ownerID)
 
@@ -107,7 +107,7 @@ func (c *clientWrapper) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*acc
 	return res.Amount(), nil
 }
 
-func (c *clientWrapper) ContainerPut(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
+func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
 	var cliPrm sdkClient.PrmContainerPut
 	cliPrm.SetContainer(prm.cnr)
 
@@ -123,7 +123,7 @@ func (c *clientWrapper) ContainerPut(ctx context.Context, prm PrmContainerPut) (
 	return res.ID(), waitForContainerPresence(ctx, c, res.ID(), &prm.waitParams)
 }
 
-func (c *clientWrapper) ContainerGet(ctx context.Context, prm PrmContainerGet) (*container.Container, error) {
+func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (*container.Container, error) {
 	var cliPrm sdkClient.PrmContainerGet
 	cliPrm.SetContainer(prm.cnrID)
 
@@ -134,7 +134,7 @@ func (c *clientWrapper) ContainerGet(ctx context.Context, prm PrmContainerGet) (
 	return res.Container(), nil
 }
 
-func (c *clientWrapper) ContainerList(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
+func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
 	var cliPrm sdkClient.PrmContainerList
 	cliPrm.SetAccount(prm.ownerID)
 
@@ -145,7 +145,7 @@ func (c *clientWrapper) ContainerList(ctx context.Context, prm PrmContainerList)
 	return res.Containers(), nil
 }
 
-func (c *clientWrapper) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
+func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDelete) error {
 	var cliPrm sdkClient.PrmContainerDelete
 	cliPrm.SetContainer(prm.cnrID)
 	cliPrm.SetSessionToken(prm.stoken)
@@ -161,7 +161,7 @@ func (c *clientWrapper) ContainerDelete(ctx context.Context, prm PrmContainerDel
 	return waitForContainerRemoved(ctx, c, &prm.cnrID, &prm.waitParams)
 }
 
-func (c *clientWrapper) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, error) {
+func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, error) {
 	var cliPrm sdkClient.PrmContainerEACL
 	cliPrm.SetContainer(prm.cnrID)
 
@@ -172,7 +172,7 @@ func (c *clientWrapper) ContainerEACL(ctx context.Context, prm PrmContainerEACL)
 	return res.Table(), nil
 }
 
-func (c *clientWrapper) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
+func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 	var cliPrm sdkClient.PrmContainerSetEACL
 	cliPrm.SetTable(prm.table)
 
@@ -187,7 +187,7 @@ func (c *clientWrapper) ContainerSetEACL(ctx context.Context, prm PrmContainerSe
 	return waitForEACLPresence(ctx, c, prm.table.CID(), &prm.table, &prm.waitParams)
 }
 
-func (c *clientWrapper) EndpointInfo(ctx context.Context, _ PrmEndpointInfo) (*netmap.NodeInfo, error) {
+func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (*netmap.NodeInfo, error) {
 	res, err := c.client.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
 	if err != nil {
 		return nil, err
@@ -195,7 +195,7 @@ func (c *clientWrapper) EndpointInfo(ctx context.Context, _ PrmEndpointInfo) (*n
 	return res.NodeInfo(), nil
 }
 
-func (c *clientWrapper) NetworkInfo(ctx context.Context, _ PrmNetworkInfo) (*netmap.NetworkInfo, error) {
+func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (*netmap.NetworkInfo, error) {
 	res, err := c.client.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (c *clientWrapper) NetworkInfo(ctx context.Context, _ PrmNetworkInfo) (*net
 	return res.Info(), nil
 }
 
-func (c *clientWrapper) ObjectPut(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
+func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
 	var cliPrm sdkClient.PrmObjectPutInit
 	wObj, err := c.client.ObjectPutInit(ctx, cliPrm)
 	if err != nil {
@@ -275,7 +275,7 @@ func (c *clientWrapper) ObjectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 	return &id, nil
 }
 
-func (c *clientWrapper) ObjectDelete(ctx context.Context, prm PrmObjectDelete) error {
+func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) error {
 	var cliPrm sdkClient.PrmObjectDelete
 
 	if cnr := prm.addr.ContainerID(); cnr != nil {
@@ -299,7 +299,7 @@ func (c *clientWrapper) ObjectDelete(ctx context.Context, prm PrmObjectDelete) e
 	return err
 }
 
-func (c *clientWrapper) ObjectGet(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
+func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
 	var cliPrm sdkClient.PrmObjectGet
 
 	if cnr := prm.addr.ContainerID(); cnr != nil {
@@ -345,7 +345,7 @@ func (c *clientWrapper) ObjectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 	return &res, nil
 }
 
-func (c *clientWrapper) ObjectHead(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
+func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
 	var cliPrm sdkClient.PrmObjectHead
 
 	if cnr := prm.addr.ContainerID(); cnr != nil {
@@ -379,7 +379,7 @@ func (c *clientWrapper) ObjectHead(ctx context.Context, prm PrmObjectHead) (*obj
 	return &obj, nil
 }
 
-func (c *clientWrapper) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
+func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
 	var cliPrm sdkClient.PrmObjectRange
 
 	cliPrm.SetOffset(prm.off)
@@ -410,7 +410,7 @@ func (c *clientWrapper) ObjectRange(ctx context.Context, prm PrmObjectRange) (*R
 	return &ResObjectRange{payload: res}, nil
 }
 
-func (c *clientWrapper) ObjectSearch(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
+func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
 	var cliPrm sdkClient.PrmObjectSearch
 
 	cliPrm.InContainer(prm.cnrID)
@@ -433,7 +433,7 @@ func (c *clientWrapper) ObjectSearch(ctx context.Context, prm PrmObjectSearch) (
 	return &ResObjectSearch{r: res}, nil
 }
 
-func (c *clientWrapper) SessionCreate(ctx context.Context, prm PrmCreateSession) (*ResCreateSession, error) {
+func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession) (*resCreateSession, error) {
 	var cliPrm sdkClient.PrmSessionCreate
 	cliPrm.SetExp(prm.exp)
 
@@ -442,7 +442,7 @@ func (c *clientWrapper) SessionCreate(ctx context.Context, prm PrmCreateSession)
 		return nil, fmt.Errorf("session creation on client: %w", err)
 	}
 
-	return &ResCreateSession{
+	return &resCreateSession{
 		id:         res.ID(),
 		sessionKey: res.PublicKey(),
 	}, nil
@@ -828,23 +828,24 @@ func (x *PrmBalanceGet) SetOwnerID(ownerID owner.ID) {
 	x.ownerID = ownerID
 }
 
-type PrmCreateSession struct {
+// prmEndpointInfo groups parameters of sessionCreate operation.
+type prmCreateSession struct {
 	exp uint64
 }
 
 // SetExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
-func (x *PrmCreateSession) SetExp(exp uint64) {
+func (x *prmCreateSession) SetExp(exp uint64) {
 	x.exp = exp
 }
 
-// PrmEndpointInfo groups parameters of EndpointInfo operation.
-type PrmEndpointInfo struct{}
+// prmEndpointInfo groups parameters of endpointInfo operation.
+type prmEndpointInfo struct{}
 
-// PrmNetworkInfo groups parameters of NetworkInfo operation.
-type PrmNetworkInfo struct{}
+// prmNetworkInfo groups parameters of networkInfo operation.
+type prmNetworkInfo struct{}
 
-// ResCreateSession groups resulting values of SessionCreate operation.
-type ResCreateSession struct {
+// resCreateSession groups resulting values of sessionCreate operation.
+type resCreateSession struct {
 	id []byte
 
 	sessionKey []byte
@@ -1086,7 +1087,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 	healthyChanged := false
 	wg := sync.WaitGroup{}
 
-	var prmEndpoint PrmEndpointInfo
+	var prmEndpoint prmEndpointInfo
 
 	for j, cPack := range pool.clientPacks {
 		wg.Add(1)
@@ -1096,7 +1097,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 			tctx, c := context.WithTimeout(ctx, options.nodeRequestTimeout)
 			defer c()
 
-			if _, err := cli.EndpointInfo(tctx, prmEndpoint); err != nil {
+			if _, err := cli.endpointInfo(tctx, prmEndpoint); err != nil {
 				ok = false
 				bufferWeights[j] = 0
 			}
@@ -1200,7 +1201,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 }
 
 func createSessionTokenForDuration(ctx context.Context, c client, ownerID *owner.ID, dur uint64) (*session.Token, error) {
-	ni, err := c.NetworkInfo(ctx, PrmNetworkInfo{})
+	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return nil, err
 	}
@@ -1213,10 +1214,10 @@ func createSessionTokenForDuration(ctx context.Context, c client, ownerID *owner
 	} else {
 		exp = epoch + dur
 	}
-	var prm PrmCreateSession
+	var prm prmCreateSession
 	prm.SetExp(exp)
 
-	res, err := c.SessionCreate(ctx, prm)
+	res, err := c.sessionCreate(ctx, prm)
 	if err != nil {
 		return nil, err
 	}
@@ -1338,14 +1339,13 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 
 	if ctxCall.sessionDefault {
 		ctxCall.sessionTarget = prm.UseSession
-		err = p.openDefaultSession(&ctxCall)
-		if err != nil {
+		if err := p.openDefaultSession(&ctxCall); err != nil {
 			return nil, fmt.Errorf("open default session: %w", err)
 		}
 	}
 	prm.key = ctxCall.key
 
-	id, err := ctxCall.client.ObjectPut(ctx, prm)
+	id, err := ctxCall.client.objectPut(ctx, prm)
 	if err != nil {
 		// removes session token from cache in case of token error
 		p.checkSessionTokenErr(err, ctxCall.endpoint)
@@ -1376,7 +1376,7 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 	}
 
 	return p.call(&cc, func() error {
-		if err = cc.client.ObjectDelete(ctx, prm); err != nil {
+		if err = cc.client.objectDelete(ctx, prm); err != nil {
 			return fmt.Errorf("remove object via client: %w", err)
 		}
 
@@ -1422,7 +1422,7 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 
 	var res *ResGetObject
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.ObjectGet(ctx, prm)
+		res, err = cc.client.objectGet(ctx, prm)
 		return err
 	})
 }
@@ -1446,7 +1446,7 @@ func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Objec
 
 	var obj *object.Object
 	return obj, p.call(&cc, func() error {
-		obj, err = cc.client.ObjectHead(ctx, prm)
+		obj, err = cc.client.objectHead(ctx, prm)
 		return err
 	})
 }
@@ -1492,7 +1492,7 @@ func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectR
 	var res *ResObjectRange
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.ObjectRange(ctx, prm)
+		res, err = cc.client.objectRange(ctx, prm)
 		return err
 	})
 }
@@ -1557,7 +1557,7 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 	var res *ResObjectSearch
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.ObjectSearch(ctx, prm)
+		res, err = cc.client.objectSearch(ctx, prm)
 		return err
 	})
 }
@@ -1575,7 +1575,7 @@ func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, 
 		return nil, err
 	}
 
-	return cp.client.ContainerPut(ctx, prm)
+	return cp.client.containerPut(ctx, prm)
 }
 
 // GetContainer reads NeoFS container by ID.
@@ -1585,7 +1585,7 @@ func (p *Pool) GetContainer(ctx context.Context, prm PrmContainerGet) (*containe
 		return nil, err
 	}
 
-	return cp.client.ContainerGet(ctx, prm)
+	return cp.client.containerGet(ctx, prm)
 }
 
 // ListContainers requests identifiers of the account-owned containers.
@@ -1595,7 +1595,7 @@ func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.
 		return nil, err
 	}
 
-	return cp.client.ContainerList(ctx, prm)
+	return cp.client.containerList(ctx, prm)
 }
 
 // DeleteContainer sends request to remove the NeoFS container and waits for the operation to complete.
@@ -1611,7 +1611,7 @@ func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) erro
 		return err
 	}
 
-	return cp.client.ContainerDelete(ctx, prm)
+	return cp.client.containerDelete(ctx, prm)
 }
 
 // GetEACL reads eACL table of the NeoFS container.
@@ -1621,7 +1621,7 @@ func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, 
 		return nil, err
 	}
 
-	return cp.client.ContainerEACL(ctx, prm)
+	return cp.client.containerEACL(ctx, prm)
 }
 
 // SetEACL sends request to update eACL table of the NeoFS container and waits for the operation to complete.
@@ -1637,7 +1637,7 @@ func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 		return err
 	}
 
-	return cp.client.ContainerSetEACL(ctx, prm)
+	return cp.client.containerSetEACL(ctx, prm)
 }
 
 // Balance requests current balance of the NeoFS account.
@@ -1647,7 +1647,7 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Deci
 		return nil, err
 	}
 
-	return cp.client.BalanceGet(ctx, prm)
+	return cp.client.balanceGet(ctx, prm)
 }
 
 // waitForContainerPresence waits until the container is found on the NeoFS network.
@@ -1658,7 +1658,7 @@ func waitForContainerPresence(ctx context.Context, cli client, cnrID *cid.ID, wa
 	}
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		_, err := cli.ContainerGet(ctx, prm)
+		_, err := cli.containerGet(ctx, prm)
 		return err == nil
 	})
 }
@@ -1671,7 +1671,7 @@ func waitForEACLPresence(ctx context.Context, cli client, cnrID *cid.ID, table *
 	}
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		eaclTable, err := cli.ContainerEACL(ctx, prm)
+		eaclTable, err := cli.containerEACL(ctx, prm)
 		if err == nil {
 			return eacl.EqualTables(*table, *eaclTable)
 		}
@@ -1687,7 +1687,7 @@ func waitForContainerRemoved(ctx context.Context, cli client, cnrID *cid.ID, wai
 	}
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		_, err := cli.ContainerGet(ctx, prm)
+		_, err := cli.containerGet(ctx, prm)
 		return sdkClient.IsErrContainerNotFound(err)
 	})
 }
@@ -1722,7 +1722,7 @@ func (p *Pool) NetworkInfo(ctx context.Context) (*netmap.NetworkInfo, error) {
 		return nil, err
 	}
 
-	return cp.client.NetworkInfo(ctx, PrmNetworkInfo{})
+	return cp.client.networkInfo(ctx, prmNetworkInfo{})
 }
 
 // Close closes the Pool and releases all the associated resources.
@@ -1732,7 +1732,7 @@ func (p *Pool) Close() {
 }
 
 // creates new session token with specified owner from SessionCreate call result.
-func sessionTokenForOwner(id *owner.ID, cliRes *ResCreateSession, exp uint64) *session.Token {
+func sessionTokenForOwner(id *owner.ID, cliRes *resCreateSession, exp uint64) *session.Token {
 	st := session.NewToken()
 	st.SetOwnerID(id)
 	st.SetID(cliRes.id)

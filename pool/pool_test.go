@@ -1,7 +1,6 @@
 package pool
 
-// To generate mock define 'type Client client' in pool.go
-//go:generate mockgen -destination mock_test.go -package pool . Client
+//go:generate mockgen -destination mock_test.go -source pool.go -mock_names client=MockClient -package pool . client
 
 import (
 	"bytes"
@@ -51,9 +50,9 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error session")).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -88,25 +87,25 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
 		mockInvokes := 0
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*ResCreateSession, error) {
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*resCreateSession, error) {
 			mockInvokes++
 			if mockInvokes == 1 {
 				expectedToken = newToken(t)
 				return nil, fmt.Errorf("error session")
 			}
-			return &ResCreateSession{
+			return &resCreateSession{
 				sessionKey: expectedToken.SessionKey(),
 				id:         expectedToken.ID(),
 			}, nil
 		}).AnyTimes()
 
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(&ResCreateSession{}, nil).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{}, nil).AnyTimes()
+		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient2.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		if clientCount == 0 {
 			return mockClient, nil
@@ -161,16 +160,16 @@ func TestOneNode(t *testing.T) {
 	require.NoError(t, err)
 	tok.SetID(uid)
 
-	tokRes := &ResCreateSession{
+	tokRes := &resCreateSession{
 		id:         tok.ID(),
 		sessionKey: tok.SessionKey(),
 	}
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(tokRes, nil)
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(tokRes, nil)
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -206,19 +205,19 @@ func TestTwoNodes(t *testing.T) {
 	var tokens []*session.Token
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := session.NewToken()
 			uid, err := uuid.New().MarshalBinary()
 			require.NoError(t, err)
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, err
 		})
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -261,30 +260,30 @@ func TestOneOfTwoFailed(t *testing.T) {
 	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens = append(tokens, tok)
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, nil
 		}).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
+		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens = append(tokens, tok)
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NodeInfo, error) {
+		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NodeInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NetworkInfo, error) {
+		mockClient2.EXPECT().networkInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NetworkInfo, error) {
 			return nil, fmt.Errorf("error")
 		}).AnyTimes()
 
@@ -327,9 +326,9 @@ func TestTwoFailed(t *testing.T) {
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(&ResCreateSession{}, nil).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{}, nil).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -363,21 +362,21 @@ func TestSessionCache(t *testing.T) {
 	var tokens []*session.Token
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*ResCreateSession, error) {
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*resCreateSession, error) {
 			tok := session.NewToken()
 			uid, err := uuid.New().MarshalBinary()
 			require.NoError(t, err)
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, err
 		}).MaxTimes(3)
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
-		mockClient.EXPECT().ObjectGet(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
-		mockClient.EXPECT().ObjectPut(gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().objectGet(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
+		mockClient.EXPECT().objectPut(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -439,28 +438,28 @@ func TestPriority(t *testing.T) {
 	tokens := make([]*session.Token, 2)
 	clientBuilder := func(endpoint string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens[0] = tok
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, nil
 		}).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
+		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens[1] = tok
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, nil
 		}).AnyTimes()
-		mockClient2.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
-		mockClient2.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient2.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
 		if endpoint == "peer0" {
 			return mockClient, nil
@@ -511,20 +510,20 @@ func TestSessionCacheWithKey(t *testing.T) {
 	var tokens []*session.Token
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*ResCreateSession, error) {
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := session.NewToken()
 			uid, err := uuid.New().MarshalBinary()
 			require.NoError(t, err)
 			tok.SetID(uid)
 			tokens = append(tokens, tok)
-			return &ResCreateSession{
+			return &resCreateSession{
 				id:         tok.ID(),
 				sessionKey: tok.SessionKey(),
 			}, err
 		}).MaxTimes(2)
 
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().ObjectGet(gomock.Any(), gomock.Any()).Return(nil, nil)
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().objectGet(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
 	}
@@ -576,9 +575,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(&ResCreateSession{}, nil).AnyTimes()
-		mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
-		mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{}, nil).AnyTimes()
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
 	}
 
@@ -624,10 +623,10 @@ func TestWaitPresence(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	mockClient := NewMockClient(ctrl)
-	mockClient.EXPECT().SessionCreate(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockClient.EXPECT().EndpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-	mockClient.EXPECT().NetworkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
-	mockClient.EXPECT().ContainerGet(gomock.Any(), gomock.Any()).Return(&container.Container{}, nil).AnyTimes()
+	mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
+	mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+	mockClient.EXPECT().containerGet(gomock.Any(), gomock.Any()).Return(&container.Container{}, nil).AnyTimes()
 
 	cache, err := newCache()
 	require.NoError(t, err)
