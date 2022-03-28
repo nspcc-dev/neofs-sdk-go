@@ -171,11 +171,15 @@ func (x *WaitParams) SetPollInterval(tick time.Duration) {
 	x.pollInterval = tick
 }
 
-// DefaultWaitParams creates WaitParams with default values.
-func DefaultWaitParams() *WaitParams {
-	return &WaitParams{
-		timeout:      120 * time.Second,
-		pollInterval: 5 * time.Second,
+func (x *WaitParams) setDefaults() {
+	x.timeout = 120 * time.Second
+	x.pollInterval = 5 * time.Second
+}
+
+// checkForPositive panics if any of the wait params isn't positive.
+func (x *WaitParams) checkForPositive() {
+	if x.timeout <= 0 || x.pollInterval <= 0 {
+		panic("all wait params must be positive")
 	}
 }
 
@@ -322,11 +326,23 @@ func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 // PrmContainerPut groups parameters of PutContainer operation.
 type PrmContainerPut struct {
 	cnr container.Container
+
+	waitParams    WaitParams
+	waitParamsSet bool
 }
 
 // SetContainer specifies structured information about new NeoFS container.
 func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 	x.cnr = cnr
+}
+
+// SetWaitParams specifies timeout params to complete operation.
+// If not provided the default one will be used.
+// Panics if any of the wait params isn't positive.
+func (x *PrmContainerPut) SetWaitParams(waitParams WaitParams) {
+	waitParams.checkForPositive()
+	x.waitParams = waitParams
+	x.waitParamsSet = true
 }
 
 // PrmContainerGet groups parameters of GetContainer operation.
@@ -353,6 +369,9 @@ func (x *PrmContainerList) SetOwnerID(ownerID owner.ID) {
 type PrmContainerDelete struct {
 	stoken session.Token
 	cnrID  cid.ID
+
+	waitParams    WaitParams
+	waitParamsSet bool
 }
 
 // SetContainerID specifies identifier of the NeoFS container to be removed.
@@ -363,6 +382,15 @@ func (x *PrmContainerDelete) SetContainerID(cnrID cid.ID) {
 // SetSessionToken specifies session within which operation should be performed.
 func (x *PrmContainerDelete) SetSessionToken(token session.Token) {
 	x.stoken = token
+}
+
+// SetWaitParams specifies timeout params to complete operation.
+// If not provided the default one will be used.
+// Panics if any of the wait params isn't positive.
+func (x *PrmContainerDelete) SetWaitParams(waitParams WaitParams) {
+	waitParams.checkForPositive()
+	x.waitParams = waitParams
+	x.waitParamsSet = true
 }
 
 // PrmContainerEACL groups parameters of GetEACL operation.
@@ -378,11 +406,23 @@ func (x *PrmContainerEACL) SetContainerID(cnrID cid.ID) {
 // PrmContainerSetEACL groups parameters of SetEACL operation.
 type PrmContainerSetEACL struct {
 	table eacl.Table
+
+	waitParams    WaitParams
+	waitParamsSet bool
 }
 
 // SetTable specifies eACL table structure to be set for the container.
 func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 	x.table = table
+}
+
+// SetWaitParams specifies timeout params to complete operation.
+// If not provided the default one will be used.
+// Panics if any of the wait params isn't positive.
+func (x *PrmContainerSetEACL) SetWaitParams(waitParams WaitParams) {
+	waitParams.checkForPositive()
+	x.waitParams = waitParams
+	x.waitParamsSet = true
 }
 
 // PrmBalanceGet groups parameters of Balance operation.
@@ -1351,10 +1391,11 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 	return &res, nil
 }
 
-// PutContainer sends request to save container in NeoFS.
+// PutContainer sends request to save container in NeoFS and waits for the operation to complete.
 //
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
+// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
+//   polling interval: 5s
+//   waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
 func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
@@ -1371,7 +1412,11 @@ func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, 
 		return nil, err
 	}
 
-	return res.ID(), nil
+	if !prm.waitParamsSet {
+		prm.waitParams.setDefaults()
+	}
+
+	return res.ID(), waitForContainerPresence(ctx, p, res.ID(), &prm.waitParams)
 }
 
 // GetContainer reads NeoFS container by ID.
@@ -1410,10 +1455,11 @@ func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.
 	return res.Containers(), nil
 }
 
-// DeleteContainer sends request to remove the NeoFS container.
+// DeleteContainer sends request to remove the NeoFS container and waits for the operation to complete.
 //
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
+// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
+//   polling interval: 5s
+//   waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
 func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) error {
@@ -1430,7 +1476,15 @@ func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) erro
 
 	// here err already carries both status and client errors
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	if !prm.waitParamsSet {
+		prm.waitParams.setDefaults()
+	}
+
+	return waitForContainerRemoved(ctx, p, &prm.cnrID, &prm.waitParams)
 }
 
 // GetEACL reads eACL table of the NeoFS container.
@@ -1451,10 +1505,11 @@ func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, 
 	return res.Table(), nil
 }
 
-// SetEACL sends request to update eACL table of the NeoFS container.
+// SetEACL sends request to update eACL table of the NeoFS container and waits for the operation to complete.
 //
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
+// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
+//   polling interval: 5s
+//   waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetEACL).
 func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
@@ -1470,7 +1525,15 @@ func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 
 	// here err already carries both status and client errors
 
-	return err
+	if err != nil {
+		return err
+	}
+
+	if !prm.waitParamsSet {
+		prm.waitParams.setDefaults()
+	}
+
+	return waitForEACLPresence(ctx, p, prm.table.CID(), &prm.table, &prm.waitParams)
 }
 
 // Balance requests current balance of the NeoFS account.
@@ -1491,8 +1554,8 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Deci
 	return res.Amount(), nil
 }
 
-// WaitForContainerPresence waits until the container is found on the NeoFS network.
-func WaitForContainerPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, waitParams *WaitParams) error {
+// waitForContainerPresence waits until the container is found on the NeoFS network.
+func waitForContainerPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, waitParams *WaitParams) error {
 	var prm PrmContainerGet
 	if cnrID != nil {
 		prm.SetContainerID(*cnrID)
@@ -1504,8 +1567,8 @@ func WaitForContainerPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, wa
 	})
 }
 
-// WaitForEACLPresence waits until the container eacl is applied on the NeoFS network.
-func WaitForEACLPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, table *eacl.Table, waitParams *WaitParams) error {
+// waitForEACLPresence waits until the container eacl is applied on the NeoFS network.
+func waitForEACLPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, table *eacl.Table, waitParams *WaitParams) error {
 	var prm PrmContainerEACL
 	if cnrID != nil {
 		prm.SetContainerID(*cnrID)
@@ -1520,8 +1583,8 @@ func WaitForEACLPresence(ctx context.Context, pool *Pool, cnrID *cid.ID, table *
 	})
 }
 
-// WaitForContainerRemoved waits until the container is removed from the NeoFS network.
-func WaitForContainerRemoved(ctx context.Context, pool *Pool, cnrID *cid.ID, waitParams *WaitParams) error {
+// waitForContainerRemoved waits until the container is removed from the NeoFS network.
+func waitForContainerRemoved(ctx context.Context, pool *Pool, cnrID *cid.ID, waitParams *WaitParams) error {
 	var prm PrmContainerGet
 	if cnrID != nil {
 		prm.SetContainerID(*cnrID)
