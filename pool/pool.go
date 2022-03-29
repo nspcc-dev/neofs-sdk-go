@@ -53,7 +53,7 @@ type client interface {
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
 type clientWrapper struct {
-	client *sdkClient.Client
+	client sdkClient.Client
 	key    ecdsa.PrivateKey
 }
 
@@ -86,14 +86,20 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	prmInit.SetDefaultPrivateKey(prm.key)
 	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
 
-	var c sdkClient.Client
-	c.Init(prmInit)
+	res := &clientWrapper{key: prm.key}
+
+	res.client.Init(prmInit)
 
 	var prmDial sdkClient.PrmDial
 	prmDial.SetServerURI(prm.address)
 	prmDial.SetTimeout(prm.timeout)
 
-	return &clientWrapper{client: &c, key: prm.key}, c.Dial(prmDial)
+	err := res.client.Dial(prmDial)
+	if err != nil {
+		return nil, fmt.Errorf("client dial: %w", err)
+	}
+
+	return res, nil
 }
 
 func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
