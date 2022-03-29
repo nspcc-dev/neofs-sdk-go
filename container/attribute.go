@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
 )
 
-// Attribute represents v2-compatible container attribute.
+// Attribute represents container attribute in NeoFS.
 //
 // Attribute is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/container.Attribute
 // message. See ReadFromV2 / WriteToV2 methods.

@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
-// Attribute represents v2-compatible object attribute.
+// Attribute represents object attribute.
 //
 // Attribute is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/object.Attribute
 // message. See ReadFromV2 / WriteToV2 methods.

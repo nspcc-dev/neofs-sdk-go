@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
-// Checksum represents v2-compatible checksum.
+// Checksum represents checksum of the NeoFS primitives.
 //
 // Checksum is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Checksum
 // message. See ReadFromV2 / WriteToV2 methods.

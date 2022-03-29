@@ -11,7 +11,6 @@ import (
 	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
@@ -91,24 +90,10 @@ func VerifyID(obj *Object) error {
 	return nil
 }
 
-// CalculateIDSignature signs object id with provided key.
-func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signature, error) {
-	var idV2 refs.ObjectID
-	id.WriteToV2(&idV2)
-
-	sign, err := sigutil.SignData(key,
-		signatureV2.StableMarshalerWrapper{
-			SM: &idV2,
-		},
-	)
-
-	return sign, err
-}
-
 // CalculateAndSetSignature signs id with provided key and sets that signature to
 // the object.
 func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
-	sig, err := CalculateIDSignature(key, obj.ID())
+	sig, err := obj.ID().CalculateIDSignature(key)
 	if err != nil {
 		return err
 	}
@@ -119,15 +104,15 @@ func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
 }
 
 // VerifyIDSignature verifies object ID signature.
-func VerifyIDSignature(obj *Object) bool {
+func (o Object) VerifyIDSignature() bool {
 	var idV2 refs.ObjectID
-	obj.ID().WriteToV2(&idV2)
+	o.ID().WriteToV2(&idV2)
 
 	err := sigutil.VerifyData(
 		signatureV2.StableMarshalerWrapper{
 			SM: &idV2,
 		},
-		obj.Signature(),
+		o.Signature(),
 	)
 
 	return err == nil
@@ -170,7 +155,7 @@ var errInvalidSignature = errors.New("invalid signature")
 
 // CheckHeaderVerificationFields checks all verification fields except payload.
 func CheckHeaderVerificationFields(obj *Object) error {
-	if !VerifyIDSignature(obj) {
+	if !obj.VerifyIDSignature() {
 		return errInvalidSignature
 	}
 

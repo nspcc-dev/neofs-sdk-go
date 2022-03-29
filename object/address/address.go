@@ -9,7 +9,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
-// Address represents v2-compatible object address.
+// Address defines the address space for NeoFS objects.
 //
 // Address is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Address
 // message. See ReadFromV2 / WriteToV2 methods.

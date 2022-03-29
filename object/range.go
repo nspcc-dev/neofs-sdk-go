@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
-// Range represents v2-compatible object payload range.
+// Range represents payload range of the NeoFS object.
 //
 // Range is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/object.Range
 // message. See ReadFromV2 / WriteToV2 methods.

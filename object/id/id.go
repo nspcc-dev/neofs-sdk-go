@@ -2,15 +2,19 @@ package oid
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
 	"fmt"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	"github.com/nspcc-dev/neofs-sdk-go/signature"
+	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
-// ID represents v2-compatible object identifier.
+// ID represents NeoFS object identifier.
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ObjectID
 // message. See ReadFromV2 / WriteToV2 methods.
@@ -67,6 +71,20 @@ func (id *ID) Parse(s string) error {
 func (id ID) String() string {
 	v2 := (refs.ObjectID)(id)
 	return base58.Encode(v2.GetValue())
+}
+
+// CalculateIDSignature signs object id with provided key.
+func (id ID) CalculateIDSignature(key *ecdsa.PrivateKey) (*signature.Signature, error) {
+	var idV2 refs.ObjectID
+	id.WriteToV2(&idV2)
+
+	sign, err := sigutil.SignData(key,
+		signatureV2.StableMarshalerWrapper{
+			SM: &idV2,
+		},
+	)
+
+	return sign, err
 }
 
 // Marshal marshals ID into a protobuf binary form.

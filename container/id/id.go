@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
-// ID represents v2-compatible container identifier.
+// ID represents NeoFS container identifier.
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ContainerID
 // message. See ReadFromV2 / WriteToV2 methods.
