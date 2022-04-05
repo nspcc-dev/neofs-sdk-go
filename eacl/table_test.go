@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -100,17 +99,6 @@ func TestTable_SessionToken(t *testing.T) {
 	table.SetSessionToken(tok)
 
 	require.Equal(t, tok, table.SessionToken())
-}
-
-func TestTable_Signature(t *testing.T) {
-	sig := signature.New()
-	sig.SetKey([]byte{1, 2, 3})
-	sig.SetSign([]byte{4, 5, 6})
-
-	table := eacl.NewTable()
-	table.SetSignature(sig)
-
-	require.Equal(t, sig, table.Signature())
 }
 
 func TestTable_ToV2(t *testing.T) {

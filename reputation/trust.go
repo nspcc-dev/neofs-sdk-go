@@ -2,12 +2,13 @@ package reputation
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -264,31 +265,58 @@ func (x *GlobalTrust) Trust() *Trust {
 
 // Sign signs global trust value with key.
 func (x *GlobalTrust) Sign(key *ecdsa.PrivateKey) error {
-	v2 := (*reputation.GlobalTrust)(x)
-
-	sig, err := sigutil.SignData(key,
-		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()})
-	if err != nil {
-		return err
+	if key == nil {
+		return errors.New("nil private key")
 	}
 
-	v2.SetSignature(sig.ToV2())
+	m := (*reputation.GlobalTrust)(x)
+
+	data, err := m.GetBody().StableMarshal(nil)
+	if err != nil {
+		return fmt.Errorf("marshal body: %w", err)
+	}
+
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
+
+	signer.SetKey(*key)
+
+	err = sig.Calculate(signer, data)
+	if err != nil {
+		return fmt.Errorf("calculate signature: %w", err)
+	}
+
+	var sigv2 refs.Signature
+
+	sig.WriteToV2(&sigv2)
+
+	m.SetSignature(&sigv2)
+
 	return nil
 }
 
 // VerifySignature verifies global trust signature.
 func (x *GlobalTrust) VerifySignature() error {
-	v2 := (*reputation.GlobalTrust)(x)
+	m := (*reputation.GlobalTrust)(x)
 
-	sigV2 := v2.GetSignature()
+	sigV2 := m.GetSignature()
 	if sigV2 == nil {
-		sigV2 = new(refs.Signature)
+		return errors.New("missing signature")
 	}
 
-	return sigutil.VerifyData(
-		signatureV2.StableMarshalerWrapper{SM: v2.GetBody()},
-		signature.NewFromV2(sigV2),
-	)
+	data, err := m.GetBody().StableMarshal(nil)
+	if err != nil {
+		return fmt.Errorf("marshal body: %w", err)
+	}
+
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(*sigV2)
+
+	if !sig.Verify(data) {
+		return errors.New("wrong signature")
+	}
+
+	return nil
 }
 
 // Marshal marshals GlobalTrust into a protobuf binary form.

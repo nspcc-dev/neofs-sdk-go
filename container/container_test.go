@@ -11,7 +11,6 @@ import (
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	sigtest "github.com/nspcc-dev/neofs-sdk-go/signature/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
@@ -84,15 +83,6 @@ func TestContainer_SessionToken(t *testing.T) {
 	cnr.SetSessionToken(tok)
 
 	require.Equal(t, tok, cnr.SessionToken())
-}
-
-func TestContainer_Signature(t *testing.T) {
-	sig := sigtest.Signature()
-
-	cnr := container.New()
-	cnr.SetSignature(sig)
-
-	require.Equal(t, sig, cnr.Signature())
 }
 
 func TestContainer_ToV2(t *testing.T) {

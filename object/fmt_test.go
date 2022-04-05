@@ -51,22 +51,6 @@ func TestVerificationFields(t *testing.T) {
 				obj.ToV2().GetObjectID().GetValue()[0]--
 			},
 		},
-		{
-			corrupt: func() {
-				obj.Signature().Key()[0]++
-			},
-			restore: func() {
-				obj.Signature().Key()[0]--
-			},
-		},
-		{
-			corrupt: func() {
-				obj.Signature().Sign()[0]++
-			},
-			restore: func() {
-				obj.Signature().Sign()[0]--
-			},
-		},
 	}
 
 	for _, item := range items {

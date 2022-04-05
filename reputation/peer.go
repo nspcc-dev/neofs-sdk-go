@@ -5,7 +5,6 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	"github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 // PeerID represents peer ID compatible with NeoFS API v2.
@@ -27,7 +26,7 @@ func PeerIDFromV2(id *reputation.PeerID) *PeerID {
 }
 
 // SetPublicKey sets peer ID as a compressed public key.
-func (x *PeerID) SetPublicKey(v [signature.PublicKeyCompressedSize]byte) {
+func (x *PeerID) SetPublicKey(v [33]byte) {
 	(*reputation.PeerID)(x).SetPublicKey(v[:])
 }
 

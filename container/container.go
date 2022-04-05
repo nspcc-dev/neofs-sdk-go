@@ -8,10 +8,10 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -20,7 +20,7 @@ type Container struct {
 
 	token *session.Token
 
-	sig *signature.Signature
+	sig *neofscrypto.Signature
 }
 
 // New creates, initializes and returns blank Container instance.
@@ -171,12 +171,12 @@ func (c *Container) SetSessionToken(t *session.Token) {
 }
 
 // Signature returns signature of the marshaled container.
-func (c Container) Signature() *signature.Signature {
+func (c Container) Signature() *neofscrypto.Signature {
 	return c.sig
 }
 
 // SetSignature sets signature of the marshaled container.
-func (c *Container) SetSignature(sig *signature.Signature) {
+func (c *Container) SetSignature(sig *neofscrypto.Signature) {
 	c.sig = sig
 }
 

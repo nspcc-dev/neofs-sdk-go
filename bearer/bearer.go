@@ -4,14 +4,15 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 var (
@@ -210,15 +211,27 @@ func (b *Token) Sign(key ecdsa.PrivateKey) error {
 		return err
 	}
 
-	v2 := (*acl.BearerToken)(b)
-	signWrapper := v2signature.StableMarshalerWrapper{SM: v2.GetBody()}
+	m := (*acl.BearerToken)(b)
 
-	sig, err := sigutil.SignData(&key, signWrapper)
+	data, err := m.GetBody().StableMarshal(nil)
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal body: %w", err)
 	}
 
-	v2.SetSignature(sig.ToV2())
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
+
+	signer.SetKey(key)
+
+	err = sig.Calculate(signer, data)
+	if err != nil {
+		return fmt.Errorf("calculate signature: %w", err)
+	}
+
+	var sigV2 refs.Signature
+	sig.WriteToV2(&sigV2)
+
+	m.SetSignature(&sigV2)
 
 	return nil
 }
@@ -229,11 +242,26 @@ func (b Token) VerifySignature() error {
 		return nil
 	}
 
-	v2 := (acl.BearerToken)(b)
+	m := (acl.BearerToken)(b)
 
-	return sigutil.VerifyData(
-		v2signature.StableMarshalerWrapper{SM: v2.GetBody()},
-		signature.NewFromV2(v2.GetSignature()))
+	sigV2 := m.GetSignature()
+	if sigV2 == nil {
+		return errors.New("missing signature")
+	}
+
+	data, err := m.GetBody().StableMarshal(nil)
+	if err != nil {
+		return fmt.Errorf("marshal body: %w", err)
+	}
+
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(*sigV2)
+
+	if !sig.Verify(data) {
+		return errors.New("wrong signature")
+	}
+
+	return nil
 }
 
 // Issuer returns owner.ID associated with the key that signed bearer token.

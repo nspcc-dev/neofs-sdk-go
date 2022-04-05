@@ -8,10 +8,10 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -109,14 +109,29 @@ func (o *Object) SetID(v oid.ID) {
 }
 
 // Signature returns signature of the object identifier.
-func (o *Object) Signature() *signature.Signature {
-	return signature.NewFromV2(
-		(*object.Object)(o).GetSignature())
+func (o *Object) Signature() *neofscrypto.Signature {
+	sigv2 := (*object.Object)(o).GetSignature()
+	if sigv2 == nil {
+		return nil
+	}
+
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(*sigv2)
+
+	return &sig
 }
 
 // SetSignature sets signature of the object identifier.
-func (o *Object) SetSignature(v *signature.Signature) {
-	(*object.Object)(o).SetSignature(v.ToV2())
+func (o *Object) SetSignature(v *neofscrypto.Signature) {
+	var sigv2 *refs.Signature
+
+	if v != nil {
+		sigv2 = new(refs.Signature)
+
+		v.WriteToV2(sigv2)
+	}
+
+	(*object.Object)(o).SetSignature(sigv2)
 }
 
 // Payload returns payload bytes.

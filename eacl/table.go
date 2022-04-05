@@ -8,8 +8,8 @@ import (
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -20,7 +20,7 @@ type Table struct {
 	version version.Version
 	cid     *cid.ID
 	token   *session.Token
-	sig     *signature.Signature
+	sig     *neofscrypto.Signature
 	records []Record
 }
 
@@ -74,12 +74,12 @@ func (t *Table) SetSessionToken(tok *session.Token) {
 }
 
 // Signature returns Table signature.
-func (t Table) Signature() *signature.Signature {
+func (t Table) Signature() *neofscrypto.Signature {
 	return t.sig
 }
 
 // SetSignature sets Table signature.
-func (t *Table) SetSignature(sig *signature.Signature) {
+func (t *Table) SetSignature(sig *neofscrypto.Signature) {
 	t.sig = sig
 }
 
