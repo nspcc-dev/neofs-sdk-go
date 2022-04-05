@@ -64,7 +64,7 @@ func (c *sessionCache) DeleteByPrefix(prefix string) {
 	}
 }
 
-func (c *sessionCache) UpdateEpoch(newEpoch uint64) {
+func (c *sessionCache) updateEpoch(newEpoch uint64) {
 	epoch := atomic.LoadUint64(&c.currentEpoch)
 	if newEpoch > epoch {
 		atomic.StoreUint64(&c.currentEpoch, newEpoch)

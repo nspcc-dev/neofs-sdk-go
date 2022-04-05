@@ -21,7 +21,7 @@ func (x ResponseMetaInfo) ResponderKey() []byte {
 	return x.key
 }
 
-// Epoch return current epoch.
+// Epoch returns local NeoFS epoch of the server.
 func (x ResponseMetaInfo) Epoch() uint64 {
 	return x.epoch
 }
