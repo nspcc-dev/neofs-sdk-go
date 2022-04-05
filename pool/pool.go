@@ -532,14 +532,13 @@ func (p *Pool) Dial(ctx context.Context) error {
 				return err
 			}
 			var healthy bool
-			cliRes, err := createSessionTokenForDuration(ctx, c, p.rebalanceParams.sessionExpirationDuration)
+			st, err := createSessionTokenForDuration(ctx, c, p.owner, p.rebalanceParams.sessionExpirationDuration)
 			if err != nil && p.logger != nil {
 				p.logger.Warn("failed to create neofs session token for client",
 					zap.String("Address", addr),
 					zap.Error(err))
 			} else if err == nil {
 				healthy, atLeastOneHealthy = true, true
-				st := sessionTokenForOwner(p.owner, cliRes)
 				_ = p.cache.Put(formCacheKey(addr, p.key), st)
 			}
 			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
@@ -587,7 +586,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 			prmInit.ResolveNeoFSFailures()
 			prmInit.SetDefaultPrivateKey(*params.key)
 			prmInit.SetResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
-				cache.UpdateEpoch(info.Epoch())
+				cache.updateEpoch(info.Epoch())
 				return nil
 			})
 
@@ -787,7 +786,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func createSessionTokenForDuration(ctx context.Context, c client, dur uint64) (*sdkClient.ResSessionCreate, error) {
+func createSessionTokenForDuration(ctx context.Context, c client, ownerID *owner.ID, dur uint64) (*session.Token, error) {
 	ni, err := c.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	if err != nil {
 		return nil, err
@@ -795,14 +794,21 @@ func createSessionTokenForDuration(ctx context.Context, c client, dur uint64) (*
 
 	epoch := ni.Info().CurrentEpoch()
 
-	var prm sdkClient.PrmSessionCreate
+	var exp uint64
 	if math.MaxUint64-epoch < dur {
-		prm.SetExp(math.MaxUint64)
+		exp = math.MaxUint64
 	} else {
-		prm.SetExp(epoch + dur)
+		exp = epoch + dur
+	}
+	var prm sdkClient.PrmSessionCreate
+	prm.SetExp(exp)
+
+	res, err := c.SessionCreate(ctx, prm)
+	if err != nil {
+		return nil, err
 	}
 
-	return c.SessionCreate(ctx, prm)
+	return sessionTokenForOwner(ownerID, res, exp), nil
 }
 
 type callContext struct {
@@ -860,13 +866,13 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 
 	tok := p.cache.Get(cacheKey)
 	if tok == nil {
+		var err error
 		// open new session
-		cliRes, err := createSessionTokenForDuration(ctx, ctx.client, p.stokenDuration)
+		tok, err = createSessionTokenForDuration(ctx, ctx.client, owner.NewIDFromPublicKey(&ctx.key.PublicKey), p.stokenDuration)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
 
-		tok = sessionTokenForOwner(owner.NewIDFromPublicKey(&ctx.key.PublicKey), cliRes)
 		// cache the opened session
 		p.cache.Put(cacheKey, tok)
 	}
@@ -1576,18 +1582,13 @@ func (p *Pool) Close() {
 	<-p.closedCh
 }
 
-// creates new session token from SessionCreate call result.
-func (p *Pool) newSessionToken(cliRes *sdkClient.ResSessionCreate) *session.Token {
-	return sessionTokenForOwner(p.owner, cliRes)
-}
-
 // creates new session token with specified owner from SessionCreate call result.
-func sessionTokenForOwner(id *owner.ID, cliRes *sdkClient.ResSessionCreate) *session.Token {
+func sessionTokenForOwner(id *owner.ID, cliRes *sdkClient.ResSessionCreate, exp uint64) *session.Token {
 	st := session.NewToken()
 	st.SetOwnerID(id)
 	st.SetID(cliRes.ID())
 	st.SetSessionKey(cliRes.PublicKey())
-	st.SetExp(cliRes.Expiration())
+	st.SetExp(exp)
 
 	return st
 }
