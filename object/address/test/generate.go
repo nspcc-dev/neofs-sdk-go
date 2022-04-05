@@ -7,11 +7,11 @@ import (
 )
 
 // Address returns random object.Address.
-func Address() *address.Address {
+func Address() address.Address {
 	var x address.Address
 
 	x.SetContainerID(cidtest.ID())
 	x.SetObjectID(oidtest.ID())
 
-	return &x
+	return x
 }

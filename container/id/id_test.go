@@ -28,7 +28,7 @@ func TestID_ToV2(t *testing.T) {
 		var newID cid.ID
 		newID.ReadFromV2(idV2)
 
-		require.Equal(t, *id, newID)
+		require.Equal(t, id, newID)
 		require.Equal(t, checksum[:], idV2.GetValue())
 	})
 
@@ -74,7 +74,7 @@ func TestID_String(t *testing.T) {
 		var id2 cid.ID
 
 		require.NoError(t, id2.Parse(id.String()))
-		require.Equal(t, *id, id2)
+		require.Equal(t, id, id2)
 	})
 
 	t.Run("zero", func(t *testing.T) {

@@ -14,7 +14,7 @@ func StorageGroup() storagegroup.StorageGroup {
 	x.SetExpirationEpoch(66)
 	x.SetValidationDataSize(322)
 	x.SetValidationDataHash(checksumtest.Checksum())
-	x.SetMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
+	x.SetMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return x
 }

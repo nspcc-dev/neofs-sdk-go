@@ -24,10 +24,12 @@ func Target() *eacl.Target {
 func Record() *eacl.Record {
 	x := eacl.NewRecord()
 
+	cid := cidtest.ID()
+
 	x.SetAction(eacl.ActionAllow)
 	x.SetOperation(eacl.OperationRangeHash)
 	x.SetTargets(*Target(), *Target())
-	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
+	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, &cid)
 	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, ownertest.ID())
 
 	return x
@@ -36,7 +38,9 @@ func Record() *eacl.Record {
 func Table() *eacl.Table {
 	x := eacl.NewTable()
 
-	x.SetCID(cidtest.ID())
+	cid := cidtest.ID()
+
+	x.SetCID(&cid)
 	x.AddRecord(Record())
 	x.AddRecord(Record())
 	x.SetVersion(*versiontest.Version())

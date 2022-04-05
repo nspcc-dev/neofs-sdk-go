@@ -47,19 +47,21 @@ func VerifyPayloadChecksum(obj *Object) error {
 }
 
 // CalculateID calculates identifier for the object.
-func CalculateID(obj *Object) (*oid.ID, error) {
-	var v2 object.Object
+func CalculateID(obj *Object) (oid.ID, error) {
+	var (
+		v2 object.Object
+		id oid.ID
+	)
 	obj.WriteToV2(&v2)
 
 	data, err := v2.GetHeader().StableMarshal(nil)
 	if err != nil {
-		return nil, err
+		return id, err
 	}
 
-	var id oid.ID
 	id.SetSHA256(sha256.Sum256(data))
 
-	return &id, nil
+	return id, nil
 }
 
 // CalculateAndSetID calculates identifier for the object
@@ -92,7 +94,7 @@ func VerifyID(obj *Object) error {
 
 // CalculateAndSetSignature signs id with provided key and sets that signature to
 // the object.
-func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
+func CalculateAndSetSignature(key ecdsa.PrivateKey, obj *Object) error {
 	sig, err := obj.ID().CalculateIDSignature(key)
 	if err != nil {
 		return err
@@ -108,18 +110,20 @@ func (o Object) VerifyIDSignature() bool {
 	var idV2 refs.ObjectID
 	o.ID().WriteToV2(&idV2)
 
+	sig := o.Signature()
+
 	err := sigutil.VerifyData(
 		signatureV2.StableMarshalerWrapper{
 			SM: &idV2,
 		},
-		o.Signature(),
+		&sig,
 	)
 
 	return err == nil
 }
 
 // SetIDWithSignature sets object identifier and signature.
-func SetIDWithSignature(key *ecdsa.PrivateKey, obj *Object) error {
+func SetIDWithSignature(key ecdsa.PrivateKey, obj *Object) error {
 	if err := CalculateAndSetID(obj); err != nil {
 		return fmt.Errorf("could not set identifier: %w", err)
 	}
@@ -132,7 +136,7 @@ func SetIDWithSignature(key *ecdsa.PrivateKey, obj *Object) error {
 }
 
 // SetVerificationFields calculates and sets all verification fields of the object.
-func SetVerificationFields(key *ecdsa.PrivateKey, obj *Object) error {
+func SetVerificationFields(key ecdsa.PrivateKey, obj *Object) error {
 	CalculateAndSetPayloadChecksum(obj)
 
 	return SetIDWithSignature(key, obj)

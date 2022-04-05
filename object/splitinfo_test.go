@@ -48,14 +48,14 @@ func TestSplitInfo(t *testing.T) {
 	})
 }
 
-func generateID() *oid.ID {
+func generateID() oid.ID {
 	var buf [32]byte
 	_, _ = rand.Read(buf[:])
 
 	var id oid.ID
 	id.SetSHA256(buf)
 
-	return &id
+	return id
 }
 
 func TestNewSplitInfoFromV2(t *testing.T) {
@@ -67,9 +67,9 @@ func TestNewSplitInfoFromV2(t *testing.T) {
 
 		x.ReadFromV2(v2)
 
-		require.Nil(t, x.SplitID())
-		require.Nil(t, x.Link())
-		require.Nil(t, x.LastPart())
+		require.True(t, x.SplitID().Empty())
+		require.True(t, x.Link().Empty())
+		require.True(t, x.LastPart().Empty())
 	})
 }
 
@@ -93,9 +93,9 @@ func TestNewSplitInfo(t *testing.T) {
 		var si object.SplitInfo
 
 		// check initial values
-		require.Nil(t, si.SplitID())
-		require.Nil(t, si.LastPart())
-		require.Nil(t, si.Link())
+		require.True(t, si.SplitID().Empty())
+		require.True(t, si.LastPart().Empty())
+		require.True(t, si.Link().Empty())
 	})
 }
 

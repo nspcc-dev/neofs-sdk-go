@@ -58,14 +58,14 @@ func (c Container) WriteToV2(m *container.Container) {
 //  - attr: nil;
 //  - policy: nil;
 //  - ownerID: nil.
-func InitCreation(opts ...Option) *Container {
+func InitCreation(opts ...Option) Container {
 	cnrOptions := defaultContainerOptions()
 
 	for i := range opts {
 		opts[i](&cnrOptions)
 	}
 
-	cnr := new(Container)
+	var cnr Container
 	cnr.SetNonceUUID(cnrOptions.nonce)
 	cnr.SetBasicACL(cnrOptions.acl)
 

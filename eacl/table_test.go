@@ -24,7 +24,7 @@ func TestTable(t *testing.T) {
 
 	table := eacl.NewTable()
 	table.SetVersion(v)
-	table.SetCID(id)
+	table.SetCID(&id)
 	table.AddRecord(eacl.CreateRecord(eacl.ActionAllow, eacl.OperationPut))
 
 	v2 := table.ToV2()
@@ -44,8 +44,8 @@ func TestTable(t *testing.T) {
 	t.Run("create table", func(t *testing.T) {
 		id := cidtest.ID()
 
-		table := eacl.CreateTable(*id)
-		require.Equal(t, id, table.CID())
+		table := eacl.CreateTable(id)
+		require.Equal(t, &id, table.CID())
 		require.Equal(t, *version.Current(), table.Version())
 	})
 }

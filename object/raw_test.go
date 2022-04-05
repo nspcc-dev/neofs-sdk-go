@@ -16,15 +16,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func newOID() *oid.ID {
-	return &oid.ID{}
+func newOID() oid.ID {
+	return oid.ID{}
 }
 
 func newObj() Object {
 	return Object{}
 }
 
-func randID(t *testing.T) *oid.ID {
+func randID(t *testing.T) oid.ID {
 	id := newOID()
 	id.SetSHA256(randSHA256Checksum(t))
 
@@ -62,9 +62,9 @@ func TestObject_SetSignature(t *testing.T) {
 	sig.SetKey([]byte{1, 2, 3})
 	sig.SetSign([]byte{4, 5, 6})
 
-	obj.SetSignature(sig)
+	obj.SetSignature(*sig)
 
-	require.Equal(t, sig, obj.Signature())
+	require.Equal(t, *sig, obj.Signature())
 }
 
 func TestObject_SetPayload(t *testing.T) {
@@ -85,9 +85,9 @@ func TestObject_SetVersion(t *testing.T) {
 	ver.SetMajor(1)
 	ver.SetMinor(2)
 
-	obj.SetVersion(ver)
+	obj.SetVersion(*ver)
 
-	require.Equal(t, ver, obj.Version())
+	require.Equal(t, *ver, obj.Version())
 }
 
 func TestObject_SetPayloadSize(t *testing.T) {
@@ -114,9 +114,9 @@ func TestObject_SetOwnerID(t *testing.T) {
 
 	ownerID := ownertest.ID()
 
-	obj.SetOwnerID(ownerID)
+	obj.SetOwnerID(*ownerID)
 
-	require.Equal(t, ownerID, obj.OwnerID())
+	require.Equal(t, *ownerID, obj.OwnerID())
 }
 
 func TestObject_SetCreationEpoch(t *testing.T) {
@@ -185,15 +185,15 @@ func TestObject_SetChildren(t *testing.T) {
 	id1 := randID(t)
 	id2 := randID(t)
 
-	obj.SetChildren(*id1, *id2)
+	obj.SetChildren(id1, id2)
 
-	require.Equal(t, []oid.ID{*id1, *id2}, obj.Children())
+	require.Equal(t, []oid.ID{id1, id2}, obj.Children())
 }
 
 func TestObject_SetSplitID(t *testing.T) {
 	obj := newObj()
 
-	require.Nil(t, obj.SplitID())
+	require.True(t, obj.SplitID().Empty())
 
 	splitID := NewSplitID()
 	obj.SetSplitID(splitID)
@@ -209,7 +209,7 @@ func TestObject_SetParent(t *testing.T) {
 	par := newObj()
 	par.SetID(randID(t))
 	par.SetContainerID(cidtest.ID())
-	par.SetSignature(signature.New())
+	par.SetSignature(*signature.New())
 
 	obj.SetParent(&par)
 
@@ -234,9 +234,9 @@ func TestObject_SetSessionToken(t *testing.T) {
 
 	tok := sessiontest.Token()
 
-	obj.SetSessionToken(tok)
+	obj.SetSessionToken(*tok)
 
-	require.Equal(t, tok, obj.SessionToken())
+	require.Equal(t, *tok, obj.SessionToken())
 }
 
 func TestObject_SetType(t *testing.T) {
@@ -292,7 +292,7 @@ func TestObject_ResetRelations(t *testing.T) {
 
 	obj.ResetRelations()
 
-	require.Nil(t, obj.PreviousID())
+	require.True(t, obj.PreviousID().Empty())
 }
 
 func TestObject_HasParent(t *testing.T) {

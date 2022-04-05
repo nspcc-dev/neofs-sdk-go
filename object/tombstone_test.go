@@ -75,7 +75,7 @@ func TestNewTombstoneFromV2(t *testing.T) {
 
 		x.ReadFromV2(v2)
 
-		require.Nil(t, x.SplitID())
+		require.True(t, x.SplitID().Empty())
 		require.Nil(t, x.Members())
 		require.Zero(t, x.ExpirationEpoch())
 	})
@@ -86,7 +86,7 @@ func TestNewTombstone(t *testing.T) {
 		var ts Tombstone
 
 		// check initial values
-		require.Nil(t, ts.SplitID())
+		require.True(t, ts.SplitID().Empty())
 		require.Nil(t, ts.Members())
 		require.Zero(t, ts.ExpirationEpoch())
 	})

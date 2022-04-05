@@ -48,9 +48,11 @@ func (id *ID) SetSHA256(v [sha256.Size]byte) {
 }
 
 // Equals returns true if identifiers are identical.
-func (id ID) Equals(id2 *ID) bool {
-	v2 := (refs.ObjectID)(id)
-	return bytes.Equal(v2.GetValue(), (*refs.ObjectID)(id2).GetValue())
+func (id ID) Equals(id2 ID) bool {
+	idv2 := (refs.ObjectID)(id)
+	id2V2 := (refs.ObjectID)(id2)
+
+	return bytes.Equal(idv2.GetValue(), id2V2.GetValue())
 }
 
 // Parse is a reverse action to String().
@@ -74,17 +76,24 @@ func (id ID) String() string {
 }
 
 // CalculateIDSignature signs object id with provided key.
-func (id ID) CalculateIDSignature(key *ecdsa.PrivateKey) (*signature.Signature, error) {
+func (id ID) CalculateIDSignature(key ecdsa.PrivateKey) (signature.Signature, error) {
 	var idV2 refs.ObjectID
 	id.WriteToV2(&idV2)
 
-	sign, err := sigutil.SignData(key,
+	sign, err := sigutil.SignData(&key,
 		signatureV2.StableMarshalerWrapper{
 			SM: &idV2,
 		},
 	)
 
-	return sign, err
+	return *sign, err
+}
+
+// Empty returns true if it is called on
+// zero object ID.
+func (id ID) Empty() bool {
+	v2 := (refs.ObjectID)(id)
+	return v2.GetValue() == nil
 }
 
 // Marshal marshals ID into a protobuf binary form.

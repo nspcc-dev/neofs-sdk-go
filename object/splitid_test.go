@@ -36,8 +36,8 @@ func TestSplitID(t *testing.T) {
 		require.Equal(t, newUUID.String(), id.String())
 	})
 
-	t.Run("nil value", func(t *testing.T) {
-		var newID *object.SplitID
+	t.Run("zero value", func(t *testing.T) {
+		var newID object.SplitID
 
 		require.NotPanics(t, func() {
 			require.Nil(t, newID.ToBytes())
@@ -48,7 +48,7 @@ func TestSplitID(t *testing.T) {
 
 func TestSplitID_ToV2(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
-		var x *object.SplitID
+		var x object.SplitID
 
 		require.Nil(t, x.ToBytes())
 	})
@@ -58,6 +58,6 @@ func TestNewIDFromV2(t *testing.T) {
 	t.Run("from nil", func(t *testing.T) {
 		var x []byte
 
-		require.Nil(t, object.NewSplitIDFromBytes(x))
+		require.True(t, object.NewSplitIDFromBytes(x).Empty())
 	})
 }

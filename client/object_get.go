@@ -418,7 +418,7 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 	objv2.SetSignature(x.hdr.GetSignature())
 
 	dst.ReadFromV2(objv2)
-	dst.SetID(&x.idObj)
+	dst.SetID(x.idObj)
 
 	return true
 }

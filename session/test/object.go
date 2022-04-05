@@ -24,7 +24,8 @@ func ObjectContext() *session.ObjectContext {
 
 	setters[rand.Uint32()%uint32(len(setters))]()
 
-	c.ApplyTo(addresstest.Address())
+	addr := addresstest.Address()
+	c.ApplyTo(&addr)
 
 	return c
 }

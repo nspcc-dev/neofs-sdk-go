@@ -41,11 +41,12 @@ func (id *ID) SetSHA256(v [sha256.Size]byte) {
 }
 
 // Equals returns true if identifiers are identical.
-func (id ID) Equals(id2 *ID) bool {
-	v2 := (refs.ContainerID)(id)
+func (id ID) Equals(id2 ID) bool {
+	idv2 := (refs.ContainerID)(id)
+	id2v2 := (refs.ContainerID)(id2)
 	return bytes.Equal(
-		v2.GetValue(),
-		(*refs.ContainerID)(id2).GetValue(),
+		idv2.GetValue(),
+		id2v2.GetValue(),
 	)
 }
 
@@ -67,4 +68,11 @@ func (id *ID) Parse(s string) error {
 func (id ID) String() string {
 	v2 := (refs.ContainerID)(id)
 	return base58.Encode(v2.GetValue())
+}
+
+// Empty returns true if it is called on
+// zero container ID.
+func (id ID) Empty() bool {
+	v2 := (refs.ContainerID)(id)
+	return v2.GetValue() == nil
 }

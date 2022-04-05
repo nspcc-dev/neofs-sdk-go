@@ -95,8 +95,8 @@ func TestNewAddressFromV2(t *testing.T) {
 
 		x.ReadFromV2(v2)
 
-		require.Nil(t, x.ObjectID())
-		require.Nil(t, x.ContainerID())
+		require.True(t, x.ObjectID().Empty())
+		require.True(t, x.ContainerID().Empty())
 		require.Equal(t, "/", x.String())
 	})
 }
@@ -120,8 +120,8 @@ func TestNewAddress(t *testing.T) {
 		var a Address
 
 		// check initial values
-		require.Nil(t, a.ContainerID())
-		require.Nil(t, a.ObjectID())
+		require.True(t, a.ContainerID().Empty())
+		require.True(t, a.ObjectID().Empty())
 		require.Equal(t, "/", a.String())
 	})
 }

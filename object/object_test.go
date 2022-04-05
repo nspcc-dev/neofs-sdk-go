@@ -12,7 +12,7 @@ import (
 
 func TestInitCreation(t *testing.T) {
 	var o object.Object
-	cnr := *cidtest.ID()
+	cnr := cidtest.ID()
 	own := *ownertest.ID()
 
 	object.InitCreation(&o, object.RequiredFields{
@@ -20,8 +20,8 @@ func TestInitCreation(t *testing.T) {
 		Owner:     own,
 	})
 
-	require.Equal(t, &cnr, o.ContainerID())
-	require.Equal(t, &own, o.OwnerID())
+	require.Equal(t, cnr, o.ContainerID())
+	require.Equal(t, own, o.OwnerID())
 }
 
 func TestEncoding(t *testing.T) {

@@ -117,7 +117,7 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 	require.Equal(t, "", f.Value())
 }
 
-func testOID() *oid.ID {
+func testOID() oid.ID {
 	cs := [sha256.Size]byte{}
 
 	rand.Read(cs[:])
@@ -125,7 +125,7 @@ func testOID() *oid.ID {
 	var id oid.ID
 	id.SetSHA256(cs)
 
-	return &id
+	return id
 }
 
 func TestSearchFilters_AddParentIDFilter(t *testing.T) {

@@ -14,27 +14,27 @@ import (
 )
 
 // Range returns random object.Range.
-func Range() *object.Range {
+func Range() object.Range {
 	var x object.Range
 
 	x.SetOffset(1024)
 	x.SetLength(2048)
 
-	return &x
+	return x
 }
 
 // Attribute returns random object.Attribute.
-func Attribute() *object.Attribute {
+func Attribute() object.Attribute {
 	var x object.Attribute
 
 	x.SetKey("key")
 	x.SetValue("value")
 
-	return &x
+	return x
 }
 
 // SplitID returns random object.SplitID.
-func SplitID() *object.SplitID {
+func SplitID() object.SplitID {
 	x := object.NewSplitID()
 
 	x.SetUUID(uuid.New())
@@ -46,22 +46,22 @@ func generate(withParent bool) *object.Object {
 	var x object.Object
 
 	x.SetID(oidtest.ID())
-	x.SetSessionToken(sessiontest.Token())
+	x.SetSessionToken(*sessiontest.Token())
 	x.SetPayload([]byte{1, 2, 3})
-	x.SetOwnerID(ownertest.ID())
+	x.SetOwnerID(*ownertest.ID())
 	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
-	x.SetVersion(version.Current())
+	x.SetVersion(*version.Current())
 	x.SetPayloadSize(111)
 	x.SetCreationEpoch(222)
 	x.SetPreviousID(oidtest.ID())
 	x.SetParentID(oidtest.ID())
-	x.SetChildren(*oidtest.ID(), *oidtest.ID())
-	x.SetAttributes(object.Attributes{*Attribute(), *Attribute()})
+	x.SetChildren(oidtest.ID(), oidtest.ID())
+	x.SetAttributes(object.Attributes{Attribute(), Attribute()})
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
 	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
-	x.SetSignature(sigtest.Signature())
+	x.SetSignature(*sigtest.Signature())
 
 	if withParent {
 		x.SetParent(generate(false))
@@ -87,7 +87,7 @@ func Tombstone() *object.Tombstone {
 
 	x.SetSplitID(SplitID())
 	x.SetExpirationEpoch(13)
-	x.SetMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
+	x.SetMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return &x
 }
@@ -116,7 +116,7 @@ func SearchFilters() object.SearchFilters {
 // Lock returns random object.Lock.
 func Lock() *object.Lock {
 	var l object.Lock
-	l.WriteMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
+	l.WriteMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return &l
 }

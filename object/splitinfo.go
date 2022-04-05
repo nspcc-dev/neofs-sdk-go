@@ -34,10 +34,10 @@ func (s SplitInfo) WriteToV2(m *object.SplitInfo) {
 
 // SplitID returns object SplitID.
 //
-// Zero SplitInfo has nil SplitID.
+// Zero SplitInfo has zero SplitID.
 //
 // See also SetSplitID.
-func (s SplitInfo) SplitID() *SplitID {
+func (s SplitInfo) SplitID() SplitID {
 	v2 := (object.SplitInfo)(s)
 	return NewSplitIDFromBytes(v2.GetSplitID())
 }
@@ -45,35 +45,32 @@ func (s SplitInfo) SplitID() *SplitID {
 // SetSplitID sets SplitID.
 //
 // See also SplitID.
-func (s *SplitInfo) SetSplitID(v *SplitID) {
+func (s *SplitInfo) SetSplitID(v SplitID) {
 	(*object.SplitInfo)(s).SetSplitID(v.ToBytes())
 }
 
 // LastPart returns object ID of the last
 // split part.
 //
-// Zero SplitInfo has nil last part.
+// Zero SplitInfo has zero last part.
 //
 // See also SetLastPart.
-func (s SplitInfo) LastPart() *oid.ID {
+func (s SplitInfo) LastPart() oid.ID {
+	var id oid.ID
 	v2 := (object.SplitInfo)(s)
 
 	lpV2 := v2.GetLastPart()
-	if lpV2 == nil {
-		return nil
+	if lpV2 != nil {
+		id.ReadFromV2(*lpV2)
 	}
 
-	var id oid.ID
-	id.ReadFromV2(*lpV2)
-
-	return &id
+	return id
 }
 
 // SetLastPart sets last object part ID.
-// Object ID must not be nil.
 //
 // See also LastPart.
-func (s *SplitInfo) SetLastPart(v *oid.ID) {
+func (s *SplitInfo) SetLastPart(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)
 
@@ -82,28 +79,25 @@ func (s *SplitInfo) SetLastPart(v *oid.ID) {
 
 // Link returns object ID of the linking object.
 //
-// Zero SplitInfo has nil link object ID.
+// Zero SplitInfo has zero link object ID.
 //
 // See also SetLink.
-func (s SplitInfo) Link() *oid.ID {
+func (s SplitInfo) Link() oid.ID {
+	var id oid.ID
 	v2 := (object.SplitInfo)(s)
 
 	linkV2 := v2.GetLink()
-	if linkV2 == nil {
-		return nil
+	if linkV2 != nil {
+		id.ReadFromV2(*linkV2)
 	}
 
-	var id oid.ID
-	id.ReadFromV2(*linkV2)
-
-	return &id
+	return id
 }
 
 // SetLink sets object ID of the linking object.
-// Object ID must not be nil.
 //
 // See also Link.
-func (s *SplitInfo) SetLink(v *oid.ID) {
+func (s *SplitInfo) SetLink(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)
 

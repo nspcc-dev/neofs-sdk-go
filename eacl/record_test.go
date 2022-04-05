@@ -175,12 +175,12 @@ func TestReservedRecords(t *testing.T) {
 			value: v.String(),
 		},
 		{
-			f:     func(r *Record) { r.AddObjectIDFilter(MatchStringEqual, oid) },
+			f:     func(r *Record) { r.AddObjectIDFilter(MatchStringEqual, &oid) },
 			key:   v2acl.FilterObjectID,
 			value: oid.String(),
 		},
 		{
-			f:     func(r *Record) { r.AddObjectContainerIDFilter(MatchStringEqual, cid) },
+			f:     func(r *Record) { r.AddObjectContainerIDFilter(MatchStringEqual, &cid) },
 			key:   v2acl.FilterObjectContainerID,
 			value: cid.String(),
 		},

@@ -51,10 +51,10 @@ func (t *Tombstone) SetExpirationEpoch(v uint64) {
 
 // SplitID returns identifier of object split hierarchy.
 //
-// Zero Tombstone has nil SplitID.
+// Zero Tombstone has zero SplitID.
 //
 // See also SetExpirationEpoch.
-func (t Tombstone) SplitID() *SplitID {
+func (t Tombstone) SplitID() SplitID {
 	v2 := (tombstone.Tombstone)(t)
 	return NewSplitIDFromBytes(v2.GetSplitID())
 }
@@ -62,7 +62,7 @@ func (t Tombstone) SplitID() *SplitID {
 // SetSplitID sets identifier of object split hierarchy.
 //
 // See also SplitID.
-func (t *Tombstone) SetSplitID(v *SplitID) {
+func (t *Tombstone) SetSplitID(v SplitID) {
 	(*tombstone.Tombstone)(t).SetSplitID(v.ToBytes())
 }
 

@@ -20,7 +20,7 @@ func TestVerificationFields(t *testing.T) {
 
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	require.NoError(t, SetVerificationFields(&p.PrivateKey, &obj))
+	require.NoError(t, SetVerificationFields(p.PrivateKey, &obj))
 
 	require.NoError(t, CheckVerificationFields(&obj))
 

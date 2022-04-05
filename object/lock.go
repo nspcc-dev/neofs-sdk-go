@@ -21,12 +21,12 @@ func WriteLock(obj *Object, l Lock) {
 	obj.SetPayload(l.Marshal())
 }
 
-// ReadLock reads Lock from the Object. The lock must not be nil.
-// Returns an error describing incorrect format. Makes sense only
-// if object has TypeLock type.
+// ReadLock reads Lock from the Object. The lock and the object
+// must not be nil. Returns an error describing incorrect format.
+// Makes sense only if object has TypeLock type.
 //
 // See also WriteLock.
-func ReadLock(l *Lock, obj Object) error {
+func ReadLock(l *Lock, obj *Object) error {
 	return l.Unmarshal(obj.Payload())
 }
 

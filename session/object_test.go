@@ -55,9 +55,9 @@ func TestObjectContext_ApplyTo(t *testing.T) {
 	id := addresstest.Address()
 
 	t.Run("method", func(t *testing.T) {
-		c.ApplyTo(id)
+		c.ApplyTo(&id)
 
-		require.Equal(t, id, c.Address())
+		require.Equal(t, &id, c.Address())
 
 		c.ApplyTo(nil)
 

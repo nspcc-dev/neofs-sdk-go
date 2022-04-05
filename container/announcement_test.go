@@ -21,12 +21,12 @@ func TestAnnouncement(t *testing.T) {
 
 	var a container.UsedSpaceAnnouncement
 	a.SetEpoch(epoch)
-	a.SetContainerID(id)
+	a.SetContainerID(&id)
 	a.SetUsedSpace(usedSpace)
 
 	require.Equal(t, epoch, a.Epoch())
 	require.Equal(t, usedSpace, a.UsedSpace())
-	require.Equal(t, id, a.ContainerID())
+	require.Equal(t, &id, a.ContainerID())
 
 	t.Run("test v2", func(t *testing.T) {
 		const newEpoch, newUsedSpace uint64 = 20, 200

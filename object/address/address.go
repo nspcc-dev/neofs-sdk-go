@@ -44,28 +44,25 @@ func (a Address) WriteToV2(m *refs.Address) {
 
 // ContainerID returns container identifier.
 //
-// Zero Address has nil container ID.
+// Zero Address has zero container ID.
 //
 // See also SetContainerID.
-func (a Address) ContainerID() *cid.ID {
+func (a Address) ContainerID() cid.ID {
 	var cID cid.ID
 	v2 := (refs.Address)(a)
 
 	cidV2 := v2.GetContainerID()
-	if cidV2 == nil {
-		return nil
+	if cidV2 != nil {
+		cID.ReadFromV2(*cidV2)
 	}
 
-	cID.ReadFromV2(*cidV2)
-
-	return &cID
+	return cID
 }
 
 // SetContainerID sets container identifier.
-// Container ID must not be nil.
 //
 // See also ContainerID.
-func (a *Address) SetContainerID(id *cid.ID) {
+func (a *Address) SetContainerID(id cid.ID) {
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
 
@@ -74,28 +71,25 @@ func (a *Address) SetContainerID(id *cid.ID) {
 
 // ObjectID returns object identifier.
 //
-// Zero Address has nil object ID.
+// Zero Address has zero object ID.
 //
 // See also SetObjectID.
-func (a Address) ObjectID() *oid.ID {
+func (a Address) ObjectID() oid.ID {
+	var id oid.ID
 	v2 := (refs.Address)(a)
 
 	oidV2 := v2.GetObjectID()
-	if oidV2 == nil {
-		return nil
+	if oidV2 != nil {
+		id.ReadFromV2(*oidV2)
 	}
 
-	var id oid.ID
-	id.ReadFromV2(*oidV2)
-
-	return &id
+	return id
 }
 
 // SetObjectID sets object identifier.
-// Object ID must not be nil.
 //
 // See also ObjectID.
-func (a *Address) SetObjectID(id *oid.ID) {
+func (a *Address) SetObjectID(id oid.ID) {
 	var idV2 refs.ObjectID
 	id.WriteToV2(&idV2)
 
@@ -109,11 +103,11 @@ func (a Address) String() string {
 		stringOID string
 	)
 
-	if cID := a.ContainerID(); cID != nil {
+	if cID := a.ContainerID(); !cID.Empty() {
 		stringCID = cID.String()
 	}
 
-	if oID := a.ObjectID(); oID != nil {
+	if oID := a.ObjectID(); !oID.Empty() {
 		stringOID = oID.String()
 	}
 
@@ -140,10 +134,17 @@ func (a *Address) Parse(s string) error {
 		return err
 	}
 
-	a.SetObjectID(&oid)
-	a.SetContainerID(&id)
+	a.SetObjectID(oid)
+	a.SetContainerID(id)
 
 	return nil
+}
+
+// Empty returns true if it is called on
+// zero Address.
+func (a Address) Empty() bool {
+	v2 := (refs.Address)(a)
+	return v2.GetObjectID() == nil && v2.GetContainerID() == nil
 }
 
 // Marshal marshals Address into a protobuf binary form.

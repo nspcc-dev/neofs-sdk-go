@@ -29,11 +29,11 @@ func TestWriteLock(t *testing.T) {
 
 	var l2 object.Lock
 
-	require.NoError(t, object.ReadLock(&l2, o))
+	require.NoError(t, object.ReadLock(&l2, &o))
 	require.Equal(t, l, l2)
 
 	// corrupt payload
 	o.Payload()[0]++
 
-	require.Error(t, object.ReadLock(&l2, o))
+	require.Error(t, object.ReadLock(&l2, &o))
 }

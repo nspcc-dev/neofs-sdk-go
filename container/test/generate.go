@@ -9,22 +9,22 @@ import (
 )
 
 // Attribute returns random container.Attribute.
-func Attribute() *container.Attribute {
+func Attribute() container.Attribute {
 	var x container.Attribute
 
 	x.SetKey("key")
 	x.SetValue("value")
 
-	return &x
+	return x
 }
 
 // Attributes returns random container.Attributes.
 func Attributes() container.Attributes {
-	return container.Attributes{*Attribute(), *Attribute()}
+	return container.Attributes{Attribute(), Attribute()}
 }
 
 // Container returns random container.Container.
-func Container() *container.Container {
+func Container() container.Container {
 	x := container.InitCreation()
 
 	x.SetVersion(versiontest.Version())
@@ -40,7 +40,9 @@ func Container() *container.Container {
 func UsedSpaceAnnouncement() container.UsedSpaceAnnouncement {
 	var x container.UsedSpaceAnnouncement
 
-	x.SetContainerID(cidtest.ID())
+	cid := cidtest.ID()
+
+	x.SetContainerID(&cid)
 	x.SetEpoch(55)
 	x.SetUsedSpace(999)
 

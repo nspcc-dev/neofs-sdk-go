@@ -1056,12 +1056,12 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 		return err
 	}
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); !cnr.Empty() {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); !obj.Empty() {
+		cliPrm.ByID(obj)
 	}
 
 	cliPrm.UseKey(*cc.key)
@@ -1114,12 +1114,12 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 		return nil, err
 	}
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); !cnr.Empty() {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); !obj.Empty() {
+		cliPrm.ByID(obj)
 	}
 
 	var res ResGetObject
@@ -1166,12 +1166,12 @@ func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Objec
 		return nil, err
 	}
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); !cnr.Empty() {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); !obj.Empty() {
+		cliPrm.ByID(obj)
 	}
 
 	cliPrm.UseKey(*cc.key)
@@ -1240,12 +1240,12 @@ func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectR
 		return nil, err
 	}
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr := prm.addr.ContainerID(); !cnr.Empty() {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj := prm.addr.ObjectID(); !obj.Empty() {
+		cliPrm.ByID(obj)
 	}
 
 	var res ResObjectRange
@@ -1313,7 +1313,7 @@ func (x *ResObjectSearch) Close() {
 func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
 	prm.useDefaultSession()
 	prm.useVerb(sessionv2.ObjectVerbSearch)
-	prm.useAddress(newAddressFromCnrID(&prm.cnrID))
+	prm.useAddress(newAddressFromCnrID(prm.cnrID))
 
 	var cliPrm sdkClient.PrmObjectSearch
 
@@ -1557,7 +1557,7 @@ func sessionTokenForOwner(id *owner.ID, cliRes *sdkClient.ResSessionCreate) *ses
 	return st
 }
 
-func newAddressFromCnrID(cnrID *cid.ID) *address.Address {
+func newAddressFromCnrID(cnrID cid.ID) *address.Address {
 	var addr address.Address
 	addr.SetContainerID(cnrID)
 	return &addr

@@ -53,8 +53,8 @@ func TestID_Equal(t *testing.T) {
 	var id3 ID
 	id3.SetSHA256(randSHA256Checksum(t))
 
-	require.True(t, id1.Equals(&id2))
-	require.False(t, id1.Equals(&id3))
+	require.True(t, id1.Equals(id2))
+	require.False(t, id1.Equals(id3))
 }
 
 func TestID_Parse(t *testing.T) {
