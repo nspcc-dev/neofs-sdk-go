@@ -7,9 +7,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 )
 
 // ID represents NeoFS object identifier in a container.
@@ -117,17 +116,18 @@ func (id ID) String() string {
 }
 
 // CalculateIDSignature signs object id with provided key.
-func (id ID) CalculateIDSignature(key ecdsa.PrivateKey) (signature.Signature, error) {
-	var idV2 refs.ObjectID
-	id.WriteToV2(&idV2)
+func (id ID) CalculateIDSignature(key ecdsa.PrivateKey) (neofscrypto.Signature, error) {
+	data, err := id.Marshal()
+	if err != nil {
+		return neofscrypto.Signature{}, fmt.Errorf("marshal ID: %w", err)
+	}
 
-	sign, err := sigutil.SignData(&key,
-		signatureV2.StableMarshalerWrapper{
-			SM: &idV2,
-		},
-	)
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
 
-	return *sign, err
+	signer.SetKey(key)
+
+	return sig, sig.Calculate(signer, data)
 }
 
 // Marshal marshals ID into a protobuf binary form.

@@ -11,7 +11,6 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -47,18 +46,6 @@ func TestObject_SetID(t *testing.T) {
 	oID, set := obj.ID()
 	require.True(t, set)
 	require.Equal(t, id, oID)
-}
-
-func TestObject_SetSignature(t *testing.T) {
-	obj := New()
-
-	sig := signature.New()
-	sig.SetKey([]byte{1, 2, 3})
-	sig.SetSign([]byte{4, 5, 6})
-
-	obj.SetSignature(sig)
-
-	require.Equal(t, sig, obj.Signature())
 }
 
 func TestObject_SetPayload(t *testing.T) {
@@ -208,7 +195,6 @@ func TestObject_SetParent(t *testing.T) {
 	par := New()
 	par.SetID(randID(t))
 	par.SetContainerID(cidtest.ID())
-	par.SetSignature(signature.New())
 
 	obj.SetParent(par)
 

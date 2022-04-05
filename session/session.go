@@ -2,12 +2,14 @@ package session
 
 import (
 	"crypto/ecdsa"
+	"errors"
+	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 // Token represents NeoFS API v2-compatible
@@ -162,18 +164,32 @@ func (t *Token) SetIat(iat uint64) {
 //
 // Returns signature calculation errors.
 func (t *Token) Sign(key *ecdsa.PrivateKey) error {
-	tV2 := (*session.Token)(t)
-
-	signedData := v2signature.StableMarshalerWrapper{
-		SM: tV2.GetBody(),
+	if key == nil {
+		return errors.New("nil private key")
 	}
 
-	sig, err := sigutil.SignData(key, signedData)
+	tV2 := (*session.Token)(t)
+
+	digest, err := tV2.GetBody().StableMarshal(nil)
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
+	}
+
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
+
+	signer.SetKey(*key)
+
+	err = sig.Calculate(signer, digest)
 	if err != nil {
 		return err
 	}
 
-	tV2.SetSignature(sig.ToV2())
+	var sigV2 refs.Signature
+	sig.WriteToV2(&sigV2)
+
+	tV2.SetSignature(&sigV2)
+
 	return nil
 }
 
@@ -182,19 +198,20 @@ func (t *Token) Sign(key *ecdsa.PrivateKey) error {
 func (t *Token) VerifySignature() bool {
 	tV2 := (*session.Token)(t)
 
-	signedData := v2signature.StableMarshalerWrapper{
-		SM: tV2.GetBody(),
+	digest, err := tV2.GetBody().StableMarshal(nil)
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
 	}
 
-	return sigutil.VerifyData(signedData, t.Signature()) == nil
-}
+	sigV2 := tV2.GetSignature()
+	if sigV2 == nil {
+		return false
+	}
 
-// Signature returns Token signature.
-func (t *Token) Signature() *signature.Signature {
-	return signature.NewFromV2(
-		(*session.Token)(t).
-			GetSignature(),
-	)
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(*sigV2)
+
+	return sig.Verify(digest)
 }
 
 // SetContext sets context of the Token.

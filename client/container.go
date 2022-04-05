@@ -2,20 +2,20 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	v2signature "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 // PrmContainerPut groups parameters of ContainerPut operation.
@@ -81,20 +81,33 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	}
 
 	// TODO: check private key is set before forming the request
+	// sign container
+	cnr := prm.cnr.ToV2()
+
+	data, err := cnr.StableMarshal(nil)
+	if err != nil {
+		return nil, fmt.Errorf("marshal container: %w", err)
+	}
+
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
+
+	signer.SetKey(c.prm.key)
+	signer.MakeDeterministic()
+
+	err = sig.Calculate(signer, data)
+	if err != nil {
+		return nil, fmt.Errorf("calculate signature: %w", err)
+	}
+
+	var sigv2 refs.Signature
+
+	sig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.PutRequestBody)
 	reqBody.SetContainer(prm.cnr.ToV2())
-
-	// sign container
-	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetContainer()}
-
-	sig, err := sigutil.SignData(&c.prm.key, signWrapper, sigutil.SignWithRFC6979())
-	if err != nil {
-		return nil, err
-	}
-
-	reqBody.SetSignature(sig.ToV2())
+	reqBody.SetSignature(&sigv2)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -235,9 +248,14 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 			session.NewTokenFromV2(body.GetSessionToken()),
 		)
 
-		cnr.SetSignature(
-			signature.NewFromV2(body.GetSignature()),
-		)
+		var sig *neofscrypto.Signature
+
+		if sigv2 := body.GetSignature(); sigv2 != nil {
+			sig = new(neofscrypto.Signature)
+			sig.ReadFromV2(*sigv2)
+		}
+
+		cnr.SetSignature(sig)
 
 		res.setContainer(cnr)
 	}
@@ -414,22 +432,34 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 		panic(panicMsgMissingContainer)
 	}
 
+	// sign container ID
 	var cidV2 refs.ContainerID
 	prm.id.WriteToV2(&cidV2)
+
+	data, err := cidV2.StableMarshal(nil)
+	if err != nil {
+		return nil, fmt.Errorf("marshal container ID: %w", err)
+	}
+
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
+
+	signer.SetKey(c.prm.key)
+	signer.MakeDeterministic()
+
+	err = sig.Calculate(signer, data)
+	if err != nil {
+		return nil, fmt.Errorf("calculate signature: %w", err)
+	}
+
+	var sigv2 refs.Signature
+
+	sig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.DeleteRequestBody)
 	reqBody.SetContainerID(&cidV2)
-
-	signWrapper := delContainerSignWrapper{body: reqBody}
-
-	// sign container
-	sig, err := sigutil.SignData(&c.prm.key, signWrapper, sigutil.SignWithRFC6979())
-	if err != nil {
-		return nil, err
-	}
-
-	reqBody.SetSignature(sig.ToV2())
+	reqBody.SetSignature(&sigv2)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -558,9 +588,14 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 			session.NewTokenFromV2(body.GetSessionToken()),
 		)
 
-		table.SetSignature(
-			signature.NewFromV2(body.GetSignature()),
-		)
+		var sig *neofscrypto.Signature
+
+		if sigv2 := body.GetSignature(); sigv2 != nil {
+			sig = new(neofscrypto.Signature)
+			sig.ReadFromV2(*sigv2)
+		}
+
+		table.SetSignature(sig)
 
 		res.setTable(table)
 	}
@@ -620,19 +655,33 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 		panic("eACL table not set")
 	}
 
-	// form request body
-	reqBody := new(v2container.SetExtendedACLRequestBody)
-	reqBody.SetEACL(prm.table.ToV2())
-
 	// sign the eACL table
-	signWrapper := v2signature.StableMarshalerWrapper{SM: reqBody.GetEACL()}
+	eaclV2 := prm.table.ToV2()
 
-	sig, err := sigutil.SignData(&c.prm.key, signWrapper, sigutil.SignWithRFC6979())
+	data, err := eaclV2.StableMarshal(nil)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("marshal eACL: %w", err)
 	}
 
-	reqBody.SetSignature(sig.ToV2())
+	var sig neofscrypto.Signature
+	var signer neofsecdsa.Signer
+
+	signer.SetKey(c.prm.key)
+	signer.MakeDeterministic()
+
+	err = sig.Calculate(signer, data)
+	if err != nil {
+		return nil, fmt.Errorf("calculate signature: %w", err)
+	}
+
+	var sigv2 refs.Signature
+
+	sig.WriteToV2(&sigv2)
+
+	// form request body
+	reqBody := new(v2container.SetExtendedACLRequestBody)
+	reqBody.SetEACL(eaclV2)
+	reqBody.SetSignature(&sigv2)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader

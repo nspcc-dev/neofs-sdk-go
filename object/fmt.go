@@ -7,11 +7,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
 var (
@@ -120,24 +119,27 @@ func CalculateAndSetSignature(key ecdsa.PrivateKey, obj *Object) error {
 
 // VerifyIDSignature verifies object ID signature.
 func (o *Object) VerifyIDSignature() bool {
-	oID, set := o.ID()
-	if !set {
+	m := (*object.Object)(o)
+
+	sigV2 := m.GetSignature()
+	if sigV2 == nil {
 		return false
 	}
 
-	var idV2 refs.ObjectID
-	oID.WriteToV2(&idV2)
+	idV2 := m.GetObjectID()
+	if idV2 == nil {
+		return false
+	}
 
-	sig := o.Signature()
+	data, err := idV2.StableMarshal(nil)
+	if err != nil {
+		return false
+	}
 
-	err := sigutil.VerifyData(
-		signatureV2.StableMarshalerWrapper{
-			SM: &idV2,
-		},
-		sig,
-	)
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(*sigV2)
 
-	return err == nil
+	return sig.Verify(data)
 }
 
 // SetIDWithSignature sets object identifier and signature.

@@ -9,7 +9,6 @@ import (
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	sigtest "github.com/nspcc-dev/neofs-sdk-go/signature/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -62,7 +61,6 @@ func generate(withParent bool) *object.Object {
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
 	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
-	x.SetSignature(sigtest.Signature())
 
 	if withParent {
 		x.SetParent(generate(false))

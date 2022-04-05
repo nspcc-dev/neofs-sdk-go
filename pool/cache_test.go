@@ -17,7 +17,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	require.NoError(t, err)
 
 	check := func(t *testing.T, tok *session.Token, extra string) {
-		require.Empty(t, tok.Signature().Sign(), extra)
+		require.False(t, tok.VerifySignature(), extra)
 		require.Nil(t, tok.Context(), extra)
 	}
 

@@ -185,7 +185,7 @@ func TestNewToken(t *testing.T) {
 		token := session.NewToken()
 
 		// check initial values
-		require.Nil(t, token.Signature())
+		require.False(t, token.VerifySignature())
 		require.Nil(t, token.OwnerID())
 		require.Nil(t, token.SessionKey())
 		require.Nil(t, token.ID())

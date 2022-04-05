@@ -5,7 +5,6 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
-	"github.com/nspcc-dev/neofs-sdk-go/util/signature"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,7 +16,7 @@ func PeerID() *reputation.PeerID {
 		panic(err)
 	}
 
-	key := [signature.PublicKeyCompressedSize]byte{}
+	key := [33]byte{}
 	copy(key[:], p.Bytes())
 	v.SetPublicKey(key)
 

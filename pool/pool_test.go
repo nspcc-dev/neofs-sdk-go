@@ -669,8 +669,7 @@ func TestCopySessionTokenWithoutSignatureAndContext(t *testing.T) {
 	require.Equal(t, from.OwnerID().String(), to.OwnerID().String())
 	require.Equal(t, from.SessionKey(), to.SessionKey())
 
-	require.Empty(t, to.Signature().Sign())
-	require.Empty(t, to.Signature().Key())
+	require.False(t, to.VerifySignature())
 
 	t.Run("empty object context", func(t *testing.T) {
 		octx := sessiontest.ObjectContext()
