@@ -1064,6 +1064,10 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 		cliPrm.ByID(*obj)
 	}
 
+	if prm.btoken != nil {
+		cliPrm.WithBearerToken(*prm.btoken)
+	}
+
 	cliPrm.UseKey(*cc.key)
 
 	return p.callWithRetry(&cc, func() error {
@@ -1122,6 +1126,10 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 		cliPrm.ByID(*obj)
 	}
 
+	if prm.btoken != nil {
+		cliPrm.WithBearerToken(*prm.btoken)
+	}
+
 	var res ResGetObject
 
 	err = p.callWithRetry(&cc, func() error {
@@ -1172,6 +1180,10 @@ func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Objec
 
 	if obj := prm.addr.ObjectID(); obj != nil {
 		cliPrm.ByID(*obj)
+	}
+
+	if prm.btoken != nil {
+		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
 	cliPrm.UseKey(*cc.key)
@@ -1248,6 +1260,10 @@ func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectR
 		cliPrm.ByID(*obj)
 	}
 
+	if prm.btoken != nil {
+		cliPrm.WithBearerToken(*prm.btoken)
+	}
+
 	var res ResObjectRange
 
 	err = p.callWithRetry(&cc, func() error {
@@ -1319,6 +1335,10 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 
 	cliPrm.InContainer(prm.cnrID)
 	cliPrm.SetFilters(prm.filters)
+
+	if prm.btoken != nil {
+		cliPrm.WithBearerToken(*prm.btoken)
+	}
 
 	var cc callContextWithRetry
 
