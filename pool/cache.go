@@ -26,6 +26,9 @@ func newCache() (*sessionCache, error) {
 	return &sessionCache{cache: cache}, nil
 }
 
+// Get returns a copy of the session token from the cache without signature
+// and context related fields. Returns nil if token is missing in the cache.
+// It is safe to modify and re-sign returned session token.
 func (c *sessionCache) Get(key string) *session.Token {
 	valueRaw, ok := c.cache.Get(key)
 	if !ok {
@@ -35,7 +38,13 @@ func (c *sessionCache) Get(key string) *session.Token {
 	value := valueRaw.(*cacheValue)
 	value.atime = time.Now()
 
-	return value.token
+	if value.token == nil {
+		return nil
+	}
+
+	res := copySessionTokenWithoutSignatureAndContext(*value.token)
+
+	return &res
 }
 
 func (c *sessionCache) GetAccessTime(key string) (time.Time, bool) {
