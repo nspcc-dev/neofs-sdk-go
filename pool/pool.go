@@ -14,13 +14,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -155,7 +156,7 @@ func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDel
 	var cliPrm sdkClient.PrmContainerDelete
 	cliPrm.SetContainer(prm.cnrID)
 	if prm.stokenSet {
-		cliPrm.SetSessionToken(prm.stoken)
+		cliPrm.WithinSession(prm.stoken)
 	}
 
 	if _, err := c.client.ContainerDelete(ctx, cliPrm); err != nil {
@@ -607,26 +608,26 @@ type clientPack struct {
 
 type prmContext struct {
 	defaultSession bool
-	verb           sessionv2.ObjectSessionVerb
-	addr           *address.Address
+	verb           session.ObjectVerb
+	addr           address.Address
 }
 
 func (x *prmContext) useDefaultSession() {
 	x.defaultSession = true
 }
 
-func (x *prmContext) useAddress(addr *address.Address) {
+func (x *prmContext) useAddress(addr address.Address) {
 	x.addr = addr
 }
 
-func (x *prmContext) useVerb(verb sessionv2.ObjectSessionVerb) {
+func (x *prmContext) useVerb(verb session.ObjectVerb) {
 	x.verb = verb
 }
 
 type prmCommon struct {
 	key    *ecdsa.PrivateKey
 	btoken *bearer.Token
-	stoken *session.Token
+	stoken *session.Object
 }
 
 // UseKey specifies private key to sign the requests.
@@ -641,7 +642,7 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 }
 
 // UseSession specifies session within which operation should be performed.
-func (x *prmCommon) UseSession(token session.Token) {
+func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
 }
 
@@ -787,7 +788,7 @@ func (x *PrmContainerList) SetOwnerID(ownerID user.ID) {
 type PrmContainerDelete struct {
 	cnrID cid.ID
 
-	stoken    session.Token
+	stoken    session.Container
 	stokenSet bool
 
 	waitParams    WaitParams
@@ -800,7 +801,7 @@ func (x *PrmContainerDelete) SetContainerID(cnrID cid.ID) {
 }
 
 // SetSessionToken specifies session within which operation should be performed.
-func (x *PrmContainerDelete) SetSessionToken(token session.Token) {
+func (x *PrmContainerDelete) SetSessionToken(token session.Container) {
 	x.stoken = token
 	x.stokenSet = true
 }
@@ -990,7 +991,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 					zap.Error(err))
 			} else if err == nil {
 				healthy, atLeastOneHealthy = true, true
-				_ = p.cache.Put(formCacheKey(addr, p.key), st)
+				_ = p.cache.Put(formCacheKey(addr, p.key), *st)
 			}
 			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
 		}
@@ -1229,7 +1230,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func createSessionTokenForDuration(ctx context.Context, c client, ownerID user.ID, dur uint64) (*session.Token, error) {
+func createSessionTokenForDuration(ctx context.Context, c client, ownerID user.ID, dur uint64) (*session.Object, error) {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return nil, err
@@ -1251,7 +1252,26 @@ func createSessionTokenForDuration(ctx context.Context, c client, ownerID user.I
 		return nil, err
 	}
 
-	return sessionTokenForOwner(ownerID, res, exp), nil
+	var id uuid.UUID
+
+	err = id.UnmarshalBinary(res.id)
+	if err != nil {
+		return nil, fmt.Errorf("invalid session token ID: %w", err)
+	}
+
+	var key neofsecdsa.PublicKey
+
+	err = key.Decode(res.sessionKey)
+	if err != nil {
+		return nil, fmt.Errorf("invalid public session key: %w", err)
+	}
+
+	var st session.Object
+	st.SetID(id)
+	st.SetAuthKey(&key)
+	st.SetExp(exp)
+
+	return &st, nil
 }
 
 type callContext struct {
@@ -1268,8 +1288,9 @@ type callContext struct {
 
 	// flag to open default session if session token is missing
 	sessionDefault bool
-	sessionTarget  func(session.Token)
-	sessionContext *session.ObjectContext
+	sessionTarget  func(session.Object)
+	sessionVerb    session.ObjectVerb
+	sessionAddr    address.Address
 }
 
 func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContext) error {
@@ -1294,9 +1315,8 @@ func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContex
 	// note that we don't override session provided by the caller
 	ctx.sessionDefault = cfg.stoken == nil && prmCtx.defaultSession
 	if ctx.sessionDefault {
-		ctx.sessionContext = session.NewObjectContext()
-		ctx.sessionContext.ToV2().SetVerb(prmCtx.verb)
-		ctx.sessionContext.ApplyTo(prmCtx.addr)
+		ctx.sessionVerb = prmCtx.verb
+		ctx.sessionAddr = prmCtx.addr
 	}
 
 	return err
@@ -1307,32 +1327,32 @@ func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContex
 func (p *Pool) openDefaultSession(ctx *callContext) error {
 	cacheKey := formCacheKey(ctx.endpoint, ctx.key)
 
-	tok := p.cache.Get(cacheKey)
-	if tok == nil {
+	tok, ok := p.cache.Get(cacheKey)
+	if !ok {
 		var err error
 		var sessionOwner user.ID
 
 		user.IDFromKey(&sessionOwner, ctx.key.PublicKey)
 
 		// open new session
-		tok, err = createSessionTokenForDuration(ctx, ctx.client, sessionOwner, p.stokenDuration)
+		t, err := createSessionTokenForDuration(ctx, ctx.client, sessionOwner, p.stokenDuration)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
 
 		// cache the opened session
-		p.cache.Put(cacheKey, tok)
+		p.cache.Put(cacheKey, *t)
 	}
 
-	tokToSign := *tok
-	tokToSign.SetContext(ctx.sessionContext)
+	tok.ForVerb(ctx.sessionVerb)
+	tok.ApplyTo(ctx.sessionAddr)
 
 	// sign the token
-	if err := tokToSign.Sign(ctx.key); err != nil {
+	if err := tok.Sign(*ctx.key); err != nil {
 		return fmt.Errorf("sign token of the opened session: %w", err)
 	}
 
-	ctx.sessionTarget(tokToSign)
+	ctx.sessionTarget(tok)
 
 	return nil
 }
@@ -1371,8 +1391,8 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
-	prmCtx.useVerb(sessionv2.ObjectVerbPut)
-	prmCtx.useAddress(newAddressFromCnrID(cIDp))
+	prmCtx.useVerb(session.VerbObjectPut)
+	prmCtx.useAddress(*newAddressFromCnrID(cIDp))
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1408,8 +1428,8 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
-	prmCtx.useVerb(sessionv2.ObjectVerbDelete)
-	prmCtx.useAddress(&prm.addr)
+	prmCtx.useVerb(session.VerbObjectDelete)
+	prmCtx.useAddress(prm.addr)
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1456,8 +1476,8 @@ type ResGetObject struct {
 func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
-	prmCtx.useVerb(sessionv2.ObjectVerbGet)
-	prmCtx.useAddress(&prm.addr)
+	prmCtx.useVerb(session.VerbObjectGet)
+	prmCtx.useAddress(prm.addr)
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1481,8 +1501,8 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
-	prmCtx.useVerb(sessionv2.ObjectVerbHead)
-	prmCtx.useAddress(&prm.addr)
+	prmCtx.useVerb(session.VerbObjectHead)
+	prmCtx.useAddress(prm.addr)
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1529,8 +1549,8 @@ func (x *ResObjectRange) Close() error {
 func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
-	prmCtx.useVerb(sessionv2.ObjectVerbRange)
-	prmCtx.useAddress(&prm.addr)
+	prmCtx.useVerb(session.VerbObjectRange)
+	prmCtx.useAddress(prm.addr)
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1595,8 +1615,8 @@ func (x *ResObjectSearch) Close() {
 func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
-	prmCtx.useVerb(sessionv2.ObjectVerbSearch)
-	prmCtx.useAddress(newAddressFromCnrID(&prm.cnrID))
+	prmCtx.useVerb(session.VerbObjectSearch)
+	prmCtx.useAddress(*newAddressFromCnrID(&prm.cnrID))
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1788,40 +1808,10 @@ func (p *Pool) Close() {
 	<-p.closedCh
 }
 
-// creates new session token with specified owner from SessionCreate call result.
-func sessionTokenForOwner(id user.ID, cliRes *resCreateSession, exp uint64) *session.Token {
-	st := session.NewToken()
-	st.SetOwnerID(&id)
-	st.SetID(cliRes.id)
-	st.SetSessionKey(cliRes.sessionKey)
-	st.SetExp(exp)
-
-	return st
-}
-
 func newAddressFromCnrID(cnrID *cid.ID) *address.Address {
 	addr := address.NewAddress()
 	if cnrID != nil {
 		addr.SetContainerID(*cnrID)
 	}
 	return addr
-}
-
-func copySessionTokenWithoutSignatureAndContext(from session.Token) (to session.Token) {
-	to.SetIat(from.Iat())
-	to.SetExp(from.Exp())
-	to.SetNbf(from.Nbf())
-
-	sessionTokenID := make([]byte, len(from.ID()))
-	copy(sessionTokenID, from.ID())
-	to.SetID(sessionTokenID)
-
-	sessionTokenKey := make([]byte, len(from.SessionKey()))
-	copy(sessionTokenKey, from.SessionKey())
-	to.SetSessionKey(sessionTokenKey)
-
-	sessionTokenOwner := *from.OwnerID()
-	to.SetOwnerID(&sessionTokenOwner)
-
-	return to
 }

@@ -18,7 +18,7 @@ import (
 type Container struct {
 	v2 container.Container
 
-	token *session.Token
+	token *session.Container
 
 	sig *neofscrypto.Signature
 }
@@ -172,13 +172,13 @@ func (c *Container) SetPlacementPolicy(v *netmap.PlacementPolicy) {
 
 // SessionToken returns token of the session within
 // which container was created.
-func (c Container) SessionToken() *session.Token {
+func (c Container) SessionToken() *session.Container {
 	return c.token
 }
 
 // SetSessionToken sets token of the session within
 // which container was created.
-func (c *Container) SetSessionToken(t *session.Token) {
+func (c *Container) SetSessionToken(t *session.Container) {
 	c.token = t
 }
 

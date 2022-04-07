@@ -34,8 +34,11 @@ type PrmObjectDelete struct {
 // This may affect the execution of an operation (e.g. access control).
 //
 // Must be signed.
-func (x *PrmObjectDelete) WithinSession(t session.Token) {
-	x.meta.SetSessionToken(t.ToV2())
+func (x *PrmObjectDelete) WithinSession(t session.Object) {
+	var tv2 v2session.Token
+	t.WriteToV2(&tv2)
+
+	x.meta.SetSessionToken(&tv2)
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.

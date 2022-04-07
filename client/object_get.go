@@ -30,7 +30,7 @@ type prmObjectRead struct {
 	local bool
 
 	sessionSet bool
-	session    session.Token
+	session    session.Object
 
 	bearerSet bool
 	bearer    bearer.Token
@@ -54,7 +54,10 @@ func (x prmObjectRead) writeToMetaHeader(h *v2session.RequestMetaHeader) {
 	}
 
 	if x.sessionSet {
-		h.SetSessionToken(x.session.ToV2())
+		var tokv2 v2session.Token
+		x.session.WriteToV2(&tokv2)
+
+		h.SetSessionToken(&tokv2)
 	}
 
 	x.prmCommonMeta.writeToMetaHeader(h)
@@ -76,7 +79,7 @@ func (x *prmObjectRead) MarkLocal() {
 // This may affect the execution of an operation (e.g. access control).
 //
 // Must be signed.
-func (x *prmObjectRead) WithinSession(t session.Token) {
+func (x *prmObjectRead) WithinSession(t session.Object) {
 	x.session = t
 	x.sessionSet = true
 }

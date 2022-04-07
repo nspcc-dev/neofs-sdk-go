@@ -93,7 +93,7 @@ func TestTableEncoding(t *testing.T) {
 }
 
 func TestTable_SessionToken(t *testing.T) {
-	tok := sessiontest.Token()
+	tok := sessiontest.Container()
 
 	table := eacl.NewTable()
 	table.SetSessionToken(tok)

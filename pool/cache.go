@@ -14,7 +14,7 @@ type sessionCache struct {
 }
 
 type cacheValue struct {
-	token *session.Token
+	token session.Object
 }
 
 func newCache() (*sessionCache, error) {
@@ -29,28 +29,22 @@ func newCache() (*sessionCache, error) {
 // Get returns a copy of the session token from the cache without signature
 // and context related fields. Returns nil if token is missing in the cache.
 // It is safe to modify and re-sign returned session token.
-func (c *sessionCache) Get(key string) *session.Token {
+func (c *sessionCache) Get(key string) (session.Object, bool) {
 	valueRaw, ok := c.cache.Get(key)
 	if !ok {
-		return nil
+		return session.Object{}, false
 	}
 
 	value := valueRaw.(*cacheValue)
 	if c.expired(value) {
 		c.cache.Remove(key)
-		return nil
+		return session.Object{}, false
 	}
 
-	if value.token == nil {
-		return nil
-	}
-
-	res := copySessionTokenWithoutSignatureAndContext(*value.token)
-
-	return &res
+	return value.token, true
 }
 
-func (c *sessionCache) Put(key string, token *session.Token) bool {
+func (c *sessionCache) Put(key string, token session.Object) bool {
 	return c.cache.Add(key, &cacheValue{
 		token: token,
 	})
@@ -73,5 +67,5 @@ func (c *sessionCache) updateEpoch(newEpoch uint64) {
 
 func (c *sessionCache) expired(val *cacheValue) bool {
 	epoch := atomic.LoadUint64(&c.currentEpoch)
-	return val.token.Exp() <= epoch
+	return val.token.ExpiredAt(epoch)
 }

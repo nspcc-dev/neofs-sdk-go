@@ -19,7 +19,7 @@ import (
 type Table struct {
 	version version.Version
 	cid     *cid.ID
-	token   *session.Token
+	token   *session.Container
 	sig     *neofscrypto.Signature
 	records []Record
 }
@@ -63,13 +63,13 @@ func (t *Table) AddRecord(r *Record) {
 
 // SessionToken returns token of the session
 // within which Table was set.
-func (t Table) SessionToken() *session.Token {
+func (t Table) SessionToken() *session.Container {
 	return t.token
 }
 
 // SetSessionToken sets token of the session
 // within which Table was set.
-func (t *Table) SetSessionToken(tok *session.Token) {
+func (t *Table) SetSessionToken(tok *session.Container) {
 	t.token = tok
 }
 

@@ -213,7 +213,7 @@ func TestObject_ToV2(t *testing.T) {
 func TestObject_SetSessionToken(t *testing.T) {
 	obj := New()
 
-	tok := sessiontest.Token()
+	tok := sessiontest.ObjectSigned()
 
 	obj.SetSessionToken(tok)
 

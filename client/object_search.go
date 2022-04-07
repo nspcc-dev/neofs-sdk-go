@@ -28,7 +28,7 @@ type PrmObjectSearch struct {
 	local bool
 
 	sessionSet bool
-	session    session.Token
+	session    session.Object
 
 	bearerSet bool
 	bearer    bearer.Token
@@ -50,7 +50,7 @@ func (x *PrmObjectSearch) MarkLocal() {
 // This may affect the execution of an operation (e.g. access control).
 //
 // Must be signed.
-func (x *PrmObjectSearch) WithinSession(t session.Token) {
+func (x *PrmObjectSearch) WithinSession(t session.Object) {
 	x.session = t
 	x.sessionSet = true
 }
@@ -269,7 +269,10 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	}
 
 	if prm.sessionSet {
-		meta.SetSessionToken(prm.session.ToV2())
+		var tokv2 v2session.Token
+		prm.session.WriteToV2(&tokv2)
+
+		meta.SetSessionToken(&tokv2)
 	}
 
 	prm.prmCommonMeta.writeToMetaHeader(&meta)

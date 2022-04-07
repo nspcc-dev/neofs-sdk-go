@@ -11,29 +11,27 @@ import (
 
 func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	const key = "Foo"
-	target := sessiontest.Token()
+	target := *sessiontest.Object()
 
 	pk, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	check := func(t *testing.T, tok *session.Token, extra string) {
+	check := func(t *testing.T, tok session.Object, extra string) {
 		require.False(t, tok.VerifySignature(), extra)
-		require.Nil(t, tok.Context(), extra)
 	}
 
 	cache, err := newCache()
 	require.NoError(t, err)
 
 	cache.Put(key, target)
-	value := cache.Get(key)
+	value, ok := cache.Get(key)
+	require.True(t, ok)
 	check(t, value, "before sign")
 
-	err = value.Sign(&pk.PrivateKey)
+	err = value.Sign(pk.PrivateKey)
 	require.NoError(t, err)
 
-	octx := sessiontest.ObjectContext()
-	value.SetContext(octx)
-
-	value = cache.Get(key)
+	value, ok = cache.Get(key)
+	require.True(t, ok)
 	check(t, value, "after sign")
 }
