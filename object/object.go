@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -519,19 +520,31 @@ func (o *Object) resetRelations() {
 
 // SessionToken returns token of the session
 // within which object was created.
-func (o *Object) SessionToken() *session.Token {
-	return session.NewTokenFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetSessionToken(),
-	)
+func (o *Object) SessionToken() *session.Object {
+	tokv2 := (*object.Object)(o).GetHeader().GetSessionToken()
+	if tokv2 == nil {
+		return nil
+	}
+
+	var res session.Object
+
+	fmt.Println(res.ReadFromV2(*tokv2))
+
+	return &res
 }
 
 // SetSessionToken sets token of the session
 // within which object was created.
-func (o *Object) SetSessionToken(v *session.Token) {
+func (o *Object) SetSessionToken(v *session.Object) {
 	o.setHeaderField(func(h *object.Header) {
-		h.SetSessionToken(v.ToV2())
+		var tokv2 *v2session.Token
+
+		if v != nil {
+			tokv2 = new(v2session.Token)
+			v.WriteToV2(tokv2)
+		}
+
+		h.SetSessionToken(tokv2)
 	})
 }
 

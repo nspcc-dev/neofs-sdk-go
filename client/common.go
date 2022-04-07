@@ -9,7 +9,6 @@ import (
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -33,23 +32,6 @@ func (x *statusRes) setStatus(st apistatus.Status) {
 // Use apistatus package functionality to handle the status.
 func (x statusRes) Status() apistatus.Status {
 	return x.st
-}
-
-type prmSession struct {
-	tokenSessionSet bool
-	tokenSession    session.Token
-}
-
-// SetSessionToken sets token of the session within which request should be sent.
-func (x *prmSession) SetSessionToken(tok session.Token) {
-	x.tokenSession = tok
-	x.tokenSessionSet = true
-}
-
-func (x prmSession) writeToMetaHeader(meta *v2session.RequestMetaHeader) {
-	if x.tokenSessionSet {
-		meta.SetSessionToken(x.tokenSession.ToV2())
-	}
 }
 
 // groups meta parameters shared between all Client operations.

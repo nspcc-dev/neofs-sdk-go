@@ -107,8 +107,14 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-	meta.SetSessionToken(prm.cnr.SessionToken().ToV2())
 	prm.prmCommonMeta.writeToMetaHeader(&meta)
+
+	if tok := prm.cnr.SessionToken(); tok != nil {
+		var tokv2 v2session.Token
+		tok.WriteToV2(&tokv2)
+
+		meta.SetSessionToken(&tokv2)
+	}
 
 	// form request
 	var req v2container.PutRequest
@@ -240,9 +246,16 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 
 		cnr := container.NewContainerFromV2(body.GetContainer())
 
-		cnr.SetSessionToken(
-			session.NewTokenFromV2(body.GetSessionToken()),
-		)
+		tokv2 := body.GetSessionToken()
+		if tokv2 != nil {
+			var tok session.Container
+
+			// FIXME: need to handle the error
+			err := tok.ReadFromV2(*tokv2)
+			if err == nil {
+				cnr.SetSessionToken(&tok)
+			}
+		}
 
 		var sig *neofscrypto.Signature
 
@@ -368,10 +381,12 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 // PrmContainerDelete groups parameters of ContainerDelete operation.
 type PrmContainerDelete struct {
 	prmCommonMeta
-	prmSession
 
 	idSet bool
 	id    cid.ID
+
+	tokSet bool
+	tok    session.Container
 }
 
 // SetContainer sets identifier of the NeoFS container to be removed.
@@ -379,6 +394,17 @@ type PrmContainerDelete struct {
 func (x *PrmContainerDelete) SetContainer(id cid.ID) {
 	x.id = id
 	x.idSet = true
+}
+
+// WithinSession specifies session within which container should be removed.
+//
+// Creator of the session acquires the authorship of the request.
+// This may affect the execution of an operation (e.g. access control).
+//
+// Must be signed.
+func (x *PrmContainerDelete) WithinSession(tok session.Container) {
+	x.tok = tok
+	x.tokSet = true
 }
 
 // ResContainerDelete groups resulting values of ContainerDelete operation.
@@ -456,9 +482,14 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-
-	prm.prmSession.writeToMetaHeader(&meta)
 	prm.prmCommonMeta.writeToMetaHeader(&meta)
+
+	if prm.tokSet {
+		var tokv2 v2session.Token
+		prm.tok.WriteToV2(&tokv2)
+
+		meta.SetSessionToken(&tokv2)
+	}
 
 	// form request
 	var req v2container.DeleteRequest
@@ -577,9 +608,16 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 
 		table := eacl.NewTableFromV2(body.GetEACL())
 
-		table.SetSessionToken(
-			session.NewTokenFromV2(body.GetSessionToken()),
-		)
+		tokv2 := body.GetSessionToken()
+		if tokv2 != nil {
+			var tok session.Container
+
+			// FIXME: need to handle the error
+			err := tok.ReadFromV2(*tokv2)
+			if err == nil {
+				table.SetSessionToken(&tok)
+			}
+		}
 
 		var sig *neofscrypto.Signature
 
@@ -674,8 +712,14 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-	meta.SetSessionToken(prm.table.SessionToken().ToV2())
 	prm.prmCommonMeta.writeToMetaHeader(&meta)
+
+	if tok := prm.table.SessionToken(); tok != nil {
+		var tokv2 v2session.Token
+		tok.WriteToV2(&tokv2)
+
+		meta.SetSessionToken(&tokv2)
+	}
 
 	// form request
 	var req v2container.SetExtendedACLRequest

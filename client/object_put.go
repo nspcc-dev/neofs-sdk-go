@@ -78,8 +78,11 @@ func (x *ObjectWriter) WithBearerToken(t bearer.Token) {
 
 // WithinSession specifies session within which object should be stored.
 // Should be called once before any writing steps.
-func (x *ObjectWriter) WithinSession(t session.Token) {
-	x.metaHdr.SetSessionToken(t.ToV2())
+func (x *ObjectWriter) WithinSession(t session.Object) {
+	var tv2 v2session.Token
+	t.WriteToV2(&tv2)
+
+	x.metaHdr.SetSessionToken(&tv2)
 }
 
 // MarkLocal tells the server to execute the operation locally.

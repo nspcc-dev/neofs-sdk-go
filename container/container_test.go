@@ -76,7 +76,7 @@ func TestContainerEncoding(t *testing.T) {
 }
 
 func TestContainer_SessionToken(t *testing.T) {
-	tok := sessiontest.Token()
+	tok := sessiontest.Container()
 
 	cnr := container.New()
 

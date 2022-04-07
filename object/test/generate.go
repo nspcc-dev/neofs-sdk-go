@@ -46,7 +46,7 @@ func generate(withParent bool) *object.Object {
 	ver := version.Current()
 
 	x.SetID(oidtest.ID())
-	x.SetSessionToken(sessiontest.Token())
+	x.SetSessionToken(sessiontest.Object())
 	x.SetPayload([]byte{1, 2, 3})
 	x.SetOwnerID(usertest.ID())
 	x.SetContainerID(cidtest.ID())

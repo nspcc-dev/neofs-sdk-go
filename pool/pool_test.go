@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
@@ -73,20 +74,30 @@ func newPrivateKey(t *testing.T) *ecdsa.PrivateKey {
 	return &p.PrivateKey
 }
 
+func newBinPublicKey(t *testing.T) []byte {
+	authKey := neofsecdsa.PublicKey(newPrivateKey(t).PublicKey)
+
+	bKey := make([]byte, authKey.MaxEncodedSize())
+	bKey = bKey[:authKey.Encode(bKey)]
+
+	return bKey
+}
+
 func TestBuildPoolOneNodeFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
-	var expectedToken *session.Token
+	var expectedToken *session.Object
 	clientCount := -1
 	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
+			id := tok.ID()
 			return &resCreateSession{
-				sessionKey: tok.SessionKey(),
-				id:         tok.ID(),
+				id:         id[:],
+				sessionKey: newBinPublicKey(t),
 			}, nil
 		}).AnyTimes()
 
@@ -96,9 +107,10 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		mockClient2 := NewMockClient(ctrl2)
 		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			expectedToken = newToken(t)
+			id := expectedToken.ID()
 			return &resCreateSession{
-				sessionKey: expectedToken.SessionKey(),
-				id:         expectedToken.ID(),
+				id:         id[:],
+				sessionKey: newBinPublicKey(t),
 			}, nil
 		}).AnyTimes()
 		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
@@ -134,8 +146,8 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		if err != nil {
 			return false
 		}
-		st := clientPool.cache.Get(formCacheKey(cp.address, clientPool.key))
-		return areEqualTokens(st, expectedToken)
+		st, _ := clientPool.cache.Get(formCacheKey(cp.address, clientPool.key))
+		return areEqualTokens(&st, expectedToken)
 	}
 	require.Never(t, condition, 900*time.Millisecond, 100*time.Millisecond)
 	require.Eventually(t, condition, 3*time.Second, 300*time.Millisecond)
@@ -152,14 +164,14 @@ func TestBuildPoolZeroNodes(t *testing.T) {
 func TestOneNode(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	tok := session.NewToken()
-	uid, err := uuid.New().MarshalBinary()
-	require.NoError(t, err)
+	uid := uuid.New()
+
+	var tok session.Object
 	tok.SetID(uid)
 
 	tokRes := &resCreateSession{
-		id:         tok.ID(),
-		sessionKey: tok.SessionKey(),
+		id:         uid[:],
+		sessionKey: newBinPublicKey(t),
 	}
 
 	clientBuilder := func(_ string) (client, error) {
@@ -184,34 +196,34 @@ func TestOneNode(t *testing.T) {
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.True(t, areEqualTokens(tok, st))
+	st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+	require.True(t, areEqualTokens(&tok, &st))
 }
 
-func areEqualTokens(t1, t2 *session.Token) bool {
+func areEqualTokens(t1, t2 *session.Object) bool {
 	if t1 == nil || t2 == nil {
 		return false
 	}
-	return bytes.Equal(t1.ID(), t2.ID()) &&
-		bytes.Equal(t1.SessionKey(), t2.SessionKey())
+
+	id1, id2 := t1.ID(), t2.ID()
+	return bytes.Equal(id1[:], id2[:])
 }
 
 func TestTwoNodes(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	var tokens []*session.Token
+	var tokens []*session.Object
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
-			tok := session.NewToken()
-			uid, err := uuid.New().MarshalBinary()
-			require.NoError(t, err)
+			var tok session.Object
+			uid := uuid.New()
 			tok.SetID(uid)
-			tokens = append(tokens, tok)
+			tokens = append(tokens, &tok)
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
-			}, err
+				id:         uid[:],
+				sessionKey: newBinPublicKey(t),
+			}, nil
 		})
 		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
 		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
@@ -235,11 +247,11 @@ func TestTwoNodes(t *testing.T) {
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.True(t, containsTokens(tokens, st))
+	st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+	require.True(t, containsTokens(tokens, &st))
 }
 
-func containsTokens(list []*session.Token, item *session.Token) bool {
+func containsTokens(list []*session.Object, item *session.Object) bool {
 	for _, tok := range list {
 		if areEqualTokens(tok, item) {
 			return true
@@ -252,7 +264,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
-	var tokens []*session.Token
+	var tokens []*session.Object
 	clientCount := -1
 	clientBuilder := func(_ string) (client, error) {
 		clientCount++
@@ -260,9 +272,10 @@ func TestOneOfTwoFailed(t *testing.T) {
 		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens = append(tokens, tok)
+			id := tok.ID()
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
+				id:         id[:],
+				sessionKey: newBinPublicKey(t),
 			}, nil
 		}).AnyTimes()
 		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
@@ -272,9 +285,10 @@ func TestOneOfTwoFailed(t *testing.T) {
 		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens = append(tokens, tok)
+			id := tok.ID()
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
+				id:         id[:],
+				sessionKey: newBinPublicKey(t),
 			}, nil
 		}).AnyTimes()
 		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).DoAndReturn(func(_ interface{}, _ ...interface{}) (*netmap.NodeInfo, error) {
@@ -313,8 +327,8 @@ func TestOneOfTwoFailed(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-		require.True(t, areEqualTokens(tokens[0], st))
+		st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+		require.True(t, areEqualTokens(tokens[0], &st))
 	}
 }
 
@@ -323,7 +337,10 @@ func TestTwoFailed(t *testing.T) {
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{}, nil).AnyTimes()
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{
+			id:         uuid.Nil[:],
+			sessionKey: newBinPublicKey(t),
+		}, nil).AnyTimes()
 		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
 		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
@@ -356,19 +373,18 @@ func TestTwoFailed(t *testing.T) {
 func TestSessionCache(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	var tokens []*session.Token
+	var tokens []*session.Object
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*resCreateSession, error) {
-			tok := session.NewToken()
-			uid, err := uuid.New().MarshalBinary()
-			require.NoError(t, err)
+			var tok session.Object
+			uid := uuid.New()
 			tok.SetID(uid)
-			tokens = append(tokens, tok)
+			tokens = append(tokens, &tok)
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
-			}, err
+				id:         uid[:],
+				sessionKey: newBinPublicKey(t),
+			}, nil
 		}).MaxTimes(3)
 		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
@@ -399,12 +415,12 @@ func TestSessionCache(t *testing.T) {
 	// cache must contain session token
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.True(t, containsTokens(tokens, st))
+	st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+	require.True(t, containsTokens(tokens, &st))
 
 	var prm PrmObjectGet
 	prm.SetAddress(address.Address{})
-	prm.UseSession(*session.NewToken())
+	prm.UseSession(session.Object{})
 
 	_, err = pool.GetObject(ctx, prm)
 	require.Error(t, err)
@@ -412,8 +428,8 @@ func TestSessionCache(t *testing.T) {
 	// cache must not contain session token
 	cp, err = pool.connection()
 	require.NoError(t, err)
-	st = pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.Nil(t, st)
+	_, ok := pool.cache.Get(formCacheKey(cp.address, pool.key))
+	require.False(t, ok)
 
 	var prm2 PrmObjectPut
 	prm2.SetHeader(object.Object{})
@@ -424,23 +440,24 @@ func TestSessionCache(t *testing.T) {
 	// cache must contain session token
 	cp, err = pool.connection()
 	require.NoError(t, err)
-	st = pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.True(t, containsTokens(tokens, st))
+	st, _ = pool.cache.Get(formCacheKey(cp.address, pool.key))
+	require.True(t, containsTokens(tokens, &st))
 }
 
 func TestPriority(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
-	tokens := make([]*session.Token, 2)
+	tokens := make([]*session.Object, 2)
 	clientBuilder := func(endpoint string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens[0] = tok
+			id := tok.ID()
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
+				id:         id[:],
+				sessionKey: newBinPublicKey(t),
 			}, nil
 		}).AnyTimes()
 		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
@@ -450,9 +467,10 @@ func TestPriority(t *testing.T) {
 		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
 			tok := newToken(t)
 			tokens[1] = tok
+			id := tok.ID()
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
+				id:         id[:],
+				sessionKey: newBinPublicKey(t),
 			}, nil
 		}).AnyTimes()
 		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
@@ -486,14 +504,14 @@ func TestPriority(t *testing.T) {
 	firstNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-		return areEqualTokens(st, tokens[0])
+		st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+		return areEqualTokens(&st, tokens[0])
 	}
 	secondNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-		return areEqualTokens(st, tokens[1])
+		st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+		return areEqualTokens(&st, tokens[1])
 	}
 	require.Never(t, secondNode, time.Second, 200*time.Millisecond)
 
@@ -504,19 +522,18 @@ func TestPriority(t *testing.T) {
 func TestSessionCacheWithKey(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
-	var tokens []*session.Token
+	var tokens []*session.Object
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
 		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
-			tok := session.NewToken()
-			uid, err := uuid.New().MarshalBinary()
-			require.NoError(t, err)
+			var tok session.Object
+			uid := uuid.New()
 			tok.SetID(uid)
-			tokens = append(tokens, tok)
+			tokens = append(tokens, &tok)
 			return &resCreateSession{
-				id:         tok.ID(),
-				sessionKey: tok.SessionKey(),
-			}, err
+				id:         uid[:],
+				sessionKey: newBinPublicKey(t),
+			}, nil
 		}).MaxTimes(2)
 
 		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
@@ -545,8 +562,8 @@ func TestSessionCacheWithKey(t *testing.T) {
 	// cache must contain session token
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st := pool.cache.Get(formCacheKey(cp.address, pool.key))
-	require.True(t, containsTokens(tokens, st))
+	st, _ := pool.cache.Get(formCacheKey(cp.address, pool.key))
+	require.True(t, containsTokens(tokens, &st))
 
 	var prm PrmObjectGet
 	prm.SetAddress(address.Address{})
@@ -557,20 +574,22 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.Len(t, tokens, 2)
 }
 
-func newToken(t *testing.T) *session.Token {
-	tok := session.NewToken()
-	uid, err := uuid.New().MarshalBinary()
-	require.NoError(t, err)
-	tok.SetID(uid)
+func newToken(t *testing.T) *session.Object {
+	var tok session.Object
+	tok.SetID(uuid.New())
 
-	return tok
+	return &tok
 }
 
 func TestSessionTokenOwner(t *testing.T) {
+	t.Skip() // neofs-sdk-go#???
 	ctrl := gomock.NewController(t)
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
-		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{}, nil).AnyTimes()
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{
+			id:         uuid.Nil[:],
+			sessionKey: newBinPublicKey(t),
+		}, nil).AnyTimes()
 		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(&netmap.NodeInfo{}, nil).AnyTimes()
 		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 		return mockClient, nil
@@ -605,15 +624,15 @@ func TestSessionTokenOwner(t *testing.T) {
 
 	var cc callContext
 	cc.Context = ctx
-	cc.sessionTarget = func(session.Token) {}
+	cc.sessionTarget = func(session.Object) {}
 	err = p.initCallContext(&cc, prm, prmCtx)
 	require.NoError(t, err)
 
 	err = p.openDefaultSession(&cc)
 	require.NoError(t, err)
 
-	tkn := p.cache.Get(formCacheKey("peer0", anonKey))
-	require.True(t, anonOwner.Equals(*tkn.OwnerID()))
+	tkn, _ := p.cache.Get(formCacheKey("peer0", anonKey))
+	require.True(t, tkn.VerifySignature())
 }
 
 func TestWaitPresence(t *testing.T) {
@@ -661,29 +680,29 @@ func TestWaitPresence(t *testing.T) {
 }
 
 func TestCopySessionTokenWithoutSignatureAndContext(t *testing.T) {
-	from := sessiontest.SignedToken()
-	to := copySessionTokenWithoutSignatureAndContext(*from)
+	from := *sessiontest.Object()
 
-	require.Equal(t, from.Nbf(), to.Nbf())
-	require.Equal(t, from.Exp(), to.Exp())
-	require.Equal(t, from.Iat(), to.Iat())
-	require.Equal(t, from.ID(), to.ID())
-	require.Equal(t, from.OwnerID().String(), to.OwnerID().String())
-	require.Equal(t, from.SessionKey(), to.SessionKey())
+	const verb = session.VerbObjectHead
+	from.ForVerb(verb)
 
+	to := from
+
+	require.Equal(t, from, to)
+
+	require.False(t, from.VerifySignature())
 	require.False(t, to.VerifySignature())
 
-	t.Run("empty object context", func(t *testing.T) {
-		octx := sessiontest.ObjectContext()
-		from.SetContext(octx)
-		to = copySessionTokenWithoutSignatureAndContext(*from)
-		require.Nil(t, to.Context())
-	})
+	require.True(t, from.AssertVerb(verb))
+	require.True(t, to.AssertVerb(verb))
 
-	t.Run("empty container context", func(t *testing.T) {
-		cctx := sessiontest.ContainerContext()
-		from.SetContext(cctx)
-		to = copySessionTokenWithoutSignatureAndContext(*from)
-		require.Nil(t, to.Context())
-	})
+	k, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	from.ForVerb(verb + 1)
+	require.NoError(t, from.Sign(k.PrivateKey))
+
+	require.True(t, from.VerifySignature())
+	require.False(t, to.VerifySignature())
+	require.True(t, from.AssertVerb(verb+1))
+	require.False(t, to.AssertVerb(verb+1))
 }
