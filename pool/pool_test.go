@@ -7,7 +7,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"fmt"
-	"math/rand"
 	"testing"
 	"time"
 
@@ -78,32 +77,30 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	ctrl2 := gomock.NewController(t)
 
-	ni := &netmap.NodeInfo{}
-	ni.SetAddresses("addr1", "addr2")
-
 	var expectedToken *session.Token
 	clientCount := -1
 	clientBuilder := func(_ string) (client, error) {
 		clientCount++
 		mockClient := NewMockClient(ctrl)
-		mockInvokes := 0
-		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}, _ ...interface{}) (*resCreateSession, error) {
-			mockInvokes++
-			if mockInvokes == 1 {
-				expectedToken = newToken(t)
-				return nil, fmt.Errorf("error session")
-			}
+		mockClient.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
+			tok := newToken(t)
+			return &resCreateSession{
+				sessionKey: tok.SessionKey(),
+				id:         tok.ID(),
+			}, nil
+		}).AnyTimes()
+
+		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("error")).AnyTimes()
+		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
+
+		mockClient2 := NewMockClient(ctrl2)
+		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).DoAndReturn(func(_, _ interface{}) (*resCreateSession, error) {
+			expectedToken = newToken(t)
 			return &resCreateSession{
 				sessionKey: expectedToken.SessionKey(),
 				id:         expectedToken.ID(),
 			}, nil
 		}).AnyTimes()
-
-		mockClient.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
-		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
-
-		mockClient2 := NewMockClient(ctrl2)
-		mockClient2.EXPECT().sessionCreate(gomock.Any(), gomock.Any()).Return(&resCreateSession{}, nil).AnyTimes()
 		mockClient2.EXPECT().endpointInfo(gomock.Any(), gomock.Any()).Return(nil, nil).AnyTimes()
 		mockClient2.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
@@ -570,8 +567,6 @@ func newToken(t *testing.T) *session.Token {
 }
 
 func TestSessionTokenOwner(t *testing.T) {
-	t.Skip("NeoFS API client can't be mocked")
-
 	ctrl := gomock.NewController(t)
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)
@@ -628,23 +623,6 @@ func TestWaitPresence(t *testing.T) {
 	mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 	mockClient.EXPECT().containerGet(gomock.Any(), gomock.Any()).Return(&container.Container{}, nil).AnyTimes()
 
-	cache, err := newCache()
-	require.NoError(t, err)
-
-	inner := &innerPool{
-		sampler: newSampler([]float64{1}, rand.NewSource(0)),
-		clientPacks: []*clientPack{{
-			client:  mockClient,
-			healthy: true,
-		}},
-	}
-
-	p := &Pool{
-		innerPools: []*innerPool{inner},
-		key:        newPrivateKey(t),
-		cache:      cache,
-	}
-
 	t.Run("context canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
 		go func() {
@@ -652,7 +630,7 @@ func TestWaitPresence(t *testing.T) {
 			cancel()
 		}()
 
-		err = waitForContainerPresence(ctx, p, nil, &WaitParams{
+		err := waitForContainerPresence(ctx, mockClient, nil, &WaitParams{
 			timeout:      120 * time.Second,
 			pollInterval: 5 * time.Second,
 		})
@@ -662,7 +640,7 @@ func TestWaitPresence(t *testing.T) {
 
 	t.Run("context deadline exceeded", func(t *testing.T) {
 		ctx := context.Background()
-		err := waitForContainerPresence(ctx, p, nil, &WaitParams{
+		err := waitForContainerPresence(ctx, mockClient, nil, &WaitParams{
 			timeout:      500 * time.Millisecond,
 			pollInterval: 5 * time.Second,
 		})
@@ -672,7 +650,7 @@ func TestWaitPresence(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
-		err := waitForContainerPresence(ctx, p, nil, &WaitParams{
+		err := waitForContainerPresence(ctx, mockClient, nil, &WaitParams{
 			timeout:      10 * time.Second,
 			pollInterval: 500 * time.Millisecond,
 		})
