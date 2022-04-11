@@ -4,9 +4,9 @@ import (
 	"testing"
 
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -22,7 +22,7 @@ func TestSessionToken_SetID(t *testing.T) {
 func TestSessionToken_SetOwnerID(t *testing.T) {
 	token := session.NewToken()
 
-	ownerID := ownertest.ID()
+	ownerID := usertest.ID()
 
 	token.SetOwnerID(ownerID)
 

@@ -5,10 +5,10 @@ import (
 
 	subnetv2 "github.com/nspcc-dev/neofs-api-go/v2/subnet"
 	subnettest "github.com/nspcc-dev/neofs-api-go/v2/subnet/test"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	. "github.com/nspcc-dev/neofs-sdk-go/subnet"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,11 +36,11 @@ func TestInfo_SetID(t *testing.T) {
 
 func TestInfo_SetOwner(t *testing.T) {
 	var (
-		id   owner.ID
+		id   user.ID
 		info Info
 	)
 
-	id = *ownertest.ID()
+	id = *usertest.ID()
 
 	require.False(t, IsOwner(info, id))
 

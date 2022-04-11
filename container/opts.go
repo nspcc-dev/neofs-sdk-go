@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 type (
@@ -16,7 +16,7 @@ type (
 		acl        acl.BasicACL
 		policy     *netmap.PlacementPolicy
 		attributes Attributes
-		owner      *owner.ID
+		owner      *user.ID
 		nonce      uuid.UUID
 	}
 )
@@ -57,7 +57,7 @@ func WithNonce(nonce uuid.UUID) Option {
 	}
 }
 
-func WithOwnerID(id *owner.ID) Option {
+func WithOwnerID(id *user.ID) Option {
 	return func(option *containerOptions) {
 		option.owner = id
 	}
@@ -66,10 +66,10 @@ func WithOwnerID(id *owner.ID) Option {
 func WithOwnerPublicKey(pub *ecdsa.PublicKey) Option {
 	return func(option *containerOptions) {
 		if option.owner == nil {
-			option.owner = new(owner.ID)
+			option.owner = new(user.ID)
 		}
 
-		option.owner.SetPublicKey(pub)
+		user.IDFromKey(option.owner, *pub)
 	}
 }
 

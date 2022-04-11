@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var p *keys.PrivateKey
@@ -38,13 +38,14 @@ func Token() *session.Token {
 		panic(err)
 	}
 
-	ownerID := owner.NewID()
-	ownerID.SetPublicKey(&priv.PublicKey)
+	var ownerID user.ID
+
+	user.IDFromKey(&ownerID, priv.PublicKey)
 
 	keyBin := p.PublicKey().Bytes()
 
 	tok.SetID(uid)
-	tok.SetOwnerID(ownerID)
+	tok.SetOwnerID(&ownerID)
 	tok.SetSessionKey(keyBin)
 	tok.SetExp(11)
 	tok.SetNbf(22)

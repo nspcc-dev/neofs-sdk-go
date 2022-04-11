@@ -3,10 +3,11 @@ package client
 import (
 	"context"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // PrmSessionCreate groups parameters of SessionCreate operation.
@@ -71,11 +72,15 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 		panic(panicMsgMissingContext)
 	}
 
-	ownerID := owner.NewIDFromPublicKey(&c.prm.key.PublicKey)
+	var ownerID user.ID
+	user.IDFromKey(&ownerID, c.prm.key.PublicKey)
+
+	var ownerIDV2 refs.OwnerID
+	ownerID.WriteToV2(&ownerIDV2)
 
 	// form request body
 	reqBody := new(v2session.CreateRequestBody)
-	reqBody.SetOwnerID(ownerID.ToV2())
+	reqBody.SetOwnerID(&ownerIDV2)
 	reqBody.SetExpiration(prm.exp)
 
 	// for request

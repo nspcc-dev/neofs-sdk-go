@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
@@ -30,7 +30,7 @@ func Container() *container.Container {
 
 	x.SetVersion(&ver)
 	x.SetAttributes(Attributes())
-	x.SetOwnerID(ownertest.ID())
+	x.SetOwnerID(usertest.ID())
 	x.SetBasicACL(123)
 	x.SetPlacementPolicy(netmaptest.PlacementPolicy())
 

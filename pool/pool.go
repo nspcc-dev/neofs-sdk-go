@@ -26,8 +26,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/zap"
 )
 
@@ -104,7 +104,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 
 func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
 	var cliPrm sdkClient.PrmBalanceGet
-	cliPrm.SetAccount(prm.ownerID)
+	cliPrm.SetAccount(prm.account)
 
 	res, err := c.client.BalanceGet(ctx, cliPrm)
 	if err != nil {
@@ -775,11 +775,11 @@ func (x *PrmContainerGet) SetContainerID(cnrID cid.ID) {
 
 // PrmContainerList groups parameters of ListContainers operation.
 type PrmContainerList struct {
-	ownerID owner.ID
+	ownerID user.ID
 }
 
 // SetOwnerID specifies identifier of the NeoFS account to list the containers.
-func (x *PrmContainerList) SetOwnerID(ownerID owner.ID) {
+func (x *PrmContainerList) SetOwnerID(ownerID user.ID) {
 	x.ownerID = ownerID
 }
 
@@ -848,12 +848,12 @@ func (x *PrmContainerSetEACL) SetWaitParams(waitParams WaitParams) {
 
 // PrmBalanceGet groups parameters of Balance operation.
 type PrmBalanceGet struct {
-	ownerID owner.ID
+	account user.ID
 }
 
-// SetOwnerID specifies identifier of the NeoFS account for which the balance is requested.
-func (x *PrmBalanceGet) SetOwnerID(ownerID owner.ID) {
-	x.ownerID = ownerID
+// SetAccount specifies identifier of the NeoFS account for which the balance is requested.
+func (x *PrmBalanceGet) SetAccount(id user.ID) {
+	x.account = id
 }
 
 // prmEndpointInfo groups parameters of sessionCreate operation.
@@ -903,7 +903,7 @@ type resCreateSession struct {
 type Pool struct {
 	innerPools      []*innerPool
 	key             *ecdsa.PrivateKey
-	owner           *owner.ID
+	sessionOwner    user.ID
 	cancel          context.CancelFunc
 	closedCh        chan struct{}
 	cache           *sessionCache
@@ -946,7 +946,6 @@ func NewPool(options InitParameters) (*Pool, error) {
 
 	pool := &Pool{
 		key:            options.key,
-		owner:          owner.NewIDFromPublicKey(&options.key.PublicKey),
 		cache:          cache,
 		logger:         options.logger,
 		stokenDuration: options.sessionExpirationDuration,
@@ -958,6 +957,8 @@ func NewPool(options InitParameters) (*Pool, error) {
 		},
 		clientBuilder: options.clientBuilder,
 	}
+
+	user.IDFromKey(&pool.sessionOwner, options.key.PublicKey)
 
 	return pool, nil
 }
@@ -982,7 +983,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 				return err
 			}
 			var healthy bool
-			st, err := createSessionTokenForDuration(ctx, c, p.owner, p.rebalanceParams.sessionExpirationDuration)
+			st, err := createSessionTokenForDuration(ctx, c, p.sessionOwner, p.rebalanceParams.sessionExpirationDuration)
 			if err != nil && p.logger != nil {
 				p.logger.Warn("failed to create neofs session token for client",
 					zap.String("Address", addr),
@@ -1205,8 +1206,8 @@ func (p *innerPool) connection() (*clientPack, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func (p *Pool) OwnerID() *owner.ID {
-	return p.owner
+func (p *Pool) OwnerID() *user.ID {
+	return &p.sessionOwner
 }
 
 func formCacheKey(address string, key *ecdsa.PrivateKey) string {
@@ -1228,7 +1229,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func createSessionTokenForDuration(ctx context.Context, c client, ownerID *owner.ID, dur uint64) (*session.Token, error) {
+func createSessionTokenForDuration(ctx context.Context, c client, ownerID user.ID, dur uint64) (*session.Token, error) {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return nil, err
@@ -1309,8 +1310,12 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	tok := p.cache.Get(cacheKey)
 	if tok == nil {
 		var err error
+		var sessionOwner user.ID
+
+		user.IDFromKey(&sessionOwner, ctx.key.PublicKey)
+
 		// open new session
-		tok, err = createSessionTokenForDuration(ctx, ctx.client, owner.NewIDFromPublicKey(&ctx.key.PublicKey), p.stokenDuration)
+		tok, err = createSessionTokenForDuration(ctx, ctx.client, sessionOwner, p.stokenDuration)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
@@ -1784,9 +1789,9 @@ func (p *Pool) Close() {
 }
 
 // creates new session token with specified owner from SessionCreate call result.
-func sessionTokenForOwner(id *owner.ID, cliRes *resCreateSession, exp uint64) *session.Token {
+func sessionTokenForOwner(id user.ID, cliRes *resCreateSession, exp uint64) *session.Token {
 	st := session.NewToken()
-	st.SetOwnerID(id)
+	st.SetOwnerID(&id)
 	st.SetID(cliRes.id)
 	st.SetSessionKey(cliRes.sessionKey)
 	st.SetExp(exp)
@@ -1815,15 +1820,7 @@ func copySessionTokenWithoutSignatureAndContext(from session.Token) (to session.
 	copy(sessionTokenKey, from.SessionKey())
 	to.SetSessionKey(sessionTokenKey)
 
-	var sessionTokenOwner owner.ID
-	buf, err := from.OwnerID().Marshal()
-	if err != nil {
-		panic(err) // should never happen
-	}
-	err = sessionTokenOwner.Unmarshal(buf)
-	if err != nil {
-		panic(err) // should never happen
-	}
+	sessionTokenOwner := *from.OwnerID()
 	to.SetOwnerID(&sessionTokenOwner)
 
 	return to

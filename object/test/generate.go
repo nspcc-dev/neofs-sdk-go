@@ -7,8 +7,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -48,7 +48,7 @@ func generate(withParent bool) *object.Object {
 	x.SetID(oidtest.ID())
 	x.SetSessionToken(sessiontest.Token())
 	x.SetPayload([]byte{1, 2, 3})
-	x.SetOwnerID(ownertest.ID())
+	x.SetOwnerID(usertest.ID())
 	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
 	x.SetVersion(&ver)

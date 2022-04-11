@@ -3,7 +3,7 @@ package eacltest
 import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
@@ -28,7 +28,7 @@ func Record() *eacl.Record {
 	x.SetOperation(eacl.OperationRangeHash)
 	x.SetTargets(*Target(), *Target())
 	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, ownertest.ID())
+	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, usertest.ID())
 
 	return x
 }

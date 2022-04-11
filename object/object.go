@@ -10,8 +10,8 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -30,8 +30,8 @@ type RequiredFields struct {
 	// Identifier of the NeoFS container associated with the object.
 	Container cid.ID
 
-	// Object owner ID in the NeoFS system.
-	Owner owner.ID
+	// Object owner's user ID in the NeoFS system.
+	Owner user.ID
 }
 
 // InitCreation initializes the object instance with minimum set of required fields.
@@ -201,18 +201,24 @@ func (o *Object) SetContainerID(v cid.ID) {
 }
 
 // OwnerID returns identifier of the object owner.
-func (o *Object) OwnerID() *owner.ID {
-	return owner.NewIDFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetOwnerID(),
-	)
+func (o *Object) OwnerID() *user.ID {
+	var id user.ID
+
+	m := (*object.Object)(o).GetHeader().GetOwnerID()
+	if m != nil {
+		_ = id.ReadFromV2(*m)
+	}
+
+	return &id
 }
 
 // SetOwnerID sets identifier of the object owner.
-func (o *Object) SetOwnerID(v *owner.ID) {
+func (o *Object) SetOwnerID(v *user.ID) {
 	o.setHeaderField(func(h *object.Header) {
-		h.SetOwnerID(v.ToV2())
+		var m refs.OwnerID
+		v.WriteToV2(&m)
+
+		h.SetOwnerID(&m)
 	})
 }
 

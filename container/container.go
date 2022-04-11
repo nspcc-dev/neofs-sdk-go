@@ -10,8 +10,8 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -113,12 +113,24 @@ func (c *Container) SetVersion(v *version.Version) {
 	c.v2.SetVersion(&verV2)
 }
 
-func (c *Container) OwnerID() *owner.ID {
-	return owner.NewIDFromV2(c.v2.GetOwnerID())
+func (c *Container) OwnerID() *user.ID {
+	m := c.v2.GetOwnerID()
+	if m == nil {
+		return nil
+	}
+
+	var id user.ID
+
+	_ = id.ReadFromV2(*m)
+
+	return &id
 }
 
-func (c *Container) SetOwnerID(v *owner.ID) {
-	c.v2.SetOwnerID(v.ToV2())
+func (c *Container) SetOwnerID(v *user.ID) {
+	var m refs.OwnerID
+	v.WriteToV2(&m)
+
+	c.v2.SetOwnerID(&m)
 }
 
 // Returns container nonce in UUID format.

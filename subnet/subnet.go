@@ -3,8 +3,8 @@ package subnet
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/subnet"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Info represents information about NeoFS subnet.
@@ -63,7 +63,7 @@ func (x Info) ReadID(id *subnetid.ID) {
 }
 
 // SetOwner sets subnet owner ID.
-func (x *Info) SetOwner(id owner.ID) {
+func (x *Info) SetOwner(id user.ID) {
 	infov2 := (*subnet.Info)(x)
 
 	idv2 := infov2.Owner()
@@ -72,33 +72,32 @@ func (x *Info) SetOwner(id owner.ID) {
 		infov2.SetOwner(idv2)
 	}
 
-	// FIXME: we need to implement and use owner.ID.WriteToV2() method
-	*idv2 = *id.ToV2()
+	id.WriteToV2(idv2)
 }
 
 // ReadOwner reads the identifier of the subnet that Info describes.
 // Must be called only if owner is set (see HasOwner). Arg must not be nil.
-func (x Info) ReadOwner(id *owner.ID) {
+func (x Info) ReadOwner(id *user.ID) {
 	infov2 := (subnet.Info)(x)
 
 	id2 := infov2.Owner()
 	if id2 == nil {
-		// TODO: implement owner.ID.Reset
-		*id = owner.ID{}
+		*id = user.ID{}
 		return
 	}
 
-	// TODO: we need to implement and use owner.ID.FromV2 method
-	*id = *owner.NewIDFromV2(infov2.Owner())
+	if ownerV2 := infov2.Owner(); ownerV2 != nil {
+		_ = id.ReadFromV2(*ownerV2)
+	}
 }
 
 // IsOwner checks subnet ownership.
-func IsOwner(info Info, id owner.ID) bool {
-	id2 := new(owner.ID)
+func IsOwner(info Info, id user.ID) bool {
+	var id2 user.ID
 
-	info.ReadOwner(id2)
+	info.ReadOwner(&id2)
 
-	return id.Equal(id2)
+	return id.Equals(id2)
 }
 
 // IDEquals checks if ID refers to subnet that Info describes.

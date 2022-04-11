@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Token represents NeoFS API v2-compatible
@@ -72,18 +72,27 @@ func (t *Token) SetID(v []byte) {
 }
 
 // OwnerID returns Token's owner identifier.
-func (t *Token) OwnerID() *owner.ID {
-	return owner.NewIDFromV2(
-		(*session.Token)(t).
-			GetBody().
-			GetOwnerID(),
-	)
+func (t *Token) OwnerID() *user.ID {
+	m := (*session.Token)(t).GetBody().GetOwnerID()
+	if m == nil {
+		return nil
+	}
+
+	var res user.ID
+
+	_ = res.ReadFromV2(*m)
+
+	return &res
 }
 
 // SetOwnerID sets Token's owner identifier.
-func (t *Token) SetOwnerID(v *owner.ID) {
+func (t *Token) SetOwnerID(v *user.ID) {
 	t.setBodyField(func(body *session.TokenBody) {
-		body.SetOwnerID(v.ToV2())
+		var m refs.OwnerID
+
+		v.WriteToV2(&m)
+
+		body.SetOwnerID(&m)
 	})
 }
 

@@ -17,9 +17,9 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -594,7 +594,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	t.Cleanup(p.Close)
 
 	anonKey := newPrivateKey(t)
-	anonOwner := owner.NewIDFromPublicKey(&anonKey.PublicKey)
+
+	var anonOwner user.ID
+	user.IDFromKey(&anonOwner, anonKey.PublicKey)
 
 	var prm prmCommon
 	prm.UseKey(anonKey)
@@ -611,7 +613,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.NoError(t, err)
 
 	tkn := p.cache.Get(formCacheKey("peer0", anonKey))
-	require.True(t, anonOwner.Equal(tkn.OwnerID()))
+	require.True(t, anonOwner.Equals(*tkn.OwnerID()))
 }
 
 func TestWaitPresence(t *testing.T) {
