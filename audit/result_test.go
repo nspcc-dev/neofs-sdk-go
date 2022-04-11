@@ -66,7 +66,7 @@ func TestResultData(t *testing.T) {
 	countFailNodes := func(f func([]byte)) int { return countNodes(false, f) }
 
 	require.Zero(t, r.Epoch())
-	require.Nil(t, r.Container())
+	require.True(t, r.Container().Empty())
 	require.Nil(t, r.AuditorKey())
 	require.False(t, r.Completed())
 	require.Zero(t, r.RequestsPoR())
@@ -81,7 +81,7 @@ func TestResultData(t *testing.T) {
 	require.Equal(t, epoch, r.Epoch())
 
 	cnr := cidtest.ID()
-	r.ForContainer(*cnr)
+	r.ForContainer(cnr)
 	require.Equal(t, cnr, r.Container())
 
 	key := []byte{1, 2, 3}
@@ -99,32 +99,32 @@ func TestResultData(t *testing.T) {
 	r.SetRetriesPoR(retries)
 	require.Equal(t, retries, r.RetriesPoR())
 
-	passSG1, passSG2 := *oidtest.ID(), *oidtest.ID()
+	passSG1, passSG2 := oidtest.ID(), oidtest.ID()
 	r.SubmitPassedStorageGroup(passSG1)
 	r.SubmitPassedStorageGroup(passSG2)
 
 	called1, called2 := false, false
 
 	require.EqualValues(t, 2, countPassSG(func(id oid.ID) {
-		if id.Equal(&passSG1) {
+		if id.Equals(passSG1) {
 			called1 = true
-		} else if id.Equal(&passSG2) {
+		} else if id.Equals(passSG2) {
 			called2 = true
 		}
 	}))
 	require.True(t, called1)
 	require.True(t, called2)
 
-	failSG1, failSG2 := *oidtest.ID(), *oidtest.ID()
+	failSG1, failSG2 := oidtest.ID(), oidtest.ID()
 	r.SubmitFailedStorageGroup(failSG1)
 	r.SubmitFailedStorageGroup(failSG2)
 
 	called1, called2 = false, false
 
 	require.EqualValues(t, 2, countFailSG(func(id oid.ID) {
-		if id.Equal(&failSG1) {
+		if id.Equals(failSG1) {
 			called1 = true
-		} else if id.Equal(&failSG2) {
+		} else if id.Equals(failSG2) {
 			called2 = true
 		}
 	}))

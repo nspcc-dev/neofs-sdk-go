@@ -45,7 +45,7 @@ func TestTable(t *testing.T) {
 	t.Run("create table", func(t *testing.T) {
 		id := cidtest.ID()
 
-		table := eacl.CreateTable(*id)
+		table := eacl.CreateTable(id)
 		require.Equal(t, id, table.CID())
 		require.Equal(t, version.Current(), table.Version())
 	})
@@ -124,7 +124,7 @@ func TestTable_ToV2(t *testing.T) {
 		// check initial values
 		require.Equal(t, version.Current(), table.Version())
 		require.Nil(t, table.Records())
-		require.Nil(t, table.CID())
+		require.True(t, table.CID().Empty())
 		require.Nil(t, table.SessionToken())
 		require.Nil(t, table.Signature())
 

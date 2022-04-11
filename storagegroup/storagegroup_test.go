@@ -30,7 +30,7 @@ func TestStorageGroup(t *testing.T) {
 	sg.SetExpirationEpoch(exp)
 	require.Equal(t, exp, sg.ExpirationEpoch())
 
-	members := []oid.ID{*oidtest.ID(), *oidtest.ID()}
+	members := []oid.ID{oidtest.ID(), oidtest.ID()}
 	sg.SetMembers(members)
 	require.Equal(t, members, sg.Members())
 }

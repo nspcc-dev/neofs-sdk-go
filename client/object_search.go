@@ -34,7 +34,7 @@ type PrmObjectSearch struct {
 	bearer    bearer.Token
 
 	cnrSet bool
-	cnr    cid.ID
+	cnrID  cid.ID
 
 	filters object.SearchFilters
 }
@@ -68,7 +68,7 @@ func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
 // InContainer specifies the container in which to look for objects.
 // Required parameter.
 func (x *PrmObjectSearch) InContainer(id cid.ID) {
-	x.cnr = id
+	x.cnrID = id
 	x.cnrSet = true
 }
 
@@ -131,7 +131,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 	}
 
 	for i := 0; i < read; i++ {
-		buf[i] = *oid.NewIDFromV2(&x.tail[i]) // need smth better
+		_ = buf[i].ReadFromV2(x.tail[i])
 	}
 
 	x.tail = x.tail[read:]
@@ -165,7 +165,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 		}
 
 		for i = 0; i < ln; i++ {
-			buf[read+i] = *oid.NewIDFromV2(&ids[i]) // need smth better
+			_ = buf[read+i].ReadFromV2(ids[i])
 		}
 
 		read += ln
@@ -244,10 +244,15 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	}
 
 	// form request body
-	var body v2object.SearchRequestBody
+	var (
+		body  v2object.SearchRequestBody
+		cidV2 v2refs.ContainerID
+	)
+
+	prm.cnrID.WriteToV2(&cidV2)
 
 	body.SetVersion(1)
-	body.SetContainerID(prm.cnr.ToV2())
+	body.SetContainerID(&cidV2)
 	body.SetFilters(prm.filters.ToV2())
 
 	// form meta header

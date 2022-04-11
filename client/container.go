@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -121,7 +122,17 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
-		res.setID(cid.NewFromV2(resp.GetBody().GetContainerID()))
+		var cID *cid.ID
+
+		cidV2 := resp.GetBody().GetContainerID()
+		if cidV2 != nil {
+			var c cid.ID
+			_ = c.ReadFromV2(*cidV2)
+
+			cID = &c
+		}
+
+		res.setID(cID)
 	}
 
 	// process call
@@ -187,9 +198,12 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 		panic(panicMsgMissingContainer)
 	}
 
+	var cidV2 refs.ContainerID
+	prm.id.WriteToV2(&cidV2)
+
 	// form request body
 	reqBody := new(v2container.GetRequestBody)
-	reqBody.SetContainerID(prm.id.ToV2())
+	reqBody.SetContainerID(&cidV2)
 
 	// form request
 	var req v2container.GetRequest
@@ -322,7 +336,7 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 		ids := make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
 		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			ids[i] = *cid.NewFromV2(&cidV2)
+			_ = ids[i].ReadFromV2(cidV2)
 		}
 
 		res.setContainers(ids)
@@ -400,9 +414,12 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 		panic(panicMsgMissingContainer)
 	}
 
+	var cidV2 refs.ContainerID
+	prm.id.WriteToV2(&cidV2)
+
 	// form request body
 	reqBody := new(v2container.DeleteRequestBody)
-	reqBody.SetContainerID(prm.id.ToV2())
+	reqBody.SetContainerID(&cidV2)
 
 	signWrapper := delContainerSignWrapper{body: reqBody}
 
@@ -504,9 +521,12 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 		panic(panicMsgMissingContainer)
 	}
 
+	var cidV2 refs.ContainerID
+	prm.id.WriteToV2(&cidV2)
+
 	// form request body
 	reqBody := new(v2container.GetExtendedACLRequestBody)
-	reqBody.SetContainerID(prm.id.ToV2())
+	reqBody.SetContainerID(&cidV2)
 
 	// form request
 	var req v2container.GetExtendedACLRequest

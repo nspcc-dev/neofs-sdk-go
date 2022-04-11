@@ -45,11 +45,11 @@ func TestSplitInfo(t *testing.T) {
 	})
 }
 
-func generateID() *oid.ID {
+func generateID() oid.ID {
 	var buf [32]byte
 	_, _ = rand.Read(buf[:])
 
-	id := oid.NewID()
+	var id oid.ID
 	id.SetSHA256(buf)
 
 	return id
@@ -77,8 +77,8 @@ func TestNewSplitInfo(t *testing.T) {
 
 		// check initial values
 		require.Nil(t, si.SplitID())
-		require.Nil(t, si.LastPart())
-		require.Nil(t, si.Link())
+		require.True(t, si.LastPart().Empty())
+		require.True(t, si.Link().Empty())
 
 		// convert to v2 message
 		siV2 := si.ToV2()

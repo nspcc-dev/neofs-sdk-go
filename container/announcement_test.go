@@ -46,9 +46,12 @@ func TestAnnouncement(t *testing.T) {
 
 		newA := container.NewAnnouncementFromV2(v2)
 
+		var cID cid.ID
+		_ = cID.ReadFromV2(*newCID)
+
 		require.Equal(t, newEpoch, newA.Epoch())
 		require.Equal(t, newUsedSpace, newA.UsedSpace())
-		require.Equal(t, cid.NewFromV2(newCID), newA.ContainerID())
+		require.Equal(t, cID, newA.ContainerID())
 	})
 }
 
@@ -79,7 +82,7 @@ func TestUsedSpaceAnnouncement_ToV2(t *testing.T) {
 		// check initial values
 		require.Zero(t, announcement.Epoch())
 		require.Zero(t, announcement.UsedSpace())
-		require.Nil(t, announcement.ContainerID())
+		require.True(t, announcement.ContainerID().Empty())
 
 		// convert to v2 message
 		announcementV2 := announcement.ToV2()

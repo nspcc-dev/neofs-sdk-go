@@ -15,7 +15,9 @@ func generateIDList(sz int) []oid.ID {
 	cs := [sha256.Size]byte{}
 
 	for i := 0; i < sz; i++ {
-		res[i] = *oid.NewID()
+		var oID oid.ID
+
+		res[i] = oID
 		rand.Read(cs[:])
 		res[i].SetSHA256(cs)
 	}

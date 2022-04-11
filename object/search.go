@@ -220,7 +220,7 @@ func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v *version.Ve
 	f.addReservedFilter(op, fKeyVersion, v)
 }
 
-func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id *cid.ID) {
+func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
 	f.addReservedFilter(m, fKeyContainerID, id)
 }
 
@@ -261,12 +261,12 @@ func (f *SearchFilters) AddPhyFilter() {
 }
 
 // AddParentIDFilter adds filter by parent identifier.
-func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id *oid.ID) {
+func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id oid.ID) {
 	f.addReservedFilter(m, fKeyParent, id)
 }
 
 // AddObjectIDFilter adds filter by object identifier.
-func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id *oid.ID) {
+func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 	f.addReservedFilter(m, fKeyObjectID, id)
 }
 

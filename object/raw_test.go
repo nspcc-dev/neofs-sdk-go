@@ -16,8 +16,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func randID(t *testing.T) *oid.ID {
-	id := oid.NewID()
+func randID(t *testing.T) oid.ID {
+	var id oid.ID
 	id.SetSHA256(randSHA256Checksum(t))
 
 	return id
@@ -177,9 +177,9 @@ func TestObject_SetChildren(t *testing.T) {
 	id1 := randID(t)
 	id2 := randID(t)
 
-	obj.SetChildren(*id1, *id2)
+	obj.SetChildren(id1, id2)
 
-	require.Equal(t, []oid.ID{*id1, *id2}, obj.Children())
+	require.Equal(t, []oid.ID{id1, id2}, obj.Children())
 }
 
 func TestObject_SetSplitID(t *testing.T) {
@@ -280,7 +280,7 @@ func TestObject_ResetRelations(t *testing.T) {
 
 	obj.ResetRelations()
 
-	require.Nil(t, obj.PreviousID())
+	require.True(t, obj.PreviousID().Empty())
 }
 
 func TestObject_HasParent(t *testing.T) {

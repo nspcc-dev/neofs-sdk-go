@@ -112,12 +112,12 @@ func (r *Record) AddObjectVersionFilter(m Match, v *version.Version) {
 }
 
 // AddObjectIDFilter adds filter by object ID.
-func (r *Record) AddObjectIDFilter(m Match, id *oid.ID) {
+func (r *Record) AddObjectIDFilter(m Match, id oid.ID) {
 	r.addObjectReservedFilter(m, fKeyObjID, id)
 }
 
 // AddObjectContainerIDFilter adds filter by object container ID.
-func (r *Record) AddObjectContainerIDFilter(m Match, id *cid.ID) {
+func (r *Record) AddObjectContainerIDFilter(m Match, id cid.ID) {
 	r.addObjectReservedFilter(m, fKeyObjContainerID, id)
 }
 

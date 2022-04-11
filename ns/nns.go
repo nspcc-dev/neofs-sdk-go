@@ -114,7 +114,7 @@ func (n *NNS) Dial(address string) error {
 // ResolveContainerName MUST NOT be called before successful Dial.
 //
 // See also https://docs.neo.org/docs/en-us/reference/nns.html.
-func (n *NNS) ResolveContainerName(name string) (*cid.ID, error) {
+func (n *NNS) ResolveContainerName(name string) (cid.ID, error) {
 	res, err := n.neoClient.call(n.nnsContract, "resolve", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.StringType,
@@ -126,25 +126,25 @@ func (n *NNS) ResolveContainerName(name string) (*cid.ID, error) {
 		},
 	})
 	if err != nil {
-		return nil, fmt.Errorf("invoke NNS contract: %w", err)
+		return cid.ID{}, fmt.Errorf("invoke NNS contract: %w", err)
 	}
 
 	if res.State != vm.HaltState.String() {
-		return nil, fmt.Errorf("NNS contract fault exception: %s", res.FaultException)
+		return cid.ID{}, fmt.Errorf("NNS contract fault exception: %s", res.FaultException)
 	} else if len(res.Stack) == 0 {
-		return nil, errors.New("empty stack in invocation result")
+		return cid.ID{}, errors.New("empty stack in invocation result")
 	}
 
 	itemArr, err := res.Stack[len(res.Stack)-1].Convert(stackitem.ArrayT) // top stack element is last in the array
 	if err != nil {
-		return nil, fmt.Errorf("convert stack item to %s", stackitem.ArrayT)
+		return cid.ID{}, fmt.Errorf("convert stack item to %s", stackitem.ArrayT)
 	}
 
 	if _, ok := itemArr.(stackitem.Null); !ok {
 		arr, ok := itemArr.Value().([]stackitem.Item)
 		if !ok {
 			// unexpected for types from stackitem package
-			return nil, errors.New("invalid cast to stack item slice")
+			return cid.ID{}, errors.New("invalid cast to stack item slice")
 		}
 
 		var id cid.ID
@@ -152,15 +152,15 @@ func (n *NNS) ResolveContainerName(name string) (*cid.ID, error) {
 		for i := range arr {
 			bs, err := arr[i].TryBytes()
 			if err != nil {
-				return nil, fmt.Errorf("convert array item to byte slice: %w", err)
+				return cid.ID{}, fmt.Errorf("convert array item to byte slice: %w", err)
 			}
 
-			err = id.Parse(string(bs))
+			err = id.DecodeString(string(bs))
 			if err == nil {
-				return &id, nil
+				return id, nil
 			}
 		}
 	}
 
-	return nil, errNotFound
+	return cid.ID{}, errNotFound
 }

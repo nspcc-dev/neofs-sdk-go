@@ -34,7 +34,7 @@ type RequiredFields struct {
 // InitCreation initializes the object instance with minimum set of required fields.
 // Object is expected (but not required) to be blank. Object must not be nil.
 func InitCreation(dst *Object, rf RequiredFields) {
-	dst.SetContainerID(&rf.Container)
+	dst.SetContainerID(rf.Container)
 	dst.SetOwnerID(&rf.Owner)
 }
 
@@ -86,17 +86,24 @@ func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
 }
 
 // ID returns object identifier.
-func (o *Object) ID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.Object)(o).
-			GetObjectID(),
-	)
+func (o *Object) ID() oid.ID {
+	var v oid.ID
+
+	v2 := (*object.Object)(o)
+	if id := v2.GetObjectID(); id != nil {
+		_ = v.ReadFromV2(*v2.GetObjectID())
+	}
+
+	return v
 }
 
 // SetID sets object identifier.
-func (o *Object) SetID(v *oid.ID) {
+func (o *Object) SetID(v oid.ID) {
+	var v2 refs.ObjectID
+	v.WriteToV2(&v2)
+
 	(*object.Object)(o).
-		SetObjectID(v.ToV2())
+		SetObjectID(&v2)
 }
 
 // Signature returns signature of the object identifier.
@@ -154,18 +161,25 @@ func (o *Object) SetPayloadSize(v uint64) {
 }
 
 // ContainerID returns identifier of the related container.
-func (o *Object) ContainerID() *cid.ID {
-	return cid.NewFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetContainerID(),
-	)
+func (o *Object) ContainerID() cid.ID {
+	var cID cid.ID
+	v2 := (*object.Object)(o)
+
+	cidV2 := v2.GetHeader().GetContainerID()
+	if cidV2 != nil {
+		_ = cID.ReadFromV2(*cidV2)
+	}
+
+	return cID
 }
 
 // SetContainerID sets identifier of the related container.
-func (o *Object) SetContainerID(v *cid.ID) {
+func (o *Object) SetContainerID(v cid.ID) {
+	var cidV2 refs.ContainerID
+	v.WriteToV2(&cidV2)
+
 	o.setHeaderField(func(h *object.Header) {
-		h.SetContainerID(v.ToV2())
+		h.SetContainerID(&cidV2)
 	})
 }
 
@@ -290,33 +304,41 @@ func (o *Object) SetAttributes(v ...Attribute) {
 }
 
 // PreviousID returns identifier of the previous sibling object.
-func (o *Object) PreviousID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetSplit().
-			GetPrevious(),
-	)
+func (o *Object) PreviousID() oid.ID {
+	var v oid.ID
+	v2 := (*object.Object)(o)
+
+	v2Prev := v2.GetHeader().GetSplit().GetPrevious()
+	if v2Prev != nil {
+		_ = v.ReadFromV2(*v2Prev)
+	}
+
+	return v
 }
 
 // SetPreviousID sets identifier of the previous sibling object.
-func (o *Object) SetPreviousID(v *oid.ID) {
+func (o *Object) SetPreviousID(v oid.ID) {
+	var v2 refs.ObjectID
+	v.WriteToV2(&v2)
+
 	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetPrevious(v.ToV2())
+		split.SetPrevious(&v2)
 	})
 }
 
 // Children return list of the identifiers of the child objects.
 func (o *Object) Children() []oid.ID {
-	ids := (*object.Object)(o).
-		GetHeader().
-		GetSplit().
-		GetChildren()
+	v2 := (*object.Object)(o)
+	ids := v2.GetHeader().GetSplit().GetChildren()
 
-	res := make([]oid.ID, len(ids))
+	var (
+		id  oid.ID
+		res = make([]oid.ID, len(ids))
+	)
 
 	for i := range ids {
-		res[i] = *oid.NewIDFromV2(&ids[i])
+		_ = id.ReadFromV2(ids[i])
+		res[i] = id
 	}
 
 	return res
@@ -324,10 +346,14 @@ func (o *Object) Children() []oid.ID {
 
 // SetChildren sets list of the identifiers of the child objects.
 func (o *Object) SetChildren(v ...oid.ID) {
-	ids := make([]refs.ObjectID, len(v))
+	var (
+		v2  refs.ObjectID
+		ids = make([]refs.ObjectID, len(v))
+	)
 
 	for i := range v {
-		ids[i] = *v[i].ToV2()
+		v[i].WriteToV2(&v2)
+		ids[i] = v2
 	}
 
 	o.setSplitFields(func(split *object.SplitHeader) {
@@ -406,19 +432,25 @@ func (o *Object) SetSplitID(id *SplitID) {
 }
 
 // ParentID returns identifier of the parent object.
-func (o *Object) ParentID() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetSplit().
-			GetParent(),
-	)
+func (o *Object) ParentID() oid.ID {
+	var v oid.ID
+	v2 := (*object.Object)(o)
+
+	v2Par := v2.GetHeader().GetSplit().GetParent()
+	if v2Par != nil {
+		_ = v.ReadFromV2(*v2Par)
+	}
+
+	return v
 }
 
 // SetParentID sets identifier of the parent object.
-func (o *Object) SetParentID(v *oid.ID) {
+func (o *Object) SetParentID(v oid.ID) {
+	var v2 refs.ObjectID
+	v.WriteToV2(&v2)
+
 	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetParent(v.ToV2())
+		split.SetParent(&v2)
 	})
 }
 
