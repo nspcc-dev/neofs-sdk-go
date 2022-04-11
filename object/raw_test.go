@@ -9,8 +9,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -95,7 +95,7 @@ func TestObject_SetContainerID(t *testing.T) {
 func TestObject_SetOwnerID(t *testing.T) {
 	obj := New()
 
-	ownerID := ownertest.ID()
+	ownerID := usertest.ID()
 
 	obj.SetOwnerID(ownerID)
 

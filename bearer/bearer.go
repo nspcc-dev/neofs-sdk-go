@@ -12,7 +12,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var (
@@ -175,11 +175,11 @@ func (b Token) EACLTable() eacl.Table {
 	return *eacl.NewTableFromV2(v2.GetBody().GetEACL())
 }
 
-// SetOwnerID sets owner.ID value of the user who can attach bearer token to
+// SetOwnerID sets user.ID value of the user who can attach bearer token to
 // its requests.
 //
 // See also OwnerID.
-func (b *Token) SetOwnerID(id owner.ID) {
+func (b *Token) SetOwnerID(id user.ID) {
 	v2 := (*acl.BearerToken)(b)
 
 	body := v2.GetBody()
@@ -187,17 +187,28 @@ func (b *Token) SetOwnerID(id owner.ID) {
 		body = new(acl.BearerTokenBody)
 	}
 
-	body.SetOwnerID(id.ToV2())
+	var idV2 refs.OwnerID
+	id.WriteToV2(&idV2)
+
+	body.SetOwnerID(&idV2)
 	v2.SetBody(body)
 }
 
-// OwnerID returns owner.ID value of the user who can attach bearer token to
+// OwnerID returns user.ID value of the user who can attach bearer token to
 // its requests.
 //
 // See also SetOwnerID.
-func (b Token) OwnerID() owner.ID {
+func (b Token) OwnerID() user.ID {
 	v2 := (acl.BearerToken)(b)
-	return *owner.NewIDFromV2(v2.GetBody().GetOwnerID())
+
+	var id user.ID
+
+	idV2 := v2.GetBody().GetOwnerID()
+	if idV2 != nil {
+		_ = id.ReadFromV2(*idV2)
+	}
+
+	return id
 }
 
 // Sign signs bearer token. This method should be invoked with the private
@@ -261,21 +272,23 @@ func (b Token) VerifySignature() error {
 	return nil
 }
 
-// Issuer returns owner.ID associated with the key that signed bearer token.
+// Issuer returns user.ID associated with the key that signed bearer token.
 // To pass node validation it should be owner of requested container.
 //
 // If token is not signed, Issuer returns empty owner ID and false `ok` flag.
 //
 // See also Sign.
-func (b Token) Issuer() (id owner.ID, ok bool) {
+func (b Token) Issuer() (id user.ID, ok bool) {
 	v2 := (acl.BearerToken)(b)
 
 	pub, _ := keys.NewPublicKeyFromBytes(v2.GetSignature().GetKey(), elliptic.P256())
-	if pub == nil {
-		return id, false
+
+	ok = pub != nil
+	if ok {
+		user.IDFromKey(&id, (ecdsa.PublicKey)(*pub))
 	}
 
-	return *owner.NewIDFromPublicKey((*ecdsa.PublicKey)(pub)), true
+	return
 }
 
 // sanityCheck if bearer token is ready to be issued.

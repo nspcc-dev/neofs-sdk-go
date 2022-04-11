@@ -14,8 +14,8 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // PrmContainerPut groups parameters of ContainerPut operation.
@@ -269,12 +269,12 @@ type PrmContainerList struct {
 	prmCommonMeta
 
 	ownerSet bool
-	ownerID  owner.ID
+	ownerID  user.ID
 }
 
 // SetAccount sets identifier of the NeoFS account to list the containers.
-// Required parameter. Must be a valid ID according to NeoFS API protocol.
-func (x *PrmContainerList) SetAccount(id owner.ID) {
+// Required parameter.
+func (x *PrmContainerList) SetAccount(id user.ID) {
 	x.ownerID = id
 	x.ownerSet = true
 }
@@ -317,13 +317,14 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 		panic(panicMsgMissingContext)
 	case !prm.ownerSet:
 		panic("account not set")
-	case !prm.ownerID.Valid():
-		panic("invalid account")
 	}
 
 	// form request body
+	var ownerV2 refs.OwnerID
+	prm.ownerID.WriteToV2(&ownerV2)
+
 	reqBody := new(v2container.ListRequestBody)
-	reqBody.SetOwnerID(prm.ownerID.ToV2())
+	reqBody.SetOwnerID(&ownerV2)
 
 	// form request
 	var req v2container.ListRequest

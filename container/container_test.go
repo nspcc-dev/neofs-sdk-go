@@ -9,8 +9,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
@@ -21,7 +21,7 @@ func TestNewContainer(t *testing.T) {
 
 	nonce := uuid.New()
 
-	ownerID := ownertest.ID()
+	ownerID := usertest.ID()
 	policy := netmaptest.PlacementPolicy()
 
 	c.SetBasicACL(acl.PublicBasicRule)

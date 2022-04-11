@@ -9,7 +9,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -122,7 +122,7 @@ func (r *Record) AddObjectContainerIDFilter(m Match, id cid.ID) {
 }
 
 // AddObjectOwnerIDFilter adds filter by object owner ID.
-func (r *Record) AddObjectOwnerIDFilter(m Match, id *owner.ID) {
+func (r *Record) AddObjectOwnerIDFilter(m Match, id *user.ID) {
 	r.addObjectReservedFilter(m, fKeyObjOwnerID, id)
 }
 

@@ -4,25 +4,26 @@ import (
 	"context"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
 type PrmBalanceGet struct {
 	prmCommonMeta
 
-	ownerSet bool
-	ownerID  owner.ID
+	accountSet bool
+	account    user.ID
 }
 
 // SetAccount sets identifier of the NeoFS account for which the balance is requested.
-// Required parameter. Must be a valid ID according to NeoFS API protocol.
-func (x *PrmBalanceGet) SetAccount(id owner.ID) {
-	x.ownerID = id
-	x.ownerSet = true
+// Required parameter.
+func (x *PrmBalanceGet) SetAccount(id user.ID) {
+	x.account = id
+	x.accountSet = true
 }
 
 // ResBalanceGet groups resulting values of BalanceGet operation.
@@ -60,16 +61,16 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 	switch {
 	case ctx == nil:
 		panic(panicMsgMissingContext)
-	case !prm.ownerSet:
+	case !prm.accountSet:
 		panic("account not set")
-	case !prm.ownerID.Valid():
-		panic("invalid account ID")
 	}
 
 	// form request body
-	var body v2accounting.BalanceRequestBody
+	var accountV2 refs.OwnerID
+	prm.account.WriteToV2(&accountV2)
 
-	body.SetOwnerID(prm.ownerID.ToV2())
+	var body v2accounting.BalanceRequestBody
+	body.SetOwnerID(&accountV2)
 
 	// form request
 	var req v2accounting.BalanceRequest

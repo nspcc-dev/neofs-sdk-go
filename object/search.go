@@ -8,7 +8,7 @@ import (
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/owner"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -224,7 +224,7 @@ func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID)
 	f.addReservedFilter(m, fKeyContainerID, id)
 }
 
-func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id *owner.ID) {
+func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id *user.ID) {
 	f.addReservedFilter(m, fKeyOwnerID, id)
 }
 

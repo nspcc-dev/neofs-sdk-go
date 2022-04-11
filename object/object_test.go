@@ -5,14 +5,14 @@ import (
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	ownertest "github.com/nspcc-dev/neofs-sdk-go/owner/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
 func TestInitCreation(t *testing.T) {
 	var o object.Object
 	cnr := cidtest.ID()
-	own := *ownertest.ID()
+	own := *usertest.ID()
 
 	object.InitCreation(&o, object.RequiredFields{
 		Container: cnr,
