@@ -10,7 +10,7 @@ import (
 func Result() *audit.Result {
 	var x audit.Result
 
-	x.ForContainer(*cidtest.ID())
+	x.ForContainer(cidtest.ID())
 	x.SetAuditorKey([]byte("key"))
 	x.Complete()
 	x.ForEpoch(44)
@@ -27,10 +27,10 @@ func Result() *audit.Result {
 		[]byte("node3"),
 		[]byte("node4"),
 	})
-	x.SubmitPassedStorageGroup(*oidtest.ID())
-	x.SubmitPassedStorageGroup(*oidtest.ID())
-	x.SubmitFailedStorageGroup(*oidtest.ID())
-	x.SubmitFailedStorageGroup(*oidtest.ID())
+	x.SubmitPassedStorageGroup(oidtest.ID())
+	x.SubmitPassedStorageGroup(oidtest.ID())
+	x.SubmitFailedStorageGroup(oidtest.ID())
+	x.SubmitFailedStorageGroup(oidtest.ID())
 
 	return &x
 }

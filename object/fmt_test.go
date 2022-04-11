@@ -19,7 +19,7 @@ func TestVerificationFields(t *testing.T) {
 
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	require.NoError(t, SetVerificationFields(&p.PrivateKey, obj))
+	require.NoError(t, SetVerificationFields(p.PrivateKey, obj))
 
 	require.NoError(t, CheckVerificationFields(obj))
 
@@ -45,10 +45,10 @@ func TestVerificationFields(t *testing.T) {
 		},
 		{
 			corrupt: func() {
-				obj.ID().ToV2().GetValue()[0]++
+				obj.ToV2().GetObjectID().GetValue()[0]++
 			},
 			restore: func() {
-				obj.ID().ToV2().GetValue()[0]--
+				obj.ToV2().GetObjectID().GetValue()[0]--
 			},
 		},
 		{

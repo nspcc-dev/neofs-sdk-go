@@ -7,10 +7,10 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/signature"
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
@@ -55,13 +55,13 @@ func VerifyPayloadChecksum(obj *Object) error {
 }
 
 // CalculateID calculates identifier for the object.
-func CalculateID(obj *Object) (*oid.ID, error) {
+func CalculateID(obj *Object) (oid.ID, error) {
 	data, err := obj.ToV2().GetHeader().StableMarshal(nil)
 	if err != nil {
-		return nil, err
+		return oid.ID{}, err
 	}
 
-	id := oid.NewID()
+	var id oid.ID
 	id.SetSHA256(sha256.Sum256(data))
 
 	return id, nil
@@ -88,43 +88,45 @@ func VerifyID(obj *Object) error {
 		return err
 	}
 
-	if !id.Equal(obj.ID()) {
+	if !id.Equals(obj.ID()) {
 		return errIncorrectID
 	}
 
 	return nil
 }
 
-func CalculateIDSignature(key *ecdsa.PrivateKey, id *oid.ID) (*signature.Signature, error) {
-	return sigutil.SignData(
-		key,
-		signatureV2.StableMarshalerWrapper{
-			SM: id.ToV2(),
-		})
-}
-
-func CalculateAndSetSignature(key *ecdsa.PrivateKey, obj *Object) error {
-	sig, err := CalculateIDSignature(key, obj.ID())
+// CalculateAndSetSignature signs id with provided key and sets that signature to
+// the object.
+func CalculateAndSetSignature(key ecdsa.PrivateKey, obj *Object) error {
+	sig, err := obj.ID().CalculateIDSignature(key)
 	if err != nil {
 		return err
 	}
 
-	obj.SetSignature(sig)
+	obj.SetSignature(&sig)
 
 	return nil
 }
 
-func VerifyIDSignature(obj *Object) error {
-	return sigutil.VerifyData(
+// VerifyIDSignature verifies object ID signature.
+func (o *Object) VerifyIDSignature() bool {
+	var idV2 refs.ObjectID
+	o.ID().WriteToV2(&idV2)
+
+	sig := o.Signature()
+
+	err := sigutil.VerifyData(
 		signatureV2.StableMarshalerWrapper{
-			SM: obj.ID().ToV2(),
+			SM: &idV2,
 		},
-		obj.Signature(),
+		sig,
 	)
+
+	return err == nil
 }
 
 // SetIDWithSignature sets object identifier and signature.
-func SetIDWithSignature(key *ecdsa.PrivateKey, obj *Object) error {
+func SetIDWithSignature(key ecdsa.PrivateKey, obj *Object) error {
 	if err := CalculateAndSetID(obj); err != nil {
 		return fmt.Errorf("could not set identifier: %w", err)
 	}
@@ -137,7 +139,7 @@ func SetIDWithSignature(key *ecdsa.PrivateKey, obj *Object) error {
 }
 
 // SetVerificationFields calculates and sets all verification fields of the object.
-func SetVerificationFields(key *ecdsa.PrivateKey, obj *Object) error {
+func SetVerificationFields(key ecdsa.PrivateKey, obj *Object) error {
 	CalculateAndSetPayloadChecksum(obj)
 
 	return SetIDWithSignature(key, obj)
@@ -156,10 +158,12 @@ func CheckVerificationFields(obj *Object) error {
 	return nil
 }
 
+var errInvalidSignature = errors.New("invalid signature")
+
 // CheckHeaderVerificationFields checks all verification fields except payload.
 func CheckHeaderVerificationFields(obj *Object) error {
-	if err := VerifyIDSignature(obj); err != nil {
-		return fmt.Errorf("invalid signature: %w", err)
+	if !obj.VerifyIDSignature() {
+		return errInvalidSignature
 	}
 
 	if err := VerifyID(obj); err != nil {

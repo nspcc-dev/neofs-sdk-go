@@ -57,7 +57,7 @@ func generate(withParent bool) *object.Object {
 	x.SetCreationEpoch(222)
 	x.SetPreviousID(oidtest.ID())
 	x.SetParentID(oidtest.ID())
-	x.SetChildren(*oidtest.ID(), *oidtest.ID())
+	x.SetChildren(oidtest.ID(), oidtest.ID())
 	x.SetAttributes(*Attribute(), *Attribute())
 	x.SetSplitID(SplitID())
 	x.SetPayloadChecksum(checksumtest.Checksum())
@@ -88,7 +88,7 @@ func Tombstone() *object.Tombstone {
 
 	x.SetSplitID(SplitID())
 	x.SetExpirationEpoch(13)
-	x.SetMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
+	x.SetMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return x
 }
@@ -117,7 +117,7 @@ func SearchFilters() object.SearchFilters {
 // Lock returns random object.Lock.
 func Lock() *object.Lock {
 	var l object.Lock
-	l.WriteMembers([]oid.ID{*oidtest.ID(), *oidtest.ID()})
+	l.WriteMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return &l
 }

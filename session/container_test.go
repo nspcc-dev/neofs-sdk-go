@@ -39,9 +39,9 @@ func TestContainerContext_ApplyTo(t *testing.T) {
 	id := cidtest.ID()
 
 	t.Run("method", func(t *testing.T) {
-		c.ApplyTo(id)
+		c.ApplyTo(&id)
 
-		require.Equal(t, id, c.Container())
+		require.Equal(t, id, *c.Container())
 
 		c.ApplyTo(nil)
 
@@ -49,7 +49,7 @@ func TestContainerContext_ApplyTo(t *testing.T) {
 	})
 
 	t.Run("helper functions", func(t *testing.T) {
-		c.ApplyTo(id)
+		c.ApplyTo(&id)
 
 		session.ApplyToAllContainers(c)
 

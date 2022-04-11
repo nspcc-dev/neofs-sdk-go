@@ -2,6 +2,7 @@ package object
 
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
@@ -40,22 +41,42 @@ func (s *SplitInfo) SetSplitID(v *SplitID) {
 	(*object.SplitInfo)(s).SetSplitID(v.ToV2())
 }
 
-func (s *SplitInfo) LastPart() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.SplitInfo)(s).GetLastPart())
+func (s SplitInfo) LastPart() oid.ID {
+	var id oid.ID
+	v2 := (object.SplitInfo)(s)
+
+	lpV2 := v2.GetLastPart()
+	if lpV2 != nil {
+		_ = id.ReadFromV2(*lpV2)
+	}
+
+	return id
 }
 
-func (s *SplitInfo) SetLastPart(v *oid.ID) {
-	(*object.SplitInfo)(s).SetLastPart(v.ToV2())
+func (s *SplitInfo) SetLastPart(v oid.ID) {
+	var idV2 refs.ObjectID
+	v.WriteToV2(&idV2)
+
+	(*object.SplitInfo)(s).SetLastPart(&idV2)
 }
 
-func (s *SplitInfo) Link() *oid.ID {
-	return oid.NewIDFromV2(
-		(*object.SplitInfo)(s).GetLink())
+func (s SplitInfo) Link() oid.ID {
+	var id oid.ID
+	v2 := (object.SplitInfo)(s)
+
+	linkV2 := v2.GetLink()
+	if linkV2 != nil {
+		_ = id.ReadFromV2(*linkV2)
+	}
+
+	return id
 }
 
-func (s *SplitInfo) SetLink(v *oid.ID) {
-	(*object.SplitInfo)(s).SetLink(v.ToV2())
+func (s *SplitInfo) SetLink(v oid.ID) {
+	var idV2 refs.ObjectID
+	v.WriteToV2(&idV2)
+
+	(*object.SplitInfo)(s).SetLink(&idV2)
 }
 
 func (s *SplitInfo) Marshal() ([]byte, error) {

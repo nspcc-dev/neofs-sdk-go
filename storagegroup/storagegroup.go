@@ -93,7 +93,7 @@ func (sg *StorageGroup) Members() []oid.ID {
 	m := make([]oid.ID, len(mV2))
 
 	for i := range mV2 {
-		m[i] = *oid.NewIDFromV2(&mV2[i])
+		_ = m[i].ReadFromV2(mV2[i])
 	}
 
 	return m
@@ -115,8 +115,11 @@ func (sg *StorageGroup) SetMembers(members []oid.ID) {
 			mV2 = make([]refs.ObjectID, ln)
 		}
 
+		var oidV2 refs.ObjectID
+
 		for i := 0; i < ln; i++ {
-			mV2[i] = *members[i].ToV2()
+			members[i].WriteToV2(&oidV2)
+			mV2[i] = oidV2
 		}
 	}
 

@@ -2,6 +2,7 @@ package container
 
 import (
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
 
@@ -38,15 +39,25 @@ func (a *UsedSpaceAnnouncement) SetEpoch(epoch uint64) {
 }
 
 // ContainerID of the announcement.
-func (a *UsedSpaceAnnouncement) ContainerID() *cid.ID {
-	return cid.NewFromV2(
-		(*container.UsedSpaceAnnouncement)(a).GetContainerID(),
-	)
+func (a *UsedSpaceAnnouncement) ContainerID() (cID cid.ID) {
+	v2 := (*container.UsedSpaceAnnouncement)(a)
+
+	cidV2 := v2.GetContainerID()
+	if cidV2 == nil {
+		return
+	}
+
+	_ = cID.ReadFromV2(*cidV2)
+
+	return
 }
 
 // SetContainerID sets announcement container value.
-func (a *UsedSpaceAnnouncement) SetContainerID(cid *cid.ID) {
-	(*container.UsedSpaceAnnouncement)(a).SetContainerID(cid.ToV2())
+func (a *UsedSpaceAnnouncement) SetContainerID(cnr cid.ID) {
+	var cidV2 refs.ContainerID
+	cnr.WriteToV2(&cidV2)
+
+	(*container.UsedSpaceAnnouncement)(a).SetContainerID(&cidV2)
 }
 
 // UsedSpace in container.

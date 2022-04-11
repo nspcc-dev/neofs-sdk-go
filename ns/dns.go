@@ -16,20 +16,20 @@ type DNS struct{}
 // Otherwise, returns an error.
 //
 // See also net.LookupTXT.
-func (x *DNS) ResolveContainerName(name string) (*cid.ID, error) {
+func (x *DNS) ResolveContainerName(name string) (id cid.ID, err error) {
 	records, err := net.LookupTXT(name)
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	var id cid.ID
-
 	for i := range records {
-		err = id.Parse(records[i])
+		err = id.DecodeString(records[i])
 		if err == nil {
-			return &id, nil
+			return
 		}
 	}
 
-	return nil, errNotFound
+	err = errNotFound
+
+	return
 }

@@ -20,7 +20,8 @@ func ContainerContext() *session.ContainerContext {
 
 	setters[rand.Uint32()%uint32(len(setters))]()
 
-	c.ApplyTo(cidtest.ID())
+	cID := cidtest.ID()
+	c.ApplyTo(&cID)
 
 	return c
 }

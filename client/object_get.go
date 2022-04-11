@@ -36,10 +36,10 @@ type prmObjectRead struct {
 	bearer    bearer.Token
 
 	cnrSet bool
-	cnr    cid.ID
+	cnrID  cid.ID
 
 	objSet bool
-	obj    oid.ID
+	objID  oid.ID
 }
 
 func (x prmObjectRead) writeToMetaHeader(h *v2session.RequestMetaHeader) {
@@ -94,14 +94,14 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 // FromContainer specifies NeoFS container of the object.
 // Required parameter.
 func (x *prmObjectRead) FromContainer(id cid.ID) {
-	x.cnr = id
+	x.cnrID = id
 	x.cnrSet = true
 }
 
 // ByID specifies identifier of the requested object.
 // Required parameter.
 func (x *prmObjectRead) ByID(id oid.ID) {
-	x.obj = id
+	x.objID = id
 	x.objSet = true
 }
 
@@ -318,10 +318,17 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 		panic("missing object")
 	}
 
-	var addr v2refs.Address
+	var (
+		addr  v2refs.Address
+		oidV2 v2refs.ObjectID
+		cidV2 v2refs.ContainerID
+	)
 
-	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(prm.obj.ToV2())
+	prm.objID.WriteToV2(&oidV2)
+	prm.cnrID.WriteToV2(&cidV2)
+
+	addr.SetContainerID(&cidV2)
+	addr.SetObjectID(&oidV2)
 
 	// form request body
 	var body v2object.GetRequestBody
@@ -411,7 +418,7 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 	objv2.SetSignature(x.hdr.GetSignature())
 
 	obj := object.NewFromV2(&objv2)
-	obj.SetID(&x.idObj)
+	obj.SetID(x.idObj)
 
 	*dst = *obj
 
@@ -449,16 +456,23 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		panic("missing object")
 	}
 
-	var addr v2refs.Address
+	var (
+		addrV2 v2refs.Address
+		oidV2  v2refs.ObjectID
+		cidV2  v2refs.ContainerID
+	)
 
-	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(prm.obj.ToV2())
+	prm.objID.WriteToV2(&oidV2)
+	prm.cnrID.WriteToV2(&cidV2)
+
+	addrV2.SetContainerID(&cidV2)
+	addrV2.SetObjectID(&oidV2)
 
 	// form request body
 	var body v2object.HeadRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
+	body.SetAddress(&addrV2)
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
@@ -478,7 +492,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		res ResObjectHead
 	)
 
-	res.idObj = prm.obj
+	res.idObj = prm.objID
 
 	if prm.keySet {
 		c.initCallContextWithoutKey(&cc)
@@ -715,10 +729,17 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		panic("zero range length")
 	}
 
-	var addr v2refs.Address
+	var (
+		addrV2 v2refs.Address
+		oidV2  v2refs.ObjectID
+		cidV2  v2refs.ContainerID
+	)
 
-	addr.SetContainerID(prm.cnr.ToV2())
-	addr.SetObjectID(prm.obj.ToV2())
+	prm.objID.WriteToV2(&oidV2)
+	prm.cnrID.WriteToV2(&cidV2)
+
+	addrV2.SetContainerID(&cidV2)
+	addrV2.SetObjectID(&oidV2)
 
 	var rng v2object.Range
 
@@ -729,7 +750,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	var body v2object.GetRangeRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
+	body.SetAddress(&addrV2)
 	body.SetRange(&rng)
 
 	// form meta header

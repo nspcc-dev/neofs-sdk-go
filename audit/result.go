@@ -75,20 +75,29 @@ func (r *Result) ForEpoch(epoch uint64) {
 // Container returns identifier of the container with which the data audit Result
 // is associated.
 //
-// Returns nil if container is not specified. Zero Result has nil container.
-// Return value MUST NOT be mutated: to do this, first make a copy.
+// Returns zero ID if container is not specified. Zero Result has zero container.
 //
 // See also ForContainer.
-func (r Result) Container() *cid.ID {
-	return cid.NewFromV2(r.v2.GetContainerID())
+func (r Result) Container() cid.ID {
+	var cID cid.ID
+
+	cidV2 := r.v2.GetContainerID()
+	if cidV2 != nil {
+		_ = cID.ReadFromV2(*cidV2)
+	}
+
+	return cID
 }
 
-// ForContainer returns identifier of the container with which the data audit Result
+// ForContainer sets identifier of the container with which the data audit Result
 // is associated.
 //
 // See also Container.
 func (r *Result) ForContainer(cnr cid.ID) {
-	r.v2.SetContainerID(cnr.ToV2())
+	var cidV2 refs.ContainerID
+	cnr.WriteToV2(&cidV2)
+
+	r.v2.SetContainerID(&cidV2)
 }
 
 // AuditorKey returns public key of the auditing NeoFS Inner Ring node in
@@ -174,8 +183,12 @@ func (r *Result) SetRetriesPoR(v uint32) {
 func (r Result) IteratePassedStorageGroups(f func(oid.ID) bool) {
 	r2 := r.v2.GetPassSG()
 
+	var id oid.ID
+
 	for i := range r2 {
-		if !f(*oid.NewIDFromV2(&r2[i])) {
+		_ = id.ReadFromV2(r2[i])
+
+		if !f(id) {
 			return
 		}
 	}
@@ -186,7 +199,10 @@ func (r Result) IteratePassedStorageGroups(f func(oid.ID) bool) {
 //
 // See also IteratePassedStorageGroups.
 func (r *Result) SubmitPassedStorageGroup(sg oid.ID) {
-	r.v2.SetPassSG(append(r.v2.GetPassSG(), *sg.ToV2()))
+	var idV2 refs.ObjectID
+	sg.WriteToV2(&idV2)
+
+	r.v2.SetPassSG(append(r.v2.GetPassSG(), idV2))
 }
 
 // IterateFailedStorageGroups is similar to IteratePassedStorageGroups but for failed groups.
@@ -194,9 +210,11 @@ func (r *Result) SubmitPassedStorageGroup(sg oid.ID) {
 // See also SubmitFailedStorageGroup.
 func (r Result) IterateFailedStorageGroups(f func(oid.ID) bool) {
 	v := r.v2.GetFailSG()
+	var id oid.ID
 
 	for i := range v {
-		if !f(*oid.NewIDFromV2(&v[i])) {
+		_ = id.ReadFromV2(v[i])
+		if !f(id) {
 			return
 		}
 	}
@@ -206,7 +224,10 @@ func (r Result) IterateFailedStorageGroups(f func(oid.ID) bool) {
 //
 // See also IterateFailedStorageGroups.
 func (r *Result) SubmitFailedStorageGroup(sg oid.ID) {
-	r.v2.SetFailSG(append(r.v2.GetFailSG(), *sg.ToV2()))
+	var idV2 refs.ObjectID
+	sg.WriteToV2(&idV2)
+
+	r.v2.SetFailSG(append(r.v2.GetFailSG(), idV2))
 }
 
 // Hits returns number of sampled objects under audit placed

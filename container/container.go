@@ -87,13 +87,13 @@ func NewContainerFromV2(c *container.Container) *Container {
 
 // CalculateID calculates container identifier
 // based on its structure.
-func CalculateID(c *Container) *cid.ID {
+func CalculateID(c *Container) cid.ID {
 	data, err := c.ToV2().StableMarshal(nil)
 	if err != nil {
 		panic(err)
 	}
 
-	id := cid.New()
+	var id cid.ID
 	id.SetSHA256(sha256.Sum256(data))
 
 	return id

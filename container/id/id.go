@@ -1,90 +1,120 @@
 package cid
 
 import (
-	"bytes"
 	"crypto/sha256"
-	"errors"
+	"fmt"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
-// ID represents v2-compatible container identifier.
-type ID refs.ContainerID
-
-// NewFromV2 wraps v2 ContainerID message to ID.
+// ID represents NeoFS container identifier.
 //
-// Nil refs.ContainerID converts to nil.
-func NewFromV2(idV2 *refs.ContainerID) *ID {
-	return (*ID)(idV2)
-}
-
-// New creates and initializes blank ID.
+// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ContainerID
+// message. See ReadFromV2 / WriteToV2 methods.
 //
-// Defaults:
-//  - value: nil.
-func New() *ID {
-	return NewFromV2(new(refs.ContainerID))
-}
-
-// SetSHA256 sets container identifier value to SHA256 checksum of container body.
-func (id *ID) SetSHA256(v [sha256.Size]byte) {
-	(*refs.ContainerID)(id).SetValue(v[:])
-}
-
-// ToV2 returns the v2 container ID message.
+// Instances can be created using built-in var declaration.
 //
-// Nil ID converts to nil.
-func (id *ID) ToV2() *refs.ContainerID {
-	return (*refs.ContainerID)(id)
-}
+// Note that direct typecast is not safe and may result in loss of compatibility:
+// 	_ = ID([32]byte) // not recommended
+type ID [sha256.Size]byte
 
-// Equal returns true if identifiers are identical.
-func (id *ID) Equal(id2 *ID) bool {
-	return bytes.Equal(
-		(*refs.ContainerID)(id).GetValue(),
-		(*refs.ContainerID)(id2).GetValue(),
-	)
-}
-
-// Parse parses string representation of ID.
+// ReadFromV2 reads ID from the refs.ContainerID message.
+// Returns an error if the message is malformed according
+// to the NeoFS API V2 protocol.
 //
-// Returns error if s is not a base58 encoded
-// ID data.
-func (id *ID) Parse(s string) error {
-	data, err := base58.Decode(s)
-	if err != nil {
-		return err
-	} else if len(data) != sha256.Size {
-		return errors.New("incorrect format of the string container ID")
+// See also WriteToV2.
+func (id *ID) ReadFromV2(m refs.ContainerID) error {
+	return id.Decode(m.GetValue())
+}
+
+// WriteToV2 writes ID to the refs.ContainerID message.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (id ID) WriteToV2(m *refs.ContainerID) {
+	m.SetValue(id[:])
+}
+
+// Encode encodes ID into 32 bytes of dst. Panics if
+// dst length is less than 32.
+//
+// Zero ID is all zeros.
+//
+// See also Decode.
+func (id ID) Encode(dst []byte) {
+	if l := len(dst); l < sha256.Size {
+		panic(fmt.Sprintf("destination length is less than %d bytes: %d", sha256.Size, l))
 	}
 
-	(*refs.ContainerID)(id).SetValue(data)
+	copy(dst, id[:])
+}
+
+// Decode decodes src bytes into ID.
+//
+// Decode expects that src has 32 bytes length. If the input is malformed,
+// Decode returns an error describing format violation. In this case ID
+// remains unchanged.
+//
+// Decode doesn't mutate src.
+//
+// See also Encode.
+func (id *ID) Decode(src []byte) error {
+	if len(src) != sha256.Size {
+		return fmt.Errorf("invalid length %d", len(src))
+	}
+
+	copy(id[:], src)
 
 	return nil
 }
 
-// String returns base58 string representation of ID.
-func (id *ID) String() string {
-	return base58.Encode((*refs.ContainerID)(id).GetValue())
+// SetSHA256 sets container identifier value to SHA256 checksum of container structure.
+func (id *ID) SetSHA256(v [sha256.Size]byte) {
+	copy(id[:], v[:])
 }
 
-// Marshal marshals ID into a protobuf binary form.
-func (id *ID) Marshal() ([]byte, error) {
-	return (*refs.ContainerID)(id).StableMarshal(nil)
+// Equals defines a comparison relation between two ID instances.
+//
+// Note that comparison using '==' operator is not recommended since it MAY result
+// in loss of compatibility.
+func (id ID) Equals(id2 ID) bool {
+	return id == id2
 }
 
-// Unmarshal unmarshals protobuf binary representation of ID.
-func (id *ID) Unmarshal(data []byte) error {
-	return (*refs.ContainerID)(id).Unmarshal(data)
+// EncodeToString encodes ID into NeoFS API protocol string.
+//
+// Zero ID is base58 encoding of 32 zeros.
+//
+// See also DecodeString.
+func (id ID) EncodeToString() string {
+	return base58.Encode(id[:])
 }
 
-// MarshalJSON encodes ID to protobuf JSON format.
-func (id *ID) MarshalJSON() ([]byte, error) {
-	return (*refs.ContainerID)(id).MarshalJSON()
+// DecodeString decodes string into ID according to NeoFS API protocol. Returns
+// an error if s is malformed.
+//
+// See also DecodeString.
+func (id *ID) DecodeString(s string) error {
+	data, err := base58.Decode(s)
+	if err != nil {
+		return fmt.Errorf("decode base58: %w", err)
+	}
+
+	return id.Decode(data)
 }
 
-// UnmarshalJSON decodes ID from protobuf JSON format.
-func (id *ID) UnmarshalJSON(data []byte) error {
-	return (*refs.ContainerID)(id).UnmarshalJSON(data)
+// String implements fmt.Stringer.
+//
+// String is designed to be human-readable, and its format MAY differ between
+// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// be used to encode ID into NeoFS protocol string.
+func (id ID) String() string {
+	return id.EncodeToString()
+}
+
+// Empty returns true if it is called on
+// zero container ID.
+func (id ID) Empty() bool {
+	return id == ID{}
 }

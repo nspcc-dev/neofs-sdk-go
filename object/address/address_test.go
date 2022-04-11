@@ -107,8 +107,8 @@ func TestNewAddress(t *testing.T) {
 		a := NewAddress()
 
 		// check initial values
-		require.Nil(t, a.ContainerID())
-		require.Nil(t, a.ObjectID())
+		require.True(t, a.ContainerID().Empty())
+		require.True(t, a.ObjectID().Empty())
 
 		// convert to v2 message
 		aV2 := a.ToV2()

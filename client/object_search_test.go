@@ -17,7 +17,7 @@ import (
 func TestObjectSearch(t *testing.T) {
 	ids := make([]oid.ID, 20)
 	for i := range ids {
-		ids[i] = *oidtest.ID()
+		ids[i] = oidtest.ID()
 	}
 
 	resp, setID := testListReaderResponse(t)
@@ -88,7 +88,7 @@ func TestObjectSearch(t *testing.T) {
 func TestObjectIterate(t *testing.T) {
 	ids := make([]oid.ID, 3)
 	for i := range ids {
-		ids[i] = *oidtest.ID()
+		ids[i] = oidtest.ID()
 	}
 
 	t.Run("iterate all sequence", func(t *testing.T) {
@@ -176,8 +176,11 @@ func testListReaderResponse(t *testing.T) (*ObjectListReader, func(id []oid.ID) 
 		resp.SetBody(new(object.SearchResponseBody))
 
 		v2id := make([]refs.ObjectID, len(id))
+		var oidV2 refs.ObjectID
+
 		for i := range id {
-			v2id[i] = *id[i].ToV2()
+			id[i].WriteToV2(&oidV2)
+			v2id[i] = oidV2
 		}
 		resp.GetBody().SetIDList(v2id)
 		err := signatureV2.SignServiceMessage(&p.PrivateKey, resp)

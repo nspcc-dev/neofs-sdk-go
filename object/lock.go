@@ -41,8 +41,8 @@ func (x Lock) NumberOfMembers() int {
 func (x Lock) ReadMembers(buf []oid.ID) {
 	var i int
 
-	(*v2object.Lock)(&x).IterateMembers(func(id refs.ObjectID) {
-		buf[i] = *oid.NewIDFromV2(&id) // need smth better
+	(*v2object.Lock)(&x).IterateMembers(func(idV2 refs.ObjectID) {
+		_ = buf[i].ReadFromV2(idV2)
 		i++
 	})
 }
@@ -55,7 +55,7 @@ func (x *Lock) WriteMembers(ids []oid.ID) {
 		members = make([]refs.ObjectID, len(ids))
 
 		for i := range ids {
-			members[i] = *ids[i].ToV2() // need smth better
+			ids[i].WriteToV2(&members[i])
 		}
 	}
 

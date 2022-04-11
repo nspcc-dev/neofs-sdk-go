@@ -16,19 +16,19 @@ import (
 // Table is compatible with v2 acl.EACLTable message.
 type Table struct {
 	version version.Version
-	cid     *cid.ID
+	cid     cid.ID
 	token   *session.Token
 	sig     *signature.Signature
 	records []Record
 }
 
 // CID returns identifier of the container that should use given access control rules.
-func (t Table) CID() *cid.ID {
+func (t Table) CID() cid.ID {
 	return t.cid
 }
 
 // SetCID sets identifier of the container that should use given access control rules.
-func (t *Table) SetCID(cid *cid.ID) {
+func (t *Table) SetCID(cid cid.ID) {
 	t.cid = cid
 }
 
@@ -85,9 +85,11 @@ func (t *Table) ToV2() *v2acl.Table {
 	}
 
 	v2 := new(v2acl.Table)
+	var cidV2 refs.ContainerID
 
-	if t.cid != nil {
-		v2.SetContainerID(t.cid.ToV2())
+	if !t.cid.Empty() {
+		t.cid.WriteToV2(&cidV2)
+		v2.SetContainerID(&cidV2)
 	}
 
 	if t.records != nil {
@@ -124,7 +126,7 @@ func NewTable() *Table {
 // CreateTable creates, initializes with parameters and returns Table instance.
 func CreateTable(cid cid.ID) *Table {
 	t := NewTable()
-	t.SetCID(&cid)
+	t.SetCID(cid)
 
 	return t
 }
@@ -148,8 +150,8 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 
 	// set container id
 	if id := table.GetContainerID(); id != nil {
-		if t.cid == nil {
-			t.cid = new(cid.ID)
+		if t.cid.Empty() {
+			t.cid = cid.ID{}
 		}
 
 		var h [sha256.Size]byte
@@ -205,7 +207,7 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 
 // EqualTables compares Table with each other.
 func EqualTables(t1, t2 Table) bool {
-	if !t1.CID().Equal(t2.CID()) ||
+	if !t1.CID().Equals(t2.CID()) ||
 		!t1.Version().Equal(t2.Version()) {
 		return false
 	}
