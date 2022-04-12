@@ -127,13 +127,6 @@ func (c Checksum) String() string {
 	return fmt.Sprintf("%s:%s", c.Type(), hex.EncodeToString(v2.GetSum()))
 }
 
-// Empty returns true if it is called on
-// zero checksum.
-func (c Checksum) Empty() bool {
-	v2 := (refs.Checksum)(c)
-	return v2.GetSum() == nil
-}
-
 // String implements fmt.Stringer.
 //
 // String is designed to be human-readable, and its format MAY differ between

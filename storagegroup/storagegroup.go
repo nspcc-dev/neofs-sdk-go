@@ -41,15 +41,18 @@ func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 }
 
 // ValidationDataHash returns homomorphic hash from the
-// concatenation of the payloads of the storage group members.
+// concatenation of the payloads of the storage group members
+// and bool that indicates checksum presence in the storage
+// group.
 //
-// Zero StorageGroup has zero checksum.
+// Zero StorageGroup does not have validation data checksum.
 //
 // See also SetValidationDataHash.
-func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum) {
+func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum, isSet bool) {
 	v2 := (storagegroup.StorageGroup)(sg)
 	if checksumV2 := v2.GetValidationHash(); checksumV2 != nil {
 		v.ReadFromV2(*checksumV2)
+		isSet = true
 	}
 
 	return
