@@ -154,7 +154,9 @@ func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList)
 func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDelete) error {
 	var cliPrm sdkClient.PrmContainerDelete
 	cliPrm.SetContainer(prm.cnrID)
-	cliPrm.SetSessionToken(prm.stoken)
+	if prm.stokenSet {
+		cliPrm.SetSessionToken(prm.stoken)
+	}
 
 	if _, err := c.client.ContainerDelete(ctx, cliPrm); err != nil {
 		return err
@@ -766,8 +768,10 @@ func (x *PrmContainerList) SetOwnerID(ownerID owner.ID) {
 
 // PrmContainerDelete groups parameters of DeleteContainer operation.
 type PrmContainerDelete struct {
-	stoken session.Token
-	cnrID  cid.ID
+	cnrID cid.ID
+
+	stoken    session.Token
+	stokenSet bool
 
 	waitParams    WaitParams
 	waitParamsSet bool
@@ -781,6 +785,7 @@ func (x *PrmContainerDelete) SetContainerID(cnrID cid.ID) {
 // SetSessionToken specifies session within which operation should be performed.
 func (x *PrmContainerDelete) SetSessionToken(token session.Token) {
 	x.stoken = token
+	x.stokenSet = true
 }
 
 // SetWaitParams specifies timeout params to complete operation.
