@@ -45,12 +45,6 @@ func (b Token) WriteToV2(m *acl.BearerToken) {
 	*m = (acl.BearerToken)(b)
 }
 
-// IsEmpty returns true if bearer token has no fields set.
-func (b Token) IsEmpty() bool {
-	v2token := (acl.BearerToken)(b)
-	return v2token.GetBody() == nil && v2token.GetSignature() == nil
-}
-
 // SetExpiration sets "exp" (expiration time) claim which identifies the
 // expiration time (in NeoFS epochs) on or after which the Token MUST NOT be
 // accepted for processing. The processing of the "exp" claim requires that the
@@ -231,7 +225,7 @@ func (b *Token) Sign(key ecdsa.PrivateKey) error {
 
 // VerifySignature returns nil if bearer token contains correct signature.
 func (b Token) VerifySignature() error {
-	if b.IsEmpty() {
+	if b.isEmpty() {
 		return nil
 	}
 
@@ -245,18 +239,18 @@ func (b Token) VerifySignature() error {
 // Issuer returns owner.ID associated with the key that signed bearer token.
 // To pass node validation it should be owner of requested container.
 //
-// If token is not signed, issuer returns empty owner ID.
+// If token is not signed, Issuer returns empty owner ID and false `ok` flag.
 //
 // See also Sign.
-func (b Token) Issuer() (id owner.ID) {
+func (b Token) Issuer() (id owner.ID, ok bool) {
 	v2 := (acl.BearerToken)(b)
 
 	pub, _ := keys.NewPublicKeyFromBytes(v2.GetSignature().GetKey(), elliptic.P256())
 	if pub == nil {
-		return id
+		return id, false
 	}
 
-	return *owner.NewIDFromPublicKey((*ecdsa.PublicKey)(pub))
+	return *owner.NewIDFromPublicKey((*ecdsa.PublicKey)(pub)), true
 }
 
 // sanityCheck if bearer token is ready to be issued.
@@ -313,4 +307,9 @@ func (b Token) MarshalJSON() ([]byte, error) {
 func (b *Token) UnmarshalJSON(data []byte) error {
 	v2 := (*acl.BearerToken)(b)
 	return v2.UnmarshalJSON(data)
+}
+
+func (b Token) isEmpty() bool {
+	v2token := (acl.BearerToken)(b)
+	return v2token.GetBody() == nil && v2token.GetSignature() == nil
 }
