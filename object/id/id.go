@@ -130,12 +130,6 @@ func (id ID) CalculateIDSignature(key ecdsa.PrivateKey) (signature.Signature, er
 	return *sign, err
 }
 
-// Empty returns true if it is called on
-// zero object ID.
-func (id ID) Empty() bool {
-	return id == ID{}
-}
-
 // Marshal marshals ID into a protobuf binary form.
 func (id ID) Marshal() ([]byte, error) {
 	var v2 refs.ObjectID

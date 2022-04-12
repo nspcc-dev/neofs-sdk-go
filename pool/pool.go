@@ -192,7 +192,12 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 		prm.waitParams.setDefaults()
 	}
 
-	return waitForEACLPresence(ctx, c, prm.table.CID(), &prm.table, &prm.waitParams)
+	var cIDp *cid.ID
+	if cID, set := prm.table.CID(); set {
+		cIDp = &cID
+	}
+
+	return waitForEACLPresence(ctx, c, cIDp, &prm.table, &prm.waitParams)
 }
 
 func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (*netmap.NodeInfo, error) {
@@ -288,12 +293,12 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) error {
 	var cliPrm sdkClient.PrmObjectDelete
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr, set := prm.addr.ContainerID(); set {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj, set := prm.addr.ObjectID(); set {
+		cliPrm.ByID(obj)
 	}
 
 	if prm.stoken != nil {
@@ -314,20 +319,20 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
 	var cliPrm sdkClient.PrmObjectGet
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr, set := prm.addr.ContainerID(); set {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj, set := prm.addr.ObjectID(); set {
+		cliPrm.ByID(obj)
 	}
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr, set := prm.addr.ContainerID(); set {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj, set := prm.addr.ObjectID(); set {
+		cliPrm.ByID(obj)
 	}
 
 	if prm.stoken != nil {
@@ -362,12 +367,12 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
 	var cliPrm sdkClient.PrmObjectHead
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr, set := prm.addr.ContainerID(); set {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj, set := prm.addr.ObjectID(); set {
+		cliPrm.ByID(obj)
 	}
 
 	if prm.stoken != nil {
@@ -401,12 +406,12 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*R
 	cliPrm.SetOffset(prm.off)
 	cliPrm.SetLength(prm.ln)
 
-	if cnr := prm.addr.ContainerID(); cnr != nil {
-		cliPrm.FromContainer(*cnr)
+	if cnr, set := prm.addr.ContainerID(); set {
+		cliPrm.FromContainer(cnr)
 	}
 
-	if obj := prm.addr.ObjectID(); obj != nil {
-		cliPrm.ByID(*obj)
+	if obj, set := prm.addr.ObjectID(); set {
+		cliPrm.ByID(obj)
 	}
 
 	if prm.stoken != nil {
@@ -1354,10 +1359,15 @@ func (p *Pool) fillAppropriateKey(prm *prmCommon) {
 
 // PutObject writes an object through a remote server using NeoFS API protocol.
 func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
+	var cIDp *cid.ID
+	if cID, set := prm.hdr.ContainerID(); set {
+		cIDp = &cID
+	}
+
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(sessionv2.ObjectVerbPut)
-	prmCtx.useAddress(newAddressFromCnrID(prm.hdr.ContainerID()))
+	prmCtx.useAddress(newAddressFromCnrID(cIDp))
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1786,7 +1796,9 @@ func sessionTokenForOwner(id *owner.ID, cliRes *resCreateSession, exp uint64) *s
 
 func newAddressFromCnrID(cnrID *cid.ID) *address.Address {
 	addr := address.NewAddress()
-	addr.SetContainerID(cnrID)
+	if cnrID != nil {
+		addr.SetContainerID(*cnrID)
+	}
 	return addr
 }
 

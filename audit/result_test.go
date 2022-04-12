@@ -66,7 +66,8 @@ func TestResultData(t *testing.T) {
 	countFailNodes := func(f func([]byte)) int { return countNodes(false, f) }
 
 	require.Zero(t, r.Epoch())
-	require.True(t, r.Container().Empty())
+	_, set := r.Container()
+	require.False(t, set)
 	require.Nil(t, r.AuditorKey())
 	require.False(t, r.Completed())
 	require.Zero(t, r.RequestsPoR())
@@ -82,7 +83,9 @@ func TestResultData(t *testing.T) {
 
 	cnr := cidtest.ID()
 	r.ForContainer(cnr)
-	require.Equal(t, cnr, r.Container())
+	cID, set := r.Container()
+	require.True(t, set)
+	require.Equal(t, cnr, cID)
 
 	key := []byte{1, 2, 3}
 	r.SetAuditorKey(key)

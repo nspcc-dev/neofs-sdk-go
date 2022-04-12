@@ -112,9 +112,3 @@ func (id *ID) DecodeString(s string) error {
 func (id ID) String() string {
 	return id.EncodeToString()
 }
-
-// Empty returns true if it is called on
-// zero container ID.
-func (id ID) Empty() bool {
-	return id == ID{}
-}

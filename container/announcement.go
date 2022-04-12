@@ -1,6 +1,9 @@
 package container
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -39,7 +42,7 @@ func (a *UsedSpaceAnnouncement) SetEpoch(epoch uint64) {
 }
 
 // ContainerID of the announcement.
-func (a *UsedSpaceAnnouncement) ContainerID() (cID cid.ID) {
+func (a *UsedSpaceAnnouncement) ContainerID() (cID cid.ID, isSet bool) {
 	v2 := (*container.UsedSpaceAnnouncement)(a)
 
 	cidV2 := v2.GetContainerID()
@@ -48,6 +51,7 @@ func (a *UsedSpaceAnnouncement) ContainerID() (cID cid.ID) {
 	}
 
 	_ = cID.ReadFromV2(*cidV2)
+	isSet = true
 
 	return
 }
@@ -82,7 +86,28 @@ func (a *UsedSpaceAnnouncement) Marshal() ([]byte, error) {
 	return a.ToV2().StableMarshal(nil)
 }
 
+var errCIDNotSet = errors.New("container ID is not set")
+
 // Unmarshal unmarshals protobuf binary representation of UsedSpaceAnnouncement.
 func (a *UsedSpaceAnnouncement) Unmarshal(data []byte) error {
-	return a.ToV2().Unmarshal(data)
+	err := a.ToV2().Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	// format checks
+
+	var cID cid.ID
+
+	cidV2 := a.ToV2().GetContainerID()
+	if cidV2 == nil {
+		return errCIDNotSet
+	}
+
+	err = cID.ReadFromV2(*cidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 container ID: %w", err)
+	}
+
+	return nil
 }
