@@ -1699,7 +1699,8 @@ func waitForContainerRemoved(ctx context.Context, cli client, cnrID *cid.ID, wai
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, prm)
-		return sdkClient.IsErrContainerNotFound(err)
+		return sdkClient.IsErrContainerNotFound(err) ||
+			err != nil && strings.Contains(err.Error(), "not found")
 	})
 }
 
