@@ -14,9 +14,11 @@ import (
 	sigutil "github.com/nspcc-dev/neofs-sdk-go/util/signature"
 )
 
-var errCheckSumMismatch = errors.New("payload checksum mismatch")
-
-var errIncorrectID = errors.New("incorrect object identifier")
+var (
+	errCheckSumMismatch = errors.New("payload checksum mismatch")
+	errCheckSumNotSet   = errors.New("payload checksum is not set")
+	errIncorrectID      = errors.New("incorrect object identifier")
+)
 
 // CalculatePayloadChecksum calculates and returns checksum of
 // object payload bytes.
@@ -39,7 +41,13 @@ func CalculateAndSetPayloadChecksum(obj *Object) {
 // corresponds to its payload.
 func VerifyPayloadChecksum(obj *Object) error {
 	actual := CalculatePayloadChecksum(obj.Payload())
-	if !bytes.Equal(obj.PayloadChecksum().Value(), actual.Value()) {
+
+	cs, set := obj.PayloadChecksum()
+	if !set {
+		return errCheckSumNotSet
+	}
+
+	if !bytes.Equal(cs.Value(), actual.Value()) {
 		return errCheckSumMismatch
 	}
 

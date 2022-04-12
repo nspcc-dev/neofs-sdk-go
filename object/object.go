@@ -196,20 +196,22 @@ func (o *Object) SetCreationEpoch(v uint64) {
 	})
 }
 
-// PayloadChecksum returns checksum of the object payload.
+// PayloadChecksum returns checksum of the object payload and
+// bool that indicates checksum presence in the object.
 //
-// Zero Object has zero checksum.
+// Zero Object does not have payload checksum.
 //
 // See also SetPayloadChecksum.
-func (o *Object) PayloadChecksum() checksum.Checksum {
+func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
 	var v checksum.Checksum
 	v2 := (*object.Object)(o)
 
 	if hash := v2.GetHeader().GetPayloadHash(); hash != nil {
 		v.ReadFromV2(*hash)
+		return v, true
 	}
 
-	return v
+	return v, false
 }
 
 // SetPayloadChecksum sets checksum of the object payload.
@@ -225,20 +227,22 @@ func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 	})
 }
 
-// PayloadHomomorphicHash returns homomorphic hash of the object payload.
+// PayloadHomomorphicHash returns homomorphic hash of the object
+// payload and bool that indicates checksum presence in the object.
 //
-// Zero Object has zero checksum.
+// Zero Object does not have payload homomorphic checksum.
 //
 // See also SetPayloadHomomorphicHash.
-func (o *Object) PayloadHomomorphicHash() checksum.Checksum {
+func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 	var v checksum.Checksum
 	v2 := (*object.Object)(o)
 
 	if hash := v2.GetHeader().GetHomomorphicHash(); hash != nil {
 		v.ReadFromV2(*hash)
+		return v, true
 	}
 
-	return v
+	return v, false
 }
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.

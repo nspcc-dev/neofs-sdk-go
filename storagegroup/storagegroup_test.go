@@ -21,7 +21,10 @@ func TestStorageGroup(t *testing.T) {
 
 	cs := checksumtest.Checksum()
 	sg.SetValidationDataHash(cs)
-	require.Equal(t, cs, sg.ValidationDataHash())
+	cs2, set := sg.ValidationDataHash()
+
+	require.True(t, set)
+	require.Equal(t, cs, cs2)
 
 	exp := uint64(33)
 	sg.SetExpirationEpoch(exp)
@@ -78,7 +81,8 @@ func TestNew(t *testing.T) {
 
 		// check initial values
 		require.Nil(t, sg.Members())
-		require.True(t, sg.ValidationDataHash().Empty())
+		_, set := sg.ValidationDataHash()
+		require.False(t, set)
 		require.Zero(t, sg.ExpirationEpoch())
 		require.Zero(t, sg.ValidationDataSize())
 

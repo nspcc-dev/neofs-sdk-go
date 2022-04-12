@@ -126,8 +126,10 @@ func TestObject_SetPayloadChecksum(t *testing.T) {
 	cs.SetSHA256(randSHA256Checksum(t))
 
 	obj.SetPayloadChecksum(cs)
+	cs2, set := obj.PayloadChecksum()
 
-	require.Equal(t, cs, obj.PayloadChecksum())
+	require.True(t, set)
+	require.Equal(t, cs, cs2)
 }
 
 func TestObject_SetPayloadHomomorphicHash(t *testing.T) {
@@ -137,8 +139,10 @@ func TestObject_SetPayloadHomomorphicHash(t *testing.T) {
 	cs.SetTillichZemor(randTZChecksum(t))
 
 	obj.SetPayloadHomomorphicHash(cs)
+	cs2, set := obj.PayloadHomomorphicHash()
 
-	require.Equal(t, cs, obj.PayloadHomomorphicHash())
+	require.True(t, set)
+	require.Equal(t, cs, cs2)
 }
 
 func TestObject_SetAttributes(t *testing.T) {
