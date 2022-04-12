@@ -221,7 +221,9 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 	if prm.stoken != nil {
 		wObj.WithinSession(*prm.stoken)
 	}
-	wObj.UseKey(*prm.key)
+	if prm.key != nil {
+		wObj.UseKey(*prm.key)
+	}
 
 	if prm.btoken != nil {
 		wObj.WithBearerToken(*prm.btoken)
@@ -302,7 +304,9 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	cliPrm.UseKey(*prm.key)
+	if prm.key != nil {
+		cliPrm.UseKey(*prm.key)
+	}
 	_, err := c.client.ObjectDelete(ctx, cliPrm)
 	return err
 }
@@ -341,7 +345,9 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 		return nil, fmt.Errorf("init object reading on client: %w", err)
 	}
 
-	rObj.UseKey(*prm.key)
+	if prm.key != nil {
+		rObj.UseKey(*prm.key)
+	}
 
 	if !rObj.ReadHeader(&res.Header) {
 		_, err = rObj.Close()
@@ -372,7 +378,9 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*obj
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	cliPrm.UseKey(*prm.key)
+	if prm.key != nil {
+		cliPrm.UseKey(*prm.key)
+	}
 
 	var obj object.Object
 
@@ -413,7 +421,9 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*R
 	if err != nil {
 		return nil, fmt.Errorf("init payload range reading on client: %w", err)
 	}
-	res.UseKey(*prm.key)
+	if prm.key != nil {
+		res.UseKey(*prm.key)
+	}
 
 	return &ResObjectRange{payload: res}, nil
 }
@@ -436,7 +446,9 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 	if err != nil {
 		return nil, fmt.Errorf("init object searching on client: %w", err)
 	}
-	res.UseKey(*prm.key)
+	if prm.key != nil {
+		res.UseKey(*prm.key)
+	}
 
 	return &ResObjectSearch{r: res}, nil
 }
@@ -1333,12 +1345,21 @@ func (p *Pool) call(ctx *callContext, f func() error) error {
 	return err
 }
 
+// fillAppropriateKey use pool key if caller didn't specify its own.
+func (p *Pool) fillAppropriateKey(prm *prmCommon) {
+	if prm.key == nil {
+		prm.key = p.key
+	}
+}
+
 // PutObject writes an object through a remote server using NeoFS API protocol.
 func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(sessionv2.ObjectVerbPut)
 	prmCtx.useAddress(newAddressFromCnrID(prm.hdr.ContainerID()))
+
+	p.fillAppropriateKey(&prm.prmCommon)
 
 	var ctxCall callContext
 
@@ -1354,7 +1375,6 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 			return nil, fmt.Errorf("open default session: %w", err)
 		}
 	}
-	prm.key = ctxCall.key
 
 	id, err := ctxCall.client.objectPut(ctx, prm)
 	if err != nil {
@@ -1375,6 +1395,8 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(sessionv2.ObjectVerbDelete)
 	prmCtx.useAddress(&prm.addr)
+
+	p.fillAppropriateKey(&prm.prmCommon)
 
 	var cc callContext
 
@@ -1422,6 +1444,8 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 	prmCtx.useVerb(sessionv2.ObjectVerbGet)
 	prmCtx.useAddress(&prm.addr)
 
+	p.fillAppropriateKey(&prm.prmCommon)
+
 	var cc callContext
 	cc.Context = ctx
 	cc.sessionTarget = prm.UseSession
@@ -1444,6 +1468,8 @@ func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Objec
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(sessionv2.ObjectVerbHead)
 	prmCtx.useAddress(&prm.addr)
+
+	p.fillAppropriateKey(&prm.prmCommon)
 
 	var cc callContext
 
@@ -1490,6 +1516,8 @@ func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectR
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(sessionv2.ObjectVerbRange)
 	prmCtx.useAddress(&prm.addr)
+
+	p.fillAppropriateKey(&prm.prmCommon)
 
 	var cc callContext
 	cc.Context = ctx
@@ -1554,6 +1582,8 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(sessionv2.ObjectVerbSearch)
 	prmCtx.useAddress(newAddressFromCnrID(&prm.cnrID))
+
+	p.fillAppropriateKey(&prm.prmCommon)
 
 	var cc callContext
 
