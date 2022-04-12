@@ -62,9 +62,17 @@ func (v *Version) ReadFromV2(m refs.Version) {
 	*v = Version(m)
 }
 
-// String returns semver formatted value without patch and with v prefix,
-// e.g. 'v2.1'.
+// String implements fmt.Stringer.
+//
+// String is designed to be human-readable, and its format MAY differ between
+// SDK versions.
 func (v Version) String() string {
+	return EncodeToString(v)
+}
+
+// EncodeToString encodes version according to format from specification:
+// semver formatted value without patch and with v prefix, e.g. 'v2.1'.
+func EncodeToString(v Version) string {
 	return fmt.Sprintf("v%d.%d", v.Major(), v.Minor())
 }
 
