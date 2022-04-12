@@ -25,7 +25,7 @@ version prefix and checksum in addition to script-hash.
 ### token
 Contains Bearer token type with several NeoFS-specific methods.
 
-### resolver
+### ns
 In NeoFS there are 2 types of name resolution: DNS and NNS. NNS stands for Neo Name Service
 is just a [contract](https://github.com/nspcc-dev/neofs-contract/) deployed on a Neo blockchain.
 Basically, NNS is just a DNS-on-chain which can be used for resolving container nice-names as well
