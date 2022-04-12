@@ -16,8 +16,8 @@ func TestBearerToken_Issuer(t *testing.T) {
 	var bearerToken bearer.Token
 
 	t.Run("non signed token", func(t *testing.T) {
-		id := bearerToken.Issuer()
-		require.Equal(t, owner.ID{}, id)
+		_, ok := bearerToken.Issuer()
+		require.False(t, ok)
 	})
 
 	t.Run("signed token", func(t *testing.T) {
@@ -28,7 +28,8 @@ func TestBearerToken_Issuer(t *testing.T) {
 
 		bearerToken.SetEACLTable(*eacl.NewTable())
 		require.NoError(t, bearerToken.Sign(p.PrivateKey))
-		issuer := bearerToken.Issuer()
+		issuer, ok := bearerToken.Issuer()
+		require.True(t, ok)
 		require.True(t, ownerID.Equal(&issuer))
 	})
 }
