@@ -29,16 +29,16 @@ type NNS struct {
 }
 
 // client is a core implementation of internal NNS.neoClient which is used by NNS.Dial.
-type client neoclient.Client
+type client neoclient.WSClient
 
 func (x *client) invoke(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
-	return (*neoclient.Client)(x).InvokeFunction(contract, method, prm, nil)
+	return (*neoclient.WSClient)(x).InvokeFunction(contract, method, prm, nil)
 }
 
 // Dial connects to the address of the NNS server. If fails, the instance
 // SHOULD NOT be used.
 func (n *NNS) Dial(address string) error {
-	cli, err := neoclient.New(context.Background(), address, neoclient.Options{})
+	cli, err := neoclient.NewWS(context.Background(), address, neoclient.Options{})
 	if err != nil {
 		return fmt.Errorf("create neo client: %w", err)
 	}
