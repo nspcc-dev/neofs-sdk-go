@@ -88,7 +88,12 @@ func VerifyID(obj *Object) error {
 		return err
 	}
 
-	if !id.Equals(obj.ID()) {
+	oID, set := obj.ID()
+	if !set {
+		return errOIDNotSet
+	}
+
+	if !id.Equals(oID) {
 		return errIncorrectID
 	}
 
@@ -98,7 +103,12 @@ func VerifyID(obj *Object) error {
 // CalculateAndSetSignature signs id with provided key and sets that signature to
 // the object.
 func CalculateAndSetSignature(key ecdsa.PrivateKey, obj *Object) error {
-	sig, err := obj.ID().CalculateIDSignature(key)
+	oID, set := obj.ID()
+	if !set {
+		return errOIDNotSet
+	}
+
+	sig, err := oID.CalculateIDSignature(key)
 	if err != nil {
 		return err
 	}
@@ -110,8 +120,13 @@ func CalculateAndSetSignature(key ecdsa.PrivateKey, obj *Object) error {
 
 // VerifyIDSignature verifies object ID signature.
 func (o *Object) VerifyIDSignature() bool {
+	oID, set := o.ID()
+	if !set {
+		return false
+	}
+
 	var idV2 refs.ObjectID
-	o.ID().WriteToV2(&idV2)
+	oID.WriteToV2(&idV2)
 
 	sig := o.Signature()
 

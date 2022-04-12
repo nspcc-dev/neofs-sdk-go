@@ -2,6 +2,7 @@ package address
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -45,16 +46,16 @@ func (a *Address) ToV2() *refs.Address {
 }
 
 // ContainerID returns container identifier.
-func (a *Address) ContainerID() (v cid.ID) {
-	var cID cid.ID
+func (a *Address) ContainerID() (v cid.ID, isSet bool) {
 	v2 := (*refs.Address)(a)
 
 	cidV2 := v2.GetContainerID()
 	if cidV2 != nil {
-		_ = cID.ReadFromV2(*cidV2)
+		_ = v.ReadFromV2(*cidV2)
+		isSet = true
 	}
 
-	return cID
+	return
 }
 
 // SetContainerID sets container identifier.
@@ -66,16 +67,16 @@ func (a *Address) SetContainerID(id cid.ID) {
 }
 
 // ObjectID returns object identifier.
-func (a *Address) ObjectID() (v oid.ID) {
-	var id oid.ID
+func (a *Address) ObjectID() (v oid.ID, isSet bool) {
 	v2 := (*refs.Address)(a)
 
 	oidV2 := v2.GetObjectID()
 	if oidV2 != nil {
-		_ = id.ReadFromV2(*oidV2)
+		_ = v.ReadFromV2(*oidV2)
+		isSet = true
 	}
 
-	return id
+	return
 }
 
 // SetObjectID sets object identifier.
@@ -111,10 +112,17 @@ func (a *Address) Parse(s string) error {
 
 // String returns string representation of Object.Address.
 func (a *Address) String() string {
-	return strings.Join([]string{
-		a.ContainerID().String(),
-		a.ObjectID().String(),
-	}, addressSeparator)
+	var cidStr, oidStr string
+
+	if cID, set := a.ContainerID(); set {
+		cidStr = cID.String()
+	}
+
+	if oID, set := a.ObjectID(); set {
+		oidStr = oID.String()
+	}
+
+	return strings.Join([]string{cidStr, oidStr}, addressSeparator)
 }
 
 // Marshal marshals Address into a protobuf binary form.
@@ -122,9 +130,19 @@ func (a *Address) Marshal() ([]byte, error) {
 	return (*refs.Address)(a).StableMarshal(nil)
 }
 
+var errCIDNotSet = errors.New("container ID is not set")
+var errOIDNotSet = errors.New("object ID is not set")
+
 // Unmarshal unmarshals protobuf binary representation of Address.
 func (a *Address) Unmarshal(data []byte) error {
-	return (*refs.Address)(a).Unmarshal(data)
+	err := (*refs.Address)(a).Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	v2 := a.ToV2()
+
+	return checkFormat(v2)
 }
 
 // MarshalJSON encodes Address to protobuf JSON format.
@@ -134,5 +152,41 @@ func (a *Address) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes Address from protobuf JSON format.
 func (a *Address) UnmarshalJSON(data []byte) error {
-	return (*refs.Address)(a).UnmarshalJSON(data)
+	v2 := (*refs.Address)(a)
+
+	err := v2.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return checkFormat(v2)
+}
+
+func checkFormat(v2 *refs.Address) error {
+	var (
+		cID cid.ID
+		oID oid.ID
+	)
+
+	cidV2 := v2.GetContainerID()
+	if cidV2 == nil {
+		return errCIDNotSet
+	}
+
+	err := cID.ReadFromV2(*cidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 container ID: %w", err)
+	}
+
+	oidV2 := v2.GetObjectID()
+	if oidV2 == nil {
+		return errOIDNotSet
+	}
+
+	err = oID.ReadFromV2(*oidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 object ID: %w", err)
+	}
+
+	return nil
 }

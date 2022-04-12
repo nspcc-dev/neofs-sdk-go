@@ -44,7 +44,9 @@ func TestObject_SetID(t *testing.T) {
 
 	obj.SetID(id)
 
-	require.Equal(t, id, obj.ID())
+	oID, set := obj.ID()
+	require.True(t, set)
+	require.Equal(t, id, oID)
 }
 
 func TestObject_SetSignature(t *testing.T) {
@@ -98,7 +100,9 @@ func TestObject_SetContainerID(t *testing.T) {
 
 	obj.SetContainerID(cid)
 
-	require.Equal(t, cid, obj.ContainerID())
+	cID, set := obj.ContainerID()
+	require.True(t, set)
+	require.Equal(t, cid, cID)
 }
 
 func TestObject_SetOwnerID(t *testing.T) {
@@ -168,7 +172,10 @@ func TestObject_SetPreviousID(t *testing.T) {
 
 	obj.SetPreviousID(prev)
 
-	require.Equal(t, prev, obj.PreviousID())
+	oID, set := obj.PreviousID()
+
+	require.True(t, set)
+	require.Equal(t, prev, oID)
 }
 
 func TestObject_SetChildren(t *testing.T) {
@@ -270,7 +277,9 @@ func TestObject_SetParentID(t *testing.T) {
 	id := randID(t)
 	obj.SetParentID(id)
 
-	require.Equal(t, id, obj.ParentID())
+	oID, set := obj.ParentID()
+	require.True(t, set)
+	require.Equal(t, id, oID)
 }
 
 func TestObject_ResetRelations(t *testing.T) {
@@ -280,7 +289,8 @@ func TestObject_ResetRelations(t *testing.T) {
 
 	obj.ResetRelations()
 
-	require.True(t, obj.PreviousID().Empty())
+	_, set := obj.PreviousID()
+	require.False(t, set)
 }
 
 func TestObject_HasParent(t *testing.T) {
@@ -298,6 +308,7 @@ func TestObject_HasParent(t *testing.T) {
 func TestObjectEncoding(t *testing.T) {
 	o := New()
 	o.SetID(randID(t))
+	o.SetContainerID(cidtest.ID())
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := o.Marshal()

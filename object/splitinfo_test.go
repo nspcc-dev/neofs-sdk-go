@@ -21,10 +21,14 @@ func TestSplitInfo(t *testing.T) {
 	require.Equal(t, splitID, s.SplitID())
 
 	s.SetLastPart(lastPart)
-	require.Equal(t, lastPart, s.LastPart())
+	lp, set := s.LastPart()
+	require.True(t, set)
+	require.Equal(t, lastPart, lp)
 
 	s.SetLink(link)
-	require.Equal(t, link, s.Link())
+	l, set := s.Link()
+	require.True(t, set)
+	require.Equal(t, link, l)
 
 	t.Run("to and from v2", func(t *testing.T) {
 		v2 := s.ToV2()
@@ -77,8 +81,10 @@ func TestNewSplitInfo(t *testing.T) {
 
 		// check initial values
 		require.Nil(t, si.SplitID())
-		require.True(t, si.LastPart().Empty())
-		require.True(t, si.Link().Empty())
+		_, set := si.LastPart()
+		require.False(t, set)
+		_, set = si.Link()
+		require.False(t, set)
 
 		// convert to v2 message
 		siV2 := si.ToV2()

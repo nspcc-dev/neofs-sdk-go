@@ -1,6 +1,9 @@
 package object
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -41,16 +44,16 @@ func (s *SplitInfo) SetSplitID(v *SplitID) {
 	(*object.SplitInfo)(s).SetSplitID(v.ToV2())
 }
 
-func (s SplitInfo) LastPart() oid.ID {
-	var id oid.ID
+func (s SplitInfo) LastPart() (v oid.ID, isSet bool) {
 	v2 := (object.SplitInfo)(s)
 
 	lpV2 := v2.GetLastPart()
 	if lpV2 != nil {
-		_ = id.ReadFromV2(*lpV2)
+		_ = v.ReadFromV2(*lpV2)
+		isSet = true
 	}
 
-	return id
+	return
 }
 
 func (s *SplitInfo) SetLastPart(v oid.ID) {
@@ -60,16 +63,16 @@ func (s *SplitInfo) SetLastPart(v oid.ID) {
 	(*object.SplitInfo)(s).SetLastPart(&idV2)
 }
 
-func (s SplitInfo) Link() oid.ID {
-	var id oid.ID
+func (s SplitInfo) Link() (v oid.ID, isSet bool) {
 	v2 := (object.SplitInfo)(s)
 
 	linkV2 := v2.GetLink()
 	if linkV2 != nil {
-		_ = id.ReadFromV2(*linkV2)
+		_ = v.ReadFromV2(*linkV2)
+		isSet = true
 	}
 
-	return id
+	return
 }
 
 func (s *SplitInfo) SetLink(v oid.ID) {
@@ -84,7 +87,12 @@ func (s *SplitInfo) Marshal() ([]byte, error) {
 }
 
 func (s *SplitInfo) Unmarshal(data []byte) error {
-	return (*object.SplitInfo)(s).Unmarshal(data)
+	err := (*object.SplitInfo)(s).Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	return formatCheckSI((*object.SplitInfo)(s))
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -94,5 +102,39 @@ func (s *SplitInfo) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaler.
 func (s *SplitInfo) UnmarshalJSON(data []byte) error {
-	return (*object.SplitInfo)(s).UnmarshalJSON(data)
+	err := (*object.SplitInfo)(s).UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return formatCheckSI((*object.SplitInfo)(s))
+}
+
+var errLinkNotSet = errors.New("link object ID is not set")
+var errLastPartNotSet = errors.New("last part object ID is not set")
+
+func formatCheckSI(v2 *object.SplitInfo) error {
+	var oID oid.ID
+
+	link := v2.GetLink()
+	if link == nil {
+		return errLinkNotSet
+	}
+
+	err := oID.ReadFromV2(*link)
+	if err != nil {
+		return fmt.Errorf("could not convert link object ID: %w", err)
+	}
+
+	lastPart := v2.GetLastPart()
+	if lastPart == nil {
+		return errLastPartNotSet
+	}
+
+	err = oID.ReadFromV2(*lastPart)
+	if err != nil {
+		return fmt.Errorf("could not convert last part object ID: %w", err)
+	}
+
+	return nil
 }

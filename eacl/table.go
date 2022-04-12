@@ -2,6 +2,8 @@ package eacl
 
 import (
 	"crypto/sha256"
+	"errors"
+	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -16,20 +18,25 @@ import (
 // Table is compatible with v2 acl.EACLTable message.
 type Table struct {
 	version version.Version
-	cid     cid.ID
+	cid     *cid.ID
 	token   *session.Token
 	sig     *signature.Signature
 	records []Record
 }
 
 // CID returns identifier of the container that should use given access control rules.
-func (t Table) CID() cid.ID {
-	return t.cid
+func (t Table) CID() (cID cid.ID, isSet bool) {
+	if t.cid != nil {
+		cID = *t.cid
+		isSet = true
+	}
+
+	return
 }
 
 // SetCID sets identifier of the container that should use given access control rules.
 func (t *Table) SetCID(cid cid.ID) {
-	t.cid = cid
+	t.cid = &cid
 }
 
 // Version returns version of eACL format.
@@ -87,7 +94,7 @@ func (t *Table) ToV2() *v2acl.Table {
 	v2 := new(v2acl.Table)
 	var cidV2 refs.ContainerID
 
-	if !t.cid.Empty() {
+	if t.cid != nil {
 		t.cid.WriteToV2(&cidV2)
 		v2.SetContainerID(&cidV2)
 	}
@@ -150,8 +157,8 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 
 	// set container id
 	if id := table.GetContainerID(); id != nil {
-		if t.cid.Empty() {
-			t.cid = cid.ID{}
+		if t.cid == nil {
+			t.cid = new(cid.ID)
 		}
 
 		var h [sha256.Size]byte
@@ -176,10 +183,18 @@ func (t *Table) Marshal() ([]byte, error) {
 	return t.ToV2().StableMarshal(nil)
 }
 
+var errCIDNotSet = errors.New("container ID is not set")
+
 // Unmarshal unmarshals protobuf binary representation of Table.
 func (t *Table) Unmarshal(data []byte) error {
 	fV2 := new(v2acl.Table)
 	if err := fV2.Unmarshal(data); err != nil {
+		return err
+	}
+
+	// format checks
+	err := checkFormat(fV2)
+	if err != nil {
 		return err
 	}
 
@@ -200,6 +215,11 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	err := checkFormat(tV2)
+	if err != nil {
+		return err
+	}
+
 	*t = *NewTableFromV2(tV2)
 
 	return nil
@@ -207,7 +227,10 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 
 // EqualTables compares Table with each other.
 func EqualTables(t1, t2 Table) bool {
-	if !t1.CID().Equals(t2.CID()) ||
+	cID1, set1 := t1.CID()
+	cID2, set2 := t2.CID()
+
+	if set1 != set2 || cID1 != cID2 ||
 		!t1.Version().Equal(t2.Version()) {
 		return false
 	}
@@ -225,4 +248,20 @@ func EqualTables(t1, t2 Table) bool {
 	}
 
 	return true
+}
+
+func checkFormat(v2 *v2acl.Table) error {
+	var cID cid.ID
+
+	cidV2 := v2.GetContainerID()
+	if cidV2 == nil {
+		return errCIDNotSet
+	}
+
+	err := cID.ReadFromV2(*cidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 container ID: %w", err)
+	}
+
+	return nil
 }

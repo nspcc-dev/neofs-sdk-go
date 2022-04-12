@@ -1,6 +1,9 @@
 package object
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -86,15 +89,14 @@ func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
 }
 
 // ID returns object identifier.
-func (o *Object) ID() oid.ID {
-	var v oid.ID
-
+func (o *Object) ID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 	if id := v2.GetObjectID(); id != nil {
 		_ = v.ReadFromV2(*v2.GetObjectID())
+		isSet = true
 	}
 
-	return v
+	return
 }
 
 // SetID sets object identifier.
@@ -161,16 +163,16 @@ func (o *Object) SetPayloadSize(v uint64) {
 }
 
 // ContainerID returns identifier of the related container.
-func (o *Object) ContainerID() cid.ID {
-	var cID cid.ID
+func (o *Object) ContainerID() (v cid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 
 	cidV2 := v2.GetHeader().GetContainerID()
 	if cidV2 != nil {
-		_ = cID.ReadFromV2(*cidV2)
+		_ = v.ReadFromV2(*cidV2)
+		isSet = true
 	}
 
-	return cID
+	return
 }
 
 // SetContainerID sets identifier of the related container.
@@ -304,16 +306,16 @@ func (o *Object) SetAttributes(v ...Attribute) {
 }
 
 // PreviousID returns identifier of the previous sibling object.
-func (o *Object) PreviousID() oid.ID {
-	var v oid.ID
+func (o *Object) PreviousID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 
 	v2Prev := v2.GetHeader().GetSplit().GetPrevious()
 	if v2Prev != nil {
 		_ = v.ReadFromV2(*v2Prev)
+		isSet = true
 	}
 
-	return v
+	return
 }
 
 // SetPreviousID sets identifier of the previous sibling object.
@@ -432,16 +434,16 @@ func (o *Object) SetSplitID(id *SplitID) {
 }
 
 // ParentID returns identifier of the parent object.
-func (o *Object) ParentID() oid.ID {
-	var v oid.ID
+func (o *Object) ParentID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 
 	v2Par := v2.GetHeader().GetSplit().GetParent()
 	if v2Par != nil {
 		_ = v.ReadFromV2(*v2Par)
+		isSet = true
 	}
 
-	return v
+	return
 }
 
 // SetParentID sets identifier of the parent object.
@@ -564,7 +566,12 @@ func (o *Object) Marshal() ([]byte, error) {
 
 // Unmarshal unmarshals protobuf binary representation of object.
 func (o *Object) Unmarshal(data []byte) error {
-	return (*object.Object)(o).Unmarshal(data)
+	err := (*object.Object)(o).Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	return formatCheck((*object.Object)(o))
 }
 
 // MarshalJSON encodes object to protobuf JSON format.
@@ -574,5 +581,56 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes object from protobuf JSON format.
 func (o *Object) UnmarshalJSON(data []byte) error {
-	return (*object.Object)(o).UnmarshalJSON(data)
+	err := (*object.Object)(o).UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return formatCheck((*object.Object)(o))
+}
+
+var errOIDNotSet = errors.New("object ID is not set")
+var errCIDNotSet = errors.New("container ID is not set")
+
+func formatCheck(v2 *object.Object) error {
+	var (
+		oID oid.ID
+		cID cid.ID
+	)
+
+	oidV2 := v2.GetObjectID()
+	if oidV2 == nil {
+		return errOIDNotSet
+	}
+
+	err := oID.ReadFromV2(*oidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 object ID: %w", err)
+	}
+
+	cidV2 := v2.GetHeader().GetContainerID()
+	if cidV2 == nil {
+		return errCIDNotSet
+	}
+
+	err = cID.ReadFromV2(*cidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 container ID: %w", err)
+	}
+
+	if prev := v2.GetHeader().GetSplit().GetPrevious(); prev != nil {
+		err = oID.ReadFromV2(*prev)
+		if err != nil {
+			return fmt.Errorf("could not convert previous object ID: %w", err)
+		}
+	}
+
+	if parent := v2.GetHeader().GetSplit().GetParent(); parent != nil {
+		err = oID.ReadFromV2(*parent)
+		if err != nil {
+			return fmt.Errorf("could not convert parent object ID: %w", err)
+		}
+	}
+
+	return nil
 }

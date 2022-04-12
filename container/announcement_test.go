@@ -26,7 +26,9 @@ func TestAnnouncement(t *testing.T) {
 
 	require.Equal(t, epoch, a.Epoch())
 	require.Equal(t, usedSpace, a.UsedSpace())
-	require.Equal(t, id, a.ContainerID())
+	cID, set := a.ContainerID()
+	require.True(t, set)
+	require.Equal(t, id, cID)
 
 	t.Run("test v2", func(t *testing.T) {
 		const newEpoch, newUsedSpace uint64 = 20, 200
@@ -51,7 +53,9 @@ func TestAnnouncement(t *testing.T) {
 
 		require.Equal(t, newEpoch, newA.Epoch())
 		require.Equal(t, newUsedSpace, newA.UsedSpace())
-		require.Equal(t, cID, newA.ContainerID())
+		cIDNew, set := newA.ContainerID()
+		require.True(t, set)
+		require.Equal(t, cID, cIDNew)
 	})
 }
 
@@ -82,7 +86,8 @@ func TestUsedSpaceAnnouncement_ToV2(t *testing.T) {
 		// check initial values
 		require.Zero(t, announcement.Epoch())
 		require.Zero(t, announcement.UsedSpace())
-		require.True(t, announcement.ContainerID().Empty())
+		_, set := announcement.ContainerID()
+		require.False(t, set)
 
 		// convert to v2 message
 		announcementV2 := announcement.ToV2()

@@ -1,6 +1,9 @@
 package audit
 
 import (
+	"errors"
+	"fmt"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/audit"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -43,17 +46,54 @@ func (r *Result) Marshal() []byte {
 	return data
 }
 
+var errCIDNotSet = errors.New("container ID is not set")
+
 // Unmarshal decodes Result from its canonical NeoFS binary format (Protocol Buffers
 // with direct field order). Returns an error describing a format violation.
 //
 // See also Marshal.
 func (r *Result) Unmarshal(data []byte) error {
 	err := r.v2.Unmarshal(data)
-	if err == nil {
-		r.versionEncoded = true
+	if err != nil {
+		return err
 	}
 
-	return err
+	r.versionEncoded = true
+
+	// format checks
+
+	var cID cid.ID
+
+	cidV2 := r.v2.GetContainerID()
+	if cidV2 == nil {
+		return errCIDNotSet
+	}
+
+	err = cID.ReadFromV2(*cidV2)
+	if err != nil {
+		return fmt.Errorf("could not convert V2 container ID: %w", err)
+	}
+
+	var (
+		oID   oid.ID
+		oidV2 refs.ObjectID
+	)
+
+	for _, oidV2 = range r.v2.GetPassSG() {
+		err = oID.ReadFromV2(oidV2)
+		if err != nil {
+			return fmt.Errorf("invalid passed storage group ID: %w", err)
+		}
+	}
+
+	for _, oidV2 = range r.v2.GetFailSG() {
+		err = oID.ReadFromV2(oidV2)
+		if err != nil {
+			return fmt.Errorf("invalid failed storage group ID: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // Epoch returns NeoFS epoch when the data associated with the Result was audited.
@@ -73,20 +113,21 @@ func (r *Result) ForEpoch(epoch uint64) {
 }
 
 // Container returns identifier of the container with which the data audit Result
-// is associated.
+// is associated and a bool that indicates container ID field presence in the Result.
 //
-// Returns zero ID if container is not specified. Zero Result has zero container.
+// Zero Result does not have container ID.
 //
 // See also ForContainer.
-func (r Result) Container() cid.ID {
+func (r Result) Container() (cid.ID, bool) {
 	var cID cid.ID
 
 	cidV2 := r.v2.GetContainerID()
 	if cidV2 != nil {
 		_ = cID.ReadFromV2(*cidV2)
+		return cID, true
 	}
 
-	return cID
+	return cID, false
 }
 
 // ForContainer sets identifier of the container with which the data audit Result
