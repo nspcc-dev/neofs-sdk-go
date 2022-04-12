@@ -30,7 +30,7 @@ type testNeoClient struct {
 	err error
 }
 
-func (x *testNeoClient) invoke(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
+func (x *testNeoClient) call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
 	require.Equal(x.t, x.expectedContract, contract)
 	require.Equal(x.t, "resolve", method)
 	require.Len(x.t, prm, 2)

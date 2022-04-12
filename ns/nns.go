@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/url"
 
 	nns "github.com/nspcc-dev/neo-go/examples/nft-nd-nns"
+	"github.com/nspcc-dev/neo-go/pkg/core/state"
 	neoclient "github.com/nspcc-dev/neo-go/pkg/rpc/client"
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
@@ -18,41 +20,87 @@ import (
 // NNS looks up NeoFS names using Neo Name Service.
 //
 // Instances are created with a variable declaration. Before work, the connection
-// to the NNS server MUST BE established using Dial method.
+// to the NNS server MUST be established using Dial method.
 type NNS struct {
 	nnsContract util.Uint160
 
-	// neoclient.Client interface wrapper, needed for testing
-	neoClient interface {
-		invoke(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error)
-	}
+	neoClient neoClient
 }
 
-// client is a core implementation of internal NNS.neoClient which is used by NNS.Dial.
-type client neoclient.WSClient
+// represents virtual connection to Neo network used by NNS.Dial.
+type neoClient interface {
+	// calls specified method of the Neo smart contract with provided parameters.
+	call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error)
+}
 
-func (x *client) invoke(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
+// implements neoClient using Neo HTTP client.
+//
+// note: see NNS.Dial to realize why this isn't defined as type wrapper like neoWebSocket.
+type neoHTTP struct {
+	*neoclient.Client
+}
+
+func (x *neoHTTP) call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
+	return x.Client.InvokeFunction(contract, method, prm, nil)
+}
+
+// implements neoClient using Neo WebSocket client.
+type neoWebSocket neoclient.WSClient
+
+func (x *neoWebSocket) call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
 	return (*neoclient.WSClient)(x).InvokeFunction(contract, method, prm, nil)
 }
 
 // Dial connects to the address of the NNS server. If fails, the instance
-// SHOULD NOT be used.
+// MUST NOT be used.
+//
+// If URL address scheme is 'ws', then WebSocket protocol is used, otherwise HTTP.
 func (n *NNS) Dial(address string) error {
-	cli, err := neoclient.NewWS(context.Background(), address, neoclient.Options{})
-	if err != nil {
-		return fmt.Errorf("create neo client: %w", err)
+	// multiSchemeClient unites neoClient and common interface of
+	// neoclient.Client and neoclient.WSClient. Interface is anonymous
+	// according to assumption that common interface of these client types
+	// is not required by design and may diverge with changes.
+	var multiSchemeClient interface {
+		neoClient
+		// Init turns client to "ready-to-work" state.
+		Init() error
+		// GetContractStateByID returns state of the NNS contract on 1 input.
+		GetContractStateByID(int32) (*state.Contract, error)
 	}
 
-	if err = cli.Init(); err != nil {
-		return fmt.Errorf("initialize neo client: %w", err)
+	uri, err := url.Parse(address)
+	if err == nil && uri.Scheme == "ws" {
+		cWebSocket, err := neoclient.NewWS(context.Background(), address, neoclient.Options{})
+		if err != nil {
+			return fmt.Errorf("create Neo WebSocket client: %w", err)
+		}
+
+		multiSchemeClient = (*neoWebSocket)(cWebSocket)
+	} else {
+		cHTTP, err := neoclient.New(context.Background(), address, neoclient.Options{})
+		if err != nil {
+			return fmt.Errorf("create Neo HTTP client: %w", err)
+		}
+
+		// if neoHTTP is defined as type wrapper
+		//   type neoHTTP neoclient.Client
+		// then next assignment causes compilation error
+		//   multiSchemeClient = (*neoHTTP)(cHTTP)
+		multiSchemeClient = &neoHTTP{
+			Client: cHTTP,
+		}
 	}
 
-	nnsContract, err := cli.GetContractStateByID(1)
+	if err = multiSchemeClient.Init(); err != nil {
+		return fmt.Errorf("initialize Neo client: %w", err)
+	}
+
+	nnsContract, err := multiSchemeClient.GetContractStateByID(1)
 	if err != nil {
 		return fmt.Errorf("get NNS contract state: %w", err)
 	}
 
-	n.neoClient = (*client)(cli)
+	n.neoClient = multiSchemeClient
 	n.nnsContract = nnsContract.Hash
 
 	return nil
@@ -66,7 +114,7 @@ func (n *NNS) Dial(address string) error {
 //
 // See also https://docs.neo.org/docs/en-us/reference/nns.html.
 func (n *NNS) ResolveContainerName(name string) (*cid.ID, error) {
-	res, err := n.neoClient.invoke(n.nnsContract, "resolve", []smartcontract.Parameter{
+	res, err := n.neoClient.call(n.nnsContract, "resolve", []smartcontract.Parameter{
 		{
 			Type:  smartcontract.StringType,
 			Value: name + ".container",
