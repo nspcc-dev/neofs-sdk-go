@@ -54,7 +54,8 @@ func (x *neoWebSocket) call(contract util.Uint160, method string, prm []smartcon
 // Dial connects to the address of the NNS server. If fails, the instance
 // MUST NOT be used.
 //
-// If URL address scheme is 'ws', then WebSocket protocol is used, otherwise HTTP.
+// If URL address scheme is 'ws' or 'wss', then WebSocket protocol is used,
+// otherwise HTTP.
 func (n *NNS) Dial(address string) error {
 	// multiSchemeClient unites neoClient and common interface of
 	// neoclient.Client and neoclient.WSClient. Interface is anonymous
@@ -69,7 +70,7 @@ func (n *NNS) Dial(address string) error {
 	}
 
 	uri, err := url.Parse(address)
-	if err == nil && uri.Scheme == "ws" {
+	if err == nil && (uri.Scheme == "ws" || uri.Scheme == "wss") {
 		cWebSocket, err := neoclient.NewWS(context.Background(), address, neoclient.Options{})
 		if err != nil {
 			return fmt.Errorf("create Neo WebSocket client: %w", err)
