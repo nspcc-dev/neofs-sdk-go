@@ -234,7 +234,6 @@ func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
 }
 
 // SetPayloadChecksum sets checksum of the object payload.
-// Checksum must not be nil.
 //
 // See also PayloadChecksum.
 func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
@@ -265,7 +264,6 @@ func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 }
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
-// Checksum must not be nil.
 //
 // See also PayloadHomomorphicHash.
 func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
