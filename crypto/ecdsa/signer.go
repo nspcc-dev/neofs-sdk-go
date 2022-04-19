@@ -5,7 +5,6 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/sha512"
-	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -65,22 +64,13 @@ func (x Signer) Sign(data []byte) ([]byte, error) {
 	return elliptic.Marshal(elliptic.P256(), r, s), nil
 }
 
-// MaxPublicKeyEncodedSize returns size of the compressed ECDSA public key
-// of the Signer.
-func (x Signer) MaxPublicKeyEncodedSize() int {
-	return 33
-}
+func (x Signer) Public() neofscrypto.PublicKey {
+	var pub PublicKey
+	pub.SetKey(x.key.PublicKey)
 
-// EncodePublicKey encodes ECDSA public key of the Signer in compressed form
-// into buf. Uses exactly MaxPublicKeyEncodedSize bytes of the buf.
-//
-// EncodePublicKey panics if buf length is less than MaxPublicKeyEncodedSize.
-//
-// See also PublicKey.Decode.
-func (x Signer) EncodePublicKey(buf []byte) int {
-	if len(buf) < 33 {
-		panic(fmt.Sprintf("too short buffer %d", len(buf)))
+	if x.deterministic {
+		pub.MakeDeterministic()
 	}
 
-	return copy(buf, (*keys.PublicKey)(&x.key.PublicKey).Bytes())
+	return &pub
 }

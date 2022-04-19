@@ -43,8 +43,10 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 		return fmt.Errorf("signer %T failure: %w", signer, err)
 	}
 
-	key := make([]byte, signer.MaxPublicKeyEncodedSize())
-	key = key[:signer.EncodePublicKey(key)]
+	pub := signer.Public()
+
+	key := make([]byte, pub.MaxEncodedSize())
+	key = key[:pub.Encode(key)]
 
 	m := (*refs.Signature)(x)
 

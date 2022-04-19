@@ -55,23 +55,8 @@ type Signer interface {
 	// Sign signs SHA-256 hash of the data.
 	Sign(data []byte) ([]byte, error)
 
-	// MaxPublicKeyEncodedSize returns maximum size required for binary-encoded
-	// public key.
-	//
-	// MaxPublicKeyEncodedSize MUST NOT return value greater than any return of
-	// EncodePublicKey.
-	MaxPublicKeyEncodedSize() int
-
-	// EncodePublicKey encodes public key into buf. Returns number of bytes
-	// written.
-	//
-	// EncodePublicKey MUST panic if buffer size is insufficient and less than
-	// MaxPublicKeyEncodedSize (*). EncodePublicKey MUST return negative value
-	// on any failure except (*).
-	//
-	// EncodePublicKey is expected to be compatible with PublicKey.Decode for
-	// similar signature schemes.
-	EncodePublicKey(buf []byte) int
+	// Public returns the public key corresponding to the Signer.
+	Public() PublicKey
 }
 
 // PublicKey represents a public key using fixed signature scheme supported by
@@ -79,10 +64,26 @@ type Signer interface {
 //
 // See also Signer.
 type PublicKey interface {
+	// MaxEncodedSize returns maximum size required for binary-encoded
+	// public key.
+	//
+	// MaxEncodedSize MUST NOT return value greater than any return of
+	// Encode.
+	MaxEncodedSize() int
+
+	// Encode encodes public key into buf. Returns number of bytes
+	// written.
+	//
+	// Encode MUST panic if buffer size is insufficient and less than
+	// MaxEncodedSize (*). Encode MUST return negative value
+	// on any failure except (*).
+	//
+	// Encode is a reverse operation to Decode.
+	Encode(buf []byte) int
+
 	// Decode decodes binary public key.
 	//
-	// Decode is expected to be compatible with Signer.EncodePublicKey for
-	// similar signature schemes.
+	// Decode is a reverse operation to Encode.
 	Decode([]byte) error
 
 	// Verify checks signature of the given data. True means correct signature.

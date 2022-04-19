@@ -5,6 +5,7 @@ import (
 	"crypto/elliptic"
 	"crypto/sha256"
 	"crypto/sha512"
+	"fmt"
 	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -21,6 +22,11 @@ type PublicKey struct {
 	key ecdsa.PublicKey
 }
 
+// SetKey specifies ecdsa.PublicKey to be used for ECDSA signature verification.
+func (x *PublicKey) SetKey(key ecdsa.PublicKey) {
+	x.key = key
+}
+
 // MakeDeterministic makes PublicKey to use Deterministic ECDSA scheme
 // (see neofscrypto.ECDSA_DETERMINISTIC_SHA256). By default,
 // neofscrypto.ECDSA_SHA512 is used.
@@ -28,9 +34,28 @@ func (x *PublicKey) MakeDeterministic() {
 	x.deterministic = true
 }
 
+// MaxEncodedSize returns size of the compressed ECDSA public key.
+func (x PublicKey) MaxEncodedSize() int {
+	return 33
+}
+
+// Encode encodes ECDSA public key in compressed form into buf.
+// Uses exactly MaxEncodedSize bytes of the buf.
+//
+// Encode panics if buf length is less than MaxEncodedSize.
+//
+// See also Decode.
+func (x PublicKey) Encode(buf []byte) int {
+	if len(buf) < 33 {
+		panic(fmt.Sprintf("too short buffer %d", len(buf)))
+	}
+
+	return copy(buf, (*keys.PublicKey)(&x.key).Bytes())
+}
+
 // Decode decodes compressed binary representation of the PublicKey.
 //
-// See also Signer.EncodePublicKey.
+// See also Encode.
 func (x *PublicKey) Decode(data []byte) error {
 	pub, err := keys.NewPublicKeyFromBytes(data, elliptic.P256())
 	if err != nil {
