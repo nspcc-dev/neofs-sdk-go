@@ -2,6 +2,8 @@ package neofscrypto
 
 import (
 	"fmt"
+
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
 // Scheme represents digital signature algorithm with fixed cryptographic hash function.
@@ -16,6 +18,11 @@ const (
 	ECDSA_SHA512               // ECDSA with SHA-512 hashing (FIPS 186-3)
 	ECDSA_DETERMINISTIC_SHA256 // Deterministic ECDSA with SHA-256 hashing (RFC 6979)
 )
+
+// String implements fmt.Stringer.
+func (x Scheme) String() string {
+	return refs.SignatureScheme(x).String()
+}
 
 // maps Scheme to blank PublicKey constructor.
 var publicKeys = make(map[Scheme]func() PublicKey)
