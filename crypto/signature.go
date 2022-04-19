@@ -48,12 +48,7 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 
 	m := (*refs.Signature)(x)
 
-	scheme := refs.SignatureScheme(signer.Scheme())
-	if scheme > 0 {
-		scheme-- // to sync numeric values
-	}
-
-	m.SetScheme(scheme)
+	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
 	m.SetSign(signature)
 	m.SetKey(key)
 
@@ -69,7 +64,7 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 func (x Signature) Verify(data []byte) bool {
 	m := (*refs.Signature)(&x)
 
-	f, ok := publicKeys[Scheme(m.GetScheme()+1)] // increment to sync numeric values
+	f, ok := publicKeys[Scheme(m.GetScheme())]
 	if !ok {
 		return false
 	}

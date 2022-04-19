@@ -6,12 +6,12 @@ import (
 
 // Scheme represents digital signature algorithm with fixed cryptographic hash function.
 //
-// Non-positive values are reserved and depend on context (e.g. unsupported scheme).
-type Scheme uint32
+// Negative values are reserved and depend on context (e.g. unsupported scheme).
+type Scheme int32
 
 //nolint:revive
 const (
-	_ Scheme = iota
+	_ Scheme = iota - 1
 
 	ECDSA_SHA512               // ECDSA with SHA-512 hashing (FIPS 186-3)
 	ECDSA_DETERMINISTIC_SHA256 // Deterministic ECDSA with SHA-256 hashing (RFC 6979)
