@@ -32,6 +32,8 @@ var publicKeys = make(map[Scheme]func() PublicKey)
 // function in packages that implement signature schemes.
 //
 // RegisterScheme panics if function for the given Scheme is already registered.
+//
+// Note that RegisterScheme isn't tread-safe.
 func RegisterScheme(scheme Scheme, f func() PublicKey) {
 	_, ok := publicKeys[scheme]
 	if ok {
