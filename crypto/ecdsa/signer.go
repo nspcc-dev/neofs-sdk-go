@@ -10,53 +10,23 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
-// Signer implements neofscrypto.Signer based on ECDSA.
+// Signer wraps ecdsa.PrivateKey and represents signer based on ECDSA with
+// SHA-512 hashing. Provides neofscrypto.Signer interface.
 //
-// Supported schemes:
-//  - neofscrypto.ECDSA_SHA512 (default)
-//  - neofscrypto.ECDSA_DETERMINISTIC_SHA256
-//
-// Instances MUST be initialized with ecdsa.PrivateKey using SetKey.
-type Signer struct {
-	deterministic bool
+// Instances MUST be initialized from ecdsa.PrivateKey using type conversion.
+type Signer ecdsa.PrivateKey
 
-	key ecdsa.PrivateKey
-}
-
-// SetKey specifies ecdsa.PrivateKey to be used for ECDSA signature calculation.
-func (x *Signer) SetKey(key ecdsa.PrivateKey) {
-	x.key = key
-}
-
-// MakeDeterministic makes Signer to use Deterministic ECDSA scheme
-// (see neofscrypto.ECDSA_DETERMINISTIC_SHA256). By default,
-// neofscrypto.ECDSA_SHA512 is used.
-func (x *Signer) MakeDeterministic() {
-	x.deterministic = true
-}
-
-// Scheme returns signature scheme depending on Signer state:
-//  - neofscrypto.ECDSA_DETERMINISTIC_SHA256 if MakeDeterministic called
-//  - neofscrypto.ECDSA_SHA512 otherwise.
+// Scheme returns neofscrypto.ECDSA_SHA512.
+// Implements neofscrypto.Signer.
 func (x Signer) Scheme() neofscrypto.Scheme {
-	if x.deterministic {
-		return neofscrypto.ECDSA_DETERMINISTIC_SHA256
-	}
-
 	return neofscrypto.ECDSA_SHA512
 }
 
-// Sign signs data with algorithm depending on Signer state:
-//  - Deterministic ECDSA with SHA-256 hashing if MakeDeterministic called
-//  - ECDSA with SHA-512 hashing, otherwise
+// Sign signs data using ECDSA algorithm with SHA-512 hashing.
+// Implements neofscrypto.Signer.
 func (x Signer) Sign(data []byte) ([]byte, error) {
-	if x.deterministic {
-		p := keys.PrivateKey{PrivateKey: x.key}
-		return p.Sign(data), nil
-	}
-
 	h := sha512.Sum512(data)
-	r, s, err := ecdsa.Sign(rand.Reader, &x.key, h[:])
+	r, s, err := ecdsa.Sign(rand.Reader, (*ecdsa.PrivateKey)(&x), h[:])
 	if err != nil {
 		return nil, err
 	}
@@ -64,13 +34,35 @@ func (x Signer) Sign(data []byte) ([]byte, error) {
 	return elliptic.Marshal(elliptic.P256(), r, s), nil
 }
 
+// Public initializes PublicKey and returns it as neofscrypto.PublicKey.
+// Implements neofscrypto.Signer.
 func (x Signer) Public() neofscrypto.PublicKey {
-	var pub PublicKey
-	pub.SetKey(x.key.PublicKey)
+	return (*PublicKey)(&x.PublicKey)
+}
 
-	if x.deterministic {
-		pub.MakeDeterministic()
-	}
+// SignerRFC6979 wraps ecdsa.PrivateKey and represents signer based on deterministic
+// ECDSA with SHA-256 hashing (RFC 6979). Provides neofscrypto.Signer interface.
+//
+// Instances SHOULD be initialized from ecdsa.PrivateKey using type conversion.
+type SignerRFC6979 ecdsa.PrivateKey
 
-	return &pub
+// Scheme returns neofscrypto.ECDSA_DETERMINISTIC_SHA256.
+// Implements neofscrypto.Signer.
+func (x SignerRFC6979) Scheme() neofscrypto.Scheme {
+	return neofscrypto.ECDSA_DETERMINISTIC_SHA256
+}
+
+// Sign signs data using deterministic ECDSA algorithm with SHA-256 hashing.
+// Implements neofscrypto.Signer.
+//
+// See also RFC 6979.
+func (x SignerRFC6979) Sign(data []byte) ([]byte, error) {
+	p := keys.PrivateKey{PrivateKey: (ecdsa.PrivateKey)(x)}
+	return p.Sign(data), nil
+}
+
+// Public initializes PublicKeyRFC6979 and returns it as neofscrypto.PublicKey.
+// Implements neofscrypto.Signer.
+func (x SignerRFC6979) Public() neofscrypto.PublicKey {
+	return (*PublicKeyRFC6979)(&x.PublicKey)
 }

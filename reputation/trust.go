@@ -277,11 +277,8 @@ func (x *GlobalTrust) Sign(key *ecdsa.PrivateKey) error {
 	}
 
 	var sig neofscrypto.Signature
-	var signer neofsecdsa.Signer
 
-	signer.SetKey(*key)
-
-	err = sig.Calculate(signer, data)
+	err = sig.Calculate(neofsecdsa.Signer(*key), data)
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}

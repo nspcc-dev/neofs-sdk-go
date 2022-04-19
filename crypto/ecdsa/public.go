@@ -11,28 +11,11 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 )
 
-// PublicKey implements neofscrypto.PublicKey based on ECDSA.
+// PublicKey is a wrapper over ecdsa.PublicKey used for NeoFS needs.
+// Provides neofscrypto.PublicKey interface.
 //
-// Supported schemes:
-//  - neofscrypto.ECDSA_SHA512 (default)
-//  - neofscrypto.ECDSA_DETERMINISTIC_SHA256
-type PublicKey struct {
-	deterministic bool
-
-	key ecdsa.PublicKey
-}
-
-// SetKey specifies ecdsa.PublicKey to be used for ECDSA signature verification.
-func (x *PublicKey) SetKey(key ecdsa.PublicKey) {
-	x.key = key
-}
-
-// MakeDeterministic makes PublicKey to use Deterministic ECDSA scheme
-// (see neofscrypto.ECDSA_DETERMINISTIC_SHA256). By default,
-// neofscrypto.ECDSA_SHA512 is used.
-func (x *PublicKey) MakeDeterministic() {
-	x.deterministic = true
-}
+// Instances MUST be initialized from ecdsa.PublicKey using type conversion.
+type PublicKey ecdsa.PublicKey
 
 // MaxEncodedSize returns size of the compressed ECDSA public key.
 func (x PublicKey) MaxEncodedSize() int {
@@ -50,7 +33,7 @@ func (x PublicKey) Encode(buf []byte) int {
 		panic(fmt.Sprintf("too short buffer %d", len(buf)))
 	}
 
-	return copy(buf, (*keys.PublicKey)(&x.key).Bytes())
+	return copy(buf, (*keys.PublicKey)(&x).Bytes())
 }
 
 // Decode decodes compressed binary representation of the PublicKey.
@@ -62,7 +45,7 @@ func (x *PublicKey) Decode(data []byte) error {
 		return err
 	}
 
-	x.key = (ecdsa.PublicKey)(*pub)
+	*x = (PublicKey)(*pub)
 
 	return nil
 }
@@ -86,18 +69,58 @@ func unmarshalXY(data []byte) (x *big.Int, y *big.Int) {
 	return
 }
 
-// Verify verifies data signature calculated by algorithm depending on
-// PublicKey state:
-//  - Deterministic ECDSA with SHA-256 hashing if MakeDeterministic called
-//  - ECDSA with SHA-512 hashing, otherwise
+// Verify verifies data signature calculated by ECDSA algorithm with SHA-512 hashing.
 func (x PublicKey) Verify(data, signature []byte) bool {
-	if x.deterministic {
-		h := sha256.Sum256(data)
-		return (*keys.PublicKey)(&x.key).Verify(signature, h[:])
-	}
-
 	h := sha512.Sum512(data)
 	r, s := unmarshalXY(signature)
 
-	return r != nil && s != nil && ecdsa.Verify(&x.key, h[:], r, s)
+	return r != nil && s != nil && ecdsa.Verify((*ecdsa.PublicKey)(&x), h[:], r, s)
+}
+
+// PublicKeyRFC6979 is a wrapper over ecdsa.PublicKey used for NeoFS needs.
+// Provides neofscrypto.PublicKey interface.
+//
+// Instances MUST be initialized from ecdsa.PublicKey using type conversion.
+type PublicKeyRFC6979 ecdsa.PublicKey
+
+// MaxEncodedSize returns size of the compressed ECDSA public key.
+func (x PublicKeyRFC6979) MaxEncodedSize() int {
+	return 33
+}
+
+// Encode encodes ECDSA public key in compressed form into buf.
+// Uses exactly MaxEncodedSize bytes of the buf.
+//
+// Encode panics if buf length is less than MaxEncodedSize.
+//
+// See also Decode.
+func (x PublicKeyRFC6979) Encode(buf []byte) int {
+	if len(buf) < 33 {
+		panic(fmt.Sprintf("too short buffer %d", len(buf)))
+	}
+
+	return copy(buf, (*keys.PublicKey)(&x).Bytes())
+}
+
+// Decode decodes binary representation of the ECDSA public key.
+//
+// See also Encode.
+func (x *PublicKeyRFC6979) Decode(data []byte) error {
+	pub, err := keys.NewPublicKeyFromBytes(data, elliptic.P256())
+	if err != nil {
+		return err
+	}
+
+	*x = (PublicKeyRFC6979)(*pub)
+
+	return nil
+}
+
+// Verify verifies data signature calculated by deterministic ECDSA algorithm
+// with SHA-256 hashing.
+//
+// See also RFC 6979.
+func (x PublicKeyRFC6979) Verify(data, signature []byte) bool {
+	h := sha256.Sum256(data)
+	return (*keys.PublicKey)(&x).Verify(signature, h[:])
 }

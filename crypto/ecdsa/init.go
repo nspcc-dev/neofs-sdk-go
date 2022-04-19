@@ -8,9 +8,6 @@ func init() {
 	})
 
 	neofscrypto.RegisterScheme(neofscrypto.ECDSA_DETERMINISTIC_SHA256, func() neofscrypto.PublicKey {
-		var key PublicKey
-		key.MakeDeterministic()
-
-		return &key
+		return new(PublicKeyRFC6979)
 	})
 }

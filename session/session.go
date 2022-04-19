@@ -176,11 +176,8 @@ func (t *Token) Sign(key *ecdsa.PrivateKey) error {
 	}
 
 	var sig neofscrypto.Signature
-	var signer neofsecdsa.Signer
 
-	signer.SetKey(*key)
-
-	err = sig.Calculate(signer, digest)
+	err = sig.Calculate(neofsecdsa.Signer(*key), digest)
 	if err != nil {
 		return err
 	}

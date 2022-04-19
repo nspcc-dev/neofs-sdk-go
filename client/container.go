@@ -90,12 +90,8 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	}
 
 	var sig neofscrypto.Signature
-	var signer neofsecdsa.Signer
 
-	signer.SetKey(c.prm.key)
-	signer.MakeDeterministic()
-
-	err = sig.Calculate(signer, data)
+	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
@@ -442,12 +438,8 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	}
 
 	var sig neofscrypto.Signature
-	var signer neofsecdsa.Signer
 
-	signer.SetKey(c.prm.key)
-	signer.MakeDeterministic()
-
-	err = sig.Calculate(signer, data)
+	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
@@ -664,12 +656,8 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	}
 
 	var sig neofscrypto.Signature
-	var signer neofsecdsa.Signer
 
-	signer.SetKey(c.prm.key)
-	signer.MakeDeterministic()
-
-	err = sig.Calculate(signer, data)
+	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
