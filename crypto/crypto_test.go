@@ -23,17 +23,10 @@ func TestSignature(t *testing.T) {
 
 	for _, f := range []func() neofscrypto.Signer{
 		func() neofscrypto.Signer {
-			var key neofsecdsa.Signer
-			key.SetKey(k.PrivateKey)
-
-			return &key
+			return neofsecdsa.Signer(k.PrivateKey)
 		},
 		func() neofscrypto.Signer {
-			var key neofsecdsa.Signer
-			key.SetKey(k.PrivateKey)
-			key.MakeDeterministic()
-
-			return &key
+			return neofsecdsa.SignerRFC6979(k.PrivateKey)
 		},
 	} {
 		signer := f()

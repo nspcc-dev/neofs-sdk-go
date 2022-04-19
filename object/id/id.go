@@ -123,11 +123,8 @@ func (id ID) CalculateIDSignature(key ecdsa.PrivateKey) (neofscrypto.Signature, 
 	}
 
 	var sig neofscrypto.Signature
-	var signer neofsecdsa.Signer
 
-	signer.SetKey(key)
-
-	return sig, sig.Calculate(signer, data)
+	return sig, sig.Calculate(neofsecdsa.Signer(key), data)
 }
 
 // Marshal marshals ID into a protobuf binary form.
