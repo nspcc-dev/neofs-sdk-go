@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"crypto/ecdsa"
+	"errors"
 	"fmt"
+	"io"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -171,7 +173,10 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 	defer x.cancelCtxStream()
 
-	if x.ctxCall.err != nil {
+	// Ignore io.EOF error, because it is expected error for client-side
+	// stream termination by the server. E.g. when stream contains invalid
+	// message. Server returns an error in response message (in status).
+	if x.ctxCall.err != nil && !errors.Is(x.ctxCall.err, io.EOF) {
 		return nil, x.ctxCall.err
 	}
 
