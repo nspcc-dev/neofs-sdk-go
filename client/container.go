@@ -412,19 +412,6 @@ type ResContainerDelete struct {
 	statusRes
 }
 
-// implements github.com/nspcc-dev/neofs-sdk-go/util/signature.DataSource.
-type delContainerSignWrapper struct {
-	body *v2container.DeleteRequestBody
-}
-
-func (c delContainerSignWrapper) ReadSignedData([]byte) ([]byte, error) {
-	return c.body.GetContainerID().GetValue(), nil
-}
-
-func (c delContainerSignWrapper) SignedDataSize() int {
-	return len(c.body.GetContainerID().GetValue())
-}
-
 // ContainerDelete sends request to remove the NeoFS container.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
