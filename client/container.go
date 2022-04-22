@@ -250,7 +250,7 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 		if tokv2 != nil {
 			var tok session.Container
 
-			// FIXME: need to handle the error
+			// FIXME: (neofs-sdk-go#221) need to handle the error
 			err := tok.ReadFromV2(*tokv2)
 			if err == nil {
 				cnr.SetSessionToken(&tok)
@@ -599,7 +599,7 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 		if tokv2 != nil {
 			var tok session.Container
 
-			// FIXME: need to handle the error
+			// FIXME: (neofs-sdk-go#221) need to handle the error
 			err := tok.ReadFromV2(*tokv2)
 			if err == nil {
 				table.SetSessionToken(&tok)
