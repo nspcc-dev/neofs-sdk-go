@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,7 +17,7 @@ type TestCase struct {
 	Nodes []NodeInfo `json:"nodes"`
 	Tests map[string]struct {
 		Policy    PlacementPolicy `json:"policy"`
-		Pivot     []byte          `json:"pivot,omitempty"`
+		CntID     string          `json:"cid,omitempty"`
 		Result    [][]int         `json:"result,omitempty"`
 		Error     string          `json:"error,omitempty"`
 		Placement struct {
@@ -59,7 +60,15 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 
 			for name, tt := range tc.Tests {
 				t.Run(name, func(t *testing.T) {
-					v, err := nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+					var cnrID cid.ID
+
+					if tt.CntID != "" {
+						require.NoError(t, cnrID.DecodeString(tt.CntID))
+					}
+
+					t.Logf("CID: %s\n", cnrID.EncodeToString())
+
+					v, err := nm.GetContainerNodes(&tt.Policy, cnrID)
 					if tt.Result == nil {
 						require.Error(t, err)
 						require.Contains(t, err.Error(), tt.Error)
@@ -67,6 +76,13 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 						require.NoError(t, err)
 
 						res := v.Replicas()
+
+						for i, resWant := range tt.Result {
+							for j, indx := range resWant {
+								t.Logf("want %d got %d\n", nodes[indx].Index, res[i][j].Index)
+							}
+						}
+
 						compareNodes(t, tt.Result, nodes, res)
 
 						if tt.Placement.Result != nil {
@@ -80,6 +96,7 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 		})
 	}
 }
+
 func BenchmarkManySelects(b *testing.B) {
 	testsFile := filepath.Join("json_tests", "many_selects.json")
 	bs, err := ioutil.ReadFile(testsFile)
@@ -98,7 +115,7 @@ func BenchmarkManySelects(b *testing.B) {
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		_, err = nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+		_, err = nm.GetContainerNodes(&tt.Policy, cid.ID{})
 		if err != nil {
 			b.FailNow()
 		}

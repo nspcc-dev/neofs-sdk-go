@@ -1,9 +1,11 @@
 package netmap
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/nspcc-dev/hrw"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
 
 const defaultCBF = 3
@@ -46,8 +48,11 @@ func (m *Netmap) GetPlacementVectors(cnt ContainerNodes, pivot []byte) ([]Nodes,
 
 // GetContainerNodes returns nodes corresponding to each replica.
 // Order of returned nodes corresponds to order of replicas in p.
-// pivot is a seed for HRW sorting.
-func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) (ContainerNodes, error) {
+// Container ID is used as a seed for HRW sorting.
+func (m *Netmap) GetContainerNodes(p *PlacementPolicy, cnrID cid.ID) (ContainerNodes, error) {
+	pivot := make([]byte, sha256.Size)
+	cnrID.Encode(pivot)
+
 	c := NewContext(m)
 	c.setPivot(pivot)
 	c.setCBF(p.ContainerBackupFactor())

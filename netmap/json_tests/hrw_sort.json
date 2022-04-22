@@ -145,7 +145,7 @@
   "tests": {
     "select 3 nodes in 3 distinct countries, same placement": {
       "policy": {"replicas":[{"count":1,"selector":"Main"}],"containerBackupFactor":1,"selectors":[{"name":"Main","count":3,"clause":"DISTINCT","attribute":"Country","filter":"*"}],"filters":[],"subnetId":null},
-      "pivot": "Y29udGFpbmVySUQ=",
+      "cid": "6ay4GfhR9RgN28d5ufg63toPetkYHGcpcW7G3b7QWSek",
       "result": [[4, 0, 7]],
       "placement": {
         "pivot": "b2JqZWN0SUQ=",
@@ -154,7 +154,7 @@
     },
     "select 6 nodes in 3 distinct countries, different placement": {
       "policy": {"replicas":[{"count":1,"selector":"Main"}],"containerBackupFactor":2,"selectors":[{"name":"Main","count":3,"clause":"DISTINCT","attribute":"Country","filter":"*"}],"filters":[],"subnetId":null},
-      "pivot": "Y29udGFpbmVySUQ=",
+      "cid": "6ay4GfhR9RgN28d5ufg63toPetkYHGcpcW7G3b7QWSek",
       "result": [[4, 3, 0, 1, 7, 2]],
       "placement": {
         "pivot": "b2JqZWN0SUQ=",

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	testv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap/test"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,7 +129,7 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := nm.GetContainerNodes(p, []byte{1})
+		_, err := nm.GetContainerNodes(p, cid.ID{})
 		if err != nil {
 			b.Fatal()
 		}
@@ -171,7 +172,7 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 	nm, err := NewNetmap(NodesFromInfo(nodes))
 	require.NoError(t, err)
 	getIndices := func(t *testing.T) (int, int) {
-		v, err := nm.GetContainerNodes(p, []byte{1})
+		v, err := nm.GetContainerNodes(p, cid.ID{})
 		require.NoError(t, err)
 		ns := v.Flatten()
 		require.Equal(t, 2, len(ns))
