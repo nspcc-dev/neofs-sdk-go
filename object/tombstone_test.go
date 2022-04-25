@@ -46,8 +46,7 @@ func TestTombstoneEncoding(t *testing.T) {
 	ts.SetMembers(generateIDList(5))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := ts.Marshal()
-		require.NoError(t, err)
+		data := ts.Marshal()
 
 		ts2 := NewTombstone()
 		require.NoError(t, ts2.Unmarshal(data))

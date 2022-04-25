@@ -15,3 +15,5 @@ require (
 	go.uber.org/zap v1.18.1
 	google.golang.org/grpc v1.41.0
 )
+
+replace github.com/nspcc-dev/neofs-api-go/v2 => ../neofs-api-go

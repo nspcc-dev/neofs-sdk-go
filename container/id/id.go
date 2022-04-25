@@ -70,7 +70,7 @@ func (id *ID) String() string {
 }
 
 // Marshal marshals ID into a protobuf binary form.
-func (id *ID) Marshal() ([]byte, error) {
+func (id *ID) Marshal() []byte {
 	return (*refs.ContainerID)(id).StableMarshal(nil)
 }
 

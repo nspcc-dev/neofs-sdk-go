@@ -42,8 +42,7 @@ func TestSessionTokenEncoding(t *testing.T) {
 	tok := sessiontest.Token()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := tok.Marshal()
-		require.NoError(t, err)
+		data := tok.Marshal()
 
 		tok2 := session.NewToken()
 		require.NoError(t, tok2.Unmarshal(data))

@@ -56,8 +56,7 @@ func TestUsedSpaceEncoding(t *testing.T) {
 	a := containertest.UsedSpaceAnnouncement()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := a.Marshal()
-		require.NoError(t, err)
+		data := a.Marshal()
 
 		a2 := container.NewAnnouncement()
 		require.NoError(t, a2.Unmarshal(data))

@@ -58,7 +58,7 @@ func (s *SplitInfo) SetLink(v *oid.ID) {
 	(*object.SplitInfo)(s).SetLink(v.ToV2())
 }
 
-func (s *SplitInfo) Marshal() ([]byte, error) {
+func (s *SplitInfo) Marshal() []byte {
 	return (*object.SplitInfo)(s).StableMarshal(nil)
 }
 

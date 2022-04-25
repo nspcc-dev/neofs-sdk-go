@@ -108,8 +108,7 @@ func TestObjectIDEncoding(t *testing.T) {
 	id := randID(t)
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
+		data := id.Marshal()
 
 		id2 := NewID()
 		require.NoError(t, id2.Unmarshal(data))

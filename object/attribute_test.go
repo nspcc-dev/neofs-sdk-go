@@ -29,8 +29,7 @@ func TestAttributeEncoding(t *testing.T) {
 	a.SetValue("value")
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := a.Marshal()
-		require.NoError(t, err)
+		data := a.Marshal()
 
 		a2 := NewAttribute()
 		require.NoError(t, a2.Unmarshal(data))

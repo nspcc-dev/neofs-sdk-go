@@ -493,7 +493,7 @@ func (o *Object) InitRelations() {
 }
 
 // Marshal marshals object into a protobuf binary form.
-func (o *Object) Marshal() ([]byte, error) {
+func (o *Object) Marshal() []byte {
 	return (*object.Object)(o).StableMarshal(nil)
 }
 

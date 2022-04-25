@@ -51,7 +51,7 @@ func (r *Replica) SetSelector(s string) {
 }
 
 // Marshal marshals Replica into a protobuf binary form.
-func (r *Replica) Marshal() ([]byte, error) {
+func (r *Replica) Marshal() []byte {
 	return (*netmap.Replica)(r).StableMarshal(nil)
 }
 

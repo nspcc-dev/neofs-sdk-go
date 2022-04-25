@@ -13,8 +13,7 @@ func TestSignatureEncoding(t *testing.T) {
 	s.SetSign([]byte("sign"))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := s.Marshal()
-		require.NoError(t, err)
+		data := s.Marshal()
 
 		s2 := New()
 		require.NoError(t, s2.Unmarshal(data))

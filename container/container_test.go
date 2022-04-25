@@ -55,8 +55,7 @@ func TestContainerEncoding(t *testing.T) {
 	c := containertest.Container()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := c.Marshal()
-		require.NoError(t, err)
+		data := c.Marshal()
 
 		c2 := container.New()
 		require.NoError(t, c2.Unmarshal(data))
