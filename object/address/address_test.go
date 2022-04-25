@@ -66,8 +66,7 @@ func TestAddressEncoding(t *testing.T) {
 	a.SetContainerID(cidtest.ID())
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := a.Marshal()
-		require.NoError(t, err)
+		data := a.Marshal()
 
 		a2 := NewAddress()
 		require.NoError(t, a2.Unmarshal(data))

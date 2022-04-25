@@ -72,8 +72,7 @@ func TestChecksumEncoding(t *testing.T) {
 	cs.SetSHA256(randSHA256(t))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := cs.Marshal()
-		require.NoError(t, err)
+		data := cs.Marshal()
 
 		c2 := New()
 		require.NoError(t, c2.Unmarshal(data))

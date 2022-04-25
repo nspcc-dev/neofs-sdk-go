@@ -126,7 +126,7 @@ func valid(rawID []byte) bool {
 }
 
 // Marshal marshals ID into a protobuf binary form.
-func (id *ID) Marshal() ([]byte, error) {
+func (id *ID) Marshal() []byte {
 	return (*refs.OwnerID)(id).StableMarshal(nil)
 }
 

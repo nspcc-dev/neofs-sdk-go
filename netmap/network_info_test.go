@@ -163,8 +163,7 @@ func TestNetworkInfoEncoding(t *testing.T) {
 	i := netmaptest.NetworkInfo()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := i.Marshal()
-		require.NoError(t, err)
+		data := i.Marshal()
 
 		i2 := NewNetworkInfo()
 		require.NoError(t, i2.Unmarshal(data))

@@ -86,10 +86,7 @@ func NewContainerFromV2(c *container.Container) *Container {
 // CalculateID calculates container identifier
 // based on its structure.
 func CalculateID(c *Container) *cid.ID {
-	data, err := c.ToV2().StableMarshal(nil)
-	if err != nil {
-		panic(err)
-	}
+	data := c.ToV2().StableMarshal(nil)
 
 	id := cid.New()
 	id.SetSHA256(sha256.Sum256(data))
@@ -173,7 +170,7 @@ func (c *Container) SetSignature(sig *signature.Signature) {
 }
 
 // Marshal marshals Container into a protobuf binary form.
-func (c *Container) Marshal() ([]byte, error) {
+func (c *Container) Marshal() []byte {
 	return c.v2.StableMarshal(nil)
 }
 

@@ -24,8 +24,7 @@ func TestTrust(t *testing.T) {
 
 	t.Run("binary encoding", func(t *testing.T) {
 		trust := reputationtest.Trust()
-		data, err := trust.Marshal()
-		require.NoError(t, err)
+		data := trust.Marshal()
 
 		trust2 := reputation.NewTrust()
 		require.NoError(t, trust2.Unmarshal(data))
@@ -71,8 +70,7 @@ func TestPeerToPeerTrust(t *testing.T) {
 		p2pt := reputationtest.PeerToPeerTrust()
 
 		t.Run("binary", func(t *testing.T) {
-			data, err := p2pt.Marshal()
-			require.NoError(t, err)
+			data := p2pt.Marshal()
 
 			p2pt2 := reputation.NewPeerToPeerTrust()
 			require.NoError(t, p2pt2.Unmarshal(data))
@@ -132,8 +130,7 @@ func TestGlobalTrust(t *testing.T) {
 		t.Run("binary", func(t *testing.T) {
 			gt := reputationtest.SignedGlobalTrust(t)
 
-			data, err := gt.Marshal()
-			require.NoError(t, err)
+			data := gt.Marshal()
 
 			gt2 := reputation.NewGlobalTrust()
 			require.NoError(t, gt2.Unmarshal(data))

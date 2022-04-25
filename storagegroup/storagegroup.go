@@ -115,7 +115,7 @@ func (sg *StorageGroup) ToV2() *storagegroup.StorageGroup {
 }
 
 // Marshal marshals StorageGroup into a protobuf binary form.
-func (sg *StorageGroup) Marshal() ([]byte, error) {
+func (sg *StorageGroup) Marshal() []byte {
 	return (*storagegroup.StorageGroup)(sg).StableMarshal(nil)
 }
 

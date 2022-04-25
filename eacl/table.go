@@ -167,7 +167,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 }
 
 // Marshal marshals Table into a protobuf binary form.
-func (t *Table) Marshal() ([]byte, error) {
+func (t *Table) Marshal() []byte {
 	return t.ToV2().StableMarshal(nil)
 }
 

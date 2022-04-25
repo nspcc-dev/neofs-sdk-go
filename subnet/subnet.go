@@ -25,7 +25,7 @@ func (x Info) WriteToV2(msg *subnet.Info) {
 }
 
 // Marshal encodes Info into a binary format of NeoFS API V2 protocol (Protocol Buffers with direct field order).
-func (x *Info) Marshal() ([]byte, error) {
+func (x *Info) Marshal() []byte {
 	return (*subnet.Info)(x).StableMarshal(nil)
 }
 

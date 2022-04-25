@@ -66,7 +66,7 @@ func (x *ID) String() string {
 }
 
 // Marshal encodes ID into a binary format of NeoFS API V2 protocol (Protocol Buffers with direct field order).
-func (x *ID) Marshal() ([]byte, error) {
+func (x *ID) Marshal() []byte {
 	return (*refs.SubnetID)(x).StableMarshal(nil)
 }
 

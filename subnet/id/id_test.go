@@ -73,8 +73,7 @@ func TestSubnetIDEncoding(t *testing.T) {
 	id := subnetidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
+		data := id.Marshal()
 
 		var id2 subnetid.ID
 		require.NoError(t, id2.Unmarshal(data))

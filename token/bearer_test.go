@@ -35,8 +35,7 @@ func TestFilterEncoding(t *testing.T) {
 	f := tokentest.BearerToken()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := f.Marshal()
-		require.NoError(t, err)
+		data := f.Marshal()
 
 		f2 := token.NewBearerToken()
 		require.NoError(t, f2.Unmarshal(data))

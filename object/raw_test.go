@@ -296,8 +296,7 @@ func TestObjectEncoding(t *testing.T) {
 	o.SetID(randID(t))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := o.Marshal()
-		require.NoError(t, err)
+		data := o.Marshal()
 
 		o2 := New()
 		require.NoError(t, o2.Unmarshal(data))

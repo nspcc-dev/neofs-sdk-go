@@ -53,7 +53,7 @@ func (a *Attribute) ToV2() *object.Attribute {
 }
 
 // Marshal marshals Attribute into a protobuf binary form.
-func (a *Attribute) Marshal() ([]byte, error) {
+func (a *Attribute) Marshal() []byte {
 	return (*object.Attribute)(a).StableMarshal(nil)
 }
 

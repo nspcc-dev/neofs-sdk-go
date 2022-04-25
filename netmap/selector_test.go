@@ -295,8 +295,7 @@ func TestSelectorEncoding(t *testing.T) {
 	s := newSelector("name", "atte", ClauseSame, 1, "filter")
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := s.Marshal()
-		require.NoError(t, err)
+		data := s.Marshal()
 
 		s2 := *NewSelector()
 		require.NoError(t, s2.Unmarshal(data))
