@@ -64,12 +64,7 @@ func (x *Lock) WriteMembers(ids []oid.ID) {
 
 // Marshal encodes the Lock into a NeoFS protocol binary format.
 func (x Lock) Marshal() []byte {
-	data, err := (*v2object.Lock)(&x).StableMarshal(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return data
+	return (*v2object.Lock)(&x).StableMarshal(nil)
 }
 
 // Unmarshal decodes the Lock from its NeoFS protocol binary representation.

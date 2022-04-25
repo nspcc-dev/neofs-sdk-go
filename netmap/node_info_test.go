@@ -163,8 +163,7 @@ func TestNodeAttributeEncoding(t *testing.T) {
 	a := testNodeAttribute()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := a.Marshal()
-		require.NoError(t, err)
+		data := a.Marshal()
 
 		a2 := NewNodeAttribute()
 		require.NoError(t, a2.Unmarshal(data))
@@ -191,8 +190,7 @@ func TestNodeInfoEncoding(t *testing.T) {
 	i.SetAttributes(*testNodeAttribute())
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := i.Marshal()
-		require.NoError(t, err)
+		data := i.Marshal()
 
 		i2 := NewNodeInfo()
 		require.NoError(t, i2.Unmarshal(data))

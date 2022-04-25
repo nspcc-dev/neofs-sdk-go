@@ -138,7 +138,7 @@ func (p *PlacementPolicy) SetFilters(fs ...Filter) {
 }
 
 // Marshal marshals PlacementPolicy into a protobuf binary form.
-func (p *PlacementPolicy) Marshal() ([]byte, error) {
+func (p *PlacementPolicy) Marshal() []byte {
 	return (*netmap.PlacementPolicy)(p).StableMarshal(nil)
 }
 

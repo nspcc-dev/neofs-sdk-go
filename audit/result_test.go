@@ -73,8 +73,7 @@ func TestStorageGroupEncoding(t *testing.T) {
 	r := audittest.Result()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := r.Marshal()
-		require.NoError(t, err)
+		data := r.Marshal()
 
 		r2 := audit.NewResult()
 		require.NoError(t, r2.Unmarshal(data))

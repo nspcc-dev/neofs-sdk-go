@@ -146,7 +146,7 @@ func (x *ObjectContext) IsForRangeHash() bool {
 }
 
 // Marshal marshals ObjectContext into a protobuf binary form.
-func (x *ObjectContext) Marshal() ([]byte, error) {
+func (x *ObjectContext) Marshal() []byte {
 	return x.ToV2().StableMarshal(nil)
 }
 

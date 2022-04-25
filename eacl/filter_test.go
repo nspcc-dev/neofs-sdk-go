@@ -41,8 +41,7 @@ func TestFilterEncoding(t *testing.T) {
 	f := newObjectFilter(MatchStringEqual, "key", "value")
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := f.Marshal()
-		require.NoError(t, err)
+		data := f.Marshal()
 
 		f2 := NewFilter()
 		require.NoError(t, f2.Unmarshal(data))

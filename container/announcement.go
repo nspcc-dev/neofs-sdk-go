@@ -67,7 +67,7 @@ func (a *UsedSpaceAnnouncement) ToV2() *container.UsedSpaceAnnouncement {
 }
 
 // Marshal marshals UsedSpaceAnnouncement into a protobuf binary form.
-func (a *UsedSpaceAnnouncement) Marshal() ([]byte, error) {
+func (a *UsedSpaceAnnouncement) Marshal() []byte {
 	return a.ToV2().StableMarshal(nil)
 }
 

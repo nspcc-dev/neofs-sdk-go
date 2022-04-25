@@ -273,7 +273,7 @@ func (a *NodeAttribute) SetParentKeys(keys ...string) {
 }
 
 // Marshal marshals NodeAttribute into a protobuf binary form.
-func (a *NodeAttribute) Marshal() ([]byte, error) {
+func (a *NodeAttribute) Marshal() []byte {
 	return (*netmap.Attribute)(a).StableMarshal(nil)
 }
 
@@ -400,7 +400,7 @@ func (i *NodeInfo) SetState(s NodeState) {
 }
 
 // Marshal marshals NodeInfo into a protobuf binary form.
-func (i *NodeInfo) Marshal() ([]byte, error) {
+func (i *NodeInfo) Marshal() []byte {
 	return (*netmap.NodeInfo)(i).StableMarshal(nil)
 }
 

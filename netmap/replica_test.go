@@ -54,8 +54,7 @@ func TestReplicaEncoding(t *testing.T) {
 	r := newReplica(3, "selector")
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := r.Marshal()
-		require.NoError(t, err)
+		data := r.Marshal()
 
 		r2 := *NewReplica()
 		require.NoError(t, r2.Unmarshal(data))

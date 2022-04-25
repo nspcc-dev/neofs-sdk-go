@@ -72,8 +72,7 @@ func TestPlacementPolicyEncoding(t *testing.T) {
 	p := newPlacementPolicy(3, nil, nil, nil)
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := p.Marshal()
-		require.NoError(t, err)
+		data := p.Marshal()
 
 		p2 := NewPlacementPolicy()
 		require.NoError(t, p2.Unmarshal(data))

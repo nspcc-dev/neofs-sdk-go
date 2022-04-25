@@ -76,8 +76,7 @@ func TestContainerIDEncoding(t *testing.T) {
 	id := cidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
+		data := id.Marshal()
 
 		id2 := cid.New()
 		require.NoError(t, id2.Unmarshal(data))

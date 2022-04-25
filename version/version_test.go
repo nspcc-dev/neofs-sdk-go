@@ -53,8 +53,7 @@ func TestVersionEncoding(t *testing.T) {
 	v.SetMinor(2)
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := v.Marshal()
-		require.NoError(t, err)
+		data := v.Marshal()
 
 		v2 := New()
 		require.NoError(t, v2.Unmarshal(data))

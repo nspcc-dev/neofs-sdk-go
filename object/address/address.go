@@ -98,7 +98,7 @@ func (a *Address) String() string {
 }
 
 // Marshal marshals Address into a protobuf binary form.
-func (a *Address) Marshal() ([]byte, error) {
+func (a *Address) Marshal() []byte {
 	return (*refs.Address)(a).StableMarshal(nil)
 }
 

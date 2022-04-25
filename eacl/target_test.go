@@ -42,8 +42,7 @@ func TestTargetEncoding(t *testing.T) {
 	SetTargetECDSAKeys(tar, randomPublicKey(t))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := tar.Marshal()
-		require.NoError(t, err)
+		data := tar.Marshal()
 
 		tar2 := NewTarget()
 		require.NoError(t, tar2.Unmarshal(data))

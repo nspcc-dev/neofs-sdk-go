@@ -34,12 +34,11 @@ func TestSplitInfo(t *testing.T) {
 	})
 
 	t.Run("marshal and unmarshal", func(t *testing.T) {
-		data, err := s.Marshal()
-		require.NoError(t, err)
+		data := s.Marshal()
 
 		newS := object.NewSplitInfo()
 
-		err = newS.Unmarshal(data)
+		err := newS.Unmarshal(data)
 		require.NoError(t, err)
 		require.Equal(t, s, newS)
 	})

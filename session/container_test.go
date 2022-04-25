@@ -91,8 +91,7 @@ func TestContainerContextEncoding(t *testing.T) {
 	c := sessiontest.ContainerContext()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := c.Marshal()
-		require.NoError(t, err)
+		data := c.Marshal()
 
 		c2 := session.NewContainerContext()
 		require.NoError(t, c2.Unmarshal(data))

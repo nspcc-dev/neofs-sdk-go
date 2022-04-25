@@ -48,8 +48,7 @@ func TestPeerIDEncoding(t *testing.T) {
 	id := reputationtest.PeerID()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
+		data := id.Marshal()
 
 		id2 := reputation.NewPeerID()
 		require.NoError(t, id2.Unmarshal(data))

@@ -255,7 +255,7 @@ func (s *Selector) SetFilter(f string) {
 }
 
 // Marshal marshals Selector into a protobuf binary form.
-func (s *Selector) Marshal() ([]byte, error) {
+func (s *Selector) Marshal() []byte {
 	return (*netmap.Selector)(s).StableMarshal(nil)
 }
 

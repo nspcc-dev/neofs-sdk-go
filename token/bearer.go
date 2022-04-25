@@ -185,7 +185,7 @@ func sanityCheck(b *BearerToken) error {
 //
 // Buffer is allocated when the argument is empty.
 // Otherwise, the first buffer is used.
-func (b *BearerToken) Marshal(bs ...[]byte) ([]byte, error) {
+func (b *BearerToken) Marshal(bs ...[]byte) []byte {
 	var buf []byte
 	if len(bs) > 0 {
 		buf = bs[0]

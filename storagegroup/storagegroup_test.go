@@ -36,8 +36,7 @@ func TestStorageGroupEncoding(t *testing.T) {
 	sg := storagegrouptest.StorageGroup()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := sg.Marshal()
-		require.NoError(t, err)
+		data := sg.Marshal()
 
 		sg2 := storagegroup.New()
 		require.NoError(t, sg2.Unmarshal(data))

@@ -23,8 +23,7 @@ func TestDecimalEncoding(t *testing.T) {
 	d := accountingtest.Decimal()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := d.Marshal()
-		require.NoError(t, err)
+		data := d.Marshal()
 
 		d2 := accounting.NewDecimal()
 		require.NoError(t, d2.Unmarshal(data))

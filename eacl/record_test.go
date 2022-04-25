@@ -103,8 +103,7 @@ func TestRecordEncoding(t *testing.T) {
 	AddFormedTarget(r, RoleSystem, *randomPublicKey(t))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := r.Marshal()
-		require.NoError(t, err)
+		data := r.Marshal()
 
 		r2 := NewRecord()
 		require.NoError(t, r2.Unmarshal(data))

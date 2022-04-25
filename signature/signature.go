@@ -74,7 +74,7 @@ func (s *Signature) ToV2() *refs.Signature {
 }
 
 // Marshal marshals Signature into a protobuf binary form.
-func (s *Signature) Marshal() ([]byte, error) {
+func (s *Signature) Marshal() []byte {
 	return (*refs.Signature)(s).StableMarshal(nil)
 }
 
