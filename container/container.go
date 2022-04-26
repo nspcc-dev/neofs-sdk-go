@@ -147,6 +147,18 @@ func (c *Container) SetPlacementPolicy(v *netmap.PlacementPolicy) {
 	c.v2.SetPlacementPolicy(v.ToV2())
 }
 
+// SetHomomorphicHashingDisabled sets homomorphic hashing
+// for container.
+func (c *Container) SetHomomorphicHashingDisabled(v bool) {
+	c.v2.SetHomomorphicHashingDisabled(v)
+}
+
+// HomomorphicHashingDisabled returns container's homomorphic
+// hashing setting.
+func (c *Container) HomomorphicHashingDisabled() bool {
+	return c.v2.GetHomomorphicHashingDisabled()
+}
+
 // SessionToken returns token of the session within
 // which container was created.
 func (c Container) SessionToken() *session.Token {
