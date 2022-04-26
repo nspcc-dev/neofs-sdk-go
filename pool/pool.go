@@ -904,7 +904,6 @@ type resCreateSession struct {
 type Pool struct {
 	innerPools      []*innerPool
 	key             *ecdsa.PrivateKey
-	sessionOwner    user.ID
 	cancel          context.CancelFunc
 	closedCh        chan struct{}
 	cache           *sessionCache
@@ -959,8 +958,6 @@ func NewPool(options InitParameters) (*Pool, error) {
 		clientBuilder: options.clientBuilder,
 	}
 
-	user.IDFromKey(&pool.sessionOwner, options.key.PublicKey)
-
 	return pool, nil
 }
 
@@ -984,7 +981,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 				return err
 			}
 			var healthy bool
-			st, err := createSessionTokenForDuration(ctx, c, p.sessionOwner, p.rebalanceParams.sessionExpirationDuration)
+			st, err := createSessionTokenForDuration(ctx, c, p.rebalanceParams.sessionExpirationDuration)
 			if err != nil && p.logger != nil {
 				p.logger.Warn("failed to create neofs session token for client",
 					zap.String("Address", addr),
@@ -1207,10 +1204,6 @@ func (p *innerPool) connection() (*clientPack, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func (p *Pool) OwnerID() *user.ID {
-	return &p.sessionOwner
-}
-
 func formCacheKey(address string, key *ecdsa.PrivateKey) string {
 	k := keys.PrivateKey{PrivateKey: *key}
 	return address + k.String()
@@ -1230,7 +1223,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func createSessionTokenForDuration(ctx context.Context, c client, ownerID user.ID, dur uint64) (*session.Object, error) {
+func createSessionTokenForDuration(ctx context.Context, c client, dur uint64) (*session.Object, error) {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return nil, err
@@ -1330,12 +1323,9 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
 		var err error
-		var sessionOwner user.ID
-
-		user.IDFromKey(&sessionOwner, ctx.key.PublicKey)
 
 		// open new session
-		t, err := createSessionTokenForDuration(ctx, ctx.client, sessionOwner, p.stokenDuration)
+		t, err := createSessionTokenForDuration(ctx, ctx.client, p.stokenDuration)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
