@@ -19,7 +19,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object/address"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -677,32 +676,4 @@ func TestWaitPresence(t *testing.T) {
 		})
 		require.NoError(t, err)
 	})
-}
-
-func TestCopySessionTokenWithoutSignatureAndContext(t *testing.T) {
-	from := *sessiontest.Object()
-
-	const verb = session.VerbObjectHead
-	from.ForVerb(verb)
-
-	to := from
-
-	require.Equal(t, from, to)
-
-	require.False(t, from.VerifySignature())
-	require.False(t, to.VerifySignature())
-
-	require.True(t, from.AssertVerb(verb))
-	require.True(t, to.AssertVerb(verb))
-
-	k, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	from.ForVerb(verb + 1)
-	require.NoError(t, from.Sign(k.PrivateKey))
-
-	require.True(t, from.VerifySignature())
-	require.False(t, to.VerifySignature())
-	require.True(t, from.AssertVerb(verb+1))
-	require.False(t, to.AssertVerb(verb+1))
 }
