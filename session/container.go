@@ -219,7 +219,7 @@ func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 	x.cnrSet = true
 }
 
-// AppliedTo checks if session scope is limited by a given container.
+// AppliedTo checks if the session is propagated to the given container.
 //
 // Zero Container is applied to all author's containers.
 //
