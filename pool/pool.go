@@ -981,14 +981,15 @@ func (p *Pool) Dial(ctx context.Context) error {
 				return err
 			}
 			var healthy bool
-			st, err := createSessionTokenForDuration(ctx, c, p.rebalanceParams.sessionExpirationDuration)
+			var st session.Object
+			err = initSessionForDuration(ctx, &st, c, p.rebalanceParams.sessionExpirationDuration)
 			if err != nil && p.logger != nil {
 				p.logger.Warn("failed to create neofs session token for client",
 					zap.String("Address", addr),
 					zap.Error(err))
 			} else if err == nil {
 				healthy, atLeastOneHealthy = true, true
-				_ = p.cache.Put(formCacheKey(addr, p.key), *st)
+				_ = p.cache.Put(formCacheKey(addr, p.key), st)
 			}
 			clientPacks[j] = &clientPack{client: c, healthy: healthy, address: addr}
 		}
@@ -1223,10 +1224,10 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func createSessionTokenForDuration(ctx context.Context, c client, dur uint64) (*session.Object, error) {
+func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64) error {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	epoch := ni.CurrentEpoch()
@@ -1242,29 +1243,28 @@ func createSessionTokenForDuration(ctx context.Context, c client, dur uint64) (*
 
 	res, err := c.sessionCreate(ctx, prm)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var id uuid.UUID
 
 	err = id.UnmarshalBinary(res.id)
 	if err != nil {
-		return nil, fmt.Errorf("invalid session token ID: %w", err)
+		return fmt.Errorf("invalid session token ID: %w", err)
 	}
 
 	var key neofsecdsa.PublicKey
 
 	err = key.Decode(res.sessionKey)
 	if err != nil {
-		return nil, fmt.Errorf("invalid public session key: %w", err)
+		return fmt.Errorf("invalid public session key: %w", err)
 	}
 
-	var st session.Object
-	st.SetID(id)
-	st.SetAuthKey(&key)
-	st.SetExp(exp)
+	dst.SetID(id)
+	dst.SetAuthKey(&key)
+	dst.SetExp(exp)
 
-	return &st, nil
+	return nil
 }
 
 type callContext struct {
@@ -1322,16 +1322,14 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
-		var err error
-
-		// open new session
-		t, err := createSessionTokenForDuration(ctx, ctx.client, p.stokenDuration)
+		// init new session
+		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
 
 		// cache the opened session
-		p.cache.Put(cacheKey, *t)
+		p.cache.Put(cacheKey, tok)
 	}
 
 	tok.ForVerb(ctx.sessionVerb)
