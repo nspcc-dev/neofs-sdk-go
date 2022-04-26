@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
@@ -730,4 +731,27 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	}
 
 	return &res, nil
+}
+
+// SyncContainerWithNetwork requests network configuration using passed client
+// and applies it to the container.
+//
+// Note: if container does not match network configuration, SyncContainerWithNetwork
+// changes it.
+//
+// Returns any network/parsing config errors.
+//
+// See also NetworkInfo, container.ApplyNetworkConfig.
+func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c *Client) error {
+	res, err := c.NetworkInfo(ctx, PrmNetworkInfo{})
+	if err != nil {
+		return fmt.Errorf("network info call: %w", err)
+	}
+
+	err = cnr.ApplyNetworkConfig(*res.Info().NetworkConfig())
+	if err != nil {
+		return fmt.Errorf("applying network config: %w", err)
+	}
+
+	return nil
 }
