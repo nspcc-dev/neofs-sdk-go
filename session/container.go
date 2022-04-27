@@ -199,7 +199,7 @@ func (x *Container) Sign(key ecdsa.PrivateKey) error {
 //
 // See also Sign.
 func (x Container) VerifySignature() bool {
-	// TODO: check owner<->key relation
+	// TODO: (#233) check owner<->key relation
 	data, err := x.body.StableMarshal(nil)
 	if err != nil {
 		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
