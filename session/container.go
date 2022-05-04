@@ -376,3 +376,25 @@ func (x Container) AssertAuthKey(key neofscrypto.PublicKey) bool {
 
 	return bytes.Equal(bKey, x.body.GetSessionKey())
 }
+
+// IssuedBy returns true if session token is signed
+// and, therefore, owned by specified user.
+//
+// See also Sign.
+func (x Container) IssuedBy(id user.ID) bool {
+	var (
+		tokenOwner   user.ID
+		v2TokenOwner = x.body.GetOwnerID()
+	)
+
+	if v2TokenOwner == nil {
+		return false
+	}
+
+	err := tokenOwner.ReadFromV2(*v2TokenOwner)
+	if err != nil {
+		return false
+	}
+
+	return tokenOwner.Equals(id)
+}
