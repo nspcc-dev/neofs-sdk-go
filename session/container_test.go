@@ -11,6 +11,7 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -284,4 +285,19 @@ func TestContainerSignature(t *testing.T) {
 		fs[i]()
 		require.True(t, x.VerifySignature())
 	}
+}
+
+func TestContainer_IssuedBy(t *testing.T) {
+	var (
+		token  session.Container
+		issuer user.ID
+		signer = randSigner()
+	)
+
+	user.IDFromKey(&issuer, signer.PublicKey)
+
+	require.False(t, token.IssuedBy(issuer))
+
+	require.NoError(t, token.Sign(signer))
+	require.True(t, token.IssuedBy(issuer))
 }
