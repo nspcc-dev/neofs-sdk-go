@@ -113,12 +113,7 @@ func (x Container) Marshal() []byte {
 	var m session.Token
 	x.WriteToV2(&m)
 
-	data, err := m.StableMarshal(nil)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
-	}
-
-	return data
+	return m.StableMarshal(nil)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Container
@@ -185,10 +180,7 @@ func (x *Container) Sign(key ecdsa.PrivateKey) error {
 	x.body.SetLifetime(&x.lt)
 	x.body.SetContext(&x.c)
 
-	data, err := x.body.StableMarshal(nil)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
-	}
+	data := x.body.StableMarshal(nil)
 
 	return x.sig.Calculate(neofsecdsa.Signer(key), data)
 }
@@ -200,10 +192,7 @@ func (x *Container) Sign(key ecdsa.PrivateKey) error {
 // See also Sign.
 func (x Container) VerifySignature() bool {
 	// TODO: (#233) check owner<->key relation
-	data, err := x.body.StableMarshal(nil)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
-	}
+	data := x.body.StableMarshal(nil)
 
 	return x.sig.Verify(data)
 }

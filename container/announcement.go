@@ -83,7 +83,7 @@ func (a *UsedSpaceAnnouncement) ToV2() *container.UsedSpaceAnnouncement {
 
 // Marshal marshals UsedSpaceAnnouncement into a protobuf binary form.
 func (a *UsedSpaceAnnouncement) Marshal() ([]byte, error) {
-	return a.ToV2().StableMarshal(nil)
+	return a.ToV2().StableMarshal(nil), nil
 }
 
 var errCIDNotSet = errors.New("container ID is not set")

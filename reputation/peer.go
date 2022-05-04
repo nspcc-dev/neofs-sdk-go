@@ -64,7 +64,7 @@ func (x *PeerID) String() string {
 
 // Marshal marshals PeerID into a protobuf binary form.
 func (x *PeerID) Marshal() ([]byte, error) {
-	return (*reputation.PeerID)(x).StableMarshal(nil)
+	return (*reputation.PeerID)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of PeerID.

@@ -157,7 +157,7 @@ func (sg *StorageGroup) SetMembers(members []oid.ID) {
 // See also Unmarshal.
 func (sg StorageGroup) Marshal() ([]byte, error) {
 	v2 := (storagegroup.StorageGroup)(sg)
-	return v2.StableMarshal(nil)
+	return v2.StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of StorageGroup.

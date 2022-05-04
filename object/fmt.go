@@ -55,10 +55,7 @@ func VerifyPayloadChecksum(obj *Object) error {
 
 // CalculateID calculates identifier for the object.
 func CalculateID(obj *Object) (oid.ID, error) {
-	data, err := obj.ToV2().GetHeader().StableMarshal(nil)
-	if err != nil {
-		return oid.ID{}, err
-	}
+	data := obj.ToV2().GetHeader().StableMarshal(nil)
 
 	var id oid.ID
 	id.SetSHA256(sha256.Sum256(data))
@@ -131,10 +128,7 @@ func (o *Object) VerifyIDSignature() bool {
 		return false
 	}
 
-	data, err := idV2.StableMarshal(nil)
-	if err != nil {
-		return false
-	}
+	data := idV2.StableMarshal(nil)
 
 	var sig neofscrypto.Signature
 	sig.ReadFromV2(*sigV2)

@@ -84,14 +84,11 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	// sign container
 	cnr := prm.cnr.ToV2()
 
-	data, err := cnr.StableMarshal(nil)
-	if err != nil {
-		return nil, fmt.Errorf("marshal container: %w", err)
-	}
+	data := cnr.StableMarshal(nil)
 
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
+	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
@@ -446,14 +443,11 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	var cidV2 refs.ContainerID
 	prm.id.WriteToV2(&cidV2)
 
-	data, err := cidV2.StableMarshal(nil)
-	if err != nil {
-		return nil, fmt.Errorf("marshal container ID: %w", err)
-	}
+	data := cidV2.StableMarshal(nil)
 
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
+	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
@@ -676,14 +670,11 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	// sign the eACL table
 	eaclV2 := prm.table.ToV2()
 
-	data, err := eaclV2.StableMarshal(nil)
-	if err != nil {
-		return nil, fmt.Errorf("marshal eACL: %w", err)
-	}
+	data := eaclV2.StableMarshal(nil)
 
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
+	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
