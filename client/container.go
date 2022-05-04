@@ -446,14 +446,13 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	var cidV2 refs.ContainerID
 	prm.id.WriteToV2(&cidV2)
 
-	data, err := cidV2.StableMarshal(nil)
-	if err != nil {
-		return nil, fmt.Errorf("marshal container ID: %w", err)
-	}
+	// container contract expects signature of container ID value
+	// don't get confused with stable marshaled protobuf container.ID structure
+	data := cidV2.GetValue()
 
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
+	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
