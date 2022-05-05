@@ -71,7 +71,7 @@ func (id *ID) String() string {
 
 // Marshal marshals ID into a protobuf binary form.
 func (id *ID) Marshal() ([]byte, error) {
-	return (*refs.ContainerID)(id).StableMarshal(nil)
+	return (*refs.ContainerID)(id).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of ID.

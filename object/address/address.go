@@ -99,7 +99,7 @@ func (a *Address) String() string {
 
 // Marshal marshals Address into a protobuf binary form.
 func (a *Address) Marshal() ([]byte, error) {
-	return (*refs.Address)(a).StableMarshal(nil)
+	return (*refs.Address)(a).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Address.

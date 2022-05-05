@@ -70,7 +70,7 @@ func (v *Version) String() string {
 
 // Marshal marshals Version into a protobuf binary form.
 func (v *Version) Marshal() ([]byte, error) {
-	return (*refs.Version)(v).StableMarshal(nil)
+	return (*refs.Version)(v).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Version.

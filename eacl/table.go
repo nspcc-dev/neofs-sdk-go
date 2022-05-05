@@ -168,7 +168,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 
 // Marshal marshals Table into a protobuf binary form.
 func (t *Table) Marshal() ([]byte, error) {
-	return t.ToV2().StableMarshal(nil)
+	return t.ToV2().StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Table.

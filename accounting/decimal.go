@@ -50,7 +50,7 @@ func (d *Decimal) SetPrecision(p uint32) {
 
 // Marshal marshals Decimal into a protobuf binary form.
 func (d *Decimal) Marshal() ([]byte, error) {
-	return (*accounting.Decimal)(d).StableMarshal(nil)
+	return (*accounting.Decimal)(d).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshalls protobuf binary representation of Decimal.

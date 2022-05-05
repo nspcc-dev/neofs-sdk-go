@@ -46,7 +46,7 @@ func (r *Result) ToV2() *audit.DataAuditResult {
 
 // Marshal marshals Result into a protobuf binary form.
 func (r *Result) Marshal() ([]byte, error) {
-	return (*audit.DataAuditResult)(r).StableMarshal(nil)
+	return (*audit.DataAuditResult)(r).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Result.

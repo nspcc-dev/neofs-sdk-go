@@ -76,7 +76,7 @@ func (x *Trust) Value() float64 {
 
 // Marshal marshals Trust into a protobuf binary form.
 func (x *Trust) Marshal() ([]byte, error) {
-	return (*reputation.Trust)(x).StableMarshal(nil)
+	return (*reputation.Trust)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Trust.
@@ -149,7 +149,7 @@ func (x *PeerToPeerTrust) Trust() *Trust {
 
 // Marshal marshals PeerToPeerTrust into a protobuf binary form.
 func (x *PeerToPeerTrust) Marshal() ([]byte, error) {
-	return (*reputation.PeerToPeerTrust)(x).StableMarshal(nil)
+	return (*reputation.PeerToPeerTrust)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of PeerToPeerTrust.
@@ -287,7 +287,7 @@ func (x *GlobalTrust) VerifySignature() error {
 
 // Marshal marshals GlobalTrust into a protobuf binary form.
 func (x *GlobalTrust) Marshal() ([]byte, error) {
-	return (*reputation.GlobalTrust)(x).StableMarshal(nil)
+	return (*reputation.GlobalTrust)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of GlobalTrust.

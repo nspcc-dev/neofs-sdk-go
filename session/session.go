@@ -248,8 +248,7 @@ func GetContainerContext(t *Token) *ContainerContext {
 
 // Marshal marshals Token into a protobuf binary form.
 func (t *Token) Marshal() ([]byte, error) {
-	return (*session.Token)(t).
-		StableMarshal(nil)
+	return (*session.Token)(t).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Token.

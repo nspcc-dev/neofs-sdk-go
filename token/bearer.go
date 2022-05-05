@@ -191,8 +191,7 @@ func (b *BearerToken) Marshal(bs ...[]byte) ([]byte, error) {
 		buf = bs[0]
 	}
 
-	return b.ToV2().
-		StableMarshal(buf)
+	return b.ToV2().StableMarshal(buf), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of BearerToken.

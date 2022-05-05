@@ -89,7 +89,7 @@ func Equal(cs1, cs2 *Checksum) bool {
 
 // Marshal marshals Checksum into a protobuf binary form.
 func (c *Checksum) Marshal() ([]byte, error) {
-	return (*refs.Checksum)(c).StableMarshal(nil)
+	return (*refs.Checksum)(c).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Checksum.
