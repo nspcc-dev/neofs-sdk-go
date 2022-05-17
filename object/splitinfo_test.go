@@ -29,15 +29,16 @@ func TestSplitInfo(t *testing.T) {
 	l, set := s.Link()
 	require.True(t, set)
 	require.Equal(t, link, l)
+}
 
-	t.Run("to and from v2", func(t *testing.T) {
+func TestSplitInfoMarshal(t *testing.T) {
+	testToV2 := func(t *testing.T, s *object.SplitInfo) {
 		v2 := s.ToV2()
 		newS := object.NewSplitInfoFromV2(v2)
 
 		require.Equal(t, s, newS)
-	})
-
-	t.Run("marshal and unmarshal", func(t *testing.T) {
+	}
+	testMarshal := func(t *testing.T, s *object.SplitInfo) {
 		data, err := s.Marshal()
 		require.NoError(t, err)
 
@@ -46,6 +47,40 @@ func TestSplitInfo(t *testing.T) {
 		err = newS.Unmarshal(data)
 		require.NoError(t, err)
 		require.Equal(t, s, newS)
+	}
+
+	t.Run("good, both fields are set", func(t *testing.T) {
+		s := object.NewSplitInfo()
+		s.SetSplitID(object.NewSplitID())
+		s.SetLink(generateID())
+		s.SetLastPart(generateID())
+
+		testToV2(t, s)
+		testMarshal(t, s)
+	})
+	t.Run("good, only link is set", func(t *testing.T) {
+		s := object.NewSplitInfo()
+		s.SetSplitID(object.NewSplitID())
+		s.SetLink(generateID())
+
+		testToV2(t, s)
+		testMarshal(t, s)
+	})
+	t.Run("good, only last part is set", func(t *testing.T) {
+		s := object.NewSplitInfo()
+		s.SetSplitID(object.NewSplitID())
+		s.SetLastPart(generateID())
+
+		testToV2(t, s)
+		testMarshal(t, s)
+	})
+	t.Run("bad, no fields are set", func(t *testing.T) {
+		s := object.NewSplitInfo()
+		s.SetSplitID(object.NewSplitID())
+
+		data, err := s.Marshal()
+		require.NoError(t, err)
+		require.Error(t, object.NewSplitInfo().Unmarshal(data))
 	})
 }
 
@@ -96,15 +131,25 @@ func TestNewSplitInfo(t *testing.T) {
 }
 
 func TestSplitInfoMarshalJSON(t *testing.T) {
-	s := object.NewSplitInfo()
-	s.SetSplitID(object.NewSplitID())
-	s.SetLastPart(generateID())
-	s.SetLink(generateID())
+	t.Run("good", func(t *testing.T) {
+		s := object.NewSplitInfo()
+		s.SetSplitID(object.NewSplitID())
+		s.SetLastPart(generateID())
+		s.SetLink(generateID())
 
-	data, err := s.MarshalJSON()
-	require.NoError(t, err)
+		data, err := s.MarshalJSON()
+		require.NoError(t, err)
 
-	actual := object.NewSplitInfo()
-	require.NoError(t, json.Unmarshal(data, actual))
-	require.Equal(t, s, actual)
+		actual := object.NewSplitInfo()
+		require.NoError(t, json.Unmarshal(data, actual))
+		require.Equal(t, s, actual)
+	})
+	t.Run("bad link", func(t *testing.T) {
+		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","lastPart":{"value":"Y7baWE0UdUOBr1ELKX3Q5v1LKRubQUbI81Q5UxCVeow="},"link":{"value":"bad"}}`
+		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
+	})
+	t.Run("bad last part", func(t *testing.T) {
+		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","lastPart":{"value":"bad"},"link":{"value":"eRyPNCNNxHfxPcjijlv05HEcdoep/b7eHNLRSmDlnts="}}`
+		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
+	})
 }
