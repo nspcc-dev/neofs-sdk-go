@@ -1,9 +1,14 @@
 package storagegroup
 
 import (
+	"fmt"
+	"strconv"
+
+	objectV2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	objectSDK "github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
@@ -204,4 +209,88 @@ func formatCheck(v2 *storagegroup.StorageGroup) error {
 	}
 
 	return nil
+}
+
+// ReadFromObject assemble StorageGroup from a regular
+// Object structure. Object must contain unambiguous information
+// about its expiration epoch, otherwise behaviour is undefined.
+//
+// Returns any error appeared during storage group parsing; returns
+// error if object is not of TypeStorageGroup type.
+func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
+	if typ := o.Type(); typ != objectSDK.TypeStorageGroup {
+		return fmt.Errorf("object is not of StorageGroup type: %s", typ)
+	}
+
+	err := sg.Unmarshal(o.Payload())
+	if err != nil {
+		return fmt.Errorf("could not unmarshal object: %w", err)
+	}
+
+	var expObj uint64
+
+	for _, attr := range o.Attributes() {
+		if attr.Key() == objectV2.SysAttributeExpEpoch {
+			expObj, err = strconv.ParseUint(attr.Value(), 10, 64)
+			if err != nil {
+				return fmt.Errorf("could not get expiration from object: %w", err)
+			}
+
+			break
+		}
+	}
+
+	// Supporting deprecated functionality.
+	// See https://github.com/nspcc-dev/neofs-api/pull/205.
+	if expSG := sg.ExpirationEpoch(); expObj != expSG {
+		return fmt.Errorf(
+			"expiration does not match: from object: %d, from payload: %d",
+			expObj, expSG)
+	}
+
+	return nil
+}
+
+// WriteToObject writes StorageGroup to a regular
+// Object structure. Object must not contain ambiguous
+// information about its expiration epoch or must not
+// have it at all.
+//
+// Written information:
+// 	* expiration epoch;
+// 	* object type (TypeStorageGroup);
+// 	* raw payload.
+func WriteToObject(sg StorageGroup, o *objectSDK.Object) {
+	sgRaw, err := sg.Marshal()
+	if err != nil {
+		// Marshal() does not return errors
+		// in the next API release
+		panic(fmt.Errorf("could not marshal storage group: %w", err))
+	}
+
+	o.SetPayload(sgRaw)
+	o.SetType(objectSDK.TypeStorageGroup)
+
+	attrs := o.Attributes()
+	var expAttrFound bool
+
+	for i := range attrs {
+		if attrs[i].Key() == objectV2.SysAttributeExpEpoch {
+			expAttrFound = true
+			attrs[i].SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
+
+			break
+		}
+	}
+
+	if !expAttrFound {
+		var attr objectSDK.Attribute
+
+		attr.SetKey(objectV2.SysAttributeExpEpoch)
+		attr.SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
+
+		attrs = append(attrs, attr)
+	}
+
+	o.SetAttributes(attrs...)
 }
