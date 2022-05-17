@@ -2,13 +2,16 @@ package storagegroup_test
 
 import (
 	"crypto/sha256"
+	"strconv"
 	"testing"
 
+	objectV2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	storagegroupV2 "github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	storagegroupV2test "github.com/nspcc-dev/neofs-api-go/v2/storagegroup/test"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
+	objectSDK "github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
@@ -192,4 +195,95 @@ func TestStorageGroup_SetMembers_DoubleSetting(t *testing.T) {
 	// slicing should not lead to `out of range`
 	// and apply update correctly
 	sg.SetMembers(mm[:1])
+}
+
+func TestStorageGroupFromObject(t *testing.T) {
+	sg := storagegrouptest.StorageGroup()
+
+	var o objectSDK.Object
+
+	var expAttr objectSDK.Attribute
+	expAttr.SetKey(objectV2.SysAttributeExpEpoch)
+	expAttr.SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
+
+	sgRaw, err := sg.Marshal()
+	require.NoError(t, err)
+
+	o.SetPayload(sgRaw)
+	o.SetType(objectSDK.TypeStorageGroup)
+
+	t.Run("correct object", func(t *testing.T) {
+		o.SetAttributes(objectSDK.Attribute{}, expAttr, objectSDK.Attribute{})
+
+		var sg2 storagegroup.StorageGroup
+		require.NoError(t, storagegroup.ReadFromObject(&sg2, o))
+		require.Equal(t, sg, sg2)
+	})
+
+	t.Run("incorrect exp attr", func(t *testing.T) {
+		var sg2 storagegroup.StorageGroup
+
+		expAttr.SetValue(strconv.FormatUint(sg.ExpirationEpoch()+1, 10))
+		o.SetAttributes(expAttr)
+
+		require.Error(t, storagegroup.ReadFromObject(&sg2, o))
+	})
+
+	t.Run("incorrect object type", func(t *testing.T) {
+		var sg2 storagegroup.StorageGroup
+
+		o.SetType(objectSDK.TypeTombstone)
+		require.Error(t, storagegroup.ReadFromObject(&sg2, o))
+	})
+}
+
+func TestStorageGroupToObject(t *testing.T) {
+	sg := storagegrouptest.StorageGroup()
+
+	sgRaw, err := sg.Marshal()
+	require.NoError(t, err)
+
+	t.Run("empty object", func(t *testing.T) {
+		var o objectSDK.Object
+		storagegroup.WriteToObject(sg, &o)
+
+		exp, found := expFromObj(t, o)
+		require.True(t, found)
+
+		require.Equal(t, sgRaw, o.Payload())
+		require.Equal(t, sg.ExpirationEpoch(), exp)
+		require.Equal(t, objectSDK.TypeStorageGroup, o.Type())
+	})
+
+	t.Run("obj already has exp attr", func(t *testing.T) {
+		var o objectSDK.Object
+
+		var attr objectSDK.Attribute
+		attr.SetKey(objectV2.SysAttributeExpEpoch)
+		attr.SetValue(strconv.FormatUint(sg.ExpirationEpoch()+1, 10))
+
+		o.SetAttributes(objectSDK.Attribute{}, attr, objectSDK.Attribute{})
+
+		storagegroup.WriteToObject(sg, &o)
+
+		exp, found := expFromObj(t, o)
+		require.True(t, found)
+
+		require.Equal(t, sgRaw, o.Payload())
+		require.Equal(t, sg.ExpirationEpoch(), exp)
+		require.Equal(t, objectSDK.TypeStorageGroup, o.Type())
+	})
+}
+
+func expFromObj(t *testing.T, o objectSDK.Object) (uint64, bool) {
+	for _, attr := range o.Attributes() {
+		if attr.Key() == objectV2.SysAttributeExpEpoch {
+			exp, err := strconv.ParseUint(attr.Value(), 10, 64)
+			require.NoError(t, err)
+
+			return exp, true
+		}
+	}
+
+	return 0, false
 }
