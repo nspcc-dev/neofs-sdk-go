@@ -110,30 +110,29 @@ func (s *SplitInfo) UnmarshalJSON(data []byte) error {
 	return formatCheckSI((*object.SplitInfo)(s))
 }
 
-var errLinkNotSet = errors.New("link object ID is not set")
-var errLastPartNotSet = errors.New("last part object ID is not set")
+var errSplitInfoMissingFields = errors.New("neither link object ID nor last part object ID is set")
 
 func formatCheckSI(v2 *object.SplitInfo) error {
+	link := v2.GetLink()
+	lastPart := v2.GetLastPart()
+	if link == nil && lastPart == nil {
+		return errSplitInfoMissingFields
+	}
+
 	var oID oid.ID
 
-	link := v2.GetLink()
-	if link == nil {
-		return errLinkNotSet
+	if link != nil {
+		err := oID.ReadFromV2(*link)
+		if err != nil {
+			return fmt.Errorf("could not convert link object ID: %w", err)
+		}
 	}
 
-	err := oID.ReadFromV2(*link)
-	if err != nil {
-		return fmt.Errorf("could not convert link object ID: %w", err)
-	}
-
-	lastPart := v2.GetLastPart()
-	if lastPart == nil {
-		return errLastPartNotSet
-	}
-
-	err = oID.ReadFromV2(*lastPart)
-	if err != nil {
-		return fmt.Errorf("could not convert last part object ID: %w", err)
+	if lastPart != nil {
+		err := oID.ReadFromV2(*lastPart)
+		if err != nil {
+			return fmt.Errorf("could not convert last part object ID: %w", err)
+		}
 	}
 
 	return nil
