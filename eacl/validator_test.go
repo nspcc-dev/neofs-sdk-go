@@ -7,6 +7,18 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func checkAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit) {
+	action, ok := v.CalculateAction(vu)
+	require.True(t, ok)
+	require.Equal(t, expected, action)
+}
+
+func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit) {
+	action, ok := v.CalculateAction(vu)
+	require.False(t, ok)
+	require.Equal(t, ActionAllow, action)
+}
+
 func TestFilterMatch(t *testing.T) {
 	tgt := *NewTarget()
 	tgt.SetRole(RoleOthers)
@@ -29,20 +41,20 @@ func TestFilterMatch(t *testing.T) {
 		hs := headers{}
 		vu.hdrSrc = &hs
 
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 
 		hs.obj = makeHeaders("b", "yyy")
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 
 		hs.obj = makeHeaders("a", "xxx")
-		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+		checkAction(t, ActionDeny, v, vu)
 
 		hs.obj = nil
 		hs.req = makeHeaders("b", "yyy")
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 
 		hs.req = makeHeaders("b", "abc")
-		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+		checkAction(t, ActionDeny, v, vu)
 	})
 
 	t.Run("all filters must match", func(t *testing.T) {
@@ -59,13 +71,13 @@ func TestFilterMatch(t *testing.T) {
 		vu.hdrSrc = &hs
 
 		hs.obj = makeHeaders("a", "xxx")
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 
 		hs.req = makeHeaders("b", "yyy")
-		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+		checkAction(t, ActionDeny, v, vu)
 
 		hs.obj = nil
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 	})
 
 	t.Run("filters with unknown type are skipped", func(t *testing.T) {
@@ -85,14 +97,14 @@ func TestFilterMatch(t *testing.T) {
 		hs := headers{}
 		vu.hdrSrc = &hs
 
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkDefaultAction(t, v, vu)
 
 		hs.obj = makeHeaders("a", "xxx")
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkDefaultAction(t, v, vu)
 
 		hs.obj = nil
 		hs.req = makeHeaders("b", "yyy")
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkDefaultAction(t, v, vu)
 	})
 
 	t.Run("filters with match function are skipped", func(t *testing.T) {
@@ -107,10 +119,10 @@ func TestFilterMatch(t *testing.T) {
 		hs := headers{}
 		vu.hdrSrc = &hs
 
-		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+		checkAction(t, ActionDeny, v, vu)
 
 		hs.obj = makeHeaders("a", "xxx")
-		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+		checkAction(t, ActionDeny, v, vu)
 	})
 }
 
@@ -127,10 +139,10 @@ func TestOperationMatch(t *testing.T) {
 		vu := newValidationUnit(RoleOthers, nil, tb)
 
 		vu.op = OperationPut
-		require.Equal(t, ActionDeny, v.CalculateAction(vu))
+		checkAction(t, ActionDeny, v, vu)
 
 		vu.op = OperationGet
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 	})
 
 	t.Run("unknown operation", func(t *testing.T) {
@@ -143,10 +155,10 @@ func TestOperationMatch(t *testing.T) {
 
 		// TODO discuss if both next tests should result in DENY
 		vu.op = OperationPut
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkDefaultAction(t, v, vu)
 
 		vu.op = OperationGet
-		require.Equal(t, ActionAllow, v.CalculateAction(vu))
+		checkAction(t, ActionAllow, v, vu)
 	})
 }
 

@@ -21,8 +21,11 @@ func NewValidator() *Validator {
 // The action is calculated according to the application of
 // eACL table of rules to the request.
 //
-// If no matching table entry is found, ActionAllow is returned.
-func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
+// Second return value is true iff the action was produced by a matching entry.
+//
+// If no matching table entry is found or some filters are missing,
+// ActionAllow is returned and the second return value is false.
+func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool) {
 	for _, record := range unit.table.Records() {
 		// check type of operation
 		if record.Operation() != unit.op {
@@ -38,13 +41,13 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) Action {
 		switch val := matchFilters(unit.hdrSrc, record.Filters()); {
 		case val < 0:
 			// headers of some type could not be composed => allow
-			return ActionAllow
+			return ActionAllow, false
 		case val == 0:
-			return record.Action()
+			return record.Action(), true
 		}
 	}
 
-	return ActionAllow
+	return ActionAllow, false
 }
 
 // returns:
