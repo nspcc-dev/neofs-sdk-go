@@ -19,7 +19,7 @@ func TestContext_ProcessFilters(t *testing.T) {
 	}
 	nm, err := NewNetmap(nil)
 	require.NoError(t, err)
-	c := NewContext(nm)
+	c := newContext(nm)
 	p := newPlacementPolicy(1, nil, nil, fs)
 	require.NoError(t, c.processFilters(p))
 	require.Equal(t, 3, len(c.Filters))
@@ -72,7 +72,7 @@ func TestContext_ProcessFiltersInvalid(t *testing.T) {
 	}
 	for _, tc := range errTestCases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := NewContext(new(Netmap))
+			c := newContext(new(Netmap))
 			p := newPlacementPolicy(1, nil, nil, []Filter{tc.filter})
 			err := c.processFilters(p)
 			require.True(t, errors.Is(err, tc.err), "got: %v", err)
@@ -87,7 +87,7 @@ func TestFilter_MatchSimple_InvalidOp(t *testing.T) {
 	}}
 
 	f := newFilter("Main", "Rating", "5", OpEQ)
-	c := NewContext(new(Netmap))
+	c := newContext(new(Netmap))
 	p := newPlacementPolicy(1, nil, nil, []Filter{f})
 	require.NoError(t, c.processFilters(p))
 

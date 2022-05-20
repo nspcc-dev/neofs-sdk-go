@@ -13,7 +13,7 @@ import (
 type Selector netmap.Selector
 
 // processSelectors processes selectors and returns error is any of them is invalid.
-func (c *Context) processSelectors(p *PlacementPolicy) error {
+func (c *context) processSelectors(p *PlacementPolicy) error {
 	selectors := p.Selectors()
 	for i, s := range selectors {
 		if s.Filter() != MainFilterName {
@@ -49,7 +49,7 @@ func GetNodesCount(_ *PlacementPolicy, s *Selector) (int, int) {
 
 // getSelection returns nodes grouped by s.attribute.
 // Last argument specifies if more buckets can be used to fulfill CBF.
-func (c *Context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error) {
+func (c *context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error) {
 	bucketCount, nodesInBucket := GetNodesCount(p, s)
 	buckets := c.getSelectionBase(p.SubnetID(), s)
 
@@ -124,7 +124,7 @@ type nodeAttrPair struct {
 
 // getSelectionBase returns nodes grouped by selector attribute.
 // It it guaranteed that each pair will contain at least one node.
-func (c *Context) getSelectionBase(subnetID *subnetid.ID, s *Selector) []nodeAttrPair {
+func (c *context) getSelectionBase(subnetID *subnetid.ID, s *Selector) []nodeAttrPair {
 	f := c.Filters[s.Filter()]
 	isMain := s.Filter() == MainFilterName
 	result := []nodeAttrPair{}
