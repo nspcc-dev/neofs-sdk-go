@@ -48,7 +48,7 @@ func (m *Netmap) GetPlacementVectors(cnt ContainerNodes, pivot []byte) ([]Nodes,
 // Order of returned nodes corresponds to order of replicas in p.
 // pivot is a seed for HRW sorting.
 func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) (ContainerNodes, error) {
-	c := NewContext(m)
+	c := newContext(m)
 	c.setPivot(pivot)
 	c.setCBF(p.ContainerBackupFactor())
 

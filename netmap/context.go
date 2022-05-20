@@ -6,8 +6,8 @@ import (
 	"github.com/nspcc-dev/hrw"
 )
 
-// Context contains references to named filters and cached numeric values.
-type Context struct {
+// context contains references to named filters and cached numeric values.
+type context struct {
 	// Netmap is a netmap structure to operate on.
 	Netmap *Netmap
 	// Filters stores processed filters.
@@ -47,10 +47,10 @@ var (
 	ErrUnnamedTopFilter  = errors.New("netmap: all filters on top level must be named")
 )
 
-// NewContext creates new context. It contains various caches.
+// newContext creates new context. It contains various caches.
 // In future it may create hierarchical netmap structure to work with.
-func NewContext(nm *Netmap) *Context {
-	return &Context{
+func newContext(nm *Netmap) *context {
+	return &context{
 		Netmap:     nm,
 		Filters:    make(map[string]*Filter),
 		Selectors:  make(map[string]*Selector),
@@ -63,14 +63,14 @@ func NewContext(nm *Netmap) *Context {
 	}
 }
 
-func (c *Context) setPivot(pivot []byte) {
+func (c *context) setPivot(pivot []byte) {
 	if len(pivot) != 0 {
 		c.pivot = pivot
 		c.pivotHash = hrw.Hash(pivot)
 	}
 }
 
-func (c *Context) setCBF(cbf uint32) {
+func (c *context) setCBF(cbf uint32) {
 	if cbf == 0 {
 		c.cbf = defaultCBF
 	} else {

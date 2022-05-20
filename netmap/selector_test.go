@@ -214,7 +214,7 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 
 	nm, err := NewNetmap(NodesFromInfo(nodes))
 	require.NoError(t, err)
-	c := NewContext(nm)
+	c := newContext(nm)
 	c.setCBF(p.ContainerBackupFactor())
 	require.NoError(t, c.processFilters(p))
 	require.NoError(t, c.processSelectors(p))

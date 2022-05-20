@@ -15,12 +15,12 @@ type Filter netmap.Filter
 const MainFilterName = "*"
 
 // applyFilter applies named filter to b.
-func (c *Context) applyFilter(name string, b *Node) bool {
+func (c *context) applyFilter(name string, b *Node) bool {
 	return name == MainFilterName || c.match(c.Filters[name], b)
 }
 
 // processFilters processes filters and returns error is any of them is invalid.
-func (c *Context) processFilters(p *PlacementPolicy) error {
+func (c *context) processFilters(p *PlacementPolicy) error {
 	filters := p.Filters()
 	for i := range filters {
 		if err := c.processFilter(&filters[i], true); err != nil {
@@ -31,7 +31,7 @@ func (c *Context) processFilters(p *PlacementPolicy) error {
 	return nil
 }
 
-func (c *Context) processFilter(f *Filter, top bool) error {
+func (c *context) processFilter(f *Filter, top bool) error {
 	if f == nil {
 		return fmt.Errorf("%w: FILTER", ErrMissingField)
 	}
@@ -86,7 +86,7 @@ func (c *Context) processFilter(f *Filter, top bool) error {
 // match matches f against b. It returns no errors because
 // filter should have been parsed during context creation
 // and missing node properties are considered as a regular fail.
-func (c *Context) match(f *Filter, b *Node) bool {
+func (c *context) match(f *Filter, b *Node) bool {
 	switch f.Operation() {
 	case OpAND, OpOR:
 		for _, lf := range f.InnerFilters() {
@@ -106,7 +106,7 @@ func (c *Context) match(f *Filter, b *Node) bool {
 	}
 }
 
-func (c *Context) matchKeyValue(f *Filter, b *Node) bool {
+func (c *context) matchKeyValue(f *Filter, b *Node) bool {
 	switch f.Operation() {
 	case OpEQ:
 		return b.Attribute(f.Key()) == f.Value()
