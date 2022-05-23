@@ -377,24 +377,26 @@ func (x Container) AssertAuthKey(key neofscrypto.PublicKey) bool {
 	return bytes.Equal(bKey, x.body.GetSessionKey())
 }
 
-// IssuedBy returns true if session token is signed
-// and, therefore, owned by specified user.
+// Issuer returns user ID of the session issuer.
+//
+// Makes sense only for signed Container instances. For unsigned instances,
+// Issuer returns zero user.ID.
 //
 // See also Sign.
-func (x Container) IssuedBy(id user.ID) bool {
-	var (
-		tokenOwner   user.ID
-		v2TokenOwner = x.body.GetOwnerID()
-	)
+func (x Container) Issuer() user.ID {
+	var issuer user.ID
 
-	if v2TokenOwner == nil {
-		return false
+	issuerV2 := x.body.GetOwnerID()
+	if issuerV2 != nil {
+		_ = issuer.ReadFromV2(*issuerV2)
 	}
 
-	err := tokenOwner.ReadFromV2(*v2TokenOwner)
-	if err != nil {
-		return false
-	}
+	return issuer
+}
 
-	return tokenOwner.Equals(id)
+// IssuedBy checks if Container session is issued by the given user.
+//
+// See also Container.Issuer.
+func IssuedBy(cnr Container, id user.ID) bool {
+	return cnr.Issuer().Equals(id)
 }

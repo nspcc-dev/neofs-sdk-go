@@ -287,7 +287,7 @@ func TestContainerSignature(t *testing.T) {
 	}
 }
 
-func TestContainer_IssuedBy(t *testing.T) {
+func TestIssuedBy(t *testing.T) {
 	var (
 		token  session.Container
 		issuer user.ID
@@ -296,8 +296,23 @@ func TestContainer_IssuedBy(t *testing.T) {
 
 	user.IDFromKey(&issuer, signer.PublicKey)
 
-	require.False(t, token.IssuedBy(issuer))
+	require.False(t, session.IssuedBy(token, issuer))
 
 	require.NoError(t, token.Sign(signer))
-	require.True(t, token.IssuedBy(issuer))
+	require.True(t, session.IssuedBy(token, issuer))
+}
+
+func TestContainer_Issuer(t *testing.T) {
+	var token session.Container
+	signer := randSigner()
+
+	require.Zero(t, token.Issuer())
+
+	require.NoError(t, token.Sign(signer))
+
+	var issuer user.ID
+
+	user.IDFromKey(&issuer, signer.PublicKey)
+
+	require.True(t, token.Issuer().Equals(issuer))
 }
