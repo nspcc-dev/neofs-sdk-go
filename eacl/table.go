@@ -2,7 +2,6 @@ package eacl
 
 import (
 	"crypto/sha256"
-	"errors"
 	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -183,8 +182,6 @@ func (t *Table) Marshal() ([]byte, error) {
 	return t.ToV2().StableMarshal(nil)
 }
 
-var errCIDNotSet = errors.New("container ID is not set")
-
 // Unmarshal unmarshals protobuf binary representation of Table.
 func (t *Table) Unmarshal(data []byte) error {
 	fV2 := new(v2acl.Table)
@@ -255,7 +252,7 @@ func checkFormat(v2 *v2acl.Table) error {
 
 	cidV2 := v2.GetContainerID()
 	if cidV2 == nil {
-		return errCIDNotSet
+		return nil
 	}
 
 	err := cID.ReadFromV2(*cidV2)
