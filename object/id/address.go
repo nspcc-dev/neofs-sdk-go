@@ -16,9 +16,6 @@ import (
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = Address(refs.Address{}) // not recommended
 type Address struct {
 	cnr cid.ID
 
@@ -68,7 +65,7 @@ func (x Address) WriteToV2(m *refs.Address) {
 	m.SetContainerID(&cnr)
 }
 
-// Container sets unique identifier of the NeoFS object container.
+// Container returns unique identifier of the NeoFS object container.
 //
 // Zero Address has zero container ID, which is incorrect according to NeoFS
 // API protocol.
