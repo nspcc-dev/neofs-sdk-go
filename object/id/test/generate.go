@@ -26,7 +26,7 @@ func idWithChecksum(cs [sha256.Size]byte) oid.ID {
 	return id
 }
 
-// Address returns random object.Address.
+// Address returns random oid.Address.
 func Address() oid.Address {
 	var x oid.Address
 
