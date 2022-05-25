@@ -377,3 +377,20 @@ func (x Object) AssertAuthKey(key neofscrypto.PublicKey) bool {
 
 	return bytes.Equal(bKey, x.body.GetSessionKey())
 }
+
+// Issuer returns user ID of the session issuer.
+//
+// Makes sense only for signed Object instances. For unsigned instances,
+// Issuer returns zero user.ID.
+//
+// See also Sign.
+func (x Object) Issuer() user.ID {
+	var issuer user.ID
+
+	issuerV2 := x.body.GetOwnerID()
+	if issuerV2 != nil {
+		_ = issuer.ReadFromV2(*issuerV2)
+	}
+
+	return issuer
+}

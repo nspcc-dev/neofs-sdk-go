@@ -16,6 +16,7 @@ import (
 	addresstest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -293,4 +294,19 @@ func TestObjectSignature(t *testing.T) {
 		fs[i]()
 		require.True(t, x.VerifySignature())
 	}
+}
+
+func TestObject_Issuer(t *testing.T) {
+	var token session.Object
+	signer := randSigner()
+
+	require.Zero(t, token.Issuer())
+
+	require.NoError(t, token.Sign(signer))
+
+	var issuer user.ID
+
+	user.IDFromKey(&issuer, signer.PublicKey)
+
+	require.True(t, token.Issuer().Equals(issuer))
 }
