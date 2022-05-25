@@ -528,7 +528,7 @@ func (o *Object) SessionToken() *session.Object {
 
 	var res session.Object
 
-	fmt.Println(res.ReadFromV2(*tokv2))
+	_ = res.ReadFromV2(*tokv2)
 
 	return &res
 }
