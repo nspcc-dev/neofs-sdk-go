@@ -9,11 +9,12 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	"github.com/nspcc-dev/neofs-sdk-go/object/address"
-	addresstest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/stretchr/testify/require"
@@ -40,6 +41,14 @@ func TestObject_ReadFromV2(t *testing.T) {
 	var c v2session.ObjectSessionContext
 	id := uuid.New()
 
+	cnr := cidtest.ID()
+
+	var cnrV2 refs.ContainerID
+	cnr.WriteToV2(&cnrV2)
+
+	var addrV2 refs.Address
+	addrV2.SetContainerID(&cnrV2)
+
 	t.Run("protocol violation", func(t *testing.T) {
 		require.Error(t, x.ReadFromV2(m))
 
@@ -53,27 +62,32 @@ func TestObject_ReadFromV2(t *testing.T) {
 
 		b.SetContext(&c)
 
+		require.Error(t, x.ReadFromV2(m))
+
+		c.SetAddress(&addrV2)
+
 		require.NoError(t, x.ReadFromV2(m))
 	})
 
 	m.SetBody(&b)
+	c.SetAddress(&addrV2)
 	b.SetContext(&c)
 	b.SetID(id[:])
 
 	t.Run("object", func(t *testing.T) {
-		var obj address.Address
+		require.NoError(t, x.ReadFromV2(m))
+		require.True(t, x.AssertContainer(cnr))
+
+		obj := oidtest.Address()
+
+		var objV2 refs.Address
+		obj.WriteToV2(&objV2)
+
+		c.SetAddress(&objV2)
 
 		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AppliedTo(obj))
-
-		obj = *addresstest.Address()
-
-		objv2 := *obj.ToV2()
-
-		c.SetAddress(&objv2)
-
-		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AppliedTo(obj))
+		require.True(t, x.AssertContainer(obj.Container()))
+		require.True(t, x.AssertObject(obj.Object()))
 	})
 
 	t.Run("verb", func(t *testing.T) {
@@ -156,16 +170,31 @@ func TestEncodingObject(t *testing.T) {
 	})
 }
 
-func TestObjectAppliedTo(t *testing.T) {
+func TestObject_BindContainer(t *testing.T) {
 	var x session.Object
 
-	a := *addresstest.Address()
+	cnr := cidtest.ID()
 
-	require.False(t, x.AppliedTo(a))
+	require.False(t, x.AssertContainer(cnr))
 
-	x.ApplyTo(a)
+	x.BindContainer(cnr)
 
-	require.True(t, x.AppliedTo(a))
+	require.True(t, x.AssertContainer(cnr))
+}
+
+func TestObject_LimitByObject(t *testing.T) {
+	var x session.Object
+
+	obj := oidtest.ID()
+	obj2 := oidtest.ID()
+
+	require.True(t, x.AssertObject(obj))
+	require.True(t, x.AssertObject(obj2))
+
+	x.LimitByObject(obj)
+
+	require.True(t, x.AssertObject(obj))
+	require.False(t, x.AssertObject(obj2))
 }
 
 func TestObjectExp(t *testing.T) {
@@ -249,7 +278,8 @@ func TestObjectSignature(t *testing.T) {
 	const exp = 33
 	id := uuid.New()
 	key := randPublicKey()
-	obj := *addresstest.Address()
+	cnr := cidtest.ID()
+	obj := oidtest.ID()
 	verb := session.VerbObjectDelete
 
 	signer := randSigner()
@@ -274,8 +304,11 @@ func TestObjectSignature(t *testing.T) {
 		func() { x.SetAuthKey(key) },
 		func() { x.SetAuthKey(randPublicKey()) },
 
-		func() { x.ApplyTo(obj) },
-		func() { x.ApplyTo(*addresstest.Address()) },
+		func() { x.BindContainer(cnr) },
+		func() { x.BindContainer(cidtest.ID()) },
+
+		func() { x.LimitByObject(obj) },
+		func() { x.LimitByObject(oidtest.ID()) },
 
 		func() { x.ForVerb(verb) },
 		func() { x.ForVerb(verb + 1) },

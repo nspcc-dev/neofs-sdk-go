@@ -9,7 +9,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	addresstest "github.com/nspcc-dev/neofs-sdk-go/object/address/test"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -71,8 +71,11 @@ func Object() *session.Object {
 		panic(err)
 	}
 
+	addr := oidtest.Address()
+
 	tok.ForVerb(session.VerbObjectPut)
-	tok.ApplyTo(*addresstest.Address())
+	tok.BindContainer(addr.Container())
+	tok.LimitByObject(addr.Object())
 	tok.SetID(uuid.New())
 	tok.SetAuthKey((*neofsecdsa.PublicKey)(&priv.PublicKey))
 	tok.SetExp(11)

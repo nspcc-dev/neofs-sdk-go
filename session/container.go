@@ -57,7 +57,7 @@ func (x *Container) ReadFromV2(m session.Token) error {
 	}
 
 	c, ok := b.GetContext().(*session.ContainerSessionContext)
-	if !ok {
+	if !ok || c == nil {
 		return fmt.Errorf("invalid context %T", b.GetContext())
 	}
 
@@ -70,11 +70,7 @@ func (x *Container) ReadFromV2(m session.Token) error {
 
 	x.body = *b
 
-	if c != nil {
-		x.c = *c
-	} else {
-		x.c = session.ContainerSessionContext{}
-	}
+	x.c = *c
 
 	lt := b.GetLifetime()
 	if lt != nil {

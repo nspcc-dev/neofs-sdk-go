@@ -9,9 +9,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	"github.com/nspcc-dev/neofs-sdk-go/object/address"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -57,25 +58,22 @@ func (x *Object) ReadFromV2(m session.Token) error {
 	}
 
 	c, ok := b.GetContext().(*session.ObjectSessionContext)
-	if !ok {
+	if !ok || c == nil {
 		return fmt.Errorf("invalid context %T", b.GetContext())
 	}
 
 	x.body = *b
 
-	if c != nil {
-		x.c = *c
+	x.c = *c
 
-		obj := c.GetAddress()
-		if obj != nil {
-			x.obj = *obj
-		} else {
-			x.obj = refs.Address{}
-		}
-	} else {
-		x.c = session.ObjectSessionContext{}
-		x.obj = refs.Address{}
+	obj := c.GetAddress()
+
+	cnr := obj.GetContainerID()
+	if cnr == nil {
+		return errors.New("missing bound container")
 	}
+
+	x.obj = *obj
 
 	lt := b.GetLifetime()
 	if lt != nil {
@@ -209,23 +207,63 @@ func (x Object) VerifySignature() bool {
 	return x.sig.Verify(data)
 }
 
-// ApplyTo limits session scope to a given author object.
+// BindContainer binds the Object session to a given container. Each session
+// MUST be bound to exactly one container.
 //
-// See also AppliedTo.
-func (x *Object) ApplyTo(a address.Address) {
-	x.obj = *a.ToV2()
+// See also AssertContainer.
+func (x *Object) BindContainer(cnr cid.ID) {
+	var cnrV2 refs.ContainerID
+	cnr.WriteToV2(&cnrV2)
+
+	x.obj.SetContainerID(&cnrV2)
 }
 
-// AppliedTo checks if session scope is limited by a given object.
+// AssertContainer checks if Object session bound to a given container.
 //
-// Zero Object isn't applied to any author's object.
+// Zero Object isn't bound to any container which is incorrect according to
+// NeoFS API protocol.
 //
-// See also ApplyTo.
-func (x Object) AppliedTo(obj address.Address) bool {
-	objv2 := *address.NewAddressFromV2(&x.obj)
+// See also BindContainer.
+func (x Object) AssertContainer(cnr cid.ID) bool {
+	cnrV2 := x.obj.GetContainerID()
+	if cnrV2 == nil {
+		return false
+	}
 
-	// FIXME: use Equals method
-	return obj.String() == objv2.String()
+	var cnr2 cid.ID
+
+	err := cnr2.ReadFromV2(*cnrV2)
+
+	return err == nil && cnr2.Equals(cnr)
+}
+
+// LimitByObject limits session scope to a given object from the container
+// to which Object session is bound.
+//
+// See also AssertObject.
+func (x *Object) LimitByObject(obj oid.ID) {
+	var objV2 refs.ObjectID
+	obj.WriteToV2(&objV2)
+
+	x.obj.SetObjectID(&objV2)
+}
+
+// AssertObject checks if Object session is applied to a given object.
+//
+// Zero Object is applied to all objects in the container.
+//
+// See also LimitByObject.
+func (x Object) AssertObject(obj oid.ID) bool {
+	objV2 := x.obj.GetObjectID()
+	if objV2 == nil {
+		return true
+	}
+
+	var obj2 oid.ID
+
+	err := obj2.ReadFromV2(*objV2)
+
+	return err == nil && obj2.Equals(obj)
 }
 
 // ObjectVerb enumerates object operations.
