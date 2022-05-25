@@ -4,10 +4,11 @@ import (
 	"crypto/sha256"
 	"math/rand"
 
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
-// ID returns random object.ID.
+// ID returns random oid.ID.
 func ID() oid.ID {
 	checksum := [sha256.Size]byte{}
 
@@ -16,11 +17,21 @@ func ID() oid.ID {
 	return idWithChecksum(checksum)
 }
 
-// idWithChecksum returns object.ID initialized
+// idWithChecksum returns oid.ID initialized
 // with specified checksum.
 func idWithChecksum(cs [sha256.Size]byte) oid.ID {
 	var id oid.ID
 	id.SetSHA256(cs)
 
 	return id
+}
+
+// Address returns random object.Address.
+func Address() oid.Address {
+	var x oid.Address
+
+	x.SetContainer(cidtest.ID())
+	x.SetObject(ID())
+
+	return x
 }

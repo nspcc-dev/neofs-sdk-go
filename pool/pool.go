@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	"github.com/nspcc-dev/neofs-sdk-go/object/address"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -293,14 +292,8 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 
 func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) error {
 	var cliPrm sdkClient.PrmObjectDelete
-
-	if cnr, set := prm.addr.ContainerID(); set {
-		cliPrm.FromContainer(cnr)
-	}
-
-	if obj, set := prm.addr.ObjectID(); set {
-		cliPrm.ByID(obj)
-	}
+	cliPrm.FromContainer(prm.addr.Container())
+	cliPrm.ByID(prm.addr.Object())
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -319,22 +312,8 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 
 func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
 	var cliPrm sdkClient.PrmObjectGet
-
-	if cnr, set := prm.addr.ContainerID(); set {
-		cliPrm.FromContainer(cnr)
-	}
-
-	if obj, set := prm.addr.ObjectID(); set {
-		cliPrm.ByID(obj)
-	}
-
-	if cnr, set := prm.addr.ContainerID(); set {
-		cliPrm.FromContainer(cnr)
-	}
-
-	if obj, set := prm.addr.ObjectID(); set {
-		cliPrm.ByID(obj)
-	}
+	cliPrm.FromContainer(prm.addr.Container())
+	cliPrm.ByID(prm.addr.Object())
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -367,14 +346,8 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 
 func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
 	var cliPrm sdkClient.PrmObjectHead
-
-	if cnr, set := prm.addr.ContainerID(); set {
-		cliPrm.FromContainer(cnr)
-	}
-
-	if obj, set := prm.addr.ObjectID(); set {
-		cliPrm.ByID(obj)
-	}
+	cliPrm.FromContainer(prm.addr.Container())
+	cliPrm.ByID(prm.addr.Object())
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -403,17 +376,10 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*obj
 
 func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
 	var cliPrm sdkClient.PrmObjectRange
-
+	cliPrm.FromContainer(prm.addr.Container())
+	cliPrm.ByID(prm.addr.Object())
 	cliPrm.SetOffset(prm.off)
 	cliPrm.SetLength(prm.ln)
-
-	if cnr, set := prm.addr.ContainerID(); set {
-		cliPrm.FromContainer(cnr)
-	}
-
-	if obj, set := prm.addr.ObjectID(); set {
-		cliPrm.ByID(obj)
-	}
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -609,15 +575,24 @@ type clientPack struct {
 type prmContext struct {
 	defaultSession bool
 	verb           session.ObjectVerb
-	addr           address.Address
+	cnr            cid.ID
+
+	objSet bool
+	obj    oid.ID
 }
 
 func (x *prmContext) useDefaultSession() {
 	x.defaultSession = true
 }
 
-func (x *prmContext) useAddress(addr address.Address) {
-	x.addr = addr
+func (x *prmContext) useContainer(cnr cid.ID) {
+	x.cnr = cnr
+}
+
+func (x *prmContext) useAddress(addr oid.Address) {
+	x.cnr = addr.Container()
+	x.obj = addr.Object()
+	x.objSet = true
 }
 
 func (x *prmContext) useVerb(verb session.ObjectVerb) {
@@ -669,11 +644,11 @@ func (x *PrmObjectPut) SetPayload(payload io.Reader) {
 type PrmObjectDelete struct {
 	prmCommon
 
-	addr address.Address
+	addr oid.Address
 }
 
 // SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectDelete) SetAddress(addr address.Address) {
+func (x *PrmObjectDelete) SetAddress(addr oid.Address) {
 	x.addr = addr
 }
 
@@ -681,11 +656,11 @@ func (x *PrmObjectDelete) SetAddress(addr address.Address) {
 type PrmObjectGet struct {
 	prmCommon
 
-	addr address.Address
+	addr oid.Address
 }
 
 // SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectGet) SetAddress(addr address.Address) {
+func (x *PrmObjectGet) SetAddress(addr oid.Address) {
 	x.addr = addr
 }
 
@@ -693,11 +668,11 @@ func (x *PrmObjectGet) SetAddress(addr address.Address) {
 type PrmObjectHead struct {
 	prmCommon
 
-	addr address.Address
+	addr oid.Address
 }
 
 // SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectHead) SetAddress(addr address.Address) {
+func (x *PrmObjectHead) SetAddress(addr oid.Address) {
 	x.addr = addr
 }
 
@@ -705,12 +680,12 @@ func (x *PrmObjectHead) SetAddress(addr address.Address) {
 type PrmObjectRange struct {
 	prmCommon
 
-	addr    address.Address
+	addr    oid.Address
 	off, ln uint64
 }
 
 // SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectRange) SetAddress(addr address.Address) {
+func (x *PrmObjectRange) SetAddress(addr oid.Address) {
 	x.addr = addr
 }
 
@@ -1283,7 +1258,9 @@ type callContext struct {
 	sessionDefault bool
 	sessionTarget  func(session.Object)
 	sessionVerb    session.ObjectVerb
-	sessionAddr    address.Address
+	sessionCnr     cid.ID
+	sessionObjSet  bool
+	sessionObj     oid.ID
 }
 
 func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContext) error {
@@ -1309,7 +1286,9 @@ func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContex
 	ctx.sessionDefault = cfg.stoken == nil && prmCtx.defaultSession
 	if ctx.sessionDefault {
 		ctx.sessionVerb = prmCtx.verb
-		ctx.sessionAddr = prmCtx.addr
+		ctx.sessionCnr = prmCtx.cnr
+		ctx.sessionObjSet = prmCtx.objSet
+		ctx.sessionObj = prmCtx.obj
 	}
 
 	return err
@@ -1333,7 +1312,11 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	}
 
 	tok.ForVerb(ctx.sessionVerb)
-	tok.ApplyTo(ctx.sessionAddr)
+	tok.BindContainer(ctx.sessionCnr)
+
+	if ctx.sessionObjSet {
+		tok.LimitByObject(ctx.sessionObj)
+	}
 
 	// sign the token
 	if err := tok.Sign(*ctx.key); err != nil {
@@ -1372,15 +1355,12 @@ func (p *Pool) fillAppropriateKey(prm *prmCommon) {
 
 // PutObject writes an object through a remote server using NeoFS API protocol.
 func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
-	var cIDp *cid.ID
-	if cID, set := prm.hdr.ContainerID(); set {
-		cIDp = &cID
-	}
+	cnr, _ := prm.hdr.ContainerID()
 
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectPut)
-	prmCtx.useAddress(*newAddressFromCnrID(cIDp))
+	prmCtx.useContainer(cnr)
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1604,7 +1584,7 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectSearch)
-	prmCtx.useAddress(*newAddressFromCnrID(&prm.cnrID))
+	prmCtx.useContainer(prm.cnrID)
 
 	p.fillAppropriateKey(&prm.prmCommon)
 
@@ -1794,12 +1774,4 @@ func (p *Pool) NetworkInfo(ctx context.Context) (*netmap.NetworkInfo, error) {
 func (p *Pool) Close() {
 	p.cancel()
 	<-p.closedCh
-}
-
-func newAddressFromCnrID(cnrID *cid.ID) *address.Address {
-	addr := address.NewAddress()
-	if cnrID != nil {
-		addr.SetContainerID(*cnrID)
-	}
-	return addr
 }

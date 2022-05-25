@@ -17,7 +17,7 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	"github.com/nspcc-dev/neofs-sdk-go/object/address"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
@@ -418,7 +418,7 @@ func TestSessionCache(t *testing.T) {
 	require.True(t, containsTokens(tokens, &st))
 
 	var prm PrmObjectGet
-	prm.SetAddress(address.Address{})
+	prm.SetAddress(oid.Address{})
 	prm.UseSession(session.Object{})
 
 	_, err = pool.GetObject(ctx, prm)
@@ -565,7 +565,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.True(t, containsTokens(tokens, &st))
 
 	var prm PrmObjectGet
-	prm.SetAddress(address.Address{})
+	prm.SetAddress(oid.Address{})
 	prm.UseKey(newPrivateKey(t))
 
 	_, err = pool.GetObject(ctx, prm)
