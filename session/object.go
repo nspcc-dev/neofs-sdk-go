@@ -112,12 +112,7 @@ func (x Object) Marshal() []byte {
 	var m session.Token
 	x.WriteToV2(&m)
 
-	data, err := m.StableMarshal(nil)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
-	}
-
-	return data
+	return m.StableMarshal(nil)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Object
@@ -184,12 +179,7 @@ func (x *Object) Sign(key ecdsa.PrivateKey) error {
 	x.body.SetLifetime(&x.lt)
 	x.body.SetContext(&x.c)
 
-	data, err := x.body.StableMarshal(nil)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
-	}
-
-	return x.sig.Calculate(neofsecdsa.Signer(key), data)
+	return x.sig.Calculate(neofsecdsa.Signer(key), x.body.StableMarshal(nil))
 }
 
 // VerifySignature checks if Object signature is presented and valid.
@@ -199,12 +189,7 @@ func (x *Object) Sign(key ecdsa.PrivateKey) error {
 // See also Sign.
 func (x Object) VerifySignature() bool {
 	// TODO: (#233) check owner<->key relation
-	data, err := x.body.StableMarshal(nil)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from Token.StableMarshal: %v", err))
-	}
-
-	return x.sig.Verify(data)
+	return x.sig.Verify(x.body.StableMarshal(nil))
 }
 
 // BindContainer binds the Object session to a given container. Each session

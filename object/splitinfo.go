@@ -83,7 +83,7 @@ func (s *SplitInfo) SetLink(v oid.ID) {
 }
 
 func (s *SplitInfo) Marshal() ([]byte, error) {
-	return (*object.SplitInfo)(s).StableMarshal(nil)
+	return (*object.SplitInfo)(s).StableMarshal(nil), nil
 }
 
 func (s *SplitInfo) Unmarshal(data []byte) error {

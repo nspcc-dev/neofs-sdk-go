@@ -81,7 +81,7 @@ func (i *NetworkInfo) SetNetworkConfig(v *NetworkConfig) {
 
 // Marshal marshals NetworkInfo into a protobuf binary form.
 func (i *NetworkInfo) Marshal() ([]byte, error) {
-	return (*netmap.NetworkInfo)(i).StableMarshal(nil)
+	return (*netmap.NetworkInfo)(i).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of NetworkInfo.
