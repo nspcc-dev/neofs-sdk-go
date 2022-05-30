@@ -52,7 +52,7 @@ func (r *Replica) SetSelector(s string) {
 
 // Marshal marshals Replica into a protobuf binary form.
 func (r *Replica) Marshal() ([]byte, error) {
-	return (*netmap.Replica)(r).StableMarshal(nil)
+	return (*netmap.Replica)(r).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Replica.

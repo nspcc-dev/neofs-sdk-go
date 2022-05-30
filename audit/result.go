@@ -38,12 +38,7 @@ func (r *Result) Marshal() []byte {
 		r.versionEncoded = true
 	}
 
-	data, err := r.v2.StableMarshal(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return data
+	return r.v2.StableMarshal(nil)
 }
 
 var errCIDNotSet = errors.New("container ID is not set")

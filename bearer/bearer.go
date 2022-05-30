@@ -224,14 +224,9 @@ func (b *Token) Sign(key ecdsa.PrivateKey) error {
 
 	m := (*acl.BearerToken)(b)
 
-	data, err := m.GetBody().StableMarshal(nil)
-	if err != nil {
-		return fmt.Errorf("marshal body: %w", err)
-	}
-
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(neofsecdsa.Signer(key), data)
+	err = sig.Calculate(neofsecdsa.Signer(key), m.GetBody().StableMarshal(nil))
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}
@@ -257,15 +252,10 @@ func (b Token) VerifySignature() error {
 		return errors.New("missing signature")
 	}
 
-	data, err := m.GetBody().StableMarshal(nil)
-	if err != nil {
-		return fmt.Errorf("marshal body: %w", err)
-	}
-
 	var sig neofscrypto.Signature
 	sig.ReadFromV2(*sigV2)
 
-	if !sig.Verify(data) {
+	if !sig.Verify(m.GetBody().StableMarshal(nil)) {
 		return errors.New("wrong signature")
 	}
 
@@ -312,14 +302,7 @@ func sanityCheck(b *Token) error {
 //
 // See also Unmarshal.
 func (b Token) Marshal() []byte {
-	v2 := (acl.BearerToken)(b)
-
-	data, err := v2.StableMarshal(nil)
-	if err != nil {
-		panic(err)
-	}
-
-	return data
+	return (*acl.BearerToken)(&b).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals Token from canonical NeoFS binary format (proto3

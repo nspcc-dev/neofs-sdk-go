@@ -132,7 +132,7 @@ func (id ID) Marshal() ([]byte, error) {
 	var v2 refs.ObjectID
 	v2.SetValue(id[:])
 
-	return v2.StableMarshal(nil)
+	return v2.StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of ID.

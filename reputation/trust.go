@@ -77,7 +77,7 @@ func (x *Trust) Value() float64 {
 
 // Marshal marshals Trust into a protobuf binary form.
 func (x *Trust) Marshal() ([]byte, error) {
-	return (*reputation.Trust)(x).StableMarshal(nil)
+	return (*reputation.Trust)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Trust.
@@ -150,7 +150,7 @@ func (x *PeerToPeerTrust) Trust() *Trust {
 
 // Marshal marshals PeerToPeerTrust into a protobuf binary form.
 func (x *PeerToPeerTrust) Marshal() ([]byte, error) {
-	return (*reputation.PeerToPeerTrust)(x).StableMarshal(nil)
+	return (*reputation.PeerToPeerTrust)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of PeerToPeerTrust.
@@ -271,14 +271,9 @@ func (x *GlobalTrust) Sign(key *ecdsa.PrivateKey) error {
 
 	m := (*reputation.GlobalTrust)(x)
 
-	data, err := m.GetBody().StableMarshal(nil)
-	if err != nil {
-		return fmt.Errorf("marshal body: %w", err)
-	}
-
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(neofsecdsa.Signer(*key), data)
+	err := sig.Calculate(neofsecdsa.Signer(*key), m.GetBody().StableMarshal(nil))
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}
@@ -301,15 +296,10 @@ func (x *GlobalTrust) VerifySignature() error {
 		return errors.New("missing signature")
 	}
 
-	data, err := m.GetBody().StableMarshal(nil)
-	if err != nil {
-		return fmt.Errorf("marshal body: %w", err)
-	}
-
 	var sig neofscrypto.Signature
 	sig.ReadFromV2(*sigV2)
 
-	if !sig.Verify(data) {
+	if !sig.Verify(m.GetBody().StableMarshal(nil)) {
 		return errors.New("wrong signature")
 	}
 
@@ -318,7 +308,7 @@ func (x *GlobalTrust) VerifySignature() error {
 
 // Marshal marshals GlobalTrust into a protobuf binary form.
 func (x *GlobalTrust) Marshal() ([]byte, error) {
-	return (*reputation.GlobalTrust)(x).StableMarshal(nil)
+	return (*reputation.GlobalTrust)(x).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of GlobalTrust.

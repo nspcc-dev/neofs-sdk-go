@@ -254,7 +254,7 @@ func (f *Filter) SetInnerFilters(fs ...Filter) {
 
 // Marshal marshals Filter into a protobuf binary form.
 func (f *Filter) Marshal() ([]byte, error) {
-	return (*netmap.Filter)(f).StableMarshal(nil)
+	return (*netmap.Filter)(f).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of Filter.
