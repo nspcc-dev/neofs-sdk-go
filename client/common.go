@@ -211,18 +211,18 @@ func (x *contextCall) processResponse() bool {
 	// unwrap unsuccessful status and return it
 	// as error if client has been configured so
 	successfulStatus := apistatus.IsSuccessful(st)
-	if !successfulStatus && x.resolveAPIFailures {
+
+	if x.resolveAPIFailures {
 		x.err = apistatus.ErrFromStatus(st)
-		return false
+	} else {
+		x.statusRes.setStatus(st)
 	}
 
-	x.statusRes.setStatus(st)
-
-	return successfulStatus || !x.resolveAPIFailures
+	return successfulStatus
 }
 
 // reads response (if rResp is set) and processes it. Result means success.
-// If failed, contextCall.err contains the reason.
+// If failed, contextCall.err (or statusRes if resolveAPIFailures is set) contains the reason.
 func (x *contextCall) readResponse() bool {
 	if x.rResp != nil {
 		x.err = x.rResp()
@@ -273,7 +273,7 @@ func (x *contextCall) processCall() bool {
 	// read response
 	ok = x.readResponse()
 	if !ok {
-		return false
+		return x.err == nil
 	}
 
 	// close and write response to resulting structure
