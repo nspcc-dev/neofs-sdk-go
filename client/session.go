@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/ecdsa"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
@@ -15,11 +16,21 @@ type PrmSessionCreate struct {
 	prmCommonMeta
 
 	exp uint64
+
+	keySet bool
+	key    ecdsa.PrivateKey
 }
 
 // SetExp sets number of the last NepFS epoch in the lifetime of the session after which it will be expired.
 func (x *PrmSessionCreate) SetExp(exp uint64) {
 	x.exp = exp
+}
+
+// UseKey specifies private key to sign the requests and compute token owner.
+// If key is not provided, then Client default key is used.
+func (x *PrmSessionCreate) UseKey(key ecdsa.PrivateKey) {
+	x.keySet = true
+	x.key = key
 }
 
 // ResSessionCreate groups resulting values of SessionCreate operation.
@@ -72,8 +83,12 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 		panic(panicMsgMissingContext)
 	}
 
+	ownerKey := c.prm.key.PublicKey
+	if prm.keySet {
+		ownerKey = prm.key.PublicKey
+	}
 	var ownerID user.ID
-	user.IDFromKey(&ownerID, c.prm.key.PublicKey)
+	user.IDFromKey(&ownerID, ownerKey)
 
 	var ownerIDV2 refs.OwnerID
 	ownerID.WriteToV2(&ownerIDV2)
@@ -95,7 +110,13 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 		res ResSessionCreate
 	)
 
-	c.initCallContext(&cc)
+	if prm.keySet {
+		c.initCallContextWithoutKey(&cc)
+		cc.key = prm.key
+	} else {
+		c.initCallContext(&cc)
+	}
+
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.statusRes = &res

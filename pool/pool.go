@@ -428,6 +428,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession) (*resCreateSession, error) {
 	var cliPrm sdkClient.PrmSessionCreate
 	cliPrm.SetExp(prm.exp)
+	cliPrm.UseKey(prm.key)
 
 	res, err := c.client.SessionCreate(ctx, cliPrm)
 	if err != nil {
@@ -835,11 +836,18 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 // prmEndpointInfo groups parameters of sessionCreate operation.
 type prmCreateSession struct {
 	exp uint64
+	key ecdsa.PrivateKey
 }
 
-// SetExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
-func (x *prmCreateSession) SetExp(exp uint64) {
+// setExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
+func (x *prmCreateSession) setExp(exp uint64) {
 	x.exp = exp
+}
+
+// useKey specifies owner private key for session token.
+// If key is not provided, then Pool default key is used.
+func (x *prmCreateSession) useKey(key ecdsa.PrivateKey) {
+	x.key = key
 }
 
 // prmEndpointInfo groups parameters of endpointInfo operation.
@@ -957,7 +965,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 			}
 			var healthy bool
 			var st session.Object
-			err = initSessionForDuration(ctx, &st, c, p.rebalanceParams.sessionExpirationDuration)
+			err = initSessionForDuration(ctx, &st, c, p.rebalanceParams.sessionExpirationDuration, *p.key)
 			if err != nil && p.logger != nil {
 				p.logger.Warn("failed to create neofs session token for client",
 					zap.String("Address", addr),
@@ -1199,7 +1207,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64) error {
+func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64, ownerKey ecdsa.PrivateKey) error {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return err
@@ -1214,7 +1222,8 @@ func initSessionForDuration(ctx context.Context, dst *session.Object, c client, 
 		exp = epoch + dur
 	}
 	var prm prmCreateSession
-	prm.SetExp(exp)
+	prm.setExp(exp)
+	prm.useKey(ownerKey)
 
 	res, err := c.sessionCreate(ctx, prm)
 	if err != nil {
@@ -1302,7 +1311,7 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
 		// init new session
-		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration)
+		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration, *ctx.key)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
