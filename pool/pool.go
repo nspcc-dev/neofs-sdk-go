@@ -1770,6 +1770,12 @@ func (p *Pool) NetworkInfo(ctx context.Context) (*netmap.NetworkInfo, error) {
 	return cp.client.networkInfo(ctx, prmNetworkInfo{})
 }
 
+// GetCachedEpoch return current epoch from pool cache.
+// It is updated on each request.
+func (p *Pool) GetCachedEpoch() uint64 {
+	return p.cache.getEpoch()
+}
+
 // Close closes the Pool and releases all the associated resources.
 func (p *Pool) Close() {
 	p.cancel()
