@@ -2,7 +2,6 @@ package eacl
 
 import (
 	"crypto/ecdsa"
-	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -74,7 +73,11 @@ func AddFormedTarget(r *Record, role Role, keys ...ecdsa.PublicKey) {
 	AddRecordTarget(r, t)
 }
 
-func (r *Record) addFilter(from FilterHeaderType, m Match, keyTyp filterKeyType, key string, val fmt.Stringer) {
+type stringEncoder interface {
+	EncodeToString() string
+}
+
+func (r *Record) addFilter(from FilterHeaderType, m Match, keyTyp filterKeyType, key string, val stringEncoder) {
 	filter := Filter{
 		from: from,
 		key: filterKey{
@@ -88,11 +91,11 @@ func (r *Record) addFilter(from FilterHeaderType, m Match, keyTyp filterKeyType,
 	r.filters = append(r.filters, filter)
 }
 
-func (r *Record) addObjectFilter(m Match, keyTyp filterKeyType, key string, val fmt.Stringer) {
+func (r *Record) addObjectFilter(m Match, keyTyp filterKeyType, key string, val stringEncoder) {
 	r.addFilter(HeaderFromObject, m, keyTyp, key, val)
 }
 
-func (r *Record) addObjectReservedFilter(m Match, typ filterKeyType, val fmt.Stringer) {
+func (r *Record) addObjectReservedFilter(m Match, typ filterKeyType, val stringEncoder) {
 	r.addObjectFilter(m, typ, "", val)
 }
 
@@ -108,7 +111,7 @@ func (r *Record) AddObjectAttributeFilter(m Match, key, value string) {
 
 // AddObjectVersionFilter adds filter by object version.
 func (r *Record) AddObjectVersionFilter(m Match, v *version.Version) {
-	r.addObjectReservedFilter(m, fKeyObjVersion, v)
+	r.addObjectReservedFilter(m, fKeyObjVersion, staticStringer(version.EncodeToString(*v)))
 }
 
 // AddObjectIDFilter adds filter by object ID.
@@ -138,17 +141,17 @@ func (r *Record) AddObjectPayloadLengthFilter(m Match, size uint64) {
 
 // AddObjectPayloadHashFilter adds filter by object payload hash value.
 func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
-	r.addObjectReservedFilter(m, fKeyObjPayloadHash, h)
+	r.addObjectReservedFilter(m, fKeyObjPayloadHash, staticStringer(h.String()))
 }
 
 // AddObjectTypeFilter adds filter by object type.
 func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
-	r.addObjectReservedFilter(m, fKeyObjType, t)
+	r.addObjectReservedFilter(m, fKeyObjType, staticStringer(t.String()))
 }
 
 // AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.
 func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
-	r.addObjectReservedFilter(m, fKeyObjHomomorphicHash, h)
+	r.addObjectReservedFilter(m, fKeyObjHomomorphicHash, staticStringer(h.String()))
 }
 
 // ToV2 converts Record to v2 acl.EACLRecord message.

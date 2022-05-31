@@ -64,7 +64,7 @@ func TestID_String(t *testing.T) {
 		id := cidtest.ID()
 		var id2 cid.ID
 
-		require.NoError(t, id2.DecodeString(id.String()))
+		require.NoError(t, id2.DecodeString(id.EncodeToString()))
 		require.Equal(t, id, id2)
 	})
 

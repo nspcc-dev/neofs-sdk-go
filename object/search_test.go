@@ -122,7 +122,7 @@ func TestSearchFilters_AddParentIDFilter(t *testing.T) {
 	require.Len(t, fsV2, 1)
 
 	require.Equal(t, v2object.FilterHeaderParent, fsV2[0].GetKey())
-	require.Equal(t, par.String(), fsV2[0].GetValue())
+	require.Equal(t, par.EncodeToString(), fsV2[0].GetValue())
 	require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
 }
 
@@ -138,7 +138,7 @@ func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
 		require.Len(t, fsV2, 1)
 
 		require.Equal(t, v2object.FilterHeaderObjectID, fsV2[0].GetKey())
-		require.Equal(t, id.String(), fsV2[0].GetValue())
+		require.Equal(t, id.EncodeToString(), fsV2[0].GetValue())
 		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
 	})
 }

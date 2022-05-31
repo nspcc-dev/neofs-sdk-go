@@ -147,7 +147,7 @@ func TestNNS_ResolveContainerName(t *testing.T) {
 	t.Run("with container array element", func(t *testing.T) {
 		id := cidtest.ID()
 
-		arr[1] = stackitem.NewByteArray([]byte(id.String()))
+		arr[1] = stackitem.NewByteArray([]byte(id.EncodeToString()))
 
 		res, err := n.ResolveContainerName(testContainerName)
 		require.NoError(t, err)

@@ -2,7 +2,6 @@ package object
 
 import (
 	"encoding/json"
-	"fmt"
 	"strconv"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -83,9 +82,13 @@ func (m *SearchMatchType) FromString(s string) bool {
 	return ok
 }
 
+type stringEncoder interface {
+	EncodeToString() string
+}
+
 type SearchFilter struct {
 	header filterKey
-	value  fmt.Stringer
+	value  stringEncoder
 	op     SearchMatchType
 }
 
@@ -152,7 +155,7 @@ func (k filterKey) String() string {
 	}
 }
 
-func (s staticStringer) String() string {
+func (s staticStringer) EncodeToString() string {
 	return string(s)
 }
 
@@ -161,7 +164,7 @@ func (f *SearchFilter) Header() string {
 }
 
 func (f *SearchFilter) Value() string {
-	return f.value.String()
+	return f.value.EncodeToString()
 }
 
 func (f *SearchFilter) Operation() SearchMatchType {
@@ -186,7 +189,7 @@ func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
 	return filters
 }
 
-func (f *SearchFilters) addFilter(op SearchMatchType, keyTyp filterKeyType, key string, val fmt.Stringer) {
+func (f *SearchFilters) addFilter(op SearchMatchType, keyTyp filterKeyType, key string, val stringEncoder) {
 	if *f == nil {
 		*f = make(SearchFilters, 0, 1)
 	}
@@ -205,7 +208,7 @@ func (f *SearchFilters) AddFilter(header, value string, op SearchMatchType) {
 	f.addFilter(op, 0, header, staticStringer(value))
 }
 
-func (f *SearchFilters) addReservedFilter(op SearchMatchType, keyTyp filterKeyType, val fmt.Stringer) {
+func (f *SearchFilters) addReservedFilter(op SearchMatchType, keyTyp filterKeyType, val stringEncoder) {
 	f.addFilter(op, keyTyp, "", val)
 }
 
@@ -216,15 +219,15 @@ func (f *SearchFilters) addFlagFilter(keyTyp filterKeyType) {
 	f.addFilter(MatchUnknown, keyTyp, "", staticStringer(""))
 }
 
-func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v *version.Version) {
-	f.addReservedFilter(op, fKeyVersion, v)
+func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v version.Version) {
+	f.addReservedFilter(op, fKeyVersion, staticStringer(version.EncodeToString(v)))
 }
 
 func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
 	f.addReservedFilter(m, fKeyContainerID, id)
 }
 
-func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id *user.ID) {
+func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
 	f.addReservedFilter(m, fKeyOwnerID, id)
 }
 
@@ -237,7 +240,7 @@ func (f SearchFilters) ToV2() []v2object.SearchFilter {
 
 	for i := range f {
 		result[i].SetKey(f[i].header.String())
-		result[i].SetValue(f[i].value.String())
+		result[i].SetValue(f[i].value.EncodeToString())
 		result[i].SetMatchType(f[i].op.ToV2())
 	}
 
@@ -271,12 +274,12 @@ func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 }
 
 func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id *SplitID) {
-	f.addReservedFilter(m, fKeySplitID, id)
+	f.addReservedFilter(m, fKeySplitID, staticStringer(id.String()))
 }
 
 // AddTypeFilter adds filter by object type.
 func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
-	f.addReservedFilter(m, fKeyType, typ)
+	f.addReservedFilter(m, fKeyType, staticStringer(typ.String()))
 }
 
 // MarshalJSON encodes SearchFilters to protobuf JSON format.
