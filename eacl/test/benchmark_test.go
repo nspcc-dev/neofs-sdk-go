@@ -95,7 +95,7 @@ func RecordN(n int) *eacl.Record {
 	x.SetTargets(*TargetN(n))
 
 	for i := 0; i < n; i++ {
-		x.AddFilter(eacl.HeaderFromObject, eacl.MatchStringEqual, "", cidtest.ID().String())
+		x.AddFilter(eacl.HeaderFromObject, eacl.MatchStringEqual, "", cidtest.ID().EncodeToString())
 	}
 
 	return x

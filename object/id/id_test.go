@@ -105,7 +105,7 @@ func TestID_String(t *testing.T) {
 				var oid ID
 
 				require.NoError(t, oid.DecodeString(str))
-				require.Equal(t, str, oid.String())
+				require.Equal(t, str, oid.EncodeToString())
 			})
 		}
 	})

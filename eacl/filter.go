@@ -1,7 +1,6 @@
 package eacl
 
 import (
-	"fmt"
 	"strconv"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -15,7 +14,7 @@ type Filter struct {
 	from    FilterHeaderType
 	matcher Match
 	key     filterKey
-	value   fmt.Stringer
+	value   stringEncoder
 }
 
 type staticStringer string
@@ -44,17 +43,17 @@ const (
 	fKeyObjHomomorphicHash
 )
 
-func (s staticStringer) String() string {
+func (s staticStringer) EncodeToString() string {
 	return string(s)
 }
 
-func (u u64Stringer) String() string {
+func (u u64Stringer) EncodeToString() string {
 	return strconv.FormatUint(uint64(u), 10)
 }
 
 // Value returns filtered string value.
 func (f Filter) Value() string {
-	return f.value.String()
+	return f.value.EncodeToString()
 }
 
 // Matcher returns filter Match type.
@@ -81,7 +80,7 @@ func (f *Filter) ToV2() *v2acl.HeaderFilter {
 	}
 
 	filter := new(v2acl.HeaderFilter)
-	filter.SetValue(f.value.String())
+	filter.SetValue(f.value.EncodeToString())
 	filter.SetKey(f.key.String())
 	filter.SetMatchType(f.matcher.ToV2())
 	filter.SetHeaderType(f.from.ToV2())
