@@ -2,22 +2,16 @@ package bearer
 
 import (
 	"crypto/ecdsa"
-	"crypto/elliptic"
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	errNilBearerTokenBody = errors.New("bearer token body is not set")
-	errNilBearerTokenEACL = errors.New("bearer token ContainerEACL table is not set")
 )
 
 // Token represents bearer token for object service operations.
@@ -26,16 +20,103 @@ var (
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = Token(acl.BearerToken{}) // not recommended
-type Token acl.BearerToken
+type Token struct {
+	targetUserSet bool
+	targetUser    user.ID
+
+	eaclTableSet bool
+	eaclTable    eacl.Table
+
+	lifetimeSet   bool
+	iat, nbf, exp uint64
+
+	sigSet bool
+	sig    refs.Signature
+}
+
+// reads Token from the acl.BearerToken message. If checkFieldPresence is set,
+// returns an error on absence of any protocol-required field.
+func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
+	var err error
+
+	body := m.GetBody()
+	if checkFieldPresence && body == nil {
+		return errors.New("missing token body")
+	}
+
+	eaclTable := body.GetEACL()
+	if b.eaclTableSet = eaclTable != nil; b.eaclTableSet {
+		b.eaclTable = *eacl.NewTableFromV2(eaclTable)
+	} else if checkFieldPresence {
+		return errors.New("missing eACL table")
+	}
+
+	targetUser := body.GetOwnerID()
+	if b.targetUserSet = targetUser != nil; b.targetUserSet {
+		err = b.targetUser.ReadFromV2(*targetUser)
+		if err != nil {
+			return fmt.Errorf("invalid target user: %w", err)
+		}
+	}
+
+	lifetime := body.GetLifetime()
+	if b.lifetimeSet = lifetime != nil; b.lifetimeSet {
+		b.iat = lifetime.GetIat()
+		b.nbf = lifetime.GetNbf()
+		b.exp = lifetime.GetExp()
+	} else if checkFieldPresence {
+		return errors.New("missing token lifetime")
+	}
+
+	sig := m.GetSignature()
+	if b.sigSet = sig != nil; sig != nil {
+		b.sig = *sig
+	} else if checkFieldPresence {
+		return errors.New("missing body signature")
+	}
+
+	return nil
+}
 
 // ReadFromV2 reads Token from the acl.BearerToken message.
 //
 // See also WriteToV2.
-func (b *Token) ReadFromV2(m acl.BearerToken) {
-	*b = Token(m)
+func (b *Token) ReadFromV2(m acl.BearerToken) error {
+	return b.readFromV2(m, true)
+}
+
+func (b Token) fillBody() *acl.BearerTokenBody {
+	if !b.eaclTableSet && !b.targetUserSet && !b.lifetimeSet {
+		return nil
+	}
+
+	var body acl.BearerTokenBody
+
+	if b.eaclTableSet {
+		body.SetEACL(b.eaclTable.ToV2())
+	}
+
+	if b.targetUserSet {
+		var targetUser refs.OwnerID
+		b.targetUser.WriteToV2(&targetUser)
+
+		body.SetOwnerID(&targetUser)
+	}
+
+	if b.lifetimeSet {
+		var lifetime acl.TokenLifetime
+		lifetime.SetIat(b.iat)
+		lifetime.SetNbf(b.nbf)
+		lifetime.SetExp(b.exp)
+
+		body.SetLifetime(&lifetime)
+	}
+
+	return &body
+}
+
+func (b Token) signedData() []byte {
+	return b.fillBody().StableMarshal(nil)
 }
 
 // WriteToV2 writes Token to the acl.BearerToken message.
@@ -43,294 +124,247 @@ func (b *Token) ReadFromV2(m acl.BearerToken) {
 //
 // See also ReadFromV2.
 func (b Token) WriteToV2(m *acl.BearerToken) {
-	*m = (acl.BearerToken)(b)
+	m.SetBody(b.fillBody())
+
+	var sig *refs.Signature
+
+	if b.sigSet {
+		sig = &b.sig
+	}
+
+	m.SetSignature(sig)
 }
 
-// SetExpiration sets "exp" (expiration time) claim which identifies the
+// SetExp sets "exp" (expiration time) claim which identifies the
 // expiration time (in NeoFS epochs) on or after which the Token MUST NOT be
 // accepted for processing. The processing of the "exp" claim requires that the
 // current epoch MUST be before the expiration epoch listed in the "exp" claim.
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
 //
-// See also Expiration.
-func (b *Token) SetExpiration(exp uint64) {
-	v2token := (*acl.BearerToken)(b)
-
-	body := v2token.GetBody()
-	if body == nil {
-		body = new(acl.BearerTokenBody)
-	}
-
-	lt := new(acl.TokenLifetime)
-	lt.SetExp(exp)
-	lt.SetNbf(body.GetLifetime().GetNbf())
-	lt.SetIat(body.GetLifetime().GetIat())
-
-	body.SetLifetime(lt)
-	v2token.SetBody(body)
+// See also InvalidAt.
+func (b *Token) SetExp(exp uint64) {
+	b.exp = exp
+	b.lifetimeSet = true
 }
 
-// Expiration returns "exp" claim.
-//
-// Empty Token has zero "exp".
-//
-// See also SetExpiration.
-func (b Token) Expiration() uint64 {
-	v2token := (acl.BearerToken)(b)
-	return v2token.GetBody().GetLifetime().GetExp()
-}
-
-// SetNotBefore sets "nbf" (not before) claim which identifies the time (in
+// SetNbf sets "nbf" (not before) claim which identifies the time (in
 // NeoFS epochs) before which the Token MUST NOT be accepted for processing. The
 // processing of the "nbf" claim requires that the current epoch MUST be
 // after or equal to the not-before epoch listed in the "nbf" claim.
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
 //
-// See also NotBefore.
-func (b *Token) SetNotBefore(nbf uint64) {
-	v2token := (*acl.BearerToken)(b)
-
-	body := v2token.GetBody()
-	if body == nil {
-		body = new(acl.BearerTokenBody)
-	}
-
-	lt := new(acl.TokenLifetime)
-	lt.SetExp(body.GetLifetime().GetExp())
-	lt.SetNbf(nbf)
-	lt.SetIat(body.GetLifetime().GetIat())
-
-	body.SetLifetime(lt)
-	v2token.SetBody(body)
+// See also InvalidAt.
+func (b *Token) SetNbf(nbf uint64) {
+	b.nbf = nbf
+	b.lifetimeSet = true
 }
 
-// NotBefore returns "nbf" claim.
-//
-// Empty Token has zero "nbf".
-//
-// See also SetNotBefore.
-func (b Token) NotBefore() uint64 {
-	v2token := (acl.BearerToken)(b)
-	return v2token.GetBody().GetLifetime().GetNbf()
-}
-
-// SetIssuedAt sets "iat" (issued at) claim which identifies the time (in NeoFS
+// SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
 // epochs) at which the Token was issued. This claim can be used to determine
 // the age of the Token.
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
 //
-// See also IssuedAt.
-func (b *Token) SetIssuedAt(iat uint64) {
-	v2token := (*acl.BearerToken)(b)
-
-	body := v2token.GetBody()
-	if body == nil {
-		body = new(acl.BearerTokenBody)
-	}
-
-	lt := new(acl.TokenLifetime)
-	lt.SetExp(body.GetLifetime().GetExp())
-	lt.SetNbf(body.GetLifetime().GetNbf())
-	lt.SetIat(iat)
-
-	body.SetLifetime(lt)
-	v2token.SetBody(body)
+// See also InvalidAt.
+func (b *Token) SetIat(iat uint64) {
+	b.iat = iat
+	b.lifetimeSet = true
 }
 
-// IssuedAt returns "iat" claim.
+// InvalidAt asserts "exp", "nbf" and "iat" claims for the given epoch.
 //
-// Empty Token has zero "iat".
+// Zero Container is invalid in any epoch.
 //
-// See also SetIssuedAt.
-func (b Token) IssuedAt() uint64 {
-	v2token := (acl.BearerToken)(b)
-	return v2token.GetBody().GetLifetime().GetIat()
+// See also SetExp, SetNbf, SetIat.
+func (b Token) InvalidAt(epoch uint64) bool {
+	return !b.lifetimeSet || b.nbf > epoch || b.iat > epoch || b.exp <= epoch
 }
 
-// SetEACLTable sets extended ACL table that should be used during object
-// service request processing with bearer token.
+// SetEACLTable sets eacl.Table that replaces the one from the issuer's
+// container. If table has specified container, bearer token can be used only
+// for operations within this specific container. Otherwise, Token can be used
+// within any issuer's container.
 //
-// See also EACLTable.
+// SetEACLTable MUST be called if Token is going to be transmitted over
+// NeoFS API V2 protocol.
+//
+// See also EACLTable, AssertContainer.
 func (b *Token) SetEACLTable(table eacl.Table) {
-	v2 := (*acl.BearerToken)(b)
-
-	body := v2.GetBody()
-	if body == nil {
-		body = new(acl.BearerTokenBody)
-	}
-
-	body.SetEACL(table.ToV2())
-	v2.SetBody(body)
+	b.eaclTable = table
+	b.eaclTableSet = true
 }
 
-// EACLTable returns extended ACL table that should be used during object
-// service request processing with bearer token.
+// EACLTable returns extended ACL table set by SetEACLTable.
+//
+// Zero Token has zero eacl.Table.
+func (b Token) EACLTable() eacl.Table {
+	if b.eaclTableSet {
+		return b.eaclTable
+	}
+
+	return eacl.Table{}
+}
+
+// AssertContainer checks if the token is valid within the given container.
+//
+// Note: cnr is assumed to refer to the issuer's container, otherwise the check
+// is meaningless.
+//
+// Zero Token is valid in any container.
 //
 // See also SetEACLTable.
-func (b Token) EACLTable() eacl.Table {
-	v2 := (acl.BearerToken)(b)
-	return *eacl.NewTableFromV2(v2.GetBody().GetEACL())
-}
-
-// SetOwnerID sets user.ID value of the user who can attach bearer token to
-// its requests.
-//
-// See also OwnerID.
-func (b *Token) SetOwnerID(id user.ID) {
-	v2 := (*acl.BearerToken)(b)
-
-	body := v2.GetBody()
-	if body == nil {
-		body = new(acl.BearerTokenBody)
+func (b Token) AssertContainer(cnr cid.ID) bool {
+	if !b.eaclTableSet {
+		return true
 	}
 
-	var idV2 refs.OwnerID
-	id.WriteToV2(&idV2)
-
-	body.SetOwnerID(&idV2)
-	v2.SetBody(body)
+	cnrTable, set := b.eaclTable.CID()
+	return !set || cnrTable.Equals(cnr)
 }
 
-// OwnerID returns user.ID value of the user who can attach bearer token to
-// its requests.
+// ForUser specifies ID of the user who can use the Token for the operations
+// within issuer's container(s).
 //
-// See also SetOwnerID.
-func (b Token) OwnerID() user.ID {
-	v2 := (acl.BearerToken)(b)
-
-	var id user.ID
-
-	idV2 := v2.GetBody().GetOwnerID()
-	if idV2 != nil {
-		_ = id.ReadFromV2(*idV2)
-	}
-
-	return id
+// Optional: by default, any user has access to Token usage.
+//
+// See also AssertUser.
+func (b *Token) ForUser(id user.ID) {
+	b.targetUser = id
+	b.targetUserSet = true
 }
 
-// Sign signs bearer token. This method should be invoked with the private
-// key of container owner to allow overriding extended ACL table of the container
-// included in this token.
+// AssertUser checks if the Token is issued to the given user.
 //
-// See also Signature.
+// Zero Token is available to any user.
+//
+// See also ForUser.
+func (b Token) AssertUser(id user.ID) bool {
+	return !b.targetUserSet || b.targetUser.Equals(id)
+}
+
+// Sign calculates and writes signature of the Token data using issuer's secret.
+// Returns signature calculation errors.
+//
+// Sign MUST be called if Token is going to be transmitted over
+// NeoFS API V2 protocol.
+//
+// Note that any Token mutation is likely to break the signature, so it is
+// expected to be calculated as a final stage of Token formation.
+//
+// See also VerifySignature, Issuer.
 func (b *Token) Sign(key ecdsa.PrivateKey) error {
-	err := sanityCheck(b)
+	var sig neofscrypto.Signature
+
+	err := sig.Calculate(neofsecdsa.Signer(key), b.signedData())
 	if err != nil {
 		return err
 	}
 
-	m := (*acl.BearerToken)(b)
-
-	var sig neofscrypto.Signature
-
-	err = sig.Calculate(neofsecdsa.Signer(key), m.GetBody().StableMarshal(nil))
-	if err != nil {
-		return fmt.Errorf("calculate signature: %w", err)
-	}
-
-	var sigV2 refs.Signature
-	sig.WriteToV2(&sigV2)
-
-	m.SetSignature(&sigV2)
+	sig.WriteToV2(&b.sig)
+	b.sigSet = true
 
 	return nil
 }
 
-// VerifySignature returns nil if bearer token contains correct signature.
-func (b Token) VerifySignature() error {
-	if b.isEmpty() {
-		return nil
-	}
-
-	m := (acl.BearerToken)(b)
-
-	sigV2 := m.GetSignature()
-	if sigV2 == nil {
-		return errors.New("missing signature")
-	}
-
-	var sig neofscrypto.Signature
-	sig.ReadFromV2(*sigV2)
-
-	if !sig.Verify(m.GetBody().StableMarshal(nil)) {
-		return errors.New("wrong signature")
-	}
-
-	return nil
-}
-
-// Issuer returns user.ID associated with the key that signed bearer token.
-// To pass node validation it should be owner of requested container.
+// VerifySignature checks if Token signature is presented and valid.
 //
-// If token is not signed, Issuer returns empty owner ID and false `ok` flag.
+// Zero Token fails the check.
 //
 // See also Sign.
-func (b Token) Issuer() (id user.ID, ok bool) {
-	v2 := (acl.BearerToken)(b)
-
-	pub, _ := keys.NewPublicKeyFromBytes(v2.GetSignature().GetKey(), elliptic.P256())
-
-	ok = pub != nil
-	if ok {
-		user.IDFromKey(&id, (ecdsa.PublicKey)(*pub))
+func (b Token) VerifySignature() bool {
+	if !b.sigSet {
+		return false
 	}
 
-	return
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(b.sig)
+
+	// TODO: (#233) check owner<->key relation
+	return sig.Verify(b.signedData())
 }
 
-// sanityCheck if bearer token is ready to be issued.
-func sanityCheck(b *Token) error {
-	v2 := (*acl.BearerToken)(b)
-
-	switch {
-	case v2.GetBody() == nil:
-		return errNilBearerTokenBody
-	case v2.GetBody().GetEACL() == nil:
-		return errNilBearerTokenEACL
-	}
-
-	// consider checking ContainerEACL sanity there, lifetime correctness, etc.
-
-	return nil
-}
-
-// Marshal marshals Token into a canonical NeoFS binary format (proto3
-// with direct field order).
+// Marshal encodes Token into a binary format of the NeoFS API protocol
+// (Protocol Buffers V3 with direct field order).
 //
 // See also Unmarshal.
 func (b Token) Marshal() []byte {
-	return (*acl.BearerToken)(&b).StableMarshal(nil)
+	var m acl.BearerToken
+	b.WriteToV2(&m)
+
+	return m.StableMarshal(nil)
 }
 
-// Unmarshal unmarshals Token from canonical NeoFS binary format (proto3
-// with direct field order).
+// Unmarshal decodes NeoFS API protocol binary data into the Token
+// (Protocol Buffers V3 with direct field order). Returns an error describing
+// a format violation.
 //
 // See also Marshal.
 func (b *Token) Unmarshal(data []byte) error {
-	v2 := (*acl.BearerToken)(b)
-	return v2.Unmarshal(data)
+	var m acl.BearerToken
+
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	return b.readFromV2(m, false)
 }
 
-// MarshalJSON encodes Token to protobuf JSON format.
+// MarshalJSON encodes Token into a JSON format of the NeoFS API protocol
+// (Protocol Buffers V3 JSON).
 //
 // See also UnmarshalJSON.
 func (b Token) MarshalJSON() ([]byte, error) {
-	v2 := (acl.BearerToken)(b)
-	return v2.MarshalJSON()
+	var m acl.BearerToken
+	b.WriteToV2(&m)
+
+	return m.MarshalJSON()
 }
 
-// UnmarshalJSON decodes Token from protobuf JSON format.
+// UnmarshalJSON decodes NeoFS API protocol JSON data into the Token
+// (Protocol Buffers V3 JSON). Returns an error describing a format violation.
 //
 // See also MarshalJSON.
 func (b *Token) UnmarshalJSON(data []byte) error {
-	v2 := (*acl.BearerToken)(b)
-	return v2.UnmarshalJSON(data)
+	var m acl.BearerToken
+
+	err := m.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return b.readFromV2(m, false)
 }
 
-func (b Token) isEmpty() bool {
-	v2token := (acl.BearerToken)(b)
-	return v2token.GetBody() == nil && v2token.GetSignature() == nil
+// SigningKeyBytes returns issuer's public key in a binary format of
+// NeoFS API protocol.
+//
+// Unsigned Token has empty key.
+//
+// See also ResolveIssuer.
+func (b Token) SigningKeyBytes() []byte {
+	if b.sigSet {
+		return b.sig.GetKey()
+	}
+
+	return nil
+}
+
+// ResolveIssuer resolves issuer's user.ID from the key used for Token signing.
+// Returns zero user.ID if Token is unsigned or key has incorrect format.
+//
+// See also SigningKeyBytes.
+func ResolveIssuer(b Token) (usr user.ID) {
+	binKey := b.SigningKeyBytes()
+
+	if len(binKey) != 0 {
+		var key neofsecdsa.PublicKey
+		if key.Decode(binKey) == nil {
+			user.IDFromKey(&usr, ecdsa.PublicKey(key))
+		}
+	}
+
+	return
 }
