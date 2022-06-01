@@ -10,10 +10,10 @@ import (
 //
 // Resulting token is unsigned.
 func Token() (t bearer.Token) {
-	t.SetExpiration(3)
-	t.SetNotBefore(2)
-	t.SetIssuedAt(1)
-	t.SetOwnerID(*usertest.ID())
+	t.SetExp(3)
+	t.SetNbf(2)
+	t.SetIat(1)
+	t.ForUser(*usertest.ID())
 	t.SetEACLTable(*eacltest.Table())
 
 	return t
