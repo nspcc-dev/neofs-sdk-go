@@ -1,152 +1,382 @@
 package session_test
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestContainer_ReadFromV2(t *testing.T) {
-	var x session.Container
-	var m v2session.Token
-	var b v2session.TokenBody
-	var c v2session.ContainerSessionContext
+func TestContainerProtocolV2(t *testing.T) {
+	var validV2 v2session.Token
+
+	var body v2session.TokenBody
+	validV2.SetBody(&body)
+
+	// ID
+	id := uuid.New()
+	binID, err := id.MarshalBinary()
+	require.NoError(t, err)
+	restoreID := func() {
+		body.SetID(binID)
+	}
+	restoreID()
+
+	// Owner
+	usr := *usertest.ID()
+	var usrV2 refs.OwnerID
+	usr.WriteToV2(&usrV2)
+	restoreUser := func() {
+		body.SetOwnerID(&usrV2)
+	}
+	restoreUser()
+
+	// Lifetime
+	var lifetime v2session.TokenLifetime
+	lifetime.SetIat(1)
+	lifetime.SetNbf(2)
+	lifetime.SetExp(3)
+	restoreLifetime := func() {
+		body.SetLifetime(&lifetime)
+	}
+	restoreLifetime()
+
+	// Session key
+	signer := randSigner()
+	authKey := neofsecdsa.PublicKey(signer.PublicKey)
+	binAuthKey := make([]byte, authKey.MaxEncodedSize())
+	binAuthKey = binAuthKey[:authKey.Encode(binAuthKey)]
+	restoreAuthKey := func() {
+		body.SetSessionKey(binAuthKey)
+	}
+	restoreAuthKey()
+
+	// Context
+	cnr := cidtest.ID()
+	var cnrV2 refs.ContainerID
+	cnr.WriteToV2(&cnrV2)
+	var cCnr v2session.ContainerSessionContext
+	restoreCtx := func() {
+		cCnr.SetContainerID(&cnrV2)
+		cCnr.SetWildcard(false)
+		body.SetContext(&cCnr)
+	}
+	restoreCtx()
+
+	// Signature
+	var sig refs.Signature
+	restoreSig := func() {
+		validV2.SetSignature(&sig)
+	}
+	restoreSig()
+
+	// TODO(@cthulhu-rider): #260 use functionality for message corruption
+
+	for _, testcase := range []struct {
+		name      string
+		corrupt   []func()
+		restore   func()
+		assert    func(session.Container)
+		breakSign func(*v2session.Token)
+	}{
+		{
+			name: "Signature",
+			corrupt: []func(){
+				func() {
+					validV2.SetSignature(nil)
+				},
+			},
+			restore: restoreSig,
+		},
+		{
+			name: "ID",
+			corrupt: []func(){
+				func() {
+					body.SetID([]byte{1, 2, 3})
+				},
+				func() {
+					id, err := uuid.NewDCEPerson()
+					require.NoError(t, err)
+					bindID, err := id.MarshalBinary()
+					require.NoError(t, err)
+					body.SetID(bindID)
+				},
+			},
+			restore: restoreID,
+			assert: func(val session.Container) {
+				require.Equal(t, id, val.ID())
+			},
+			breakSign: func(m *v2session.Token) {
+				id := m.GetBody().GetID()
+				id[len(id)-1]++
+			},
+		},
+		{
+			name: "User",
+			corrupt: []func(){
+				func() {
+					var brokenUsrV2 refs.OwnerID
+					brokenUsrV2.SetValue(append(usrV2.GetValue(), 1))
+					body.SetOwnerID(&brokenUsrV2)
+				},
+			},
+			restore: restoreUser,
+			assert: func(val session.Container) {
+				require.Equal(t, usr, val.Issuer())
+			},
+			breakSign: func(m *v2session.Token) {
+				id := m.GetBody().GetOwnerID().GetValue()
+				copy(id, usertest.ID().WalletBytes())
+			},
+		},
+		{
+			name: "Lifetime",
+			corrupt: []func(){
+				func() {
+					body.SetLifetime(nil)
+				},
+			},
+			restore: restoreLifetime,
+			assert: func(val session.Container) {
+				require.True(t, val.InvalidAt(1))
+				require.False(t, val.InvalidAt(2))
+				require.True(t, val.InvalidAt(3))
+			},
+			breakSign: func(m *v2session.Token) {
+				lt := m.GetBody().GetLifetime()
+				lt.SetIat(lt.GetIat() + 1)
+			},
+		},
+		{
+			name: "Auth key",
+			corrupt: []func(){
+				func() {
+					body.SetSessionKey(nil)
+				},
+				func() {
+					body.SetSessionKey([]byte{})
+				},
+			},
+			restore: restoreAuthKey,
+			assert: func(val session.Container) {
+				require.True(t, val.AssertAuthKey(&authKey))
+			},
+			breakSign: func(m *v2session.Token) {
+				body := m.GetBody()
+				key := body.GetSessionKey()
+				cp := slice.Copy(key)
+				cp[len(cp)-1]++
+				body.SetSessionKey(cp)
+			},
+		},
+		{
+			name: "Context",
+			corrupt: []func(){
+				func() {
+					body.SetContext(nil)
+				},
+				func() {
+					cCnr.SetWildcard(true)
+				},
+				func() {
+					cCnr.SetContainerID(nil)
+				},
+				func() {
+					var brokenCnr refs.ContainerID
+					brokenCnr.SetValue(append(cnrV2.GetValue(), 1))
+					cCnr.SetContainerID(&brokenCnr)
+				},
+			},
+			restore: restoreCtx,
+			assert: func(val session.Container) {
+				require.True(t, val.AppliedTo(cnr))
+				require.False(t, val.AppliedTo(cidtest.ID()))
+			},
+			breakSign: func(m *v2session.Token) {
+				cnr := m.GetBody().GetContext().(*v2session.ContainerSessionContext).ContainerID().GetValue()
+				cnr[len(cnr)-1]++
+			},
+		},
+	} {
+		var val session.Container
+
+		for i, corrupt := range testcase.corrupt {
+			corrupt()
+			require.Error(t, val.ReadFromV2(validV2), testcase.name, fmt.Sprintf("corrupt #%d", i))
+
+			testcase.restore()
+			require.NoError(t, val.ReadFromV2(validV2), testcase.name)
+
+			if testcase.assert != nil {
+				testcase.assert(val)
+			}
+
+			if testcase.breakSign != nil {
+				require.NoError(t, val.Sign(signer), testcase.name)
+				require.True(t, val.VerifySignature(), testcase.name)
+
+				var signedV2 v2session.Token
+				val.WriteToV2(&signedV2)
+
+				var restored session.Container
+				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
+				require.True(t, restored.VerifySignature(), testcase.name)
+
+				testcase.breakSign(&signedV2)
+
+				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
+				require.False(t, restored.VerifySignature(), testcase.name)
+			}
+		}
+	}
+}
+
+func TestContainer_WriteToV2(t *testing.T) {
+	var val session.Container
+
+	assert := func(baseAssert func(v2session.Token)) {
+		var m v2session.Token
+		val.WriteToV2(&m)
+		baseAssert(m)
+	}
+
+	// ID
 	id := uuid.New()
 
-	t.Run("protocol violation", func(t *testing.T) {
-		require.Error(t, x.ReadFromV2(m))
+	binID, err := id.MarshalBinary()
+	require.NoError(t, err)
 
-		m.SetBody(&b)
-
-		require.Error(t, x.ReadFromV2(m))
-
-		b.SetID(id[:])
-
-		require.Error(t, x.ReadFromV2(m))
-
-		b.SetContext(&c)
-
-		require.Error(t, x.ReadFromV2(m))
-
-		c.SetWildcard(true)
-
-		require.NoError(t, x.ReadFromV2(m))
+	val.SetID(id)
+	assert(func(m v2session.Token) {
+		require.Equal(t, binID, m.GetBody().GetID())
 	})
 
-	m.SetBody(&b)
-	b.SetContext(&c)
-	b.SetID(id[:])
-	c.SetWildcard(true)
+	// Owner/Signature
+	signer := randSigner()
 
-	t.Run("container", func(t *testing.T) {
-		cnr1 := cidtest.ID()
-		cnr2 := cidtest.ID()
+	require.NoError(t, val.Sign(signer))
 
-		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AppliedTo(cnr1))
-		require.True(t, x.AppliedTo(cnr2))
+	var usr user.ID
+	user.IDFromKey(&usr, signer.PublicKey)
 
-		var cnrv2 refs.ContainerID
-		cnr1.WriteToV2(&cnrv2)
+	var usrV2 refs.OwnerID
+	usr.WriteToV2(&usrV2)
 
-		c.SetContainerID(&cnrv2)
-		c.SetWildcard(false)
+	assert(func(m v2session.Token) {
+		require.Equal(t, &usrV2, m.GetBody().GetOwnerID())
 
-		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AppliedTo(cnr1))
-		require.False(t, x.AppliedTo(cnr2))
+		sig := m.GetSignature()
+		require.NotZero(t, sig.GetKey())
+		require.NotZero(t, sig.GetSign())
 	})
 
-	t.Run("verb", func(t *testing.T) {
-		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AssertVerb(0))
+	// Lifetime
+	const iat, nbf, exp = 1, 2, 3
+	val.SetIat(iat)
+	val.SetNbf(nbf)
+	val.SetExp(exp)
 
-		verb := v2session.ContainerSessionVerb(rand.Uint32())
-
-		c.SetVerb(verb)
-
-		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AssertVerb(session.ContainerVerb(verb)))
+	assert(func(m v2session.Token) {
+		lt := m.GetBody().GetLifetime()
+		require.EqualValues(t, iat, lt.GetIat())
+		require.EqualValues(t, nbf, lt.GetNbf())
+		require.EqualValues(t, exp, lt.GetExp())
 	})
 
-	t.Run("id", func(t *testing.T) {
-		id := uuid.New()
-		bID := id[:]
-
-		b.SetID(bID)
-
-		require.NoError(t, x.ReadFromV2(m))
-		require.Equal(t, id, x.ID())
+	// Context
+	assert(func(m v2session.Token) {
+		cCnr, ok := m.GetBody().GetContext().(*v2session.ContainerSessionContext)
+		require.True(t, ok)
+		require.True(t, cCnr.Wildcard())
+		require.Zero(t, cCnr.ContainerID())
 	})
 
-	t.Run("lifetime", func(t *testing.T) {
-		const nbf, iat, exp = 11, 22, 33
+	cnr := cidtest.ID()
 
-		var lt v2session.TokenLifetime
-		lt.SetNbf(nbf)
-		lt.SetIat(iat)
-		lt.SetExp(exp)
+	var cnrV2 refs.ContainerID
+	cnr.WriteToV2(&cnrV2)
 
-		b.SetLifetime(&lt)
+	val.ApplyOnlyTo(cnr)
 
-		require.NoError(t, x.ReadFromV2(m))
-		require.False(t, x.ExpiredAt(exp-1))
-		require.True(t, x.ExpiredAt(exp))
-		require.True(t, x.ExpiredAt(exp+1))
-		require.True(t, x.InvalidAt(nbf-1))
-		require.True(t, x.InvalidAt(iat-1))
-		require.False(t, x.InvalidAt(iat))
-		require.False(t, x.InvalidAt(exp-1))
-		require.True(t, x.InvalidAt(exp))
-		require.True(t, x.InvalidAt(exp+1))
-	})
-
-	t.Run("session key", func(t *testing.T) {
-		key := randPublicKey()
-
-		bKey := make([]byte, key.MaxEncodedSize())
-		bKey = bKey[:key.Encode(bKey)]
-
-		b.SetSessionKey(bKey)
-
-		require.NoError(t, x.ReadFromV2(m))
-		require.True(t, x.AssertAuthKey(key))
+	assert(func(m v2session.Token) {
+		cCnr, ok := m.GetBody().GetContext().(*v2session.ContainerSessionContext)
+		require.True(t, ok)
+		require.False(t, cCnr.Wildcard())
+		require.Equal(t, &cnrV2, cCnr.ContainerID())
 	})
 }
 
-func TestEncodingContainer(t *testing.T) {
-	tok := *sessiontest.ContainerSigned()
+func TestContainer_ApplyOnlyTo(t *testing.T) {
+	var val session.Container
+	var m v2session.Token
+	filled := sessiontest.Container()
 
-	t.Run("binary", func(t *testing.T) {
-		data := tok.Marshal()
+	assertDefaults := func() {
+		cCnr, ok := m.GetBody().GetContext().(*v2session.ContainerSessionContext)
+		require.True(t, ok)
+		require.True(t, cCnr.Wildcard())
+		require.Zero(t, cCnr.ContainerID())
+	}
 
-		var tok2 session.Container
-		require.NoError(t, tok2.Unmarshal(data))
+	assertBinary := func(baseAssert func()) {
+		val2 := filled
 
-		require.Equal(t, tok, tok2)
-	})
+		require.NoError(t, val2.Unmarshal(val.Marshal()))
+		baseAssert()
+	}
 
-	t.Run("json", func(t *testing.T) {
-		data, err := tok.MarshalJSON()
+	assertJSON := func(baseAssert func()) {
+		val2 := filled
+
+		jd, err := val.MarshalJSON()
 		require.NoError(t, err)
 
-		var tok2 session.Container
-		require.NoError(t, tok2.UnmarshalJSON(data))
+		require.NoError(t, val2.UnmarshalJSON(jd))
+		baseAssert()
+	}
 
-		require.Equal(t, tok, tok2)
-	})
+	val.WriteToV2(&m)
+
+	assertDefaults()
+	assertBinary(assertDefaults)
+	assertJSON(assertDefaults)
+
+	// set value
+
+	cnr := cidtest.ID()
+
+	var cnrV2 refs.ContainerID
+	cnr.WriteToV2(&cnrV2)
+
+	val.ApplyOnlyTo(cnr)
+
+	val.WriteToV2(&m)
+
+	assertCnr := func() {
+		cCnr, ok := m.GetBody().GetContext().(*v2session.ContainerSessionContext)
+		require.True(t, ok)
+		require.False(t, cCnr.Wildcard())
+		require.Equal(t, &cnrV2, cCnr.ContainerID())
+	}
+
+	assertCnr()
+	assertBinary(assertCnr)
+	assertJSON(assertCnr)
 }
 
-func TestContainerAppliedTo(t *testing.T) {
+func TestContainer_AppliedTo(t *testing.T) {
 	var x session.Container
 
 	cnr1 := cidtest.ID()
@@ -161,21 +391,7 @@ func TestContainerAppliedTo(t *testing.T) {
 	require.False(t, x.AppliedTo(cnr2))
 }
 
-func TestContainerExp(t *testing.T) {
-	var x session.Container
-
-	exp := rand.Uint64()
-
-	require.True(t, x.ExpiredAt(exp))
-
-	x.SetExp(exp)
-
-	require.False(t, x.ExpiredAt(exp-1))
-	require.True(t, x.ExpiredAt(exp))
-	require.True(t, x.ExpiredAt(exp+1))
-}
-
-func TestContainerLifetime(t *testing.T) {
+func TestContainer_InvalidAt(t *testing.T) {
 	var x session.Container
 
 	nbf := rand.Uint64()
@@ -196,7 +412,7 @@ func TestContainerLifetime(t *testing.T) {
 	require.True(t, x.InvalidAt(exp))
 }
 
-func TestContainerID(t *testing.T) {
+func TestContainer_ID(t *testing.T) {
 	var x session.Container
 
 	require.Zero(t, x.ID())
@@ -208,7 +424,7 @@ func TestContainerID(t *testing.T) {
 	require.Equal(t, id, x.ID())
 }
 
-func TestContainerAuthKey(t *testing.T) {
+func TestContainer_AssertAuthKey(t *testing.T) {
 	var x session.Container
 
 	key := randPublicKey()
@@ -220,7 +436,64 @@ func TestContainerAuthKey(t *testing.T) {
 	require.True(t, x.AssertAuthKey(key))
 }
 
-func TestContainerVerb(t *testing.T) {
+func TestContainer_ForVerb(t *testing.T) {
+	var val session.Container
+	var m v2session.Token
+	filled := sessiontest.Container()
+
+	assertDefaults := func() {
+		cCnr, ok := m.GetBody().GetContext().(*v2session.ContainerSessionContext)
+		require.True(t, ok)
+		require.Zero(t, cCnr.Verb())
+	}
+
+	assertBinary := func(baseAssert func()) {
+		val2 := filled
+
+		require.NoError(t, val2.Unmarshal(val.Marshal()))
+		baseAssert()
+	}
+
+	assertJSON := func(baseAssert func()) {
+		val2 := filled
+
+		jd, err := val.MarshalJSON()
+		require.NoError(t, err)
+
+		require.NoError(t, val2.UnmarshalJSON(jd))
+		baseAssert()
+	}
+
+	val.WriteToV2(&m)
+
+	assertDefaults()
+	assertBinary(assertDefaults)
+	assertJSON(assertDefaults)
+
+	// set value
+
+	assertVerb := func(verb v2session.ContainerSessionVerb) {
+		cCnr, ok := m.GetBody().GetContext().(*v2session.ContainerSessionContext)
+		require.True(t, ok)
+		require.Equal(t, verb, cCnr.Verb())
+	}
+
+	for from, to := range map[session.ContainerVerb]v2session.ContainerSessionVerb{
+		session.VerbContainerPut:     v2session.ContainerVerbPut,
+		session.VerbContainerDelete:  v2session.ContainerVerbDelete,
+		session.VerbContainerSetEACL: v2session.ContainerVerbSetEACL,
+	} {
+		val.ForVerb(from)
+
+		val.WriteToV2(&m)
+
+		assertVerb(to)
+		assertBinary(func() { assertVerb(to) })
+		assertJSON(func() { assertVerb(to) })
+	}
+}
+
+func TestContainer_AssertVerb(t *testing.T) {
 	var x session.Container
 
 	const v1, v2 = session.VerbContainerPut, session.VerbContainerDelete
@@ -231,60 +504,6 @@ func TestContainerVerb(t *testing.T) {
 	x.ForVerb(v1)
 	require.True(t, x.AssertVerb(v1))
 	require.False(t, x.AssertVerb(v2))
-}
-
-func TestContainerSignature(t *testing.T) {
-	var x session.Container
-
-	const nbf = 11
-	const iat = 22
-	const exp = 33
-	id := uuid.New()
-	key := randPublicKey()
-	cnr := cidtest.ID()
-	verb := session.VerbContainerPut
-
-	signer := randSigner()
-
-	fs := []func(){
-		func() { x.SetNbf(nbf) },
-		func() { x.SetNbf(nbf + 1) },
-
-		func() { x.SetIat(iat) },
-		func() { x.SetIat(iat + 1) },
-
-		func() { x.SetExp(exp) },
-		func() { x.SetExp(exp + 1) },
-
-		func() { x.SetID(id) },
-		func() {
-			idcp := id
-			idcp[0]++
-			x.SetID(idcp)
-		},
-
-		func() { x.SetAuthKey(key) },
-		func() { x.SetAuthKey(randPublicKey()) },
-
-		func() { x.ApplyOnlyTo(cnr) },
-		func() { x.ApplyOnlyTo(cidtest.ID()) },
-
-		func() { x.ForVerb(verb) },
-		func() { x.ForVerb(verb + 1) },
-	}
-
-	for i := 0; i < len(fs); i += 2 {
-		fs[i]()
-
-		require.NoError(t, x.Sign(signer))
-		require.True(t, x.VerifySignature())
-
-		fs[i+1]()
-		require.False(t, x.VerifySignature())
-
-		fs[i]()
-		require.True(t, x.VerifySignature())
-	}
 }
 
 func TestIssuedBy(t *testing.T) {
