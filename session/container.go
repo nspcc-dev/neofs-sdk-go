@@ -1,17 +1,13 @@
 package session
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -26,67 +22,67 @@ import (
 //
 // Instances can be created using built-in var declaration.
 type Container struct {
+	commonData
+
+	verb ContainerVerb
+
 	cnrSet bool
-
-	lt session.TokenLifetime
-
-	c session.ContainerSessionContext
-
-	body session.TokenBody
-
-	sig neofscrypto.Signature
+	cnr    cid.ID
 }
 
-// ReadFromV2 reads Container from the session.Token message.
+// readContext is a contextReader needed for commonData methods.
+func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool) error {
+	cCnr, ok := c.(*session.ContainerSessionContext)
+	if !ok || cCnr == nil {
+		return fmt.Errorf("invalid context %T", c)
+	}
+
+	x.cnrSet = !cCnr.Wildcard()
+	cnr := cCnr.ContainerID()
+
+	if x.cnrSet {
+		if cnr != nil {
+			err := x.cnr.ReadFromV2(*cnr)
+			if err != nil {
+				return fmt.Errorf("invalid container ID: %w", err)
+			}
+		} else if checkFieldPresence {
+			return errors.New("missing container or wildcard flag")
+		}
+	} else if cnr != nil {
+		return errors.New("container conflicts with wildcard flag")
+	}
+
+	x.verb = ContainerVerb(cCnr.Verb())
+
+	return nil
+}
+
+func (x *Container) readFromV2(m session.Token, checkFieldPresence bool) error {
+	return x.commonData.readFromV2(m, checkFieldPresence, x.readContext)
+}
+
+// ReadFromV2 reads Container from the session.Token message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
 func (x *Container) ReadFromV2(m session.Token) error {
-	b := m.GetBody()
-	if b == nil {
-		return errors.New("missing body")
+	return x.readFromV2(m, true)
+}
+
+func (x Container) writeContext() session.TokenContext {
+	var c session.ContainerSessionContext
+	c.SetWildcard(!x.cnrSet)
+	c.SetVerb(session.ContainerSessionVerb(x.verb))
+
+	if x.cnrSet {
+		var cnr refs.ContainerID
+		x.cnr.WriteToV2(&cnr)
+
+		c.SetContainerID(&cnr)
 	}
 
-	bID := b.GetID()
-	var id uuid.UUID
-
-	err := id.UnmarshalBinary(bID)
-	if err != nil {
-		return fmt.Errorf("invalid binary ID: %w", err)
-	} else if ver := id.Version(); ver != 4 {
-		return fmt.Errorf("invalid UUID version %s", ver)
-	}
-
-	c, ok := b.GetContext().(*session.ContainerSessionContext)
-	if !ok || c == nil {
-		return fmt.Errorf("invalid context %T", b.GetContext())
-	}
-
-	cnr := c.ContainerID()
-	x.cnrSet = !c.Wildcard()
-
-	if x.cnrSet && cnr == nil {
-		return errors.New("container is not specified with unset wildcard")
-	}
-
-	x.body = *b
-
-	x.c = *c
-
-	lt := b.GetLifetime()
-	if lt != nil {
-		x.lt = *lt
-	} else {
-		x.lt = session.TokenLifetime{}
-	}
-
-	sig := m.GetSignature()
-	if sig != nil {
-		x.sig.ReadFromV2(*sig)
-	} else {
-		x.sig = neofscrypto.Signature{}
-	}
-
-	return nil
+	return &c
 }
 
 // WriteToV2 writes Container to the session.Token message.
@@ -94,11 +90,7 @@ func (x *Container) ReadFromV2(m session.Token) error {
 //
 // See also ReadFromV2.
 func (x Container) WriteToV2(m *session.Token) {
-	var sig refs.Signature
-	x.sig.WriteToV2(&sig)
-
-	m.SetBody(&x.body)
-	m.SetSignature(&sig)
+	x.writeToV2(m, x.writeContext)
 }
 
 // Marshal encodes Container into a binary format of the NeoFS API protocol
@@ -106,10 +98,7 @@ func (x Container) WriteToV2(m *session.Token) {
 //
 // See also Unmarshal.
 func (x Container) Marshal() []byte {
-	var m session.Token
-	x.WriteToV2(&m)
-
-	return m.StableMarshal(nil)
+	return x.marshal(x.writeContext)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Container
@@ -118,14 +107,7 @@ func (x Container) Marshal() []byte {
 //
 // See also Marshal.
 func (x *Container) Unmarshal(data []byte) error {
-	var m session.Token
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return x.ReadFromV2(m)
+	return x.unmarshal(data, x.readContext)
 }
 
 // MarshalJSON encodes Container into a JSON format of the NeoFS API protocol
@@ -133,10 +115,7 @@ func (x *Container) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (x Container) MarshalJSON() ([]byte, error) {
-	var m session.Token
-	x.WriteToV2(&m)
-
-	return m.MarshalJSON()
+	return x.marshalJSON(x.writeContext)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Container
@@ -144,14 +123,7 @@ func (x Container) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *Container) UnmarshalJSON(data []byte) error {
-	var m session.Token
-
-	err := m.UnmarshalJSON(data)
-	if err != nil {
-		return err
-	}
-
-	return x.ReadFromV2(m)
+	return x.unmarshalJSON(data, x.readContext)
 }
 
 // Sign calculates and writes signature of the Container data.
@@ -164,19 +136,7 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 //
 // See also VerifySignature.
 func (x *Container) Sign(key ecdsa.PrivateKey) error {
-	var idUser user.ID
-	user.IDFromKey(&idUser, key.PublicKey)
-
-	var idUserV2 refs.OwnerID
-	idUser.WriteToV2(&idUserV2)
-
-	x.c.SetWildcard(!x.cnrSet)
-
-	x.body.SetOwnerID(&idUserV2)
-	x.body.SetLifetime(&x.lt)
-	x.body.SetContext(&x.c)
-
-	return x.sig.Calculate(neofsecdsa.Signer(key), x.body.StableMarshal(nil))
+	return x.sign(key, x.writeContext)
 }
 
 // VerifySignature checks if Container signature is presented and valid.
@@ -185,18 +145,14 @@ func (x *Container) Sign(key ecdsa.PrivateKey) error {
 //
 // See also Sign.
 func (x Container) VerifySignature() bool {
-	// TODO: (#233) check owner<->key relation
-	return x.sig.Verify(x.body.StableMarshal(nil))
+	return x.verifySignature(x.writeContext)
 }
 
 // ApplyOnlyTo limits session scope to a given author container.
 //
 // See also AppliedTo.
 func (x *Container) ApplyOnlyTo(cnr cid.ID) {
-	var cnrv2 refs.ContainerID
-	cnr.WriteToV2(&cnrv2)
-
-	x.c.SetContainerID(&cnrv2)
+	x.cnr = cnr
 	x.cnrSet = true
 }
 
@@ -206,18 +162,7 @@ func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 //
 // See also ApplyOnlyTo.
 func (x Container) AppliedTo(cnr cid.ID) bool {
-	if !x.cnrSet {
-		return true
-	}
-
-	var cnr2 cid.ID
-
-	if err := cnr2.ReadFromV2(*x.c.ContainerID()); err != nil {
-		// NPE and error must never happen
-		panic(fmt.Sprintf("unexpected error from cid.ReadFromV2: %v", err))
-	}
-
-	return cnr2.Equals(cnr)
+	return !x.cnrSet || x.cnr.Equals(cnr)
 }
 
 // ContainerVerb enumerates container operations.
@@ -236,7 +181,7 @@ const (
 //
 // See also AssertVerb.
 func (x *Container) ForVerb(verb ContainerVerb) {
-	x.c.SetVerb(session.ContainerSessionVerb(verb))
+	x.verb = verb
 }
 
 // AssertVerb checks if Container relates to the given container operation.
@@ -245,134 +190,7 @@ func (x *Container) ForVerb(verb ContainerVerb) {
 //
 // See also ForVerb.
 func (x Container) AssertVerb(verb ContainerVerb) bool {
-	return verb == ContainerVerb(x.c.Verb())
-}
-
-// SetExp sets "exp" (expiration time) claim which identifies the expiration time
-// (in NeoFS epochs) on or after which the Container MUST NOT be accepted for
-// processing.  The processing of the "exp" claim requires that the current
-// epoch MUST be before the expiration epoch listed in the "exp" claim.
-//
-// Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
-//
-// See also ExpiredAt.
-func (x *Container) SetExp(exp uint64) {
-	x.lt.SetExp(exp)
-}
-
-// ExpiredAt asserts "exp" claim.
-//
-// Zero Container is expired in any epoch.
-//
-// See also SetExp.
-func (x Container) ExpiredAt(epoch uint64) bool {
-	return x.lt.GetExp() <= epoch
-}
-
-// SetNbf sets "nbf" (not before) claim which identifies the time (in NeoFS
-// epochs) before which the Container MUST NOT be accepted for processing.
-// The processing of the "nbf" claim requires that the current date/time MUST be
-// after or equal to the not-before date/time listed in the "nbf" claim.
-//
-// Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
-//
-// See also InvalidAt.
-func (x *Container) SetNbf(nbf uint64) {
-	x.lt.SetNbf(nbf)
-}
-
-// SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
-// epochs) at which the Container was issued. This claim can be used to
-// determine the age of the Container.
-//
-// Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
-//
-// See also InvalidAt.
-func (x *Container) SetIat(iat uint64) {
-	x.lt.SetIat(iat)
-}
-
-// InvalidAt asserts "exp", "nbf" and "iat" claims.
-//
-// Zero Container is invalid in any epoch.
-//
-// See also SetExp, SetNbf, SetIat.
-func (x Container) InvalidAt(epoch uint64) bool {
-	return x.lt.GetNbf() > epoch || x.lt.GetIat() > epoch || x.ExpiredAt(epoch)
-}
-
-// SetID sets a unique identifier for the session. The identifier value MUST be
-// assigned in a manner that ensures that there is a negligible probability
-// that the same value will be accidentally assigned to a different session.
-//
-// ID format MUST be UUID version 4 (random). uuid.New can be used to generate
-// a new ID. See https://datatracker.ietf.org/doc/html/rfc4122 and
-// github.com/google/uuid package docs for details.
-//
-// See also ID.
-func (x *Container) SetID(id uuid.UUID) {
-	x.body.SetID(id[:])
-}
-
-// ID returns a unique identifier for the session.
-//
-// Zero Container has empty UUID (all zeros, see uuid.Nil) which is legitimate
-// but most likely not suitable.
-//
-// See also SetID.
-func (x Container) ID() uuid.UUID {
-	data := x.body.GetID()
-	if data == nil {
-		return uuid.Nil
-	}
-
-	var id uuid.UUID
-
-	err := id.UnmarshalBinary(x.body.GetID())
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from UUID.UnmarshalBinary: %v", err))
-	}
-
-	return id
-}
-
-// SetAuthKey public key corresponding to the private key bound to the session.
-//
-// See also AssertAuthKey.
-func (x *Container) SetAuthKey(key neofscrypto.PublicKey) {
-	bKey := make([]byte, key.MaxEncodedSize())
-	bKey = bKey[:key.Encode(bKey)]
-
-	x.body.SetSessionKey(bKey)
-}
-
-// AssertAuthKey asserts public key bound to the session.
-//
-// Zero Container fails the check.
-//
-// See also SetAuthKey.
-func (x Container) AssertAuthKey(key neofscrypto.PublicKey) bool {
-	bKey := make([]byte, key.MaxEncodedSize())
-	bKey = bKey[:key.Encode(bKey)]
-
-	return bytes.Equal(bKey, x.body.GetSessionKey())
-}
-
-// Issuer returns user ID of the session issuer.
-//
-// Makes sense only for signed Container instances. For unsigned instances,
-// Issuer returns zero user.ID.
-//
-// See also Sign.
-func (x Container) Issuer() user.ID {
-	var issuer user.ID
-
-	issuerV2 := x.body.GetOwnerID()
-	if issuerV2 != nil {
-		_ = issuer.ReadFromV2(*issuerV2)
-	}
-
-	return issuer
+	return x.verb == verb
 }
 
 // IssuedBy checks if Container session is issued by the given user.

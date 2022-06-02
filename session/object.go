@@ -1,19 +1,14 @@
 package session
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
-	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Object represents token of the NeoFS Object session. A session is opened
@@ -27,69 +22,90 @@ import (
 //
 // Instances can be created using built-in var declaration.
 type Object struct {
-	lt session.TokenLifetime
+	commonData
 
-	obj refs.Address
+	verb ObjectVerb
 
-	c session.ObjectSessionContext
+	cnrSet bool
+	cnr    cid.ID
 
-	body session.TokenBody
-
-	sig neofscrypto.Signature
+	objSet bool
+	obj    oid.ID
 }
 
-// ReadFromV2 reads Object from the session.Token message.
+func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) error {
+	cObj, ok := c.(*session.ObjectSessionContext)
+	if !ok || cObj == nil {
+		return fmt.Errorf("invalid context %T", c)
+	}
+
+	addr := cObj.GetAddress()
+	if checkFieldPresence && addr == nil {
+		return errors.New("missing object address")
+	}
+
+	var err error
+
+	cnr := addr.GetContainerID()
+	if x.cnrSet = cnr != nil; x.cnrSet {
+		err := x.cnr.ReadFromV2(*cnr)
+		if err != nil {
+			return fmt.Errorf("invalid container ID: %w", err)
+		}
+	} else if checkFieldPresence {
+		return errors.New("missing container in object address")
+	}
+
+	obj := addr.GetObjectID()
+	if x.objSet = obj != nil; x.objSet {
+		err = x.obj.ReadFromV2(*obj)
+		if err != nil {
+			return fmt.Errorf("invalid object ID: %w", err)
+		}
+	}
+
+	x.verb = ObjectVerb(cObj.GetVerb())
+
+	return nil
+}
+
+func (x *Object) readFromV2(m session.Token, checkFieldPresence bool) error {
+	return x.commonData.readFromV2(m, checkFieldPresence, x.readContext)
+}
+
+// ReadFromV2 reads Object from the session.Token message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
 func (x *Object) ReadFromV2(m session.Token) error {
-	b := m.GetBody()
-	if b == nil {
-		return errors.New("missing body")
+	return x.readFromV2(m, true)
+}
+
+func (x Object) writeContext() session.TokenContext {
+	var c session.ObjectSessionContext
+	c.SetVerb(session.ObjectSessionVerb(x.verb))
+
+	if x.cnrSet || x.objSet {
+		var addr refs.Address
+
+		if x.cnrSet {
+			var cnr refs.ContainerID
+			x.cnr.WriteToV2(&cnr)
+
+			addr.SetContainerID(&cnr)
+		}
+
+		if x.objSet {
+			var obj refs.ObjectID
+			x.obj.WriteToV2(&obj)
+
+			addr.SetObjectID(&obj)
+		}
+
+		c.SetAddress(&addr)
 	}
 
-	bID := b.GetID()
-	var id uuid.UUID
-
-	err := id.UnmarshalBinary(bID)
-	if err != nil {
-		return fmt.Errorf("invalid binary ID: %w", err)
-	} else if ver := id.Version(); ver != 4 {
-		return fmt.Errorf("invalid UUID version %s", ver)
-	}
-
-	c, ok := b.GetContext().(*session.ObjectSessionContext)
-	if !ok || c == nil {
-		return fmt.Errorf("invalid context %T", b.GetContext())
-	}
-
-	x.body = *b
-
-	x.c = *c
-
-	obj := c.GetAddress()
-
-	cnr := obj.GetContainerID()
-	if cnr == nil {
-		return errors.New("missing bound container")
-	}
-
-	x.obj = *obj
-
-	lt := b.GetLifetime()
-	if lt != nil {
-		x.lt = *lt
-	} else {
-		x.lt = session.TokenLifetime{}
-	}
-
-	sig := m.GetSignature()
-	if sig != nil {
-		x.sig.ReadFromV2(*sig)
-	} else {
-		x.sig = neofscrypto.Signature{}
-	}
-
-	return nil
+	return &c
 }
 
 // WriteToV2 writes Object to the session.Token message.
@@ -97,11 +113,7 @@ func (x *Object) ReadFromV2(m session.Token) error {
 //
 // See also ReadFromV2.
 func (x Object) WriteToV2(m *session.Token) {
-	var sig refs.Signature
-	x.sig.WriteToV2(&sig)
-
-	m.SetBody(&x.body)
-	m.SetSignature(&sig)
+	x.writeToV2(m, x.writeContext)
 }
 
 // Marshal encodes Object into a binary format of the NeoFS API protocol
@@ -112,7 +124,7 @@ func (x Object) Marshal() []byte {
 	var m session.Token
 	x.WriteToV2(&m)
 
-	return m.StableMarshal(nil)
+	return x.marshal(x.writeContext)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Object
@@ -121,14 +133,7 @@ func (x Object) Marshal() []byte {
 //
 // See also Marshal.
 func (x *Object) Unmarshal(data []byte) error {
-	var m session.Token
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return x.ReadFromV2(m)
+	return x.unmarshal(data, x.readContext)
 }
 
 // MarshalJSON encodes Object into a JSON format of the NeoFS API protocol
@@ -136,10 +141,7 @@ func (x *Object) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (x Object) MarshalJSON() ([]byte, error) {
-	var m session.Token
-	x.WriteToV2(&m)
-
-	return m.MarshalJSON()
+	return x.marshalJSON(x.writeContext)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Object
@@ -147,14 +149,7 @@ func (x Object) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *Object) UnmarshalJSON(data []byte) error {
-	var m session.Token
-
-	err := m.UnmarshalJSON(data)
-	if err != nil {
-		return err
-	}
-
-	return x.ReadFromV2(m)
+	return x.unmarshalJSON(data, x.readContext)
 }
 
 // Sign calculates and writes signature of the Object data.
@@ -167,19 +162,7 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 //
 // See also VerifySignature.
 func (x *Object) Sign(key ecdsa.PrivateKey) error {
-	var idUser user.ID
-	user.IDFromKey(&idUser, key.PublicKey)
-
-	var idUserV2 refs.OwnerID
-	idUser.WriteToV2(&idUserV2)
-
-	x.c.SetAddress(&x.obj)
-
-	x.body.SetOwnerID(&idUserV2)
-	x.body.SetLifetime(&x.lt)
-	x.body.SetContext(&x.c)
-
-	return x.sig.Calculate(neofsecdsa.Signer(key), x.body.StableMarshal(nil))
+	return x.sign(key, x.writeContext)
 }
 
 // VerifySignature checks if Object signature is presented and valid.
@@ -189,7 +172,7 @@ func (x *Object) Sign(key ecdsa.PrivateKey) error {
 // See also Sign.
 func (x Object) VerifySignature() bool {
 	// TODO: (#233) check owner<->key relation
-	return x.sig.Verify(x.body.StableMarshal(nil))
+	return x.verifySignature(x.writeContext)
 }
 
 // BindContainer binds the Object session to a given container. Each session
@@ -197,10 +180,8 @@ func (x Object) VerifySignature() bool {
 //
 // See also AssertContainer.
 func (x *Object) BindContainer(cnr cid.ID) {
-	var cnrV2 refs.ContainerID
-	cnr.WriteToV2(&cnrV2)
-
-	x.obj.SetContainerID(&cnrV2)
+	x.cnr = cnr
+	x.cnrSet = true
 }
 
 // AssertContainer checks if Object session bound to a given container.
@@ -210,16 +191,7 @@ func (x *Object) BindContainer(cnr cid.ID) {
 //
 // See also BindContainer.
 func (x Object) AssertContainer(cnr cid.ID) bool {
-	cnrV2 := x.obj.GetContainerID()
-	if cnrV2 == nil {
-		return false
-	}
-
-	var cnr2 cid.ID
-
-	err := cnr2.ReadFromV2(*cnrV2)
-
-	return err == nil && cnr2.Equals(cnr)
+	return x.cnr.Equals(cnr)
 }
 
 // LimitByObject limits session scope to a given object from the container
@@ -227,10 +199,8 @@ func (x Object) AssertContainer(cnr cid.ID) bool {
 //
 // See also AssertObject.
 func (x *Object) LimitByObject(obj oid.ID) {
-	var objV2 refs.ObjectID
-	obj.WriteToV2(&objV2)
-
-	x.obj.SetObjectID(&objV2)
+	x.obj = obj
+	x.objSet = true
 }
 
 // AssertObject checks if Object session is applied to a given object.
@@ -239,16 +209,7 @@ func (x *Object) LimitByObject(obj oid.ID) {
 //
 // See also LimitByObject.
 func (x Object) AssertObject(obj oid.ID) bool {
-	objV2 := x.obj.GetObjectID()
-	if objV2 == nil {
-		return true
-	}
-
-	var obj2 oid.ID
-
-	err := obj2.ReadFromV2(*objV2)
-
-	return err == nil && obj2.Equals(obj)
+	return !x.objSet || x.obj.Equals(obj)
 }
 
 // ObjectVerb enumerates object operations.
@@ -271,7 +232,7 @@ const (
 //
 // See also AssertVerb.
 func (x *Object) ForVerb(verb ObjectVerb) {
-	x.c.SetVerb(session.ObjectSessionVerb(verb))
+	x.verb = verb
 }
 
 // AssertVerb checks if Object relates to one of the given object operations.
@@ -280,27 +241,13 @@ func (x *Object) ForVerb(verb ObjectVerb) {
 //
 // See also ForVerb.
 func (x Object) AssertVerb(verbs ...ObjectVerb) bool {
-	verb := ObjectVerb(x.c.GetVerb())
-
 	for i := range verbs {
-		if verbs[i] == verb {
+		if verbs[i] == x.verb {
 			return true
 		}
 	}
 
 	return false
-}
-
-// SetExp sets "exp" (expiration time) claim which identifies the expiration time
-// (in NeoFS epochs) on or after which the Object MUST NOT be accepted for
-// processing.  The processing of the "exp" claim requires that the current
-// epoch MUST be before the expiration epoch listed in the "exp" claim.
-//
-// Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
-//
-// See also ExpiredAt.
-func (x *Object) SetExp(exp uint64) {
-	x.lt.SetExp(exp)
 }
 
 // ExpiredAt asserts "exp" claim.
@@ -309,111 +256,5 @@ func (x *Object) SetExp(exp uint64) {
 //
 // See also SetExp.
 func (x Object) ExpiredAt(epoch uint64) bool {
-	return x.lt.GetExp() <= epoch
-}
-
-// SetNbf sets "nbf" (not before) claim which identifies the time (in NeoFS
-// epochs) before which the Object MUST NOT be accepted for processing.
-// The processing of the "nbf" claim requires that the current date/time MUST be
-// after or equal to the not-before date/time listed in the "nbf" claim.
-//
-// Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
-//
-// See also InvalidAt.
-func (x *Object) SetNbf(nbf uint64) {
-	x.lt.SetNbf(nbf)
-}
-
-// SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
-// epochs) at which the Object was issued. This claim can be used to
-// determine the age of the Object.
-//
-// Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
-//
-// See also InvalidAt.
-func (x *Object) SetIat(iat uint64) {
-	x.lt.SetIat(iat)
-}
-
-// InvalidAt asserts "exp", "nbf" and "iat" claims.
-//
-// Zero Object is invalid in any epoch.
-//
-// See also SetExp, SetNbf, SetIat.
-func (x Object) InvalidAt(epoch uint64) bool {
-	return x.lt.GetNbf() > epoch || x.lt.GetIat() > epoch || x.ExpiredAt(epoch)
-}
-
-// SetID sets a unique identifier for the session. The identifier value MUST be
-// assigned in a manner that ensures that there is a negligible probability
-// that the same value will be accidentally assigned to a different session.
-//
-// ID format MUST be UUID version 4 (random). uuid.New can be used to generate
-// a new ID. See https://datatracker.ietf.org/doc/html/rfc4122 and
-// github.com/google/uuid package docs for details.
-//
-// See also ID.
-func (x *Object) SetID(id uuid.UUID) {
-	x.body.SetID(id[:])
-}
-
-// ID returns a unique identifier for the session.
-//
-// Zero Object has empty UUID (all zeros, see uuid.Nil) which is legitimate
-// but most likely not suitable.
-//
-// See also SetID.
-func (x Object) ID() uuid.UUID {
-	data := x.body.GetID()
-	if data == nil {
-		return uuid.Nil
-	}
-
-	var id uuid.UUID
-
-	err := id.UnmarshalBinary(x.body.GetID())
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from UUID.UnmarshalBinary: %v", err))
-	}
-
-	return id
-}
-
-// SetAuthKey public key corresponding to the private key bound to the session.
-//
-// See also AssertAuthKey.
-func (x *Object) SetAuthKey(key neofscrypto.PublicKey) {
-	bKey := make([]byte, key.MaxEncodedSize())
-	bKey = bKey[:key.Encode(bKey)]
-
-	x.body.SetSessionKey(bKey)
-}
-
-// AssertAuthKey asserts public key bound to the session.
-//
-// Zero Object fails the check.
-//
-// See also SetAuthKey.
-func (x Object) AssertAuthKey(key neofscrypto.PublicKey) bool {
-	bKey := make([]byte, key.MaxEncodedSize())
-	bKey = bKey[:key.Encode(bKey)]
-
-	return bytes.Equal(bKey, x.body.GetSessionKey())
-}
-
-// Issuer returns user ID of the session issuer.
-//
-// Makes sense only for signed Object instances. For unsigned instances,
-// Issuer returns zero user.ID.
-//
-// See also Sign.
-func (x Object) Issuer() user.ID {
-	var issuer user.ID
-
-	issuerV2 := x.body.GetOwnerID()
-	if issuerV2 != nil {
-		_ = issuer.ReadFromV2(*issuerV2)
-	}
-
-	return issuer
+	return x.expiredAt(epoch)
 }
