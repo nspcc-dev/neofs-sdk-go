@@ -626,3 +626,11 @@ func TestObject_Issuer(t *testing.T) {
 
 	require.True(t, token.Issuer().Equals(issuer))
 }
+
+func TestObject_Sign(t *testing.T) {
+	val := sessiontest.Object()
+
+	require.NoError(t, val.Sign(randSigner()))
+
+	require.True(t, val.VerifySignature())
+}
