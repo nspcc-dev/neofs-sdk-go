@@ -535,3 +535,11 @@ func TestContainer_Issuer(t *testing.T) {
 
 	require.True(t, token.Issuer().Equals(issuer))
 }
+
+func TestContainer_Sign(t *testing.T) {
+	val := sessiontest.Container()
+
+	require.NoError(t, val.Sign(randSigner()))
+
+	require.True(t, val.VerifySignature())
+}
