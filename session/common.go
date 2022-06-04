@@ -157,6 +157,7 @@ func (x commonData) signedData(w contextWriter) []byte {
 
 func (x *commonData) sign(key ecdsa.PrivateKey, w contextWriter) error {
 	user.IDFromKey(&x.issuer, key.PublicKey)
+	x.issuerSet = true
 
 	var sig neofscrypto.Signature
 
@@ -164,8 +165,6 @@ func (x *commonData) sign(key ecdsa.PrivateKey, w contextWriter) error {
 	if err != nil {
 		return err
 	}
-
-	x.issuerSet = true
 
 	sig.WriteToV2(&x.sig)
 	x.sigSet = true
