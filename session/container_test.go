@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
@@ -542,4 +543,26 @@ func TestContainer_Sign(t *testing.T) {
 	require.NoError(t, val.Sign(randSigner()))
 
 	require.True(t, val.VerifySignature())
+}
+
+func TestContainer_VerifyDataSignature(t *testing.T) {
+	signer := randSigner()
+
+	var tok session.Container
+
+	data := make([]byte, 100)
+	rand.Read(data)
+
+	var sig neofscrypto.Signature
+	require.NoError(t, sig.Calculate(neofsecdsa.SignerRFC6979(signer), data))
+
+	var sigV2 refs.Signature
+	sig.WriteToV2(&sigV2)
+
+	require.False(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
+
+	tok.SetAuthKey((*neofsecdsa.PublicKeyRFC6979)(&signer.PublicKey))
+	require.True(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
+	require.False(t, tok.VerifySessionDataSignature(append(data, 1), sigV2.GetSign()))
+	require.False(t, tok.VerifySessionDataSignature(data, append(sigV2.GetSign(), 1)))
 }

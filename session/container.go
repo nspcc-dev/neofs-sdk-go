@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -198,4 +199,18 @@ func (x Container) AssertVerb(verb ContainerVerb) bool {
 // See also Container.Issuer.
 func IssuedBy(cnr Container, id user.ID) bool {
 	return cnr.Issuer().Equals(id)
+}
+
+// VerifySessionDataSignature verifies signature of the session data. In practice,
+// the method is used to authenticate an operation with session data.
+func (x Container) VerifySessionDataSignature(data, signature []byte) bool {
+	var sigV2 refs.Signature
+	sigV2.SetKey(x.authKey)
+	sigV2.SetScheme(refs.ECDSA_RFC6979_SHA256)
+	sigV2.SetSign(signature)
+
+	var sig neofscrypto.Signature
+	sig.ReadFromV2(sigV2)
+
+	return sig.Verify(data)
 }
