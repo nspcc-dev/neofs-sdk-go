@@ -146,7 +146,7 @@ func flattenNodes(ns []nodes) nodes {
 // GetPlacementVectors returns placement vectors for an object given containerNodes cnt.
 func (m *Netmap) GetPlacementVectors(vectors [][]NodeInfo, pivot []byte) ([][]NodeInfo, error) {
 	h := hrw.Hash(pivot)
-	wf := GetDefaultWeightFunc(m.nodes)
+	wf := defaultWeightFunc(m.nodes)
 	result := make([][]NodeInfo, len(vectors))
 
 	for i := range vectors {

@@ -58,7 +58,7 @@ func newContext(nm *Netmap) *context {
 
 		numCache:   make(map[string]uint64),
 		aggregator: newMeanIQRAgg,
-		weightFunc: GetDefaultWeightFunc(nm.nodes),
+		weightFunc: defaultWeightFunc(nm.nodes),
 		cbf:        defaultCBF,
 	}
 }
@@ -78,8 +78,8 @@ func (c *context) setCBF(cbf uint32) {
 	}
 }
 
-// GetDefaultWeightFunc returns default weighting function.
-func GetDefaultWeightFunc(ns nodes) weightFunc {
+// defaultWeightFunc returns default weighting function.
+func defaultWeightFunc(ns nodes) weightFunc {
 	mean := newMeanAgg()
 	min := newMinAgg()
 
