@@ -1,214 +1,214 @@
 package netmap_test
 
 import (
+	"encoding/binary"
+	"math"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	. "github.com/nspcc-dev/neofs-sdk-go/netmap"
-	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNetworkParameter_Key(t *testing.T) {
-	i := NewNetworkParameter()
-
-	k := []byte("key")
-
-	i.SetKey(k)
-
-	require.Equal(t, k, i.Key())
-	require.Equal(t, k, i.ToV2().GetKey())
-}
-
-func TestNetworkParameter_Value(t *testing.T) {
-	i := NewNetworkParameter()
-
-	v := []byte("value")
-
-	i.SetValue(v)
-
-	require.Equal(t, v, i.Value())
-	require.Equal(t, v, i.ToV2().GetValue())
-}
-
-func TestNewNetworkParameterFromV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		require.Nil(t, NewNetworkParameterFromV2(nil))
-	})
-}
-
-func TestNetworkParameter_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *NetworkParameter
-
-		require.Nil(t, x.ToV2())
-	})
-}
-
-func TestNewNetworkParameter(t *testing.T) {
-	x := NewNetworkParameter()
-
-	// check initial values
-	require.Nil(t, x.Key())
-	require.Nil(t, x.Value())
-
-	// convert to v2 message
-	xV2 := x.ToV2()
-
-	require.Nil(t, xV2.GetKey())
-	require.Nil(t, xV2.GetValue())
-}
-
-func TestNetworkConfig_SetParameters(t *testing.T) {
-	x := NewNetworkConfig()
-
-	require.Zero(t, x.NumberOfParameters())
-
-	called := 0
-
-	x.IterateParameters(func(p *NetworkParameter) bool {
-		called++
-		return false
-	})
-
-	require.Zero(t, called)
-
-	pps := []NetworkParameter{
-		*netmaptest.NetworkParameter(),
-		*netmaptest.NetworkParameter(),
-	}
-
-	x.SetParameters(pps...)
-
-	require.EqualValues(t, len(pps), x.NumberOfParameters())
-
-	var dst []NetworkParameter
-
-	x.IterateParameters(func(p *NetworkParameter) bool {
-		dst = append(dst, *p)
-		called++
-		return false
-	})
-
-	require.Equal(t, pps, dst)
-	require.Equal(t, len(pps), called)
-}
-
-func TestNewNetworkConfigFromV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		require.Nil(t, NewNetworkConfigFromV2(nil))
-	})
-}
-
-func TestNetworkConfig_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *NetworkConfig
-		require.Nil(t, x.ToV2())
-	})
-}
-
-func TestNewNetworkConfig(t *testing.T) {
-	x := NewNetworkConfig()
-
-	// check initial values
-	require.Zero(t, x.NumberOfParameters())
-
-	// convert to v2 message
-	xV2 := x.ToV2()
-
-	require.Zero(t, xV2.NumberOfParameters())
-}
-
 func TestNetworkInfo_CurrentEpoch(t *testing.T) {
-	i := NewNetworkInfo()
-	e := uint64(13)
+	var x NetworkInfo
 
-	i.SetCurrentEpoch(e)
+	require.Zero(t, x.CurrentEpoch())
 
-	require.Equal(t, e, i.CurrentEpoch())
-	require.Equal(t, e, i.ToV2().GetCurrentEpoch())
+	const e = 13
+
+	x.SetCurrentEpoch(e)
+
+	require.EqualValues(t, e, x.CurrentEpoch())
+
+	var m netmap.NetworkInfo
+	x.WriteToV2(&m)
+
+	require.EqualValues(t, e, m.GetCurrentEpoch())
 }
 
 func TestNetworkInfo_MagicNumber(t *testing.T) {
-	i := NewNetworkInfo()
-	m := uint64(666)
+	var x NetworkInfo
 
-	i.SetMagicNumber(m)
+	require.Zero(t, x.MagicNumber())
 
-	require.Equal(t, m, i.MagicNumber())
-	require.Equal(t, m, i.ToV2().GetMagicNumber())
+	const magic = 321
+
+	x.SetMagicNumber(magic)
+
+	require.EqualValues(t, magic, x.MagicNumber())
+
+	var m netmap.NetworkInfo
+	x.WriteToV2(&m)
+
+	require.EqualValues(t, magic, m.GetMagicNumber())
 }
 
 func TestNetworkInfo_MsPerBlock(t *testing.T) {
-	i := NewNetworkInfo()
+	var x NetworkInfo
 
-	const ms = 987
+	require.Zero(t, x.MsPerBlock())
 
-	i.SetMsPerBlock(ms)
+	const ms = 789
 
-	require.EqualValues(t, ms, i.MsPerBlock())
-	require.EqualValues(t, ms, i.ToV2().GetMsPerBlock())
+	x.SetMsPerBlock(ms)
+
+	require.EqualValues(t, ms, x.MsPerBlock())
+
+	var m netmap.NetworkInfo
+	x.WriteToV2(&m)
+
+	require.EqualValues(t, ms, m.GetMsPerBlock())
 }
 
-func TestNetworkInfo_Config(t *testing.T) {
-	i := NewNetworkInfo()
+func testConfigValue(t *testing.T,
+	getter func(x NetworkInfo) interface{},
+	setter func(x *NetworkInfo, val interface{}),
+	val1, val2 interface{},
+	v2Key string, v2Val func(val interface{}) []byte,
+) {
+	var x NetworkInfo
 
-	c := netmaptest.NetworkConfig()
+	require.Zero(t, getter(x))
 
-	i.SetNetworkConfig(c)
+	checkVal := func(exp interface{}) {
+		require.EqualValues(t, exp, getter(x))
 
-	require.Equal(t, c, i.NetworkConfig())
+		var m netmap.NetworkInfo
+		x.WriteToV2(&m)
+
+		require.EqualValues(t, 1, m.GetNetworkConfig().NumberOfParameters())
+		found := false
+		m.GetNetworkConfig().IterateParameters(func(prm *netmap.NetworkParameter) bool {
+			require.False(t, found)
+			require.Equal(t, []byte(v2Key), prm.GetKey())
+			require.Equal(t, v2Val(exp), prm.GetValue())
+			found = true
+			return false
+		})
+		require.True(t, found)
+	}
+
+	setter(&x, val1)
+	checkVal(val1)
+
+	setter(&x, val2)
+	checkVal(val2)
 }
 
-func TestNetworkInfoEncoding(t *testing.T) {
-	i := netmaptest.NetworkInfo()
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := i.Marshal()
-		require.NoError(t, err)
-
-		i2 := NewNetworkInfo()
-		require.NoError(t, i2.Unmarshal(data))
-
-		require.Equal(t, i, i2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := i.MarshalJSON()
-		require.NoError(t, err)
-
-		i2 := NewNetworkInfo()
-		require.NoError(t, i2.UnmarshalJSON(data))
-
-		require.Equal(t, i, i2)
-	})
+func TestNetworkInfo_AuditFee(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.AuditFee() },
+		func(info *NetworkInfo, val interface{}) { info.SetAuditFee(val.(uint64)) },
+		uint64(1), uint64(2),
+		"AuditFee", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
 }
 
-func TestNewNetworkInfoFromV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		require.Nil(t, NewNetworkInfoFromV2(nil))
-	})
+func TestNetworkInfo_StoragePrice(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.StoragePrice() },
+		func(info *NetworkInfo, val interface{}) { info.SetStoragePrice(val.(uint64)) },
+		uint64(1), uint64(2),
+		"BasicIncomeRate", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
 }
 
-func TestNetworkInfo_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *NetworkInfo
-
-		require.Nil(t, x.ToV2())
-	})
+func TestNetworkInfo_ContainerFee(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.ContainerFee() },
+		func(info *NetworkInfo, val interface{}) { info.SetContainerFee(val.(uint64)) },
+		uint64(1), uint64(2),
+		"ContainerFee", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
 }
 
-func TestNewNetworkInfo(t *testing.T) {
-	ni := NewNetworkInfo()
+func TestNetworkInfo_NamedContainerFee(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.NamedContainerFee() },
+		func(info *NetworkInfo, val interface{}) { info.SetNamedContainerFee(val.(uint64)) },
+		uint64(1), uint64(2),
+		"ContainerAliasFee", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
+}
 
-	// check initial values
-	require.Zero(t, ni.CurrentEpoch())
-	require.Zero(t, ni.MagicNumber())
-	require.Zero(t, ni.MsPerBlock())
+func TestNetworkInfo_EigenTrustAlpha(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.EigenTrustAlpha() },
+		func(info *NetworkInfo, val interface{}) { info.SetEigenTrustAlpha(val.(float64)) },
+		0.1, 0.2,
+		"EigenTrustAlpha", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, math.Float64bits(val.(float64)))
+			return data
+		},
+	)
+}
 
-	// convert to v2 message
-	niV2 := ni.ToV2()
+func TestNetworkInfo_EigenTrustIterationAmount(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.EigenTrustIterationAmount() },
+		func(info *NetworkInfo, val interface{}) { info.SetEigenTrustIterationAmount(val.(uint64)) },
+		uint64(1), uint64(2),
+		"EigenTrustIterations", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
+}
 
-	require.Zero(t, niV2.GetCurrentEpoch())
-	require.Zero(t, niV2.GetMagicNumber())
-	require.Zero(t, niV2.GetMsPerBlock())
+func TestNetworkInfo_IRCandidateFee(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.IRCandidateFee() },
+		func(info *NetworkInfo, val interface{}) { info.SetIRCandidateFee(val.(uint64)) },
+		uint64(1), uint64(2),
+		"InnerRingCandidateFee", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
+}
+
+func TestNetworkInfo_MaxObjectSize(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.MaxObjectSize() },
+		func(info *NetworkInfo, val interface{}) { info.SetMaxObjectSize(val.(uint64)) },
+		uint64(1), uint64(2),
+		"MaxObjectSize", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
+}
+
+func TestNetworkInfo_WithdrawalFee(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.WithdrawalFee() },
+		func(info *NetworkInfo, val interface{}) { info.SetWithdrawalFee(val.(uint64)) },
+		uint64(1), uint64(2),
+		"WithdrawFee", func(val interface{}) []byte {
+			data := make([]byte, 8)
+			binary.LittleEndian.PutUint64(data, val.(uint64))
+			return data
+		},
+	)
 }

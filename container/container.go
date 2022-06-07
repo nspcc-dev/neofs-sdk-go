@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
+	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -158,11 +159,30 @@ func (c *Container) SetAttributes(v Attributes) {
 }
 
 func (c *Container) PlacementPolicy() *netmap.PlacementPolicy {
-	return netmap.NewPlacementPolicyFromV2(c.v2.GetPlacementPolicy())
+	m := c.v2.GetPlacementPolicy()
+	if m == nil {
+		return nil
+	}
+
+	var p netmap.PlacementPolicy
+	// FIXME(@cthulhu-rider): #225 handle error
+	err := p.ReadFromV2(*m)
+	if err != nil {
+		panic(err)
+	}
+
+	return &p
 }
 
 func (c *Container) SetPlacementPolicy(v *netmap.PlacementPolicy) {
-	c.v2.SetPlacementPolicy(v.ToV2())
+	var m *v2netmap.PlacementPolicy
+
+	if v != nil {
+		m = new(v2netmap.PlacementPolicy)
+		v.WriteToV2(m)
+	}
+
+	c.v2.SetPlacementPolicy(m)
 }
 
 // SessionToken returns token of the session within

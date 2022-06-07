@@ -1,81 +1,49 @@
 package netmap
 
 import (
-	"testing"
-
-	"github.com/stretchr/testify/require"
+	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
-func newFilter(name string, k, v string, op Operation, fs ...Filter) (f Filter) {
+func newFilter(name string, k, v string, op netmap.Operation, fs ...Filter) (f Filter) {
 	f.SetName(name)
-	f.SetKey(k)
-	f.SetOperation(op)
-	f.SetValue(v)
-	f.SetInnerFilters(fs...)
+	f.m.SetKey(k)
+	f.m.SetOp(op)
+	f.m.SetValue(v)
+	inner := make([]netmap.Filter, len(fs))
+	for i := range fs {
+		inner[i] = fs[i].m
+	}
+	f.m.SetFilters(inner)
 	return f
 }
 
-func newSelector(name string, attr string, c Clause, count uint32, filter string) (s Selector) {
+func newSelector(name string, attr string, count uint32, filter string, clause func(*Selector)) (s Selector) {
 	s.SetName(name)
-	s.SetAttribute(attr)
-	s.SetCount(count)
-	s.SetClause(c)
-	s.SetFilter(filter)
+	s.SelectByBucketAttribute(attr)
+	s.SetNodeAmount(count)
+	clause(&s)
+	s.SetFilterName(filter)
 	return s
 }
 
-func newPlacementPolicy(bf uint32, rs []Replica, ss []Selector, fs []Filter) *PlacementPolicy {
-	p := NewPlacementPolicy()
+func newPlacementPolicy(bf uint32, rs []ReplicaDescriptor, ss []Selector, fs []Filter) (p PlacementPolicy) {
 	p.SetContainerBackupFactor(bf)
-	p.SetReplicas(rs...)
-	p.SetSelectors(ss...)
-	p.SetFilters(fs...)
+	p.AddReplicas(rs...)
+	p.AddSelectors(ss...)
+	p.AddFilters(fs...)
 	return p
 }
 
-func newReplica(c uint32, s string) (r Replica) {
-	r.SetCount(c)
-	r.SetSelector(s)
+func newReplica(c uint32, s string) (r ReplicaDescriptor) {
+	r.SetAmount(c)
+	r.SetSelectorName(s)
 	return r
 }
 
-func nodeInfoFromAttributes(props ...string) NodeInfo {
-	attrs := make([]NodeAttribute, len(props)/2)
-	for i := range attrs {
-		attrs[i].SetKey(props[i*2])
-		attrs[i].SetValue(props[i*2+1])
-	}
-	n := NewNodeInfo()
-	n.SetAttributes(attrs...)
-	return *n
-}
-
-type enumIface interface {
-	FromString(string) bool
-	String() string
-}
-
-type enumStringItem struct {
-	val enumIface
-	str string
-}
-
-func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
-	for _, item := range items {
-		require.Equal(t, item.str, item.val.String())
-
-		s := item.val.String()
-
-		require.True(t, e.FromString(s), s)
-
-		require.EqualValues(t, item.val, e, item.val)
+func nodeInfoFromAttributes(props ...string) (n NodeInfo) {
+	for i := 0; i < len(props); i += 2 {
+		n.SetAttribute(props[i], props[i+1])
 	}
 
-	// incorrect strings
-	for _, str := range []string{
-		"some string",
-		"undefined",
-	} {
-		require.False(t, e.FromString(str))
-	}
+	return
 }

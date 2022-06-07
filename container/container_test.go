@@ -29,7 +29,7 @@ func TestNewContainer(t *testing.T) {
 	attrs := containertest.Attributes()
 	c.SetAttributes(attrs)
 
-	c.SetPlacementPolicy(policy)
+	c.SetPlacementPolicy(&policy)
 	c.SetNonceUUID(nonce)
 	c.SetOwnerID(ownerID)
 
@@ -39,7 +39,7 @@ func TestNewContainer(t *testing.T) {
 	v2 := c.ToV2()
 	newContainer := container.NewContainerFromV2(v2)
 
-	require.EqualValues(t, newContainer.PlacementPolicy(), policy)
+	require.EqualValues(t, newContainer.PlacementPolicy(), &policy)
 	require.EqualValues(t, newContainer.Attributes(), attrs)
 	require.EqualValues(t, newContainer.BasicACL(), acl.PublicBasicRule)
 

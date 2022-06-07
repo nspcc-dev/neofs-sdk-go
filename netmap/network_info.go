@@ -1,204 +1,462 @@
 package netmap
 
 import (
+	"bytes"
+	"encoding/binary"
+	"errors"
+	"fmt"
+	"math"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
-// NetworkInfo represents v2-compatible structure
-// with information about NeoFS network.
-type NetworkInfo netmap.NetworkInfo
-
-// NewNetworkInfoFromV2 wraps v2 NetworkInfo message to NetworkInfo.
+// NetworkInfo groups information about the NeoFS network state. Mainly used to
+// describe the current state of the network.
 //
-// Nil netmap.NetworkInfo converts to nil.
-func NewNetworkInfoFromV2(iV2 *netmap.NetworkInfo) *NetworkInfo {
-	return (*NetworkInfo)(iV2)
+// NetworkInfo is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.NetworkInfo
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
+type NetworkInfo struct {
+	m netmap.NetworkInfo
 }
 
-// NewNetworkInfo creates and initializes blank NetworkInfo.
-//
-// Defaults:
-//  - curEpoch: 0;
-//  - magicNum: 0;
-//  - msPerBlock: 0;
-//  - network config: nil.
-func NewNetworkInfo() *NetworkInfo {
-	return NewNetworkInfoFromV2(new(netmap.NetworkInfo))
+// reads NetworkInfo from netmap.NetworkInfo message. If checkFieldPresence is set,
+// returns an error on absence of any protocol-required field. Verifies format of any
+// presented field according to NeoFS API V2 protocol.
+func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) error {
+	c := m.GetNetworkConfig()
+	if checkFieldPresence && c == nil {
+		return errors.New("missing network config")
+	}
+
+	if checkFieldPresence && c.NumberOfParameters() <= 0 {
+		return fmt.Errorf("missing network parameters")
+	}
+
+	var err error
+	mNames := make(map[string]struct{}, c.NumberOfParameters())
+
+	c.IterateParameters(func(prm *netmap.NetworkParameter) bool {
+		name := string(prm.GetKey())
+
+		_, was := mNames[name]
+		if was {
+			err = fmt.Errorf("duplicated parameter name: %s", name)
+			return true
+		}
+
+		mNames[name] = struct{}{}
+
+		switch name {
+		default:
+			if len(prm.GetValue()) == 0 {
+				err = fmt.Errorf("empty attribute value %s", name)
+				return true
+			}
+		case configEigenTrustAlpha:
+			var num uint64
+
+			num, err = decodeConfigValueUint64(prm.GetValue())
+			if err == nil {
+				if alpha := math.Float64frombits(num); alpha < 0 && alpha > 1 {
+					err = fmt.Errorf("EigenTrust alpha value %0.2f is out of range [0, 1]", alpha)
+				}
+			}
+		case
+			configAuditFee,
+			configStoragePrice,
+			configContainerFee,
+			configNamedContainerFee,
+			configEigenTrustIterationsAmount,
+			configEpochDuration,
+			configIRCandidateFee,
+			configMaxObjSize,
+			configWithdrawalFee:
+			_, err = decodeConfigValueUint64(prm.GetValue())
+		}
+
+		if err != nil {
+			err = fmt.Errorf("invalid %s parameter: %w", name, err)
+		}
+
+		return err != nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	x.m = m
+
+	return nil
 }
 
-// ToV2 converts NetworkInfo to v2 NetworkInfo.
+// ReadFromV2 reads NetworkInfo from the netmap.NetworkInfo message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
-// Nil NetworkInfo converts to nil.
-func (i *NetworkInfo) ToV2() *netmap.NetworkInfo {
-	return (*netmap.NetworkInfo)(i)
+// See also WriteToV2.
+func (x *NetworkInfo) ReadFromV2(m netmap.NetworkInfo) error {
+	return x.readFromV2(m, true)
 }
 
-// CurrentEpoch returns current epoch of the NeoFS network.
-func (i *NetworkInfo) CurrentEpoch() uint64 {
-	return (*netmap.NetworkInfo)(i).GetCurrentEpoch()
+// WriteToV2 writes NetworkInfo to the netmap.NetworkInfo message. The message
+// MUST NOT be nil.
+//
+// See also ReadFromV2.
+func (x NetworkInfo) WriteToV2(m *netmap.NetworkInfo) {
+	*m = x.m
+}
+
+// CurrentEpoch returns epoch set using SetCurrentEpoch.
+//
+// Zero NetworkInfo has zero current epoch.
+func (x NetworkInfo) CurrentEpoch() uint64 {
+	return x.m.GetCurrentEpoch()
 }
 
 // SetCurrentEpoch sets current epoch of the NeoFS network.
-func (i *NetworkInfo) SetCurrentEpoch(epoch uint64) {
-	(*netmap.NetworkInfo)(i).SetCurrentEpoch(epoch)
+func (x *NetworkInfo) SetCurrentEpoch(epoch uint64) {
+	x.m.SetCurrentEpoch(epoch)
 }
 
-// MagicNumber returns magic number of the sidechain.
-func (i *NetworkInfo) MagicNumber() uint64 {
-	return (*netmap.NetworkInfo)(i).GetMagicNumber()
-}
-
-// SetMagicNumber sets magic number of the sidechain.
-func (i *NetworkInfo) SetMagicNumber(epoch uint64) {
-	(*netmap.NetworkInfo)(i).SetMagicNumber(epoch)
-}
-
-// MsPerBlock returns MillisecondsPerBlock network parameter.
-func (i *NetworkInfo) MsPerBlock() int64 {
-	return (*netmap.NetworkInfo)(i).
-		GetMsPerBlock()
-}
-
-// SetMsPerBlock sets MillisecondsPerBlock network parameter.
-func (i *NetworkInfo) SetMsPerBlock(v int64) {
-	(*netmap.NetworkInfo)(i).
-		SetMsPerBlock(v)
-}
-
-// NetworkConfig returns NeoFS network configuration.
-func (i *NetworkInfo) NetworkConfig() *NetworkConfig {
-	return NewNetworkConfigFromV2(
-		(*netmap.NetworkInfo)(i).
-			GetNetworkConfig(),
-	)
-}
-
-// SetNetworkConfig sets NeoFS network configuration.
-func (i *NetworkInfo) SetNetworkConfig(v *NetworkConfig) {
-	(*netmap.NetworkInfo)(i).
-		SetNetworkConfig(v.ToV2())
-}
-
-// Marshal marshals NetworkInfo into a protobuf binary form.
-func (i *NetworkInfo) Marshal() ([]byte, error) {
-	return (*netmap.NetworkInfo)(i).StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of NetworkInfo.
-func (i *NetworkInfo) Unmarshal(data []byte) error {
-	return (*netmap.NetworkInfo)(i).Unmarshal(data)
-}
-
-// MarshalJSON encodes NetworkInfo to protobuf JSON format.
-func (i *NetworkInfo) MarshalJSON() ([]byte, error) {
-	return (*netmap.NetworkInfo)(i).MarshalJSON()
-}
-
-// UnmarshalJSON decodes NetworkInfo from protobuf JSON format.
-func (i *NetworkInfo) UnmarshalJSON(data []byte) error {
-	return (*netmap.NetworkInfo)(i).UnmarshalJSON(data)
-}
-
-// NetworkParameter represents v2-compatible NeoFS network parameter.
-type NetworkParameter netmap.NetworkParameter
-
-// NewNetworkParameterFromV2 wraps v2 NetworkParameter message to NetworkParameter.
+// MagicNumber returns magic number set using SetMagicNumber.
 //
-// Nil netmap.NetworkParameter converts to nil.
-func NewNetworkParameterFromV2(pv2 *netmap.NetworkParameter) *NetworkParameter {
-	return (*NetworkParameter)(pv2)
+// Zero NetworkInfo has zero magic.
+func (x NetworkInfo) MagicNumber() uint64 {
+	return x.m.GetMagicNumber()
 }
 
-// NewNetworkParameter creates and initializes blank NetworkParameter.
+// SetMagicNumber sets magic number of the NeoFS Sidechain.
 //
-// Defaults:
-//  - key: nil;
-//  - value: nil.
-func NewNetworkParameter() *NetworkParameter {
-	return NewNetworkParameterFromV2(new(netmap.NetworkParameter))
+// See also MagicNumber.
+func (x *NetworkInfo) SetMagicNumber(epoch uint64) {
+	x.m.SetMagicNumber(epoch)
 }
 
-// ToV2 converts NetworkParameter to v2 NetworkParameter.
+// MsPerBlock returns network parameter set using SetMsPerBlock.
+func (x NetworkInfo) MsPerBlock() int64 {
+	return x.m.GetMsPerBlock()
+}
+
+// SetMsPerBlock sets MillisecondsPerBlock network parameter of the NeoFS Sidechain.
 //
-// Nil NetworkParameter converts to nil.
-func (x *NetworkParameter) ToV2() *netmap.NetworkParameter {
-	return (*netmap.NetworkParameter)(x)
+// See also MsPerBlock.
+func (x *NetworkInfo) SetMsPerBlock(v int64) {
+	x.m.SetMsPerBlock(v)
 }
 
-// Key returns key to network parameter.
-func (x *NetworkParameter) Key() []byte {
-	return (*netmap.NetworkParameter)(x).GetKey()
-}
+func (x *NetworkInfo) setConfig(name string, val []byte) {
+	c := x.m.GetNetworkConfig()
+	if c == nil {
+		c = new(netmap.NetworkConfig)
 
-// SetKey sets key to the network parameter.
-func (x *NetworkParameter) SetKey(key []byte) {
-	(*netmap.NetworkParameter)(x).SetKey(key)
-}
+		var prm netmap.NetworkParameter
+		prm.SetKey([]byte(name))
+		prm.SetValue(val)
 
-// Value returns value of the network parameter.
-func (x *NetworkParameter) Value() []byte {
-	return (*netmap.NetworkParameter)(x).GetValue()
-}
+		c.SetParameters(prm)
 
-// SetValue sets value of the network parameter.
-func (x *NetworkParameter) SetValue(val []byte) {
-	(*netmap.NetworkParameter)(x).SetValue(val)
-}
+		x.m.SetNetworkConfig(c)
 
-// NetworkConfig represents v2-compatible NeoFS network configuration.
-type NetworkConfig netmap.NetworkConfig
-
-// NewNetworkConfigFromV2 wraps v2 NetworkConfig message to NetworkConfig.
-//
-// Nil netmap.NetworkConfig converts to nil.
-func NewNetworkConfigFromV2(cv2 *netmap.NetworkConfig) *NetworkConfig {
-	return (*NetworkConfig)(cv2)
-}
-
-// NewNetworkConfig creates and initializes blank NetworkConfig.
-//
-// Defaults:
-//  - parameters num: 0.
-func NewNetworkConfig() *NetworkConfig {
-	return NewNetworkConfigFromV2(new(netmap.NetworkConfig))
-}
-
-// ToV2 converts NetworkConfig to v2 NetworkConfig.
-//
-// Nil NetworkConfig converts to nil.
-func (x *NetworkConfig) ToV2() *netmap.NetworkConfig {
-	return (*netmap.NetworkConfig)(x)
-}
-
-// NumberOfParameters returns number of network parameters.
-func (x *NetworkConfig) NumberOfParameters() int {
-	return (*netmap.NetworkConfig)(x).NumberOfParameters()
-}
-
-// IterateAddresses iterates over network parameters.
-// Breaks iteration on f's true return.
-//
-// Handler should not be nil.
-func (x *NetworkConfig) IterateParameters(f func(*NetworkParameter) bool) {
-	(*netmap.NetworkConfig)(x).
-		IterateParameters(func(p *netmap.NetworkParameter) bool {
-			return f(NewNetworkParameterFromV2(p))
-		})
-}
-
-// Value returns value of the network parameter.
-func (x *NetworkConfig) SetParameters(ps ...NetworkParameter) {
-	var psV2 []netmap.NetworkParameter
-
-	if ps != nil {
-		ln := len(ps)
-
-		psV2 = make([]netmap.NetworkParameter, ln)
-
-		for i := 0; i < ln; i++ {
-			psV2[i] = *ps[i].ToV2()
-		}
+		return
 	}
 
-	(*netmap.NetworkConfig)(x).SetParameters(psV2...)
+	found := false
+	prms := make([]netmap.NetworkParameter, 0, c.NumberOfParameters())
+
+	c.IterateParameters(func(prm *netmap.NetworkParameter) bool {
+		found = bytes.Equal(prm.GetKey(), []byte(name))
+		if found {
+			prm.SetValue(val)
+		} else {
+			prms = append(prms, *prm)
+		}
+
+		return found
+	})
+
+	if !found {
+		prms = append(prms, netmap.NetworkParameter{})
+		prms[len(prms)-1].SetKey([]byte(name))
+		prms[len(prms)-1].SetValue(val)
+
+		c.SetParameters(prms...)
+	}
+}
+
+func (x NetworkInfo) configValue(name string) (res []byte) {
+	x.m.GetNetworkConfig().IterateParameters(func(prm *netmap.NetworkParameter) bool {
+		if string(prm.GetKey()) == name {
+			res = prm.GetValue()
+
+			return true
+		}
+
+		return false
+	})
+
+	return
+}
+
+// SetRawNetworkParameter sets named NeoFS network parameter whose value is
+// transmitted but not interpreted by the NeoFS API protocol.
+//
+// Argument MUST NOT be mutated, make a copy first.
+//
+// See also RawNetworkParameter, IterateRawNetworkParameters.
+func (x *NetworkInfo) SetRawNetworkParameter(name string, value []byte) {
+	x.setConfig(name, value)
+}
+
+// RawNetworkParameter reads raw network parameter set using SetRawNetworkParameter
+// by its name. Returns nil if value is missing.
+//
+// Return value MUST NOT be mutated, make a copy first.
+//
+// Zero NetworkInfo has no network parameters.
+func (x *NetworkInfo) RawNetworkParameter(name string) []byte {
+	return x.configValue(name)
+}
+
+// IterateRawNetworkParameters iterates over all raw networks parameters set
+// using SetRawNetworkParameter and passes them into f.
+//
+// Handler MUST NOT be nil. Handler MUST NOT mutate value parameter.
+//
+// Zero NetworkInfo has no network parameters.
+func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []byte)) {
+	c := x.m.GetNetworkConfig()
+
+	c.IterateParameters(func(prm *netmap.NetworkParameter) bool {
+		name := string(prm.GetKey())
+		switch name {
+		default:
+			f(name, prm.GetValue())
+		case
+			configEigenTrustAlpha,
+			configAuditFee,
+			configStoragePrice,
+			configContainerFee,
+			configNamedContainerFee,
+			configEigenTrustIterationsAmount,
+			configEpochDuration,
+			configIRCandidateFee,
+			configMaxObjSize,
+			configWithdrawalFee:
+		}
+
+		return false
+	})
+}
+
+func (x *NetworkInfo) setConfigUint64(name string, num uint64) {
+	val := make([]byte, 8)
+	binary.LittleEndian.PutUint64(val, num)
+
+	x.setConfig(name, val)
+}
+
+func decodeConfigValueUint64(val []byte) (uint64, error) {
+	if ln := len(val); ln != 8 {
+		return 0, fmt.Errorf("invalid uint64 parameter length %d", ln)
+	}
+
+	return binary.LittleEndian.Uint64(val), nil
+}
+
+func (x NetworkInfo) configUint64(name string) uint64 {
+	val := x.configValue(name)
+	if val == nil {
+		return 0
+	}
+
+	res, err := decodeConfigValueUint64(val)
+	if err != nil {
+		// potential panic is OK since value MUST be correct since it is
+		// verified in ReadFromV2 or set by provided method.
+		panic(err)
+	}
+
+	return res
+}
+
+const configAuditFee = "AuditFee"
+
+// SetAuditFee sets the configuration value of the audit fee for the Inner Ring.
+//
+// See also AuditFee.
+func (x *NetworkInfo) SetAuditFee(fee uint64) {
+	x.setConfigUint64(configAuditFee, fee)
+}
+
+// AuditFee returns audit fee set using SetAuditFee.
+//
+// Zero NetworkInfo has zero audit fee.
+func (x NetworkInfo) AuditFee() uint64 {
+	return x.configUint64(configAuditFee)
+}
+
+const configStoragePrice = "BasicIncomeRate"
+
+// SetStoragePrice sets the price per gigabyte of data storage that data owners
+// pay to storage nodes.
+//
+// See also StoragePrice.
+func (x *NetworkInfo) SetStoragePrice(price uint64) {
+	x.setConfigUint64(configStoragePrice, price)
+}
+
+// StoragePrice returns storage price set using SetStoragePrice.
+//
+// Zero NetworkInfo has zero storage price.
+func (x NetworkInfo) StoragePrice() uint64 {
+	return x.configUint64(configStoragePrice)
+}
+
+const configContainerFee = "ContainerFee"
+
+// SetContainerFee sets fee for the container creation that creator pays to
+// each Alphabet node.
+//
+// See also ContainerFee.
+func (x *NetworkInfo) SetContainerFee(fee uint64) {
+	x.setConfigUint64(configContainerFee, fee)
+}
+
+// ContainerFee returns container fee set using SetContainerFee.
+//
+// Zero NetworkInfo has zero container fee.
+func (x NetworkInfo) ContainerFee() uint64 {
+	return x.configUint64(configContainerFee)
+}
+
+const configNamedContainerFee = "ContainerAliasFee"
+
+// SetNamedContainerFee sets fee for creation of the named container creation
+// that creator pays to each Alphabet node.
+//
+// See also NamedContainerFee.
+func (x *NetworkInfo) SetNamedContainerFee(fee uint64) {
+	x.setConfigUint64(configNamedContainerFee, fee)
+}
+
+// NamedContainerFee returns container fee set using SetNamedContainerFee.
+//
+// Zero NetworkInfo has zero container fee.
+func (x NetworkInfo) NamedContainerFee() uint64 {
+	return x.configUint64(configNamedContainerFee)
+}
+
+const configEigenTrustAlpha = "EigenTrustAlpha"
+
+// SetEigenTrustAlpha sets alpha parameter for EigenTrust algorithm used in
+// reputation system of the storage nodes. Value MUST be in range [0, 1].
+//
+// See also EigenTrustAlpha.
+func (x *NetworkInfo) SetEigenTrustAlpha(alpha float64) {
+	if alpha < 0 || alpha > 1 {
+		panic(fmt.Sprintf("EigenTrust alpha parameter MUST be in range [0, 1], got %.2f", alpha))
+	}
+
+	x.setConfigUint64(configEigenTrustAlpha, math.Float64bits(alpha))
+}
+
+// EigenTrustAlpha returns EigenTrust parameter set using SetEigenTrustAlpha.
+//
+// Zero NetworkInfo has zero alpha parameter.
+func (x NetworkInfo) EigenTrustAlpha() float64 {
+	alpha := math.Float64frombits(x.configUint64(configEigenTrustAlpha))
+	if alpha < 0 || alpha > 1 {
+		panic(fmt.Sprintf("unexpected invalid %s parameter value %.2f", configEigenTrustAlpha, alpha))
+	}
+
+	return alpha
+}
+
+const configEigenTrustIterationsAmount = "EigenTrustIterations"
+
+// SetEigenTrustIterationAmount sets number of iterations of the EigenTrust
+// algorithm to perform. The algorithm is used by the storage nodes for
+// calculating the reputation values.
+//
+// See also EigenTrustIterationAmount.
+func (x *NetworkInfo) SetEigenTrustIterationAmount(amount uint64) {
+	x.setConfigUint64(configEigenTrustIterationsAmount, amount)
+}
+
+// EigenTrustIterationAmount returns EigenTrust iteration amount set using
+// SetEigenTrustIterationAmount.
+//
+// Zero NetworkInfo has zero iteration number.
+func (x NetworkInfo) EigenTrustIterationAmount() uint64 {
+	return x.configUint64(configEigenTrustIterationsAmount)
+}
+
+const configEpochDuration = "EpochDuration"
+
+// SetEpochDuration sets NeoFS epoch duration measured in block amount of the
+// NeoFS Sidechain.
+//
+// See also EpochDuration.
+func (x *NetworkInfo) SetEpochDuration(blocks uint64) {
+	x.setConfigUint64(configEpochDuration, blocks)
+}
+
+// EpochDuration returns epoch duration set using SetEpochDuration.
+//
+// Zero NetworkInfo has zero iteration number.
+func (x NetworkInfo) EpochDuration() uint64 {
+	return x.configUint64(configEpochDuration)
+}
+
+const configIRCandidateFee = "InnerRingCandidateFee"
+
+// SetIRCandidateFee sets fee for Inner Ring entrance paid by a new member.
+//
+// See also IRCandidateFee.
+func (x *NetworkInfo) SetIRCandidateFee(fee uint64) {
+	x.setConfigUint64(configIRCandidateFee, fee)
+}
+
+// IRCandidateFee returns IR entrance fee set using SetIRCandidateFee.
+//
+// Zero NetworkInfo has zero fee.
+func (x NetworkInfo) IRCandidateFee() uint64 {
+	return x.configUint64(configIRCandidateFee)
+}
+
+const configMaxObjSize = "MaxObjectSize"
+
+// SetMaxObjectSize sets maximum size of the object stored locally on the
+// storage nodes (physical objects). Binary representation of any physically
+// stored object MUST NOT overflow the limit.
+//
+// See also MaxObjectSize.
+func (x *NetworkInfo) SetMaxObjectSize(sz uint64) {
+	x.setConfigUint64(configMaxObjSize, sz)
+}
+
+// MaxObjectSize returns maximum object size set using SetMaxObjectSize.
+//
+// Zero NetworkInfo has zero maximum size.
+func (x NetworkInfo) MaxObjectSize() uint64 {
+	return x.configUint64(configMaxObjSize)
+}
+
+const configWithdrawalFee = "WithdrawFee"
+
+// SetWithdrawalFee sets fee for withdrawals from the NeoFS accounts that
+// account owners pay to each Alphabet node.
+//
+// See also WithdrawalFee.
+func (x *NetworkInfo) SetWithdrawalFee(sz uint64) {
+	x.setConfigUint64(configWithdrawalFee, sz)
+}
+
+// WithdrawalFee returns withdrawal fee set using SetWithdrawalFee.
+//
+// Zero NetworkInfo has zero fee.
+func (x NetworkInfo) WithdrawalFee() uint64 {
+	return x.configUint64(configWithdrawalFee)
 }

@@ -45,7 +45,7 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
 	ni := &netmap.NodeInfo{}
-	ni.SetAddresses("addr1", "addr2")
+	ni.SetNetworkEndpoints("addr1", "addr2")
 
 	clientBuilder := func(_ string) (client, error) {
 		mockClient := NewMockClient(ctrl)

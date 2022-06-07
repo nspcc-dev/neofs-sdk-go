@@ -1,92 +1,70 @@
 package netmaptest
 
-import "github.com/nspcc-dev/neofs-sdk-go/netmap"
+import (
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
+)
 
-func filter(withInner bool) *netmap.Filter {
-	x := netmap.NewFilter()
-
+func filter(withInner bool) (x netmap.Filter) {
 	x.SetName("name")
-	x.SetKey("key")
-	x.SetValue("value")
-	x.SetOperation(netmap.OpAND)
-
 	if withInner {
-		x.SetInnerFilters(*filter(false), *filter(false))
+		x.LogicalOR(filter(false), filter(false))
+	} else {
+		x.NumericGE("epoch", 13)
 	}
 
 	return x
 }
 
 // Filter returns random netmap.Filter.
-func Filter() *netmap.Filter {
+func Filter() netmap.Filter {
 	return filter(true)
 }
 
-// Replica returns random netmap.Replica.
-func Replica() *netmap.Replica {
-	x := netmap.NewReplica()
+// Replica returns random netmap.ReplicaDescriptor.
+func Replica() (x netmap.ReplicaDescriptor) {
+	x.SetAmount(666)
+	x.SetSelectorName("selector")
 
-	x.SetCount(666)
-	x.SetSelector("selector")
-
-	return x
+	return
 }
 
 // Selector returns random netmap.Selector.
-func Selector() *netmap.Selector {
-	x := netmap.NewSelector()
-
-	x.SetCount(11)
+func Selector() (x netmap.Selector) {
+	x.SetNodeAmount(11)
 	x.SetName("name")
-	x.SetFilter("filter")
-	x.SetAttribute("attribute")
-	x.SetClause(netmap.ClauseDistinct)
+	x.SetFilterName("filter")
+	x.SelectByBucketAttribute("attribute")
+	x.SelectDistinct()
 
-	return x
+	return
 }
 
 // PlacementPolicy returns random netmap.PlacementPolicy.
-func PlacementPolicy() *netmap.PlacementPolicy {
-	x := netmap.NewPlacementPolicy()
+func PlacementPolicy() (p netmap.PlacementPolicy) {
+	p.SetContainerBackupFactor(9)
+	p.AddFilters(Filter(), Filter())
+	p.AddReplicas(Replica(), Replica())
+	p.AddSelectors(Selector(), Selector())
+	p.RestrictSubnet(subnetidtest.ID())
 
-	x.SetContainerBackupFactor(9)
-	x.SetFilters(*Filter(), *Filter())
-	x.SetReplicas(*Replica(), *Replica())
-	x.SetSelectors(*Selector(), *Selector())
-
-	return x
-}
-
-// NetworkParameter returns random netmap.NetworkParameter.
-func NetworkParameter() *netmap.NetworkParameter {
-	x := netmap.NewNetworkParameter()
-
-	x.SetKey([]byte("key"))
-	x.SetValue([]byte("value"))
-
-	return x
-}
-
-// NetworkConfig returns random netmap.NetworkConfig.
-func NetworkConfig() *netmap.NetworkConfig {
-	x := netmap.NewNetworkConfig()
-
-	x.SetParameters(
-		*NetworkParameter(),
-		*NetworkParameter(),
-	)
-
-	return x
+	return
 }
 
 // NetworkInfo returns random netmap.NetworkInfo.
-func NetworkInfo() *netmap.NetworkInfo {
-	x := netmap.NewNetworkInfo()
-
+func NetworkInfo() (x netmap.NetworkInfo) {
 	x.SetCurrentEpoch(21)
 	x.SetMagicNumber(32)
 	x.SetMsPerBlock(43)
-	x.SetNetworkConfig(NetworkConfig())
+	x.SetAuditFee(1)
+	x.SetStoragePrice(2)
+	x.SetContainerFee(3)
+	x.SetEigenTrustAlpha(0.4)
+	x.SetEigenTrustIterationAmount(5)
+	x.SetEpochDuration(6)
+	x.SetIRCandidateFee(7)
+	x.SetMaxObjectSize(8)
+	x.SetWithdrawalFee(9)
 
-	return x
+	return
 }
