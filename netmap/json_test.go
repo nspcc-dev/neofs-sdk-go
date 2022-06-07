@@ -26,7 +26,7 @@ type TestCase struct {
 	}
 }
 
-func compareNodes(t *testing.T, expected [][]int, nodes Nodes, actual []Nodes) {
+func compareNodes(t testing.TB, expected [][]int, nodes Nodes, actual []Nodes) {
 	require.Equal(t, len(expected), len(actual))
 	for i := range expected {
 		require.Equal(t, len(expected[i]), len(actual[i]))
@@ -80,6 +80,60 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkPlacementPolicyInteropability(b *testing.B) {
+	const testsDir = "./json_tests"
+
+	f, err := os.Open(testsDir)
+	require.NoError(b, err)
+
+	ds, err := f.ReadDir(0)
+	require.NoError(b, err)
+
+	for i := range ds {
+		bs, err := ioutil.ReadFile(filepath.Join(testsDir, ds[i].Name()))
+		require.NoError(b, err)
+
+		var tc TestCase
+		require.NoError(b, json.Unmarshal(bs, &tc), "cannot unmarshal %s", ds[i].Name())
+
+		b.Run(tc.Name, func(b *testing.B) {
+			nodes := NodesFromInfo(tc.Nodes)
+			nm, err := NewNetmap(nodes)
+			require.NoError(b, err)
+
+			for name, tt := range tc.Tests {
+				b.Run(name, func(b *testing.B) {
+					b.ReportAllocs()
+					b.ResetTimer()
+					for i := 0; i < b.N; i++ {
+						b.StartTimer()
+						v, err := nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+						b.StopTimer()
+						if tt.Result == nil {
+							require.Error(b, err)
+							require.Contains(b, err.Error(), tt.Error)
+						} else {
+							require.NoError(b, err)
+
+							res := v.Replicas()
+							compareNodes(b, tt.Result, nodes, res)
+
+							if tt.Placement.Result != nil {
+								b.StartTimer()
+								res, err := nm.GetPlacementVectors(v, tt.Placement.Pivot)
+								b.StopTimer()
+								require.NoError(b, err)
+								compareNodes(b, tt.Placement.Result, nodes, res)
+							}
+						}
+					}
+				})
+			}
+		})
+	}
+}
+
 func BenchmarkManySelects(b *testing.B) {
 	testsFile := filepath.Join("json_tests", "many_selects.json")
 	bs, err := ioutil.ReadFile(testsFile)
