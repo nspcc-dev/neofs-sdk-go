@@ -52,6 +52,9 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 		var tc TestCase
 		require.NoError(t, json.Unmarshal(bs, &tc), "cannot unmarshal %s", ds[i].Name())
 
+		srcNodes := make([]NodeInfo, len(tc.Nodes))
+		copy(srcNodes, tc.Nodes)
+
 		t.Run(tc.Name, func(t *testing.T) {
 			nodes := NodesFromInfo(tc.Nodes)
 			nm, err := NewNetmap(nodes)
@@ -65,6 +68,7 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 						require.Contains(t, err.Error(), tt.Error)
 					} else {
 						require.NoError(t, err)
+						require.Equal(t, srcNodes, tc.Nodes)
 
 						res := v.Replicas()
 						compareNodes(t, tt.Result, nodes, res)
@@ -73,6 +77,7 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 							res, err := nm.GetPlacementVectors(v, tt.Placement.Pivot)
 							require.NoError(t, err)
 							compareNodes(t, tt.Placement.Result, nodes, res)
+							require.Equal(t, srcNodes, tc.Nodes)
 						}
 					}
 				})
