@@ -49,7 +49,7 @@ func GetNodesCount(_ *PlacementPolicy, s *Selector) (int, int) {
 
 // getSelection returns nodes grouped by s.attribute.
 // Last argument specifies if more buckets can be used to fulfill CBF.
-func (c *context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error) {
+func (c *context) getSelection(p *PlacementPolicy, s *Selector) ([]nodes, error) {
 	bucketCount, nodesInBucket := GetNodesCount(p, s)
 	buckets := c.getSelectionBase(p.SubnetID(), s)
 
@@ -64,7 +64,7 @@ func (c *context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error)
 	if len(c.pivot) == 0 {
 		if s.Attribute() == "" {
 			sort.Slice(buckets, func(i, j int) bool {
-				return buckets[i].nodes[0].ID < buckets[j].nodes[0].ID
+				return buckets[i].nodes[0].less(buckets[j].nodes[0])
 			})
 		} else {
 			sort.Slice(buckets, func(i, j int) bool {
@@ -74,52 +74,52 @@ func (c *context) getSelection(p *PlacementPolicy, s *Selector) ([]Nodes, error)
 	}
 
 	maxNodesInBucket := nodesInBucket * int(c.cbf)
-	nodes := make([]Nodes, 0, len(buckets))
-	fallback := make([]Nodes, 0, len(buckets))
+	res := make([]nodes, 0, len(buckets))
+	fallback := make([]nodes, 0, len(buckets))
 
 	for i := range buckets {
 		ns := buckets[i].nodes
 		if len(ns) >= maxNodesInBucket {
-			nodes = append(nodes, ns[:maxNodesInBucket])
+			res = append(res, ns[:maxNodesInBucket])
 		} else if len(ns) >= nodesInBucket {
 			fallback = append(fallback, ns)
 		}
 	}
 
-	if len(nodes) < bucketCount {
+	if len(res) < bucketCount {
 		// Fallback to using minimum allowed backup factor (1).
-		nodes = append(nodes, fallback...)
-		if len(nodes) < bucketCount {
+		res = append(res, fallback...)
+		if len(res) < bucketCount {
 			return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.Name())
 		}
 	}
 
 	if len(c.pivot) != 0 {
-		weights := make([]float64, len(nodes))
-		for i := range nodes {
-			weights[i] = GetBucketWeight(nodes[i], c.aggregator(), c.weightFunc)
+		weights := make([]float64, len(res))
+		for i := range res {
+			weights[i] = GetBucketWeight(res[i], c.aggregator(), c.weightFunc)
 		}
 
-		hrw.SortSliceByWeightValue(nodes, weights, c.pivotHash)
+		hrw.SortSliceByWeightValue(res, weights, c.pivotHash)
 	}
 
 	if s.Attribute() == "" {
-		nodes, fallback = nodes[:bucketCount], nodes[bucketCount:]
+		res, fallback = res[:bucketCount], res[bucketCount:]
 		for i := range fallback {
 			index := i % bucketCount
-			if len(nodes[index]) >= maxNodesInBucket {
+			if len(res[index]) >= maxNodesInBucket {
 				break
 			}
-			nodes[index] = append(nodes[index], fallback[i]...)
+			res[index] = append(res[index], fallback[i]...)
 		}
 	}
 
-	return nodes[:bucketCount], nil
+	return res[:bucketCount], nil
 }
 
 type nodeAttrPair struct {
 	attr  string
-	nodes Nodes
+	nodes nodes
 }
 
 // getSelectionBase returns nodes grouped by selector attribute.
@@ -128,25 +128,25 @@ func (c *context) getSelectionBase(subnetID *subnetid.ID, s *Selector) []nodeAtt
 	f := c.Filters[s.Filter()]
 	isMain := s.Filter() == MainFilterName
 	result := []nodeAttrPair{}
-	nodeMap := map[string]Nodes{}
+	nodeMap := map[string][]NodeInfo{}
 	attr := s.Attribute()
 
-	for i := range c.Netmap.Nodes {
+	for i := range c.Netmap.nodes {
 		var sid subnetid.ID
 		if subnetID != nil {
 			sid = *subnetID
 		}
 		// TODO(fyrchik): make `BelongsToSubnet` to accept pointer
-		if !BelongsToSubnet(c.Netmap.Nodes[i].NodeInfo, sid) {
+		if !BelongsToSubnet(&c.Netmap.nodes[i], sid) {
 			continue
 		}
-		if isMain || c.match(f, &c.Netmap.Nodes[i]) {
+		if isMain || c.match(f, c.Netmap.nodes[i]) {
 			if attr == "" {
 				// Default attribute is transparent identifier which is different for every node.
-				result = append(result, nodeAttrPair{attr: "", nodes: Nodes{c.Netmap.Nodes[i]}})
+				result = append(result, nodeAttrPair{attr: "", nodes: nodes{c.Netmap.nodes[i]}})
 			} else {
-				v := c.Netmap.Nodes[i].Attribute(attr)
-				nodeMap[v] = append(nodeMap[v], c.Netmap.Nodes[i])
+				v := c.Netmap.nodes[i].attribute(attr)
+				nodeMap[v] = append(nodeMap[v], c.Netmap.nodes[i])
 			}
 		}
 	}
@@ -159,7 +159,7 @@ func (c *context) getSelectionBase(subnetID *subnetid.ID, s *Selector) []nodeAtt
 
 	if len(c.pivot) != 0 {
 		for i := range result {
-			hrw.SortSliceByWeightValue(result[i].nodes, result[i].nodes.Weights(c.weightFunc), c.pivotHash)
+			hrw.SortSliceByWeightValue(result[i].nodes, result[i].nodes.weights(c.weightFunc), c.pivotHash)
 		}
 	}
 

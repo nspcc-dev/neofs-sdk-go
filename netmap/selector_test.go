@@ -16,74 +16,76 @@ import (
 func BenchmarkHRWSort(b *testing.B) {
 	const netmapSize = 1000
 
-	nodes := make([]Nodes, netmapSize)
+	vectors := make([]nodes, netmapSize)
 	weights := make([]float64, netmapSize)
-	for i := range nodes {
-		nodes[i] = Nodes{{
-			ID:       rand.Uint64(),
-			Index:    i,
-			Capacity: 100,
-			Price:    1,
-			AttrMap:  nil,
-		}}
+	for i := range vectors {
+		key := make([]byte, 33)
+		rand.Read(key)
+
+		var node NodeInfo
+		node.setPrice(1)
+		node.setCapacity(100)
+		node.SetPublicKey(key)
+
+		vectors[i] = nodes{node}
 		weights[i] = float64(rand.Uint32()%10) / 10.0
 	}
 
 	pivot := rand.Uint64()
 	b.Run("sort by index, no weight", func(b *testing.B) {
-		realNodes := make([]Nodes, netmapSize)
+		realNodes := make([]nodes, netmapSize)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			copy(realNodes, nodes)
+			copy(realNodes, vectors)
 			b.StartTimer()
 
 			hrw.SortSliceByIndex(realNodes, pivot)
 		}
 	})
 	b.Run("sort by value, no weight", func(b *testing.B) {
-		realNodes := make([]Nodes, netmapSize)
+		realNodes := make([]nodes, netmapSize)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			copy(realNodes, nodes)
+			copy(realNodes, vectors)
 			b.StartTimer()
 
 			hrw.SortSliceByValue(realNodes, pivot)
 		}
 	})
 	b.Run("only sort by index", func(b *testing.B) {
-		realNodes := make([]Nodes, netmapSize)
+		realNodes := make([]nodes, netmapSize)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			copy(realNodes, nodes)
+			copy(realNodes, vectors)
 			b.StartTimer()
 
 			hrw.SortSliceByWeightIndex(realNodes, weights, pivot)
 		}
 	})
 	b.Run("sort by value", func(b *testing.B) {
-		realNodes := make([]Nodes, netmapSize)
+		realNodes := make([]nodes, netmapSize)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			copy(realNodes, nodes)
+			copy(realNodes, vectors)
 			b.StartTimer()
 
 			hrw.SortSliceByWeightValue(realNodes, weights, pivot)
 		}
 	})
 	b.Run("sort by ID, then by index (deterministic)", func(b *testing.B) {
-		realNodes := make([]Nodes, netmapSize)
+		realNodes := make([]nodes, netmapSize)
 		b.ResetTimer()
 		for i := 0; i < b.N; i++ {
 			b.StopTimer()
-			copy(realNodes, nodes)
+			copy(realNodes, vectors)
 			b.StartTimer()
 
-			sort.Slice(nodes, func(i, j int) bool {
-				return nodes[i][0].ID < nodes[j][0].ID
+			sort.Slice(vectors, func(i, j int) bool {
+				return vectors[i][0].less(vectors[j][0])
 			})
 			hrw.SortSliceByWeightIndex(realNodes, weights, pivot)
 		}
@@ -123,8 +125,8 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 		nodes[i].SetPublicKey(pub)
 	}
 
-	nm, err := NewNetmap(NodesFromInfo(nodes))
-	require.NoError(b, err)
+	var nm Netmap
+	nm.SetNodes(nodes)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -150,8 +152,8 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 			newFilter("loc2", "Location", "Shanghai", OpNE),
 		})
 
-	nodes := make([]NodeInfo, netmapSize)
-	for i := range nodes {
+	nodeList := make([]NodeInfo, netmapSize)
+	for i := range nodeList {
 		var loc string
 		switch i % 20 {
 		case 0:
@@ -162,20 +164,27 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 
 		// Having the same price and capacity ensures equal weights for all nodes.
 		// This way placement is more dependent on the initial order.
-		nodes[i] = nodeInfoFromAttributes("Location", loc, "Price", "1", "Capacity", "10")
+		nodeList[i] = nodeInfoFromAttributes("Location", loc, "Price", "1", "Capacity", "10")
 		pub := make([]byte, 33)
 		pub[0] = byte(i)
-		nodes[i].SetPublicKey(pub)
+		nodeList[i].SetPublicKey(pub)
 	}
 
-	nm, err := NewNetmap(NodesFromInfo(nodes))
-	require.NoError(t, err)
-	getIndices := func(t *testing.T) (int, int) {
+	var nm Netmap
+	nm.SetNodes(nodeList)
+
+	getIndices := func(t *testing.T) (uint64, uint64) {
 		v, err := nm.GetContainerNodes(p, []byte{1})
 		require.NoError(t, err)
-		ns := v.Flatten()
+
+		nss := make([]nodes, len(v))
+		for i := range v {
+			nss[i] = v[i]
+		}
+
+		ns := flattenNodes(nss)
 		require.Equal(t, 2, len(ns))
-		return ns[0].Index, ns[1].Index
+		return ns[0].Hash(), ns[1].Hash()
 	}
 
 	a, b := getIndices(t)
@@ -212,9 +221,9 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 		nodeInfoFromAttributes("Country", "Russia", "Rating", "9", "City", "SPB"),
 	}
 
-	nm, err := NewNetmap(NodesFromInfo(nodes))
-	require.NoError(t, err)
-	c := newContext(nm)
+	var nm Netmap
+	nm.SetNodes(nodes)
+	c := newContext(&nm)
 	c.setCBF(p.ContainerBackupFactor())
 	require.NoError(t, c.processFilters(p))
 	require.NoError(t, c.processSelectors(p))
@@ -229,7 +238,7 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 		for _, res := range sel {
 			require.Equal(t, nodesInBucket, len(res), targ)
 			for j := range res {
-				require.True(t, c.applyFilter(s.Filter(), &res[j]), targ)
+				require.True(t, c.applyFilter(s.Filter(), res[j]), targ)
 			}
 		}
 	}

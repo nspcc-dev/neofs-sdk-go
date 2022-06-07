@@ -15,7 +15,7 @@ type context struct {
 	// Selectors stores processed selectors.
 	Selectors map[string]*Selector
 	// Selections stores result of selector processing.
-	Selections map[string][]Nodes
+	Selections map[string][]nodes
 
 	// numCache stores parsed numeric values.
 	numCache map[string]uint64
@@ -54,11 +54,11 @@ func newContext(nm *Netmap) *context {
 		Netmap:     nm,
 		Filters:    make(map[string]*Filter),
 		Selectors:  make(map[string]*Selector),
-		Selections: make(map[string][]Nodes),
+		Selections: make(map[string][]nodes),
 
 		numCache:   make(map[string]uint64),
 		aggregator: newMeanIQRAgg,
-		weightFunc: GetDefaultWeightFunc(nm.Nodes),
+		weightFunc: GetDefaultWeightFunc(nm.nodes),
 		cbf:        defaultCBF,
 	}
 }
@@ -79,13 +79,13 @@ func (c *context) setCBF(cbf uint32) {
 }
 
 // GetDefaultWeightFunc returns default weighting function.
-func GetDefaultWeightFunc(ns Nodes) weightFunc {
+func GetDefaultWeightFunc(ns nodes) weightFunc {
 	mean := newMeanAgg()
 	min := newMinAgg()
 
 	for i := range ns {
-		mean.Add(float64(ns[i].Capacity))
-		min.Add(float64(ns[i].Price))
+		mean.Add(float64(ns[i].capacity()))
+		min.Add(float64(ns[i].price()))
 	}
 
 	return newWeightFunc(

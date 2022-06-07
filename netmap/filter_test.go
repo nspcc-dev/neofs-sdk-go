@@ -17,9 +17,8 @@ func TestContext_ProcessFilters(t *testing.T) {
 			newFilter("", "IntField", "123", OpLT),
 			newFilter("GoodRating", "", "", 0)),
 	}
-	nm, err := NewNetmap(nil)
-	require.NoError(t, err)
-	c := newContext(nm)
+
+	c := newContext(new(Netmap))
 	p := newPlacementPolicy(1, nil, nil, fs)
 	require.NoError(t, c.processFilters(p))
 	require.Equal(t, 3, len(c.Filters))
@@ -81,10 +80,16 @@ func TestContext_ProcessFiltersInvalid(t *testing.T) {
 }
 
 func TestFilter_MatchSimple_InvalidOp(t *testing.T) {
-	b := &Node{AttrMap: map[string]string{
-		"Rating":  "4",
-		"Country": "Germany",
-	}}
+	var aRating NodeAttribute
+	aRating.SetKey("Rating")
+	aRating.SetValue("4")
+
+	var aCountry NodeAttribute
+	aRating.SetKey("Country")
+	aRating.SetValue("Germany")
+
+	var b NodeInfo
+	b.SetAttributes(aRating, aCountry)
 
 	f := newFilter("Main", "Rating", "5", OpEQ)
 	c := newContext(new(Netmap))

@@ -1,33 +1,140 @@
 package netmap
 
 import (
+	"bytes"
 	"fmt"
+	"strconv"
 
 	"github.com/nspcc-dev/hrw"
+	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
 const defaultCBF = 3
 
+var _, _ hrw.Hasher = NodeInfo{}, nodes{}
+
+// Hash implements hrw.Hasher interface.
+//
+// Hash is needed to support weighted HRW therefore sort function sorts nodes
+// based on their public key.
+func (i NodeInfo) Hash() uint64 {
+	return hrw.Hash(i.m.GetPublicKey())
+}
+
+func (i NodeInfo) less(i2 NodeInfo) bool {
+	return bytes.Compare(i.PublicKey(), i2.PublicKey()) < 0
+}
+
+// attribute returns value of the node attribute by the given key. Returns empty
+// string if attribute is missing.
+//
+// Method is needed to internal placement needs.
+func (i NodeInfo) attribute(key string) string {
+	as := i.m.GetAttributes()
+	for j := range as {
+		if as[j].GetKey() == key {
+			return as[j].GetValue()
+		}
+	}
+
+	return ""
+}
+
+func (i *NodeInfo) syncAttributes() {
+	as := i.m.GetAttributes()
+	for j := range as {
+		switch as[j].GetKey() {
+		case AttrPrice:
+			i.priceAttr, _ = strconv.ParseUint(as[j].GetValue(), 10, 64)
+		case AttrCapacity:
+			i.capAttr, _ = strconv.ParseUint(as[j].GetValue(), 10, 64)
+		}
+	}
+}
+
+func (i *NodeInfo) setPrice(price uint64) {
+	i.priceAttr = price
+
+	as := i.m.GetAttributes()
+	for j := range as {
+		if as[j].GetKey() == AttrPrice {
+			as[j].SetValue(strconv.FormatUint(i.capAttr, 10))
+			return
+		}
+	}
+
+	as = append(as, netmap.Attribute{})
+	as[len(as)-1].SetKey(AttrPrice)
+	as[len(as)-1].SetValue(strconv.FormatUint(i.capAttr, 10))
+
+	i.m.SetAttributes(as)
+}
+
+func (i *NodeInfo) price() uint64 {
+	return i.priceAttr
+}
+
+func (i *NodeInfo) setCapacity(capacity uint64) {
+	i.capAttr = capacity
+
+	as := i.m.GetAttributes()
+	for j := range as {
+		if as[j].GetKey() == AttrCapacity {
+			as[j].SetValue(strconv.FormatUint(i.capAttr, 10))
+			return
+		}
+	}
+
+	as = append(as, netmap.Attribute{})
+	as[len(as)-1].SetKey(AttrCapacity)
+	as[len(as)-1].SetValue(strconv.FormatUint(i.capAttr, 10))
+
+	i.m.SetAttributes(as)
+}
+
+func (i NodeInfo) capacity() uint64 {
+	return i.capAttr
+}
+
 // Netmap represents netmap which contains preprocessed nodes.
 type Netmap struct {
-	Nodes Nodes
+	nodes []NodeInfo
 }
 
-// NewNetmap constructs netmap from the list of raw nodes.
-func NewNetmap(nodes Nodes) (*Netmap, error) {
-	return &Netmap{
-		Nodes: nodes,
-	}, nil
+func (m *Netmap) SetNodes(nodes []NodeInfo) {
+	m.nodes = nodes
 }
 
-func flattenNodes(ns []Nodes) Nodes {
+type nodes []NodeInfo
+
+// Hash is a function from hrw.Hasher interface. It is implemented
+// to support weighted hrw sorting of buckets. Each bucket is already sorted by hrw,
+// thus giving us needed "randomness".
+func (n nodes) Hash() uint64 {
+	if len(n) > 0 {
+		return n[0].Hash()
+	}
+	return 0
+}
+
+// weights returns slice of nodes weights W.
+func (n nodes) weights(wf weightFunc) []float64 {
+	w := make([]float64, 0, len(n))
+	for i := range n {
+		w = append(w, wf(n[i]))
+	}
+
+	return w
+}
+
+func flattenNodes(ns []nodes) nodes {
 	var sz, i int
 
 	for i = range ns {
 		sz += len(ns[i])
 	}
 
-	result := make(Nodes, 0, sz)
+	result := make(nodes, 0, sz)
 
 	for i := range ns {
 		result = append(result, ns[i]...)
@@ -37,15 +144,15 @@ func flattenNodes(ns []Nodes) Nodes {
 }
 
 // GetPlacementVectors returns placement vectors for an object given containerNodes cnt.
-func (m *Netmap) GetPlacementVectors(cnt ContainerNodes, pivot []byte) ([]Nodes, error) {
+func (m *Netmap) GetPlacementVectors(vectors [][]NodeInfo, pivot []byte) ([][]NodeInfo, error) {
 	h := hrw.Hash(pivot)
-	wf := GetDefaultWeightFunc(m.Nodes)
-	result := make([]Nodes, len(cnt.Replicas()))
+	wf := GetDefaultWeightFunc(m.nodes)
+	result := make([][]NodeInfo, len(vectors))
 
-	for i, rep := range cnt.Replicas() {
-		result[i] = make(Nodes, len(rep))
-		copy(result[i], rep)
-		hrw.SortSliceByWeightValue(result[i], result[i].Weights(wf), h)
+	for i := range vectors {
+		result[i] = make([]NodeInfo, len(vectors[i]))
+		copy(result[i], vectors[i])
+		hrw.SortSliceByWeightValue(result[i], nodes(result[i]).weights(wf), h)
 	}
 
 	return result, nil
@@ -54,7 +161,7 @@ func (m *Netmap) GetPlacementVectors(cnt ContainerNodes, pivot []byte) ([]Nodes,
 // GetContainerNodes returns nodes corresponding to each replica.
 // Order of returned nodes corresponds to order of replicas in p.
 // pivot is a seed for HRW sorting.
-func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) (ContainerNodes, error) {
+func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) ([][]NodeInfo, error) {
 	c := newContext(m)
 	c.setPivot(pivot)
 	c.setCBF(p.ContainerBackupFactor())
@@ -67,7 +174,7 @@ func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) (ContainerN
 		return nil, err
 	}
 
-	result := make([]Nodes, len(p.Replicas()))
+	result := make([][]NodeInfo, len(p.Replicas()))
 
 	for i, r := range p.Replicas() {
 		if r.Selector() == "" {
@@ -99,5 +206,5 @@ func (m *Netmap) GetContainerNodes(p *PlacementPolicy, pivot []byte) (ContainerN
 		result[i] = append(result[i], flattenNodes(nodes)...)
 	}
 
-	return containerNodes(result), nil
+	return result, nil
 }

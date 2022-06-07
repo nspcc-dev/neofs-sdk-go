@@ -1,26 +1,7 @@
 package netmap
 
 import (
-	"strconv"
-
-	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
-)
-
-type (
-	// Node is a wrapper over NodeInfo.
-	Node struct {
-		ID       uint64
-		Index    int
-		Capacity uint64
-		Price    uint64
-		AttrMap  map[string]string
-
-		*NodeInfo
-	}
-
-	// Nodes represents slice of graph leafs.
-	Nodes []Node
 )
 
 // NodeState is an enumeration of various states of the NeoFS node.
@@ -30,7 +11,13 @@ type NodeState uint32
 type NodeAttribute netmap.Attribute
 
 // NodeInfo represents v2 compatible descriptor of the NeoFS node.
-type NodeInfo netmap.NodeInfo
+type NodeInfo struct {
+	priceAttr uint64
+
+	capAttr uint64
+
+	m *netmap.NodeInfo
+}
 
 const (
 	_ NodeState = iota
@@ -87,76 +74,10 @@ const (
 	AttrContinent = "Continent"
 )
 
-var _ hrw.Hasher = (*Node)(nil)
-
-// Hash is a function from hrw.Hasher interface. It is implemented
-// to support weighted hrw therefore sort function sorts nodes
-// based on their `N` value.
-func (n Node) Hash() uint64 {
-	return n.ID
-}
-
-// Hash is a function from hrw.Hasher interface. It is implemented
-// to support weighted hrw sorting of buckets. Each bucket is already sorted by hrw,
-// thus giving us needed "randomness".
-func (n Nodes) Hash() uint64 {
-	if len(n) > 0 {
-		return n[0].Hash()
-	}
-	return 0
-}
-
-// NodesFromInfo converts slice of NodeInfo to a generic node slice.
-func NodesFromInfo(infos []NodeInfo) Nodes {
-	nodes := make(Nodes, len(infos))
-	for i := range infos {
-		nodes[i] = *newNodeV2(i, &infos[i])
-	}
-
-	return nodes
-}
-
-func newNodeV2(index int, ni *NodeInfo) *Node {
-	n := &Node{
-		ID:       hrw.Hash(ni.PublicKey()),
-		Index:    index,
-		AttrMap:  make(map[string]string, len(ni.Attributes())),
-		NodeInfo: ni,
-	}
-
-	for _, attr := range ni.Attributes() {
-		switch attr.Key() {
-		case AttrCapacity:
-			n.Capacity, _ = strconv.ParseUint(attr.Value(), 10, 64)
-		case AttrPrice:
-			n.Price, _ = strconv.ParseUint(attr.Value(), 10, 64)
-		}
-
-		n.AttrMap[attr.Key()] = attr.Value()
-	}
-
-	return n
-}
-
-// Weights returns slice of nodes weights W.
-func (n Nodes) Weights(wf weightFunc) []float64 {
-	w := make([]float64, 0, len(n))
-	for i := range n {
-		w = append(w, wf(&n[i]))
-	}
-
-	return w
-}
-
-// Attribute returns value of attribute k.
-func (n *Node) Attribute(k string) string {
-	return n.AttrMap[k]
-}
-
 // GetBucketWeight computes weight for a Bucket.
-func GetBucketWeight(ns Nodes, a aggregator, wf weightFunc) float64 {
+func GetBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
 	for i := range ns {
-		a.Add(wf(&ns[i]))
+		a.Add(wf(ns[i]))
 	}
 
 	return a.Compute()
@@ -307,29 +228,41 @@ func NewNodeInfo() *NodeInfo {
 //
 // Nil netmap.NodeInfo converts to nil.
 func NewNodeInfoFromV2(i *netmap.NodeInfo) *NodeInfo {
-	return (*NodeInfo)(i)
+	var res NodeInfo
+	res.m = i
+	res.syncAttributes()
+
+	return &res
 }
 
 // ToV2 converts NodeInfo to v2 NodeInfo.
 //
 // Nil NodeInfo converts to nil.
 func (i *NodeInfo) ToV2() *netmap.NodeInfo {
-	return (*netmap.NodeInfo)(i)
+	if i == nil {
+		return nil
+	}
+
+	return i.m
 }
 
 // PublicKey returns public key of the node in a binary format.
 func (i *NodeInfo) PublicKey() []byte {
-	return (*netmap.NodeInfo)(i).GetPublicKey()
+	return i.m.GetPublicKey()
 }
 
 // SetPublicKey sets public key of the node in a binary format.
 func (i *NodeInfo) SetPublicKey(key []byte) {
-	(*netmap.NodeInfo)(i).SetPublicKey(key)
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	i.m.SetPublicKey(key)
 }
 
 // NumberOfAddresses returns number of network addresses of the node.
 func (i *NodeInfo) NumberOfAddresses() int {
-	return (*netmap.NodeInfo)(i).NumberOfAddresses()
+	return i.m.NumberOfAddresses()
 }
 
 // IterateAddresses iterates over network addresses of the node.
@@ -337,7 +270,7 @@ func (i *NodeInfo) NumberOfAddresses() int {
 //
 // Handler should not be nil.
 func (i *NodeInfo) IterateAddresses(f func(string) bool) {
-	(*netmap.NodeInfo)(i).IterateAddresses(f)
+	i.m.IterateAddresses(f)
 }
 
 // IterateAllAddresses is a helper function to unconditionally
@@ -351,7 +284,11 @@ func IterateAllAddresses(i *NodeInfo, f func(string)) {
 
 // SetAddresses sets list of network addresses of the node.
 func (i *NodeInfo) SetAddresses(v ...string) {
-	(*netmap.NodeInfo)(i).SetAddresses(v...)
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	i.m.SetAddresses(v...)
 }
 
 // Attributes returns list of the node attributes.
@@ -360,7 +297,7 @@ func (i *NodeInfo) Attributes() []NodeAttribute {
 		return nil
 	}
 
-	as := (*netmap.NodeInfo)(i).GetAttributes()
+	as := i.m.GetAttributes()
 
 	if as == nil {
 		return nil
@@ -383,38 +320,58 @@ func (i *NodeInfo) SetAttributes(as ...NodeAttribute) {
 		asV2[ind] = *as[ind].ToV2()
 	}
 
-	(*netmap.NodeInfo)(i).
-		SetAttributes(asV2)
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	i.m.SetAttributes(asV2)
 }
 
 // State returns node state.
 func (i *NodeInfo) State() NodeState {
-	return NodeStateFromV2(
-		(*netmap.NodeInfo)(i).GetState(),
-	)
+	return NodeStateFromV2(i.m.GetState())
 }
 
 // SetState sets node state.
 func (i *NodeInfo) SetState(s NodeState) {
-	(*netmap.NodeInfo)(i).SetState(s.ToV2())
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	i.m.SetState(s.ToV2())
 }
 
 // Marshal marshals NodeInfo into a protobuf binary form.
 func (i *NodeInfo) Marshal() ([]byte, error) {
-	return (*netmap.NodeInfo)(i).StableMarshal(nil), nil
+	return i.m.StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of NodeInfo.
 func (i *NodeInfo) Unmarshal(data []byte) error {
-	return (*netmap.NodeInfo)(i).Unmarshal(data)
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	return i.m.Unmarshal(data)
 }
 
 // MarshalJSON encodes NodeInfo to protobuf JSON format.
 func (i *NodeInfo) MarshalJSON() ([]byte, error) {
-	return (*netmap.NodeInfo)(i).MarshalJSON()
+	return i.m.MarshalJSON()
 }
 
 // UnmarshalJSON decodes NodeInfo from protobuf JSON format.
 func (i *NodeInfo) UnmarshalJSON(data []byte) error {
-	return (*netmap.NodeInfo)(i).UnmarshalJSON(data)
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	err := i.m.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	i.syncAttributes()
+
+	return nil
 }

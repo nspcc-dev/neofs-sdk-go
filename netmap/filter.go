@@ -15,7 +15,7 @@ type Filter netmap.Filter
 const MainFilterName = "*"
 
 // applyFilter applies named filter to b.
-func (c *context) applyFilter(name string, b *Node) bool {
+func (c *context) applyFilter(name string, b NodeInfo) bool {
 	return name == MainFilterName || c.match(c.Filters[name], b)
 }
 
@@ -86,7 +86,7 @@ func (c *context) processFilter(f *Filter, top bool) error {
 // match matches f against b. It returns no errors because
 // filter should have been parsed during context creation
 // and missing node properties are considered as a regular fail.
-func (c *context) match(f *Filter, b *Node) bool {
+func (c *context) match(f *Filter, b NodeInfo) bool {
 	switch f.Operation() {
 	case OpAND, OpOR:
 		for _, lf := range f.InnerFilters() {
@@ -106,24 +106,24 @@ func (c *context) match(f *Filter, b *Node) bool {
 	}
 }
 
-func (c *context) matchKeyValue(f *Filter, b *Node) bool {
+func (c *context) matchKeyValue(f *Filter, b NodeInfo) bool {
 	switch f.Operation() {
 	case OpEQ:
-		return b.Attribute(f.Key()) == f.Value()
+		return b.attribute(f.Key()) == f.Value()
 	case OpNE:
-		return b.Attribute(f.Key()) != f.Value()
+		return b.attribute(f.Key()) != f.Value()
 	default:
 		var attr uint64
 
 		switch f.Key() {
 		case AttrPrice:
-			attr = b.Price
+			attr = b.price()
 		case AttrCapacity:
-			attr = b.Capacity
+			attr = b.capacity()
 		default:
 			var err error
 
-			attr, err = strconv.ParseUint(b.Attribute(f.Key()), 10, 64)
+			attr, err = strconv.ParseUint(b.attribute(f.Key()), 10, 64)
 			if err != nil {
 				// Note: because filters are somewhat independent from nodes attributes,
 				// We don't report an error here, and fail filter instead.
