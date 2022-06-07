@@ -21,7 +21,14 @@ func NewNetmap(nodes Nodes) (*Netmap, error) {
 }
 
 func flattenNodes(ns []Nodes) Nodes {
-	result := make(Nodes, 0, len(ns))
+	var sz, i int
+
+	for i = range ns {
+		sz += len(ns[i])
+	}
+
+	result := make(Nodes, 0, sz)
+
 	for i := range ns {
 		result = append(result, ns[i]...)
 	}
