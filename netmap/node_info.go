@@ -1,377 +1,560 @@
 package netmap
 
 import (
+	"errors"
+	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+
+	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 )
 
-// NodeState is an enumeration of various states of the NeoFS node.
-type NodeState uint32
-
-// NodeAttribute represents v2 compatible attribute of the NeoFS Storage Node.
-type NodeAttribute netmap.Attribute
-
-// NodeInfo represents v2 compatible descriptor of the NeoFS node.
+// NodeInfo groups information about NeoFS storage node which is reflected
+// in the NeoFS network map. Storage nodes advertise this information when
+// registering with the NeoFS network. After successful registration, information
+// about the nodes is available to all network participants to work with the network
+// map (mainly to comply with container storage policies).
+//
+// NodeInfo is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.NodeInfo
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
 type NodeInfo struct {
-	priceAttr uint64
-
-	capAttr uint64
-
-	m *netmap.NodeInfo
+	m netmap.NodeInfo
 }
 
-const (
-	_ NodeState = iota
+// reads NodeInfo from netmap.NodeInfo message. If checkFieldPresence is set,
+// returns an error on absence of any protocol-required field. Verifies format of any
+// presented field according to NeoFS API V2 protocol.
+func (x *NodeInfo) readFromV2(m netmap.NodeInfo, checkFieldPresence bool) error {
+	var err error
 
-	// NodeStateOffline is network unavailable state.
-	NodeStateOffline
-
-	// NodeStateOnline is an active state in the network.
-	NodeStateOnline
-)
-
-// Enumeration of well-known attributes.
-const (
-	// AttrPrice is a key to the node attribute that indicates the
-	// price in GAS tokens for storing one GB of data during one Epoch.
-	AttrPrice = "Price"
-
-	// AttrCapacity is a key to the node attribute that indicates the
-	// total available disk space in Gigabytes.
-	AttrCapacity = "Capacity"
-
-	// AttrSubnet is a key to the node attribute that indicates the
-	// string ID of node's storage subnet.
-	AttrSubnet = "Subnet"
-
-	// AttrUNLOCODE is a key to the node attribute that indicates the
-	// node's geographic location in UN/LOCODE format.
-	AttrUNLOCODE = "UN-LOCODE"
-
-	// AttrCountryCode is a key to the node attribute that indicates the
-	// Country code in ISO 3166-1_alpha-2 format.
-	AttrCountryCode = "CountryCode"
-
-	// AttrCountry is a key to the node attribute that indicates the
-	// country short name in English, as defined in ISO-3166.
-	AttrCountry = "Country"
-
-	// AttrLocation is a key to the node attribute that indicates the
-	// place name of the node location.
-	AttrLocation = "Location"
-
-	// AttrSubDivCode is a key to the node attribute that indicates the
-	// country's administrative subdivision where node is located
-	// in ISO 3166-2 format.
-	AttrSubDivCode = "SubDivCode"
-
-	// AttrSubDiv is a key to the node attribute that indicates the
-	// country's administrative subdivision name, as defined in
-	// ISO 3166-2.
-	AttrSubDiv = "SubDiv"
-
-	// AttrContinent is a key to the node attribute that indicates the
-	// node's continent name according to the Seven-Continent model.
-	AttrContinent = "Continent"
-)
-
-// calcBucketWeight computes weight for a Bucket.
-func calcBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
-	for i := range ns {
-		a.Add(wf(ns[i]))
+	binPublicKey := m.GetPublicKey()
+	if checkFieldPresence && len(binPublicKey) == 0 {
+		return errors.New("missing public key")
 	}
 
-	return a.Compute()
-}
-
-// NodeStateFromV2 converts v2 NodeState to NodeState.
-func NodeStateFromV2(s netmap.NodeState) NodeState {
-	switch s {
-	default:
-		return 0
-	case netmap.Online:
-		return NodeStateOnline
-	case netmap.Offline:
-		return NodeStateOffline
-	}
-}
-
-// ToV2 converts NodeState to v2 NodeState.
-func (s NodeState) ToV2() netmap.NodeState {
-	switch s {
-	default:
-		return netmap.UnspecifiedState
-	case NodeStateOffline:
-		return netmap.Offline
-	case NodeStateOnline:
-		return netmap.Online
-	}
-}
-
-// String returns string representation of NodeState.
-//
-// String mapping:
-//  * NodeStateOnline: ONLINE;
-//  * NodeStateOffline: OFFLINE;
-//  * default: UNSPECIFIED.
-func (s NodeState) String() string {
-	return s.ToV2().String()
-}
-
-// FromString parses NodeState from a string representation.
-// It is a reverse action to String().
-//
-// Returns true if s was parsed successfully.
-func (s *NodeState) FromString(str string) bool {
-	var g netmap.NodeState
-
-	ok := g.FromString(str)
-
-	if ok {
-		*s = NodeStateFromV2(g)
+	if checkFieldPresence && m.NumberOfAddresses() <= 0 {
+		return errors.New("missing network endpoints")
 	}
 
-	return ok
-}
+	attributes := m.GetAttributes()
+	mAttr := make(map[string]struct{}, len(attributes))
+	for i := range attributes {
+		key := attributes[i].GetKey()
+		if key == "" {
+			return fmt.Errorf("empty key of the attribute #%d", i)
+		} else if _, ok := mAttr[key]; ok {
+			return fmt.Errorf("duplicated attbiuted %s", key)
+		}
 
-// NewNodeAttribute creates and returns new NodeAttribute instance.
-//
-// Defaults:
-//  - key: "";
-//  - value: "";
-//  - parents: nil.
-func NewNodeAttribute() *NodeAttribute {
-	return NewNodeAttributeFromV2(new(netmap.Attribute))
-}
+		const subnetPrefix = "__NEOFS__SUBNET_"
 
-// NodeAttributeFromV2 converts v2 node Attribute to NodeAttribute.
-//
-// Nil netmap.Attribute converts to nil.
-func NewNodeAttributeFromV2(a *netmap.Attribute) *NodeAttribute {
-	return (*NodeAttribute)(a)
-}
+		switch {
+		case key == attrCapacity:
+			_, err = strconv.ParseUint(attributes[i].GetValue(), 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid %s attribute: %w", attrCapacity, err)
+			}
+		case key == attrPrice:
+			var err error
+			_, err = strconv.ParseUint(attributes[i].GetValue(), 10, 64)
+			if err != nil {
+				return fmt.Errorf("invalid %s attribute: %w", attrPrice, err)
+			}
+		case strings.HasPrefix(key, subnetPrefix):
+			var id subnetid.ID
 
-// ToV2 converts NodeAttribute to v2 node Attribute.
-//
-// Nil NodeAttribute converts to nil.
-func (a *NodeAttribute) ToV2() *netmap.Attribute {
-	return (*netmap.Attribute)(a)
-}
+			err = id.DecodeString(strings.TrimPrefix(key, subnetPrefix))
+			if err != nil {
+				return fmt.Errorf("invalid key to the subnet attribute %s: %w", key, err)
+			}
 
-// Key returns key to the node attribute.
-func (a *NodeAttribute) Key() string {
-	return (*netmap.Attribute)(a).
-		GetKey()
-}
-
-// SetKey sets key to the node attribute.
-func (a *NodeAttribute) SetKey(key string) {
-	(*netmap.Attribute)(a).
-		SetKey(key)
-}
-
-// Value returns value of the node attribute.
-func (a *NodeAttribute) Value() string {
-	return (*netmap.Attribute)(a).
-		GetValue()
-}
-
-// SetValue sets value of the node attribute.
-func (a *NodeAttribute) SetValue(val string) {
-	(*netmap.Attribute)(a).
-		SetValue(val)
-}
-
-// ParentKeys returns list of parent keys.
-func (a *NodeAttribute) ParentKeys() []string {
-	return (*netmap.Attribute)(a).
-		GetParents()
-}
-
-// SetParentKeys sets list of parent keys.
-func (a *NodeAttribute) SetParentKeys(keys ...string) {
-	(*netmap.Attribute)(a).
-		SetParents(keys)
-}
-
-// Marshal marshals NodeAttribute into a protobuf binary form.
-func (a *NodeAttribute) Marshal() ([]byte, error) {
-	return (*netmap.Attribute)(a).StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of NodeAttribute.
-func (a *NodeAttribute) Unmarshal(data []byte) error {
-	return (*netmap.Attribute)(a).Unmarshal(data)
-}
-
-// MarshalJSON encodes NodeAttribute to protobuf JSON format.
-func (a *NodeAttribute) MarshalJSON() ([]byte, error) {
-	return (*netmap.Attribute)(a).MarshalJSON()
-}
-
-// UnmarshalJSON decodes NodeAttribute from protobuf JSON format.
-func (a *NodeAttribute) UnmarshalJSON(data []byte) error {
-	return (*netmap.Attribute)(a).UnmarshalJSON(data)
-}
-
-// NewNodeInfo creates and returns new NodeInfo instance.
-//
-// Defaults:
-//  - publicKey: nil;
-//  - address: "";
-//  - attributes nil;
-//  - state: 0.
-func NewNodeInfo() *NodeInfo {
-	return NewNodeInfoFromV2(new(netmap.NodeInfo))
-}
-
-// NewNodeInfoFromV2 converts v2 NodeInfo to NodeInfo.
-//
-// Nil netmap.NodeInfo converts to nil.
-func NewNodeInfoFromV2(i *netmap.NodeInfo) *NodeInfo {
-	var res NodeInfo
-	res.m = i
-	res.syncAttributes()
-
-	return &res
-}
-
-// ToV2 converts NodeInfo to v2 NodeInfo.
-//
-// Nil NodeInfo converts to nil.
-func (i *NodeInfo) ToV2() *netmap.NodeInfo {
-	if i == nil {
-		return nil
+			if val := attributes[i].GetValue(); val != "True" && val != "False" {
+				return fmt.Errorf("invalid value of the subnet attribute %s: %w", val, err)
+			}
+		default:
+			if attributes[i].GetValue() == "" {
+				return fmt.Errorf("empty value of the attribute #%d", i)
+			}
+		}
 	}
 
-	return i.m
+	x.m = m
+
+	return nil
 }
 
-// PublicKey returns public key of the node in a binary format.
-func (i *NodeInfo) PublicKey() []byte {
-	return i.m.GetPublicKey()
+// ReadFromV2 reads NodeInfo from the netmap.NodeInfo message. Checks if the
+// message conforms to NeoFS API V2 protocol.
+//
+// See also WriteToV2.
+func (x *NodeInfo) ReadFromV2(m netmap.NodeInfo) error {
+	return x.readFromV2(m, true)
 }
 
-// SetPublicKey sets public key of the node in a binary format.
-func (i *NodeInfo) SetPublicKey(key []byte) {
-	if i.m == nil {
-		i.m = new(netmap.NodeInfo)
+// WriteToV2 writes NodeInfo to the netmap.NodeInfo message. The message MUST NOT
+// be nil.
+//
+// See also ReadFromV2.
+func (x NodeInfo) WriteToV2(m *netmap.NodeInfo) {
+	*m = x.m
+}
+
+// Marshal encodes NodeInfo into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
+//
+// See also Unmarshal.
+func (x NodeInfo) Marshal() []byte {
+	var m netmap.NodeInfo
+	x.WriteToV2(&m)
+
+	return m.StableMarshal(nil)
+}
+
+// Unmarshal decodes NeoFS API protocol binary format into the NodeInfo
+// (Protocol Buffers with direct field order). Returns an error describing
+// a format violation.
+//
+// See also Marshal.
+func (x *NodeInfo) Unmarshal(data []byte) error {
+	var m netmap.NodeInfo
+
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
 	}
 
-	i.m.SetPublicKey(key)
+	return x.readFromV2(m, false)
 }
 
-// NumberOfAddresses returns number of network addresses of the node.
-func (i *NodeInfo) NumberOfAddresses() int {
-	return i.m.NumberOfAddresses()
-}
-
-// IterateAddresses iterates over network addresses of the node.
-// Breaks iteration on f's true return.
+// MarshalJSON encodes NodeInfo into a JSON format of the NeoFS API protocol
+// (Protocol Buffers JSON).
 //
-// Handler should not be nil.
-func (i *NodeInfo) IterateAddresses(f func(string) bool) {
-	i.m.IterateAddresses(f)
+// See also UnmarshalJSON.
+func (x NodeInfo) MarshalJSON() ([]byte, error) {
+	var m netmap.NodeInfo
+	x.WriteToV2(&m)
+
+	return m.MarshalJSON()
 }
 
-// IterateAllAddresses is a helper function to unconditionally
-// iterate over all node addresses.
-func IterateAllAddresses(i *NodeInfo, f func(string)) {
-	i.IterateAddresses(func(addr string) bool {
+// UnmarshalJSON decodes NeoFS API protocol JSON format into the NodeInfo
+// (Protocol Buffers JSON). Returns an error describing a format violation.
+//
+// See also MarshalJSON.
+func (x *NodeInfo) UnmarshalJSON(data []byte) error {
+	var m netmap.NodeInfo
+
+	err := m.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return x.readFromV2(m, false)
+}
+
+// SetPublicKey sets binary-encoded public key bound to the node. The key
+// authenticates the storage node, so it MUST be unique within the network.
+//
+// Argument MUST NOT be mutated, make a copy first.
+//
+// See also PublicKey.
+func (x *NodeInfo) SetPublicKey(key []byte) {
+	x.m.SetPublicKey(key)
+}
+
+// PublicKey returns value set using SetPublicKey.
+//
+// Zero NodeInfo has no public key, which is incorrect according to
+// NeoFS system requirements.
+//
+// Return value MUST not be mutated, make a copy first.
+func (x NodeInfo) PublicKey() []byte {
+	return x.m.GetPublicKey()
+}
+
+// SetNetworkEndpoints sets list to the announced node's network endpoints.
+// Node MUSt have at least one announced endpoint. List MUST be unique.
+// Endpoints are used for communication with the storage node within NeoFS
+// network. It is expected that node serves storage node services on these
+// endpoints (it also adds a wait on their network availability).
+//
+// Argument MUST NOT be mutated, make a copy first.
+//
+// See also IterateNetworkEndpoints.
+func (x *NodeInfo) SetNetworkEndpoints(v ...string) {
+	x.m.SetAddresses(v...)
+}
+
+// NumberOfNetworkEndpoints returns number of network endpoints announced by the node.
+//
+// See also SetNetworkEndpoints.
+func (x NodeInfo) NumberOfNetworkEndpoints() int {
+	return x.m.NumberOfAddresses()
+}
+
+// IterateNetworkEndpoints iterates over network endpoints announced by the
+// node and pass them into f. Breaks iteration on f's true return. Handler
+// MUST NOT be nil.
+//
+// Zero NodeInfo contains no endpoints which is incorrect according to
+// NeoFS system requirements.
+//
+// See also SetNetworkEndpoints.
+func (x NodeInfo) IterateNetworkEndpoints(f func(string) bool) {
+	x.m.IterateAddresses(f)
+}
+
+// IterateNetworkEndpoints is an extra-sugared function over IterateNetworkEndpoints
+// method which allows to unconditionally iterate over all node's network endpoints.
+func IterateNetworkEndpoints(node NodeInfo, f func(string)) {
+	node.IterateNetworkEndpoints(func(addr string) bool {
 		f(addr)
 		return false
 	})
 }
 
-// SetAddresses sets list of network addresses of the node.
-func (i *NodeInfo) SetAddresses(v ...string) {
-	if i.m == nil {
-		i.m = new(netmap.NodeInfo)
-	}
+// assert NodeInfo type provides hrw.Hasher required for HRW sorting.
+var _ hrw.Hasher = NodeInfo{}
 
-	i.m.SetAddresses(v...)
+// Hash implements hrw.Hasher interface.
+//
+// Hash is needed to support weighted HRW therefore sort function sorts nodes
+// based on their public key. Hash isn't expected to be used directly.
+func (x NodeInfo) Hash() uint64 {
+	return hrw.Hash(x.m.GetPublicKey())
 }
 
-// Attributes returns list of the node attributes.
-func (i *NodeInfo) Attributes() []NodeAttribute {
-	if i == nil {
-		return nil
-	}
-
-	as := i.m.GetAttributes()
-
-	if as == nil {
-		return nil
-	}
-
-	res := make([]NodeAttribute, len(as))
-
-	for ind := range as {
-		res[ind] = *NewNodeAttributeFromV2(&as[ind])
-	}
-
-	return res
+// less declares "less than" comparison between two NodeInfo instances:
+// x1 is less than x2 if it has less Hash().
+//
+// Method is needed for internal placement needs.
+func less(x1, x2 NodeInfo) bool {
+	return x1.Hash() < x2.Hash()
 }
 
-// SetAttributes sets list of the node attributes.
-func (i *NodeInfo) SetAttributes(as ...NodeAttribute) {
-	asV2 := make([]netmap.Attribute, len(as))
+func (x *NodeInfo) setNumericAttribute(key string, num uint64) {
+	x.SetAttribute(key, strconv.FormatUint(num, 10))
+}
 
-	for ind := range as {
-		asV2[ind] = *as[ind].ToV2()
+// SetPrice sets the storage cost declared by the node. By default, zero
+// price is announced.
+func (x *NodeInfo) SetPrice(price uint64) {
+	x.setNumericAttribute(attrPrice, price)
+}
+
+// Price returns price set using SetPrice.
+//
+// Zero NodeInfo has zero price.
+func (x NodeInfo) Price() uint64 {
+	val := x.Attribute(attrPrice)
+	if val == "" {
+		return 0
 	}
 
-	if i.m == nil {
-		i.m = new(netmap.NodeInfo)
-	}
-
-	i.m.SetAttributes(asV2)
-}
-
-// State returns node state.
-func (i *NodeInfo) State() NodeState {
-	return NodeStateFromV2(i.m.GetState())
-}
-
-// SetState sets node state.
-func (i *NodeInfo) SetState(s NodeState) {
-	if i.m == nil {
-		i.m = new(netmap.NodeInfo)
-	}
-
-	i.m.SetState(s.ToV2())
-}
-
-// Marshal marshals NodeInfo into a protobuf binary form.
-func (i *NodeInfo) Marshal() ([]byte, error) {
-	return i.m.StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of NodeInfo.
-func (i *NodeInfo) Unmarshal(data []byte) error {
-	if i.m == nil {
-		i.m = new(netmap.NodeInfo)
-	}
-
-	return i.m.Unmarshal(data)
-}
-
-// MarshalJSON encodes NodeInfo to protobuf JSON format.
-func (i *NodeInfo) MarshalJSON() ([]byte, error) {
-	return i.m.MarshalJSON()
-}
-
-// UnmarshalJSON decodes NodeInfo from protobuf JSON format.
-func (i *NodeInfo) UnmarshalJSON(data []byte) error {
-	if i.m == nil {
-		i.m = new(netmap.NodeInfo)
-	}
-
-	err := i.m.UnmarshalJSON(data)
+	price, err := strconv.ParseUint(val, 10, 64)
 	if err != nil {
-		return err
+		panic(fmt.Sprintf("unexpected price parsing error %s: %v", val, err))
 	}
 
-	i.syncAttributes()
+	return price
+}
 
-	return nil
+// SetCapacity sets the storage capacity declared by the node. By default, zero
+// capacity is announced.
+func (x *NodeInfo) SetCapacity(capacity uint64) {
+	x.setNumericAttribute(attrCapacity, capacity)
+}
+
+// capacity returns capacity set using SetCapacity.
+//
+// Zero NodeInfo has zero capacity.
+func (x NodeInfo) capacity() uint64 {
+	val := x.Attribute(attrCapacity)
+	if val == "" {
+		return 0
+	}
+
+	capacity, err := strconv.ParseUint(val, 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("unexpected capacity parsing error %s: %v", val, err))
+	}
+
+	return capacity
+}
+
+const attrUNLOCODE = "UN-LOCODE"
+
+// SetLOCODE specifies node's geographic location in UN/LOCODE format. Each
+// storage node MUST declare it for entrance to the NeoFS network. Node MAY
+// declare the code of the nearest location as needed, for example, when it is
+// impossible to unambiguously attribute the node to any location from UN/LOCODE
+// database.
+//
+// See also LOCODE.
+func (x *NodeInfo) SetLOCODE(locode string) {
+	x.SetAttribute(attrUNLOCODE, locode)
+}
+
+// LOCODE returns node's location code set using SetLOCODE.
+//
+// Zero NodeInfo has empty location code which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) LOCODE() string {
+	return x.Attribute(attrUNLOCODE)
+}
+
+// SetCountryCode sets code of the country in ISO 3166-1_alpha-2 to which
+// storage node belongs (or the closest one).
+//
+// SetCountryCode is intended only for processing the network registration
+// request by the Inner Ring. Other parties SHOULD NOT use it.
+func (x *NodeInfo) SetCountryCode(countryCode string) {
+	x.SetAttribute("CountryCode", countryCode)
+}
+
+// SetCountryName sets short name of the country in ISO-3166 format to which
+// storage node belongs (or the closest one).
+//
+// SetCountryName is intended only for processing the network registration
+// request by the Inner Ring. Other parties SHOULD NOT use it.
+func (x *NodeInfo) SetCountryName(country string) {
+	x.SetAttribute("Country", country)
+}
+
+// SetLocationName sets storage node's location name from "NameWoDiacritics"
+// column in the UN/LOCODE record corresponding to the specified LOCODE.
+//
+// SetLocationName is intended only for processing the network registration
+// request by the Inner Ring. Other parties SHOULD NOT use it.
+func (x *NodeInfo) SetLocationName(location string) {
+	x.SetAttribute("Location", location)
+}
+
+// SetSubdivisionCode sets storage node's subdivision code from "SubDiv" column in
+// the UN/LOCODE record corresponding to the specified LOCODE.
+//
+// SetSubdivisionCode is intended only for processing the network registration
+// request by the Inner Ring. Other parties SHOULD NOT use it.
+func (x *NodeInfo) SetSubdivisionCode(subDiv string) {
+	x.SetAttribute("SubDivCode", subDiv)
+}
+
+// SetSubdivisionName sets storage node's subdivision name in ISO 3166-2 format.
+//
+// SetSubdivisionName is intended only for processing the network registration
+// request by the Inner Ring. Other parties SHOULD NOT use it.
+func (x *NodeInfo) SetSubdivisionName(subDiv string) {
+	x.SetAttribute("SubDiv", subDiv)
+}
+
+// SetContinentName sets name of the storage node's continent from
+// Seven-Continent model.
+//
+// SetContinentName is intended only for processing the network registration
+// request by the Inner Ring. Other parties SHOULD NOT use it.
+func (x *NodeInfo) SetContinentName(continent string) {
+	x.SetAttribute("Continent", continent)
+}
+
+// Enumeration of well-known attributes.
+const (
+	// attrPrice is a key to the node attribute that indicates the
+	// price in GAS tokens for storing one GB of data during one Epoch.
+	attrPrice = "Price"
+
+	// attrCapacity is a key to the node attribute that indicates the
+	// total available disk space in Gigabytes.
+	attrCapacity = "Capacity"
+)
+
+// NumberOfAttributes returns number of attributes announced by the node.
+//
+// See also SetAttribute.
+func (x NodeInfo) NumberOfAttributes() int {
+	return len(x.m.GetAttributes())
+}
+
+// IterateAttributes iterates over all node attributes and passes the into f.
+// Handler MUST NOT be nil.
+func (x NodeInfo) IterateAttributes(f func(key, value string)) {
+	a := x.m.GetAttributes()
+	for i := range a {
+		f(a[i].GetKey(), a[i].GetValue())
+	}
+}
+
+// SetAttribute sets value of the node attribute value by the given key.
+// Both key and value MUST NOT be empty.
+func (x *NodeInfo) SetAttribute(key, value string) {
+	if key == "" {
+		panic("empty key in SetAttribute")
+	} else if value == "" {
+		panic("empty value in SetAttribute")
+	}
+
+	a := x.m.GetAttributes()
+	for i := range a {
+		if a[i].GetKey() == key {
+			a[i].SetValue(value)
+			return
+		}
+	}
+
+	a = append(a, netmap.Attribute{})
+	a[len(a)-1].SetKey(key)
+	a[len(a)-1].SetValue(value)
+
+	x.m.SetAttributes(a)
+}
+
+// Attribute returns value of the node attribute set using SetAttribute by the
+// given key. Returns empty string if attribute is missing.
+func (x NodeInfo) Attribute(key string) string {
+	a := x.m.GetAttributes()
+	for i := range a {
+		if a[i].GetKey() == key {
+			return a[i].GetValue()
+		}
+	}
+
+	return ""
+}
+
+// SortAttributes sorts node attributes set using SetAttribute lexicographically.
+// The method is only needed to make NodeInfo consistent, e.g. for signing.
+func (x *NodeInfo) SortAttributes() {
+	as := x.m.GetAttributes()
+	if len(as) == 0 {
+		return
+	}
+
+	sort.Slice(as, func(i, j int) bool {
+		switch strings.Compare(as[i].GetKey(), as[j].GetKey()) {
+		case -1:
+			return true
+		case 1:
+			return false
+		default:
+			return as[i].GetValue() < as[j].GetValue()
+		}
+	})
+
+	x.m.SetAttributes(as)
+}
+
+// EnterSubnet writes storage node's intention to enter the given subnet.
+//
+// Zero NodeInfo belongs to zero subnet.
+func (x *NodeInfo) EnterSubnet(id subnetid.ID) {
+	x.changeSubnet(id, true)
+}
+
+// ExitSubnet writes storage node's intention to exit the given subnet.
+func (x *NodeInfo) ExitSubnet(id subnetid.ID) {
+	x.changeSubnet(id, false)
+}
+
+func (x *NodeInfo) changeSubnet(id subnetid.ID, isMember bool) {
+	var (
+		idv2 refs.SubnetID
+		info netmap.NodeSubnetInfo
+	)
+
+	id.WriteToV2(&idv2)
+
+	info.SetID(&idv2)
+	info.SetEntryFlag(isMember)
+
+	netmap.WriteSubnetInfo(&x.m, info)
+}
+
+// ErrRemoveSubnet is returned when a node needs to leave the subnet.
+var ErrRemoveSubnet = netmap.ErrRemoveSubnet
+
+// IterateSubnets iterates over all subnets the node belongs to and passes the IDs to f.
+// Handler MUST NOT be nil.
+//
+// If f returns ErrRemoveSubnet, then removes subnet entry. Note that this leads to an
+// instant mutation of NodeInfo. Breaks on any other non-nil error and returns it.
+//
+// Returns an error if subnet incorrectly enabled/disabled.
+// Returns an error if the node is not included to any subnet by the end of the loop.
+//
+// See also EnterSubnet, ExitSubnet.
+func (x NodeInfo) IterateSubnets(f func(subnetid.ID) error) error {
+	var id subnetid.ID
+
+	return netmap.IterateSubnets(&x.m, func(idv2 refs.SubnetID) error {
+		err := id.ReadFromV2(idv2)
+		if err != nil {
+			return fmt.Errorf("invalid subnet: %w", err)
+		}
+
+		err = f(id)
+		if errors.Is(err, ErrRemoveSubnet) {
+			return netmap.ErrRemoveSubnet
+		}
+
+		return err
+	})
+}
+
+var errAbortSubnetIter = errors.New("abort subnet iterator")
+
+// BelongsToSubnet is a helper function over the IterateSubnets method which
+// checks whether a node belongs to a subnet.
+//
+// Zero NodeInfo belongs to zero subnet only.
+func BelongsToSubnet(node NodeInfo, id subnetid.ID) bool {
+	err := node.IterateSubnets(func(id_ subnetid.ID) error {
+		if id.Equals(id_) {
+			return errAbortSubnetIter
+		}
+
+		return nil
+	})
+
+	return errors.Is(err, errAbortSubnetIter)
+}
+
+// SetOffline sets the state of the node to "offline". When a node updates
+// information about itself in the network map, this action is interpreted as
+// an intention to leave the network.
+func (x *NodeInfo) SetOffline() {
+	x.m.SetState(netmap.Offline)
+}
+
+// IsOffline checks if the node is in the "offline" state.
+//
+// Zero NodeInfo has undefined state which is not offline (note that it does not
+// mean online).
+//
+// See also SetOffline.
+func (x NodeInfo) IsOffline() bool {
+	return x.m.GetState() == netmap.Offline
+}
+
+// SetOnline sets the state of the node to "online". When a node updates
+// information about itself in the network map, this
+// action is interpreted as an intention to enter the network.
+//
+// See also IsOnline.
+func (x *NodeInfo) SetOnline() {
+	x.m.SetState(netmap.Online)
+}
+
+// IsOnline checks if the node is in the "online" state.
+//
+// Zero NodeInfo has undefined state which is not online (note that it does not
+// mean offline).
+//
+// See also SetOnline.
+func (x NodeInfo) IsOnline() bool {
+	return x.m.GetState() == netmap.Online
 }

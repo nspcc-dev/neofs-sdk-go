@@ -32,7 +32,8 @@ func Container() *container.Container {
 	x.SetAttributes(Attributes())
 	x.SetOwnerID(usertest.ID())
 	x.SetBasicACL(123)
-	x.SetPlacementPolicy(netmaptest.PlacementPolicy())
+	p := netmaptest.PlacementPolicy()
+	x.SetPlacementPolicy(&p)
 
 	return x
 }

@@ -92,22 +92,22 @@ func TestEnterSubnet(t *testing.T) {
 		node netmap.NodeInfo
 	)
 
-	require.True(t, netmap.BelongsToSubnet(&node, id))
+	require.True(t, netmap.BelongsToSubnet(node, id))
 
 	node.EnterSubnet(id)
-	require.True(t, netmap.BelongsToSubnet(&node, id))
+	require.True(t, netmap.BelongsToSubnet(node, id))
 
 	node.ExitSubnet(id)
-	require.False(t, netmap.BelongsToSubnet(&node, id))
+	require.False(t, netmap.BelongsToSubnet(node, id))
 
 	id.SetNumeric(10)
 	node.EnterSubnet(id)
-	require.True(t, netmap.BelongsToSubnet(&node, id))
-	require.False(t, netmap.BelongsToSubnet(&node, subnetid.ID{}))
+	require.True(t, netmap.BelongsToSubnet(node, id))
+	require.False(t, netmap.BelongsToSubnet(node, subnetid.ID{}))
 
 	node.ExitSubnet(id)
-	require.False(t, netmap.BelongsToSubnet(&node, id))
-	require.False(t, netmap.BelongsToSubnet(&node, subnetid.ID{}))
+	require.False(t, netmap.BelongsToSubnet(node, id))
+	require.False(t, netmap.BelongsToSubnet(node, subnetid.ID{}))
 }
 
 func TestBelongsToSubnet(t *testing.T) {
@@ -120,7 +120,7 @@ func TestBelongsToSubnet(t *testing.T) {
 
 	node.EnterSubnet(id)
 
-	require.True(t, netmap.BelongsToSubnet(&node, idZero))
-	require.True(t, netmap.BelongsToSubnet(&node, id))
-	require.False(t, netmap.BelongsToSubnet(&node, idMiss))
+	require.True(t, netmap.BelongsToSubnet(node, idZero))
+	require.True(t, netmap.BelongsToSubnet(node, id))
+	require.False(t, netmap.BelongsToSubnet(node, idMiss))
 }

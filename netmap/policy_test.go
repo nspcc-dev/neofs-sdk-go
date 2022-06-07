@@ -1,127 +1,123 @@
 package netmap
 
 import (
+	"math/rand"
+	"strings"
+	"sync"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/stretchr/testify/require"
 )
 
-func TestPlacementPolicyFromV2(t *testing.T) {
-	pV2 := new(netmap.PlacementPolicy)
+func TestEncode(t *testing.T) {
+	testCases := []string{
+		`REP 1 IN X
+CBF 1
+SELECT 2 IN SAME Location FROM * AS X`,
 
-	pV2.SetReplicas([]netmap.Replica{
-		*testReplica().ToV2(),
-		*testReplica().ToV2(),
-	})
+		`REP 1
+SELECT 2 IN City FROM Good
+FILTER Country EQ RU AS FromRU
+FILTER @FromRU AND Rating GT 7 AS Good`,
 
-	pV2.SetContainerBackupFactor(3)
+		`REP 7 IN SPB
+SELECT 1 IN City FROM SPBSSD AS SPB
+FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
+	}
 
-	pV2.SetSelectors([]netmap.Selector{
-		*testSelector().ToV2(),
-		*testSelector().ToV2(),
-	})
+	for _, testCase := range testCases {
+		var p PlacementPolicy
 
-	pV2.SetFilters([]netmap.Filter{
-		*testFilter().ToV2(),
-		*testFilter().ToV2(),
-	})
+		require.NoError(t, p.DecodeString(testCase))
 
-	p := NewPlacementPolicyFromV2(pV2)
+		var b strings.Builder
+		require.NoError(t, p.WriteStringTo(&b))
 
-	require.Equal(t, pV2, p.ToV2())
+		require.Equal(t, testCase, b.String())
+	}
 }
 
-func TestPlacementPolicy_Replicas(t *testing.T) {
-	p := NewPlacementPolicy()
-	rs := []Replica{*testReplica(), *testReplica()}
+type cache struct {
+	mtx sync.RWMutex
 
-	p.SetReplicas(rs...)
-
-	require.Equal(t, rs, p.Replicas())
+	item map[string]struct{}
 }
 
-func TestPlacementPolicy_ContainerBackupFactor(t *testing.T) {
-	p := NewPlacementPolicy()
-	f := uint32(3)
-
-	p.SetContainerBackupFactor(f)
-
-	require.Equal(t, f, p.ContainerBackupFactor())
+func (x *cache) add(key string) {
+	x.mtx.Lock()
+	x.item[key] = struct{}{}
+	x.mtx.Unlock()
 }
 
-func TestPlacementPolicy_Selectors(t *testing.T) {
-	p := NewPlacementPolicy()
-	ss := []Selector{*testSelector(), *testSelector()}
+func (x *cache) has(key string) bool {
+	x.mtx.RLock()
+	_, ok := x.item[key]
+	x.mtx.RUnlock()
 
-	p.SetSelectors(ss...)
-
-	require.Equal(t, ss, p.Selectors())
+	return ok
 }
 
-func TestPlacementPolicy_Filters(t *testing.T) {
-	p := NewPlacementPolicy()
-	fs := []Filter{*testFilter(), *testFilter()}
+func BenchmarkCache(b *testing.B) {
+	c := cache{
+		item: make(map[string]struct{}),
+	}
 
-	p.SetFilters(fs...)
+	var key string
+	buf := make([]byte, 32)
 
-	require.Equal(t, fs, p.Filters())
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		rand.Read(buf)
+		key = string(buf)
+		b.StartTimer()
+
+		c.add(key)
+		c.has(key)
+	}
 }
 
-func TestPlacementPolicyEncoding(t *testing.T) {
-	p := newPlacementPolicy(3, nil, nil, nil)
+type cacheP struct {
+	mtx *sync.RWMutex
 
-	t.Run("binary", func(t *testing.T) {
-		data, err := p.Marshal()
-		require.NoError(t, err)
-
-		p2 := NewPlacementPolicy()
-		require.NoError(t, p2.Unmarshal(data))
-
-		require.Equal(t, p, p2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := p.MarshalJSON()
-		require.NoError(t, err)
-
-		p2 := NewPlacementPolicy()
-		require.NoError(t, p2.UnmarshalJSON(data))
-
-		require.Equal(t, p, p2)
-	})
+	item map[string]struct{}
 }
 
-func TestNewPlacementPolicy(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *PlacementPolicy
-
-		require.Nil(t, x.ToV2())
-	})
-
-	t.Run("default values", func(t *testing.T) {
-		pp := NewPlacementPolicy()
-
-		// check initial values
-		require.Nil(t, pp.Replicas())
-		require.Nil(t, pp.Filters())
-		require.Nil(t, pp.Selectors())
-		require.Zero(t, pp.ContainerBackupFactor())
-
-		// convert to v2 message
-		ppV2 := pp.ToV2()
-
-		require.Nil(t, ppV2.GetReplicas())
-		require.Nil(t, ppV2.GetFilters())
-		require.Nil(t, ppV2.GetSelectors())
-		require.Zero(t, ppV2.GetContainerBackupFactor())
-	})
+func (x cacheP) add(key string) {
+	x.mtx.Lock()
+	x.item[key] = struct{}{}
+	x.mtx.Unlock()
 }
 
-func TestNewPlacementPolicyFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *netmap.PlacementPolicy
+func (x cacheP) has(key string) bool {
+	x.mtx.RLock()
+	_, ok := x.item[key]
+	x.mtx.RUnlock()
 
-		require.Nil(t, NewPlacementPolicyFromV2(x))
-	})
+	return ok
+}
+
+func BenchmarkCacheP(b *testing.B) {
+	c := cacheP{
+		mtx:  &sync.RWMutex{},
+		item: make(map[string]struct{}),
+	}
+
+	var key string
+	buf := make([]byte, 32)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for i := 0; i < b.N; i++ {
+		b.StopTimer()
+		rand.Read(buf)
+		key = string(buf)
+		b.StartTimer()
+
+		c.add(key)
+		c.has(key)
+	}
 }

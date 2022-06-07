@@ -56,7 +56,7 @@ var (
 // capacity and price.
 func newWeightFunc(capNorm, priceNorm normalizer) weightFunc {
 	return func(n NodeInfo) float64 {
-		return capNorm.Normalize(float64(n.capacity())) * priceNorm.Normalize(float64(n.price()))
+		return capNorm.Normalize(float64(n.capacity())) * priceNorm.Normalize(float64(n.Price()))
 	}
 }
 

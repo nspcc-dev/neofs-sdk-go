@@ -26,6 +26,8 @@ type TestCase struct {
 	}
 }
 
+var _, _ json.Unmarshaler = new(NodeInfo), new(PlacementPolicy)
+
 func compareNodes(t testing.TB, expected [][]int, nodes nodes, actual [][]NodeInfo) {
 	require.Equal(t, len(expected), len(actual))
 	for i := range expected {
@@ -56,12 +58,12 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 		copy(srcNodes, tc.Nodes)
 
 		t.Run(tc.Name, func(t *testing.T) {
-			var nm Netmap
+			var nm NetMap
 			nm.SetNodes(tc.Nodes)
 
 			for name, tt := range tc.Tests {
 				t.Run(name, func(t *testing.T) {
-					v, err := nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+					v, err := nm.ContainerNodes(tt.Policy, tt.Pivot)
 					if tt.Result == nil {
 						require.Error(t, err)
 						require.Contains(t, err.Error(), tt.Error)
@@ -72,7 +74,7 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 						compareNodes(t, tt.Result, tc.Nodes, v)
 
 						if tt.Placement.Result != nil {
-							res, err := nm.GetPlacementVectors(v, tt.Placement.Pivot)
+							res, err := nm.PlacementVectors(v, tt.Placement.Pivot)
 							require.NoError(t, err)
 							compareNodes(t, tt.Placement.Result, tc.Nodes, res)
 							require.Equal(t, srcNodes, tc.Nodes)
@@ -101,7 +103,7 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 		require.NoError(b, json.Unmarshal(bs, &tc), "cannot unmarshal %s", ds[i].Name())
 
 		b.Run(tc.Name, func(b *testing.B) {
-			var nm Netmap
+			var nm NetMap
 			nm.SetNodes(tc.Nodes)
 			require.NoError(b, err)
 
@@ -111,7 +113,7 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
 						b.StartTimer()
-						v, err := nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+						v, err := nm.ContainerNodes(tt.Policy, tt.Pivot)
 						b.StopTimer()
 						if tt.Result == nil {
 							require.Error(b, err)
@@ -123,7 +125,7 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 
 							if tt.Placement.Result != nil {
 								b.StartTimer()
-								res, err := nm.GetPlacementVectors(v, tt.Placement.Pivot)
+								res, err := nm.PlacementVectors(v, tt.Placement.Pivot)
 								b.StopTimer()
 								require.NoError(b, err)
 								compareNodes(b, tt.Placement.Result, tc.Nodes, res)
@@ -146,14 +148,14 @@ func BenchmarkManySelects(b *testing.B) {
 	tt, ok := tc.Tests["Select"]
 	require.True(b, ok)
 
-	var nm Netmap
+	var nm NetMap
 	nm.SetNodes(tc.Nodes)
 
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		_, err = nm.GetContainerNodes(&tt.Policy, tt.Pivot)
+		_, err = nm.ContainerNodes(tt.Policy, tt.Pivot)
 		if err != nil {
 			b.FailNow()
 		}

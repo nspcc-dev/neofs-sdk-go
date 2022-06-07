@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
@@ -96,7 +98,22 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 			ver.ReadFromV2(*v2ver)
 		}
 		res.setLatestVersion(&ver)
-		res.setNodeInfo(netmap.NewNodeInfoFromV2(body.GetNodeInfo()))
+
+		nodeV2 := body.GetNodeInfo()
+		if nodeV2 == nil {
+			cc.err = errors.New("missing node info in response body")
+			return
+		}
+
+		var node netmap.NodeInfo
+
+		cc.err = node.ReadFromV2(*nodeV2)
+		if cc.err != nil {
+			cc.err = fmt.Errorf("invalid node info: %w", cc.err)
+			return
+		}
+
+		res.setNodeInfo(&node)
 	}
 
 	// process call
@@ -171,7 +188,21 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.NetworkInfoResponse)
 
-		res.setInfo(netmap.NewNetworkInfoFromV2(resp.GetBody().GetNetworkInfo()))
+		netInfoV2 := resp.GetBody().GetNetworkInfo()
+		if netInfoV2 == nil {
+			cc.err = errors.New("missing network info in response body")
+			return
+		}
+
+		var netInfo netmap.NetworkInfo
+
+		cc.err = netInfo.ReadFromV2(*netInfoV2)
+		if cc.err != nil {
+			cc.err = fmt.Errorf("invalid network info: %w", cc.err)
+			return
+		}
+
+		res.setInfo(&netInfo)
 	}
 
 	// process call

@@ -9,7 +9,6 @@ import (
 
 	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	testv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,8 +22,8 @@ func BenchmarkHRWSort(b *testing.B) {
 		rand.Read(key)
 
 		var node NodeInfo
-		node.setPrice(1)
-		node.setCapacity(100)
+		node.SetPrice(1)
+		node.SetCapacity(100)
 		node.SetPublicKey(key)
 
 		vectors[i] = nodes{node}
@@ -85,7 +84,7 @@ func BenchmarkHRWSort(b *testing.B) {
 			b.StartTimer()
 
 			sort.Slice(vectors, func(i, j int) bool {
-				return vectors[i][0].less(vectors[j][0])
+				return less(vectors[i][0], vectors[j][0])
 			})
 			hrw.SortSliceByWeightIndex(realNodes, weights, pivot)
 		}
@@ -96,15 +95,15 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 	const netmapSize = 100
 
 	p := newPlacementPolicy(1,
-		[]Replica{
+		[]ReplicaDescriptor{
 			newReplica(1, "loc1"),
 			newReplica(1, "loc2")},
 		[]Selector{
-			newSelector("loc1", "Location", ClauseSame, 1, "loc1"),
-			newSelector("loc2", "Location", ClauseSame, 1, "loc2")},
+			newSelector("loc1", "Location", 1, "loc1", (*Selector).SelectSame),
+			newSelector("loc2", "Location", 1, "loc2", (*Selector).SelectSame)},
 		[]Filter{
-			newFilter("loc1", "Location", "Shanghai", OpEQ),
-			newFilter("loc2", "Location", "Shanghai", OpNE),
+			newFilter("loc1", "Location", "Shanghai", netmap.EQ),
+			newFilter("loc2", "Location", "Shanghai", netmap.NE),
 		})
 
 	nodes := make([]NodeInfo, netmapSize)
@@ -125,12 +124,12 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 		nodes[i].SetPublicKey(pub)
 	}
 
-	var nm Netmap
+	var nm NetMap
 	nm.SetNodes(nodes)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_, err := nm.GetContainerNodes(p, []byte{1})
+		_, err := nm.ContainerNodes(p, []byte{1})
 		if err != nil {
 			b.Fatal()
 		}
@@ -141,15 +140,15 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 	const netmapSize = 100
 
 	p := newPlacementPolicy(1,
-		[]Replica{
+		[]ReplicaDescriptor{
 			newReplica(1, "loc1"),
 			newReplica(1, "loc2")},
 		[]Selector{
-			newSelector("loc1", "Location", ClauseSame, 1, "loc1"),
-			newSelector("loc2", "Location", ClauseSame, 1, "loc2")},
+			newSelector("loc1", "Location", 1, "loc1", (*Selector).SelectSame),
+			newSelector("loc2", "Location", 1, "loc2", (*Selector).SelectSame)},
 		[]Filter{
-			newFilter("loc1", "Location", "Shanghai", OpEQ),
-			newFilter("loc2", "Location", "Shanghai", OpNE),
+			newFilter("loc1", "Location", "Shanghai", netmap.EQ),
+			newFilter("loc2", "Location", "Shanghai", netmap.NE),
 		})
 
 	nodeList := make([]NodeInfo, netmapSize)
@@ -170,11 +169,11 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 		nodeList[i].SetPublicKey(pub)
 	}
 
-	var nm Netmap
+	var nm NetMap
 	nm.SetNodes(nodeList)
 
 	getIndices := func(t *testing.T) (uint64, uint64) {
-		v, err := nm.GetContainerNodes(p, []byte{1})
+		v, err := nm.ContainerNodes(p, []byte{1})
 		require.NoError(t, err)
 
 		nss := make([]nodes, len(v))
@@ -198,14 +197,14 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 	p := newPlacementPolicy(2, nil,
 		[]Selector{
-			newSelector("SameRU", "City", ClauseSame, 2, "FromRU"),
-			newSelector("DistinctRU", "City", ClauseDistinct, 2, "FromRU"),
-			newSelector("Good", "Country", ClauseDistinct, 2, "Good"),
-			newSelector("Main", "Country", ClauseDistinct, 3, "*"),
+			newSelector("SameRU", "City", 2, "FromRU", (*Selector).SelectSame),
+			newSelector("DistinctRU", "City", 2, "FromRU", (*Selector).SelectDistinct),
+			newSelector("Good", "Country", 2, "Good", (*Selector).SelectDistinct),
+			newSelector("Main", "Country", 3, "*", (*Selector).SelectDistinct),
 		},
 		[]Filter{
-			newFilter("FromRU", "Country", "Russia", OpEQ),
-			newFilter("Good", "Rating", "4", OpGE),
+			newFilter("FromRU", "Country", "Russia", netmap.EQ),
+			newFilter("Good", "Rating", "4", netmap.GE),
 		})
 	nodes := []NodeInfo{
 		nodeInfoFromAttributes("Country", "Russia", "Rating", "1", "City", "SPB"),
@@ -221,151 +220,79 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 		nodeInfoFromAttributes("Country", "Russia", "Rating", "9", "City", "SPB"),
 	}
 
-	var nm Netmap
+	var nm NetMap
 	nm.SetNodes(nodes)
-	c := newContext(&nm)
-	c.setCBF(p.ContainerBackupFactor())
+	c := newContext(nm)
+	c.setCBF(p.backupFactor)
 	require.NoError(t, c.processFilters(p))
 	require.NoError(t, c.processSelectors(p))
 
-	for _, s := range p.Selectors() {
-		sel := c.Selections[s.Name()]
-		s := c.Selectors[s.Name()]
-		bucketCount, nodesInBucket := GetNodesCount(p, s)
+	for _, s := range p.selectors {
+		sel := c.selections[s.GetName()]
+		s := c.processedSelectors[s.GetName()]
+		bucketCount, nodesInBucket := calcNodesCount(*s)
 		nodesInBucket *= int(c.cbf)
-		targ := fmt.Sprintf("selector '%s'", s.Name())
+		targ := fmt.Sprintf("selector '%s'", s.GetName())
 		require.Equal(t, bucketCount, len(sel), targ)
+		fName := s.GetFilter()
 		for _, res := range sel {
 			require.Equal(t, nodesInBucket, len(res), targ)
 			for j := range res {
-				require.True(t, c.applyFilter(s.Filter(), res[j]), targ)
+				require.True(t, fName == mainFilterName || c.match(c.processedFilters[fName], res[j]), targ)
 			}
 		}
 	}
 }
 
-func testSelector() *Selector {
-	s := new(Selector)
-	s.SetName("name")
-	s.SetCount(3)
-	s.SetFilter("filter")
-	s.SetAttribute("attribute")
-	s.SetClause(ClauseDistinct)
+func TestSelector_SetName(t *testing.T) {
+	const name = "some name"
+	var s Selector
 
-	return s
-}
-
-func TestSelector_Name(t *testing.T) {
-	s := NewSelector()
-	name := "some name"
+	require.Zero(t, s.m.GetName())
 
 	s.SetName(name)
-
-	require.Equal(t, name, s.Name())
+	require.Equal(t, name, s.m.GetName())
 }
 
-func TestSelector_Count(t *testing.T) {
-	s := NewSelector()
-	c := uint32(3)
+func TestSelector_SetNodeAmount(t *testing.T) {
+	const amount = 3
+	var s Selector
 
-	s.SetCount(c)
+	require.Zero(t, s.m.GetCount())
 
-	require.Equal(t, c, s.Count())
+	s.SetNodeAmount(amount)
+
+	require.EqualValues(t, amount, s.m.GetCount())
 }
 
-func TestSelector_Clause(t *testing.T) {
-	s := NewSelector()
-	c := ClauseSame
+func TestSelectorClauses(t *testing.T) {
+	var s Selector
 
-	s.SetClause(c)
+	require.Equal(t, netmap.UnspecifiedClause, s.m.GetClause())
 
-	require.Equal(t, c, s.Clause())
+	s.SelectDistinct()
+	require.Equal(t, netmap.Distinct, s.m.GetClause())
+
+	s.SelectSame()
+	require.Equal(t, netmap.Same, s.m.GetClause())
 }
 
-func TestSelector_Attribute(t *testing.T) {
-	s := NewSelector()
-	a := "some attribute"
+func TestSelector_SelectByBucketAttribute(t *testing.T) {
+	const attr = "some attribute"
+	var s Selector
 
-	s.SetAttribute(a)
+	require.Zero(t, s.m.GetAttribute())
 
-	require.Equal(t, a, s.Attribute())
+	s.SelectByBucketAttribute(attr)
+	require.Equal(t, attr, s.m.GetAttribute())
 }
 
-func TestSelector_Filter(t *testing.T) {
-	s := NewSelector()
-	f := "some filter"
+func TestSelector_SetFilterName(t *testing.T) {
+	const fName = "some filter"
+	var s Selector
 
-	s.SetFilter(f)
+	require.Zero(t, s.m.GetFilter())
 
-	require.Equal(t, f, s.Filter())
-}
-
-func TestSelectorEncoding(t *testing.T) {
-	s := newSelector("name", "atte", ClauseSame, 1, "filter")
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := s.Marshal()
-		require.NoError(t, err)
-
-		s2 := *NewSelector()
-		require.NoError(t, s2.Unmarshal(data))
-
-		require.Equal(t, s, s2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := s.MarshalJSON()
-		require.NoError(t, err)
-
-		s2 := *NewSelector()
-		require.NoError(t, s2.UnmarshalJSON(data))
-
-		require.Equal(t, s, s2)
-	})
-}
-
-func TestSelector_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Selector
-
-		require.Nil(t, x.ToV2())
-	})
-}
-
-func TestNewSelectorFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *netmap.Selector
-
-		require.Nil(t, NewSelectorFromV2(x))
-	})
-
-	t.Run("from non-nil", func(t *testing.T) {
-		sV2 := testv2.GenerateSelector(false)
-
-		s := NewSelectorFromV2(sV2)
-
-		require.Equal(t, sV2, s.ToV2())
-	})
-}
-
-func TestNewSelector(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		s := NewSelector()
-
-		// check initial values
-		require.Zero(t, s.Count())
-		require.Equal(t, ClauseUnspecified, s.Clause())
-		require.Empty(t, s.Attribute())
-		require.Empty(t, s.Name())
-		require.Empty(t, s.Filter())
-
-		// convert to v2 message
-		sV2 := s.ToV2()
-
-		require.Zero(t, sV2.GetCount())
-		require.Equal(t, netmap.UnspecifiedClause, sV2.GetClause())
-		require.Empty(t, sV2.GetAttribute())
-		require.Empty(t, sV2.GetName())
-		require.Empty(t, sV2.GetFilter())
-	})
+	s.SetFilterName(fName)
+	require.Equal(t, fName, s.m.GetFilter())
 }
