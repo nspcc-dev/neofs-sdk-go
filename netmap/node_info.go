@@ -74,8 +74,8 @@ const (
 	AttrContinent = "Continent"
 )
 
-// GetBucketWeight computes weight for a Bucket.
-func GetBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
+// calcBucketWeight computes weight for a Bucket.
+func calcBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
 	for i := range ns {
 		a.Add(wf(ns[i]))
 	}

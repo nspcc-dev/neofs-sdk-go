@@ -97,7 +97,7 @@ func (c *context) getSelection(p *PlacementPolicy, s *Selector) ([]nodes, error)
 	if len(c.pivot) != 0 {
 		weights := make([]float64, len(res))
 		for i := range res {
-			weights[i] = GetBucketWeight(res[i], c.aggregator(), c.weightFunc)
+			weights[i] = calcBucketWeight(res[i], c.aggregator(), c.weightFunc)
 		}
 
 		hrw.SortSliceByWeightValue(res, weights, c.pivotHash)
