@@ -95,7 +95,7 @@ func TestNodeInfoFromV2(t *testing.T) {
 	t.Run("from nil", func(t *testing.T) {
 		var x *netmap.NodeInfo
 
-		require.Nil(t, NewNodeInfoFromV2(x))
+		require.Nil(t, NewNodeInfoFromV2(x).m)
 	})
 
 	t.Run("from non-nil", func(t *testing.T) {

@@ -31,7 +31,11 @@ func (i *NodeInfo) changeSubnet(id subnetid.ID, isMember bool) {
 	info.SetID(&idv2)
 	info.SetEntryFlag(isMember)
 
-	netmap.WriteSubnetInfo((*netmap.NodeInfo)(i), info)
+	if i.m == nil {
+		i.m = new(netmap.NodeInfo)
+	}
+
+	netmap.WriteSubnetInfo(i.m, info)
 }
 
 // ErrRemoveSubnet is returned when a node needs to leave the subnet.
@@ -48,7 +52,7 @@ var ErrRemoveSubnet = netmap.ErrRemoveSubnet
 func (i *NodeInfo) IterateSubnets(f func(subnetid.ID) error) error {
 	var id subnetid.ID
 
-	return netmap.IterateSubnets((*netmap.NodeInfo)(i), func(idv2 refs.SubnetID) error {
+	return netmap.IterateSubnets(i.m, func(idv2 refs.SubnetID) error {
 		err := id.ReadFromV2(idv2)
 		if err != nil {
 			return fmt.Errorf("invalid subnet: %w", err)
