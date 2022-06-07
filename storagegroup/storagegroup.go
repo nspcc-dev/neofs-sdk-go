@@ -138,14 +138,14 @@ func (sg *StorageGroup) SetMembers(members []oid.ID) {
 		if cap(mV2) >= ln {
 			mV2 = mV2[:0]
 		} else {
-			mV2 = make([]refs.ObjectID, ln)
+			mV2 = make([]refs.ObjectID, 0, ln)
 		}
 
 		var oidV2 refs.ObjectID
 
 		for i := 0; i < ln; i++ {
 			members[i].WriteToV2(&oidV2)
-			mV2[i] = oidV2
+			mV2 = append(mV2, oidV2)
 		}
 	}
 
