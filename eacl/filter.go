@@ -41,6 +41,7 @@ const (
 	fKeyObjPayloadHash
 	fKeyObjType
 	fKeyObjHomomorphicHash
+	fKeyObjLast // helper, used in tests
 )
 
 func (s staticStringer) EncodeToString() string {
@@ -113,6 +114,31 @@ func (k filterKey) String() string {
 	}
 }
 
+func (k *filterKey) fromString(s string) {
+	switch s {
+	default:
+		k.typ, k.str = 0, s
+	case v2acl.FilterObjectVersion:
+		k.typ, k.str = fKeyObjVersion, ""
+	case v2acl.FilterObjectID:
+		k.typ, k.str = fKeyObjID, ""
+	case v2acl.FilterObjectContainerID:
+		k.typ, k.str = fKeyObjContainerID, ""
+	case v2acl.FilterObjectOwnerID:
+		k.typ, k.str = fKeyObjOwnerID, ""
+	case v2acl.FilterObjectCreationEpoch:
+		k.typ, k.str = fKeyObjCreationEpoch, ""
+	case v2acl.FilterObjectPayloadLength:
+		k.typ, k.str = fKeyObjPayloadLength, ""
+	case v2acl.FilterObjectPayloadHash:
+		k.typ, k.str = fKeyObjPayloadHash, ""
+	case v2acl.FilterObjectType:
+		k.typ, k.str = fKeyObjType, ""
+	case v2acl.FilterObjectHomomorphicHash:
+		k.typ, k.str = fKeyObjHomomorphicHash, ""
+	}
+}
+
 // NewFilter creates, initializes and returns blank Filter instance.
 //
 // Defaults:
@@ -134,7 +160,7 @@ func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 
 	f.from = FilterHeaderTypeFromV2(filter.GetHeaderType())
 	f.matcher = MatchFromV2(filter.GetMatchType())
-	f.key.str = filter.GetKey()
+	f.key.fromString(filter.GetKey())
 	f.value = staticStringer(filter.GetValue())
 
 	return f
