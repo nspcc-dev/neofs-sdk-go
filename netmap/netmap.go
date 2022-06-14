@@ -42,6 +42,7 @@ func (n nodes) Hash() uint64 {
 	if len(n) > 0 {
 		return n[0].Hash()
 	}
+
 	return 0
 }
 
@@ -73,8 +74,8 @@ func flattenNodes(ns []nodes) nodes {
 
 // PlacementVectors sorts container nodes returned by ContainerNodes method
 // and returns placement vectors for the entity identified by the given pivot.
-// For example,in order to build node list to store the object, binary-encoded
-// object identifier can be used as pivot.  Result is deterministic for
+// For example, in order to build node list to store the object, binary-encoded
+// object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, pivot []byte) ([][]NodeInfo, error) {
 	h := hrw.Hash(pivot)

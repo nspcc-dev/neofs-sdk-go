@@ -107,15 +107,15 @@ type ReplicaDescriptor struct {
 	m netmap.Replica
 }
 
-// SetAmount sets number of object replicas.
-func (r *ReplicaDescriptor) SetAmount(c uint32) {
+// SetNumberOfObjects sets number of object replicas.
+func (r *ReplicaDescriptor) SetNumberOfObjects(c uint32) {
 	r.m.SetCount(c)
 }
 
-// Amount returns number set using SetAmount.
+// NumberOfObjects returns number set using SetNumberOfObjects.
 //
-// Zero ReplicaDescriptor has zero object amount.
-func (r ReplicaDescriptor) Amount() uint32 {
+// Zero ReplicaDescriptor has zero number of objects.
+func (r ReplicaDescriptor) NumberOfObjects() uint32 {
 	return r.m.GetCount()
 }
 
@@ -142,18 +142,18 @@ func (p *PlacementPolicy) AddReplicas(rs ...ReplicaDescriptor) {
 	}
 }
 
-// NumberOfReplicas returns amount of replica descriptors set using AddReplicas.
+// NumberOfReplicas returns number of replica descriptors set using AddReplicas.
 //
 // Zero PlacementPolicy has no replicas.
 func (p PlacementPolicy) NumberOfReplicas() int {
 	return len(p.replicas)
 }
 
-// ReplicaAmountByIndex returns amount of object replicas from the i-th replica
+// ReplicaNumberByIndex returns number of object replicas from the i-th replica
 // descriptor. Index MUST be in range [0; NumberOfReplicas()).
 //
 // Zero PlacementPolicy has no replicas.
-func (p PlacementPolicy) ReplicaAmountByIndex(i int) uint32 {
+func (p PlacementPolicy) ReplicaNumberByIndex(i int) uint32 {
 	return p.replicas[i].GetCount()
 }
 
@@ -178,11 +178,11 @@ func (s *Selector) SetName(name string) {
 	s.m.SetName(name)
 }
 
-// SetNodeAmount sets number of nodes to select from the bucket.
+// SetNumberOfNodes sets number of nodes to select from the bucket.
 //
 // Zero Selector selects nothing.
-func (s *Selector) SetNodeAmount(amount uint32) {
-	s.m.SetCount(amount)
+func (s *Selector) SetNumberOfNodes(num uint32) {
+	s.m.SetCount(num)
 }
 
 // SelectByBucketAttribute sets attribute of the bucket to select nodes from.
@@ -239,7 +239,7 @@ type Filter struct {
 }
 
 // SetName sets name with which the Filter can be referenced or, for inner filters,
-// to which the Filter references. Top-level filters MUST have be named. The name
+// to which the Filter references. Top-level filters MUST be named. The name
 // MUST NOT be '*'.
 //
 // Zero Filter is unnamed.

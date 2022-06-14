@@ -161,10 +161,10 @@ func TestNetworkInfo_EigenTrustAlpha(t *testing.T) {
 	)
 }
 
-func TestNetworkInfo_EigenTrustIterationAmount(t *testing.T) {
+func TestNetworkInfo_NumberOfEigenTrustIterations(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.EigenTrustIterationAmount() },
-		func(info *NetworkInfo, val interface{}) { info.SetEigenTrustIterationAmount(val.(uint64)) },
+		func(x NetworkInfo) interface{} { return x.NumberOfEigenTrustIterations() },
+		func(info *NetworkInfo, val interface{}) { info.SetNumberOfEigenTrustIterations(val.(uint64)) },
 		uint64(1), uint64(2),
 		"EigenTrustIterations", func(val interface{}) []byte {
 			data := make([]byte, 8)

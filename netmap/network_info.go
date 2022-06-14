@@ -31,7 +31,7 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 	}
 
 	if checkFieldPresence && c.NumberOfParameters() <= 0 {
-		return fmt.Errorf("missing network parameters")
+		return errors.New("missing network parameters")
 	}
 
 	var err error
@@ -68,7 +68,7 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 			configStoragePrice,
 			configContainerFee,
 			configNamedContainerFee,
-			configEigenTrustIterationsAmount,
+			configEigenTrustNumberOfIterations,
 			configEpochDuration,
 			configIRCandidateFee,
 			configMaxObjSize,
@@ -239,7 +239,7 @@ func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []by
 			configStoragePrice,
 			configContainerFee,
 			configNamedContainerFee,
-			configEigenTrustIterationsAmount,
+			configEigenTrustNumberOfIterations,
 			configEpochDuration,
 			configIRCandidateFee,
 			configMaxObjSize,
@@ -374,29 +374,29 @@ func (x NetworkInfo) EigenTrustAlpha() float64 {
 	return alpha
 }
 
-const configEigenTrustIterationsAmount = "EigenTrustIterations"
+const configEigenTrustNumberOfIterations = "EigenTrustIterations"
 
-// SetEigenTrustIterationAmount sets number of iterations of the EigenTrust
+// SetNumberOfEigenTrustIterations sets number of iterations of the EigenTrust
 // algorithm to perform. The algorithm is used by the storage nodes for
 // calculating the reputation values.
 //
-// See also EigenTrustIterationAmount.
-func (x *NetworkInfo) SetEigenTrustIterationAmount(amount uint64) {
-	x.setConfigUint64(configEigenTrustIterationsAmount, amount)
+// See also NumberOfEigenTrustIterations.
+func (x *NetworkInfo) SetNumberOfEigenTrustIterations(num uint64) {
+	x.setConfigUint64(configEigenTrustNumberOfIterations, num)
 }
 
-// EigenTrustIterationAmount returns EigenTrust iteration amount set using
-// SetEigenTrustIterationAmount.
+// NumberOfEigenTrustIterations returns number of EigenTrust iterations set
+// using SetNumberOfEigenTrustIterations.
 //
 // Zero NetworkInfo has zero iteration number.
-func (x NetworkInfo) EigenTrustIterationAmount() uint64 {
-	return x.configUint64(configEigenTrustIterationsAmount)
+func (x NetworkInfo) NumberOfEigenTrustIterations() uint64 {
+	return x.configUint64(configEigenTrustNumberOfIterations)
 }
 
 const configEpochDuration = "EpochDuration"
 
-// SetEpochDuration sets NeoFS epoch duration measured in block amount of the
-// NeoFS Sidechain.
+// SetEpochDuration sets NeoFS epoch duration measured in number of blocks of
+// the NeoFS Sidechain.
 //
 // See also EpochDuration.
 func (x *NetworkInfo) SetEpochDuration(blocks uint64) {

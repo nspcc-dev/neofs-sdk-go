@@ -21,19 +21,19 @@ On client side:
 	import "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 
 	var msg netmap.NodeInfo
-	msg.WriteToV2(&msg)
+	info.WriteToV2(&msg)
 
 	// send msg
 
 On server side:
 	// recv msg
 
-	var info netmap.NodeInfo
+	var info NodeInfo
 
 	err := info.ReadFromV2(msg)
 	// ...
 
-	// process dec
+	// process info
 
 Using package types in an application is recommended to potentially work with
 different protocol versions with which these types are compatible.

@@ -35,7 +35,7 @@ func (c *context) processSelectors(p PlacementPolicy) error {
 	return nil
 }
 
-// calcNodesCount returns amount of buckets and minimum number of nodes in every bucket
+// calcNodesCount returns number of buckets and minimum number of nodes in every bucket
 // for the given selector.
 func calcNodesCount(s netmap.Selector) (int, int) {
 	switch s.GetClause() {

@@ -20,7 +20,7 @@ func newFilter(name string, k, v string, op netmap.Operation, fs ...Filter) (f F
 func newSelector(name string, attr string, count uint32, filter string, clause func(*Selector)) (s Selector) {
 	s.SetName(name)
 	s.SelectByBucketAttribute(attr)
-	s.SetNodeAmount(count)
+	s.SetNumberOfNodes(count)
 	clause(&s)
 	s.SetFilterName(filter)
 	return s
@@ -35,7 +35,7 @@ func newPlacementPolicy(bf uint32, rs []ReplicaDescriptor, ss []Selector, fs []F
 }
 
 func newReplica(c uint32, s string) (r ReplicaDescriptor) {
-	r.SetAmount(c)
+	r.SetNumberOfObjects(c)
 	r.SetSelectorName(s)
 	return r
 }
