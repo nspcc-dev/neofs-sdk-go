@@ -16,4 +16,4 @@ require (
 	google.golang.org/grpc v1.41.0
 )
 
-replace github.com/nspcc-dev/neofs-api-go/v2 => github.com/fyrchik/neofs-api-go/v2 v2.0.0-20220414112226-9827074d3727
+replace github.com/nspcc-dev/neofs-api-go/v2 => github.com/fyrchik/neofs-api-go/v2 v2.0.0-20220614103723-d16efe168a33

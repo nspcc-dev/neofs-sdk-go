@@ -87,7 +87,7 @@ func createMessageWithSalt(msg, salt []byte) []byte {
 	w.Grow(4 + io.GetVarSize(saltedSize) + saltedSize + 2)
 
 	w.WriteBytes([]byte{0x01, 0x00, 0x01, 0xf0}) // fixed prefix
-	w.WriteVarUint(uint64(len(salt) + len(msg)))
+	w.WriteVarUint(uint64(saltedSize))
 	w.WriteBytes([]byte(hex.EncodeToString(salt[:]))) // for some reason we encode salt in hex
 	w.WriteBytes(msg)
 	w.WriteBytes([]byte{0x00, 0x00})
