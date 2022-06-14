@@ -254,15 +254,15 @@ func TestSelector_SetName(t *testing.T) {
 	require.Equal(t, name, s.m.GetName())
 }
 
-func TestSelector_SetNodeAmount(t *testing.T) {
-	const amount = 3
+func TestSelector_SetNumberOfNodes(t *testing.T) {
+	const num = 3
 	var s Selector
 
 	require.Zero(t, s.m.GetCount())
 
-	s.SetNodeAmount(amount)
+	s.SetNumberOfNodes(num)
 
-	require.EqualValues(t, amount, s.m.GetCount())
+	require.EqualValues(t, num, s.m.GetCount())
 }
 
 func TestSelectorClauses(t *testing.T) {

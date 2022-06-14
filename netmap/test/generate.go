@@ -23,7 +23,7 @@ func Filter() netmap.Filter {
 
 // Replica returns random netmap.ReplicaDescriptor.
 func Replica() (x netmap.ReplicaDescriptor) {
-	x.SetAmount(666)
+	x.SetNumberOfObjects(666)
 	x.SetSelectorName("selector")
 
 	return
@@ -31,7 +31,7 @@ func Replica() (x netmap.ReplicaDescriptor) {
 
 // Selector returns random netmap.Selector.
 func Selector() (x netmap.Selector) {
-	x.SetNodeAmount(11)
+	x.SetNumberOfNodes(11)
 	x.SetName("name")
 	x.SetFilterName("filter")
 	x.SelectByBucketAttribute("attribute")
@@ -60,7 +60,7 @@ func NetworkInfo() (x netmap.NetworkInfo) {
 	x.SetStoragePrice(2)
 	x.SetContainerFee(3)
 	x.SetEigenTrustAlpha(0.4)
-	x.SetEigenTrustIterationAmount(5)
+	x.SetNumberOfEigenTrustIterations(5)
 	x.SetEpochDuration(6)
 	x.SetIRCandidateFee(7)
 	x.SetMaxObjectSize(8)
