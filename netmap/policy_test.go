@@ -1,9 +1,7 @@
 package netmap
 
 import (
-	"math/rand"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -34,90 +32,5 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 		require.NoError(t, p.WriteStringTo(&b))
 
 		require.Equal(t, testCase, b.String())
-	}
-}
-
-type cache struct {
-	mtx sync.RWMutex
-
-	item map[string]struct{}
-}
-
-func (x *cache) add(key string) {
-	x.mtx.Lock()
-	x.item[key] = struct{}{}
-	x.mtx.Unlock()
-}
-
-func (x *cache) has(key string) bool {
-	x.mtx.RLock()
-	_, ok := x.item[key]
-	x.mtx.RUnlock()
-
-	return ok
-}
-
-func BenchmarkCache(b *testing.B) {
-	c := cache{
-		item: make(map[string]struct{}),
-	}
-
-	var key string
-	buf := make([]byte, 32)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		rand.Read(buf)
-		key = string(buf)
-		b.StartTimer()
-
-		c.add(key)
-		c.has(key)
-	}
-}
-
-type cacheP struct {
-	mtx *sync.RWMutex
-
-	item map[string]struct{}
-}
-
-func (x cacheP) add(key string) {
-	x.mtx.Lock()
-	x.item[key] = struct{}{}
-	x.mtx.Unlock()
-}
-
-func (x cacheP) has(key string) bool {
-	x.mtx.RLock()
-	_, ok := x.item[key]
-	x.mtx.RUnlock()
-
-	return ok
-}
-
-func BenchmarkCacheP(b *testing.B) {
-	c := cacheP{
-		mtx:  &sync.RWMutex{},
-		item: make(map[string]struct{}),
-	}
-
-	var key string
-	buf := make([]byte, 32)
-
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		rand.Read(buf)
-		key = string(buf)
-		b.StartTimer()
-
-		c.add(key)
-		c.has(key)
 	}
 }
