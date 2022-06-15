@@ -57,7 +57,48 @@ func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresenc
 	return nil
 }
 
-// UnmarshalJSON decodes PlacementPolicy from protobuf JSON format.
+// Marshal encodes PlacementPolicy into a binary format of the NeoFS API
+// protocol (Protocol Buffers with direct field order).
+//
+// See also Unmarshal.
+func (p PlacementPolicy) Marshal() []byte {
+	var m netmap.PlacementPolicy
+	p.WriteToV2(&m)
+
+	return m.StableMarshal(nil)
+}
+
+// Unmarshal decodes NeoFS API protocol binary format into the PlacementPolicy
+// (Protocol Buffers with direct field order). Returns an error describing
+// a format violation.
+//
+// See also Marshal.
+func (p *PlacementPolicy) Unmarshal(data []byte) error {
+	var m netmap.PlacementPolicy
+
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	return p.readFromV2(m, false)
+}
+
+// MarshalJSON encodes PlacementPolicy into a JSON format of the NeoFS API
+// protocol (Protocol Buffers JSON).
+//
+// See also UnmarshalJSON.
+func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
+	var m netmap.PlacementPolicy
+	p.WriteToV2(&m)
+
+	return m.MarshalJSON()
+}
+
+// UnmarshalJSON decodes NeoFS API protocol JSON format into the PlacementPolicy
+// (Protocol Buffers JSON). Returns an error describing a format violation.
+//
+// See also MarshalJSON.
 func (p *PlacementPolicy) UnmarshalJSON(data []byte) error {
 	var m netmap.PlacementPolicy
 
