@@ -34,11 +34,11 @@ type PlacementPolicy struct {
 	replicas []netmap.Replica
 }
 
-func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy) error {
-	p.backupFactor = m.GetContainerBackupFactor()
-	p.filters = m.GetFilters()
-	p.selectors = m.GetSelectors()
+func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresence bool) error {
 	p.replicas = m.GetReplicas()
+	if checkFieldPresence && len(p.replicas) == 0 {
+		return errors.New("missing replicas")
+	}
 
 	subnetV2 := m.GetSubnetID()
 	if subnetV2 != nil {
@@ -49,6 +49,10 @@ func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy) error {
 	} else {
 		p.subnet = subnetid.ID{}
 	}
+
+	p.backupFactor = m.GetContainerBackupFactor()
+	p.selectors = m.GetSelectors()
+	p.filters = m.GetFilters()
 
 	return nil
 }
@@ -62,7 +66,7 @@ func (p *PlacementPolicy) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	return p.readFromV2(m)
+	return p.readFromV2(m, false)
 }
 
 // ReadFromV2 reads PlacementPolicy from the netmap.PlacementPolicy message.
@@ -70,7 +74,7 @@ func (p *PlacementPolicy) UnmarshalJSON(data []byte) error {
 //
 // See also WriteToV2.
 func (p *PlacementPolicy) ReadFromV2(m netmap.PlacementPolicy) error {
-	return p.readFromV2(m)
+	return p.readFromV2(m, true)
 }
 
 // WriteToV2 writes PlacementPolicy to the session.Token message.
@@ -129,8 +133,6 @@ func (r *ReplicaDescriptor) SetSelectorName(s string) {
 
 // AddReplicas adds a bunch object replica's characteristics.
 //
-// Zero PlacementPolicy does not declare replicas ???.
-//
 // See also IterateReplicas.
 func (p *PlacementPolicy) AddReplicas(rs ...ReplicaDescriptor) {
 	off := len(p.replicas)
@@ -144,7 +146,8 @@ func (p *PlacementPolicy) AddReplicas(rs ...ReplicaDescriptor) {
 
 // NumberOfReplicas returns number of replica descriptors set using AddReplicas.
 //
-// Zero PlacementPolicy has no replicas.
+// Zero PlacementPolicy has no replicas which is incorrect according to the
+// NeoFS API protocol.
 func (p PlacementPolicy) NumberOfReplicas() int {
 	return len(p.replicas)
 }
@@ -187,7 +190,7 @@ func (s *Selector) SetNumberOfNodes(num uint32) {
 
 // SelectByBucketAttribute sets attribute of the bucket to select nodes from.
 //
-// Zero Selector ???.
+// Zero Selector has empty attribute.
 func (s *Selector) SelectByBucketAttribute(bucket string) {
 	s.m.SetAttribute(bucket)
 }
@@ -212,9 +215,11 @@ func (s *Selector) SelectDistinct() {
 	s.m.SetClause(netmap.Distinct)
 }
 
-// SetFilterName sets name of filter to reference to select from ???.
+// SetFilterName sets reference to pre-filtering nodes for selection.
 //
-// Zero Selector ???.
+// Zero Selector has no filtering reference.
+//
+// See also Filter.SetName.
 func (s *Selector) SetFilterName(f string) {
 	s.m.SetFilter(f)
 }
@@ -222,7 +227,7 @@ func (s *Selector) SetFilterName(f string) {
 // AddSelectors adds a Selector bunch to form the subset of the nodes
 // to store container objects.
 //
-// Zero PlacementPolicy does not declare replicas ???.
+// Zero PlacementPolicy does not declare selectors.
 func (p *PlacementPolicy) AddSelectors(ss ...Selector) {
 	off := len(p.selectors)
 
@@ -332,7 +337,7 @@ func (x *Filter) LogicalAND(filters ...Filter) {
 
 // AddFilters adds a Filter bunch that will be applied when selecting nodes.
 //
-// Zero PlacementPolicy has no filters ???.
+// Zero PlacementPolicy has no filters.
 func (p *PlacementPolicy) AddFilters(fs ...Filter) {
 	off := len(p.filters)
 
