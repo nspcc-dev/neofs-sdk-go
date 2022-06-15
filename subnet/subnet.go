@@ -1,6 +1,8 @@
 package subnet
 
 import (
+	"fmt"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/subnet"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
@@ -9,102 +11,99 @@ import (
 
 // Info represents information about NeoFS subnet.
 //
-// The type is compatible with the corresponding message from NeoFS API V2 protocol.
+// Instances can be created using built-in var declaration.
+type Info struct {
+	id subnetid.ID
+
+	owner user.ID
+}
+
+// Marshal encodes Info into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
 //
-// Zero value and nil pointer to it represents zero subnet w/o an owner.
-type Info subnet.Info
+// See also Unmarshal.
+func (x Info) Marshal() []byte {
+	var id refs.SubnetID
+	x.id.WriteToV2(&id)
 
-// FromV2 initializes Info from subnet.Info message structure. Must not be called on nil.
-func (x *Info) FromV2(msg subnet.Info) {
-	*x = Info(msg)
+	var owner refs.OwnerID
+	x.owner.WriteToV2(&owner)
+
+	var m subnet.Info
+	m.SetID(&id)
+	m.SetOwner(&owner)
+
+	return m.StableMarshal(nil)
 }
 
-// WriteToV2 writes Info to subnet.Info message structure. The message must not be nil.
-func (x Info) WriteToV2(msg *subnet.Info) {
-	*msg = subnet.Info(x)
-}
-
-// Marshal encodes Info into a binary format of NeoFS API V2 protocol (Protocol Buffers with direct field order).
-func (x *Info) Marshal() ([]byte, error) {
-	return (*subnet.Info)(x).StableMarshal(nil), nil
-}
-
-// Unmarshal decodes Info from NeoFS API V2 binary format (see Marshal). Must not be called on nil.
-//
-// Note: empty data corresponds to zero Info value or nil pointer to it.
+// Unmarshal decodes binary Info calculated using Marshal. Returns an error
+// describing a format violation.
 func (x *Info) Unmarshal(data []byte) error {
-	return (*subnet.Info)(x).Unmarshal(data)
+	var m subnet.Info
+
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	id := m.ID()
+	if id != nil {
+		err = x.id.ReadFromV2(*id)
+		if err != nil {
+			return fmt.Errorf("invalid ID: %w", err)
+		}
+	} else {
+		subnetid.MakeZero(&x.id)
+	}
+
+	owner := m.Owner()
+	if owner != nil {
+		err = x.owner.ReadFromV2(*owner)
+		if err != nil {
+			return fmt.Errorf("invalid owner: %w", err)
+		}
+	} else {
+		x.owner = user.ID{}
+	}
+
+	return nil
 }
 
 // SetID sets the identifier of the subnet that Info describes.
+//
+// See also ID.
 func (x *Info) SetID(id subnetid.ID) {
-	infov2 := (*subnet.Info)(x)
-
-	idv2 := infov2.ID()
-	if idv2 == nil {
-		idv2 = new(refs.SubnetID)
-		infov2.SetID(idv2)
-	}
-
-	id.WriteToV2(idv2)
+	x.id = id
 }
 
-// ReadID reads the identifier of the subnet that Info describes. Arg must not be nil.
-func (x Info) ReadID(id *subnetid.ID) {
-	infov2 := (subnet.Info)(x)
-
-	idv2 := infov2.ID()
-	if idv2 == nil {
-		subnetid.MakeZero(id)
-		return
-	}
-
-	id.FromV2(*idv2)
+// ID returns subnet identifier set using SetID.
+//
+// Zero Info refers to the zero subnet.
+func (x Info) ID() subnetid.ID {
+	return x.id
 }
 
-// SetOwner sets subnet owner ID.
+// SetOwner sets identifier of the subnet owner.
 func (x *Info) SetOwner(id user.ID) {
-	infov2 := (*subnet.Info)(x)
-
-	idv2 := infov2.Owner()
-	if idv2 == nil {
-		idv2 = new(refs.OwnerID)
-		infov2.SetOwner(idv2)
-	}
-
-	id.WriteToV2(idv2)
+	x.owner = id
 }
 
-// ReadOwner reads the identifier of the subnet that Info describes.
-// Must be called only if owner is set (see HasOwner). Arg must not be nil.
-func (x Info) ReadOwner(id *user.ID) {
-	infov2 := (subnet.Info)(x)
-
-	id2 := infov2.Owner()
-	if id2 == nil {
-		*id = user.ID{}
-		return
-	}
-
-	if ownerV2 := infov2.Owner(); ownerV2 != nil {
-		_ = id.ReadFromV2(*ownerV2)
-	}
+// Owner returns subnet owner set using SetOwner.
+//
+// Zero Info has no owner which is incorrect according to the
+// NeoFS API protocol.
+func (x Info) Owner() user.ID {
+	return x.owner
 }
 
-// IsOwner checks subnet ownership.
-func IsOwner(info Info, id user.ID) bool {
-	var id2 user.ID
-
-	info.ReadOwner(&id2)
-
-	return id.Equals(id2)
+// AssertOwnership checks if the given info describes the subnet owned by the
+// given user.
+func AssertOwnership(info Info, id user.ID) bool {
+	return id.Equals(info.Owner())
 }
 
-// IDEquals checks if ID refers to subnet that Info describes.
-func IDEquals(info Info, id subnetid.ID) bool {
-	id2 := new(subnetid.ID)
-
-	info.ReadID(id2)
-
-	return id.Equals(id2)
+// AssertReference checks if the given info describes the subnet referenced by
+// the given id.
+func AssertReference(info Info, id subnetid.ID) bool {
+	return id.Equals(info.ID())
 }

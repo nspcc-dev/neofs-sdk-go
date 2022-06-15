@@ -36,13 +36,31 @@ func (p *PlacementPolicy) ToV2() *netmap.PlacementPolicy {
 
 // SubnetID returns subnet to select nodes from.
 func (p *PlacementPolicy) SubnetID() *subnetid.ID {
-	return (*subnetid.ID)(
-		(*netmap.PlacementPolicy)(p).GetSubnetID())
+	idv2 := (*netmap.PlacementPolicy)(p).GetSubnetID()
+	if idv2 == nil {
+		return nil
+	}
+
+	var id subnetid.ID
+
+	err := id.ReadFromV2(*idv2)
+	if err != nil {
+		panic(err) // will disappear after netmap package refactor
+	}
+
+	return &id
 }
 
 // SetSubnetID sets subnet to select nodes from.
 func (p *PlacementPolicy) SetSubnetID(subnet *subnetid.ID) {
-	(*netmap.PlacementPolicy)(p).SetSubnetID((*refs.SubnetID)(subnet))
+	var idv2 *refs.SubnetID
+
+	if subnet != nil {
+		idv2 = new(refs.SubnetID)
+		subnet.WriteToV2(idv2)
+	}
+
+	(*netmap.PlacementPolicy)(p).SetSubnetID(idv2)
 }
 
 // Replicas returns list of object replica descriptors.

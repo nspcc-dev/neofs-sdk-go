@@ -3,11 +3,10 @@ package subnet_test
 import (
 	"testing"
 
-	subnetv2 "github.com/nspcc-dev/neofs-api-go/v2/subnet"
-	subnettest "github.com/nspcc-dev/neofs-api-go/v2/subnet/test"
 	. "github.com/nspcc-dev/neofs-sdk-go/subnet"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
+	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
+	subnettest "github.com/nspcc-dev/neofs-sdk-go/subnet/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -15,55 +14,35 @@ import (
 func TestInfoZero(t *testing.T) {
 	var info Info
 
-	var id subnetid.ID
-	info.ReadID(&id)
-
-	require.True(t, subnetid.IsZero(id))
+	require.Zero(t, info.ID())
+	require.True(t, subnetid.IsZero(info.ID()))
 }
 
 func TestInfo_SetID(t *testing.T) {
-	var (
-		id   subnetid.ID
-		info Info
-	)
+	id := subnetidtest.ID()
 
-	id.SetNumber(222)
-
+	var info Info
 	info.SetID(id)
 
-	require.True(t, IDEquals(info, id))
+	require.Equal(t, id, info.ID())
+	require.True(t, AssertReference(info, id))
 }
 
 func TestInfo_SetOwner(t *testing.T) {
-	var (
-		id   user.ID
-		info Info
-	)
+	id := *usertest.ID()
 
-	id = *usertest.ID()
-
-	require.False(t, IsOwner(info, id))
-
+	var info Info
 	info.SetOwner(id)
 
-	require.True(t, IsOwner(info, id))
+	require.Equal(t, id, info.Owner())
+	require.True(t, AssertOwnership(info, id))
 }
 
-func TestInfo_WriteToV2(t *testing.T) {
-	var (
-		infoTo, infoFrom Info
+func TestInfo_Marshal(t *testing.T) {
+	info := subnettest.Info()
 
-		infoV2From, infoV2To subnetv2.Info
-	)
+	var info2 Info
+	require.NoError(t, info2.Unmarshal(info.Marshal()))
 
-	infoV2From = *subnettest.GenerateSubnetInfo(false)
-
-	infoFrom.FromV2(infoV2From)
-
-	infoFrom.WriteToV2(&infoV2To)
-
-	infoTo.FromV2(infoV2To)
-
-	require.Equal(t, infoV2From, infoV2To)
-	require.Equal(t, infoFrom, infoTo)
+	require.Equal(t, info, info2)
 }

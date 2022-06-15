@@ -14,26 +14,26 @@ func TestIsZero(t *testing.T) {
 
 	require.True(t, subnetid.IsZero(id))
 
-	id.SetNumber(13)
+	id.SetNumeric(13)
 	require.False(t, subnetid.IsZero(id))
 
-	id.SetNumber(0)
+	id.SetNumeric(0)
 	require.True(t, subnetid.IsZero(id))
 }
 
-func TestID_FromV2(t *testing.T) {
+func TestID_ReadFromV2(t *testing.T) {
 	const num = 13
 
 	var id1 subnetid.ID
-	id1.SetNumber(num)
+	id1.SetNumeric(num)
 
 	var idv2 refs.SubnetID
 	idv2.SetValue(num)
 
 	var id2 subnetid.ID
-	id2.FromV2(idv2)
+	require.NoError(t, id2.ReadFromV2(idv2))
 
-	require.True(t, id1.Equals(&id2))
+	require.True(t, id1.Equals(id2))
 }
 
 func TestID_WriteToV2(t *testing.T) {
@@ -47,7 +47,7 @@ func TestID_WriteToV2(t *testing.T) {
 	id.WriteToV2(&idv2)
 	require.Zero(t, idv2.GetValue())
 
-	id.SetNumber(num)
+	id.SetNumeric(num)
 
 	id.WriteToV2(&idv2)
 	require.EqualValues(t, num, idv2.GetValue())
@@ -58,36 +58,30 @@ func TestID_Equals(t *testing.T) {
 
 	var id1, id2, idOther, id0 subnetid.ID
 
-	id0.Equals(nil)
+	id0.Equals(subnetid.ID{})
 
-	id1.SetNumber(num)
-	id2.SetNumber(num)
-	idOther.SetNumber(num + 1)
+	id1.SetNumeric(num)
+	id2.SetNumeric(num)
+	idOther.SetNumeric(num + 1)
 
-	require.True(t, id1.Equals(&id2))
-	require.False(t, id1.Equals(&idOther))
-	require.False(t, id2.Equals(&idOther))
+	require.True(t, id1.Equals(id2))
+	require.False(t, id1.Equals(idOther))
+	require.False(t, id2.Equals(idOther))
 }
 
 func TestSubnetIDEncoding(t *testing.T) {
 	id := subnetidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
-
 		var id2 subnetid.ID
-		require.NoError(t, id2.Unmarshal(data))
+		require.NoError(t, id2.Unmarshal(id.Marshal()))
 
 		require.True(t, id2.Equals(id))
 	})
 
 	t.Run("text", func(t *testing.T) {
-		data, err := id.MarshalText()
-		require.NoError(t, err)
-
 		var id2 subnetid.ID
-		require.NoError(t, id2.UnmarshalText(data))
+		require.NoError(t, id2.DecodeString(id.EncodeToString()))
 
 		require.True(t, id2.Equals(id))
 	})
@@ -95,12 +89,12 @@ func TestSubnetIDEncoding(t *testing.T) {
 
 func TestMakeZero(t *testing.T) {
 	var id subnetid.ID
-
-	id.SetNumber(13)
+	id.SetNumeric(13)
 
 	require.False(t, subnetid.IsZero(id))
 
 	subnetid.MakeZero(&id)
 
 	require.True(t, subnetid.IsZero(id))
+	require.Equal(t, subnetid.ID{}, id)
 }

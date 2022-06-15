@@ -2,95 +2,104 @@ package subnetid
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
-// ID represents NeoFS subnet identifier.
+// ID represents unique identifier of the subnet in the NeoFS network.
 //
-// The type is compatible with the corresponding message from NeoFS API V2 protocol.
+// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.SubnetID
+// message. See ReadFromV2 / WriteToV2 methods.
 //
-// Zero value and nil pointer is equivalent to zero subnet ID.
-type ID refs.SubnetID
-
-// FromV2 initializes ID from refs.SubnetID message structure. Must not be called on nil.
-//
-// Note: nil refs.SubnetID corresponds to zero ID value or nil pointer to it.
-func (x *ID) FromV2(msg refs.SubnetID) {
-	*x = ID(msg)
+// Instances can be created using built-in var declaration. Zero value is
+// equivalent to identifier of the zero subnet (whole NeoFS network).
+type ID struct {
+	m refs.SubnetID
 }
 
-// WriteToV2 writes ID to refs.SubnetID message structure. The message must not be nil.
+// ReadFromV2 reads ID from the refs.SubnetID message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
-// Note: nil ID corresponds to zero refs.SubnetID value or nil pointer to it.
+// See also WriteToV2.
+func (x *ID) ReadFromV2(msg refs.SubnetID) error {
+	x.m = msg
+	return nil
+}
+
+// WriteToV2 writes ID to refs.SubnetID message structure. The message MUST NOT
+// be nil.
+//
+// See also ReadFromV2.
 func (x ID) WriteToV2(msg *refs.SubnetID) {
-	*msg = refs.SubnetID(x)
+	*msg = x.m
 }
 
-// Equals returns true iff both instances identify the same subnet.
+// Equals defines a comparison relation between two ID instances.
 //
-// Method is NPE-safe: nil pointer equals to pointer to zero value.
-func (x *ID) Equals(x2 *ID) bool {
-	return (*refs.SubnetID)(x).GetValue() == (*refs.SubnetID)(x2).GetValue()
+// Note that comparison using '==' operator is not recommended since it MAY result
+// in loss of compatibility.
+func (x ID) Equals(x2 ID) bool {
+	return x.m.GetValue() == x2.m.GetValue()
 }
 
-// MarshalText encodes ID into text format according to particular NeoFS API protocol.
-// Supported versions:
-//  * V2 (see refs.SubnetID type).
+// EncodeToString encodes ID into NeoFS API protocol string (base10 encoding).
 //
-// Implements encoding.TextMarshaler.
-func (x *ID) MarshalText() ([]byte, error) {
-	return (*refs.SubnetID)(x).MarshalText()
+// See also DecodeString.
+func (x ID) EncodeToString() string {
+	return strconv.FormatUint(uint64(x.m.GetValue()), 10)
 }
 
-// UnmarshalText decodes ID from the text according to particular NeoFS API protocol.
-// Must not be called on nil. Supported versions:
-//  * V2 (see refs.SubnetID type).
-//
-// Implements encoding.TextUnmarshaler.
-func (x *ID) UnmarshalText(text []byte) error {
-	return (*refs.SubnetID)(x).UnmarshalText(text)
-}
-
-// String returns string representation of ID using MarshalText.
-// Returns string with message on error.
-//
-// Implements fmt.Stringer.
-func (x *ID) String() string {
-	text, err := x.MarshalText()
+// DecodeString decodes string calculated using EncodeToString. Returns
+// an error if s is malformed.
+func (x *ID) DecodeString(s string) error {
+	num, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
-		return fmt.Sprintf("<invalid> %v", err)
+		return fmt.Errorf("invalid numeric value: %w", err)
 	}
 
-	return string(text)
+	x.m.SetValue(uint32(num))
+
+	return nil
 }
 
-// Marshal encodes ID into a binary format of NeoFS API V2 protocol (Protocol Buffers with direct field order).
-func (x *ID) Marshal() ([]byte, error) {
-	return (*refs.SubnetID)(x).StableMarshal(nil), nil
-}
-
-// Unmarshal decodes ID from NeoFS API V2 binary format (see Marshal). Must not be called on nil.
+// String implements fmt.Stringer.
 //
-// Note: empty data corresponds to zero ID value or nil pointer to it.
+// String is designed to be human-readable, and its format MAY differ between
+// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// be used to encode ID into NeoFS protocol string.
+func (x ID) String() string {
+	return "#" + strconv.FormatUint(uint64(x.m.GetValue()), 10)
+}
+
+// Marshal encodes ID into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
+//
+// See also Unmarshal.
+func (x ID) Marshal() []byte {
+	return x.m.StableMarshal(nil)
+}
+
+// Unmarshal decodes binary ID calculated using Marshal. Returns an error
+// describing a format violation.
 func (x *ID) Unmarshal(data []byte) error {
-	return (*refs.SubnetID)(x).Unmarshal(data)
+	return x.m.Unmarshal(data)
 }
 
-// SetNumber sets ID value in uint32 format. Must not be called on nil.
-// By default, number is 0 which refers to zero subnet.
-func (x *ID) SetNumber(num uint32) {
-	(*refs.SubnetID)(x).SetValue(num)
+// SetNumeric sets ID value in numeric format. By default, number is 0 which
+// refers to the zero subnet.
+func (x *ID) SetNumeric(num uint32) {
+	x.m.SetValue(num)
 }
 
-// IsZero returns true iff the ID refers to zero subnet.
+// IsZero compares id with zero subnet ID.
 func IsZero(id ID) bool {
-	return id.Equals(nil)
+	return id.Equals(ID{})
 }
 
-// MakeZero makes ID to refer to zero subnet. Arg must not be nil (it is already zero).
+// MakeZero makes ID to refer to zero subnet.
 //
 // Makes no sense to call on zero value (e.g. declared using var).
 func MakeZero(id *ID) {
-	id.SetNumber(0)
+	id.SetNumeric(0)
 }
