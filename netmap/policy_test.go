@@ -1,9 +1,11 @@
-package netmap
+package netmap_test
 
 import (
 	"strings"
 	"testing"
 
+	. "github.com/nspcc-dev/neofs-sdk-go/netmap"
+	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,4 +35,25 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 
 		require.Equal(t, testCase, b.String())
 	}
+}
+
+func TestPlacementPolicyEncoding(t *testing.T) {
+	v := netmaptest.PlacementPolicy()
+
+	t.Run("binary", func(t *testing.T) {
+		var v2 PlacementPolicy
+		require.NoError(t, v2.Unmarshal(v.Marshal()))
+
+		require.Equal(t, v, v2)
+	})
+
+	t.Run("json", func(t *testing.T) {
+		data, err := v.MarshalJSON()
+		require.NoError(t, err)
+
+		var v2 PlacementPolicy
+		require.NoError(t, v2.UnmarshalJSON(data))
+
+		require.Equal(t, v, v2)
+	})
 }
