@@ -187,7 +187,9 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		return nil, x.ctxCall.err
 	}
 
-	if !x.ctxCall.processResponse() {
+	x.ctxCall.processResponse()
+
+	if x.ctxCall.err != nil {
 		return nil, x.ctxCall.err
 	}
 
