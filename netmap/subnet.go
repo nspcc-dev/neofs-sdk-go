@@ -2,6 +2,7 @@ package netmap
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -48,9 +49,12 @@ func (i *NodeInfo) IterateSubnets(f func(subnetid.ID) error) error {
 	var id subnetid.ID
 
 	return netmap.IterateSubnets((*netmap.NodeInfo)(i), func(idv2 refs.SubnetID) error {
-		id.FromV2(idv2)
+		err := id.ReadFromV2(idv2)
+		if err != nil {
+			return fmt.Errorf("invalid subnet: %w", err)
+		}
 
-		err := f(id)
+		err = f(id)
 		if errors.Is(err, ErrRemoveSubnet) {
 			return netmap.ErrRemoveSubnet
 		}
@@ -66,7 +70,7 @@ var errAbortSubnetIter = errors.New("abort subnet iterator")
 // Function is NPE-safe: nil NodeInfo always belongs to zero subnet only.
 func BelongsToSubnet(node *NodeInfo, id subnetid.ID) bool {
 	err := node.IterateSubnets(func(id_ subnetid.ID) error {
-		if id.Equals(&id_) {
+		if id.Equals(id_) {
 			return errAbortSubnetIter
 		}
 

@@ -12,7 +12,7 @@ func TestNodeInfoSubnets(t *testing.T) {
 	t.Run("enter subnet", func(t *testing.T) {
 		var id subnetid.ID
 
-		id.SetNumber(13)
+		id.SetNumeric(13)
 
 		var node netmap.NodeInfo
 
@@ -35,8 +35,8 @@ func TestNodeInfoSubnets(t *testing.T) {
 		t.Run("not last", func(t *testing.T) {
 			var id, idrm subnetid.ID
 
-			id.SetNumber(13)
-			idrm.SetNumber(23)
+			id.SetNumeric(13)
+			idrm.SetNumeric(23)
 
 			var node netmap.NodeInfo
 
@@ -44,7 +44,7 @@ func TestNodeInfoSubnets(t *testing.T) {
 			node.EnterSubnet(idrm)
 
 			err := node.IterateSubnets(func(id subnetid.ID) error {
-				if subnetid.IsZero(id) || id.Equals(&idrm) {
+				if subnetid.IsZero(id) || id.Equals(idrm) {
 					return netmap.ErrRemoveSubnet
 				}
 
@@ -100,7 +100,7 @@ func TestEnterSubnet(t *testing.T) {
 	node.ExitSubnet(id)
 	require.False(t, netmap.BelongsToSubnet(&node, id))
 
-	id.SetNumber(10)
+	id.SetNumeric(10)
 	node.EnterSubnet(id)
 	require.True(t, netmap.BelongsToSubnet(&node, id))
 	require.False(t, netmap.BelongsToSubnet(&node, subnetid.ID{}))
@@ -113,8 +113,8 @@ func TestEnterSubnet(t *testing.T) {
 func TestBelongsToSubnet(t *testing.T) {
 	var id, idMiss, idZero subnetid.ID
 
-	id.SetNumber(13)
-	idMiss.SetNumber(23)
+	id.SetNumeric(13)
+	idMiss.SetNumeric(23)
 
 	var node netmap.NodeInfo
 
