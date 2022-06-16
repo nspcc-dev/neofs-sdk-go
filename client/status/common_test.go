@@ -50,3 +50,42 @@ func TestWrongMagicNumber_CorrectMagic(t *testing.T) {
 	_, ok = st.CorrectMagic()
 	require.EqualValues(t, -1, ok)
 }
+
+func TestSignatureVerification(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		var st apistatus.SignatureVerification
+
+		require.Empty(t, st.Message())
+	})
+
+	t.Run("custom message", func(t *testing.T) {
+		var st apistatus.SignatureVerification
+		msg := "some message"
+
+		st.SetMessage(msg)
+
+		stV2 := st.ToStatusV2()
+
+		require.Equal(t, msg, st.Message())
+		require.Equal(t, msg, stV2.Message())
+	})
+
+	t.Run("empty to V2", func(t *testing.T) {
+		var st apistatus.SignatureVerification
+
+		stV2 := st.ToStatusV2()
+
+		require.Equal(t, "signature verification failed", stV2.Message())
+	})
+
+	t.Run("non-empty to V2", func(t *testing.T) {
+		var st apistatus.SignatureVerification
+		msg := "some other msg"
+
+		st.SetMessage(msg)
+
+		stV2 := st.ToStatusV2()
+
+		require.Equal(t, msg, stV2.Message())
+	})
+}

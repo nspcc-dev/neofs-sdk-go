@@ -123,3 +123,54 @@ func (x WrongMagicNumber) CorrectMagic() (magic uint64, ok int8) {
 
 	return
 }
+
+// SignatureVerification describes failure status related to signature verification.
+// Instances provide Status and StatusV2 interfaces.
+type SignatureVerification struct {
+	v2 status.Status
+}
+
+func (x SignatureVerification) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail),
+		x.v2.Message(),
+	)
+}
+
+// implements local interface defined in FromStatusV2 func.
+func (x *SignatureVerification) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//  * code: SIGNATURE_VERIFICATION_FAIL;
+//  * string message: written message via SetMessage or
+//    "signature verification failed" as a default message;
+//  * details: empty.
+func (x SignatureVerification) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail))
+
+	if x.v2.Message() == "" {
+		x.v2.SetMessage("signature verification failed")
+	}
+
+	return &x.v2
+}
+
+// SetMessage writes signature verification failure message.
+// Message should be used for debug purposes only.
+//
+// See also Message.
+func (x *SignatureVerification) SetMessage(v string) {
+	x.v2.SetMessage(v)
+}
+
+// Message returns status message. Zero status returns empty message.
+// Message should be used for debug purposes only.
+//
+// See also SetMessage.
+func (x SignatureVerification) Message() string {
+	return x.v2.Message()
+}

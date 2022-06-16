@@ -31,7 +31,8 @@ type StatusV2 interface {
 //   * status.OK: *SuccessDefaultV2 (this also includes nil argument).
 //
 // Common failures:
-//   * status.Internal: *ServerInternal.
+//   * status.Internal: *ServerInternal;
+//   * status.SignatureVerificationFail: *SignatureVerification.
 //
 // Object failures:
 //   * object.StatusLocked: *ObjectLocked;
@@ -55,6 +56,8 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(ServerInternal)
 		case status.WrongMagicNumber:
 			decoder = new(WrongMagicNumber)
+		case status.SignatureVerificationFail:
+			decoder = new(SignatureVerification)
 		}
 	case object.LocalizeFailStatus(&code):
 		switch code {
