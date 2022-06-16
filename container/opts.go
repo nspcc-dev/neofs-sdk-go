@@ -4,7 +4,6 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -13,7 +12,7 @@ type (
 	Option func(*containerOptions)
 
 	containerOptions struct {
-		acl        acl.BasicACL
+		acl        BasicACL
 		policy     *netmap.PlacementPolicy
 		attributes Attributes
 		owner      *user.ID
@@ -28,24 +27,24 @@ func defaultContainerOptions() containerOptions {
 	}
 
 	return containerOptions{
-		acl:   acl.PrivateBasicRule,
+		acl:   BasicACLPrivate,
 		nonce: rand,
 	}
 }
 
 func WithPublicBasicACL() Option {
 	return func(option *containerOptions) {
-		option.acl = acl.PublicBasicRule
+		option.acl = BasicACLPublicRW
 	}
 }
 
 func WithReadOnlyBasicACL() Option {
 	return func(option *containerOptions) {
-		option.acl = acl.ReadOnlyBasicRule
+		option.acl = BasicACLPublicRO
 	}
 }
 
-func WithCustomBasicACL(acl acl.BasicACL) Option {
+func WithCustomBasicACL(acl BasicACL) Option {
 	return func(option *containerOptions) {
 		option.acl = acl
 	}

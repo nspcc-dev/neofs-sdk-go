@@ -31,7 +31,7 @@ func Container() *container.Container {
 	x.SetVersion(&ver)
 	x.SetAttributes(Attributes())
 	x.SetOwnerID(usertest.ID())
-	x.SetBasicACL(123)
+	x.SetBasicACL(container.BasicACLPublicRW)
 	p := netmaptest.PlacementPolicy()
 	x.SetPlacementPolicy(&p)
 
