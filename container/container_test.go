@@ -6,6 +6,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
@@ -23,7 +24,7 @@ func TestNewContainer(t *testing.T) {
 	ownerID := usertest.ID()
 	policy := netmaptest.PlacementPolicy()
 
-	c.SetBasicACL(container.BasicACLPublicRW)
+	c.SetBasicACL(acl.PublicRW)
 
 	attrs := containertest.Attributes()
 	c.SetAttributes(attrs)
@@ -40,7 +41,7 @@ func TestNewContainer(t *testing.T) {
 
 	require.EqualValues(t, newContainer.PlacementPolicy(), &policy)
 	require.EqualValues(t, newContainer.Attributes(), attrs)
-	require.EqualValues(t, newContainer.BasicACL(), container.BasicACLPublicRW)
+	require.EqualValues(t, newContainer.BasicACL(), acl.PublicRW)
 
 	newNonce, err := newContainer.NonceUUID()
 	require.NoError(t, err)
@@ -101,7 +102,7 @@ func TestContainer_ToV2(t *testing.T) {
 		require.Nil(t, cnt.PlacementPolicy())
 		require.Nil(t, cnt.OwnerID())
 
-		require.EqualValues(t, container.BasicACLPrivate, cnt.BasicACL())
+		require.EqualValues(t, acl.Private, cnt.BasicACL())
 		require.Equal(t, version.Current(), *cnt.Version())
 
 		nonce, err := cnt.NonceUUID()

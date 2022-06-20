@@ -1,4 +1,4 @@
-package container
+package acl
 
 import (
 	"fmt"
@@ -30,23 +30,23 @@ func TestBits(t *testing.T) {
 func TestOpBits(t *testing.T) {
 	num := uint32(0b_1001_0101_1100_0011_0110_0111_1000_1111)
 
-	require.Panics(t, func() { isOpBitSet(num, aclOpZero, 0) })
-	require.Panics(t, func() { isOpBitSet(num, aclOpLast, 0) })
+	require.Panics(t, func() { isOpBitSet(num, opZero, 0) })
+	require.Panics(t, func() { isOpBitSet(num, opLast, 0) })
 
 	cpNum := num
 
-	require.Panics(t, func() { setOpBit(&num, aclOpZero, 0) })
+	require.Panics(t, func() { setOpBit(&num, opZero, 0) })
 	require.EqualValues(t, cpNum, num)
-	require.Panics(t, func() { setOpBit(&num, aclOpLast, 0) })
+	require.Panics(t, func() { setOpBit(&num, opLast, 0) })
 	require.EqualValues(t, cpNum, num)
 
 	for _, tc := range []struct {
-		op   ACLOp
+		op   Op
 		set  [4]bool   // is bit set (left-to-right)
 		bits [4]uint32 // result of setting i-th bit (left-to-right) to zero num
 	}{
 		{
-			op:  ACLOpObjectHash,
+			op:  OpObjectHash,
 			set: [4]bool{false, true, false, true},
 			bits: [4]uint32{
 				0b_0000_1000_0000_0000_0000_0000_0000_0000,
@@ -56,7 +56,7 @@ func TestOpBits(t *testing.T) {
 			},
 		},
 		{
-			op:  ACLOpObjectRange,
+			op:  OpObjectRange,
 			set: [4]bool{true, true, false, false},
 			bits: [4]uint32{
 				0b_0000_0000_1000_0000_0000_0000_0000_0000,
@@ -66,7 +66,7 @@ func TestOpBits(t *testing.T) {
 			},
 		},
 		{
-			op:  ACLOpObjectSearch,
+			op:  OpObjectSearch,
 			set: [4]bool{false, false, true, true},
 			bits: [4]uint32{
 				0b_0000_0000_0000_1000_0000_0000_0000_0000,
@@ -76,7 +76,7 @@ func TestOpBits(t *testing.T) {
 			},
 		},
 		{
-			op:  ACLOpObjectDelete,
+			op:  OpObjectDelete,
 			set: [4]bool{false, true, true, false},
 			bits: [4]uint32{
 				0b_0000_0000_0000_0000_1000_0000_0000_0000,
@@ -86,7 +86,7 @@ func TestOpBits(t *testing.T) {
 			},
 		},
 		{
-			op:  ACLOpObjectPut,
+			op:  OpObjectPut,
 			set: [4]bool{false, true, true, true},
 			bits: [4]uint32{
 				0b_0000_0000_0000_0000_0000_1000_0000_0000,
@@ -96,7 +96,7 @@ func TestOpBits(t *testing.T) {
 			},
 		},
 		{
-			op:  ACLOpObjectHead,
+			op:  OpObjectHead,
 			set: [4]bool{true, false, false, false},
 			bits: [4]uint32{
 				0b_0000_0000_0000_0000_0000_0000_1000_0000,
@@ -106,7 +106,7 @@ func TestOpBits(t *testing.T) {
 			},
 		},
 		{
-			op:  ACLOpObjectGet,
+			op:  OpObjectGet,
 			set: [4]bool{true, true, true, true},
 			bits: [4]uint32{
 				0b_0000_0000_0000_0000_0000_0000_0000_1000,

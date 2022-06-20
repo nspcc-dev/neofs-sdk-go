@@ -1,4 +1,4 @@
-package container
+package acl
 
 import (
 	"testing"
@@ -6,51 +6,51 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestBasicACL_DisableExtension(t *testing.T) {
-	var val, val2 BasicACL
+func TestBasic_DisableExtension(t *testing.T) {
+	var val, val2 Basic
 
 	require.True(t, val.Extendable())
-	val2.fromUint32(val.toUint32())
+	val2.FromBits(val.Bits())
 	require.True(t, val2.Extendable())
 
 	val.DisableExtension()
 
 	require.False(t, val.Extendable())
-	val2.fromUint32(val.toUint32())
+	val2.FromBits(val.Bits())
 	require.False(t, val2.Extendable())
 }
 
-func TestBasicACL_MakeSticky(t *testing.T) {
-	var val, val2 BasicACL
+func TestBasic_MakeSticky(t *testing.T) {
+	var val, val2 Basic
 
 	require.False(t, val.Sticky())
-	val2.fromUint32(val.toUint32())
+	val2.FromBits(val.Bits())
 	require.False(t, val2.Sticky())
 
 	val.MakeSticky()
 
 	require.True(t, val.Sticky())
-	val2.fromUint32(val.toUint32())
+	val2.FromBits(val.Bits())
 	require.True(t, val2.Sticky())
 }
 
-func TestBasicACL_AllowBearerRules(t *testing.T) {
-	var val BasicACL
+func TestBasic_AllowBearerRules(t *testing.T) {
+	var val Basic
 
-	require.Panics(t, func() { val.AllowBearerRules(aclOpZero) })
-	require.Panics(t, func() { val.AllowBearerRules(aclOpLast) })
+	require.Panics(t, func() { val.AllowBearerRules(opZero) })
+	require.Panics(t, func() { val.AllowBearerRules(opLast) })
 
-	require.Panics(t, func() { val.AllowedBearerRules(aclOpZero) })
-	require.Panics(t, func() { val.AllowedBearerRules(aclOpLast) })
+	require.Panics(t, func() { val.AllowedBearerRules(opZero) })
+	require.Panics(t, func() { val.AllowedBearerRules(opLast) })
 
-	for op := aclOpZero + 1; op < aclOpLast; op++ {
+	for op := opZero + 1; op < opLast; op++ {
 		val := val
 
 		require.False(t, val.AllowedBearerRules(op))
 
 		val.AllowBearerRules(op)
 
-		for j := aclOpZero + 1; j < aclOpLast; j++ {
+		for j := opZero + 1; j < opLast; j++ {
 			if j == op {
 				require.True(t, val.AllowedBearerRules(j), op)
 			} else {
@@ -60,39 +60,39 @@ func TestBasicACL_AllowBearerRules(t *testing.T) {
 	}
 }
 
-func TestBasicACL_AllowOp(t *testing.T) {
-	var val, val2 BasicACL
+func TestBasic_AllowOp(t *testing.T) {
+	var val, val2 Basic
 
-	require.Panics(t, func() { val.IsOpAllowed(aclOpZero, aclRoleZero+1) })
-	require.Panics(t, func() { val.IsOpAllowed(aclOpLast, aclRoleZero+1) })
-	require.Panics(t, func() { val.IsOpAllowed(aclOpZero+1, aclRoleZero) })
-	require.Panics(t, func() { val.IsOpAllowed(aclOpZero+1, aclRoleLast) })
+	require.Panics(t, func() { val.IsOpAllowed(opZero, roleZero+1) })
+	require.Panics(t, func() { val.IsOpAllowed(opLast, roleZero+1) })
+	require.Panics(t, func() { val.IsOpAllowed(opZero+1, roleZero) })
+	require.Panics(t, func() { val.IsOpAllowed(opZero+1, roleLast) })
 
-	for op := aclOpZero + 1; op < aclOpLast; op++ {
-		require.Panics(t, func() { val.AllowOp(op, ACLRoleInnerRing) })
+	for op := opZero + 1; op < opLast; op++ {
+		require.Panics(t, func() { val.AllowOp(op, RoleInnerRing) })
 
 		if isReplicationOp(op) {
-			require.Panics(t, func() { val.AllowOp(op, ACLRoleContainer) })
-			require.True(t, val.IsOpAllowed(op, ACLRoleContainer))
+			require.Panics(t, func() { val.AllowOp(op, RoleContainer) })
+			require.True(t, val.IsOpAllowed(op, RoleContainer))
 		}
 	}
 
-	require.True(t, val.IsOpAllowed(ACLOpObjectGet, ACLRoleInnerRing))
-	require.True(t, val.IsOpAllowed(ACLOpObjectHead, ACLRoleInnerRing))
-	require.True(t, val.IsOpAllowed(ACLOpObjectSearch, ACLRoleInnerRing))
-	require.True(t, val.IsOpAllowed(ACLOpObjectHash, ACLRoleInnerRing))
+	require.True(t, val.IsOpAllowed(OpObjectGet, RoleInnerRing))
+	require.True(t, val.IsOpAllowed(OpObjectHead, RoleInnerRing))
+	require.True(t, val.IsOpAllowed(OpObjectSearch, RoleInnerRing))
+	require.True(t, val.IsOpAllowed(OpObjectHash, RoleInnerRing))
 
-	const op = aclOpZero + 1
-	const role = ACLRoleOthers
+	const op = opZero + 1
+	const role = RoleOthers
 
 	require.False(t, val.IsOpAllowed(op, role))
-	val2.fromUint32(val.toUint32())
+	val2.FromBits(val.Bits())
 	require.False(t, val2.IsOpAllowed(op, role))
 
 	val.AllowOp(op, role)
 
 	require.True(t, val.IsOpAllowed(op, role))
-	val2.fromUint32(val.toUint32())
+	val2.FromBits(val.Bits())
 	require.True(t, val2.IsOpAllowed(op, role))
 }
 
@@ -100,21 +100,21 @@ type opsExpected struct {
 	owner, container, innerRing, others, bearer bool
 }
 
-func testOp(t *testing.T, v BasicACL, op ACLOp, exp opsExpected) {
-	require.Equal(t, exp.owner, v.IsOpAllowed(op, ACLRoleOwner), op)
-	require.Equal(t, exp.container, v.IsOpAllowed(op, ACLRoleContainer), op)
-	require.Equal(t, exp.innerRing, v.IsOpAllowed(op, ACLRoleInnerRing), op)
-	require.Equal(t, exp.others, v.IsOpAllowed(op, ACLRoleOthers), op)
+func testOp(t *testing.T, v Basic, op Op, exp opsExpected) {
+	require.Equal(t, exp.owner, v.IsOpAllowed(op, RoleOwner), op)
+	require.Equal(t, exp.container, v.IsOpAllowed(op, RoleContainer), op)
+	require.Equal(t, exp.innerRing, v.IsOpAllowed(op, RoleInnerRing), op)
+	require.Equal(t, exp.others, v.IsOpAllowed(op, RoleOthers), op)
 	require.Equal(t, exp.bearer, v.AllowedBearerRules(op), op)
 }
 
 type expected struct {
 	extendable, sticky bool
 
-	mOps map[ACLOp]opsExpected
+	mOps map[Op]opsExpected
 }
 
-func testBasicACLPredefined(t *testing.T, val BasicACL, name string, exp expected) {
+func testBasicPredefined(t *testing.T, val Basic, name string, exp expected) {
 	require.Equal(t, exp.sticky, val.Sticky())
 	require.Equal(t, exp.extendable, val.Extendable())
 
@@ -124,7 +124,7 @@ func testBasicACLPredefined(t *testing.T, val BasicACL, name string, exp expecte
 
 	s := val.EncodeToString()
 
-	var val2 BasicACL
+	var val2 Basic
 
 	require.NoError(t, val2.DecodeString(s))
 	require.Equal(t, val, val2)
@@ -133,55 +133,55 @@ func testBasicACLPredefined(t *testing.T, val BasicACL, name string, exp expecte
 	require.Equal(t, val, val2)
 }
 
-func TestBasicACLPredefined(t *testing.T) {
+func TestBasicPredefined(t *testing.T) {
 	t.Run("private", func(t *testing.T) {
 		exp := expected{
 			extendable: false,
 			sticky:     false,
-			mOps: map[ACLOp]opsExpected{
-				ACLOpObjectHash: {
+			mOps: map[Op]opsExpected{
+				OpObjectHash: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectRange: {
+				OpObjectRange: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectSearch: {
+				OpObjectSearch: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectDelete: {
+				OpObjectDelete: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectPut: {
+				OpObjectPut: {
 					owner:     true,
 					container: true,
 					innerRing: false,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectHead: {
+				OpObjectHead: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectGet: {
+				OpObjectGet: {
 					owner:     true,
 					container: true,
 					innerRing: true,
@@ -191,59 +191,59 @@ func TestBasicACLPredefined(t *testing.T) {
 			},
 		}
 
-		testBasicACLPredefined(t, BasicACLPrivate, BasicACLNamePrivate, exp)
+		testBasicPredefined(t, Private, NamePrivate, exp)
 		exp.extendable = true
-		testBasicACLPredefined(t, BasicACLPrivateExtended, BasicACLNamePrivateExtended, exp)
+		testBasicPredefined(t, PrivateExtended, NamePrivateExtended, exp)
 	})
 
 	t.Run("public-read", func(t *testing.T) {
 		exp := expected{
 			extendable: false,
 			sticky:     false,
-			mOps: map[ACLOp]opsExpected{
-				ACLOpObjectHash: {
+			mOps: map[Op]opsExpected{
+				OpObjectHash: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectRange: {
+				OpObjectRange: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectSearch: {
+				OpObjectSearch: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectDelete: {
+				OpObjectDelete: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectPut: {
+				OpObjectPut: {
 					owner:     true,
 					container: true,
 					innerRing: false,
 					others:    false,
 					bearer:    false,
 				},
-				ACLOpObjectHead: {
+				OpObjectHead: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectGet: {
+				OpObjectGet: {
 					owner:     true,
 					container: true,
 					innerRing: true,
@@ -253,59 +253,59 @@ func TestBasicACLPredefined(t *testing.T) {
 			},
 		}
 
-		testBasicACLPredefined(t, BasicACLPublicRO, BasicACLNamePublicRO, exp)
+		testBasicPredefined(t, PublicRO, NamePublicRO, exp)
 		exp.extendable = true
-		testBasicACLPredefined(t, BasicACLPublicROExtended, BasicACLNamePublicROExtended, exp)
+		testBasicPredefined(t, PublicROExtended, NamePublicROExtended, exp)
 	})
 
 	t.Run("public-read-write", func(t *testing.T) {
 		exp := expected{
 			extendable: false,
 			sticky:     false,
-			mOps: map[ACLOp]opsExpected{
-				ACLOpObjectHash: {
+			mOps: map[Op]opsExpected{
+				OpObjectHash: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectRange: {
+				OpObjectRange: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectSearch: {
+				OpObjectSearch: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectDelete: {
+				OpObjectDelete: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectPut: {
+				OpObjectPut: {
 					owner:     true,
 					container: true,
 					innerRing: false,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectHead: {
+				OpObjectHead: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectGet: {
+				OpObjectGet: {
 					owner:     true,
 					container: true,
 					innerRing: true,
@@ -315,59 +315,59 @@ func TestBasicACLPredefined(t *testing.T) {
 			},
 		}
 
-		testBasicACLPredefined(t, BasicACLPublicRW, BasicACLNamePublicRW, exp)
+		testBasicPredefined(t, PublicRW, NamePublicRW, exp)
 		exp.extendable = true
-		testBasicACLPredefined(t, BasicACLPublicRWExtended, BasicACLNamePublicRWExtended, exp)
+		testBasicPredefined(t, PublicRWExtended, NamePublicRWExtended, exp)
 	})
 
 	t.Run("public-append", func(t *testing.T) {
 		exp := expected{
 			extendable: false,
 			sticky:     false,
-			mOps: map[ACLOp]opsExpected{
-				ACLOpObjectHash: {
+			mOps: map[Op]opsExpected{
+				OpObjectHash: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectRange: {
+				OpObjectRange: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectSearch: {
+				OpObjectSearch: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectDelete: {
+				OpObjectDelete: {
 					owner:     true,
 					container: false,
 					innerRing: false,
 					others:    false,
 					bearer:    true,
 				},
-				ACLOpObjectPut: {
+				OpObjectPut: {
 					owner:     true,
 					container: true,
 					innerRing: false,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectHead: {
+				OpObjectHead: {
 					owner:     true,
 					container: true,
 					innerRing: true,
 					others:    true,
 					bearer:    true,
 				},
-				ACLOpObjectGet: {
+				OpObjectGet: {
 					owner:     true,
 					container: true,
 					innerRing: true,
@@ -377,8 +377,8 @@ func TestBasicACLPredefined(t *testing.T) {
 			},
 		}
 
-		testBasicACLPredefined(t, BasicACLPublicAppend, BasicACLNamePublicAppend, exp)
+		testBasicPredefined(t, PublicAppend, NamePublicAppend, exp)
 		exp.extendable = true
-		testBasicACLPredefined(t, BasicACLPublicAppendExtended, BasicACLNamePublicAppendExtended, exp)
+		testBasicPredefined(t, PublicAppendExtended, NamePublicAppendExtended, exp)
 	})
 }
