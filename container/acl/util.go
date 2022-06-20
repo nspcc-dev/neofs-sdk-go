@@ -1,4 +1,4 @@
-package container
+package acl
 
 import "fmt"
 
@@ -21,11 +21,11 @@ func isBitSet(num uint32, n uint8) bool {
 	return mask != 0 && num&mask == mask
 }
 
-// maps ACLOp to op-section index in BasicACL. Filled on init.
-var mOrder map[ACLOp]uint8
+// maps Op to op-section index in Basic. Filled on init.
+var mOrder map[Op]uint8
 
 // sets n-th bit in num for the given op. Panics if op is unsupported.
-func setOpBit(num *uint32, op ACLOp, opBitPos uint8) {
+func setOpBit(num *uint32, op Op, opBitPos uint8) {
 	n, ok := mOrder[op]
 	if !ok {
 		panic(fmt.Sprintf("op is unsupported %v", op))
@@ -35,7 +35,7 @@ func setOpBit(num *uint32, op ACLOp, opBitPos uint8) {
 }
 
 // checks if n-th bit in num for the given op is set. Panics if op is unsupported.
-func isOpBitSet(num uint32, op ACLOp, n uint8) bool {
+func isOpBitSet(num uint32, op Op, n uint8) bool {
 	off, ok := mOrder[op]
 	if !ok {
 		panic(fmt.Sprintf("op is unsupported %v", op))

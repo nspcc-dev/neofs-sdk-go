@@ -2,6 +2,7 @@ package containertest
 
 import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -31,7 +32,7 @@ func Container() *container.Container {
 	x.SetVersion(&ver)
 	x.SetAttributes(Attributes())
 	x.SetOwnerID(usertest.ID())
-	x.SetBasicACL(container.BasicACLPublicRW)
+	x.SetBasicACL(BasicACL())
 	p := netmaptest.PlacementPolicy()
 	x.SetPlacementPolicy(&p)
 
@@ -47,4 +48,10 @@ func UsedSpaceAnnouncement() *container.UsedSpaceAnnouncement {
 	x.SetUsedSpace(999)
 
 	return x
+}
+
+// BasicACL returns random acl.Basic.
+func BasicACL() (x acl.Basic) {
+	x.FromBits(0xffffffff)
+	return
 }

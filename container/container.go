@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -22,7 +23,7 @@ type Container struct {
 // Defaults:
 //  - token: nil;
 //  - sig: nil;
-//  - basicACL: BasicACLPrivate;
+//  - basicACL: Private;
 //  - version: version.Current;
 //  - nonce: random UUID;
 //  - attr: nil;
@@ -135,13 +136,13 @@ func (c *Container) SetNonceUUID(v uuid.UUID) {
 	c.v2.SetNonce(data)
 }
 
-func (c *Container) BasicACL() (res BasicACL) {
-	res.fromUint32(c.v2.GetBasicACL())
+func (c *Container) BasicACL() (res acl.Basic) {
+	res.FromBits(c.v2.GetBasicACL())
 	return
 }
 
-func (c *Container) SetBasicACL(v BasicACL) {
-	c.v2.SetBasicACL(v.toUint32())
+func (c *Container) SetBasicACL(v acl.Basic) {
+	c.v2.SetBasicACL(v.Bits())
 }
 
 func (c *Container) Attributes() Attributes {
