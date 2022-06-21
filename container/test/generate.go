@@ -1,6 +1,8 @@
 package containertest
 
 import (
+	"math/rand"
+
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -52,6 +54,6 @@ func UsedSpaceAnnouncement() *container.UsedSpaceAnnouncement {
 
 // BasicACL returns random acl.Basic.
 func BasicACL() (x acl.Basic) {
-	x.FromBits(0xffffffff)
+	x.FromBits(rand.Uint32())
 	return
 }

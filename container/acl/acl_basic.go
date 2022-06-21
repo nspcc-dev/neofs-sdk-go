@@ -68,7 +68,7 @@ func (x *Basic) DisableExtension() {
 
 // Extendable checks if Basic is NOT made FINAL using DisableExtension.
 //
-// Zero Basic is NOT FINAL or extendable.
+// Zero Basic is extendable.
 func (x Basic) Extendable() bool {
 	return !isBitSet(x.bits, bitPosFinal)
 }
@@ -90,8 +90,9 @@ func (x Basic) Sticky() bool {
 
 // checks if op is used by the storage nodes within replication mechanism.
 func isReplicationOp(op Op) bool {
-	//nolint:exhaustive
 	switch op {
+	default:
+		return false
 	case
 		OpObjectGet,
 		OpObjectHead,
@@ -100,8 +101,6 @@ func isReplicationOp(op Op) bool {
 		OpObjectHash:
 		return true
 	}
-
-	return false
 }
 
 // AllowOp allows the parties with the given role to the given operation.
@@ -195,8 +194,7 @@ func (x Basic) IsOpAllowed(op Op, role Role) bool {
 }
 
 // AllowBearerRules allows bearer to provide extended ACL rules for the given
-// operation. Bearer rules doesn't depend on container ACL
-// // extensibility.
+// operation. Bearer rules doesn't depend on container ACL extensibility.
 //
 // See also AllowedBearerRules.
 func (x *Basic) AllowBearerRules(op Op) {
