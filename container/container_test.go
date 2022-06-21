@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
-	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
@@ -75,16 +74,6 @@ func TestContainerEncoding(t *testing.T) {
 	})
 }
 
-func TestContainer_SessionToken(t *testing.T) {
-	tok := sessiontest.Container()
-
-	cnr := container.New()
-
-	cnr.SetSessionToken(tok)
-
-	require.Equal(t, tok, cnr.SessionToken())
-}
-
 func TestContainer_ToV2(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		var x *container.Container
@@ -96,8 +85,6 @@ func TestContainer_ToV2(t *testing.T) {
 		cnt := container.New()
 
 		// check initial values
-		require.Nil(t, cnt.SessionToken())
-		require.Nil(t, cnt.Signature())
 		require.Nil(t, cnt.Attributes())
 		require.Nil(t, cnt.PlacementPolicy())
 		require.Nil(t, cnt.OwnerID())

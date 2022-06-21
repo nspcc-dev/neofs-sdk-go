@@ -8,7 +8,6 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
-	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -92,15 +91,6 @@ func TestTableEncoding(t *testing.T) {
 	})
 }
 
-func TestTable_SessionToken(t *testing.T) {
-	tok := sessiontest.Container()
-
-	table := eacl.NewTable()
-	table.SetSessionToken(tok)
-
-	require.Equal(t, tok, table.SessionToken())
-}
-
 func TestTable_ToV2(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
 		var x *eacl.Table
@@ -116,8 +106,6 @@ func TestTable_ToV2(t *testing.T) {
 		require.Nil(t, table.Records())
 		_, set := table.CID()
 		require.False(t, set)
-		require.Nil(t, table.SessionToken())
-		require.Nil(t, table.Signature())
 
 		// convert to v2 message
 		tableV2 := table.ToV2()

@@ -24,6 +24,9 @@ type PrmContainerPut struct {
 
 	cnrSet bool
 	cnr    container.Container
+
+	sessionSet bool
+	session    session.Container
 }
 
 // SetContainer sets structured information about new NeoFS container.
@@ -31,6 +34,19 @@ type PrmContainerPut struct {
 func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 	x.cnr = cnr
 	x.cnrSet = true
+}
+
+// WithinSession specifies session within which container should be saved.
+//
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// Session is optional, if set the following requirements apply:
+//  - session operation MUST be session.VerbContainerPut (ForVerb)
+//  - token MUST be signed using private key of the owner of the container to be saved
+func (x *PrmContainerPut) WithinSession(s session.Container) {
+	x.session = s
+	x.sessionSet = true
 }
 
 // ResContainerPut groups resulting values of ContainerPut operation.
@@ -104,9 +120,9 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	var meta v2session.RequestMetaHeader
 	prm.prmCommonMeta.writeToMetaHeader(&meta)
 
-	if tok := prm.cnr.SessionToken(); tok != nil {
+	if prm.sessionSet {
 		var tokv2 v2session.Token
-		tok.WriteToV2(&tokv2)
+		prm.session.WriteToV2(&tokv2)
 
 		meta.SetSessionToken(&tokv2)
 	}
@@ -240,26 +256,6 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 		body := resp.GetBody()
 
 		cnr := container.NewContainerFromV2(body.GetContainer())
-
-		tokv2 := body.GetSessionToken()
-		if tokv2 != nil {
-			var tok session.Container
-
-			// FIXME: (neofs-sdk-go#221) need to handle the error
-			err := tok.ReadFromV2(*tokv2)
-			if err == nil {
-				cnr.SetSessionToken(&tok)
-			}
-		}
-
-		var sig *neofscrypto.Signature
-
-		if sigv2 := body.GetSignature(); sigv2 != nil {
-			sig = new(neofscrypto.Signature)
-			sig.ReadFromV2(*sigv2)
-		}
-
-		cnr.SetSignature(sig)
 
 		res.setContainer(cnr)
 	}
@@ -589,26 +585,6 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 
 		table := eacl.NewTableFromV2(body.GetEACL())
 
-		tokv2 := body.GetSessionToken()
-		if tokv2 != nil {
-			var tok session.Container
-
-			// FIXME: (neofs-sdk-go#221) need to handle the error
-			err := tok.ReadFromV2(*tokv2)
-			if err == nil {
-				table.SetSessionToken(&tok)
-			}
-		}
-
-		var sig *neofscrypto.Signature
-
-		if sigv2 := body.GetSignature(); sigv2 != nil {
-			sig = new(neofscrypto.Signature)
-			sig.ReadFromV2(*sigv2)
-		}
-
-		table.SetSignature(sig)
-
 		res.setTable(table)
 	}
 
@@ -626,6 +602,9 @@ type PrmContainerSetEACL struct {
 
 	tableSet bool
 	table    eacl.Table
+
+	sessionSet bool
+	session    session.Container
 }
 
 // SetTable sets eACL table structure to be set for the container.
@@ -633,6 +612,22 @@ type PrmContainerSetEACL struct {
 func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 	x.table = table
 	x.tableSet = true
+}
+
+// WithinSession specifies session within which extended ACL of the container
+// should be saved.
+//
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// Session is optional, if set the following requirements apply:
+//  - if particular container is specified (ApplyOnlyTo), it MUST equal the container
+//    for which extended ACL is going to be set
+//  - session operation MUST be session.VerbContainerSetEACL (ForVerb)
+//  - token MUST be signed using private key of the owner of the container to be saved
+func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
+	x.session = s
+	x.sessionSet = true
 }
 
 // ResContainerSetEACL groups resulting values of ContainerSetEACL operation.
@@ -690,9 +685,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	var meta v2session.RequestMetaHeader
 	prm.prmCommonMeta.writeToMetaHeader(&meta)
 
-	if tok := prm.table.SessionToken(); tok != nil {
+	if prm.sessionSet {
 		var tokv2 v2session.Token
-		tok.WriteToV2(&tokv2)
+		prm.session.WriteToV2(&tokv2)
 
 		meta.SetSessionToken(&tokv2)
 	}

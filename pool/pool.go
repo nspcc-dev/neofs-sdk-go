@@ -114,10 +114,7 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*acc
 }
 
 func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
-	var cliPrm sdkClient.PrmContainerPut
-	cliPrm.SetContainer(prm.cnr)
-
-	res, err := c.client.ContainerPut(ctx, cliPrm)
+	res, err := c.client.ContainerPut(ctx, prm.prmClient)
 	if err != nil {
 		return nil, err
 	}
@@ -183,6 +180,10 @@ func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL)
 func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 	var cliPrm sdkClient.PrmContainerSetEACL
 	cliPrm.SetTable(prm.table)
+
+	if prm.sessionSet {
+		cliPrm.WithinSession(prm.session)
+	}
 
 	if _, err := c.client.ContainerSetEACL(ctx, cliPrm); err != nil {
 		return err
@@ -720,15 +721,26 @@ func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 
 // PrmContainerPut groups parameters of PutContainer operation.
 type PrmContainerPut struct {
-	cnr container.Container
+	prmClient sdkClient.PrmContainerPut
 
 	waitParams    WaitParams
 	waitParamsSet bool
 }
 
-// SetContainer specifies structured information about new NeoFS container.
+// SetContainer container structure to be used as a parameter of the base
+// client's operation.
+//
+// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerPut.SetContainer.
 func (x *PrmContainerPut) SetContainer(cnr container.Container) {
-	x.cnr = cnr
+	x.prmClient.SetContainer(cnr)
+}
+
+// WithinSession specifies session to be used as a parameter of the base
+// client's operation.
+//
+// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerPut.WithinSession.
+func (x *PrmContainerPut) WithinSession(s session.Container) {
+	x.prmClient.WithinSession(s)
 }
 
 // SetWaitParams specifies timeout params to complete operation.
@@ -805,13 +817,28 @@ func (x *PrmContainerEACL) SetContainerID(cnrID cid.ID) {
 type PrmContainerSetEACL struct {
 	table eacl.Table
 
+	sessionSet bool
+	session    session.Container
+
 	waitParams    WaitParams
 	waitParamsSet bool
 }
 
-// SetTable specifies eACL table structure to be set for the container.
+// SetTable sets structure of container's extended ACL to be used as a
+// parameter of the base client's operation.
+//
+// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerSetEACL.SetTable.
 func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 	x.table = table
+}
+
+// WithinSession specifies session to be used as a parameter of the base
+// client's operation.
+//
+// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerSetEACL.WithinSession.
+func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
+	x.session = s
+	x.sessionSet = true
 }
 
 // SetWaitParams specifies timeout params to complete operation.
