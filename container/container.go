@@ -9,19 +9,13 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 type Container struct {
 	v2 container.Container
-
-	token *session.Container
-
-	sig *neofscrypto.Signature
 }
 
 // New creates, initializes and returns blank Container instance.
@@ -183,28 +177,6 @@ func (c *Container) SetPlacementPolicy(v *netmap.PlacementPolicy) {
 	}
 
 	c.v2.SetPlacementPolicy(m)
-}
-
-// SessionToken returns token of the session within
-// which container was created.
-func (c Container) SessionToken() *session.Container {
-	return c.token
-}
-
-// SetSessionToken sets token of the session within
-// which container was created.
-func (c *Container) SetSessionToken(t *session.Container) {
-	c.token = t
-}
-
-// Signature returns signature of the marshaled container.
-func (c Container) Signature() *neofscrypto.Signature {
-	return c.sig
-}
-
-// SetSignature sets signature of the marshaled container.
-func (c *Container) SetSignature(sig *neofscrypto.Signature) {
-	c.sig = sig
 }
 
 // Marshal marshals Container into a protobuf binary form.
