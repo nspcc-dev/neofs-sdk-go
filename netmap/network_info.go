@@ -257,12 +257,19 @@ func (x *NetworkInfo) setConfigUint64(name string, num uint64) {
 	x.setConfig(name, val)
 }
 
+// decodeConfigValueUint64 parses val as little-endian uint64.
+// val must be less than 8 bytes in size.
 func decodeConfigValueUint64(val []byte) (uint64, error) {
-	if ln := len(val); ln != 8 {
+	if ln := len(val); ln > 8 {
 		return 0, fmt.Errorf("invalid uint64 parameter length %d", ln)
 	}
 
-	return binary.LittleEndian.Uint64(val), nil
+	res := uint64(0)
+	for i := len(val) - 1; i >= 0; i-- {
+		res = res*256 + uint64(val[i])
+	}
+
+	return res, nil
 }
 
 func (x NetworkInfo) configUint64(name string) uint64 {
