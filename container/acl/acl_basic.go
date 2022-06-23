@@ -23,22 +23,23 @@ import (
 //
 // Basic instances are comparable: values can be compared directly using
 // == operator.
-type Basic struct {
-	bits uint32
-}
+//
+// Note that type conversion from- and to numerical types is not recommended,
+// use corresponding constants and/or methods instead.
+type Basic uint32
 
 // FromBits decodes Basic from the numerical representation.
 //
 // See also Bits.
 func (x *Basic) FromBits(bits uint32) {
-	x.bits = bits
+	*x = Basic(bits)
 }
 
 // Bits returns numerical encoding of Basic.
 //
 // See also FromBits.
 func (x Basic) Bits() uint32 {
-	return x.bits
+	return uint32(x)
 }
 
 // common bit sections.
@@ -63,14 +64,14 @@ const (
 //
 // See also Extendable.
 func (x *Basic) DisableExtension() {
-	setBit(&x.bits, bitPosFinal)
+	setBit((*uint32)(x), bitPosFinal)
 }
 
 // Extendable checks if Basic is NOT made FINAL using DisableExtension.
 //
 // Zero Basic is extendable.
 func (x Basic) Extendable() bool {
-	return !isBitSet(x.bits, bitPosFinal)
+	return !isBitSet(uint32(x), bitPosFinal)
 }
 
 // MakeSticky makes Basic STICKY. STICKY indicates that only the owner of any
@@ -78,14 +79,14 @@ func (x Basic) Extendable() bool {
 //
 // See also Sticky.
 func (x *Basic) MakeSticky() {
-	setBit(&x.bits, bitPosSticky)
+	setBit((*uint32)(x), bitPosSticky)
 }
 
 // Sticky checks if Basic is made STICKY using MakeSticky.
 //
 // Zero Basic is NOT STICKY.
 func (x Basic) Sticky() bool {
-	return isBitSet(x.bits, bitPosSticky)
+	return isBitSet(uint32(x), bitPosSticky)
 }
 
 // checks if op is used by the storage nodes within replication mechanism.
@@ -136,7 +137,7 @@ func (x *Basic) AllowOp(op Op, role Role) {
 		bitPos = opBitPosOthers
 	}
 
-	setOpBit(&x.bits, op, bitPos)
+	setOpBit((*uint32)(x), op, bitPos)
 }
 
 // IsOpAllowed checks if parties with the given role are allowed to the given op
@@ -190,7 +191,7 @@ func (x Basic) IsOpAllowed(op Op, role Role) bool {
 		bitPos = opBitPosOthers
 	}
 
-	return isOpBitSet(x.bits, op, bitPos)
+	return isOpBitSet(uint32(x), op, bitPos)
 }
 
 // AllowBearerRules allows bearer to provide extended ACL rules for the given
@@ -198,7 +199,7 @@ func (x Basic) IsOpAllowed(op Op, role Role) bool {
 //
 // See also AllowedBearerRules.
 func (x *Basic) AllowBearerRules(op Op) {
-	setOpBit(&x.bits, op, opBitPosBearer)
+	setOpBit((*uint32)(x), op, opBitPosBearer)
 }
 
 // AllowedBearerRules checks if bearer rules are allowed using AllowBearerRules.
@@ -206,14 +207,14 @@ func (x *Basic) AllowBearerRules(op Op) {
 //
 // Zero Basic disallows bearer rules for any op.
 func (x Basic) AllowedBearerRules(op Op) bool {
-	return isOpBitSet(x.bits, op, opBitPosBearer)
+	return isOpBitSet(uint32(x), op, opBitPosBearer)
 }
 
 // EncodeToString encodes Basic into hexadecimal string.
 //
 // See also DecodeString.
 func (x Basic) EncodeToString() string {
-	return strconv.FormatUint(uint64(x.bits), 16)
+	return strconv.FormatUint(uint64(x), 16)
 }
 
 // Names of the frequently used Basic values.
@@ -228,17 +229,16 @@ const (
 	NamePublicAppendExtended = "eacl-public-append"
 )
 
-// Frequently used Basic values (each value MUST NOT be modified, make a
-// copy instead).
-var (
-	Private              Basic // private
-	PrivateExtended      Basic // eacl-private
-	PublicRO             Basic // public-read
-	PublicROExtended     Basic // eacl-public-read
-	PublicRW             Basic // public-read-write
-	PublicRWExtended     Basic // eacl-public-read-write
-	PublicAppend         Basic // public-append
-	PublicAppendExtended Basic // eacl-public-append
+// Frequently used Basic values. Bitmasks are taken from the NeoFS Specification.
+const (
+	Private              = Basic(0x1C8C8CCC) // private
+	PrivateExtended      = Basic(0x0C8C8CCC) // eacl-private
+	PublicRO             = Basic(0x1FBF8CFF) // public-read
+	PublicROExtended     = Basic(0x0FBF8CFF) // eacl-public-read
+	PublicRW             = Basic(0x1FBFBFFF) // public-read-write
+	PublicRWExtended     = Basic(0x0FBFBFFF) // eacl-public-read-write
+	PublicAppend         = Basic(0x1FBF9FFF) // public-append
+	PublicAppendExtended = Basic(0x0FBF9FFF) // eacl-public-append
 )
 
 // DecodeString decodes string calculated using EncodeToString. Also supports
@@ -269,7 +269,7 @@ func (x *Basic) DecodeString(s string) (e error) {
 			return fmt.Errorf("parse hex: %w", err)
 		}
 
-		x.bits = uint32(v)
+		*x = Basic(v)
 	}
 
 	return nil
