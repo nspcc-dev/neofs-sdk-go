@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
@@ -98,13 +99,14 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 	// TODO: check private key is set before forming the request
 	// sign container
-	cnr := prm.cnr.ToV2()
+	var cnr v2container.Container
+	prm.cnr.WriteToV2(&cnr)
 
 	var sig neofscrypto.Signature
 
-	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), cnr.StableMarshal(nil))
+	err := container.CalculateSignature(&sig, prm.cnr, c.prm.key)
 	if err != nil {
-		return nil, fmt.Errorf("calculate signature: %w", err)
+		return nil, fmt.Errorf("calculate container signature: %w", err)
 	}
 
 	var sigv2 refs.Signature
@@ -113,7 +115,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 	// form request body
 	reqBody := new(v2container.PutRequestBody)
-	reqBody.SetContainer(prm.cnr.ToV2())
+	reqBody.SetContainer(&cnr)
 	reqBody.SetSignature(&sigv2)
 
 	// form meta header
@@ -188,17 +190,17 @@ func (x *PrmContainerGet) SetContainer(id cid.ID) {
 type ResContainerGet struct {
 	statusRes
 
-	cnr *container.Container
+	cnr container.Container
 }
 
 // Container returns structured information about the requested container.
 //
 // Client doesn't retain value so modification is safe.
-func (x ResContainerGet) Container() *container.Container {
+func (x ResContainerGet) Container() container.Container {
 	return x.cnr
 }
 
-func (x *ResContainerGet) setContainer(cnr *container.Container) {
+func (x *ResContainerGet) setContainer(cnr container.Container) {
 	x.cnr = cnr
 }
 
@@ -253,9 +255,19 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetResponse)
 
-		body := resp.GetBody()
+		cnrV2 := resp.GetBody().GetContainer()
+		if cnrV2 == nil {
+			cc.err = errors.New("missing container in response")
+			return
+		}
 
-		cnr := container.NewContainerFromV2(body.GetContainer())
+		var cnr container.Container
+
+		err := cnr.ReadFromV2(*cnrV2)
+		if err != nil {
+			cc.err = fmt.Errorf("invalid container in response: %w", err)
+			return
+		}
 
 		res.setContainer(cnr)
 	}
@@ -724,15 +736,15 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 type PrmAnnounceSpace struct {
 	prmCommonMeta
 
-	announcements []container.UsedSpaceAnnouncement
+	announcements []container.SizeEstimation
 }
 
 // SetValues sets values describing volume of space that is used for the container objects.
 // Required parameter. Must not be empty.
 //
 // Must not be mutated before the end of the operation.
-func (x *PrmAnnounceSpace) SetValues(announcements []container.UsedSpaceAnnouncement) {
-	x.announcements = announcements
+func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
+	x.announcements = vs
 }
 
 // ResAnnounceSpace groups resulting values of ContainerAnnounceUsedSpace operation.
@@ -770,7 +782,7 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	// convert list of SDK announcement structures into NeoFS-API v2 list
 	v2announce := make([]v2container.UsedSpaceAnnouncement, len(prm.announcements))
 	for i := range prm.announcements {
-		v2announce[i] = *prm.announcements[i].ToV2()
+		prm.announcements[i].WriteToV2(&v2announce[i])
 	}
 
 	// prepare body of the NeoFS-API v2 request and request itself

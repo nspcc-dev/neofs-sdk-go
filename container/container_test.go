@@ -1,117 +1,351 @@
 package container_test
 
 import (
+	"crypto/sha256"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
+	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
-	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
+	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
+	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestNewContainer(t *testing.T) {
-	c := container.New()
-
-	nonce := uuid.New()
-
-	ownerID := usertest.ID()
-	policy := netmaptest.PlacementPolicy()
-
-	c.SetBasicACL(acl.PublicRW)
-
-	attrs := containertest.Attributes()
-	c.SetAttributes(attrs)
-
-	c.SetPlacementPolicy(&policy)
-	c.SetNonceUUID(nonce)
-	c.SetOwnerID(ownerID)
-
-	ver := versiontest.Version()
-	c.SetVersion(&ver)
-
-	v2 := c.ToV2()
-	newContainer := container.NewContainerFromV2(v2)
-
-	require.EqualValues(t, newContainer.PlacementPolicy(), &policy)
-	require.EqualValues(t, newContainer.Attributes(), attrs)
-	require.EqualValues(t, newContainer.BasicACL(), acl.PublicRW)
-
-	newNonce, err := newContainer.NonceUUID()
-	require.NoError(t, err)
-
-	require.EqualValues(t, newNonce, nonce)
-	require.EqualValues(t, newContainer.OwnerID(), ownerID)
-	require.EqualValues(t, *newContainer.Version(), ver)
-}
-
-func TestContainerEncoding(t *testing.T) {
-	c := containertest.Container()
+func TestPlacementPolicyEncoding(t *testing.T) {
+	v := containertest.Container()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := c.Marshal()
-		require.NoError(t, err)
+		var v2 container.Container
+		require.NoError(t, v2.Unmarshal(v.Marshal()))
 
-		c2 := container.New()
-		require.NoError(t, c2.Unmarshal(data))
-
-		require.Equal(t, c, c2)
+		require.Equal(t, v, v2)
 	})
 
 	t.Run("json", func(t *testing.T) {
-		data, err := c.MarshalJSON()
+		data, err := v.MarshalJSON()
 		require.NoError(t, err)
 
-		c2 := container.New()
-		require.NoError(t, c2.UnmarshalJSON(data))
+		var v2 container.Container
+		require.NoError(t, v2.UnmarshalJSON(data))
 
-		require.Equal(t, c, c2)
+		require.Equal(t, v, v2)
 	})
 }
 
-func TestContainer_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *container.Container
+func TestContainer_Init(t *testing.T) {
+	val := containertest.Container()
 
-		require.Nil(t, x.ToV2())
+	val.Init()
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	binNonce := msg.GetNonce()
+
+	var nonce uuid.UUID
+	require.NoError(t, nonce.UnmarshalBinary(binNonce))
+	require.EqualValues(t, 4, nonce.Version())
+
+	verV2 := msg.GetVersion()
+	require.NotNil(t, verV2)
+
+	var ver version.Version
+	ver.ReadFromV2(*verV2)
+
+	require.Equal(t, version.Current(), ver)
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, val, val2)
+}
+
+func TestContainer_Owner(t *testing.T) {
+	var val container.Container
+
+	require.Zero(t, val.Owner())
+
+	val = containertest.Container()
+
+	owner := *usertest.ID()
+
+	val.SetOwner(owner)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	var msgOwner refs.OwnerID
+	owner.WriteToV2(&msgOwner)
+
+	require.Equal(t, &msgOwner, msg.GetOwnerID())
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.True(t, val2.Owner().Equals(owner))
+}
+
+func TestContainer_BasicACL(t *testing.T) {
+	var val container.Container
+
+	require.Zero(t, val.BasicACL())
+
+	val = containertest.Container()
+
+	basicACL := containertest.BasicACL()
+	val.SetBasicACL(basicACL)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	require.EqualValues(t, basicACL.Bits(), msg.GetBasicACL())
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, basicACL, val2.BasicACL())
+}
+
+func TestContainer_PlacementPolicy(t *testing.T) {
+	var val container.Container
+
+	require.Zero(t, val.PlacementPolicy())
+
+	val = containertest.Container()
+
+	pp := netmaptest.PlacementPolicy()
+	val.SetPlacementPolicy(pp)
+
+	var msgPolicy v2netmap.PlacementPolicy
+	pp.WriteToV2(&msgPolicy)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	require.Equal(t, &msgPolicy, msg.GetPlacementPolicy())
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, pp, val2.PlacementPolicy())
+}
+
+func assertContainsAttribute(t *testing.T, m v2container.Container, key, val string) {
+	var msgAttr v2container.Attribute
+
+	msgAttr.SetKey(key)
+	msgAttr.SetValue(val)
+	require.Contains(t, m.GetAttributes(), msgAttr)
+}
+
+func TestContainer_Attribute(t *testing.T) {
+	const attrKey1, attrKey2 = "key1", "key2"
+	const attrVal1, attrVal2 = "val1", "val2"
+
+	val := containertest.Container()
+
+	val.SetAttribute(attrKey1, attrVal1)
+	val.SetAttribute(attrKey2, attrVal2)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	require.GreaterOrEqual(t, len(msg.GetAttributes()), 2)
+	assertContainsAttribute(t, msg, attrKey1, attrVal1)
+	assertContainsAttribute(t, msg, attrKey2, attrVal2)
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, attrVal1, val2.Attribute(attrKey1))
+	require.Equal(t, attrVal2, val2.Attribute(attrKey2))
+
+	m := map[string]string{}
+
+	val2.IterateAttributes(func(key, val string) {
+		m[key] = val
 	})
 
-	t.Run("default values", func(t *testing.T) {
-		cnt := container.New()
+	require.GreaterOrEqual(t, len(m), 2)
+	require.Equal(t, attrVal1, m[attrKey1])
+	require.Equal(t, attrVal2, m[attrKey2])
 
-		// check initial values
-		require.Nil(t, cnt.Attributes())
-		require.Nil(t, cnt.PlacementPolicy())
-		require.Nil(t, cnt.OwnerID())
+	val2.SetAttribute(attrKey1, attrVal1+"_")
+	require.Equal(t, attrVal1+"_", val2.Attribute(attrKey1))
+}
 
-		require.EqualValues(t, acl.Private, cnt.BasicACL())
-		require.Equal(t, version.Current(), *cnt.Version())
+func TestSetName(t *testing.T) {
+	var val container.Container
 
-		nonce, err := cnt.NonceUUID()
-		require.NoError(t, err)
-		require.NotNil(t, nonce)
-
-		// convert to v2 message
-		cntV2 := cnt.ToV2()
-
-		nonceV2, err := uuid.FromBytes(cntV2.GetNonce())
-		require.NoError(t, err)
-
-		require.Equal(t, nonce.String(), nonceV2.String())
-
-		require.Nil(t, cntV2.GetAttributes())
-		require.Nil(t, cntV2.GetPlacementPolicy())
-		require.Nil(t, cntV2.GetOwnerID())
-
-		require.EqualValues(t, 0x1C8C8CCC, cntV2.GetBasicACL())
-
-		var verV2 refs.Version
-		version.Current().WriteToV2(&verV2)
-		require.Equal(t, verV2, *cntV2.GetVersion())
+	require.Panics(t, func() {
+		container.SetName(&val, "")
 	})
+
+	val = containertest.Container()
+
+	const name = "some name"
+
+	container.SetName(&val, name)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	assertContainsAttribute(t, msg, "Name", name)
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, name, container.Name(val2))
+}
+
+func TestSetCreationTime(t *testing.T) {
+	var val container.Container
+
+	require.Zero(t, container.CreatedAt(val).Unix())
+
+	val = containertest.Container()
+
+	creat := time.Now()
+
+	container.SetCreationTime(&val, creat)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	assertContainsAttribute(t, msg, "Timestamp", strconv.FormatInt(creat.Unix(), 10))
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, creat.Unix(), container.CreatedAt(val2).Unix())
+}
+
+func TestSetSubnet(t *testing.T) {
+	var val container.Container
+
+	require.True(t, subnetid.IsZero(container.Subnet(val)))
+
+	val = containertest.Container()
+
+	sub := subnetidtest.ID()
+
+	container.SetSubnet(&val, sub)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	assertContainsAttribute(t, msg, v2container.SysAttributeSubnet, sub.EncodeToString())
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, sub, container.Subnet(val))
+}
+
+func TestDisableHomomorphicHashing(t *testing.T) {
+	var val container.Container
+
+	require.False(t, container.IsHomomorphicHashingDisabled(val))
+
+	val = containertest.Container()
+
+	container.DisableHomomorphicHashing(&val)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	assertContainsAttribute(t, msg, v2container.SysAttributePrefix+"DISABLE_HOMOMORPHIC_HASHING", "true")
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.True(t, container.IsHomomorphicHashingDisabled(val2))
+}
+
+func TestWriteDomain(t *testing.T) {
+	var val container.Container
+
+	require.Zero(t, container.ReadDomain(val).Name())
+
+	val = containertest.Container()
+
+	const name = "domain name"
+
+	var d container.Domain
+	d.SetName(name)
+
+	container.WriteDomain(&val, d)
+
+	var msg v2container.Container
+	val.WriteToV2(&msg)
+
+	assertContainsAttribute(t, msg, v2container.SysAttributeName, name)
+	assertContainsAttribute(t, msg, v2container.SysAttributeZone, "container")
+
+	const zone = "domain zone"
+
+	d.SetZone(zone)
+
+	container.WriteDomain(&val, d)
+
+	val.WriteToV2(&msg)
+
+	assertContainsAttribute(t, msg, v2container.SysAttributeZone, zone)
+
+	var val2 container.Container
+	require.NoError(t, val2.ReadFromV2(msg))
+
+	require.Equal(t, d, container.ReadDomain(val2))
+}
+
+func TestCalculateID(t *testing.T) {
+	val := containertest.Container()
+
+	require.False(t, container.AssertID(cidtest.ID(), val))
+
+	var id cid.ID
+	container.CalculateID(&id, val)
+
+	var msg refs.ContainerID
+	id.WriteToV2(&msg)
+
+	h := sha256.Sum256(val.Marshal())
+	require.Equal(t, h[:], msg.GetValue())
+
+	var id2 cid.ID
+	require.NoError(t, id2.ReadFromV2(msg))
+
+	require.True(t, container.AssertID(id2, val))
+}
+
+func TestCalculateSignature(t *testing.T) {
+	key, err := keys.NewPrivateKey()
+	require.NoError(t, err)
+
+	val := containertest.Container()
+
+	var sig neofscrypto.Signature
+
+	require.NoError(t, container.CalculateSignature(&sig, val, key.PrivateKey))
+
+	var msg refs.Signature
+	sig.WriteToV2(&msg)
+
+	var sig2 neofscrypto.Signature
+	sig2.ReadFromV2(msg)
+
+	require.True(t, container.VerifySignature(sig2, val))
 }
