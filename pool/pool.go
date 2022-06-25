@@ -133,7 +133,10 @@ func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (
 	if err != nil {
 		return nil, err
 	}
-	return res.Container(), nil
+
+	cnr := res.Container()
+
+	return &cnr, nil
 }
 
 func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
