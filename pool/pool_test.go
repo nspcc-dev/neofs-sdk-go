@@ -13,6 +13,7 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -387,7 +388,7 @@ func TestSessionCache(t *testing.T) {
 		}).MaxTimes(3)
 		mockClient.EXPECT().networkInfo(gomock.Any(), gomock.Any()).Return(&netmap.NetworkInfo{}, nil).AnyTimes()
 
-		mockClient.EXPECT().objectGet(gomock.Any(), gomock.Any()).Return(nil, fmt.Errorf("session token does not exist"))
+		mockClient.EXPECT().objectGet(gomock.Any(), gomock.Any()).Return(nil, apistatus.SessionTokenNotFound{})
 		mockClient.EXPECT().objectPut(gomock.Any(), gomock.Any()).Return(nil, nil)
 
 		return mockClient, nil
