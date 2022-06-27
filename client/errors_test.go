@@ -53,7 +53,9 @@ func TestErrors(t *testing.T) {
 
 		for i := range tc.errs {
 			require.True(t, tc.check(tc.errs[i]), tc.errs[i])
-			require.True(t, tc.check(fmt.Errorf("some context: %w", tc.errs[i])), tc.errs[i])
+			require.True(t, tc.check(fmt.Errorf("top-level context: :%w",
+				fmt.Errorf("inner context: %w", tc.errs[i])),
+			), tc.errs[i])
 		}
 	}
 }
