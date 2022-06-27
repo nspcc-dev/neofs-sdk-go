@@ -53,3 +53,29 @@ func IsErrObjectAlreadyRemoved(err error) bool {
 		return true
 	}
 }
+
+// IsErrSessionExpired checks if err corresponds to NeoFS status return
+// corresponding to expired session. Supports wrapped errors.
+func IsErrSessionExpired(err error) bool {
+	switch unwrapErr(err).(type) {
+	default:
+		return false
+	case
+		apistatus.SessionTokenExpired,
+		*apistatus.SessionTokenExpired:
+		return true
+	}
+}
+
+// IsErrSessionNotFound checks if err corresponds to NeoFS status return
+// corresponding to missing session. Supports wrapped errors.
+func IsErrSessionNotFound(err error) bool {
+	switch unwrapErr(err).(type) {
+	default:
+		return false
+	case
+		apistatus.SessionTokenNotFound,
+		*apistatus.SessionTokenNotFound:
+		return true
+	}
+}

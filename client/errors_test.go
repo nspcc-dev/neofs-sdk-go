@@ -35,6 +35,19 @@ func TestErrors(t *testing.T) {
 				new(apistatus.ObjectAlreadyRemoved),
 			},
 		},
+		{
+			check: client.IsErrSessionExpired,
+			errs: []error{
+				apistatus.SessionTokenExpired{},
+				new(apistatus.SessionTokenExpired),
+			},
+		}, {
+			check: client.IsErrSessionNotFound,
+			errs: []error{
+				apistatus.SessionTokenNotFound{},
+				new(apistatus.SessionTokenNotFound),
+			},
+		},
 	} {
 		require.NotEmpty(t, tc.errs)
 
