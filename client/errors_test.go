@@ -1,6 +1,7 @@
 package client_test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -39,6 +40,7 @@ func TestErrors(t *testing.T) {
 
 		for i := range tc.errs {
 			require.True(t, tc.check(tc.errs[i]), tc.errs[i])
+			require.True(t, tc.check(fmt.Errorf("some context: %w", tc.errs[i])), tc.errs[i])
 		}
 	}
 }
