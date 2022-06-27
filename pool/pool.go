@@ -10,7 +10,6 @@ import (
 	"math"
 	"math/rand"
 	"sort"
-	"strings"
 	"sync"
 	"time"
 
@@ -1225,8 +1224,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 		return false
 	}
 
-	if strings.Contains(err.Error(), "session token does not exist") ||
-		strings.Contains(err.Error(), "session token has been expired") {
+	if sdkClient.IsErrSessionNotFound(err) || sdkClient.IsErrSessionExpired(err) {
 		p.cache.DeleteByPrefix(address)
 		return true
 	}
@@ -1768,8 +1766,7 @@ func waitForContainerRemoved(ctx context.Context, cli client, cnrID *cid.ID, wai
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, prm)
-		return sdkClient.IsErrContainerNotFound(err) ||
-			err != nil && strings.Contains(err.Error(), "not found")
+		return sdkClient.IsErrContainerNotFound(err)
 	})
 }
 
