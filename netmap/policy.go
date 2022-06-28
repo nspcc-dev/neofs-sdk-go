@@ -551,15 +551,16 @@ func writeFilterStringTo(w io.StringWriter, f netmap.Filter) error {
 // DecodeString decodes PlacementPolicy from the string composed using
 // WriteStringTo. Returns error if s is malformed.
 func (p *PlacementPolicy) DecodeString(s string) error {
+	var v policyVisitor
+
 	input := antlr.NewInputStream(s)
 	lexer := parser.NewQueryLexer(input)
 	lexer.RemoveErrorListeners()
+	lexer.AddErrorListener(&v)
 	stream := antlr.NewCommonTokenStream(lexer, 0)
 
 	pp := parser.NewQuery(stream)
 	pp.BuildParseTrees = true
-
-	var v policyVisitor
 
 	pp.RemoveErrorListeners()
 	pp.AddErrorListener(&v)
