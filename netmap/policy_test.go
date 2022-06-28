@@ -25,8 +25,9 @@ SELECT 1 IN City FROM SPBSSD AS SPB
 FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 	}
 
+	var p PlacementPolicy
+
 	for _, testCase := range testCases {
-		var p PlacementPolicy
 
 		require.NoError(t, p.DecodeString(testCase))
 
@@ -34,6 +35,14 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 		require.NoError(t, p.WriteStringTo(&b))
 
 		require.Equal(t, testCase, b.String())
+	}
+
+	invalidTestCases := []string{
+		`?REP 1`,
+	}
+
+	for i := range invalidTestCases {
+		require.Error(t, p.DecodeString(invalidTestCases[i]), "#%d", i)
 	}
 }
 
