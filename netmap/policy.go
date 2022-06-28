@@ -553,6 +553,7 @@ func writeFilterStringTo(w io.StringWriter, f netmap.Filter) error {
 func (p *PlacementPolicy) DecodeString(s string) error {
 	input := antlr.NewInputStream(s)
 	lexer := parser.NewQueryLexer(input)
+	lexer.RemoveErrorListeners()
 	stream := antlr.NewCommonTokenStream(lexer, 0)
 
 	pp := parser.NewQuery(stream)
