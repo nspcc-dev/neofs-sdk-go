@@ -684,6 +684,7 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 //   - *apistatus.ObjectNotFound;
 //   - *apistatus.ObjectAccessDenied;
 //   - *apistatus.ObjectAlreadyRemoved;
+//   - *apistatus.ObjectOutOfRange;
 //   - *apistatus.SessionTokenExpired.
 func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
 	return x.close(true)

@@ -68,6 +68,8 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(ObjectNotFound)
 		case object.StatusAlreadyRemoved:
 			decoder = new(ObjectAlreadyRemoved)
+		case object.StatusOutOfRange:
+			decoder = new(ObjectOutOfRange)
 		}
 	case container.LocalizeFailStatus(&code):
 		//nolint:exhaustive
