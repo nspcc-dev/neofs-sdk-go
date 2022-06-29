@@ -152,6 +152,7 @@ func (x ResObjectHash) Checksums() [][]byte {
 //   - *apistatus.ContainerNotFound;
 //   - *apistatus.ObjectNotFound;
 //   - *apistatus.ObjectAccessDenied;
+//   - *apistatus.ObjectOutOfRange;
 //   - *apistatus.SessionTokenExpired.
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {

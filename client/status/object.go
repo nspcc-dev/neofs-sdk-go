@@ -165,3 +165,34 @@ func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
 	x.v2.SetMessage("object already removed")
 	return &x.v2
 }
+
+// ObjectOutOfRange describes status of the failure because of the incorrect
+// provided object ranges.
+// Instances provide Status and StatusV2 interfaces.
+type ObjectOutOfRange struct {
+	v2 status.Status
+}
+
+func (x ObjectOutOfRange) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail),
+		x.v2.Message(),
+	)
+}
+
+// implements local interface defined in FromStatusV2 func.
+func (x *ObjectOutOfRange) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//  * code: OUT_OF_RANGE;
+//  * string message: "out of range";
+//  * details: empty.
+func (x ObjectOutOfRange) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail))
+	x.v2.SetMessage("out of range")
+	return &x.v2
+}
