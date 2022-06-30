@@ -3,248 +3,206 @@ package reputation_test
 import (
 	"testing"
 
-	reputationV2 "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	reputationtestV2 "github.com/nspcc-dev/neofs-api-go/v2/reputation/test"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	reputationtest "github.com/nspcc-dev/neofs-sdk-go/reputation/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTrust(t *testing.T) {
-	trust := reputation.NewTrust()
+func TestTrust_Peer(t *testing.T) {
+	var trust reputation.Trust
 
-	id := reputationtest.PeerID()
-	trust.SetPeer(id)
-	require.Equal(t, id, trust.Peer())
+	require.Zero(t, trust.Peer())
 
-	val := 1.5
-	trust.SetValue(val)
-	require.Equal(t, val, trust.Value())
+	trust = reputationtest.Trust()
 
-	t.Run("binary encoding", func(t *testing.T) {
-		trust := reputationtest.Trust()
-		data, err := trust.Marshal()
-		require.NoError(t, err)
+	peer := reputationtest.PeerID()
 
-		trust2 := reputation.NewTrust()
-		require.NoError(t, trust2.Unmarshal(data))
-		require.Equal(t, trust, trust2)
-	})
+	trust.SetPeer(peer)
 
-	t.Run("JSON encoding", func(t *testing.T) {
-		trust := reputationtest.Trust()
-		data, err := trust.MarshalJSON()
-		require.NoError(t, err)
+	var peerV2 v2reputation.PeerID
+	peer.WriteToV2(&peerV2)
 
-		trust2 := reputation.NewTrust()
-		require.NoError(t, trust2.UnmarshalJSON(data))
-		require.Equal(t, trust, trust2)
-	})
+	var trustV2 v2reputation.Trust
+	trust.WriteToV2(&trustV2)
+
+	require.Equal(t, &peerV2, trustV2.GetPeer())
+
+	var val2 reputation.Trust
+	require.NoError(t, val2.ReadFromV2(trustV2))
+
+	require.Equal(t, peer, val2.Peer())
 }
 
-func TestPeerToPeerTrust(t *testing.T) {
-	t.Run("v2", func(t *testing.T) {
-		p2ptV2 := reputationtestV2.GeneratePeerToPeerTrust(false)
+func TestTrust_Value(t *testing.T) {
+	var val reputation.Trust
 
-		p2pt := reputation.PeerToPeerTrustFromV2(p2ptV2)
+	require.Zero(t, val.Value())
 
-		require.Equal(t, p2ptV2, p2pt.ToV2())
-	})
+	val = reputationtest.Trust()
 
-	t.Run("getters+setters", func(t *testing.T) {
-		p2pt := reputation.NewPeerToPeerTrust()
+	const value = 0.75
 
-		require.Nil(t, p2pt.TrustingPeer())
-		require.Nil(t, p2pt.Trust())
+	val.SetValue(value)
 
-		trusting := reputationtest.PeerID()
-		p2pt.SetTrustingPeer(trusting)
-		require.Equal(t, trusting, p2pt.TrustingPeer())
+	var trustV2 v2reputation.Trust
+	val.WriteToV2(&trustV2)
 
-		trust := reputationtest.Trust()
-		p2pt.SetTrust(trust)
-		require.Equal(t, trust, p2pt.Trust())
-	})
+	require.EqualValues(t, value, trustV2.GetValue())
 
-	t.Run("encoding", func(t *testing.T) {
-		p2pt := reputationtest.PeerToPeerTrust()
+	var val2 reputation.Trust
+	require.NoError(t, val2.ReadFromV2(trustV2))
 
-		t.Run("binary", func(t *testing.T) {
-			data, err := p2pt.Marshal()
-			require.NoError(t, err)
-
-			p2pt2 := reputation.NewPeerToPeerTrust()
-			require.NoError(t, p2pt2.Unmarshal(data))
-			require.Equal(t, p2pt, p2pt2)
-		})
-
-		t.Run("JSON", func(t *testing.T) {
-			data, err := p2pt.MarshalJSON()
-			require.NoError(t, err)
-
-			p2pt2 := reputation.NewPeerToPeerTrust()
-			require.NoError(t, p2pt2.UnmarshalJSON(data))
-			require.Equal(t, p2pt, p2pt2)
-		})
-	})
+	require.EqualValues(t, value, val2.Value())
 }
 
-func TestGlobalTrust(t *testing.T) {
-	t.Run("v2", func(t *testing.T) {
-		gtV2 := reputationtestV2.GenerateGlobalTrust(false)
+func TestPeerToPeerTrust_TrustingPeer(t *testing.T) {
+	var val reputation.PeerToPeerTrust
 
-		gt := reputation.GlobalTrustFromV2(gtV2)
+	require.Zero(t, val.TrustingPeer())
 
-		require.Equal(t, gtV2, gt.ToV2())
-	})
+	val = reputationtest.PeerToPeerTrust()
 
-	t.Run("getters+setters", func(t *testing.T) {
-		gt := reputation.NewGlobalTrust()
+	peer := reputationtest.PeerID()
 
-		require.Equal(t, version.Current(), *gt.Version())
-		require.Nil(t, gt.Manager())
-		require.Nil(t, gt.Trust())
+	val.SetTrustingPeer(peer)
 
-		var ver version.Version
-		ver.SetMajor(13)
-		ver.SetMinor(31)
-		gt.SetVersion(&ver)
-		require.Equal(t, ver, *gt.Version())
+	var peerV2 v2reputation.PeerID
+	peer.WriteToV2(&peerV2)
 
-		mngr := reputationtest.PeerID()
-		gt.SetManager(mngr)
-		require.Equal(t, mngr, gt.Manager())
+	var trustV2 v2reputation.PeerToPeerTrust
+	val.WriteToV2(&trustV2)
 
-		trust := reputationtest.Trust()
-		gt.SetTrust(trust)
-		require.Equal(t, trust, gt.Trust())
-	})
+	require.Equal(t, &peerV2, trustV2.GetTrustingPeer())
 
-	t.Run("sign+verify", func(t *testing.T) {
-		gt := reputationtest.SignedGlobalTrust(t)
+	var val2 reputation.PeerToPeerTrust
+	require.NoError(t, val2.ReadFromV2(trustV2))
 
-		err := gt.VerifySignature()
-		require.NoError(t, err)
-	})
-
-	t.Run("encoding", func(t *testing.T) {
-		t.Run("binary", func(t *testing.T) {
-			gt := reputationtest.SignedGlobalTrust(t)
-
-			data, err := gt.Marshal()
-			require.NoError(t, err)
-
-			gt2 := reputation.NewGlobalTrust()
-			require.NoError(t, gt2.Unmarshal(data))
-			require.Equal(t, gt, gt2)
-		})
-
-		t.Run("JSON", func(t *testing.T) {
-			gt := reputationtest.SignedGlobalTrust(t)
-			data, err := gt.MarshalJSON()
-			require.NoError(t, err)
-
-			gt2 := reputation.NewGlobalTrust()
-			require.NoError(t, gt2.UnmarshalJSON(data))
-			require.Equal(t, gt, gt2)
-		})
-	})
+	require.Equal(t, peer, val2.TrustingPeer())
 }
 
-func TestTrustFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *reputationV2.Trust
+func TestPeerToPeerTrust_Trust(t *testing.T) {
+	var val reputation.PeerToPeerTrust
 
-		require.Nil(t, reputation.TrustFromV2(x))
-	})
+	require.Zero(t, val.Trust())
+
+	val = reputationtest.PeerToPeerTrust()
+
+	trust := reputationtest.Trust()
+
+	val.SetTrust(trust)
+
+	var trustV2 v2reputation.Trust
+	trust.WriteToV2(&trustV2)
+
+	var valV2 v2reputation.PeerToPeerTrust
+	val.WriteToV2(&valV2)
+
+	require.Equal(t, &trustV2, valV2.GetTrust())
+
+	var val2 reputation.PeerToPeerTrust
+	require.NoError(t, val2.ReadFromV2(valV2))
+
+	require.Equal(t, trust, val2.Trust())
 }
 
-func TestPeerToPeerTrustFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *reputationV2.PeerToPeerTrust
+func TestGlobalTrust_Init(t *testing.T) {
+	var val reputation.GlobalTrust
+	val.Init()
 
-		require.Nil(t, reputation.PeerToPeerTrustFromV2(x))
-	})
+	var valV2 v2reputation.GlobalTrust
+	val.WriteToV2(&valV2)
+
+	var verV2 refs.Version
+	version.Current().WriteToV2(&verV2)
+
+	require.Equal(t, &verV2, valV2.GetVersion())
 }
 
-func TestGlobalTrustFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *reputationV2.GlobalTrust
+func TestGlobalTrust_Manager(t *testing.T) {
+	var val reputation.GlobalTrust
 
-		require.Nil(t, reputation.GlobalTrustFromV2(x))
-	})
+	require.Zero(t, val.Manager())
+
+	val = reputationtest.SignedGlobalTrust()
+
+	peer := reputationtest.PeerID()
+
+	val.SetManager(peer)
+
+	var peerV2 v2reputation.PeerID
+	peer.WriteToV2(&peerV2)
+
+	var trustV2 v2reputation.GlobalTrust
+	val.WriteToV2(&trustV2)
+
+	require.Equal(t, &peerV2, trustV2.GetBody().GetManager())
+
+	var val2 reputation.GlobalTrust
+	require.NoError(t, val2.ReadFromV2(trustV2))
+
+	require.Equal(t, peer, val2.Manager())
 }
 
-func TestTrust_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *reputation.Trust
+func TestGlobalTrust_Trust(t *testing.T) {
+	var val reputation.GlobalTrust
 
-		require.Nil(t, x.ToV2())
-	})
+	require.Zero(t, val.Trust())
+
+	val = reputationtest.SignedGlobalTrust()
+
+	trust := reputationtest.Trust()
+
+	val.SetTrust(trust)
+
+	var trustV2 v2reputation.Trust
+	trust.WriteToV2(&trustV2)
+
+	var valV2 v2reputation.GlobalTrust
+	val.WriteToV2(&valV2)
+
+	require.Equal(t, &trustV2, valV2.GetBody().GetTrust())
+
+	var val2 reputation.GlobalTrust
+	require.NoError(t, val2.ReadFromV2(valV2))
+
+	require.Equal(t, trust, val2.Trust())
 }
 
-func TestPeerToPeerTrust_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *reputation.PeerToPeerTrust
+func TestGlobalTrust_Sign(t *testing.T) {
+	k, err := keys.NewPrivateKey()
+	require.NoError(t, err)
 
-		require.Nil(t, x.ToV2())
-	})
+	val := reputationtest.GlobalTrust()
+
+	require.False(t, val.VerifySignature())
+
+	require.NoError(t, val.Sign(neofsecdsa.Signer(k.PrivateKey)))
+
+	var valV2 v2reputation.GlobalTrust
+	val.WriteToV2(&valV2)
+
+	require.NotZero(t, valV2.GetSignature())
+
+	var val2 reputation.GlobalTrust
+	require.NoError(t, val2.ReadFromV2(valV2))
+
+	require.True(t, val2.VerifySignature())
 }
 
-func TestGlobalTrust_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *reputation.GlobalTrust
+func TestGlobalTrustEncoding(t *testing.T) {
+	val := reputationtest.SignedGlobalTrust()
 
-		require.Nil(t, x.ToV2())
-	})
-}
+	t.Run("binary", func(t *testing.T) {
+		data := val.Marshal()
 
-func TestNewTrust(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		trust := reputation.NewTrust()
+		var val2 reputation.GlobalTrust
+		require.NoError(t, val2.Unmarshal(data))
 
-		// check initial values
-		require.Zero(t, trust.Value())
-		require.Nil(t, trust.Peer())
-
-		// convert to v2 message
-		trustV2 := trust.ToV2()
-
-		require.Zero(t, trustV2.GetValue())
-		require.Nil(t, trustV2.GetPeer())
-	})
-}
-
-func TestNewPeerToPeerTrust(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		trust := reputation.NewPeerToPeerTrust()
-
-		// check initial values
-		require.Nil(t, trust.Trust())
-		require.Nil(t, trust.TrustingPeer())
-
-		// convert to v2 message
-		trustV2 := trust.ToV2()
-
-		require.Nil(t, trustV2.GetTrust())
-		require.Nil(t, trustV2.GetTrustingPeer())
-	})
-}
-
-func TestNewGlobalTrust(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		trust := reputation.NewGlobalTrust()
-
-		// check initial values
-		require.Nil(t, trust.Manager())
-		require.Nil(t, trust.Trust())
-
-		require.Equal(t, version.Current(), *trust.Version())
-
-		// convert to v2 message
-		trustV2 := trust.ToV2()
-
-		require.Nil(t, trustV2.GetBody())
+		require.Equal(t, val, val2)
 	})
 }

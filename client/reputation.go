@@ -65,10 +65,13 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 	reqBody := new(v2reputation.AnnounceLocalTrustRequestBody)
 	reqBody.SetEpoch(prm.epoch)
 
-	trusts := make([]reputation.Trust, len(prm.trusts))
-	copy(trusts, prm.trusts)
+	trusts := make([]v2reputation.Trust, len(prm.trusts))
 
-	reqBody.SetTrusts(reputation.TrustsToV2(trusts))
+	for i := range prm.trusts {
+		prm.trusts[i].WriteToV2(&trusts[i])
+	}
+
+	reqBody.SetTrusts(trusts)
 
 	// form request
 	var req v2reputation.AnnounceLocalTrustRequest
@@ -159,11 +162,14 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 		panic("current trust value not set")
 	}
 
+	var trust v2reputation.PeerToPeerTrust
+	prm.trust.WriteToV2(&trust)
+
 	// form request body
 	reqBody := new(v2reputation.AnnounceIntermediateResultRequestBody)
 	reqBody.SetEpoch(prm.epoch)
 	reqBody.SetIteration(prm.iter)
-	reqBody.SetTrust(prm.trust.ToV2())
+	reqBody.SetTrust(&trust)
 
 	// form request
 	var req v2reputation.AnnounceIntermediateResultRequest

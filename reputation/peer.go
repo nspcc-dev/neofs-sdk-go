@@ -2,82 +2,102 @@ package reputation
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
 )
 
-// PeerID represents peer ID compatible with NeoFS API v2.
-type PeerID reputation.PeerID
-
-// NewPeerID creates and returns blank PeerID.
+// PeerID represents unique identifier of the peer participating in the NeoFS
+// reputation system.
 //
-// Defaults:
-//  - publicKey: nil.
-func NewPeerID() *PeerID {
-	return PeerIDFromV2(new(reputation.PeerID))
-}
-
-// PeerIDFromV2 converts NeoFS API v2 reputation.PeerID message to PeerID.
+// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/reputation.PeerID
+// message. See ReadFromV2 / WriteToV2 methods.
 //
-// Nil reputation.PeerID converts to nil.
-func PeerIDFromV2(id *reputation.PeerID) *PeerID {
-	return (*PeerID)(id)
+// Instances can be created using built-in var declaration.
+type PeerID struct {
+	m reputation.PeerID
 }
 
-// SetPublicKey sets peer ID as a compressed public key.
-func (x *PeerID) SetPublicKey(v [33]byte) {
-	(*reputation.PeerID)(x).SetPublicKey(v[:])
-}
-
-// ToV2 converts PeerID to NeoFS API v2 reputation.PeerID message.
+// ReadFromV2 reads PeerID from the reputation.PeerID message. Returns an
+// error if the message is malformed according to the NeoFS API V2 protocol.
 //
-// Nil PeerID converts to nil.
-func (x *PeerID) ToV2() *reputation.PeerID {
-	return (*reputation.PeerID)(x)
-}
-
-// Equal returns true if identifiers are identical.
-func (x *PeerID) Equal(x2 *PeerID) bool {
-	return bytes.Equal(
-		(*reputation.PeerID)(x).GetPublicKey(),
-		(*reputation.PeerID)(x2).GetPublicKey(),
-	)
-}
-
-// Parse parses PeerID from base58 string.
-func (x *PeerID) Parse(s string) error {
-	data, err := base58.Decode(s)
-	if err != nil {
-		return err
+// See also WriteToV2.
+func (x *PeerID) ReadFromV2(m reputation.PeerID) error {
+	val := m.GetPublicKey()
+	if len(val) == 0 {
+		return errors.New("missing ID bytes")
 	}
 
-	(*reputation.PeerID)(x).SetPublicKey(data)
+	x.m = m
 
 	return nil
 }
 
-// String returns base58 string representation of PeerID.
-func (x *PeerID) String() string {
-	return base58.Encode((*reputation.PeerID)(x).GetPublicKey())
+// WriteToV2 writes PeerID to the reputation.PeerID message.
+// The message must not be nil.
+//
+// See also ReadFromV2.
+func (x PeerID) WriteToV2(m *reputation.PeerID) {
+	*m = x.m
 }
 
-// Marshal marshals PeerID into a protobuf binary form.
-func (x *PeerID) Marshal() ([]byte, error) {
-	return (*reputation.PeerID)(x).StableMarshal(nil), nil
+// SetPublicKey sets PeerID as a binary-encoded public key which authenticates
+// the participant of the NeoFS reputation system.
+//
+// Argument MUST NOT be mutated, make a copy first.
+//
+// See also CompareKey.
+func (x *PeerID) SetPublicKey(key []byte) {
+	x.m.SetPublicKey(key)
 }
 
-// Unmarshal unmarshals protobuf binary representation of PeerID.
-func (x *PeerID) Unmarshal(data []byte) error {
-	return (*reputation.PeerID)(x).Unmarshal(data)
+// PublicKey return public key set using SetPublicKey.
+//
+// Zero PeerID has zero key which is incorrect according to NeoFS API
+// protocol.
+//
+// Return value MUST NOT be mutated, make a copy first.
+func (x PeerID) PublicKey() []byte {
+	return x.m.GetPublicKey()
 }
 
-// MarshalJSON encodes PeerID to protobuf JSON format.
-func (x *PeerID) MarshalJSON() ([]byte, error) {
-	return (*reputation.PeerID)(x).MarshalJSON()
+// ComparePeerKey checks if the given PeerID corresponds to the party
+// authenticated by the given binary public key.
+func ComparePeerKey(peer PeerID, key []byte) bool {
+	return bytes.Equal(peer.PublicKey(), key)
 }
 
-// UnmarshalJSON decodes PeerID from protobuf JSON format.
-func (x *PeerID) UnmarshalJSON(data []byte) error {
-	return (*reputation.PeerID)(x).UnmarshalJSON(data)
+// EncodeToString encodes ID into NeoFS API protocol string.
+//
+// Zero PeerID is base58 encoding of PeerIDSize zeros.
+//
+// See also DecodeString.
+func (x PeerID) EncodeToString() string {
+	return base58.Encode(x.m.GetPublicKey())
+}
+
+// DecodeString decodes string into PeerID according to NeoFS API protocol.
+// Returns an error if s is malformed.
+//
+// See also DecodeString.
+func (x *PeerID) DecodeString(s string) error {
+	data, err := base58.Decode(s)
+	if err != nil {
+		return fmt.Errorf("decode base58: %w", err)
+	}
+
+	x.m.SetPublicKey(data)
+
+	return nil
+}
+
+// String implements fmt.Stringer.
+//
+// String is designed to be human-readable, and its format MAY differ between
+// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// be used to encode ID into NeoFS protocol string.
+func (x PeerID) String() string {
+	return x.EncodeToString()
 }

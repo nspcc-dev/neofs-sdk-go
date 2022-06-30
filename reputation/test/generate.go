@@ -1,58 +1,58 @@
 package reputationtest
 
 import (
-	"testing"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
-	"github.com/stretchr/testify/require"
 )
 
-func PeerID() *reputation.PeerID {
-	v := reputation.NewPeerID()
-
+func PeerID() (v reputation.PeerID) {
 	p, err := keys.NewPrivateKey()
 	if err != nil {
 		panic(err)
 	}
 
-	key := [33]byte{}
-	copy(key[:], p.Bytes())
-	v.SetPublicKey(key)
+	v.SetPublicKey(p.PublicKey().Bytes())
 
-	return v
+	return
 }
 
-func Trust() *reputation.Trust {
-	v := reputation.NewTrust()
+func Trust() (v reputation.Trust) {
 	v.SetPeer(PeerID())
-	v.SetValue(1.5)
+	v.SetValue(0.5)
 
-	return v
+	return
 }
 
-func PeerToPeerTrust() *reputation.PeerToPeerTrust {
-	v := reputation.NewPeerToPeerTrust()
+func PeerToPeerTrust() (v reputation.PeerToPeerTrust) {
 	v.SetTrustingPeer(PeerID())
 	v.SetTrust(Trust())
 
-	return v
+	return
 }
 
-func GlobalTrust() *reputation.GlobalTrust {
-	v := reputation.NewGlobalTrust()
+func GlobalTrust() (v reputation.GlobalTrust) {
+	v.Init()
 	v.SetManager(PeerID())
 	v.SetTrust(Trust())
 
-	return v
+	return
 }
 
-func SignedGlobalTrust(t testing.TB) *reputation.GlobalTrust {
+func SignedGlobalTrust() reputation.GlobalTrust {
 	gt := GlobalTrust()
 
 	p, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	require.NoError(t, gt.Sign(&p.PrivateKey))
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error from key creator: %v", err))
+	}
+
+	err = gt.Sign(neofsecdsa.Signer(p.PrivateKey))
+	if err != nil {
+		panic(fmt.Sprintf("unexpected error from GlobalTrust.Sign: %v", err))
+	}
 
 	return gt
 }
