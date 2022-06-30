@@ -212,3 +212,24 @@ func TestNetworkInfo_WithdrawalFee(t *testing.T) {
 		},
 	)
 }
+
+func TestNetworkInfo_HomomorphicHashingDisabled(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.HomomorphicHashingDisabled() },
+		func(info *NetworkInfo, val interface{}) {
+			if val.(bool) {
+				info.DisableHomomorphicHashing()
+			}
+		},
+		true, true, // it is impossible to enable hashing
+		"HomomorphicHashingDisabled", func(val interface{}) []byte {
+			data := make([]byte, 1)
+
+			if val.(bool) {
+				data[0] = 1
+			}
+
+			return data
+		},
+	)
+}
