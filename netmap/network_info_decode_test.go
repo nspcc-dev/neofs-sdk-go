@@ -26,3 +26,38 @@ func TestDecodeUint64(t *testing.T) {
 		require.Equal(t, expected, actual)
 	}
 }
+
+func TestDecodeBool(t *testing.T) {
+	testCases := []struct {
+		expected bool
+		raw      []byte
+	}{
+		{
+			false,
+			[]byte{0},
+		},
+		{
+			false,
+			[]byte{0, 0, 0, 0},
+		},
+		{
+			true,
+			[]byte{1},
+		},
+		{
+			true,
+			[]byte{1, 1, 1, 1, 1},
+		},
+		{
+			true,
+			[]byte{0, 0, 0, 0, 1}, // neo-go casts any value that does not consist of zeroes as `true`
+		},
+	}
+
+	for _, test := range testCases {
+		actual, err := decodeConfigValueBool(test.raw)
+		require.NoError(t, err)
+
+		require.Equal(t, test.expected, actual)
+	}
+}

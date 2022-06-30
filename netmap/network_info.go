@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
@@ -74,6 +75,8 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 			configMaxObjSize,
 			configWithdrawalFee:
 			_, err = decodeConfigValueUint64(prm.GetValue())
+		case configHomomorphicHashingDisabled:
+			_, err = decodeConfigValueBool(prm.GetValue())
 		}
 
 		if err != nil {
@@ -243,7 +246,8 @@ func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []by
 			configEpochDuration,
 			configIRCandidateFee,
 			configMaxObjSize,
-			configWithdrawalFee:
+			configWithdrawalFee,
+			configHomomorphicHashingDisabled:
 		}
 
 		return false
@@ -255,6 +259,11 @@ func (x *NetworkInfo) setConfigUint64(name string, num uint64) {
 	binary.LittleEndian.PutUint64(val, num)
 
 	x.setConfig(name, val)
+}
+
+func (x *NetworkInfo) setConfigBool(name string, val bool) {
+	v := stackitem.NewBool(val)
+	x.setConfig(name, v.Bytes())
 }
 
 // decodeConfigValueUint64 parses val as little-endian uint64.
@@ -272,6 +281,18 @@ func decodeConfigValueUint64(val []byte) (uint64, error) {
 	return res, nil
 }
 
+// decodeConfigValueBool parses val as boolean contract storage value.
+func decodeConfigValueBool(val []byte) (bool, error) {
+	arr := stackitem.NewByteArray(val)
+
+	res, err := arr.TryBool()
+	if err != nil {
+		return false, fmt.Errorf("invalid bool parameter contract format %s", err)
+	}
+
+	return res, nil
+}
+
 func (x NetworkInfo) configUint64(name string) uint64 {
 	val := x.configValue(name)
 	if val == nil {
@@ -279,6 +300,22 @@ func (x NetworkInfo) configUint64(name string) uint64 {
 	}
 
 	res, err := decodeConfigValueUint64(val)
+	if err != nil {
+		// potential panic is OK since value MUST be correct since it is
+		// verified in ReadFromV2 or set by provided method.
+		panic(err)
+	}
+
+	return res
+}
+
+func (x NetworkInfo) configBool(name string) bool {
+	val := x.configValue(name)
+	if val == nil {
+		return false
+	}
+
+	res, err := decodeConfigValueBool(val)
 	if err != nil {
 		// potential panic is OK since value MUST be correct since it is
 		// verified in ReadFromV2 or set by provided method.
@@ -466,4 +503,22 @@ func (x *NetworkInfo) SetWithdrawalFee(sz uint64) {
 // Zero NetworkInfo has zero fee.
 func (x NetworkInfo) WithdrawalFee() uint64 {
 	return x.configUint64(configWithdrawalFee)
+}
+
+const configHomomorphicHashingDisabled = "HomomorphicHashingDisabled"
+
+// DisableHomomorphicHashing sets flag requiring to disable homomorphic
+// hashing of the containers in the network.
+//
+// See also HomomorphicHashingDisabled.
+func (x *NetworkInfo) DisableHomomorphicHashing() {
+	x.setConfigBool(configHomomorphicHashingDisabled, true)
+}
+
+// HomomorphicHashingDisabled returns the state of the homomorphic
+// hashing network setting.
+//
+// Zero NetworkInfo has enabled homomorphic hashing.
+func (x NetworkInfo) HomomorphicHashingDisabled() bool {
+	return x.configBool(configHomomorphicHashingDisabled)
 }
