@@ -1403,7 +1403,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 	ctxCall.Context = ctx
 
 	if err := p.initCallContext(&ctxCall, prm.prmCommon, prmCtx); err != nil {
-		return nil, fmt.Errorf("init call context")
+		return nil, fmt.Errorf("init call context: %w", err)
 	}
 
 	if ctxCall.sessionDefault {
