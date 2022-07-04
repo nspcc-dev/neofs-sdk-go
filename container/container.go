@@ -30,7 +30,7 @@ import (
 //
 // Container type instances can represent different container states in the
 // system, depending on the context. To create new container in NeoFS zero
-// instance be created, initialized using Init method and filled using
+// instance SHOULD be declared, initialized using Init method and filled using
 // dedicated methods. Once container is saved in the NeoFS network, it can't be
 // changed: containers stored in the system are immutable, and NeoFS is a CAS
 // of containers that are identified by a fixed length value (see cid.ID type).
