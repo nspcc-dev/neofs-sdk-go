@@ -93,3 +93,17 @@ func TestAddress_DecodeString(t *testing.T) {
 	require.Error(t, x2.DecodeString(strCnr+"\\"+strObj))
 	require.NoError(t, x2.DecodeString(strCnr+"/"+strObj))
 }
+
+func TestAddressEncoding(t *testing.T) {
+	v := oidtest.Address()
+
+	t.Run("json", func(t *testing.T) {
+		data, err := v.MarshalJSON()
+		require.NoError(t, err)
+
+		var v2 oid.Address
+		require.NoError(t, v2.UnmarshalJSON(data))
+
+		require.Equal(t, v, v2)
+	})
+}
