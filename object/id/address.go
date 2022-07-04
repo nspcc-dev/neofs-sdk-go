@@ -65,6 +65,32 @@ func (x Address) WriteToV2(m *refs.Address) {
 	m.SetContainerID(&cnr)
 }
 
+// MarshalJSON encodes Address into a JSON format of the NeoFS API protocol
+// (Protocol Buffers JSON).
+//
+// See also UnmarshalJSON.
+func (x Address) MarshalJSON() ([]byte, error) {
+	var m refs.Address
+	x.WriteToV2(&m)
+
+	return m.MarshalJSON()
+}
+
+// UnmarshalJSON decodes NeoFS API protocol JSON format into the Address
+// (Protocol Buffers JSON). Returns an error describing a format violation.
+//
+// See also MarshalJSON.
+func (x *Address) UnmarshalJSON(data []byte) error {
+	var m refs.Address
+
+	err := m.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return x.ReadFromV2(m)
+}
+
 // Container returns unique identifier of the NeoFS object container.
 //
 // Zero Address has zero container ID, which is incorrect according to NeoFS
