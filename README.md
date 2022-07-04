@@ -40,21 +40,33 @@ to perform certain actions on behalf of the user.
 ### client
 Contains client for working with NeoFS.
 ```go
-c, _ := client.New(
-    client.WithAddress("localhost:40005"), // endpoint address
-    client.WithDefaultPrivateKey(key),     // private key for request signing
-    client.WithNeoFSErrorHandling(),       // enable erroneous status parsing
-    client.WithTLSConfig(&tls.Config{}))   // custom TLS configuration
+var prmInit client.PrmInit
+prmInit.SetDefaultPrivateKey(key) // private key for request signing
+prmInit.ResolveNeoFSFailures() // enable erroneous status parsing
+
+var c client.Client
+c.Init(prmInit)
+
+var prmDial client.PrmDial
+prmDial.SetServerURI("grpcs://localhost:40005") // endpoint address
+
+err := c.Dial(prmDial)
+if err != nil {
+    return
+}
     
 ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
 defer cancel()
 
-res, err := c.BalanceGet(ctx, owner)
+var prm client.PrmBalanceGet
+prm.SetAccount(acc)
+
+res, err := c.BalanceGet(ctx, prm)
 if err != nil {
     return
 }
 
-fmt.Printf("Balance for %s: %s\n", owner, res.Amount())
+fmt.Printf("Balance for %s: %v\n", acc, res.Amount())
 ```
 
 #### Response status
@@ -66,7 +78,7 @@ these details to the user as well as retry an operation, possibly with different
 Status wire-format is extendable and each node can report any set of details it wants.
 The set of reserved status codes can be found in
 [NeoFS API](https://github.com/nspcc-dev/neofs-api/blob/master/status/types.proto). There is also
-a `client.WithNeoFSErrorHandling()` to seamlessly convert erroneous statuses into Go error type.
+a `client.PrmInit.ResolveNeoFSFailures()` to seamlessly convert erroneous statuses into Go error type.
 
 ### policy
 Contains helpers allowing conversion of placing policy from/to JSON representation

@@ -41,7 +41,7 @@ type ResAnnounceLocalTrust struct {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -139,7 +139,7 @@ type ResAnnounceIntermediateTrust struct {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //

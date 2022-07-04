@@ -74,7 +74,7 @@ func (x *ResContainerPut) setID(id *cid.ID) {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -208,7 +208,7 @@ func (x *ResContainerGet) setContainer(cnr container.Container) {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -317,7 +317,7 @@ func (x *ResContainerList) setContainers(ids []cid.ID) {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -419,7 +419,7 @@ type ResContainerDelete struct {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -545,7 +545,7 @@ func (x *ResContainerEACL) setTable(table *eacl.Table) {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -651,7 +651,7 @@ type ResContainerSetEACL struct {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -756,7 +756,7 @@ type ResAnnounceSpace struct {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //

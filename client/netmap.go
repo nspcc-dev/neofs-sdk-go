@@ -53,7 +53,7 @@ func (x *ResEndpointInfo) setNodeInfo(info *netmap.NodeInfo) {
 // Method can be used as a health check to see if node is alive and responds to requests.
 //
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
@@ -150,7 +150,7 @@ func (x *ResNetworkInfo) setInfo(info *netmap.NetworkInfo) {
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
 //
 // Any client's internal or transport errors are returned as `error`.
-// If WithNeoFSErrorParsing option has been provided, unsuccessful
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
 // NeoFS status codes are returned as `error`, otherwise, are included
 // in the returned result structure.
 //
