@@ -214,7 +214,8 @@ func (x PeerToPeerTrust) Trust() (res Trust) {
 // GlobalTrust is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/reputation.GlobalTrust
 // message. See ReadFromV2 / WriteToV2 methods.
 //
-// Instances can be created using built-in var declaration.
+// To submit GlobalTrust value in NeoFS zero instance SHOULD be declared,
+// initialized using Init method and filled using dedicated methods.
 type GlobalTrust struct {
 	m reputation.GlobalTrust
 }
