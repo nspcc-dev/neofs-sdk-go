@@ -195,8 +195,8 @@ github.com/nspcc-dev/neofs-sdk-go v0.0.0-20220113123743-7f3162110659/go.mod h1:/
 github.com/nspcc-dev/rfc6979 v0.1.0/go.mod h1:exhIh1PdpDC5vQmyEsGvc4YDM/lyQp/452QxGq/UEso=
 github.com/nspcc-dev/rfc6979 v0.2.0 h1:3e1WNxrN60/6N0DW7+UYisLeZJyfqZTNOjeV/toYvOE=
 github.com/nspcc-dev/rfc6979 v0.2.0/go.mod h1:exhIh1PdpDC5vQmyEsGvc4YDM/lyQp/452QxGq/UEso=
-github.com/nspcc-dev/tzhash v1.5.2 h1:GuIQPOY2xpl5ZE1pbUbz+QdKXVOTyzbbxSVv0nBfa98=
-github.com/nspcc-dev/tzhash v1.5.2/go.mod h1:gwAx6mcsbkfY+JVp+PovoP2Gvw6y57W8dj7zDHKOhzI=
+github.com/nspcc-dev/tzhash v1.6.0 h1:MmV0Fjwwl8KzL4LgBekFBQRoqsoGSPTGyNqYu/rL4Ek=
+github.com/nspcc-dev/tzhash v1.6.0/go.mod h1:BoflzCVp+DO/f1mvbcsJQWoFzidIFBhWFZMglbUW648=
 github.com/nxadm/tail v1.4.4 h1:DQuhQpB1tVlglWS2hLQ5OV6B5r8aGxSrPc5Qo6uTN78=
 github.com/nxadm/tail v1.4.4/go.mod h1:kenIhsEOeOJmVchQTgglprH7qJGnHDVpk1VPCcaMI8A=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

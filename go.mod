@@ -12,7 +12,7 @@ require (
 	github.com/nspcc-dev/neo-go v0.98.2
 	github.com/nspcc-dev/neofs-api-go/v2 v2.13.0
 	github.com/nspcc-dev/neofs-contract v0.15.1
-	github.com/nspcc-dev/tzhash v1.5.2
+	github.com/nspcc-dev/tzhash v1.6.0
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/zap v1.18.1
 )
