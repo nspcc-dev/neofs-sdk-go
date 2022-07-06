@@ -17,7 +17,7 @@ import (
 // 	_ = Version(refs.Version{}) // not recommended
 type Version refs.Version
 
-const sdkMjr, sdkMnr = 2, 12
+const sdkMjr, sdkMnr = 2, 13
 
 // Current returns Version instance that initialized to the
 // latest supported NeoFS API revision number in SDK.
