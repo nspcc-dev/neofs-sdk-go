@@ -39,7 +39,7 @@ func TestSignature(t *testing.T) {
 
 		s.WriteToV2(&m)
 
-		s.ReadFromV2(m)
+		require.NoError(t, s.ReadFromV2(m))
 
 		valid := s.Verify(data)
 		require.True(t, valid, "type %T", signer)

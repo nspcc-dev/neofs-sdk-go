@@ -1,6 +1,7 @@
 package storagegroup
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 
@@ -23,11 +24,55 @@ import (
 // 	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
 type StorageGroup storagegroup.StorageGroup
 
+// reads StorageGroup from the storagegroup.StorageGroup message. If checkFieldPresence is set,
+// returns an error on absence of any protocol-required field.
+func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresence bool) error {
+	var err error
+
+	h := m.GetValidationHash()
+	if h != nil {
+		err = new(checksum.Checksum).ReadFromV2(*h)
+		if err != nil {
+			return fmt.Errorf("invalid hash: %w", err)
+		}
+	} else if checkFieldPresence {
+		return errors.New("missing hash")
+	}
+
+	members := m.GetMembers()
+	if len(members) > 0 {
+		var member oid.ID
+		mMembers := make(map[oid.ID]struct{}, len(members))
+		var exits bool
+
+		for i := range members {
+			err = member.ReadFromV2(members[i])
+			if err != nil {
+				return fmt.Errorf("invalid member: %w", err)
+			}
+
+			_, exits = mMembers[member]
+			if exits {
+				return fmt.Errorf("duplicated member %s", member)
+			}
+
+			mMembers[member] = struct{}{}
+		}
+	} else if checkFieldPresence {
+		return errors.New("missing members")
+	}
+
+	*sg = StorageGroup(m)
+
+	return nil
+}
+
 // ReadFromV2 reads StorageGroup from the storagegroup.StorageGroup message.
+// Checks if the message conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
-func (sg *StorageGroup) ReadFromV2(m storagegroup.StorageGroup) {
-	*sg = StorageGroup(m)
+func (sg *StorageGroup) ReadFromV2(m storagegroup.StorageGroup) error {
+	return sg.readFromV2(m, true)
 }
 
 // WriteToV2 writes StorageGroup to the storagegroup.StorageGroup message.
@@ -68,7 +113,7 @@ func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum, isSet bool) {
 	v2 := (storagegroup.StorageGroup)(sg)
 	if checksumV2 := v2.GetValidationHash(); checksumV2 != nil {
-		v.ReadFromV2(*checksumV2)
+		v.ReadFromV2(*checksumV2) // FIXME(@cthulhu-rider): #226 handle error
 		isSet = true
 	}
 
@@ -174,7 +219,7 @@ func (sg *StorageGroup) Unmarshal(data []byte) error {
 		return err
 	}
 
-	return formatCheck(v2)
+	return sg.readFromV2(*v2, false)
 }
 
 // MarshalJSON encodes StorageGroup to protobuf JSON format.
@@ -195,20 +240,7 @@ func (sg *StorageGroup) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	return formatCheck(v2)
-}
-
-func formatCheck(v2 *storagegroup.StorageGroup) error {
-	var oID oid.ID
-
-	for _, m := range v2.GetMembers() {
-		err := oID.ReadFromV2(m)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return sg.readFromV2(*v2, false)
 }
 
 // ReadFromObject assemble StorageGroup from a regular

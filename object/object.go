@@ -117,7 +117,7 @@ func (o *Object) Signature() *neofscrypto.Signature {
 	}
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(*sigv2)
+	sig.ReadFromV2(*sigv2) // FIXME(@cthulhu-rider): #226 handle error
 
 	return &sig
 }
@@ -149,7 +149,7 @@ func (o *Object) SetPayload(v []byte) {
 func (o *Object) Version() *version.Version {
 	var ver version.Version
 	if verV2 := (*object.Object)(o).GetHeader().GetVersion(); verV2 != nil {
-		ver.ReadFromV2(*verV2)
+		ver.ReadFromV2(*verV2) // FIXME(@cthulhu-rider): #226 handle error
 	}
 	return &ver
 }
@@ -248,7 +248,7 @@ func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
 	v2 := (*object.Object)(o)
 
 	if hash := v2.GetHeader().GetPayloadHash(); hash != nil {
-		v.ReadFromV2(*hash)
+		v.ReadFromV2(*hash) // FIXME(@cthulhu-rider): #226 handle error
 		return v, true
 	}
 
@@ -278,7 +278,7 @@ func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 	v2 := (*object.Object)(o)
 
 	if hash := v2.GetHeader().GetHomomorphicHash(); hash != nil {
-		v.ReadFromV2(*hash)
+		v.ReadFromV2(*hash) // FIXME(@cthulhu-rider): #226 handle error
 		return v, true
 	}
 

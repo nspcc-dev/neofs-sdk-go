@@ -13,11 +13,13 @@ import "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 // 	_ = Decimal(accounting.Decimal{}) // not recommended
 type Decimal accounting.Decimal
 
-// ReadFromV2 reads Decimal from the accounting.Decimal message.
+// ReadFromV2 reads Decimal from the accounting.Decimal message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
-func (d *Decimal) ReadFromV2(m accounting.Decimal) {
+func (d *Decimal) ReadFromV2(m accounting.Decimal) error {
 	*d = Decimal(m)
+	return nil
 }
 
 // WriteToV2 writes Decimal to the accounting.Decimal message.

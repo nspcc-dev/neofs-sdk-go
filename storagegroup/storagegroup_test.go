@@ -49,13 +49,7 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 			v2 storagegroupV2.StorageGroup
 		)
 
-		x.ReadFromV2(v2)
-
-		require.Zero(t, x.ExpirationEpoch())
-		require.Zero(t, x.ValidationDataSize())
-		_, set := x.ValidationDataHash()
-		require.False(t, set)
-		require.Zero(t, x.Members())
+		require.Error(t, x.ReadFromV2(v2))
 	})
 
 	t.Run("from non-zero", func(t *testing.T) {
@@ -72,13 +66,13 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 		mm := v2.GetMembers()
 		hashV2 := v2.GetValidationHash()
 
-		x.ReadFromV2(*v2)
+		require.NoError(t, x.ReadFromV2(*v2))
 
 		require.Equal(t, epoch, x.ExpirationEpoch())
 		require.Equal(t, size, x.ValidationDataSize())
 
 		var hash checksum.Checksum
-		hash.ReadFromV2(*hashV2)
+		require.NoError(t, hash.ReadFromV2(*hashV2))
 		h, set := x.ValidationDataHash()
 		require.True(t, set)
 		require.Equal(t, hash, h)
@@ -143,7 +137,7 @@ func TestStorageGroup_WriteToV2(t *testing.T) {
 		require.Equal(t, x.ValidationDataSize(), v2.GetValidationDataSize())
 
 		var hash checksum.Checksum
-		hash.ReadFromV2(*v2.GetValidationHash())
+		require.NoError(t, hash.ReadFromV2(*v2.GetValidationHash()))
 
 		h, set := x.ValidationDataHash()
 		require.True(t, set)

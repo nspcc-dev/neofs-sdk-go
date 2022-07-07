@@ -63,7 +63,7 @@ func TestContainer_Init(t *testing.T) {
 	require.NotNil(t, verV2)
 
 	var ver version.Version
-	ver.ReadFromV2(*verV2)
+	require.NoError(t, ver.ReadFromV2(*verV2))
 
 	require.Equal(t, version.Current(), ver)
 
@@ -345,7 +345,7 @@ func TestCalculateSignature(t *testing.T) {
 	sig.WriteToV2(&msg)
 
 	var sig2 neofscrypto.Signature
-	sig2.ReadFromV2(msg)
+	require.NoError(t, sig2.ReadFromV2(msg))
 
 	require.True(t, container.VerifySignature(sig2, val))
 }

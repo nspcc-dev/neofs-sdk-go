@@ -279,10 +279,9 @@ func (b Token) VerifySignature() bool {
 	}
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(b.sig)
 
 	// TODO: (#233) check owner<->key relation
-	return sig.Verify(b.signedData())
+	return sig.ReadFromV2(b.sig) == nil && sig.Verify(b.signedData())
 }
 
 // Marshal encodes Token into a binary format of the NeoFS API protocol
