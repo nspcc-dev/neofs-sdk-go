@@ -55,11 +55,13 @@ func (v Version) WriteToV2(m *refs.Version) {
 	*m = (refs.Version)(v)
 }
 
-// ReadFromV2 reads Version from the refs.Version message.
+// ReadFromV2 reads Version from the refs.Version message. Checks if the message
+// conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
-func (v *Version) ReadFromV2(m refs.Version) {
+func (v *Version) ReadFromV2(m refs.Version) error {
 	*v = Version(m)
+	return nil
 }
 
 // String implements fmt.Stringer.

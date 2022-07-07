@@ -210,7 +210,6 @@ func (x Container) VerifySessionDataSignature(data, signature []byte) bool {
 	sigV2.SetSign(signature)
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(sigV2)
 
-	return sig.Verify(data)
+	return sig.ReadFromV2(sigV2) == nil && sig.Verify(data)
 }

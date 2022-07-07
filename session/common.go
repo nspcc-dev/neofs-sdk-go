@@ -178,10 +178,9 @@ func (x commonData) verifySignature(w contextWriter) bool {
 	}
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(x.sig)
 
 	// TODO: (#233) check owner<->key relation
-	return sig.Verify(x.signedData(w))
+	return sig.ReadFromV2(x.sig) == nil && sig.Verify(x.signedData(w))
 }
 
 func (x commonData) marshal(w contextWriter) []byte {

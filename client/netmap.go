@@ -95,7 +95,11 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 		var ver version.Version
 		if v2ver := body.GetVersion(); v2ver != nil {
-			ver.ReadFromV2(*v2ver)
+			cc.err = ver.ReadFromV2(*v2ver)
+			if cc.err != nil {
+				cc.err = fmt.Errorf("invalid version: %w", cc.err)
+				return
+			}
 		}
 		res.setLatestVersion(&ver)
 

@@ -394,9 +394,8 @@ func (x GlobalTrust) VerifySignature() bool {
 	}
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(*sigV2)
 
-	return sig.Verify(x.m.GetBody().StableMarshal(nil))
+	return sig.ReadFromV2(*sigV2) == nil && sig.Verify(x.m.GetBody().StableMarshal(nil))
 }
 
 // Marshal encodes GlobalTrust into a binary format of the NeoFS API protocol

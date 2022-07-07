@@ -1,6 +1,7 @@
 package neofscrypto
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -16,11 +17,29 @@ import (
 // 	_ = Signature(refs.Signature{}) // not recommended
 type Signature refs.Signature
 
-// ReadFromV2 reads Signature from the refs.Signature message.
+// ReadFromV2 reads Signature from the refs.Signature message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
-func (x *Signature) ReadFromV2(m refs.Signature) {
+func (x *Signature) ReadFromV2(m refs.Signature) error {
+	if len(m.GetKey()) == 0 {
+		return errors.New("missing public key")
+	} else if len(m.GetSign()) == 0 {
+		return errors.New("missing signature")
+	}
+
+	switch m.GetScheme() {
+	default:
+		return fmt.Errorf("unsupported scheme %v", m.GetSign())
+	case
+		refs.ECDSA_SHA512,
+		refs.ECDSA_RFC6979_SHA256,
+		refs.ECDSA_RFC6979_SHA256_WALLET_CONNECT:
+	}
+
 	*x = Signature(m)
+
+	return nil
 }
 
 // WriteToV2 writes Signature to the refs.Signature message.

@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -94,12 +96,21 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)
 
-		if bal := resp.GetBody().GetBalance(); bal != nil {
-			var d accounting.Decimal
-			d.ReadFromV2(*bal)
-
-			res.setAmount(&d)
+		bal := resp.GetBody().GetBalance()
+		if bal == nil {
+			cc.err = errors.New("missing balance field")
+			return
 		}
+
+		var d accounting.Decimal
+
+		cc.err = d.ReadFromV2(*bal)
+		if cc.err != nil {
+			cc.err = fmt.Errorf("invalid balance: %w", cc.err)
+			return
+		}
+
+		res.setAmount(&d)
 	}
 
 	// process call

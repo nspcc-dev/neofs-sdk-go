@@ -3,6 +3,7 @@ package checksum
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -35,11 +36,24 @@ const (
 	TZ
 )
 
-// ReadFromV2 reads Checksum from the refs.Checksum message.
+// ReadFromV2 reads Checksum from the refs.Checksum message. Checks if the
+// message conforms to NeoFS API V2 protocol.
 //
 // See also WriteToV2.
-func (c *Checksum) ReadFromV2(m refs.Checksum) {
+func (c *Checksum) ReadFromV2(m refs.Checksum) error {
+	if len(m.GetSum()) == 0 {
+		return errors.New("missing value")
+	}
+
+	switch m.GetType() {
+	default:
+		return fmt.Errorf("unsupported type %v", m.GetType())
+	case refs.SHA256, refs.TillichZemor:
+	}
+
 	*c = Checksum(m)
+
+	return nil
 }
 
 // WriteToV2 writes Checksum to the refs.Checksum message.

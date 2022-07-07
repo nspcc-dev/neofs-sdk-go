@@ -127,9 +127,8 @@ func (o *Object) VerifyIDSignature() bool {
 	}
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(*sigV2)
 
-	return sig.Verify(idV2.StableMarshal(nil))
+	return sig.ReadFromV2(*sigV2) == nil && sig.Verify(idV2.StableMarshal(nil))
 }
 
 // SetIDWithSignature sets object identifier and signature.
