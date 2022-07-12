@@ -14,5 +14,6 @@ require (
 	github.com/nspcc-dev/neofs-contract v0.15.1
 	github.com/nspcc-dev/tzhash v1.6.1
 	github.com/stretchr/testify v1.7.0
+	go.uber.org/atomic v1.9.0
 	go.uber.org/zap v1.18.1
 )
