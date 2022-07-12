@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 )
 
 func TestSamplerStability(t *testing.T) {
@@ -61,7 +62,15 @@ func newNetmapMock(name string, needErr bool) *clientMock {
 	if needErr {
 		err = fmt.Errorf("not available")
 	}
-	return &clientMock{name: name, err: err}
+	return &clientMock{
+		clientWrapper: clientWrapper{
+			addr:       "",
+			healthy:    atomic.NewBool(true),
+			errorCount: atomic.NewUint32(0),
+		},
+		name: name,
+		err:  err,
+	}
 }
 
 func TestHealthyReweight(t *testing.T) {
@@ -76,9 +85,10 @@ func TestHealthyReweight(t *testing.T) {
 
 	inner := &innerPool{
 		sampler: newSampler(weights, rand.NewSource(0)),
-		clientPacks: []*clientPack{
-			{client: newNetmapMock(names[0], true), healthy: true, address: "address0"},
-			{client: newNetmapMock(names[1], false), healthy: true, address: "address1"}},
+		clients: []client{
+			newNetmapMock(names[0], true),
+			newNetmapMock(names[1], false),
+		},
 	}
 	p := &Pool{
 		innerPools:      []*innerPool{inner},
@@ -90,19 +100,19 @@ func TestHealthyReweight(t *testing.T) {
 	// check getting first node connection before rebalance happened
 	connection0, err := p.connection()
 	require.NoError(t, err)
-	mock0 := connection0.client.(*clientMock)
+	mock0 := connection0.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 
 	connection1, err := p.connection()
 	require.NoError(t, err)
-	mock1 := connection1.client.(*clientMock)
+	mock1 := connection1.(*clientMock)
 	require.Equal(t, names[1], mock1.name)
 
 	// enabled first node again
 	inner.lock.Lock()
-	inner.clientPacks[0].client = newNetmapMock(names[0], false)
+	inner.clients[0] = newNetmapMock(names[0], false)
 	inner.lock.Unlock()
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
@@ -110,7 +120,7 @@ func TestHealthyReweight(t *testing.T) {
 
 	connection0, err = p.connection()
 	require.NoError(t, err)
-	mock0 = connection0.client.(*clientMock)
+	mock0 = connection0.(*clientMock)
 	require.Equal(t, names[0], mock0.name)
 }
 
@@ -121,12 +131,13 @@ func TestHealthyNoReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	sampler := newSampler(weights, rand.NewSource(0))
+	sampl := newSampler(weights, rand.NewSource(0))
 	inner := &innerPool{
-		sampler: sampler,
-		clientPacks: []*clientPack{
-			{client: newNetmapMock(names[0], false), healthy: true},
-			{client: newNetmapMock(names[1], false), healthy: true}},
+		sampler: sampl,
+		clients: []client{
+			newNetmapMock(names[0], false),
+			newNetmapMock(names[1], false),
+		},
 	}
 	p := &Pool{
 		innerPools:      []*innerPool{inner},
@@ -137,5 +148,5 @@ func TestHealthyNoReweight(t *testing.T) {
 
 	inner.lock.RLock()
 	defer inner.lock.RUnlock()
-	require.Equal(t, inner.sampler, sampler)
+	require.Equal(t, inner.sampler, sampl)
 }
