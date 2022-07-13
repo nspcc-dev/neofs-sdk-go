@@ -1900,6 +1900,27 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Deci
 	return cp.balanceGet(ctx, prm)
 }
 
+// Statistic returns connection statistics.
+func (p Pool) Statistic() Statistic {
+	stat := Statistic{}
+	for _, inner := range p.innerPools {
+		inner.lock.RLock()
+		for _, cl := range inner.clients {
+			node := &NodeStatistic{
+				address:       cl.address(),
+				latency:       cl.latency(),
+				overallErrors: cl.overallErrorRate(),
+				currentErrors: cl.currentErrorRate(),
+			}
+			stat.nodes = append(stat.nodes, node)
+			stat.overallErrors += node.overallErrors
+		}
+		inner.lock.RUnlock()
+	}
+
+	return stat
+}
+
 // waitForContainerPresence waits until the container is found on the NeoFS network.
 func waitForContainerPresence(ctx context.Context, cli client, cnrID *cid.ID, waitParams *WaitParams) error {
 	var prm PrmContainerGet
