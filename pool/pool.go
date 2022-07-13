@@ -62,6 +62,7 @@ type clientStatus interface {
 	overallErrorRate() uint64
 	resetErrorCounter()
 	latency() time.Duration
+	requests() uint64
 }
 
 type clientStatusMonitor struct {
@@ -572,7 +573,15 @@ func (c *clientStatusMonitor) resetErrorCounter() {
 }
 
 func (c *clientStatusMonitor) latency() time.Duration {
-	return time.Duration(c.allTime.Load() / c.allRequests.Load())
+	allRequests := c.requests()
+	if allRequests == 0 {
+		return 0
+	}
+	return time.Duration(c.allTime.Load() / allRequests)
+}
+
+func (c *clientStatusMonitor) requests() uint64 {
+	return c.allRequests.Load()
 }
 
 func (c *clientStatusMonitor) incRequests(elapsed time.Duration) {
@@ -1909,6 +1918,7 @@ func (p Pool) Statistic() Statistic {
 			node := &NodeStatistic{
 				address:       cl.address(),
 				latency:       cl.latency(),
+				requests:      cl.requests(),
 				overallErrors: cl.overallErrorRate(),
 				currentErrors: cl.currentErrorRate(),
 			}
