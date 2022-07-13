@@ -40,6 +40,7 @@ func (s Statistic) Node(address string) (*NodeStatistic, error) {
 type NodeStatistic struct {
 	address       string
 	latency       time.Duration
+	requests      uint64
 	overallErrors uint64
 	currentErrors uint32
 }
@@ -59,6 +60,11 @@ func (n NodeStatistic) CurrentErrors() uint32 {
 // Latency returns average latency for node request.
 func (n NodeStatistic) Latency() time.Duration {
 	return n.latency
+}
+
+// Requests returns number of requests.
+func (n NodeStatistic) Requests() uint64 {
+	return n.requests
 }
 
 // Address returns node endpoint address.
