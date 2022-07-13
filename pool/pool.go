@@ -558,6 +558,10 @@ func (c *clientStatusMonitor) address() string {
 func (c *clientStatusMonitor) incErrorRate() {
 	c.currentErrorCount.Inc()
 	c.overallErrorCount.Inc()
+	if c.currentErrorCount.Load() >= c.errorThreshold {
+		c.setHealthy(false)
+		c.resetErrorCounter()
+	}
 }
 
 func (c *clientStatusMonitor) currentErrorRate() uint32 {
@@ -601,10 +605,6 @@ func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error 
 		apistatus.WrongMagicNumber, *apistatus.WrongMagicNumber,
 		apistatus.SignatureVerification, *apistatus.SignatureVerification:
 		c.incErrorRate()
-		if c.currentErrorRate() >= c.errorThreshold {
-			c.setHealthy(false)
-			c.resetErrorCounter()
-		}
 	}
 
 	return err
