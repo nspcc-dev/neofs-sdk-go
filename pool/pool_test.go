@@ -510,11 +510,29 @@ func TestWaitPresence(t *testing.T) {
 
 func newTestStatusMonitor(addr string) *clientStatusMonitor {
 	return &clientStatusMonitor{
-		addr:           addr,
-		healthy:        atomic.NewBool(true),
-		errorCount:     atomic.NewUint32(0),
-		errorThreshold: 10,
+		addr:              addr,
+		healthy:           atomic.NewBool(true),
+		currentErrorCount: atomic.NewUint32(0),
+		overallErrorCount: atomic.NewUint64(0),
+		errorThreshold:    10,
+		allTime:           atomic.NewUint64(0),
+		allRequests:       atomic.NewUint64(0),
 	}
+}
+
+func TestStatusMonitor(t *testing.T) {
+	monitor := newTestStatusMonitor("")
+
+	count := 10
+	for i := 0; i < 10; i++ {
+		monitor.incErrorRate()
+		if i%3 == 0 {
+			monitor.resetErrorCounter()
+		}
+	}
+
+	require.Equal(t, uint64(count), monitor.overallErrorRate())
+	require.Equal(t, uint32(0), monitor.currentErrorRate())
 }
 
 func TestHandleError(t *testing.T) {
@@ -582,7 +600,7 @@ func TestHandleError(t *testing.T) {
 		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			errCount := monitor.errorRate()
+			errCount := monitor.currentErrorRate()
 			err := monitor.handleError(tc.status, tc.err)
 			if tc.expectedError {
 				require.Error(t, err)
@@ -592,7 +610,7 @@ func TestHandleError(t *testing.T) {
 			if tc.countError {
 				errCount++
 			}
-			require.Equal(t, errCount, monitor.errorRate())
+			require.Equal(t, errCount, monitor.currentErrorRate())
 		})
 	}
 }
