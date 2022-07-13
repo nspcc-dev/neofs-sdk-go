@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
@@ -16,28 +17,27 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"go.uber.org/atomic"
 )
 
 type mockClient struct {
-	key        ecdsa.PrivateKey
-	addr       string
-	healthy    *atomic.Bool
-	errorCount *atomic.Uint32
+	key ecdsa.PrivateKey
+	*clientStatusMonitor
 
 	errorOnCreateSession bool
 	errorOnEndpointInfo  bool
 	errorOnNetworkInfo   bool
-	errorOnGetObject     error
+	stOnGetObject        apistatus.Status
 }
 
 func newMockClient(addr string, key ecdsa.PrivateKey) *mockClient {
 	return &mockClient{
-		key:        key,
-		addr:       addr,
-		healthy:    atomic.NewBool(true),
-		errorCount: atomic.NewUint32(0),
+		key:                 key,
+		clientStatusMonitor: newTestStatusMonitor(addr),
 	}
+}
+
+func (m *mockClient) setThreshold(threshold uint32) {
+	m.errorThreshold = threshold
 }
 
 func (m *mockClient) errOnCreateSession() {
@@ -52,8 +52,8 @@ func (m *mockClient) errOnNetworkInfo() {
 	m.errorOnEndpointInfo = true
 }
 
-func (m *mockClient) errOnGetObject(err error) {
-	m.errorOnGetObject = err
+func (m *mockClient) statusOnGetObject(st apistatus.Status) {
+	m.stOnGetObject = st
 }
 
 func newToken(key ecdsa.PrivateKey) *session.Object {
@@ -95,7 +95,7 @@ func (m *mockClient) containerSetEACL(context.Context, PrmContainerSetEACL) erro
 
 func (m *mockClient) endpointInfo(context.Context, prmEndpointInfo) (*netmap.NodeInfo, error) {
 	if m.errorOnEndpointInfo {
-		return nil, errors.New("error")
+		return nil, m.handleError(nil, errors.New("error"))
 	}
 
 	var ni netmap.NodeInfo
@@ -105,7 +105,7 @@ func (m *mockClient) endpointInfo(context.Context, prmEndpointInfo) (*netmap.Nod
 
 func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (*netmap.NetworkInfo, error) {
 	if m.errorOnNetworkInfo {
-		return nil, errors.New("error")
+		return nil, m.handleError(nil, errors.New("error"))
 	}
 
 	var ni netmap.NetworkInfo
@@ -121,7 +121,12 @@ func (m *mockClient) objectDelete(context.Context, PrmObjectDelete) error {
 }
 
 func (m *mockClient) objectGet(context.Context, PrmObjectGet) (*ResGetObject, error) {
-	return &ResGetObject{}, m.errorOnGetObject
+	if m.stOnGetObject == nil {
+		return &ResGetObject{}, nil
+	}
+
+	status := apistatus.ErrFromStatus(m.stOnGetObject)
+	return &ResGetObject{}, m.handleError(status, nil)
 }
 
 func (m *mockClient) objectHead(context.Context, PrmObjectHead) (*object.Object, error) {
@@ -138,7 +143,7 @@ func (m *mockClient) objectSearch(context.Context, PrmObjectSearch) (*ResObjectS
 
 func (m *mockClient) sessionCreate(context.Context, prmCreateSession) (*resCreateSession, error) {
 	if m.errorOnCreateSession {
-		return nil, errors.New("error")
+		return nil, m.handleError(nil, errors.New("error"))
 	}
 
 	tok := newToken(m.key)
@@ -150,24 +155,4 @@ func (m *mockClient) sessionCreate(context.Context, prmCreateSession) (*resCreat
 		id:         v2tok.GetBody().GetID(),
 		sessionKey: v2tok.GetBody().GetSessionKey(),
 	}, nil
-}
-
-func (m *mockClient) isHealthy() bool {
-	return m.healthy.Load()
-}
-
-func (m *mockClient) setHealthy(b bool) bool {
-	return m.healthy.Swap(b) != b
-}
-
-func (m *mockClient) address() string {
-	return m.addr
-}
-
-func (m *mockClient) errorRate() uint32 {
-	return m.errorCount.Load()
-}
-
-func (m *mockClient) resetErrorCounter() {
-	m.errorCount.Store(0)
 }

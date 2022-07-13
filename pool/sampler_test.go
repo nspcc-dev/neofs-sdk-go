@@ -8,7 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 )
 
 func TestSamplerStability(t *testing.T) {
@@ -64,9 +63,7 @@ func newNetmapMock(name string, needErr bool) *clientMock {
 	}
 	return &clientMock{
 		clientWrapper: clientWrapper{
-			addr:       "",
-			healthy:    atomic.NewBool(true),
-			errorCount: atomic.NewUint32(0),
+			clientStatusMonitor: newTestStatusMonitor(""),
 		},
 		name: name,
 		err:  err,

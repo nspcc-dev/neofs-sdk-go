@@ -270,7 +270,7 @@ func TestSessionCache(t *testing.T) {
 
 	clientBuilder := func(addr string) (client, error) {
 		mockCli := newMockClient(addr, *key)
-		mockCli.errOnGetObject(apistatus.SessionTokenNotFound{})
+		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
 		return mockCli, nil
 	}
 
@@ -508,16 +508,17 @@ func TestWaitPresence(t *testing.T) {
 	})
 }
 
-func newTestWrapper(addr string) *clientWrapper {
-	return &clientWrapper{
-		addr:       addr,
-		healthy:    atomic.NewBool(true),
-		errorCount: atomic.NewUint32(0),
+func newTestStatusMonitor(addr string) *clientStatusMonitor {
+	return &clientStatusMonitor{
+		addr:           addr,
+		healthy:        atomic.NewBool(true),
+		errorCount:     atomic.NewUint32(0),
+		errorThreshold: 10,
 	}
 }
 
 func TestHandleError(t *testing.T) {
-	wrapper := newTestWrapper("")
+	monitor := newTestStatusMonitor("")
 
 	for i, tc := range []struct {
 		status        apistatus.Status
@@ -573,10 +574,16 @@ func TestHandleError(t *testing.T) {
 			expectedError: true,
 			countError:    true,
 		},
+		{
+			status:        &apistatus.SignatureVerification{},
+			err:           nil,
+			expectedError: true,
+			countError:    true,
+		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			errCount := wrapper.errorCount.Load()
-			err := wrapper.handleError(tc.status, tc.err)
+			errCount := monitor.errorRate()
+			err := monitor.handleError(tc.status, tc.err)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {
@@ -585,7 +592,61 @@ func TestHandleError(t *testing.T) {
 			if tc.countError {
 				errCount++
 			}
-			require.Equal(t, errCount, wrapper.errorCount.Load())
+			require.Equal(t, errCount, monitor.errorRate())
 		})
 	}
+}
+
+func TestSwitchAfterErrorThreshold(t *testing.T) {
+	nodes := []NodeParam{
+		{1, "peer0", 1},
+		{2, "peer1", 100},
+	}
+
+	errorThreshold := 5
+
+	var clientKeys []*ecdsa.PrivateKey
+	clientBuilder := func(addr string) (client, error) {
+		key := newPrivateKey(t)
+		clientKeys = append(clientKeys, key)
+
+		if addr == nodes[0].address {
+			mockCli := newMockClient(addr, *key)
+			mockCli.setThreshold(uint32(errorThreshold))
+			mockCli.statusOnGetObject(apistatus.ServerInternal{})
+			return mockCli, nil
+		}
+
+		return newMockClient(addr, *key), nil
+	}
+
+	opts := InitParameters{
+		key:                     newPrivateKey(t),
+		nodeParams:              nodes,
+		clientRebalanceInterval: 30 * time.Second,
+		clientBuilder:           clientBuilder,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	err = pool.Dial(ctx)
+	require.NoError(t, err)
+	t.Cleanup(pool.Close)
+
+	for i := 0; i < errorThreshold; i++ {
+		conn, err := pool.connection()
+		require.NoError(t, err)
+		require.Equal(t, nodes[0].address, conn.address())
+		_, err = conn.objectGet(ctx, PrmObjectGet{})
+		require.Error(t, err)
+	}
+
+	conn, err := pool.connection()
+	require.NoError(t, err)
+	require.Equal(t, nodes[1].address, conn.address())
+	_, err = conn.objectGet(ctx, PrmObjectGet{})
+	require.NoError(t, err)
 }

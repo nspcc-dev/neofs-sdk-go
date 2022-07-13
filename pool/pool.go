@@ -51,6 +51,10 @@ type client interface {
 	objectSearch(context.Context, PrmObjectSearch) (*ResObjectSearch, error)
 	sessionCreate(context.Context, prmCreateSession) (*resCreateSession, error)
 
+	clientStatus
+}
+
+type clientStatus interface {
 	isHealthy() bool
 	setHealthy(bool) bool
 	address() string
@@ -58,19 +62,25 @@ type client interface {
 	resetErrorCounter()
 }
 
+type clientStatusMonitor struct {
+	addr           string
+	healthy        *atomic.Bool
+	errorCount     *atomic.Uint32
+	errorThreshold uint32
+}
+
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
 type clientWrapper struct {
-	client     sdkClient.Client
-	key        ecdsa.PrivateKey
-	addr       string
-	healthy    *atomic.Bool
-	errorCount *atomic.Uint32
+	client sdkClient.Client
+	key    ecdsa.PrivateKey
+	*clientStatusMonitor
 }
 
 type wrapperPrm struct {
 	address              string
 	key                  ecdsa.PrivateKey
 	timeout              time.Duration
+	errorThreshold       uint32
 	responseInfoCallback func(sdkClient.ResponseMetaInfo) error
 }
 
@@ -86,6 +96,10 @@ func (x *wrapperPrm) setTimeout(timeout time.Duration) {
 	x.timeout = timeout
 }
 
+func (x *wrapperPrm) setErrorThreshold(threshold uint32) {
+	x.errorThreshold = threshold
+}
+
 func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) error) {
 	x.responseInfoCallback = f
 }
@@ -97,10 +111,13 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
 
 	res := &clientWrapper{
-		addr:       prm.address,
-		key:        prm.key,
-		healthy:    atomic.NewBool(true),
-		errorCount: atomic.NewUint32(0),
+		key: prm.key,
+		clientStatusMonitor: &clientStatusMonitor{
+			addr:           prm.address,
+			healthy:        atomic.NewBool(true),
+			errorCount:     atomic.NewUint32(0),
+			errorThreshold: prm.errorThreshold,
+		},
 	}
 
 	res.client.Init(prmInit)
@@ -476,27 +493,27 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession)
 	}, nil
 }
 
-func (c *clientWrapper) isHealthy() bool {
+func (c *clientStatusMonitor) isHealthy() bool {
 	return c.healthy.Load()
 }
 
-func (c *clientWrapper) setHealthy(val bool) bool {
+func (c *clientStatusMonitor) setHealthy(val bool) bool {
 	return c.healthy.Swap(val) != val
 }
 
-func (c *clientWrapper) address() string {
+func (c *clientStatusMonitor) address() string {
 	return c.addr
 }
 
-func (c *clientWrapper) errorRate() uint32 {
+func (c *clientStatusMonitor) errorRate() uint32 {
 	return c.errorCount.Load()
 }
 
-func (c *clientWrapper) resetErrorCounter() {
+func (c *clientStatusMonitor) resetErrorCounter() {
 	c.errorCount.Store(0)
 }
 
-func (c *clientWrapper) handleError(st apistatus.Status, err error) error {
+func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error {
 	if err != nil {
 		c.errorCount.Inc()
 		return err
@@ -504,10 +521,14 @@ func (c *clientWrapper) handleError(st apistatus.Status, err error) error {
 
 	err = apistatus.ErrFromStatus(st)
 	switch err.(type) {
-	case apistatus.ServerInternal,
-		apistatus.WrongMagicNumber,
-		apistatus.SignatureVerification:
+	case apistatus.ServerInternal, *apistatus.ServerInternal,
+		apistatus.WrongMagicNumber, *apistatus.WrongMagicNumber,
+		apistatus.SignatureVerification, *apistatus.SignatureVerification:
 		c.errorCount.Inc()
+		if c.errorCount.Load() >= c.errorThreshold {
+			c.setHealthy(false)
+			c.resetErrorCounter()
+		}
 	}
 
 	return err
@@ -521,6 +542,7 @@ type InitParameters struct {
 	healthcheckTimeout        time.Duration
 	clientRebalanceInterval   time.Duration
 	sessionExpirationDuration uint64
+	errorThreshold            uint32
 	nodeParams                []NodeParam
 
 	clientBuilder func(endpoint string) (client, error)
@@ -558,6 +580,11 @@ func (x *InitParameters) SetClientRebalanceInterval(interval time.Duration) {
 // SetSessionExpirationDuration specifies the session token lifetime in epochs.
 func (x *InitParameters) SetSessionExpirationDuration(expirationDuration uint64) {
 	x.sessionExpirationDuration = expirationDuration
+}
+
+// SetErrorThreshold specifies the number of errors on connection after which node is considered as unhealthy.
+func (x *InitParameters) SetErrorThreshold(threshold uint32) {
+	x.errorThreshold = threshold
 }
 
 // AddNode append information about the node to which you want to connect.
@@ -996,6 +1023,7 @@ type innerPool struct {
 
 const (
 	defaultSessionTokenExpirationDuration = 100 // in blocks
+	defaultErrorThreshold                 = 100
 
 	defaultRebalanceInterval = 25 * time.Second
 	defaultRequestTimeout    = 4 * time.Second
@@ -1096,6 +1124,10 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
 	}
 
+	if params.errorThreshold == 0 {
+		params.errorThreshold = defaultErrorThreshold
+	}
+
 	if params.clientRebalanceInterval <= 0 {
 		params.clientRebalanceInterval = defaultRebalanceInterval
 	}
@@ -1110,6 +1142,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 			prm.setAddress(addr)
 			prm.setKey(*params.key)
 			prm.setTimeout(params.nodeDialTimeout)
+			prm.setErrorThreshold(params.errorThreshold)
 			prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
 				cache.updateEpoch(info.Epoch())
 				return nil
