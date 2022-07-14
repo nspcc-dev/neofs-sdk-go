@@ -150,7 +150,11 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*acc
 	start := time.Now()
 	res, err := c.client.BalanceGet(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("balance get on client: %w", err)
 	}
 
@@ -161,7 +165,11 @@ func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (
 	start := time.Now()
 	res, err := c.client.ContainerPut(ctx, prm.prmClient)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("container put on client: %w", err)
 	}
 
@@ -184,7 +192,11 @@ func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (
 	start := time.Now()
 	res, err := c.client.ContainerGet(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("container get on client: %w", err)
 	}
 
@@ -199,7 +211,11 @@ func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList)
 	start := time.Now()
 	res, err := c.client.ContainerList(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("container list on client: %w", err)
 	}
 	return res.Containers(), nil
@@ -215,7 +231,11 @@ func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDel
 	start := time.Now()
 	res, err := c.client.ContainerDelete(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return fmt.Errorf("container delete on client: %w", err)
 	}
 
@@ -233,7 +253,11 @@ func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL)
 	start := time.Now()
 	res, err := c.client.ContainerEACL(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("get eacl on client: %w", err)
 	}
 	return res.Table(), nil
@@ -250,7 +274,11 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 	start := time.Now()
 	res, err := c.client.ContainerSetEACL(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return fmt.Errorf("set eacl on client: %w", err)
 	}
 
@@ -275,7 +303,11 @@ func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (*n
 	start := time.Now()
 	res, err := c.client.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("endpoint info on client: %w", err)
 	}
 	return res.NodeInfo(), nil
@@ -285,7 +317,11 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (*net
 	start := time.Now()
 	res, err := c.client.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("network info on client: %w", err)
 	}
 	return res.Info(), nil
@@ -357,7 +393,11 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 	}
 
 	res, err := wObj.Close()
-	if err = c.handleError(res.Status(), err); err != nil { // here err already carries both status and client errors
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil { // here err already carries both status and client errors
 		return nil, fmt.Errorf("client failure: %w", err)
 	}
 
@@ -390,7 +430,11 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 	start := time.Now()
 	res, err := c.client.ObjectDelete(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return fmt.Errorf("delete object on client: %w", err)
 	}
 	return nil
@@ -425,7 +469,11 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 	c.incRequests(time.Since(start))
 	if !successReadHeader {
 		rObjRes, err := rObj.Close()
-		err = c.handleError(rObjRes.Status(), err)
+		var st apistatus.Status
+		if rObjRes != nil {
+			st = rObjRes.Status()
+		}
+		err = c.handleError(st, err)
 		return nil, fmt.Errorf("read header: %w", err)
 	}
 
@@ -459,7 +507,11 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*obj
 	start := time.Now()
 	res, err := c.client.ObjectHead(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("read object header via client: %w", err)
 	}
 	if !res.ReadHeader(&obj) {
@@ -533,7 +585,11 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession)
 	start := time.Now()
 	res, err := c.client.SessionCreate(ctx, cliPrm)
 	c.incRequests(time.Since(start))
-	if err = c.handleError(res.Status(), err); err != nil {
+	var st apistatus.Status
+	if res != nil {
+		st = res.Status()
+	}
+	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("session creation on client: %w", err)
 	}
 
