@@ -60,26 +60,27 @@ type clientStatus interface {
 	address() string
 	currentErrorRate() uint32
 	overallErrorRate() uint64
-	resetErrorCounter()
 	latency() time.Duration
 	requests() uint64
 }
 
 type clientStatusMonitor struct {
-	addr              string
-	healthy           *atomic.Bool
-	currentErrorCount *atomic.Uint32
-	overallErrorCount *atomic.Uint64
-	errorThreshold    uint32
-	allTime           *atomic.Uint64
-	allRequests       *atomic.Uint64
+	addr           string
+	healthy        *atomic.Bool
+	errorThreshold uint32
+
+	mu                sync.RWMutex // protect counters
+	currentErrorCount uint32
+	overallErrorCount uint64
+	allTime           uint64
+	allRequests       uint64
 }
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
 type clientWrapper struct {
 	client sdkClient.Client
 	key    ecdsa.PrivateKey
-	*clientStatusMonitor
+	clientStatusMonitor
 }
 
 type wrapperPrm struct {
@@ -112,20 +113,15 @@ func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) 
 
 func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	var prmInit sdkClient.PrmInit
-	//prmInit.ResolveNeoFSFailures()
 	prmInit.SetDefaultPrivateKey(prm.key)
 	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
 
 	res := &clientWrapper{
 		key: prm.key,
-		clientStatusMonitor: &clientStatusMonitor{
-			addr:              prm.address,
-			healthy:           atomic.NewBool(true),
-			currentErrorCount: atomic.NewUint32(0),
-			overallErrorCount: atomic.NewUint64(0),
-			errorThreshold:    prm.errorThreshold,
-			allTime:           atomic.NewUint64(0),
-			allRequests:       atomic.NewUint64(0),
+		clientStatusMonitor: clientStatusMonitor{
+			addr:           prm.address,
+			healthy:        atomic.NewBool(true),
+			errorThreshold: prm.errorThreshold,
 		},
 	}
 
@@ -612,41 +608,48 @@ func (c *clientStatusMonitor) address() string {
 }
 
 func (c *clientStatusMonitor) incErrorRate() {
-	c.currentErrorCount.Inc()
-	c.overallErrorCount.Inc()
-	if c.currentErrorCount.Load() >= c.errorThreshold {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.currentErrorCount++
+	c.overallErrorCount++
+	if c.currentErrorCount >= c.errorThreshold {
 		c.setHealthy(false)
-		c.resetErrorCounter()
+		c.currentErrorCount = 0
 	}
 }
 
 func (c *clientStatusMonitor) currentErrorRate() uint32 {
-	return c.currentErrorCount.Load()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.currentErrorCount
 }
 
 func (c *clientStatusMonitor) overallErrorRate() uint64 {
-	return c.overallErrorCount.Load()
-}
-
-func (c *clientStatusMonitor) resetErrorCounter() {
-	c.currentErrorCount.Store(0)
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.overallErrorCount
 }
 
 func (c *clientStatusMonitor) latency() time.Duration {
-	allRequests := c.requests()
-	if allRequests == 0 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if c.allRequests == 0 {
 		return 0
 	}
-	return time.Duration(c.allTime.Load() / allRequests)
+	return time.Duration(c.allTime / c.allRequests)
 }
 
 func (c *clientStatusMonitor) requests() uint64 {
-	return c.allRequests.Load()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.allRequests
 }
 
 func (c *clientStatusMonitor) incRequests(elapsed time.Duration) {
-	c.allTime.Add(uint64(elapsed))
-	c.allRequests.Inc()
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.allTime += uint64(elapsed)
+	c.allRequests++
 }
 
 func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error {
@@ -1971,7 +1974,7 @@ func (p Pool) Statistic() Statistic {
 	for _, inner := range p.innerPools {
 		inner.lock.RLock()
 		for _, cl := range inner.clients {
-			node := &NodeStatistic{
+			node := NodeStatistic{
 				address:       cl.address(),
 				latency:       cl.latency(),
 				requests:      cl.requests(),

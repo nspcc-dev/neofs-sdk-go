@@ -508,31 +508,25 @@ func TestWaitPresence(t *testing.T) {
 	})
 }
 
-func newTestStatusMonitor(addr string) *clientStatusMonitor {
-	return &clientStatusMonitor{
-		addr:              addr,
-		healthy:           atomic.NewBool(true),
-		currentErrorCount: atomic.NewUint32(0),
-		overallErrorCount: atomic.NewUint64(0),
-		errorThreshold:    10,
-		allTime:           atomic.NewUint64(0),
-		allRequests:       atomic.NewUint64(0),
+func newTestStatusMonitor(addr string) clientStatusMonitor {
+	return clientStatusMonitor{
+		addr:           addr,
+		healthy:        atomic.NewBool(true),
+		errorThreshold: 10,
 	}
 }
 
 func TestStatusMonitor(t *testing.T) {
 	monitor := newTestStatusMonitor("")
+	monitor.errorThreshold = 3
 
 	count := 10
-	for i := 0; i < 10; i++ {
+	for i := 0; i < count; i++ {
 		monitor.incErrorRate()
-		if i%3 == 0 {
-			monitor.resetErrorCounter()
-		}
 	}
 
 	require.Equal(t, uint64(count), monitor.overallErrorRate())
-	require.Equal(t, uint32(0), monitor.currentErrorRate())
+	require.Equal(t, uint32(1), monitor.currentErrorRate())
 }
 
 func TestHandleError(t *testing.T) {

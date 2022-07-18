@@ -21,7 +21,7 @@ import (
 
 type mockClient struct {
 	key ecdsa.PrivateKey
-	*clientStatusMonitor
+	clientStatusMonitor
 
 	errorOnCreateSession bool
 	errorOnEndpointInfo  bool
