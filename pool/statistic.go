@@ -8,7 +8,7 @@ import (
 // Statistic is metrics of the pool.
 type Statistic struct {
 	overallErrors uint64
-	nodes         []*NodeStatistic
+	nodes         []NodeStatistic
 }
 
 // OverallErrors returns sum of errors on all connections. It doesn't decrease.
@@ -17,7 +17,7 @@ func (s Statistic) OverallErrors() uint64 {
 }
 
 // Nodes returns list of nodes statistic.
-func (s Statistic) Nodes() []*NodeStatistic {
+func (s Statistic) Nodes() []NodeStatistic {
 	return s.nodes
 }
 
@@ -29,7 +29,7 @@ var ErrUnknownNode = errors.New("unknown node")
 func (s Statistic) Node(address string) (*NodeStatistic, error) {
 	for i := range s.nodes {
 		if s.nodes[i].address == address {
-			return s.nodes[i], nil
+			return &s.nodes[i], nil
 		}
 	}
 
