@@ -17,7 +17,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -508,16 +507,8 @@ func TestWaitPresence(t *testing.T) {
 	})
 }
 
-func newTestStatusMonitor(addr string) clientStatusMonitor {
-	return clientStatusMonitor{
-		addr:           addr,
-		healthy:        atomic.NewBool(true),
-		errorThreshold: 10,
-	}
-}
-
 func TestStatusMonitor(t *testing.T) {
-	monitor := newTestStatusMonitor("")
+	monitor := newClientStatusMonitor("", 10)
 	monitor.errorThreshold = 3
 
 	count := 10
@@ -530,7 +521,7 @@ func TestStatusMonitor(t *testing.T) {
 }
 
 func TestHandleError(t *testing.T) {
-	monitor := newTestStatusMonitor("")
+	monitor := newClientStatusMonitor("", 10)
 
 	for i, tc := range []struct {
 		status        apistatus.Status

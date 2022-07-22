@@ -63,7 +63,7 @@ func newNetmapMock(name string, needErr bool) *clientMock {
 	}
 	return &clientMock{
 		clientWrapper: clientWrapper{
-			clientStatusMonitor: newTestStatusMonitor(""),
+			clientStatusMonitor: newClientStatusMonitor("", 10),
 		},
 		name: name,
 		err:  err,

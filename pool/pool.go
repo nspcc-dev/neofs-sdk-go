@@ -60,7 +60,7 @@ type clientStatus interface {
 	address() string
 	currentErrorRate() uint32
 	overallErrorRate() uint64
-	methodsStatus() map[string]methodStatus
+	methodsStatus() []statusSnapshot
 }
 
 type clientStatusMonitor struct {
@@ -71,32 +71,105 @@ type clientStatusMonitor struct {
 	mu                sync.RWMutex // protect counters
 	currentErrorCount uint32
 	overallErrorCount uint64
-	methods           map[string]methodStatus
+	methods           []*methodStatus
 }
 
 type methodStatus struct {
-	name        string
+	name string
+	mu   sync.RWMutex // protect counters
+	statusSnapshot
+}
+
+type statusSnapshot struct {
 	allTime     uint64
 	allRequests uint64
 }
 
+// MethodIndex index of method in list of statuses in clientStatusMonitor.
+type MethodIndex int
+
 const (
-	methodBalanceGet       = "balanceGet"
-	methodContainerPut     = "containerPut"
-	methodContainerGet     = "containerGet"
-	methodContainerList    = "containerList"
-	methodContainerDelete  = "containerDelete"
-	methodContainerEACL    = "containerEACL"
-	methodContainerSetEACL = "containerSetEACL"
-	methodEndpointInfo     = "endpointInfo"
-	methodNetworkInfo      = "networkInfo"
-	methodObjectPut        = "objectPut"
-	methodObjectDelete     = "objectDelete"
-	methodObjectGet        = "objectGet"
-	methodObjectHead       = "objectHead"
-	methodObjectRange      = "objectRange"
-	methodSessionCreate    = "sessionCreate"
+	methodBalanceGet MethodIndex = iota
+	methodContainerPut
+	methodContainerGet
+	methodContainerList
+	methodContainerDelete
+	methodContainerEACL
+	methodContainerSetEACL
+	methodEndpointInfo
+	methodNetworkInfo
+	methodObjectPut
+	methodObjectDelete
+	methodObjectGet
+	methodObjectHead
+	methodObjectRange
+	methodSessionCreate
 )
+
+// String implements fmt.Stringer.
+func (m MethodIndex) String() string {
+	switch m {
+	case methodBalanceGet:
+		return "balanceGet"
+	case methodContainerPut:
+		return "containerPut"
+	case methodContainerGet:
+		return "containerGet"
+	case methodContainerList:
+		return "containerList"
+	case methodContainerDelete:
+		return "containerDelete"
+	case methodContainerEACL:
+		return "containerEACL"
+	case methodContainerSetEACL:
+		return "containerSetEACL"
+	case methodEndpointInfo:
+		return "endpointInfo"
+	case methodNetworkInfo:
+		return "networkInfo"
+	case methodObjectPut:
+		return "objectPut"
+	case methodObjectDelete:
+		return "objectDelete"
+	case methodObjectGet:
+		return "objectGet"
+	case methodObjectHead:
+		return "objectHead"
+	case methodObjectRange:
+		return "objectRange"
+	case methodSessionCreate:
+		return "sessionCreate"
+	default:
+		return "unknown"
+	}
+}
+
+func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMonitor {
+	methods := make([]*methodStatus, methodSessionCreate+1)
+	for i := methodBalanceGet; i <= methodSessionCreate; i++ {
+		methods[i] = &methodStatus{name: i.String()}
+	}
+
+	return clientStatusMonitor{
+		addr:           addr,
+		healthy:        atomic.NewBool(true),
+		errorThreshold: errorThreshold,
+		methods:        methods,
+	}
+}
+
+func (m *methodStatus) snapshot() statusSnapshot {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+	return m.statusSnapshot
+}
+
+func (m *methodStatus) incRequests(elapsed time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.allTime += uint64(elapsed)
+	m.allRequests++
+}
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
 type clientWrapper struct {
@@ -139,12 +212,8 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
 
 	res := &clientWrapper{
-		key: prm.key,
-		clientStatusMonitor: clientStatusMonitor{
-			addr:           prm.address,
-			healthy:        atomic.NewBool(true),
-			errorThreshold: prm.errorThreshold,
-		},
+		key:                 prm.key,
+		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
 	}
 
 	res.client.Init(prmInit)
@@ -656,28 +725,18 @@ func (c *clientStatusMonitor) overallErrorRate() uint64 {
 	return c.overallErrorCount
 }
 
-func (c *clientStatusMonitor) methodsStatus() map[string]methodStatus {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-
-	result := make(map[string]methodStatus)
-	for key, val := range c.methods {
-		result[key] = val
+func (c *clientStatusMonitor) methodsStatus() []statusSnapshot {
+	result := make([]statusSnapshot, len(c.methods))
+	for i, val := range c.methods {
+		result[i] = val.snapshot()
 	}
 
 	return result
 }
 
-func (c *clientStatusMonitor) incRequests(elapsed time.Duration, method string) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	methodStat, ok := c.methods[method]
-	if !ok {
-		methodStat.name = method
-	}
-	methodStat.allTime += uint64(elapsed)
-	methodStat.allRequests++
-	c.methods[method] = methodStat
+func (c *clientStatusMonitor) incRequests(elapsed time.Duration, method MethodIndex) {
+	methodStat := c.methods[method]
+	methodStat.incRequests(elapsed)
 }
 
 func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error {
