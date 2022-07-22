@@ -32,7 +32,7 @@ type mockClient struct {
 func newMockClient(addr string, key ecdsa.PrivateKey) *mockClient {
 	return &mockClient{
 		key:                 key,
-		clientStatusMonitor: newTestStatusMonitor(addr),
+		clientStatusMonitor: newClientStatusMonitor(addr, 10),
 	}
 }
 

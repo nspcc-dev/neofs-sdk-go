@@ -39,7 +39,7 @@ func (s Statistic) Node(address string) (*NodeStatistic, error) {
 // NodeStatistic is metrics of certain connections.
 type NodeStatistic struct {
 	address       string
-	methods       map[string]methodStatus
+	methods       []statusSnapshot
 	overallErrors uint64
 	currentErrors uint32
 }
@@ -144,7 +144,7 @@ func (n NodeStatistic) AverageCreateSession() time.Duration {
 	return n.averageTime(methodSessionCreate)
 }
 
-func (n NodeStatistic) averageTime(method string) time.Duration {
+func (n NodeStatistic) averageTime(method MethodIndex) time.Duration {
 	stat := n.methods[method]
 	if stat.allRequests == 0 {
 		return 0
