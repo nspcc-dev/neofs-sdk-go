@@ -11,8 +11,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neofs-contract/nns"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
@@ -129,7 +129,7 @@ func (n *NNS) ResolveContainerName(name string) (cid.ID, error) {
 		return cid.ID{}, fmt.Errorf("invoke NNS contract: %w", err)
 	}
 
-	if res.State != vm.HaltState.String() {
+	if res.State != vmstate.Halt.String() {
 		return cid.ID{}, fmt.Errorf("NNS contract fault exception: %s", res.FaultException)
 	} else if len(res.Stack) == 0 {
 		return cid.ID{}, errors.New("empty stack in invocation result")

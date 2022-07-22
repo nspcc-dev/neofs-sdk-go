@@ -11,8 +11,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/vm"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
+	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
 	"github.com/nspcc-dev/neofs-contract/nns"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/stretchr/testify/require"
@@ -95,7 +95,7 @@ func TestNNS_ResolveContainerName(t *testing.T) {
 		require.Error(t, err)
 	})
 
-	testC.res.State = vm.HaltState.String()
+	testC.res.State = vmstate.Halt.String()
 
 	t.Run("empty stack", func(t *testing.T) {
 		_, err := n.ResolveContainerName(testContainerName)
