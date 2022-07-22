@@ -8,9 +8,9 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
-	github.com/nspcc-dev/neo-go v0.98.2
+	github.com/nspcc-dev/neo-go v0.99.1-pre.0.20220714084516-54849ef3e58e
 	github.com/nspcc-dev/neofs-api-go/v2 v2.13.0
-	github.com/nspcc-dev/neofs-contract v0.15.1
+	github.com/nspcc-dev/neofs-contract v0.15.3
 	github.com/nspcc-dev/tzhash v1.6.1
 	github.com/stretchr/testify v1.7.0
 	go.uber.org/atomic v1.9.0
