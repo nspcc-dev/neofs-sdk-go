@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/url"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
@@ -122,7 +123,7 @@ func (n *NNS) ResolveContainerName(name string) (cid.ID, error) {
 		},
 		{
 			Type:  smartcontract.IntegerType,
-			Value: int64(nns.TXT),
+			Value: big.NewInt(int64(nns.TXT)),
 		},
 	})
 	if err != nil {
