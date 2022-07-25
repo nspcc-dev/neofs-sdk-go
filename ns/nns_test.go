@@ -36,7 +36,7 @@ func (x *testNeoClient) call(contract util.Uint160, method string, prm []smartco
 	require.Len(x.t, prm, 2)
 	require.Equal(x.t, smartcontract.StringType, prm[0].Type)
 	require.Equal(x.t, smartcontract.IntegerType, prm[1].Type)
-	require.EqualValues(x.t, nns.TXT, prm[1].Value)
+	require.EqualValues(x.t, big.NewInt(int64(nns.TXT)), prm[1].Value)
 
 	val, ok := prm[0].Value.(string)
 	require.True(x.t, ok)
