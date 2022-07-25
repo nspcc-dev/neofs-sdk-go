@@ -135,6 +135,7 @@ const (
 	methodObjectHead
 	methodObjectRange
 	methodSessionCreate
+	methodLast
 )
 
 // String implements fmt.Stringer.
@@ -170,14 +171,16 @@ func (m MethodIndex) String() string {
 		return "objectRange"
 	case methodSessionCreate:
 		return "sessionCreate"
+	case methodLast:
+		return "it's a system name rather than a method"
 	default:
 		return "unknown"
 	}
 }
 
 func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMonitor {
-	methods := make([]*methodStatus, methodSessionCreate+1)
-	for i := methodBalanceGet; i <= methodSessionCreate; i++ {
+	methods := make([]*methodStatus, methodLast)
+	for i := methodBalanceGet; i < methodLast; i++ {
 		methods[i] = &methodStatus{name: i.String()}
 	}
 
