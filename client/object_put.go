@@ -19,10 +19,14 @@ import (
 )
 
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
-//
-// At the moment the operation is not parameterized, however,
-// the structure is still declared for backward compatibility.
-type PrmObjectPutInit struct{}
+type PrmObjectPutInit struct {
+	copyNum uint32
+}
+
+// SetCopiesNumber sets number of object copies that is enough to consider put successful.
+func (x *PrmObjectPutInit) SetCopiesNumber(copiesNumber uint32) {
+	x.copyNum = copiesNumber
+}
 
 // ResObjectPut groups the final result values of ObjectPutInit operation.
 type ResObjectPut struct {
@@ -202,7 +206,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 // Exactly one return value is non-nil. Resulting writer must be finally closed.
 //
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ObjectPutInit(ctx context.Context, _ PrmObjectPutInit) (*ObjectWriter, error) {
+func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*ObjectWriter, error) {
 	// check parameters
 	if ctx == nil {
 		panic(panicMsgMissingContext)
@@ -215,6 +219,8 @@ func (c *Client) ObjectPutInit(ctx context.Context, _ PrmObjectPutInit) (*Object
 	)
 
 	ctx, w.cancelCtxStream = context.WithCancel(ctx)
+
+	w.partInit.SetCopiesNumber(prm.copyNum)
 
 	stream, err := rpcapi.PutObject(&c.c, &res.resp, client.WithContext(ctx))
 	if err != nil {

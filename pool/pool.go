@@ -477,6 +477,8 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (*net
 // Exactly one return value is non-nil.
 func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
 	var cliPrm sdkClient.PrmObjectPutInit
+	cliPrm.SetCopiesNumber(prm.copiesNumber)
+
 	start := time.Now()
 	wObj, err := c.client.ObjectPutInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectPut)
@@ -1016,6 +1018,8 @@ type PrmObjectPut struct {
 	hdr object.Object
 
 	payload io.Reader
+
+	copiesNumber uint32
 }
 
 // SetHeader specifies header of the object.
@@ -1026,6 +1030,12 @@ func (x *PrmObjectPut) SetHeader(hdr object.Object) {
 // SetPayload specifies payload of the object.
 func (x *PrmObjectPut) SetPayload(payload io.Reader) {
 	x.payload = payload
+}
+
+// SetCopiesNumber sets number of object copies that is enough to consider put successful.
+// Zero means using default behavior.
+func (x *PrmObjectPut) SetCopiesNumber(copiesNumber uint32) {
+	x.copiesNumber = copiesNumber
 }
 
 // PrmObjectDelete groups parameters of DeleteObject operation.
