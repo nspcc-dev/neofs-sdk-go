@@ -7,8 +7,8 @@ import (
 	"net/url"
 
 	"github.com/nspcc-dev/neo-go/pkg/core/state"
-	neoclient "github.com/nspcc-dev/neo-go/pkg/rpc/client"
-	"github.com/nspcc-dev/neo-go/pkg/rpc/response/result"
+	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
+	"github.com/nspcc-dev/neo-go/pkg/rpcclient"
 	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -37,7 +37,7 @@ type neoClient interface {
 //
 // note: see NNS.Dial to realize why this isn't defined as type wrapper like neoWebSocket.
 type neoHTTP struct {
-	*neoclient.Client
+	*rpcclient.Client
 }
 
 func (x *neoHTTP) call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
@@ -45,10 +45,10 @@ func (x *neoHTTP) call(contract util.Uint160, method string, prm []smartcontract
 }
 
 // implements neoClient using Neo WebSocket client.
-type neoWebSocket neoclient.WSClient
+type neoWebSocket rpcclient.WSClient
 
 func (x *neoWebSocket) call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
-	return (*neoclient.WSClient)(x).InvokeFunction(contract, method, prm, nil)
+	return (*rpcclient.WSClient)(x).InvokeFunction(contract, method, prm, nil)
 }
 
 // Dial connects to the address of the NNS server. If fails, the instance
@@ -71,14 +71,14 @@ func (n *NNS) Dial(address string) error {
 
 	uri, err := url.Parse(address)
 	if err == nil && (uri.Scheme == "ws" || uri.Scheme == "wss") {
-		cWebSocket, err := neoclient.NewWS(context.Background(), address, neoclient.Options{})
+		cWebSocket, err := rpcclient.NewWS(context.Background(), address, rpcclient.Options{})
 		if err != nil {
 			return fmt.Errorf("create Neo WebSocket client: %w", err)
 		}
 
 		multiSchemeClient = (*neoWebSocket)(cWebSocket)
 	} else {
-		cHTTP, err := neoclient.New(context.Background(), address, neoclient.Options{})
+		cHTTP, err := rpcclient.New(context.Background(), address, rpcclient.Options{})
 		if err != nil {
 			return fmt.Errorf("create Neo HTTP client: %w", err)
 		}
