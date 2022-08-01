@@ -22,6 +22,13 @@ func TestErrors(t *testing.T) {
 			},
 		},
 		{
+			check: client.IsErrEACLNotFound,
+			errs: []error{
+				apistatus.EACLNotFound{},
+				new(apistatus.EACLNotFound),
+			},
+		},
+		{
 			check: client.IsErrObjectNotFound,
 			errs: []error{
 				apistatus.ObjectNotFound{},
