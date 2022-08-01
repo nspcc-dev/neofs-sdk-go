@@ -554,7 +554,8 @@ func (x *ResContainerEACL) setTable(table *eacl.Table) {
 //
 // Return statuses:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound.
+//   - *apistatus.ContainerNotFound;
+//   - *apistatus.EACLNotFound.
 func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {

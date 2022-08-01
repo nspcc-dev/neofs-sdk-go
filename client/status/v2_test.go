@@ -109,6 +109,12 @@ func TestToStatusV2(t *testing.T) {
 		},
 		{
 			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.EACLNotFound)
+			}),
+			codeV2: 3073,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
 				return new(apistatus.SessionTokenNotFound)
 			}),
 			codeV2: 4096,
@@ -247,6 +253,12 @@ func TestFromStatusV2(t *testing.T) {
 				return new(apistatus.ContainerNotFound)
 			}),
 			codeV2: 3072,
+		},
+		{
+			status: (statusConstructor)(func() apistatus.Status {
+				return new(apistatus.EACLNotFound)
+			}),
+			codeV2: 3073,
 		},
 		{
 			status: (statusConstructor)(func() apistatus.Status {

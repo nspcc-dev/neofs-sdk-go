@@ -79,6 +79,8 @@ func FromStatusV2(st *status.Status) Status {
 		switch code {
 		case container.StatusNotFound:
 			decoder = new(ContainerNotFound)
+		case container.StatusEACLNotFound:
+			decoder = new(EACLNotFound)
 		}
 	case session.LocalizeFailStatus(&code):
 		//nolint:exhaustive
