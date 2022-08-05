@@ -54,20 +54,14 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 type ResContainerPut struct {
 	statusRes
 
-	id *cid.ID
+	id cid.ID
 }
 
 // ID returns identifier of the container declared to be stored in the system.
 // Used as a link to information about the container (in particular, you can
 // asynchronously check if the save was successful).
-//
-// Client doesn't retain value so modification is safe.
-func (x ResContainerPut) ID() *cid.ID {
+func (x ResContainerPut) ID() cid.ID {
 	return x.id
-}
-
-func (x *ResContainerPut) setID(id *cid.ID) {
-	x.id = id
 }
 
 // ContainerPut sends request to save container in NeoFS.
@@ -150,17 +144,19 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
-		var cID *cid.ID
+
+		const fieldCnrID = "container ID"
 
 		cidV2 := resp.GetBody().GetContainerID()
-		if cidV2 != nil {
-			var c cid.ID
-			_ = c.ReadFromV2(*cidV2)
-
-			cID = &c
+		if cidV2 == nil {
+			cc.err = newErrMissingResponseField(fieldCnrID)
+			return
 		}
 
-		res.setID(cID)
+		cc.err = res.id.ReadFromV2(*cidV2)
+		if cc.err != nil {
+			cc.err = newErrInvalidResponseField(fieldCnrID, cc.err)
+		}
 	}
 
 	// process call
@@ -198,10 +194,6 @@ type ResContainerGet struct {
 // Client doesn't retain value so modification is safe.
 func (x ResContainerGet) Container() container.Container {
 	return x.cnr
-}
-
-func (x *ResContainerGet) setContainer(cnr container.Container) {
-	x.cnr = cnr
 }
 
 // ContainerGet reads NeoFS container by ID.
@@ -261,15 +253,10 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 			return
 		}
 
-		var cnr container.Container
-
-		err := cnr.ReadFromV2(*cnrV2)
-		if err != nil {
-			cc.err = fmt.Errorf("invalid container in response: %w", err)
-			return
+		cc.err = res.cnr.ReadFromV2(*cnrV2)
+		if cc.err != nil {
+			cc.err = fmt.Errorf("invalid container in response: %w", cc.err)
 		}
-
-		res.setContainer(cnr)
 	}
 
 	// process call
@@ -307,10 +294,6 @@ type ResContainerList struct {
 // Client doesn't retain value so modification is safe.
 func (x ResContainerList) Containers() []cid.ID {
 	return x.ids
-}
-
-func (x *ResContainerList) setContainers(ids []cid.ID) {
-	x.ids = ids
 }
 
 // ContainerList requests identifiers of the account-owned containers.
@@ -364,13 +347,15 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
 
-		ids := make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
+		res.ids = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
 		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			_ = ids[i].ReadFromV2(cidV2)
+			cc.err = res.ids[i].ReadFromV2(cidV2)
+			if cc.err != nil {
+				cc.err = fmt.Errorf("invalid ID in the response: %w", cc.err)
+				return
+			}
 		}
-
-		res.setContainers(ids)
 	}
 
 	// process call
@@ -527,18 +512,12 @@ func (x *PrmContainerEACL) SetContainer(id cid.ID) {
 type ResContainerEACL struct {
 	statusRes
 
-	table *eacl.Table
+	table eacl.Table
 }
 
 // Table returns eACL table of the requested container.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResContainerEACL) Table() *eacl.Table {
+func (x ResContainerEACL) Table() eacl.Table {
 	return x.table
-}
-
-func (x *ResContainerEACL) setTable(table *eacl.Table) {
-	x.table = table
 }
 
 // ContainerEACL reads eACL table of the NeoFS container.
@@ -594,11 +573,13 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
 
-		body := resp.GetBody()
+		eACL := resp.GetBody().GetEACL()
+		if eACL == nil {
+			cc.err = newErrMissingResponseField("eACL")
+			return
+		}
 
-		table := eacl.NewTableFromV2(body.GetEACL())
-
-		res.setTable(table)
+		res.table = *eacl.NewTableFromV2(eACL)
 	}
 
 	// process call
@@ -833,7 +814,7 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c *
 		return fmt.Errorf("network info call: %w", err)
 	}
 
-	container.ApplyNetworkConfig(cnr, *res.Info())
+	container.ApplyNetworkConfig(cnr, res.Info())
 
 	return nil
 }

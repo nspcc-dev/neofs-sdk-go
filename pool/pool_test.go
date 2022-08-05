@@ -11,6 +11,7 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -479,7 +480,9 @@ func TestWaitPresence(t *testing.T) {
 			cancel()
 		}()
 
-		err := waitForContainerPresence(ctx, mockCli, nil, &WaitParams{
+		var idCnr cid.ID
+
+		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
 			timeout:      120 * time.Second,
 			pollInterval: 5 * time.Second,
 		})
@@ -489,7 +492,8 @@ func TestWaitPresence(t *testing.T) {
 
 	t.Run("context deadline exceeded", func(t *testing.T) {
 		ctx := context.Background()
-		err := waitForContainerPresence(ctx, mockCli, nil, &WaitParams{
+		var idCnr cid.ID
+		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
 			timeout:      500 * time.Millisecond,
 			pollInterval: 5 * time.Second,
 		})
@@ -499,7 +503,8 @@ func TestWaitPresence(t *testing.T) {
 
 	t.Run("ok", func(t *testing.T) {
 		ctx := context.Background()
-		err := waitForContainerPresence(ctx, mockCli, nil, &WaitParams{
+		var idCnr cid.ID
+		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
 			timeout:      10 * time.Second,
 			pollInterval: 500 * time.Millisecond,
 		})

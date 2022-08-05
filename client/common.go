@@ -251,7 +251,7 @@ func (x *contextCall) close() bool {
 		x.result(x.resp)
 	}
 
-	return true
+	return x.err == nil
 }
 
 // goes through all stages of sending a request and processing a response. Returns true if successful.

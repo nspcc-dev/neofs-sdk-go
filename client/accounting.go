@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -32,17 +30,11 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 type ResBalanceGet struct {
 	statusRes
 
-	amount *accounting.Decimal
-}
-
-func (x *ResBalanceGet) setAmount(v *accounting.Decimal) {
-	x.amount = v
+	amount accounting.Decimal
 }
 
 // Amount returns current amount of funds on the NeoFS account as decimal number.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResBalanceGet) Amount() *accounting.Decimal {
+func (x ResBalanceGet) Amount() accounting.Decimal {
 	return x.amount
 }
 
@@ -96,21 +88,18 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)
 
+		const fieldBalance = "balance"
+
 		bal := resp.GetBody().GetBalance()
 		if bal == nil {
-			cc.err = errors.New("missing balance field")
+			cc.err = newErrMissingResponseField(fieldBalance)
 			return
 		}
 
-		var d accounting.Decimal
-
-		cc.err = d.ReadFromV2(*bal)
+		cc.err = res.amount.ReadFromV2(*bal)
 		if cc.err != nil {
-			cc.err = fmt.Errorf("invalid balance: %w", cc.err)
-			return
+			cc.err = newErrInvalidResponseField(fieldBalance, cc.err)
 		}
-
-		res.setAmount(&d)
 	}
 
 	// process call

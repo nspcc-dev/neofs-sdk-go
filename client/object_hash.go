@@ -195,6 +195,9 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	}
 	cc.result = func(r responseV2) {
 		res.checksums = r.(*v2object.GetRangeHashResponse).GetBody().GetHashList()
+		if len(res.checksums) == 0 {
+			cc.err = newErrMissingResponseField("hash list")
+		}
 	}
 
 	// process call
