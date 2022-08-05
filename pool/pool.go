@@ -289,7 +289,9 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*acc
 		return nil, fmt.Errorf("balance get on client: %w", err)
 	}
 
-	return res.Amount(), nil
+	bal := res.Amount()
+
+	return &bal, nil
 }
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
@@ -310,12 +312,14 @@ func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (
 		prm.waitParams.setDefaults()
 	}
 
-	err = waitForContainerPresence(ctx, c, res.ID(), &prm.waitParams)
+	idCnr := res.ID()
+
+	err = waitForContainerPresence(ctx, c, idCnr, &prm.waitParams)
 	if err = c.handleError(nil, err); err != nil {
 		return nil, fmt.Errorf("wait container presence on client: %w", err)
 	}
 
-	return res.ID(), nil
+	return &idCnr, nil
 }
 
 // containerGet invokes sdkClient.ContainerGet parse response status to error and return result as is.
@@ -400,7 +404,10 @@ func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL)
 	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("get eacl on client: %w", err)
 	}
-	return res.Table(), nil
+
+	eACL := res.Table()
+
+	return &eACL, nil
 }
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
@@ -454,7 +461,10 @@ func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (*n
 	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("endpoint info on client: %w", err)
 	}
-	return res.NodeInfo(), nil
+
+	nodeInfo := res.NodeInfo()
+
+	return &nodeInfo, nil
 }
 
 // networkInfo invokes sdkClient.NetworkInfo parse response status to error and return result as is.
@@ -470,7 +480,10 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (*net
 	if err = c.handleError(st, err); err != nil {
 		return nil, fmt.Errorf("network info on client: %w", err)
 	}
-	return res.Info(), nil
+
+	netInfo := res.Info()
+
+	return &netInfo, nil
 }
 
 // objectPut writes object to NeoFS.
@@ -551,11 +564,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 		return nil, fmt.Errorf("client failure: %w", err)
 	}
 
-	var id oid.ID
-
-	if !res.ReadStoredObjectID(&id) {
-		return nil, errors.New("missing ID of the stored object")
-	}
+	id := res.StoredObjectID()
 
 	return &id, nil
 }
@@ -2167,11 +2176,9 @@ func (p Pool) Statistic() Statistic {
 }
 
 // waitForContainerPresence waits until the container is found on the NeoFS network.
-func waitForContainerPresence(ctx context.Context, cli client, cnrID *cid.ID, waitParams *WaitParams) error {
+func waitForContainerPresence(ctx context.Context, cli client, cnrID cid.ID, waitParams *WaitParams) error {
 	var prm PrmContainerGet
-	if cnrID != nil {
-		prm.SetContainerID(*cnrID)
-	}
+	prm.SetContainerID(cnrID)
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, prm)

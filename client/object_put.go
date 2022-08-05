@@ -32,20 +32,12 @@ func (x *PrmObjectPutInit) SetCopiesNumber(copiesNumber uint32) {
 type ResObjectPut struct {
 	statusRes
 
-	resp v2object.PutResponse
+	obj oid.ID
 }
 
-// ReadStoredObjectID reads identifier of the saved object.
-// Returns false if ID is missing (not read).
-func (x *ResObjectPut) ReadStoredObjectID(id *oid.ID) bool {
-	idv2 := x.resp.GetBody().GetObjectID()
-	if idv2 == nil {
-		return false
-	}
-
-	_ = id.ReadFromV2(*idv2)
-
-	return true
+// StoredObjectID returns identifier of the saved object.
+func (x ResObjectPut) StoredObjectID() oid.ID {
+	return x.obj
 }
 
 // ObjectWriter is designed to write one object to NeoFS system.
@@ -216,13 +208,15 @@ func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*Obje
 	var (
 		res ResObjectPut
 		w   ObjectWriter
+
+		resp v2object.PutResponse
 	)
 
 	ctx, w.cancelCtxStream = context.WithCancel(ctx)
 
 	w.partInit.SetCopiesNumber(prm.copyNum)
 
-	stream, err := rpcapi.PutObject(&c.c, &res.resp, client.WithContext(ctx))
+	stream, err := rpcapi.PutObject(&c.c, &resp, client.WithContext(ctx))
 	if err != nil {
 		return nil, fmt.Errorf("open stream: %w", err)
 	}
@@ -242,11 +236,25 @@ func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*Obje
 	c.initCallContext(&w.ctxCall)
 	w.ctxCall.req = &req
 	w.ctxCall.statusRes = &res
-	w.ctxCall.resp = &res.resp
+	w.ctxCall.resp = &resp
 	w.ctxCall.wReq = func() error {
 		return stream.Write(&req)
 	}
 	w.ctxCall.closer = stream.Close
+	w.ctxCall.result = func(r responseV2) {
+		const fieldID = "ID"
+
+		idV2 := r.(*v2object.PutResponse).GetBody().GetObjectID()
+		if idV2 == nil {
+			w.ctxCall.err = newErrMissingResponseField(fieldID)
+			return
+		}
+
+		w.ctxCall.err = res.obj.ReadFromV2(*idV2)
+		if w.ctxCall.err != nil {
+			w.ctxCall.err = newErrInvalidResponseField(fieldID, w.ctxCall.err)
+		}
+	}
 
 	return &w, nil
 }

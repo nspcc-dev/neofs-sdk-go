@@ -93,18 +93,12 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 type ResObjectDelete struct {
 	statusRes
 
-	idTomb *v2refs.ObjectID
+	tomb oid.ID
 }
 
-// ReadTombstoneID reads identifier of the created tombstone object.
-// Returns false if ID is missing (not read).
-func (x ResObjectDelete) ReadTombstoneID(dst *oid.ID) bool {
-	if x.idTomb != nil {
-		_ = dst.ReadFromV2(*x.idTomb)
-		return true
-	}
-
-	return false
+// Tombstone returns identifier of the created tombstone object.
+func (x ResObjectDelete) Tombstone() oid.ID {
+	return x.tomb
 }
 
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
@@ -167,7 +161,18 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 		return rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
-		res.idTomb = r.(*v2object.DeleteResponse).GetBody().GetTombstone().GetObjectID()
+		const fieldTombstone = "tombstone"
+
+		idTombV2 := r.(*v2object.DeleteResponse).GetBody().GetTombstone().GetObjectID()
+		if idTombV2 == nil {
+			cc.err = newErrMissingResponseField(fieldTombstone)
+			return
+		}
+
+		cc.err = res.tomb.ReadFromV2(*idTombV2)
+		if cc.err != nil {
+			cc.err = newErrInvalidResponseField(fieldTombstone, cc.err)
+		}
 	}
 
 	// process call

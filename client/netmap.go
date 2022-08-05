@@ -2,8 +2,6 @@ package client
 
 import (
 	"context"
-	"errors"
-	"fmt"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
@@ -21,31 +19,19 @@ type PrmEndpointInfo struct {
 type ResEndpointInfo struct {
 	statusRes
 
-	version *version.Version
+	version version.Version
 
-	ni *netmap.NodeInfo
+	ni netmap.NodeInfo
 }
 
 // LatestVersion returns latest NeoFS API protocol's version in use.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResEndpointInfo) LatestVersion() *version.Version {
+func (x ResEndpointInfo) LatestVersion() version.Version {
 	return x.version
 }
 
-func (x *ResEndpointInfo) setLatestVersion(ver *version.Version) {
-	x.version = ver
-}
-
 // NodeInfo returns information about the NeoFS node served on the remote endpoint.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResEndpointInfo) NodeInfo() *netmap.NodeInfo {
+func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 	return x.ni
-}
-
-func (x *ResEndpointInfo) setNodeInfo(info *netmap.NodeInfo) {
-	x.ni = info
 }
 
 // EndpointInfo requests information about the storage node served on the remote endpoint.
@@ -93,31 +79,33 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 		body := resp.GetBody()
 
-		var ver version.Version
-		if v2ver := body.GetVersion(); v2ver != nil {
-			cc.err = ver.ReadFromV2(*v2ver)
-			if cc.err != nil {
-				cc.err = fmt.Errorf("invalid version: %w", cc.err)
-				return
-			}
-		}
-		res.setLatestVersion(&ver)
+		const fieldVersion = "version"
 
-		nodeV2 := body.GetNodeInfo()
-		if nodeV2 == nil {
-			cc.err = errors.New("missing node info in response body")
+		verV2 := body.GetVersion()
+		if verV2 == nil {
+			cc.err = newErrMissingResponseField(fieldVersion)
 			return
 		}
 
-		var node netmap.NodeInfo
-
-		cc.err = node.ReadFromV2(*nodeV2)
+		cc.err = res.version.ReadFromV2(*verV2)
 		if cc.err != nil {
-			cc.err = fmt.Errorf("invalid node info: %w", cc.err)
+			cc.err = newErrInvalidResponseField(fieldVersion, cc.err)
 			return
 		}
 
-		res.setNodeInfo(&node)
+		const fieldNodeInfo = "node info"
+
+		nodeInfoV2 := body.GetNodeInfo()
+		if nodeInfoV2 == nil {
+			cc.err = newErrMissingResponseField(fieldNodeInfo)
+			return
+		}
+
+		cc.err = res.ni.ReadFromV2(*nodeInfoV2)
+		if cc.err != nil {
+			cc.err = newErrInvalidResponseField(fieldNodeInfo, cc.err)
+			return
+		}
 	}
 
 	// process call
@@ -137,18 +125,12 @@ type PrmNetworkInfo struct {
 type ResNetworkInfo struct {
 	statusRes
 
-	info *netmap.NetworkInfo
+	info netmap.NetworkInfo
 }
 
 // Info returns structured information about the NeoFS network.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResNetworkInfo) Info() *netmap.NetworkInfo {
+func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 	return x.info
-}
-
-func (x *ResNetworkInfo) setInfo(info *netmap.NetworkInfo) {
-	x.info = info
 }
 
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
@@ -192,21 +174,19 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.NetworkInfoResponse)
 
+		const fieldNetInfo = "network info"
+
 		netInfoV2 := resp.GetBody().GetNetworkInfo()
 		if netInfoV2 == nil {
-			cc.err = errors.New("missing network info in response body")
+			cc.err = newErrMissingResponseField(fieldNetInfo)
 			return
 		}
 
-		var netInfo netmap.NetworkInfo
-
-		cc.err = netInfo.ReadFromV2(*netInfoV2)
+		cc.err = res.info.ReadFromV2(*netInfoV2)
 		if cc.err != nil {
-			cc.err = fmt.Errorf("invalid network info: %w", cc.err)
+			cc.err = newErrInvalidResponseField(fieldNetInfo, cc.err)
 			return
 		}
-
-		res.setInfo(&netInfo)
 	}
 
 	// process call
