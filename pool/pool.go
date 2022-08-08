@@ -37,37 +37,37 @@ import (
 // Others are expected to be for test purposes only.
 type client interface {
 	// see clientWrapper.balanceGet.
-	balanceGet(context.Context, PrmBalanceGet) (*accounting.Decimal, error)
+	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
-	containerPut(context.Context, PrmContainerPut) (*cid.ID, error)
+	containerPut(context.Context, PrmContainerPut) (cid.ID, error)
 	// see clientWrapper.containerGet.
-	containerGet(context.Context, PrmContainerGet) (*container.Container, error)
+	containerGet(context.Context, PrmContainerGet) (container.Container, error)
 	// see clientWrapper.containerList.
 	containerList(context.Context, PrmContainerList) ([]cid.ID, error)
 	// see clientWrapper.containerDelete.
 	containerDelete(context.Context, PrmContainerDelete) error
 	// see clientWrapper.containerEACL.
-	containerEACL(context.Context, PrmContainerEACL) (*eacl.Table, error)
+	containerEACL(context.Context, PrmContainerEACL) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
 	containerSetEACL(context.Context, PrmContainerSetEACL) error
 	// see clientWrapper.endpointInfo.
-	endpointInfo(context.Context, prmEndpointInfo) (*netmap.NodeInfo, error)
+	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
-	networkInfo(context.Context, prmNetworkInfo) (*netmap.NetworkInfo, error)
+	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
 	// see clientWrapper.objectPut.
-	objectPut(context.Context, PrmObjectPut) (*oid.ID, error)
+	objectPut(context.Context, PrmObjectPut) (oid.ID, error)
 	// see clientWrapper.objectDelete.
 	objectDelete(context.Context, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
-	objectGet(context.Context, PrmObjectGet) (*ResGetObject, error)
+	objectGet(context.Context, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
-	objectHead(context.Context, PrmObjectHead) (*object.Object, error)
+	objectHead(context.Context, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
-	objectRange(context.Context, PrmObjectRange) (*ResObjectRange, error)
+	objectRange(context.Context, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, PrmObjectSearch) (*ResObjectSearch, error)
+	objectSearch(context.Context, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
-	sessionCreate(context.Context, prmCreateSession) (*resCreateSession, error)
+	sessionCreate(context.Context, prmCreateSession) (resCreateSession, error)
 
 	clientStatus
 }
@@ -273,8 +273,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 }
 
 // balanceGet invokes sdkClient.BalanceGet parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
+func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	var cliPrm sdkClient.PrmBalanceGet
 	cliPrm.SetAccount(prm.account)
 
@@ -286,17 +285,15 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (*acc
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("balance get on client: %w", err)
+		return accounting.Decimal{}, fmt.Errorf("balance get on client: %w", err)
 	}
 
-	bal := res.Amount()
-
-	return &bal, nil
+	return res.Amount(), nil
 }
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
 // It also waits for the container to appear on the network.
-func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
+func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (cid.ID, error) {
 	start := time.Now()
 	res, err := c.client.ContainerPut(ctx, prm.prmClient)
 	c.incRequests(time.Since(start), methodContainerPut)
@@ -305,7 +302,7 @@ func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("container put on client: %w", err)
+		return cid.ID{}, fmt.Errorf("container put on client: %w", err)
 	}
 
 	if !prm.waitParamsSet {
@@ -316,15 +313,14 @@ func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (
 
 	err = waitForContainerPresence(ctx, c, idCnr, &prm.waitParams)
 	if err = c.handleError(nil, err); err != nil {
-		return nil, fmt.Errorf("wait container presence on client: %w", err)
+		return cid.ID{}, fmt.Errorf("wait container presence on client: %w", err)
 	}
 
-	return &idCnr, nil
+	return idCnr, nil
 }
 
 // containerGet invokes sdkClient.ContainerGet parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (*container.Container, error) {
+func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (container.Container, error) {
 	var cliPrm sdkClient.PrmContainerGet
 	cliPrm.SetContainer(prm.cnrID)
 
@@ -336,11 +332,10 @@ func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("container get on client: %w", err)
+		return container.Container{}, fmt.Errorf("container get on client: %w", err)
 	}
 
-	cnr := res.Container()
-	return &cnr, nil
+	return res.Container(), nil
 }
 
 // containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
@@ -389,8 +384,7 @@ func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDel
 }
 
 // containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, error) {
+func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL) (eacl.Table, error) {
 	var cliPrm sdkClient.PrmContainerEACL
 	cliPrm.SetContainer(prm.cnrID)
 
@@ -402,12 +396,10 @@ func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL)
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("get eacl on client: %w", err)
+		return eacl.Table{}, fmt.Errorf("get eacl on client: %w", err)
 	}
 
-	eACL := res.Table()
-
-	return &eACL, nil
+	return res.Table(), nil
 }
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
@@ -449,8 +441,7 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 }
 
 // endpointInfo invokes sdkClient.EndpointInfo parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (*netmap.NodeInfo, error) {
+func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (netmap.NodeInfo, error) {
 	start := time.Now()
 	res, err := c.client.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
 	c.incRequests(time.Since(start), methodEndpointInfo)
@@ -459,17 +450,14 @@ func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (*n
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("endpoint info on client: %w", err)
+		return netmap.NodeInfo{}, fmt.Errorf("endpoint info on client: %w", err)
 	}
 
-	nodeInfo := res.NodeInfo()
-
-	return &nodeInfo, nil
+	return res.NodeInfo(), nil
 }
 
 // networkInfo invokes sdkClient.NetworkInfo parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (*netmap.NetworkInfo, error) {
+func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netmap.NetworkInfo, error) {
 	start := time.Now()
 	res, err := c.client.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	c.incRequests(time.Since(start), methodNetworkInfo)
@@ -478,17 +466,14 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (*net
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("network info on client: %w", err)
+		return netmap.NetworkInfo{}, fmt.Errorf("network info on client: %w", err)
 	}
 
-	netInfo := res.Info()
-
-	return &netInfo, nil
+	return res.Info(), nil
 }
 
 // objectPut writes object to NeoFS.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
+func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
 	var cliPrm sdkClient.PrmObjectPutInit
 	cliPrm.SetCopiesNumber(prm.copiesNumber)
 
@@ -496,7 +481,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 	wObj, err := c.client.ObjectPutInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectPut)
 	if err = c.handleError(nil, err); err != nil {
-		return nil, fmt.Errorf("init writing on API client: %w", err)
+		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
 	}
 
 	if prm.stoken != nil {
@@ -550,7 +535,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 					break
 				}
 
-				return nil, fmt.Errorf("read payload: %w", c.handleError(nil, err))
+				return oid.ID{}, fmt.Errorf("read payload: %w", c.handleError(nil, err))
 			}
 		}
 	}
@@ -561,12 +546,10 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (*oid.I
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil { // here err already carries both status and client errors
-		return nil, fmt.Errorf("client failure: %w", err)
+		return oid.ID{}, fmt.Errorf("client failure: %w", err)
 	}
 
-	id := res.StoredObjectID()
-
-	return &id, nil
+	return res.StoredObjectID(), nil
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
@@ -601,8 +584,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 }
 
 // objectGet returns reader for object.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
+func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGetObject, error) {
 	var cliPrm sdkClient.PrmObjectGet
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -619,7 +601,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 
 	rObj, err := c.client.ObjectGetInit(ctx, cliPrm)
 	if err = c.handleError(nil, err); err != nil {
-		return nil, fmt.Errorf("init object reading on client: %w", err)
+		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
 	}
 
 	if prm.key != nil {
@@ -636,7 +618,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 			st = rObjRes.Status()
 		}
 		err = c.handleError(st, err)
-		return nil, fmt.Errorf("read header: %w", err)
+		return res, fmt.Errorf("read header: %w", err)
 	}
 
 	res.Payload = &objectReadCloser{
@@ -646,12 +628,11 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (*ResGe
 		},
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
+func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (object.Object, error) {
 	var cliPrm sdkClient.PrmObjectHead
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -678,18 +659,17 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (*obj
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("read object header via client: %w", err)
+		return obj, fmt.Errorf("read object header via client: %w", err)
 	}
 	if !res.ReadHeader(&obj) {
-		return nil, errors.New("missing object header in response")
+		return obj, errors.New("missing object header in response")
 	}
 
-	return &obj, nil
+	return obj, nil
 }
 
 // objectRange returns object range reader.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
+func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRange, error) {
 	var cliPrm sdkClient.PrmObjectRange
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -708,13 +688,13 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*R
 	res, err := c.client.ObjectRangeInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectRange)
 	if err = c.handleError(nil, err); err != nil {
-		return nil, fmt.Errorf("init payload range reading on client: %w", err)
+		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
 	}
 	if prm.key != nil {
 		res.UseKey(*prm.key)
 	}
 
-	return &ResObjectRange{
+	return ResObjectRange{
 		payload: res,
 		elapsedTimeCallback: func(elapsed time.Duration) {
 			c.incRequests(elapsed, methodObjectRange)
@@ -723,8 +703,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (*R
 }
 
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
+func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
 	var cliPrm sdkClient.PrmObjectSearch
 
 	cliPrm.InContainer(prm.cnrID)
@@ -740,18 +719,17 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 
 	res, err := c.client.ObjectSearchInit(ctx, cliPrm)
 	if err = c.handleError(nil, err); err != nil {
-		return nil, fmt.Errorf("init object searching on client: %w", err)
+		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
 	}
 	if prm.key != nil {
 		res.UseKey(*prm.key)
 	}
 
-	return &ResObjectSearch{r: res}, nil
+	return ResObjectSearch{r: res}, nil
 }
 
 // sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
-// Exactly one return value is non-nil.
-func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession) (*resCreateSession, error) {
+func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession) (resCreateSession, error) {
 	var cliPrm sdkClient.PrmSessionCreate
 	cliPrm.SetExp(prm.exp)
 	cliPrm.UseKey(prm.key)
@@ -764,10 +742,10 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession)
 		st = res.Status()
 	}
 	if err = c.handleError(st, err); err != nil {
-		return nil, fmt.Errorf("session creation on client: %w", err)
+		return resCreateSession{}, fmt.Errorf("session creation on client: %w", err)
 	}
 
-	return &resCreateSession{
+	return resCreateSession{
 		id:         res.ID(),
 		sessionKey: res.PublicKey(),
 	}, nil
@@ -1797,7 +1775,9 @@ func (p *Pool) fillAppropriateKey(prm *prmCommon) {
 }
 
 // PutObject writes an object through a remote server using NeoFS API protocol.
-func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
 	cnr, _ := prm.hdr.ContainerID()
 
 	var prmCtx prmContext
@@ -1812,13 +1792,13 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 	ctxCall.Context = ctx
 
 	if err := p.initCallContext(&ctxCall, prm.prmCommon, prmCtx); err != nil {
-		return nil, fmt.Errorf("init call context: %w", err)
+		return oid.ID{}, fmt.Errorf("init call context: %w", err)
 	}
 
 	if ctxCall.sessionDefault {
 		ctxCall.sessionTarget = prm.UseSession
 		if err := p.openDefaultSession(&ctxCall); err != nil {
-			return nil, fmt.Errorf("open default session: %w", err)
+			return oid.ID{}, fmt.Errorf("open default session: %w", err)
 		}
 	}
 
@@ -1826,7 +1806,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (*oid.ID, error)
 	if err != nil {
 		// removes session token from cache in case of token error
 		p.checkSessionTokenErr(err, ctxCall.endpoint)
-		return nil, fmt.Errorf("init writing on API client: %w", err)
+		return id, fmt.Errorf("init writing on API client: %w", err)
 	}
 
 	return id, nil
@@ -1890,8 +1870,9 @@ type ResGetObject struct {
 }
 
 // GetObject reads object header and initiates reading an object payload through a remote server using NeoFS API protocol.
-// Exactly one return value is non-nil.
-func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (ResGetObject, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectGet)
@@ -1903,12 +1884,13 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 	cc.Context = ctx
 	cc.sessionTarget = prm.UseSession
 
+	var res ResGetObject
+
 	err := p.initCallContext(&cc, prm.prmCommon, prmCtx)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
 
-	var res *ResGetObject
 	return res, p.call(&cc, func() error {
 		res, err = cc.client.objectGet(ctx, prm)
 		return err
@@ -1916,8 +1898,9 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (*ResGetObject, 
 }
 
 // HeadObject reads object header through a remote server using NeoFS API protocol.
-// Exactly one return value is non-nil.
-func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Object, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (object.Object, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectHead)
@@ -1930,12 +1913,13 @@ func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (*object.Objec
 	cc.Context = ctx
 	cc.sessionTarget = prm.UseSession
 
+	var obj object.Object
+
 	err := p.initCallContext(&cc, prm.prmCommon, prmCtx)
 	if err != nil {
-		return nil, err
+		return obj, err
 	}
 
-	var obj *object.Object
 	return obj, p.call(&cc, func() error {
 		obj, err = cc.client.objectHead(ctx, prm)
 		return err
@@ -1969,8 +1953,9 @@ func (x *ResObjectRange) Close() error {
 
 // ObjectRange initiates reading an object's payload range through a remote
 // server using NeoFS API protocol.
-// Exactly one return value is non-nil.
-func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectRange, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRange, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectRange)
@@ -1982,12 +1967,12 @@ func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (*ResObjectR
 	cc.Context = ctx
 	cc.sessionTarget = prm.UseSession
 
+	var res ResObjectRange
+
 	err := p.initCallContext(&cc, prm.prmCommon, prmCtx)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
-
-	var res *ResObjectRange
 
 	return res, p.call(&cc, func() error {
 		res, err = cc.client.objectRange(ctx, prm)
@@ -2034,10 +2019,10 @@ func (x *ResObjectSearch) Close() {
 // SearchObjects initiates object selection through a remote server using NeoFS API protocol.
 //
 // The call only opens the transmission channel, explicit fetching of matched objects
-// is done using the ResObjectSearch. Exactly one return value is non-nil.
-// Resulting reader must be finally closed.
-// Exactly one return value is non-nil.
-func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObjectSearch, error) {
+// is done using the ResObjectSearch. Resulting reader must be finally closed.
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectSearch)
@@ -2050,12 +2035,12 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 	cc.Context = ctx
 	cc.sessionTarget = prm.UseSession
 
+	var res ResObjectSearch
+
 	err := p.initCallContext(&cc, prm.prmCommon, prmCtx)
 	if err != nil {
-		return nil, err
+		return res, err
 	}
-
-	var res *ResObjectSearch
 
 	return res, p.call(&cc, func() error {
 		res, err = cc.client.objectSearch(ctx, prm)
@@ -2070,21 +2055,24 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (*ResObje
 //   waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
-func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (*cid.ID, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
-		return nil, err
+		return cid.ID{}, err
 	}
 
 	return cp.containerPut(ctx, prm)
 }
 
 // GetContainer reads NeoFS container by ID.
-// Exactly one return value is non-nil.
-func (p *Pool) GetContainer(ctx context.Context, prm PrmContainerGet) (*container.Container, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) GetContainer(ctx context.Context, prm PrmContainerGet) (container.Container, error) {
 	cp, err := p.connection()
 	if err != nil {
-		return nil, err
+		return container.Container{}, err
 	}
 
 	return cp.containerGet(ctx, prm)
@@ -2117,11 +2105,12 @@ func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) erro
 }
 
 // GetEACL reads eACL table of the NeoFS container.
-// Exactly one return value is non-nil.
-func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (*eacl.Table, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (eacl.Table, error) {
 	cp, err := p.connection()
 	if err != nil {
-		return nil, err
+		return eacl.Table{}, err
 	}
 
 	return cp.containerEACL(ctx, prm)
@@ -2144,11 +2133,12 @@ func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 }
 
 // Balance requests current balance of the NeoFS account.
-// Exactly one return value is non-nil.
-func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (*accounting.Decimal, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	cp, err := p.connection()
 	if err != nil {
-		return nil, err
+		return accounting.Decimal{}, err
 	}
 
 	return cp.balanceGet(ctx, prm)
@@ -2196,7 +2186,7 @@ func waitForEACLPresence(ctx context.Context, cli client, cnrID *cid.ID, table *
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		eaclTable, err := cli.containerEACL(ctx, prm)
 		if err == nil {
-			return eacl.EqualTables(*table, *eaclTable)
+			return eacl.EqualTables(*table, eaclTable)
 		}
 		return false
 	})
@@ -2239,11 +2229,12 @@ func waitFor(ctx context.Context, params *WaitParams, condition func(context.Con
 }
 
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
-// Exactly one return value is non-nil.
-func (p *Pool) NetworkInfo(ctx context.Context) (*netmap.NetworkInfo, error) {
+//
+// Main return value MUST NOT be processed on an erroneous return.
+func (p *Pool) NetworkInfo(ctx context.Context) (netmap.NetworkInfo, error) {
 	cp, err := p.connection()
 	if err != nil {
-		return nil, err
+		return netmap.NetworkInfo{}, err
 	}
 
 	return cp.networkInfo(ctx, prmNetworkInfo{})
@@ -2269,11 +2260,7 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *
 		return fmt.Errorf("network info: %w", err)
 	}
 
-	if ni == nil {
-		return errors.New("empty network info")
-	}
-
-	container.ApplyNetworkConfig(cnr, *ni)
+	container.ApplyNetworkConfig(cnr, ni)
 
 	return nil
 }
