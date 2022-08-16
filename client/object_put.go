@@ -179,7 +179,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		return nil, x.ctxCall.err
 	}
 
-	if !x.ctxCall.close() {
+	if x.ctxCall.err = x.ctxCall.closer(); x.ctxCall.err != nil {
 		return nil, x.ctxCall.err
 	}
 
