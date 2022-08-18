@@ -31,7 +31,16 @@ func (x Signer) Sign(data []byte) ([]byte, error) {
 		return nil, err
 	}
 
-	return elliptic.Marshal(elliptic.P256(), r, s), nil
+	params := elliptic.P256().Params()
+	curveOrderByteSize := params.P.BitLen() / 8
+
+	buf := make([]byte, 1+curveOrderByteSize*2)
+	buf[0] = 4
+
+	_ = r.FillBytes(buf[1 : 1+curveOrderByteSize])
+	_ = s.FillBytes(buf[1+curveOrderByteSize:])
+
+	return buf, nil
 }
 
 // Public initializes PublicKey and returns it as neofscrypto.PublicKey.
