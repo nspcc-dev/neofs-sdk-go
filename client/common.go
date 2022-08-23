@@ -52,19 +52,6 @@ func (x *prmCommonMeta) WithXHeaders(hs ...string) {
 	x.xHeaders = hs
 }
 
-func (x prmCommonMeta) writeToMetaHeader(h *v2session.RequestMetaHeader) {
-	if len(x.xHeaders) > 0 {
-		hs := make([]v2session.XHeader, len(x.xHeaders)/2)
-
-		for i := 0; i < len(x.xHeaders); i += 2 {
-			hs[i].SetKey(x.xHeaders[i])
-			hs[i].SetValue(x.xHeaders[i+1])
-		}
-
-		h.SetXHeaders(hs)
-	}
-}
-
 func writeXHeadersToMeta(xHeaders []string, h *v2session.RequestMetaHeader) {
 	if len(xHeaders) == 0 {
 		return
@@ -166,7 +153,7 @@ func (x contextCall) prepareRequest() {
 
 	meta.SetNetworkMagic(x.netMagic)
 
-	x.meta.writeToMetaHeader(meta)
+	writeXHeadersToMeta(x.meta.xHeaders, meta)
 }
 
 func (c *Client) prepareRequest(req request, meta *v2session.RequestMetaHeader) {
