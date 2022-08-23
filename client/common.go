@@ -65,6 +65,20 @@ func (x prmCommonMeta) writeToMetaHeader(h *v2session.RequestMetaHeader) {
 	}
 }
 
+func writeXHeadersToMeta(xHeaders []string, h *v2session.RequestMetaHeader) {
+	if len(xHeaders) == 0 {
+		return
+	}
+
+	hs := make([]v2session.XHeader, len(xHeaders)/2)
+	for i := 0; i < len(xHeaders); i += 2 {
+		hs[i].SetKey(xHeaders[i])
+		hs[i].SetValue(xHeaders[i+1])
+	}
+
+	h.SetXHeaders(hs)
+}
+
 // panic messages.
 const (
 	panicMsgMissingContext   = "missing context"
@@ -108,11 +122,7 @@ type contextCall struct {
 	statusRes resCommon
 
 	// request to be signed with a key and sent
-	req interface {
-		GetMetaHeader() *v2session.RequestMetaHeader
-		SetMetaHeader(*v2session.RequestMetaHeader)
-		SetVerificationHeader(*v2session.RequestVerificationHeader)
-	}
+	req request
 
 	// function to send a request (unary) and receive a response
 	call func() (responseV2, error)
@@ -128,6 +138,12 @@ type contextCall struct {
 
 	// function of writing response fields to the resulting structure (optional)
 	result func(v2 responseV2)
+}
+
+type request interface {
+	GetMetaHeader() *v2session.RequestMetaHeader
+	SetMetaHeader(*v2session.RequestMetaHeader)
+	SetVerificationHeader(*v2session.RequestVerificationHeader)
 }
 
 // sets needed fields of the request meta header.
@@ -151,6 +167,25 @@ func (x contextCall) prepareRequest() {
 	meta.SetNetworkMagic(x.netMagic)
 
 	x.meta.writeToMetaHeader(meta)
+}
+
+func (c *Client) prepareRequest(req request, meta *v2session.RequestMetaHeader) {
+	ttl := meta.GetTTL()
+	if ttl == 0 {
+		ttl = 2
+	}
+
+	verV2 := meta.GetVersion()
+	if verV2 == nil {
+		verV2 = new(refs.Version)
+		version.Current().WriteToV2(verV2)
+	}
+
+	meta.SetTTL(ttl)
+	meta.SetVersion(verV2)
+	meta.SetNetworkMagic(c.prm.netMagic)
+
+	req.SetMetaHeader(meta)
 }
 
 // prepares, signs and writes the request. Result means success.
@@ -220,6 +255,20 @@ func (x *contextCall) processResponse() bool {
 	}
 
 	return successfulStatus
+}
+
+// processResponse verifies response signature and converts status to an error if needed.
+func (c *Client) processResponse(resp responseV2) (apistatus.Status, error) {
+	err := signature.VerifyServiceMessage(resp)
+	if err != nil {
+		return nil, fmt.Errorf("invalid response signature: %w", err)
+	}
+
+	st := apistatus.FromStatusV2(resp.GetMetaHeader().GetStatus())
+	if c.prm.resolveNeoFSErrors {
+		return st, apistatus.ErrFromStatus(st)
+	}
+	return st, nil
 }
 
 // reads response (if rResp is set) and processes it. Result means success.
