@@ -288,11 +288,6 @@ func (x *contextCall) processCall() bool {
 // initializes static cross-call parameters inherited from client.
 func (c *Client) initCallContext(ctx *contextCall) {
 	ctx.key = c.prm.key
-	c.initCallContextWithoutKey(ctx)
-}
-
-// initializes static cross-call parameters inherited from client except private key.
-func (c *Client) initCallContextWithoutKey(ctx *contextCall) {
 	ctx.resolveAPIFailures = c.prm.resolveNeoFSErrors
 	ctx.callbackResp = c.prm.cbRespInfo
 	ctx.netMagic = c.prm.netMagic
