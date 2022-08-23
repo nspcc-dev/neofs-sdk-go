@@ -69,6 +69,7 @@ func (x prmCommonMeta) writeToMetaHeader(h *v2session.RequestMetaHeader) {
 const (
 	panicMsgMissingContext   = "missing context"
 	panicMsgMissingContainer = "missing container"
+	panicMsgMissingObject    = "missing object"
 )
 
 // groups all the details required to send a single request and process a response to it.
