@@ -24,7 +24,7 @@ type PrmObjectHash struct {
 
 	body v2object.GetRangeHashRequestBody
 
-	tillichZemor bool
+	csAlgo v2refs.ChecksumType
 
 	addr v2refs.Address
 }
@@ -101,7 +101,7 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 //
 // By default, SHA256 hash function is used.
 func (x *PrmObjectHash) TillichZemorAlgo() {
-	x.tillichZemor = true
+	x.csAlgo = v2refs.TillichZemor
 }
 
 // UseSalt sets the salt to XOR the data range before hashing.
@@ -170,10 +170,10 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	}
 
 	prm.body.SetAddress(&prm.addr)
-	if prm.tillichZemor {
-		prm.body.SetType(v2refs.TillichZemor)
-	} else {
+	if prm.csAlgo == v2refs.UnknownChecksum {
 		prm.body.SetType(v2refs.SHA256)
+	} else {
+		prm.body.SetType(prm.csAlgo)
 	}
 
 	var req v2object.GetRangeHashRequest
