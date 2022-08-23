@@ -114,7 +114,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-	prm.prmCommonMeta.writeToMetaHeader(&meta)
+	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
 
 	if prm.sessionSet {
 		var tokv2 v2session.Token
@@ -456,7 +456,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-	prm.prmCommonMeta.writeToMetaHeader(&meta)
+	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
 
 	if prm.tokSet {
 		var tokv2 v2session.Token
@@ -677,7 +677,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 
 	// form meta header
 	var meta v2session.RequestMetaHeader
-	prm.prmCommonMeta.writeToMetaHeader(&meta)
+	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
 
 	if prm.sessionSet {
 		var tokv2 v2session.Token

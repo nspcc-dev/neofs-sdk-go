@@ -275,7 +275,7 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 		meta.SetSessionToken(&tokv2)
 	}
 
-	prm.prmCommonMeta.writeToMetaHeader(&meta)
+	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
 
 	// form request
 	var req v2object.SearchRequest

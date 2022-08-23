@@ -97,7 +97,7 @@ func (x *ObjectWriter) WithXHeaders(hs ...string) {
 		panic("slice of X-Headers with odd length")
 	}
 
-	prmCommonMeta{xHeaders: hs}.writeToMetaHeader(&x.metaHdr)
+	writeXHeadersToMeta(hs, &x.metaHdr)
 }
 
 // WriteHeader writes header of the object. Result means success.

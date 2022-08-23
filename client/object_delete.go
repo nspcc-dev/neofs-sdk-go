@@ -86,7 +86,7 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 		panic("slice of X-Headers with odd length")
 	}
 
-	prmCommonMeta{xHeaders: hs}.writeToMetaHeader(&x.meta)
+	writeXHeadersToMeta(hs, &x.meta)
 }
 
 // ResObjectDelete groups resulting values of ObjectDelete operation.

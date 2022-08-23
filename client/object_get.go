@@ -60,7 +60,7 @@ func (x prmObjectRead) writeToMetaHeader(h *v2session.RequestMetaHeader) {
 		h.SetSessionToken(&tokv2)
 	}
 
-	x.prmCommonMeta.writeToMetaHeader(h)
+	writeXHeadersToMeta(x.prmCommonMeta.xHeaders, h)
 }
 
 // MarkRaw marks an intent to read physically stored object.
