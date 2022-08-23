@@ -717,12 +717,13 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
+	if prm.key != nil {
+		cliPrm.UseKey(*prm.key)
+	}
+
 	res, err := c.client.ObjectSearchInit(ctx, cliPrm)
 	if err = c.handleError(nil, err); err != nil {
 		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
-	}
-	if prm.key != nil {
-		res.UseKey(*prm.key)
 	}
 
 	return ResObjectSearch{r: res}, nil

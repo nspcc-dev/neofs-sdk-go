@@ -13,6 +13,7 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -23,15 +24,9 @@ import (
 
 // PrmObjectSearch groups parameters of ObjectSearch operation.
 type PrmObjectSearch struct {
-	prmCommonMeta
+	meta v2session.RequestMetaHeader
 
-	local bool
-
-	sessionSet bool
-	session    session.Object
-
-	bearerSet bool
-	bearer    bearer.Token
+	key *ecdsa.PrivateKey
 
 	cnrSet bool
 	cnrID  cid.ID
@@ -41,7 +36,7 @@ type PrmObjectSearch struct {
 
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectSearch) MarkLocal() {
-	x.local = true
+	x.meta.SetTTL(1)
 }
 
 // WithinSession specifies session within which the search query must be executed.
@@ -51,8 +46,9 @@ func (x *PrmObjectSearch) MarkLocal() {
 //
 // Must be signed.
 func (x *PrmObjectSearch) WithinSession(t session.Object) {
-	x.session = t
-	x.sessionSet = true
+	var tokv2 v2session.Token
+	t.WriteToV2(&tokv2)
+	x.meta.SetSessionToken(&tokv2)
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -61,8 +57,27 @@ func (x *PrmObjectSearch) WithinSession(t session.Object) {
 //
 // Must be signed.
 func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
-	x.bearer = t
-	x.bearerSet = true
+	var v2token acl.BearerToken
+	t.WriteToV2(&v2token)
+	x.meta.SetBearerToken(&v2token)
+}
+
+// WithXHeaders specifies list of extended headers (string key-value pairs)
+// to be attached to the request. Must have an even length.
+//
+// Slice must not be mutated until the operation completes.
+func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
+	if len(hs)%2 != 0 {
+		panic("slice of X-Headers with odd length")
+	}
+
+	writeXHeadersToMeta(hs, &x.meta)
+}
+
+// UseKey specifies private key to sign the requests.
+// If key is not provided, then Client default key is used.
+func (x *PrmObjectSearch) UseKey(key ecdsa.PrivateKey) {
+	x.key = &key
 }
 
 // InContainer specifies the container in which to look for objects.
@@ -87,22 +102,14 @@ type ResObjectSearch struct {
 //
 // Must be initialized using Client.ObjectSearch, any other usage is unsafe.
 type ObjectListReader struct {
+	client          *Client
 	cancelCtxStream context.CancelFunc
-
-	ctxCall contextCall
-
-	reqWritten bool
-
-	// initially bound to contextCall
-	bodyResp v2object.SearchResponseBody
-
+	err             error
+	res             ResObjectSearch
+	stream          interface {
+		Read(resp *v2object.SearchResponse) error
+	}
 	tail []v2refs.ObjectID
-}
-
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *ObjectListReader) UseKey(key ecdsa.PrivateKey) {
-	x.ctxCall.key = key
 }
 
 // Read reads another list of the object identifiers. Works similar to
@@ -116,58 +123,33 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 		panic("empty buffer in ObjectListReader.ReadList")
 	}
 
-	if !x.reqWritten {
-		if !x.ctxCall.writeRequest() {
-			return 0, false
-		}
-
-		x.reqWritten = true
-	}
-
-	// read remaining tail
-	read := len(x.tail)
-	if read > len(buf) {
-		read = len(buf)
-	}
-
-	for i := 0; i < read; i++ {
-		_ = buf[i].ReadFromV2(x.tail[i])
-	}
-
+	read := copyIDBuffers(buf, x.tail)
 	x.tail = x.tail[read:]
 
 	if len(buf) == read {
 		return read, true
 	}
 
-	var ok bool
-	var ids []v2refs.ObjectID
-	var i, ln, rem int
-
 	for {
-		// receive next message
-		ok = x.ctxCall.readResponse()
-		if !ok {
+		var resp v2object.SearchResponse
+		x.err = x.stream.Read(&resp)
+		if x.err != nil {
+			return read, false
+		}
+
+		x.res.st, x.err = x.client.processResponse(&resp)
+		if x.err != nil || !apistatus.IsSuccessful(x.res.st) {
 			return read, false
 		}
 
 		// read new chunk of objects
-		ids = x.bodyResp.GetIDList()
-
-		ln = len(ids)
-		if ln == 0 {
+		ids := resp.GetBody().GetIDList()
+		if len(ids) == 0 {
 			// just skip empty lists since they are not prohibited by protocol
 			continue
 		}
 
-		if rem = len(buf) - read; ln > rem {
-			ln = rem
-		}
-
-		for i = 0; i < ln; i++ {
-			_ = buf[read+i].ReadFromV2(ids[i])
-		}
-
+		ln := copyIDBuffers(buf[read:], ids)
 		read += ln
 
 		if read == len(buf) {
@@ -177,6 +159,14 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			return read, true
 		}
 	}
+}
+
+func copyIDBuffers(dst []oid.ID, src []v2refs.ObjectID) int {
+	var i int
+	for ; i < len(dst) && i < len(src); i++ {
+		_ = dst[i].ReadFromV2(src[i])
+	}
+	return i
 }
 
 // Iterate iterates over the list of found object identifiers.
@@ -219,11 +209,11 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 func (x *ObjectListReader) Close() (*ResObjectSearch, error) {
 	defer x.cancelCtxStream()
 
-	if x.ctxCall.err != nil && !errors.Is(x.ctxCall.err, io.EOF) {
-		return nil, x.ctxCall.err
+	if x.err != nil && !errors.Is(x.err, io.EOF) {
+		return nil, x.err
 	}
 
-	return x.ctxCall.statusRes.(*ResObjectSearch), nil
+	return &x.res, nil
 }
 
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
@@ -243,75 +233,37 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 		panic(panicMsgMissingContainer)
 	}
 
-	// form request body
-	var (
-		body  v2object.SearchRequestBody
-		cidV2 v2refs.ContainerID
-	)
-
+	var cidV2 v2refs.ContainerID
 	prm.cnrID.WriteToV2(&cidV2)
 
+	var body v2object.SearchRequestBody
 	body.SetVersion(1)
 	body.SetContainerID(&cidV2)
 	body.SetFilters(prm.filters.ToV2())
 
-	// form meta header
-	var meta v2session.RequestMetaHeader
-
-	if prm.local {
-		meta.SetTTL(1)
-	}
-
-	if prm.bearerSet {
-		var v2token acl.BearerToken
-		prm.bearer.WriteToV2(&v2token)
-		meta.SetBearerToken(&v2token)
-	}
-
-	if prm.sessionSet {
-		var tokv2 v2session.Token
-		prm.session.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
-	}
-
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
-	// form request
-	var req v2object.SearchRequest
-
-	req.SetBody(&body)
-	req.SetMetaHeader(&meta)
-
 	// init reader
-	var (
-		r      ObjectListReader
-		resp   v2object.SearchResponse
-		stream *rpcapi.SearchResponseReader
-	)
+	var req v2object.SearchRequest
+	req.SetBody(&body)
+	c.prepareRequest(&req, &prm.meta)
 
+	key := prm.key
+	if key == nil {
+		key = &c.prm.key
+	}
+
+	err := signature.SignServiceMessage(key, &req)
+	if err != nil {
+		return nil, fmt.Errorf("sign request: %w", err)
+	}
+
+	var r ObjectListReader
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
-	resp.SetBody(&r.bodyResp)
-
-	// init call context
-	c.initCallContext(&r.ctxCall)
-	r.ctxCall.req = &req
-	r.ctxCall.statusRes = new(ResObjectSearch)
-	r.ctxCall.resp = &resp
-	r.ctxCall.wReq = func() error {
-		var err error
-
-		stream, err = rpcapi.SearchObjects(&c.c, &req, client.WithContext(ctx))
-		if err != nil {
-			return fmt.Errorf("open stream: %w", err)
-		}
-
-		return nil
+	r.stream, err = rpcapi.SearchObjects(&c.c, &req, client.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("open stream: %w", err)
 	}
-	r.ctxCall.rResp = func() error {
-		return stream.Read(&resp)
-	}
+	r.client = c
 
 	return &r, nil
 }

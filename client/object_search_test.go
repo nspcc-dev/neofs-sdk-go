@@ -1,12 +1,14 @@
 package client
 
 import (
+	"crypto/ecdsa"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -20,7 +22,7 @@ func TestObjectSearch(t *testing.T) {
 		ids[i] = oidtest.ID()
 	}
 
-	resp, setID := testListReaderResponse(t)
+	p, resp := testListReaderResponse(t)
 
 	buf := make([]oid.ID, 2)
 	checkRead := func(t *testing.T, expected []oid.ID) {
@@ -34,38 +36,23 @@ func TestObjectSearch(t *testing.T) {
 	require.Panics(t, func() { resp.Read(nil) })
 
 	// both ID fetched
-	setID(ids[:3])
+	resp.stream = newSearchStream(p, nil, ids[:3])
 	checkRead(t, ids[:2])
 
 	// one ID cached, second fetched
-	setID(ids[3:6])
+	resp.stream = newSearchStream(p, nil, ids[3:6])
 	checkRead(t, ids[2:4])
 
 	// both ID cached
-	resp.ctxCall.resp = nil
+	resp.stream = nil // shouldn't be called, panic if so
 	checkRead(t, ids[4:6])
 
 	// both ID fetched in 2 requests, with empty one in the middle
-	var n int
-	resp.ctxCall.rResp = func() error {
-		switch n {
-		case 0:
-			setID(ids[6:7])
-		case 1:
-			setID(nil)
-		case 2:
-			setID(ids[7:8])
-		default:
-			t.FailNow()
-		}
-		n++
-		return nil
-	}
+	resp.stream = newSearchStream(p, nil, ids[6:7], nil, ids[7:8])
 	checkRead(t, ids[6:8])
 
 	// read from tail multiple times
-	resp.ctxCall.rResp = nil
-	setID(ids[8:11])
+	resp.stream = newSearchStream(p, nil, ids[8:11])
 	buf = buf[:1]
 	checkRead(t, ids[8:9])
 	checkRead(t, ids[9:10])
@@ -73,15 +60,7 @@ func TestObjectSearch(t *testing.T) {
 
 	// handle EOF
 	buf = buf[:2]
-	n = 0
-	resp.ctxCall.rResp = func() error {
-		if n > 0 {
-			return io.EOF
-		}
-		n++
-		setID(ids[11:12])
-		return nil
-	}
+	resp.stream = newSearchStream(p, io.EOF, ids[11:12])
 	checkRead(t, ids[11:12])
 }
 
@@ -92,24 +71,9 @@ func TestObjectIterate(t *testing.T) {
 	}
 
 	t.Run("iterate all sequence", func(t *testing.T) {
-		resp, setID := testListReaderResponse(t)
+		p, resp := testListReaderResponse(t)
 
-		// Iterate over all sequence
-		var n int
-		resp.ctxCall.rResp = func() error {
-			switch n {
-			case 0:
-				setID(ids[0:2])
-			case 1:
-				setID(nil)
-			case 2:
-				setID(ids[2:3])
-			default:
-				return io.EOF
-			}
-			n++
-			return nil
-		}
+		resp.stream = newSearchStream(p, io.EOF, ids[0:2], nil, ids[2:3])
 
 		var actual []oid.ID
 		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
@@ -119,10 +83,10 @@ func TestObjectIterate(t *testing.T) {
 		require.Equal(t, ids[:3], actual)
 	})
 	t.Run("stop by return value", func(t *testing.T) {
-		resp, setID := testListReaderResponse(t)
+		p, resp := testListReaderResponse(t)
 
 		var actual []oid.ID
-		setID(ids)
+		resp.stream = &singleStreamResponder{key: p, idList: [][]oid.ID{ids}}
 		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return len(actual) == 2
@@ -130,22 +94,12 @@ func TestObjectIterate(t *testing.T) {
 		require.Equal(t, ids[:2], actual)
 	})
 	t.Run("stop after error", func(t *testing.T) {
-		resp, setID := testListReaderResponse(t)
+		p, resp := testListReaderResponse(t)
 		expectedErr := errors.New("test error")
 
-		var actual []oid.ID
-		var n int
-		resp.ctxCall.rResp = func() error {
-			switch n {
-			case 0:
-				setID(ids[:2])
-			default:
-				return expectedErr
-			}
-			n++
-			return nil
-		}
+		resp.stream = newSearchStream(p, expectedErr, ids[:2])
 
+		var actual []oid.ID
 		err := resp.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return false
@@ -155,40 +109,56 @@ func TestObjectIterate(t *testing.T) {
 	})
 }
 
-func testListReaderResponse(t *testing.T) (*ObjectListReader, func(id []oid.ID) *object.SearchResponse) {
+func testListReaderResponse(t *testing.T) (*ecdsa.PrivateKey, *ObjectListReader) {
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	obj := &ObjectListReader{
+	return &p.PrivateKey, &ObjectListReader{
 		cancelCtxStream: func() {},
-		ctxCall: contextCall{
-			closer:    func() error { return nil },
-			result:    func(v2 responseV2) {},
-			statusRes: new(ResObjectSearch),
-		},
-		reqWritten: true,
-		bodyResp:   object.SearchResponseBody{},
-		tail:       nil,
+		client:          &Client{},
+		tail:            nil,
+	}
+}
+
+func newSearchStream(key *ecdsa.PrivateKey, endError error, idList ...[]oid.ID) *singleStreamResponder {
+	return &singleStreamResponder{
+		key:      key,
+		endError: endError,
+		idList:   idList,
+	}
+}
+
+type singleStreamResponder struct {
+	key      *ecdsa.PrivateKey
+	n        int
+	endError error
+	idList   [][]oid.ID
+}
+
+func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
+	if s.n >= len(s.idList) {
+		if s.endError != nil {
+			return s.endError
+		}
+		panic("unexpected call to `Read`")
 	}
 
-	return obj, func(id []oid.ID) *object.SearchResponse {
-		resp := new(object.SearchResponse)
-		resp.SetBody(new(object.SearchResponseBody))
+	var body v2object.SearchResponseBody
 
-		v2id := make([]refs.ObjectID, len(id))
-		var oidV2 refs.ObjectID
-
-		for i := range id {
-			id[i].WriteToV2(&oidV2)
-			v2id[i] = oidV2
+	if s.idList[s.n] != nil {
+		ids := make([]refs.ObjectID, len(s.idList[s.n]))
+		for i := range s.idList[s.n] {
+			s.idList[s.n][i].WriteToV2(&ids[i])
 		}
-		resp.GetBody().SetIDList(v2id)
-		err := signatureV2.SignServiceMessage(&p.PrivateKey, resp)
-		if err != nil {
-			t.Fatalf("error: %v", err)
-		}
-		obj.ctxCall.resp = resp
-		obj.bodyResp = *resp.GetBody()
-		return resp
+		body.SetIDList(ids)
 	}
+	resp.SetBody(&body)
+
+	err := signatureV2.SignServiceMessage(s.key, resp)
+	if err != nil {
+		panic(fmt.Errorf("error: %w", err))
+	}
+
+	s.n++
+	return nil
 }
