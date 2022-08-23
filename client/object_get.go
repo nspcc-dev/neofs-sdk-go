@@ -319,7 +319,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	case !prm.cnrSet:
 		panic(panicMsgMissingContainer)
 	case !prm.objSet:
-		panic("missing object")
+		panic(panicMsgMissingObject)
 	}
 
 	var (
@@ -458,7 +458,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	case !prm.cnrSet:
 		panic(panicMsgMissingContainer)
 	case !prm.objSet:
-		panic("missing object")
+		panic(panicMsgMissingObject)
 	}
 
 	var (
@@ -729,7 +729,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	case !prm.cnrSet:
 		panic(panicMsgMissingContainer)
 	case !prm.objSet:
-		panic("missing object")
+		panic(panicMsgMissingObject)
 	case prm.ln == 0:
 		panic("zero range length")
 	}

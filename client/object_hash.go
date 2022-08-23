@@ -161,7 +161,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:
-		panic("missing object")
+		panic(panicMsgMissingObject)
 	case len(prm.body.GetRanges()) == 0:
 		panic("missing ranges")
 	}

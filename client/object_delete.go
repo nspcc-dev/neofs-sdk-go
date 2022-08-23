@@ -131,7 +131,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:
-		panic("missing object")
+		panic(panicMsgMissingObject)
 	}
 
 	// form request body
