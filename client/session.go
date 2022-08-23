@@ -110,11 +110,9 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 		res ResSessionCreate
 	)
 
+	c.initCallContext(&cc)
 	if prm.keySet {
-		c.initCallContextWithoutKey(&cc)
 		cc.key = prm.key
-	} else {
-		c.initCallContext(&cc)
 	}
 
 	cc.meta = prm.prmCommonMeta

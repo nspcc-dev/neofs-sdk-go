@@ -499,11 +499,9 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 
 	res.idObj = prm.objID
 
+	c.initCallContext(&cc)
 	if prm.keySet {
-		c.initCallContextWithoutKey(&cc)
 		cc.key = prm.key
-	} else {
-		c.initCallContext(&cc)
 	}
 
 	cc.req = &req

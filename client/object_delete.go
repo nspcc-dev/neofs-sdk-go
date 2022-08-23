@@ -148,11 +148,9 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 		res ResObjectDelete
 	)
 
+	c.initCallContext(&cc)
 	if prm.keySet {
-		c.initCallContextWithoutKey(&cc)
 		cc.key = prm.key
-	} else {
-		c.initCallContext(&cc)
 	}
 
 	cc.req = &req
