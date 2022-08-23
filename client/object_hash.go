@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -9,7 +10,9 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -117,7 +120,7 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 		panic("slice of X-Headers with odd length")
 	}
 
-	prmCommonMeta{xHeaders: hs}.writeToMetaHeader(&x.meta)
+	writeXHeadersToMeta(hs, &x.meta)
 }
 
 // ResObjectHash groups resulting values of ObjectHash operation.
@@ -166,43 +169,40 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 		panic("missing ranges")
 	}
 
-	// form request body
 	prm.body.SetAddress(&prm.addr)
-	// ranges and salt are already by prm setters
-
 	if prm.tillichZemor {
 		prm.body.SetType(v2refs.TillichZemor)
 	} else {
 		prm.body.SetType(v2refs.SHA256)
 	}
 
-	// form request
 	var req v2object.GetRangeHashRequest
+	c.prepareRequest(&req, &prm.meta)
 	req.SetBody(&prm.body)
-	req.SetMetaHeader(&prm.meta)
 
-	// init call context
-	var (
-		cc  contextCall
-		res ResObjectHash
-	)
-
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.statusRes = &res
-	cc.call = func() (responseV2, error) {
-		return rpcapi.HashObjectRange(&c.c, &req, client.WithContext(ctx))
-	}
-	cc.result = func(r responseV2) {
-		res.checksums = r.(*v2object.GetRangeHashResponse).GetBody().GetHashList()
-		if len(res.checksums) == 0 {
-			cc.err = newErrMissingResponseField("hash list")
-		}
+	err := signature.SignServiceMessage(&c.prm.key, req)
+	if err != nil {
+		return nil, fmt.Errorf("sign request: %w", err)
 	}
 
-	// process call
-	if !cc.processCall() {
-		return nil, cc.err
+	resp, err := rpcapi.HashObjectRange(&c.c, &req, client.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("write request: %w", err)
+	}
+
+	var res ResObjectHash
+	res.st, err = c.processResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !apistatus.IsSuccessful(res.st) {
+		return &res, nil
+	}
+
+	res.checksums = resp.GetBody().GetHashList()
+	if len(res.checksums) == 0 {
+		return nil, newErrMissingResponseField("hash list")
 	}
 
 	return &res, nil
