@@ -23,17 +23,9 @@ import (
 
 // shared parameters of GET/HEAD/RANGE.
 type prmObjectRead struct {
-	prmCommonMeta
+	meta v2session.RequestMetaHeader
 
 	raw bool
-
-	local bool
-
-	sessionSet bool
-	session    session.Object
-
-	bearerSet bool
-	bearer    bearer.Token
 
 	cnrSet bool
 	cnrID  cid.ID
@@ -42,25 +34,16 @@ type prmObjectRead struct {
 	objID  oid.ID
 }
 
-func (x prmObjectRead) writeToMetaHeader(h *v2session.RequestMetaHeader) {
-	if x.local {
-		h.SetTTL(1)
+// WithXHeaders specifies list of extended headers (string key-value pairs)
+// to be attached to the request. Must have an even length.
+//
+// Slice must not be mutated until the operation completes.
+func (x *prmObjectRead) WithXHeaders(hs ...string) {
+	if len(hs)%2 != 0 {
+		panic("slice of X-Headers with odd length")
 	}
 
-	if x.bearerSet {
-		var v2token acl.BearerToken
-		x.bearer.WriteToV2(&v2token)
-		h.SetBearerToken(&v2token)
-	}
-
-	if x.sessionSet {
-		var tokv2 v2session.Token
-		x.session.WriteToV2(&tokv2)
-
-		h.SetSessionToken(&tokv2)
-	}
-
-	writeXHeadersToMeta(x.prmCommonMeta.xHeaders, h)
+	writeXHeadersToMeta(hs, &x.meta)
 }
 
 // MarkRaw marks an intent to read physically stored object.
@@ -70,7 +53,7 @@ func (x *prmObjectRead) MarkRaw() {
 
 // MarkLocal tells the server to execute the operation locally.
 func (x *prmObjectRead) MarkLocal() {
-	x.local = true
+	x.meta.SetTTL(1)
 }
 
 // WithinSession specifies session within which object should be read.
@@ -80,8 +63,9 @@ func (x *prmObjectRead) MarkLocal() {
 //
 // Must be signed.
 func (x *prmObjectRead) WithinSession(t session.Object) {
-	x.session = t
-	x.sessionSet = true
+	var tokv2 v2session.Token
+	t.WriteToV2(&tokv2)
+	x.meta.SetSessionToken(&tokv2)
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -90,8 +74,9 @@ func (x *prmObjectRead) WithinSession(t session.Object) {
 //
 // Must be signed.
 func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
-	x.bearer = t
-	x.bearerSet = true
+	var v2token acl.BearerToken
+	t.WriteToV2(&v2token)
+	x.meta.SetBearerToken(&v2token)
 }
 
 // FromContainer specifies NeoFS container of the object.
@@ -340,16 +325,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	body.SetRaw(prm.raw)
 	body.SetAddress(&addr)
 
-	// form meta header
-	var meta v2session.RequestMetaHeader
-
-	prm.prmObjectRead.writeToMetaHeader(&meta)
-
 	// form request
 	var req v2object.GetRequest
 
 	req.SetBody(&body)
-	req.SetMetaHeader(&meta)
+	req.SetMetaHeader(&prm.meta)
 
 	// init reader
 	var (
@@ -479,16 +459,11 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	body.SetRaw(prm.raw)
 	body.SetAddress(&addrV2)
 
-	// form meta header
-	var meta v2session.RequestMetaHeader
-
-	prm.prmObjectRead.writeToMetaHeader(&meta)
-
 	// form request
 	var req v2object.HeadRequest
 
 	req.SetBody(&body)
-	req.SetMetaHeader(&meta)
+	req.SetMetaHeader(&prm.meta)
 
 	// init call context
 
@@ -758,16 +733,11 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	body.SetAddress(&addrV2)
 	body.SetRange(&rng)
 
-	// form meta header
-	var meta v2session.RequestMetaHeader
-
-	prm.prmObjectRead.writeToMetaHeader(&meta)
-
 	// form request
 	var req v2object.GetRangeRequest
 
 	req.SetBody(&body)
-	req.SetMetaHeader(&meta)
+	req.SetMetaHeader(&prm.meta)
 
 	// init reader
 	var (
