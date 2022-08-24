@@ -268,7 +268,8 @@ func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
 // codes are returned as error.
 //
 // Return errors:
-//   *object.SplitInfoError (returned on virtual objects with PrmObjectGet.MakeRaw).
+//
+//	*object.SplitInfoError (returned on virtual objects with PrmObjectGet.MakeRaw).
 //
 // Return statuses:
 //   - global (see Client docs);
@@ -440,7 +441,8 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   *object.SplitInfoError (returned on virtual objects with PrmObjectHead.MakeRaw).
+//
+//	*object.SplitInfoError (returned on virtual objects with PrmObjectHead.MakeRaw).
 //
 // Return statuses:
 //   - global (see Client docs);
@@ -676,7 +678,8 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 // codes are returned as error.
 //
 // Return errors:
-//   *object.SplitInfoError (returned on virtual objects with PrmObjectRange.MakeRaw).
+//
+//	*object.SplitInfoError (returned on virtual objects with PrmObjectRange.MakeRaw).
 //
 // Return statuses:
 //   - global (see Client docs);

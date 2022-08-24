@@ -26,9 +26,9 @@ func (x *ContainerNotFound) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: CONTAINER_NOT_FOUND;
-//  * string message: "container not found";
-//  * details: empty.
+//   - code: CONTAINER_NOT_FOUND;
+//   - string message: "container not found";
+//   - details: empty.
 func (x ContainerNotFound) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(container.StatusNotFound, container.GlobalizeFail))
 	x.v2.SetMessage("container not found")
@@ -57,9 +57,9 @@ func (x *EACLNotFound) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: EACL_NOT_FOUND;
-//  * string message: "eACL not found";
-//  * details: empty.
+//   - code: EACL_NOT_FOUND;
+//   - string message: "eACL not found";
+//   - details: empty.
 func (x EACLNotFound) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(container.StatusEACLNotFound, container.GlobalizeFail))
 	x.v2.SetMessage("eACL not found")

@@ -19,8 +19,8 @@ func NewAttributeFromV2(aV2 *object.Attribute) *Attribute {
 // Works similar as NewAttributeFromV2(new(Attribute)).
 //
 // Defaults:
-// 	- key: "";
-// 	- value: "".
+//   - key: "";
+//   - value: "".
 func NewAttribute() *Attribute {
 	return NewAttributeFromV2(new(object.Attribute))
 }

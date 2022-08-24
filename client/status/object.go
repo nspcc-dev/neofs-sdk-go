@@ -26,9 +26,9 @@ func (x *ObjectLocked) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: LOCKED;
-//  * string message: "object is locked";
-//  * details: empty.
+//   - code: LOCKED;
+//   - string message: "object is locked";
+//   - details: empty.
 func (x ObjectLocked) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusLocked, object.GlobalizeFail))
 	x.v2.SetMessage("object is locked")
@@ -56,9 +56,9 @@ func (x *LockNonRegularObject) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: LOCK_NON_REGULAR_OBJECT;
-//  * string message: "locking non-regular object is forbidden";
-//  * details: empty.
+//   - code: LOCK_NON_REGULAR_OBJECT;
+//   - string message: "locking non-regular object is forbidden";
+//   - details: empty.
 func (x LockNonRegularObject) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusLockNonRegularObject, object.GlobalizeFail))
 	x.v2.SetMessage("locking non-regular object is forbidden")
@@ -86,9 +86,9 @@ func (x *ObjectAccessDenied) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: ACCESS_DENIED;
-//  * string message: "access to object operation denied";
-//  * details: empty.
+//   - code: ACCESS_DENIED;
+//   - string message: "access to object operation denied";
+//   - details: empty.
 func (x ObjectAccessDenied) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail))
 	x.v2.SetMessage("access to object operation denied")
@@ -127,9 +127,9 @@ func (x *ObjectNotFound) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: OBJECT_NOT_FOUND;
-//  * string message: "object not found";
-//  * details: empty.
+//   - code: OBJECT_NOT_FOUND;
+//   - string message: "object not found";
+//   - details: empty.
 func (x ObjectNotFound) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail))
 	x.v2.SetMessage("object not found")
@@ -157,9 +157,9 @@ func (x *ObjectAlreadyRemoved) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: OBJECT_ALREADY_REMOVED;
-//  * string message: "object already removed";
-//  * details: empty.
+//   - code: OBJECT_ALREADY_REMOVED;
+//   - string message: "object already removed";
+//   - details: empty.
 func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail))
 	x.v2.SetMessage("object already removed")
@@ -188,9 +188,9 @@ func (x *ObjectOutOfRange) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: OUT_OF_RANGE;
-//  * string message: "out of range";
-//  * details: empty.
+//   - code: OUT_OF_RANGE;
+//   - string message: "out of range";
+//   - details: empty.
 func (x ObjectOutOfRange) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail))
 	x.v2.SetMessage("out of range")

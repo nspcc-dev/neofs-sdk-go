@@ -130,9 +130,9 @@ func ActionFromV2(action v2acl.Action) (a Action) {
 // String returns string representation of Action.
 //
 // String mapping:
-//  * ActionAllow: ALLOW;
-//  * ActionDeny: DENY;
-//  * ActionUnknown, default: ACTION_UNSPECIFIED.
+//   - ActionAllow: ALLOW;
+//   - ActionDeny: DENY;
+//   - ActionUnknown, default: ACTION_UNSPECIFIED.
 func (a Action) String() string {
 	return a.ToV2().String()
 }
@@ -202,14 +202,14 @@ func OperationFromV2(operation v2acl.Operation) (o Operation) {
 // String returns string representation of Operation.
 //
 // String mapping:
-//  * OperationGet: GET;
-//  * OperationHead: HEAD;
-//  * OperationPut: PUT;
-//  * OperationDelete: DELETE;
-//  * OperationSearch: SEARCH;
-//  * OperationRange: GETRANGE;
-//  * OperationRangeHash: GETRANGEHASH;
-//  * OperationUnknown, default: OPERATION_UNSPECIFIED.
+//   - OperationGet: GET;
+//   - OperationHead: HEAD;
+//   - OperationPut: PUT;
+//   - OperationDelete: DELETE;
+//   - OperationSearch: SEARCH;
+//   - OperationRange: GETRANGE;
+//   - OperationRangeHash: GETRANGEHASH;
+//   - OperationUnknown, default: OPERATION_UNSPECIFIED.
 func (o Operation) String() string {
 	return o.ToV2().String()
 }
@@ -263,10 +263,10 @@ func RoleFromV2(role v2acl.Role) (r Role) {
 // String returns string representation of Role.
 //
 // String mapping:
-//  * RoleUser: USER;
-//  * RoleSystem: SYSTEM;
-//  * RoleOthers: OTHERS;
-//  * RoleUnknown, default: ROLE_UNKNOWN.
+//   - RoleUser: USER;
+//   - RoleSystem: SYSTEM;
+//   - RoleOthers: OTHERS;
+//   - RoleUnknown, default: ROLE_UNKNOWN.
 func (r Role) String() string {
 	return r.ToV2().String()
 }
@@ -316,9 +316,9 @@ func MatchFromV2(match v2acl.MatchType) (m Match) {
 // String returns string representation of Match.
 //
 // String mapping:
-//  * MatchStringEqual: STRING_EQUAL;
-//  * MatchStringNotEqual: STRING_NOT_EQUAL;
-//  * MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
+//   - MatchStringEqual: STRING_EQUAL;
+//   - MatchStringNotEqual: STRING_NOT_EQUAL;
+//   - MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
 func (m Match) String() string {
 	return m.ToV2().String()
 }
@@ -372,9 +372,9 @@ func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
 // String returns string representation of FilterHeaderType.
 //
 // String mapping:
-//  * HeaderFromRequest: REQUEST;
-//  * HeaderFromObject: OBJECT;
-//  * HeaderTypeUnknown, default: HEADER_UNSPECIFIED.
+//   - HeaderFromRequest: REQUEST;
+//   - HeaderFromObject: OBJECT;
+//   - HeaderTypeUnknown, default: HEADER_UNSPECIFIED.
 func (h FilterHeaderType) String() string {
 	return h.ToV2().String()
 }

@@ -57,11 +57,11 @@ func SearchMatchFromV2(t v2object.MatchType) (m SearchMatchType) {
 // String returns string representation of SearchMatchType.
 //
 // String mapping:
-//  * MatchStringEqual: STRING_EQUAL;
-//  * MatchStringNotEqual: STRING_NOT_EQUAL;
-//  * MatchNotPresent: NOT_PRESENT;
-//  * MatchCommonPrefix: COMMON_PREFIX;
-//  * MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
+//   - MatchStringEqual: STRING_EQUAL;
+//   - MatchStringNotEqual: STRING_NOT_EQUAL;
+//   - MatchNotPresent: NOT_PRESENT;
+//   - MatchCommonPrefix: COMMON_PREFIX;
+//   - MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
 func (m SearchMatchType) String() string {
 	return m.ToV2().String()
 }

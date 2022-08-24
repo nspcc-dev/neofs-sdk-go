@@ -18,6 +18,7 @@ Instances can be also used to process NeoFS API V2 protocol messages
 (see neo.fs.v2.netmap package in https://github.com/nspcc-dev/neofs-api).
 
 On client side:
+
 	import "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 
 	var msg netmap.NodeInfo
@@ -26,6 +27,7 @@ On client side:
 	// send msg
 
 On server side:
+
 	// recv msg
 
 	var info NodeInfo
@@ -37,6 +39,5 @@ On server side:
 
 Using package types in an application is recommended to potentially work with
 different protocol versions with which these types are compatible.
-
 */
 package netmap

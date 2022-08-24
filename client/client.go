@@ -34,8 +34,8 @@ import (
 // functions to work with status returns (e.g. IsErrContainerNotFound).
 // All possible responses are documented in methods, however, some may be
 // returned from all of them (pay attention to the presence of the pointer sign):
-//  - *apistatus.ServerInternal on internal server error;
-//  - *apistatus.SuccessDefaultV2 on default success.
+//   - *apistatus.ServerInternal on internal server error;
+//   - *apistatus.SuccessDefaultV2 on default success.
 //
 // Client MUST NOT be copied by value: use pointer to Client instead.
 //
@@ -155,11 +155,13 @@ type PrmDial struct {
 // Required parameter.
 //
 // Format of the URI:
-//   [scheme://]host:port
+//
+//	[scheme://]host:port
 //
 // Supported schemes:
-//  grpc
-//  grpcs
+//
+//	grpc
+//	grpcs
 //
 // See also SetTLSConfig.
 func (x *PrmDial) SetServerURI(endpoint string) {

@@ -14,7 +14,8 @@ import (
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = Signature(refs.Signature{}) // not recommended
+//
+//	_ = Signature(refs.Signature{}) // not recommended
 type Signature refs.Signature
 
 // ReadFromV2 reads Signature from the refs.Signature message. Checks if the

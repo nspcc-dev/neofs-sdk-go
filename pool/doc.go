@@ -9,6 +9,7 @@ Create pool instance with 3 nodes connection.
 This InitParameters will make pool use 192.168.130.71 node while it is healthy. Otherwise, it will make the pool use
 192.168.130.72 for 90% of requests and 192.168.130.73 for remaining 10%.
 :
+
 	var prm pool.InitParameters
 	prm.SetKey(key)
 	prm.AddNode(NewNodeParam(1, "192.168.130.71", 1))
@@ -20,10 +21,12 @@ This InitParameters will make pool use 192.168.130.71 node while it is healthy. 
 	// ...
 
 Connect to the NeoFS server:
+
 	err := p.Dial(ctx)
 	// ...
 
 Execute NeoFS operation on the server:
+
 	var prm pool.PrmContainerPut
 	prm.SetContainer(cnr)
 	// ...
@@ -32,6 +35,7 @@ Execute NeoFS operation on the server:
 	// ...
 
 Execute NeoFS operation on the server and check error:
+
 	var prm pool.PrmObjectHead
 	prm.SetAddress(addr)
 	// ...
@@ -43,7 +47,7 @@ Execute NeoFS operation on the server and check error:
 	// ...
 
 Close the connection:
-	p.Close()
 
+	p.Close()
 */
 package pool

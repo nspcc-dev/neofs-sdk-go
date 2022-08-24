@@ -50,7 +50,7 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
 	// check context
 	if ctx == nil {
@@ -147,7 +147,7 @@ func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetworkInfo, error) {
 	// check context
 	if ctx == nil {

@@ -28,16 +28,16 @@ type StatusV2 interface {
 // Note: notice if the return type is a pointer.
 //
 // Successes:
-//   * status.OK: *SuccessDefaultV2 (this also includes nil argument).
+//   - status.OK: *SuccessDefaultV2 (this also includes nil argument).
 //
 // Common failures:
-//   * status.Internal: *ServerInternal;
-//   * status.SignatureVerificationFail: *SignatureVerification.
+//   - status.Internal: *ServerInternal;
+//   - status.SignatureVerificationFail: *SignatureVerification.
 //
 // Object failures:
-//   * object.StatusLocked: *ObjectLocked;
-//   * object.StatusLockNonRegularObject: *LockNonRegularObject.
-//   * object.StatusAccessDenied: *ObjectAccessDenied.
+//   - object.StatusLocked: *ObjectLocked;
+//   - object.StatusLockNonRegularObject: *LockNonRegularObject.
+//   - object.StatusAccessDenied: *ObjectAccessDenied.
 func FromStatusV2(st *status.Status) Status {
 	var decoder interface {
 		fromStatusV2(*status.Status)

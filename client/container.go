@@ -43,8 +43,8 @@ func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 // the execution of an operation (e.g. access control).
 //
 // Session is optional, if set the following requirements apply:
-//  - session operation MUST be session.VerbContainerPut (ForVerb)
-//  - token MUST be signed using private key of the owner of the container to be saved
+//   - session operation MUST be session.VerbContainerPut (ForVerb)
+//   - token MUST be signed using private key of the owner of the container to be saved
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
@@ -81,7 +81,7 @@ func (x ResContainerPut) ID() cid.ID {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
 	// check parameters
 	switch {
@@ -308,7 +308,7 @@ func (x ResContainerList) Containers() []cid.ID {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
 	switch {
@@ -420,7 +420,7 @@ type ResContainerDelete struct {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*ResContainerDelete, error) {
 	// check parameters
 	switch {
@@ -615,10 +615,10 @@ func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 // the execution of an operation (e.g. access control).
 //
 // Session is optional, if set the following requirements apply:
-//  - if particular container is specified (ApplyOnlyTo), it MUST equal the container
-//    for which extended ACL is going to be set
-//  - session operation MUST be session.VerbContainerSetEACL (ForVerb)
-//  - token MUST be signed using private key of the owner of the container to be saved
+//   - if particular container is specified (ApplyOnlyTo), it MUST equal the container
+//     for which extended ACL is going to be set
+//   - session operation MUST be session.VerbContainerSetEACL (ForVerb)
+//   - token MUST be signed using private key of the owner of the container to be saved
 func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
@@ -646,7 +646,7 @@ type ResContainerSetEACL struct {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) (*ResContainerSetEACL, error) {
 	// check parameters
 	switch {
@@ -751,7 +751,7 @@ type ResAnnounceSpace struct {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) (*ResAnnounceSpace, error) {
 	// check parameters
 	switch {

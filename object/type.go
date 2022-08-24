@@ -24,10 +24,10 @@ func TypeFromV2(t object.Type) Type {
 // String returns string representation of Type.
 //
 // String mapping:
-//  * TypeTombstone: TOMBSTONE;
-//  * TypeStorageGroup: STORAGE_GROUP;
-//  * TypeLock: LOCK;
-//  * TypeRegular, default: REGULAR.
+//   - TypeTombstone: TOMBSTONE;
+//   - TypeStorageGroup: STORAGE_GROUP;
+//   - TypeLock: LOCK;
+//   - TypeRegular, default: REGULAR.
 func (t Type) String() string {
 	return t.ToV2().String()
 }

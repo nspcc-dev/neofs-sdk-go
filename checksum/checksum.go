@@ -18,7 +18,8 @@ import (
 // Instances can be created using built-in var declaration.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = Checksum(refs.Checksum{}) // not recommended
+//
+//	_ = Checksum(refs.Checksum{}) // not recommended
 type Checksum refs.Checksum
 
 // Type represents the enumeration
@@ -106,8 +107,8 @@ func (c *Checksum) SetSHA256(v [sha256.Size]byte) {
 // to the passed checksum. Checksum must not be nil.
 //
 // Does nothing if the passed type is not one of the:
-//  * SHA256;
-//  * TZ.
+//   - SHA256;
+//   - TZ.
 //
 // Does not mutate the passed value.
 //

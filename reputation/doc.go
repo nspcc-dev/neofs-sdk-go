@@ -12,6 +12,7 @@ Instances can be also used to process NeoFS API V2 protocol messages
 (see neo.fs.v2.reputation package in https://github.com/nspcc-dev/neofs-api).
 
 On client side:
+
 	import "github.com/nspcc-dev/neofs-api-go/v2/reputation"
 
 	var msg reputation.GlobalTrust
@@ -20,6 +21,7 @@ On client side:
 	// send trust
 
 On server side:
+
 	// recv msg
 
 	var trust reputation.GlobalTrust
@@ -29,6 +31,5 @@ On server side:
 
 Using package types in an application is recommended to potentially work with
 different protocol versions with which these types are compatible.
-
 */
 package reputation
