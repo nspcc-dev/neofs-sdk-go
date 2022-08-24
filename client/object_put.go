@@ -189,6 +189,13 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		return nil, x.ctxCall.err
 	}
 
+	if x.ctxCall.result != nil {
+		x.ctxCall.result(x.ctxCall.resp)
+		if x.ctxCall.err != nil {
+			return nil, x.ctxCall.err
+		}
+	}
+
 	return x.ctxCall.statusRes.(*ResObjectPut), nil
 }
 
