@@ -91,11 +91,11 @@ func (t *Table) ToV2() *v2acl.Table {
 // NewTable creates, initializes and returns blank Table instance.
 //
 // Defaults:
-//  - version: version.Current();
-//  - container ID: nil;
-//  - records: nil;
-//  - session token: nil;
-//  - signature: nil.
+//   - version: version.Current();
+//   - container ID: nil;
+//   - records: nil;
+//   - session token: nil;
+//   - signature: nil.
 func NewTable() *Table {
 	t := new(Table)
 	t.SetVersion(version.Current())

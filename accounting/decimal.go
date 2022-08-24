@@ -10,7 +10,8 @@ import "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 // Instances can be created using built-in var declaration.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = Decimal(accounting.Decimal{}) // not recommended
+//
+//	_ = Decimal(accounting.Decimal{}) // not recommended
 type Decimal accounting.Decimal
 
 // ReadFromV2 reads Decimal from the accounting.Decimal message. Checks if the

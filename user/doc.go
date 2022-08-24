@@ -5,6 +5,7 @@ User identity is reflected in ID type. Each user has its own unique identifier
 within the same network.
 
 NeoFS user identification is compatible with Neo accounts:
+
 	import "github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	import "github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 
@@ -17,6 +18,7 @@ NeoFS user identification is compatible with Neo accounts:
 	user.IDFromKey(&id, k.PrivateKey.PublicKey)
 
 ID is compatible with the NeoFS Smart Contract API:
+
 	var id user.ID
 	// ...
 
@@ -25,6 +27,7 @@ ID is compatible with the NeoFS Smart Contract API:
 	// use wallet in call
 
 Encoding/decoding mechanisms are used to transfer identifiers:
+
 	var id user.ID
 	// ...
 
@@ -35,6 +38,7 @@ Instances can be also used to process NeoFS API protocol messages
 (see neo.fs.v2.refs package in https://github.com/nspcc-dev/neofs-api).
 
 On client side:
+
 	import "github.com/nspcc-dev/neofs-api-go/v2/refs"
 
 	var msg refs.OwnerID
@@ -43,6 +47,7 @@ On client side:
 	// send msg
 
 On server side:
+
 	// recv msg
 
 	var id user.ID

@@ -12,7 +12,7 @@ type SplitID struct {
 // NewSplitID returns UUID representation of splitID attribute.
 //
 // Defaults:
-//  - id: random UUID.
+//   - id: random UUID.
 func NewSplitID() *SplitID {
 	return &SplitID{
 		uuid: uuid.New(),

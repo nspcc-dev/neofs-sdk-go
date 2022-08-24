@@ -76,7 +76,7 @@ func (x ResSessionCreate) PublicKey() []byte {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	// check context
 	if ctx == nil {

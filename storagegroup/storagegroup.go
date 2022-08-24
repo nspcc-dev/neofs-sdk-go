@@ -21,7 +21,8 @@ import (
 // Instances can be created using built-in var declaration.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
+//
+//	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
 type StorageGroup storagegroup.StorageGroup
 
 // reads StorageGroup from the storagegroup.StorageGroup message. If checkFieldPresence is set,
@@ -289,9 +290,9 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 // have it at all.
 //
 // Written information:
-// 	* expiration epoch;
-// 	* object type (TypeStorageGroup);
-// 	* raw payload.
+//   - expiration epoch;
+//   - object type (TypeStorageGroup);
+//   - raw payload.
 func WriteToObject(sg StorageGroup, o *objectSDK.Object) {
 	sgRaw, err := sg.Marshal()
 	if err != nil {

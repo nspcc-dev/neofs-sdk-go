@@ -10,6 +10,7 @@ scope related to some NeoFS service: Object, Container, etc.
 Both parties agree on a secret (private session key), the possession of which
 will be authenticated by a trusted person. The principal confirms his trust by
 signing the public part of the secret (public session key).
+
 	var tok Container
 	tok.ForVerb(VerbContainerDelete)
 	tok.SetAuthKey(trustedKey)
@@ -26,6 +27,7 @@ Instances can be also used to process NeoFS API V2 protocol messages
 (see neo.fs.v2.accounting package in https://github.com/nspcc-dev/neofs-api).
 
 On client side:
+
 	import "github.com/nspcc-dev/neofs-api-go/v2/session"
 
 	var msg session.Token
@@ -34,6 +36,7 @@ On client side:
 	// send msg
 
 On server side:
+
 	// recv msg
 
 	var tok session.Container
@@ -43,6 +46,5 @@ On server side:
 
 Using package types in an application is recommended to potentially work with
 different protocol versions with which these types are compatible.
-
 */
 package session

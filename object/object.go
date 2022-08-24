@@ -20,9 +20,9 @@ import (
 // Type is compatible with NeoFS API V2 protocol.
 //
 // Instance can be created depending on scenario:
-//   * InitCreation (an object to be placed in container);
-//   * New (blank instance, usually needed for decoding);
-//   * NewFromV2 (when working under NeoFS API V2 protocol).
+//   - InitCreation (an object to be placed in container);
+//   - New (blank instance, usually needed for decoding);
+//   - NewFromV2 (when working under NeoFS API V2 protocol).
 type Object object.Object
 
 // RequiredFields contains the minimum set of object data that must be set

@@ -14,7 +14,8 @@ import (
 // Instances can be created using built-in var declaration.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = Version(refs.Version{}) // not recommended
+//
+//	_ = Version(refs.Version{}) // not recommended
 type Version refs.Version
 
 const sdkMjr, sdkMnr = 2, 13

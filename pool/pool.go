@@ -2051,8 +2051,9 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjec
 // PutContainer sends request to save container in NeoFS and waits for the operation to complete.
 //
 // Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//   polling interval: 5s
-//   waiting timeout: 120s
+//
+//	polling interval: 5s
+//	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
 //
@@ -2091,8 +2092,9 @@ func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.
 // DeleteContainer sends request to remove the NeoFS container and waits for the operation to complete.
 //
 // Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//   polling interval: 5s
-//   waiting timeout: 120s
+//
+//	polling interval: 5s
+//	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
 func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) error {
@@ -2119,8 +2121,9 @@ func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (eacl.Table, e
 // SetEACL sends request to update eACL table of the NeoFS container and waits for the operation to complete.
 //
 // Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//   polling interval: 5s
-//   waiting timeout: 120s
+//
+//	polling interval: 5s
+//	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetEACL).
 func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {

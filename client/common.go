@@ -179,9 +179,9 @@ func (x *contextCall) writeRequest() bool {
 // (in both cases returns false).
 //
 // Actions:
-//  * verify signature (internal);
-//  * call response callback (internal);
-//  * unwrap status error (optional).
+//   - verify signature (internal);
+//   - call response callback (internal);
+//   - unwrap status error (optional).
 func (x *contextCall) processResponse() bool {
 	// call response callback if set
 	if x.callbackResp != nil {

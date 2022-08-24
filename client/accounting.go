@@ -50,7 +50,7 @@ func (x ResBalanceGet) Amount() accounting.Decimal {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
 	switch {
 	case ctx == nil:

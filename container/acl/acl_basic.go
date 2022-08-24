@@ -11,9 +11,11 @@ import (
 // See NeoFS Specification for details.
 //
 // One can find some similarities with the traditional Unix permission, such as
-//  division into scopes: user, group, others
-//  op-permissions: read, write, etc.
-//  sticky bit
+//
+//	division into scopes: user, group, others
+//	op-permissions: read, write, etc.
+//	sticky bit
+//
 // However, these similarities should only be used for better understanding,
 // in general these mechanisms are different.
 //
@@ -106,15 +108,18 @@ func isReplicationOp(op Op) bool {
 
 // AllowOp allows the parties with the given role to the given operation.
 // Op MUST be one of the Op enumeration. Role MUST be one of:
-//  RoleOwner
-//  RoleContainer
-//  RoleOthers
+//
+//	RoleOwner
+//	RoleContainer
+//	RoleOthers
+//
 // and if role is RoleContainer, op MUST NOT be:
-//  OpObjectGet
-//  OpObjectHead
-//  OpObjectPut
-//  OpObjectSearch
-//  OpObjectHash
+//
+//	OpObjectGet
+//	OpObjectHead
+//	OpObjectPut
+//	OpObjectSearch
+//	OpObjectHash
 //
 // See also IsOpAllowed.
 func (x *Basic) AllowOp(op Op, role Role) {
@@ -146,17 +151,19 @@ func (x *Basic) AllowOp(op Op, role Role) {
 //
 // Members with RoleContainer role have exclusive default access to the
 // operations of the data replication mechanism:
-//  OpObjectGet
-//  OpObjectHead
-//  OpObjectPut
-//  OpObjectSearch
-//  OpObjectHash
+//
+//	OpObjectGet
+//	OpObjectHead
+//	OpObjectPut
+//	OpObjectSearch
+//	OpObjectHash
 //
 // RoleInnerRing members are allowed to data audit ops only:
-//  OpObjectGet
-//  OpObjectHead
-//  OpObjectHash
-//  OpObjectSearch
+//
+//	OpObjectGet
+//	OpObjectHead
+//	OpObjectHash
+//	OpObjectSearch
 //
 // Zero Basic prevents any role from accessing any operation in the absence
 // of default rights.

@@ -19,9 +19,9 @@ func NewTombstoneFromV2(tV2 *tombstone.Tombstone) *Tombstone {
 // NewTombstone creates and initializes blank Tombstone.
 //
 // Defaults:
-//  - exp: 0;
-//  - splitID: nil;
-//  - members: nil.
+//   - exp: 0;
+//   - splitID: nil;
+//   - members: nil.
 func NewTombstone() *Tombstone {
 	return NewTombstoneFromV2(new(tombstone.Tombstone))
 }

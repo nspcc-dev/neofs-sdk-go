@@ -49,7 +49,7 @@ type ResAnnounceLocalTrust struct {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) (*ResAnnounceLocalTrust, error) {
 	// check parameters
 	switch {
@@ -150,7 +150,7 @@ type ResAnnounceIntermediateTrust struct {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return statuses:
-//  - global (see Client docs).
+//   - global (see Client docs).
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) (*ResAnnounceIntermediateTrust, error) {
 	// check parameters
 	switch {

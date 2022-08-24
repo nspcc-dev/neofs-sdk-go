@@ -26,9 +26,9 @@ func (x *SessionTokenNotFound) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: TOKEN_NOT_FOUND;
-//  * string message: "session token not found";
-//  * details: empty.
+//   - code: TOKEN_NOT_FOUND;
+//   - string message: "session token not found";
+//   - details: empty.
 func (x SessionTokenNotFound) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail))
 	x.v2.SetMessage("session token not found")
@@ -56,9 +56,9 @@ func (x *SessionTokenExpired) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: TOKEN_EXPIRED;
-//  * string message: "expired session token";
-//  * details: empty.
+//   - code: TOKEN_EXPIRED;
+//   - string message: "expired session token";
+//   - details: empty.
 func (x SessionTokenExpired) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail))
 	x.v2.SetMessage("expired session token")

@@ -2,6 +2,7 @@
 Package ns provides functionality of NeoFS name system.
 
 DNS type is designed to resolve NeoFS-related names using Domain Name System:
+
 	const containerName = "some-container"
 
 	var dns DNS
@@ -10,6 +11,7 @@ DNS type is designed to resolve NeoFS-related names using Domain Name System:
 	// ...
 
 NNS type is designed to resolve NeoFS-related names using Neo Name Service:
+
 	var nns NNS
 
 	err := nns.Dial(nnsServerAddress)
@@ -17,6 +19,5 @@ NNS type is designed to resolve NeoFS-related names using Neo Name Service:
 
 	containerID, err := nns.ResolveContainerName(containerName)
 	// ...
-
 */
 package ns

@@ -51,9 +51,9 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool) {
 }
 
 // returns:
-//  - positive value if no matching header is found for at least one filter;
-//  - zero if at least one suitable header is found for all filters;
-//  - negative value if the headers of at least one filter cannot be obtained.
+//   - positive value if no matching header is found for at least one filter;
+//   - zero if at least one suitable header is found for all filters;
+//   - negative value if the headers of at least one filter cannot be obtained.
 func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
 	matched := 0
 

@@ -19,7 +19,8 @@ import (
 // Instances can be created using built-in var declaration.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
-// 	_ = ID([32]byte{}) // not recommended
+//
+//	_ = ID([32]byte{}) // not recommended
 type ID [sha256.Size]byte
 
 // ReadFromV2 reads ID from the refs.ObjectID message. Returns an error if

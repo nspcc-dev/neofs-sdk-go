@@ -20,9 +20,9 @@ func (x *SuccessDefaultV2) fromStatusV2(st *status.Status) {
 // ToStatusV2 implements StatusV2 interface method.
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
-//  * code: OK;
-//  * string message: empty;
-//  * details: empty.
+//   - code: OK;
+//   - string message: empty;
+//   - details: empty.
 func (x SuccessDefaultV2) ToStatusV2() *status.Status {
 	if x.isNil || x.v2 != nil {
 		return x.v2
