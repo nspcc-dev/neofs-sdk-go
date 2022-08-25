@@ -13,6 +13,7 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -427,51 +428,49 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		panic(panicMsgMissingObject)
 	}
 
-	// form request body
 	var body v2object.HeadRequestBody
-
 	body.SetRaw(prm.raw)
 	body.SetAddress(&prm.addr)
 
-	// form request
 	var req v2object.HeadRequest
-
 	req.SetBody(&body)
-	req.SetMetaHeader(&prm.meta)
+	c.prepareRequest(&req, &prm.meta)
 
-	// init call context
+	key := c.prm.key
+	if prm.keySet {
+		key = prm.key
+	}
 
-	var (
-		cc  contextCall
-		res ResObjectHead
-	)
+	// sign the request
+	err := signature.SignServiceMessage(&key, req)
+	if err != nil {
+		return nil, fmt.Errorf("sign request: %w", err)
+	}
+
+	resp, err := rpcapi.HeadObject(&c.c, &req, client.WithContext(ctx))
+	if err != nil {
+		return nil, fmt.Errorf("write request: %w", err)
+	}
+
+	var res ResObjectHead
+	res.st, err = c.processResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !apistatus.IsSuccessful(res.st) {
+		return &res, nil
+	}
 
 	_ = res.idObj.ReadFromV2(*prm.addr.GetObjectID())
 
-	c.initCallContext(&cc)
-	if prm.keySet {
-		cc.key = prm.key
-	}
-
-	cc.req = &req
-	cc.statusRes = &res
-	cc.call = func() (responseV2, error) {
-		return rpcapi.HeadObject(&c.c, &req, client.WithContext(ctx))
-	}
-	cc.result = func(r responseV2) {
-		switch v := r.(*v2object.HeadResponse).GetBody().GetHeaderPart().(type) {
-		default:
-			cc.err = fmt.Errorf("unexpected header type %T", v)
-		case *v2object.SplitInfo:
-			handleSplitInfo(&cc, v)
-		case *v2object.HeaderWithSignature:
-			res.hdr = v
-		}
-	}
-
-	// process call
-	if !cc.processCall() {
-		return nil, cc.err
+	switch v := resp.GetBody().GetHeaderPart().(type) {
+	default:
+		return nil, fmt.Errorf("unexpected header type %T", v)
+	case *v2object.SplitInfo:
+		return nil, object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+	case *v2object.HeaderWithSignature:
+		res.hdr = v
 	}
 
 	return &res, nil
