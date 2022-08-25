@@ -27,11 +27,7 @@ type prmObjectRead struct {
 
 	raw bool
 
-	cnrSet bool
-	cnrID  cid.ID
-
-	objSet bool
-	objID  oid.ID
+	addr v2refs.Address
 }
 
 // WithXHeaders specifies list of extended headers (string key-value pairs)
@@ -82,15 +78,17 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 // FromContainer specifies NeoFS container of the object.
 // Required parameter.
 func (x *prmObjectRead) FromContainer(id cid.ID) {
-	x.cnrID = id
-	x.cnrSet = true
+	var cnrV2 v2refs.ContainerID
+	id.WriteToV2(&cnrV2)
+	x.addr.SetContainerID(&cnrV2)
 }
 
 // ByID specifies identifier of the requested object.
 // Required parameter.
 func (x *prmObjectRead) ByID(id oid.ID) {
-	x.objID = id
-	x.objSet = true
+	var objV2 v2refs.ObjectID
+	id.WriteToV2(&objV2)
+	x.addr.SetObjectID(&objV2)
 }
 
 // PrmObjectGet groups parameters of ObjectGetInit operation.
@@ -301,29 +299,17 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	switch {
 	case ctx == nil:
 		panic(panicMsgMissingContext)
-	case !prm.cnrSet:
+	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
-	case !prm.objSet:
+	case prm.addr.GetObjectID() == nil:
 		panic(panicMsgMissingObject)
 	}
-
-	var (
-		addr  v2refs.Address
-		oidV2 v2refs.ObjectID
-		cidV2 v2refs.ContainerID
-	)
-
-	prm.objID.WriteToV2(&oidV2)
-	prm.cnrID.WriteToV2(&cidV2)
-
-	addr.SetContainerID(&cidV2)
-	addr.SetObjectID(&oidV2)
 
 	// form request body
 	var body v2object.GetRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
+	body.SetAddress(&prm.addr)
 
 	// form request
 	var req v2object.GetRequest
@@ -435,29 +421,17 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	switch {
 	case ctx == nil:
 		panic(panicMsgMissingContext)
-	case !prm.cnrSet:
+	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
-	case !prm.objSet:
+	case prm.addr.GetObjectID() == nil:
 		panic(panicMsgMissingObject)
 	}
-
-	var (
-		addrV2 v2refs.Address
-		oidV2  v2refs.ObjectID
-		cidV2  v2refs.ContainerID
-	)
-
-	prm.objID.WriteToV2(&oidV2)
-	prm.cnrID.WriteToV2(&cidV2)
-
-	addrV2.SetContainerID(&cidV2)
-	addrV2.SetObjectID(&oidV2)
 
 	// form request body
 	var body v2object.HeadRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addrV2)
+	body.SetAddress(&prm.addr)
 
 	// form request
 	var req v2object.HeadRequest
@@ -472,7 +446,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		res ResObjectHead
 	)
 
-	res.idObj = prm.objID
+	_ = res.idObj.ReadFromV2(*prm.addr.GetObjectID())
 
 	c.initCallContext(&cc)
 	if prm.keySet {
@@ -507,19 +481,19 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 type PrmObjectRange struct {
 	prmObjectRead
 
-	off, ln uint64
+	rng v2object.Range
 }
 
 // SetOffset sets offset of the payload range to be read.
 // Zero by default.
 func (x *PrmObjectRange) SetOffset(off uint64) {
-	x.off = off
+	x.rng.SetOffset(off)
 }
 
 // SetLength sets length of the payload range to be read.
 // Must be positive.
 func (x *PrmObjectRange) SetLength(ln uint64) {
-	x.ln = ln
+	x.rng.SetLength(ln)
 }
 
 // ResObjectRange groups the final result values of ObjectRange operation.
@@ -701,37 +675,20 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	switch {
 	case ctx == nil:
 		panic(panicMsgMissingContext)
-	case !prm.cnrSet:
+	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
-	case !prm.objSet:
+	case prm.addr.GetObjectID() == nil:
 		panic(panicMsgMissingObject)
-	case prm.ln == 0:
+	case prm.rng.GetLength() == 0:
 		panic("zero range length")
 	}
-
-	var (
-		addrV2 v2refs.Address
-		oidV2  v2refs.ObjectID
-		cidV2  v2refs.ContainerID
-	)
-
-	prm.objID.WriteToV2(&oidV2)
-	prm.cnrID.WriteToV2(&cidV2)
-
-	addrV2.SetContainerID(&cidV2)
-	addrV2.SetObjectID(&oidV2)
-
-	var rng v2object.Range
-
-	rng.SetOffset(prm.off)
-	rng.SetLength(prm.ln)
 
 	// form request body
 	var body v2object.GetRangeRequestBody
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&addrV2)
-	body.SetRange(&rng)
+	body.SetAddress(&prm.addr)
+	body.SetRange(&prm.rng)
 
 	// form request
 	var req v2object.GetRangeRequest
@@ -746,7 +703,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		stream *rpcapi.ObjectRangeResponseReader
 	)
 
-	r.remainingPayloadLen = int(prm.ln)
+	r.remainingPayloadLen = int(prm.rng.GetLength())
 
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
