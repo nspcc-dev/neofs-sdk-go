@@ -597,15 +597,15 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
+	if prm.key != nil {
+		cliPrm.UseKey(*prm.key)
+	}
+
 	var res ResGetObject
 
 	rObj, err := c.client.ObjectGetInit(ctx, cliPrm)
 	if err = c.handleError(nil, err); err != nil {
 		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
-	}
-
-	if prm.key != nil {
-		rObj.UseKey(*prm.key)
 	}
 
 	start := time.Now()
