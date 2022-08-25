@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/ecdsa"
+	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -10,7 +11,9 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -140,42 +143,43 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	// form request
 	var req v2object.DeleteRequest
 	req.SetBody(&prm.body)
-	req.SetMetaHeader(&prm.meta)
+	c.prepareRequest(&req, &prm.meta)
 
-	// init call context
-	var (
-		cc  contextCall
-		res ResObjectDelete
-	)
-
-	c.initCallContext(&cc)
+	key := c.prm.key
 	if prm.keySet {
-		cc.key = prm.key
+		key = prm.key
 	}
 
-	cc.req = &req
-	cc.statusRes = &res
-	cc.call = func() (responseV2, error) {
-		return rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
-	}
-	cc.result = func(r responseV2) {
-		const fieldTombstone = "tombstone"
-
-		idTombV2 := r.(*v2object.DeleteResponse).GetBody().GetTombstone().GetObjectID()
-		if idTombV2 == nil {
-			cc.err = newErrMissingResponseField(fieldTombstone)
-			return
-		}
-
-		cc.err = res.tomb.ReadFromV2(*idTombV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldTombstone, cc.err)
-		}
+	err := signature.SignServiceMessage(&key, req)
+	if err != nil {
+		return nil, fmt.Errorf("sign request: %w", err)
 	}
 
-	// process call
-	if !cc.processCall() {
-		return nil, cc.err
+	resp, err := rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
+	if err != nil {
+		return nil, err
+	}
+
+	var res ResObjectDelete
+	res.st, err = c.processResponse(resp)
+	if err != nil {
+		return nil, err
+	}
+
+	if !apistatus.IsSuccessful(res.st) {
+		return &res, nil
+	}
+
+	const fieldTombstone = "tombstone"
+
+	idTombV2 := resp.GetBody().GetTombstone().GetObjectID()
+	if idTombV2 == nil {
+		return nil, newErrMissingResponseField(fieldTombstone)
+	}
+
+	err = res.tomb.ReadFromV2(*idTombV2)
+	if err != nil {
+		return nil, newErrInvalidResponseField(fieldTombstone, err)
 	}
 
 	return &res, nil
