@@ -476,23 +476,21 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
 	var cliPrm sdkClient.PrmObjectPutInit
 	cliPrm.SetCopiesNumber(prm.copiesNumber)
+	if prm.stoken != nil {
+		cliPrm.WithinSession(*prm.stoken)
+	}
+	if prm.key != nil {
+		cliPrm.UseKey(*prm.key)
+	}
+	if prm.btoken != nil {
+		cliPrm.WithBearerToken(*prm.btoken)
+	}
 
 	start := time.Now()
 	wObj, err := c.client.ObjectPutInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectPut)
 	if err = c.handleError(nil, err); err != nil {
 		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
-	}
-
-	if prm.stoken != nil {
-		wObj.WithinSession(*prm.stoken)
-	}
-	if prm.key != nil {
-		wObj.UseKey(*prm.key)
-	}
-
-	if prm.btoken != nil {
-		wObj.WithBearerToken(*prm.btoken)
 	}
 
 	if wObj.WriteHeader(prm.hdr) {
