@@ -684,14 +684,15 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
+	if prm.key != nil {
+		cliPrm.UseKey(*prm.key)
+	}
+
 	start := time.Now()
 	res, err := c.client.ObjectRangeInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectRange)
 	if err = c.handleError(nil, err); err != nil {
 		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
-	}
-	if prm.key != nil {
-		res.UseKey(*prm.key)
 	}
 
 	return ResObjectRange{
