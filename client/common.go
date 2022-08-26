@@ -57,6 +57,10 @@ func writeXHeadersToMeta(xHeaders []string, h *v2session.RequestMetaHeader) {
 		return
 	}
 
+	if len(xHeaders)%2 != 0 {
+		panic("slice of X-Headers with odd length")
+	}
+
 	hs := make([]v2session.XHeader, len(xHeaders)/2)
 	for i := 0; i < len(xHeaders); i += 2 {
 		hs[i].SetKey(xHeaders[i])
