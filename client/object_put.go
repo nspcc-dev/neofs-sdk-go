@@ -102,10 +102,6 @@ func (x *PrmObjectPutInit) MarkLocal() {
 //
 // Slice must not be mutated until the operation completes.
 func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
-	if len(hs)%2 != 0 {
-		panic("slice of X-Headers with odd length")
-	}
-
 	writeXHeadersToMeta(hs, &x.meta)
 }
 

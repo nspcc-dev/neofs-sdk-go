@@ -116,10 +116,6 @@ func (x *PrmObjectHash) UseSalt(salt []byte) {
 //
 // Slice must not be mutated until the operation completes.
 func (x *PrmObjectHash) WithXHeaders(hs ...string) {
-	if len(hs)%2 != 0 {
-		panic("slice of X-Headers with odd length")
-	}
-
 	writeXHeadersToMeta(hs, &x.meta)
 }
 
