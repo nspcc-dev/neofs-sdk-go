@@ -433,7 +433,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	}
 
 	// sign the request
-	err := signature.SignServiceMessage(&key, req)
+	err := signature.SignServiceMessage(&key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

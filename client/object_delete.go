@@ -146,7 +146,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 		key = prm.key
 	}
 
-	err := signature.SignServiceMessage(&key, req)
+	err := signature.SignServiceMessage(&key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
