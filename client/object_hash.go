@@ -176,7 +176,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	c.prepareRequest(&req, &prm.meta)
 	req.SetBody(&prm.body)
 
-	err := signature.SignServiceMessage(&c.prm.key, req)
+	err := signature.SignServiceMessage(&c.prm.key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
