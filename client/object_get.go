@@ -686,6 +686,16 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
+	key := prm.key
+	if key == nil {
+		key = &c.prm.key
+	}
+
+	err := signature.SignServiceMessage(key, &req)
+	if err != nil {
+		return nil, fmt.Errorf("sign request: %w", err)
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 
 	stream, err := rpcapi.GetObjectRange(&c.c, &req, client.WithContext(ctx))
