@@ -9,7 +9,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
 	github.com/nspcc-dev/neo-go v0.99.1
-	github.com/nspcc-dev/neofs-api-go/v2 v2.13.2-0.20220818094951-98db3fa28419
+	github.com/nspcc-dev/neofs-api-go/v2 v2.13.2-0.20220827080658-9e17cdfc7647
 	github.com/nspcc-dev/neofs-contract v0.15.3
 	github.com/nspcc-dev/tzhash v1.6.1
 	github.com/stretchr/testify v1.7.0
