@@ -2,6 +2,7 @@ package ns
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/url"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/invoker"
 	"github.com/nspcc-dev/neo-go/pkg/rpcclient/unwrap"
 	"github.com/nspcc-dev/neo-go/pkg/util"
+	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neofs-contract/nns"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
@@ -82,24 +84,32 @@ func (n *NNS) Dial(address string) error {
 //
 // See also https://docs.neo.org/docs/en-us/reference/nns.html.
 func (n *NNS) ResolveContainerName(name string) (cid.ID, error) {
-	arr, err := unwrap.Array(n.invoker.Call(n.nnsContract, "resolve",
+	item, err := unwrap.Item(n.invoker.Call(n.nnsContract, "resolve",
 		name+".container", int64(nns.TXT),
 	))
 	if err != nil {
 		return cid.ID{}, fmt.Errorf("contract invocation: %w", err)
 	}
 
-	var id cid.ID
-
-	for i := range arr {
-		bs, err := arr[i].TryBytes()
-		if err != nil {
-			return cid.ID{}, fmt.Errorf("convert array item to byte slice: %w", err)
+	if _, ok := item.(stackitem.Null); !ok {
+		arr, ok := item.Value().([]stackitem.Item)
+		if !ok {
+			// unexpected for types from stackitem package
+			return cid.ID{}, errors.New("invalid cast to stack item slice")
 		}
 
-		err = id.DecodeString(string(bs))
-		if err == nil {
-			return id, nil
+		var id cid.ID
+
+		for i := range arr {
+			bs, err := arr[i].TryBytes()
+			if err != nil {
+				return cid.ID{}, fmt.Errorf("convert array item to byte slice: %w", err)
+			}
+
+			err = id.DecodeString(string(bs))
+			if err == nil {
+				return id, nil
+			}
 		}
 	}
 

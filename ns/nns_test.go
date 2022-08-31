@@ -112,7 +112,7 @@ func TestNNS_ResolveContainerName(t *testing.T) {
 		testC.res.Stack[0] = stackitem.Null{}
 
 		_, err := n.ResolveContainerName(testContainerName)
-		require.Error(t, err)
+		require.ErrorIs(t, err, errNotFound)
 	})
 
 	t.Run("array stack item with non-slice value", func(t *testing.T) {
