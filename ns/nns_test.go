@@ -9,11 +9,9 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/neorpc/result"
-	"github.com/nspcc-dev/neo-go/pkg/smartcontract"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neo-go/pkg/vm/vmstate"
-	"github.com/nspcc-dev/neofs-contract/nns"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/stretchr/testify/require"
 )
@@ -30,18 +28,16 @@ type testNeoClient struct {
 	err error
 }
 
-func (x *testNeoClient) call(contract util.Uint160, method string, prm []smartcontract.Parameter) (*result.Invoke, error) {
-	require.Equal(x.t, x.expectedContract, contract)
-	require.Equal(x.t, "resolve", method)
-	require.Len(x.t, prm, 2)
-	require.Equal(x.t, smartcontract.StringType, prm[0].Type)
-	require.Equal(x.t, smartcontract.IntegerType, prm[1].Type)
-	require.EqualValues(x.t, big.NewInt(int64(nns.TXT)), prm[1].Value)
+func (x *testNeoClient) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+	var domain string
 
-	val, ok := prm[0].Value.(string)
-	require.True(x.t, ok)
-	require.True(x.t, strings.HasSuffix(val, ".container"))
-	require.NotEmpty(x.t, strings.TrimSuffix(val, ".container"))
+	require.Equal(x.t, x.expectedContract, contract)
+	require.Equal(x.t, "resolve", operation)
+	require.Len(x.t, params, 2)
+	require.NotPanics(x.t, func() { domain = params[0].(string) })
+	require.NotPanics(x.t, func() { _ = params[1].(int64) })
+	require.True(x.t, strings.HasSuffix(domain, ".container"))
+	require.NotEmpty(x.t, strings.TrimSuffix(domain, ".container"))
 
 	return &x.res, x.err
 }
@@ -78,14 +74,15 @@ func TestNNS_ResolveContainerName(t *testing.T) {
 
 	n := NNS{
 		nnsContract: nnsContract,
-		neoClient:   testC,
+		invoker:     testC,
 	}
 
 	t.Run("invocation failure", func(t *testing.T) {
-		testC.err = errors.New("invoke err")
+		err1 := errors.New("invoke err")
+		testC.err = err1
 
-		_, err := n.ResolveContainerName(testContainerName)
-		require.Error(t, err)
+		_, err2 := n.ResolveContainerName(testContainerName)
+		require.ErrorIs(t, err2, err1)
 	})
 
 	testC.err = nil
