@@ -258,7 +258,7 @@ func (x *commonData) SetIat(iat uint64) {
 }
 
 func (x commonData) expiredAt(epoch uint64) bool {
-	return !x.lifetimeSet || x.exp <= epoch
+	return !x.lifetimeSet || x.exp < epoch
 }
 
 // InvalidAt asserts "exp", "nbf" and "iat" claims.

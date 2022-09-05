@@ -179,7 +179,7 @@ func (b *Token) SetIat(iat uint64) {
 //
 // See also SetExp, SetNbf, SetIat.
 func (b Token) InvalidAt(epoch uint64) bool {
-	return !b.lifetimeSet || b.nbf > epoch || b.iat > epoch || b.exp <= epoch
+	return !b.lifetimeSet || b.nbf > epoch || b.iat > epoch || b.exp < epoch
 }
 
 // SetEACLTable sets eacl.Table that replaces the one from the issuer's

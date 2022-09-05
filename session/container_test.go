@@ -153,7 +153,8 @@ func TestContainerProtocolV2(t *testing.T) {
 			assert: func(val session.Container) {
 				require.True(t, val.InvalidAt(1))
 				require.False(t, val.InvalidAt(2))
-				require.True(t, val.InvalidAt(3))
+				require.False(t, val.InvalidAt(3))
+				require.True(t, val.InvalidAt(4))
 			},
 			breakSign: func(m *v2session.Token) {
 				lt := m.GetBody().GetLifetime()
@@ -397,7 +398,7 @@ func TestContainer_InvalidAt(t *testing.T) {
 
 	nbf := rand.Uint64()
 	if nbf == math.MaxUint64 {
-		nbf--
+		nbf -= 2
 	}
 
 	iat := nbf
@@ -410,7 +411,8 @@ func TestContainer_InvalidAt(t *testing.T) {
 	require.True(t, x.InvalidAt(nbf-1))
 	require.True(t, x.InvalidAt(iat-1))
 	require.False(t, x.InvalidAt(iat))
-	require.True(t, x.InvalidAt(exp))
+	require.False(t, x.InvalidAt(exp))
+	require.True(t, x.InvalidAt(exp+1))
 }
 
 func TestContainer_ID(t *testing.T) {
