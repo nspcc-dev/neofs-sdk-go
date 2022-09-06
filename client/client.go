@@ -80,9 +80,18 @@ func (c *Client) Dial(prm PrmDial) error {
 		prm.timeoutDial = 5 * time.Second
 	}
 
+	if prm.streamTimeoutSet {
+		if prm.streamTimeout <= 0 {
+			panic("non-positive timeout")
+		}
+	} else {
+		prm.streamTimeout = 10 * time.Second
+	}
+
 	c.c = *client.New(append(
 		client.WithNetworkURIAddress(prm.endpoint, prm.tlsConfig),
 		client.WithDialTimeout(prm.timeoutDial),
+		client.WithRWTimeout(prm.streamTimeout),
 	)...)
 
 	// TODO: (neofs-api-go#382) perform generic dial stage of the client.Client
@@ -149,6 +158,9 @@ type PrmDial struct {
 
 	timeoutDialSet bool
 	timeoutDial    time.Duration
+
+	streamTimeoutSet bool
+	streamTimeout    time.Duration
 }
 
 // SetServerURI sets server URI in the NeoFS network.
@@ -181,4 +193,11 @@ func (x *PrmDial) SetTLSConfig(tlsConfig *tls.Config) {
 func (x *PrmDial) SetTimeout(timeout time.Duration) {
 	x.timeoutDialSet = true
 	x.timeoutDial = timeout
+}
+
+// SetStreamTimeout sets the timeout for individual operations in streaming RPC.
+// MUST BE positive. If not called, 10s timeout will be used by default.
+func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
+	x.streamTimeoutSet = true
+	x.streamTimeout = timeout
 }
