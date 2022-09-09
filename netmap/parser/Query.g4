@@ -4,7 +4,7 @@ options {
     tokenVocab = QueryLexer;
 }
 
-policy: repStmt+ cbfStmt? selectStmt* filterStmt*;
+policy: repStmt+ cbfStmt? selectStmt* filterStmt* EOF;
 
 repStmt:
     REP Count = NUMBER1     // number of object replicas

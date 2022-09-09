@@ -1,116 +1,138 @@
-// Code generated from Query.g4 by ANTLR 4.9.2. DO NOT EDIT.
+// Code generated from Query.g4 by ANTLR 4.10.1. DO NOT EDIT.
 
 package parser // Query
 
 import (
 	"fmt"
-	"reflect"
 	"strconv"
+	"sync"
 
 	"github.com/antlr/antlr4/runtime/Go/antlr"
 )
 
 // Suppress unused import errors
 var _ = fmt.Printf
-var _ = reflect.Copy
 var _ = strconv.Itoa
-
-var parserATN = []uint16{
-	3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 23, 130,
-	4, 2, 9, 2, 4, 3, 9, 3, 4, 4, 9, 4, 4, 5, 9, 5, 4, 6, 9, 6, 4, 7, 9, 7,
-	4, 8, 9, 8, 4, 9, 9, 9, 4, 10, 9, 10, 4, 11, 9, 11, 4, 12, 9, 12, 4, 13,
-	9, 13, 4, 14, 9, 14, 4, 15, 9, 15, 3, 2, 6, 2, 32, 10, 2, 13, 2, 14, 2,
-	33, 3, 2, 5, 2, 37, 10, 2, 3, 2, 7, 2, 40, 10, 2, 12, 2, 14, 2, 43, 11,
-	2, 3, 2, 7, 2, 46, 10, 2, 12, 2, 14, 2, 49, 11, 2, 3, 3, 3, 3, 3, 3, 3,
-	3, 5, 3, 55, 10, 3, 3, 4, 3, 4, 3, 4, 3, 5, 3, 5, 3, 5, 3, 5, 5, 5, 64,
-	10, 5, 3, 5, 5, 5, 67, 10, 5, 3, 5, 3, 5, 3, 5, 3, 5, 5, 5, 73, 10, 5,
-	3, 6, 3, 6, 3, 7, 3, 7, 3, 7, 3, 7, 3, 7, 3, 7, 5, 7, 83, 10, 7, 3, 7,
-	3, 7, 3, 7, 3, 7, 3, 7, 3, 7, 7, 7, 91, 10, 7, 12, 7, 14, 7, 94, 11, 7,
-	3, 8, 3, 8, 3, 8, 3, 8, 3, 8, 3, 9, 3, 9, 3, 9, 3, 9, 3, 9, 3, 9, 5, 9,
-	107, 10, 9, 3, 10, 3, 10, 5, 10, 111, 10, 10, 3, 11, 3, 11, 3, 11, 5, 11,
-	116, 10, 11, 3, 12, 3, 12, 3, 13, 3, 13, 3, 14, 3, 14, 5, 14, 124, 10,
-	14, 3, 15, 3, 15, 5, 15, 128, 10, 15, 3, 15, 2, 3, 12, 16, 2, 4, 6, 8,
-	10, 12, 14, 16, 18, 20, 22, 24, 26, 28, 2, 5, 3, 2, 14, 15, 3, 2, 20, 21,
-	4, 2, 6, 8, 10, 12, 2, 132, 2, 31, 3, 2, 2, 2, 4, 50, 3, 2, 2, 2, 6, 56,
-	3, 2, 2, 2, 8, 59, 3, 2, 2, 2, 10, 74, 3, 2, 2, 2, 12, 82, 3, 2, 2, 2,
-	14, 95, 3, 2, 2, 2, 16, 106, 3, 2, 2, 2, 18, 110, 3, 2, 2, 2, 20, 115,
-	3, 2, 2, 2, 22, 117, 3, 2, 2, 2, 24, 119, 3, 2, 2, 2, 26, 123, 3, 2, 2,
-	2, 28, 127, 3, 2, 2, 2, 30, 32, 5, 4, 3, 2, 31, 30, 3, 2, 2, 2, 32, 33,
-	3, 2, 2, 2, 33, 31, 3, 2, 2, 2, 33, 34, 3, 2, 2, 2, 34, 36, 3, 2, 2, 2,
-	35, 37, 5, 6, 4, 2, 36, 35, 3, 2, 2, 2, 36, 37, 3, 2, 2, 2, 37, 41, 3,
-	2, 2, 2, 38, 40, 5, 8, 5, 2, 39, 38, 3, 2, 2, 2, 40, 43, 3, 2, 2, 2, 41,
-	39, 3, 2, 2, 2, 41, 42, 3, 2, 2, 2, 42, 47, 3, 2, 2, 2, 43, 41, 3, 2, 2,
-	2, 44, 46, 5, 14, 8, 2, 45, 44, 3, 2, 2, 2, 46, 49, 3, 2, 2, 2, 47, 45,
-	3, 2, 2, 2, 47, 48, 3, 2, 2, 2, 48, 3, 3, 2, 2, 2, 49, 47, 3, 2, 2, 2,
-	50, 51, 7, 6, 2, 2, 51, 54, 7, 20, 2, 2, 52, 53, 7, 7, 2, 2, 53, 55, 5,
-	26, 14, 2, 54, 52, 3, 2, 2, 2, 54, 55, 3, 2, 2, 2, 55, 5, 3, 2, 2, 2, 56,
-	57, 7, 9, 2, 2, 57, 58, 7, 20, 2, 2, 58, 7, 3, 2, 2, 2, 59, 60, 7, 10,
-	2, 2, 60, 66, 7, 20, 2, 2, 61, 63, 7, 7, 2, 2, 62, 64, 5, 10, 6, 2, 63,
-	62, 3, 2, 2, 2, 63, 64, 3, 2, 2, 2, 64, 65, 3, 2, 2, 2, 65, 67, 5, 26,
-	14, 2, 66, 61, 3, 2, 2, 2, 66, 67, 3, 2, 2, 2, 67, 68, 3, 2, 2, 2, 68,
-	69, 7, 11, 2, 2, 69, 72, 5, 28, 15, 2, 70, 71, 7, 8, 2, 2, 71, 73, 5, 26,
-	14, 2, 72, 70, 3, 2, 2, 2, 72, 73, 3, 2, 2, 2, 73, 9, 3, 2, 2, 2, 74, 75,
-	9, 2, 2, 2, 75, 11, 3, 2, 2, 2, 76, 77, 8, 7, 1, 2, 77, 78, 7, 16, 2, 2,
-	78, 79, 5, 12, 7, 2, 79, 80, 7, 17, 2, 2, 80, 83, 3, 2, 2, 2, 81, 83, 5,
-	16, 9, 2, 82, 76, 3, 2, 2, 2, 82, 81, 3, 2, 2, 2, 83, 92, 3, 2, 2, 2, 84,
-	85, 12, 6, 2, 2, 85, 86, 7, 3, 2, 2, 86, 91, 5, 12, 7, 7, 87, 88, 12, 5,
-	2, 2, 88, 89, 7, 4, 2, 2, 89, 91, 5, 12, 7, 6, 90, 84, 3, 2, 2, 2, 90,
-	87, 3, 2, 2, 2, 91, 94, 3, 2, 2, 2, 92, 90, 3, 2, 2, 2, 92, 93, 3, 2, 2,
-	2, 93, 13, 3, 2, 2, 2, 94, 92, 3, 2, 2, 2, 95, 96, 7, 12, 2, 2, 96, 97,
-	5, 12, 7, 2, 97, 98, 7, 8, 2, 2, 98, 99, 5, 26, 14, 2, 99, 15, 3, 2, 2,
-	2, 100, 101, 7, 18, 2, 2, 101, 107, 5, 26, 14, 2, 102, 103, 5, 18, 10,
-	2, 103, 104, 7, 5, 2, 2, 104, 105, 5, 20, 11, 2, 105, 107, 3, 2, 2, 2,
-	106, 100, 3, 2, 2, 2, 106, 102, 3, 2, 2, 2, 107, 17, 3, 2, 2, 2, 108, 111,
-	5, 26, 14, 2, 109, 111, 7, 22, 2, 2, 110, 108, 3, 2, 2, 2, 110, 109, 3,
-	2, 2, 2, 111, 19, 3, 2, 2, 2, 112, 116, 5, 26, 14, 2, 113, 116, 5, 22,
-	12, 2, 114, 116, 7, 22, 2, 2, 115, 112, 3, 2, 2, 2, 115, 113, 3, 2, 2,
-	2, 115, 114, 3, 2, 2, 2, 116, 21, 3, 2, 2, 2, 117, 118, 9, 3, 2, 2, 118,
-	23, 3, 2, 2, 2, 119, 120, 9, 4, 2, 2, 120, 25, 3, 2, 2, 2, 121, 124, 5,
-	24, 13, 2, 122, 124, 7, 19, 2, 2, 123, 121, 3, 2, 2, 2, 123, 122, 3, 2,
-	2, 2, 124, 27, 3, 2, 2, 2, 125, 128, 5, 26, 14, 2, 126, 128, 7, 13, 2,
-	2, 127, 125, 3, 2, 2, 2, 127, 126, 3, 2, 2, 2, 128, 29, 3, 2, 2, 2, 18,
-	33, 36, 41, 47, 54, 63, 66, 72, 82, 90, 92, 106, 110, 115, 123, 127,
-}
-var literalNames = []string{
-	"", "'AND'", "'OR'", "", "'REP'", "'IN'", "'AS'", "'CBF'", "'SELECT'",
-	"'FROM'", "'FILTER'", "'*'", "'SAME'", "'DISTINCT'", "'('", "')'", "'@'",
-	"", "", "'0'",
-}
-var symbolicNames = []string{
-	"", "AND_OP", "OR_OP", "SIMPLE_OP", "REP", "IN", "AS", "CBF", "SELECT",
-	"FROM", "FILTER", "WILDCARD", "CLAUSE_SAME", "CLAUSE_DISTINCT", "L_PAREN",
-	"R_PAREN", "AT", "IDENT", "NUMBER1", "ZERO", "STRING", "WS",
-}
-
-var ruleNames = []string{
-	"policy", "repStmt", "cbfStmt", "selectStmt", "clause", "filterExpr", "filterStmt",
-	"expr", "filterKey", "filterValue", "number", "keyword", "ident", "identWC",
-}
+var _ = sync.Once{}
 
 type Query struct {
 	*antlr.BaseParser
 }
 
-// NewQuery produces a new parser instance for the optional input antlr.TokenStream.
-//
-// The *Query instance produced may be reused by calling the SetInputStream method.
-// The initial parser configuration is expensive to construct, and the object is not thread-safe;
-// however, if used within a Golang sync.Pool, the construction cost amortizes well and the
-// objects can be used in a thread-safe manner.
-func NewQuery(input antlr.TokenStream) *Query {
-	this := new(Query)
-	deserializer := antlr.NewATNDeserializer(nil)
-	deserializedATN := deserializer.DeserializeFromUInt16(parserATN)
-	decisionToDFA := make([]*antlr.DFA, len(deserializedATN.DecisionToState))
-	for index, ds := range deserializedATN.DecisionToState {
-		decisionToDFA[index] = antlr.NewDFA(ds, index)
-	}
-	this.BaseParser = antlr.NewBaseParser(input)
+var queryParserStaticData struct {
+	once                   sync.Once
+	serializedATN          []int32
+	literalNames           []string
+	symbolicNames          []string
+	ruleNames              []string
+	predictionContextCache *antlr.PredictionContextCache
+	atn                    *antlr.ATN
+	decisionToDFA          []*antlr.DFA
+}
 
-	this.Interpreter = antlr.NewParserATNSimulator(this, deserializedATN, decisionToDFA, antlr.NewPredictionContextCache())
-	this.RuleNames = ruleNames
-	this.LiteralNames = literalNames
-	this.SymbolicNames = symbolicNames
+func queryParserInit() {
+	staticData := &queryParserStaticData
+	staticData.literalNames = []string{
+		"", "'AND'", "'OR'", "", "'REP'", "'IN'", "'AS'", "'CBF'", "'SELECT'",
+		"'FROM'", "'FILTER'", "'*'", "'SAME'", "'DISTINCT'", "'('", "')'", "'@'",
+		"", "", "'0'",
+	}
+	staticData.symbolicNames = []string{
+		"", "AND_OP", "OR_OP", "SIMPLE_OP", "REP", "IN", "AS", "CBF", "SELECT",
+		"FROM", "FILTER", "WILDCARD", "CLAUSE_SAME", "CLAUSE_DISTINCT", "L_PAREN",
+		"R_PAREN", "AT", "IDENT", "NUMBER1", "ZERO", "STRING", "WS",
+	}
+	staticData.ruleNames = []string{
+		"policy", "repStmt", "cbfStmt", "selectStmt", "clause", "filterExpr",
+		"filterStmt", "expr", "filterKey", "filterValue", "number", "keyword",
+		"ident", "identWC",
+	}
+	staticData.predictionContextCache = antlr.NewPredictionContextCache()
+	staticData.serializedATN = []int32{
+		4, 1, 21, 130, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
+		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
+		10, 2, 11, 7, 11, 2, 12, 7, 12, 2, 13, 7, 13, 1, 0, 4, 0, 30, 8, 0, 11,
+		0, 12, 0, 31, 1, 0, 3, 0, 35, 8, 0, 1, 0, 5, 0, 38, 8, 0, 10, 0, 12, 0,
+		41, 9, 0, 1, 0, 5, 0, 44, 8, 0, 10, 0, 12, 0, 47, 9, 0, 1, 0, 1, 0, 1,
+		1, 1, 1, 1, 1, 1, 1, 3, 1, 55, 8, 1, 1, 2, 1, 2, 1, 2, 1, 3, 1, 3, 1, 3,
+		1, 3, 3, 3, 64, 8, 3, 1, 3, 3, 3, 67, 8, 3, 1, 3, 1, 3, 1, 3, 1, 3, 3,
+		3, 73, 8, 3, 1, 4, 1, 4, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 3, 5, 83,
+		8, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 1, 5, 5, 5, 91, 8, 5, 10, 5, 12, 5,
+		94, 9, 5, 1, 6, 1, 6, 1, 6, 1, 6, 1, 6, 1, 7, 1, 7, 1, 7, 1, 7, 1, 7, 1,
+		7, 3, 7, 107, 8, 7, 1, 8, 1, 8, 3, 8, 111, 8, 8, 1, 9, 1, 9, 1, 9, 3, 9,
+		116, 8, 9, 1, 10, 1, 10, 1, 11, 1, 11, 1, 12, 1, 12, 3, 12, 124, 8, 12,
+		1, 13, 1, 13, 3, 13, 128, 8, 13, 1, 13, 0, 1, 10, 14, 0, 2, 4, 6, 8, 10,
+		12, 14, 16, 18, 20, 22, 24, 26, 0, 3, 1, 0, 12, 13, 1, 0, 18, 19, 2, 0,
+		4, 6, 8, 10, 132, 0, 29, 1, 0, 0, 0, 2, 50, 1, 0, 0, 0, 4, 56, 1, 0, 0,
+		0, 6, 59, 1, 0, 0, 0, 8, 74, 1, 0, 0, 0, 10, 82, 1, 0, 0, 0, 12, 95, 1,
+		0, 0, 0, 14, 106, 1, 0, 0, 0, 16, 110, 1, 0, 0, 0, 18, 115, 1, 0, 0, 0,
+		20, 117, 1, 0, 0, 0, 22, 119, 1, 0, 0, 0, 24, 123, 1, 0, 0, 0, 26, 127,
+		1, 0, 0, 0, 28, 30, 3, 2, 1, 0, 29, 28, 1, 0, 0, 0, 30, 31, 1, 0, 0, 0,
+		31, 29, 1, 0, 0, 0, 31, 32, 1, 0, 0, 0, 32, 34, 1, 0, 0, 0, 33, 35, 3,
+		4, 2, 0, 34, 33, 1, 0, 0, 0, 34, 35, 1, 0, 0, 0, 35, 39, 1, 0, 0, 0, 36,
+		38, 3, 6, 3, 0, 37, 36, 1, 0, 0, 0, 38, 41, 1, 0, 0, 0, 39, 37, 1, 0, 0,
+		0, 39, 40, 1, 0, 0, 0, 40, 45, 1, 0, 0, 0, 41, 39, 1, 0, 0, 0, 42, 44,
+		3, 12, 6, 0, 43, 42, 1, 0, 0, 0, 44, 47, 1, 0, 0, 0, 45, 43, 1, 0, 0, 0,
+		45, 46, 1, 0, 0, 0, 46, 48, 1, 0, 0, 0, 47, 45, 1, 0, 0, 0, 48, 49, 5,
+		0, 0, 1, 49, 1, 1, 0, 0, 0, 50, 51, 5, 4, 0, 0, 51, 54, 5, 18, 0, 0, 52,
+		53, 5, 5, 0, 0, 53, 55, 3, 24, 12, 0, 54, 52, 1, 0, 0, 0, 54, 55, 1, 0,
+		0, 0, 55, 3, 1, 0, 0, 0, 56, 57, 5, 7, 0, 0, 57, 58, 5, 18, 0, 0, 58, 5,
+		1, 0, 0, 0, 59, 60, 5, 8, 0, 0, 60, 66, 5, 18, 0, 0, 61, 63, 5, 5, 0, 0,
+		62, 64, 3, 8, 4, 0, 63, 62, 1, 0, 0, 0, 63, 64, 1, 0, 0, 0, 64, 65, 1,
+		0, 0, 0, 65, 67, 3, 24, 12, 0, 66, 61, 1, 0, 0, 0, 66, 67, 1, 0, 0, 0,
+		67, 68, 1, 0, 0, 0, 68, 69, 5, 9, 0, 0, 69, 72, 3, 26, 13, 0, 70, 71, 5,
+		6, 0, 0, 71, 73, 3, 24, 12, 0, 72, 70, 1, 0, 0, 0, 72, 73, 1, 0, 0, 0,
+		73, 7, 1, 0, 0, 0, 74, 75, 7, 0, 0, 0, 75, 9, 1, 0, 0, 0, 76, 77, 6, 5,
+		-1, 0, 77, 78, 5, 14, 0, 0, 78, 79, 3, 10, 5, 0, 79, 80, 5, 15, 0, 0, 80,
+		83, 1, 0, 0, 0, 81, 83, 3, 14, 7, 0, 82, 76, 1, 0, 0, 0, 82, 81, 1, 0,
+		0, 0, 83, 92, 1, 0, 0, 0, 84, 85, 10, 4, 0, 0, 85, 86, 5, 1, 0, 0, 86,
+		91, 3, 10, 5, 5, 87, 88, 10, 3, 0, 0, 88, 89, 5, 2, 0, 0, 89, 91, 3, 10,
+		5, 4, 90, 84, 1, 0, 0, 0, 90, 87, 1, 0, 0, 0, 91, 94, 1, 0, 0, 0, 92, 90,
+		1, 0, 0, 0, 92, 93, 1, 0, 0, 0, 93, 11, 1, 0, 0, 0, 94, 92, 1, 0, 0, 0,
+		95, 96, 5, 10, 0, 0, 96, 97, 3, 10, 5, 0, 97, 98, 5, 6, 0, 0, 98, 99, 3,
+		24, 12, 0, 99, 13, 1, 0, 0, 0, 100, 101, 5, 16, 0, 0, 101, 107, 3, 24,
+		12, 0, 102, 103, 3, 16, 8, 0, 103, 104, 5, 3, 0, 0, 104, 105, 3, 18, 9,
+		0, 105, 107, 1, 0, 0, 0, 106, 100, 1, 0, 0, 0, 106, 102, 1, 0, 0, 0, 107,
+		15, 1, 0, 0, 0, 108, 111, 3, 24, 12, 0, 109, 111, 5, 20, 0, 0, 110, 108,
+		1, 0, 0, 0, 110, 109, 1, 0, 0, 0, 111, 17, 1, 0, 0, 0, 112, 116, 3, 24,
+		12, 0, 113, 116, 3, 20, 10, 0, 114, 116, 5, 20, 0, 0, 115, 112, 1, 0, 0,
+		0, 115, 113, 1, 0, 0, 0, 115, 114, 1, 0, 0, 0, 116, 19, 1, 0, 0, 0, 117,
+		118, 7, 1, 0, 0, 118, 21, 1, 0, 0, 0, 119, 120, 7, 2, 0, 0, 120, 23, 1,
+		0, 0, 0, 121, 124, 3, 22, 11, 0, 122, 124, 5, 17, 0, 0, 123, 121, 1, 0,
+		0, 0, 123, 122, 1, 0, 0, 0, 124, 25, 1, 0, 0, 0, 125, 128, 3, 24, 12, 0,
+		126, 128, 5, 11, 0, 0, 127, 125, 1, 0, 0, 0, 127, 126, 1, 0, 0, 0, 128,
+		27, 1, 0, 0, 0, 16, 31, 34, 39, 45, 54, 63, 66, 72, 82, 90, 92, 106, 110,
+		115, 123, 127,
+	}
+	deserializer := antlr.NewATNDeserializer(nil)
+	staticData.atn = deserializer.Deserialize(staticData.serializedATN)
+	atn := staticData.atn
+	staticData.decisionToDFA = make([]*antlr.DFA, len(atn.DecisionToState))
+	decisionToDFA := staticData.decisionToDFA
+	for index, state := range atn.DecisionToState {
+		decisionToDFA[index] = antlr.NewDFA(state, index)
+	}
+}
+
+// QueryInit initializes any static state used to implement Query. By default the
+// static state used to implement the parser is lazily initialized during the first call to
+// NewQuery(). You can call this function if you wish to initialize the static state ahead
+// of time.
+func QueryInit() {
+	staticData := &queryParserStaticData
+	staticData.once.Do(queryParserInit)
+}
+
+// NewQuery produces a new parser instance for the optional input antlr.TokenStream.
+func NewQuery(input antlr.TokenStream) *Query {
+	QueryInit()
+	this := new(Query)
+	this.BaseParser = antlr.NewBaseParser(input)
+	staticData := &queryParserStaticData
+	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.predictionContextCache)
+	this.RuleNames = staticData.ruleNames
+	this.LiteralNames = staticData.literalNames
+	this.SymbolicNames = staticData.symbolicNames
 	this.GrammarFileName = "Query.g4"
 
 	return this
@@ -198,13 +220,25 @@ func NewPolicyContext(parser antlr.Parser, parent antlr.ParserRuleContext, invok
 
 func (s *PolicyContext) GetParser() antlr.Parser { return s.parser }
 
-func (s *PolicyContext) AllRepStmt() []IRepStmtContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IRepStmtContext)(nil)).Elem())
-	var tst = make([]IRepStmtContext, len(ts))
+func (s *PolicyContext) EOF() antlr.TerminalNode {
+	return s.GetToken(QueryEOF, 0)
+}
 
-	for i, t := range ts {
-		if t != nil {
+func (s *PolicyContext) AllRepStmt() []IRepStmtContext {
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IRepStmtContext); ok {
+			len++
+		}
+	}
+
+	tst := make([]IRepStmtContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IRepStmtContext); ok {
 			tst[i] = t.(IRepStmtContext)
+			i++
 		}
 	}
 
@@ -212,7 +246,17 @@ func (s *PolicyContext) AllRepStmt() []IRepStmtContext {
 }
 
 func (s *PolicyContext) RepStmt(i int) IRepStmtContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IRepStmtContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IRepStmtContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -222,7 +266,13 @@ func (s *PolicyContext) RepStmt(i int) IRepStmtContext {
 }
 
 func (s *PolicyContext) CbfStmt() ICbfStmtContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ICbfStmtContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ICbfStmtContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -232,12 +282,20 @@ func (s *PolicyContext) CbfStmt() ICbfStmtContext {
 }
 
 func (s *PolicyContext) AllSelectStmt() []ISelectStmtContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*ISelectStmtContext)(nil)).Elem())
-	var tst = make([]ISelectStmtContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(ISelectStmtContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]ISelectStmtContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(ISelectStmtContext); ok {
 			tst[i] = t.(ISelectStmtContext)
+			i++
 		}
 	}
 
@@ -245,7 +303,17 @@ func (s *PolicyContext) AllSelectStmt() []ISelectStmtContext {
 }
 
 func (s *PolicyContext) SelectStmt(i int) ISelectStmtContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*ISelectStmtContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(ISelectStmtContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -255,12 +323,20 @@ func (s *PolicyContext) SelectStmt(i int) ISelectStmtContext {
 }
 
 func (s *PolicyContext) AllFilterStmt() []IFilterStmtContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IFilterStmtContext)(nil)).Elem())
-	var tst = make([]IFilterStmtContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IFilterStmtContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IFilterStmtContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IFilterStmtContext); ok {
 			tst[i] = t.(IFilterStmtContext)
+			i++
 		}
 	}
 
@@ -268,7 +344,17 @@ func (s *PolicyContext) AllFilterStmt() []IFilterStmtContext {
 }
 
 func (s *PolicyContext) FilterStmt(i int) IFilterStmtContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFilterStmtContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFilterStmtContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -308,6 +394,9 @@ func (s *PolicyContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) Policy() (localctx IPolicyContext) {
+	this := p
+	_ = this
+
 	localctx = NewPolicyContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, QueryRULE_policy)
 	var _la int
@@ -381,6 +470,10 @@ func (p *Query) Policy() (localctx IPolicyContext) {
 		p.SetState(47)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
+	}
+	{
+		p.SetState(48)
+		p.Match(QueryEOF)
 	}
 
 	return localctx
@@ -459,7 +552,13 @@ func (s *RepStmtContext) IN() antlr.TerminalNode {
 }
 
 func (s *RepStmtContext) Ident() IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -499,6 +598,9 @@ func (s *RepStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) RepStmt() (localctx IRepStmtContext) {
+	this := p
+	_ = this
+
 	localctx = NewRepStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 2, QueryRULE_repStmt)
 	var _la int
@@ -521,27 +623,27 @@ func (p *Query) RepStmt() (localctx IRepStmtContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(48)
+		p.SetState(50)
 		p.Match(QueryREP)
 	}
 	{
-		p.SetState(49)
+		p.SetState(51)
 
 		var _m = p.Match(QueryNUMBER1)
 
 		localctx.(*RepStmtContext).Count = _m
 	}
-	p.SetState(52)
+	p.SetState(54)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryIN {
 		{
-			p.SetState(50)
+			p.SetState(52)
 			p.Match(QueryIN)
 		}
 		{
-			p.SetState(51)
+			p.SetState(53)
 
 			var _x = p.Ident()
 
@@ -641,6 +743,9 @@ func (s *CbfStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) CbfStmt() (localctx ICbfStmtContext) {
+	this := p
+	_ = this
+
 	localctx = NewCbfStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, QueryRULE_cbfStmt)
 
@@ -662,11 +767,11 @@ func (p *Query) CbfStmt() (localctx ICbfStmtContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(54)
+		p.SetState(56)
 		p.Match(QueryCBF)
 	}
 	{
-		p.SetState(55)
+		p.SetState(57)
 
 		var _m = p.Match(QueryNUMBER1)
 
@@ -771,7 +876,13 @@ func (s *SelectStmtContext) NUMBER1() antlr.TerminalNode {
 }
 
 func (s *SelectStmtContext) IdentWC() IIdentWCContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentWCContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentWCContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -789,12 +900,20 @@ func (s *SelectStmtContext) AS() antlr.TerminalNode {
 }
 
 func (s *SelectStmtContext) AllIdent() []IIdentContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IIdentContext)(nil)).Elem())
-	var tst = make([]IIdentContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IIdentContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IIdentContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IIdentContext); ok {
 			tst[i] = t.(IIdentContext)
+			i++
 		}
 	}
 
@@ -802,7 +921,17 @@ func (s *SelectStmtContext) AllIdent() []IIdentContext {
 }
 
 func (s *SelectStmtContext) Ident(i int) IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -812,7 +941,13 @@ func (s *SelectStmtContext) Ident(i int) IIdentContext {
 }
 
 func (s *SelectStmtContext) Clause() IClauseContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IClauseContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IClauseContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -852,6 +987,9 @@ func (s *SelectStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
+	this := p
+	_ = this
+
 	localctx = NewSelectStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, QueryRULE_selectStmt)
 	var _la int
@@ -874,38 +1012,38 @@ func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(57)
+		p.SetState(59)
 		p.Match(QuerySELECT)
 	}
 	{
-		p.SetState(58)
+		p.SetState(60)
 
 		var _m = p.Match(QueryNUMBER1)
 
 		localctx.(*SelectStmtContext).Count = _m
 	}
-	p.SetState(64)
+	p.SetState(66)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryIN {
 		{
-			p.SetState(59)
+			p.SetState(61)
 			p.Match(QueryIN)
 		}
-		p.SetState(61)
+		p.SetState(63)
 		p.GetErrorHandler().Sync(p)
 		_la = p.GetTokenStream().LA(1)
 
 		if _la == QueryCLAUSE_SAME || _la == QueryCLAUSE_DISTINCT {
 			{
-				p.SetState(60)
+				p.SetState(62)
 				p.Clause()
 			}
 
 		}
 		{
-			p.SetState(63)
+			p.SetState(65)
 
 			var _x = p.Ident()
 
@@ -914,27 +1052,27 @@ func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
 
 	}
 	{
-		p.SetState(66)
+		p.SetState(68)
 		p.Match(QueryFROM)
 	}
 	{
-		p.SetState(67)
+		p.SetState(69)
 
 		var _x = p.IdentWC()
 
 		localctx.(*SelectStmtContext).Filter = _x
 	}
-	p.SetState(70)
+	p.SetState(72)
 	p.GetErrorHandler().Sync(p)
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryAS {
 		{
-			p.SetState(68)
+			p.SetState(70)
 			p.Match(QueryAS)
 		}
 		{
-			p.SetState(69)
+			p.SetState(71)
 
 			var _x = p.Ident()
 
@@ -1023,6 +1161,9 @@ func (s *ClauseContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) Clause() (localctx IClauseContext) {
+	this := p
+	_ = this
+
 	localctx = NewClauseContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, QueryRULE_clause)
 	var _la int
@@ -1045,7 +1186,7 @@ func (p *Query) Clause() (localctx IClauseContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(72)
+		p.SetState(74)
 		_la = p.GetTokenStream().LA(1)
 
 		if !(_la == QueryCLAUSE_SAME || _la == QueryCLAUSE_DISTINCT) {
@@ -1150,12 +1291,20 @@ func (s *FilterExprContext) R_PAREN() antlr.TerminalNode {
 }
 
 func (s *FilterExprContext) AllFilterExpr() []IFilterExprContext {
-	var ts = s.GetTypedRuleContexts(reflect.TypeOf((*IFilterExprContext)(nil)).Elem())
-	var tst = make([]IFilterExprContext, len(ts))
+	children := s.GetChildren()
+	len := 0
+	for _, ctx := range children {
+		if _, ok := ctx.(IFilterExprContext); ok {
+			len++
+		}
+	}
 
-	for i, t := range ts {
-		if t != nil {
+	tst := make([]IFilterExprContext, len)
+	i := 0
+	for _, ctx := range children {
+		if t, ok := ctx.(IFilterExprContext); ok {
 			tst[i] = t.(IFilterExprContext)
+			i++
 		}
 	}
 
@@ -1163,7 +1312,17 @@ func (s *FilterExprContext) AllFilterExpr() []IFilterExprContext {
 }
 
 func (s *FilterExprContext) FilterExpr(i int) IFilterExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFilterExprContext)(nil)).Elem(), i)
+	var t antlr.RuleContext
+	j := 0
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFilterExprContext); ok {
+			if j == i {
+				t = ctx.(antlr.RuleContext)
+				break
+			}
+			j++
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1173,7 +1332,13 @@ func (s *FilterExprContext) FilterExpr(i int) IFilterExprContext {
 }
 
 func (s *FilterExprContext) Expr() IExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IExprContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IExprContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1225,6 +1390,9 @@ func (p *Query) FilterExpr() (localctx IFilterExprContext) {
 }
 
 func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
+	this := p
+	_ = this
+
 	var _parentctx antlr.ParserRuleContext = p.GetParserRuleContext()
 	_parentState := p.GetState()
 	localctx = NewFilterExprContext(p, p.GetParserRuleContext(), _parentState)
@@ -1252,30 +1420,30 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
-	p.SetState(80)
+	p.SetState(82)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryL_PAREN:
 		{
-			p.SetState(75)
+			p.SetState(77)
 			p.Match(QueryL_PAREN)
 		}
 		{
-			p.SetState(76)
+			p.SetState(78)
 
 			var _x = p.filterExpr(0)
 
 			localctx.(*FilterExprContext).Inner = _x
 		}
 		{
-			p.SetState(77)
+			p.SetState(79)
 			p.Match(QueryR_PAREN)
 		}
 
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryAT, QueryIDENT, QuerySTRING:
 		{
-			p.SetState(79)
+			p.SetState(81)
 			p.Expr()
 		}
 
@@ -1283,7 +1451,7 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
-	p.SetState(90)
+	p.SetState(92)
 	p.GetErrorHandler().Sync(p)
 	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 10, p.GetParserRuleContext())
 
@@ -1293,27 +1461,27 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 				p.TriggerExitRuleEvent()
 			}
 			_prevctx = localctx
-			p.SetState(88)
+			p.SetState(90)
 			p.GetErrorHandler().Sync(p)
 			switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 9, p.GetParserRuleContext()) {
 			case 1:
 				localctx = NewFilterExprContext(p, _parentctx, _parentState)
 				localctx.(*FilterExprContext).F1 = _prevctx
 				p.PushNewRecursionContext(localctx, _startState, QueryRULE_filterExpr)
-				p.SetState(82)
+				p.SetState(84)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 4)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
 				}
 				{
-					p.SetState(83)
+					p.SetState(85)
 
 					var _m = p.Match(QueryAND_OP)
 
 					localctx.(*FilterExprContext).Op = _m
 				}
 				{
-					p.SetState(84)
+					p.SetState(86)
 
 					var _x = p.filterExpr(5)
 
@@ -1324,20 +1492,20 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 				localctx = NewFilterExprContext(p, _parentctx, _parentState)
 				localctx.(*FilterExprContext).F1 = _prevctx
 				p.PushNewRecursionContext(localctx, _startState, QueryRULE_filterExpr)
-				p.SetState(85)
+				p.SetState(87)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 3)) {
 					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
 				}
 				{
-					p.SetState(86)
+					p.SetState(88)
 
 					var _m = p.Match(QueryOR_OP)
 
 					localctx.(*FilterExprContext).Op = _m
 				}
 				{
-					p.SetState(87)
+					p.SetState(89)
 
 					var _x = p.filterExpr(4)
 
@@ -1347,7 +1515,7 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 			}
 
 		}
-		p.SetState(92)
+		p.SetState(94)
 		p.GetErrorHandler().Sync(p)
 		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 10, p.GetParserRuleContext())
 	}
@@ -1424,7 +1592,13 @@ func (s *FilterStmtContext) AS() antlr.TerminalNode {
 }
 
 func (s *FilterStmtContext) FilterExpr() IFilterExprContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFilterExprContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFilterExprContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1434,7 +1608,13 @@ func (s *FilterStmtContext) FilterExpr() IFilterExprContext {
 }
 
 func (s *FilterStmtContext) Ident() IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1474,6 +1654,9 @@ func (s *FilterStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) FilterStmt() (localctx IFilterStmtContext) {
+	this := p
+	_ = this
+
 	localctx = NewFilterStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 12, QueryRULE_filterStmt)
 
@@ -1495,22 +1678,22 @@ func (p *Query) FilterStmt() (localctx IFilterStmtContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(93)
+		p.SetState(95)
 		p.Match(QueryFILTER)
 	}
 	{
-		p.SetState(94)
+		p.SetState(96)
 
 		var _x = p.filterExpr(0)
 
 		localctx.(*FilterStmtContext).Expr = _x
 	}
 	{
-		p.SetState(95)
+		p.SetState(97)
 		p.Match(QueryAS)
 	}
 	{
-		p.SetState(96)
+		p.SetState(98)
 
 		var _x = p.Ident()
 
@@ -1596,7 +1779,13 @@ func (s *ExprContext) AT() antlr.TerminalNode {
 }
 
 func (s *ExprContext) Ident() IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1610,7 +1799,13 @@ func (s *ExprContext) SIMPLE_OP() antlr.TerminalNode {
 }
 
 func (s *ExprContext) FilterKey() IFilterKeyContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFilterKeyContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFilterKeyContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1620,7 +1815,13 @@ func (s *ExprContext) FilterKey() IFilterKeyContext {
 }
 
 func (s *ExprContext) FilterValue() IFilterValueContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IFilterValueContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IFilterValueContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1660,6 +1861,9 @@ func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) Expr() (localctx IExprContext) {
+	this := p
+	_ = this
+
 	localctx = NewExprContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 14, QueryRULE_expr)
 
@@ -1679,18 +1883,18 @@ func (p *Query) Expr() (localctx IExprContext) {
 		}
 	}()
 
-	p.SetState(104)
+	p.SetState(106)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryAT:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(98)
+			p.SetState(100)
 			p.Match(QueryAT)
 		}
 		{
-			p.SetState(99)
+			p.SetState(101)
 
 			var _x = p.Ident()
 
@@ -1700,18 +1904,18 @@ func (p *Query) Expr() (localctx IExprContext) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT, QuerySTRING:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(100)
+			p.SetState(102)
 
 			var _x = p.FilterKey()
 
 			localctx.(*ExprContext).Key = _x
 		}
 		{
-			p.SetState(101)
+			p.SetState(103)
 			p.Match(QuerySIMPLE_OP)
 		}
 		{
-			p.SetState(102)
+			p.SetState(104)
 
 			var _x = p.FilterValue()
 
@@ -1764,7 +1968,13 @@ func NewFilterKeyContext(parser antlr.Parser, parent antlr.ParserRuleContext, in
 func (s *FilterKeyContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *FilterKeyContext) Ident() IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1808,6 +2018,9 @@ func (s *FilterKeyContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) FilterKey() (localctx IFilterKeyContext) {
+	this := p
+	_ = this
+
 	localctx = NewFilterKeyContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, QueryRULE_filterKey)
 
@@ -1827,21 +2040,21 @@ func (p *Query) FilterKey() (localctx IFilterKeyContext) {
 		}
 	}()
 
-	p.SetState(108)
+	p.SetState(110)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(106)
+			p.SetState(108)
 			p.Ident()
 		}
 
 	case QuerySTRING:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(107)
+			p.SetState(109)
 			p.Match(QuerySTRING)
 		}
 
@@ -1891,7 +2104,13 @@ func NewFilterValueContext(parser antlr.Parser, parent antlr.ParserRuleContext, 
 func (s *FilterValueContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *FilterValueContext) Ident() IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1901,7 +2120,13 @@ func (s *FilterValueContext) Ident() IIdentContext {
 }
 
 func (s *FilterValueContext) Number() INumberContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*INumberContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(INumberContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -1945,6 +2170,9 @@ func (s *FilterValueContext) Accept(visitor antlr.ParseTreeVisitor) interface{} 
 }
 
 func (p *Query) FilterValue() (localctx IFilterValueContext) {
+	this := p
+	_ = this
+
 	localctx = NewFilterValueContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, QueryRULE_filterValue)
 
@@ -1964,28 +2192,28 @@ func (p *Query) FilterValue() (localctx IFilterValueContext) {
 		}
 	}()
 
-	p.SetState(113)
+	p.SetState(115)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(110)
+			p.SetState(112)
 			p.Ident()
 		}
 
 	case QueryNUMBER1, QueryZERO:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(111)
+			p.SetState(113)
 			p.Number()
 		}
 
 	case QuerySTRING:
 		p.EnterOuterAlt(localctx, 3)
 		{
-			p.SetState(112)
+			p.SetState(114)
 			p.Match(QuerySTRING)
 		}
 
@@ -2073,6 +2301,9 @@ func (s *NumberContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) Number() (localctx INumberContext) {
+	this := p
+	_ = this
+
 	localctx = NewNumberContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 20, QueryRULE_number)
 	var _la int
@@ -2095,7 +2326,7 @@ func (p *Query) Number() (localctx INumberContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(115)
+		p.SetState(117)
 		_la = p.GetTokenStream().LA(1)
 
 		if !(_la == QueryNUMBER1 || _la == QueryZERO) {
@@ -2202,6 +2433,9 @@ func (s *KeywordContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) Keyword() (localctx IKeywordContext) {
+	this := p
+	_ = this
+
 	localctx = NewKeywordContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 22, QueryRULE_keyword)
 	var _la int
@@ -2224,7 +2458,7 @@ func (p *Query) Keyword() (localctx IKeywordContext) {
 
 	p.EnterOuterAlt(localctx, 1)
 	{
-		p.SetState(117)
+		p.SetState(119)
 		_la = p.GetTokenStream().LA(1)
 
 		if !(((_la)&-(0x1f+1)) == 0 && ((1<<uint(_la))&((1<<QueryREP)|(1<<QueryIN)|(1<<QueryAS)|(1<<QuerySELECT)|(1<<QueryFROM)|(1<<QueryFILTER))) != 0) {
@@ -2277,7 +2511,13 @@ func NewIdentContext(parser antlr.Parser, parent antlr.ParserRuleContext, invoki
 func (s *IdentContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *IdentContext) Keyword() IKeywordContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IKeywordContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IKeywordContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2321,6 +2561,9 @@ func (s *IdentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) Ident() (localctx IIdentContext) {
+	this := p
+	_ = this
+
 	localctx = NewIdentContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, QueryRULE_ident)
 
@@ -2340,21 +2583,21 @@ func (p *Query) Ident() (localctx IIdentContext) {
 		}
 	}()
 
-	p.SetState(121)
+	p.SetState(123)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(119)
+			p.SetState(121)
 			p.Keyword()
 		}
 
 	case QueryIDENT:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(120)
+			p.SetState(122)
 			p.Match(QueryIDENT)
 		}
 
@@ -2404,7 +2647,13 @@ func NewIdentWCContext(parser antlr.Parser, parent antlr.ParserRuleContext, invo
 func (s *IdentWCContext) GetParser() antlr.Parser { return s.parser }
 
 func (s *IdentWCContext) Ident() IIdentContext {
-	var t = s.GetTypedRuleContext(reflect.TypeOf((*IIdentContext)(nil)).Elem(), 0)
+	var t antlr.RuleContext
+	for _, ctx := range s.GetChildren() {
+		if _, ok := ctx.(IIdentContext); ok {
+			t = ctx.(antlr.RuleContext)
+			break
+		}
+	}
 
 	if t == nil {
 		return nil
@@ -2448,6 +2697,9 @@ func (s *IdentWCContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 }
 
 func (p *Query) IdentWC() (localctx IIdentWCContext) {
+	this := p
+	_ = this
+
 	localctx = NewIdentWCContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, QueryRULE_identWC)
 
@@ -2467,21 +2719,21 @@ func (p *Query) IdentWC() (localctx IIdentWCContext) {
 		}
 	}()
 
-	p.SetState(125)
+	p.SetState(127)
 	p.GetErrorHandler().Sync(p)
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT:
 		p.EnterOuterAlt(localctx, 1)
 		{
-			p.SetState(123)
+			p.SetState(125)
 			p.Ident()
 		}
 
 	case QueryWILDCARD:
 		p.EnterOuterAlt(localctx, 2)
 		{
-			p.SetState(124)
+			p.SetState(126)
 			p.Match(QueryWILDCARD)
 		}
 
@@ -2507,6 +2759,9 @@ func (p *Query) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int) bo
 }
 
 func (p *Query) FilterExpr_Sempred(localctx antlr.RuleContext, predIndex int) bool {
+	this := p
+	_ = this
+
 	switch predIndex {
 	case 0:
 		return p.Precpred(p.GetParserRuleContext(), 4)
