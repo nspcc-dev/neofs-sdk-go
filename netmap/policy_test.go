@@ -39,6 +39,7 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 
 	invalidTestCases := []string{
 		`?REP 1`,
+		`REP 1 trailing garbage`,
 	}
 
 	for i := range invalidTestCases {
