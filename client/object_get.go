@@ -321,7 +321,12 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	err := signature.SignServiceMessage(&c.prm.key, &req)
+	key := prm.key
+	if key == nil {
+		key = &c.prm.key
+	}
+
+	err := signature.SignServiceMessage(key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
