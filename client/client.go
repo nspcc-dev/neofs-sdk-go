@@ -35,6 +35,7 @@ import (
 // All possible responses are documented in methods, however, some may be
 // returned from all of them (pay attention to the presence of the pointer sign):
 //   - *apistatus.ServerInternal on internal server error;
+//   - *apistatus.NodeUnderMaintenance if a server is under maintenance;
 //   - *apistatus.SuccessDefaultV2 on default success.
 //
 // Client MUST NOT be copied by value: use pointer to Client instead.

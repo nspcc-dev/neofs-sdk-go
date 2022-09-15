@@ -810,7 +810,8 @@ func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error 
 	switch err.(type) {
 	case apistatus.ServerInternal, *apistatus.ServerInternal,
 		apistatus.WrongMagicNumber, *apistatus.WrongMagicNumber,
-		apistatus.SignatureVerification, *apistatus.SignatureVerification:
+		apistatus.SignatureVerification, *apistatus.SignatureVerification,
+		apistatus.NodeUnderMaintenance, *apistatus.NodeUnderMaintenance:
 		c.incErrorRate()
 	}
 

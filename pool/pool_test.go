@@ -588,6 +588,12 @@ func TestHandleError(t *testing.T) {
 			expectedError: true,
 			countError:    true,
 		},
+		{
+			status:        apistatus.NodeUnderMaintenance{},
+			err:           nil,
+			expectedError: true,
+			countError:    true,
+		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			errCount := monitor.currentErrorRate()

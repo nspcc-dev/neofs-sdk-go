@@ -174,3 +174,48 @@ func (x *SignatureVerification) SetMessage(v string) {
 func (x SignatureVerification) Message() string {
 	return x.v2.Message()
 }
+
+// NodeUnderMaintenance describes failure status for nodes being under maintenance.
+// Instances provide Status and StatusV2 interfaces.
+type NodeUnderMaintenance struct {
+	v2 status.Status
+}
+
+// Error implements the error interface.
+func (x NodeUnderMaintenance) Error() string {
+	return errMessageStatusV2(
+		globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail),
+		x.v2.Message(),
+	)
+}
+
+func (x *NodeUnderMaintenance) fromStatusV2(st *status.Status) {
+	x.v2 = *st
+}
+
+// ToStatusV2 implements StatusV2 interface method.
+// If the value was returned by FromStatusV2, returns the source message.
+// Otherwise, returns message with
+//   - code: NODE_UNDER_MAINTENANCE;
+//   - string message: written message via SetMessage;
+//   - details: empty.
+func (x NodeUnderMaintenance) ToStatusV2() *status.Status {
+	x.v2.SetCode(globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail))
+	return &x.v2
+}
+
+// SetMessage writes signature verification failure message.
+// Message should be used for debug purposes only.
+//
+// See also Message.
+func (x *NodeUnderMaintenance) SetMessage(v string) {
+	x.v2.SetMessage(v)
+}
+
+// Message returns status message. Zero status returns empty message.
+// Message should be used for debug purposes only.
+//
+// See also SetMessage.
+func (x NodeUnderMaintenance) Message() string {
+	return x.v2.Message()
+}
