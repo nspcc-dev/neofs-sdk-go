@@ -558,3 +558,21 @@ func (x *NodeInfo) SetOnline() {
 func (x NodeInfo) IsOnline() bool {
 	return x.m.GetState() == netmap.Online
 }
+
+// SetMaintenance sets the state of the node to "maintenance". When a node updates
+// information about itself in the network map, this
+// state declares temporal unavailability for a node.
+//
+// See also IsMaintenance.
+func (x *NodeInfo) SetMaintenance() {
+	x.m.SetState(netmap.Maintenance)
+}
+
+// IsMaintenance checks if the node is in the "maintenance" state.
+//
+// Zero NodeInfo has undefined state.
+//
+// See also SetMaintenance.
+func (x NodeInfo) IsMaintenance() bool {
+	return x.m.GetState() == netmap.Maintenance
+}
