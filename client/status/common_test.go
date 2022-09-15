@@ -89,3 +89,42 @@ func TestSignatureVerification(t *testing.T) {
 		require.Equal(t, msg, stV2.Message())
 	})
 }
+
+func TestNodeUnderMaintenance(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		var st apistatus.NodeUnderMaintenance
+
+		require.Empty(t, st.Message())
+	})
+
+	t.Run("custom message", func(t *testing.T) {
+		var st apistatus.NodeUnderMaintenance
+		msg := "some message"
+
+		st.SetMessage(msg)
+
+		stV2 := st.ToStatusV2()
+
+		require.Equal(t, msg, st.Message())
+		require.Equal(t, msg, stV2.Message())
+	})
+
+	t.Run("empty to V2", func(t *testing.T) {
+		var st apistatus.NodeUnderMaintenance
+
+		stV2 := st.ToStatusV2()
+
+		require.Empty(t, "", stV2.Message())
+	})
+
+	t.Run("non-empty to V2", func(t *testing.T) {
+		var st apistatus.NodeUnderMaintenance
+		msg := "some other msg"
+
+		st.SetMessage(msg)
+
+		stV2 := st.ToStatusV2()
+
+		require.Equal(t, msg, stV2.Message())
+	})
+}

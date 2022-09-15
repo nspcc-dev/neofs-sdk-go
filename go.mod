@@ -9,7 +9,7 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
 	github.com/nspcc-dev/neo-go v0.99.2
-	github.com/nspcc-dev/neofs-api-go/v2 v2.13.2-0.20220827080658-9e17cdfc7647
+	github.com/nspcc-dev/neofs-api-go/v2 v2.13.2-0.20220916145053-f3e1f8ae7ae3
 	github.com/nspcc-dev/neofs-contract v0.15.3
 	github.com/nspcc-dev/tzhash v1.6.1
 	github.com/stretchr/testify v1.7.0
@@ -38,7 +38,7 @@ require (
 	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
 	golang.org/x/text v0.3.7 // indirect
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
-	google.golang.org/grpc v1.41.0 // indirect
+	google.golang.org/grpc v1.48.0 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
