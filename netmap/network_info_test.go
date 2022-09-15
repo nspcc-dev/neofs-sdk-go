@@ -233,3 +233,21 @@ func TestNetworkInfo_HomomorphicHashingDisabled(t *testing.T) {
 		},
 	)
 }
+
+func TestNetworkInfo_MaintenanceModeAllowed(t *testing.T) {
+	testConfigValue(t,
+		func(x NetworkInfo) interface{} { return x.MaintenanceModeAllowed() },
+		func(info *NetworkInfo, val interface{}) {
+			if val.(bool) {
+				info.AllowMaintenanceMode()
+			}
+		},
+		true, true,
+		"MaintenanceModeAllowed", func(val interface{}) []byte {
+			if val.(bool) {
+				return []byte{1}
+			}
+			return []byte{0}
+		},
+	)
+}

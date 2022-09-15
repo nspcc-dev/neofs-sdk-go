@@ -75,7 +75,8 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 			configMaxObjSize,
 			configWithdrawalFee:
 			_, err = decodeConfigValueUint64(prm.GetValue())
-		case configHomomorphicHashingDisabled:
+		case configHomomorphicHashingDisabled,
+			configMaintenanceModeAllowed:
 			_, err = decodeConfigValueBool(prm.GetValue())
 		}
 
@@ -247,7 +248,8 @@ func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []by
 			configIRCandidateFee,
 			configMaxObjSize,
 			configWithdrawalFee,
-			configHomomorphicHashingDisabled:
+			configHomomorphicHashingDisabled,
+			configMaintenanceModeAllowed:
 		}
 
 		return false
@@ -521,4 +523,21 @@ func (x *NetworkInfo) DisableHomomorphicHashing() {
 // Zero NetworkInfo has enabled homomorphic hashing.
 func (x NetworkInfo) HomomorphicHashingDisabled() bool {
 	return x.configBool(configHomomorphicHashingDisabled)
+}
+
+const configMaintenanceModeAllowed = "MaintenanceModeAllowed"
+
+// AllowMaintenanceMode sets the flag allowing nodes to go into maintenance mode.
+//
+// See also MaintenanceModeAllowed.
+func (x *NetworkInfo) AllowMaintenanceMode() {
+	x.setConfigBool(configMaintenanceModeAllowed, true)
+}
+
+// MaintenanceModeAllowed returns true iff network config allows
+// maintenance mode for storage nodes.
+//
+// Zero NetworkInfo has disallows maintenance mode.
+func (x NetworkInfo) MaintenanceModeAllowed() bool {
+	return x.configBool(configMaintenanceModeAllowed)
 }
