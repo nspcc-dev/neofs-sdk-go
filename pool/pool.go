@@ -1737,7 +1737,7 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	tok.BindContainer(ctx.sessionCnr)
 
 	if ctx.sessionObjSet {
-		tok.LimitByObject(ctx.sessionObj)
+		tok.LimitByObjects(ctx.sessionObj)
 	}
 
 	// sign the token

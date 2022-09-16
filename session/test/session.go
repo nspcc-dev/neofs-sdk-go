@@ -71,11 +71,9 @@ func Object() *session.Object {
 		panic(err)
 	}
 
-	addr := oidtest.Address()
-
 	tok.ForVerb(session.VerbObjectPut)
-	tok.BindContainer(addr.Container())
-	tok.LimitByObject(addr.Object())
+	tok.BindContainer(cidtest.ID())
+	tok.LimitByObjects(oidtest.ID(), oidtest.ID())
 	tok.SetID(uuid.New())
 	tok.SetAuthKey((*neofsecdsa.PublicKey)(&priv.PublicKey))
 	tok.SetExp(11)
