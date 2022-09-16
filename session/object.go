@@ -29,8 +29,7 @@ type Object struct {
 	cnrSet bool
 	cnr    cid.ID
 
-	objSet bool
-	obj    oid.ID
+	objs []oid.ID
 }
 
 func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) error {
@@ -39,29 +38,30 @@ func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) er
 		return fmt.Errorf("invalid context %T", c)
 	}
 
-	addr := cObj.GetAddress()
-	if checkFieldPresence && addr == nil {
-		return errors.New("missing object address")
-	}
-
 	var err error
 
-	cnr := addr.GetContainerID()
+	cnr := cObj.GetContainer()
 	if x.cnrSet = cnr != nil; x.cnrSet {
 		err := x.cnr.ReadFromV2(*cnr)
 		if err != nil {
 			return fmt.Errorf("invalid container ID: %w", err)
 		}
 	} else if checkFieldPresence {
-		return errors.New("missing container in object address")
+		return errors.New("missing target container")
 	}
 
-	obj := addr.GetObjectID()
-	if x.objSet = obj != nil; x.objSet {
-		err = x.obj.ReadFromV2(*obj)
-		if err != nil {
-			return fmt.Errorf("invalid object ID: %w", err)
+	objs := cObj.GetObjects()
+	if objs != nil {
+		x.objs = make([]oid.ID, len(objs))
+
+		for i := range objs {
+			err = x.objs[i].ReadFromV2(objs[i])
+			if err != nil {
+				return fmt.Errorf("invalid target object: %w", err)
+			}
 		}
+	} else {
+		x.objs = nil
 	}
 
 	x.verb = ObjectVerb(cObj.GetVerb())
@@ -85,24 +85,25 @@ func (x Object) writeContext() session.TokenContext {
 	var c session.ObjectSessionContext
 	c.SetVerb(session.ObjectSessionVerb(x.verb))
 
-	if x.cnrSet || x.objSet {
-		var addr refs.Address
+	if x.cnrSet || len(x.objs) > 0 {
+		var cnr *refs.ContainerID
 
 		if x.cnrSet {
-			var cnr refs.ContainerID
-			x.cnr.WriteToV2(&cnr)
-
-			addr.SetContainerID(&cnr)
+			cnr = new(refs.ContainerID)
+			x.cnr.WriteToV2(cnr)
 		}
 
-		if x.objSet {
-			var obj refs.ObjectID
-			x.obj.WriteToV2(&obj)
+		var objs []refs.ObjectID
 
-			addr.SetObjectID(&obj)
+		if x.objs != nil {
+			objs = make([]refs.ObjectID, len(x.objs))
+
+			for i := range x.objs {
+				x.objs[i].WriteToV2(&objs[i])
+			}
 		}
 
-		c.SetAddress(&addr)
+		c.SetTarget(cnr, objs...)
 	}
 
 	return &c
@@ -194,22 +195,33 @@ func (x Object) AssertContainer(cnr cid.ID) bool {
 	return x.cnr.Equals(cnr)
 }
 
-// LimitByObject limits session scope to a given object from the container
+// LimitByObjects limits session scope to the given objects from the container
 // to which Object session is bound.
 //
+// Argument MUST NOT be mutated, make a copy first.
+//
 // See also AssertObject.
-func (x *Object) LimitByObject(obj oid.ID) {
-	x.obj = obj
-	x.objSet = true
+func (x *Object) LimitByObjects(objs ...oid.ID) {
+	x.objs = objs
 }
 
 // AssertObject checks if Object session is applied to a given object.
 //
 // Zero Object is applied to all objects in the container.
 //
-// See also LimitByObject.
+// See also LimitByObjects.
 func (x Object) AssertObject(obj oid.ID) bool {
-	return !x.objSet || x.obj.Equals(obj)
+	if len(x.objs) == 0 {
+		return true
+	}
+
+	for i := range x.objs {
+		if x.objs[i].Equals(obj) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // ObjectVerb enumerates object operations.

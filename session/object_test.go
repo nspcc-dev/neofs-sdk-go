@@ -15,7 +15,6 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
@@ -84,15 +83,17 @@ func TestObjectProtocolV2(t *testing.T) {
 
 	// Context
 	cnr := cidtest.ID()
-	obj := oidtest.ID()
-	var addr oid.Address
-	addr.SetContainer(cnr)
-	addr.SetObject(obj)
-	var addrV2 refs.Address
-	addr.WriteToV2(&addrV2)
+	obj1 := oidtest.ID()
+	obj2 := oidtest.ID()
+	var cnrV2 refs.ContainerID
+	cnr.WriteToV2(&cnrV2)
+	var obj1V2 refs.ObjectID
+	obj1.WriteToV2(&obj1V2)
+	var obj2V2 refs.ObjectID
+	obj2.WriteToV2(&obj2V2)
 	var cObj v2session.ObjectSessionContext
 	restoreCtx := func() {
-		cObj.SetAddress(&addrV2)
+		cObj.SetTarget(&cnrV2, obj1V2, obj2V2)
 		body.SetContext(&cObj)
 	}
 	restoreCtx()
@@ -210,32 +211,29 @@ func TestObjectProtocolV2(t *testing.T) {
 					body.SetContext(nil)
 				},
 				func() {
-					cObj.SetAddress(new(refs.Address))
+					cObj.SetTarget(nil)
 				},
 				func() {
 					var brokenCnr refs.ContainerID
-					brokenCnr.SetValue(append(addrV2.GetContainerID().GetValue(), 1))
-					var addr refs.Address
-					addr.SetContainerID(&brokenCnr)
-					cObj.SetAddress(&addr)
+					brokenCnr.SetValue(append(cnrV2.GetValue(), 1))
+					cObj.SetTarget(&brokenCnr)
 				},
 				func() {
 					var brokenObj refs.ObjectID
-					brokenObj.SetValue(append(addrV2.GetContainerID().GetValue(), 1))
-					var addr refs.Address
-					addr.SetObjectID(&brokenObj)
-					cObj.SetAddress(&addr)
+					brokenObj.SetValue(append(obj1V2.GetValue(), 1))
+					cObj.SetTarget(&cnrV2, brokenObj)
 				},
 			},
 			restore: restoreCtx,
 			assert: func(val session.Object) {
 				require.True(t, val.AssertContainer(cnr))
 				require.False(t, val.AssertContainer(cidtest.ID()))
-				require.True(t, val.AssertObject(obj))
+				require.True(t, val.AssertObject(obj1))
+				require.True(t, val.AssertObject(obj2))
 				require.False(t, val.AssertObject(oidtest.ID()))
 			},
 			breakSign: func(m *v2session.Token) {
-				cnr := m.GetBody().GetContext().(*v2session.ObjectSessionContext).GetAddress().GetContainerID().GetValue()
+				cnr := m.GetBody().GetContext().(*v2session.ObjectSessionContext).GetContainer().GetValue()
 				cnr[len(cnr)-1]++
 			},
 		},
@@ -329,7 +327,8 @@ func TestObject_WriteToV2(t *testing.T) {
 	assert(func(m v2session.Token) {
 		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
 		require.True(t, ok)
-		require.Zero(t, cCnr.GetAddress())
+		require.Zero(t, cCnr.GetContainer())
+		require.Zero(t, cCnr.GetObjects())
 	})
 
 	cnr := cidtest.ID()
@@ -337,19 +336,22 @@ func TestObject_WriteToV2(t *testing.T) {
 	var cnrV2 refs.ContainerID
 	cnr.WriteToV2(&cnrV2)
 
-	obj := oidtest.ID()
+	obj1 := oidtest.ID()
+	obj2 := oidtest.ID()
 
-	var objV2 refs.ObjectID
-	obj.WriteToV2(&objV2)
+	var obj1V2 refs.ObjectID
+	obj1.WriteToV2(&obj1V2)
+	var obj2V2 refs.ObjectID
+	obj2.WriteToV2(&obj2V2)
 
 	val.BindContainer(cnr)
-	val.LimitByObject(obj)
+	val.LimitByObjects(obj1, obj2)
 
 	assert(func(m v2session.Token) {
 		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
 		require.True(t, ok)
-		require.Equal(t, &cnrV2, cCnr.GetAddress().GetContainerID())
-		require.Equal(t, &objV2, cCnr.GetAddress().GetObjectID())
+		require.Equal(t, &cnrV2, cCnr.GetContainer())
+		require.Equal(t, []refs.ObjectID{obj1V2, obj2V2}, cCnr.GetObjects())
 	})
 }
 
@@ -361,7 +363,8 @@ func TestObject_BindContainer(t *testing.T) {
 	assertDefaults := func() {
 		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
 		require.True(t, ok)
-		require.Zero(t, cCnr.GetAddress())
+		require.Zero(t, cCnr.GetContainer())
+		require.Zero(t, cCnr.GetObjects())
 	}
 
 	assertBinary := func(baseAssert func()) {
@@ -401,7 +404,7 @@ func TestObject_BindContainer(t *testing.T) {
 	assertCnr := func() {
 		cObj, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
 		require.True(t, ok)
-		require.Equal(t, &cnrV2, cObj.GetAddress().GetContainerID())
+		require.Equal(t, &cnrV2, cObj.GetContainer())
 	}
 
 	assertCnr()
@@ -421,7 +424,7 @@ func TestObject_AssertContainer(t *testing.T) {
 	require.True(t, x.AssertContainer(cnr))
 }
 
-func TestObject_LimitByObject(t *testing.T) {
+func TestObject_LimitByObjects(t *testing.T) {
 	var val session.Object
 	var m v2session.Token
 	filled := sessiontest.Object()
@@ -429,7 +432,8 @@ func TestObject_LimitByObject(t *testing.T) {
 	assertDefaults := func() {
 		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
 		require.True(t, ok)
-		require.Zero(t, cCnr.GetAddress())
+		require.Zero(t, cCnr.GetContainer())
+		require.Zero(t, cCnr.GetObjects())
 	}
 
 	assertBinary := func(baseAssert func()) {
@@ -457,19 +461,22 @@ func TestObject_LimitByObject(t *testing.T) {
 
 	// set value
 
-	obj := oidtest.ID()
+	obj1 := oidtest.ID()
+	obj2 := oidtest.ID()
 
-	var objV2 refs.ObjectID
-	obj.WriteToV2(&objV2)
+	var obj1V2 refs.ObjectID
+	obj1.WriteToV2(&obj1V2)
+	var obj2V2 refs.ObjectID
+	obj2.WriteToV2(&obj2V2)
 
-	val.LimitByObject(obj)
+	val.LimitByObjects(obj1, obj2)
 
 	val.WriteToV2(&m)
 
 	assertObj := func() {
 		cObj, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
 		require.True(t, ok)
-		require.Equal(t, &objV2, cObj.GetAddress().GetObjectID())
+		require.Equal(t, []refs.ObjectID{obj1V2, obj2V2}, cObj.GetObjects())
 	}
 
 	assertObj()
@@ -480,16 +487,19 @@ func TestObject_LimitByObject(t *testing.T) {
 func TestObject_AssertObject(t *testing.T) {
 	var x session.Object
 
-	obj := oidtest.ID()
+	obj1 := oidtest.ID()
 	obj2 := oidtest.ID()
+	objOther := oidtest.ID()
 
-	require.True(t, x.AssertObject(obj))
+	require.True(t, x.AssertObject(obj1))
 	require.True(t, x.AssertObject(obj2))
+	require.True(t, x.AssertObject(objOther))
 
-	x.LimitByObject(obj)
+	x.LimitByObjects(obj1, obj2)
 
-	require.True(t, x.AssertObject(obj))
-	require.False(t, x.AssertObject(obj2))
+	require.True(t, x.AssertObject(obj1))
+	require.True(t, x.AssertObject(obj2))
+	require.False(t, x.AssertObject(objOther))
 }
 
 func TestObject_InvalidAt(t *testing.T) {
