@@ -9,8 +9,61 @@ import (
 
 // NetMap represents NeoFS network map. It includes information about all
 // storage nodes registered in NeoFS the network.
+//
+// NetMap is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.NetMap
+// message. See ReadFromV2 / WriteToV2 methods.
+//
+// Instances can be created using built-in var declaration.
 type NetMap struct {
+	epoch uint64
+
 	nodes []NodeInfo
+}
+
+// ReadFromV2 reads NetMap from the netmap.NetMap message. Checks if the
+// message conforms to NeoFS API V2 protocol.
+//
+// See also WriteToV2.
+func (m *NetMap) ReadFromV2(msg netmap.NetMap) error {
+	var err error
+	nodes := msg.Nodes()
+
+	if nodes == nil {
+		m.nodes = nil
+	} else {
+		m.nodes = make([]NodeInfo, len(nodes))
+
+		for i := range nodes {
+			err = m.nodes[i].ReadFromV2(nodes[i])
+			if err != nil {
+				return fmt.Errorf("invalid node info: %w", err)
+			}
+		}
+	}
+
+	m.epoch = msg.Epoch()
+
+	return nil
+}
+
+// WriteToV2 writes NetMap to the netmap.NetMap message. The message
+// MUST NOT be nil.
+//
+// See also ReadFromV2.
+func (m NetMap) WriteToV2(msg *netmap.NetMap) {
+	var nodes []netmap.NodeInfo
+
+	if m.nodes != nil {
+		nodes = make([]netmap.NodeInfo, len(m.nodes))
+
+		for i := range m.nodes {
+			m.nodes[i].WriteToV2(&nodes[i])
+		}
+
+		msg.SetNodes(nodes)
+	}
+
+	msg.SetEpoch(m.epoch)
 }
 
 // SetNodes sets information list about all storage nodes from the NeoFS network.
@@ -27,6 +80,20 @@ func (m *NetMap) SetNodes(nodes []NodeInfo) {
 // Return value MUST not be mutated, make a copy first.
 func (m NetMap) Nodes() []NodeInfo {
 	return m.nodes
+}
+
+// SetEpoch specifies revision number of the NetMap.
+//
+// See also Epoch.
+func (m *NetMap) SetEpoch(epoch uint64) {
+	m.epoch = epoch
+}
+
+// Epoch returns epoch set using SetEpoch.
+//
+// Zero NetMap has zero revision.
+func (m NetMap) Epoch() uint64 {
+	return m.epoch
 }
 
 // nodes is a slice of NodeInfo instances needed for HRW sorting.

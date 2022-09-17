@@ -1,6 +1,8 @@
 package netmaptest
 
 import (
+	"math/rand"
+
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
 )
@@ -65,6 +67,17 @@ func NetworkInfo() (x netmap.NetworkInfo) {
 	x.SetIRCandidateFee(7)
 	x.SetMaxObjectSize(8)
 	x.SetWithdrawalFee(9)
+
+	return
+}
+
+// NodeInfo returns random netmap.NodeInfo.
+func NodeInfo() (x netmap.NodeInfo) {
+	key := make([]byte, 33)
+	rand.Read(key)
+
+	x.SetPublicKey(key)
+	x.SetNetworkEndpoints("1", "2", "3")
 
 	return
 }

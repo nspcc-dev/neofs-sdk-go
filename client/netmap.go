@@ -196,3 +196,83 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 
 	return &res, nil
 }
+
+// PrmNetMapSnapshot groups parameters of NetMapSnapshot operation.
+type PrmNetMapSnapshot struct {
+	prmCommonMeta
+}
+
+// ResNetMapSnapshot groups resulting values of NetMapSnapshot operation.
+type ResNetMapSnapshot struct {
+	statusRes
+
+	netMap netmap.NetMap
+}
+
+// NetMap returns current server's local network map.
+func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
+	return x.netMap
+}
+
+// NetMapSnapshot requests current network view of the remote server.
+//
+// Any client's internal or transport errors are returned as `error`.
+// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
+// NeoFS status codes are returned as `error`, otherwise, are included
+// in the returned result structure.
+//
+// Context is required and MUST NOT be nil. It is used for network communication.
+//
+// Exactly one return value is non-nil. Server status return is returned in ResNetMapSnapshot.
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
+//
+// Return statuses:
+//   - global (see Client docs).
+func (c *Client) NetMapSnapshot(ctx context.Context, prm PrmNetMapSnapshot) (*ResNetMapSnapshot, error) {
+	// check context
+	if ctx == nil {
+		panic(panicMsgMissingContext)
+	}
+
+	// form request
+	var req v2netmap.SnapshotRequest
+
+	// init call context
+
+	var (
+		cc  contextCall
+		res ResNetMapSnapshot
+	)
+
+	c.initCallContext(&cc)
+	cc.meta = prm.prmCommonMeta
+	cc.req = &req
+	cc.statusRes = &res
+	cc.call = func() (responseV2, error) {
+		return rpcapi.NetMapSnapshot(&c.c, &req, client.WithContext(ctx))
+	}
+	cc.result = func(r responseV2) {
+		resp := r.(*v2netmap.SnapshotResponse)
+
+		const fieldNetMap = "network map"
+
+		netMapV2 := resp.GetBody().NetMap()
+		if netMapV2 == nil {
+			cc.err = newErrMissingResponseField(fieldNetMap)
+			return
+		}
+
+		cc.err = res.netMap.ReadFromV2(*netMapV2)
+		if cc.err != nil {
+			cc.err = newErrInvalidResponseField(fieldNetMap, cc.err)
+			return
+		}
+	}
+
+	// process call
+	if !cc.processCall() {
+		return nil, cc.err
+	}
+
+	return &res, nil
+}
