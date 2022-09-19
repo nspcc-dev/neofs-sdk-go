@@ -183,9 +183,14 @@ type NodeUnderMaintenance struct {
 
 // Error implements the error interface.
 func (x NodeUnderMaintenance) Error() string {
+	msg := x.Message()
+	if msg == "" {
+		msg = "node is under maintenance"
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
