@@ -58,6 +58,8 @@ func FromStatusV2(st *status.Status) Status {
 			decoder = new(WrongMagicNumber)
 		case status.SignatureVerificationFail:
 			decoder = new(SignatureVerification)
+		case status.NodeUnderMaintenance:
+			decoder = new(NodeUnderMaintenance)
 		}
 	case object.LocalizeFailStatus(&code):
 		switch code {
