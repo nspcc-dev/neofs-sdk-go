@@ -45,6 +45,8 @@ type Client struct {
 	prm PrmInit
 
 	c client.Client
+
+	server neoFSAPIServer
 }
 
 // Init brings the Client instance to its initial state.
@@ -95,10 +97,20 @@ func (c *Client) Dial(prm PrmDial) error {
 		client.WithRWTimeout(prm.streamTimeout),
 	)...)
 
+	c.setNeoFSAPIServer((*coreServer)(&c.c))
+
 	// TODO: (neofs-api-go#382) perform generic dial stage of the client.Client
 	_, _ = rpc.Balance(&c.c, new(v2accounting.BalanceRequest))
 
 	return nil
+}
+
+// sets underlying provider of neoFSAPIServer. The method is used for testing as an approach
+// to skip Dial stage and override NeoFS API server. MUST NOT be used outside test code.
+// In real applications wrapper over github.com/nspcc-dev/neofs-api-go/v2/rpc/client
+// is statically used.
+func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
+	c.server = server
 }
 
 // Close closes underlying connection to the NeoFS server. Implements io.Closer.

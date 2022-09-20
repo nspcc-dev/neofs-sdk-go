@@ -253,9 +253,9 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
 
-	resp, err := rpcapi.NetMapSnapshot(&c.c, &req, client.WithContext(ctx))
+	resp, err := c.server.netMapSnapshot(ctx, req)
 	if err != nil {
-		return nil, fmt.Errorf("rpc failure: %w", err)
+		return nil, err
 	}
 
 	var res ResNetMapSnapshot
