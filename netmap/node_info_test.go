@@ -45,3 +45,17 @@ func TestNodeInfo_Status(t *testing.T) {
 	require.False(t, n.IsOnline())
 	require.False(t, n.IsOffline())
 }
+
+func TestNodeInfo_ExternalAddr(t *testing.T) {
+	var n NodeInfo
+
+	require.Empty(t, n.ExternalAddresses())
+	require.Panics(t, func() { n.SetExternalAddresses() })
+
+	addr := []string{"1", "2", "3"}
+	n.SetExternalAddresses(addr[0])
+	require.Equal(t, addr[:1], n.ExternalAddresses())
+
+	n.SetExternalAddresses(addr[1:]...)
+	require.Equal(t, addr[1:], n.ExternalAddresses())
+}
