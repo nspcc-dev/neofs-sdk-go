@@ -371,7 +371,31 @@ const (
 	// attrCapacity is a key to the node attribute that indicates the
 	// total available disk space in Gigabytes.
 	attrCapacity = "Capacity"
+
+	// attrExternalAddr is a key for the attribute storing node external addresses.
+	attrExternalAddr = "ExternalAddr"
+	// sepExternalAddr is a separator for multi-value ExternalAddr attribute.
+	sepExternalAddr = ","
 )
+
+// SetExternalAddresses sets multi-addresses to use
+// to connect to this node from outside.
+//
+// Panics if addr is an empty list.
+func (x *NodeInfo) SetExternalAddresses(addr ...string) {
+	x.SetAttribute(attrExternalAddr, strings.Join(addr, sepExternalAddr))
+}
+
+// ExternalAddresses returns list of multi-addresses to use
+// to connect to this node from outside.
+func (x NodeInfo) ExternalAddresses() []string {
+	a := x.Attribute(attrExternalAddr)
+	if len(a) == 0 {
+		return nil
+	}
+
+	return strings.Split(a, sepExternalAddr)
+}
 
 // NumberOfAttributes returns number of attributes announced by the node.
 //
