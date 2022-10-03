@@ -1,8 +1,10 @@
 package client
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"crypto/tls"
+	"errors"
 	"time"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
@@ -63,6 +65,10 @@ func (c *Client) Init(prm PrmInit) {
 // Returns an error describing failure reason. If failed, the Client
 // SHOULD NOT be used.
 //
+// Uses the context specified by SetContext if it was called with non-nil
+// argument, otherwise context.Background() is used. Dial returns context
+// errors, see context package docs for details.
+//
 // Panics if required parameters are set incorrectly, look carefully
 // at the method documentation.
 //
@@ -100,7 +106,13 @@ func (c *Client) Dial(prm PrmDial) error {
 	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
 	// TODO: (neofs-api-go#382) perform generic dial stage of the client.Client
-	_, _ = rpc.Balance(&c.c, new(v2accounting.BalanceRequest))
+	_, err := rpc.Balance(&c.c, new(v2accounting.BalanceRequest),
+		client.WithContext(prm.parentCtx),
+	)
+	// return context errors since they signal about dial problem
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
 
 	return nil
 }
@@ -174,6 +186,8 @@ type PrmDial struct {
 
 	streamTimeoutSet bool
 	streamTimeout    time.Duration
+
+	parentCtx context.Context
 }
 
 // SetServerURI sets server URI in the NeoFS network.
@@ -213,4 +227,12 @@ func (x *PrmDial) SetTimeout(timeout time.Duration) {
 func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
 	x.streamTimeoutSet = true
 	x.streamTimeout = timeout
+}
+
+// SetContext allows to specify optional base context within which connection
+// should be established.
+//
+// Context SHOULD NOT be nil.
+func (x *PrmDial) SetContext(ctx context.Context) {
+	x.parentCtx = ctx
 }
