@@ -6,7 +6,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"math"
+	"os"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -73,6 +75,9 @@ func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) {
 // communication over the NeoFS protocol. This is suitable for working with
 // public-write containers or in the absence of a specific key. To explicitly
 // specify the signer, use CreateObjectPrm.SetSigner method.
+//
+// By default, object is created without payload. Use CreateObjectPrm.SetPayload
+// to specify the data source.
 //
 // Client connection MUST be opened in advance, see Dial method for details.
 // Network communication is carried out within a given context, so it MUST NOT
@@ -350,4 +355,258 @@ func RemoveObject(ctx context.Context, endpoint string, prm RemoveObjectPrm) err
 	}
 
 	return RemoveObjectWithClient(ctx, c, prm)
+}
+
+type searchQuery = func(*object.SearchFilters)
+
+func queryFileName(name string) searchQuery {
+	return func(fs *object.SearchFilters) {
+		fs.AddFilter(object.AttributeFileName, name, object.MatchStringEqual)
+	}
+}
+
+func selectObjectsWithClient(ctx context.Context, c *client.Client, cnr cid.ID, query searchQuery, handler func(oid.ID) bool) error {
+	var prm client.PrmObjectSearch
+	prm.InContainer(cnr)
+	prm.UseKey(signerDefault)
+
+	if query != nil {
+		var filters object.SearchFilters
+		query(&filters)
+
+		prm.SetFilters(filters)
+	}
+
+	stream, err := c.ObjectSearchInit(ctx, prm)
+	if err != nil {
+		return fmt.Errorf("search objects via client: %w", err)
+	}
+
+	err = stream.Iterate(func(id oid.ID) bool {
+		if handler != nil {
+			handler(id)
+		}
+
+		return false
+	})
+
+	return err
+}
+
+func selectAllObjectsWithClient(ctx context.Context, c *client.Client, cnr cid.ID, handler func(oid.ID)) error {
+	return selectObjectsWithClient(ctx, c, cnr, nil, func(id oid.ID) bool {
+		if handler != nil {
+			handler(id)
+		}
+
+		return false
+	})
+}
+
+func selectObjects(ctx context.Context, endpoint string, cnr cid.ID, query searchQuery, handler func(oid.ID) bool) error {
+	c, err := createClient(endpoint)
+	if err != nil {
+		return err
+	}
+
+	return selectObjectsWithClient(ctx, c, cnr, query, handler)
+}
+
+func selectAllObjects(ctx context.Context, endpoint string, cnr cid.ID, handler func(id oid.ID)) error {
+	return selectObjects(ctx, endpoint, cnr, nil, func(id oid.ID) bool {
+		if handler != nil {
+			handler(id)
+		}
+
+		return false
+	})
+}
+
+// ListObjectsPrm groups parameters of ListObjects operation.
+type ListObjectsPrm struct {
+	// Target NeoFS container.
+	Container cid.ID
+
+	handler func(oid.ID)
+}
+
+// SetHandler sets optional handler to pass the list elements. Handler
+// SHOULD NOT be nil.
+func (x *ListObjectsPrm) SetHandler(f func(id oid.ID)) {
+	x.handler = f
+}
+
+// ListObjectsWithClient reads set of all container objects from the NeoFS
+// network using the given client.
+//
+// Objects are listed in the container referenced by ListObjectsPrm.Container
+// which MUST be explicitly set.
+//
+// ListObjectsWithClient does not return error if no objects are found in the
+// container. By default, ListObjectsWithClient discards all found objects.
+// This can be useful to check container searching operability. To process
+// listed objects, use ListObjectsPrm.SetHandler method.
+//
+// Container SHOULD be public-read. ListObjectsWithClient uses random private
+// key for communication over the NeoFS protocol. This is also suitable in the
+// absence of a specific key.
+//
+// Client connection MUST be opened in advance, see Dial method for details.
+// Network communication is carried out within a given context, so it MUST NOT
+// be nil.
+//
+// See also ListObjects.
+func ListObjectsWithClient(ctx context.Context, c *client.Client, prm ListObjectsPrm) error {
+	return selectAllObjectsWithClient(ctx, c, prm.Container, prm.handler)
+}
+
+// ListObjects reads set of all container objects from the NeoFS network
+// through the given endpoint.
+//
+// RemoveObject is well suited for one-time data removal. To delete multiple
+// objects using the same endpoint, use ListObjectsWithClient. ListObjects
+// inherits behavior of ListObjectsWithClient.
+func ListObjects(ctx context.Context, endpoint string, prm ListObjectsPrm) error {
+	return selectAllObjects(ctx, endpoint, prm.Container, prm.handler)
+}
+
+// UploadFilePrm groups parameters of UploadFile operation.
+type UploadFilePrm struct {
+	// Target NeoFS container.
+	Container cid.ID
+
+	// Associated file name.
+	Name string
+
+	createPrm CreateObjectPrm
+}
+
+// SetFileData specifies optional file data source. Reader SHOULD NOT be nil.
+func (x *UploadFilePrm) SetFileData(r io.Reader) {
+	x.createPrm.SetPayload(r)
+}
+
+// UploadFile uploads file into the NeoFS network through the given endpoint.
+//
+// New object is created in the container referenced by UploadFilePrm.Container
+// which MUST be explicitly set. Container MUST be public-write. The new object
+// is associated with the file by file name which MUST NOT be empty.
+//
+// By default, objects corresponds to empty file. Use UploadFilePrm.SetFileData
+// to specify the file data source.
+//
+// See also DownloadFile.
+func UploadFile(ctx context.Context, endpoint string, prm UploadFilePrm) error {
+	if prm.Name == "" {
+		panic("empty file name")
+	}
+
+	prm.createPrm.Container = prm.Container
+	prm.createPrm.AddAttribute(object.AttributeFileName, prm.Name)
+
+	return CreateObject(ctx, endpoint, prm.createPrm)
+}
+
+// UploadOpenedFile is a helping wrapper over UploadFile which processes os.File.
+// File MUST be correctly opened.
+func UploadOpenedFile(ctx context.Context, endpoint string, cnr cid.ID, f *os.File) error {
+	prm := UploadFilePrm{
+		Container: cnr,
+		Name:      f.Name(),
+	}
+
+	prm.SetFileData(f)
+
+	return UploadFile(ctx, endpoint, prm)
+}
+
+// UploadFileByPath is a helping wrapper over UploadOpenedFile which preliminary
+// opens a file.
+func UploadFileByPath(ctx context.Context, endpoint string, cnr cid.ID, fPath string) error {
+	f, err := os.Open(fPath)
+	if err != nil {
+		return fmt.Errorf("open file: %w", err)
+	}
+
+	return UploadOpenedFile(ctx, endpoint, cnr, f)
+}
+
+// DownloadFilePrm groups parameters of DownloadFile operation.
+type DownloadFilePrm struct {
+	// Target NeoFS container.
+	Container cid.ID
+
+	// Associated file name.
+	Name string
+
+	readPrm ReadObjectPrm
+}
+
+// WriteFileTo specifies optional destination of the file data. Writer SHOULD
+// NOT be nil.
+func (x *DownloadFilePrm) WriteFileTo(w io.Writer) {
+	x.readPrm.WritePayloadTo(w)
+}
+
+// DownloadFile downloads file from the NeoFS network through the given endpoint.
+//
+// The associated object is read from the container referenced by
+// DownloadFilePrm.Container which MUST be explicitly set. Container MUST be
+// public-read. The exact objects is selected by associated file name specified
+// in DownloadFilePrm.Name which MUST NOT be empty. If there is no object
+// associated with the file name, fs.ErrNotExist returns. If there are multiple
+// objects associated with the file name, DownloadFile fails.
+//
+// By default, DownloadFile discards file data. Use DownloadFilePrm.WriteFileTo
+// to specify the file data destination.
+//
+// See also UploadFile.
+func DownloadFile(ctx context.Context, endpoint string, prm DownloadFilePrm) error {
+	if prm.Name == "" {
+		panic("empty file name")
+	}
+
+	count := 0
+
+	err := selectObjects(ctx, endpoint, prm.Container, queryFileName(prm.Name), func(id oid.ID) bool {
+		prm.readPrm.Object = id
+		count++
+		return count > 1
+	})
+	if err != nil {
+		return fmt.Errorf("select object by file name: %w", err)
+	} else if count == 0 {
+		return fs.ErrNotExist
+	} else if count > 1 {
+		return errors.New("multiple match")
+	}
+
+	prm.readPrm.Container = prm.Container
+
+	return ReadObject(ctx, endpoint, prm.readPrm)
+}
+
+// RestoreFile is a helping wrapper over DownloadFile which processes os.File.
+// File MUST be correctly opened.
+func RestoreFile(ctx context.Context, endpoint string, cnr cid.ID, f *os.File) error {
+	prm := DownloadFilePrm{
+		Container: cnr,
+		Name:      f.Name(),
+	}
+
+	prm.WriteFileTo(f)
+
+	return DownloadFile(ctx, endpoint, prm)
+}
+
+// RestoreFileByPath is a helping wrapper over RestoreFile which preliminary
+// creates or truncates the file. RestoreFileByPath does not remove the created
+// files if download fails.
+func RestoreFileByPath(ctx context.Context, endpoint string, cnr cid.ID, fPath string) error {
+	f, err := os.Create(fPath)
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+
+	return RestoreFile(ctx, endpoint, cnr, f)
 }
