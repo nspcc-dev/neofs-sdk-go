@@ -9,16 +9,18 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/client/clientutil"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
-const strContainer = "pQgKYhdNkHAo6GU9a8q1w5La1h5oeYE4j1RpmXkwHcL"
-
-const strObject = "E8XwYs71F4uRjcYbRxi75KpQYJ2xdy5uL3yoiKsmeqKs"
-
-const endpoint = "s01.neofs.devenv:8080"
+const (
+	strContainer = "NZddit4fqr2vnWNzPxeJX6L2KusCVFTARZuwA63aHqE"
+	strObject    = "E8XwYs71F4uRjcYbRxi75KpQYJ2xdy5uL3yoiKsmeqKs"
+	endpoint     = "s01.neofs.devenv:8080"
+	filePath     = "./test_file"
+)
 
 // nolint: unused
 var ctx = context.TODO()
@@ -84,4 +86,51 @@ func TestRemoveObject(t *testing.T) {
 	require.NoError(t, err)
 
 	log.Println("Object successfully removed.")
+}
+
+func TestListObjects(t *testing.T) {
+	t.Skip("can be run with the correct endpoint only")
+
+	var err error
+	var prm clientutil.ListObjectsPrm
+
+	err = prm.Container.DecodeString(strContainer)
+	require.NoError(t, err)
+
+	prm.SetHandler(func(id oid.ID) {
+		log.Println("found object:", id)
+	})
+
+	err = clientutil.ListObjects(ctx, endpoint, prm)
+	require.NoError(t, err)
+}
+
+func TestUploadFile(t *testing.T) {
+	t.Skip("can be run with the correct endpoint and file only")
+
+	var err error
+	var cnr cid.ID
+
+	err = cnr.DecodeString(strContainer)
+	require.NoError(t, err)
+
+	err = clientutil.UploadFileByPath(ctx, endpoint, cnr, filePath)
+	require.NoError(t, err)
+
+	log.Println("File successfully uploaded.")
+}
+
+func TestRestoreFile(t *testing.T) {
+	t.Skip("can be run with the correct endpoint and file only")
+
+	var err error
+	var cnr cid.ID
+
+	err = cnr.DecodeString(strContainer)
+	require.NoError(t, err)
+
+	err = clientutil.RestoreFileByPath(ctx, endpoint, cnr, filePath)
+	require.NoError(t, err)
+
+	log.Println("File successfully restored.")
 }
