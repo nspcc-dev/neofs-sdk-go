@@ -3,9 +3,6 @@ package clientutil_test
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"crypto/rand"
 	"log"
 	"strconv"
 	"testing"
@@ -20,18 +17,13 @@ import (
 func TestCreateObject(t *testing.T) {
 	t.Skip("can be run with the correct endpoint only")
 
-	const strContainer = "9JbqitaFuaJfq7Gsy9XnwWkhg6JRDSe46FCrKUbcQHCf"
+	const strContainer = "g9FJunti7KAR5Fi8p2Gnxvu3wDueqmUYp54Sj49vEGN"
 	const endpoint = "s01.neofs.devenv:8080"
 	var err error
 	ctx := context.Background()
 	payload := []byte("Hello, world!\n")
 
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
-	require.NoError(t, err)
-
-	prm := clientutil.CreateObjectPrm{
-		Signer: *key,
-	}
+	var prm clientutil.CreateObjectPrm
 
 	err = prm.Container.DecodeString(strContainer)
 	require.NoError(t, err)
