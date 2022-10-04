@@ -68,6 +68,7 @@ func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) {
 // The object is stored in the container referenced by CreateObjectPrm.Container
 // which MUST be explicitly set.
 //
+// Container SHOULD be public-write or sender SHOULD have corresponding rights.
 // CreateObjectWithClient uses random private key for object creation and
 // communication over the NeoFS protocol. This is suitable for working with
 // public-write containers or in the absence of a specific key. To explicitly
@@ -202,19 +203,151 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 // objects using the same endpoint, use CreateObjectWithClient. CreateObject
 // inherits behavior of CreateObjectWithClient.
 func CreateObject(ctx context.Context, endpoint string, prm CreateObjectPrm) error {
-	var prmInit client.PrmInit
-	prmInit.ResolveNeoFSFailures()
-
-	var c client.Client
-	c.Init(prmInit)
-
-	var prmDial client.PrmDial
-	prmDial.SetServerURI(endpoint)
-
-	err := c.Dial(prmDial)
+	c, err := createClient(endpoint)
 	if err != nil {
-		return fmt.Errorf("endpoint dial: %w", err)
+		return err
 	}
 
-	return CreateObjectWithClient(ctx, &c, prm)
+	return CreateObjectWithClient(ctx, c, prm)
+}
+
+// ReadObjectPrm groups parameters of ReadObject operation.
+type ReadObjectPrm struct {
+	// Target NeoFS container.
+	Container cid.ID
+
+	// Object's reference to read from the Container.
+	Object oid.ID
+
+	payloadWriter io.Writer
+}
+
+// WritePayloadTo sets optional io.Writer to write payload of the request
+// object to.
+func (x *ReadObjectPrm) WritePayloadTo(w io.Writer) {
+	x.payloadWriter = w
+}
+
+// ReadObjectWithClient reads object from the NeoFS network using the given
+// client.
+//
+// The object is read from the container referenced by ReadObjectPrm.Container
+// which MUST be explicitly set. Exact object is referenced by
+// ReadObjectPrm.Object which MUST be explicitly set.
+//
+// Container SHOULD be public-read. ReadObjectWithClient uses random private key
+// for communication over the NeoFS protocol. This is also suitable in the absence
+// of a specific key.
+//
+// By default, ReadObjectWithClient reads but discards the object data. It can
+// be used to check object availability. To explicitly specify payload target,
+// use ReadObjectPrm.WritePayloadTo method.
+//
+// Client connection MUST be opened in advance, see Dial method for details.
+// Network communication is carried out within a given context, so it MUST NOT
+// be nil.
+//
+// See also ReadObject.
+func ReadObjectWithClient(ctx context.Context, c *client.Client, prm ReadObjectPrm) error {
+	// initialize object stream
+	var prmGet client.PrmObjectGet
+	prmGet.FromContainer(prm.Container)
+	prmGet.ByID(prm.Object)
+	prmGet.UseKey(signerDefault)
+
+	streamObj, err := c.ObjectGetInit(ctx, prmGet)
+	if err != nil {
+		return fmt.Errorf("init object writing on client: %w", err)
+	}
+
+	// read and discard header
+	if streamObj.ReadHeader(new(object.Object)) {
+		if prm.payloadWriter == nil {
+			// discard payload by default
+			prm.payloadWriter = io.Discard
+		}
+
+		// copy payload to the destination
+		_, err = io.Copy(prm.payloadWriter, streamObj)
+		if err != nil {
+			return err
+		}
+	}
+
+	_, err = streamObj.Close()
+	if err != nil {
+		return fmt.Errorf("read object: %w", err)
+	}
+
+	return nil
+}
+
+// ReadObject reads object from the NeoFS network through the given endpoint.
+//
+// ReadObject is well suited for one-time data reading. To read multiple
+// objects using the same endpoint, use ReadObjectWithClient. ReadObject
+// inherits behavior of ReadObjectWithClient.
+func ReadObject(ctx context.Context, endpoint string, prm ReadObjectPrm) error {
+	c, err := createClient(endpoint)
+	if err != nil {
+		return err
+	}
+
+	return ReadObjectWithClient(ctx, c, prm)
+}
+
+// RemoveObjectPrm groups parameters of RemoveObject operation.
+type RemoveObjectPrm struct {
+	// Target NeoFS container.
+	Container cid.ID
+
+	// Reference to the object to be removed from the Container.
+	Object oid.ID
+}
+
+// RemoveObjectWithClient removes object from the NeoFS network using the given
+// client. Successful RemoveObjectWithClient does not guarantee synchronous
+// physical removal: object becomes unavailable, but can be purged later.
+//
+// The object is removed from the container referenced by RemoveObjectPrm.Container
+// which MUST be explicitly set. Exact object is referenced by RemoveObjectPrm.Object
+// which MUST be explicitly set.
+//
+// Container SHOULD be public-write. RemoveObjectWithClient uses random private
+// key for removal witness and communication over the NeoFS protocol. This is
+// also suitable in the absence of a specific key.
+//
+// Client connection MUST be opened in advance, see Dial method for details.
+// Network communication is carried out within a given context, so it MUST NOT
+// be nil.
+//
+// See also RemoveObject.
+func RemoveObjectWithClient(ctx context.Context, c *client.Client, prm RemoveObjectPrm) error {
+	var prmDel client.PrmObjectDelete
+	prmDel.FromContainer(prm.Container)
+	prmDel.ByID(prm.Object)
+	prmDel.UseKey(signerDefault)
+
+	_, err := c.ObjectDelete(ctx, prmDel)
+	if err != nil {
+		return fmt.Errorf("remove object via client: %w", err)
+	}
+
+	return nil
+}
+
+// RemoveObject removes object from the NeoFS network through the given endpoint.
+// Successful RemoveObject does not guarantee synchronous physical removal:
+// object becomes unavailable, but can be purged later.
+//
+// RemoveObject is well suited for one-time data removal. To delete multiple
+// objects using the same endpoint, use RemoveObjectWithClient. RemoveObject
+// inherits behavior of RemoveObjectWithClient.
+func RemoveObject(ctx context.Context, endpoint string, prm RemoveObjectPrm) error {
+	c, err := createClient(endpoint)
+	if err != nil {
+		return err
+	}
+
+	return RemoveObjectWithClient(ctx, c, prm)
 }
