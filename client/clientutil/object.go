@@ -23,14 +23,21 @@ type CreateObjectPrm struct {
 	// Target NeoFS container.
 	Container cid.ID
 
-	// Creator's private key.
-	Signer ecdsa.PrivateKey
+	signerSet bool
+	signer    ecdsa.PrivateKey
 
 	payload io.Reader
 
 	attributes [][2]string
 
 	idHandler func(oid.ID)
+}
+
+// SetSigner specifies optional signing component. Signer MUST be correctly
+// initialized.
+func (x *CreateObjectPrm) SetSigner(signer ecdsa.PrivateKey) {
+	x.signer = signer
+	x.signerSet = true
 }
 
 // AddAttribute adds optional key-value attribute to be assigned to an object.
@@ -58,11 +65,15 @@ func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) {
 // CreateObjectWithClient creates new NeoFS object and stores it into the
 // NeoFS network using the given client.
 //
-// The object is stored in the parameterized container (required). Signer parameter
-// is used for object creation and communication over the NeoFS protocol (required).
-// There are some optional parameters, see CreateObjectPrm methods for details.
+// The object is stored in the container referenced by CreateObjectPrm.Container
+// which MUST be explicitly set.
 //
-// Client connection MUST BE opened in advance, see Dial method for details.
+// CreateObjectWithClient uses random private key for object creation and
+// communication over the NeoFS protocol. This is suitable for working with
+// public-write containers or in the absence of a specific key. To explicitly
+// specify the signer, use CreateObjectPrm.SetSigner method.
+//
+// Client connection MUST be opened in advance, see Dial method for details.
 // Network communication is carried out within a given context, so it MUST NOT
 // be nil.
 //
@@ -70,10 +81,18 @@ func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) {
 func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObjectPrm) error {
 	const expirationSession = math.MaxUint64
 
+	var signer ecdsa.PrivateKey
+	if prm.signerSet {
+		signer = prm.signer
+	} else {
+		signer = signerDefault
+	}
+
 	// send request to open the session for object writing
 	// FIXME: #342 avoid session opening and create object "statically"
 	var prmSession client.PrmSessionCreate
 	prmSession.SetExp(expirationSession)
+	prmSession.UseKey(signer)
 
 	resSession, err := c.SessionCreate(ctx, prmSession)
 	if err != nil {
@@ -105,7 +124,7 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 	tokenSession.SetAuthKey(&keySession)
 
 	// sign the session token
-	err = tokenSession.Sign(prm.Signer)
+	err = tokenSession.Sign(signer)
 	if err != nil {
 		return fmt.Errorf("sign session token: %w", err)
 	}
@@ -113,6 +132,7 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 	// initialize object stream
 	var prmPutInit client.PrmObjectPutInit
 	prmPutInit.WithinSession(tokenSession)
+	prmPutInit.UseKey(signer)
 
 	streamObj, err := c.ObjectPutInit(ctx, prmPutInit)
 	if err != nil {
@@ -120,7 +140,7 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 	}
 
 	var idCreator user.ID
-	user.IDFromKey(&idCreator, prm.Signer.PublicKey)
+	user.IDFromKey(&idCreator, signer.PublicKey)
 
 	// form the minimum required object structure
 	var obj object.Object
@@ -179,10 +199,10 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 // through the given endpoint.
 //
 // CreateObject is well suited for one-time data storage. To create multiple
-// objects using the same endpoint, use CreateObjectWithClient.
+// objects using the same endpoint, use CreateObjectWithClient. CreateObject
+// inherits behavior of CreateObjectWithClient.
 func CreateObject(ctx context.Context, endpoint string, prm CreateObjectPrm) error {
 	var prmInit client.PrmInit
-	prmInit.SetDefaultPrivateKey(prm.Signer)
 	prmInit.ResolveNeoFSFailures()
 
 	var c client.Client
