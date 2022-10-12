@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 )
 
@@ -176,6 +177,11 @@ func (x *NodeInfo) SetPublicKey(key []byte) {
 // Return value MUST not be mutated, make a copy first.
 func (x NodeInfo) PublicKey() []byte {
 	return x.m.GetPublicKey()
+}
+
+// StringifyPublicKey returns HEX representation of PublicKey.
+func StringifyPublicKey(node NodeInfo) string {
+	return neofscrypto.StringifyKeyBinary(node.PublicKey())
 }
 
 // SetNetworkEndpoints sets list to the announced node's network endpoints.
