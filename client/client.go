@@ -105,6 +105,10 @@ func (c *Client) Dial(prm PrmDial) error {
 
 	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
+	if prm.parentCtx == nil {
+		prm.parentCtx = context.Background()
+	}
+
 	// TODO: (neofs-api-go#382) perform generic dial stage of the client.Client
 	_, err := rpc.Balance(&c.c, new(v2accounting.BalanceRequest),
 		client.WithContext(prm.parentCtx),
