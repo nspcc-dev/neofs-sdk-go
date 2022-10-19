@@ -2,7 +2,6 @@ package netmap
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"testing"
@@ -48,7 +47,7 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 	require.NoError(t, err)
 
 	for i := range ds {
-		bs, err := ioutil.ReadFile(filepath.Join(testsDir, ds[i].Name()))
+		bs, err := os.ReadFile(filepath.Join(testsDir, ds[i].Name()))
 		require.NoError(t, err)
 
 		var tc TestCase
@@ -96,7 +95,7 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 	require.NoError(b, err)
 
 	for i := range ds {
-		bs, err := ioutil.ReadFile(filepath.Join(testsDir, ds[i].Name()))
+		bs, err := os.ReadFile(filepath.Join(testsDir, ds[i].Name()))
 		require.NoError(b, err)
 
 		var tc TestCase
@@ -140,7 +139,7 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 
 func BenchmarkManySelects(b *testing.B) {
 	testsFile := filepath.Join("json_tests", "many_selects.json")
-	bs, err := ioutil.ReadFile(testsFile)
+	bs, err := os.ReadFile(testsFile)
 	require.NoError(b, err)
 
 	var tc TestCase
