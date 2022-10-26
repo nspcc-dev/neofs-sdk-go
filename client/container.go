@@ -276,7 +276,6 @@ type PrmContainerList struct {
 }
 
 // SetAccount sets identifier of the NeoFS account to list the containers.
-// Required parameter.
 func (x *PrmContainerList) SetAccount(id user.ID) {
 	x.ownerID = id
 	x.ownerSet = true
@@ -311,19 +310,17 @@ func (x ResContainerList) Containers() []cid.ID {
 //   - global (see Client docs).
 func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
-	switch {
-	case ctx == nil:
+	if ctx == nil {
 		panic(panicMsgMissingContext)
-	case !prm.ownerSet:
-		panic("account not set")
 	}
 
 	// form request body
-	var ownerV2 refs.OwnerID
-	prm.ownerID.WriteToV2(&ownerV2)
-
 	reqBody := new(v2container.ListRequestBody)
-	reqBody.SetOwnerID(&ownerV2)
+	if prm.ownerSet {
+		var ownerV2 refs.OwnerID
+		prm.ownerID.WriteToV2(&ownerV2)
+		reqBody.SetOwnerID(&ownerV2)
+	}
 
 	// form request
 	var req v2container.ListRequest
