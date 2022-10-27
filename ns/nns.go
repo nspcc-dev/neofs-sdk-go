@@ -14,6 +14,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	"github.com/nspcc-dev/neofs-contract/nns"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
 
@@ -76,16 +77,16 @@ func (n *NNS) Dial(address string) error {
 	return nil
 }
 
-// ResolveContainerName looks up for NNS TXT records for the given container name
+// ResolveContainerDomain looks up for NNS TXT records for the given container domain
 // by calling `resolve` method of NNS contract. Returns the first record which represents
 // valid container ID in a string format. Otherwise, returns an error.
 //
-// ResolveContainerName MUST NOT be called before successful Dial.
+// ResolveContainerDomain MUST NOT be called before successful Dial.
 //
 // See also https://docs.neo.org/docs/en-us/reference/nns.html.
-func (n *NNS) ResolveContainerName(name string) (cid.ID, error) {
+func (n *NNS) ResolveContainerDomain(domain container.Domain) (cid.ID, error) {
 	item, err := unwrap.Item(n.invoker.Call(n.nnsContract, "resolve",
-		name+".container", int64(nns.TXT),
+		domain.Name()+"."+domain.Zone(), int64(nns.TXT),
 	))
 	if err != nil {
 		return cid.ID{}, fmt.Errorf("contract invocation: %w", err)

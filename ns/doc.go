@@ -17,7 +17,10 @@ NNS type is designed to resolve NeoFS-related names using Neo Name Service:
 	err := nns.Dial(nnsServerAddress)
 	// ...
 
-	containerID, err := nns.ResolveContainerName(containerName)
+	var containerDomain container.Domain
+	containerDomain.SetName(containerName)
+
+	containerID, err := nns.ResolveContainerDomain(containerDomain)
 	// ...
 */
 package ns
