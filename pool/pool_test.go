@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/ecdsa"
 	"errors"
-	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -22,15 +21,17 @@ import (
 )
 
 func TestBuildPoolClientFailed(t *testing.T) {
-	clientBuilder := func(string) (client, error) {
-		return nil, fmt.Errorf("error")
+	mockClientBuilder := func(addr string) client {
+		mockCli := newMockClient(addr, *newPrivateKey(t))
+		mockCli.errOnDial()
+		return mockCli
 	}
 
 	opts := InitParameters{
 		key:        newPrivateKey(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -39,17 +40,17 @@ func TestBuildPoolClientFailed(t *testing.T) {
 }
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
-	clientBuilder := func(addr string) (client, error) {
+	clientMockBuilder := func(addr string) client {
 		mockCli := newMockClient(addr, *newPrivateKey(t))
 		mockCli.errOnCreateSession()
-		return mockCli, nil
+		return mockCli
 	}
 
 	opts := InitParameters{
 		key:        newPrivateKey(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(clientMockBuilder)
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -70,17 +71,17 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	}
 
 	var clientKeys []*ecdsa.PrivateKey
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
 			mockCli := newMockClient(addr, *key)
 			mockCli.errOnEndpointInfo()
-			return mockCli, nil
+			return mockCli
 		}
 
-		return newMockClient(addr, *key), nil
+		return newMockClient(addr, *key)
 	}
 
 	log, err := zap.NewProduction()
@@ -91,7 +92,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 		logger:                  log,
 		nodeParams:              nodes,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	clientPool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -122,15 +123,15 @@ func TestBuildPoolZeroNodes(t *testing.T) {
 
 func TestOneNode(t *testing.T) {
 	key1 := newPrivateKey(t)
-	clientBuilder := func(addr string) (client, error) {
-		return newMockClient(addr, *key1), nil
+	mockClientBuilder := func(addr string) client {
+		return newMockClient(addr, *key1)
 	}
 
 	opts := InitParameters{
 		key:        newPrivateKey(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -147,10 +148,10 @@ func TestOneNode(t *testing.T) {
 
 func TestTwoNodes(t *testing.T) {
 	var clientKeys []*ecdsa.PrivateKey
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
 		clientKeys = append(clientKeys, key)
-		return newMockClient(addr, *key), nil
+		return newMockClient(addr, *key)
 	}
 
 	opts := InitParameters{
@@ -160,7 +161,7 @@ func TestTwoNodes(t *testing.T) {
 			{1, "peer1", 1},
 		},
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -191,18 +192,18 @@ func TestOneOfTwoFailed(t *testing.T) {
 	}
 
 	var clientKeys []*ecdsa.PrivateKey
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
-			return newMockClient(addr, *key), nil
+			return newMockClient(addr, *key)
 		}
 
 		mockCli := newMockClient(addr, *key)
 		mockCli.errOnEndpointInfo()
 		mockCli.errOnNetworkInfo()
-		return mockCli, nil
+		return mockCli
 	}
 
 	opts := InitParameters{
@@ -210,7 +211,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 		nodeParams:              nodes,
 		clientRebalanceInterval: 200 * time.Millisecond,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -232,12 +233,12 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 func TestTwoFailed(t *testing.T) {
 	var clientKeys []*ecdsa.PrivateKey
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
 		clientKeys = append(clientKeys, key)
 		mockCli := newMockClient(addr, *key)
 		mockCli.errOnEndpointInfo()
-		return mockCli, nil
+		return mockCli
 	}
 
 	opts := InitParameters{
@@ -248,7 +249,7 @@ func TestTwoFailed(t *testing.T) {
 		},
 		clientRebalanceInterval: 200 * time.Millisecond,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -268,10 +269,10 @@ func TestSessionCache(t *testing.T) {
 	key := newPrivateKey(t)
 	expectedAuthKey := neofsecdsa.PublicKey(key.PublicKey)
 
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		mockCli := newMockClient(addr, *key)
 		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
-		return mockCli, nil
+		return mockCli
 	}
 
 	opts := InitParameters{
@@ -281,7 +282,7 @@ func TestSessionCache(t *testing.T) {
 		},
 		clientRebalanceInterval: 30 * time.Second,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -331,17 +332,17 @@ func TestPriority(t *testing.T) {
 	}
 
 	var clientKeys []*ecdsa.PrivateKey
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
 			mockCli := newMockClient(addr, *key)
 			mockCli.errOnEndpointInfo()
-			return mockCli, nil
+			return mockCli
 		}
 
-		return newMockClient(addr, *key), nil
+		return newMockClient(addr, *key)
 	}
 
 	opts := InitParameters{
@@ -349,7 +350,7 @@ func TestPriority(t *testing.T) {
 		nodeParams:              nodes,
 		clientRebalanceInterval: 1500 * time.Millisecond,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -385,8 +386,8 @@ func TestSessionCacheWithKey(t *testing.T) {
 	key := newPrivateKey(t)
 	expectedAuthKey := neofsecdsa.PublicKey(key.PublicKey)
 
-	clientBuilder := func(addr string) (client, error) {
-		return newMockClient(addr, *key), nil
+	mockClientBuilder := func(addr string) client {
+		return newMockClient(addr, *key)
 	}
 
 	opts := InitParameters{
@@ -396,7 +397,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 		},
 		clientRebalanceInterval: 30 * time.Second,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -424,9 +425,9 @@ func TestSessionCacheWithKey(t *testing.T) {
 }
 
 func TestSessionTokenOwner(t *testing.T) {
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
-		return newMockClient(addr, *key), nil
+		return newMockClient(addr, *key)
 	}
 
 	opts := InitParameters{
@@ -435,7 +436,7 @@ func TestSessionTokenOwner(t *testing.T) {
 			{1, "peer0", 1},
 		},
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -620,7 +621,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	errorThreshold := 5
 
 	var clientKeys []*ecdsa.PrivateKey
-	clientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) client {
 		key := newPrivateKey(t)
 		clientKeys = append(clientKeys, key)
 
@@ -628,10 +629,10 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 			mockCli := newMockClient(addr, *key)
 			mockCli.setThreshold(uint32(errorThreshold))
 			mockCli.statusOnGetObject(apistatus.ServerInternal{})
-			return mockCli, nil
+			return mockCli
 		}
 
-		return newMockClient(addr, *key), nil
+		return newMockClient(addr, *key)
 	}
 
 	opts := InitParameters{
@@ -639,7 +640,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 		nodeParams:              nodes,
 		clientRebalanceInterval: 30 * time.Second,
 	}
-	opts.setClientBuilder(clientBuilder)
+	opts.setClientBuilder(mockClientBuilder)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
