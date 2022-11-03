@@ -23,6 +23,7 @@ type mockClient struct {
 	key ecdsa.PrivateKey
 	clientStatusMonitor
 
+	errorOnDial          bool
 	errorOnCreateSession bool
 	errorOnEndpointInfo  bool
 	errorOnNetworkInfo   bool
@@ -50,6 +51,13 @@ func (m *mockClient) errOnEndpointInfo() {
 
 func (m *mockClient) errOnNetworkInfo() {
 	m.errorOnEndpointInfo = true
+}
+
+func (m *mockClient) errOnDial() {
+	m.errorOnDial = true
+	m.errOnCreateSession()
+	m.errOnEndpointInfo()
+	m.errOnNetworkInfo()
 }
 
 func (m *mockClient) statusOnGetObject(st apistatus.Status) {
@@ -159,4 +167,23 @@ func (m *mockClient) sessionCreate(context.Context, prmCreateSession) (resCreate
 		id:         v2tok.GetBody().GetID(),
 		sessionKey: v2tok.GetBody().GetSessionKey(),
 	}, nil
+}
+
+func (m *mockClient) dial(context.Context) error {
+	if m.errorOnDial {
+		return errors.New("dial error")
+	}
+	return nil
+}
+
+func (m *mockClient) restartIfUnhealthy(ctx context.Context) (healthy bool, changed bool) {
+	_, err := m.endpointInfo(ctx, prmEndpointInfo{})
+	healthy = err == nil
+	changed = healthy != m.isHealthy()
+	if healthy {
+		m.setHealthy()
+	} else {
+		m.setUnhealthy()
+	}
+	return
 }

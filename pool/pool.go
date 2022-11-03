@@ -70,15 +70,19 @@ type client interface {
 	sessionCreate(context.Context, prmCreateSession) (resCreateSession, error)
 
 	clientStatus
+
+	// see clientWrapper.dial.
+	dial(ctx context.Context) error
+	// see clientWrapper.restartIfUnhealthy.
+	restartIfUnhealthy(ctx context.Context) (bool, bool)
 }
 
 // clientStatus provide access to some metrics for connection.
 type clientStatus interface {
 	// isHealthy checks if the connection can handle requests.
 	isHealthy() bool
-	// setHealthy allows set healthy status for connection.
-	// It's used to update status during Pool.startRebalance routing.
-	setHealthy(bool) bool
+	// setUnhealthy marks client as unhealthy.
+	setUnhealthy()
 	// address return address of endpoint.
 	address() string
 	// currentErrorRate returns current errors rate.
@@ -90,6 +94,9 @@ type clientStatus interface {
 	// methodsStatus returns statistic for all used methods.
 	methodsStatus() []statusSnapshot
 }
+
+// ErrPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
+var ErrPoolClientUnhealthy = errors.New("pool client unhealthy")
 
 // clientStatusMonitor count error rate and other statistics for connection.
 type clientStatusMonitor struct {
@@ -207,8 +214,10 @@ func (m *methodStatus) incRequests(elapsed time.Duration) {
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
 type clientWrapper struct {
-	client sdkClient.Client
-	key    ecdsa.PrivateKey
+	clientMutex sync.RWMutex
+	client      *sdkClient.Client
+	prm         wrapperPrm
+
 	clientStatusMonitor
 }
 
@@ -219,7 +228,6 @@ type wrapperPrm struct {
 	timeout              time.Duration
 	errorThreshold       uint32
 	responseInfoCallback func(sdkClient.ResponseMetaInfo) error
-	dialCtx              context.Context
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -248,44 +256,107 @@ func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) 
 	x.responseInfoCallback = f
 }
 
-// setDialContext specifies context for client dial.
-func (x *wrapperPrm) setDialContext(ctx context.Context) {
-	x.dialCtx = ctx
-}
-
 // newWrapper creates a clientWrapper that implements the client interface.
-func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
+func newWrapper(prm wrapperPrm) *clientWrapper {
+	var cl sdkClient.Client
 	var prmInit sdkClient.PrmInit
 	prmInit.SetDefaultPrivateKey(prm.key)
 	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
 
+	cl.Init(prmInit)
+
 	res := &clientWrapper{
-		key:                 prm.key,
+		client:              &cl,
 		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
+		prm:                 prm,
 	}
 
-	res.client.Init(prmInit)
+	return res
+}
+
+// dial establishes a connection to the server from the NeoFS network.
+// Returns an error describing failure reason. If failed, the client
+// SHOULD NOT be used.
+func (c *clientWrapper) dial(ctx context.Context) error {
+	cl, err := c.getClient()
+	if err != nil {
+		return err
+	}
 
 	var prmDial sdkClient.PrmDial
-	prmDial.SetServerURI(prm.address)
-	prmDial.SetTimeout(prm.timeout)
-	prmDial.SetContext(prm.dialCtx)
+	prmDial.SetServerURI(c.prm.address)
+	prmDial.SetTimeout(c.prm.timeout)
+	prmDial.SetContext(ctx)
 
-	err := res.client.Dial(prmDial)
-	if err != nil {
-		return nil, fmt.Errorf("client dial: %w", err)
+	if err = cl.Dial(prmDial); err != nil {
+		c.setUnhealthy()
+		return err
 	}
 
-	return res, nil
+	return nil
+}
+
+// restartIfUnhealthy checks healthy status of client and recreate it if status is unhealthy.
+// Return current healthy status and indicating if status was changed by this function call.
+func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, changed bool) {
+	var wasHealthy bool
+	if _, err := c.endpointInfo(ctx, prmEndpointInfo{}); err == nil {
+		return true, false
+	} else if !errors.Is(err, ErrPoolClientUnhealthy) {
+		wasHealthy = true
+	}
+
+	var cl sdkClient.Client
+	var prmInit sdkClient.PrmInit
+	prmInit.SetDefaultPrivateKey(c.prm.key)
+	prmInit.SetResponseInfoCallback(c.prm.responseInfoCallback)
+
+	cl.Init(prmInit)
+
+	var prmDial sdkClient.PrmDial
+	prmDial.SetServerURI(c.prm.address)
+	prmDial.SetTimeout(c.prm.timeout)
+	prmDial.SetContext(ctx)
+
+	if err := cl.Dial(prmDial); err != nil {
+		c.setUnhealthy()
+		return false, wasHealthy
+	}
+
+	c.clientMutex.Lock()
+	c.client = &cl
+	c.clientMutex.Unlock()
+
+	if _, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{}); err != nil {
+		c.setUnhealthy()
+		return false, wasHealthy
+	}
+
+	c.setHealthy()
+	return true, !wasHealthy
+}
+
+func (c *clientWrapper) getClient() (*sdkClient.Client, error) {
+	c.clientMutex.RLock()
+	defer c.clientMutex.RUnlock()
+	if c.isHealthy() {
+		return c.client, nil
+	}
+	return nil, ErrPoolClientUnhealthy
 }
 
 // balanceGet invokes sdkClient.BalanceGet parse response status to error and return result as is.
 func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return accounting.Decimal{}, err
+	}
+
 	var cliPrm sdkClient.PrmBalanceGet
 	cliPrm.SetAccount(prm.account)
 
 	start := time.Now()
-	res, err := c.client.BalanceGet(ctx, cliPrm)
+	res, err := cl.BalanceGet(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodBalanceGet)
 	var st apistatus.Status
 	if res != nil {
@@ -301,8 +372,13 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
 // It also waits for the container to appear on the network.
 func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (cid.ID, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return cid.ID{}, err
+	}
+
 	start := time.Now()
-	res, err := c.client.ContainerPut(ctx, prm.prmClient)
+	res, err := cl.ContainerPut(ctx, prm.prmClient)
 	c.incRequests(time.Since(start), methodContainerPut)
 	var st apistatus.Status
 	if res != nil {
@@ -328,11 +404,16 @@ func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (
 
 // containerGet invokes sdkClient.ContainerGet parse response status to error and return result as is.
 func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (container.Container, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return container.Container{}, err
+	}
+
 	var cliPrm sdkClient.PrmContainerGet
 	cliPrm.SetContainer(prm.cnrID)
 
 	start := time.Now()
-	res, err := c.client.ContainerGet(ctx, cliPrm)
+	res, err := cl.ContainerGet(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodContainerGet)
 	var st apistatus.Status
 	if res != nil {
@@ -347,11 +428,16 @@ func (c *clientWrapper) containerGet(ctx context.Context, prm PrmContainerGet) (
 
 // containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
 func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return nil, err
+	}
+
 	var cliPrm sdkClient.PrmContainerList
 	cliPrm.SetAccount(prm.ownerID)
 
 	start := time.Now()
-	res, err := c.client.ContainerList(ctx, cliPrm)
+	res, err := cl.ContainerList(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodContainerList)
 	var st apistatus.Status
 	if res != nil {
@@ -366,6 +452,11 @@ func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList)
 // containerDelete invokes sdkClient.ContainerDelete parse response status to error.
 // It also waits for the container to be removed from the network.
 func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDelete) error {
+	cl, err := c.getClient()
+	if err != nil {
+		return err
+	}
+
 	var cliPrm sdkClient.PrmContainerDelete
 	cliPrm.SetContainer(prm.cnrID)
 	if prm.stokenSet {
@@ -373,7 +464,7 @@ func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDel
 	}
 
 	start := time.Now()
-	res, err := c.client.ContainerDelete(ctx, cliPrm)
+	res, err := cl.ContainerDelete(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodContainerDelete)
 	var st apistatus.Status
 	if res != nil {
@@ -392,11 +483,16 @@ func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDel
 
 // containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
 func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL) (eacl.Table, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return eacl.Table{}, err
+	}
+
 	var cliPrm sdkClient.PrmContainerEACL
 	cliPrm.SetContainer(prm.cnrID)
 
 	start := time.Now()
-	res, err := c.client.ContainerEACL(ctx, cliPrm)
+	res, err := cl.ContainerEACL(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodContainerEACL)
 	var st apistatus.Status
 	if res != nil {
@@ -412,6 +508,11 @@ func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL)
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
 // It also waits for the EACL to appear on the network.
 func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
+	cl, err := c.getClient()
+	if err != nil {
+		return err
+	}
+
 	var cliPrm sdkClient.PrmContainerSetEACL
 	cliPrm.SetTable(prm.table)
 
@@ -420,7 +521,7 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 	}
 
 	start := time.Now()
-	res, err := c.client.ContainerSetEACL(ctx, cliPrm)
+	res, err := cl.ContainerSetEACL(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodContainerSetEACL)
 	var st apistatus.Status
 	if res != nil {
@@ -449,8 +550,13 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 
 // endpointInfo invokes sdkClient.EndpointInfo parse response status to error and return result as is.
 func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (netmap.NodeInfo, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return netmap.NodeInfo{}, err
+	}
+
 	start := time.Now()
-	res, err := c.client.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
+	res, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
 	c.incRequests(time.Since(start), methodEndpointInfo)
 	var st apistatus.Status
 	if res != nil {
@@ -465,8 +571,13 @@ func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (ne
 
 // networkInfo invokes sdkClient.NetworkInfo parse response status to error and return result as is.
 func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netmap.NetworkInfo, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return netmap.NetworkInfo{}, err
+	}
+
 	start := time.Now()
-	res, err := c.client.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
+	res, err := cl.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	c.incRequests(time.Since(start), methodNetworkInfo)
 	var st apistatus.Status
 	if res != nil {
@@ -481,6 +592,11 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 
 // objectPut writes object to NeoFS.
 func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return oid.ID{}, err
+	}
+
 	var cliPrm sdkClient.PrmObjectPutInit
 	cliPrm.SetCopiesNumber(prm.copiesNumber)
 	if prm.stoken != nil {
@@ -494,7 +610,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 	}
 
 	start := time.Now()
-	wObj, err := c.client.ObjectPutInit(ctx, cliPrm)
+	wObj, err := cl.ObjectPutInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectPut)
 	if err = c.handleError(nil, err); err != nil {
 		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
@@ -559,6 +675,11 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
 func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) error {
+	cl, err := c.getClient()
+	if err != nil {
+		return err
+	}
+
 	var cliPrm sdkClient.PrmObjectDelete
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -576,7 +697,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 	}
 
 	start := time.Now()
-	res, err := c.client.ObjectDelete(ctx, cliPrm)
+	res, err := cl.ObjectDelete(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectDelete)
 	var st apistatus.Status
 	if res != nil {
@@ -590,6 +711,11 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 
 // objectGet returns reader for object.
 func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGetObject, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return ResGetObject{}, err
+	}
+
 	var cliPrm sdkClient.PrmObjectGet
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -608,7 +734,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 
 	var res ResGetObject
 
-	rObj, err := c.client.ObjectGetInit(ctx, cliPrm)
+	rObj, err := cl.ObjectGetInit(ctx, cliPrm)
 	if err = c.handleError(nil, err); err != nil {
 		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
 	}
@@ -638,6 +764,11 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 
 // objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
 func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (object.Object, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return object.Object{}, err
+	}
+
 	var cliPrm sdkClient.PrmObjectHead
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -657,7 +788,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 	var obj object.Object
 
 	start := time.Now()
-	res, err := c.client.ObjectHead(ctx, cliPrm)
+	res, err := cl.ObjectHead(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectHead)
 	var st apistatus.Status
 	if res != nil {
@@ -675,6 +806,11 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 
 // objectRange returns object range reader.
 func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRange, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return ResObjectRange{}, err
+	}
+
 	var cliPrm sdkClient.PrmObjectRange
 	cliPrm.FromContainer(prm.addr.Container())
 	cliPrm.ByID(prm.addr.Object())
@@ -694,7 +830,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 	}
 
 	start := time.Now()
-	res, err := c.client.ObjectRangeInit(ctx, cliPrm)
+	res, err := cl.ObjectRangeInit(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodObjectRange)
 	if err = c.handleError(nil, err); err != nil {
 		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
@@ -710,6 +846,11 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
 func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return ResObjectSearch{}, err
+	}
+
 	var cliPrm sdkClient.PrmObjectSearch
 
 	cliPrm.InContainer(prm.cnrID)
@@ -727,7 +868,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 		cliPrm.UseKey(*prm.key)
 	}
 
-	res, err := c.client.ObjectSearchInit(ctx, cliPrm)
+	res, err := cl.ObjectSearchInit(ctx, cliPrm)
 	if err = c.handleError(nil, err); err != nil {
 		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
 	}
@@ -737,12 +878,17 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 
 // sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
 func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession) (resCreateSession, error) {
+	cl, err := c.getClient()
+	if err != nil {
+		return resCreateSession{}, err
+	}
+
 	var cliPrm sdkClient.PrmSessionCreate
 	cliPrm.SetExp(prm.exp)
 	cliPrm.UseKey(prm.key)
 
 	start := time.Now()
-	res, err := c.client.SessionCreate(ctx, cliPrm)
+	res, err := cl.SessionCreate(ctx, cliPrm)
 	c.incRequests(time.Since(start), methodSessionCreate)
 	var st apistatus.Status
 	if res != nil {
@@ -762,8 +908,12 @@ func (c *clientStatusMonitor) isHealthy() bool {
 	return c.healthy.Load()
 }
 
-func (c *clientStatusMonitor) setHealthy(val bool) bool {
-	return c.healthy.Swap(val) != val
+func (c *clientStatusMonitor) setHealthy() {
+	c.healthy.Store(true)
+}
+
+func (c *clientStatusMonitor) setUnhealthy() {
+	c.healthy.Store(false)
 }
 
 func (c *clientStatusMonitor) address() string {
@@ -776,7 +926,7 @@ func (c *clientStatusMonitor) incErrorRate() {
 	c.currentErrorCount++
 	c.overallErrorCount++
 	if c.currentErrorCount >= c.errorThreshold {
-		c.setHealthy(false)
+		c.setUnhealthy()
 		c.currentErrorCount = 0
 	}
 }
@@ -827,11 +977,7 @@ func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error 
 
 // clientBuilder is a type alias of client constructors which open connection
 // to the given endpoint.
-type clientBuilder = func(endpoint string) (client, error)
-
-// clientBuilderContext is a type alias of client constructors which open
-// connection to the given endpoint using provided context.
-type clientBuilderContext = func(ctx context.Context, endpoint string) (client, error)
+type clientBuilder = func(endpoint string) client
 
 // InitParameters contains values used to initialize connection Pool.
 type InitParameters struct {
@@ -844,7 +990,7 @@ type InitParameters struct {
 	errorThreshold            uint32
 	nodeParams                []NodeParam
 
-	clientBuilder clientBuilderContext
+	clientBuilder clientBuilder
 }
 
 // SetKey specifies default key to be used for the protocol communication by default.
@@ -894,13 +1040,6 @@ func (x *InitParameters) AddNode(nodeParam NodeParam) {
 // setClientBuilder sets clientBuilder used for client construction.
 // Wraps setClientBuilderContext without a context.
 func (x *InitParameters) setClientBuilder(builder clientBuilder) {
-	x.setClientBuilderContext(func(_ context.Context, endpoint string) (client, error) {
-		return builder(endpoint)
-	})
-}
-
-// setClientBuilderContext sets clientBuilderContext used for client construction.
-func (x *InitParameters) setClientBuilderContext(builder clientBuilderContext) {
 	x.clientBuilder = builder
 }
 
@@ -1336,7 +1475,7 @@ type Pool struct {
 	cache           *sessionCache
 	stokenDuration  uint64
 	rebalanceParams rebalanceParameters
-	clientBuilder   clientBuilderContext
+	clientBuilder   clientBuilder
 	logger          *zap.Logger
 }
 
@@ -1404,22 +1543,26 @@ func (p *Pool) Dial(ctx context.Context) error {
 	for i, params := range p.rebalanceParams.nodesParams {
 		clients := make([]client, len(params.weights))
 		for j, addr := range params.addresses {
-			c, err := p.clientBuilder(ctx, addr)
-			if err != nil {
-				return err
+			c := p.clientBuilder(addr)
+			if err := c.dial(ctx); err != nil {
+				if p.logger != nil {
+					p.logger.Warn("failed to build client", zap.String("address", addr), zap.Error(err))
+				}
 			}
-			var healthy bool
+
 			var st session.Object
-			err = initSessionForDuration(ctx, &st, c, p.rebalanceParams.sessionExpirationDuration, *p.key)
-			if err != nil && p.logger != nil {
-				p.logger.Warn("failed to create neofs session token for client",
-					zap.String("Address", addr),
-					zap.Error(err))
-			} else if err == nil {
-				healthy, atLeastOneHealthy = true, true
+			err := initSessionForDuration(ctx, &st, c, p.rebalanceParams.sessionExpirationDuration, *p.key)
+			if err != nil {
+				c.setUnhealthy()
+				if p.logger != nil {
+					p.logger.Warn("failed to create neofs session token for client",
+						zap.String("address", addr), zap.Error(err))
+				}
+			} else {
+				atLeastOneHealthy = true
 				_ = p.cache.Put(formCacheKey(addr, p.key), st)
 			}
-			c.setHealthy(healthy)
+
 			clients[j] = c
 		}
 		source := rand.NewSource(time.Now().UnixNano())
@@ -1462,7 +1605,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 	}
 
 	if params.isMissingClientBuilder() {
-		params.setClientBuilderContext(func(ctx context.Context, addr string) (client, error) {
+		params.setClientBuilder(func(addr string) client {
 			var prm wrapperPrm
 			prm.setAddress(addr)
 			prm.setKey(*params.key)
@@ -1472,7 +1615,6 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 				cache.updateEpoch(info.Epoch())
 				return nil
 			})
-			prm.setDialContext(ctx)
 			return newWrapper(prm)
 		})
 	}
@@ -1551,29 +1693,23 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 	healthyChanged := atomic.NewBool(false)
 	wg := sync.WaitGroup{}
 
-	var prmEndpoint prmEndpointInfo
-
 	for j, cli := range pool.clients {
 		wg.Add(1)
 		go func(j int, cli client) {
 			defer wg.Done()
-			ok := true
+
 			tctx, c := context.WithTimeout(ctx, options.nodeRequestTimeout)
 			defer c()
 
-			// TODO (@kirillovdenis) : #283 consider reconnect to the node on failure
-			if _, err := cli.endpointInfo(tctx, prmEndpoint); err != nil {
-				ok = false
-				bufferWeights[j] = 0
-			}
-
-			if ok {
+			healthy, changed := cli.restartIfUnhealthy(tctx)
+			if healthy {
 				bufferWeights[j] = options.nodesParams[i].weights[j]
 			} else {
+				bufferWeights[j] = 0
 				p.cache.DeleteByPrefix(cli.address())
 			}
 
-			if cli.setHealthy(ok) {
+			if changed {
 				healthyChanged.Store(true)
 			}
 		}(j, cli)
@@ -1616,7 +1752,7 @@ func (p *Pool) connection() (client, error) {
 }
 
 func (p *innerPool) connection() (client, error) {
-	p.lock.RLock() // TODO(@kirillovdenis): #283 consider remove this lock because using client should be thread safe
+	p.lock.RLock() // need lock because of using p.sampler
 	defer p.lock.RUnlock()
 	if len(p.clients) == 1 {
 		cp := p.clients[0]

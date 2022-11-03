@@ -2,11 +2,9 @@ package pool
 
 import (
 	"context"
-	"fmt"
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,34 +40,6 @@ func TestSamplerStability(t *testing.T) {
 	}
 }
 
-type clientMock struct {
-	clientWrapper
-	name string
-	err  error
-}
-
-func (c *clientMock) endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error) {
-	return netmap.NodeInfo{}, nil
-}
-
-func (c *clientMock) networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error) {
-	return netmap.NetworkInfo{}, nil
-}
-
-func newNetmapMock(name string, needErr bool) *clientMock {
-	var err error
-	if needErr {
-		err = fmt.Errorf("not available")
-	}
-	return &clientMock{
-		clientWrapper: clientWrapper{
-			clientStatusMonitor: newClientStatusMonitor("", 10),
-		},
-		name: name,
-		err:  err,
-	}
-}
-
 func TestHealthyReweight(t *testing.T) {
 	var (
 		weights = []float64{0.9, 0.1}
@@ -80,12 +50,14 @@ func TestHealthyReweight(t *testing.T) {
 	cache, err := newCache()
 	require.NoError(t, err)
 
+	client1 := newMockClient(names[0], *newPrivateKey(t))
+	client1.errOnDial()
+
+	client2 := newMockClient(names[1], *newPrivateKey(t))
+
 	inner := &innerPool{
 		sampler: newSampler(weights, rand.NewSource(0)),
-		clients: []client{
-			newNetmapMock(names[0], true),
-			newNetmapMock(names[1], false),
-		},
+		clients: []client{client1, client2},
 	}
 	p := &Pool{
 		innerPools:      []*innerPool{inner},
@@ -97,19 +69,19 @@ func TestHealthyReweight(t *testing.T) {
 	// check getting first node connection before rebalance happened
 	connection0, err := p.connection()
 	require.NoError(t, err)
-	mock0 := connection0.(*clientMock)
-	require.Equal(t, names[0], mock0.name)
+	mock0 := connection0.(*mockClient)
+	require.Equal(t, names[0], mock0.address())
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
 
 	connection1, err := p.connection()
 	require.NoError(t, err)
-	mock1 := connection1.(*clientMock)
-	require.Equal(t, names[1], mock1.name)
+	mock1 := connection1.(*mockClient)
+	require.Equal(t, names[1], mock1.address())
 
 	// enabled first node again
 	inner.lock.Lock()
-	inner.clients[0] = newNetmapMock(names[0], false)
+	inner.clients[0] = newMockClient(names[0], *newPrivateKey(t))
 	inner.lock.Unlock()
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
@@ -117,8 +89,8 @@ func TestHealthyReweight(t *testing.T) {
 
 	connection0, err = p.connection()
 	require.NoError(t, err)
-	mock0 = connection0.(*clientMock)
-	require.Equal(t, names[0], mock0.name)
+	mock0 = connection0.(*mockClient)
+	require.Equal(t, names[0], mock0.address())
 }
 
 func TestHealthyNoReweight(t *testing.T) {
@@ -132,8 +104,8 @@ func TestHealthyNoReweight(t *testing.T) {
 	inner := &innerPool{
 		sampler: sampl,
 		clients: []client{
-			newNetmapMock(names[0], false),
-			newNetmapMock(names[1], false),
+			newMockClient(names[0], *newPrivateKey(t)),
+			newMockClient(names[1], *newPrivateKey(t)),
 		},
 	}
 	p := &Pool{
