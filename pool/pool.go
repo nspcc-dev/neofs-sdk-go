@@ -95,8 +95,8 @@ type clientStatus interface {
 	methodsStatus() []statusSnapshot
 }
 
-// ErrPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
-var ErrPoolClientUnhealthy = errors.New("pool client unhealthy")
+// errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
+var errPoolClientUnhealthy = errors.New("pool client unhealthy")
 
 // clientStatusMonitor count error rate and other statistics for connection.
 type clientStatusMonitor struct {
@@ -302,7 +302,7 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 	var wasHealthy bool
 	if _, err := c.endpointInfo(ctx, prmEndpointInfo{}); err == nil {
 		return true, false
-	} else if !errors.Is(err, ErrPoolClientUnhealthy) {
+	} else if !errors.Is(err, errPoolClientUnhealthy) {
 		wasHealthy = true
 	}
 
@@ -342,7 +342,7 @@ func (c *clientWrapper) getClient() (*sdkClient.Client, error) {
 	if c.isHealthy() {
 		return c.client, nil
 	}
-	return nil, ErrPoolClientUnhealthy
+	return nil, errPoolClientUnhealthy
 }
 
 // balanceGet invokes sdkClient.BalanceGet parse response status to error and return result as is.
