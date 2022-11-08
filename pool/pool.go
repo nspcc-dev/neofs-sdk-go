@@ -1543,27 +1543,27 @@ func (p *Pool) Dial(ctx context.Context) error {
 	for i, params := range p.rebalanceParams.nodesParams {
 		clients := make([]client, len(params.weights))
 		for j, addr := range params.addresses {
-			c := p.clientBuilder(addr)
-			if err := c.dial(ctx); err != nil {
+			clients[j] = p.clientBuilder(addr)
+			if err := clients[j].dial(ctx); err != nil {
 				if p.logger != nil {
 					p.logger.Warn("failed to build client", zap.String("address", addr), zap.Error(err))
 				}
+				continue
 			}
 
 			var st session.Object
-			err := initSessionForDuration(ctx, &st, c, p.rebalanceParams.sessionExpirationDuration, *p.key)
+			err := initSessionForDuration(ctx, &st, clients[j], p.rebalanceParams.sessionExpirationDuration, *p.key)
 			if err != nil {
-				c.setUnhealthy()
+				clients[j].setUnhealthy()
 				if p.logger != nil {
 					p.logger.Warn("failed to create neofs session token for client",
 						zap.String("address", addr), zap.Error(err))
 				}
-			} else {
-				atLeastOneHealthy = true
-				_ = p.cache.Put(formCacheKey(addr, p.key), st)
+				continue
 			}
 
-			clients[j] = c
+			_ = p.cache.Put(formCacheKey(addr, p.key), st)
+			atLeastOneHealthy = true
 		}
 		source := rand.NewSource(time.Now().UnixNano())
 		sampl := newSampler(params.weights, source)
