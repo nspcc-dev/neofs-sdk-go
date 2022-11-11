@@ -26,6 +26,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/atomic"
@@ -2007,9 +2008,11 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 	prmCtx.useVerb(session.VerbObjectDelete)
 	prmCtx.useAddress(prm.addr)
 
-	if prm.stoken == nil {
-		// collect phy objects only if we are about to open default session
-		relatives, err := p.collectObjectRelatives(ctx, prm.addr.Container(), prm.addr.Object(), prm.btoken)
+	if prm.stoken == nil { // collect phy objects only if we are about to open default session
+		var tokens relations.Tokens
+		tokens.Bearer = prm.btoken
+
+		relatives, err := relations.ListAllRelations(ctx, p, prm.addr.Container(), prm.addr.Object(), tokens)
 		if err != nil {
 			return fmt.Errorf("failed to collect relatives: %w", err)
 		}
@@ -2039,154 +2042,6 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 
 		return nil
 	})
-}
-
-func (p *Pool) collectObjectRelatives(ctx context.Context, cnr cid.ID, obj oid.ID, btoken *bearer.Token) ([]oid.ID, error) {
-	var addrObj oid.Address
-	addrObj.SetContainer(cnr)
-	addrObj.SetObject(obj)
-
-	var prmHead PrmObjectHead
-	prmHead.SetAddress(addrObj)
-	if btoken != nil {
-		prmHead.UseBearer(*btoken)
-	}
-	prmHead.MarkRaw()
-
-	_, err := p.HeadObject(ctx, prmHead)
-
-	var errSplit *object.SplitInfoError
-
-	switch {
-	default:
-		return nil, fmt.Errorf("failed to get raw object header: %w", err)
-	case err == nil:
-		return nil, nil
-	case errors.As(err, &errSplit):
-	}
-
-	splitInfo := errSplit.SplitInfo()
-
-	// collect split chain by the descending ease of operations (ease is evaluated heuristically).
-	// If any approach fails, we don't try the next since we assume that it will fail too.
-
-	if idLinking, ok := splitInfo.Link(); ok {
-		addrObj = oid.Address{}
-		addrObj.SetContainer(cnr)
-		addrObj.SetObject(idLinking)
-
-		prmHead = PrmObjectHead{}
-		prmHead.SetAddress(addrObj)
-		if btoken != nil {
-			prmHead.UseBearer(*btoken)
-		}
-
-		res, err := p.HeadObject(ctx, prmHead)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get linking object's header: %w", err)
-		}
-
-		children := res.Children()
-
-		// include linking object
-		return append(children, idLinking), nil
-	}
-
-	if idSplit := splitInfo.SplitID(); idSplit != nil {
-		var query object.SearchFilters
-		query.AddSplitIDFilter(object.MatchStringEqual, idSplit)
-
-		var prm PrmObjectSearch
-		prm.SetContainerID(cnr)
-		prm.SetFilters(query)
-		if btoken != nil {
-			prm.UseBearer(*btoken)
-		}
-
-		res, err := p.SearchObjects(ctx, prm)
-		if err != nil {
-			return nil, fmt.Errorf("failed to search objects by split ID: %w", err)
-		}
-
-		var members []oid.ID
-		err = res.Iterate(func(id oid.ID) bool {
-			members = append(members, id)
-			return false
-		})
-		if err != nil {
-			return nil, fmt.Errorf("failed to iterate found objects: %w", err)
-		}
-
-		return members, nil
-	}
-
-	idMember, ok := splitInfo.LastPart()
-	if !ok {
-		return nil, errors.New("missing any data in received object split information")
-	}
-
-	var res object.Object
-	chain := []oid.ID{idMember}
-	chainSet := map[oid.ID]struct{}{idMember: {}}
-
-	addrObj = oid.Address{}
-	addrObj.SetContainer(cnr)
-
-	for {
-		addrObj.SetObject(idMember)
-
-		prmHead = PrmObjectHead{}
-		prmHead.SetAddress(addrObj)
-		if btoken != nil {
-			prmHead.UseBearer(*btoken)
-		}
-
-		res, err = p.HeadObject(ctx, prmHead)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read split chain member's header: %w", err)
-		}
-
-		idMember, ok = res.PreviousID()
-		if !ok {
-			break
-		}
-
-		if _, ok = chainSet[idMember]; ok {
-			return nil, fmt.Errorf("duplicated member in the split chain: %s", idMember)
-		}
-
-		chain = append(chain, idMember)
-		chainSet[idMember] = struct{}{}
-	}
-
-	// Looking for a linking object
-
-	var query object.SearchFilters
-	query.AddParentIDFilter(object.MatchStringEqual, obj)
-
-	var prm PrmObjectSearch
-	prm.SetContainerID(cnr)
-	prm.SetFilters(query)
-	if btoken != nil {
-		prm.UseBearer(*btoken)
-	}
-
-	resSearch, err := p.SearchObjects(ctx, prm)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find object children: %w", err)
-	}
-
-	err = resSearch.Iterate(func(id oid.ID) bool {
-		if _, ok = chainSet[id]; !ok {
-			chain = append(chain, id)
-		}
-		return false
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to iterate found objects: %w", err)
-	}
-
-	return chain, nil
 }
 
 type objectReadCloser struct {
@@ -2612,4 +2467,148 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *
 	container.ApplyNetworkConfig(cnr, ni)
 
 	return nil
+}
+
+// GetSplitInfo implements relations.Relations.
+func (p *Pool) GetSplitInfo(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) (*object.SplitInfo, error) {
+	var addr oid.Address
+	addr.SetContainer(cnrID)
+	addr.SetObject(objID)
+
+	var prm PrmObjectHead
+	prm.SetAddress(addr)
+	if tokens.Bearer != nil {
+		prm.UseBearer(*tokens.Bearer)
+	}
+	if tokens.Session != nil {
+		prm.UseSession(*tokens.Session)
+	}
+	prm.MarkRaw()
+
+	_, err := p.HeadObject(ctx, prm)
+
+	var errSplit *object.SplitInfoError
+
+	switch {
+	case errors.As(err, &errSplit):
+		return errSplit.SplitInfo(), nil
+	case err == nil:
+		return nil, relations.ErrNoSplitInfo
+	default:
+		return nil, fmt.Errorf("failed to get raw object header: %w", err)
+	}
+}
+
+// ListChildrenByLinker implements relations.Relations.
+func (p *Pool) ListChildrenByLinker(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) ([]oid.ID, error) {
+	var addr oid.Address
+	addr.SetContainer(cnrID)
+	addr.SetObject(objID)
+
+	var prm PrmObjectHead
+	prm.SetAddress(addr)
+	if tokens.Bearer != nil {
+		prm.UseBearer(*tokens.Bearer)
+	}
+	if tokens.Session != nil {
+		prm.UseSession(*tokens.Session)
+	}
+
+	res, err := p.HeadObject(ctx, prm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get linking object's header: %w", err)
+	}
+
+	return res.Children(), nil
+}
+
+// GetLeftSibling implements relations.Relations.
+func (p *Pool) GetLeftSibling(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) (oid.ID, error) {
+	var addr oid.Address
+	addr.SetContainer(cnrID)
+	addr.SetObject(objID)
+
+	var prm PrmObjectHead
+	prm.SetAddress(addr)
+	if tokens.Bearer != nil {
+		prm.UseBearer(*tokens.Bearer)
+	}
+	if tokens.Session != nil {
+		prm.UseSession(*tokens.Session)
+	}
+
+	res, err := p.HeadObject(ctx, prm)
+	if err != nil {
+		return oid.ID{}, fmt.Errorf("failed to read split chain member's header: %w", err)
+	}
+
+	idMember, ok := res.PreviousID()
+	if !ok {
+		return oid.ID{}, relations.ErrNoLeftSibling
+	}
+	return idMember, nil
+}
+
+// FindSiblingBySplitID implements relations.Relations.
+func (p *Pool) FindSiblingBySplitID(ctx context.Context, cnrID cid.ID, splitID *object.SplitID, tokens relations.Tokens) ([]oid.ID, error) {
+	var query object.SearchFilters
+	query.AddSplitIDFilter(object.MatchStringEqual, splitID)
+
+	var prm PrmObjectSearch
+	prm.SetContainerID(cnrID)
+	prm.SetFilters(query)
+	if tokens.Bearer != nil {
+		prm.UseBearer(*tokens.Bearer)
+	}
+	if tokens.Session != nil {
+		prm.UseSession(*tokens.Session)
+	}
+
+	res, err := p.SearchObjects(ctx, prm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search objects by split ID: %w", err)
+	}
+
+	var members []oid.ID
+	err = res.Iterate(func(id oid.ID) bool {
+		members = append(members, id)
+		return false
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate found objects: %w", err)
+	}
+
+	return members, nil
+}
+
+// FindSiblingByParentID implements relations.Relations.
+func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) ([]oid.ID, error) {
+	var query object.SearchFilters
+	query.AddParentIDFilter(object.MatchStringEqual, objID)
+
+	var prm PrmObjectSearch
+	prm.SetContainerID(cnrID)
+	prm.SetFilters(query)
+	if tokens.Bearer != nil {
+		prm.UseBearer(*tokens.Bearer)
+	}
+	if tokens.Session != nil {
+		prm.UseSession(*tokens.Session)
+	}
+
+	resSearch, err := p.SearchObjects(ctx, prm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find object children: %w", err)
+	}
+
+	var res []oid.ID
+	err = resSearch.Iterate(func(id oid.ID) bool {
+		res = append(res, id)
+		return false
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to iterate found objects: %w", err)
+	}
+
+	return res, nil
 }
