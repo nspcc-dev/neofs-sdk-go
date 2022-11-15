@@ -413,12 +413,12 @@ func TestSessionCacheWithKey(t *testing.T) {
 	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.key))
 	require.True(t, st.AssertAuthKey(&expectedAuthKey))
 
-	var prm PrmObjectGet
+	var prm PrmObjectDelete
 	prm.SetAddress(oid.Address{})
 	anonKey := newPrivateKey(t)
 	prm.UseKey(anonKey)
 
-	_, err = pool.GetObject(ctx, prm)
+	err = pool.DeleteObject(ctx, prm)
 	require.NoError(t, err)
 	st, _ = pool.cache.Get(formCacheKey(cp.address(), anonKey))
 	require.True(t, st.AssertAuthKey(&expectedAuthKey))
