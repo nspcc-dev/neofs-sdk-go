@@ -130,10 +130,17 @@ type SignatureVerification struct {
 	v2 status.Status
 }
 
+const defaultSignatureVerificationMsg = "signature verification failed"
+
 func (x SignatureVerification) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultSignatureVerificationMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -153,7 +160,7 @@ func (x SignatureVerification) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail))
 
 	if x.v2.Message() == "" {
-		x.v2.SetMessage("signature verification failed")
+		x.v2.SetMessage(defaultSignatureVerificationMsg)
 	}
 
 	return &x.v2
@@ -181,11 +188,13 @@ type NodeUnderMaintenance struct {
 	v2 status.Status
 }
 
+const defaultNodeUnderMaintenanceMsg = "node is under maintenance"
+
 // Error implements the error interface.
 func (x NodeUnderMaintenance) Error() string {
 	msg := x.Message()
 	if msg == "" {
-		msg = "node is under maintenance"
+		msg = defaultNodeUnderMaintenanceMsg
 	}
 
 	return errMessageStatusV2(
@@ -202,10 +211,15 @@ func (x *NodeUnderMaintenance) fromStatusV2(st *status.Status) {
 // If the value was returned by FromStatusV2, returns the source message.
 // Otherwise, returns message with
 //   - code: NODE_UNDER_MAINTENANCE;
-//   - string message: written message via SetMessage;
+//   - string message: written message via SetMessage or
+//     "node is under maintenance" as a default message;
 //   - details: empty.
 func (x NodeUnderMaintenance) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail))
+	if x.v2.Message() == "" {
+		x.v2.SetMessage(defaultNodeUnderMaintenanceMsg)
+	}
+
 	return &x.v2
 }
 
