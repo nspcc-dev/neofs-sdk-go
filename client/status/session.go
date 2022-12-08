@@ -11,10 +11,17 @@ type SessionTokenNotFound struct {
 	v2 status.Status
 }
 
+const defaultSessionTokenNotFoundMsg = "session token not found"
+
 func (x SessionTokenNotFound) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultSessionTokenNotFoundMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -31,7 +38,7 @@ func (x *SessionTokenNotFound) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x SessionTokenNotFound) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail))
-	x.v2.SetMessage("session token not found")
+	x.v2.SetMessage(defaultSessionTokenNotFoundMsg)
 	return &x.v2
 }
 
@@ -41,10 +48,17 @@ type SessionTokenExpired struct {
 	v2 status.Status
 }
 
+const defaultSessionTokenExpiredMsg = "expired session token"
+
 func (x SessionTokenExpired) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultSessionTokenExpiredMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -61,6 +75,6 @@ func (x *SessionTokenExpired) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x SessionTokenExpired) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail))
-	x.v2.SetMessage("expired session token")
+	x.v2.SetMessage(defaultSessionTokenExpiredMsg)
 	return &x.v2
 }

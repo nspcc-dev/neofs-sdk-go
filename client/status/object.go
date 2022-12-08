@@ -11,10 +11,17 @@ type ObjectLocked struct {
 	v2 status.Status
 }
 
+const defaultObjectLockedMsg = "object is locked"
+
 func (x ObjectLocked) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultObjectLockedMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(object.StatusLocked, object.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -31,7 +38,7 @@ func (x *ObjectLocked) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x ObjectLocked) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusLocked, object.GlobalizeFail))
-	x.v2.SetMessage("object is locked")
+	x.v2.SetMessage(defaultObjectLockedMsg)
 	return &x.v2
 }
 
@@ -41,10 +48,17 @@ type LockNonRegularObject struct {
 	v2 status.Status
 }
 
+const defaultLockNonRegularObjectMsg = "locking non-regular object is forbidden"
+
 func (x LockNonRegularObject) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultLockNonRegularObjectMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(object.StatusLockNonRegularObject, object.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -61,7 +75,7 @@ func (x *LockNonRegularObject) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x LockNonRegularObject) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusLockNonRegularObject, object.GlobalizeFail))
-	x.v2.SetMessage("locking non-regular object is forbidden")
+	x.v2.SetMessage(defaultLockNonRegularObjectMsg)
 	return &x.v2
 }
 
@@ -71,10 +85,17 @@ type ObjectAccessDenied struct {
 	v2 status.Status
 }
 
+const defaultObjectAccessDeniedMsg = "access to object operation denied"
+
 func (x ObjectAccessDenied) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultObjectAccessDeniedMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -91,7 +112,7 @@ func (x *ObjectAccessDenied) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x ObjectAccessDenied) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail))
-	x.v2.SetMessage("access to object operation denied")
+	x.v2.SetMessage(defaultObjectAccessDeniedMsg)
 	return &x.v2
 }
 
@@ -112,10 +133,17 @@ type ObjectNotFound struct {
 	v2 status.Status
 }
 
+const defaultObjectNotFoundMsg = "object not found"
+
 func (x ObjectNotFound) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultObjectNotFoundMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -132,7 +160,7 @@ func (x *ObjectNotFound) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x ObjectNotFound) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail))
-	x.v2.SetMessage("object not found")
+	x.v2.SetMessage(defaultObjectNotFoundMsg)
 	return &x.v2
 }
 
@@ -142,10 +170,17 @@ type ObjectAlreadyRemoved struct {
 	v2 status.Status
 }
 
+const defaultObjectAlreadyRemovedMsg = "object already removed"
+
 func (x ObjectAlreadyRemoved) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultObjectAlreadyRemovedMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -162,7 +197,7 @@ func (x *ObjectAlreadyRemoved) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail))
-	x.v2.SetMessage("object already removed")
+	x.v2.SetMessage(defaultObjectAlreadyRemovedMsg)
 	return &x.v2
 }
 
@@ -173,10 +208,17 @@ type ObjectOutOfRange struct {
 	v2 status.Status
 }
 
+const defaultObjectOutOfRangeMsg = "out of range"
+
 func (x ObjectOutOfRange) Error() string {
+	msg := x.v2.Message()
+	if msg == "" {
+		msg = defaultObjectOutOfRangeMsg
+	}
+
 	return errMessageStatusV2(
 		globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail),
-		x.v2.Message(),
+		msg,
 	)
 }
 
@@ -193,6 +235,6 @@ func (x *ObjectOutOfRange) fromStatusV2(st *status.Status) {
 //   - details: empty.
 func (x ObjectOutOfRange) ToStatusV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail))
-	x.v2.SetMessage("out of range")
+	x.v2.SetMessage(defaultObjectOutOfRangeMsg)
 	return &x.v2
 }
