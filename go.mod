@@ -8,23 +8,22 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
-	github.com/nspcc-dev/neo-go v0.99.4
+	github.com/nspcc-dev/neo-go v0.100.1
 	github.com/nspcc-dev/neofs-api-go/v2 v2.14.0
 	github.com/nspcc-dev/neofs-contract v0.16.0
 	github.com/nspcc-dev/tzhash v1.6.1
 	github.com/stretchr/testify v1.8.0
 	go.uber.org/atomic v1.10.0
-	go.uber.org/zap v1.23.0
+	go.uber.org/zap v1.24.0
 )
 
 require (
-	github.com/btcsuite/btcd v0.22.0-beta // indirect
-	github.com/coreos/go-semver v0.3.0 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
+	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.0.1 // indirect
 	github.com/golang/protobuf v1.5.2 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/nspcc-dev/go-ordered-json v0.0.0-20220111165707-25110be27d22 // indirect
-	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20220927123257-24c107e3a262 // indirect
+	github.com/nspcc-dev/neo-go/pkg/interop v0.0.0-20221202075445-cb5c18dc73eb // indirect
 	github.com/nspcc-dev/neofs-crypto v0.4.0 // indirect
 	github.com/nspcc-dev/rfc6979 v0.2.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
