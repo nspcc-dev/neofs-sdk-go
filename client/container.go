@@ -28,6 +28,9 @@ type PrmContainerPut struct {
 
 	sessionSet bool
 	session    session.Container
+
+	cnrSigSet bool
+	cnrSig    neofscrypto.Signature
 }
 
 // SetContainer sets structured information about new NeoFS container.
@@ -48,6 +51,16 @@ func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
+}
+
+// SetSignature allows to specify signature of data structure of the new
+// container.
+//
+// If not set, signature will be calculated internally using private key
+// specified in PrmInit.SetDefaultPrivateKey during Client initialization.
+func (x *PrmContainerPut) SetSignature(sig neofscrypto.Signature) {
+	x.cnrSig = sig
+	x.cnrSigSet = true
 }
 
 // ResContainerPut groups resulting values of ContainerPut operation.
@@ -92,20 +105,20 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	}
 
 	// TODO: check private key is set before forming the request
-	// sign container
+	// sign container if not yet
+	if !prm.cnrSigSet {
+		err := container.CalculateSignature(&prm.cnrSig, prm.cnr, c.prm.key)
+		if err != nil {
+			return nil, fmt.Errorf("calculate container signature: %w", err)
+		}
+	}
+
 	var cnr v2container.Container
 	prm.cnr.WriteToV2(&cnr)
 
-	var sig neofscrypto.Signature
-
-	err := container.CalculateSignature(&sig, prm.cnr, c.prm.key)
-	if err != nil {
-		return nil, fmt.Errorf("calculate container signature: %w", err)
-	}
-
 	var sigv2 refs.Signature
 
-	sig.WriteToV2(&sigv2)
+	prm.cnrSig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.PutRequestBody)
