@@ -112,6 +112,33 @@ func (x NetworkInfo) WriteToV2(m *netmap.NetworkInfo) {
 	*m = x.m
 }
 
+// Marshal encodes NetworkInfo into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
+//
+// See also Unmarshal.
+func (x NetworkInfo) Marshal() []byte {
+	var m netmap.NetworkInfo
+	x.WriteToV2(&m)
+
+	return m.StableMarshal(nil)
+}
+
+// Unmarshal decodes NeoFS API protocol binary format into the NetworkInfo
+// (Protocol Buffers with direct field order). Returns an error describing
+// a format violation.
+//
+// See also Marshal.
+func (x *NetworkInfo) Unmarshal(data []byte) error {
+	var m netmap.NetworkInfo
+
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	return x.readFromV2(m, false)
+}
+
 // CurrentEpoch returns epoch set using SetCurrentEpoch.
 //
 // Zero NetworkInfo has zero current epoch.
