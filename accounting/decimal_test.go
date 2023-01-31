@@ -5,6 +5,7 @@ import (
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	accountingtest "github.com/nspcc-dev/neofs-sdk-go/accounting/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -43,4 +44,13 @@ func TestDecimalMessageV2(t *testing.T) {
 
 	require.EqualValues(t, d.Value(), m2.GetValue())
 	require.EqualValues(t, d.Precision(), m2.GetPrecision())
+}
+
+func TestDecimal_Marshal(t *testing.T) {
+	d := *accountingtest.Decimal()
+
+	var d2 accounting.Decimal
+	require.NoError(t, d2.Unmarshal(d.Marshal()))
+
+	require.Equal(t, d, d2)
 }

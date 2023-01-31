@@ -1,6 +1,8 @@
 package accounting
 
-import "github.com/nspcc-dev/neofs-api-go/v2/accounting"
+import (
+	"github.com/nspcc-dev/neofs-api-go/v2/accounting"
+)
 
 // Decimal represents decimal number for accounting operations.
 //
@@ -61,4 +63,31 @@ func (d Decimal) Precision() uint32 {
 // See also Precision.
 func (d *Decimal) SetPrecision(p uint32) {
 	(*accounting.Decimal)(d).SetPrecision(p)
+}
+
+// Marshal encodes Decimal into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
+//
+// See also Unmarshal.
+func (d Decimal) Marshal() []byte {
+	var m accounting.Decimal
+	d.WriteToV2(&m)
+
+	return m.StableMarshal(nil)
+}
+
+// Unmarshal decodes NeoFS API protocol binary format into the Decimal
+// (Protocol Buffers with direct field order). Returns an error describing
+// a format violation.
+//
+// See also Marshal.
+func (d *Decimal) Unmarshal(data []byte) error {
+	var m accounting.Decimal
+
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	return d.ReadFromV2(m)
 }
