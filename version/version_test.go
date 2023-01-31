@@ -1,6 +1,7 @@
 package version
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -47,4 +48,18 @@ func TestSDKVersion(t *testing.T) {
 
 	require.Equal(t, uint32(sdkMjr), v.Major())
 	require.Equal(t, uint32(sdkMnr), v.Minor())
+}
+
+func TestVersion_MarshalJSON(t *testing.T) {
+	var v Version
+	v.SetMajor(rand.Uint32())
+	v.SetMinor(rand.Uint32())
+
+	data, err := v.MarshalJSON()
+	require.NoError(t, err)
+
+	var v2 Version
+	require.NoError(t, v2.UnmarshalJSON(data))
+
+	require.Equal(t, v, v2)
 }

@@ -84,3 +84,29 @@ func (v Version) Equal(v2 Version) bool {
 	return v.Major() == v2.Major() &&
 		v.Minor() == v2.Minor()
 }
+
+// MarshalJSON encodes Version into a JSON format of the NeoFS API
+// protocol (Protocol Buffers JSON).
+//
+// See also UnmarshalJSON.
+func (v Version) MarshalJSON() ([]byte, error) {
+	var m refs.Version
+	v.WriteToV2(&m)
+
+	return m.MarshalJSON()
+}
+
+// UnmarshalJSON decodes NeoFS API protocol JSON format into the Version
+// (Protocol Buffers JSON). Returns an error describing a format violation.
+//
+// See also MarshalJSON.
+func (v *Version) UnmarshalJSON(data []byte) error {
+	var m refs.Version
+
+	err := m.UnmarshalJSON(data)
+	if err != nil {
+		return err
+	}
+
+	return v.ReadFromV2(m)
+}
