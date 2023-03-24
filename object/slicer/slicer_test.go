@@ -77,27 +77,47 @@ func BenchmarkSliceDataIntoObjects(b *testing.B) {
 }
 
 func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
-	var err error
-	var w discardObject
 	in, opts := randomInput(b, size, sizeLimit)
-	var s *slicer.Slicer
-	r := bytes.NewReader(in.payload)
+	s := slicer.NewSession(in.signer, in.container, *sessiontest.ObjectSigned(test.RandomSigner(b)), discardObject{}, opts)
 
-	if in.sessionToken != nil {
-		s = slicer.NewSession(in.signer, in.container, *in.sessionToken, w, opts)
-	} else {
-		s = slicer.New(in.signer, in.container, in.owner, w, opts)
-	}
+	b.Run("reader", func(b *testing.B) {
+		var err error
+		r := bytes.NewReader(in.payload)
 
-	b.ReportAllocs()
-	b.ResetTimer()
+		b.ReportAllocs()
+		b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
-		_, err = s.Slice(r, in.attributes...)
-		b.StopTimer()
-		require.NoError(b, err)
-		b.StartTimer()
-	}
+		for i := 0; i < b.N; i++ {
+			_, err = s.Slice(r, in.attributes...)
+			b.StopTimer()
+			require.NoError(b, err)
+			b.StartTimer()
+		}
+	})
+
+	b.Run("writer", func(b *testing.B) {
+		b.ReportAllocs()
+		b.ResetTimer()
+
+		var err error
+		var w *slicer.PayloadWriter
+
+		for i := 0; i < b.N; i++ {
+			w, err = s.InitPayloadStream(in.attributes...)
+			b.StopTimer()
+			require.NoError(b, err)
+			b.StartTimer()
+
+			_, err = w.Write(in.payload)
+			if err == nil {
+				err = w.Close()
+			}
+
+			b.StopTimer()
+			require.NoError(b, err)
+			b.StartTimer()
+		}
+	})
 }
 
 type discardObject struct{}
@@ -147,7 +167,11 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	in.signer = neofsecdsa.Signer(*key)
 	in.container = cidtest.ID()
 	in.currentEpoch = rand.Uint64()
-	in.payloadLimit = sizeLimit
+	if sizeLimit > 0 {
+		in.payloadLimit = sizeLimit
+	} else {
+		in.payloadLimit = defaultLimit
+	}
 	in.payload = randomData(size)
 	in.attributes = attrs
 
@@ -173,10 +197,6 @@ func testSlicer(tb testing.TB, size, sizeLimit uint64) {
 		chainCollector: newChainCollector(tb),
 	}
 
-	if sizeLimit == 0 {
-		checker.input.payloadLimit = defaultLimit
-	}
-
 	var s *slicer.Slicer
 	if checker.input.sessionToken != nil {
 		s = slicer.NewSession(in.signer, checker.input.container, *checker.input.sessionToken, checker, opts)
@@ -184,10 +204,38 @@ func testSlicer(tb testing.TB, size, sizeLimit uint64) {
 		s = slicer.New(in.signer, checker.input.container, checker.input.owner, checker, opts)
 	}
 
+	// check reader
 	rootID, err := s.Slice(bytes.NewReader(in.payload), in.attributes...)
 	require.NoError(tb, err)
-
 	checker.chainCollector.verify(checker.input, rootID)
+
+	// check writer with random written chunk's size
+	checker.chainCollector = newChainCollector(tb)
+
+	w, err := s.InitPayloadStream(in.attributes...)
+	require.NoError(tb, err)
+
+	var chunkSize int
+	if len(in.payload) > 0 {
+		chunkSize = rand.Int() % len(in.payload)
+		if chunkSize == 0 {
+			chunkSize = 1
+		}
+	}
+
+	for payload := in.payload; len(payload) > 0; payload = payload[chunkSize:] {
+		if chunkSize > len(payload) {
+			chunkSize = len(payload)
+		}
+		n, err := w.Write(payload[:chunkSize])
+		require.NoError(tb, err)
+		require.EqualValues(tb, chunkSize, n)
+	}
+
+	err = w.Close()
+	require.NoError(tb, err)
+
+	checker.chainCollector.verify(checker.input, w.ID())
 }
 
 type slicedObjectChecker struct {
