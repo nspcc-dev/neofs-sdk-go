@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	. "github.com/nspcc-dev/neofs-sdk-go/netmap"
+	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -250,4 +251,13 @@ func TestNetworkInfo_MaintenanceModeAllowed(t *testing.T) {
 			return []byte{0}
 		},
 	)
+}
+
+func TestNetworkInfo_Marshal(t *testing.T) {
+	v := netmaptest.NetworkInfo()
+
+	var v2 NetworkInfo
+	require.NoError(t, v2.Unmarshal(v.Marshal()))
+
+	require.Equal(t, v, v2)
 }
