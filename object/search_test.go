@@ -2,12 +2,16 @@ package object_test
 
 import (
 	"crypto/sha256"
+	"encoding/hex"
+	"fmt"
 	"math/rand"
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -206,4 +210,78 @@ func TestSearchMatchType_String(t *testing.T) {
 		{val: toPtr(object.MatchNotPresent), str: "NOT_PRESENT"},
 		{val: toPtr(object.MatchUnknown), str: "MATCH_TYPE_UNSPECIFIED"},
 	})
+}
+
+func testChecksumSha256() [sha256.Size]byte {
+	cs := [sha256.Size]byte{}
+	rand.Read(cs[:])
+
+	return cs
+}
+
+func testChecksumTZ() [tz.Size]byte {
+	cs := [tz.Size]byte{}
+	rand.Read(cs[:])
+
+	return cs
+}
+
+func TestSearchFilters_AddPayloadHashFilter(t *testing.T) {
+	cs := testChecksumSha256()
+
+	fs := new(object.SearchFilters)
+	fs.AddPayloadHashFilter(object.MatchStringEqual, cs)
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderPayloadHash, fsV2[0].GetKey())
+		require.Equal(t, hex.EncodeToString(cs[:]), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
+}
+
+func ExampleSearchFilters_AddPayloadHashFilter() {
+	hash, _ := hex.DecodeString("66842cfea090b1d906b52400fae49d86df078c0670f2bdd059ba289ebe24a498")
+
+	var v [sha256.Size]byte
+	copy(v[:], hash[:sha256.Size])
+
+	var cs checksum.Checksum
+	cs.SetSHA256(v)
+
+	fmt.Println(hex.EncodeToString(cs.Value()))
+	// Output: 66842cfea090b1d906b52400fae49d86df078c0670f2bdd059ba289ebe24a498
+}
+
+func TestSearchFilters_AddHomomorphicHashFilter(t *testing.T) {
+	cs := testChecksumTZ()
+
+	fs := new(object.SearchFilters)
+	fs.AddHomomorphicHashFilter(object.MatchStringEqual, cs)
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderHomomorphicHash, fsV2[0].GetKey())
+		require.Equal(t, hex.EncodeToString(cs[:]), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
+}
+
+func ExampleSearchFilters_AddHomomorphicHashFilter() {
+	hash, _ := hex.DecodeString("7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c")
+
+	var v [tz.Size]byte
+	copy(v[:], hash[:tz.Size])
+
+	var cs checksum.Checksum
+	cs.SetTillichZemor(v)
+
+	fmt.Println(hex.EncodeToString(cs.Value()))
+	// Output: 7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c
 }
