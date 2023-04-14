@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -186,4 +187,8 @@ func (m *mockClient) restartIfUnhealthy(ctx context.Context) (healthy bool, chan
 		m.setUnhealthy()
 	}
 	return
+}
+
+func (m *mockClient) getClient() (*sdkClient.Client, error) {
+	return nil, errors.New("now supported to return sdkClient from mockClient")
 }
