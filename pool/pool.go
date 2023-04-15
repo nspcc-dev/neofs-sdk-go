@@ -76,6 +76,8 @@ type client interface {
 	dial(ctx context.Context) error
 	// see clientWrapper.restartIfUnhealthy.
 	restartIfUnhealthy(ctx context.Context) (bool, bool)
+
+	getClient() (*sdkClient.Client, error)
 }
 
 // clientStatus provide access to some metrics for connection.
@@ -2102,6 +2104,16 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 
 		return nil
 	})
+}
+
+// RawClient returns single client instance to have possibility to work with exact one.
+func (p *Pool) RawClient() (*sdkClient.Client, error) {
+	conn, err := p.connection()
+	if err != nil {
+		return nil, err
+	}
+
+	return conn.getClient()
 }
 
 type objectReadCloser struct {
