@@ -602,7 +602,7 @@ type PrmContainerSetEACL struct {
 }
 
 // SetTable sets eACL table structure to be set for the container.
-// Required parameter.
+// Required parameter and CID must be set inside the table.
 func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 	x.table = table
 	x.tableSet = true
@@ -654,6 +654,11 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 		panic(panicMsgMissingContext)
 	case !prm.tableSet:
 		panic("eACL table not set")
+	}
+
+	_, isCIDSet := prm.table.CID()
+	if !isCIDSet {
+		panic("missing container in eACL table")
 	}
 
 	// sign the eACL table
