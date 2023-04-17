@@ -1,6 +1,8 @@
 package object
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"strconv"
 
@@ -9,6 +11,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"github.com/nspcc-dev/tzhash/tz"
 )
 
 // SearchMatchType indicates match operation on specified header.
@@ -298,4 +301,14 @@ func (f *SearchFilters) UnmarshalJSON(data []byte) error {
 	*f = NewSearchFiltersFromV2(fsV2)
 
 	return nil
+}
+
+// AddPayloadHashFilter adds filter by payload hash.
+func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size]byte) {
+	f.addReservedFilter(m, fKeyPayloadHash, staticStringer(hex.EncodeToString(sum[:])))
+}
+
+// AddHomomorphicHashFilter adds filter by homomorphic hash.
+func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
+	f.addReservedFilter(m, fKeyHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
 }
