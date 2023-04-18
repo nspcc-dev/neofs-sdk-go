@@ -8,58 +8,58 @@ type BaseQueryVisitor struct {
 	*antlr.BaseParseTreeVisitor
 }
 
-func (v *BaseQueryVisitor) VisitPolicy(ctx *PolicyContext) interface{} {
+func (v *BaseQueryVisitor) VisitPolicy(ctx *PolicyContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitRepStmt(ctx *RepStmtContext) interface{} {
+func (v *BaseQueryVisitor) VisitRepStmt(ctx *RepStmtContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitCbfStmt(ctx *CbfStmtContext) interface{} {
+func (v *BaseQueryVisitor) VisitCbfStmt(ctx *CbfStmtContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitSelectStmt(ctx *SelectStmtContext) interface{} {
+func (v *BaseQueryVisitor) VisitSelectStmt(ctx *SelectStmtContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitClause(ctx *ClauseContext) interface{} {
+func (v *BaseQueryVisitor) VisitClause(ctx *ClauseContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitFilterExpr(ctx *FilterExprContext) interface{} {
+func (v *BaseQueryVisitor) VisitFilterExpr(ctx *FilterExprContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitFilterStmt(ctx *FilterStmtContext) interface{} {
+func (v *BaseQueryVisitor) VisitFilterStmt(ctx *FilterStmtContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitExpr(ctx *ExprContext) interface{} {
+func (v *BaseQueryVisitor) VisitExpr(ctx *ExprContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitFilterKey(ctx *FilterKeyContext) interface{} {
+func (v *BaseQueryVisitor) VisitFilterKey(ctx *FilterKeyContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitFilterValue(ctx *FilterValueContext) interface{} {
+func (v *BaseQueryVisitor) VisitFilterValue(ctx *FilterValueContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitNumber(ctx *NumberContext) interface{} {
+func (v *BaseQueryVisitor) VisitNumber(ctx *NumberContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitKeyword(ctx *KeywordContext) interface{} {
+func (v *BaseQueryVisitor) VisitKeyword(ctx *KeywordContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitIdent(ctx *IdentContext) interface{} {
+func (v *BaseQueryVisitor) VisitIdent(ctx *IdentContext) any {
 	return v.VisitChildren(ctx)
 }
 
-func (v *BaseQueryVisitor) VisitIdentWC(ctx *IdentWCContext) interface{} {
+func (v *BaseQueryVisitor) VisitIdentWC(ctx *IdentWCContext) any {
 	return v.VisitChildren(ctx)
 }

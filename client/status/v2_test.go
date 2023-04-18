@@ -12,7 +12,7 @@ func TestToStatusV2(t *testing.T) {
 	type statusConstructor func() apistatus.Status
 
 	for _, testItem := range [...]struct {
-		status    interface{} // Status or statusConstructor
+		status    any // Status or statusConstructor
 		codeV2    uint64
 		messageV2 string
 	}{
@@ -165,7 +165,7 @@ func TestFromStatusV2(t *testing.T) {
 	type statusConstructor func() apistatus.Status
 
 	for _, testItem := range [...]struct {
-		status    interface{} // Status or statusConstructor
+		status    any // Status or statusConstructor
 		codeV2    uint64
 		messageV2 string
 	}{

@@ -601,17 +601,17 @@ type policyVisitor struct {
 	antlr.DefaultErrorListener
 }
 
-func (p *policyVisitor) SyntaxError(_ antlr.Recognizer, _ interface{}, line, column int, msg string, _ antlr.RecognitionException) {
+func (p *policyVisitor) SyntaxError(_ antlr.Recognizer, _ any, line, column int, msg string, _ antlr.RecognitionException) {
 	p.reportError(fmt.Errorf("%w: line %d:%d %s", errSyntaxError, line, column, msg))
 }
 
-func (p *policyVisitor) reportError(err error) interface{} {
+func (p *policyVisitor) reportError(err error) any {
 	p.errors = append(p.errors, err)
 	return nil
 }
 
 // VisitPolicy implements parser.QueryVisitor interface.
-func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) interface{} {
+func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 	if len(p.errors) != 0 {
 		return nil
 	}
@@ -659,7 +659,7 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) interface{} {
 	return pl
 }
 
-func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) interface{} {
+func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) any {
 	cbf, err := strconv.ParseUint(ctx.GetBackupFactor().GetText(), 10, 32)
 	if err != nil {
 		return p.reportError(errInvalidNumber)
@@ -669,7 +669,7 @@ func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) interface{} {
 }
 
 // VisitRepStmt implements parser.QueryVisitor interface.
-func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) interface{} {
+func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 	num, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
 	if err != nil {
 		return p.reportError(errInvalidNumber)
@@ -686,7 +686,7 @@ func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) interface{} {
 }
 
 // VisitSelectStmt implements parser.QueryVisitor interface.
-func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) interface{} {
+func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
 	res, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
 	if err != nil {
 		return p.reportError(errInvalidNumber)
@@ -712,13 +712,13 @@ func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) interface
 }
 
 // VisitFilterStmt implements parser.QueryVisitor interface.
-func (p *policyVisitor) VisitFilterStmt(ctx *parser.FilterStmtContext) interface{} {
+func (p *policyVisitor) VisitFilterStmt(ctx *parser.FilterStmtContext) any {
 	f := p.VisitFilterExpr(ctx.GetExpr().(*parser.FilterExprContext)).(*netmap.Filter)
 	f.SetName(ctx.GetName().GetText())
 	return f
 }
 
-func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) interface{} {
+func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) any {
 	if eCtx := ctx.Expr(); eCtx != nil {
 		return eCtx.Accept(p)
 	}
@@ -747,7 +747,7 @@ func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) interface
 }
 
 // VisitFilterKey implements parser.QueryVisitor interface.
-func (p *policyVisitor) VisitFilterKey(ctx *parser.FilterKeyContext) interface{} {
+func (p *policyVisitor) VisitFilterKey(ctx *parser.FilterKeyContext) any {
 	if id := ctx.Ident(); id != nil {
 		return id.GetText()
 	}
@@ -756,7 +756,7 @@ func (p *policyVisitor) VisitFilterKey(ctx *parser.FilterKeyContext) interface{}
 	return str[1 : len(str)-1]
 }
 
-func (p *policyVisitor) VisitFilterValue(ctx *parser.FilterValueContext) interface{} {
+func (p *policyVisitor) VisitFilterValue(ctx *parser.FilterValueContext) any {
 	if id := ctx.Ident(); id != nil {
 		return id.GetText()
 	}
@@ -770,7 +770,7 @@ func (p *policyVisitor) VisitFilterValue(ctx *parser.FilterValueContext) interfa
 }
 
 // VisitExpr implements parser.QueryVisitor interface.
-func (p *policyVisitor) VisitExpr(ctx *parser.ExprContext) interface{} {
+func (p *policyVisitor) VisitExpr(ctx *parser.ExprContext) any {
 	f := new(netmap.Filter)
 	if flt := ctx.GetFilter(); flt != nil {
 		f.SetName(flt.GetText())

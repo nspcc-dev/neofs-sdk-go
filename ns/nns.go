@@ -26,7 +26,7 @@ type NNS struct {
 	nnsContract util.Uint160
 
 	invoker interface {
-		Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error)
+		Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error)
 	}
 }
 

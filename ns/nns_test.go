@@ -29,7 +29,7 @@ type testNeoClient struct {
 	err error
 }
 
-func (x *testNeoClient) Call(contract util.Uint160, operation string, params ...interface{}) (*result.Invoke, error) {
+func (x *testNeoClient) Call(contract util.Uint160, operation string, params ...any) (*result.Invoke, error) {
 	var domain string
 
 	require.Equal(x.t, x.expectedContract, contract)
@@ -49,7 +49,7 @@ type brokenArrayStackItem struct {
 	stackitem.Item
 }
 
-func (x brokenArrayStackItem) Value() interface{} {
+func (x brokenArrayStackItem) Value() any {
 	return 1
 }
 
