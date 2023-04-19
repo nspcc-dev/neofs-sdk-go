@@ -28,6 +28,8 @@ type PrmContainerPut struct {
 
 	sessionSet bool
 	session    session.Container
+
+	signer neofscrypto.Signer
 }
 
 // SetContainer sets structured information about new NeoFS container.
@@ -35,6 +37,13 @@ type PrmContainerPut struct {
 func (x *PrmContainerPut) SetContainer(cnr container.Container) {
 	x.cnr = cnr
 	x.cnrSet = true
+}
+
+// SetSigner sets signer to sign request payload.
+// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// Optional parameter: defaults to internal Client signer.
+func (x *PrmContainerPut) SetSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // WithinSession specifies session within which container should be saved.
@@ -62,6 +71,10 @@ type ResContainerPut struct {
 // asynchronously check if the save was successful).
 func (x ResContainerPut) ID() cid.ID {
 	return x.id
+}
+
+func (c *Client) defaultSigner() neofscrypto.Signer {
+	return neofsecdsa.SignerRFC6979(c.prm.key)
 }
 
 // ContainerPut sends request to save container in NeoFS.
@@ -97,8 +110,12 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	prm.cnr.WriteToV2(&cnr)
 
 	var sig neofscrypto.Signature
+	signer := prm.signer
+	if signer == nil {
+		signer = c.defaultSigner()
+	}
 
-	err := container.CalculateSignature(&sig, prm.cnr, c.prm.key)
+	err := container.CalculateSignature(&sig, prm.cnr, signer)
 	if err != nil {
 		return nil, fmt.Errorf("calculate container signature: %w", err)
 	}
@@ -375,6 +392,8 @@ type PrmContainerDelete struct {
 
 	tokSet bool
 	tok    session.Container
+
+	signer neofscrypto.Signer
 }
 
 // SetContainer sets identifier of the NeoFS container to be removed.
@@ -382,6 +401,13 @@ type PrmContainerDelete struct {
 func (x *PrmContainerDelete) SetContainer(id cid.ID) {
 	x.id = id
 	x.idSet = true
+}
+
+// SetSigner sets signer to sign request payload.
+// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// Optional parameter: defaults to internal Client signer.
+func (x *PrmContainerDelete) SetSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // WithinSession specifies session within which container should be removed.
@@ -439,8 +465,12 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	data := cidV2.GetValue()
 
 	var sig neofscrypto.Signature
+	signer := prm.signer
+	if signer == nil {
+		signer = c.defaultSigner()
+	}
 
-	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), data)
+	err := sig.Calculate(signer, data)
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}
@@ -599,6 +629,8 @@ type PrmContainerSetEACL struct {
 
 	sessionSet bool
 	session    session.Container
+
+	signer neofscrypto.Signer
 }
 
 // SetTable sets eACL table structure to be set for the container.
@@ -606,6 +638,13 @@ type PrmContainerSetEACL struct {
 func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
 	x.table = table
 	x.tableSet = true
+}
+
+// SetSigner sets signer to sign request payload.
+// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// Optional parameter: defaults to internal Client signer.
+func (x *PrmContainerSetEACL) SetSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // WithinSession specifies session within which extended ACL of the container
@@ -665,8 +704,12 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	eaclV2 := prm.table.ToV2()
 
 	var sig neofscrypto.Signature
+	signer := prm.signer
+	if signer == nil {
+		signer = c.defaultSigner()
+	}
 
-	err := sig.Calculate(neofsecdsa.SignerRFC6979(c.prm.key), eaclV2.StableMarshal(nil))
+	err := sig.Calculate(signer, eaclV2.StableMarshal(nil))
 	if err != nil {
 		return nil, fmt.Errorf("calculate signature: %w", err)
 	}

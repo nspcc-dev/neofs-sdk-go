@@ -16,6 +16,7 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
@@ -339,7 +340,7 @@ func TestCalculateSignature(t *testing.T) {
 
 	var sig neofscrypto.Signature
 
-	require.NoError(t, container.CalculateSignature(&sig, val, key.PrivateKey))
+	require.NoError(t, container.CalculateSignature(&sig, val, neofsecdsa.SignerRFC6979(key.PrivateKey)))
 
 	var msg refs.Signature
 	sig.WriteToV2(&msg)

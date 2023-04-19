@@ -1,7 +1,6 @@
 package container
 
 import (
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -15,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -481,8 +479,8 @@ func ReadDomain(cnr Container) (res Domain) {
 // will most likely break the signature.
 //
 // See also VerifySignature.
-func CalculateSignature(dst *neofscrypto.Signature, cnr Container, signer ecdsa.PrivateKey) error {
-	return dst.Calculate(neofsecdsa.SignerRFC6979(signer), cnr.Marshal())
+func CalculateSignature(dst *neofscrypto.Signature, cnr Container, signer neofscrypto.Signer) error {
+	return dst.Calculate(signer, cnr.Marshal())
 }
 
 // VerifySignature verifies Container signature calculated using CalculateSignature.
