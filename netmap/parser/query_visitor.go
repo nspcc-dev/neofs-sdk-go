@@ -9,44 +9,44 @@ type QueryVisitor interface {
 	antlr.ParseTreeVisitor
 
 	// Visit a parse tree produced by Query#policy.
-	VisitPolicy(ctx *PolicyContext) interface{}
+	VisitPolicy(ctx *PolicyContext) any
 
 	// Visit a parse tree produced by Query#repStmt.
-	VisitRepStmt(ctx *RepStmtContext) interface{}
+	VisitRepStmt(ctx *RepStmtContext) any
 
 	// Visit a parse tree produced by Query#cbfStmt.
-	VisitCbfStmt(ctx *CbfStmtContext) interface{}
+	VisitCbfStmt(ctx *CbfStmtContext) any
 
 	// Visit a parse tree produced by Query#selectStmt.
-	VisitSelectStmt(ctx *SelectStmtContext) interface{}
+	VisitSelectStmt(ctx *SelectStmtContext) any
 
 	// Visit a parse tree produced by Query#clause.
-	VisitClause(ctx *ClauseContext) interface{}
+	VisitClause(ctx *ClauseContext) any
 
 	// Visit a parse tree produced by Query#filterExpr.
-	VisitFilterExpr(ctx *FilterExprContext) interface{}
+	VisitFilterExpr(ctx *FilterExprContext) any
 
 	// Visit a parse tree produced by Query#filterStmt.
-	VisitFilterStmt(ctx *FilterStmtContext) interface{}
+	VisitFilterStmt(ctx *FilterStmtContext) any
 
 	// Visit a parse tree produced by Query#expr.
-	VisitExpr(ctx *ExprContext) interface{}
+	VisitExpr(ctx *ExprContext) any
 
 	// Visit a parse tree produced by Query#filterKey.
-	VisitFilterKey(ctx *FilterKeyContext) interface{}
+	VisitFilterKey(ctx *FilterKeyContext) any
 
 	// Visit a parse tree produced by Query#filterValue.
-	VisitFilterValue(ctx *FilterValueContext) interface{}
+	VisitFilterValue(ctx *FilterValueContext) any
 
 	// Visit a parse tree produced by Query#number.
-	VisitNumber(ctx *NumberContext) interface{}
+	VisitNumber(ctx *NumberContext) any
 
 	// Visit a parse tree produced by Query#keyword.
-	VisitKeyword(ctx *KeywordContext) interface{}
+	VisitKeyword(ctx *KeywordContext) any
 
 	// Visit a parse tree produced by Query#ident.
-	VisitIdent(ctx *IdentContext) interface{}
+	VisitIdent(ctx *IdentContext) any
 
 	// Visit a parse tree produced by Query#identWC.
-	VisitIdentWC(ctx *IdentWCContext) interface{}
+	VisitIdentWC(ctx *IdentWCContext) any
 }

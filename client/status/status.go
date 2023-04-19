@@ -15,7 +15,7 @@ package apistatus
 // It should be noted that using direct typecasting is not a compatible approach.
 //
 // To transport statuses using the NeoFS API V2 protocol, see StatusV2 interface and FromStatusV2 and ToStatusV2 functions.
-type Status interface{}
+type Status any
 
 // ErrFromStatus converts Status instance to error if it is failed. Returns nil on successful Status.
 //

@@ -123,7 +123,7 @@ func ToStatusV2(st Status) *status.Status {
 	return internalErrorStatus
 }
 
-func errMessageStatusV2(code interface{}, msg string) string {
+func errMessageStatusV2(code any, msg string) string {
 	const (
 		noMsgFmt = "status: code = %v"
 		msgFmt   = noMsgFmt + " message = %s"

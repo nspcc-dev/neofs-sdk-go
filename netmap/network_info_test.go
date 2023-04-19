@@ -63,16 +63,16 @@ func TestNetworkInfo_MsPerBlock(t *testing.T) {
 }
 
 func testConfigValue(t *testing.T,
-	getter func(x NetworkInfo) interface{},
-	setter func(x *NetworkInfo, val interface{}),
-	val1, val2 interface{},
-	v2Key string, v2Val func(val interface{}) []byte,
+	getter func(x NetworkInfo) any,
+	setter func(x *NetworkInfo, val any),
+	val1, val2 any,
+	v2Key string, v2Val func(val any) []byte,
 ) {
 	var x NetworkInfo
 
 	require.Zero(t, getter(x))
 
-	checkVal := func(exp interface{}) {
+	checkVal := func(exp any) {
 		require.EqualValues(t, exp, getter(x))
 
 		var m netmap.NetworkInfo
@@ -99,10 +99,10 @@ func testConfigValue(t *testing.T,
 
 func TestNetworkInfo_AuditFee(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.AuditFee() },
-		func(info *NetworkInfo, val interface{}) { info.SetAuditFee(val.(uint64)) },
+		func(x NetworkInfo) any { return x.AuditFee() },
+		func(info *NetworkInfo, val any) { info.SetAuditFee(val.(uint64)) },
 		uint64(1), uint64(2),
-		"AuditFee", func(val interface{}) []byte {
+		"AuditFee", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -112,10 +112,10 @@ func TestNetworkInfo_AuditFee(t *testing.T) {
 
 func TestNetworkInfo_StoragePrice(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.StoragePrice() },
-		func(info *NetworkInfo, val interface{}) { info.SetStoragePrice(val.(uint64)) },
+		func(x NetworkInfo) any { return x.StoragePrice() },
+		func(info *NetworkInfo, val any) { info.SetStoragePrice(val.(uint64)) },
 		uint64(1), uint64(2),
-		"BasicIncomeRate", func(val interface{}) []byte {
+		"BasicIncomeRate", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -125,10 +125,10 @@ func TestNetworkInfo_StoragePrice(t *testing.T) {
 
 func TestNetworkInfo_ContainerFee(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.ContainerFee() },
-		func(info *NetworkInfo, val interface{}) { info.SetContainerFee(val.(uint64)) },
+		func(x NetworkInfo) any { return x.ContainerFee() },
+		func(info *NetworkInfo, val any) { info.SetContainerFee(val.(uint64)) },
 		uint64(1), uint64(2),
-		"ContainerFee", func(val interface{}) []byte {
+		"ContainerFee", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -138,10 +138,10 @@ func TestNetworkInfo_ContainerFee(t *testing.T) {
 
 func TestNetworkInfo_NamedContainerFee(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.NamedContainerFee() },
-		func(info *NetworkInfo, val interface{}) { info.SetNamedContainerFee(val.(uint64)) },
+		func(x NetworkInfo) any { return x.NamedContainerFee() },
+		func(info *NetworkInfo, val any) { info.SetNamedContainerFee(val.(uint64)) },
 		uint64(1), uint64(2),
-		"ContainerAliasFee", func(val interface{}) []byte {
+		"ContainerAliasFee", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -151,10 +151,10 @@ func TestNetworkInfo_NamedContainerFee(t *testing.T) {
 
 func TestNetworkInfo_EigenTrustAlpha(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.EigenTrustAlpha() },
-		func(info *NetworkInfo, val interface{}) { info.SetEigenTrustAlpha(val.(float64)) },
+		func(x NetworkInfo) any { return x.EigenTrustAlpha() },
+		func(info *NetworkInfo, val any) { info.SetEigenTrustAlpha(val.(float64)) },
 		0.1, 0.2,
-		"EigenTrustAlpha", func(val interface{}) []byte {
+		"EigenTrustAlpha", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, math.Float64bits(val.(float64)))
 			return data
@@ -164,10 +164,10 @@ func TestNetworkInfo_EigenTrustAlpha(t *testing.T) {
 
 func TestNetworkInfo_NumberOfEigenTrustIterations(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.NumberOfEigenTrustIterations() },
-		func(info *NetworkInfo, val interface{}) { info.SetNumberOfEigenTrustIterations(val.(uint64)) },
+		func(x NetworkInfo) any { return x.NumberOfEigenTrustIterations() },
+		func(info *NetworkInfo, val any) { info.SetNumberOfEigenTrustIterations(val.(uint64)) },
 		uint64(1), uint64(2),
-		"EigenTrustIterations", func(val interface{}) []byte {
+		"EigenTrustIterations", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -177,10 +177,10 @@ func TestNetworkInfo_NumberOfEigenTrustIterations(t *testing.T) {
 
 func TestNetworkInfo_IRCandidateFee(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.IRCandidateFee() },
-		func(info *NetworkInfo, val interface{}) { info.SetIRCandidateFee(val.(uint64)) },
+		func(x NetworkInfo) any { return x.IRCandidateFee() },
+		func(info *NetworkInfo, val any) { info.SetIRCandidateFee(val.(uint64)) },
 		uint64(1), uint64(2),
-		"InnerRingCandidateFee", func(val interface{}) []byte {
+		"InnerRingCandidateFee", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -190,10 +190,10 @@ func TestNetworkInfo_IRCandidateFee(t *testing.T) {
 
 func TestNetworkInfo_MaxObjectSize(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.MaxObjectSize() },
-		func(info *NetworkInfo, val interface{}) { info.SetMaxObjectSize(val.(uint64)) },
+		func(x NetworkInfo) any { return x.MaxObjectSize() },
+		func(info *NetworkInfo, val any) { info.SetMaxObjectSize(val.(uint64)) },
 		uint64(1), uint64(2),
-		"MaxObjectSize", func(val interface{}) []byte {
+		"MaxObjectSize", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -203,10 +203,10 @@ func TestNetworkInfo_MaxObjectSize(t *testing.T) {
 
 func TestNetworkInfo_WithdrawalFee(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.WithdrawalFee() },
-		func(info *NetworkInfo, val interface{}) { info.SetWithdrawalFee(val.(uint64)) },
+		func(x NetworkInfo) any { return x.WithdrawalFee() },
+		func(info *NetworkInfo, val any) { info.SetWithdrawalFee(val.(uint64)) },
 		uint64(1), uint64(2),
-		"WithdrawFee", func(val interface{}) []byte {
+		"WithdrawFee", func(val any) []byte {
 			data := make([]byte, 8)
 			binary.LittleEndian.PutUint64(data, val.(uint64))
 			return data
@@ -216,14 +216,14 @@ func TestNetworkInfo_WithdrawalFee(t *testing.T) {
 
 func TestNetworkInfo_HomomorphicHashingDisabled(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.HomomorphicHashingDisabled() },
-		func(info *NetworkInfo, val interface{}) {
+		func(x NetworkInfo) any { return x.HomomorphicHashingDisabled() },
+		func(info *NetworkInfo, val any) {
 			if val.(bool) {
 				info.DisableHomomorphicHashing()
 			}
 		},
 		true, true, // it is impossible to enable hashing
-		"HomomorphicHashingDisabled", func(val interface{}) []byte {
+		"HomomorphicHashingDisabled", func(val any) []byte {
 			data := make([]byte, 1)
 
 			if val.(bool) {
@@ -237,14 +237,14 @@ func TestNetworkInfo_HomomorphicHashingDisabled(t *testing.T) {
 
 func TestNetworkInfo_MaintenanceModeAllowed(t *testing.T) {
 	testConfigValue(t,
-		func(x NetworkInfo) interface{} { return x.MaintenanceModeAllowed() },
-		func(info *NetworkInfo, val interface{}) {
+		func(x NetworkInfo) any { return x.MaintenanceModeAllowed() },
+		func(info *NetworkInfo, val any) {
 			if val.(bool) {
 				info.AllowMaintenanceMode()
 			}
 		},
 		true, true,
-		"MaintenanceModeAllowed", func(val interface{}) []byte {
+		"MaintenanceModeAllowed", func(val any) []byte {
 			if val.(bool) {
 				return []byte{1}
 			}
