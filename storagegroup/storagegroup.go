@@ -252,7 +252,7 @@ func (sg *StorageGroup) UnmarshalJSON(data []byte) error {
 // error if object is not of TypeStorageGroup type.
 func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 	if typ := o.Type(); typ != objectSDK.TypeStorageGroup {
-		return fmt.Errorf("object is not of StorageGroup type: %s", typ)
+		return fmt.Errorf("object is not of StorageGroup type: %v", typ)
 	}
 
 	err := sg.Unmarshal(o.Payload())
