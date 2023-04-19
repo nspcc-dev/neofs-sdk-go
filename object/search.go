@@ -57,7 +57,7 @@ func SearchMatchFromV2(t v2object.MatchType) (m SearchMatchType) {
 	return m
 }
 
-// String returns string representation of SearchMatchType.
+// EncodeToString returns string representation of SearchMatchType.
 //
 // String mapping:
 //   - MatchStringEqual: STRING_EQUAL;
@@ -65,15 +65,24 @@ func SearchMatchFromV2(t v2object.MatchType) (m SearchMatchType) {
 //   - MatchNotPresent: NOT_PRESENT;
 //   - MatchCommonPrefix: COMMON_PREFIX;
 //   - MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
-func (m SearchMatchType) String() string {
+func (m SearchMatchType) EncodeToString() string {
 	return m.ToV2().String()
 }
 
-// FromString parses SearchMatchType from a string representation.
-// It is a reverse action to String().
+// String implements fmt.Stringer.
+//
+// String is designed to be human-readable, and its format MAY differ between
+// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// be used to encode ID into NeoFS protocol string.
+func (m SearchMatchType) String() string {
+	return m.EncodeToString()
+}
+
+// DecodeString parses SearchMatchType from a string representation.
+// It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
-func (m *SearchMatchType) FromString(s string) bool {
+func (m *SearchMatchType) DecodeString(s string) bool {
 	var g v2object.MatchType
 
 	ok := g.FromString(s)
@@ -282,7 +291,7 @@ func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id *SplitID) {
 
 // AddTypeFilter adds filter by object type.
 func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
-	f.addReservedFilter(m, fKeyType, staticStringer(typ.String()))
+	f.addReservedFilter(m, fKeyType, staticStringer(typ.EncodeToString()))
 }
 
 // MarshalJSON encodes SearchFilters to protobuf JSON format.

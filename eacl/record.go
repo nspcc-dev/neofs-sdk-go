@@ -146,7 +146,7 @@ func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
 
 // AddObjectTypeFilter adds filter by object type.
 func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
-	r.addObjectReservedFilter(m, fKeyObjType, staticStringer(t.String()))
+	r.addObjectReservedFilter(m, fKeyObjType, staticStringer(t.EncodeToString()))
 }
 
 // AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.

@@ -176,7 +176,7 @@ func TestSearchFilters_AddTypeFilter(t *testing.T) {
 		require.Len(t, fsV2, 1)
 
 		require.Equal(t, v2object.FilterHeaderObjectType, fsV2[0].GetKey())
-		require.Equal(t, typ.String(), fsV2[0].GetValue())
+		require.Equal(t, typ.EncodeToString(), fsV2[0].GetValue())
 		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
 	})
 }
