@@ -211,7 +211,7 @@ func TestReservedRecords(t *testing.T) {
 		},
 		{
 			f: func(r *Record) {
-				require.True(t, typ.FromString("REGULAR"))
+				require.True(t, typ.DecodeString("REGULAR"))
 				r.AddObjectTypeFilter(MatchStringEqual, *typ)
 			},
 			key:   v2acl.FilterObjectType,
@@ -219,7 +219,7 @@ func TestReservedRecords(t *testing.T) {
 		},
 		{
 			f: func(r *Record) {
-				require.True(t, typ.FromString("TOMBSTONE"))
+				require.True(t, typ.DecodeString("TOMBSTONE"))
 				r.AddObjectTypeFilter(MatchStringEqual, *typ)
 			},
 			key:   v2acl.FilterObjectType,
@@ -227,7 +227,7 @@ func TestReservedRecords(t *testing.T) {
 		},
 		{
 			f: func(r *Record) {
-				require.True(t, typ.FromString("STORAGE_GROUP"))
+				require.True(t, typ.DecodeString("STORAGE_GROUP"))
 				r.AddObjectTypeFilter(MatchStringEqual, *typ)
 			},
 			key:   v2acl.FilterObjectType,
