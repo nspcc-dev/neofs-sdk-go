@@ -245,7 +245,7 @@ func (b Token) AssertUser(id user.ID) bool {
 	return !b.targetUserSet || b.targetUser.Equals(id)
 }
 
-// Sign calculates and writes signature of the Token data using issuer's secret.
+// Sign calculates and writes signature of the Token data using issuer's signer.
 // Returns signature calculation errors.
 //
 // Sign MUST be called if Token is going to be transmitted over
@@ -255,10 +255,10 @@ func (b Token) AssertUser(id user.ID) bool {
 // expected to be calculated as a final stage of Token formation.
 //
 // See also VerifySignature, Issuer.
-func (b *Token) Sign(key ecdsa.PrivateKey) error {
+func (b *Token) Sign(signer neofsecdsa.Signer) error {
 	var sig neofscrypto.Signature
 
-	err := sig.Calculate(neofsecdsa.Signer(key), b.signedData())
+	err := sig.Calculate(signer, b.signedData())
 	if err != nil {
 		return err
 	}
