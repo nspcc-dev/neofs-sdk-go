@@ -92,3 +92,38 @@ type PublicKey interface {
 	// Verify checks signature of the given data. True means correct signature.
 	Verify(data, signature []byte) bool
 }
+
+// StaticSigner emulates real sign and contains already precalculated hash.
+// Provides neofscrypto.Signer interface.
+type StaticSigner struct {
+	scheme Scheme
+	sig    []byte
+	pubKey PublicKey
+}
+
+// NewStaticSigner creates new StaticSigner.
+func NewStaticSigner(scheme Scheme, sig []byte, pubKey PublicKey) *StaticSigner {
+	return &StaticSigner{
+		scheme: scheme,
+		sig:    sig,
+		pubKey: pubKey,
+	}
+}
+
+// Scheme returns neofscrypto.ECDSA_DETERMINISTIC_SHA256.
+// Implements neofscrypto.Signer.
+func (s *StaticSigner) Scheme() Scheme {
+	return s.scheme
+}
+
+// Sign returns precalculated hash.
+// Implements neofscrypto.Signer.
+func (s *StaticSigner) Sign(_ []byte) ([]byte, error) {
+	return s.sig, nil
+}
+
+// Public returns neofscrypto.PublicKey.
+// Implements neofscrypto.Signer.
+func (s *StaticSigner) Public() PublicKey {
+	return s.pubKey
+}
