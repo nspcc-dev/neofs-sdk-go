@@ -168,8 +168,8 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 // given PlacementPolicy to the NetMap. Each line of the list corresponds to a
 // replica descriptor. Line order corresponds to order of ReplicaDescriptor list
 // in the policy. Nodes are pre-filtered according to the Filter list from
-// the policy, and then selected by Selector list. Result is deterministic for
-// the fixed NetMap and parameters.
+// the policy, and then selected by Selector list. Result is not deterministic and
+// node order in each vector may vary for call.
 //
 // Result can be used in PlacementVectors.
 func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeInfo, error) {
