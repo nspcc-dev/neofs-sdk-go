@@ -1,10 +1,13 @@
 package netmap
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
 // NetMap represents NeoFS network map. It includes information about all
@@ -140,11 +143,14 @@ func flattenNodes(ns []nodes) nodes {
 }
 
 // PlacementVectors sorts container nodes returned by ContainerNodes method
-// and returns placement vectors for the entity identified by the given pivot.
+// and returns placement vectors for the entity identified by the given object id.
 // For example, in order to build node list to store the object, binary-encoded
 // object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
-func (m NetMap) PlacementVectors(vectors [][]NodeInfo, pivot []byte) ([][]NodeInfo, error) {
+func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
+	pivot := make([]byte, sha256.Size)
+	objectID.Encode(pivot)
+
 	h := hrw.Hash(pivot)
 	wf := defaultWeightFunc(m.nodes)
 	result := make([][]NodeInfo, len(vectors))
@@ -162,14 +168,17 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, pivot []byte) ([][]NodeIn
 // given PlacementPolicy to the NetMap. Each line of the list corresponds to a
 // replica descriptor. Line order corresponds to order of ReplicaDescriptor list
 // in the policy. Nodes are pre-filtered according to the Filter list from
-// the policy, and then selected by Selector list. Result is deterministic for
-// the fixed NetMap and parameters.
+// the policy, and then selected by Selector list. Result is not deterministic and
+// node order in each vector may vary for call.
 //
 // Result can be used in PlacementVectors.
-func (m NetMap) ContainerNodes(p PlacementPolicy, pivot []byte) ([][]NodeInfo, error) {
+func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeInfo, error) {
 	c := newContext(m)
-	c.setPivot(pivot)
 	c.setCBF(p.backupFactor)
+
+	pivot := make([]byte, sha256.Size)
+	containerID.Encode(pivot)
+	c.setPivot(pivot)
 
 	if err := c.processFilters(p); err != nil {
 		return nil, err

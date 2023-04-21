@@ -183,9 +183,9 @@
       "policy": {"replicas":[{"count":1,"selector":"SameRU"},{"count":1,"selector":"DistinctRU"},{"count":1,"selector":"Good"},{"count":1,"selector":"Main"}],"containerBackupFactor":2,"selectors":[{"name":"SameRU","count":2,"clause":"SAME","attribute":"City","filter":"FromRU"},{"name":"DistinctRU","count":2,"clause":"DISTINCT","attribute":"City","filter":"FromRU"},{"name":"Good","count":2,"clause":"DISTINCT","attribute":"Country","filter":"Good"},{"name":"Main","count":3,"clause":"DISTINCT","attribute":"Country","filter":"*"}],"filters":[{"name":"FromRU","key":"Country","op":"EQ","value":"Russia"},{"name":"Good","key":"Rating","op":"GE","value":"4"}]},
       "result": [
         [0, 5, 9, 10],
-        [2, 6, 0, 5],
+        [0, 5, 2, 6],
         [1, 8, 2, 5],
-        [3, 4, 1, 7, 0, 2]
+        [0, 2, 1, 7, 3, 4]
       ]
     }
   }

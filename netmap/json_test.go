@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,6 +39,20 @@ func compareNodes(t testing.TB, expected [][]int, nodes nodes, actual [][]NodeIn
 	}
 }
 
+func compareNodesIgnoreOrder(t testing.TB, expected [][]int, nodes nodes, actual [][]NodeInfo) {
+	require.Equal(t, len(expected), len(actual))
+	for i := range expected {
+		require.Equal(t, len(expected[i]), len(actual[i]))
+
+		var expectedNodes []NodeInfo
+		for _, index := range expected[i] {
+			expectedNodes = append(expectedNodes, nodes[index])
+		}
+
+		require.ElementsMatch(t, expectedNodes, actual[i])
+	}
+}
+
 func TestPlacementPolicy_Interopability(t *testing.T) {
 	const testsDir = "./json_tests"
 
@@ -62,7 +78,10 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 
 			for name, tt := range tc.Tests {
 				t.Run(name, func(t *testing.T) {
-					v, err := nm.ContainerNodes(tt.Policy, tt.Pivot)
+					var pivot cid.ID
+					copy(pivot[:], tt.Pivot)
+
+					v, err := nm.ContainerNodes(tt.Policy, pivot)
 					if tt.Result == nil {
 						require.Error(t, err)
 						require.Contains(t, err.Error(), tt.Error)
@@ -70,10 +89,13 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 						require.NoError(t, err)
 						require.Equal(t, srcNodes, tc.Nodes)
 
-						compareNodes(t, tt.Result, tc.Nodes, v)
+						compareNodesIgnoreOrder(t, tt.Result, tc.Nodes, v)
 
 						if tt.Placement.Result != nil {
-							res, err := nm.PlacementVectors(v, tt.Placement.Pivot)
+							var placementPivot oid.ID
+							copy(placementPivot[:], tt.Placement.Pivot)
+
+							res, err := nm.PlacementVectors(v, placementPivot)
 							require.NoError(t, err)
 							compareNodes(t, tt.Placement.Result, tc.Nodes, res)
 							require.Equal(t, srcNodes, tc.Nodes)
@@ -108,11 +130,14 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 
 			for name, tt := range tc.Tests {
 				b.Run(name, func(b *testing.B) {
+					var pivot cid.ID
+					copy(pivot[:], tt.Pivot)
+
 					b.ReportAllocs()
 					b.ResetTimer()
 					for i := 0; i < b.N; i++ {
 						b.StartTimer()
-						v, err := nm.ContainerNodes(tt.Policy, tt.Pivot)
+						v, err := nm.ContainerNodes(tt.Policy, pivot)
 						b.StopTimer()
 						if tt.Result == nil {
 							require.Error(b, err)
@@ -120,11 +145,14 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 						} else {
 							require.NoError(b, err)
 
-							compareNodes(b, tt.Result, tc.Nodes, v)
+							compareNodesIgnoreOrder(b, tt.Result, tc.Nodes, v)
 
 							if tt.Placement.Result != nil {
+								var placementPivot oid.ID
+								copy(placementPivot[:], tt.Placement.Pivot)
+
 								b.StartTimer()
-								res, err := nm.PlacementVectors(v, tt.Placement.Pivot)
+								res, err := nm.PlacementVectors(v, placementPivot)
 								b.StopTimer()
 								require.NoError(b, err)
 								compareNodes(b, tt.Placement.Result, tc.Nodes, res)
@@ -150,11 +178,14 @@ func BenchmarkManySelects(b *testing.B) {
 	var nm NetMap
 	nm.SetNodes(tc.Nodes)
 
+	var pivot cid.ID
+	copy(pivot[:], tt.Pivot)
+
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
-		_, err = nm.ContainerNodes(tt.Policy, tt.Pivot)
+		_, err = nm.ContainerNodes(tt.Policy, pivot)
 		if err != nil {
 			b.FailNow()
 		}
