@@ -7,13 +7,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
@@ -21,19 +19,6 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
-
-func randSigner() neofscrypto.Signer {
-	k, err := keys.NewPrivateKey()
-	if err != nil {
-		panic(fmt.Sprintf("generate private key: %v", err))
-	}
-
-	return neofsecdsa.SignerRFC6979(k.PrivateKey)
-}
-
-func randPublicKey() neofscrypto.PublicKey {
-	return randSigner().Public()
-}
 
 func TestObjectProtocolV2(t *testing.T) {
 	var validV2 v2session.Token
@@ -51,7 +36,7 @@ func TestObjectProtocolV2(t *testing.T) {
 	restoreID()
 
 	// Owner
-	usr := *usertest.ID()
+	usr := *usertest.ID(t)
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
 	restoreUser := func() {
@@ -70,7 +55,7 @@ func TestObjectProtocolV2(t *testing.T) {
 	restoreLifetime()
 
 	// Session key
-	signer := randSigner()
+	signer := test.RandomSignerRFC6979(t)
 	authKey := signer.Public()
 	binAuthKey := make([]byte, authKey.MaxEncodedSize())
 	binAuthKey = binAuthKey[:authKey.Encode(binAuthKey)]
@@ -159,7 +144,7 @@ func TestObjectProtocolV2(t *testing.T) {
 			},
 			breakSign: func(m *v2session.Token) {
 				id := m.GetBody().GetOwnerID().GetValue()
-				copy(id, usertest.ID().WalletBytes())
+				copy(id, usertest.ID(t).WalletBytes())
 			},
 		},
 		{
@@ -291,7 +276,7 @@ func TestObject_WriteToV2(t *testing.T) {
 	})
 
 	// Owner/Signature
-	signer := randSigner()
+	signer := test.RandomSignerRFC6979(t)
 
 	require.NoError(t, val.Sign(signer))
 
@@ -538,7 +523,7 @@ func TestObject_ID(t *testing.T) {
 func TestObject_AssertAuthKey(t *testing.T) {
 	var x session.Object
 
-	key := randPublicKey()
+	key := test.RandomSignerRFC6979(t).Public()
 
 	require.False(t, x.AssertAuthKey(key))
 
@@ -624,7 +609,7 @@ func TestObject_AssertVerb(t *testing.T) {
 
 func TestObject_Issuer(t *testing.T) {
 	var token session.Object
-	signer := randSigner()
+	signer := test.RandomSignerRFC6979(t)
 
 	require.Zero(t, token.Issuer())
 
@@ -640,7 +625,7 @@ func TestObject_Issuer(t *testing.T) {
 func TestObject_Sign(t *testing.T) {
 	val := sessiontest.Object()
 
-	require.NoError(t, val.Sign(randSigner()))
+	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
 
 	require.True(t, val.VerifySignature())
 }

@@ -3,10 +3,9 @@ package reputation_test
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	reputationtest "github.com/nspcc-dev/neofs-sdk-go/reputation/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -128,7 +127,7 @@ func TestGlobalTrust_Manager(t *testing.T) {
 
 	require.Zero(t, val.Manager())
 
-	val = reputationtest.SignedGlobalTrust()
+	val = reputationtest.SignedGlobalTrust(t)
 
 	peer := reputationtest.PeerID()
 
@@ -153,7 +152,7 @@ func TestGlobalTrust_Trust(t *testing.T) {
 
 	require.Zero(t, val.Trust())
 
-	val = reputationtest.SignedGlobalTrust()
+	val = reputationtest.SignedGlobalTrust(t)
 
 	trust := reputationtest.Trust()
 
@@ -174,14 +173,11 @@ func TestGlobalTrust_Trust(t *testing.T) {
 }
 
 func TestGlobalTrust_Sign(t *testing.T) {
-	k, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
 	val := reputationtest.GlobalTrust()
 
 	require.False(t, val.VerifySignature())
 
-	require.NoError(t, val.Sign(neofsecdsa.Signer(k.PrivateKey)))
+	require.NoError(t, val.Sign(test.RandomSigner(t)))
 
 	var valV2 v2reputation.GlobalTrust
 	val.WriteToV2(&valV2)
@@ -195,7 +191,7 @@ func TestGlobalTrust_Sign(t *testing.T) {
 }
 
 func TestGlobalTrustEncoding(t *testing.T) {
-	val := reputationtest.SignedGlobalTrust()
+	val := reputationtest.SignedGlobalTrust(t)
 
 	t.Run("binary", func(t *testing.T) {
 		data := val.Marshal()

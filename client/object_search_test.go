@@ -6,11 +6,10 @@ import (
 	"io"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
@@ -110,10 +109,7 @@ func TestObjectIterate(t *testing.T) {
 }
 
 func testListReaderResponse(t *testing.T) (neofscrypto.Signer, *ObjectListReader) {
-	p, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	return neofsecdsa.Signer(p.PrivateKey), &ObjectListReader{
+	return test.RandomSigner(t), &ObjectListReader{
 		cancelCtxStream: func() {},
 		client:          &Client{},
 		tail:            nil,

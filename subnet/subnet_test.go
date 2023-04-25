@@ -29,7 +29,7 @@ func TestInfo_SetID(t *testing.T) {
 }
 
 func TestInfo_SetOwner(t *testing.T) {
-	id := *usertest.ID()
+	id := *usertest.ID(t)
 
 	var info Info
 	info.SetOwner(id)
@@ -39,7 +39,7 @@ func TestInfo_SetOwner(t *testing.T) {
 }
 
 func TestInfo_Marshal(t *testing.T) {
-	info := subnettest.Info()
+	info := subnettest.Info(t)
 
 	var info2 Info
 	require.NoError(t, info2.Unmarshal(info.Marshal()))

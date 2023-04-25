@@ -17,7 +17,7 @@ func TestIDFromKey(t *testing.T) {
 
 	var id user.ID
 
-	user.IDFromKey(&id, rawPub)
+	require.NoError(t, user.IDFromKey(&id, rawPub))
 
 	require.Equal(t, "NNLi44dJNXtDNSBkofB48aTVYtb1zZrNEs", id.EncodeToString())
 }

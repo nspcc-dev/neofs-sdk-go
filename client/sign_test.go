@@ -7,6 +7,8 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
@@ -25,7 +27,7 @@ func testOwner(t *testing.T, owner *refs.OwnerID, req any) {
 	require.NoError(t, verifyServiceMessage(req))
 }
 
-func testRequestSign(t *testing.T, meta *session.RequestMetaHeader, req request) {
+func testRequestSign(t *testing.T, signer neofscrypto.Signer, meta *session.RequestMetaHeader, req request) {
 	require.Error(t, verifyServiceMessage(req))
 
 	// sign request
@@ -61,7 +63,7 @@ func testRequestMeta(t *testing.T, meta *session.RequestMetaHeader, req serviceR
 	require.Error(t, verifyServiceMessage(req))
 }
 
-func testResponseSign(t *testing.T, meta *session.ResponseMetaHeader, resp testResponse) {
+func testResponseSign(t *testing.T, signer neofscrypto.Signer, meta *session.ResponseMetaHeader, resp testResponse) {
 	require.Error(t, verifyServiceMessage(resp))
 
 	// sign request
@@ -98,11 +100,15 @@ func testResponseMeta(t *testing.T, meta *session.ResponseMetaHeader, req servic
 }
 
 func TestEmptyMessage(t *testing.T) {
+	signer := test.RandomSignerRFC6979(t)
+
 	require.NoError(t, verifyServiceMessage(nil))
 	require.NoError(t, signServiceMessage(signer, nil))
 }
 
 func TestBalanceRequest(t *testing.T) {
+	signer := test.RandomSignerRFC6979(t)
+
 	var id user.ID
 	require.NoError(t, user.IDFromSigner(&id, signer))
 
@@ -121,13 +127,15 @@ func TestBalanceRequest(t *testing.T) {
 
 	// add level to meta header matryoshka
 	meta = &session.RequestMetaHeader{}
-	testRequestSign(t, meta, req)
+	testRequestSign(t, signer, meta, req)
 
 	testOwner(t, &ownerID, req)
 	testRequestMeta(t, meta, req)
 }
 
 func TestBalanceResponse(t *testing.T) {
+	signer := test.RandomSignerRFC6979(t)
+
 	dec := new(accounting.Decimal)
 	dec.SetValue(100)
 
@@ -143,7 +151,7 @@ func TestBalanceResponse(t *testing.T) {
 
 	// add level to meta header matryoshka
 	meta = new(session.ResponseMetaHeader)
-	testResponseSign(t, meta, resp)
+	testResponseSign(t, signer, meta, resp)
 
 	// corrupt body
 	dec.SetValue(dec.GetValue() + 1)
@@ -158,6 +166,8 @@ func TestBalanceResponse(t *testing.T) {
 }
 
 func TestCreateRequest(t *testing.T) {
+	signer := test.RandomSignerRFC6979(t)
+
 	var id user.ID
 	require.NoError(t, user.IDFromSigner(&id, signer))
 
@@ -177,7 +187,7 @@ func TestCreateRequest(t *testing.T) {
 
 	// add level to meta header matryoshka
 	meta = &session.RequestMetaHeader{}
-	testRequestSign(t, meta, req)
+	testRequestSign(t, signer, meta, req)
 
 	testOwner(t, &ownerID, req)
 
@@ -194,6 +204,8 @@ func TestCreateRequest(t *testing.T) {
 }
 
 func TestCreateResponse(t *testing.T) {
+	signer := test.RandomSignerRFC6979(t)
+
 	id := make([]byte, 8)
 	_, err := rand.Read(id)
 	require.NoError(t, err)
@@ -215,7 +227,7 @@ func TestCreateResponse(t *testing.T) {
 
 	// add level to meta header matryoshka
 	meta = &session.ResponseMetaHeader{}
-	testResponseSign(t, meta, req)
+	testResponseSign(t, signer, meta, req)
 
 	// corrupt body
 	body.SetID([]byte{1})

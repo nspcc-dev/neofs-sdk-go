@@ -10,7 +10,7 @@ import (
 )
 
 func TestContainer_NetworkConfig(t *testing.T) {
-	c := containertest.Container()
+	c := containertest.Container(t)
 	nc := netmaptest.NetworkInfo()
 
 	t.Run("default", func(t *testing.T) {

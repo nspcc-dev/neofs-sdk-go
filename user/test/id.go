@@ -1,20 +1,16 @@
 package usertest
 
 import (
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"testing"
+
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // ID returns random user.ID.
-func ID() *user.ID {
-	key, err := keys.NewPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-
+func ID(tb testing.TB) *user.ID {
 	var x user.ID
-	if err = user.IDFromSigner(&x, neofsecdsa.Signer(key.PrivateKey)); err != nil {
+	if err := user.IDFromSigner(&x, test.RandomSigner(tb)); err != nil {
 		return nil
 	}
 

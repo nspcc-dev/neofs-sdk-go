@@ -1,6 +1,8 @@
 package objecttest
 
 import (
+	"testing"
+
 	"github.com/google/uuid"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -41,14 +43,14 @@ func SplitID() *object.SplitID {
 	return x
 }
 
-func generate(withParent bool) *object.Object {
+func generate(t *testing.T, withParent bool) *object.Object {
 	x := object.New()
 	ver := version.Current()
 
 	x.SetID(oidtest.ID())
 	x.SetSessionToken(sessiontest.Object())
 	x.SetPayload([]byte{1, 2, 3})
-	x.SetOwnerID(usertest.ID())
+	x.SetOwnerID(usertest.ID(t))
 	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
 	x.SetVersion(&ver)
@@ -63,7 +65,7 @@ func generate(withParent bool) *object.Object {
 	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
 
 	if withParent {
-		x.SetParent(generate(false))
+		x.SetParent(generate(t, false))
 	}
 
 	return x
@@ -71,13 +73,13 @@ func generate(withParent bool) *object.Object {
 
 // Raw returns random object.Object.
 // Deprecated: (v1.0.0) use Object instead.
-func Raw() *object.Object {
-	return Object()
+func Raw(t *testing.T) *object.Object {
+	return Object(t)
 }
 
 // Object returns random object.Object.
-func Object() *object.Object {
-	return generate(true)
+func Object(t *testing.T) *object.Object {
+	return generate(t, true)
 }
 
 // Tombstone returns random object.Tombstone.

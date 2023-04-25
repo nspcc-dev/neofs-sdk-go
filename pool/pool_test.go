@@ -7,11 +7,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -22,13 +21,13 @@ import (
 
 func TestBuildPoolClientFailed(t *testing.T) {
 	mockClientBuilder := func(addr string) client {
-		mockCli := newMockClient(addr, newSigner(t))
+		mockCli := newMockClient(addr, test.RandomSigner(t))
 		mockCli.errOnDial()
 		return mockCli
 	}
 
 	opts := InitParameters{
-		signer:     newSigner(t),
+		signer:     test.RandomSigner(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
 	opts.setClientBuilder(mockClientBuilder)
@@ -41,13 +40,13 @@ func TestBuildPoolClientFailed(t *testing.T) {
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	clientMockBuilder := func(addr string) client {
-		mockCli := newMockClient(addr, newSigner(t))
+		mockCli := newMockClient(addr, test.RandomSigner(t))
 		mockCli.errOnCreateSession()
 		return mockCli
 	}
 
 	opts := InitParameters{
-		signer:     newSigner(t),
+		signer:     test.RandomSigner(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
 	opts.setClientBuilder(clientMockBuilder)
@@ -58,12 +57,6 @@ func TestBuildPoolCreateSessionFailed(t *testing.T) {
 	require.Error(t, err)
 }
 
-func newSigner(t *testing.T) neofsecdsa.Signer {
-	p, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	return neofsecdsa.Signer(p.PrivateKey)
-}
-
 func TestBuildPoolOneNodeFailed(t *testing.T) {
 	nodes := []NodeParam{
 		{1, "peer0", 1},
@@ -72,7 +65,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 
 	var clientKeys []neofscrypto.Signer
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
@@ -87,7 +80,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	log, err := zap.NewProduction()
 	require.NoError(t, err)
 	opts := InitParameters{
-		signer:                  newSigner(t),
+		signer:                  test.RandomSigner(t),
 		clientRebalanceInterval: 1000 * time.Millisecond,
 		logger:                  log,
 		nodeParams:              nodes,
@@ -115,20 +108,20 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 
 func TestBuildPoolZeroNodes(t *testing.T) {
 	opts := InitParameters{
-		signer: newSigner(t),
+		signer: test.RandomSigner(t),
 	}
 	_, err := NewPool(opts)
 	require.Error(t, err)
 }
 
 func TestOneNode(t *testing.T) {
-	key1 := newSigner(t)
+	key1 := test.RandomSigner(t)
 	mockClientBuilder := func(addr string) client {
 		return newMockClient(addr, key1)
 	}
 
 	opts := InitParameters{
-		signer:     newSigner(t),
+		signer:     test.RandomSigner(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
 	opts.setClientBuilder(mockClientBuilder)
@@ -142,20 +135,19 @@ func TestOneNode(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	expectedAuthKey := neofsecdsa.PublicKey(key1.PublicKey)
-	require.True(t, st.AssertAuthKey(&expectedAuthKey))
+	require.True(t, st.AssertAuthKey(key1.Public()))
 }
 
 func TestTwoNodes(t *testing.T) {
 	var clientKeys []neofscrypto.Signer
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		clientKeys = append(clientKeys, key)
 		return newMockClient(addr, key)
 	}
 
 	opts := InitParameters{
-		signer: newSigner(t),
+		signer: test.RandomSigner(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{1, "peer1", 1},
@@ -193,7 +185,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 	var clientKeys []neofscrypto.Signer
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
@@ -207,7 +199,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		signer:                  newSigner(t),
+		signer:                  test.RandomSigner(t),
 		nodeParams:              nodes,
 		clientRebalanceInterval: 200 * time.Millisecond,
 	}
@@ -234,7 +226,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 func TestTwoFailed(t *testing.T) {
 	var clientKeys []neofscrypto.Signer
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		clientKeys = append(clientKeys, key)
 		mockCli := newMockClient(addr, key)
 		mockCli.errOnEndpointInfo()
@@ -242,7 +234,7 @@ func TestTwoFailed(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		signer: newSigner(t),
+		signer: test.RandomSigner(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{1, "peer1", 1},
@@ -266,8 +258,7 @@ func TestTwoFailed(t *testing.T) {
 }
 
 func TestSessionCache(t *testing.T) {
-	key := newSigner(t)
-	expectedAuthKey := neofsecdsa.PublicKey(key.PublicKey)
+	key := test.RandomSigner(t)
 
 	mockClientBuilder := func(addr string) client {
 		mockCli := newMockClient(addr, key)
@@ -276,7 +267,7 @@ func TestSessionCache(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		signer: newSigner(t),
+		signer: test.RandomSigner(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -297,7 +288,7 @@ func TestSessionCache(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(&expectedAuthKey))
+	require.True(t, st.AssertAuthKey(key.Public()))
 
 	var prm PrmObjectGet
 	prm.SetAddress(oid.Address{})
@@ -322,7 +313,7 @@ func TestSessionCache(t *testing.T) {
 	cp, err = pool.connection()
 	require.NoError(t, err)
 	st, _ = pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(&expectedAuthKey))
+	require.True(t, st.AssertAuthKey(key.Public()))
 }
 
 func TestPriority(t *testing.T) {
@@ -333,7 +324,7 @@ func TestPriority(t *testing.T) {
 
 	var clientKeys []neofscrypto.Signer
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
@@ -346,7 +337,7 @@ func TestPriority(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		signer:                  newSigner(t),
+		signer:                  test.RandomSigner(t),
 		nodeParams:              nodes,
 		clientRebalanceInterval: 1500 * time.Millisecond,
 	}
@@ -383,15 +374,14 @@ func TestPriority(t *testing.T) {
 }
 
 func TestSessionCacheWithKey(t *testing.T) {
-	key := newSigner(t)
-	expectedAuthKey := neofsecdsa.PublicKey(key.PublicKey)
+	key := test.RandomSigner(t)
 
 	mockClientBuilder := func(addr string) client {
 		return newMockClient(addr, key)
 	}
 
 	opts := InitParameters{
-		signer: newSigner(t),
+		signer: test.RandomSigner(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -411,27 +401,27 @@ func TestSessionCacheWithKey(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(&expectedAuthKey))
+	require.True(t, st.AssertAuthKey(key.Public()))
 
 	var prm PrmObjectDelete
 	prm.SetAddress(oid.Address{})
-	anonKey := newSigner(t)
+	anonKey := test.RandomSigner(t)
 	prm.UseSigner(anonKey)
 
 	err = pool.DeleteObject(ctx, prm)
 	require.NoError(t, err)
 	st, _ = pool.cache.Get(formCacheKey(cp.address(), anonKey))
-	require.True(t, st.AssertAuthKey(&expectedAuthKey))
+	require.True(t, st.AssertAuthKey(key.Public()))
 }
 
 func TestSessionTokenOwner(t *testing.T) {
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		return newMockClient(addr, key)
 	}
 
 	opts := InitParameters{
-		signer: newSigner(t),
+		signer: test.RandomSigner(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -447,7 +437,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(p.Close)
 
-	anonKey := newSigner(t)
+	anonKey := test.RandomSigner(t)
 	var anonOwner user.ID
 	require.NoError(t, user.IDFromSigner(&anonOwner, anonKey))
 
@@ -472,7 +462,7 @@ func TestSessionTokenOwner(t *testing.T) {
 }
 
 func TestWaitPresence(t *testing.T) {
-	mockCli := newMockClient("", newSigner(t))
+	mockCli := newMockClient("", test.RandomSigner(t))
 
 	t.Run("context canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -622,7 +612,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 
 	var clientKeys []neofscrypto.Signer
 	mockClientBuilder := func(addr string) client {
-		key := newSigner(t)
+		key := test.RandomSigner(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
@@ -636,7 +626,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	}
 
 	opts := InitParameters{
-		signer:                  newSigner(t),
+		signer:                  test.RandomSigner(t),
 		nodeParams:              nodes,
 		clientRebalanceInterval: 30 * time.Second,
 	}
