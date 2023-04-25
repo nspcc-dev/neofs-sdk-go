@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/stretchr/testify/require"
@@ -28,7 +29,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	require.True(t, ok)
 	check(t, value, "before sign")
 
-	err = value.Sign(pk.PrivateKey)
+	err = value.Sign(neofsecdsa.Signer(pk.PrivateKey))
 	require.NoError(t, err)
 
 	value, ok = cache.Get(key)

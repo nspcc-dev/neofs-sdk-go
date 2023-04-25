@@ -6,6 +6,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	crypto "github.com/nspcc-dev/neofs-crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,7 +31,7 @@ func TestBalanceResponse(t *testing.T) {
 	require.NoError(t, err)
 
 	// sign request
-	require.NoError(t, signServiceMessage(key, req))
+	require.NoError(t, signServiceMessage(neofsecdsa.Signer(*key), req))
 
 	// verification must pass
 	require.NoError(t, verifyServiceMessage(req))
@@ -41,7 +42,7 @@ func TestBalanceResponse(t *testing.T) {
 	req.SetMetaHeader(meta)
 
 	// sign request
-	require.NoError(t, signServiceMessage(key, req))
+	require.NoError(t, signServiceMessage(neofsecdsa.Signer(*key), req))
 
 	// verification must pass
 	require.NoError(t, verifyServiceMessage(req))

@@ -3,7 +3,6 @@ package pool
 import (
 	"bytes"
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -14,13 +13,13 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -227,7 +226,7 @@ type clientWrapper struct {
 // wrapperPrm is params to create clientWrapper.
 type wrapperPrm struct {
 	address                 string
-	key                     ecdsa.PrivateKey
+	signer                  neofscrypto.Signer
 	dialTimeout             time.Duration
 	streamTimeout           time.Duration
 	errorThreshold          uint32
@@ -240,9 +239,9 @@ func (x *wrapperPrm) setAddress(address string) {
 	x.address = address
 }
 
-// setKey sets sdkClient.Client private key to be used for the protocol communication by default.
-func (x *wrapperPrm) setKey(key ecdsa.PrivateKey) {
-	x.key = key
+// setSigner sets sdkClient.Client private signer to be used for the protocol communication by default.
+func (x *wrapperPrm) setSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // setDialTimeout sets the timeout for connection to be established.
@@ -275,7 +274,7 @@ func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) 
 func newWrapper(prm wrapperPrm) *clientWrapper {
 	var cl sdkClient.Client
 	var prmInit sdkClient.PrmInit
-	prmInit.SetDefaultPrivateKey(prm.key)
+	prmInit.SetDefaultSigner(prm.signer)
 	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
 
 	cl.Init(prmInit)
@@ -324,7 +323,7 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 
 	var cl sdkClient.Client
 	var prmInit sdkClient.PrmInit
-	prmInit.SetDefaultPrivateKey(c.prm.key)
+	prmInit.SetDefaultSigner(c.prm.signer)
 	prmInit.SetResponseInfoCallback(c.prm.responseInfoCallback)
 
 	cl.Init(prmInit)
@@ -619,8 +618,8 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
 	}
-	if prm.key != nil {
-		cliPrm.UseKey(*prm.key)
+	if prm.signer != nil {
+		cliPrm.UseSigner(prm.signer)
 	}
 	if prm.btoken != nil {
 		cliPrm.WithBearerToken(*prm.btoken)
@@ -709,8 +708,8 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.key != nil {
-		cliPrm.UseKey(*prm.key)
+	if prm.signer != nil {
+		cliPrm.UseSigner(prm.signer)
 	}
 
 	start := time.Now()
@@ -745,8 +744,8 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.key != nil {
-		cliPrm.UseKey(*prm.key)
+	if prm.signer != nil {
+		cliPrm.UseSigner(prm.signer)
 	}
 
 	var res ResGetObject
@@ -801,8 +800,8 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.key != nil {
-		cliPrm.UseKey(*prm.key)
+	if prm.signer != nil {
+		cliPrm.UseSigner(prm.signer)
 	}
 
 	var obj object.Object
@@ -845,8 +844,8 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.key != nil {
-		cliPrm.UseKey(*prm.key)
+	if prm.signer != nil {
+		cliPrm.UseSigner(prm.signer)
 	}
 
 	start := time.Now()
@@ -884,8 +883,8 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.key != nil {
-		cliPrm.UseKey(*prm.key)
+	if prm.signer != nil {
+		cliPrm.UseSigner(prm.signer)
 	}
 
 	res, err := cl.ObjectSearchInit(ctx, cliPrm)
@@ -905,7 +904,7 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession)
 
 	var cliPrm sdkClient.PrmSessionCreate
 	cliPrm.SetExp(prm.exp)
-	cliPrm.UseKey(prm.key)
+	cliPrm.UseSigner(prm.signer)
 
 	start := time.Now()
 	res, err := cl.SessionCreate(ctx, cliPrm)
@@ -1022,7 +1021,7 @@ type RequestInfo struct {
 
 // InitParameters contains values used to initialize connection Pool.
 type InitParameters struct {
-	key                       *ecdsa.PrivateKey
+	signer                    neofscrypto.Signer
 	logger                    *zap.Logger
 	nodeDialTimeout           time.Duration
 	nodeStreamTimeout         time.Duration
@@ -1036,9 +1035,9 @@ type InitParameters struct {
 	clientBuilder clientBuilder
 }
 
-// SetKey specifies default key to be used for the protocol communication by default.
-func (x *InitParameters) SetKey(key *ecdsa.PrivateKey) {
-	x.key = key
+// SetSigner specifies default signer to be used for the protocol communication by default.
+func (x *InitParameters) SetSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // SetLogger specifies logger.
@@ -1209,15 +1208,15 @@ func (x *prmContext) useVerb(verb session.ObjectVerb) {
 }
 
 type prmCommon struct {
-	key    *ecdsa.PrivateKey
+	signer neofscrypto.Signer
 	btoken *bearer.Token
 	stoken *session.Object
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Pool default key is used.
-func (x *prmCommon) UseKey(key *ecdsa.PrivateKey) {
-	x.key = key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Pool default signer is used.
+func (x *prmCommon) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // UseBearer attaches bearer token to be used for the operation.
@@ -1483,8 +1482,8 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 
 // prmEndpointInfo groups parameters of sessionCreate operation.
 type prmCreateSession struct {
-	exp uint64
-	key ecdsa.PrivateKey
+	exp    uint64
+	signer neofscrypto.Signer
 }
 
 // setExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
@@ -1492,10 +1491,10 @@ func (x *prmCreateSession) setExp(exp uint64) {
 	x.exp = exp
 }
 
-// useKey specifies owner private key for session token.
-// If key is not provided, then Pool default key is used.
-func (x *prmCreateSession) useKey(key ecdsa.PrivateKey) {
-	x.key = key
+// useSigner specifies owner private signer for session token.
+// If signer is not provided, then Pool default signer is used.
+func (x *prmCreateSession) useSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // prmEndpointInfo groups parameters of endpointInfo operation.
@@ -1534,7 +1533,7 @@ type resCreateSession struct {
 // See pool package overview to get some examples.
 type Pool struct {
 	innerPools      []*innerPool
-	key             *ecdsa.PrivateKey
+	signer          neofscrypto.Signer
 	cancel          context.CancelFunc
 	closedCh        chan struct{}
 	cache           *sessionCache
@@ -1562,8 +1561,8 @@ const (
 
 // NewPool creates connection pool using parameters.
 func NewPool(options InitParameters) (*Pool, error) {
-	if options.key == nil {
-		return nil, fmt.Errorf("missed required parameter 'Key'")
+	if options.signer == nil {
+		return nil, fmt.Errorf("missed required parameter 'Signer'")
 	}
 
 	nodesParams, err := adjustNodeParams(options.nodeParams)
@@ -1579,7 +1578,7 @@ func NewPool(options InitParameters) (*Pool, error) {
 	fillDefaultInitParams(&options, cache)
 
 	pool := &Pool{
-		key:            options.key,
+		signer:         options.signer,
 		cache:          cache,
 		logger:         options.logger,
 		stokenDuration: options.sessionExpirationDuration,
@@ -1619,7 +1618,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 			}
 
 			var st session.Object
-			err := initSessionForDuration(ctx, &st, clients[j], p.rebalanceParams.sessionExpirationDuration, *p.key)
+			err := initSessionForDuration(ctx, &st, clients[j], p.rebalanceParams.sessionExpirationDuration, p.signer)
 			if err != nil {
 				clients[j].setUnhealthy()
 				if p.logger != nil {
@@ -1629,7 +1628,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 				continue
 			}
 
-			_ = p.cache.Put(formCacheKey(addr, p.key), st)
+			_ = p.cache.Put(formCacheKey(addr, p.signer), st)
 			atLeastOneHealthy = true
 		}
 		source := rand.NewSource(time.Now().UnixNano())
@@ -1683,7 +1682,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 		params.setClientBuilder(func(addr string) client {
 			var prm wrapperPrm
 			prm.setAddress(addr)
-			prm.setKey(*params.key)
+			prm.setSigner(params.signer)
 			prm.setDialTimeout(params.nodeDialTimeout)
 			prm.setStreamTimeout(params.nodeStreamTimeout)
 			prm.setErrorThreshold(params.errorThreshold)
@@ -1849,11 +1848,11 @@ func (p *innerPool) connection() (client, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func formCacheKey(address string, key *ecdsa.PrivateKey) string {
-	buf := make([]byte, 33)
-	copy(buf, (*keys.PublicKey)(&key.PublicKey).Bytes())
+func formCacheKey(address string, signer neofscrypto.Signer) string {
+	b := make([]byte, signer.Public().MaxEncodedSize())
+	signer.Public().Encode(b)
 
-	return address + string(buf)
+	return address + string(b)
 }
 
 func (p *Pool) checkSessionTokenErr(err error, address string) bool {
@@ -1869,7 +1868,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64, ownerKey ecdsa.PrivateKey) error {
+func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64, signer neofscrypto.Signer) error {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return err
@@ -1885,7 +1884,7 @@ func initSessionForDuration(ctx context.Context, dst *session.Object, c client, 
 	}
 	var prm prmCreateSession
 	prm.setExp(exp)
-	prm.useKey(ownerKey)
+	prm.useSigner(signer)
 
 	res, err := c.sessionCreate(ctx, prm)
 	if err != nil {
@@ -1923,7 +1922,7 @@ type callContext struct {
 	endpoint string
 
 	// request signer
-	key *ecdsa.PrivateKey
+	signer neofscrypto.Signer
 
 	// flag to open default session if session token is missing
 	sessionDefault bool
@@ -1940,10 +1939,10 @@ func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContex
 		return err
 	}
 
-	ctx.key = cfg.key
-	if ctx.key == nil {
-		// use pool key if caller didn't specify its own
-		ctx.key = p.key
+	ctx.signer = cfg.signer
+	if ctx.signer == nil {
+		// use pool signer if caller didn't specify its own
+		ctx.signer = p.signer
 	}
 
 	ctx.endpoint = cp.address()
@@ -1968,12 +1967,12 @@ func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContex
 // opens new session or uses cached one.
 // Must be called only on initialized callContext with set sessionTarget.
 func (p *Pool) openDefaultSession(ctx *callContext) error {
-	cacheKey := formCacheKey(ctx.endpoint, ctx.key)
+	cacheKey := formCacheKey(ctx.endpoint, ctx.signer)
 
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
 		// init new session
-		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration, *ctx.key)
+		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration, ctx.signer)
 		if err != nil {
 			return fmt.Errorf("session API client: %w", err)
 		}
@@ -1990,7 +1989,7 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	}
 
 	// sign the token
-	if err := tok.Sign(*ctx.key); err != nil {
+	if err := tok.Sign(ctx.signer); err != nil {
 		return fmt.Errorf("sign token of the opened session: %w", err)
 	}
 
@@ -2017,10 +2016,10 @@ func (p *Pool) call(ctx *callContext, f func() error) error {
 	return err
 }
 
-// fillAppropriateKey use pool key if caller didn't specify its own.
-func (p *Pool) fillAppropriateKey(prm *prmCommon) {
-	if prm.key == nil {
-		prm.key = p.key
+// fillAppropriateSigner use pool signer if caller didn't specify its own.
+func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
+	if prm.signer == nil {
+		prm.signer = p.signer
 	}
 }
 
@@ -2035,7 +2034,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 	prmCtx.useVerb(session.VerbObjectPut)
 	prmCtx.useContainer(cnr)
 
-	p.fillAppropriateKey(&prm.prmCommon)
+	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var ctxCall callContext
 
@@ -2087,7 +2086,7 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 		}
 	}
 
-	p.fillAppropriateKey(&prm.prmCommon)
+	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
 
@@ -2148,7 +2147,7 @@ type ResGetObject struct {
 //
 // Main return value MUST NOT be processed on an erroneous return.
 func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (ResGetObject, error) {
-	p.fillAppropriateKey(&prm.prmCommon)
+	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
 	cc.Context = ctx
@@ -2171,7 +2170,7 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (ResGetObject, e
 //
 // Main return value MUST NOT be processed on an erroneous return.
 func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (object.Object, error) {
-	p.fillAppropriateKey(&prm.prmCommon)
+	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
 
@@ -2221,7 +2220,7 @@ func (x *ResObjectRange) Close() error {
 //
 // Main return value MUST NOT be processed on an erroneous return.
 func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRange, error) {
-	p.fillAppropriateKey(&prm.prmCommon)
+	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
 	cc.Context = ctx
@@ -2283,7 +2282,7 @@ func (x *ResObjectSearch) Close() {
 //
 // Main return value MUST NOT be processed on an erroneous return.
 func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
-	p.fillAppropriateKey(&prm.prmCommon)
+	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
 

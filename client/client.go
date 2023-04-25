@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"crypto/tls"
 	"errors"
 	"time"
@@ -10,6 +9,7 @@ import (
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
 // Client represents virtual connection to the NeoFS network to communicate
@@ -148,19 +148,19 @@ func (c *Client) Close() error {
 type PrmInit struct {
 	resolveNeoFSErrors bool
 
-	key ecdsa.PrivateKey
+	signer neofscrypto.Signer
 
 	cbRespInfo func(ResponseMetaInfo) error
 
 	netMagic uint64
 }
 
-// SetDefaultPrivateKey sets Client private key to be used for the protocol
+// SetDefaultSigner sets Client private signer to be used for the protocol
 // communication by default.
 //
-// Required for operations without custom key parametrization (see corresponding Prm* docs).
-func (x *PrmInit) SetDefaultPrivateKey(key ecdsa.PrivateKey) {
-	x.key = key
+// Required for operations without custom signer parametrization (see corresponding Prm* docs).
+func (x *PrmInit) SetDefaultSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // ResolveNeoFSFailures makes the Client to resolve failure statuses of the

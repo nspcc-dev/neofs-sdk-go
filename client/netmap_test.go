@@ -8,7 +8,6 @@ import (
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
@@ -26,7 +25,7 @@ type serverNetMap struct {
 }
 
 func (x *serverNetMap) netMapSnapshot(ctx context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	err := signature.VerifyServiceMessage(&req)
+	err := verifyServiceMessage(&req)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +51,7 @@ func (x *serverNetMap) netMapSnapshot(ctx context.Context, req v2netmap.Snapshot
 	resp.SetMetaHeader(&meta)
 
 	if x.signResponse {
-		err = signServiceMessage(key, &resp)
+		err = signServiceMessage(signer, &resp)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}

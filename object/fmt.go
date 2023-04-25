@@ -2,7 +2,6 @@ package object
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -96,13 +95,13 @@ func VerifyID(obj *Object) error {
 
 // CalculateAndSetSignature signs id with provided key and sets that signature to
 // the object.
-func CalculateAndSetSignature(key ecdsa.PrivateKey, obj *Object) error {
+func CalculateAndSetSignature(signer neofscrypto.Signer, obj *Object) error {
 	oID, set := obj.ID()
 	if !set {
 		return errOIDNotSet
 	}
 
-	sig, err := oID.CalculateIDSignature(key)
+	sig, err := oID.CalculateIDSignature(signer)
 	if err != nil {
 		return err
 	}
@@ -132,12 +131,12 @@ func (o *Object) VerifyIDSignature() bool {
 }
 
 // SetIDWithSignature sets object identifier and signature.
-func SetIDWithSignature(key ecdsa.PrivateKey, obj *Object) error {
+func SetIDWithSignature(signer neofscrypto.Signer, obj *Object) error {
 	if err := CalculateAndSetID(obj); err != nil {
 		return fmt.Errorf("could not set identifier: %w", err)
 	}
 
-	if err := CalculateAndSetSignature(key, obj); err != nil {
+	if err := CalculateAndSetSignature(signer, obj); err != nil {
 		return fmt.Errorf("could not set signature: %w", err)
 	}
 
@@ -145,10 +144,10 @@ func SetIDWithSignature(key ecdsa.PrivateKey, obj *Object) error {
 }
 
 // SetVerificationFields calculates and sets all verification fields of the object.
-func SetVerificationFields(key ecdsa.PrivateKey, obj *Object) error {
+func SetVerificationFields(signer neofscrypto.Signer, obj *Object) error {
 	CalculateAndSetPayloadChecksum(obj)
 
-	return SetIDWithSignature(key, obj)
+	return SetIDWithSignature(signer, obj)
 }
 
 // CheckVerificationFields checks all verification fields of the object.

@@ -50,10 +50,10 @@ func TestHealthyReweight(t *testing.T) {
 	cache, err := newCache()
 	require.NoError(t, err)
 
-	client1 := newMockClient(names[0], *newPrivateKey(t))
+	client1 := newMockClient(names[0], newSigner(t))
 	client1.errOnDial()
 
-	client2 := newMockClient(names[1], *newPrivateKey(t))
+	client2 := newMockClient(names[1], newSigner(t))
 
 	inner := &innerPool{
 		sampler: newSampler(weights, rand.NewSource(0)),
@@ -62,7 +62,7 @@ func TestHealthyReweight(t *testing.T) {
 	p := &Pool{
 		innerPools:      []*innerPool{inner},
 		cache:           cache,
-		key:             newPrivateKey(t),
+		signer:          newSigner(t),
 		rebalanceParams: rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}},
 	}
 
@@ -81,7 +81,7 @@ func TestHealthyReweight(t *testing.T) {
 
 	// enabled first node again
 	inner.lock.Lock()
-	inner.clients[0] = newMockClient(names[0], *newPrivateKey(t))
+	inner.clients[0] = newMockClient(names[0], newSigner(t))
 	inner.lock.Unlock()
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
@@ -104,8 +104,8 @@ func TestHealthyNoReweight(t *testing.T) {
 	inner := &innerPool{
 		sampler: sampl,
 		clients: []client{
-			newMockClient(names[0], *newPrivateKey(t)),
-			newMockClient(names[1], *newPrivateKey(t)),
+			newMockClient(names[0], newSigner(t)),
+			newMockClient(names[1], newSigner(t)),
 		},
 	}
 	p := &Pool{

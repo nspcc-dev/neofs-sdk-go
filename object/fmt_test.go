@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/stretchr/testify/require"
 )
 
@@ -19,7 +20,7 @@ func TestVerificationFields(t *testing.T) {
 
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
-	require.NoError(t, SetVerificationFields(p.PrivateKey, obj))
+	require.NoError(t, SetVerificationFields(neofsecdsa.Signer(p.PrivateKey), obj))
 
 	require.NoError(t, CheckVerificationFields(obj))
 

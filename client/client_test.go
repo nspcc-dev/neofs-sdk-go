@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/stretchr/testify/require"
 )
 
@@ -16,11 +18,14 @@ File contains common functionality used for client package testing.
 */
 
 var key, _ = ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+var signer neofscrypto.Signer
 
 var statusErr apistatus.ServerInternal
 
 func init() {
 	statusErr.SetMessage("test status error")
+
+	signer = neofsecdsa.SignerRFC6979(*key)
 }
 
 func assertStatusErr(tb testing.TB, res interface{ Status() apistatus.Status }) {
@@ -30,7 +35,7 @@ func assertStatusErr(tb testing.TB, res interface{ Status() apistatus.Status }) 
 
 func newClient(server neoFSAPIServer) *Client {
 	var prm PrmInit
-	prm.SetDefaultPrivateKey(*key)
+	prm.SetDefaultSigner(signer)
 
 	var c Client
 	c.Init(prm)

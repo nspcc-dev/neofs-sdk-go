@@ -1,7 +1,6 @@
 package client
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -13,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/util/signature"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
 type serviceRequest interface {
@@ -32,7 +32,7 @@ type stableMarshaler interface {
 	StableSize() int
 }
 
-type StableMarshalerWrapper struct {
+type stableMarshalerWrapper struct {
 	SM stableMarshaler
 }
 
@@ -115,7 +115,7 @@ func (r *responseVerificationHeader) setOrigin(m stableMarshaler) {
 	}
 }
 
-func (s StableMarshalerWrapper) ReadSignedData(buf []byte) ([]byte, error) {
+func (s stableMarshalerWrapper) ReadSignedData(buf []byte) ([]byte, error) {
 	if s.SM != nil {
 		return s.SM.StableMarshal(buf), nil
 	}
@@ -123,7 +123,7 @@ func (s StableMarshalerWrapper) ReadSignedData(buf []byte) ([]byte, error) {
 	return nil, nil
 }
 
-func (s StableMarshalerWrapper) SignedDataSize() int {
+func (s stableMarshalerWrapper) SignedDataSize() int {
 	if s.SM != nil {
 		return s.SM.StableSize()
 	}
@@ -131,7 +131,8 @@ func (s StableMarshalerWrapper) SignedDataSize() int {
 	return 0
 }
 
-func signServiceMessage(key *ecdsa.PrivateKey, msg interface{}) error {
+// signServiceMessage signing request or response messages which can be sent or received from neofs endpoint.
+func signServiceMessage(signer neofscrypto.Signer, msg interface{}) error {
 	var (
 		body, meta, verifyOrigin stableMarshaler
 		verifyHdr                verificationHeader
@@ -169,18 +170,18 @@ func signServiceMessage(key *ecdsa.PrivateKey, msg interface{}) error {
 
 	if verifyOrigin == nil {
 		// sign session message body
-		if err := signServiceMessagePart(key, body, verifyHdr.SetBodySignature); err != nil {
+		if err := signServiceMessagePart(signer, body, verifyHdr.SetBodySignature); err != nil {
 			return fmt.Errorf("could not sign body: %w", err)
 		}
 	}
 
 	// sign meta header
-	if err := signServiceMessagePart(key, meta, verifyHdr.SetMetaSignature); err != nil {
+	if err := signServiceMessagePart(signer, meta, verifyHdr.SetMetaSignature); err != nil {
 		return fmt.Errorf("could not sign meta header: %w", err)
 	}
 
 	// sign verification header origin
-	if err := signServiceMessagePart(key, verifyOrigin, verifyHdr.SetOriginSignature); err != nil {
+	if err := signServiceMessagePart(signer, verifyOrigin, verifyHdr.SetOriginSignature); err != nil {
 		return fmt.Errorf("could not sign origin of verification header: %w", err)
 	}
 
@@ -193,22 +194,22 @@ func signServiceMessage(key *ecdsa.PrivateKey, msg interface{}) error {
 	return nil
 }
 
-func signServiceMessagePart(key *ecdsa.PrivateKey, part stableMarshaler, sigWrite func(*refs.Signature)) error {
-	var sig *refs.Signature
+func signServiceMessagePart(signer neofscrypto.Signer, part stableMarshaler, sigWrite func(*refs.Signature)) error {
+	var sig neofscrypto.Signature
+	var sigv2 refs.Signature
 
-	// sign part
-	if err := signature.SignDataWithHandler(
-		key,
-		&StableMarshalerWrapper{part},
-		func(s *refs.Signature) {
-			sig = s
-		},
-	); err != nil {
-		return err
+	m := &stableMarshalerWrapper{part}
+	data, err := m.ReadSignedData(nil)
+	if err != nil {
+		return fmt.Errorf("ReadSignedData %w", err)
 	}
 
-	// write part signature
-	sigWrite(sig)
+	if err = sig.Calculate(signer, data); err != nil {
+		return fmt.Errorf("calculate %w", err)
+	}
+
+	sig.WriteToV2(&sigv2)
+	sigWrite(&sigv2)
 
 	return nil
 }
@@ -283,13 +284,13 @@ func verifyMatryoshkaLevel(body stableMarshaler, meta metaHeader, verify verific
 
 func verifyServiceMessagePart(part stableMarshaler, sigRdr func() *refs.Signature, buf []byte) error {
 	return signature.VerifyDataWithSource(
-		&StableMarshalerWrapper{part},
+		&stableMarshalerWrapper{part},
 		sigRdr,
 		signature.WithBuffer(buf),
 	)
 }
 
-func serviceMessageBody(req interface{}) stableMarshaler {
+func serviceMessageBody(req any) stableMarshaler {
 	switch v := req.(type) {
 	default:
 		panic(fmt.Sprintf("unsupported session message %T", req))

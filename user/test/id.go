@@ -2,6 +2,7 @@ package usertest
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -13,7 +14,9 @@ func ID() *user.ID {
 	}
 
 	var x user.ID
-	user.IDFromKey(&x, key.PrivateKey.PublicKey)
+	if err = user.IDFromSigner(&x, neofsecdsa.Signer(key.PrivateKey)); err != nil {
+		return nil
+	}
 
 	return &x
 }

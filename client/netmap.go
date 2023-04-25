@@ -247,7 +247,7 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 	req.SetBody(&body)
 	c.prepareRequest(&req, &meta)
 
-	err := signServiceMessage(&c.prm.key, &req)
+	err := signServiceMessage(c.prm.signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

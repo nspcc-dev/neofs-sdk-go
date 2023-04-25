@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -14,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
@@ -28,15 +28,13 @@ type PrmObjectHash struct {
 
 	addr v2refs.Address
 
-	keySet bool
-	key    ecdsa.PrivateKey
+	signer neofscrypto.Signer
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectHash) UseKey(key ecdsa.PrivateKey) {
-	x.keySet = true
-	x.key = key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectHash) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // MarkLocal tells the server to execute the operation locally.
@@ -186,12 +184,12 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	c.prepareRequest(&req, &prm.meta)
 	req.SetBody(&prm.body)
 
-	key := c.prm.key
-	if prm.keySet {
-		key = prm.key
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
 	}
 
-	err := signServiceMessage(&key, &req)
+	err := signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

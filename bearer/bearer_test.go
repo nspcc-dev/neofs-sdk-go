@@ -261,11 +261,11 @@ func TestToken_Sign(t *testing.T) {
 
 	k, err := keys.NewPrivateKey()
 	require.NoError(t, err)
+	signer := neofsecdsa.Signer(k.PrivateKey)
 
-	key := k.PrivateKey
 	val = bearertest.Token()
 
-	require.NoError(t, val.Sign(key))
+	require.NoError(t, val.Sign(signer))
 
 	require.True(t, val.VerifySignature())
 
@@ -365,6 +365,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 func TestResolveIssuer(t *testing.T) {
 	k, err := keys.NewPrivateKey()
 	require.NoError(t, err)
+	signer := neofsecdsa.Signer(k.PrivateKey)
 
 	var val bearer.Token
 
@@ -381,10 +382,10 @@ func TestResolveIssuer(t *testing.T) {
 
 	require.Zero(t, bearer.ResolveIssuer(val))
 
-	require.NoError(t, val.Sign(k.PrivateKey))
+	require.NoError(t, val.Sign(signer))
 
 	var usr user.ID
-	user.IDFromKey(&usr, k.PrivateKey.PublicKey)
+	require.NoError(t, user.IDFromSigner(&usr, signer))
 
 	require.Equal(t, usr, bearer.ResolveIssuer(val))
 }

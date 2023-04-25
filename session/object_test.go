@@ -1,7 +1,6 @@
 package session_test
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"math"
 	"math/rand"
@@ -23,18 +22,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func randSigner() ecdsa.PrivateKey {
+func randSigner() neofscrypto.Signer {
 	k, err := keys.NewPrivateKey()
 	if err != nil {
 		panic(fmt.Sprintf("generate private key: %v", err))
 	}
 
-	return k.PrivateKey
+	return neofsecdsa.SignerRFC6979(k.PrivateKey)
 }
 
 func randPublicKey() neofscrypto.PublicKey {
-	k := randSigner().PublicKey
-	return (*neofsecdsa.PublicKey)(&k)
+	return randSigner().Public()
 }
 
 func TestObjectProtocolV2(t *testing.T) {
@@ -73,7 +71,7 @@ func TestObjectProtocolV2(t *testing.T) {
 
 	// Session key
 	signer := randSigner()
-	authKey := neofsecdsa.PublicKey(signer.PublicKey)
+	authKey := signer.Public()
 	binAuthKey := make([]byte, authKey.MaxEncodedSize())
 	binAuthKey = binAuthKey[:authKey.Encode(binAuthKey)]
 	restoreAuthKey := func() {
@@ -195,7 +193,7 @@ func TestObjectProtocolV2(t *testing.T) {
 			},
 			restore: restoreAuthKey,
 			assert: func(val session.Object) {
-				require.True(t, val.AssertAuthKey(&authKey))
+				require.True(t, val.AssertAuthKey(authKey))
 			},
 			breakSign: func(m *v2session.Token) {
 				body := m.GetBody()
@@ -298,7 +296,7 @@ func TestObject_WriteToV2(t *testing.T) {
 	require.NoError(t, val.Sign(signer))
 
 	var usr user.ID
-	user.IDFromKey(&usr, signer.PublicKey)
+	require.NoError(t, user.IDFromSigner(&usr, signer))
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -634,7 +632,7 @@ func TestObject_Issuer(t *testing.T) {
 
 	var issuer user.ID
 
-	user.IDFromKey(&issuer, signer.PublicKey)
+	require.NoError(t, user.IDFromSigner(&issuer, signer))
 
 	require.True(t, token.Issuer().Equals(issuer))
 }

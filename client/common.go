@@ -1,14 +1,13 @@
 package client
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -75,6 +74,7 @@ const (
 	panicMsgMissingContext   = "missing context"
 	panicMsgMissingContainer = "missing container"
 	panicMsgMissingObject    = "missing object"
+	panicMsgOwnerExtract     = "extract owner failed"
 )
 
 // groups all the details required to send a single request and process a response to it.
@@ -91,8 +91,8 @@ type contextCall struct {
 	// ==================================================
 	// shared parameters which are set uniformly on all calls
 
-	// request signing key
-	key ecdsa.PrivateKey
+	// request signer
+	signer neofscrypto.Signer
 
 	// callback prior to processing the response by the client
 	callbackResp func(ResponseMetaInfo) error
@@ -112,7 +112,7 @@ type contextCall struct {
 	// structure of the call result
 	statusRes resCommon
 
-	// request to be signed with a key and sent
+	// request to be signed with a signer and sent
 	req request
 
 	// function to send a request (unary) and receive a response
@@ -187,7 +187,7 @@ func (x *contextCall) writeRequest() bool {
 	x.req.SetVerificationHeader(nil)
 
 	// sign the request
-	x.err = signServiceMessage(&x.key, x.req)
+	x.err = signServiceMessage(x.signer, x.req)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign request: %w", x.err)
 		return false
@@ -226,7 +226,7 @@ func (x *contextCall) processResponse() bool {
 	// while verification needs marshaling
 
 	// verify response signature
-	x.err = signature.VerifyServiceMessage(x.resp)
+	x.err = verifyServiceMessage(x.resp)
 	if x.err != nil {
 		x.err = fmt.Errorf("invalid response signature: %w", x.err)
 		return false
@@ -250,7 +250,7 @@ func (x *contextCall) processResponse() bool {
 
 // processResponse verifies response signature and converts status to an error if needed.
 func (c *Client) processResponse(resp responseV2) (apistatus.Status, error) {
-	err := signature.VerifyServiceMessage(resp)
+	err := verifyServiceMessage(resp)
 	if err != nil {
 		return nil, fmt.Errorf("invalid response signature: %w", err)
 	}
@@ -328,7 +328,7 @@ func (x *contextCall) processCall() bool {
 
 // initializes static cross-call parameters inherited from client.
 func (c *Client) initCallContext(ctx *contextCall) {
-	ctx.key = c.prm.key
+	ctx.signer = c.prm.signer
 	ctx.resolveAPIFailures = c.prm.resolveNeoFSErrors
 	ctx.callbackResp = c.prm.cbRespInfo
 	ctx.netMagic = c.prm.netMagic

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -91,7 +91,7 @@ func (x *prmObjectRead) ByID(id oid.ID) {
 type PrmObjectGet struct {
 	prmObjectRead
 
-	key *ecdsa.PrivateKey
+	signer neofscrypto.Signer
 }
 
 // ResObjectGet groups the final result values of ObjectGetInit operation.
@@ -119,10 +119,10 @@ type ObjectReader struct {
 	remainingPayloadLen int
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectGet) UseKey(key ecdsa.PrivateKey) {
-	x.key = &key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectGet) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // ReadHeader reads header of the object. Result means success.
@@ -320,12 +320,12 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	key := prm.key
-	if key == nil {
-		key = &c.prm.key
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
 	}
 
-	err := signServiceMessage(key, &req)
+	err := signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -350,15 +350,13 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 type PrmObjectHead struct {
 	prmObjectRead
 
-	keySet bool
-	key    ecdsa.PrivateKey
+	signer neofscrypto.Signer
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectHead) UseKey(key ecdsa.PrivateKey) {
-	x.keySet = true
-	x.key = key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectHead) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // ResObjectHead groups resulting values of ObjectHead operation.
@@ -431,13 +429,13 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	key := c.prm.key
-	if prm.keySet {
-		key = prm.key
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
 	}
 
 	// sign the request
-	err := signServiceMessage(&key, &req)
+	err := signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -475,7 +473,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 type PrmObjectRange struct {
 	prmObjectRead
 
-	key *ecdsa.PrivateKey
+	signer neofscrypto.Signer
 
 	rng v2object.Range
 }
@@ -492,10 +490,10 @@ func (x *PrmObjectRange) SetLength(ln uint64) {
 	x.rng.SetLength(ln)
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectRange) UseKey(key ecdsa.PrivateKey) {
-	x.key = &key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectRange) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // ResObjectRange groups the final result values of ObjectRange operation.
@@ -690,12 +688,12 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	key := prm.key
-	if key == nil {
-		key = &c.prm.key
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
 	}
 
-	err := signServiceMessage(key, &req)
+	err := signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

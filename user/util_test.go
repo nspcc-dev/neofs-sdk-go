@@ -1,7 +1,6 @@
 package user_test
 
 import (
-	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/hex"
 	"testing"
@@ -18,7 +17,7 @@ func TestIDFromKey(t *testing.T) {
 
 	var id user.ID
 
-	user.IDFromKey(&id, ecdsa.PublicKey{Curve: elliptic.P256(), X: x, Y: y})
+	user.IDFromKey(&id, rawPub)
 
 	require.Equal(t, "NNLi44dJNXtDNSBkofB48aTVYtb1zZrNEs", id.EncodeToString())
 }

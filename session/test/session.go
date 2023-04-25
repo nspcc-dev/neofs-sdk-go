@@ -8,12 +8,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
-var p ecdsa.PrivateKey
+var signer neofscrypto.Signer
 
 func init() {
 	k, err := keys.NewPrivateKey()
@@ -21,7 +22,7 @@ func init() {
 		panic(err)
 	}
 
-	p = k.PrivateKey
+	signer = neofsecdsa.SignerRFC6979(k.PrivateKey)
 }
 
 // Container returns random session.Container.
@@ -52,7 +53,7 @@ func Container() *session.Container {
 func ContainerSigned() *session.Container {
 	tok := Container()
 
-	err := tok.Sign(p)
+	err := tok.Sign(signer)
 	if err != nil {
 		panic(err)
 	}
@@ -89,7 +90,7 @@ func Object() *session.Object {
 func ObjectSigned() *session.Object {
 	tok := Object()
 
-	err := tok.Sign(p)
+	err := tok.Sign(signer)
 	if err != nil {
 		panic(err)
 	}

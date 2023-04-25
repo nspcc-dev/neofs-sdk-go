@@ -1,13 +1,13 @@
 package session
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
@@ -162,8 +162,8 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 // expected to be calculated as a final stage of Object formation.
 //
 // See also VerifySignature.
-func (x *Object) Sign(key ecdsa.PrivateKey) error {
-	return x.sign(key, x.writeContext)
+func (x *Object) Sign(signer neofscrypto.Signer) error {
+	return x.sign(signer, x.writeContext)
 }
 
 // VerifySignature checks if Object signature is presented and valid.

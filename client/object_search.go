@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -16,6 +15,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -25,7 +25,7 @@ import (
 type PrmObjectSearch struct {
 	meta v2session.RequestMetaHeader
 
-	key *ecdsa.PrivateKey
+	signer neofscrypto.Signer
 
 	cnrSet bool
 	cnrID  cid.ID
@@ -69,10 +69,10 @@ func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
 	writeXHeadersToMeta(hs, &x.meta)
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectSearch) UseKey(key ecdsa.PrivateKey) {
-	x.key = &key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectSearch) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // InContainer specifies the container in which to look for objects.
@@ -241,12 +241,12 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	key := prm.key
-	if key == nil {
-		key = &c.prm.key
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
 	}
 
-	err := signServiceMessage(key, &req)
+	err := signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
