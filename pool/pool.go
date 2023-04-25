@@ -1850,8 +1850,10 @@ func (p *innerPool) connection() (client, error) {
 }
 
 func formCacheKey(address string, key *ecdsa.PrivateKey) string {
-	k := keys.PrivateKey{PrivateKey: *key}
-	return address + k.String()
+	buf := make([]byte, 33)
+	copy(buf, (*keys.PublicKey)(&key.PublicKey).Bytes())
+
+	return address + string(buf)
 }
 
 func (p *Pool) checkSessionTokenErr(err error, address string) bool {
