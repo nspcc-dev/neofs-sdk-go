@@ -187,7 +187,7 @@ func (x *contextCall) writeRequest() bool {
 	x.req.SetVerificationHeader(nil)
 
 	// sign the request
-	x.err = signature.SignServiceMessage(&x.key, x.req)
+	x.err = signServiceMessage(&x.key, x.req)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign request: %w", x.err)
 		return false

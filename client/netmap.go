@@ -8,7 +8,6 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -248,7 +247,7 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 	req.SetBody(&body)
 	c.prepareRequest(&req, &meta)
 
-	err := signature.SignServiceMessage(&c.prm.key, &req)
+	err := signServiceMessage(&c.prm.key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

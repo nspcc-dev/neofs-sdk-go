@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
@@ -154,7 +153,7 @@ func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
 	}
 	resp.SetBody(&body)
 
-	err := signatureV2.SignServiceMessage(s.key, resp)
+	err := signServiceMessage(s.key, resp)
 	if err != nil {
 		panic(fmt.Errorf("error: %w", err))
 	}

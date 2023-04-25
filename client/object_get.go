@@ -13,7 +13,6 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -326,7 +325,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 		key = &c.prm.key
 	}
 
-	err := signature.SignServiceMessage(key, &req)
+	err := signServiceMessage(key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -438,7 +437,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	}
 
 	// sign the request
-	err := signature.SignServiceMessage(&key, &req)
+	err := signServiceMessage(&key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -696,7 +695,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		key = &c.prm.key
 	}
 
-	err := signature.SignServiceMessage(key, &req)
+	err := signServiceMessage(key, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

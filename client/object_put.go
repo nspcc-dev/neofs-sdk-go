@@ -12,7 +12,6 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -117,7 +116,7 @@ func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {
 	x.req.GetBody().SetObjectPart(&x.partInit)
 	x.req.SetVerificationHeader(nil)
 
-	x.err = signature.SignServiceMessage(x.key, &x.req)
+	x.err = signServiceMessage(x.key, &x.req)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign message: %w", x.err)
 		return false
@@ -159,7 +158,7 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 		x.partChunk.SetChunk(chunk[:ln])
 		x.req.SetVerificationHeader(nil)
 
-		x.err = signature.SignServiceMessage(x.key, &x.req)
+		x.err = signServiceMessage(x.key, &x.req)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
 			return false
