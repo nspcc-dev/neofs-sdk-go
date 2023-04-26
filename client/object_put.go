@@ -342,6 +342,9 @@ func CreateObject(ctx context.Context, cli *Client, signer neofscrypto.Signer, c
 	var opts slicer.Options
 	opts.SetObjectPayloadLimit(netInfo.MaxObjectSize())
 	opts.SetCurrentNeoFSEpoch(netInfo.CurrentEpoch())
+	if !netInfo.HomomorphicHashingDisabled() {
+		opts.CalculateHomomorphicChecksum()
+	}
 
 	s := slicer.New(signer, cnr, owner, &objectWriter{
 		context: ctx,

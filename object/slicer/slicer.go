@@ -143,16 +143,15 @@ func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
 
 	var rootID oid.ID
 	var rootHeader object.Object
-	var rootMeta dynamicObjectMetadata
 	var offset uint64
 	var isSplit bool
 	var childMeta dynamicObjectMetadata
 	var writtenChildren []oid.ID
 	var childHeader object.Object
+	rootMeta := newDynamicObjectMetadata(x.opts.withHomoChecksum)
 	bChunk := make([]byte, x.opts.objectPayloadLimit+1)
 
 	x.fillCommonMetadata(&rootHeader)
-	rootMeta.reset()
 
 	for {
 		n, err := data.Read(bChunk[offset:])
@@ -264,7 +263,7 @@ func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
 
 			// shift overflow bytes to the beginning
 			if !isSplitCp {
-				childMeta = dynamicObjectMetadata{} // to avoid rootMeta corruption
+				childMeta = newDynamicObjectMetadata(x.opts.withHomoChecksum) // to avoid rootMeta corruption
 			}
 			childMeta.reset()
 			childMeta.accumulateNextPayloadChunk(bChunk[toSend:])
@@ -297,6 +296,8 @@ func (x *Slicer) InitPayloadStream(attributes ...string) (*PayloadWriter, error)
 		currentEpoch: x.opts.currentNeoFSEpoch,
 		sessionToken: x.sessionToken,
 		attributes:   attributes,
+		rootMeta:     newDynamicObjectMetadata(x.opts.withHomoChecksum),
+		childMeta:    newDynamicObjectMetadata(x.opts.withHomoChecksum),
 	}
 
 	res.buf.Grow(int(x.childPayloadSizeLimit()))
@@ -486,11 +487,13 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	cs.SetSHA256(csBytes)
 	header.SetPayloadChecksum(cs)
 
-	var csHomoBytes [tz.Size]byte
-	copy(csHomoBytes[:], meta.homomorphicChecksum.Sum(nil))
+	if meta.homomorphicChecksum != nil {
+		var csHomoBytes [tz.Size]byte
+		copy(csHomoBytes[:], meta.homomorphicChecksum.Sum(nil))
 
-	cs.SetTillichZemor(csHomoBytes)
-	header.SetPayloadHomomorphicHash(cs)
+		cs.SetTillichZemor(csHomoBytes)
+		header.SetPayloadHomomorphicHash(cs)
+	}
 
 	header.SetPayloadSize(meta.length)
 
@@ -552,6 +555,18 @@ type dynamicObjectMetadata struct {
 	homomorphicChecksum hash.Hash
 }
 
+func newDynamicObjectMetadata(withHomoChecksum bool) dynamicObjectMetadata {
+	m := dynamicObjectMetadata{
+		checksum: sha256.New(),
+	}
+
+	if withHomoChecksum {
+		m.homomorphicChecksum = tz.New()
+	}
+
+	return m
+}
+
 func (x *dynamicObjectMetadata) Write(chunk []byte) (int, error) {
 	x.accumulateNextPayloadChunk(chunk)
 	return len(chunk), nil
@@ -562,23 +577,17 @@ func (x *dynamicObjectMetadata) Write(chunk []byte) (int, error) {
 func (x *dynamicObjectMetadata) accumulateNextPayloadChunk(chunk []byte) {
 	x.length += uint64(len(chunk))
 	x.checksum.Write(chunk)
-	x.homomorphicChecksum.Write(chunk)
+	if x.homomorphicChecksum != nil {
+		x.homomorphicChecksum.Write(chunk)
+	}
 }
 
 // reset resets all accumulated metadata.
 func (x *dynamicObjectMetadata) reset() {
 	x.length = 0
-
-	if x.checksum != nil {
-		x.checksum.Reset()
-	} else {
-		x.checksum = sha256.New()
-	}
-
+	x.checksum.Reset()
 	if x.homomorphicChecksum != nil {
 		x.homomorphicChecksum.Reset()
-	} else {
-		x.homomorphicChecksum = tz.New()
 	}
 }
 

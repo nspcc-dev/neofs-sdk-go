@@ -141,6 +141,7 @@ type input struct {
 	sessionToken *session.Object
 	payload      []byte
 	attributes   []string
+	withHomo     bool
 }
 
 func randomData(size uint64) []byte {
@@ -181,9 +182,14 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 		in.owner = *usertest.ID(tb)
 	}
 
+	in.withHomo = rand.Int()%2 == 0
+
 	var opts slicer.Options
 	opts.SetObjectPayloadLimit(in.payloadLimit)
 	opts.SetCurrentNeoFSEpoch(in.currentEpoch)
+	if in.withHomo {
+		opts.CalculateHomomorphicChecksum()
+	}
 
 	return in, opts
 }
@@ -340,6 +346,9 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.Equal(tb, in.sessionToken, header.SessionToken(), "configured session token must be written into objects")
 
 	require.NoError(tb, object.CheckHeaderVerificationFields(&header), "verification fields must be correctly set in header")
+
+	_, ok = header.PayloadHomomorphicHash()
+	require.Equal(tb, in.withHomo, ok)
 }
 
 func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.Reader) {
@@ -404,14 +413,19 @@ func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.R
 	cs, ok := header.PayloadChecksum()
 	require.True(x.tb, ok)
 
-	csHomo, ok := header.PayloadHomomorphicHash()
-	require.True(x.tb, ok)
-
-	x.mPayloads[id] = payloadWithChecksum{
+	pcs := payloadWithChecksum{
 		r:  payload,
-		cs: []checksum.Checksum{cs, csHomo},
-		hs: []hash.Hash{sha256.New(), tz.New()},
+		cs: []checksum.Checksum{cs},
+		hs: []hash.Hash{sha256.New()},
 	}
+
+	csHomo, ok := header.PayloadHomomorphicHash()
+	if ok {
+		pcs.cs = append(pcs.cs, csHomo)
+		pcs.hs = append(pcs.hs, tz.New())
+	}
+
+	x.mPayloads[id] = pcs
 }
 
 func (x *chainCollector) verify(in input, rootID oid.ID) {
