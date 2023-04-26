@@ -1,10 +1,10 @@
 package reputationtest
 
 import (
-	"fmt"
+	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 )
 
@@ -41,17 +41,11 @@ func GlobalTrust() (v reputation.GlobalTrust) {
 	return
 }
 
-func SignedGlobalTrust() reputation.GlobalTrust {
+func SignedGlobalTrust(t *testing.T) reputation.GlobalTrust {
 	gt := GlobalTrust()
 
-	p, err := keys.NewPrivateKey()
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from key creator: %v", err))
-	}
-
-	err = gt.Sign(neofsecdsa.Signer(p.PrivateKey))
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from GlobalTrust.Sign: %v", err))
+	if err := gt.Sign(test.RandomSigner(t)); err != nil {
+		t.Fatalf("unexpected error from GlobalTrust.Sign: %v", err)
 	}
 
 	return gt

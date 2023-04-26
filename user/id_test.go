@@ -48,7 +48,7 @@ func TestID_SetScriptHash(t *testing.T) {
 }
 
 func TestV2_ID(t *testing.T) {
-	id := *usertest.ID()
+	id := *usertest.ID(t)
 	var m refs.OwnerID
 	var id2 ID
 
@@ -91,7 +91,7 @@ func TestV2_ID(t *testing.T) {
 }
 
 func TestID_EncodeToString(t *testing.T) {
-	id := *usertest.ID()
+	id := *usertest.ID(t)
 
 	s := id.EncodeToString()
 
@@ -110,8 +110,8 @@ func TestID_EncodeToString(t *testing.T) {
 }
 
 func TestID_Equal(t *testing.T) {
-	id1 := *usertest.ID()
-	id2 := *usertest.ID()
+	id1 := *usertest.ID(t)
+	id2 := *usertest.ID(t)
 	id3 := id1
 
 	require.True(t, id1.Equals(id1)) // self-equality

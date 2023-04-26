@@ -11,7 +11,7 @@ This InitParameters will make pool use 192.168.130.71 node while it is healthy. 
 :
 
 	var prm pool.InitParameters
-	prm.SetKey(key)
+	prm.SetSigner(signer)
 	prm.AddNode(NewNodeParam(1, "192.168.130.71", 1))
 	prm.AddNode(NewNodeParam(2, "192.168.130.72", 9))
 	prm.AddNode(NewNodeParam(2, "192.168.130.73", 1))

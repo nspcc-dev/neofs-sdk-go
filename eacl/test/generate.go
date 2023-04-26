@@ -1,6 +1,8 @@
 package eacltest
 
 import (
+	"testing"
+
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -21,24 +23,24 @@ func Target() *eacl.Target {
 }
 
 // Record returns random eacl.Record.
-func Record() *eacl.Record {
+func Record(tb testing.TB) *eacl.Record {
 	x := eacl.NewRecord()
 
 	x.SetAction(eacl.ActionAllow)
 	x.SetOperation(eacl.OperationRangeHash)
 	x.SetTargets(*Target(), *Target())
 	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, usertest.ID())
+	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, usertest.ID(tb))
 
 	return x
 }
 
-func Table() *eacl.Table {
+func Table(tb testing.TB) *eacl.Table {
 	x := eacl.NewTable()
 
 	x.SetCID(cidtest.ID())
-	x.AddRecord(Record())
-	x.AddRecord(Record())
+	x.AddRecord(Record(tb))
+	x.AddRecord(Record(tb))
 	x.SetVersion(versiontest.Version())
 
 	return x

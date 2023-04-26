@@ -154,7 +154,7 @@ func TestReservedRecords(t *testing.T) {
 		v       = versiontest.Version()
 		oid     = oidtest.ID()
 		cid     = cidtest.ID()
-		ownerid = usertest.ID()
+		ownerid = usertest.ID(t)
 		h       = checksumtest.Checksum()
 		typ     = new(object.Type)
 	)

@@ -2,7 +2,6 @@ package session
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -10,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -155,13 +153,16 @@ func (x commonData) signedData(w contextWriter) []byte {
 	return x.fillBody(w).StableMarshal(nil)
 }
 
-func (x *commonData) sign(key ecdsa.PrivateKey, w contextWriter) error {
-	user.IDFromKey(&x.issuer, key.PublicKey)
+func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
+	if err := user.IDFromSigner(&x.issuer, signer); err != nil {
+		return err
+	}
+
 	x.issuerSet = true
 
 	var sig neofscrypto.Signature
 
-	err := sig.Calculate(neofsecdsa.Signer(key), x.signedData(w))
+	err := sig.Calculate(signer, x.signedData(w))
 	if err != nil {
 		return err
 	}

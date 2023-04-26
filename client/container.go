@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -53,7 +52,7 @@ func (x *PrmContainerPut) SetSigner(signer neofscrypto.Signer) {
 //
 // Session is optional, if set the following requirements apply:
 //   - session operation MUST be session.VerbContainerPut (ForVerb)
-//   - token MUST be signed using private key of the owner of the container to be saved
+//   - token MUST be signed using private signer of the owner of the container to be saved
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
@@ -74,7 +73,7 @@ func (x ResContainerPut) ID() cid.ID {
 }
 
 func (c *Client) defaultSigner() neofscrypto.Signer {
-	return neofsecdsa.SignerRFC6979(c.prm.key)
+	return c.prm.signer
 }
 
 // ContainerPut sends request to save container in NeoFS.
@@ -104,7 +103,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 		panic(panicMsgMissingContainer)
 	}
 
-	// TODO: check private key is set before forming the request
+	// TODO: check private signer is set before forming the request
 	// sign container
 	var cnr v2container.Container
 	prm.cnr.WriteToV2(&cnr)
@@ -657,7 +656,7 @@ func (x *PrmContainerSetEACL) SetSigner(signer neofscrypto.Signer) {
 //   - if particular container is specified (ApplyOnlyTo), it MUST equal the container
 //     for which extended ACL is going to be set
 //   - session operation MUST be session.VerbContainerSetEACL (ForVerb)
-//   - token MUST be signed using private key of the owner of the container to be saved
+//   - token MUST be signed using private signer of the owner of the container to be saved
 func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true

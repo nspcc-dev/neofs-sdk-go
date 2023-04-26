@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 
 	"github.com/google/uuid"
@@ -12,7 +11,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -21,7 +20,7 @@ import (
 )
 
 type mockClient struct {
-	key ecdsa.PrivateKey
+	signer neofscrypto.Signer
 	clientStatusMonitor
 
 	errorOnDial          bool
@@ -31,9 +30,9 @@ type mockClient struct {
 	stOnGetObject        apistatus.Status
 }
 
-func newMockClient(addr string, key ecdsa.PrivateKey) *mockClient {
+func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
 	return &mockClient{
-		key:                 key,
+		signer:              signer,
 		clientStatusMonitor: newClientStatusMonitor(addr, 10),
 	}
 }
@@ -65,11 +64,13 @@ func (m *mockClient) statusOnGetObject(st apistatus.Status) {
 	m.stOnGetObject = st
 }
 
-func newToken(key ecdsa.PrivateKey) *session.Object {
+func newToken(signer neofscrypto.Signer) *session.Object {
 	var tok session.Object
 	tok.SetID(uuid.New())
-	pk := neofsecdsa.PublicKey(key.PublicKey)
-	tok.SetAuthKey(&pk)
+
+	public := signer.Public()
+
+	tok.SetAuthKey(public)
 
 	return &tok
 }
@@ -159,7 +160,7 @@ func (m *mockClient) sessionCreate(context.Context, prmCreateSession) (resCreate
 		return resCreateSession{}, m.handleError(nil, errors.New("error"))
 	}
 
-	tok := newToken(m.key)
+	tok := newToken(m.signer)
 
 	var v2tok sessionv2.Token
 	tok.WriteToV2(&v2tok)

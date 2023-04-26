@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -16,7 +15,7 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
@@ -26,7 +25,7 @@ import (
 )
 
 func TestPlacementPolicyEncoding(t *testing.T) {
-	v := containertest.Container()
+	v := containertest.Container(t)
 
 	t.Run("binary", func(t *testing.T) {
 		var v2 container.Container
@@ -47,7 +46,7 @@ func TestPlacementPolicyEncoding(t *testing.T) {
 }
 
 func TestContainer_Init(t *testing.T) {
-	val := containertest.Container()
+	val := containertest.Container(t)
 
 	val.Init()
 
@@ -79,9 +78,9 @@ func TestContainer_Owner(t *testing.T) {
 
 	require.Zero(t, val.Owner())
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
-	owner := *usertest.ID()
+	owner := *usertest.ID(t)
 
 	val.SetOwner(owner)
 
@@ -104,7 +103,7 @@ func TestContainer_BasicACL(t *testing.T) {
 
 	require.Zero(t, val.BasicACL())
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	basicACL := containertest.BasicACL()
 	val.SetBasicACL(basicACL)
@@ -125,7 +124,7 @@ func TestContainer_PlacementPolicy(t *testing.T) {
 
 	require.Zero(t, val.PlacementPolicy())
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	pp := netmaptest.PlacementPolicy()
 	val.SetPlacementPolicy(pp)
@@ -156,7 +155,7 @@ func TestContainer_Attribute(t *testing.T) {
 	const attrKey1, attrKey2 = "key1", "key2"
 	const attrVal1, attrVal2 = "val1", "val2"
 
-	val := containertest.Container()
+	val := containertest.Container(t)
 
 	val.SetAttribute(attrKey1, attrVal1)
 	val.SetAttribute(attrKey2, attrVal2)
@@ -195,7 +194,7 @@ func TestSetName(t *testing.T) {
 		container.SetName(&val, "")
 	})
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	const name = "some name"
 
@@ -217,7 +216,7 @@ func TestSetCreationTime(t *testing.T) {
 
 	require.Zero(t, container.CreatedAt(val).Unix())
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	creat := time.Now()
 
@@ -239,7 +238,7 @@ func TestSetSubnet(t *testing.T) {
 
 	require.True(t, subnetid.IsZero(container.Subnet(val)))
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	sub := subnetidtest.ID()
 
@@ -261,7 +260,7 @@ func TestDisableHomomorphicHashing(t *testing.T) {
 
 	require.False(t, container.IsHomomorphicHashingDisabled(val))
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	container.DisableHomomorphicHashing(&val)
 
@@ -281,7 +280,7 @@ func TestWriteDomain(t *testing.T) {
 
 	require.Zero(t, container.ReadDomain(val).Name())
 
-	val = containertest.Container()
+	val = containertest.Container(t)
 
 	const name = "domain name"
 
@@ -313,7 +312,7 @@ func TestWriteDomain(t *testing.T) {
 }
 
 func TestCalculateID(t *testing.T) {
-	val := containertest.Container()
+	val := containertest.Container(t)
 
 	require.False(t, container.AssertID(cidtest.ID(), val))
 
@@ -333,14 +332,11 @@ func TestCalculateID(t *testing.T) {
 }
 
 func TestCalculateSignature(t *testing.T) {
-	key, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	val := containertest.Container()
+	val := containertest.Container(t)
 
 	var sig neofscrypto.Signature
 
-	require.NoError(t, container.CalculateSignature(&sig, val, neofsecdsa.SignerRFC6979(key.PrivateKey)))
+	require.NoError(t, container.CalculateSignature(&sig, val, test.RandomSignerRFC6979(t)))
 
 	var msg refs.Signature
 	sig.WriteToV2(&msg)

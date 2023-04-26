@@ -5,14 +5,13 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -38,7 +37,7 @@ func isEqualEACLTables(t1, t2 eacl.Table) bool {
 func TestToken_SetEACLTable(t *testing.T) {
 	var val bearer.Token
 	var m acl.BearerToken
-	filled := bearertest.Token()
+	filled := bearertest.Token(t)
 
 	val.WriteToV2(&m)
 	require.Zero(t, m.GetBody())
@@ -58,7 +57,7 @@ func TestToken_SetEACLTable(t *testing.T) {
 
 	// set value
 
-	eaclTable := *eacltest.Table()
+	eaclTable := *eacltest.Table(t)
 
 	val.SetEACLTable(eaclTable)
 	require.True(t, isEqualEACLTables(eaclTable, val.EACLTable()))
@@ -84,7 +83,7 @@ func TestToken_SetEACLTable(t *testing.T) {
 func TestToken_ForUser(t *testing.T) {
 	var val bearer.Token
 	var m acl.BearerToken
-	filled := bearertest.Token()
+	filled := bearertest.Token(t)
 
 	val.WriteToV2(&m)
 	require.Zero(t, m.GetBody())
@@ -107,7 +106,7 @@ func TestToken_ForUser(t *testing.T) {
 	require.Zero(t, m.GetBody())
 
 	// set value
-	usr := *usertest.ID()
+	usr := *usertest.ID(t)
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -138,7 +137,7 @@ func TestToken_ForUser(t *testing.T) {
 func testLifetimeClaim(t *testing.T, setter func(*bearer.Token, uint64), getter func(*acl.BearerToken) uint64) {
 	var val bearer.Token
 	var m acl.BearerToken
-	filled := bearertest.Token()
+	filled := bearertest.Token(t)
 
 	val.WriteToV2(&m)
 	require.Zero(t, m.GetBody())
@@ -230,7 +229,7 @@ func TestToken_AssertContainer(t *testing.T) {
 
 	require.True(t, val.AssertContainer(cnr))
 
-	eaclTable := *eacltest.Table()
+	eaclTable := *eacltest.Table(t)
 
 	eaclTable.SetCID(cidtest.ID())
 	val.SetEACLTable(eaclTable)
@@ -243,11 +242,11 @@ func TestToken_AssertContainer(t *testing.T) {
 
 func TestToken_AssertUser(t *testing.T) {
 	var val bearer.Token
-	usr := *usertest.ID()
+	usr := *usertest.ID(t)
 
 	require.True(t, val.AssertUser(usr))
 
-	val.ForUser(*usertest.ID())
+	val.ForUser(*usertest.ID(t))
 	require.False(t, val.AssertUser(usr))
 
 	val.ForUser(usr)
@@ -259,13 +258,11 @@ func TestToken_Sign(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	k, err := keys.NewPrivateKey()
-	require.NoError(t, err)
+	signer := test.RandomSigner(t)
 
-	key := k.PrivateKey
-	val = bearertest.Token()
+	val = bearertest.Token(t)
 
-	require.NoError(t, val.Sign(key))
+	require.NoError(t, val.Sign(signer))
 
 	require.True(t, val.VerifySignature())
 
@@ -275,7 +272,7 @@ func TestToken_Sign(t *testing.T) {
 	require.NotZero(t, m.GetSignature().GetKey())
 	require.NotZero(t, m.GetSignature().GetSign())
 
-	val2 := bearertest.Token()
+	val2 := bearertest.Token(t)
 
 	require.NoError(t, val2.Unmarshal(val.Marshal()))
 	require.True(t, val2.VerifySignature())
@@ -283,7 +280,7 @@ func TestToken_Sign(t *testing.T) {
 	jd, err := val.MarshalJSON()
 	require.NoError(t, err)
 
-	val2 = bearertest.Token()
+	val2 = bearertest.Token(t)
 	require.NoError(t, val2.UnmarshalJSON(jd))
 	require.True(t, val2.VerifySignature())
 }
@@ -299,7 +296,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 
 	require.Error(t, val.ReadFromV2(m))
 
-	eaclTable := eacltest.Table().ToV2()
+	eaclTable := eacltest.Table(t).ToV2()
 	body.SetEACL(eaclTable)
 
 	require.Error(t, val.ReadFromV2(m))
@@ -328,7 +325,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 	val.WriteToV2(&m2)
 	require.Equal(t, m, m2)
 
-	usr, usr2 := *usertest.ID(), *usertest.ID()
+	usr, usr2 := *usertest.ID(t), *usertest.ID(t)
 
 	require.True(t, val.AssertUser(usr))
 	require.True(t, val.AssertUser(usr2))
@@ -346,10 +343,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 	require.True(t, val.AssertUser(usr))
 	require.False(t, val.AssertUser(usr2))
 
-	k, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	signer := neofsecdsa.Signer(k.PrivateKey)
+	signer := test.RandomSigner(t)
 
 	var s neofscrypto.Signature
 
@@ -363,8 +357,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 }
 
 func TestResolveIssuer(t *testing.T) {
-	k, err := keys.NewPrivateKey()
-	require.NoError(t, err)
+	signer := test.RandomSigner(t)
 
 	var val bearer.Token
 
@@ -381,10 +374,10 @@ func TestResolveIssuer(t *testing.T) {
 
 	require.Zero(t, bearer.ResolveIssuer(val))
 
-	require.NoError(t, val.Sign(k.PrivateKey))
+	require.NoError(t, val.Sign(signer))
 
 	var usr user.ID
-	user.IDFromKey(&usr, k.PrivateKey.PublicKey)
+	require.NoError(t, user.IDFromSigner(&usr, signer))
 
 	require.Equal(t, usr, bearer.ResolveIssuer(val))
 }

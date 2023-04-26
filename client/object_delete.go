@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -11,10 +10,10 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
@@ -28,7 +27,7 @@ type PrmObjectDelete struct {
 	addr v2refs.Address
 
 	keySet bool
-	key    ecdsa.PrivateKey
+	signer neofscrypto.Signer
 }
 
 // WithinSession specifies session within which object should be read.
@@ -73,11 +72,11 @@ func (x *PrmObjectDelete) ByID(id oid.ID) {
 	x.addr.SetObjectID(&idV2)
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectDelete) UseKey(key ecdsa.PrivateKey) {
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectDelete) UseSigner(signer neofscrypto.Signer) {
 	x.keySet = true
-	x.key = key
+	x.signer = signer
 }
 
 // WithXHeaders specifies list of extended headers (string key-value pairs)
@@ -141,12 +140,12 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	req.SetBody(&prm.body)
 	c.prepareRequest(&req, &prm.meta)
 
-	key := c.prm.key
-	if prm.keySet {
-		key = prm.key
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
 	}
 
-	err := signature.SignServiceMessage(&key, &req)
+	err := signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

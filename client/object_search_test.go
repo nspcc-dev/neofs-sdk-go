@@ -1,16 +1,15 @@
 package client
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	signatureV2 "github.com/nspcc-dev/neofs-api-go/v2/signature"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
@@ -86,7 +85,7 @@ func TestObjectIterate(t *testing.T) {
 		p, resp := testListReaderResponse(t)
 
 		var actual []oid.ID
-		resp.stream = &singleStreamResponder{key: p, idList: [][]oid.ID{ids}}
+		resp.stream = &singleStreamResponder{signer: p, idList: [][]oid.ID{ids}}
 		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return len(actual) == 2
@@ -109,27 +108,24 @@ func TestObjectIterate(t *testing.T) {
 	})
 }
 
-func testListReaderResponse(t *testing.T) (*ecdsa.PrivateKey, *ObjectListReader) {
-	p, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-
-	return &p.PrivateKey, &ObjectListReader{
+func testListReaderResponse(t *testing.T) (neofscrypto.Signer, *ObjectListReader) {
+	return test.RandomSigner(t), &ObjectListReader{
 		cancelCtxStream: func() {},
 		client:          &Client{},
 		tail:            nil,
 	}
 }
 
-func newSearchStream(key *ecdsa.PrivateKey, endError error, idList ...[]oid.ID) *singleStreamResponder {
+func newSearchStream(signer neofscrypto.Signer, endError error, idList ...[]oid.ID) *singleStreamResponder {
 	return &singleStreamResponder{
-		key:      key,
+		signer:   signer,
 		endError: endError,
 		idList:   idList,
 	}
 }
 
 type singleStreamResponder struct {
-	key      *ecdsa.PrivateKey
+	signer   neofscrypto.Signer
 	n        int
 	endError error
 	idList   [][]oid.ID
@@ -154,7 +150,7 @@ func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
 	}
 	resp.SetBody(&body)
 
-	err := signatureV2.SignServiceMessage(s.key, resp)
+	err := signServiceMessage(s.signer, resp)
 	if err != nil {
 		panic(fmt.Errorf("error: %w", err))
 	}

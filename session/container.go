@@ -1,7 +1,6 @@
 package session
 
 import (
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -136,8 +135,8 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 // expected to be calculated as a final stage of Container formation.
 //
 // See also VerifySignature.
-func (x *Container) Sign(key ecdsa.PrivateKey) error {
-	return x.sign(key, x.writeContext)
+func (x *Container) Sign(signer neofscrypto.Signer) error {
+	return x.sign(signer, x.writeContext)
 }
 
 // VerifySignature checks if Container signature is presented and valid.

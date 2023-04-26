@@ -6,23 +6,12 @@ import (
 	"crypto/rand"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
-
-var p ecdsa.PrivateKey
-
-func init() {
-	k, err := keys.NewPrivateKey()
-	if err != nil {
-		panic(err)
-	}
-
-	p = k.PrivateKey
-}
 
 // Container returns random session.Container.
 //
@@ -49,10 +38,10 @@ func Container() *session.Container {
 // ContainerSigned returns signed random session.Container.
 //
 // Panics if token could not be signed (actually unexpected).
-func ContainerSigned() *session.Container {
+func ContainerSigned(signer neofscrypto.Signer) *session.Container {
 	tok := Container()
 
-	err := tok.Sign(p)
+	err := tok.Sign(signer)
 	if err != nil {
 		panic(err)
 	}
@@ -86,10 +75,10 @@ func Object() *session.Object {
 // ObjectSigned returns signed random session.Object.
 //
 // Panics if token could not be signed (actually unexpected).
-func ObjectSigned() *session.Object {
+func ObjectSigned(signer neofscrypto.Signer) *session.Object {
 	tok := Object()
 
-	err := tok.Sign(p)
+	err := tok.Sign(signer)
 	if err != nil {
 		panic(err)
 	}

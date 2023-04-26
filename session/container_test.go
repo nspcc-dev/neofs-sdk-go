@@ -12,7 +12,7 @@ import (
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -36,7 +36,7 @@ func TestContainerProtocolV2(t *testing.T) {
 	restoreID()
 
 	// Owner
-	usr := *usertest.ID()
+	usr := *usertest.ID(t)
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
 	restoreUser := func() {
@@ -55,8 +55,8 @@ func TestContainerProtocolV2(t *testing.T) {
 	restoreLifetime()
 
 	// Session key
-	signer := randSigner()
-	authKey := neofsecdsa.PublicKey(signer.PublicKey)
+	signer := test.RandomSignerRFC6979(t)
+	authKey := signer.Public()
 	binAuthKey := make([]byte, authKey.MaxEncodedSize())
 	binAuthKey = binAuthKey[:authKey.Encode(binAuthKey)]
 	restoreAuthKey := func() {
@@ -139,7 +139,7 @@ func TestContainerProtocolV2(t *testing.T) {
 			},
 			breakSign: func(m *v2session.Token) {
 				id := m.GetBody().GetOwnerID().GetValue()
-				copy(id, usertest.ID().WalletBytes())
+				copy(id, usertest.ID(t).WalletBytes())
 			},
 		},
 		{
@@ -173,7 +173,7 @@ func TestContainerProtocolV2(t *testing.T) {
 			},
 			restore: restoreAuthKey,
 			assert: func(val session.Container) {
-				require.True(t, val.AssertAuthKey(&authKey))
+				require.True(t, val.AssertAuthKey(authKey))
 			},
 			breakSign: func(m *v2session.Token) {
 				body := m.GetBody()
@@ -266,12 +266,12 @@ func TestContainer_WriteToV2(t *testing.T) {
 	})
 
 	// Owner/Signature
-	signer := randSigner()
+	signer := test.RandomSignerRFC6979(t)
 
 	require.NoError(t, val.Sign(signer))
 
 	var usr user.ID
-	user.IDFromKey(&usr, signer.PublicKey)
+	require.NoError(t, user.IDFromSigner(&usr, signer))
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -430,7 +430,7 @@ func TestContainer_ID(t *testing.T) {
 func TestContainer_AssertAuthKey(t *testing.T) {
 	var x session.Container
 
-	key := randPublicKey()
+	key := test.RandomSignerRFC6979(t).Public()
 
 	require.False(t, x.AssertAuthKey(key))
 
@@ -513,10 +513,10 @@ func TestIssuedBy(t *testing.T) {
 	var (
 		token  session.Container
 		issuer user.ID
-		signer = randSigner()
+		signer = test.RandomSignerRFC6979(t)
 	)
 
-	user.IDFromKey(&issuer, signer.PublicKey)
+	require.NoError(t, user.IDFromSigner(&issuer, signer))
 
 	require.False(t, session.IssuedBy(token, issuer))
 
@@ -526,7 +526,7 @@ func TestIssuedBy(t *testing.T) {
 
 func TestContainer_Issuer(t *testing.T) {
 	var token session.Container
-	signer := randSigner()
+	signer := test.RandomSignerRFC6979(t)
 
 	require.Zero(t, token.Issuer())
 
@@ -534,7 +534,7 @@ func TestContainer_Issuer(t *testing.T) {
 
 	var issuer user.ID
 
-	user.IDFromKey(&issuer, signer.PublicKey)
+	require.NoError(t, user.IDFromSigner(&issuer, signer))
 
 	require.True(t, token.Issuer().Equals(issuer))
 }
@@ -542,13 +542,13 @@ func TestContainer_Issuer(t *testing.T) {
 func TestContainer_Sign(t *testing.T) {
 	val := sessiontest.Container()
 
-	require.NoError(t, val.Sign(randSigner()))
+	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
 
 	require.True(t, val.VerifySignature())
 }
 
 func TestContainer_VerifyDataSignature(t *testing.T) {
-	signer := randSigner()
+	signer := test.RandomSignerRFC6979(t)
 
 	var tok session.Container
 
@@ -556,14 +556,14 @@ func TestContainer_VerifyDataSignature(t *testing.T) {
 	rand.Read(data)
 
 	var sig neofscrypto.Signature
-	require.NoError(t, sig.Calculate(neofsecdsa.SignerRFC6979(signer), data))
+	require.NoError(t, sig.Calculate(signer, data))
 
 	var sigV2 refs.Signature
 	sig.WriteToV2(&sigV2)
 
 	require.False(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
 
-	tok.SetAuthKey((*neofsecdsa.PublicKeyRFC6979)(&signer.PublicKey))
+	tok.SetAuthKey(signer.Public())
 	require.True(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
 	require.False(t, tok.VerifySessionDataSignature(append(data, 1), sigV2.GetSign()))
 	require.False(t, tok.VerifySessionDataSignature(data, append(sigV2.GetSign(), 1)))

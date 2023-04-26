@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -25,13 +26,17 @@ func ExampleClient_ContainerPut() {
 		panic(err)
 	}
 
-	// decode account from user's key
-	user.IDFromKey(&accountID, key.PrivateKey.PublicKey)
+	signer := neofsecdsa.SignerRFC6979(key.PrivateKey)
+
+	// decode account from user's signer
+	if err = user.IDFromSigner(&accountID, signer); err != nil {
+		panic(err)
+	}
 
 	// prepare client
 	var prmInit client.PrmInit
-	prmInit.SetDefaultPrivateKey(key.PrivateKey) // private key for request signing
-	prmInit.ResolveNeoFSFailures()               // enable erroneous status parsing
+	prmInit.SetDefaultSigner(signer) // private signer for request signing
+	prmInit.ResolveNeoFSFailures()   // enable erroneous status parsing
 
 	var c client.Client
 	c.Init(prmInit)

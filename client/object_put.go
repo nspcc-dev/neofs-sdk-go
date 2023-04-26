@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -12,9 +11,9 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -23,7 +22,7 @@ import (
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
 type PrmObjectPutInit struct {
 	copyNum uint32
-	key     *ecdsa.PrivateKey
+	signer  neofscrypto.Signer
 	meta    v2session.RequestMetaHeader
 }
 
@@ -57,9 +56,9 @@ type ObjectWriter struct {
 		Close() error
 	}
 
-	key *ecdsa.PrivateKey
-	res ResObjectPut
-	err error
+	signer neofscrypto.Signer
+	res    ResObjectPut
+	err    error
 
 	chunkCalled bool
 
@@ -69,10 +68,10 @@ type ObjectWriter struct {
 	partChunk v2object.PutObjectPartChunk
 }
 
-// UseKey specifies private key to sign the requests.
-// If key is not provided, then Client default key is used.
-func (x *PrmObjectPutInit) UseKey(key ecdsa.PrivateKey) {
-	x.key = &key
+// UseSigner specifies private signer to sign the requests.
+// If signer is not provided, then Client default signer is used.
+func (x *PrmObjectPutInit) UseSigner(signer neofscrypto.Signer) {
+	x.signer = signer
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -117,7 +116,7 @@ func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {
 	x.req.GetBody().SetObjectPart(&x.partInit)
 	x.req.SetVerificationHeader(nil)
 
-	x.err = signature.SignServiceMessage(x.key, &x.req)
+	x.err = signServiceMessage(x.signer, &x.req)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign message: %w", x.err)
 		return false
@@ -159,7 +158,7 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 		x.partChunk.SetChunk(chunk[:ln])
 		x.req.SetVerificationHeader(nil)
 
-		x.err = signature.SignServiceMessage(x.key, &x.req)
+		x.err = signServiceMessage(x.signer, &x.req)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
 			return false
@@ -251,9 +250,9 @@ func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*Obje
 		return nil, fmt.Errorf("open stream: %w", err)
 	}
 
-	w.key = &c.prm.key
-	if prm.key != nil {
-		w.key = prm.key
+	w.signer = prm.signer
+	if w.signer == nil {
+		w.signer = c.prm.signer
 	}
 	w.cancelCtxStream = cancel
 	w.client = c

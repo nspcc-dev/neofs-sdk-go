@@ -8,8 +8,9 @@ import (
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/signature"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
 )
@@ -23,10 +24,12 @@ type serverNetMap struct {
 
 	setNetMap bool
 	netMap    v2netmap.NetMap
+
+	signer neofscrypto.Signer
 }
 
 func (x *serverNetMap) netMapSnapshot(ctx context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	err := signature.VerifyServiceMessage(&req)
+	err := verifyServiceMessage(&req)
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +55,7 @@ func (x *serverNetMap) netMapSnapshot(ctx context.Context, req v2netmap.Snapshot
 	resp.SetMetaHeader(&meta)
 
 	if x.signResponse {
-		err = signature.SignServiceMessage(key, &resp)
+		err = signServiceMessage(x.signer, &resp)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
@@ -66,7 +69,12 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	var prm PrmNetMapSnapshot
 	var res *ResNetMapSnapshot
 	var srv serverNetMap
-	c := newClient(&srv)
+
+	signer := test.RandomSignerRFC6979(t)
+
+	srv.signer = signer
+
+	c := newClient(signer, &srv)
 	ctx := context.Background()
 
 	// missing context

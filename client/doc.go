@@ -11,7 +11,7 @@ Create client instance:
 Initialize client state:
 
 	var prm client.PrmInit
-	prm.SetDefaultPrivateKey(key)
+	prm.SetDefaultSigner(signer)
 	// ...
 
 	c.Init(prm)
@@ -20,7 +20,7 @@ Connect to the NeoFS server:
 
 	var prm client.PrmDial
 	prm.SetServerURI("localhost:8080")
-	prm.SetDefaultPrivateKey(key)
+	prm.SetDefaultSigner(signer)
 	// ...
 
 	err := c.Dial(prm)
