@@ -332,9 +332,27 @@ func (x *payloadWriter) Close() error {
 // future. Be ready to refactor your code regarding imports and call mechanics,
 // in essence the operation will not change.
 func CreateObject(ctx context.Context, cli *Client, signer neofscrypto.Signer, cnr cid.ID, owner user.ID, data io.Reader, attributes ...string) (oid.ID, error) {
+	s, err := NewDataSlicer(ctx, cli, signer, cnr, owner)
+	if err != nil {
+		return oid.ID{}, err
+	}
+
+	return s.Slice(data, attributes...)
+}
+
+// NewDataSlicer creates slicer.Slicer that saves data in the NeoFS network
+// through provided Client. The data is packaged into NeoFS objects stored in
+// the specified container. Provided signer is being used to sign the resulting
+// objects as a system requirement. Produced objects are owned by the
+// parameterized NeoFS user.
+//
+// Notice: This API is EXPERIMENTAL and is planned to be replaced/changed in the
+// future. Be ready to refactor your code regarding imports and call mechanics,
+// in essence the operation will not change.
+func NewDataSlicer(ctx context.Context, cli *Client, signer neofscrypto.Signer, cnr cid.ID, owner user.ID) (*slicer.Slicer, error) {
 	resNetInfo, err := cli.NetworkInfo(ctx, PrmNetworkInfo{})
 	if err != nil {
-		return oid.ID{}, fmt.Errorf("read current network info: %w", err)
+		return nil, fmt.Errorf("read current network info: %w", err)
 	}
 
 	netInfo := resNetInfo.Info()
@@ -346,10 +364,8 @@ func CreateObject(ctx context.Context, cli *Client, signer neofscrypto.Signer, c
 		opts.CalculateHomomorphicChecksum()
 	}
 
-	s := slicer.New(signer, cnr, owner, &objectWriter{
+	return slicer.New(signer, cnr, owner, &objectWriter{
 		context: ctx,
 		client:  cli,
-	}, opts)
-
-	return s.Slice(data, attributes...)
+	}, opts), nil
 }
