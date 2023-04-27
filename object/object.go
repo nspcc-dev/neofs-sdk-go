@@ -338,6 +338,13 @@ func (o *Object) PreviousID() (v oid.ID, isSet bool) {
 	return
 }
 
+// ResetPreviousID resets identifier of the previous sibling object.
+func (o *Object) ResetPreviousID() {
+	o.setSplitFields(func(split *object.SplitHeader) {
+		split.SetPrevious(nil)
+	})
+}
+
 // SetPreviousID sets identifier of the previous sibling object.
 func (o *Object) SetPreviousID(v oid.ID) {
 	var v2 refs.ObjectID
