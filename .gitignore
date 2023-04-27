@@ -17,6 +17,7 @@ vendor/
 # IDE
 .idea
 .vscode
+*~
 
 # coverage
 coverage.txt
