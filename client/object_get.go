@@ -485,15 +485,21 @@ type PrmObjectRange struct {
 }
 
 // SetOffset sets offset of the payload range to be read.
-// Zero by default.
+// Zero by default. It is an alternative to [PrmObjectRange.SetRange].
 func (x *PrmObjectRange) SetOffset(off uint64) {
 	x.rng.SetOffset(off)
 }
 
 // SetLength sets length of the payload range to be read.
-// Must be positive.
+// Must be positive. It is an alternative to [PrmObjectRange.SetRange].
 func (x *PrmObjectRange) SetLength(ln uint64) {
 	x.rng.SetLength(ln)
+}
+
+// SetRange sets range of the payload to be read.
+// It is an alternative to [PrmObjectRange.SetOffset], [PrmObjectRange.SetLength].
+func (x *PrmObjectRange) SetRange(rng object.Range) {
+	x.rng = *rng.ToV2()
 }
 
 // UseSigner specifies private signer to sign the requests.
