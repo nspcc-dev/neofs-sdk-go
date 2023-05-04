@@ -55,7 +55,7 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 }
 
 // FromContainer specifies NeoFS container of the object.
-// Required parameter.
+// Required parameter. It is an alternative to [PrmObjectDelete.ByAddress].
 func (x *PrmObjectDelete) FromContainer(id cid.ID) {
 	var cidV2 v2refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -64,12 +64,18 @@ func (x *PrmObjectDelete) FromContainer(id cid.ID) {
 }
 
 // ByID specifies identifier of the requested object.
-// Required parameter.
+// Required parameter. It is an alternative to [PrmObjectDelete.ByAddress].
 func (x *PrmObjectDelete) ByID(id oid.ID) {
 	var idV2 v2refs.ObjectID
 	id.WriteToV2(&idV2)
 
 	x.addr.SetObjectID(&idV2)
+}
+
+// ByAddress specifies address of the requested object.
+// Required parameter. It is an alternative to [PrmObjectDelete.ByID], [PrmObjectDelete.FromContainer].
+func (x *PrmObjectDelete) ByAddress(addr oid.Address) {
+	addr.WriteToV2(&x.addr)
 }
 
 // UseSigner specifies private signer to sign the requests.
