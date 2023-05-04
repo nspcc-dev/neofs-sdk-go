@@ -697,8 +697,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 	}
 
 	var cliPrm sdkClient.PrmObjectDelete
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -733,8 +732,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 	}
 
 	var cliPrm sdkClient.PrmObjectGet
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -786,8 +784,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 	}
 
 	var cliPrm sdkClient.PrmObjectHead
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 	if prm.raw {
 		cliPrm.MarkRaw()
 	}
@@ -831,8 +828,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 	}
 
 	var cliPrm sdkClient.PrmObjectRange
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 	cliPrm.SetOffset(prm.off)
 	cliPrm.SetLength(prm.ln)
 
