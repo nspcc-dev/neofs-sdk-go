@@ -72,7 +72,7 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 }
 
 // FromContainer specifies NeoFS container of the object.
-// Required parameter.
+// Required parameter. It is an alternative to ByAddress.
 func (x *prmObjectRead) FromContainer(id cid.ID) {
 	var cnrV2 v2refs.ContainerID
 	id.WriteToV2(&cnrV2)
@@ -80,11 +80,17 @@ func (x *prmObjectRead) FromContainer(id cid.ID) {
 }
 
 // ByID specifies identifier of the requested object.
-// Required parameter.
+// Required parameter. It is an alternative to ByAddress.
 func (x *prmObjectRead) ByID(id oid.ID) {
 	var objV2 v2refs.ObjectID
 	id.WriteToV2(&objV2)
 	x.addr.SetObjectID(&objV2)
+}
+
+// ByAddress specifies address of the requested object.
+// Required parameter. It is an alternative to ByID, FromContainer.
+func (x *prmObjectRead) ByAddress(addr oid.Address) {
+	addr.WriteToV2(&x.addr)
 }
 
 // PrmObjectGet groups parameters of ObjectGetInit operation.
@@ -479,15 +485,21 @@ type PrmObjectRange struct {
 }
 
 // SetOffset sets offset of the payload range to be read.
-// Zero by default.
+// Zero by default. It is an alternative to [PrmObjectRange.SetRange].
 func (x *PrmObjectRange) SetOffset(off uint64) {
 	x.rng.SetOffset(off)
 }
 
 // SetLength sets length of the payload range to be read.
-// Must be positive.
+// Must be positive. It is an alternative to [PrmObjectRange.SetRange].
 func (x *PrmObjectRange) SetLength(ln uint64) {
 	x.rng.SetLength(ln)
+}
+
+// SetRange sets range of the payload to be read.
+// It is an alternative to [PrmObjectRange.SetOffset], [PrmObjectRange.SetLength].
+func (x *PrmObjectRange) SetRange(rng object.Range) {
+	x.rng = *rng.ToV2()
 }
 
 // UseSigner specifies private signer to sign the requests.

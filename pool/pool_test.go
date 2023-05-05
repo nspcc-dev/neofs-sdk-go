@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"errors"
+	"math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -654,4 +655,33 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.Equal(t, nodes[1].address, conn.address())
 	_, err = conn.objectGet(ctx, PrmObjectGet{})
 	require.NoError(t, err)
+}
+
+func TestPrmObjectRange_SetRange(t *testing.T) {
+	var prm PrmObjectRange
+
+	ln := rand.Uint64()
+	off := rand.Uint64()
+
+	t.Run("SetLength", func(t *testing.T) {
+		prm.SetLength(ln)
+
+		require.Equal(t, ln, prm.rng.ToV2().GetLength())
+	})
+
+	t.Run("SetOffset", func(t *testing.T) {
+		prm.SetOffset(off)
+
+		require.Equal(t, off, prm.rng.ToV2().GetOffset())
+	})
+
+	t.Run("SetRange", func(t *testing.T) {
+		var tmp object.Range
+		tmp.SetLength(ln)
+		tmp.SetOffset(off)
+
+		prm.SetRange(tmp)
+		require.Equal(t, ln, tmp.ToV2().GetLength())
+		require.Equal(t, off, tmp.ToV2().GetOffset())
+	})
 }

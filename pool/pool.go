@@ -697,8 +697,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 	}
 
 	var cliPrm sdkClient.PrmObjectDelete
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -733,8 +732,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 	}
 
 	var cliPrm sdkClient.PrmObjectGet
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -786,8 +784,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 	}
 
 	var cliPrm sdkClient.PrmObjectHead
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
+	cliPrm.ByAddress(prm.addr)
 	if prm.raw {
 		cliPrm.MarkRaw()
 	}
@@ -831,10 +828,8 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 	}
 
 	var cliPrm sdkClient.PrmObjectRange
-	cliPrm.FromContainer(prm.addr.Container())
-	cliPrm.ByID(prm.addr.Object())
-	cliPrm.SetOffset(prm.off)
-	cliPrm.SetLength(prm.ln)
+	cliPrm.ByAddress(prm.addr)
+	cliPrm.SetRange(prm.rng)
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -1302,8 +1297,8 @@ func (x *PrmObjectHead) MarkRaw() {
 type PrmObjectRange struct {
 	prmCommon
 
-	addr    oid.Address
-	off, ln uint64
+	addr oid.Address
+	rng  object.Range
 }
 
 // SetAddress specifies NeoFS address of the object.
@@ -1312,13 +1307,21 @@ func (x *PrmObjectRange) SetAddress(addr oid.Address) {
 }
 
 // SetOffset sets offset of the payload range to be read.
+// Zero by default. It is an alternative to [PrmObjectRange.SetRange].
 func (x *PrmObjectRange) SetOffset(offset uint64) {
-	x.off = offset
+	x.rng.SetOffset(offset)
 }
 
 // SetLength sets length of the payload range to be read.
+// Must be positive. It is an alternative to [PrmObjectRange.SetRange].
 func (x *PrmObjectRange) SetLength(length uint64) {
-	x.ln = length
+	x.rng.SetLength(length)
+}
+
+// SetRange sets range of the payload to be read.
+// It is an alternative to [PrmObjectRange.SetOffset], [PrmObjectRange.SetLength].
+func (x *PrmObjectRange) SetRange(rng object.Range) {
+	x.rng = rng
 }
 
 // PrmObjectSearch groups parameters of SearchObjects operation.

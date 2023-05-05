@@ -67,7 +67,7 @@ func (x *PrmObjectHash) WithBearerToken(t bearer.Token) {
 }
 
 // FromContainer specifies NeoFS container of the object.
-// Required parameter.
+// Required parameter. It is an alternative to [PrmObjectHash.ByAddress].
 func (x *PrmObjectHash) FromContainer(id cid.ID) {
 	var cidV2 v2refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -76,12 +76,18 @@ func (x *PrmObjectHash) FromContainer(id cid.ID) {
 }
 
 // ByID specifies identifier of the requested object.
-// Required parameter.
+// Required parameter. It is an alternative to [PrmObjectHash.ByAddress].
 func (x *PrmObjectHash) ByID(id oid.ID) {
 	var idV2 v2refs.ObjectID
 	id.WriteToV2(&idV2)
 
 	x.addr.SetObjectID(&idV2)
+}
+
+// ByAddress specifies address of the requested object.
+// Required parameter. It is an alternative to [PrmObjectHash.ByID], [PrmObjectHash.FromContainer].
+func (x *PrmObjectHash) ByAddress(addr oid.Address) {
+	addr.WriteToV2(&x.addr)
 }
 
 // SetRangeList sets list of ranges in (offset, length) pair format.
