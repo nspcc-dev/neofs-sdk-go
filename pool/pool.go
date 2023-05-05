@@ -1527,8 +1527,6 @@ type resCreateSession struct {
 // Each method which produces a NeoFS API call may return an error.
 // Status of underlying server response is casted to built-in error instance.
 // Certain statuses can be checked using `sdkClient` and standard `errors` packages.
-// Note that package provides some helper functions to work with status returns
-// (e.g. sdkClient.IsErrContainerNotFound, sdkClient.IsErrObjectNotFound).
 //
 // See pool package overview to get some examples.
 type Pool struct {
@@ -1860,7 +1858,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 		return false
 	}
 
-	if sdkClient.IsErrSessionNotFound(err) || sdkClient.IsErrSessionExpired(err) {
+	if errors.Is(err, apistatus.ErrSessionTokenNotFound) || errors.Is(err, apistatus.ErrSessionTokenExpired) {
 		p.cache.DeleteByPrefix(address)
 		return true
 	}
@@ -2458,7 +2456,7 @@ func waitForContainerRemoved(ctx context.Context, cli client, cnrID *cid.ID, wai
 
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, prm)
-		return sdkClient.IsErrContainerNotFound(err)
+		return errors.Is(err, apistatus.ErrContainerNotFound)
 	})
 }
 
