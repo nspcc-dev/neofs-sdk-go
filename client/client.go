@@ -31,14 +31,13 @@ import (
 // Each method which produces a NeoFS API call may return a server response.
 // Status responses are returned in the result structure, and can be cast
 // to built-in error instance (or in the returned error if the client is
-// configured accordingly). Certain statuses can be checked using `apistatus`
-// and standard `errors` packages. Note that package provides some helper
-// functions to work with status returns (e.g. IsErrContainerNotFound).
+// configured accordingly). Certain statuses can be checked using [apistatus]
+// and standard [errors] packages.
 // All possible responses are documented in methods, however, some may be
 // returned from all of them (pay attention to the presence of the pointer sign):
-//   - *apistatus.ServerInternal on internal server error;
-//   - *apistatus.NodeUnderMaintenance if a server is under maintenance;
-//   - *apistatus.SuccessDefaultV2 on default success.
+//   - *[apistatus.ServerInternal] on internal server error;
+//   - *[apistatus.NodeUnderMaintenance] if a server is under maintenance;
+//   - *[apistatus.SuccessDefaultV2] on default success.
 //
 // Client MUST NOT be copied by value: use pointer to Client instead.
 //
