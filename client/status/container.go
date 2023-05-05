@@ -5,8 +5,17 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
+var (
+	// ErrEACLNotFound is an instance of EACLNotFound error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrEACLNotFound EACLNotFound
+	// ErrContainerNotFound is an instance of ContainerNotFound error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrContainerNotFound ContainerNotFound
+)
+
 // ContainerNotFound describes status of the failure because of the missing container.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type ContainerNotFound struct {
 	v2 status.Status
 }
@@ -23,6 +32,16 @@ func (x ContainerNotFound) Error() string {
 		globalizeCodeV2(container.StatusNotFound, container.GlobalizeFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ContainerNotFound) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return false
+	case ContainerNotFound, *ContainerNotFound:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.
@@ -44,7 +63,7 @@ func (x ContainerNotFound) ToStatusV2() *status.Status {
 
 // EACLNotFound describes status of the failure because of the missing eACL
 // table.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type EACLNotFound struct {
 	v2 status.Status
 }
@@ -61,6 +80,16 @@ func (x EACLNotFound) Error() string {
 		globalizeCodeV2(container.StatusEACLNotFound, container.GlobalizeFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x EACLNotFound) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return false
+	case EACLNotFound, *EACLNotFound:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.

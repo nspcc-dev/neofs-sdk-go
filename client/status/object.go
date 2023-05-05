@@ -5,8 +5,17 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
+var (
+	// ErrObjectAlreadyRemoved is an instance of ObjectAlreadyRemoved error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrObjectAlreadyRemoved ObjectAlreadyRemoved
+	// ErrObjectNotFound is an instance of ObjectNotFound error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrObjectNotFound ObjectNotFound
+)
+
 // ObjectLocked describes status of the failure because of the locked object.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type ObjectLocked struct {
 	v2 status.Status
 }
@@ -43,7 +52,7 @@ func (x ObjectLocked) ToStatusV2() *status.Status {
 }
 
 // LockNonRegularObject describes status returned on locking the non-regular object.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type LockNonRegularObject struct {
 	v2 status.Status
 }
@@ -80,7 +89,7 @@ func (x LockNonRegularObject) ToStatusV2() *status.Status {
 }
 
 // ObjectAccessDenied describes status of the failure because of the access control violation.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type ObjectAccessDenied struct {
 	v2 status.Status
 }
@@ -128,7 +137,7 @@ func (x ObjectAccessDenied) Reason() string {
 }
 
 // ObjectNotFound describes status of the failure because of the missing object.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type ObjectNotFound struct {
 	v2 status.Status
 }
@@ -145,6 +154,16 @@ func (x ObjectNotFound) Error() string {
 		globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ObjectNotFound) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return false
+	case ObjectNotFound, *ObjectNotFound:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.
@@ -184,6 +203,16 @@ func (x ObjectAlreadyRemoved) Error() string {
 	)
 }
 
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ObjectAlreadyRemoved) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return false
+	case ObjectAlreadyRemoved, *ObjectAlreadyRemoved:
+		return true
+	}
+}
+
 // implements local interface defined in FromStatusV2 func.
 func (x *ObjectAlreadyRemoved) fromStatusV2(st *status.Status) {
 	x.v2 = *st
@@ -203,7 +232,7 @@ func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
 
 // ObjectOutOfRange describes status of the failure because of the incorrect
 // provided object ranges.
-// Instances provide Status and StatusV2 interfaces.
+// Instances provide [Status], [StatusV2] and error interfaces.
 type ObjectOutOfRange struct {
 	v2 status.Status
 }
