@@ -95,7 +95,7 @@ func FromStatusV2(st *status.Status) Status {
 	}
 
 	if decoder == nil {
-		decoder = new(unrecognizedStatusV2)
+		decoder = new(UnrecognizedStatusV2)
 	}
 
 	decoder.fromStatusV2(st)
