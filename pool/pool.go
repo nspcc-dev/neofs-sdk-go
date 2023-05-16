@@ -992,11 +992,10 @@ func (c *clientStatusMonitor) handleError(st apistatus.Status, err error) error 
 	}
 
 	err = apistatus.ErrFromStatus(st)
-	switch err.(type) {
-	case apistatus.ServerInternal, *apistatus.ServerInternal,
-		apistatus.WrongMagicNumber, *apistatus.WrongMagicNumber,
-		apistatus.SignatureVerification, *apistatus.SignatureVerification,
-		apistatus.NodeUnderMaintenance, *apistatus.NodeUnderMaintenance:
+	if errors.Is(err, apistatus.ErrServerInternal) ||
+		errors.Is(err, apistatus.ErrWrongMagicNumber) ||
+		errors.Is(err, apistatus.ErrSignatureVerification) ||
+		errors.Is(err, apistatus.ErrNodeUnderMaintenance) {
 		c.incErrorRate()
 	}
 

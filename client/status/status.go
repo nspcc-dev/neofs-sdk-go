@@ -1,5 +1,9 @@
 package apistatus
 
+import (
+	"errors"
+)
+
 // Status defines a variety of NeoFS API status returns.
 //
 // All statuses are split into two disjoint subsets: successful and failed, and:
@@ -22,7 +26,7 @@ type Status any
 // Note: direct assignment may not be compatibility-safe.
 func ErrFromStatus(st Status) error {
 	if err, ok := st.(error); ok {
-		return err
+		return errors.Join(Error, err)
 	}
 
 	return nil
