@@ -115,19 +115,17 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmObjectDelete docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Return statuses:
+// Return errors:
 //   - global (see Client docs)
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectLocked;
-//   - *apistatus.SessionTokenExpired.
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrObjectLocked];
+//   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
 	switch {
 	case ctx == nil:

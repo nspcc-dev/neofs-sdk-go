@@ -41,7 +41,6 @@ func TestClient_SessionCreate(t *testing.T) {
 
 	var prmInit PrmInit
 	prmInit.SetDefaultSigner(signer)
-	prmInit.ResolveNeoFSFailures()
 
 	var c Client
 	c.Init(prmInit)

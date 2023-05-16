@@ -260,16 +260,13 @@ func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
 // codes are returned as error.
 //
 // Return errors:
-//
-//	*object.SplitInfoError (returned on virtual objects with PrmObjectGet.MakeRaw).
-//
-// Return statuses:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectAlreadyRemoved;
-//   - *apistatus.SessionTokenExpired.
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectGet.MakeRaw).
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrObjectAlreadyRemoved];
+//   - [apistatus.ErrSessionTokenExpired].
 func (x *ObjectReader) Close() (*ResObjectGet, error) {
 	return x.close(true)
 }
@@ -399,24 +396,19 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmObjectHead docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//
-//	*object.SplitInfoError (returned on virtual objects with PrmObjectHead.MakeRaw).
-//
-// Return statuses:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectAlreadyRemoved;
-//   - *apistatus.SessionTokenExpired.
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectHead.MakeRaw).
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrObjectAlreadyRemoved];
+//   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
 	switch {
 	case ctx == nil:
@@ -629,17 +621,14 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 // codes are returned as error.
 //
 // Return errors:
-//
-//	*object.SplitInfoError (returned on virtual objects with PrmObjectRange.MakeRaw).
-//
-// Return statuses:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectAlreadyRemoved;
-//   - *apistatus.ObjectOutOfRange;
-//   - *apistatus.SessionTokenExpired.
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectRange.MakeRaw).
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrObjectAlreadyRemoved];
+//   - [apistatus.ErrObjectOutOfRange];
+//   - [apistatus.ErrSessionTokenExpired].
 func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
 	return x.close(true)
 }

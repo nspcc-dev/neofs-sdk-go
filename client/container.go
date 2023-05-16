@@ -78,11 +78,8 @@ func (c *Client) defaultSigner() neofscrypto.Signer {
 
 // ContainerPut sends request to save container in NeoFS.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
@@ -91,9 +88,6 @@ func (c *Client) defaultSigner() neofscrypto.Signer {
 //
 // Immediately panics if parameters are set incorrectly (see PrmContainerPut docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
 	// check parameters
 	switch {
@@ -154,7 +148,6 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 
 	c.initCallContext(&cc)
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.PutContainer(&c.c, &req, client.WithContext(ctx))
 	}
@@ -214,18 +207,11 @@ func (x ResContainerGet) Container() container.Container {
 
 // ContainerGet reads NeoFS container by ID.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmContainerGet docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs);
-//   - *apistatus.ContainerNotFound.
 func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
 	switch {
 	case ctx == nil:
@@ -256,7 +242,6 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.GetContainer(&c.c, &req, client.WithContext(ctx))
 	}
@@ -314,17 +299,11 @@ func (x ResContainerList) Containers() []cid.ID {
 
 // ContainerList requests identifiers of the account-owned containers.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmContainerList docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
 	switch {
@@ -356,7 +335,6 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.ListContainers(&c.c, &req, client.WithContext(ctx))
 	}
@@ -427,11 +405,8 @@ type ResContainerDelete struct {
 
 // ContainerDelete sends request to remove the NeoFS container.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
@@ -443,9 +418,6 @@ type ResContainerDelete struct {
 //
 // Exactly one return value is non-nil. Server status return is returned in ResContainerDelete.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*ResContainerDelete, error) {
 	// check parameters
 	switch {
@@ -509,7 +481,6 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 
 	c.initCallContext(&cc)
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.DeleteContainer(&c.c, &req, client.WithContext(ctx))
 	}
@@ -551,19 +522,11 @@ func (x ResContainerEACL) Table() eacl.Table {
 
 // ContainerEACL reads eACL table of the NeoFS container.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmContainerEACL docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.EACLNotFound.
 func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {
@@ -595,7 +558,6 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.GetEACL(&c.c, &req, client.WithContext(ctx))
 	}
@@ -669,11 +631,8 @@ type ResContainerSetEACL struct {
 
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
@@ -682,9 +641,6 @@ type ResContainerSetEACL struct {
 //
 // Immediately panics if parameters are set incorrectly (see PrmContainerSetEACL docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) (*ResContainerSetEACL, error) {
 	// check parameters
 	switch {
@@ -748,7 +704,6 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 
 	c.initCallContext(&cc)
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.SetEACL(&c.c, &req, client.WithContext(ctx))
 	}
@@ -783,11 +738,8 @@ type ResAnnounceSpace struct {
 
 // ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
@@ -796,9 +748,6 @@ type ResAnnounceSpace struct {
 //
 // Immediately panics if parameters are set incorrectly (see PrmAnnounceSpace docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) (*ResAnnounceSpace, error) {
 	// check parameters
 	switch {
@@ -833,7 +782,6 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.AnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
 	}

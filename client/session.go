@@ -63,17 +63,11 @@ func (x ResSessionCreate) PublicKey() []byte {
 // The session lifetime coincides with the server lifetime. Results can be written
 // to session token which can be later attached to the requests.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmSessionCreate docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	// check context
 	if ctx == nil {
@@ -113,7 +107,6 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return c.server.createSession(&c.c, &req, client.WithContext(ctx))
 	}

@@ -153,20 +153,10 @@ func (x ResObjectHash) Checksums() [][]byte {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmObjectHash docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectOutOfRange;
-//   - *apistatus.SessionTokenExpired.
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
 	case ctx == nil:

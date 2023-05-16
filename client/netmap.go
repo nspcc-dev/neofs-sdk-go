@@ -41,19 +41,14 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 //
 // Method can be used as a health check to see if node is alive and responds to requests.
 //
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any client's internal or transport errors are returned as `error`,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmEndpointInfo docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
 	// check context
 	if ctx == nil {
@@ -73,7 +68,6 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.LocalNodeInfo(&c.c, &req, client.WithContext(ctx))
 	}
@@ -138,19 +132,14 @@ func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
 //
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any client's internal or transport errors are returned as `error`,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmNetworkInfo docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Exactly one return value is non-nil. Server status return is returned in ResNetworkInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetworkInfo, error) {
 	// check context
 	if ctx == nil {
@@ -170,7 +159,6 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.NetworkInfo(&c.c, &req, client.WithContext(ctx))
 	}
@@ -218,18 +206,13 @@ func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
 
 // NetMapSnapshot requests current network view of the remote server.
 //
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any client's internal or transport errors are returned as `error`,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Context is required and MUST NOT be nil. It is used for network communication.
 //
 // Exactly one return value is non-nil. Server status return is returned in ResNetMapSnapshot.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResNetMapSnapshot, error) {
 	// check context
 	if ctx == nil {

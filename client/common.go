@@ -11,19 +11,9 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// common interface of resulting structures with API status.
-type resCommon interface {
-	setStatus(apistatus.Status)
-}
-
 // structure is embedded to all resulting types in order to inherit status-related methods.
 type statusRes struct {
 	st apistatus.Status
-}
-
-// setStatus implements resCommon interface method.
-func (x *statusRes) setStatus(st apistatus.Status) {
-	x.st = st
 }
 
 // Status returns server's status return.
@@ -97,9 +87,6 @@ type contextCall struct {
 	// callback prior to processing the response by the client
 	callbackResp func(ResponseMetaInfo) error
 
-	// if set, protocol errors will be expanded into a final error
-	resolveAPIFailures bool
-
 	// NeoFS network magic
 	netMagic uint64
 
@@ -108,9 +95,6 @@ type contextCall struct {
 
 	// ==================================================
 	// custom call parameters
-
-	// structure of the call result
-	statusRes resCommon
 
 	// request to be signed with a signer and sent
 	req request
@@ -235,20 +219,13 @@ func (x *contextCall) processResponse() bool {
 	// get result status
 	st := apistatus.FromStatusV2(x.resp.GetMetaHeader().GetStatus())
 
-	// unwrap unsuccessful status and return it
-	// as error if client has been configured so
 	successfulStatus := apistatus.IsSuccessful(st)
-
-	if x.resolveAPIFailures {
-		x.err = apistatus.ErrFromStatus(st)
-	} else {
-		x.statusRes.setStatus(st)
-	}
+	x.err = apistatus.ErrFromStatus(st)
 
 	return successfulStatus
 }
 
-// processResponse verifies response signature and converts status to an error if needed.
+// processResponse verifies response signature.
 func (c *Client) processResponse(resp responseV2) (apistatus.Status, error) {
 	err := verifyServiceMessage(resp)
 	if err != nil {
@@ -256,14 +233,11 @@ func (c *Client) processResponse(resp responseV2) (apistatus.Status, error) {
 	}
 
 	st := apistatus.FromStatusV2(resp.GetMetaHeader().GetStatus())
-	if c.prm.resolveNeoFSErrors {
-		return st, apistatus.ErrFromStatus(st)
-	}
-	return st, nil
+	return st, apistatus.ErrFromStatus(st)
 }
 
 // reads response (if rResp is set) and processes it. Result means success.
-// If failed, contextCall.err (or statusRes if resolveAPIFailures is set) contains the reason.
+// If failed, contextCall.err contains the reason.
 func (x *contextCall) readResponse() bool {
 	if x.rResp != nil {
 		x.err = x.rResp()
@@ -329,7 +303,6 @@ func (x *contextCall) processCall() bool {
 // initializes static cross-call parameters inherited from client.
 func (c *Client) initCallContext(ctx *contextCall) {
 	ctx.signer = c.prm.signer
-	ctx.resolveAPIFailures = c.prm.resolveNeoFSErrors
 	ctx.callbackResp = c.prm.cbRespInfo
 	ctx.netMagic = c.prm.netMagic
 }

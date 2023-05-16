@@ -36,7 +36,6 @@ func ExampleClient_ContainerPut() {
 	// prepare client
 	var prmInit client.PrmInit
 	prmInit.SetDefaultSigner(signer) // private signer for request signing
-	prmInit.ResolveNeoFSFailures()   // enable erroneous status parsing
 
 	var c client.Client
 	c.Init(prmInit)

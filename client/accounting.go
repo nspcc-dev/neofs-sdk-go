@@ -40,17 +40,11 @@ func (x ResBalanceGet) Amount() accounting.Decimal {
 
 // BalanceGet requests current balance of the NeoFS account.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`,
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmBalanceGet docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
 	switch {
 	case ctx == nil:
@@ -81,7 +75,6 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.Balance(&c.c, &req, client.WithContext(ctx))
 	}

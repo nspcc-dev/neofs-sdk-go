@@ -39,17 +39,11 @@ type ResAnnounceLocalTrust struct {
 
 // AnnounceLocalTrust sends client's trust values to the NeoFS network participants.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmAnnounceLocalTrust docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) (*ResAnnounceLocalTrust, error) {
 	// check parameters
 	switch {
@@ -88,7 +82,6 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.AnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
 	}
@@ -140,17 +133,11 @@ type ResAnnounceIntermediateTrust struct {
 // AnnounceIntermediateTrust sends global trust values calculated for the specified NeoFS network participants
 // at some stage of client's calculation algorithm.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`.
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// Any errors (local or remote, including returned status codes) are returned as Go errors,
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmAnnounceIntermediateTrust docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs).
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) (*ResAnnounceIntermediateTrust, error) {
 	// check parameters
 	switch {
@@ -186,7 +173,6 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 	c.initCallContext(&cc)
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
-	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
 		return rpcapi.AnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
 	}

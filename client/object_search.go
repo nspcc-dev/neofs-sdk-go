@@ -196,11 +196,11 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 // If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
 // codes are returned as error.
 //
-// Return statuses:
+// Return errors:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.SessionTokenExpired.
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrSessionTokenExpired].
 func (x *ObjectListReader) Close() (*ResObjectSearch, error) {
 	defer x.cancelCtxStream()
 

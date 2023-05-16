@@ -42,7 +42,6 @@ Contains client for working with NeoFS.
 ```go
 var prmInit client.PrmInit
 prmInit.SetDefaultPrivateKey(key) // private key for request signing
-prmInit.ResolveNeoFSFailures() // enable erroneous status parsing
 
 var c client.Client
 c.Init(prmInit)
@@ -77,8 +76,7 @@ if needed and perform any desired action. In the case above we may want to repor
 these details to the user as well as retry an operation, possibly with different parameters.
 Status wire-format is extendable and each node can report any set of details it wants.
 The set of reserved status codes can be found in
-[NeoFS API](https://github.com/nspcc-dev/neofs-api/blob/master/status/types.proto). There is also
-a `client.PrmInit.ResolveNeoFSFailures()` to seamlessly convert erroneous statuses into Go error type.
+[NeoFS API](https://github.com/nspcc-dev/neofs-api/blob/master/status/types.proto).
 
 ### policy
 Contains helpers allowing conversion of placing policy from/to JSON representation

@@ -186,14 +186,14 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 // If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
 // codes are returned as error.
 //
-// Return statuses:
+// Return errors:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectLocked;
-//   - *apistatus.LockNonRegularObject;
-//   - *apistatus.SessionTokenNotFound;
-//   - *apistatus.SessionTokenExpired.
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrObjectLocked];
+//   - [apistatus.ErrLockNonRegularObject];
+//   - [apistatus.ErrSessionTokenNotFound];
+//   - [apistatus.ErrSessionTokenExpired].
 func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 	defer x.cancelCtxStream()
 
