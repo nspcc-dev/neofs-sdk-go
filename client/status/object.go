@@ -1,6 +1,8 @@
 package apistatus
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
@@ -50,7 +52,7 @@ func (x ObjectLocked) Error() string {
 func (x ObjectLocked) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectLocked, *ObjectLocked:
 		return true
 	}
@@ -97,7 +99,7 @@ func (x LockNonRegularObject) Error() string {
 func (x LockNonRegularObject) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case LockNonRegularObject, *LockNonRegularObject:
 		return true
 	}
@@ -144,7 +146,7 @@ func (x ObjectAccessDenied) Error() string {
 func (x ObjectAccessDenied) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectAccessDenied, *ObjectAccessDenied:
 		return true
 	}
@@ -202,7 +204,7 @@ func (x ObjectNotFound) Error() string {
 func (x ObjectNotFound) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectNotFound, *ObjectNotFound:
 		return true
 	}
@@ -249,7 +251,7 @@ func (x ObjectAlreadyRemoved) Error() string {
 func (x ObjectAlreadyRemoved) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectAlreadyRemoved, *ObjectAlreadyRemoved:
 		return true
 	}
@@ -297,7 +299,7 @@ func (x ObjectOutOfRange) Error() string {
 func (x ObjectOutOfRange) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectOutOfRange, *ObjectOutOfRange:
 		return true
 	}

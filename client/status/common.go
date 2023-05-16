@@ -45,7 +45,7 @@ func (x ServerInternal) Error() string {
 func (x ServerInternal) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ServerInternal, *ServerInternal:
 		return true
 	}
@@ -103,7 +103,7 @@ func (x WrongMagicNumber) Error() string {
 func (x WrongMagicNumber) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case WrongMagicNumber, *WrongMagicNumber:
 		return true
 	}
@@ -188,7 +188,7 @@ func (x SignatureVerification) Error() string {
 func (x SignatureVerification) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case SignatureVerification, *SignatureVerification:
 		return true
 	}
@@ -257,7 +257,7 @@ func (x NodeUnderMaintenance) Error() string {
 func (x NodeUnderMaintenance) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case NodeUnderMaintenance, *NodeUnderMaintenance:
 		return true
 	}
