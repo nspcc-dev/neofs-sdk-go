@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -116,12 +115,22 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 	cc.req = &req
 	cc.statusRes = &res
 	cc.call = func() (responseV2, error) {
-		return rpcapi.CreateSession(&c.c, &req, client.WithContext(ctx))
+		return c.server.createSession(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2session.CreateResponse)
 
 		body := resp.GetBody()
+
+		if len(body.GetID()) == 0 {
+			cc.err = newErrMissingResponseField("session id")
+			return
+		}
+
+		if len(body.GetSessionKey()) == 0 {
+			cc.err = newErrMissingResponseField("session key")
+			return
+		}
 
 		res.setID(body.GetID())
 		res.setSessionKey(body.GetSessionKey())
