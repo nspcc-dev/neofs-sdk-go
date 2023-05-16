@@ -183,12 +183,16 @@ func TestStorageGroup_SetMembers_DoubleSetting(t *testing.T) {
 	var sg storagegroup.StorageGroup
 
 	mm := []oid.ID{oidtest.ID(), oidtest.ID(), oidtest.ID()} // cap is 3 at least
-	sg.SetMembers(mm)
+	require.NotPanics(t, func() {
+		sg.SetMembers(mm)
+	})
 
-	// the previous cap is more that a new length;
-	// slicing should not lead to `out of range`
-	// and apply update correctly
-	sg.SetMembers(mm[:1])
+	require.NotPanics(t, func() {
+		// the previous cap is more that a new length;
+		// slicing should not lead to `out of range`
+		// and apply update correctly
+		sg.SetMembers(mm[:1])
+	})
 }
 
 func TestStorageGroupFromObject(t *testing.T) {
