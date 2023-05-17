@@ -77,12 +77,12 @@ func (c *Client) Init(prm PrmInit) {
 // See also Init / Close.
 func (c *Client) Dial(prm PrmDial) error {
 	if prm.endpoint == "" {
-		panic("server address is unset or empty")
+		return ErrMissingServer
 	}
 
 	if prm.timeoutDialSet {
 		if prm.timeoutDial <= 0 {
-			panic("non-positive timeout")
+			return ErrNonPositiveTimeout
 		}
 	} else {
 		prm.timeoutDial = 5 * time.Second
@@ -90,7 +90,7 @@ func (c *Client) Dial(prm PrmDial) error {
 
 	if prm.streamTimeoutSet {
 		if prm.streamTimeout <= 0 {
-			panic("non-positive timeout")
+			return ErrNonPositiveTimeout
 		}
 	} else {
 		prm.streamTimeout = 10 * time.Second

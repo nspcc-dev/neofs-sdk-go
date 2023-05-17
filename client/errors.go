@@ -6,6 +6,9 @@ import (
 )
 
 var (
+	ErrMissingServer      = errors.New("server address is unset or empty")
+	ErrNonPositiveTimeout = errors.New("non-positive timeout")
+
 	ErrMissingContainer     = errors.New("missing container")
 	ErrMissingObject        = errors.New("missing object")
 	ErrMissingAccount       = errors.New("missing account")
