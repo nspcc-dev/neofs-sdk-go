@@ -294,8 +294,6 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectReader, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:
@@ -400,8 +398,6 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:
@@ -644,8 +640,6 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*ObjectRangeReader, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:

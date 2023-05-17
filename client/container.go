@@ -89,8 +89,6 @@ func (c *Client) defaultSigner() neofscrypto.Signer {
 func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.cnrSet:
 		panic(panicMsgMissingContainer)
 	}
@@ -210,8 +208,6 @@ func (x ResContainerGet) Container() container.Container {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.idSet:
 		panic(panicMsgMissingContainer)
 	}
@@ -301,8 +297,6 @@ func (x ResContainerList) Containers() []cid.ID {
 func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.ownerSet:
 		panic("account not set")
 	}
@@ -409,8 +403,6 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.idSet:
 		panic(panicMsgMissingContainer)
 	}
@@ -515,8 +507,6 @@ func (x ResContainerEACL) Table() eacl.Table {
 func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.idSet:
 		panic(panicMsgMissingContainer)
 	}
@@ -624,8 +614,6 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.tableSet:
 		panic("eACL table not set")
 	}
@@ -725,8 +713,6 @@ func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case len(prm.announcements) == 0:
 		panic("missing announcements")
 	}

@@ -125,8 +125,6 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 //   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:

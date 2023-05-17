@@ -82,12 +82,6 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	c := newClient(signer, &srv)
 	ctx := context.Background()
 
-	// missing context
-	require.PanicsWithValue(t, panicMsgMissingContext, func() {
-		//nolint:staticcheck
-		_, _ = c.NetMapSnapshot(nil, prm)
-	})
-
 	// request signature
 	srv.errTransport = errors.New("any error")
 

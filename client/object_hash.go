@@ -156,8 +156,6 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
 		panic(panicMsgMissingContainer)
 	case prm.addr.GetObjectID() == nil:

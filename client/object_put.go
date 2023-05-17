@@ -233,11 +233,6 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 //
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*ObjectWriter, error) {
-	// check parameters
-	if ctx == nil {
-		panic(panicMsgMissingContext)
-	}
-
 	var w ObjectWriter
 
 	ctx, cancel := context.WithCancel(ctx)

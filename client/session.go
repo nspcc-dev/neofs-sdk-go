@@ -67,11 +67,6 @@ func (x ResSessionCreate) PublicKey() []byte {
 // Immediately panics if parameters are set incorrectly (see PrmSessionCreate docs).
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
-	// check context
-	if ctx == nil {
-		panic(panicMsgMissingContext)
-	}
-
 	var ownerID user.ID
 	if err := user.IDFromSigner(&ownerID, prm.signer); err != nil {
 		panic(panicMsgOwnerExtract)

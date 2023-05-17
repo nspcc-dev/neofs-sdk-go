@@ -210,8 +210,6 @@ func (x *ObjectListReader) Close() error {
 func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*ObjectListReader, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.cnrSet:
 		panic(panicMsgMissingContainer)
 	}

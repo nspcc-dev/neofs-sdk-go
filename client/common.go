@@ -49,7 +49,6 @@ func writeXHeadersToMeta(xHeaders []string, h *v2session.RequestMetaHeader) {
 
 // panic messages.
 const (
-	panicMsgMissingContext   = "missing context"
 	panicMsgMissingContainer = "missing container"
 	panicMsgMissingObject    = "missing object"
 	panicMsgOwnerExtract     = "extract owner failed"

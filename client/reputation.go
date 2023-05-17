@@ -42,8 +42,6 @@ func (x *PrmAnnounceLocalTrust) SetValues(trusts []reputation.Trust) {
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.epoch == 0:
 		panic("zero epoch")
 	case len(prm.trusts) == 0:
@@ -130,8 +128,6 @@ func (x *PrmAnnounceIntermediateTrust) SetCurrentValue(trust reputation.PeerToPe
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.epoch == 0:
 		panic("zero epoch")
 	case !prm.trustSet:

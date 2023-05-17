@@ -45,8 +45,6 @@ func (x ResBalanceGet) Amount() accounting.Decimal {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.accountSet:
 		panic("account not set")
 	}
