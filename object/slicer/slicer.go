@@ -19,6 +19,11 @@ import (
 	"github.com/nspcc-dev/tzhash/tz"
 )
 
+var (
+	// ErrInvalidAttributeAmount indicates wrong number of arguments. Amount of arguments MUST be even number.
+	ErrInvalidAttributeAmount = errors.New("attributes must be even number of strings")
+)
+
 // ObjectWriter represents a virtual object recorder.
 type ObjectWriter interface {
 	// InitDataStream initializes and returns a stream of writable data associated
@@ -133,15 +138,16 @@ func (x *Slicer) childPayloadSizeLimit() uint64 {
 //
 // See New for details.
 func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
+	var rootID oid.ID
+
 	if len(attributes)%2 != 0 {
-		panic("attributes must be even number of strings")
+		return rootID, ErrInvalidAttributeAmount
 	}
 
 	if x.opts.objectPayloadLimit == 0 {
 		x.opts.objectPayloadLimit = 1 << 20
 	}
 
-	var rootID oid.ID
 	var rootHeader object.Object
 	var offset uint64
 	var isSplit bool
