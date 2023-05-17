@@ -132,6 +132,8 @@ func (s stableMarshalerWrapper) SignedDataSize() int {
 }
 
 // signServiceMessage signing request or response messages which can be sent or received from neofs endpoint.
+// Return errors:
+//   - [ErrSign]
 func signServiceMessage(signer neofscrypto.Signer, msg interface{}) error {
 	var (
 		body, meta, verifyOrigin stableMarshaler
@@ -165,24 +167,24 @@ func signServiceMessage(signer neofscrypto.Signer, msg interface{}) error {
 			verifyOrigin = h
 		}
 	default:
-		panic(fmt.Sprintf("unsupported session message %T", v))
+		return NewSignError(fmt.Errorf("unsupported session message %T", v))
 	}
 
 	if verifyOrigin == nil {
 		// sign session message body
 		if err := signServiceMessagePart(signer, body, verifyHdr.SetBodySignature); err != nil {
-			return fmt.Errorf("could not sign body: %w", err)
+			return NewSignError(fmt.Errorf("body: %w", err))
 		}
 	}
 
 	// sign meta header
 	if err := signServiceMessagePart(signer, meta, verifyHdr.SetMetaSignature); err != nil {
-		return fmt.Errorf("could not sign meta header: %w", err)
+		return NewSignError(fmt.Errorf("meta header: %w", err))
 	}
 
 	// sign verification header origin
 	if err := signServiceMessagePart(signer, verifyOrigin, verifyHdr.SetOriginSignature); err != nil {
-		return fmt.Errorf("could not sign origin of verification header: %w", err)
+		return NewSignError(fmt.Errorf("origin of verification header: %w", err))
 	}
 
 	// wrap origin verification header
@@ -240,7 +242,7 @@ func verifyServiceMessage(msg interface{}) error {
 			ResponseVerificationHeader: v.GetVerificationHeader(),
 		}
 	default:
-		panic(fmt.Sprintf("unsupported session message %T", v))
+		return fmt.Errorf("unsupported session message %T", v)
 	}
 
 	body := serviceMessageBody(msg)

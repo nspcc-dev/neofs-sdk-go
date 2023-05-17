@@ -23,6 +23,8 @@ var (
 
 	ErrUnexpectedReadCall = errors.New("unexpected call to `Read`")
 
+	ErrSign SignError
+
 	errMissingResponseField missingResponseFieldErr
 )
 
@@ -52,4 +54,29 @@ func newErrMissingResponseField(name string) error {
 // with the given name and format violation err.
 func newErrInvalidResponseField(name string, err error) error {
 	return fmt.Errorf("invalid %s field in the response: %w", name, err)
+}
+
+type SignError struct {
+	err error
+}
+
+func NewSignError(err error) SignError {
+	return SignError{err: err}
+}
+
+func (e SignError) Error() string {
+	return fmt.Sprintf("sign: %v", e.err)
+}
+
+func (e SignError) Unwrap() error {
+	return e.err
+}
+
+func (e SignError) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return false
+	case SignError, *SignError:
+		return true
+	}
 }
