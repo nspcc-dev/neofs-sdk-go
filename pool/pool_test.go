@@ -521,75 +521,64 @@ func TestHandleError(t *testing.T) {
 	monitor := newClientStatusMonitor("", 10)
 
 	for i, tc := range []struct {
-		status        apistatus.Status
 		err           error
 		expectedError bool
 		countError    bool
 	}{
 		{
-			status:        nil,
 			err:           nil,
 			expectedError: false,
 			countError:    false,
 		},
 		{
-			status:        apistatus.SuccessDefaultV2{},
 			err:           nil,
 			expectedError: false,
 			countError:    false,
 		},
 		{
-			status:        apistatus.SuccessDefaultV2{},
 			err:           errors.New("error"),
 			expectedError: true,
 			countError:    true,
 		},
 		{
-			status:        nil,
 			err:           errors.New("error"),
 			expectedError: true,
 			countError:    true,
 		},
 		{
-			status:        apistatus.ObjectNotFound{},
-			err:           nil,
+			err:           apistatus.ObjectNotFound{},
 			expectedError: true,
 			countError:    false,
 		},
 		{
-			status:        apistatus.ServerInternal{},
-			err:           nil,
+			err:           apistatus.ServerInternal{},
 			expectedError: true,
 			countError:    true,
 		},
 		{
-			status:        apistatus.WrongMagicNumber{},
-			err:           nil,
+			err:           apistatus.WrongMagicNumber{},
 			expectedError: true,
 			countError:    true,
 		},
 		{
-			status:        apistatus.SignatureVerification{},
-			err:           nil,
+			err:           apistatus.SignatureVerification{},
 			expectedError: true,
 			countError:    true,
 		},
 		{
-			status:        &apistatus.SignatureVerification{},
-			err:           nil,
+			err:           apistatus.SignatureVerification{},
 			expectedError: true,
 			countError:    true,
 		},
 		{
-			status:        apistatus.NodeUnderMaintenance{},
-			err:           nil,
+			err:           apistatus.NodeUnderMaintenance{},
 			expectedError: true,
 			countError:    true,
 		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			errCount := monitor.currentErrorRate()
-			err := monitor.handleError(tc.status, tc.err)
+			err := monitor.handleError(tc.err)
 			if tc.expectedError {
 				require.Error(t, err)
 			} else {

@@ -60,8 +60,6 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 
 // ResContainerPut groups resulting values of ContainerPut operation.
 type ResContainerPut struct {
-	statusRes
-
 	id cid.ID
 }
 
@@ -193,8 +191,6 @@ func (x *PrmContainerGet) SetContainer(id cid.ID) {
 
 // ResContainerGet groups resulting values of ContainerGet operation.
 type ResContainerGet struct {
-	statusRes
-
 	cnr container.Container
 }
 
@@ -285,8 +281,6 @@ func (x *PrmContainerList) SetAccount(id user.ID) {
 
 // ResContainerList groups resulting values of ContainerList operation.
 type ResContainerList struct {
-	statusRes
-
 	ids []cid.ID
 }
 
@@ -398,11 +392,6 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 	x.tokSet = true
 }
 
-// ResContainerDelete groups resulting values of ContainerDelete operation.
-type ResContainerDelete struct {
-	statusRes
-}
-
 // ContainerDelete sends request to remove the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -416,9 +405,8 @@ type ResContainerDelete struct {
 // Immediately panics if parameters are set incorrectly (see PrmContainerDelete docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ResContainerDelete.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*ResContainerDelete, error) {
+func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -443,7 +431,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 
 	err := sig.Calculate(signer, data)
 	if err != nil {
-		return nil, fmt.Errorf("calculate signature: %w", err)
+		return fmt.Errorf("calculate signature: %w", err)
 	}
 
 	var sigv2 refs.Signature
@@ -475,8 +463,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 	// init call context
 
 	var (
-		cc  contextCall
-		res ResContainerDelete
+		cc contextCall
 	)
 
 	c.initCallContext(&cc)
@@ -487,10 +474,10 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) (*
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cc.err
 	}
 
-	return &res, nil
+	return nil
 }
 
 // PrmContainerEACL groups parameters of ContainerEACL operation.
@@ -510,8 +497,6 @@ func (x *PrmContainerEACL) SetContainer(id cid.ID) {
 
 // ResContainerEACL groups resulting values of ContainerEACL operation.
 type ResContainerEACL struct {
-	statusRes
-
 	table eacl.Table
 }
 
@@ -624,11 +609,6 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.sessionSet = true
 }
 
-// ResContainerSetEACL groups resulting values of ContainerSetEACL operation.
-type ResContainerSetEACL struct {
-	statusRes
-}
-
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -641,7 +621,7 @@ type ResContainerSetEACL struct {
 //
 // Immediately panics if parameters are set incorrectly (see PrmContainerSetEACL docs).
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) (*ResContainerSetEACL, error) {
+func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -666,7 +646,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 
 	err := sig.Calculate(signer, eaclV2.StableMarshal(nil))
 	if err != nil {
-		return nil, fmt.Errorf("calculate signature: %w", err)
+		return fmt.Errorf("calculate signature: %w", err)
 	}
 
 	var sigv2 refs.Signature
@@ -698,8 +678,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	// init call context
 
 	var (
-		cc  contextCall
-		res ResContainerSetEACL
+		cc contextCall
 	)
 
 	c.initCallContext(&cc)
@@ -710,10 +689,10 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cc.err
 	}
 
-	return &res, nil
+	return nil
 }
 
 // PrmAnnounceSpace groups parameters of ContainerAnnounceUsedSpace operation.
@@ -731,11 +710,6 @@ func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
 	x.announcements = vs
 }
 
-// ResAnnounceSpace groups resulting values of ContainerAnnounceUsedSpace operation.
-type ResAnnounceSpace struct {
-	statusRes
-}
-
 // ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -748,7 +722,7 @@ type ResAnnounceSpace struct {
 //
 // Immediately panics if parameters are set incorrectly (see PrmAnnounceSpace docs).
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) (*ResAnnounceSpace, error) {
+func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) error {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -775,8 +749,7 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	// init call context
 
 	var (
-		cc  contextCall
-		res ResAnnounceSpace
+		cc contextCall
 	)
 
 	c.initCallContext(&cc)
@@ -788,10 +761,10 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cc.err
 	}
 
-	return &res, nil
+	return nil
 }
 
 // SyncContainerWithNetwork requests network configuration using passed client

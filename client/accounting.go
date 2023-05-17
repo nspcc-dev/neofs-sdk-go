@@ -28,8 +28,6 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 
 // ResBalanceGet groups resulting values of BalanceGet operation.
 type ResBalanceGet struct {
-	statusRes
-
 	amount accounting.Decimal
 }
 

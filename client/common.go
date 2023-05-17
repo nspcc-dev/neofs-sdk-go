@@ -11,18 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// structure is embedded to all resulting types in order to inherit status-related methods.
-type statusRes struct {
-	st apistatus.Status
-}
-
-// Status returns server's status return.
-//
-// Use apistatus package functionality to handle the status.
-func (x statusRes) Status() apistatus.Status {
-	return x.st
-}
-
 // groups meta parameters shared between all Client operations.
 type prmCommonMeta struct {
 	// NeoFS request X-Headers

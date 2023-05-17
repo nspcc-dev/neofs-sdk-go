@@ -145,6 +145,5 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	res, err = c.NetMapSnapshot(ctx, prm)
 	require.NoError(t, err)
-	require.True(t, apistatus.IsSuccessful(res.Status()))
 	require.Equal(t, netMap, res.NetMap())
 }

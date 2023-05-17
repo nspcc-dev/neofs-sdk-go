@@ -107,7 +107,7 @@ func (m *mockClient) endpointInfo(context.Context, prmEndpointInfo) (netmap.Node
 	var ni netmap.NodeInfo
 
 	if m.errorOnEndpointInfo {
-		return ni, m.handleError(nil, errors.New("error"))
+		return ni, m.handleError(errors.New("error"))
 	}
 
 	ni.SetNetworkEndpoints(m.addr)
@@ -118,7 +118,7 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	var ni netmap.NetworkInfo
 
 	if m.errorOnNetworkInfo {
-		return ni, m.handleError(nil, errors.New("error"))
+		return ni, m.handleError(errors.New("error"))
 	}
 
 	return ni, nil
@@ -139,8 +139,8 @@ func (m *mockClient) objectGet(context.Context, PrmObjectGet) (ResGetObject, err
 		return res, nil
 	}
 
-	status := apistatus.ErrFromStatus(m.stOnGetObject)
-	return res, m.handleError(status, nil)
+	err := apistatus.ErrFromStatus(m.stOnGetObject)
+	return res, m.handleError(err)
 }
 
 func (m *mockClient) objectHead(context.Context, PrmObjectHead) (object.Object, error) {
@@ -157,7 +157,7 @@ func (m *mockClient) objectSearch(context.Context, PrmObjectSearch) (ResObjectSe
 
 func (m *mockClient) sessionCreate(context.Context, prmCreateSession) (resCreateSession, error) {
 	if m.errorOnCreateSession {
-		return resCreateSession{}, m.handleError(nil, errors.New("error"))
+		return resCreateSession{}, m.handleError(errors.New("error"))
 	}
 
 	tok := newToken(m.signer)

@@ -36,8 +36,6 @@ func (x *PrmObjectPutInit) SetCopiesNumber(copiesNumber uint32) {
 
 // ResObjectPut groups the final result values of ObjectPutInit operation.
 type ResObjectPut struct {
-	statusRes
-
 	obj oid.ID
 }
 
@@ -208,13 +206,9 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		return nil, x.err
 	}
 
-	x.res.st, x.err = x.client.processResponse(&x.respV2)
+	_, x.err = x.client.processResponse(&x.respV2)
 	if x.err != nil {
 		return nil, x.err
-	}
-
-	if !apistatus.IsSuccessful(x.res.st) {
-		return &x.res, nil
 	}
 
 	const fieldID = "ID"
@@ -291,7 +285,7 @@ func (x *objectWriter) InitDataStream(header object.Object) (io.Writer, error) {
 		return nil, err
 	}
 
-	return nil, apistatus.ErrFromStatus(res.Status())
+	return nil, apistatus.ErrFromStatus(res)
 }
 
 type payloadWriter struct {
@@ -312,7 +306,7 @@ func (x *payloadWriter) Close() error {
 		return err
 	}
 
-	return apistatus.ErrFromStatus(res.Status())
+	return apistatus.ErrFromStatus(res)
 }
 
 // CreateObject creates new NeoFS object with given payload data and stores it

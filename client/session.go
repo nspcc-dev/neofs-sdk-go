@@ -32,8 +32,6 @@ func (x *PrmSessionCreate) UseSigner(signer neofscrypto.Signer) {
 
 // ResSessionCreate groups resulting values of SessionCreate operation.
 type ResSessionCreate struct {
-	statusRes
-
 	id []byte
 
 	sessionKey []byte

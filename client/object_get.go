@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -100,11 +99,6 @@ type PrmObjectGet struct {
 	signer neofscrypto.Signer
 }
 
-// ResObjectGet groups the final result values of ObjectGetInit operation.
-type ResObjectGet struct {
-	statusRes
-}
-
 // ObjectReader is designed to read one object from NeoFS system.
 //
 // Must be initialized using Client.ObjectGetInit, any other
@@ -117,7 +111,6 @@ type ObjectReader struct {
 		Read(resp *v2object.GetResponse) error
 	}
 
-	res ResObjectGet
 	err error
 
 	tailPayload []byte
@@ -140,8 +133,8 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 		return false
 	}
 
-	x.res.st, x.err = x.client.processResponse(&resp)
-	if x.err != nil || !apistatus.IsSuccessful(x.res.st) {
+	_, x.err = x.client.processResponse(&resp)
+	if x.err != nil {
 		return false
 	}
 
@@ -193,8 +186,8 @@ func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		x.res.st, x.err = x.client.processResponse(&resp)
-		if x.err != nil || !apistatus.IsSuccessful(x.res.st) {
+		_, x.err = x.client.processResponse(&resp)
+		if x.err != nil {
 			return read, false
 		}
 
@@ -233,28 +226,27 @@ func (x *ObjectReader) ReadChunk(buf []byte) (int, bool) {
 	return x.readChunk(buf)
 }
 
-func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
+func (x *ObjectReader) close(ignoreEOF bool) error {
 	defer x.cancelCtxStream()
 
 	if x.err != nil {
 		if !errors.Is(x.err, io.EOF) {
-			return nil, x.err
+			return x.err
 		} else if !ignoreEOF {
 			if x.remainingPayloadLen > 0 {
-				return nil, io.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 
-			return nil, io.EOF
+			return io.EOF
 		}
 	}
 
-	return &x.res, nil
+	return nil
 }
 
 // Close ends reading the object and returns the result of the operation
 // along with the final results. Must be called after using the ObjectReader.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as Go built-in error.
 // If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
 // codes are returned as error.
@@ -267,7 +259,7 @@ func (x *ObjectReader) close(ignoreEOF bool) (*ResObjectGet, error) {
 //   - [apistatus.ErrObjectAccessDenied];
 //   - [apistatus.ErrObjectAlreadyRemoved];
 //   - [apistatus.ErrSessionTokenExpired].
-func (x *ObjectReader) Close() (*ResObjectGet, error) {
+func (x *ObjectReader) Close() error {
 	return x.close(true)
 }
 
@@ -278,12 +270,11 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 	x.remainingPayloadLen -= n
 
 	if !ok {
-		res, err := x.close(false)
-		if err != nil {
+		if err := x.close(false); err != nil {
 			return n, err
 		}
 
-		return n, apistatus.ErrFromStatus(res.Status())
+		return n, x.err
 	}
 
 	if x.remainingPayloadLen < 0 {
@@ -364,8 +355,6 @@ func (x *PrmObjectHead) UseSigner(signer neofscrypto.Signer) {
 
 // ResObjectHead groups resulting values of ObjectHead operation.
 type ResObjectHead struct {
-	statusRes
-
 	// requested object (response doesn't carry the ID)
 	idObj oid.ID
 
@@ -444,13 +433,9 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	}
 
 	var res ResObjectHead
-	res.st, err = c.processResponse(resp)
+	_, err = c.processResponse(resp)
 	if err != nil {
 		return nil, err
-	}
-
-	if !apistatus.IsSuccessful(res.st) {
-		return &res, nil
 	}
 
 	_ = res.idObj.ReadFromV2(*prm.addr.GetObjectID())
@@ -500,11 +485,6 @@ func (x *PrmObjectRange) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
 
-// ResObjectRange groups the final result values of ObjectRange operation.
-type ResObjectRange struct {
-	statusRes
-}
-
 // ObjectRangeReader is designed to read payload range of one object
 // from NeoFS system.
 //
@@ -515,7 +495,6 @@ type ObjectRangeReader struct {
 
 	client *Client
 
-	res ResObjectRange
 	err error
 
 	stream interface {
@@ -550,8 +529,8 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		x.res.st, x.err = x.client.processResponse(&resp)
-		if x.err != nil || !apistatus.IsSuccessful(x.res.st) {
+		_, x.err = x.client.processResponse(&resp)
+		if x.err != nil {
 			return read, false
 		}
 
@@ -594,28 +573,27 @@ func (x *ObjectRangeReader) ReadChunk(buf []byte) (int, bool) {
 	return x.readChunk(buf)
 }
 
-func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
+func (x *ObjectRangeReader) close(ignoreEOF bool) error {
 	defer x.cancelCtxStream()
 
 	if x.err != nil {
 		if !errors.Is(x.err, io.EOF) {
-			return nil, x.err
+			return x.err
 		} else if !ignoreEOF {
 			if x.remainingPayloadLen > 0 {
-				return nil, io.ErrUnexpectedEOF
+				return io.ErrUnexpectedEOF
 			}
 
-			return nil, io.EOF
+			return io.EOF
 		}
 	}
 
-	return &x.res, nil
+	return nil
 }
 
 // Close ends reading the payload range and returns the result of the operation
 // along with the final results. Must be called after using the ObjectRangeReader.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as Go built-in error.
 // If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
 // codes are returned as error.
@@ -629,7 +607,7 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) (*ResObjectRange, error) {
 //   - [apistatus.ErrObjectAlreadyRemoved];
 //   - [apistatus.ErrObjectOutOfRange];
 //   - [apistatus.ErrSessionTokenExpired].
-func (x *ObjectRangeReader) Close() (*ResObjectRange, error) {
+func (x *ObjectRangeReader) Close() error {
 	return x.close(true)
 }
 
@@ -640,12 +618,12 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 	x.remainingPayloadLen -= n
 
 	if !ok {
-		res, err := x.close(false)
+		err := x.close(false)
 		if err != nil {
 			return n, err
 		}
 
-		return n, apistatus.ErrFromStatus(res.Status())
+		return n, x.err
 	}
 
 	if x.remainingPayloadLen < 0 {

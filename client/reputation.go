@@ -32,11 +32,6 @@ func (x *PrmAnnounceLocalTrust) SetValues(trusts []reputation.Trust) {
 	x.trusts = trusts
 }
 
-// ResAnnounceLocalTrust groups results of AnnounceLocalTrust operation.
-type ResAnnounceLocalTrust struct {
-	statusRes
-}
-
 // AnnounceLocalTrust sends client's trust values to the NeoFS network participants.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -44,7 +39,7 @@ type ResAnnounceLocalTrust struct {
 //
 // Immediately panics if parameters are set incorrectly (see PrmAnnounceLocalTrust docs).
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) (*ResAnnounceLocalTrust, error) {
+func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) error {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -75,8 +70,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 	// init call context
 
 	var (
-		cc  contextCall
-		res ResAnnounceLocalTrust
+		cc contextCall
 	)
 
 	c.initCallContext(&cc)
@@ -88,10 +82,10 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cc.err
 	}
 
-	return &res, nil
+	return nil
 }
 
 // PrmAnnounceIntermediateTrust groups parameters of AnnounceIntermediateTrust operation.
@@ -125,11 +119,6 @@ func (x *PrmAnnounceIntermediateTrust) SetCurrentValue(trust reputation.PeerToPe
 	x.trustSet = true
 }
 
-// ResAnnounceIntermediateTrust groups results of AnnounceIntermediateTrust operation.
-type ResAnnounceIntermediateTrust struct {
-	statusRes
-}
-
 // AnnounceIntermediateTrust sends global trust values calculated for the specified NeoFS network participants
 // at some stage of client's calculation algorithm.
 //
@@ -138,7 +127,7 @@ type ResAnnounceIntermediateTrust struct {
 //
 // Immediately panics if parameters are set incorrectly (see PrmAnnounceIntermediateTrust docs).
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) (*ResAnnounceIntermediateTrust, error) {
+func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) error {
 	// check parameters
 	switch {
 	case ctx == nil:
@@ -166,8 +155,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 	// init call context
 
 	var (
-		cc  contextCall
-		res ResAnnounceIntermediateTrust
+		cc contextCall
 	)
 
 	c.initCallContext(&cc)
@@ -179,8 +167,8 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cc.err
 	}
 
-	return &res, nil
+	return nil
 }

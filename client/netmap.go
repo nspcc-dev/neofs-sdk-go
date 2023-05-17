@@ -8,7 +8,6 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -20,8 +19,6 @@ type PrmEndpointInfo struct {
 
 // ResEndpointInfo group resulting values of EndpointInfo operation.
 type ResEndpointInfo struct {
-	statusRes
-
 	version version.Version
 
 	ni netmap.NodeInfo
@@ -120,8 +117,6 @@ type PrmNetworkInfo struct {
 
 // ResNetworkInfo groups resulting values of NetworkInfo operation.
 type ResNetworkInfo struct {
-	statusRes
-
 	info netmap.NetworkInfo
 }
 
@@ -194,8 +189,6 @@ type PrmNetMapSnapshot struct {
 
 // ResNetMapSnapshot groups resulting values of NetMapSnapshot operation.
 type ResNetMapSnapshot struct {
-	statusRes
-
 	netMap netmap.NetMap
 }
 
@@ -241,13 +234,9 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 	}
 
 	var res ResNetMapSnapshot
-	res.st, err = c.processResponse(resp)
+	_, err = c.processResponse(resp)
 	if err != nil {
 		return nil, err
-	}
-
-	if !apistatus.IsSuccessful(res.st) {
-		return &res, nil
 	}
 
 	const fieldNetMap = "network map"

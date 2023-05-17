@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -135,8 +134,6 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 
 // ResObjectHash groups resulting values of ObjectHash operation.
 type ResObjectHash struct {
-	statusRes
-
 	checksums [][]byte
 }
 
@@ -196,13 +193,9 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	}
 
 	var res ResObjectHash
-	res.st, err = c.processResponse(resp)
+	_, err = c.processResponse(resp)
 	if err != nil {
 		return nil, err
-	}
-
-	if !apistatus.IsSuccessful(res.st) {
-		return &res, nil
 	}
 
 	res.checksums = resp.GetBody().GetHashList()

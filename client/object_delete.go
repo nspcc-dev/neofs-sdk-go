@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -95,8 +94,6 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 
 // ResObjectDelete groups resulting values of ObjectDelete operation.
 type ResObjectDelete struct {
-	statusRes
-
 	tomb oid.ID
 }
 
@@ -160,13 +157,9 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	}
 
 	var res ResObjectDelete
-	res.st, err = c.processResponse(resp)
+	_, err = c.processResponse(resp)
 	if err != nil {
 		return nil, err
-	}
-
-	if !apistatus.IsSuccessful(res.st) {
-		return &res, nil
 	}
 
 	const fieldTombstone = "tombstone"
