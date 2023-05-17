@@ -1,10 +1,25 @@
 package client
 
 import (
+	"errors"
 	"fmt"
 )
 
 var (
+	ErrMissingContainer     = errors.New("missing container")
+	ErrMissingObject        = errors.New("missing object")
+	ErrMissingAccount       = errors.New("missing account")
+	ErrMissingEACL          = errors.New("missing eACL table")
+	ErrMissingEACLContainer = errors.New("missing container in eACL table")
+	ErrMissingAnnouncements = errors.New("missing announcements")
+	ErrZeroRangeLength      = errors.New("zero range length")
+	ErrMissingRanges        = errors.New("missing ranges")
+	ErrZeroEpoch            = errors.New("zero epoch")
+	ErrMissingTrusts        = errors.New("missing trusts")
+	ErrMissingTrust         = errors.New("missing trust")
+
+	ErrUnexpectedReadCall = errors.New("unexpected call to `Read`")
+
 	errMissingResponseField missingResponseFieldErr
 )
 

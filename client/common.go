@@ -47,13 +47,6 @@ func writeXHeadersToMeta(xHeaders []string, h *v2session.RequestMetaHeader) {
 	h.SetXHeaders(hs)
 }
 
-// panic messages.
-const (
-	panicMsgMissingContainer = "missing container"
-	panicMsgMissingObject    = "missing object"
-	panicMsgOwnerExtract     = "extract owner failed"
-)
-
 // groups all the details required to send a single request and process a response to it.
 type contextCall struct {
 	// ==================================================

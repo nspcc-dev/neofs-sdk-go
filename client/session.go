@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -64,12 +65,11 @@ func (x ResSessionCreate) PublicKey() []byte {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmSessionCreate docs).
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	var ownerID user.ID
 	if err := user.IDFromSigner(&ownerID, prm.signer); err != nil {
-		panic(panicMsgOwnerExtract)
+		return nil, fmt.Errorf("IDFromSigner: %w", err)
 	}
 
 	var ownerIDV2 refs.OwnerID

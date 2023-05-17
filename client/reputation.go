@@ -37,15 +37,18 @@ func (x *PrmAnnounceLocalTrust) SetValues(trusts []reputation.Trust) {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmAnnounceLocalTrust docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrZeroEpoch]
+//   - [ErrMissingTrusts]
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) error {
 	// check parameters
 	switch {
 	case prm.epoch == 0:
-		panic("zero epoch")
+		return ErrZeroEpoch
 	case len(prm.trusts) == 0:
-		panic("missing trusts")
+		return ErrMissingTrusts
 	}
 
 	// form request body
@@ -123,15 +126,18 @@ func (x *PrmAnnounceIntermediateTrust) SetCurrentValue(trust reputation.PeerToPe
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmAnnounceIntermediateTrust docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrZeroEpoch]
+//   - [ErrMissingTrust]
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) error {
 	// check parameters
 	switch {
 	case prm.epoch == 0:
-		panic("zero epoch")
+		return ErrZeroEpoch
 	case !prm.trustSet:
-		panic("current trust value not set")
+		return ErrMissingTrust
 	}
 
 	var trust v2reputation.PeerToPeerTrust

@@ -136,7 +136,7 @@ func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
 		if s.endError != nil {
 			return s.endError
 		}
-		panic("unexpected call to `Read`")
+		return ErrUnexpectedReadCall
 	}
 
 	var body v2object.SearchResponseBody
