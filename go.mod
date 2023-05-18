@@ -11,7 +11,7 @@ require (
 	github.com/nspcc-dev/neo-go v0.100.1
 	github.com/nspcc-dev/neofs-api-go/v2 v2.14.0
 	github.com/nspcc-dev/neofs-contract v0.16.0
-	github.com/nspcc-dev/tzhash v1.6.1
+	github.com/nspcc-dev/tzhash v1.7.0
 	github.com/stretchr/testify v1.8.1
 	go.uber.org/atomic v1.10.0
 	go.uber.org/zap v1.24.0
@@ -33,7 +33,7 @@ require (
 	golang.org/x/exp v0.0.0-20221227203929-1b447090c38c // indirect
 	golang.org/x/net v0.3.0 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4 // indirect
-	golang.org/x/sys v0.3.0 // indirect
+	golang.org/x/sys v0.8.0 // indirect
 	golang.org/x/text v0.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20200825200019-8632dd797987 // indirect
 	google.golang.org/grpc v1.48.0 // indirect
