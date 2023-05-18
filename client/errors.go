@@ -40,29 +40,33 @@ var (
 	// ErrSign is returned when unable to sign service message.
 	ErrSign SignError
 
-	errMissingResponseField missingResponseFieldErr
+	// ErrMissingResponseField is returned when required field is not exists in NeoFS api response.
+	ErrMissingResponseField MissingResponseFieldErr
 )
 
-type missingResponseFieldErr struct {
+// MissingResponseFieldErr contains field name which should be in NeoFS API response.
+type MissingResponseFieldErr struct {
 	name string
 }
 
-func (e missingResponseFieldErr) Error() string {
+// Error implements the error interface.
+func (e MissingResponseFieldErr) Error() string {
 	return fmt.Sprintf("missing %s field in the response", e.name)
 }
 
-func (e missingResponseFieldErr) Is(target error) bool {
+// Is implements interface for correct checking current error type with [errors.Is].
+func (e MissingResponseFieldErr) Is(target error) bool {
 	switch target.(type) {
 	default:
 		return false
-	case missingResponseFieldErr, *missingResponseFieldErr:
+	case MissingResponseFieldErr, *MissingResponseFieldErr:
 		return true
 	}
 }
 
 // returns error describing missing field with the given name.
 func newErrMissingResponseField(name string) error {
-	return missingResponseFieldErr{name: name}
+	return MissingResponseFieldErr{name: name}
 }
 
 // returns error describing invalid field (according to the NeoFS protocol)
