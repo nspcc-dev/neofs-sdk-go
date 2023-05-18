@@ -41,6 +41,8 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
+// Context is required and must not be nil. It is used for network communication.
+//
 // Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
@@ -121,6 +123,8 @@ func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 //
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
+//
+// Context is required and must not be nil. It is used for network communication.
 //
 // Exactly one return value is non-nil. Server status return is returned in ResNetworkInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).

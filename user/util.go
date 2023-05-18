@@ -8,6 +8,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
+// ErrOwnerExtract is returned when failed to extract account info from key.
 var ErrOwnerExtract = errors.New("decode owner failed")
 
 // IDFromKey forms the ID using script hash calculated for the given key.

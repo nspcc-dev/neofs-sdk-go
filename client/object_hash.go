@@ -157,6 +157,7 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Return errors:
 //   - [ErrMissingContainer]
 //   - [ErrMissingObject]
+//   - [ErrMissingRanges]
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
 	case prm.addr.GetContainerID() == nil:
