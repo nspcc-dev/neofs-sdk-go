@@ -19,11 +19,6 @@ func init() {
 	statusErr.SetMessage("test status error")
 }
 
-func assertStatusErr(tb testing.TB, res interface{ Status() apistatus.Status }) {
-	require.IsType(tb, &statusErr, res.Status())
-	require.Equal(tb, statusErr.Message(), res.Status().(*apistatus.ServerInternal).Message())
-}
-
 func newClient(signer neofscrypto.Signer, server neoFSAPIServer) *Client {
 	var prm PrmInit
 	prm.SetDefaultSigner(signer)

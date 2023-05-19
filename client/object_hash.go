@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -135,8 +134,6 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 
 // ResObjectHash groups resulting values of ObjectHash operation.
 type ResObjectHash struct {
-	statusRes
-
 	checksums [][]byte
 }
 
@@ -153,20 +150,10 @@ func (x ResObjectHash) Checksums() [][]byte {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmObjectHash docs).
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return statuses:
-//   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectOutOfRange;
-//   - *apistatus.SessionTokenExpired.
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
 	case ctx == nil:
@@ -206,13 +193,9 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	}
 
 	var res ResObjectHash
-	res.st, err = c.processResponse(resp)
+	_, err = c.processResponse(resp)
 	if err != nil {
 		return nil, err
-	}
-
-	if !apistatus.IsSuccessful(res.st) {
-		return &res, nil
 	}
 
 	res.checksums = resp.GetBody().GetHashList()

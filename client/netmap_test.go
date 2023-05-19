@@ -102,10 +102,10 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	srv.signResponse = true
 
-	// status failure
-	res, err = c.NetMapSnapshot(ctx, prm)
-	require.NoError(t, err)
-	assertStatusErr(t, res)
+	// failure error
+	_, err = c.NetMapSnapshot(ctx, prm)
+	require.Error(t, err)
+	require.ErrorIs(t, err, apistatus.ErrServerInternal)
 
 	srv.statusOK = true
 
@@ -145,6 +145,5 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	res, err = c.NetMapSnapshot(ctx, prm)
 	require.NoError(t, err)
-	require.True(t, apistatus.IsSuccessful(res.Status()))
 	require.Equal(t, netMap, res.NetMap())
 }

@@ -1,0 +1,93 @@
+package apistatus
+
+import (
+	"fmt"
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+func TestErrors(t *testing.T) {
+	for _, tc := range []struct {
+		errs        []error
+		errVariable error
+	}{
+		{
+			errs:        []error{ServerInternal{}, new(ServerInternal)},
+			errVariable: ErrServerInternal,
+		},
+		{
+			errs:        []error{WrongMagicNumber{}, new(WrongMagicNumber)},
+			errVariable: ErrWrongMagicNumber,
+		},
+		{
+			errs:        []error{SignatureVerification{}, new(SignatureVerification)},
+			errVariable: ErrSignatureVerification,
+		},
+		{
+			errs:        []error{NodeUnderMaintenance{}, new(NodeUnderMaintenance)},
+			errVariable: ErrNodeUnderMaintenance,
+		},
+
+		{
+			errs:        []error{ObjectLocked{}, new(ObjectLocked)},
+			errVariable: ErrObjectLocked,
+		},
+		{
+			errs:        []error{LockNonRegularObject{}, new(LockNonRegularObject)},
+			errVariable: ErrLockNonRegularObject,
+		},
+		{
+			errs:        []error{ObjectAccessDenied{}, new(ObjectAccessDenied)},
+			errVariable: ErrObjectAccessDenied,
+		},
+		{
+			errs:        []error{ObjectNotFound{}, new(ObjectNotFound)},
+			errVariable: ErrObjectNotFound,
+		},
+		{
+			errs:        []error{ObjectAlreadyRemoved{}, new(ObjectAlreadyRemoved)},
+			errVariable: ErrObjectAlreadyRemoved,
+		},
+		{
+			errs:        []error{ObjectOutOfRange{}, new(ObjectOutOfRange)},
+			errVariable: ErrObjectOutOfRange,
+		},
+
+		{
+			errs:        []error{ContainerNotFound{}, new(ContainerNotFound)},
+			errVariable: ErrContainerNotFound,
+		},
+		{
+			errs:        []error{EACLNotFound{}, new(EACLNotFound)},
+			errVariable: ErrEACLNotFound,
+		},
+
+		{
+			errs:        []error{SessionTokenExpired{}, new(SessionTokenExpired)},
+			errVariable: ErrSessionTokenExpired,
+		},
+		{
+			errs:        []error{SessionTokenNotFound{}, new(SessionTokenNotFound)},
+			errVariable: ErrSessionTokenNotFound,
+		},
+
+		{
+			errs:        []error{UnrecognizedStatusV2{}, new(UnrecognizedStatusV2)},
+			errVariable: ErrUnrecognizedStatusV2,
+		},
+	} {
+		require.NotEmpty(t, tc.errs)
+		require.NotNil(t, tc.errVariable)
+
+		for i := range tc.errs {
+			require.ErrorIs(t, tc.errs[i], tc.errVariable)
+
+			wrapped := fmt.Errorf("some message %w", tc.errs[i])
+			require.ErrorIs(t, wrapped, tc.errVariable)
+
+			wrappedTwice := fmt.Errorf("another message %w", wrapped)
+			require.ErrorIs(t, wrappedTwice, tc.errVariable)
+		}
+	}
+}

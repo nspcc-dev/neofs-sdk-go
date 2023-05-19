@@ -2,8 +2,28 @@ package apistatus
 
 import (
 	"encoding/binary"
+	"errors"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
+)
+
+// Error describes common error which is a grouping type for any [apistatus] errors. Any [apistatus] error may be checked
+// explicitly via it's type of just check the group via errors.Is(err, [apistatus.Error]).
+var Error = errors.New("api error")
+
+var (
+	// ErrServerInternal is an instance of ServerInternal error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrServerInternal ServerInternal
+	// ErrWrongMagicNumber is an instance of WrongMagicNumber error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrWrongMagicNumber WrongMagicNumber
+	// ErrSignatureVerification is an instance of SignatureVerification error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrSignatureVerification SignatureVerification
+	// ErrNodeUnderMaintenance is an instance of NodeUnderMaintenance error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrNodeUnderMaintenance NodeUnderMaintenance
 )
 
 // ServerInternal describes failure statuses related to internal server errors.
@@ -19,6 +39,16 @@ func (x ServerInternal) Error() string {
 		globalizeCodeV2(status.Internal, status.GlobalizeCommonFail),
 		x.v2.Message(),
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ServerInternal) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case ServerInternal, *ServerInternal:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.
@@ -67,6 +97,16 @@ func (x WrongMagicNumber) Error() string {
 		globalizeCodeV2(status.WrongMagicNumber, status.GlobalizeCommonFail),
 		x.v2.Message(),
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x WrongMagicNumber) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case WrongMagicNumber, *WrongMagicNumber:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.
@@ -144,6 +184,16 @@ func (x SignatureVerification) Error() string {
 	)
 }
 
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x SignatureVerification) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case SignatureVerification, *SignatureVerification:
+		return true
+	}
+}
+
 // implements local interface defined in FromStatusV2 func.
 func (x *SignatureVerification) fromStatusV2(st *status.Status) {
 	x.v2 = *st
@@ -201,6 +251,16 @@ func (x NodeUnderMaintenance) Error() string {
 		globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x NodeUnderMaintenance) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case NodeUnderMaintenance, *NodeUnderMaintenance:
+		return true
+	}
 }
 
 func (x *NodeUnderMaintenance) fromStatusV2(st *status.Status) {

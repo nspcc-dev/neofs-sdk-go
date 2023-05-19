@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -88,11 +87,6 @@ func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 	x.filters = filters
 }
 
-// ResObjectSearch groups the final result values of ObjectSearch operation.
-type ResObjectSearch struct {
-	statusRes
-}
-
 // ObjectListReader is designed to read list of object identifiers from NeoFS system.
 //
 // Must be initialized using Client.ObjectSearch, any other usage is unsafe.
@@ -100,7 +94,6 @@ type ObjectListReader struct {
 	client          *Client
 	cancelCtxStream context.CancelFunc
 	err             error
-	res             ResObjectSearch
 	stream          interface {
 		Read(resp *v2object.SearchResponse) error
 	}
@@ -132,8 +125,8 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			return read, false
 		}
 
-		x.res.st, x.err = x.client.processResponse(&resp)
-		if x.err != nil || !apistatus.IsSuccessful(x.res.st) {
+		_, x.err = x.client.processResponse(&resp)
+		if x.err != nil {
 			return read, false
 		}
 
@@ -176,11 +169,7 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 		// so false means nothing was read.
 		_, ok := x.Read(buf)
 		if !ok {
-			res, err := x.Close()
-			if err != nil {
-				return err
-			}
-			return apistatus.ErrFromStatus(res.Status())
+			return x.Close()
 		}
 		if f(buf[0]) {
 			return nil
@@ -191,24 +180,23 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 // Close ends reading list of the matched objects and returns the result of the operation
 // along with the final results. Must be called after using the ObjectListReader.
 //
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as Go built-in error.
 // If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
 // codes are returned as error.
 //
-// Return statuses:
+// Return errors:
 //   - global (see Client docs);
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.SessionTokenExpired.
-func (x *ObjectListReader) Close() (*ResObjectSearch, error) {
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrSessionTokenExpired].
+func (x *ObjectListReader) Close() error {
 	defer x.cancelCtxStream()
 
 	if x.err != nil && !errors.Is(x.err, io.EOF) {
-		return nil, x.err
+		return x.err
 	}
 
-	return &x.res, nil
+	return nil
 }
 
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.

@@ -1,17 +1,31 @@
 package apistatus
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
 var (
+	// ErrObjectLocked is an instance of ObjectLocked error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrObjectLocked ObjectLocked
 	// ErrObjectAlreadyRemoved is an instance of ObjectAlreadyRemoved error status. It's expected to be used for [errors.Is]
 	// and MUST NOT be changed.
 	ErrObjectAlreadyRemoved ObjectAlreadyRemoved
+	// ErrLockNonRegularObject is an instance of LockNonRegularObject error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrLockNonRegularObject LockNonRegularObject
+	// ErrObjectAccessDenied is an instance of ObjectAccessDenied error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrObjectAccessDenied ObjectAccessDenied
 	// ErrObjectNotFound is an instance of ObjectNotFound error status. It's expected to be used for [errors.Is]
 	// and MUST NOT be changed.
 	ErrObjectNotFound ObjectNotFound
+	// ErrObjectOutOfRange is an instance of ObjectOutOfRange error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrObjectOutOfRange ObjectOutOfRange
 )
 
 // ObjectLocked describes status of the failure because of the locked object.
@@ -32,6 +46,16 @@ func (x ObjectLocked) Error() string {
 		globalizeCodeV2(object.StatusLocked, object.GlobalizeFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ObjectLocked) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case ObjectLocked, *ObjectLocked:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.
@@ -71,6 +95,16 @@ func (x LockNonRegularObject) Error() string {
 	)
 }
 
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x LockNonRegularObject) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case LockNonRegularObject, *LockNonRegularObject:
+		return true
+	}
+}
+
 // implements local interface defined in FromStatusV2 func.
 func (x *LockNonRegularObject) fromStatusV2(st *status.Status) {
 	x.v2 = *st
@@ -106,6 +140,16 @@ func (x ObjectAccessDenied) Error() string {
 		globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ObjectAccessDenied) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case ObjectAccessDenied, *ObjectAccessDenied:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.
@@ -160,7 +204,7 @@ func (x ObjectNotFound) Error() string {
 func (x ObjectNotFound) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectNotFound, *ObjectNotFound:
 		return true
 	}
@@ -207,7 +251,7 @@ func (x ObjectAlreadyRemoved) Error() string {
 func (x ObjectAlreadyRemoved) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ObjectAlreadyRemoved, *ObjectAlreadyRemoved:
 		return true
 	}
@@ -249,6 +293,16 @@ func (x ObjectOutOfRange) Error() string {
 		globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail),
 		msg,
 	)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ObjectOutOfRange) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case ObjectOutOfRange, *ObjectOutOfRange:
+		return true
+	}
 }
 
 // implements local interface defined in FromStatusV2 func.

@@ -1,6 +1,8 @@
 package apistatus
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
@@ -38,7 +40,7 @@ func (x ContainerNotFound) Error() string {
 func (x ContainerNotFound) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case ContainerNotFound, *ContainerNotFound:
 		return true
 	}
@@ -86,7 +88,7 @@ func (x EACLNotFound) Error() string {
 func (x EACLNotFound) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case EACLNotFound, *EACLNotFound:
 		return true
 	}

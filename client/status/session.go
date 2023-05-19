@@ -1,6 +1,8 @@
 package apistatus
 
 import (
+	"errors"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
@@ -38,7 +40,7 @@ func (x SessionTokenNotFound) Error() string {
 func (x SessionTokenNotFound) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case SessionTokenNotFound, *SessionTokenNotFound:
 		return true
 	}
@@ -85,7 +87,7 @@ func (x SessionTokenExpired) Error() string {
 func (x SessionTokenExpired) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case SessionTokenExpired, *SessionTokenExpired:
 		return true
 	}

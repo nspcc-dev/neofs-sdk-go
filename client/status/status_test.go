@@ -19,7 +19,7 @@ func TestErrors(t *testing.T) {
 
 		res := apistatus.ErrFromStatus(st)
 
-		require.Equal(t, err, res)
+		require.ErrorIs(t, res, err)
 	})
 
 	t.Run("non-error source", func(t *testing.T) {

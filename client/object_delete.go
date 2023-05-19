@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -95,8 +94,6 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 
 // ResObjectDelete groups resulting values of ObjectDelete operation.
 type ResObjectDelete struct {
-	statusRes
-
 	tomb oid.ID
 }
 
@@ -115,19 +112,17 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
-// If PrmInit.ResolveNeoFSFailures has been called, unsuccessful
-// NeoFS status codes are returned as `error`, otherwise, are included
-// in the returned result structure.
+// see [apistatus] package for NeoFS-specific error types.
 //
 // Immediately panics if parameters are set incorrectly (see PrmObjectDelete docs).
 // Context is required and must not be nil. It is used for network communication.
 //
-// Return statuses:
+// Return errors:
 //   - global (see Client docs)
-//   - *apistatus.ContainerNotFound;
-//   - *apistatus.ObjectAccessDenied;
-//   - *apistatus.ObjectLocked;
-//   - *apistatus.SessionTokenExpired.
+//   - [apistatus.ErrContainerNotFound];
+//   - [apistatus.ErrObjectAccessDenied];
+//   - [apistatus.ErrObjectLocked];
+//   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
 	switch {
 	case ctx == nil:
@@ -162,13 +157,9 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	}
 
 	var res ResObjectDelete
-	res.st, err = c.processResponse(resp)
+	_, err = c.processResponse(resp)
 	if err != nil {
 		return nil, err
-	}
-
-	if !apistatus.IsSuccessful(res.st) {
-		return &res, nil
 	}
 
 	const fieldTombstone = "tombstone"

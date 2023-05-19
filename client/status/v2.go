@@ -28,16 +28,29 @@ type StatusV2 interface {
 // Note: notice if the return type is a pointer.
 //
 // Successes:
-//   - status.OK: *SuccessDefaultV2 (this also includes nil argument).
+//   - [status.OK]: *[SuccessDefaultV2] (this also includes nil argument).
 //
 // Common failures:
-//   - status.Internal: *ServerInternal;
-//   - status.SignatureVerificationFail: *SignatureVerification.
+//   - [status.Internal]: *[ServerInternal];
+//   - [status.SignatureVerificationFail]: *[SignatureVerification].
+//   - [status.WrongMagicNumber]: *[WrongMagicNumber].
+//   - [status.NodeUnderMaintenance]: *[NodeUnderMaintenance].
 //
 // Object failures:
-//   - object.StatusLocked: *ObjectLocked;
-//   - object.StatusLockNonRegularObject: *LockNonRegularObject.
-//   - object.StatusAccessDenied: *ObjectAccessDenied.
+//   - [object.StatusLocked]: *[ObjectLocked];
+//   - [object.StatusLockNonRegularObject]: *[LockNonRegularObject].
+//   - [object.StatusAccessDenied]: *[ObjectAccessDenied].
+//   - [object.StatusNotFound]: *[ObjectNotFound].
+//   - [object.StatusAlreadyRemoved]: *[ObjectAlreadyRemoved].
+//   - [object.StatusOutOfRange]: *[ObjectOutOfRange].
+//
+// Container failures:
+//   - [container.StatusNotFound]: *[ContainerNotFound];
+//   - [container.StatusEACLNotFound]: *[EACLNotFound];
+//
+// Session failures:
+//   - [session.StatusTokenNotFound]: *[SessionTokenNotFound];
+//   - [session.StatusTokenExpired]: *[SessionTokenExpired];
 func FromStatusV2(st *status.Status) Status {
 	var decoder interface {
 		fromStatusV2(*status.Status)
@@ -95,7 +108,7 @@ func FromStatusV2(st *status.Status) Status {
 	}
 
 	if decoder == nil {
-		decoder = new(unrecognizedStatusV2)
+		decoder = new(UnrecognizedStatusV2)
 	}
 
 	decoder.fromStatusV2(st)

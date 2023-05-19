@@ -145,8 +145,6 @@ func (c *Client) Close() error {
 //
 // See also Init.
 type PrmInit struct {
-	resolveNeoFSErrors bool
-
 	signer neofscrypto.Signer
 
 	cbRespInfo func(ResponseMetaInfo) error
@@ -160,14 +158,6 @@ type PrmInit struct {
 // Required for operations without custom signer parametrization (see corresponding Prm* docs).
 func (x *PrmInit) SetDefaultSigner(signer neofscrypto.Signer) {
 	x.signer = signer
-}
-
-// ResolveNeoFSFailures makes the Client to resolve failure statuses of the
-// NeoFS protocol into Go built-in errors. These errors are returned from
-// each protocol operation. By default, statuses aren't resolved and written
-// to the resulting structure (see corresponding Res* docs).
-func (x *PrmInit) ResolveNeoFSFailures() {
-	x.resolveNeoFSErrors = true
 }
 
 // SetResponseInfoCallback makes the Client to pass ResponseMetaInfo from each
