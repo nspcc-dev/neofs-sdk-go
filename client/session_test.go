@@ -56,7 +56,7 @@ func TestClient_SessionCreate(t *testing.T) {
 
 		result, err := c.SessionCreate(ctx, prmSessionCreate)
 		require.Nil(t, result)
-		require.ErrorIs(t, err, errMissingResponseField)
+		require.ErrorIs(t, err, ErrMissingResponseField)
 		require.Equal(t, "missing session id field in the response", err.Error())
 	})
 
@@ -67,7 +67,7 @@ func TestClient_SessionCreate(t *testing.T) {
 
 		result, err := c.SessionCreate(ctx, prmSessionCreate)
 		require.Nil(t, result)
-		require.ErrorIs(t, err, errMissingResponseField)
+		require.ErrorIs(t, err, ErrMissingResponseField)
 		require.Equal(t, "missing session key field in the response", err.Error())
 	})
 }

@@ -205,15 +205,15 @@ func (x *ObjectListReader) Close() error {
 // is done using the ObjectListReader. Exactly one return value is non-nil.
 // Resulting reader must be finally closed.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectSearch docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
 func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*ObjectListReader, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.cnrSet:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	}
 
 	var cidV2 v2refs.ContainerID

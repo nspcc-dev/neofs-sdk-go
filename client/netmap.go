@@ -41,17 +41,11 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmEndpointInfo docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
-	// check context
-	if ctx == nil {
-		panic(panicMsgMissingContext)
-	}
-
 	// form request
 	var req v2netmap.LocalNodeInfoRequest
 
@@ -130,17 +124,11 @@ func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmNetworkInfo docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Exactly one return value is non-nil. Server status return is returned in ResNetworkInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetworkInfo, error) {
-	// check context
-	if ctx == nil {
-		panic(panicMsgMissingContext)
-	}
-
 	// form request
 	var req v2netmap.NetworkInfoRequest
 
@@ -207,11 +195,6 @@ func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
 // Exactly one return value is non-nil. Server status return is returned in ResNetMapSnapshot.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResNetMapSnapshot, error) {
-	// check context
-	if ctx == nil {
-		panic(panicMsgMissingContext)
-	}
-
 	// form request body
 	var body v2netmap.SnapshotRequestBody
 

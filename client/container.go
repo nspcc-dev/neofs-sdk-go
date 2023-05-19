@@ -84,15 +84,15 @@ func (c *Client) defaultSigner() neofscrypto.Signer {
 //
 // Success can be verified by reading by identifier (see ResContainerPut.ID).
 //
-// Immediately panics if parameters are set incorrectly (see PrmContainerPut docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
 func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.cnrSet:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	}
 
 	// TODO: check private signer is set before forming the request
@@ -206,14 +206,14 @@ func (x ResContainerGet) Container() container.Container {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmContainerGet docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
 func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.idSet:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	}
 
 	var cidV2 refs.ContainerID
@@ -296,15 +296,15 @@ func (x ResContainerList) Containers() []cid.ID {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmContainerList docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingAccount]
 func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.ownerSet:
-		panic("account not set")
+		return nil, ErrMissingAccount
 	}
 
 	// form request body
@@ -402,17 +402,17 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Success can be verified by reading by identifier (see GetContainer).
 //
-// Immediately panics if parameters are set incorrectly (see PrmContainerDelete docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
 //
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.idSet:
-		panic(panicMsgMissingContainer)
+		return ErrMissingContainer
 	}
 
 	// sign container ID
@@ -510,15 +510,15 @@ func (x ResContainerEACL) Table() eacl.Table {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmContainerEACL docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
 func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.idSet:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	}
 
 	var cidV2 refs.ContainerID
@@ -619,20 +619,21 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //
 // Success can be verified by reading by identifier (see EACL).
 //
-// Immediately panics if parameters are set incorrectly (see PrmContainerSetEACL docs).
+// Return errors:
+//   - [ErrMissingEACL]
+//   - [ErrMissingEACLContainer]
+//
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.tableSet:
-		panic("eACL table not set")
+		return ErrMissingEACL
 	}
 
 	_, isCIDSet := prm.table.CID()
 	if !isCIDSet {
-		panic("missing container in eACL table")
+		return ErrMissingEACLContainer
 	}
 
 	// sign the eACL table
@@ -720,15 +721,15 @@ func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
 //
 // At this moment success can not be checked.
 //
-// Immediately panics if parameters are set incorrectly (see PrmAnnounceSpace docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingAnnouncements]
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) error {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case len(prm.announcements) == 0:
-		panic("missing announcements")
+		return ErrMissingAnnouncements
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list

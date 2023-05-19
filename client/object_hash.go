@@ -152,18 +152,20 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectHash docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
+//   - [ErrMissingObject]
+//   - [ErrMissingRanges]
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
-		panic(panicMsgMissingObject)
+		return nil, ErrMissingObject
 	case len(prm.body.GetRanges()) == 0:
-		panic("missing ranges")
+		return nil, ErrMissingRanges
 	}
 
 	prm.body.SetAddress(&prm.addr)

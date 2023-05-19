@@ -289,17 +289,18 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 // The call only opens the transmission channel, explicit fetching is done using the ObjectReader.
 // Exactly one return value is non-nil. Resulting reader must be finally closed.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectGet docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
+//   - [ErrMissingObject]
 func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectReader, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
-		panic(panicMsgMissingObject)
+		return nil, ErrMissingObject
 	}
 
 	// form request body
@@ -387,11 +388,12 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectHead docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
 //   - global (see Client docs);
+//   - [ErrMissingContainer];
+//   - [ErrMissingObject];
 //   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectHead.MakeRaw).
 //   - [apistatus.ErrContainerNotFound];
 //   - [apistatus.ErrObjectNotFound];
@@ -400,12 +402,10 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
-		panic(panicMsgMissingObject)
+		return nil, ErrMissingObject
 	}
 
 	var body v2object.HeadRequestBody
@@ -639,19 +639,21 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 // The call only opens the transmission channel, explicit fetching is done using the ObjectRangeReader.
 // Exactly one return value is non-nil. Resulting reader must be finally closed.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectRange docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingContainer]
+//   - [ErrMissingObject]
+//   - [ErrZeroRangeLength]
 func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*ObjectRangeReader, error) {
 	// check parameters
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
-		panic(panicMsgMissingObject)
+		return nil, ErrMissingObject
 	case prm.rng.GetLength() == 0:
-		panic("zero range length")
+		return nil, ErrZeroRangeLength
 	}
 
 	// form request body

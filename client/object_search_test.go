@@ -2,7 +2,6 @@ package client
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"testing"
 
@@ -136,7 +135,7 @@ func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
 		if s.endError != nil {
 			return s.endError
 		}
-		panic("unexpected call to `Read`")
+		return ErrUnexpectedReadCall
 	}
 
 	var body v2object.SearchResponseBody
@@ -152,7 +151,7 @@ func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
 
 	err := signServiceMessage(s.signer, resp)
 	if err != nil {
-		panic(fmt.Errorf("error: %w", err))
+		return err
 	}
 
 	s.n++

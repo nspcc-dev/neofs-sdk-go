@@ -114,23 +114,22 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmObjectDelete docs).
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
 //   - global (see Client docs)
+//   - [ErrMissingContainer];
+//   - [ErrMissingObject];
 //   - [apistatus.ErrContainerNotFound];
 //   - [apistatus.ErrObjectAccessDenied];
 //   - [apistatus.ErrObjectLocked];
 //   - [apistatus.ErrSessionTokenExpired].
 func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case prm.addr.GetContainerID() == nil:
-		panic(panicMsgMissingContainer)
+		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
-		panic(panicMsgMissingObject)
+		return nil, ErrMissingObject
 	}
 
 	// form request body

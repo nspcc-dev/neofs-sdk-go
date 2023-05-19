@@ -20,4 +20,8 @@ func TestIDFromKey(t *testing.T) {
 	require.NoError(t, user.IDFromKey(&id, rawPub))
 
 	require.Equal(t, "NNLi44dJNXtDNSBkofB48aTVYtb1zZrNEs", id.EncodeToString())
+
+	err := user.IDFromKey(&id, []byte{1})
+	require.Error(t, err)
+	require.ErrorIs(t, err, user.ErrOwnerExtract)
 }

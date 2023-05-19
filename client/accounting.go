@@ -41,14 +41,14 @@ func (x ResBalanceGet) Amount() accounting.Decimal {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Immediately panics if parameters are set incorrectly (see PrmBalanceGet docs).
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingAccount]
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
 	switch {
-	case ctx == nil:
-		panic(panicMsgMissingContext)
 	case !prm.accountSet:
-		panic("account not set")
+		return nil, ErrMissingAccount
 	}
 
 	// form request body
