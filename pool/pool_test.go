@@ -578,11 +578,11 @@ func TestHandleError(t *testing.T) {
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
 			errCount := monitor.currentErrorRate()
-			err := monitor.handleError(tc.err)
+			monitor.updateErrorRate(tc.err)
 			if tc.expectedError {
-				require.Error(t, err)
+				require.Error(t, tc.err)
 			} else {
-				require.NoError(t, err)
+				require.NoError(t, tc.err)
 			}
 			if tc.countError {
 				errCount++
