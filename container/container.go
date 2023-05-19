@@ -476,7 +476,9 @@ func ReadDomain(cnr Container) (res Domain) {
 // and writes it into dst. Signature instance MUST NOT be nil. CalculateSignature
 // is expected to be called after all the Container data is filled and before
 // saving the Container in the NeoFS network. Note that мany subsequent change
-// will most likely break the signature.
+// will most likely break the signature. signer MUST be of
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example, [neofsecdsa.SignerRFC6979]
+// can be used.
 //
 // See also VerifySignature.
 func CalculateSignature(dst *neofscrypto.Signature, cnr Container, signer neofscrypto.Signer) error {

@@ -998,6 +998,8 @@ type InitParameters struct {
 }
 
 // SetSigner specifies default signer to be used for the protocol communication by default.
+// MUST be of [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example,
+// [neofsecdsa.SignerRFC6979] can be used.
 func (x *InitParameters) SetSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }

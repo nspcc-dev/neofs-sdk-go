@@ -159,7 +159,10 @@ type PrmInit struct {
 // SetDefaultSigner sets Client private signer to be used for the protocol
 // communication by default.
 //
-// Required for operations without custom signer parametrization (see corresponding Prm* docs).
+// Optional if you intend to sign every request separately (see Prm* docs), but
+// required if you'd like to use this signer for all operations implicitly.
+// If specified, MUST be of [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme,
+// for example, [neofsecdsa.SignerRFC6979] can be used.
 func (x *PrmInit) SetDefaultSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
