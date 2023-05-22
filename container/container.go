@@ -15,7 +15,6 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -116,8 +115,6 @@ func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) e
 		}
 
 		switch key {
-		case container.SysAttributeSubnet:
-			err = new(subnetid.ID).DecodeString(val)
 		case attributeTimestamp:
 			_, err = strconv.ParseInt(val, 10, 64)
 		}
@@ -379,28 +376,6 @@ func CreatedAt(cnr Container) time.Time {
 	}
 
 	return time.Unix(sec, 0)
-}
-
-// SetSubnet places the Container on the specified NeoFS subnet. If called,
-// container nodes will only be selected from the given subnet, otherwise from
-// the entire network.
-func SetSubnet(cnr *Container, subNet subnetid.ID) {
-	cnr.SetAttribute(container.SysAttributeSubnet, subNet.EncodeToString())
-}
-
-// Subnet return container subnet set using SetSubnet.
-//
-// Zero Container is bound to zero subnet.
-func Subnet(cnr Container) (res subnetid.ID) {
-	val := cnr.Attribute(container.SysAttributeSubnet)
-	if val != "" {
-		err := res.DecodeString(val)
-		if err != nil {
-			panic(fmt.Sprintf("invalid subnet attribute: %s (%v)", val, err))
-		}
-	}
-
-	return
 }
 
 const attributeHomoHashEnabled = "true"

@@ -9,9 +9,7 @@ import (
 
 	"github.com/nspcc-dev/hrw"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 )
 
 // NodeInfo groups information about NeoFS storage node which is reflected
@@ -53,8 +51,6 @@ func (x *NodeInfo) readFromV2(m netmap.NodeInfo, checkFieldPresence bool) error 
 			return fmt.Errorf("duplicated attbiuted %s", key)
 		}
 
-		const subnetPrefix = "__NEOFS__SUBNET_"
-
 		switch {
 		case key == attrCapacity:
 			_, err = strconv.ParseUint(attributes[i].GetValue(), 10, 64)
@@ -66,17 +62,6 @@ func (x *NodeInfo) readFromV2(m netmap.NodeInfo, checkFieldPresence bool) error 
 			_, err = strconv.ParseUint(attributes[i].GetValue(), 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid %s attribute: %w", attrPrice, err)
-			}
-		case strings.HasPrefix(key, subnetPrefix):
-			var id subnetid.ID
-
-			err = id.DecodeString(strings.TrimPrefix(key, subnetPrefix))
-			if err != nil {
-				return fmt.Errorf("invalid key to the subnet attribute %s: %w", key, err)
-			}
-
-			if val := attributes[i].GetValue(); val != "True" && val != "False" {
-				return fmt.Errorf("invalid value of the subnet attribute %s: %w", val, err)
 			}
 		default:
 			if attributes[i].GetValue() == "" {
@@ -476,81 +461,6 @@ func (x *NodeInfo) SortAttributes() {
 	})
 
 	x.m.SetAttributes(as)
-}
-
-// EnterSubnet writes storage node's intention to enter the given subnet.
-//
-// Zero NodeInfo belongs to zero subnet.
-func (x *NodeInfo) EnterSubnet(id subnetid.ID) {
-	x.changeSubnet(id, true)
-}
-
-// ExitSubnet writes storage node's intention to exit the given subnet.
-func (x *NodeInfo) ExitSubnet(id subnetid.ID) {
-	x.changeSubnet(id, false)
-}
-
-func (x *NodeInfo) changeSubnet(id subnetid.ID, isMember bool) {
-	var (
-		idv2 refs.SubnetID
-		info netmap.NodeSubnetInfo
-	)
-
-	id.WriteToV2(&idv2)
-
-	info.SetID(&idv2)
-	info.SetEntryFlag(isMember)
-
-	netmap.WriteSubnetInfo(&x.m, info)
-}
-
-// ErrRemoveSubnet is returned when a node needs to leave the subnet.
-var ErrRemoveSubnet = netmap.ErrRemoveSubnet
-
-// IterateSubnets iterates over all subnets the node belongs to and passes the IDs to f.
-// Handler MUST NOT be nil.
-//
-// If f returns ErrRemoveSubnet, then removes subnet entry. Note that this leads to an
-// instant mutation of NodeInfo. Breaks on any other non-nil error and returns it.
-//
-// Returns an error if subnet incorrectly enabled/disabled.
-// Returns an error if the node is not included to any subnet by the end of the loop.
-//
-// See also EnterSubnet, ExitSubnet.
-func (x NodeInfo) IterateSubnets(f func(subnetid.ID) error) error {
-	var id subnetid.ID
-
-	return netmap.IterateSubnets(&x.m, func(idv2 refs.SubnetID) error {
-		err := id.ReadFromV2(idv2)
-		if err != nil {
-			return fmt.Errorf("invalid subnet: %w", err)
-		}
-
-		err = f(id)
-		if errors.Is(err, ErrRemoveSubnet) {
-			return netmap.ErrRemoveSubnet
-		}
-
-		return err
-	})
-}
-
-var errAbortSubnetIter = errors.New("abort subnet iterator")
-
-// BelongsToSubnet is a helper function over the IterateSubnets method which
-// checks whether a node belongs to a subnet.
-//
-// Zero NodeInfo belongs to zero subnet only.
-func BelongsToSubnet(node NodeInfo, id subnetid.ID) bool {
-	err := node.IterateSubnets(func(id_ subnetid.ID) error {
-		if id.Equals(id_) {
-			return errAbortSubnetIter
-		}
-
-		return nil
-	})
-
-	return errors.Is(err, errAbortSubnetIter)
 }
 
 // SetOffline sets the state of the node to "offline". When a node updates
