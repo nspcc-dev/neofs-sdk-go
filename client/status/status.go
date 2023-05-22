@@ -27,18 +27,3 @@ func ErrFromStatus(st Status) error {
 
 	return nil
 }
-
-// ErrToStatus converts the error instance to Status instance.
-//
-// Note: direct assignment may not be compatibility-safe.
-func ErrToStatus(err error) Status {
-	return err
-}
-
-// IsSuccessful checks if status is successful.
-//
-// Note: direct cast may not be compatibility-safe.
-func IsSuccessful(st Status) bool {
-	_, ok := st.(error)
-	return !ok
-}

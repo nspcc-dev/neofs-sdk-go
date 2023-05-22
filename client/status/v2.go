@@ -126,12 +126,13 @@ func ToStatusV2(st Status) *status.Status {
 		return v.ToStatusV2()
 	}
 
-	if IsSuccessful(st) {
+	err, isErrorExists := st.(error)
+	if !isErrorExists {
 		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
 	}
 
 	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
-	internalErrorStatus.SetMessage(st.(error).Error()) // type cast never panics because IsSuccessful() checks cast
+	internalErrorStatus.SetMessage(err.Error())
 
 	return internalErrorStatus
 }

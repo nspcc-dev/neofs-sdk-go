@@ -199,10 +199,10 @@ func (x *contextCall) processResponse() bool {
 	// get result status
 	st := apistatus.FromStatusV2(x.resp.GetMetaHeader().GetStatus())
 
-	successfulStatus := apistatus.IsSuccessful(st)
-	x.err = apistatus.ErrFromStatus(st)
+	var errorExists bool
+	x.err, errorExists = st.(error)
 
-	return successfulStatus
+	return !errorExists
 }
 
 // processResponse verifies response signature.
