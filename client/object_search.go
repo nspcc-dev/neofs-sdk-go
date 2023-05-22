@@ -125,7 +125,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			return read, false
 		}
 
-		_, x.err = x.client.processResponse(&resp)
+		x.err = x.client.processResponse(&resp)
 		if x.err != nil {
 			return read, false
 		}

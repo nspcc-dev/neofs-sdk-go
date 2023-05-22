@@ -206,8 +206,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		return nil, x.err
 	}
 
-	_, x.err = x.client.processResponse(&x.respV2)
-	if x.err != nil {
+	if x.err = x.client.processResponse(&x.respV2); x.err != nil {
 		return nil, x.err
 	}
 

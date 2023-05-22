@@ -156,8 +156,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	}
 
 	var res ResObjectDelete
-	_, err = c.processResponse(resp)
-	if err != nil {
+	if err = c.processResponse(resp); err != nil {
 		return nil, err
 	}
 

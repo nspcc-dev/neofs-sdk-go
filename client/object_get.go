@@ -133,7 +133,7 @@ func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
 		return false
 	}
 
-	_, x.err = x.client.processResponse(&resp)
+	x.err = x.client.processResponse(&resp)
 	if x.err != nil {
 		return false
 	}
@@ -186,7 +186,7 @@ func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		_, x.err = x.client.processResponse(&resp)
+		x.err = x.client.processResponse(&resp)
 		if x.err != nil {
 			return read, false
 		}
@@ -433,8 +433,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	}
 
 	var res ResObjectHead
-	_, err = c.processResponse(resp)
-	if err != nil {
+	if err = c.processResponse(resp); err != nil {
 		return nil, err
 	}
 
@@ -529,7 +528,7 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		_, x.err = x.client.processResponse(&resp)
+		x.err = x.client.processResponse(&resp)
 		if x.err != nil {
 			return read, false
 		}

@@ -195,8 +195,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	}
 
 	var res ResObjectHash
-	_, err = c.processResponse(resp)
-	if err != nil {
+	if err = c.processResponse(resp); err != nil {
 		return nil, err
 	}
 
