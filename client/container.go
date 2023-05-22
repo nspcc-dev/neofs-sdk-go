@@ -406,6 +406,7 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Return errors:
 //   - [ErrMissingContainer]
+//   - [neofscrypto.ErrIncorrectSigner]
 //
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
@@ -429,6 +430,9 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) er
 		signer = c.defaultSigner()
 	}
 
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return errNonNeoSigner
+	}
 	err := sig.Calculate(signer, data)
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
@@ -622,6 +626,7 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 // Return errors:
 //   - [ErrMissingEACL]
 //   - [ErrMissingEACLContainer]
+//   - [neofscrypto.ErrIncorrectSigner]
 //
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
@@ -643,6 +648,10 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	signer := prm.signer
 	if signer == nil {
 		signer = c.defaultSigner()
+	}
+
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return errNonNeoSigner
 	}
 
 	err := sig.Calculate(signer, eaclV2.StableMarshal(nil))

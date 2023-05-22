@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"time"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
@@ -49,11 +50,19 @@ type Client struct {
 	server neoFSAPIServer
 }
 
+var errNonNeoSigner = fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+
 // New creates an instance of Client initialized with the given parameters.
 //
 // See docs of [PrmInit] methods for details. See also [Client.Dial]/[Client.Close].
+//
+// Returned errors:
+//   - [neofscrypto.ErrIncorrectSigner]
 func New(prm PrmInit) (*Client, error) {
 	var c = new(Client)
+	if prm.signer != nil && prm.signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return nil, errNonNeoSigner
+	}
 	c.prm = prm
 	return c, nil
 }

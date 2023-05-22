@@ -481,7 +481,13 @@ func ReadDomain(cnr Container) (res Domain) {
 // can be used.
 //
 // See also VerifySignature.
+//
+// Returned errors:
+//   - [neofscrypto.ErrIncorrectSigner]
 func CalculateSignature(dst *neofscrypto.Signature, cnr Container, signer neofscrypto.Signer) error {
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+	}
 	return dst.Calculate(signer, cnr.Marshal())
 }
 

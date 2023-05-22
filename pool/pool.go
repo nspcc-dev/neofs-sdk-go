@@ -1535,9 +1535,15 @@ const (
 )
 
 // NewPool creates connection pool using parameters.
+//
+// Returned errors:
+//   - [neofscrypto.ErrIncorrectSigner]
 func NewPool(options InitParameters) (*Pool, error) {
 	if options.signer == nil {
 		return nil, fmt.Errorf("missed required parameter 'Signer'")
+	}
+	if options.signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return nil, fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
 	}
 
 	nodesParams, err := adjustNodeParams(options.nodeParams)

@@ -336,6 +336,7 @@ func TestCalculateSignature(t *testing.T) {
 
 	var sig neofscrypto.Signature
 
+	require.Error(t, container.CalculateSignature(&sig, val, test.RandomSigner(t)))
 	require.NoError(t, container.CalculateSignature(&sig, val, test.RandomSignerRFC6979(t)))
 
 	var msg refs.Signature
