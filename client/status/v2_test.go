@@ -224,15 +224,17 @@ func TestFromStatusV2(t *testing.T) {
 		}
 
 		randomError := errors.New("garbage")
-		errFromStatus := apistatus.ErrFromStatus(st)
+		// some `st` in test-cases is int, bool, string
+		errFromStatus, ok := st.(error)
+		if ok {
+			for _, err := range testItem.compatibleErrs {
+				require.ErrorIs(t, errFromStatus, err)
+				require.NotErrorIs(t, randomError, err)
+			}
 
-		for _, err := range testItem.compatibleErrs {
-			require.ErrorIs(t, errFromStatus, err)
-			require.NotErrorIs(t, randomError, err)
-		}
-
-		if testItem.checkAsErr != nil {
-			require.True(t, testItem.checkAsErr(errFromStatus))
+			if testItem.checkAsErr != nil {
+				require.True(t, testItem.checkAsErr(errFromStatus))
+			}
 		}
 	}
 }

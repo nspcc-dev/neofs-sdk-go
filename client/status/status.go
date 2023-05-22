@@ -6,24 +6,10 @@ package apistatus
 //   - statuses that implement the build-in error interface are considered failed statuses;
 //   - all other value types are considered successes (nil is a default success).
 //
-// In Go code type of success can be determined by a type switch, failure - by a switch with errors.As calls.
+// In Go code type of success can be determined by a type switch, failure - by a switch with [errors.As] calls.
 // Nil should be considered as a success, and default switch section - as an unrecognized Status.
 //
-// To convert statuses into errors and vice versa, use functions ErrToStatus and ErrFromStatus, respectively.
-// ErrFromStatus function returns nil for successful statuses. However, to simplify the check of statuses for success,
-// IsSuccessful function should be used (try to avoid nil comparison).
 // It should be noted that using direct typecasting is not a compatible approach.
 //
-// To transport statuses using the NeoFS API V2 protocol, see StatusV2 interface and FromStatusV2 and ToStatusV2 functions.
+// To transport statuses using the NeoFS API V2 protocol, see [StatusV2] interface and [FromStatusV2] and [ToStatusV2] functions.
 type Status any
-
-// ErrFromStatus converts Status instance to error if it is failed. Returns nil on successful Status.
-//
-// Note: direct assignment may not be compatibility-safe.
-func ErrFromStatus(st Status) error {
-	if err, ok := st.(error); ok {
-		return err
-	}
-
-	return nil
-}

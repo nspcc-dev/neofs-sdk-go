@@ -207,13 +207,16 @@ func (x *contextCall) processResponse() bool {
 
 // processResponse verifies response signature.
 func (c *Client) processResponse(resp responseV2) error {
-	err := verifyServiceMessage(resp)
-	if err != nil {
+	if err := verifyServiceMessage(resp); err != nil {
 		return fmt.Errorf("invalid response signature: %w", err)
 	}
 
 	st := apistatus.FromStatusV2(resp.GetMetaHeader().GetStatus())
-	return apistatus.ErrFromStatus(st)
+	if err, ok := st.(error); ok {
+		return err
+	}
+
+	return nil
 }
 
 // reads response (if rResp is set) and processes it. Result means success.
