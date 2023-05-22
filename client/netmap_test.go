@@ -79,7 +79,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	srv.signer = signer
 
-	c := newClient(signer, &srv)
+	c := newClient(t, signer, &srv)
 	ctx := context.Background()
 
 	// request signature

@@ -19,15 +19,15 @@ func init() {
 	statusErr.SetMessage("test status error")
 }
 
-func newClient(signer neofscrypto.Signer, server neoFSAPIServer) *Client {
+func newClient(t *testing.T, signer neofscrypto.Signer, server neoFSAPIServer) *Client {
 	var prm PrmInit
 	prm.SetDefaultSigner(signer)
 
-	var c Client
-	c.Init(prm)
+	c, err := New(prm)
+	require.NoError(t, err)
 	c.setNeoFSAPIServer(server)
 
-	return &c
+	return c
 }
 
 func TestClient_DialContext(t *testing.T) {

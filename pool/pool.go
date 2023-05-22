@@ -270,22 +270,29 @@ func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) 
 	x.responseInfoCallback = f
 }
 
-// newWrapper creates a clientWrapper that implements the client interface.
-func newWrapper(prm wrapperPrm) *clientWrapper {
-	var cl sdkClient.Client
+// getNewClient returns a new [sdkClient.Client] instance using internal parameters.
+func (x *wrapperPrm) getNewClient() (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
-	prmInit.SetDefaultSigner(prm.signer)
-	prmInit.SetResponseInfoCallback(prm.responseInfoCallback)
+	prmInit.SetDefaultSigner(x.signer)
+	prmInit.SetResponseInfoCallback(x.responseInfoCallback)
 
-	cl.Init(prmInit)
+	return sdkClient.New(prmInit)
+}
+
+// newWrapper creates a clientWrapper that implements the client interface.
+func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
+	cl, err := prm.getNewClient()
+	if err != nil {
+		return nil, err
+	}
 
 	res := &clientWrapper{
-		client:              &cl,
+		client:              cl,
 		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
 		prm:                 prm,
 	}
 
-	return res
+	return res, nil
 }
 
 // dial establishes a connection to the server from the NeoFS network.
@@ -321,12 +328,11 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 		wasHealthy = true
 	}
 
-	var cl sdkClient.Client
-	var prmInit sdkClient.PrmInit
-	prmInit.SetDefaultSigner(c.prm.signer)
-	prmInit.SetResponseInfoCallback(c.prm.responseInfoCallback)
-
-	cl.Init(prmInit)
+	cl, err := c.prm.getNewClient()
+	if err != nil {
+		c.setUnhealthy()
+		return false, wasHealthy
+	}
 
 	var prmDial sdkClient.PrmDial
 	prmDial.SetServerURI(c.prm.address)
@@ -340,7 +346,7 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 	}
 
 	c.clientMutex.Lock()
-	c.client = &cl
+	c.client = cl
 	c.clientMutex.Unlock()
 
 	if _, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{}); err != nil {
@@ -970,9 +976,8 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 	}
 }
 
-// clientBuilder is a type alias of client constructors which open connection
-// to the given endpoint.
-type clientBuilder = func(endpoint string) client
+// clientBuilder is a type alias of client constructors.
+type clientBuilder = func(endpoint string) (client, error)
 
 // RequestInfo groups info about pool request.
 type RequestInfo struct {
@@ -1573,16 +1578,25 @@ func NewPool(options InitParameters) (*Pool, error) {
 //
 // See also InitParameters.SetClientRebalanceInterval.
 func (p *Pool) Dial(ctx context.Context) error {
+	var (
+		atLeastOneHealthy bool
+		err               error
+	)
 	inner := make([]*innerPool, len(p.rebalanceParams.nodesParams))
-	var atLeastOneHealthy bool
 
 	for i, params := range p.rebalanceParams.nodesParams {
 		clients := make([]client, len(params.weights))
 		for j, addr := range params.addresses {
-			clients[j] = p.clientBuilder(addr)
-			if err := clients[j].dial(ctx); err != nil {
+			clients[j], err = p.clientBuilder(addr)
+			if err != nil {
 				if p.logger != nil {
 					p.logger.Warn("failed to build client", zap.String("address", addr), zap.Error(err))
+				}
+				continue
+			}
+			if err := clients[j].dial(ctx); err != nil {
+				if p.logger != nil {
+					p.logger.Warn("failed to dial client", zap.String("address", addr), zap.Error(err))
 				}
 				continue
 			}
@@ -1649,7 +1663,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 	}
 
 	if params.isMissingClientBuilder() {
-		params.setClientBuilder(func(addr string) client {
+		params.setClientBuilder(func(addr string) (client, error) {
 			var prm wrapperPrm
 			prm.setAddress(addr)
 			prm.setSigner(params.signer)

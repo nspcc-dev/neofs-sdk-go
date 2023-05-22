@@ -39,11 +39,7 @@ func TestClient_SessionCreate(t *testing.T) {
 	ctx := context.Background()
 	signer := test.RandomSignerRFC6979(t)
 
-	var prmInit PrmInit
-	prmInit.SetDefaultSigner(signer)
-
-	var c Client
-	c.Init(prmInit)
+	c := newClient(t, signer, nil)
 
 	var prmSessionCreate PrmSessionCreate
 	prmSessionCreate.UseSigner(signer)

@@ -43,8 +43,10 @@ Contains client for working with NeoFS.
 var prmInit client.PrmInit
 prmInit.SetDefaultPrivateKey(key) // private key for request signing
 
-var c client.Client
-c.Init(prmInit)
+c, err := client.New(prmInit)
+if err != nil {
+    return
+}
 
 var prmDial client.PrmDial
 prmDial.SetServerURI("grpcs://localhost:40005") // endpoint address
