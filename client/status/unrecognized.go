@@ -9,7 +9,7 @@ import (
 var ErrUnrecognizedStatusV2 UnrecognizedStatusV2
 
 // UnrecognizedStatusV2 describes status of the uncertain failure.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type UnrecognizedStatusV2 struct {
 	v2 status.Status
 }

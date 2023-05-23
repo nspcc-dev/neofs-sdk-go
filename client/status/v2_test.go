@@ -9,7 +9,7 @@ import (
 )
 
 func TestFromStatusV2(t *testing.T) {
-	type statusConstructor func() apistatus.Status
+	type statusConstructor func() any
 
 	for _, testItem := range [...]struct {
 		status         any // Status or statusConstructor
@@ -44,7 +44,7 @@ func TestFromStatusV2(t *testing.T) {
 			codeV2: 0,
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				st := new(apistatus.ServerInternal)
 				st.SetMessage("internal error message")
 
@@ -58,7 +58,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				st := new(apistatus.WrongMagicNumber)
 				st.WriteCorrectMagic(322)
 
@@ -72,7 +72,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.ObjectLocked)
 			}),
 			codeV2:         2050,
@@ -83,7 +83,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.LockNonRegularObject)
 			}),
 			codeV2:         2051,
@@ -94,7 +94,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				st := new(apistatus.ObjectAccessDenied)
 				st.WriteReason("any reason")
 
@@ -108,7 +108,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.ObjectNotFound)
 			}),
 			codeV2:         2049,
@@ -119,7 +119,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.ObjectAlreadyRemoved)
 			}),
 			codeV2:         2052,
@@ -130,7 +130,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: statusConstructor(func() apistatus.Status {
+			status: statusConstructor(func() any {
 				return new(apistatus.ObjectOutOfRange)
 			}),
 			codeV2:         2053,
@@ -141,7 +141,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.ContainerNotFound)
 			}),
 			codeV2:         3072,
@@ -152,7 +152,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.EACLNotFound)
 			}),
 			codeV2:         3073,
@@ -163,7 +163,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.SessionTokenNotFound)
 			}),
 			codeV2:         4096,
@@ -174,7 +174,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.SessionTokenExpired)
 			}),
 			codeV2:         4097,
@@ -185,7 +185,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() apistatus.Status {
+			status: (statusConstructor)(func() any {
 				return new(apistatus.NodeUnderMaintenance)
 			}),
 			codeV2:         1027,
@@ -196,7 +196,7 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 	} {
-		var st apistatus.Status
+		var st any
 
 		if cons, ok := testItem.status.(statusConstructor); ok {
 			st = cons()

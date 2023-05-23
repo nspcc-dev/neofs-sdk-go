@@ -27,7 +27,7 @@ var (
 )
 
 // ServerInternal describes failure statuses related to internal server errors.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 //
 // The status is purely informative, the client should not go into details of the error except for debugging needs.
 type ServerInternal struct {
@@ -87,7 +87,7 @@ func WriteInternalServerErr(x *ServerInternal, err error) {
 }
 
 // WrongMagicNumber describes failure status related to incorrect network magic.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type WrongMagicNumber struct {
 	v2 status.Status
 }
@@ -165,7 +165,7 @@ func (x WrongMagicNumber) CorrectMagic() (magic uint64, ok int8) {
 }
 
 // SignatureVerification describes failure status related to signature verification.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type SignatureVerification struct {
 	v2 status.Status
 }
@@ -233,7 +233,7 @@ func (x SignatureVerification) Message() string {
 }
 
 // NodeUnderMaintenance describes failure status for nodes being under maintenance.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type NodeUnderMaintenance struct {
 	v2 status.Status
 }

@@ -4,7 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
-// SuccessDefaultV2 represents Status instance of default success. Implements StatusV2.
+// SuccessDefaultV2 represents instance of default success. Implements [StatusV2].
 type SuccessDefaultV2 struct {
 	isNil bool
 

@@ -17,7 +17,7 @@ var (
 )
 
 // ContainerNotFound describes status of the failure because of the missing container.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ContainerNotFound struct {
 	v2 status.Status
 }
@@ -65,7 +65,7 @@ func (x ContainerNotFound) ToStatusV2() *status.Status {
 
 // EACLNotFound describes status of the failure because of the missing eACL
 // table.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type EACLNotFound struct {
 	v2 status.Status
 }

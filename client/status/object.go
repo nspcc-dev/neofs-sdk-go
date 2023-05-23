@@ -29,7 +29,7 @@ var (
 )
 
 // ObjectLocked describes status of the failure because of the locked object.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectLocked struct {
 	v2 status.Status
 }
@@ -76,7 +76,7 @@ func (x ObjectLocked) ToStatusV2() *status.Status {
 }
 
 // LockNonRegularObject describes status returned on locking the non-regular object.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type LockNonRegularObject struct {
 	v2 status.Status
 }
@@ -123,7 +123,7 @@ func (x LockNonRegularObject) ToStatusV2() *status.Status {
 }
 
 // ObjectAccessDenied describes status of the failure because of the access control violation.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectAccessDenied struct {
 	v2 status.Status
 }
@@ -181,7 +181,7 @@ func (x ObjectAccessDenied) Reason() string {
 }
 
 // ObjectNotFound describes status of the failure because of the missing object.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectNotFound struct {
 	v2 status.Status
 }
@@ -276,7 +276,7 @@ func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
 
 // ObjectOutOfRange describes status of the failure because of the incorrect
 // provided object ranges.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectOutOfRange struct {
 	v2 status.Status
 }

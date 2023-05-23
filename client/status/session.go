@@ -17,7 +17,7 @@ var (
 )
 
 // SessionTokenNotFound describes status of the failure because of the missing session token.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type SessionTokenNotFound struct {
 	v2 status.Status
 }
@@ -64,7 +64,7 @@ func (x SessionTokenNotFound) ToStatusV2() *status.Status {
 }
 
 // SessionTokenExpired describes status of the failure because of the expired session token.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type SessionTokenExpired struct {
 	v2 status.Status
 }
