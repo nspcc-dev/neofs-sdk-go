@@ -37,8 +37,10 @@ func ExampleClient_ContainerPut() {
 	var prmInit client.PrmInit
 	prmInit.SetDefaultSigner(signer) // private signer for request signing
 
-	var c client.Client
-	c.Init(prmInit)
+	c, err := client.New(prmInit)
+	if err != nil {
+		panic(fmt.Errorf("New: %w", err))
+	}
 
 	// connect to NeoFS gateway
 	var prmDial client.PrmDial

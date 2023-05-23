@@ -1,10 +1,17 @@
 package neofscrypto
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
+
+// ErrIncorrectSigner is returned from function when the signer passed to it
+// is incompatible with the function requirements. This variable is intended
+// to be used as documentation and for [errors.Is] purposes and MUST NOT be
+// changed.
+var ErrIncorrectSigner = errors.New("incorrect signer")
 
 // Scheme represents digital signature algorithm with fixed cryptographic hash function.
 //

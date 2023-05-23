@@ -21,33 +21,43 @@ import (
 )
 
 func TestBuildPoolClientFailed(t *testing.T) {
-	mockClientBuilder := func(addr string) client {
-		mockCli := newMockClient(addr, test.RandomSigner(t))
+	mockClientBuilder1 := func(_ string) (client, error) {
+		return nil, errors.New("oops")
+	}
+	mockClientBuilder2 := func(addr string) (client, error) {
+		mockCli := newMockClient(addr, test.RandomSignerRFC6979(t))
 		mockCli.errOnDial()
-		return mockCli
+		return mockCli, nil
 	}
 
-	opts := InitParameters{
-		signer:     test.RandomSigner(t),
-		nodeParams: []NodeParam{{1, "peer0", 1}},
-	}
-	opts.setClientBuilder(mockClientBuilder)
+	for name, b := range map[string]clientBuilder{
+		"build": mockClientBuilder1,
+		"dial":  mockClientBuilder2,
+	} {
+		t.Run(name, func(t *testing.T) {
+			opts := InitParameters{
+				signer:     test.RandomSignerRFC6979(t),
+				nodeParams: []NodeParam{{1, "peer0", 1}},
+			}
+			opts.setClientBuilder(b)
 
-	pool, err := NewPool(opts)
-	require.NoError(t, err)
-	err = pool.Dial(context.Background())
-	require.Error(t, err)
+			pool, err := NewPool(opts)
+			require.NoError(t, err)
+			err = pool.Dial(context.Background())
+			require.Error(t, err)
+		})
+	}
 }
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
-	clientMockBuilder := func(addr string) client {
-		mockCli := newMockClient(addr, test.RandomSigner(t))
+	clientMockBuilder := func(addr string) (client, error) {
+		mockCli := newMockClient(addr, test.RandomSignerRFC6979(t))
 		mockCli.errOnCreateSession()
-		return mockCli
+		return mockCli, nil
 	}
 
 	opts := InitParameters{
-		signer:     test.RandomSigner(t),
+		signer:     test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
 	opts.setClientBuilder(clientMockBuilder)
@@ -65,23 +75,23 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	}
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
 			mockCli := newMockClient(addr, key)
 			mockCli.errOnEndpointInfo()
-			return mockCli
+			return mockCli, nil
 		}
 
-		return newMockClient(addr, key)
+		return newMockClient(addr, key), nil
 	}
 
 	log, err := zap.NewProduction()
 	require.NoError(t, err)
 	opts := InitParameters{
-		signer:                  test.RandomSigner(t),
+		signer:                  test.RandomSignerRFC6979(t),
 		clientRebalanceInterval: 1000 * time.Millisecond,
 		logger:                  log,
 		nodeParams:              nodes,
@@ -109,6 +119,19 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 
 func TestBuildPoolZeroNodes(t *testing.T) {
 	opts := InitParameters{
+		signer: test.RandomSignerRFC6979(t),
+	}
+	_, err := NewPool(opts)
+	require.Error(t, err)
+}
+
+func TestBuildPoolNoSigner(t *testing.T) {
+	_, err := NewPool(InitParameters{})
+	require.Error(t, err)
+}
+
+func TestBuildPoolWrongSigner(t *testing.T) {
+	opts := InitParameters{
 		signer: test.RandomSigner(t),
 	}
 	_, err := NewPool(opts)
@@ -116,13 +139,13 @@ func TestBuildPoolZeroNodes(t *testing.T) {
 }
 
 func TestOneNode(t *testing.T) {
-	key1 := test.RandomSigner(t)
-	mockClientBuilder := func(addr string) client {
-		return newMockClient(addr, key1)
+	key1 := test.RandomSignerRFC6979(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		return newMockClient(addr, key1), nil
 	}
 
 	opts := InitParameters{
-		signer:     test.RandomSigner(t),
+		signer:     test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{{1, "peer0", 1}},
 	}
 	opts.setClientBuilder(mockClientBuilder)
@@ -141,14 +164,14 @@ func TestOneNode(t *testing.T) {
 
 func TestTwoNodes(t *testing.T) {
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
-		return newMockClient(addr, key)
+		return newMockClient(addr, key), nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSigner(t),
+		signer: test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{1, "peer1", 1},
@@ -185,22 +208,22 @@ func TestOneOfTwoFailed(t *testing.T) {
 	}
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
-			return newMockClient(addr, key)
+			return newMockClient(addr, key), nil
 		}
 
 		mockCli := newMockClient(addr, key)
 		mockCli.errOnEndpointInfo()
 		mockCli.errOnNetworkInfo()
-		return mockCli
+		return mockCli, nil
 	}
 
 	opts := InitParameters{
-		signer:                  test.RandomSigner(t),
+		signer:                  test.RandomSignerRFC6979(t),
 		nodeParams:              nodes,
 		clientRebalanceInterval: 200 * time.Millisecond,
 	}
@@ -226,16 +249,16 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 func TestTwoFailed(t *testing.T) {
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 		mockCli := newMockClient(addr, key)
 		mockCli.errOnEndpointInfo()
-		return mockCli
+		return mockCli, nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSigner(t),
+		signer: test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 			{1, "peer1", 1},
@@ -259,16 +282,16 @@ func TestTwoFailed(t *testing.T) {
 }
 
 func TestSessionCache(t *testing.T) {
-	key := test.RandomSigner(t)
+	key := test.RandomSignerRFC6979(t)
 
-	mockClientBuilder := func(addr string) client {
+	mockClientBuilder := func(addr string) (client, error) {
 		mockCli := newMockClient(addr, key)
 		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
-		return mockCli
+		return mockCli, nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSigner(t),
+		signer: test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -324,21 +347,21 @@ func TestPriority(t *testing.T) {
 	}
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
 			mockCli := newMockClient(addr, key)
 			mockCli.errOnEndpointInfo()
-			return mockCli
+			return mockCli, nil
 		}
 
-		return newMockClient(addr, key)
+		return newMockClient(addr, key), nil
 	}
 
 	opts := InitParameters{
-		signer:                  test.RandomSigner(t),
+		signer:                  test.RandomSignerRFC6979(t),
 		nodeParams:              nodes,
 		clientRebalanceInterval: 1500 * time.Millisecond,
 	}
@@ -375,14 +398,14 @@ func TestPriority(t *testing.T) {
 }
 
 func TestSessionCacheWithKey(t *testing.T) {
-	key := test.RandomSigner(t)
+	key := test.RandomSignerRFC6979(t)
 
-	mockClientBuilder := func(addr string) client {
-		return newMockClient(addr, key)
+	mockClientBuilder := func(addr string) (client, error) {
+		return newMockClient(addr, key), nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSigner(t),
+		signer: test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -406,7 +429,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 
 	var prm PrmObjectDelete
 	prm.SetAddress(oid.Address{})
-	anonKey := test.RandomSigner(t)
+	anonKey := test.RandomSignerRFC6979(t)
 	prm.UseSigner(anonKey)
 
 	err = pool.DeleteObject(ctx, prm)
@@ -416,13 +439,13 @@ func TestSessionCacheWithKey(t *testing.T) {
 }
 
 func TestSessionTokenOwner(t *testing.T) {
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
-		return newMockClient(addr, key)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
+		return newMockClient(addr, key), nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSigner(t),
+		signer: test.RandomSignerRFC6979(t),
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -438,7 +461,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(p.Close)
 
-	anonKey := test.RandomSigner(t)
+	anonKey := test.RandomSignerRFC6979(t)
 	var anonOwner user.ID
 	require.NoError(t, user.IDFromSigner(&anonOwner, anonKey))
 
@@ -463,7 +486,7 @@ func TestSessionTokenOwner(t *testing.T) {
 }
 
 func TestWaitPresence(t *testing.T) {
-	mockCli := newMockClient("", test.RandomSigner(t))
+	mockCli := newMockClient("", test.RandomSignerRFC6979(t))
 
 	t.Run("context canceled", func(t *testing.T) {
 		ctx, cancel := context.WithCancel(context.Background())
@@ -601,22 +624,22 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	errorThreshold := 5
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) client {
-		key := test.RandomSigner(t)
+	mockClientBuilder := func(addr string) (client, error) {
+		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
 		if addr == nodes[0].address {
 			mockCli := newMockClient(addr, key)
 			mockCli.setThreshold(uint32(errorThreshold))
 			mockCli.statusOnGetObject(apistatus.ServerInternal{})
-			return mockCli
+			return mockCli, nil
 		}
 
-		return newMockClient(addr, key)
+		return newMockClient(addr, key), nil
 	}
 
 	opts := InitParameters{
-		signer:                  test.RandomSigner(t),
+		signer:                  test.RandomSignerRFC6979(t),
 		nodeParams:              nodes,
 		clientRebalanceInterval: 30 * time.Second,
 	}

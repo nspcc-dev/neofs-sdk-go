@@ -6,15 +6,11 @@ and provides methods for executing operations on the server.
 
 Create client instance:
 
-	var c client.Client
-
-Initialize client state:
-
 	var prm client.PrmInit
 	prm.SetDefaultSigner(signer)
 	// ...
 
-	c.Init(prm)
+	c, err := client.New(prm)
 
 Connect to the NeoFS server:
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"fmt"
 	"time"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
@@ -17,14 +18,13 @@ import (
 // an abstraction interface from the protocol details of data transfer over
 // a network in NeoFS.
 //
-// Client can be created using simple Go variable declaration. Before starting
-// work with the Client, it SHOULD BE correctly initialized (see Init method).
+// Client can be created using [New].
 // Before executing the NeoFS operations using the Client, connection to the
 // server MUST BE correctly established (see Dial method and pay attention
 // to the mandatory parameters). Using the Client before connecting have
 // been established can lead to a panic. After the work, the Client SHOULD BE
 // closed (see Close method): it frees internal and system resources which were
-// allocated for the period of work of the Client. Calling Init/Dial/Close method
+// allocated for the period of work of the Client. Calling [Client.Dial]/[Client.Close] method
 // during the communication process step strongly discouraged as it leads to
 // undefined behavior.
 //
@@ -50,14 +50,21 @@ type Client struct {
 	server neoFSAPIServer
 }
 
-// Init brings the Client instance to its initial state.
+var errNonNeoSigner = fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+
+// New creates an instance of Client initialized with the given parameters.
 //
-// One-time method call during application init stage (before Dial) is expected.
-// Calling multiple times leads to undefined behavior.
+// See docs of [PrmInit] methods for details. See also [Client.Dial]/[Client.Close].
 //
-// See docs of PrmInit methods for details. See also Dial / Close.
-func (c *Client) Init(prm PrmInit) {
+// Returned errors:
+//   - [neofscrypto.ErrIncorrectSigner]
+func New(prm PrmInit) (*Client, error) {
+	var c = new(Client)
+	if prm.signer != nil && prm.signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return nil, errNonNeoSigner
+	}
 	c.prm = prm
+	return c, nil
 }
 
 // Dial establishes a connection to the server from the NeoFS network.
@@ -71,14 +78,14 @@ func (c *Client) Init(prm PrmInit) {
 // Panics if required parameters are set incorrectly, look carefully
 // at the method documentation.
 //
-// One-time method call during application start-up stage (after Init ) is expected.
+// One-time method call during application start-up stage is expected.
 // Calling multiple times leads to undefined behavior.
 //
 // Return client errors:
 //   - [ErrMissingServer]
 //   - [ErrNonPositiveTimeout]
 //
-// See also Init / Close.
+// See also [Client.Close].
 func (c *Client) Dial(prm PrmDial) error {
 	if prm.endpoint == "" {
 		return ErrMissingServer
@@ -137,17 +144,17 @@ func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
 // with server operations processing on running goroutines: in this case
 // they are likely to fail due to a connection error.
 //
-// One-time method call during application shutdown stage (after Init and Dial)
+// One-time method call during application shutdown stage (after [Client.Dial])
 // is expected. Calling multiple times leads to undefined behavior.
 //
-// See also Init / Dial.
+// See also [Client.Dial].
 func (c *Client) Close() error {
 	return c.c.Conn().Close()
 }
 
 // PrmInit groups initialization parameters of Client instances.
 //
-// See also Init.
+// See also [New].
 type PrmInit struct {
 	signer neofscrypto.Signer
 
@@ -159,7 +166,10 @@ type PrmInit struct {
 // SetDefaultSigner sets Client private signer to be used for the protocol
 // communication by default.
 //
-// Required for operations without custom signer parametrization (see corresponding Prm* docs).
+// Optional if you intend to sign every request separately (see Prm* docs), but
+// required if you'd like to use this signer for all operations implicitly.
+// If specified, MUST be of [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme,
+// for example, [neofsecdsa.SignerRFC6979] can be used.
 func (x *PrmInit) SetDefaultSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
