@@ -1,6 +1,7 @@
 package apistatus
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
@@ -17,7 +18,7 @@ type StatusV2 interface {
 	ToStatusV2() *status.Status
 }
 
-// FromStatusV2 converts [status.Status] message structure to status instance. Inverse to [ToStatusV2] operation.
+// FromStatusV2 converts [status.Status] message structure to error. Inverse to [ToStatusV2] operation.
 //
 // If result is not nil, it implements [StatusV2]. This fact should be taken into account only when passing
 // the result to the inverse function [ToStatusV2], casts are not compatibility-safe.
@@ -26,7 +27,7 @@ type StatusV2 interface {
 // Note: notice if the return type is a pointer.
 //
 // Successes:
-//   - [status.OK]: *[SuccessDefaultV2] (this also includes nil argument).
+//   - [status.OK]: nil (this also includes nil argument).
 //
 // Common failures:
 //   - [status.Internal]: *[ServerInternal];
@@ -49,9 +50,10 @@ type StatusV2 interface {
 // Session failures:
 //   - [session.StatusTokenNotFound]: *[SessionTokenNotFound];
 //   - [session.StatusTokenExpired]: *[SessionTokenExpired];
-func FromStatusV2(st *status.Status) any {
+func FromStatusV2(st *status.Status) error {
 	var decoder interface {
 		fromStatusV2(*status.Status)
+		Error() string
 	}
 
 	switch code := st.Code(); {
@@ -59,7 +61,7 @@ func FromStatusV2(st *status.Status) any {
 		//nolint:exhaustive
 		switch status.LocalizeSuccess(&code); code {
 		case status.OK:
-			decoder = new(SuccessDefaultV2)
+			return nil
 		}
 	case status.IsCommonFail(code):
 		switch status.LocalizeCommonFail(&code); code {
@@ -114,19 +116,19 @@ func FromStatusV2(st *status.Status) any {
 	return decoder
 }
 
-// ToStatusV2 converts instance to status.Status message structure. Inverse to [FromStatusV2] operation.
+// ToStatusV2 converts error to status.Status message structure. Inverse to [FromStatusV2] operation.
 //
 // If argument is the [StatusV2] instance, it is converted directly.
 // Otherwise, successes are converted with [status.OK] code w/o details and message,
 // failures - with [status.Internal] and error text message w/o details.
-func ToStatusV2(st any) *status.Status {
-	if v, ok := st.(StatusV2); ok {
-		return v.ToStatusV2()
+func ToStatusV2(err error) *status.Status {
+	if err == nil {
+		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
 	}
 
-	err, isErrorExists := st.(error)
-	if !isErrorExists {
-		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
+	var instance StatusV2
+	if errors.As(err, &instance) {
+		return instance.ToStatusV2()
 	}
 
 	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
