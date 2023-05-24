@@ -14,14 +14,14 @@ func TestServerInternal_Message(t *testing.T) {
 	var st apistatus.ServerInternal
 
 	res := st.Message()
-	resv2 := apistatus.ToStatusV2(st).Message()
+	resv2 := apistatus.ErrorToV2(st).Message()
 	require.Empty(t, res)
 	require.Empty(t, resv2)
 
 	st.SetMessage(msg)
 
 	res = st.Message()
-	resv2 = apistatus.ToStatusV2(st).Message()
+	resv2 = apistatus.ErrorToV2(st).Message()
 	require.Equal(t, msg, res)
 	require.Equal(t, msg, resv2)
 }
@@ -42,7 +42,7 @@ func TestWrongMagicNumber_CorrectMagic(t *testing.T) {
 	require.EqualValues(t, 1, ok)
 
 	// corrupt the value
-	apistatus.ToStatusV2(st).IterateDetails(func(d *status.Detail) bool {
+	apistatus.ErrorToV2(st).IterateDetails(func(d *status.Detail) bool {
 		d.SetValue([]byte{1, 2, 3}) // any slice with len != 8
 		return true
 	})
@@ -64,7 +64,7 @@ func TestSignatureVerification(t *testing.T) {
 
 		st.SetMessage(msg)
 
-		stV2 := st.ToStatusV2()
+		stV2 := st.ErrorToV2()
 
 		require.Equal(t, msg, st.Message())
 		require.Equal(t, msg, stV2.Message())
@@ -73,7 +73,7 @@ func TestSignatureVerification(t *testing.T) {
 	t.Run("empty to V2", func(t *testing.T) {
 		var st apistatus.SignatureVerification
 
-		stV2 := st.ToStatusV2()
+		stV2 := st.ErrorToV2()
 
 		require.Equal(t, "signature verification failed", stV2.Message())
 	})
@@ -84,7 +84,7 @@ func TestSignatureVerification(t *testing.T) {
 
 		st.SetMessage(msg)
 
-		stV2 := st.ToStatusV2()
+		stV2 := st.ErrorToV2()
 
 		require.Equal(t, msg, stV2.Message())
 	})
@@ -103,7 +103,7 @@ func TestNodeUnderMaintenance(t *testing.T) {
 
 		st.SetMessage(msg)
 
-		stV2 := st.ToStatusV2()
+		stV2 := st.ErrorToV2()
 
 		require.Equal(t, msg, st.Message())
 		require.Equal(t, msg, stV2.Message())
@@ -112,7 +112,7 @@ func TestNodeUnderMaintenance(t *testing.T) {
 	t.Run("empty to V2", func(t *testing.T) {
 		var st apistatus.NodeUnderMaintenance
 
-		stV2 := st.ToStatusV2()
+		stV2 := st.ErrorToV2()
 
 		require.Empty(t, "", stV2.Message())
 	})
@@ -123,7 +123,7 @@ func TestNodeUnderMaintenance(t *testing.T) {
 
 		st.SetMessage(msg)
 
-		stV2 := st.ToStatusV2()
+		stV2 := st.ErrorToV2()
 
 		require.Equal(t, msg, stV2.Message())
 	})

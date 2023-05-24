@@ -8,7 +8,6 @@ import (
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -27,7 +26,7 @@ type mockClient struct {
 	errorOnCreateSession bool
 	errorOnEndpointInfo  bool
 	errorOnNetworkInfo   bool
-	stOnGetObject        apistatus.Status
+	errOnGetObject       error
 }
 
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
@@ -60,8 +59,8 @@ func (m *mockClient) errOnDial() {
 	m.errOnNetworkInfo()
 }
 
-func (m *mockClient) statusOnGetObject(st apistatus.Status) {
-	m.stOnGetObject = st
+func (m *mockClient) statusOnGetObject(err error) {
+	m.errOnGetObject = err
 }
 
 func newToken(signer neofscrypto.Signer) *session.Object {
@@ -139,13 +138,12 @@ func (m *mockClient) objectDelete(context.Context, PrmObjectDelete) error {
 func (m *mockClient) objectGet(context.Context, PrmObjectGet) (ResGetObject, error) {
 	var res ResGetObject
 
-	if m.stOnGetObject == nil {
+	if m.errOnGetObject == nil {
 		return res, nil
 	}
 
-	err := apistatus.ErrFromStatus(m.stOnGetObject)
-	m.updateErrorRate(err)
-	return res, err
+	m.updateErrorRate(m.errOnGetObject)
+	return res, m.errOnGetObject
 }
 
 func (m *mockClient) objectHead(context.Context, PrmObjectHead) (object.Object, error) {

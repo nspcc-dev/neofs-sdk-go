@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -206,8 +205,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		return nil, x.err
 	}
 
-	_, x.err = x.client.processResponse(&x.respV2)
-	if x.err != nil {
+	if x.err = x.client.processResponse(&x.respV2); x.err != nil {
 		return nil, x.err
 	}
 
@@ -275,12 +273,12 @@ func (x *objectWriter) InitDataStream(header object.Object) (io.Writer, error) {
 		}, nil
 	}
 
-	res, err := stream.Close()
+	_, err = stream.Close()
 	if err != nil {
 		return nil, err
 	}
 
-	return nil, apistatus.ErrFromStatus(res)
+	return nil, errors.New("unexpected error")
 }
 
 type payloadWriter struct {
@@ -296,12 +294,12 @@ func (x *payloadWriter) Write(p []byte) (int, error) {
 }
 
 func (x *payloadWriter) Close() error {
-	res, err := x.stream.Close()
+	_, err := x.stream.Close()
 	if err != nil {
 		return err
 	}
 
-	return apistatus.ErrFromStatus(res)
+	return nil
 }
 
 // CreateObject creates new NeoFS object with given payload data and stores it

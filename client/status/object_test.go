@@ -14,13 +14,13 @@ func TestObjectAccessDenied_WriteReason(t *testing.T) {
 
 	res := st.Reason()
 	require.Empty(t, res)
-	detailNum := apistatus.ToStatusV2(st).NumberOfDetails()
+	detailNum := apistatus.ErrorToV2(st).NumberOfDetails()
 	require.Zero(t, detailNum)
 
 	st.WriteReason(reason)
 
 	res = st.Reason()
 	require.Equal(t, reason, res)
-	detailNum = apistatus.ToStatusV2(st).NumberOfDetails()
+	detailNum = apistatus.ErrorToV2(st).NumberOfDetails()
 	require.EqualValues(t, 1, detailNum)
 }

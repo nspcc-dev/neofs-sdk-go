@@ -9,7 +9,7 @@ import (
 var ErrUnrecognizedStatusV2 UnrecognizedStatusV2
 
 // UnrecognizedStatusV2 describes status of the uncertain failure.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type UnrecognizedStatusV2 struct {
 	v2 status.Status
 }
@@ -28,7 +28,7 @@ func (x UnrecognizedStatusV2) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *UnrecognizedStatusV2) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }

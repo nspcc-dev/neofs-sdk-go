@@ -217,8 +217,7 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 	}
 
 	var res ResNetMapSnapshot
-	_, err = c.processResponse(resp)
-	if err != nil {
+	if err = c.processResponse(resp); err != nil {
 		return nil, err
 	}
 

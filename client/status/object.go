@@ -29,7 +29,7 @@ var (
 )
 
 // ObjectLocked describes status of the failure because of the locked object.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectLocked struct {
 	v2 status.Status
 }
@@ -58,25 +58,25 @@ func (x ObjectLocked) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ObjectLocked) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: LOCKED;
 //   - string message: "object is locked";
 //   - details: empty.
-func (x ObjectLocked) ToStatusV2() *status.Status {
+func (x ObjectLocked) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusLocked, object.GlobalizeFail))
 	x.v2.SetMessage(defaultObjectLockedMsg)
 	return &x.v2
 }
 
 // LockNonRegularObject describes status returned on locking the non-regular object.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type LockNonRegularObject struct {
 	v2 status.Status
 }
@@ -105,25 +105,25 @@ func (x LockNonRegularObject) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *LockNonRegularObject) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: LOCK_NON_REGULAR_OBJECT;
 //   - string message: "locking non-regular object is forbidden";
 //   - details: empty.
-func (x LockNonRegularObject) ToStatusV2() *status.Status {
+func (x LockNonRegularObject) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusLockNonRegularObject, object.GlobalizeFail))
 	x.v2.SetMessage(defaultLockNonRegularObjectMsg)
 	return &x.v2
 }
 
 // ObjectAccessDenied describes status of the failure because of the access control violation.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectAccessDenied struct {
 	v2 status.Status
 }
@@ -152,18 +152,18 @@ func (x ObjectAccessDenied) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ObjectAccessDenied) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: ACCESS_DENIED;
 //   - string message: "access to object operation denied";
 //   - details: empty.
-func (x ObjectAccessDenied) ToStatusV2() *status.Status {
+func (x ObjectAccessDenied) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail))
 	x.v2.SetMessage(defaultObjectAccessDeniedMsg)
 	return &x.v2
@@ -181,7 +181,7 @@ func (x ObjectAccessDenied) Reason() string {
 }
 
 // ObjectNotFound describes status of the failure because of the missing object.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectNotFound struct {
 	v2 status.Status
 }
@@ -210,18 +210,18 @@ func (x ObjectNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ObjectNotFound) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: OBJECT_NOT_FOUND;
 //   - string message: "object not found";
 //   - details: empty.
-func (x ObjectNotFound) ToStatusV2() *status.Status {
+func (x ObjectNotFound) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail))
 	x.v2.SetMessage(defaultObjectNotFoundMsg)
 	return &x.v2
@@ -257,18 +257,18 @@ func (x ObjectAlreadyRemoved) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ObjectAlreadyRemoved) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: OBJECT_ALREADY_REMOVED;
 //   - string message: "object already removed";
 //   - details: empty.
-func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
+func (x ObjectAlreadyRemoved) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail))
 	x.v2.SetMessage(defaultObjectAlreadyRemovedMsg)
 	return &x.v2
@@ -276,7 +276,7 @@ func (x ObjectAlreadyRemoved) ToStatusV2() *status.Status {
 
 // ObjectOutOfRange describes status of the failure because of the incorrect
 // provided object ranges.
-// Instances provide [Status], [StatusV2] and error interfaces.
+// Instances provide [StatusV2] and error interfaces.
 type ObjectOutOfRange struct {
 	v2 status.Status
 }
@@ -305,18 +305,18 @@ func (x ObjectOutOfRange) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ObjectOutOfRange) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: OUT_OF_RANGE;
 //   - string message: "out of range";
 //   - details: empty.
-func (x ObjectOutOfRange) ToStatusV2() *status.Status {
+func (x ObjectOutOfRange) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail))
 	x.v2.SetMessage(defaultObjectOutOfRangeMsg)
 	return &x.v2

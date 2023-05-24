@@ -52,7 +52,7 @@ func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRe
 	var meta session.ResponseMetaHeader
 
 	if !x.statusOK {
-		meta.SetStatus(statusErr.ToStatusV2())
+		meta.SetStatus(statusErr.ErrorToV2())
 	}
 
 	var resp v2netmap.SnapshotResponse

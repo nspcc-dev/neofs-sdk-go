@@ -1,6 +1,7 @@
 package apistatus
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/container"
@@ -9,26 +10,24 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 )
 
-// StatusV2 defines a variety of Status instances compatible with NeoFS API V2 protocol.
+// StatusV2 defines a variety of status instances compatible with NeoFS API V2 protocol.
 //
 // Note: it is not recommended to use this type directly, it is intended for documentation of the library functionality.
 type StatusV2 interface {
-	Status
-
-	// ToStatusV2 returns the status as github.com/nspcc-dev/neofs-api-go/v2/status.Status message structure.
-	ToStatusV2() *status.Status
+	// ErrorToV2 returns the status as github.com/nspcc-dev/neofs-api-go/v2/status.Status message structure.
+	ErrorToV2() *status.Status
 }
 
-// FromStatusV2 converts status.Status message structure to Status instance. Inverse to ToStatusV2 operation.
+// ErrorFromV2 converts [status.Status] message structure to error. Inverse to [ErrorToV2] operation.
 //
-// If result is not nil, it implements StatusV2. This fact should be taken into account only when passing
-// the result to the inverse function ToStatusV2, casts are not compatibility-safe.
+// If result is not nil, it implements [StatusV2]. This fact should be taken into account only when passing
+// the result to the inverse function [ErrorToV2], casts are not compatibility-safe.
 //
-// Below is the mapping of return codes to Status instance types (with a description of parsing details).
+// Below is the mapping of return codes to status instance types (with a description of parsing details).
 // Note: notice if the return type is a pointer.
 //
 // Successes:
-//   - [status.OK]: *[SuccessDefaultV2] (this also includes nil argument).
+//   - [status.OK]: nil (this also includes nil argument).
 //
 // Common failures:
 //   - [status.Internal]: *[ServerInternal];
@@ -51,9 +50,10 @@ type StatusV2 interface {
 // Session failures:
 //   - [session.StatusTokenNotFound]: *[SessionTokenNotFound];
 //   - [session.StatusTokenExpired]: *[SessionTokenExpired];
-func FromStatusV2(st *status.Status) Status {
+func ErrorFromV2(st *status.Status) error {
 	var decoder interface {
 		fromStatusV2(*status.Status)
+		Error() string
 	}
 
 	switch code := st.Code(); {
@@ -61,7 +61,7 @@ func FromStatusV2(st *status.Status) Status {
 		//nolint:exhaustive
 		switch status.LocalizeSuccess(&code); code {
 		case status.OK:
-			decoder = new(SuccessDefaultV2)
+			return nil
 		}
 	case status.IsCommonFail(code):
 		switch status.LocalizeCommonFail(&code); code {
@@ -116,22 +116,23 @@ func FromStatusV2(st *status.Status) Status {
 	return decoder
 }
 
-// ToStatusV2 converts Status instance to status.Status message structure. Inverse to FromStatusV2 operation.
+// ErrorToV2 converts error to status.Status message structure. Inverse to [ErrorFromV2] operation.
 //
-// If argument is the StatusV2 instance, it is converted directly.
-// Otherwise, successes are converted with status.OK code w/o details and message,
-// failures - with status.Internal and error text message w/o details.
-func ToStatusV2(st Status) *status.Status {
-	if v, ok := st.(StatusV2); ok {
-		return v.ToStatusV2()
-	}
-
-	if IsSuccessful(st) {
+// If argument is the [StatusV2] instance, it is converted directly.
+// Otherwise, successes are converted with [status.OK] code w/o details and message,
+// failures - with [status.Internal] and error text message w/o details.
+func ErrorToV2(err error) *status.Status {
+	if err == nil {
 		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
 	}
 
+	var instance StatusV2
+	if errors.As(err, &instance) {
+		return instance.ErrorToV2()
+	}
+
 	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
-	internalErrorStatus.SetMessage(st.(error).Error()) // type cast never panics because IsSuccessful() checks cast
+	internalErrorStatus.SetMessage(err.Error())
 
 	return internalErrorStatus
 }
