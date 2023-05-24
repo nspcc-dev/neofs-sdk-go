@@ -66,4 +66,11 @@ func TestClient_SessionCreate(t *testing.T) {
 		require.ErrorIs(t, err, ErrMissingResponseField)
 		require.Equal(t, "missing session key field in the response", err.Error())
 	})
+
+	t.Run("missing signer", func(t *testing.T) {
+		c := newClient(t, nil, nil)
+
+		_, err := c.SessionCreate(context.Background(), PrmSessionCreate{})
+		require.ErrorIs(t, err, ErrMissingSigner)
+	})
 }

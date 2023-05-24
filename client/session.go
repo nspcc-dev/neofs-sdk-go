@@ -66,9 +66,21 @@ func (x ResSessionCreate) PublicKey() []byte {
 // see [apistatus] package for NeoFS-specific error types.
 //
 // Context is required and must not be nil. It is used for network communication.
+//
+// Return errors:
+//   - [ErrMissingSigner]
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
+	signer := prm.signer
+	if signer == nil {
+		signer = c.prm.signer
+	}
+
+	if signer == nil {
+		return nil, ErrMissingSigner
+	}
+
 	var ownerID user.ID
-	if err := user.IDFromSigner(&ownerID, prm.signer); err != nil {
+	if err := user.IDFromSigner(&ownerID, signer); err != nil {
 		return nil, fmt.Errorf("IDFromSigner: %w", err)
 	}
 
@@ -93,11 +105,7 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 	)
 
 	c.initCallContext(&cc)
-	cc.signer = prm.signer
-	if cc.signer == nil {
-		cc.signer = c.prm.signer
-	}
-
+	cc.signer = signer
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
