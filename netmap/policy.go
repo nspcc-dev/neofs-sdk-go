@@ -9,9 +9,7 @@ import (
 
 	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap/parser"
-	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
 )
 
 // PlacementPolicy declares policy to store objects in the NeoFS container.
@@ -25,8 +23,6 @@ import (
 type PlacementPolicy struct {
 	backupFactor uint32
 
-	subnet subnetid.ID
-
 	filters []netmap.Filter
 
 	selectors []netmap.Selector
@@ -38,16 +34,6 @@ func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresenc
 	p.replicas = m.GetReplicas()
 	if checkFieldPresence && len(p.replicas) == 0 {
 		return errors.New("missing replicas")
-	}
-
-	subnetV2 := m.GetSubnetID()
-	if subnetV2 != nil {
-		err := p.subnet.ReadFromV2(*subnetV2)
-		if err != nil {
-			return fmt.Errorf("invalid subnet: %w", err)
-		}
-	} else {
-		p.subnet = subnetid.ID{}
 	}
 
 	p.backupFactor = m.GetContainerBackupFactor()
@@ -123,27 +109,10 @@ func (p *PlacementPolicy) ReadFromV2(m netmap.PlacementPolicy) error {
 //
 // See also ReadFromV2.
 func (p PlacementPolicy) WriteToV2(m *netmap.PlacementPolicy) {
-	var subnetV2 refs.SubnetID
-	p.subnet.WriteToV2(&subnetV2)
-
 	m.SetContainerBackupFactor(p.backupFactor)
-	m.SetSubnetID(&subnetV2)
 	m.SetFilters(p.filters)
 	m.SetSelectors(p.selectors)
 	m.SetReplicas(p.replicas)
-}
-
-// RestrictSubnet sets a rule to select nodes from the given subnet only.
-// By default, nodes from zero subnet are selected (whole network map).
-func (p *PlacementPolicy) RestrictSubnet(subnet subnetid.ID) {
-	p.subnet = subnet
-}
-
-// Subnet returns subnet set using RestrictSubnet.
-//
-// Zero PlacementPolicy returns zero subnet meaning unlimited.
-func (p PlacementPolicy) Subnet() subnetid.ID {
-	return p.subnet
 }
 
 // ReplicaDescriptor replica descriptor characterizes replicas of objects from

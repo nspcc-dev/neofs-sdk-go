@@ -4,7 +4,6 @@ import (
 	"math/rand"
 
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
 )
 
 func filter(withInner bool) (x netmap.Filter) {
@@ -48,7 +47,6 @@ func PlacementPolicy() (p netmap.PlacementPolicy) {
 	p.AddFilters(Filter(), Filter())
 	p.AddReplicas(Replica(), Replica())
 	p.AddSelectors(Selector(), Selector())
-	p.RestrictSubnet(subnetidtest.ID())
 
 	return
 }

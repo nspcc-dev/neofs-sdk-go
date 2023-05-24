@@ -17,8 +17,6 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
-	subnetid "github.com/nspcc-dev/neofs-sdk-go/subnet/id"
-	subnetidtest "github.com/nspcc-dev/neofs-sdk-go/subnet/id/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
@@ -231,28 +229,6 @@ func TestSetCreationTime(t *testing.T) {
 	require.NoError(t, val2.ReadFromV2(msg))
 
 	require.Equal(t, creat.Unix(), container.CreatedAt(val2).Unix())
-}
-
-func TestSetSubnet(t *testing.T) {
-	var val container.Container
-
-	require.True(t, subnetid.IsZero(container.Subnet(val)))
-
-	val = containertest.Container(t)
-
-	sub := subnetidtest.ID()
-
-	container.SetSubnet(&val, sub)
-
-	var msg v2container.Container
-	val.WriteToV2(&msg)
-
-	assertContainsAttribute(t, msg, v2container.SysAttributeSubnet, sub.EncodeToString())
-
-	var val2 container.Container
-	require.NoError(t, val2.ReadFromV2(msg))
-
-	require.Equal(t, sub, container.Subnet(val))
 }
 
 func TestDisableHomomorphicHashing(t *testing.T) {
