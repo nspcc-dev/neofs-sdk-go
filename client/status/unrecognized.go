@@ -28,7 +28,7 @@ func (x UnrecognizedStatusV2) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *UnrecognizedStatusV2) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }

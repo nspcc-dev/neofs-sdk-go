@@ -46,18 +46,18 @@ func (x ContainerNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ContainerNotFound) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: CONTAINER_NOT_FOUND;
 //   - string message: "container not found";
 //   - details: empty.
-func (x ContainerNotFound) ToStatusV2() *status.Status {
+func (x ContainerNotFound) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(container.StatusNotFound, container.GlobalizeFail))
 	x.v2.SetMessage(defaultContainerNotFoundMsg)
 	return &x.v2
@@ -94,18 +94,18 @@ func (x EACLNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *EACLNotFound) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: EACL_NOT_FOUND;
 //   - string message: "eACL not found";
 //   - details: empty.
-func (x EACLNotFound) ToStatusV2() *status.Status {
+func (x EACLNotFound) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(container.StatusEACLNotFound, container.GlobalizeFail))
 	x.v2.SetMessage(defaultEACLNotFoundMsg)
 	return &x.v2

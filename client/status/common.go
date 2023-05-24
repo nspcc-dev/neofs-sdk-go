@@ -51,18 +51,18 @@ func (x ServerInternal) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *ServerInternal) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: INTERNAL;
 //   - string message: empty;
 //   - details: empty.
-func (x ServerInternal) ToStatusV2() *status.Status {
+func (x ServerInternal) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(status.Internal, status.GlobalizeCommonFail))
 	return &x.v2
 }
@@ -109,18 +109,18 @@ func (x WrongMagicNumber) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *WrongMagicNumber) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: WRONG_MAGIC_NUMBER;
 //   - string message: empty;
 //   - details: empty.
-func (x WrongMagicNumber) ToStatusV2() *status.Status {
+func (x WrongMagicNumber) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(status.WrongMagicNumber, status.GlobalizeCommonFail))
 	return &x.v2
 }
@@ -194,19 +194,19 @@ func (x SignatureVerification) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *SignatureVerification) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: SIGNATURE_VERIFICATION_FAIL;
-//   - string message: written message via SetMessage or
+//   - string message: written message via [SignatureVerification.SetMessage] or
 //     "signature verification failed" as a default message;
 //   - details: empty.
-func (x SignatureVerification) ToStatusV2() *status.Status {
+func (x SignatureVerification) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail))
 
 	if x.v2.Message() == "" {
@@ -267,14 +267,14 @@ func (x *NodeUnderMaintenance) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: NODE_UNDER_MAINTENANCE;
-//   - string message: written message via SetMessage or
+//   - string message: written message via [NodeUnderMaintenance.SetMessage] or
 //     "node is under maintenance" as a default message;
 //   - details: empty.
-func (x NodeUnderMaintenance) ToStatusV2() *status.Status {
+func (x NodeUnderMaintenance) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail))
 	if x.v2.Message() == "" {
 		x.v2.SetMessage(defaultNodeUnderMaintenanceMsg)

@@ -14,14 +14,14 @@ import (
 //
 // Note: it is not recommended to use this type directly, it is intended for documentation of the library functionality.
 type StatusV2 interface {
-	// ToStatusV2 returns the status as github.com/nspcc-dev/neofs-api-go/v2/status.Status message structure.
-	ToStatusV2() *status.Status
+	// ErrorToV2 returns the status as github.com/nspcc-dev/neofs-api-go/v2/status.Status message structure.
+	ErrorToV2() *status.Status
 }
 
-// FromStatusV2 converts [status.Status] message structure to error. Inverse to [ToStatusV2] operation.
+// ErrorFromV2 converts [status.Status] message structure to error. Inverse to [ErrorToV2] operation.
 //
 // If result is not nil, it implements [StatusV2]. This fact should be taken into account only when passing
-// the result to the inverse function [ToStatusV2], casts are not compatibility-safe.
+// the result to the inverse function [ErrorToV2], casts are not compatibility-safe.
 //
 // Below is the mapping of return codes to status instance types (with a description of parsing details).
 // Note: notice if the return type is a pointer.
@@ -50,7 +50,7 @@ type StatusV2 interface {
 // Session failures:
 //   - [session.StatusTokenNotFound]: *[SessionTokenNotFound];
 //   - [session.StatusTokenExpired]: *[SessionTokenExpired];
-func FromStatusV2(st *status.Status) error {
+func ErrorFromV2(st *status.Status) error {
 	var decoder interface {
 		fromStatusV2(*status.Status)
 		Error() string
@@ -116,19 +116,19 @@ func FromStatusV2(st *status.Status) error {
 	return decoder
 }
 
-// ToStatusV2 converts error to status.Status message structure. Inverse to [FromStatusV2] operation.
+// ErrorToV2 converts error to status.Status message structure. Inverse to [ErrorFromV2] operation.
 //
 // If argument is the [StatusV2] instance, it is converted directly.
 // Otherwise, successes are converted with [status.OK] code w/o details and message,
 // failures - with [status.Internal] and error text message w/o details.
-func ToStatusV2(err error) *status.Status {
+func ErrorToV2(err error) *status.Status {
 	if err == nil {
 		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
 	}
 
 	var instance StatusV2
 	if errors.As(err, &instance) {
-		return instance.ToStatusV2()
+		return instance.ErrorToV2()
 	}
 
 	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)

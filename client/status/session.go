@@ -46,18 +46,18 @@ func (x SessionTokenNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *SessionTokenNotFound) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: TOKEN_NOT_FOUND;
 //   - string message: "session token not found";
 //   - details: empty.
-func (x SessionTokenNotFound) ToStatusV2() *status.Status {
+func (x SessionTokenNotFound) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail))
 	x.v2.SetMessage(defaultSessionTokenNotFoundMsg)
 	return &x.v2
@@ -93,18 +93,18 @@ func (x SessionTokenExpired) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in FromStatusV2 func.
+// implements local interface defined in [ErrorFromV2] func.
 func (x *SessionTokenExpired) fromStatusV2(st *status.Status) {
 	x.v2 = *st
 }
 
-// ToStatusV2 implements StatusV2 interface method.
-// If the value was returned by FromStatusV2, returns the source message.
+// ErrorToV2 implements [StatusV2] interface method.
+// If the value was returned by [ErrorFromV2], returns the source message.
 // Otherwise, returns message with
 //   - code: TOKEN_EXPIRED;
 //   - string message: "expired session token";
 //   - details: empty.
-func (x SessionTokenExpired) ToStatusV2() *status.Status {
+func (x SessionTokenExpired) ErrorToV2() *status.Status {
 	x.v2.SetCode(globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail))
 	x.v2.SetMessage(defaultSessionTokenExpiredMsg)
 	return &x.v2

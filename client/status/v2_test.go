@@ -190,7 +190,7 @@ func TestFromStatusV2(t *testing.T) {
 
 		st = cons()
 
-		stv2 := apistatus.ToStatusV2(st)
+		stv2 := apistatus.ErrorToV2(st)
 
 		// must generate the same status.Status message
 		require.EqualValues(t, testItem.codeV2, stv2.Code())
@@ -201,9 +201,9 @@ func TestFromStatusV2(t *testing.T) {
 		_, ok = st.(apistatus.StatusV2)
 		if ok {
 			// restore and convert again
-			restored := apistatus.FromStatusV2(stv2)
+			restored := apistatus.ErrorFromV2(stv2)
 
-			res := apistatus.ToStatusV2(restored)
+			res := apistatus.ErrorToV2(restored)
 
 			// must generate the same status.Status message
 			require.Equal(t, stv2, res)
