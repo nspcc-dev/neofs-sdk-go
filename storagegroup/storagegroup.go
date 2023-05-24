@@ -114,8 +114,8 @@ func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum, isSet bool) {
 	v2 := (storagegroup.StorageGroup)(sg)
 	if checksumV2 := v2.GetValidationHash(); checksumV2 != nil {
-		v.ReadFromV2(*checksumV2) // FIXME(@cthulhu-rider): #226 handle error
-		isSet = true
+		err := v.ReadFromV2(*checksumV2)
+		isSet = (err == nil)
 	}
 
 	return
