@@ -182,16 +182,6 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 type PrmNetMapSnapshot struct {
 }
 
-// ResNetMapSnapshot groups resulting values of NetMapSnapshot operation.
-type ResNetMapSnapshot struct {
-	netMap netmap.NetMap
-}
-
-// NetMap returns current server's local network map.
-func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
-	return x.netMap
-}
-
 // NetMapSnapshot requests current network view of the remote server.
 //
 // Any client's internal or transport errors are returned as `error`,
@@ -199,16 +189,14 @@ func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
 //
 // Context is required and MUST NOT be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ResNetMapSnapshot.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Returns errors:
 //   - [ErrMissingSigner]
-func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResNetMapSnapshot, error) {
+func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netmap.NetMap, error) {
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return netmap.NetMap{}, ErrMissingSigner
 	}
-
 	// form request body
 	var body v2netmap.SnapshotRequestBody
 
@@ -222,30 +210,30 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 
 	err := signServiceMessage(c.prm.signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return netmap.NetMap{}, fmt.Errorf("sign request: %w", err)
 	}
 
 	resp, err := c.server.netMapSnapshot(ctx, req)
 	if err != nil {
-		return nil, err
+		return netmap.NetMap{}, err
 	}
 
-	var res ResNetMapSnapshot
+	var res netmap.NetMap
 	if err = c.processResponse(resp); err != nil {
-		return nil, err
+		return netmap.NetMap{}, err
 	}
 
 	const fieldNetMap = "network map"
 
 	netMapV2 := resp.GetBody().NetMap()
 	if netMapV2 == nil {
-		return nil, newErrMissingResponseField(fieldNetMap)
+		return netmap.NetMap{}, newErrMissingResponseField(fieldNetMap)
 	}
 
-	err = res.netMap.ReadFromV2(*netMapV2)
+	err = res.ReadFromV2(*netMapV2)
 	if err != nil {
-		return nil, newErrInvalidResponseField(fieldNetMap, err)
+		return netmap.NetMap{}, newErrInvalidResponseField(fieldNetMap, err)
 	}
 
-	return &res, nil
+	return res, nil
 }
