@@ -225,18 +225,6 @@ type PrmContainerList struct {
 	prmCommonMeta
 }
 
-// ResContainerList groups resulting values of ContainerList operation.
-type ResContainerList struct {
-	ids []cid.ID
-}
-
-// Containers returns list of identifiers of the account-owned containers.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResContainerList) Containers() []cid.ID {
-	return x.ids
-}
-
 // ContainerList requests identifiers of the account-owned containers.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -246,7 +234,7 @@ func (x ResContainerList) Containers() []cid.ID {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) (*ResContainerList, error) {
+func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
@@ -267,7 +255,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 
 	var (
 		cc  contextCall
-		res ResContainerList
+		res []cid.ID
 	)
 
 	c.initCallContext(&cc)
@@ -279,10 +267,10 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
 
-		res.ids = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
+		res = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
 		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			cc.err = res.ids[i].ReadFromV2(cidV2)
+			cc.err = res[i].ReadFromV2(cidV2)
 			if cc.err != nil {
 				cc.err = fmt.Errorf("invalid ID in the response: %w", cc.err)
 				return
@@ -295,7 +283,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 		return nil, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerDelete groups optional parameters of ContainerDelete operation.

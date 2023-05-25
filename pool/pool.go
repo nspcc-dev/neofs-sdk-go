@@ -451,7 +451,7 @@ func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]c
 	if err != nil {
 		return nil, fmt.Errorf("container list on client: %w", err)
 	}
-	return res.Containers(), nil
+	return res, nil
 }
 
 // containerDelete invokes sdkClient.ContainerDelete parse response status to error.
