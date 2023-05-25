@@ -570,7 +570,7 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 		return netmap.NetworkInfo{}, fmt.Errorf("network info on client: %w", err)
 	}
 
-	return res.Info(), nil
+	return res, nil
 }
 
 // objectPut writes object to NeoFS.

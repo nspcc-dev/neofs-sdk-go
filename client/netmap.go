@@ -116,16 +116,6 @@ type PrmNetworkInfo struct {
 	prmCommonMeta
 }
 
-// ResNetworkInfo groups resulting values of NetworkInfo operation.
-type ResNetworkInfo struct {
-	info netmap.NetworkInfo
-}
-
-// Info returns structured information about the NeoFS network.
-func (x ResNetworkInfo) Info() netmap.NetworkInfo {
-	return x.info
-}
-
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
 //
 // Any client's internal or transport errors are returned as `error`,
@@ -133,9 +123,8 @@ func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ResNetworkInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetworkInfo, error) {
+func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error) {
 	// form request
 	var req v2netmap.NetworkInfoRequest
 
@@ -143,7 +132,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 
 	var (
 		cc  contextCall
-		res ResNetworkInfo
+		res netmap.NetworkInfo
 	)
 
 	c.initCallContext(&cc)
@@ -163,7 +152,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 			return
 		}
 
-		cc.err = res.info.ReadFromV2(*netInfoV2)
+		cc.err = res.ReadFromV2(*netInfoV2)
 		if cc.err != nil {
 			cc.err = newErrInvalidResponseField(fieldNetInfo, cc.err)
 			return
@@ -172,10 +161,10 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return netmap.NetworkInfo{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmNetMapSnapshot groups parameters of NetMapSnapshot operation.

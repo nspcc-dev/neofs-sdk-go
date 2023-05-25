@@ -656,7 +656,7 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c *
 		return fmt.Errorf("network info call: %w", err)
 	}
 
-	container.ApplyNetworkConfig(cnr, res.Info())
+	container.ApplyNetworkConfig(cnr, res)
 
 	return nil
 }

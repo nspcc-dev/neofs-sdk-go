@@ -342,12 +342,10 @@ func CreateObject(ctx context.Context, cli *Client, signer neofscrypto.Signer, c
 // future. Be ready to refactor your code regarding imports and call mechanics,
 // in essence the operation will not change.
 func NewDataSlicer(ctx context.Context, cli *Client, signer neofscrypto.Signer, cnr cid.ID, owner user.ID) (*slicer.Slicer, error) {
-	resNetInfo, err := cli.NetworkInfo(ctx, PrmNetworkInfo{})
+	netInfo, err := cli.NetworkInfo(ctx, PrmNetworkInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("read current network info: %w", err)
 	}
-
-	netInfo := resNetInfo.Info()
 
 	var opts slicer.Options
 	opts.SetObjectPayloadLimit(netInfo.MaxObjectSize())
