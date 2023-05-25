@@ -106,16 +106,6 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 	writeXHeadersToMeta(hs, &x.meta)
 }
 
-// ResObjectHash groups resulting values of ObjectHash operation.
-type ResObjectHash struct {
-	checksums [][]byte
-}
-
-// Checksums returns a list of calculated checksums in range order.
-func (x ResObjectHash) Checksums() [][]byte {
-	return x.checksums
-}
-
 // ObjectHash requests checksum of the range list of the object payload using
 // NeoFS API protocol.
 //
@@ -131,7 +121,7 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Return errors:
 //   - [ErrMissingRanges]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHash) (*ResObjectHash, error) {
+func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHash) ([][]byte, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -174,15 +164,15 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, fmt.Errorf("write request: %w", err)
 	}
 
-	var res ResObjectHash
+	var res [][]byte
 	if err = c.processResponse(resp); err != nil {
 		return nil, err
 	}
 
-	res.checksums = resp.GetBody().GetHashList()
-	if len(res.checksums) == 0 {
+	res = resp.GetBody().GetHashList()
+	if len(res) == 0 {
 		return nil, newErrMissingResponseField("hash list")
 	}
 
-	return &res, nil
+	return res, nil
 }
