@@ -25,8 +25,6 @@ type PrmObjectHash struct {
 
 	csAlgo v2refs.ChecksumType
 
-	addr v2refs.Address
-
 	signer neofscrypto.Signer
 }
 
@@ -63,30 +61,6 @@ func (x *PrmObjectHash) WithBearerToken(t bearer.Token) {
 	var v2token acl.BearerToken
 	t.WriteToV2(&v2token)
 	x.meta.SetBearerToken(&v2token)
-}
-
-// FromContainer specifies NeoFS container of the object.
-// Required parameter. It is an alternative to [PrmObjectHash.ByAddress].
-func (x *PrmObjectHash) FromContainer(id cid.ID) {
-	var cidV2 v2refs.ContainerID
-	id.WriteToV2(&cidV2)
-
-	x.addr.SetContainerID(&cidV2)
-}
-
-// ByID specifies identifier of the requested object.
-// Required parameter. It is an alternative to [PrmObjectHash.ByAddress].
-func (x *PrmObjectHash) ByID(id oid.ID) {
-	var idV2 v2refs.ObjectID
-	id.WriteToV2(&idV2)
-
-	x.addr.SetObjectID(&idV2)
-}
-
-// ByAddress specifies address of the requested object.
-// Required parameter. It is an alternative to [PrmObjectHash.ByID], [PrmObjectHash.FromContainer].
-func (x *PrmObjectHash) ByAddress(addr oid.Address) {
-	addr.WriteToV2(&x.addr)
 }
 
 // SetRangeList sets list of ranges in (offset, length) pair format.
@@ -155,26 +129,31 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
-//   - [ErrMissingObject]
-//   - [ErrMissingSigner]
 //   - [ErrMissingRanges]
-func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
-	switch {
-	case prm.addr.GetContainerID() == nil:
-		return nil, ErrMissingContainer
-	case prm.addr.GetObjectID() == nil:
-		return nil, ErrMissingObject
-	case len(prm.body.GetRanges()) == 0:
+//   - [ErrMissingSigner]
+func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHash) (*ResObjectHash, error) {
+	var (
+		addr  v2refs.Address
+		cidV2 v2refs.ContainerID
+		oidV2 v2refs.ObjectID
+	)
+
+	if len(prm.body.GetRanges()) == 0 {
 		return nil, ErrMissingRanges
 	}
+
+	containerID.WriteToV2(&cidV2)
+	addr.SetContainerID(&cidV2)
+
+	objectID.WriteToV2(&oidV2)
+	addr.SetObjectID(&oidV2)
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
 	}
 
-	prm.body.SetAddress(&prm.addr)
+	prm.body.SetAddress(&addr)
 	if prm.csAlgo == v2refs.UnknownChecksum {
 		prm.body.SetType(v2refs.SHA256)
 	} else {
