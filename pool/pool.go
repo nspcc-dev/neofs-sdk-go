@@ -385,7 +385,7 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 		return accounting.Decimal{}, fmt.Errorf("balance get on client: %w", err)
 	}
 
-	return res.Amount(), nil
+	return res, nil
 }
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
