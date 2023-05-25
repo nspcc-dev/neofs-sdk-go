@@ -155,7 +155,7 @@ func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64
 	return ResObjectRange{}, nil
 }
 
-func (m *mockClient) objectSearch(context.Context, PrmObjectSearch) (ResObjectSearch, error) {
+func (m *mockClient) objectSearch(context.Context, cid.ID, PrmObjectSearch) (ResObjectSearch, error) {
 	return ResObjectSearch{}, nil
 }
 

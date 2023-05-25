@@ -8,6 +8,7 @@ import (
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -112,7 +113,7 @@ func TestClient_ObjectSearch(t *testing.T) {
 	c := newClient(t, nil, nil)
 
 	t.Run("missing signer", func(t *testing.T) {
-		_, err := c.ObjectSearchInit(context.Background(), PrmObjectSearch{cnrSet: true})
+		_, err := c.ObjectSearchInit(context.Background(), cid.ID{}, PrmObjectSearch{})
 		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }

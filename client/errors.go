@@ -11,10 +11,6 @@ var (
 	// ErrNonPositiveTimeout is returned when any timeout is below zero in parameters.
 	ErrNonPositiveTimeout = errors.New("non-positive timeout")
 
-	// ErrMissingContainer is returned when container is not provided.
-	ErrMissingContainer = errors.New("missing container")
-	// ErrMissingObject is returned when object is not provided.
-	ErrMissingObject = errors.New("missing object")
 	// ErrMissingAccount is returned when account/owner is not provided.
 	ErrMissingAccount = errors.New("missing account")
 	// ErrMissingSigner is returned when signer is not provided.

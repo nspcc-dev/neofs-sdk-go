@@ -65,7 +65,7 @@ type client interface {
 	// see clientWrapper.objectRange.
 	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, PrmObjectSearch) (ResObjectSearch, error)
+	objectSearch(context.Context, cid.ID, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
 	sessionCreate(context.Context, prmCreateSession) (resCreateSession, error)
 
@@ -812,15 +812,13 @@ func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, obj
 }
 
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
+func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectSearch{}, err
 	}
 
 	var cliPrm sdkClient.PrmObjectSearch
-
-	cliPrm.InContainer(prm.cnrID)
 	cliPrm.SetFilters(prm.filters)
 
 	if prm.stoken != nil {
@@ -835,7 +833,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 		cliPrm.UseSigner(prm.signer)
 	}
 
-	res, err := cl.ObjectSearchInit(ctx, cliPrm)
+	res, err := cl.ObjectSearchInit(ctx, containerID, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
@@ -1231,13 +1229,7 @@ type PrmObjectRange struct {
 type PrmObjectSearch struct {
 	prmCommon
 
-	cnrID   cid.ID
 	filters object.SearchFilters
-}
-
-// SetContainerID specifies the container in which to look for objects.
-func (x *PrmObjectSearch) SetContainerID(cnrID cid.ID) {
-	x.cnrID = cnrID
 }
 
 // SetFilters specifies filters by which to select objects.
@@ -2142,7 +2134,7 @@ func (x *ResObjectSearch) Close() {
 // is done using the ResObjectSearch. Resulting reader must be finally closed.
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
+func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
@@ -2158,7 +2150,7 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjec
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectSearch(ctx, prm)
+		res, err = cc.client.objectSearch(ctx, containerID, prm)
 		return err
 	})
 }
@@ -2455,7 +2447,6 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	query.AddParentIDFilter(object.MatchStringEqual, objID)
 
 	var prm PrmObjectSearch
-	prm.SetContainerID(cnrID)
 	prm.SetFilters(query)
 	if tokens.Bearer != nil {
 		prm.UseBearer(*tokens.Bearer)
@@ -2464,7 +2455,7 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 		prm.UseSession(*tokens.Session)
 	}
 
-	resSearch, err := p.SearchObjects(ctx, prm)
+	resSearch, err := p.SearchObjects(ctx, cnrID, prm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find object children: %w", err)
 	}
