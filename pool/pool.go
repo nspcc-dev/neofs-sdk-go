@@ -434,7 +434,7 @@ func (c *clientWrapper) containerGet(ctx context.Context, cnrID cid.ID) (contain
 		return container.Container{}, fmt.Errorf("container get on client: %w", err)
 	}
 
-	return res.Container(), nil
+	return res, nil
 }
 
 // containerList invokes sdkClient.ContainerList parse response status to error and return result as is.

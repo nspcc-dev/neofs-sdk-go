@@ -158,18 +158,6 @@ type PrmContainerGet struct {
 	prmCommonMeta
 }
 
-// ResContainerGet groups resulting values of ContainerGet operation.
-type ResContainerGet struct {
-	cnr container.Container
-}
-
-// Container returns structured information about the requested container.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResContainerGet) Container() container.Container {
-	return x.cnr
-}
-
 // ContainerGet reads NeoFS container by ID.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -179,9 +167,9 @@ func (x ResContainerGet) Container() container.Container {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (*ResContainerGet, error) {
+func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return container.Container{}, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
@@ -200,7 +188,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 
 	var (
 		cc  contextCall
-		res ResContainerGet
+		res container.Container
 	)
 
 	c.initCallContext(&cc)
@@ -218,7 +206,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 			return
 		}
 
-		cc.err = res.cnr.ReadFromV2(*cnrV2)
+		cc.err = res.ReadFromV2(*cnrV2)
 		if cc.err != nil {
 			cc.err = fmt.Errorf("invalid container in response: %w", cc.err)
 		}
@@ -226,10 +214,10 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return container.Container{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerList groups optional parameters of ContainerList operation.

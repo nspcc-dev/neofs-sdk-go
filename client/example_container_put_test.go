@@ -95,12 +95,12 @@ func ExampleClient_ContainerPut() {
 	// for simplifying we just wait
 	<-time.After(2 * time.Second)
 
-	getResp, err := c.ContainerGet(ctx, containerID, client.PrmContainerGet{})
+	contRes, err := c.ContainerGet(ctx, containerID, client.PrmContainerGet{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerGet %w", err))
 	}
 
-	jsonData, err := getResp.Container().MarshalJSON()
+	jsonData, err := contRes.MarshalJSON()
 	if err != nil {
 		panic(fmt.Errorf("MarshalJSON %w", err))
 	}
