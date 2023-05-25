@@ -64,25 +64,11 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 	writeXHeadersToMeta(hs, &x.meta)
 }
 
-// ResObjectDelete groups resulting values of ObjectDelete operation.
-type ResObjectDelete struct {
-	tomb oid.ID
-}
-
-// Tombstone returns identifier of the created tombstone object.
-func (x ResObjectDelete) Tombstone() oid.ID {
-	return x.tomb
-}
-
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
 // As a marker, a special unit called a tombstone is placed in the container.
 // It confirms the user's intent to delete the object, and is itself a container object.
 // Explicit deletion is done asynchronously, and is generally not guaranteed.
 //
-// Returns a list of checksums in raw form: the format of hashes and their number
-// is left for the caller to check. Client preserves the order of the server's response.
-//
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as `error`,
 // see [apistatus] package for NeoFS-specific error types.
 //
@@ -95,7 +81,7 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) (*ResObjectDelete, error) {
+func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) (oid.ID, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -111,7 +97,7 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
-		return nil, err
+		return oid.ID{}, err
 	}
 
 	// form request body
@@ -124,30 +110,30 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return oid.ID{}, fmt.Errorf("sign request: %w", err)
 	}
 
 	resp, err := rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
-		return nil, err
+		return oid.ID{}, err
 	}
 
-	var res ResObjectDelete
+	var res oid.ID
 	if err = c.processResponse(resp); err != nil {
-		return nil, err
+		return oid.ID{}, err
 	}
 
 	const fieldTombstone = "tombstone"
 
 	idTombV2 := resp.GetBody().GetTombstone().GetObjectID()
 	if idTombV2 == nil {
-		return nil, newErrMissingResponseField(fieldTombstone)
+		return oid.ID{}, newErrMissingResponseField(fieldTombstone)
 	}
 
-	err = res.tomb.ReadFromV2(*idTombV2)
+	err = res.ReadFromV2(*idTombV2)
 	if err != nil {
-		return nil, newErrInvalidResponseField(fieldTombstone, err)
+		return oid.ID{}, newErrInvalidResponseField(fieldTombstone, err)
 	}
 
-	return &res, nil
+	return res, nil
 }
