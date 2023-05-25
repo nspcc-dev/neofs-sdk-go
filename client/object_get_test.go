@@ -2,9 +2,11 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"math/rand"
 	"testing"
 
+	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -82,5 +84,52 @@ func TestPrmObjectRange_SetRange(t *testing.T) {
 		prm.SetRange(tmp)
 		require.Equal(t, ln, tmp.ToV2().GetLength())
 		require.Equal(t, off, tmp.ToV2().GetOffset())
+	})
+}
+
+func TestClient_Get(t *testing.T) {
+	t.Run("missing signer", func(t *testing.T) {
+		c := newClient(t, nil, nil)
+		ctx := context.Background()
+
+		var nonilAddr v2refs.Address
+		nonilAddr.SetObjectID(new(v2refs.ObjectID))
+		nonilAddr.SetContainerID(new(v2refs.ContainerID))
+
+		tt := []struct {
+			name       string
+			methodCall func() error
+		}{
+			{
+				"get",
+				func() error {
+					_, err := c.ObjectGetInit(ctx, PrmObjectGet{prmObjectRead: prmObjectRead{addr: nonilAddr}})
+					return err
+				},
+			},
+			{
+				"get_range",
+				func() error {
+					var rng v2object.Range
+					rng.SetLength(1)
+
+					_, err := c.ObjectRangeInit(ctx, PrmObjectRange{prmObjectRead: prmObjectRead{addr: nonilAddr}, rng: rng})
+					return err
+				},
+			},
+			{
+				"get_head",
+				func() error {
+					_, err := c.ObjectHead(ctx, PrmObjectHead{prmObjectRead: prmObjectRead{addr: nonilAddr}})
+					return err
+				},
+			},
+		}
+
+		for _, test := range tt {
+			t.Run(test.name, func(t *testing.T) {
+				require.ErrorIs(t, test.methodCall(), ErrMissingSigner)
+			})
+		}
 	})
 }

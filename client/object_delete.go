@@ -118,18 +118,24 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 //
 // Return errors:
 //   - global (see Client docs)
-//   - [ErrMissingContainer];
-//   - [ErrMissingObject];
-//   - [apistatus.ErrContainerNotFound];
-//   - [apistatus.ErrObjectAccessDenied];
-//   - [apistatus.ErrObjectLocked];
-//   - [apistatus.ErrSessionTokenExpired].
+//   - [ErrMissingContainer]
+//   - [ErrMissingObject]
+//   - [ErrMissingSigner]
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrObjectLocked]
+//   - [apistatus.ErrSessionTokenExpired]
 func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
 	switch {
 	case prm.addr.GetContainerID() == nil:
 		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
 		return nil, ErrMissingObject
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	// form request body
@@ -140,12 +146,7 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	req.SetBody(&prm.body)
 	c.prepareRequest(&req, &prm.meta)
 
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	err := signServiceMessage(signer, &req)
+	err = signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

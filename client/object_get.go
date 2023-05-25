@@ -252,13 +252,13 @@ func (x *ObjectReader) close(ignoreEOF bool) error {
 // codes are returned as error.
 //
 // Return errors:
-//   - global (see Client docs);
-//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectGet.MakeRaw).
-//   - [apistatus.ErrContainerNotFound];
-//   - [apistatus.ErrObjectNotFound];
-//   - [apistatus.ErrObjectAccessDenied];
-//   - [apistatus.ErrObjectAlreadyRemoved];
-//   - [apistatus.ErrSessionTokenExpired].
+//   - global (see Client docs)
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectGet.MakeRaw)
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrObjectAlreadyRemoved]
+//   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectReader) Close() error {
 	return x.close(true)
 }
@@ -294,6 +294,7 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 // Return errors:
 //   - [ErrMissingContainer]
 //   - [ErrMissingObject]
+//   - [ErrMissingSigner]
 func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectReader, error) {
 	// check parameters
 	switch {
@@ -301,6 +302,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
 		return nil, ErrMissingObject
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	// form request body
@@ -315,12 +321,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	err := signServiceMessage(signer, &req)
+	err = signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -391,21 +392,27 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - global (see Client docs);
-//   - [ErrMissingContainer];
-//   - [ErrMissingObject];
-//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectHead.MakeRaw).
-//   - [apistatus.ErrContainerNotFound];
-//   - [apistatus.ErrObjectNotFound];
-//   - [apistatus.ErrObjectAccessDenied];
-//   - [apistatus.ErrObjectAlreadyRemoved];
-//   - [apistatus.ErrSessionTokenExpired].
+//   - global (see Client docs)
+//   - [ErrMissingContainer]
+//   - [ErrMissingObject]
+//   - [ErrMissingSigner]
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectHead.MakeRaw)
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrObjectAlreadyRemoved]
+//   - [apistatus.ErrSessionTokenExpired]
 func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
 	switch {
 	case prm.addr.GetContainerID() == nil:
 		return nil, ErrMissingContainer
 	case prm.addr.GetObjectID() == nil:
 		return nil, ErrMissingObject
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	var body v2object.HeadRequestBody
@@ -416,13 +423,8 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
 	// sign the request
-	err := signServiceMessage(signer, &req)
+	err = signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
@@ -598,14 +600,14 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) error {
 // codes are returned as error.
 //
 // Return errors:
-//   - global (see Client docs);
-//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectRange.MakeRaw).
-//   - [apistatus.ErrContainerNotFound];
-//   - [apistatus.ErrObjectNotFound];
-//   - [apistatus.ErrObjectAccessDenied];
-//   - [apistatus.ErrObjectAlreadyRemoved];
-//   - [apistatus.ErrObjectOutOfRange];
-//   - [apistatus.ErrSessionTokenExpired].
+//   - global (see Client docs)
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectRange.MakeRaw)
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrObjectAlreadyRemoved]
+//   - [apistatus.ErrObjectOutOfRange]
+//   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectRangeReader) Close() error {
 	return x.close(true)
 }
@@ -643,6 +645,7 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 // Return errors:
 //   - [ErrMissingContainer]
 //   - [ErrMissingObject]
+//   - [ErrMissingSigner]
 //   - [ErrZeroRangeLength]
 func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*ObjectRangeReader, error) {
 	// check parameters
@@ -653,6 +656,11 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		return nil, ErrMissingObject
 	case prm.rng.GetLength() == 0:
 		return nil, ErrZeroRangeLength
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	// form request body
@@ -668,12 +676,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	err := signServiceMessage(signer, &req)
+	err = signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

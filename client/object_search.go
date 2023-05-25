@@ -185,10 +185,10 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 // codes are returned as error.
 //
 // Return errors:
-//   - global (see Client docs);
-//   - [apistatus.ErrContainerNotFound];
-//   - [apistatus.ErrObjectAccessDenied];
-//   - [apistatus.ErrSessionTokenExpired].
+//   - global (see Client docs)
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectListReader) Close() error {
 	defer x.cancelCtxStream()
 
@@ -209,11 +209,17 @@ func (x *ObjectListReader) Close() error {
 //
 // Return errors:
 //   - [ErrMissingContainer]
+//   - [ErrMissingSigner]
 func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*ObjectListReader, error) {
 	// check parameters
 	switch {
 	case !prm.cnrSet:
 		return nil, ErrMissingContainer
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	var cidV2 v2refs.ContainerID
@@ -229,12 +235,7 @@ func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*Ob
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	err := signServiceMessage(signer, &req)
+	err = signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}

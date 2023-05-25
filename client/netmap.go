@@ -45,7 +45,14 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 //
 // Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
+//
+// Returns errors:
+//   - [ErrMissingSigner]
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
+	if c.prm.signer == nil {
+		return nil, ErrMissingSigner
+	}
+
 	// form request
 	var req v2netmap.LocalNodeInfoRequest
 
@@ -194,7 +201,14 @@ func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
 //
 // Exactly one return value is non-nil. Server status return is returned in ResNetMapSnapshot.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
+//
+// Returns errors:
+//   - [ErrMissingSigner]
 func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResNetMapSnapshot, error) {
+	if c.prm.signer == nil {
+		return nil, ErrMissingSigner
+	}
+
 	// form request body
 	var body v2netmap.SnapshotRequestBody
 

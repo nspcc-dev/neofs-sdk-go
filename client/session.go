@@ -70,17 +70,13 @@ func (x ResSessionCreate) PublicKey() []byte {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	if signer == nil {
-		return nil, ErrMissingSigner
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	var ownerID user.ID
-	if err := user.IDFromSigner(&ownerID, signer); err != nil {
+	if err = user.IDFromSigner(&ownerID, signer); err != nil {
 		return nil, fmt.Errorf("IDFromSigner: %w", err)
 	}
 

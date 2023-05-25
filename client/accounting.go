@@ -45,10 +45,15 @@ func (x ResBalanceGet) Amount() accounting.Decimal {
 //
 // Return errors:
 //   - [ErrMissingAccount]
+//   - [ErrMissingSigner]
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
 	switch {
 	case !prm.accountSet:
 		return nil, ErrMissingAccount
+	}
+
+	if c.prm.signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	// form request body

@@ -2,8 +2,10 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"testing"
 
+	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -46,5 +48,25 @@ func TestPrmObjectHash_ByAddress(t *testing.T) {
 		prm.ByAddress(addr)
 		require.True(t, bytes.Equal(oidV2.GetValue(), prm.addr.GetObjectID().GetValue()))
 		require.True(t, bytes.Equal(cidV2.GetValue(), prm.addr.GetContainerID().GetValue()))
+	})
+}
+
+func TestClient_ObjectHash(t *testing.T) {
+	c := newClient(t, nil, nil)
+
+	t.Run("missing signer", func(t *testing.T) {
+		var nonilAddr v2refs.Address
+		nonilAddr.SetObjectID(new(v2refs.ObjectID))
+		nonilAddr.SetContainerID(new(v2refs.ContainerID))
+
+		var reqBody v2object.GetRangeHashRequestBody
+		reqBody.SetRanges(make([]v2object.Range, 1))
+
+		_, err := c.ObjectHash(context.Background(), PrmObjectHash{
+			addr: nonilAddr,
+			body: reqBody,
+		})
+
+		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }

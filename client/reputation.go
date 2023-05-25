@@ -42,6 +42,7 @@ func (x *PrmAnnounceLocalTrust) SetValues(trusts []reputation.Trust) {
 // Return errors:
 //   - [ErrZeroEpoch]
 //   - [ErrMissingTrusts]
+//   - [ErrMissingSigner]
 func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTrust) error {
 	// check parameters
 	switch {
@@ -49,6 +50,10 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, prm PrmAnnounceLocalTru
 		return ErrZeroEpoch
 	case len(prm.trusts) == 0:
 		return ErrMissingTrusts
+	}
+
+	if c.prm.signer == nil {
+		return ErrMissingSigner
 	}
 
 	// form request body
@@ -131,6 +136,7 @@ func (x *PrmAnnounceIntermediateTrust) SetCurrentValue(trust reputation.PeerToPe
 // Return errors:
 //   - [ErrZeroEpoch]
 //   - [ErrMissingTrust]
+//   - [ErrMissingSigner]
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceIntermediateTrust) error {
 	// check parameters
 	switch {
@@ -138,6 +144,10 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, prm PrmAnnounceI
 		return ErrZeroEpoch
 	case !prm.trustSet:
 		return ErrMissingTrust
+	}
+
+	if c.prm.signer == nil {
+		return ErrMissingSigner
 	}
 
 	var trust v2reputation.PeerToPeerTrust

@@ -70,7 +70,7 @@ func TestClient_SessionCreate(t *testing.T) {
 	t.Run("missing signer", func(t *testing.T) {
 		c := newClient(t, nil, nil)
 
-		_, err := c.SessionCreate(context.Background(), PrmSessionCreate{})
+		_, err := c.SessionCreate(ctx, PrmSessionCreate{})
 		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }

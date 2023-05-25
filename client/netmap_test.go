@@ -141,3 +141,12 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, netMap, res.NetMap())
 }
+
+func TestClient_NetMapSnapshot_MissingSigner(t *testing.T) {
+	c := newClient(t, nil, nil)
+
+	t.Run("missing signer", func(t *testing.T) {
+		_, err := c.NetMapSnapshot(context.Background(), PrmNetMapSnapshot{})
+		require.ErrorIs(t, err, ErrMissingSigner)
+	})
+}
