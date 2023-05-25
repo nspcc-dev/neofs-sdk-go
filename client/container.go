@@ -498,24 +498,14 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	return &res, nil
 }
 
-// PrmContainerSetEACL groups parameters of ContainerSetEACL operation.
+// PrmContainerSetEACL groups optional parameters of ContainerSetEACL operation.
 type PrmContainerSetEACL struct {
 	prmCommonMeta
-
-	tableSet bool
-	table    eacl.Table
 
 	sessionSet bool
 	session    session.Container
 
 	signer neofscrypto.Signer
-}
-
-// SetTable sets eACL table structure to be set for the container.
-// Required parameter and CID must be set inside the table.
-func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
-	x.table = table
-	x.tableSet = true
 }
 
 // SetSigner sets signer to sign request payload.
@@ -552,19 +542,12 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 // Success can be verified by reading by identifier (see EACL).
 //
 // Return errors:
-//   - [ErrMissingEACL]
 //   - [ErrMissingEACLContainer]
 //   - [neofscrypto.ErrIncorrectSigner]
 //   - [ErrMissingSigner]
 //
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
-	// check parameters
-	switch {
-	case !prm.tableSet:
-		return ErrMissingEACL
-	}
-
+func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return err
@@ -574,13 +557,13 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 		return errNonNeoSigner
 	}
 
-	_, isCIDSet := prm.table.CID()
+	_, isCIDSet := table.CID()
 	if !isCIDSet {
 		return ErrMissingEACLContainer
 	}
 
 	// sign the eACL table
-	eaclV2 := prm.table.ToV2()
+	eaclV2 := table.ToV2()
 
 	var sig neofscrypto.Signature
 	err = sig.Calculate(signer, eaclV2.StableMarshal(nil))

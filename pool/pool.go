@@ -49,7 +49,7 @@ type client interface {
 	// see clientWrapper.containerEACL.
 	containerEACL(context.Context, cid.ID) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
-	containerSetEACL(context.Context, PrmContainerSetEACL) error
+	containerSetEACL(context.Context, eacl.Table, PrmContainerSetEACL) error
 	// see clientWrapper.endpointInfo.
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
@@ -502,21 +502,19 @@ func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Tabl
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
 // It also waits for the EACL to appear on the network.
-func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
+func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
 	}
 
 	var cliPrm sdkClient.PrmContainerSetEACL
-	cliPrm.SetTable(prm.table)
-
 	if prm.sessionSet {
 		cliPrm.WithinSession(prm.session)
 	}
 
 	start := time.Now()
-	err = cl.ContainerSetEACL(ctx, cliPrm)
+	err = cl.ContainerSetEACL(ctx, table, cliPrm)
 	c.incRequests(time.Since(start), methodContainerSetEACL)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -528,11 +526,11 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 	}
 
 	var cIDp cid.ID
-	if cID, set := prm.table.CID(); set {
+	if cID, set := table.CID(); set {
 		cIDp = cID
 	}
 
-	err = waitForEACLPresence(ctx, c, cIDp, &prm.table, &prm.waitParams)
+	err = waitForEACLPresence(ctx, c, cIDp, &table, &prm.waitParams)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("wait eacl presence on client: %w", err)
@@ -1357,21 +1355,11 @@ func (x *PrmContainerDelete) SetWaitParams(waitParams WaitParams) {
 
 // PrmContainerSetEACL groups parameters of SetEACL operation.
 type PrmContainerSetEACL struct {
-	table eacl.Table
-
 	sessionSet bool
 	session    session.Container
 
 	waitParams    WaitParams
 	waitParamsSet bool
-}
-
-// SetTable sets structure of container's extended ACL to be used as a
-// parameter of the base client's operation.
-//
-// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerSetEACL.SetTable.
-func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
-	x.table = table
 }
 
 // WithinSession specifies session to be used as a parameter of the base
@@ -2313,13 +2301,13 @@ func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 //	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetEACL).
-func (p *Pool) SetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
+func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err
 	}
 
-	return cp.containerSetEACL(ctx, prm)
+	return cp.containerSetEACL(ctx, table, prm)
 }
 
 // Balance requests current balance of the NeoFS account.

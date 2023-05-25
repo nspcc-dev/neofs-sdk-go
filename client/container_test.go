@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
@@ -56,7 +57,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"set_eacl",
 				func() error {
-					return c.ContainerSetEACL(ctx, PrmContainerSetEACL{tableSet: true})
+					return c.ContainerSetEACL(ctx, eacl.Table{}, PrmContainerSetEACL{})
 				},
 			},
 			{

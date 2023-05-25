@@ -99,7 +99,7 @@ func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) 
 	return eacl.Table{}, nil
 }
 
-func (m *mockClient) containerSetEACL(context.Context, PrmContainerSetEACL) error {
+func (m *mockClient) containerSetEACL(context.Context, eacl.Table, PrmContainerSetEACL) error {
 	return nil
 }
 
