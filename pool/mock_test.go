@@ -136,7 +136,7 @@ func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, PrmObjectDele
 	return nil
 }
 
-func (m *mockClient) objectGet(context.Context, PrmObjectGet) (ResGetObject, error) {
+func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, PrmObjectGet) (ResGetObject, error) {
 	var res ResGetObject
 
 	if m.errOnGetObject == nil {
@@ -147,11 +147,11 @@ func (m *mockClient) objectGet(context.Context, PrmObjectGet) (ResGetObject, err
 	return res, m.errOnGetObject
 }
 
-func (m *mockClient) objectHead(context.Context, PrmObjectHead) (object.Object, error) {
+func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, PrmObjectHead) (object.Object, error) {
 	return object.Object{}, nil
 }
 
-func (m *mockClient) objectRange(context.Context, PrmObjectRange) (ResObjectRange, error) {
+func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, PrmObjectRange) (ResObjectRange, error) {
 	return ResObjectRange{}, nil
 }
 

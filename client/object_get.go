@@ -25,8 +25,6 @@ type prmObjectRead struct {
 	meta v2session.RequestMetaHeader
 
 	raw bool
-
-	addr v2refs.Address
 }
 
 // WithXHeaders specifies list of extended headers (string key-value pairs)
@@ -70,29 +68,7 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 	x.meta.SetBearerToken(&v2token)
 }
 
-// FromContainer specifies NeoFS container of the object.
-// Required parameter. It is an alternative to ByAddress.
-func (x *prmObjectRead) FromContainer(id cid.ID) {
-	var cnrV2 v2refs.ContainerID
-	id.WriteToV2(&cnrV2)
-	x.addr.SetContainerID(&cnrV2)
-}
-
-// ByID specifies identifier of the requested object.
-// Required parameter. It is an alternative to ByAddress.
-func (x *prmObjectRead) ByID(id oid.ID) {
-	var objV2 v2refs.ObjectID
-	id.WriteToV2(&objV2)
-	x.addr.SetObjectID(&objV2)
-}
-
-// ByAddress specifies address of the requested object.
-// Required parameter. It is an alternative to ByID, FromContainer.
-func (x *prmObjectRead) ByAddress(addr oid.Address) {
-	addr.WriteToV2(&x.addr)
-}
-
-// PrmObjectGet groups parameters of ObjectGetInit operation.
+// PrmObjectGet groups optional parameters of ObjectGetInit operation.
 type PrmObjectGet struct {
 	prmObjectRead
 
@@ -292,28 +268,28 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
-//   - [ErrMissingObject]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectReader, error) {
-	// check parameters
-	switch {
-	case prm.addr.GetContainerID() == nil:
-		return nil, ErrMissingContainer
-	case prm.addr.GetObjectID() == nil:
-		return nil, ErrMissingObject
-	}
+func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (*ObjectReader, error) {
+	var (
+		addr  v2refs.Address
+		cidV2 v2refs.ContainerID
+		oidV2 v2refs.ObjectID
+		body  v2object.GetRequestBody
+	)
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
 	}
 
-	// form request body
-	var body v2object.GetRequestBody
+	containerID.WriteToV2(&cidV2)
+	addr.SetContainerID(&cidV2)
+
+	objectID.WriteToV2(&oidV2)
+	addr.SetObjectID(&oidV2)
 
 	body.SetRaw(prm.raw)
-	body.SetAddress(&prm.addr)
+	body.SetAddress(&addr)
 
 	// form request
 	var req v2object.GetRequest
@@ -342,7 +318,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, prm PrmObjectGet) (*ObjectRe
 	return &r, nil
 }
 
-// PrmObjectHead groups parameters of ObjectHead operation.
+// PrmObjectHead groups optional parameters of ObjectHead operation.
 type PrmObjectHead struct {
 	prmObjectRead
 
@@ -393,8 +369,6 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //
 // Return errors:
 //   - global (see Client docs)
-//   - [ErrMissingContainer]
-//   - [ErrMissingObject]
 //   - [ErrMissingSigner]
 //   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectHead.MakeRaw)
 //   - [apistatus.ErrContainerNotFound]
@@ -402,22 +376,27 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectAlreadyRemoved]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectHead, error) {
-	switch {
-	case prm.addr.GetContainerID() == nil:
-		return nil, ErrMissingContainer
-	case prm.addr.GetObjectID() == nil:
-		return nil, ErrMissingObject
-	}
+func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (*ResObjectHead, error) {
+	var (
+		addr  v2refs.Address
+		cidV2 v2refs.ContainerID
+		oidV2 v2refs.ObjectID
+		body  v2object.HeadRequestBody
+	)
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
 	}
 
-	var body v2object.HeadRequestBody
+	containerID.WriteToV2(&cidV2)
+	addr.SetContainerID(&cidV2)
+
+	objectID.WriteToV2(&oidV2)
+	addr.SetObjectID(&oidV2)
+
 	body.SetRaw(prm.raw)
-	body.SetAddress(&prm.addr)
+	body.SetAddress(&addr)
 
 	var req v2object.HeadRequest
 	req.SetBody(&body)
@@ -439,7 +418,7 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 		return nil, err
 	}
 
-	_ = res.idObj.ReadFromV2(*prm.addr.GetObjectID())
+	_ = res.idObj.ReadFromV2(*addr.GetObjectID())
 
 	switch v := resp.GetBody().GetHeaderPart().(type) {
 	default:
@@ -453,31 +432,11 @@ func (c *Client) ObjectHead(ctx context.Context, prm PrmObjectHead) (*ResObjectH
 	return &res, nil
 }
 
-// PrmObjectRange groups parameters of ObjectRange operation.
+// PrmObjectRange groups optional parameters of ObjectRange operation.
 type PrmObjectRange struct {
 	prmObjectRead
 
 	signer neofscrypto.Signer
-
-	rng v2object.Range
-}
-
-// SetOffset sets offset of the payload range to be read.
-// Zero by default. It is an alternative to [PrmObjectRange.SetRange].
-func (x *PrmObjectRange) SetOffset(off uint64) {
-	x.rng.SetOffset(off)
-}
-
-// SetLength sets length of the payload range to be read.
-// Must be positive. It is an alternative to [PrmObjectRange.SetRange].
-func (x *PrmObjectRange) SetLength(ln uint64) {
-	x.rng.SetLength(ln)
-}
-
-// SetRange sets range of the payload to be read.
-// It is an alternative to [PrmObjectRange.SetOffset], [PrmObjectRange.SetLength].
-func (x *PrmObjectRange) SetRange(rng object.Range) {
-	x.rng = *rng.ToV2()
 }
 
 // UseSigner specifies private signer to sign the requests.
@@ -643,18 +602,18 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
-//   - [ErrMissingObject]
-//   - [ErrMissingSigner]
 //   - [ErrZeroRangeLength]
-func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*ObjectRangeReader, error) {
-	// check parameters
-	switch {
-	case prm.addr.GetContainerID() == nil:
-		return nil, ErrMissingContainer
-	case prm.addr.GetObjectID() == nil:
-		return nil, ErrMissingObject
-	case prm.rng.GetLength() == 0:
+//   - [ErrMissingSigner]
+func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (*ObjectRangeReader, error) {
+	var (
+		addr  v2refs.Address
+		cidV2 v2refs.ContainerID
+		oidV2 v2refs.ObjectID
+		rngV2 v2object.Range
+		body  v2object.GetRangeRequestBody
+	)
+
+	if length == 0 {
 		return nil, ErrZeroRangeLength
 	}
 
@@ -663,12 +622,19 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 		return nil, err
 	}
 
-	// form request body
-	var body v2object.GetRangeRequestBody
+	containerID.WriteToV2(&cidV2)
+	addr.SetContainerID(&cidV2)
 
+	objectID.WriteToV2(&oidV2)
+	addr.SetObjectID(&oidV2)
+
+	rngV2.SetOffset(offset)
+	rngV2.SetLength(length)
+
+	// form request body
 	body.SetRaw(prm.raw)
-	body.SetAddress(&prm.addr)
-	body.SetRange(&prm.rng)
+	body.SetAddress(&addr)
+	body.SetRange(&rngV2)
 
 	// form request
 	var req v2object.GetRangeRequest
@@ -690,7 +656,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, prm PrmObjectRange) (*Obje
 	}
 
 	var r ObjectRangeReader
-	r.remainingPayloadLen = int(prm.rng.GetLength())
+	r.remainingPayloadLen = int(length)
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.client = c
