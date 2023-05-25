@@ -617,19 +617,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm Prm
 	return nil
 }
 
-// PrmAnnounceSpace groups parameters of ContainerAnnounceUsedSpace operation.
+// PrmAnnounceSpace groups optional parameters of ContainerAnnounceUsedSpace operation.
 type PrmAnnounceSpace struct {
 	prmCommonMeta
-
-	announcements []container.SizeEstimation
-}
-
-// SetValues sets values describing volume of space that is used for the container objects.
-// Required parameter. Must not be empty.
-//
-// Must not be mutated before the end of the operation.
-func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
-	x.announcements = vs
 }
 
 // ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
@@ -644,13 +634,15 @@ func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Announcements parameter MUST NOT be empty slice.
+//
 // Return errors:
 //   - [ErrMissingAnnouncements]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) error {
+func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
 	// check parameters
-	switch {
-	case len(prm.announcements) == 0:
+
+	if len(announcements) == 0 {
 		return ErrMissingAnnouncements
 	}
 
@@ -659,9 +651,9 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list
-	v2announce := make([]v2container.UsedSpaceAnnouncement, len(prm.announcements))
-	for i := range prm.announcements {
-		prm.announcements[i].WriteToV2(&v2announce[i])
+	v2announce := make([]v2container.UsedSpaceAnnouncement, len(announcements))
+	for i := range announcements {
+		announcements[i].WriteToV2(&v2announce[i])
 	}
 
 	// prepare body of the NeoFS-API v2 request and request itself

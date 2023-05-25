@@ -63,7 +63,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"announce_space",
 				func() error {
-					return c.ContainerAnnounceUsedSpace(ctx, PrmAnnounceSpace{announcements: make([]container.SizeEstimation, 1)})
+					return c.ContainerAnnounceUsedSpace(ctx, make([]container.SizeEstimation, 1), PrmAnnounceSpace{})
 				},
 			},
 		}
