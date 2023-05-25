@@ -429,16 +429,6 @@ type PrmContainerEACL struct {
 	prmCommonMeta
 }
 
-// ResContainerEACL groups resulting values of ContainerEACL operation.
-type ResContainerEACL struct {
-	table eacl.Table
-}
-
-// Table returns eACL table of the requested container.
-func (x ResContainerEACL) Table() eacl.Table {
-	return x.table
-}
-
 // ContainerEACL reads eACL table of the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -448,9 +438,9 @@ func (x ResContainerEACL) Table() eacl.Table {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (*ResContainerEACL, error) {
+func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return eacl.Table{}, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
@@ -469,7 +459,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 
 	var (
 		cc  contextCall
-		res ResContainerEACL
+		res eacl.Table
 	)
 
 	c.initCallContext(&cc)
@@ -487,15 +477,15 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 			return
 		}
 
-		res.table = *eacl.NewTableFromV2(eACL)
+		res = *eacl.NewTableFromV2(eACL)
 	}
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return eacl.Table{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerSetEACL groups optional parameters of ContainerSetEACL operation.

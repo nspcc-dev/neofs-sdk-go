@@ -497,7 +497,7 @@ func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Tabl
 		return eacl.Table{}, fmt.Errorf("get eacl on client: %w", err)
 	}
 
-	return res.Table(), nil
+	return res, nil
 }
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
