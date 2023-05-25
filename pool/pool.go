@@ -47,7 +47,7 @@ type client interface {
 	// see clientWrapper.containerDelete.
 	containerDelete(context.Context, cid.ID, PrmContainerDelete) error
 	// see clientWrapper.containerEACL.
-	containerEACL(context.Context, PrmContainerEACL) (eacl.Table, error)
+	containerEACL(context.Context, cid.ID) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
 	containerSetEACL(context.Context, PrmContainerSetEACL) error
 	// see clientWrapper.endpointInfo.
@@ -483,17 +483,14 @@ func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, prm PrmC
 }
 
 // containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
-func (c *clientWrapper) containerEACL(ctx context.Context, prm PrmContainerEACL) (eacl.Table, error) {
+func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return eacl.Table{}, err
 	}
 
-	var cliPrm sdkClient.PrmContainerEACL
-	cliPrm.SetContainer(prm.cnrID)
-
 	start := time.Now()
-	res, err := cl.ContainerEACL(ctx, cliPrm)
+	res, err := cl.ContainerEACL(ctx, id, sdkClient.PrmContainerEACL{})
 	c.incRequests(time.Since(start), methodContainerEACL)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -530,9 +527,9 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, prm PrmContainerSe
 		prm.waitParams.setDefaults()
 	}
 
-	var cIDp *cid.ID
+	var cIDp cid.ID
 	if cID, set := prm.table.CID(); set {
-		cIDp = &cID
+		cIDp = cID
 	}
 
 	err = waitForEACLPresence(ctx, c, cIDp, &prm.table, &prm.waitParams)
@@ -1356,16 +1353,6 @@ func (x *PrmContainerDelete) SetWaitParams(waitParams WaitParams) {
 	waitParams.checkForPositive()
 	x.waitParams = waitParams
 	x.waitParamsSet = true
-}
-
-// PrmContainerEACL groups parameters of GetEACL operation.
-type PrmContainerEACL struct {
-	cnrID cid.ID
-}
-
-// SetContainerID specifies identifier of the NeoFS container to read the eACL table.
-func (x *PrmContainerEACL) SetContainerID(cnrID cid.ID) {
-	x.cnrID = cnrID
 }
 
 // PrmContainerSetEACL groups parameters of SetEACL operation.
@@ -2309,13 +2296,13 @@ func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerD
 // GetEACL reads eACL table of the NeoFS container.
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) GetEACL(ctx context.Context, prm PrmContainerEACL) (eacl.Table, error) {
+func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return eacl.Table{}, err
 	}
 
-	return cp.containerEACL(ctx, prm)
+	return cp.containerEACL(ctx, id)
 }
 
 // SetEACL sends request to update eACL table of the NeoFS container and waits for the operation to complete.
@@ -2377,14 +2364,9 @@ func waitForContainerPresence(ctx context.Context, cli client, cnrID cid.ID, wai
 }
 
 // waitForEACLPresence waits until the container eacl is applied on the NeoFS network.
-func waitForEACLPresence(ctx context.Context, cli client, cnrID *cid.ID, table *eacl.Table, waitParams *WaitParams) error {
-	var prm PrmContainerEACL
-	if cnrID != nil {
-		prm.SetContainerID(*cnrID)
-	}
-
+func waitForEACLPresence(ctx context.Context, cli client, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		eaclTable, err := cli.containerEACL(ctx, prm)
+		eaclTable, err := cli.containerEACL(ctx, cnrID)
 		if err == nil {
 			return eacl.EqualTables(*table, eaclTable)
 		}

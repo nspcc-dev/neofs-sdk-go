@@ -49,7 +49,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"eacl",
 				func() error {
-					_, err := c.ContainerEACL(ctx, PrmContainerEACL{idSet: true})
+					_, err := c.ContainerEACL(ctx, cid.ID{}, PrmContainerEACL{})
 					return err
 				},
 			},

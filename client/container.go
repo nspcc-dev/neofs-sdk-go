@@ -424,19 +424,9 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContaine
 	return nil
 }
 
-// PrmContainerEACL groups parameters of ContainerEACL operation.
+// PrmContainerEACL groups optional parameters of ContainerEACL operation.
 type PrmContainerEACL struct {
 	prmCommonMeta
-
-	idSet bool
-	id    cid.ID
-}
-
-// SetContainer sets identifier of the NeoFS container to read the eACL table.
-// Required parameter.
-func (x *PrmContainerEACL) SetContainer(id cid.ID) {
-	x.id = id
-	x.idSet = true
 }
 
 // ResContainerEACL groups resulting values of ContainerEACL operation.
@@ -457,21 +447,14 @@ func (x ResContainerEACL) Table() eacl.Table {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
-	// check parameters
-	switch {
-	case !prm.idSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
-	prm.id.WriteToV2(&cidV2)
+	id.WriteToV2(&cidV2)
 
 	// form request body
 	reqBody := new(v2container.GetExtendedACLRequestBody)

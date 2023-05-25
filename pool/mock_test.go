@@ -95,7 +95,7 @@ func (m *mockClient) containerDelete(context.Context, cid.ID, PrmContainerDelete
 	return nil
 }
 
-func (m *mockClient) containerEACL(context.Context, PrmContainerEACL) (eacl.Table, error) {
+func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) {
 	return eacl.Table{}, nil
 }
 
