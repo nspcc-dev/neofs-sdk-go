@@ -93,8 +93,8 @@ func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
 func (o *Object) ID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 	if id := v2.GetObjectID(); id != nil {
-		_ = v.ReadFromV2(*v2.GetObjectID())
-		isSet = true
+		err := v.ReadFromV2(*v2.GetObjectID())
+		isSet = (err == nil)
 	}
 
 	return
@@ -184,8 +184,8 @@ func (o *Object) ContainerID() (v cid.ID, isSet bool) {
 
 	cidV2 := v2.GetHeader().GetContainerID()
 	if cidV2 != nil {
-		_ = v.ReadFromV2(*cidV2)
-		isSet = true
+		err := v.ReadFromV2(*cidV2)
+		isSet = (err == nil)
 	}
 
 	return
@@ -248,8 +248,8 @@ func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
 	v2 := (*object.Object)(o)
 
 	if hash := v2.GetHeader().GetPayloadHash(); hash != nil {
-		v.ReadFromV2(*hash) // FIXME(@cthulhu-rider): #226 handle error
-		return v, true
+		err := v.ReadFromV2(*hash)
+		return v, (err == nil)
 	}
 
 	return v, false
@@ -278,8 +278,8 @@ func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 	v2 := (*object.Object)(o)
 
 	if hash := v2.GetHeader().GetHomomorphicHash(); hash != nil {
-		v.ReadFromV2(*hash) // FIXME(@cthulhu-rider): #226 handle error
-		return v, true
+		err := v.ReadFromV2(*hash)
+		return v, (err == nil)
 	}
 
 	return v, false
@@ -331,8 +331,8 @@ func (o *Object) PreviousID() (v oid.ID, isSet bool) {
 
 	v2Prev := v2.GetHeader().GetSplit().GetPrevious()
 	if v2Prev != nil {
-		_ = v.ReadFromV2(*v2Prev)
-		isSet = true
+		err := v.ReadFromV2(*v2Prev)
+		isSet = (err == nil)
 	}
 
 	return
@@ -466,8 +466,8 @@ func (o *Object) ParentID() (v oid.ID, isSet bool) {
 
 	v2Par := v2.GetHeader().GetSplit().GetParent()
 	if v2Par != nil {
-		_ = v.ReadFromV2(*v2Par)
-		isSet = true
+		err := v.ReadFromV2(*v2Par)
+		isSet = (err == nil)
 	}
 
 	return
