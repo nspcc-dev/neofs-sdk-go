@@ -78,7 +78,7 @@ func (m *mockClient) balanceGet(context.Context, PrmBalanceGet) (accounting.Deci
 	return accounting.Decimal{}, nil
 }
 
-func (m *mockClient) containerPut(context.Context, PrmContainerPut) (cid.ID, error) {
+func (m *mockClient) containerPut(context.Context, container.Container, PrmContainerPut) (cid.ID, error) {
 	return cid.ID{}, nil
 }
 

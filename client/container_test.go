@@ -20,7 +20,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"put",
 				func() error {
-					_, err := c.ContainerPut(ctx, PrmContainerPut{cnrSet: true})
+					_, err := c.ContainerPut(ctx, container.Container{}, PrmContainerPut{})
 					return err
 				},
 			},

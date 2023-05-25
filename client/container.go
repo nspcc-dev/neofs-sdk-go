@@ -18,24 +18,14 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-// PrmContainerPut groups parameters of ContainerPut operation.
+// PrmContainerPut groups optional parameters of ContainerPut operation.
 type PrmContainerPut struct {
 	prmCommonMeta
-
-	cnrSet bool
-	cnr    container.Container
 
 	sessionSet bool
 	session    session.Container
 
 	signer neofscrypto.Signer
-}
-
-// SetContainer sets structured information about new NeoFS container.
-// Required parameter.
-func (x *PrmContainerPut) SetContainer(cnr container.Container) {
-	x.cnr = cnr
-	x.cnrSet = true
 }
 
 // SetSigner sets signer to sign request payload.
@@ -83,27 +73,19 @@ func (x ResContainerPut) ID() cid.ID {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
-	// check parameters
-	switch {
-	case !prm.cnrSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (*ResContainerPut, error) {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: check private signer is set before forming the request
-	// sign container
 	var cnr v2container.Container
-	prm.cnr.WriteToV2(&cnr)
+	cont.WriteToV2(&cnr)
 
+	// TODO: check private signer is set before forming the request
 	var sig neofscrypto.Signature
-	err = container.CalculateSignature(&sig, prm.cnr, signer)
+	err = container.CalculateSignature(&sig, cont, signer)
 	if err != nil {
 		return nil, fmt.Errorf("calculate container signature: %w", err)
 	}

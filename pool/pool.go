@@ -39,7 +39,7 @@ type client interface {
 	// see clientWrapper.balanceGet.
 	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
-	containerPut(context.Context, PrmContainerPut) (cid.ID, error)
+	containerPut(context.Context, container.Container, PrmContainerPut) (cid.ID, error)
 	// see clientWrapper.containerGet.
 	containerGet(context.Context, PrmContainerGet) (container.Container, error)
 	// see clientWrapper.containerList.
@@ -390,14 +390,14 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
 // It also waits for the container to appear on the network.
-func (c *clientWrapper) containerPut(ctx context.Context, prm PrmContainerPut) (cid.ID, error) {
+func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return cid.ID{}, err
 	}
 
 	start := time.Now()
-	res, err := cl.ContainerPut(ctx, prm.prmClient)
+	res, err := cl.ContainerPut(ctx, cont, prm.prmClient)
 	c.incRequests(time.Since(start), methodContainerPut)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -1322,14 +1322,6 @@ type PrmContainerPut struct {
 
 	waitParams    WaitParams
 	waitParamsSet bool
-}
-
-// SetContainer container structure to be used as a parameter of the base
-// client's operation.
-//
-// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerPut.SetContainer.
-func (x *PrmContainerPut) SetContainer(cnr container.Container) {
-	x.prmClient.SetContainer(cnr)
 }
 
 // WithinSession specifies session to be used as a parameter of the base
@@ -2297,16 +2289,16 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjec
 //	polling interval: 5s
 //	waiting timeout: 120s
 //
-// Success can be verified by reading by identifier (see GetContainer).
+// Success can be verified by reading by identifier (see [Pool.GetContainer]).
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) PutContainer(ctx context.Context, prm PrmContainerPut) (cid.ID, error) {
+func (p *Pool) PutContainer(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return cid.ID{}, err
 	}
 
-	return cp.containerPut(ctx, prm)
+	return cp.containerPut(ctx, cont, prm)
 }
 
 // GetContainer reads NeoFS container by ID.

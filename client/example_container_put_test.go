@@ -81,11 +81,7 @@ func ExampleClient_ContainerPut() {
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)
 
-	// prepare command to create container
-	var prmCon client.PrmContainerPut
-	prmCon.SetContainer(cont)
-
-	putResult, err := c.ContainerPut(ctx, prmCon)
+	putResult, err := c.ContainerPut(ctx, cont, client.PrmContainerPut{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerPut %w", err))
 	}
