@@ -91,7 +91,7 @@ func (m *mockClient) containerList(context.Context, user.ID) ([]cid.ID, error) {
 	return nil, nil
 }
 
-func (m *mockClient) containerDelete(context.Context, PrmContainerDelete) error {
+func (m *mockClient) containerDelete(context.Context, cid.ID, PrmContainerDelete) error {
 	return nil
 }
 

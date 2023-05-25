@@ -43,7 +43,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"delete",
 				func() error {
-					return c.ContainerDelete(ctx, PrmContainerDelete{idSet: true})
+					return c.ContainerDelete(ctx, cid.ID{}, PrmContainerDelete{})
 				},
 			},
 			{

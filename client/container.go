@@ -310,24 +310,14 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	return &res, nil
 }
 
-// PrmContainerDelete groups parameters of ContainerDelete operation.
+// PrmContainerDelete groups optional parameters of ContainerDelete operation.
 type PrmContainerDelete struct {
 	prmCommonMeta
-
-	idSet bool
-	id    cid.ID
 
 	tokSet bool
 	tok    session.Container
 
 	signer neofscrypto.Signer
-}
-
-// SetContainer sets identifier of the NeoFS container to be removed.
-// Required parameter.
-func (x *PrmContainerDelete) SetContainer(id cid.ID) {
-	x.id = id
-	x.idSet = true
 }
 
 // SetSigner sets signer to sign request payload.
@@ -360,19 +350,11 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
 //   - [neofscrypto.ErrIncorrectSigner]
-//
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
-	// check parameters
-	switch {
-	case !prm.idSet:
-		return ErrMissingContainer
-	}
-
+func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return err
@@ -384,7 +366,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) er
 
 	// sign container ID
 	var cidV2 refs.ContainerID
-	prm.id.WriteToV2(&cidV2)
+	id.WriteToV2(&cidV2)
 
 	// container contract expects signature of container ID value
 	// don't get confused with stable marshaled protobuf container.ID structure

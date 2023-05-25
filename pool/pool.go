@@ -45,7 +45,7 @@ type client interface {
 	// see clientWrapper.containerList.
 	containerList(context.Context, user.ID) ([]cid.ID, error)
 	// see clientWrapper.containerDelete.
-	containerDelete(context.Context, PrmContainerDelete) error
+	containerDelete(context.Context, cid.ID, PrmContainerDelete) error
 	// see clientWrapper.containerEACL.
 	containerEACL(context.Context, PrmContainerEACL) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
@@ -456,20 +456,19 @@ func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]c
 
 // containerDelete invokes sdkClient.ContainerDelete parse response status to error.
 // It also waits for the container to be removed from the network.
-func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDelete) error {
+func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
 	}
 
 	var cliPrm sdkClient.PrmContainerDelete
-	cliPrm.SetContainer(prm.cnrID)
 	if prm.stokenSet {
 		cliPrm.WithinSession(prm.stoken)
 	}
 
 	start := time.Now()
-	err = cl.ContainerDelete(ctx, cliPrm)
+	err = cl.ContainerDelete(ctx, id, cliPrm)
 	c.incRequests(time.Since(start), methodContainerDelete)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -480,7 +479,7 @@ func (c *clientWrapper) containerDelete(ctx context.Context, prm PrmContainerDel
 		prm.waitParams.setDefaults()
 	}
 
-	return waitForContainerRemoved(ctx, c, prm.cnrID, &prm.waitParams)
+	return waitForContainerRemoved(ctx, c, id, &prm.waitParams)
 }
 
 // containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
@@ -1337,18 +1336,11 @@ func (x *PrmContainerPut) SetWaitParams(waitParams WaitParams) {
 
 // PrmContainerDelete groups parameters of DeleteContainer operation.
 type PrmContainerDelete struct {
-	cnrID cid.ID
-
 	stoken    session.Container
 	stokenSet bool
 
 	waitParams    WaitParams
 	waitParamsSet bool
-}
-
-// SetContainerID specifies identifier of the NeoFS container to be removed.
-func (x *PrmContainerDelete) SetContainerID(cnrID cid.ID) {
-	x.cnrID = cnrID
 }
 
 // SetSessionToken specifies session within which operation should be performed.
@@ -2305,13 +2297,13 @@ func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, e
 //	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
-func (p *Pool) DeleteContainer(ctx context.Context, prm PrmContainerDelete) error {
+func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err
 	}
 
-	return cp.containerDelete(ctx, prm)
+	return cp.containerDelete(ctx, id, prm)
 }
 
 // GetEACL reads eACL table of the NeoFS container.
