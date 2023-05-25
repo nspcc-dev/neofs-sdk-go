@@ -81,13 +81,12 @@ func ExampleClient_ContainerPut() {
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)
 
-	putResult, err := c.ContainerPut(ctx, cont, client.PrmContainerPut{})
+	containerID, err = c.ContainerPut(ctx, cont, client.PrmContainerPut{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerPut %w", err))
 	}
 
 	// containerID already exists
-	containerID = putResult.ID()
 	fmt.Println(containerID)
 	// example output: 76wa5UNiT8gk8Q5rdCVCV4pKuZSmYsifh6g84BcL6Hqs
 

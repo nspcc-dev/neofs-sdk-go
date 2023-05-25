@@ -397,7 +397,7 @@ func (c *clientWrapper) containerPut(ctx context.Context, cont container.Contain
 	}
 
 	start := time.Now()
-	res, err := cl.ContainerPut(ctx, cont, prm.prmClient)
+	idCnr, err := cl.ContainerPut(ctx, cont, prm.prmClient)
 	c.incRequests(time.Since(start), methodContainerPut)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -407,8 +407,6 @@ func (c *clientWrapper) containerPut(ctx context.Context, cont container.Contain
 	if !prm.waitParamsSet {
 		prm.waitParams.setDefaults()
 	}
-
-	idCnr := res.ID()
 
 	err = waitForContainerPresence(ctx, c, idCnr, &prm.waitParams)
 	c.updateErrorRate(err)

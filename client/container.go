@@ -48,18 +48,6 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.sessionSet = true
 }
 
-// ResContainerPut groups resulting values of ContainerPut operation.
-type ResContainerPut struct {
-	id cid.ID
-}
-
-// ID returns identifier of the container declared to be stored in the system.
-// Used as a link to information about the container (in particular, you can
-// asynchronously check if the save was successful).
-func (x ResContainerPut) ID() cid.ID {
-	return x.id
-}
-
 // ContainerPut sends request to save container in NeoFS.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -68,16 +56,17 @@ func (x ResContainerPut) ID() cid.ID {
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
 //
-// Success can be verified by reading by identifier (see ResContainerPut.ID).
+// Success can be verified by reading [Client.ContainerGet] using the returned
+// identifier (notice that it needs some time to succeed).
 //
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (*ResContainerPut, error) {
+func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
-		return nil, err
+		return cid.ID{}, err
 	}
 
 	var cnr v2container.Container
@@ -87,7 +76,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 	var sig neofscrypto.Signature
 	err = container.CalculateSignature(&sig, cont, signer)
 	if err != nil {
-		return nil, fmt.Errorf("calculate container signature: %w", err)
+		return cid.ID{}, fmt.Errorf("calculate container signature: %w", err)
 	}
 
 	var sigv2 refs.Signature
@@ -120,7 +109,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 
 	var (
 		cc  contextCall
-		res ResContainerPut
+		res cid.ID
 	)
 
 	c.initCallContext(&cc)
@@ -139,7 +128,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 			return
 		}
 
-		cc.err = res.id.ReadFromV2(*cidV2)
+		cc.err = res.ReadFromV2(*cidV2)
 		if cc.err != nil {
 			cc.err = newErrInvalidResponseField(fieldCnrID, cc.err)
 		}
@@ -147,10 +136,10 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cid.ID{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerGet groups optional parameters of ContainerGet operation.
