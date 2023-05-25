@@ -232,19 +232,9 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	return &res, nil
 }
 
-// PrmContainerList groups parameters of ContainerList operation.
+// PrmContainerList groups optional parameters of ContainerList operation.
 type PrmContainerList struct {
 	prmCommonMeta
-
-	ownerSet bool
-	ownerID  user.ID
-}
-
-// SetAccount sets identifier of the NeoFS account to list the containers.
-// Required parameter.
-func (x *PrmContainerList) SetAccount(id user.ID) {
-	x.ownerID = id
-	x.ownerSet = true
 }
 
 // ResContainerList groups resulting values of ContainerList operation.
@@ -267,22 +257,15 @@ func (x ResContainerList) Containers() []cid.ID {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingAccount]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
-	// check parameters
-	switch {
-	case !prm.ownerSet:
-		return nil, ErrMissingAccount
-	}
-
+func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) (*ResContainerList, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
 
 	// form request body
 	var ownerV2 refs.OwnerID
-	prm.ownerID.WriteToV2(&ownerV2)
+	ownerID.WriteToV2(&ownerV2)
 
 	reqBody := new(v2container.ListRequestBody)
 	reqBody.SetOwnerID(&ownerV2)

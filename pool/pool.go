@@ -43,7 +43,7 @@ type client interface {
 	// see clientWrapper.containerGet.
 	containerGet(context.Context, cid.ID) (container.Container, error)
 	// see clientWrapper.containerList.
-	containerList(context.Context, PrmContainerList) ([]cid.ID, error)
+	containerList(context.Context, user.ID) ([]cid.ID, error)
 	// see clientWrapper.containerDelete.
 	containerDelete(context.Context, PrmContainerDelete) error
 	// see clientWrapper.containerEACL.
@@ -438,17 +438,14 @@ func (c *clientWrapper) containerGet(ctx context.Context, cnrID cid.ID) (contain
 }
 
 // containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
-func (c *clientWrapper) containerList(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
+func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return nil, err
 	}
 
-	var cliPrm sdkClient.PrmContainerList
-	cliPrm.SetAccount(prm.ownerID)
-
 	start := time.Now()
-	res, err := cl.ContainerList(ctx, cliPrm)
+	res, err := cl.ContainerList(ctx, ownerID, sdkClient.PrmContainerList{})
 	c.incRequests(time.Since(start), methodContainerList)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -1336,16 +1333,6 @@ func (x *PrmContainerPut) SetWaitParams(waitParams WaitParams) {
 	waitParams.checkForPositive()
 	x.waitParams = waitParams
 	x.waitParamsSet = true
-}
-
-// PrmContainerList groups parameters of ListContainers operation.
-type PrmContainerList struct {
-	ownerID user.ID
-}
-
-// SetOwnerID specifies identifier of the NeoFS account to list the containers.
-func (x *PrmContainerList) SetOwnerID(ownerID user.ID) {
-	x.ownerID = ownerID
 }
 
 // PrmContainerDelete groups parameters of DeleteContainer operation.
@@ -2301,13 +2288,13 @@ func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container
 }
 
 // ListContainers requests identifiers of the account-owned containers.
-func (p *Pool) ListContainers(ctx context.Context, prm PrmContainerList) ([]cid.ID, error) {
+func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return nil, err
 	}
 
-	return cp.containerList(ctx, prm)
+	return cp.containerList(ctx, ownerID)
 }
 
 // DeleteContainer sends request to remove the NeoFS container and waits for the operation to complete.

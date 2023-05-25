@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,7 +36,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"list",
 				func() error {
-					_, err := c.ContainerList(ctx, PrmContainerList{ownerSet: true})
+					_, err := c.ContainerList(ctx, user.ID{}, PrmContainerList{})
 					return err
 				},
 			},

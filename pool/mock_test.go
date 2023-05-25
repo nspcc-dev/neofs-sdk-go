@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 type mockClient struct {
@@ -86,7 +87,7 @@ func (m *mockClient) containerGet(context.Context, cid.ID) (container.Container,
 	return container.Container{}, nil
 }
 
-func (m *mockClient) containerList(context.Context, PrmContainerList) ([]cid.ID, error) {
+func (m *mockClient) containerList(context.Context, user.ID) ([]cid.ID, error) {
 	return nil, nil
 }
 
