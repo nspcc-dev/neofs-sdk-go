@@ -57,7 +57,7 @@ type client interface {
 	// see clientWrapper.objectPut.
 	objectPut(context.Context, PrmObjectPut) (oid.ID, error)
 	// see clientWrapper.objectDelete.
-	objectDelete(context.Context, PrmObjectDelete) error
+	objectDelete(context.Context, cid.ID, oid.ID, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
 	objectGet(context.Context, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
@@ -658,15 +658,13 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
-func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) error {
+func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
 	}
 
 	var cliPrm sdkClient.PrmObjectDelete
-	cliPrm.ByAddress(prm.addr)
-
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
 	}
@@ -680,7 +678,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 	}
 
 	start := time.Now()
-	_, err = cl.ObjectDelete(ctx, cliPrm)
+	_, err = cl.ObjectDelete(ctx, containerID, objectID, cliPrm)
 	c.incRequests(time.Since(start), methodObjectDelete)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -1154,12 +1152,6 @@ func (x *prmContext) useObjects(ids []oid.ID) {
 	x.objSet = true
 }
 
-func (x *prmContext) useAddress(addr oid.Address) {
-	x.cnr = addr.Container()
-	x.objs = []oid.ID{addr.Object()}
-	x.objSet = true
-}
-
 func (x *prmContext) useVerb(verb session.ObjectVerb) {
 	x.verb = verb
 }
@@ -1216,13 +1208,6 @@ func (x *PrmObjectPut) SetCopiesNumber(copiesNumber uint32) {
 // PrmObjectDelete groups parameters of DeleteObject operation.
 type PrmObjectDelete struct {
 	prmCommon
-
-	addr oid.Address
-}
-
-// SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectDelete) SetAddress(addr oid.Address) {
-	x.addr = addr
 }
 
 // PrmObjectGet groups parameters of GetObject operation.
@@ -1988,24 +1973,23 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 // As a marker, a special unit called a tombstone is placed in the container.
 // It confirms the user's intent to delete the object, and is itself a container object.
 // Explicit deletion is done asynchronously, and is generally not guaranteed.
-func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
+func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectDelete)
-	prmCtx.useAddress(prm.addr)
 
 	if prm.stoken == nil { // collect phy objects only if we are about to open default session
 		var tokens relations.Tokens
 		tokens.Bearer = prm.btoken
 
-		relatives, err := relations.ListAllRelations(ctx, p, prm.addr.Container(), prm.addr.Object(), tokens)
+		relatives, err := relations.ListAllRelations(ctx, p, containerID, objectID, tokens)
 		if err != nil {
 			return fmt.Errorf("failed to collect relatives: %w", err)
 		}
 
 		if len(relatives) != 0 {
-			prmCtx.useContainer(prm.addr.Container())
-			prmCtx.useObjects(append(relatives, prm.addr.Object()))
+			prmCtx.useContainer(containerID)
+			prmCtx.useObjects(append(relatives, objectID))
 		}
 	}
 
@@ -2022,7 +2006,7 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 	}
 
 	return p.call(&cc, func() error {
-		if err = cc.client.objectDelete(ctx, prm); err != nil {
+		if err = cc.client.objectDelete(ctx, containerID, objectID, prm); err != nil {
 			return fmt.Errorf("remove object via client: %w", err)
 		}
 

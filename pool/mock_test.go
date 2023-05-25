@@ -132,7 +132,7 @@ func (m *mockClient) objectPut(context.Context, PrmObjectPut) (oid.ID, error) {
 	return oid.ID{}, nil
 }
 
-func (m *mockClient) objectDelete(context.Context, PrmObjectDelete) error {
+func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, PrmObjectDelete) error {
 	return nil
 }
 

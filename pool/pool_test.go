@@ -428,11 +428,10 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.True(t, st.AssertAuthKey(key.Public()))
 
 	var prm PrmObjectDelete
-	prm.SetAddress(oid.Address{})
 	anonKey := test.RandomSignerRFC6979(t)
 	prm.UseSigner(anonKey)
 
-	err = pool.DeleteObject(ctx, prm)
+	err = pool.DeleteObject(ctx, cid.ID{}, oid.ID{}, prm)
 	require.NoError(t, err)
 	st, _ = pool.cache.Get(formCacheKey(cp.address(), anonKey))
 	require.True(t, st.AssertAuthKey(key.Public()))
