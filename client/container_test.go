@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/container"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +28,7 @@ func TestClient_Container(t *testing.T) {
 			{
 				"get",
 				func() error {
-					_, err := c.ContainerGet(ctx, PrmContainerGet{idSet: true})
+					_, err := c.ContainerGet(ctx, cid.ID{}, PrmContainerGet{})
 					return err
 				},
 			},

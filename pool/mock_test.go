@@ -82,7 +82,7 @@ func (m *mockClient) containerPut(context.Context, container.Container, PrmConta
 	return cid.ID{}, nil
 }
 
-func (m *mockClient) containerGet(context.Context, PrmContainerGet) (container.Container, error) {
+func (m *mockClient) containerGet(context.Context, cid.ID) (container.Container, error) {
 	return container.Container{}, nil
 }
 

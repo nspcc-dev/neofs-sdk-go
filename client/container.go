@@ -153,19 +153,9 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 	return &res, nil
 }
 
-// PrmContainerGet groups parameters of ContainerGet operation.
+// PrmContainerGet groups optional parameters of ContainerGet operation.
 type PrmContainerGet struct {
 	prmCommonMeta
-
-	idSet bool
-	id    cid.ID
-}
-
-// SetContainer sets identifier of the container to be read.
-// Required parameter.
-func (x *PrmContainerGet) SetContainer(id cid.ID) {
-	x.id = id
-	x.idSet = true
 }
 
 // ResContainerGet groups resulting values of ContainerGet operation.
@@ -188,20 +178,14 @@ func (x ResContainerGet) Container() container.Container {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
-	switch {
-	case !prm.idSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (*ResContainerGet, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
-	prm.id.WriteToV2(&cidV2)
+	id.WriteToV2(&cidV2)
 
 	// form request body
 	reqBody := new(v2container.GetRequestBody)

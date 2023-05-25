@@ -95,11 +95,7 @@ func ExampleClient_ContainerPut() {
 	// for simplifying we just wait
 	<-time.After(2 * time.Second)
 
-	// take our created container
-	var cmdGet client.PrmContainerGet
-	cmdGet.SetContainer(containerID)
-
-	getResp, err := c.ContainerGet(ctx, cmdGet)
+	getResp, err := c.ContainerGet(ctx, containerID, client.PrmContainerGet{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerGet %w", err))
 	}
