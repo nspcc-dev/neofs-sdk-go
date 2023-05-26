@@ -27,8 +27,6 @@ var (
 	ErrZeroEpoch = errors.New("zero epoch")
 	// ErrMissingTrusts is returned when empty slice of trusts is provided.
 	ErrMissingTrusts = errors.New("missing trusts")
-	// ErrMissingTrust is returned when empty trust is not provided.
-	ErrMissingTrust = errors.New("missing trust")
 
 	// ErrUnexpectedReadCall is returned when we already got all data but truing to get more.
 	ErrUnexpectedReadCall = errors.New("unexpected call to `Read`")
