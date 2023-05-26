@@ -184,13 +184,13 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 // codes are returned as error.
 //
 // Return errors:
-//   - global (see Client docs);
-//   - [apistatus.ErrContainerNotFound];
-//   - [apistatus.ErrObjectAccessDenied];
-//   - [apistatus.ErrObjectLocked];
-//   - [apistatus.ErrLockNonRegularObject];
-//   - [apistatus.ErrSessionTokenNotFound];
-//   - [apistatus.ErrSessionTokenExpired].
+//   - global (see Client docs)
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrObjectLocked]
+//   - [apistatus.ErrLockNonRegularObject]
+//   - [apistatus.ErrSessionTokenNotFound]
+//   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 	defer x.cancelCtxStream()
 
@@ -230,8 +230,16 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 // Exactly one return value is non-nil. Resulting writer must be finally closed.
 //
 // Context is required and must not be nil. It is used for network communication.
+//
+// Returns errors:
+//   - [ErrMissingSigner]
 func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*ObjectWriter, error) {
 	var w ObjectWriter
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
+	}
 
 	ctx, cancel := context.WithCancel(ctx)
 	stream, err := rpcapi.PutObject(&c.c, &w.respV2, client.WithContext(ctx))
@@ -240,10 +248,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*Obje
 		return nil, fmt.Errorf("open stream: %w", err)
 	}
 
-	w.signer = prm.signer
-	if w.signer == nil {
-		w.signer = c.prm.signer
-	}
+	w.signer = signer
 	w.cancelCtxStream = cancel
 	w.client = c
 	w.stream = stream

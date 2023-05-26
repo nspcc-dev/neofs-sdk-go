@@ -17,6 +17,8 @@ var (
 	ErrMissingObject = errors.New("missing object")
 	// ErrMissingAccount is returned when account/owner is not provided.
 	ErrMissingAccount = errors.New("missing account")
+	// ErrMissingSigner is returned when signer is not provided.
+	ErrMissingSigner = errors.New("missing signer")
 	// ErrMissingEACL is returned when eACL table is not provided.
 	ErrMissingEACL = errors.New("missing eACL table")
 	// ErrMissingEACLContainer is returned when container info is not provided in eACL table.

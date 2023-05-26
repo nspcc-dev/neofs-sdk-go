@@ -70,10 +70,6 @@ func (x ResContainerPut) ID() cid.ID {
 	return x.id
 }
 
-func (c *Client) defaultSigner() neofscrypto.Signer {
-	return c.prm.signer
-}
-
 // ContainerPut sends request to save container in NeoFS.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -88,11 +84,17 @@ func (c *Client) defaultSigner() neofscrypto.Signer {
 //
 // Return errors:
 //   - [ErrMissingContainer]
+//   - [ErrMissingSigner]
 func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
 	// check parameters
 	switch {
 	case !prm.cnrSet:
 		return nil, ErrMissingContainer
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	// TODO: check private signer is set before forming the request
@@ -101,12 +103,7 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	prm.cnr.WriteToV2(&cnr)
 
 	var sig neofscrypto.Signature
-	signer := prm.signer
-	if signer == nil {
-		signer = c.defaultSigner()
-	}
-
-	err := container.CalculateSignature(&sig, prm.cnr, signer)
+	err = container.CalculateSignature(&sig, prm.cnr, signer)
 	if err != nil {
 		return nil, fmt.Errorf("calculate container signature: %w", err)
 	}
@@ -210,10 +207,15 @@ func (x ResContainerGet) Container() container.Container {
 //
 // Return errors:
 //   - [ErrMissingContainer]
+//   - [ErrMissingSigner]
 func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
 	switch {
 	case !prm.idSet:
 		return nil, ErrMissingContainer
+	}
+
+	if c.prm.signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
@@ -300,11 +302,16 @@ func (x ResContainerList) Containers() []cid.ID {
 //
 // Return errors:
 //   - [ErrMissingAccount]
+//   - [ErrMissingSigner]
 func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
 	// check parameters
 	switch {
 	case !prm.ownerSet:
 		return nil, ErrMissingAccount
+	}
+
+	if c.prm.signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	// form request body
@@ -406,6 +413,7 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Return errors:
 //   - [ErrMissingContainer]
+//   - [ErrMissingSigner]
 //   - [neofscrypto.ErrIncorrectSigner]
 //
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
@@ -414,6 +422,15 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) er
 	switch {
 	case !prm.idSet:
 		return ErrMissingContainer
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return err
+	}
+
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return errNonNeoSigner
 	}
 
 	// sign container ID
@@ -425,15 +442,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) er
 	data := cidV2.GetValue()
 
 	var sig neofscrypto.Signature
-	signer := prm.signer
-	if signer == nil {
-		signer = c.defaultSigner()
-	}
-
-	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return errNonNeoSigner
-	}
-	err := sig.Calculate(signer, data)
+	err = sig.Calculate(signer, data)
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}
@@ -518,11 +527,16 @@ func (x ResContainerEACL) Table() eacl.Table {
 //
 // Return errors:
 //   - [ErrMissingContainer]
+//   - [ErrMissingSigner]
 func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	// check parameters
 	switch {
 	case !prm.idSet:
 		return nil, ErrMissingContainer
+	}
+
+	if c.prm.signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
@@ -627,6 +641,7 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //   - [ErrMissingEACL]
 //   - [ErrMissingEACLContainer]
 //   - [neofscrypto.ErrIncorrectSigner]
+//   - [ErrMissingSigner]
 //
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
@@ -634,6 +649,15 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	switch {
 	case !prm.tableSet:
 		return ErrMissingEACL
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return err
+	}
+
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return errNonNeoSigner
 	}
 
 	_, isCIDSet := prm.table.CID()
@@ -645,16 +669,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	eaclV2 := prm.table.ToV2()
 
 	var sig neofscrypto.Signature
-	signer := prm.signer
-	if signer == nil {
-		signer = c.defaultSigner()
-	}
-
-	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return errNonNeoSigner
-	}
-
-	err := sig.Calculate(signer, eaclV2.StableMarshal(nil))
+	err = sig.Calculate(signer, eaclV2.StableMarshal(nil))
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}
@@ -734,11 +749,16 @@ func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
 //
 // Return errors:
 //   - [ErrMissingAnnouncements]
+//   - [ErrMissingSigner]
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) error {
 	// check parameters
 	switch {
 	case len(prm.announcements) == 0:
 		return ErrMissingAnnouncements
+	}
+
+	if c.prm.signer == nil {
+		return ErrMissingSigner
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list

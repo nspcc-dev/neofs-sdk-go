@@ -1,6 +1,7 @@
 package client
 
 import (
+	"context"
 	"errors"
 	"io"
 	"testing"
@@ -104,6 +105,15 @@ func TestObjectIterate(t *testing.T) {
 		})
 		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
 		require.Equal(t, ids[:2], actual)
+	})
+}
+
+func TestClient_ObjectSearch(t *testing.T) {
+	c := newClient(t, nil, nil)
+
+	t.Run("missing signer", func(t *testing.T) {
+		_, err := c.ObjectSearchInit(context.Background(), PrmObjectSearch{cnrSet: true})
+		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }
 

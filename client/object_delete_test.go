@@ -2,6 +2,7 @@ package client
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"testing"
@@ -69,5 +70,18 @@ func TestPrmObjectDelete_ByAddress(t *testing.T) {
 		prm.ByAddress(addr)
 		require.True(t, bytes.Equal(oidV2.GetValue(), prm.addr.GetObjectID().GetValue()))
 		require.True(t, bytes.Equal(cidV2.GetValue(), prm.addr.GetContainerID().GetValue()))
+	})
+}
+
+func TestClient_ObjectDelete(t *testing.T) {
+	t.Run("missing signer", func(t *testing.T) {
+		c := newClient(t, nil, nil)
+
+		var nonilAddr v2refs.Address
+		nonilAddr.SetObjectID(new(v2refs.ObjectID))
+		nonilAddr.SetContainerID(new(v2refs.ContainerID))
+
+		_, err := c.ObjectDelete(context.Background(), PrmObjectDelete{addr: nonilAddr})
+		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }

@@ -157,6 +157,7 @@ func (x ResObjectHash) Checksums() [][]byte {
 // Return errors:
 //   - [ErrMissingContainer]
 //   - [ErrMissingObject]
+//   - [ErrMissingSigner]
 //   - [ErrMissingRanges]
 func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectHash, error) {
 	switch {
@@ -166,6 +167,11 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 		return nil, ErrMissingObject
 	case len(prm.body.GetRanges()) == 0:
 		return nil, ErrMissingRanges
+	}
+
+	signer, err := c.getSigner(prm.signer)
+	if err != nil {
+		return nil, err
 	}
 
 	prm.body.SetAddress(&prm.addr)
@@ -179,12 +185,7 @@ func (c *Client) ObjectHash(ctx context.Context, prm PrmObjectHash) (*ResObjectH
 	c.prepareRequest(&req, &prm.meta)
 	req.SetBody(&prm.body)
 
-	signer := prm.signer
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	err := signServiceMessage(signer, &req)
+	err = signServiceMessage(signer, &req)
 	if err != nil {
 		return nil, fmt.Errorf("sign request: %w", err)
 	}
