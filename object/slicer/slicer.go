@@ -334,6 +334,7 @@ type PayloadWriter struct {
 	currentWriter limitedWriter
 
 	withSplit bool
+	splitID   *object.SplitID
 
 	writtenChildren []oid.ID
 }
@@ -353,6 +354,8 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 	}
 
 	if !x.withSplit {
+		x.splitID = object.NewSplitID()
+
 		err = x.writeIntermediateChild(x.rootMeta)
 		if err != nil {
 			return n, fmt.Errorf("write 1st child: %w", err)
@@ -421,6 +424,10 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		obj.SetType(object.TypeRegular)
 		obj.SetOwnerID(&x.owner)
 		obj.SetSessionToken(x.sessionToken)
+
+		if x.withSplit {
+			obj.SetSplitID(x.splitID)
+		}
 	}
 
 	var obj object.Object
@@ -472,6 +479,7 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 	x.writtenChildren = append(x.writtenChildren, id)
 
 	if x.withSplit && last {
+		meta.reset()
 		obj.ResetPreviousID()
 		obj.SetChildren(x.writtenChildren...)
 

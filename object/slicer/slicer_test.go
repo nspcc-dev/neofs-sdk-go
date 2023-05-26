@@ -259,25 +259,43 @@ func (x *slicedObjectChecker) InitDataStream(hdr object.Object) (io.Writer, erro
 
 	x.chainCollector.handleOutgoingObject(hdr, buf)
 
-	return newSizeChecker(x.tb, buf, x.input.payloadLimit), nil
+	return newSizeChecker(x.tb, hdr, buf, x.input.payloadLimit), nil
 }
 
 type writeSizeChecker struct {
-	tb        testing.TB
-	limit     uint64
-	processed uint64
-	base      io.Writer
+	tb          testing.TB
+	hdr         object.Object
+	limit       uint64
+	processed   uint64
+	base        io.Writer
+	payloadSeen bool
 }
 
-func newSizeChecker(tb testing.TB, base io.Writer, sizeLimit uint64) io.Writer {
+func newSizeChecker(tb testing.TB, hdr object.Object, base io.Writer, sizeLimit uint64) io.Writer {
 	return &writeSizeChecker{
 		tb:    tb,
+		hdr:   hdr,
 		limit: sizeLimit,
 		base:  base,
 	}
 }
 
 func (x *writeSizeChecker) Write(p []byte) (int, error) {
+	if !x.payloadSeen && len(p) > 0 {
+		x.payloadSeen = true
+	}
+
+	if x.payloadSeen {
+		if len(x.hdr.Children()) == 0 {
+			// only linking objects should be streamed with
+			// empty payload
+			require.NotZero(x.tb, len(p))
+		} else {
+			// linking object should have empty payload
+			require.Zero(x.tb, x.hdr.PayloadSize())
+		}
+	}
+
 	n, err := x.base.Write(p)
 	x.processed += uint64(n)
 	return n, err
