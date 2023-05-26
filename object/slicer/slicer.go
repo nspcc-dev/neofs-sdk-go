@@ -472,6 +472,7 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 	x.writtenChildren = append(x.writtenChildren, id)
 
 	if x.withSplit && last {
+		meta.reset()
 		obj.ResetPreviousID()
 		obj.SetChildren(x.writtenChildren...)
 
