@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 type mockClient struct {
@@ -78,27 +79,27 @@ func (m *mockClient) balanceGet(context.Context, PrmBalanceGet) (accounting.Deci
 	return accounting.Decimal{}, nil
 }
 
-func (m *mockClient) containerPut(context.Context, PrmContainerPut) (cid.ID, error) {
+func (m *mockClient) containerPut(context.Context, container.Container, PrmContainerPut) (cid.ID, error) {
 	return cid.ID{}, nil
 }
 
-func (m *mockClient) containerGet(context.Context, PrmContainerGet) (container.Container, error) {
+func (m *mockClient) containerGet(context.Context, cid.ID) (container.Container, error) {
 	return container.Container{}, nil
 }
 
-func (m *mockClient) containerList(context.Context, PrmContainerList) ([]cid.ID, error) {
+func (m *mockClient) containerList(context.Context, user.ID) ([]cid.ID, error) {
 	return nil, nil
 }
 
-func (m *mockClient) containerDelete(context.Context, PrmContainerDelete) error {
+func (m *mockClient) containerDelete(context.Context, cid.ID, PrmContainerDelete) error {
 	return nil
 }
 
-func (m *mockClient) containerEACL(context.Context, PrmContainerEACL) (eacl.Table, error) {
+func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) {
 	return eacl.Table{}, nil
 }
 
-func (m *mockClient) containerSetEACL(context.Context, PrmContainerSetEACL) error {
+func (m *mockClient) containerSetEACL(context.Context, eacl.Table, PrmContainerSetEACL) error {
 	return nil
 }
 

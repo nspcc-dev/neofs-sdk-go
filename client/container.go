@@ -18,24 +18,14 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-// PrmContainerPut groups parameters of ContainerPut operation.
+// PrmContainerPut groups optional parameters of ContainerPut operation.
 type PrmContainerPut struct {
 	prmCommonMeta
-
-	cnrSet bool
-	cnr    container.Container
 
 	sessionSet bool
 	session    session.Container
 
 	signer neofscrypto.Signer
-}
-
-// SetContainer sets structured information about new NeoFS container.
-// Required parameter.
-func (x *PrmContainerPut) SetContainer(cnr container.Container) {
-	x.cnr = cnr
-	x.cnrSet = true
 }
 
 // SetSigner sets signer to sign request payload.
@@ -83,27 +73,19 @@ func (x ResContainerPut) ID() cid.ID {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResContainerPut, error) {
-	// check parameters
-	switch {
-	case !prm.cnrSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (*ResContainerPut, error) {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO: check private signer is set before forming the request
-	// sign container
 	var cnr v2container.Container
-	prm.cnr.WriteToV2(&cnr)
+	cont.WriteToV2(&cnr)
 
+	// TODO: check private signer is set before forming the request
 	var sig neofscrypto.Signature
-	err = container.CalculateSignature(&sig, prm.cnr, signer)
+	err = container.CalculateSignature(&sig, cont, signer)
 	if err != nil {
 		return nil, fmt.Errorf("calculate container signature: %w", err)
 	}
@@ -171,19 +153,9 @@ func (c *Client) ContainerPut(ctx context.Context, prm PrmContainerPut) (*ResCon
 	return &res, nil
 }
 
-// PrmContainerGet groups parameters of ContainerGet operation.
+// PrmContainerGet groups optional parameters of ContainerGet operation.
 type PrmContainerGet struct {
 	prmCommonMeta
-
-	idSet bool
-	id    cid.ID
-}
-
-// SetContainer sets identifier of the container to be read.
-// Required parameter.
-func (x *PrmContainerGet) SetContainer(id cid.ID) {
-	x.id = id
-	x.idSet = true
 }
 
 // ResContainerGet groups resulting values of ContainerGet operation.
@@ -206,20 +178,14 @@ func (x ResContainerGet) Container() container.Container {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResContainerGet, error) {
-	switch {
-	case !prm.idSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (*ResContainerGet, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
-	prm.id.WriteToV2(&cidV2)
+	id.WriteToV2(&cidV2)
 
 	// form request body
 	reqBody := new(v2container.GetRequestBody)
@@ -266,19 +232,9 @@ func (c *Client) ContainerGet(ctx context.Context, prm PrmContainerGet) (*ResCon
 	return &res, nil
 }
 
-// PrmContainerList groups parameters of ContainerList operation.
+// PrmContainerList groups optional parameters of ContainerList operation.
 type PrmContainerList struct {
 	prmCommonMeta
-
-	ownerSet bool
-	ownerID  user.ID
-}
-
-// SetAccount sets identifier of the NeoFS account to list the containers.
-// Required parameter.
-func (x *PrmContainerList) SetAccount(id user.ID) {
-	x.ownerID = id
-	x.ownerSet = true
 }
 
 // ResContainerList groups resulting values of ContainerList operation.
@@ -301,22 +257,15 @@ func (x ResContainerList) Containers() []cid.ID {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingAccount]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResContainerList, error) {
-	// check parameters
-	switch {
-	case !prm.ownerSet:
-		return nil, ErrMissingAccount
-	}
-
+func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) (*ResContainerList, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
 
 	// form request body
 	var ownerV2 refs.OwnerID
-	prm.ownerID.WriteToV2(&ownerV2)
+	ownerID.WriteToV2(&ownerV2)
 
 	reqBody := new(v2container.ListRequestBody)
 	reqBody.SetOwnerID(&ownerV2)
@@ -361,24 +310,14 @@ func (c *Client) ContainerList(ctx context.Context, prm PrmContainerList) (*ResC
 	return &res, nil
 }
 
-// PrmContainerDelete groups parameters of ContainerDelete operation.
+// PrmContainerDelete groups optional parameters of ContainerDelete operation.
 type PrmContainerDelete struct {
 	prmCommonMeta
-
-	idSet bool
-	id    cid.ID
 
 	tokSet bool
 	tok    session.Container
 
 	signer neofscrypto.Signer
-}
-
-// SetContainer sets identifier of the NeoFS container to be removed.
-// Required parameter.
-func (x *PrmContainerDelete) SetContainer(id cid.ID) {
-	x.id = id
-	x.idSet = true
 }
 
 // SetSigner sets signer to sign request payload.
@@ -411,19 +350,11 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Reflects all internal errors in second return value (transport problems, response processing, etc.).
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
 //   - [neofscrypto.ErrIncorrectSigner]
-//
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) error {
-	// check parameters
-	switch {
-	case !prm.idSet:
-		return ErrMissingContainer
-	}
-
+func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return err
@@ -435,7 +366,7 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) er
 
 	// sign container ID
 	var cidV2 refs.ContainerID
-	prm.id.WriteToV2(&cidV2)
+	id.WriteToV2(&cidV2)
 
 	// container contract expects signature of container ID value
 	// don't get confused with stable marshaled protobuf container.ID structure
@@ -493,19 +424,9 @@ func (c *Client) ContainerDelete(ctx context.Context, prm PrmContainerDelete) er
 	return nil
 }
 
-// PrmContainerEACL groups parameters of ContainerEACL operation.
+// PrmContainerEACL groups optional parameters of ContainerEACL operation.
 type PrmContainerEACL struct {
 	prmCommonMeta
-
-	idSet bool
-	id    cid.ID
-}
-
-// SetContainer sets identifier of the NeoFS container to read the eACL table.
-// Required parameter.
-func (x *PrmContainerEACL) SetContainer(id cid.ID) {
-	x.id = id
-	x.idSet = true
 }
 
 // ResContainerEACL groups resulting values of ContainerEACL operation.
@@ -526,21 +447,14 @@ func (x ResContainerEACL) Table() eacl.Table {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResContainerEACL, error) {
-	// check parameters
-	switch {
-	case !prm.idSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (*ResContainerEACL, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
-	prm.id.WriteToV2(&cidV2)
+	id.WriteToV2(&cidV2)
 
 	// form request body
 	reqBody := new(v2container.GetExtendedACLRequestBody)
@@ -584,24 +498,14 @@ func (c *Client) ContainerEACL(ctx context.Context, prm PrmContainerEACL) (*ResC
 	return &res, nil
 }
 
-// PrmContainerSetEACL groups parameters of ContainerSetEACL operation.
+// PrmContainerSetEACL groups optional parameters of ContainerSetEACL operation.
 type PrmContainerSetEACL struct {
 	prmCommonMeta
-
-	tableSet bool
-	table    eacl.Table
 
 	sessionSet bool
 	session    session.Container
 
 	signer neofscrypto.Signer
-}
-
-// SetTable sets eACL table structure to be set for the container.
-// Required parameter and CID must be set inside the table.
-func (x *PrmContainerSetEACL) SetTable(table eacl.Table) {
-	x.table = table
-	x.tableSet = true
 }
 
 // SetSigner sets signer to sign request payload.
@@ -638,19 +542,12 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 // Success can be verified by reading by identifier (see EACL).
 //
 // Return errors:
-//   - [ErrMissingEACL]
 //   - [ErrMissingEACLContainer]
 //   - [neofscrypto.ErrIncorrectSigner]
 //   - [ErrMissingSigner]
 //
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) error {
-	// check parameters
-	switch {
-	case !prm.tableSet:
-		return ErrMissingEACL
-	}
-
+func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return err
@@ -660,13 +557,13 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 		return errNonNeoSigner
 	}
 
-	_, isCIDSet := prm.table.CID()
+	_, isCIDSet := table.CID()
 	if !isCIDSet {
 		return ErrMissingEACLContainer
 	}
 
 	// sign the eACL table
-	eaclV2 := prm.table.ToV2()
+	eaclV2 := table.ToV2()
 
 	var sig neofscrypto.Signature
 	err = sig.Calculate(signer, eaclV2.StableMarshal(nil))
@@ -720,19 +617,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, prm PrmContainerSetEACL) 
 	return nil
 }
 
-// PrmAnnounceSpace groups parameters of ContainerAnnounceUsedSpace operation.
+// PrmAnnounceSpace groups optional parameters of ContainerAnnounceUsedSpace operation.
 type PrmAnnounceSpace struct {
 	prmCommonMeta
-
-	announcements []container.SizeEstimation
-}
-
-// SetValues sets values describing volume of space that is used for the container objects.
-// Required parameter. Must not be empty.
-//
-// Must not be mutated before the end of the operation.
-func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
-	x.announcements = vs
 }
 
 // ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
@@ -747,13 +634,15 @@ func (x *PrmAnnounceSpace) SetValues(vs []container.SizeEstimation) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Announcements parameter MUST NOT be empty slice.
+//
 // Return errors:
 //   - [ErrMissingAnnouncements]
 //   - [ErrMissingSigner]
-func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounceSpace) error {
+func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
 	// check parameters
-	switch {
-	case len(prm.announcements) == 0:
+
+	if len(announcements) == 0 {
 		return ErrMissingAnnouncements
 	}
 
@@ -762,9 +651,9 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, prm PrmAnnounce
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list
-	v2announce := make([]v2container.UsedSpaceAnnouncement, len(prm.announcements))
-	for i := range prm.announcements {
-		prm.announcements[i].WriteToV2(&v2announce[i])
+	v2announce := make([]v2container.UsedSpaceAnnouncement, len(announcements))
+	for i := range announcements {
+		announcements[i].WriteToV2(&v2announce[i])
 	}
 
 	// prepare body of the NeoFS-API v2 request and request itself

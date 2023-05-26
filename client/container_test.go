@@ -5,6 +5,9 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/container"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -20,47 +23,47 @@ func TestClient_Container(t *testing.T) {
 			{
 				"put",
 				func() error {
-					_, err := c.ContainerPut(ctx, PrmContainerPut{cnrSet: true})
+					_, err := c.ContainerPut(ctx, container.Container{}, PrmContainerPut{})
 					return err
 				},
 			},
 			{
 				"get",
 				func() error {
-					_, err := c.ContainerGet(ctx, PrmContainerGet{idSet: true})
+					_, err := c.ContainerGet(ctx, cid.ID{}, PrmContainerGet{})
 					return err
 				},
 			},
 			{
 				"list",
 				func() error {
-					_, err := c.ContainerList(ctx, PrmContainerList{ownerSet: true})
+					_, err := c.ContainerList(ctx, user.ID{}, PrmContainerList{})
 					return err
 				},
 			},
 			{
 				"delete",
 				func() error {
-					return c.ContainerDelete(ctx, PrmContainerDelete{idSet: true})
+					return c.ContainerDelete(ctx, cid.ID{}, PrmContainerDelete{})
 				},
 			},
 			{
 				"eacl",
 				func() error {
-					_, err := c.ContainerEACL(ctx, PrmContainerEACL{idSet: true})
+					_, err := c.ContainerEACL(ctx, cid.ID{}, PrmContainerEACL{})
 					return err
 				},
 			},
 			{
 				"set_eacl",
 				func() error {
-					return c.ContainerSetEACL(ctx, PrmContainerSetEACL{tableSet: true})
+					return c.ContainerSetEACL(ctx, eacl.Table{}, PrmContainerSetEACL{})
 				},
 			},
 			{
 				"announce_space",
 				func() error {
-					return c.ContainerAnnounceUsedSpace(ctx, PrmAnnounceSpace{announcements: make([]container.SizeEstimation, 1)})
+					return c.ContainerAnnounceUsedSpace(ctx, make([]container.SizeEstimation, 1), PrmAnnounceSpace{})
 				},
 			},
 		}

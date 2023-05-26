@@ -25,10 +25,9 @@ Connect to the NeoFS server:
 Execute NeoFS operation on the server:
 
 	var prm client.PrmContainerPut
-	prm.SetContainer(cnr)
 	// ...
 
-	res, err := c.ContainerPut(context.Background(), prm)
+	res, err := c.ContainerPut(context.Background(), cnr, prm)
 	err := c.Dial(dialPrm)
 	if err == nil {
 		err = apistatus.ErrFromStatus(res.Status())
