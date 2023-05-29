@@ -3,7 +3,6 @@ package pool
 import (
 	"context"
 	"errors"
-	"math/rand"
 	"strconv"
 	"testing"
 	"time"
@@ -315,10 +314,9 @@ func TestSessionCache(t *testing.T) {
 	require.True(t, st.AssertAuthKey(key.Public()))
 
 	var prm PrmObjectGet
-	prm.SetAddress(oid.Address{})
 	prm.UseSession(session.Object{})
 
-	_, err = pool.GetObject(ctx, prm)
+	_, err = pool.GetObject(ctx, cid.ID{}, oid.ID{}, prm)
 	require.Error(t, err)
 
 	// cache must not contain session token
@@ -428,11 +426,10 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.True(t, st.AssertAuthKey(key.Public()))
 
 	var prm PrmObjectDelete
-	prm.SetAddress(oid.Address{})
 	anonKey := test.RandomSignerRFC6979(t)
 	prm.UseSigner(anonKey)
 
-	err = pool.DeleteObject(ctx, prm)
+	err = pool.DeleteObject(ctx, cid.ID{}, oid.ID{}, prm)
 	require.NoError(t, err)
 	st, _ = pool.cache.Get(formCacheKey(cp.address(), anonKey))
 	require.True(t, st.AssertAuthKey(key.Public()))
@@ -658,42 +655,13 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 		conn, err := pool.connection()
 		require.NoError(t, err)
 		require.Equal(t, nodes[0].address, conn.address())
-		_, err = conn.objectGet(ctx, PrmObjectGet{})
+		_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{})
 		require.Error(t, err)
 	}
 
 	conn, err := pool.connection()
 	require.NoError(t, err)
 	require.Equal(t, nodes[1].address, conn.address())
-	_, err = conn.objectGet(ctx, PrmObjectGet{})
+	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{})
 	require.NoError(t, err)
-}
-
-func TestPrmObjectRange_SetRange(t *testing.T) {
-	var prm PrmObjectRange
-
-	ln := rand.Uint64()
-	off := rand.Uint64()
-
-	t.Run("SetLength", func(t *testing.T) {
-		prm.SetLength(ln)
-
-		require.Equal(t, ln, prm.rng.ToV2().GetLength())
-	})
-
-	t.Run("SetOffset", func(t *testing.T) {
-		prm.SetOffset(off)
-
-		require.Equal(t, off, prm.rng.ToV2().GetOffset())
-	})
-
-	t.Run("SetRange", func(t *testing.T) {
-		var tmp object.Range
-		tmp.SetLength(ln)
-		tmp.SetOffset(off)
-
-		prm.SetRange(tmp)
-		require.Equal(t, ln, tmp.ToV2().GetLength())
-		require.Equal(t, off, tmp.ToV2().GetOffset())
-	})
 }

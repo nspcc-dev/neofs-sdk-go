@@ -17,13 +17,9 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
-// PrmObjectDelete groups parameters of ObjectDelete operation.
+// PrmObjectDelete groups optional parameters of ObjectDelete operation.
 type PrmObjectDelete struct {
 	meta v2session.RequestMetaHeader
-
-	body v2object.DeleteRequestBody
-
-	addr v2refs.Address
 
 	keySet bool
 	signer neofscrypto.Signer
@@ -51,30 +47,6 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 	var v2token acl.BearerToken
 	t.WriteToV2(&v2token)
 	x.meta.SetBearerToken(&v2token)
-}
-
-// FromContainer specifies NeoFS container of the object.
-// Required parameter. It is an alternative to [PrmObjectDelete.ByAddress].
-func (x *PrmObjectDelete) FromContainer(id cid.ID) {
-	var cidV2 v2refs.ContainerID
-	id.WriteToV2(&cidV2)
-
-	x.addr.SetContainerID(&cidV2)
-}
-
-// ByID specifies identifier of the requested object.
-// Required parameter. It is an alternative to [PrmObjectDelete.ByAddress].
-func (x *PrmObjectDelete) ByID(id oid.ID) {
-	var idV2 v2refs.ObjectID
-	id.WriteToV2(&idV2)
-
-	x.addr.SetObjectID(&idV2)
-}
-
-// ByAddress specifies address of the requested object.
-// Required parameter. It is an alternative to [PrmObjectDelete.ByID], [PrmObjectDelete.FromContainer].
-func (x *PrmObjectDelete) ByAddress(addr oid.Address) {
-	addr.WriteToV2(&x.addr)
 }
 
 // UseSigner specifies private signer to sign the requests.
@@ -118,20 +90,24 @@ func (x ResObjectDelete) Tombstone() oid.ID {
 //
 // Return errors:
 //   - global (see Client docs)
-//   - [ErrMissingContainer]
-//   - [ErrMissingObject]
 //   - [ErrMissingSigner]
 //   - [apistatus.ErrContainerNotFound]
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObjectDelete, error) {
-	switch {
-	case prm.addr.GetContainerID() == nil:
-		return nil, ErrMissingContainer
-	case prm.addr.GetObjectID() == nil:
-		return nil, ErrMissingObject
-	}
+func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) (*ResObjectDelete, error) {
+	var (
+		addr  v2refs.Address
+		cidV2 v2refs.ContainerID
+		oidV2 v2refs.ObjectID
+		body  v2object.DeleteRequestBody
+	)
+
+	containerID.WriteToV2(&cidV2)
+	addr.SetContainerID(&cidV2)
+
+	objectID.WriteToV2(&oidV2)
+	addr.SetObjectID(&oidV2)
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
@@ -139,11 +115,11 @@ func (c *Client) ObjectDelete(ctx context.Context, prm PrmObjectDelete) (*ResObj
 	}
 
 	// form request body
-	prm.body.SetAddress(&prm.addr)
+	body.SetAddress(&addr)
 
 	// form request
 	var req v2object.DeleteRequest
-	req.SetBody(&prm.body)
+	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
 	err = signServiceMessage(signer, &req)

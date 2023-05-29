@@ -57,15 +57,15 @@ type client interface {
 	// see clientWrapper.objectPut.
 	objectPut(context.Context, PrmObjectPut) (oid.ID, error)
 	// see clientWrapper.objectDelete.
-	objectDelete(context.Context, PrmObjectDelete) error
+	objectDelete(context.Context, cid.ID, oid.ID, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
-	objectGet(context.Context, PrmObjectGet) (ResGetObject, error)
+	objectGet(context.Context, cid.ID, oid.ID, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
-	objectHead(context.Context, PrmObjectHead) (object.Object, error)
+	objectHead(context.Context, cid.ID, oid.ID, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
-	objectRange(context.Context, PrmObjectRange) (ResObjectRange, error)
+	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, PrmObjectSearch) (ResObjectSearch, error)
+	objectSearch(context.Context, cid.ID, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
 	sessionCreate(context.Context, prmCreateSession) (resCreateSession, error)
 
@@ -658,15 +658,13 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
-func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) error {
+func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
 	}
 
 	var cliPrm sdkClient.PrmObjectDelete
-	cliPrm.ByAddress(prm.addr)
-
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
 	}
@@ -680,7 +678,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 	}
 
 	start := time.Now()
-	_, err = cl.ObjectDelete(ctx, cliPrm)
+	_, err = cl.ObjectDelete(ctx, containerID, objectID, cliPrm)
 	c.incRequests(time.Since(start), methodObjectDelete)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -690,15 +688,13 @@ func (c *clientWrapper) objectDelete(ctx context.Context, prm PrmObjectDelete) e
 }
 
 // objectGet returns reader for object.
-func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGetObject, error) {
+func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResGetObject{}, err
 	}
 
 	var cliPrm sdkClient.PrmObjectGet
-	cliPrm.ByAddress(prm.addr)
-
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
 	}
@@ -713,7 +709,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 
 	var res ResGetObject
 
-	rObj, err := cl.ObjectGetInit(ctx, cliPrm)
+	rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
@@ -739,14 +735,13 @@ func (c *clientWrapper) objectGet(ctx context.Context, prm PrmObjectGet) (ResGet
 }
 
 // objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
-func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (object.Object, error) {
+func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return object.Object{}, err
 	}
 
 	var cliPrm sdkClient.PrmObjectHead
-	cliPrm.ByAddress(prm.addr)
 	if prm.raw {
 		cliPrm.MarkRaw()
 	}
@@ -766,7 +761,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 	var obj object.Object
 
 	start := time.Now()
-	res, err := cl.ObjectHead(ctx, cliPrm)
+	res, err := cl.ObjectHead(ctx, containerID, objectID, cliPrm)
 	c.incRequests(time.Since(start), methodObjectHead)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -780,15 +775,13 @@ func (c *clientWrapper) objectHead(ctx context.Context, prm PrmObjectHead) (obje
 }
 
 // objectRange returns object range reader.
-func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRange, error) {
+func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectRange{}, err
 	}
 
 	var cliPrm sdkClient.PrmObjectRange
-	cliPrm.ByAddress(prm.addr)
-	cliPrm.SetRange(prm.rng)
 
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
@@ -803,7 +796,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 	}
 
 	start := time.Now()
-	res, err := cl.ObjectRangeInit(ctx, cliPrm)
+	res, err := cl.ObjectRangeInit(ctx, containerID, objectID, offset, length, cliPrm)
 	c.incRequests(time.Since(start), methodObjectRange)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -819,15 +812,13 @@ func (c *clientWrapper) objectRange(ctx context.Context, prm PrmObjectRange) (Re
 }
 
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
+func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectSearch{}, err
 	}
 
 	var cliPrm sdkClient.PrmObjectSearch
-
-	cliPrm.InContainer(prm.cnrID)
 	cliPrm.SetFilters(prm.filters)
 
 	if prm.stoken != nil {
@@ -842,7 +833,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, prm PrmObjectSearch) (
 		cliPrm.UseSigner(prm.signer)
 	}
 
-	res, err := cl.ObjectSearchInit(ctx, cliPrm)
+	res, err := cl.ObjectSearchInit(ctx, containerID, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
@@ -1154,12 +1145,6 @@ func (x *prmContext) useObjects(ids []oid.ID) {
 	x.objSet = true
 }
 
-func (x *prmContext) useAddress(addr oid.Address) {
-	x.cnr = addr.Container()
-	x.objs = []oid.ID{addr.Object()}
-	x.objSet = true
-}
-
 func (x *prmContext) useVerb(verb session.ObjectVerb) {
 	x.verb = verb
 }
@@ -1216,38 +1201,18 @@ func (x *PrmObjectPut) SetCopiesNumber(copiesNumber uint32) {
 // PrmObjectDelete groups parameters of DeleteObject operation.
 type PrmObjectDelete struct {
 	prmCommon
-
-	addr oid.Address
-}
-
-// SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectDelete) SetAddress(addr oid.Address) {
-	x.addr = addr
 }
 
 // PrmObjectGet groups parameters of GetObject operation.
 type PrmObjectGet struct {
 	prmCommon
-
-	addr oid.Address
-}
-
-// SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectGet) SetAddress(addr oid.Address) {
-	x.addr = addr
 }
 
 // PrmObjectHead groups parameters of HeadObject operation.
 type PrmObjectHead struct {
 	prmCommon
 
-	addr oid.Address
-	raw  bool
-}
-
-// SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectHead) SetAddress(addr oid.Address) {
-	x.addr = addr
+	raw bool
 }
 
 // MarkRaw marks an intent to read physically stored object.
@@ -1258,45 +1223,13 @@ func (x *PrmObjectHead) MarkRaw() {
 // PrmObjectRange groups parameters of RangeObject operation.
 type PrmObjectRange struct {
 	prmCommon
-
-	addr oid.Address
-	rng  object.Range
-}
-
-// SetAddress specifies NeoFS address of the object.
-func (x *PrmObjectRange) SetAddress(addr oid.Address) {
-	x.addr = addr
-}
-
-// SetOffset sets offset of the payload range to be read.
-// Zero by default. It is an alternative to [PrmObjectRange.SetRange].
-func (x *PrmObjectRange) SetOffset(offset uint64) {
-	x.rng.SetOffset(offset)
-}
-
-// SetLength sets length of the payload range to be read.
-// Must be positive. It is an alternative to [PrmObjectRange.SetRange].
-func (x *PrmObjectRange) SetLength(length uint64) {
-	x.rng.SetLength(length)
-}
-
-// SetRange sets range of the payload to be read.
-// It is an alternative to [PrmObjectRange.SetOffset], [PrmObjectRange.SetLength].
-func (x *PrmObjectRange) SetRange(rng object.Range) {
-	x.rng = rng
 }
 
 // PrmObjectSearch groups parameters of SearchObjects operation.
 type PrmObjectSearch struct {
 	prmCommon
 
-	cnrID   cid.ID
 	filters object.SearchFilters
-}
-
-// SetContainerID specifies the container in which to look for objects.
-func (x *PrmObjectSearch) SetContainerID(cnrID cid.ID) {
-	x.cnrID = cnrID
 }
 
 // SetFilters specifies filters by which to select objects.
@@ -1988,24 +1921,23 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 // As a marker, a special unit called a tombstone is placed in the container.
 // It confirms the user's intent to delete the object, and is itself a container object.
 // Explicit deletion is done asynchronously, and is generally not guaranteed.
-func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
+func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectDelete)
-	prmCtx.useAddress(prm.addr)
 
 	if prm.stoken == nil { // collect phy objects only if we are about to open default session
 		var tokens relations.Tokens
 		tokens.Bearer = prm.btoken
 
-		relatives, err := relations.ListAllRelations(ctx, p, prm.addr.Container(), prm.addr.Object(), tokens)
+		relatives, err := relations.ListAllRelations(ctx, p, containerID, objectID, tokens)
 		if err != nil {
 			return fmt.Errorf("failed to collect relatives: %w", err)
 		}
 
 		if len(relatives) != 0 {
-			prmCtx.useContainer(prm.addr.Container())
-			prmCtx.useObjects(append(relatives, prm.addr.Object()))
+			prmCtx.useContainer(containerID)
+			prmCtx.useObjects(append(relatives, objectID))
 		}
 	}
 
@@ -2022,7 +1954,7 @@ func (p *Pool) DeleteObject(ctx context.Context, prm PrmObjectDelete) error {
 	}
 
 	return p.call(&cc, func() error {
-		if err = cc.client.objectDelete(ctx, prm); err != nil {
+		if err = cc.client.objectDelete(ctx, containerID, objectID, prm); err != nil {
 			return fmt.Errorf("remove object via client: %w", err)
 		}
 
@@ -2068,7 +2000,7 @@ type ResGetObject struct {
 // GetObject reads object header and initiates reading an object payload through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (ResGetObject, error) {
+func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
@@ -2083,7 +2015,7 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (ResGetObject, e
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectGet(ctx, prm)
+		res, err = cc.client.objectGet(ctx, containerID, objectID, prm)
 		return err
 	})
 }
@@ -2091,7 +2023,7 @@ func (p *Pool) GetObject(ctx context.Context, prm PrmObjectGet) (ResGetObject, e
 // HeadObject reads object header through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (object.Object, error) {
+func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
@@ -2107,7 +2039,7 @@ func (p *Pool) HeadObject(ctx context.Context, prm PrmObjectHead) (object.Object
 	}
 
 	return obj, p.call(&cc, func() error {
-		obj, err = cc.client.objectHead(ctx, prm)
+		obj, err = cc.client.objectHead(ctx, containerID, objectID, prm)
 		return err
 	})
 }
@@ -2140,7 +2072,7 @@ func (x *ResObjectRange) Close() error {
 // server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRange, error) {
+func (p *Pool) ObjectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
@@ -2155,7 +2087,7 @@ func (p *Pool) ObjectRange(ctx context.Context, prm PrmObjectRange) (ResObjectRa
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectRange(ctx, prm)
+		res, err = cc.client.objectRange(ctx, containerID, objectID, offset, length, prm)
 		return err
 	})
 }
@@ -2202,7 +2134,7 @@ func (x *ResObjectSearch) Close() {
 // is done using the ResObjectSearch. Resulting reader must be finally closed.
 //
 // Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjectSearch, error) {
+func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
 	var cc callContext
@@ -2218,7 +2150,7 @@ func (p *Pool) SearchObjects(ctx context.Context, prm PrmObjectSearch) (ResObjec
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectSearch(ctx, prm)
+		res, err = cc.client.objectSearch(ctx, containerID, prm)
 		return err
 	})
 }
@@ -2432,12 +2364,7 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *
 
 // GetSplitInfo implements relations.Relations.
 func (p *Pool) GetSplitInfo(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) (*object.SplitInfo, error) {
-	var addr oid.Address
-	addr.SetContainer(cnrID)
-	addr.SetObject(objID)
-
 	var prm PrmObjectHead
-	prm.SetAddress(addr)
 	if tokens.Bearer != nil {
 		prm.UseBearer(*tokens.Bearer)
 	}
@@ -2446,7 +2373,7 @@ func (p *Pool) GetSplitInfo(ctx context.Context, cnrID cid.ID, objID oid.ID, tok
 	}
 	prm.MarkRaw()
 
-	res, err := p.HeadObject(ctx, prm)
+	res, err := p.HeadObject(ctx, cnrID, objID, prm)
 
 	var errSplit *object.SplitInfoError
 
@@ -2476,12 +2403,7 @@ func (p *Pool) GetSplitInfo(ctx context.Context, cnrID cid.ID, objID oid.ID, tok
 
 // ListChildrenByLinker implements relations.Relations.
 func (p *Pool) ListChildrenByLinker(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) ([]oid.ID, error) {
-	var addr oid.Address
-	addr.SetContainer(cnrID)
-	addr.SetObject(objID)
-
 	var prm PrmObjectHead
-	prm.SetAddress(addr)
 	if tokens.Bearer != nil {
 		prm.UseBearer(*tokens.Bearer)
 	}
@@ -2489,7 +2411,7 @@ func (p *Pool) ListChildrenByLinker(ctx context.Context, cnrID cid.ID, objID oid
 		prm.UseSession(*tokens.Session)
 	}
 
-	res, err := p.HeadObject(ctx, prm)
+	res, err := p.HeadObject(ctx, cnrID, objID, prm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get linking object's header: %w", err)
 	}
@@ -2499,12 +2421,7 @@ func (p *Pool) ListChildrenByLinker(ctx context.Context, cnrID cid.ID, objID oid
 
 // GetLeftSibling implements relations.Relations.
 func (p *Pool) GetLeftSibling(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) (oid.ID, error) {
-	var addr oid.Address
-	addr.SetContainer(cnrID)
-	addr.SetObject(objID)
-
 	var prm PrmObjectHead
-	prm.SetAddress(addr)
 	if tokens.Bearer != nil {
 		prm.UseBearer(*tokens.Bearer)
 	}
@@ -2512,7 +2429,7 @@ func (p *Pool) GetLeftSibling(ctx context.Context, cnrID cid.ID, objID oid.ID, t
 		prm.UseSession(*tokens.Session)
 	}
 
-	res, err := p.HeadObject(ctx, prm)
+	res, err := p.HeadObject(ctx, cnrID, objID, prm)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("failed to read split chain member's header: %w", err)
 	}
@@ -2530,7 +2447,6 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	query.AddParentIDFilter(object.MatchStringEqual, objID)
 
 	var prm PrmObjectSearch
-	prm.SetContainerID(cnrID)
 	prm.SetFilters(query)
 	if tokens.Bearer != nil {
 		prm.UseBearer(*tokens.Bearer)
@@ -2539,7 +2455,7 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 		prm.UseSession(*tokens.Session)
 	}
 
-	resSearch, err := p.SearchObjects(ctx, prm)
+	resSearch, err := p.SearchObjects(ctx, cnrID, prm)
 	if err != nil {
 		return nil, fmt.Errorf("failed to find object children: %w", err)
 	}

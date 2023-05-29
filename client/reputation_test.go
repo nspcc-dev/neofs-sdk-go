@@ -14,12 +14,12 @@ func TestClient_Reputation(t *testing.T) {
 
 	t.Run("missing signer", func(t *testing.T) {
 		t.Run("local", func(t *testing.T) {
-			err := c.AnnounceLocalTrust(ctx, PrmAnnounceLocalTrust{epoch: 1, trusts: make([]reputation.Trust, 1)})
+			err := c.AnnounceLocalTrust(ctx, 1, make([]reputation.Trust, 1), PrmAnnounceLocalTrust{})
 			require.ErrorIs(t, err, ErrMissingSigner)
 		})
 
 		t.Run("intermediate", func(t *testing.T) {
-			err := c.AnnounceIntermediateTrust(ctx, PrmAnnounceIntermediateTrust{epoch: 1, trustSet: true})
+			err := c.AnnounceIntermediateTrust(ctx, 1, reputation.PeerToPeerTrust{}, PrmAnnounceIntermediateTrust{})
 			require.ErrorIs(t, err, ErrMissingSigner)
 		})
 	})

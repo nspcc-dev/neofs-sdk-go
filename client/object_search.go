@@ -20,14 +20,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
-// PrmObjectSearch groups parameters of ObjectSearch operation.
+// PrmObjectSearch groups optional parameters of ObjectSearch operation.
 type PrmObjectSearch struct {
 	meta v2session.RequestMetaHeader
 
 	signer neofscrypto.Signer
-
-	cnrSet bool
-	cnrID  cid.ID
 
 	filters object.SearchFilters
 }
@@ -72,13 +69,6 @@ func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
 // If signer is not provided, then Client default signer is used.
 func (x *PrmObjectSearch) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
-}
-
-// InContainer specifies the container in which to look for objects.
-// Required parameter.
-func (x *PrmObjectSearch) InContainer(id cid.ID) {
-	x.cnrID = id
-	x.cnrSet = true
 }
 
 // SetFilters sets filters by which to select objects. All container objects
@@ -208,22 +198,15 @@ func (x *ObjectListReader) Close() error {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
-//   - [ErrMissingContainer]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectSearchInit(ctx context.Context, prm PrmObjectSearch) (*ObjectListReader, error) {
-	// check parameters
-	switch {
-	case !prm.cnrSet:
-		return nil, ErrMissingContainer
-	}
-
+func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (*ObjectListReader, error) {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
 	}
 
 	var cidV2 v2refs.ContainerID
-	prm.cnrID.WriteToV2(&cidV2)
+	containerID.WriteToV2(&cidV2)
 
 	var body v2object.SearchRequestBody
 	body.SetVersion(1)
