@@ -72,7 +72,7 @@ func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRe
 func TestClient_NetMapSnapshot(t *testing.T) {
 	var err error
 	var prm PrmNetMapSnapshot
-	var res *ResNetMapSnapshot
+	var res netmap.NetMap
 	var srv serverNetMap
 
 	signer := test.RandomSignerRFC6979(t)
@@ -139,7 +139,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	res, err = c.NetMapSnapshot(ctx, prm)
 	require.NoError(t, err)
-	require.Equal(t, netMap, res.NetMap())
+	require.Equal(t, netMap, res)
 }
 
 func TestClient_NetMapSnapshot_MissingSigner(t *testing.T) {

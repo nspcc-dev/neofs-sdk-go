@@ -385,7 +385,7 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 		return accounting.Decimal{}, fmt.Errorf("balance get on client: %w", err)
 	}
 
-	return res.Amount(), nil
+	return res, nil
 }
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
@@ -397,7 +397,7 @@ func (c *clientWrapper) containerPut(ctx context.Context, cont container.Contain
 	}
 
 	start := time.Now()
-	res, err := cl.ContainerPut(ctx, cont, prm.prmClient)
+	idCnr, err := cl.ContainerPut(ctx, cont, prm.prmClient)
 	c.incRequests(time.Since(start), methodContainerPut)
 	c.updateErrorRate(err)
 	if err != nil {
@@ -407,8 +407,6 @@ func (c *clientWrapper) containerPut(ctx context.Context, cont container.Contain
 	if !prm.waitParamsSet {
 		prm.waitParams.setDefaults()
 	}
-
-	idCnr := res.ID()
 
 	err = waitForContainerPresence(ctx, c, idCnr, &prm.waitParams)
 	c.updateErrorRate(err)
@@ -434,7 +432,7 @@ func (c *clientWrapper) containerGet(ctx context.Context, cnrID cid.ID) (contain
 		return container.Container{}, fmt.Errorf("container get on client: %w", err)
 	}
 
-	return res.Container(), nil
+	return res, nil
 }
 
 // containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
@@ -451,7 +449,7 @@ func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]c
 	if err != nil {
 		return nil, fmt.Errorf("container list on client: %w", err)
 	}
-	return res.Containers(), nil
+	return res, nil
 }
 
 // containerDelete invokes sdkClient.ContainerDelete parse response status to error.
@@ -497,7 +495,7 @@ func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Tabl
 		return eacl.Table{}, fmt.Errorf("get eacl on client: %w", err)
 	}
 
-	return res.Table(), nil
+	return res, nil
 }
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
@@ -572,7 +570,7 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 		return netmap.NetworkInfo{}, fmt.Errorf("network info on client: %w", err)
 	}
 
-	return res.Info(), nil
+	return res, nil
 }
 
 // objectPut writes object to NeoFS.

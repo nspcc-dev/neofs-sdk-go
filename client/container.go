@@ -48,18 +48,6 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.sessionSet = true
 }
 
-// ResContainerPut groups resulting values of ContainerPut operation.
-type ResContainerPut struct {
-	id cid.ID
-}
-
-// ID returns identifier of the container declared to be stored in the system.
-// Used as a link to information about the container (in particular, you can
-// asynchronously check if the save was successful).
-func (x ResContainerPut) ID() cid.ID {
-	return x.id
-}
-
 // ContainerPut sends request to save container in NeoFS.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -68,16 +56,17 @@ func (x ResContainerPut) ID() cid.ID {
 // Operation is asynchronous and no guaranteed even in the absence of errors.
 // The required time is also not predictable.
 //
-// Success can be verified by reading by identifier (see ResContainerPut.ID).
+// Success can be verified by reading [Client.ContainerGet] using the returned
+// identifier (notice that it needs some time to succeed).
 //
 // Context is required and must not be nil. It is used for network communication.
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (*ResContainerPut, error) {
+func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
-		return nil, err
+		return cid.ID{}, err
 	}
 
 	var cnr v2container.Container
@@ -87,7 +76,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 	var sig neofscrypto.Signature
 	err = container.CalculateSignature(&sig, cont, signer)
 	if err != nil {
-		return nil, fmt.Errorf("calculate container signature: %w", err)
+		return cid.ID{}, fmt.Errorf("calculate container signature: %w", err)
 	}
 
 	var sigv2 refs.Signature
@@ -120,7 +109,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 
 	var (
 		cc  contextCall
-		res ResContainerPut
+		res cid.ID
 	)
 
 	c.initCallContext(&cc)
@@ -139,7 +128,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 			return
 		}
 
-		cc.err = res.id.ReadFromV2(*cidV2)
+		cc.err = res.ReadFromV2(*cidV2)
 		if cc.err != nil {
 			cc.err = newErrInvalidResponseField(fieldCnrID, cc.err)
 		}
@@ -147,27 +136,15 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return cid.ID{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerGet groups optional parameters of ContainerGet operation.
 type PrmContainerGet struct {
 	prmCommonMeta
-}
-
-// ResContainerGet groups resulting values of ContainerGet operation.
-type ResContainerGet struct {
-	cnr container.Container
-}
-
-// Container returns structured information about the requested container.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResContainerGet) Container() container.Container {
-	return x.cnr
 }
 
 // ContainerGet reads NeoFS container by ID.
@@ -179,9 +156,9 @@ func (x ResContainerGet) Container() container.Container {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (*ResContainerGet, error) {
+func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return container.Container{}, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
@@ -200,7 +177,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 
 	var (
 		cc  contextCall
-		res ResContainerGet
+		res container.Container
 	)
 
 	c.initCallContext(&cc)
@@ -218,7 +195,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 			return
 		}
 
-		cc.err = res.cnr.ReadFromV2(*cnrV2)
+		cc.err = res.ReadFromV2(*cnrV2)
 		if cc.err != nil {
 			cc.err = fmt.Errorf("invalid container in response: %w", cc.err)
 		}
@@ -226,27 +203,15 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return container.Container{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerList groups optional parameters of ContainerList operation.
 type PrmContainerList struct {
 	prmCommonMeta
-}
-
-// ResContainerList groups resulting values of ContainerList operation.
-type ResContainerList struct {
-	ids []cid.ID
-}
-
-// Containers returns list of identifiers of the account-owned containers.
-//
-// Client doesn't retain value so modification is safe.
-func (x ResContainerList) Containers() []cid.ID {
-	return x.ids
 }
 
 // ContainerList requests identifiers of the account-owned containers.
@@ -258,7 +223,7 @@ func (x ResContainerList) Containers() []cid.ID {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) (*ResContainerList, error) {
+func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
 	if c.prm.signer == nil {
 		return nil, ErrMissingSigner
 	}
@@ -279,7 +244,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 
 	var (
 		cc  contextCall
-		res ResContainerList
+		res []cid.ID
 	)
 
 	c.initCallContext(&cc)
@@ -291,10 +256,10 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
 
-		res.ids = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
+		res = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
 
 		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			cc.err = res.ids[i].ReadFromV2(cidV2)
+			cc.err = res[i].ReadFromV2(cidV2)
 			if cc.err != nil {
 				cc.err = fmt.Errorf("invalid ID in the response: %w", cc.err)
 				return
@@ -307,7 +272,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 		return nil, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerDelete groups optional parameters of ContainerDelete operation.
@@ -429,16 +394,6 @@ type PrmContainerEACL struct {
 	prmCommonMeta
 }
 
-// ResContainerEACL groups resulting values of ContainerEACL operation.
-type ResContainerEACL struct {
-	table eacl.Table
-}
-
-// Table returns eACL table of the requested container.
-func (x ResContainerEACL) Table() eacl.Table {
-	return x.table
-}
-
 // ContainerEACL reads eACL table of the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -448,9 +403,9 @@ func (x ResContainerEACL) Table() eacl.Table {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (*ResContainerEACL, error) {
+func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return eacl.Table{}, ErrMissingSigner
 	}
 
 	var cidV2 refs.ContainerID
@@ -469,7 +424,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 
 	var (
 		cc  contextCall
-		res ResContainerEACL
+		res eacl.Table
 	)
 
 	c.initCallContext(&cc)
@@ -487,15 +442,15 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 			return
 		}
 
-		res.table = *eacl.NewTableFromV2(eACL)
+		res = *eacl.NewTableFromV2(eACL)
 	}
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return eacl.Table{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmContainerSetEACL groups optional parameters of ContainerSetEACL operation.
@@ -701,7 +656,7 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c *
 		return fmt.Errorf("network info call: %w", err)
 	}
 
-	container.ApplyNetworkConfig(cnr, res.Info())
+	container.ApplyNetworkConfig(cnr, res)
 
 	return nil
 }

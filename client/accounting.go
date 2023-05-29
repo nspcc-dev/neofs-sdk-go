@@ -26,16 +26,6 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 	x.accountSet = true
 }
 
-// ResBalanceGet groups resulting values of BalanceGet operation.
-type ResBalanceGet struct {
-	amount accounting.Decimal
-}
-
-// Amount returns current amount of funds on the NeoFS account as decimal number.
-func (x ResBalanceGet) Amount() accounting.Decimal {
-	return x.amount
-}
-
 // BalanceGet requests current balance of the NeoFS account.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -46,14 +36,14 @@ func (x ResBalanceGet) Amount() accounting.Decimal {
 // Return errors:
 //   - [ErrMissingAccount]
 //   - [ErrMissingSigner]
-func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalanceGet, error) {
+func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	switch {
 	case !prm.accountSet:
-		return nil, ErrMissingAccount
+		return accounting.Decimal{}, ErrMissingAccount
 	}
 
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return accounting.Decimal{}, ErrMissingSigner
 	}
 
 	// form request body
@@ -72,7 +62,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 
 	var (
 		cc  contextCall
-		res ResBalanceGet
+		res accounting.Decimal
 	)
 
 	c.initCallContext(&cc)
@@ -92,7 +82,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 			return
 		}
 
-		cc.err = res.amount.ReadFromV2(*bal)
+		cc.err = res.ReadFromV2(*bal)
 		if cc.err != nil {
 			cc.err = newErrInvalidResponseField(fieldBalance, cc.err)
 		}
@@ -100,8 +90,8 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (*ResBalance
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return accounting.Decimal{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }

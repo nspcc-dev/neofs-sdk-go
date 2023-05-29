@@ -116,16 +116,6 @@ type PrmNetworkInfo struct {
 	prmCommonMeta
 }
 
-// ResNetworkInfo groups resulting values of NetworkInfo operation.
-type ResNetworkInfo struct {
-	info netmap.NetworkInfo
-}
-
-// Info returns structured information about the NeoFS network.
-func (x ResNetworkInfo) Info() netmap.NetworkInfo {
-	return x.info
-}
-
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
 //
 // Any client's internal or transport errors are returned as `error`,
@@ -133,9 +123,8 @@ func (x ResNetworkInfo) Info() netmap.NetworkInfo {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ResNetworkInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetworkInfo, error) {
+func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error) {
 	// form request
 	var req v2netmap.NetworkInfoRequest
 
@@ -143,7 +132,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 
 	var (
 		cc  contextCall
-		res ResNetworkInfo
+		res netmap.NetworkInfo
 	)
 
 	c.initCallContext(&cc)
@@ -163,7 +152,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 			return
 		}
 
-		cc.err = res.info.ReadFromV2(*netInfoV2)
+		cc.err = res.ReadFromV2(*netInfoV2)
 		if cc.err != nil {
 			cc.err = newErrInvalidResponseField(fieldNetInfo, cc.err)
 			return
@@ -172,24 +161,14 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (*ResNetwo
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		return netmap.NetworkInfo{}, cc.err
 	}
 
-	return &res, nil
+	return res, nil
 }
 
 // PrmNetMapSnapshot groups parameters of NetMapSnapshot operation.
 type PrmNetMapSnapshot struct {
-}
-
-// ResNetMapSnapshot groups resulting values of NetMapSnapshot operation.
-type ResNetMapSnapshot struct {
-	netMap netmap.NetMap
-}
-
-// NetMap returns current server's local network map.
-func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
-	return x.netMap
 }
 
 // NetMapSnapshot requests current network view of the remote server.
@@ -199,16 +178,14 @@ func (x ResNetMapSnapshot) NetMap() netmap.NetMap {
 //
 // Context is required and MUST NOT be nil. It is used for network communication.
 //
-// Exactly one return value is non-nil. Server status return is returned in ResNetMapSnapshot.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 //
 // Returns errors:
 //   - [ErrMissingSigner]
-func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResNetMapSnapshot, error) {
+func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netmap.NetMap, error) {
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		return netmap.NetMap{}, ErrMissingSigner
 	}
-
 	// form request body
 	var body v2netmap.SnapshotRequestBody
 
@@ -222,30 +199,30 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (*ResN
 
 	err := signServiceMessage(c.prm.signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return netmap.NetMap{}, fmt.Errorf("sign request: %w", err)
 	}
 
 	resp, err := c.server.netMapSnapshot(ctx, req)
 	if err != nil {
-		return nil, err
+		return netmap.NetMap{}, err
 	}
 
-	var res ResNetMapSnapshot
+	var res netmap.NetMap
 	if err = c.processResponse(resp); err != nil {
-		return nil, err
+		return netmap.NetMap{}, err
 	}
 
 	const fieldNetMap = "network map"
 
 	netMapV2 := resp.GetBody().NetMap()
 	if netMapV2 == nil {
-		return nil, newErrMissingResponseField(fieldNetMap)
+		return netmap.NetMap{}, newErrMissingResponseField(fieldNetMap)
 	}
 
-	err = res.netMap.ReadFromV2(*netMapV2)
+	err = res.ReadFromV2(*netMapV2)
 	if err != nil {
-		return nil, newErrInvalidResponseField(fieldNetMap, err)
+		return netmap.NetMap{}, newErrInvalidResponseField(fieldNetMap, err)
 	}
 
-	return &res, nil
+	return res, nil
 }
