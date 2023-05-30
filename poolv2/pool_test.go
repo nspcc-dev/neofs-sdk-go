@@ -9,6 +9,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -52,12 +53,15 @@ func ExampleNewPool() {
 		panic(err)
 	}
 
+	var objectID oid.ID
+
 	payload := bytes.NewReader([]byte{1, 2, 3, 4, 5})
 	obj := NewCreateObjectBuilder(containerID, payload).
-		WithAttribute(Attribute{Name: "is_it_ok", Value: "it_is_ok"})
+		WithAttribute(Attribute{Name: "is_it_ok", Value: "it_is_ok"}).WithIDHandler(func(id oid.ID) {
+		objectID = id
+	})
 
-	objectID, err := p.CreateObject(ctx, obj)
-	if err != nil {
+	if err = p.CreateObject(ctx, obj); err != nil {
 		panic(err)
 	}
 

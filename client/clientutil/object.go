@@ -34,32 +34,43 @@ type CreateObjectPrm struct {
 	idHandler func(oid.ID)
 }
 
+func NewCreateObjectPrm(container cid.ID, payload io.Reader) *CreateObjectPrm {
+	return &CreateObjectPrm{
+		Container: container,
+		payload:   payload,
+	}
+}
+
 // SetSigner specifies optional signing component. Signer MUST be correctly
 // initialized.
-func (x *CreateObjectPrm) SetSigner(signer neofscrypto.Signer) {
+func (x *CreateObjectPrm) SetSigner(signer neofscrypto.Signer) *CreateObjectPrm {
 	x.signer = signer
+	return x
 }
 
 // AddAttribute adds optional key-value attribute to be assigned to an object.
 // Can be called multiple times.
 //
 // Both key and value MUST NOT be empty.
-func (x *CreateObjectPrm) AddAttribute(key, val string) {
+func (x *CreateObjectPrm) AddAttribute(key, val string) *CreateObjectPrm {
 	x.attributes = append(x.attributes, [2]string{key, val})
+	return x
 }
 
 // SetPayload sets optional object payload encapsulated in io.Reader provider.
 //
 // Reader SHOULD NOT be nil.
-func (x *CreateObjectPrm) SetPayload(r io.Reader) {
+func (x *CreateObjectPrm) SetPayload(r io.Reader) *CreateObjectPrm {
 	x.payload = r
+	return x
 }
 
 // SetIDHandler sets optional function to pass the identifier of the stored object.
 //
 // Handler SHOULD NOT be nil.
-func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) {
+func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) *CreateObjectPrm {
 	x.idHandler = f
+	return x
 }
 
 // CreateObjectWithClient creates new NeoFS object and stores it into the
