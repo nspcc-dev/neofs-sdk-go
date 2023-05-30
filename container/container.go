@@ -45,6 +45,16 @@ const (
 	attributeTimestamp = "Timestamp"
 )
 
+func NewContainer(basicACL acl.Basic, owner user.ID) Container {
+	var c Container
+	c.SetBasicACL(basicACL)
+	c.SetOwner(owner)
+
+	SetCreationTime(&c, time.Now().UTC())
+
+	return c
+}
+
 // reads Container from the container.Container message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
 func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) error {

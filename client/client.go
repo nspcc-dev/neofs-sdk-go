@@ -179,6 +179,12 @@ type PrmInit struct {
 	netMagic uint64
 }
 
+func NewPrmInit(signer neofscrypto.Signer) PrmInit {
+	return PrmInit{
+		signer: signer,
+	}
+}
+
 // SetDefaultSigner sets Client private signer to be used for the protocol
 // communication by default.
 //
@@ -211,6 +217,12 @@ type PrmDial struct {
 	streamTimeout    time.Duration
 
 	parentCtx context.Context
+}
+
+func NewPrmDial(endpoint string) PrmDial {
+	return PrmDial{
+		endpoint: endpoint,
+	}
 }
 
 // SetServerURI sets server URI in the NeoFS network.
