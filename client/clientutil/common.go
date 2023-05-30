@@ -8,18 +8,18 @@ import (
 
 func createClient(endpoint string) (*client.Client, error) {
 	var prmInit client.PrmInit
-	prmInit.ResolveNeoFSFailures()
 
-	var c client.Client
-	c.Init(prmInit)
+	c, err := client.New(prmInit)
+	if err != nil {
+		return nil, fmt.Errorf("new client: %w", err)
+	}
 
 	var prmDial client.PrmDial
 	prmDial.SetServerURI(endpoint)
 
-	err := c.Dial(prmDial)
-	if err != nil {
+	if err = c.Dial(prmDial); err != nil {
 		return nil, fmt.Errorf("endpoint dial: %w", err)
 	}
 
-	return &c, nil
+	return c, nil
 }

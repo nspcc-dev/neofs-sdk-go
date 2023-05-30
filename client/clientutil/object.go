@@ -2,7 +2,6 @@ package clientutil
 
 import (
 	"context"
-	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -25,8 +25,7 @@ type CreateObjectPrm struct {
 	// Target NeoFS container.
 	Container cid.ID
 
-	signerSet bool
-	signer    ecdsa.PrivateKey
+	signer neofscrypto.Signer
 
 	payload io.Reader
 
@@ -37,9 +36,8 @@ type CreateObjectPrm struct {
 
 // SetSigner specifies optional signing component. Signer MUST be correctly
 // initialized.
-func (x *CreateObjectPrm) SetSigner(signer ecdsa.PrivateKey) {
+func (x *CreateObjectPrm) SetSigner(signer neofscrypto.Signer) {
 	x.signer = signer
-	x.signerSet = true
 }
 
 // AddAttribute adds optional key-value attribute to be assigned to an object.
@@ -87,18 +85,16 @@ func (x *CreateObjectPrm) SetIDHandler(f func(oid.ID)) {
 func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObjectPrm) error {
 	const expirationSession = math.MaxUint64
 
-	var signer ecdsa.PrivateKey
-	if prm.signerSet {
+	signer := signerDefault
+	if prm.signer != nil {
 		signer = prm.signer
-	} else {
-		signer = signerDefault
 	}
 
 	// send request to open the session for object writing
 	// FIXME: #342 avoid session opening and create object "statically"
 	var prmSession client.PrmSessionCreate
 	prmSession.SetExp(expirationSession)
-	prmSession.UseKey(signer)
+	prmSession.UseSigner(signer)
 
 	resSession, err := c.SessionCreate(ctx, prmSession)
 	if err != nil {
@@ -138,7 +134,7 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 	// initialize object stream
 	var prmPutInit client.PrmObjectPutInit
 	prmPutInit.WithinSession(tokenSession)
-	prmPutInit.UseKey(signer)
+	prmPutInit.UseSigner(signer)
 
 	streamObj, err := c.ObjectPutInit(ctx, prmPutInit)
 	if err != nil {
@@ -146,7 +142,9 @@ func CreateObjectWithClient(ctx context.Context, c *client.Client, prm CreateObj
 	}
 
 	var idCreator user.ID
-	user.IDFromKey(&idCreator, signer.PublicKey)
+	if err = user.IDFromSigner(&idCreator, signer); err != nil {
+		return fmt.Errorf("IDFromSigner: %w", err)
+	}
 
 	// form the minimum required object structure
 	var obj object.Object
@@ -256,11 +254,9 @@ func (x *ReadObjectPrm) WritePayloadTo(w io.Writer) {
 func ReadObjectWithClient(ctx context.Context, c *client.Client, prm ReadObjectPrm) error {
 	// initialize object stream
 	var prmGet client.PrmObjectGet
-	prmGet.FromContainer(prm.Container)
-	prmGet.ByID(prm.Object)
-	prmGet.UseKey(signerDefault)
+	prmGet.UseSigner(signerDefault)
 
-	streamObj, err := c.ObjectGetInit(ctx, prmGet)
+	streamObj, err := c.ObjectGetInit(ctx, prm.Container, prm.Object, prmGet)
 	if err != nil {
 		return fmt.Errorf("init object writing on client: %w", err)
 	}
@@ -279,8 +275,7 @@ func ReadObjectWithClient(ctx context.Context, c *client.Client, prm ReadObjectP
 		}
 	}
 
-	_, err = streamObj.Close()
-	if err != nil {
+	if err = streamObj.Close(); err != nil {
 		return fmt.Errorf("read object: %w", err)
 	}
 
@@ -329,11 +324,9 @@ type RemoveObjectPrm struct {
 // See also RemoveObject.
 func RemoveObjectWithClient(ctx context.Context, c *client.Client, prm RemoveObjectPrm) error {
 	var prmDel client.PrmObjectDelete
-	prmDel.FromContainer(prm.Container)
-	prmDel.ByID(prm.Object)
-	prmDel.UseKey(signerDefault)
+	prmDel.UseSigner(signerDefault)
 
-	_, err := c.ObjectDelete(ctx, prmDel)
+	_, err := c.ObjectDelete(ctx, prm.Container, prm.Object, prmDel)
 	if err != nil {
 		return fmt.Errorf("remove object via client: %w", err)
 	}
@@ -367,8 +360,7 @@ func queryFileName(name string) searchQuery {
 
 func selectObjectsWithClient(ctx context.Context, c *client.Client, cnr cid.ID, query searchQuery, handler func(oid.ID) bool) error {
 	var prm client.PrmObjectSearch
-	prm.InContainer(cnr)
-	prm.UseKey(signerDefault)
+	prm.UseSigner(signerDefault)
 
 	if query != nil {
 		var filters object.SearchFilters
@@ -377,7 +369,7 @@ func selectObjectsWithClient(ctx context.Context, c *client.Client, cnr cid.ID, 
 		prm.SetFilters(filters)
 	}
 
-	stream, err := c.ObjectSearchInit(ctx, prm)
+	stream, err := c.ObjectSearchInit(ctx, cnr, prm)
 	if err != nil {
 		return fmt.Errorf("search objects via client: %w", err)
 	}
