@@ -2323,18 +2323,6 @@ func waitFor(ctx context.Context, params *WaitParams, condition func(context.Con
 	}
 }
 
-// NetworkInfo requests information about the NeoFS network of which the remote server is a part.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) NetworkInfo(ctx context.Context) (netmap.NetworkInfo, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return netmap.NetworkInfo{}, err
-	}
-
-	return cp.networkInfo(ctx, prmNetworkInfo{})
-}
-
 // Close closes the Pool and releases all the associated resources.
 func (p *Pool) Close() {
 	p.cancel()
@@ -2350,7 +2338,7 @@ func (p *Pool) Close() {
 // Returns any error that does not allow reading configuration
 // from the network.
 func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *Pool) error {
-	ni, err := p.NetworkInfo(ctx)
+	ni, err := p.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	if err != nil {
 		return fmt.Errorf("network info: %w", err)
 	}
@@ -2468,4 +2456,18 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	}
 
 	return res, nil
+}
+
+func (p *Pool) sdkClient() (*sdkClient.Client, error) {
+	conn, err := p.connection()
+	if err != nil {
+		return nil, fmt.Errorf("connection: %w", err)
+	}
+
+	cl, err := conn.getClient()
+	if err != nil {
+		return nil, fmt.Errorf("get client: %w", err)
+	}
+
+	return cl, nil
 }
