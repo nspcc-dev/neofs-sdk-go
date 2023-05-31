@@ -35,7 +35,7 @@ import (
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
-type client interface {
+type internalClient interface {
 	// see clientWrapper.balanceGet.
 	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
@@ -954,7 +954,7 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 }
 
 // clientBuilder is a type alias of client constructors.
-type clientBuilder = func(endpoint string) (client, error)
+type clientBuilder = func(endpoint string) (internalClient, error)
 
 // RequestInfo groups info about pool request.
 type RequestInfo struct {
@@ -1385,7 +1385,7 @@ type Pool struct {
 type innerPool struct {
 	lock    sync.RWMutex
 	sampler *sampler
-	clients []client
+	clients []internalClient
 }
 
 const (
@@ -1455,7 +1455,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 	inner := make([]*innerPool, len(p.rebalanceParams.nodesParams))
 
 	for i, params := range p.rebalanceParams.nodesParams {
-		clients := make([]client, len(params.weights))
+		clients := make([]internalClient, len(params.weights))
 		for j, addr := range params.addresses {
 			clients[j], err = p.clientBuilder(addr)
 			if err != nil {
@@ -1533,7 +1533,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 	}
 
 	if params.isMissingClientBuilder() {
-		params.setClientBuilder(func(addr string) (client, error) {
+		params.setClientBuilder(func(addr string) (internalClient, error) {
 			var prm wrapperPrm
 			prm.setAddress(addr)
 			prm.setSigner(params.signer)
@@ -1625,7 +1625,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 
 	for j, cli := range pool.clients {
 		wg.Add(1)
-		go func(j int, cli client) {
+		go func(j int, cli internalClient) {
 			defer wg.Done()
 
 			tctx, c := context.WithTimeout(ctx, options.nodeRequestTimeout)
@@ -1670,7 +1670,7 @@ func adjustWeights(weights []float64) []float64 {
 	return adjusted
 }
 
-func (p *Pool) connection() (client, error) {
+func (p *Pool) connection() (internalClient, error) {
 	for _, inner := range p.innerPools {
 		cp, err := inner.connection()
 		if err == nil {
@@ -1681,7 +1681,7 @@ func (p *Pool) connection() (client, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func (p *innerPool) connection() (client, error) {
+func (p *innerPool) connection() (internalClient, error) {
 	p.lock.RLock() // need lock because of using p.sampler
 	defer p.lock.RUnlock()
 	if len(p.clients) == 1 {
@@ -1722,7 +1722,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64, signer neofscrypto.Signer) error {
+func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer neofscrypto.Signer) error {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return err
@@ -1770,7 +1770,7 @@ type callContext struct {
 	// base context for RPC
 	context.Context
 
-	client client
+	client internalClient
 
 	// client endpoint
 	endpoint string
@@ -2274,7 +2274,7 @@ func (p Pool) Statistic() Statistic {
 }
 
 // waitForContainerPresence waits until the container is found on the NeoFS network.
-func waitForContainerPresence(ctx context.Context, cli client, cnrID cid.ID, waitParams *WaitParams) error {
+func waitForContainerPresence(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, cnrID)
 		return err == nil
@@ -2282,7 +2282,7 @@ func waitForContainerPresence(ctx context.Context, cli client, cnrID cid.ID, wai
 }
 
 // waitForEACLPresence waits until the container eacl is applied on the NeoFS network.
-func waitForEACLPresence(ctx context.Context, cli client, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
+func waitForEACLPresence(ctx context.Context, cli internalClient, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		eaclTable, err := cli.containerEACL(ctx, cnrID)
 		if err == nil {
@@ -2293,7 +2293,7 @@ func waitForEACLPresence(ctx context.Context, cli client, cnrID cid.ID, table *e
 }
 
 // waitForContainerRemoved waits until the container is removed from the NeoFS network.
-func waitForContainerRemoved(ctx context.Context, cli client, cnrID cid.ID, waitParams *WaitParams) error {
+func waitForContainerRemoved(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, cnrID)
 		return errors.Is(err, apistatus.ErrContainerNotFound)

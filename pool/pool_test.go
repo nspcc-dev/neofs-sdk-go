@@ -20,10 +20,10 @@ import (
 )
 
 func TestBuildPoolClientFailed(t *testing.T) {
-	mockClientBuilder1 := func(_ string) (client, error) {
+	mockClientBuilder1 := func(_ string) (internalClient, error) {
 		return nil, errors.New("oops")
 	}
-	mockClientBuilder2 := func(addr string) (client, error) {
+	mockClientBuilder2 := func(addr string) (internalClient, error) {
 		mockCli := newMockClient(addr, test.RandomSignerRFC6979(t))
 		mockCli.errOnDial()
 		return mockCli, nil
@@ -49,7 +49,7 @@ func TestBuildPoolClientFailed(t *testing.T) {
 }
 
 func TestBuildPoolCreateSessionFailed(t *testing.T) {
-	clientMockBuilder := func(addr string) (client, error) {
+	clientMockBuilder := func(addr string) (internalClient, error) {
 		mockCli := newMockClient(addr, test.RandomSignerRFC6979(t))
 		mockCli.errOnCreateSession()
 		return mockCli, nil
@@ -74,7 +74,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	}
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
@@ -139,7 +139,7 @@ func TestBuildPoolWrongSigner(t *testing.T) {
 
 func TestOneNode(t *testing.T) {
 	key1 := test.RandomSignerRFC6979(t)
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		return newMockClient(addr, key1), nil
 	}
 
@@ -163,7 +163,7 @@ func TestOneNode(t *testing.T) {
 
 func TestTwoNodes(t *testing.T) {
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 		return newMockClient(addr, key), nil
@@ -207,7 +207,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 	}
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
@@ -248,7 +248,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 func TestTwoFailed(t *testing.T) {
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 		mockCli := newMockClient(addr, key)
@@ -283,7 +283,7 @@ func TestTwoFailed(t *testing.T) {
 func TestSessionCache(t *testing.T) {
 	key := test.RandomSignerRFC6979(t)
 
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		mockCli := newMockClient(addr, key)
 		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
 		return mockCli, nil
@@ -345,7 +345,7 @@ func TestPriority(t *testing.T) {
 	}
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
@@ -398,7 +398,7 @@ func TestPriority(t *testing.T) {
 func TestSessionCacheWithKey(t *testing.T) {
 	key := test.RandomSignerRFC6979(t)
 
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		return newMockClient(addr, key), nil
 	}
 
@@ -436,7 +436,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 }
 
 func TestSessionTokenOwner(t *testing.T) {
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		return newMockClient(addr, key), nil
 	}
@@ -621,7 +621,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	errorThreshold := 5
 
 	var clientKeys []neofscrypto.Signer
-	mockClientBuilder := func(addr string) (client, error) {
+	mockClientBuilder := func(addr string) (internalClient, error) {
 		key := test.RandomSignerRFC6979(t)
 		clientKeys = append(clientKeys, key)
 
