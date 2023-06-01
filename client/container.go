@@ -74,7 +74,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 
 	// TODO: check private signer is set before forming the request
 	var sig neofscrypto.Signature
-	err = container.CalculateSignature(&sig, cont, signer)
+	err = cont.CalculateSignature(&sig, signer)
 	if err != nil {
 		return cid.ID{}, fmt.Errorf("calculate container signature: %w", err)
 	}
@@ -656,7 +656,7 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c *
 		return fmt.Errorf("network info call: %w", err)
 	}
 
-	container.ApplyNetworkConfig(cnr, res)
+	cnr.ApplyNetworkConfig(res)
 
 	return nil
 }

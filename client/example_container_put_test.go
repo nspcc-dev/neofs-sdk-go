@@ -60,8 +60,8 @@ func ExampleClient_ContainerPut() {
 	cont.SetBasicACL(acl.PublicRW)
 
 	// set reserved attributes
-	container.SetName(&cont, "name-1")
-	container.SetCreationTime(&cont, time.Now().UTC())
+	cont.SetName("name-1")
+	cont.SetCreationTime(time.Now().UTC())
 
 	// init placement policy
 	var containerID cid.ID

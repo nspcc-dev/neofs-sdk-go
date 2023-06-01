@@ -189,14 +189,14 @@ func TestSetName(t *testing.T) {
 	var val container.Container
 
 	require.Panics(t, func() {
-		container.SetName(&val, "")
+		val.SetName("")
 	})
 
 	val = containertest.Container(t)
 
 	const name = "some name"
 
-	container.SetName(&val, name)
+	val.SetName(name)
 
 	var msg v2container.Container
 	val.WriteToV2(&msg)
@@ -206,19 +206,19 @@ func TestSetName(t *testing.T) {
 	var val2 container.Container
 	require.NoError(t, val2.ReadFromV2(msg))
 
-	require.Equal(t, name, container.Name(val2))
+	require.Equal(t, name, val2.Name())
 }
 
 func TestSetCreationTime(t *testing.T) {
 	var val container.Container
 
-	require.Zero(t, container.CreatedAt(val).Unix())
+	require.Zero(t, val.CreatedAt().Unix())
 
 	val = containertest.Container(t)
 
 	creat := time.Now()
 
-	container.SetCreationTime(&val, creat)
+	val.SetCreationTime(creat)
 
 	var msg v2container.Container
 	val.WriteToV2(&msg)
@@ -228,17 +228,17 @@ func TestSetCreationTime(t *testing.T) {
 	var val2 container.Container
 	require.NoError(t, val2.ReadFromV2(msg))
 
-	require.Equal(t, creat.Unix(), container.CreatedAt(val2).Unix())
+	require.Equal(t, creat.Unix(), val2.CreatedAt().Unix())
 }
 
 func TestDisableHomomorphicHashing(t *testing.T) {
 	var val container.Container
 
-	require.False(t, container.IsHomomorphicHashingDisabled(val))
+	require.False(t, val.IsHomomorphicHashingDisabled())
 
 	val = containertest.Container(t)
 
-	container.DisableHomomorphicHashing(&val)
+	val.DisableHomomorphicHashing()
 
 	var msg v2container.Container
 	val.WriteToV2(&msg)
@@ -248,13 +248,13 @@ func TestDisableHomomorphicHashing(t *testing.T) {
 	var val2 container.Container
 	require.NoError(t, val2.ReadFromV2(msg))
 
-	require.True(t, container.IsHomomorphicHashingDisabled(val2))
+	require.True(t, val2.IsHomomorphicHashingDisabled())
 }
 
 func TestWriteDomain(t *testing.T) {
 	var val container.Container
 
-	require.Zero(t, container.ReadDomain(val).Name())
+	require.Zero(t, val.ReadDomain().Name())
 
 	val = containertest.Container(t)
 
@@ -263,7 +263,7 @@ func TestWriteDomain(t *testing.T) {
 	var d container.Domain
 	d.SetName(name)
 
-	container.WriteDomain(&val, d)
+	val.WriteDomain(d)
 
 	var msg v2container.Container
 	val.WriteToV2(&msg)
@@ -275,7 +275,7 @@ func TestWriteDomain(t *testing.T) {
 
 	d.SetZone(zone)
 
-	container.WriteDomain(&val, d)
+	val.WriteDomain(d)
 
 	val.WriteToV2(&msg)
 
@@ -284,16 +284,16 @@ func TestWriteDomain(t *testing.T) {
 	var val2 container.Container
 	require.NoError(t, val2.ReadFromV2(msg))
 
-	require.Equal(t, d, container.ReadDomain(val2))
+	require.Equal(t, d, val2.ReadDomain())
 }
 
 func TestCalculateID(t *testing.T) {
 	val := containertest.Container(t)
 
-	require.False(t, container.AssertID(cidtest.ID(), val))
+	require.False(t, val.AssertID(cidtest.ID()))
 
 	var id cid.ID
-	container.CalculateID(&id, val)
+	val.CalculateID(&id)
 
 	var msg refs.ContainerID
 	id.WriteToV2(&msg)
@@ -304,7 +304,7 @@ func TestCalculateID(t *testing.T) {
 	var id2 cid.ID
 	require.NoError(t, id2.ReadFromV2(msg))
 
-	require.True(t, container.AssertID(id2, val))
+	require.True(t, val.AssertID(id2))
 }
 
 func TestCalculateSignature(t *testing.T) {
@@ -312,8 +312,8 @@ func TestCalculateSignature(t *testing.T) {
 
 	var sig neofscrypto.Signature
 
-	require.Error(t, container.CalculateSignature(&sig, val, test.RandomSigner(t)))
-	require.NoError(t, container.CalculateSignature(&sig, val, test.RandomSignerRFC6979(t)))
+	require.Error(t, val.CalculateSignature(&sig, test.RandomSigner(t)))
+	require.NoError(t, val.CalculateSignature(&sig, test.RandomSignerRFC6979(t)))
 
 	var msg refs.Signature
 	sig.WriteToV2(&msg)
@@ -321,5 +321,5 @@ func TestCalculateSignature(t *testing.T) {
 	var sig2 neofscrypto.Signature
 	require.NoError(t, sig2.ReadFromV2(msg))
 
-	require.True(t, container.VerifySignature(sig2, val))
+	require.True(t, val.VerifySignature(sig2))
 }
