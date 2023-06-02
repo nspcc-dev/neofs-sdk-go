@@ -347,7 +347,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 
 	var s neofscrypto.Signature
 
-	require.NoError(t, s.Calculate(signer, body.StableMarshal(nil)))
+	require.NoError(t, s.CalculateMarshalled(signer, &body))
 
 	s.WriteToV2(&sig)
 
