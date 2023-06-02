@@ -7,14 +7,14 @@ import (
 // ApplyNetworkConfig applies network configuration to the
 // container. Changes the container if it does not satisfy
 // network configuration.
-func ApplyNetworkConfig(cnr *Container, cfg netmap.NetworkInfo) {
+func (x *Container) ApplyNetworkConfig(cfg netmap.NetworkInfo) {
 	if cfg.HomomorphicHashingDisabled() {
-		DisableHomomorphicHashing(cnr)
+		x.DisableHomomorphicHashing()
 	}
 }
 
 // AssertNetworkConfig checks if a container matches passed
 // network configuration.
-func AssertNetworkConfig(cnr Container, cfg netmap.NetworkInfo) bool {
-	return IsHomomorphicHashingDisabled(cnr) == cfg.HomomorphicHashingDisabled()
+func (x Container) AssertNetworkConfig(cfg netmap.NetworkInfo) bool {
+	return x.IsHomomorphicHashingDisabled() == cfg.HomomorphicHashingDisabled()
 }

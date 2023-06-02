@@ -1,7 +1,6 @@
 package container
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strconv"
@@ -341,35 +340,35 @@ func (x Container) IterateAttributes(f func(key, val string)) {
 // SetName sets human-readable name of the Container. Name MUST NOT be empty.
 //
 // See also Name.
-func SetName(cnr *Container, name string) {
-	cnr.SetAttribute(attributeName, name)
+func (x *Container) SetName(name string) {
+	x.SetAttribute(attributeName, name)
 }
 
 // Name returns container name set using SetName.
 //
 // Zero Container has no name.
-func Name(cnr Container) string {
-	return cnr.Attribute(attributeName)
+func (x Container) Name() string {
+	return x.Attribute(attributeName)
 }
 
 // SetCreationTime writes container's creation time in Unix Timestamp format.
 //
 // See also CreatedAt.
-func SetCreationTime(cnr *Container, t time.Time) {
-	cnr.SetAttribute(attributeTimestamp, strconv.FormatInt(t.Unix(), 10))
+func (x *Container) SetCreationTime(t time.Time) {
+	x.SetAttribute(attributeTimestamp, strconv.FormatInt(t.Unix(), 10))
 }
 
 // CreatedAt returns container's creation time set using SetCreationTime.
 //
 // Zero Container has zero timestamp (in seconds).
-func CreatedAt(cnr Container) time.Time {
+func (x Container) CreatedAt() time.Time {
 	var sec int64
 
-	attr := cnr.Attribute(attributeTimestamp)
+	attr := x.Attribute(attributeTimestamp)
 	if attr != "" {
 		var err error
 
-		sec, err = strconv.ParseInt(cnr.Attribute(attributeTimestamp), 10, 64)
+		sec, err = strconv.ParseInt(x.Attribute(attributeTimestamp), 10, 64)
 		if err != nil {
 			panic(fmt.Sprintf("parse container timestamp: %v", err))
 		}
@@ -384,15 +383,15 @@ const attributeHomoHashEnabled = "true"
 // Container data.
 //
 // See also IsHomomorphicHashingDisabled.
-func DisableHomomorphicHashing(cnr *Container) {
-	cnr.SetAttribute(container.SysAttributeHomomorphicHashing, attributeHomoHashEnabled)
+func (x *Container) DisableHomomorphicHashing() {
+	x.SetAttribute(container.SysAttributeHomomorphicHashing, attributeHomoHashEnabled)
 }
 
 // IsHomomorphicHashingDisabled checks if DisableHomomorphicHashing was called.
 //
 // Zero Container has enabled hashing.
-func IsHomomorphicHashingDisabled(cnr Container) bool {
-	return cnr.Attribute(container.SysAttributeHomomorphicHashing) == attributeHomoHashEnabled
+func (x Container) IsHomomorphicHashingDisabled() bool {
+	return x.Attribute(container.SysAttributeHomomorphicHashing) == attributeHomoHashEnabled
 }
 
 // Domain represents information about container domain registered in the NNS
@@ -430,18 +429,18 @@ func (x Domain) Zone() string {
 }
 
 // WriteDomain writes Domain into the Container. Name MUST NOT be empty.
-func WriteDomain(cnr *Container, domain Domain) {
-	cnr.SetAttribute(container.SysAttributeName, domain.Name())
-	cnr.SetAttribute(container.SysAttributeZone, domain.Zone())
+func (x *Container) WriteDomain(domain Domain) {
+	x.SetAttribute(container.SysAttributeName, domain.Name())
+	x.SetAttribute(container.SysAttributeZone, domain.Zone())
 }
 
 // ReadDomain reads Domain from the Container. Returns value with empty name
 // if domain is not specified.
-func ReadDomain(cnr Container) (res Domain) {
-	name := cnr.Attribute(container.SysAttributeName)
+func (x Container) ReadDomain() (res Domain) {
+	name := x.Attribute(container.SysAttributeName)
 	if name != "" {
 		res.SetName(name)
-		res.SetZone(cnr.Attribute(container.SysAttributeZone))
+		res.SetZone(x.Attribute(container.SysAttributeZone))
 	}
 
 	return
@@ -459,43 +458,33 @@ func ReadDomain(cnr Container) (res Domain) {
 //
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
-func CalculateSignature(dst *neofscrypto.Signature, cnr Container, signer neofscrypto.Signer) error {
+func (x Container) CalculateSignature(dst *neofscrypto.Signature, signer neofscrypto.Signer) error {
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
 		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
 	}
-	return dst.Calculate(signer, cnr.Marshal())
+	return dst.Calculate(signer, x.Marshal())
 }
 
 // VerifySignature verifies Container signature calculated using CalculateSignature.
 // Result means signature correctness.
-func VerifySignature(sig neofscrypto.Signature, cnr Container) bool {
-	return sig.Verify(cnr.Marshal())
+func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
+	return sig.Verify(x.Marshal())
 }
 
-// CalculateIDFromBinary calculates identifier of the binary-encoded container
-// in CAS of the NeoFS containers and writes it into dst. ID instance MUST NOT
-// be nil.
-//
-// See also CalculateID, AssertID.
-func CalculateIDFromBinary(dst *cid.ID, cnr []byte) {
-	dst.SetSHA256(sha256.Sum256(cnr))
-}
-
-// CalculateID encodes the given Container and passes the result into
-// CalculateIDFromBinary.
+// CalculateID encodes the given Container and passes the result into FromBinary.
 //
 // See also Container.Marshal, AssertID.
-func CalculateID(dst *cid.ID, cnr Container) {
-	CalculateIDFromBinary(dst, cnr.Marshal())
+func (x Container) CalculateID(dst *cid.ID) {
+	dst.FromBinary(x.Marshal())
 }
 
 // AssertID checks if the given Container matches its identifier in CAS of the
 // NeoFS containers.
 //
 // See also CalculateID.
-func AssertID(id cid.ID, cnr Container) bool {
+func (x Container) AssertID(id cid.ID) bool {
 	var id2 cid.ID
-	CalculateID(&id2, cnr)
+	x.CalculateID(&id2)
 
 	return id2.Equals(id)
 }
