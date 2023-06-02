@@ -113,3 +113,11 @@ func (id *ID) DecodeString(s string) error {
 func (id ID) String() string {
 	return id.EncodeToString()
 }
+
+// FromBinary calculates identifier of the binary-encoded container
+// in CAS of the NeoFS containers and writes it into id.
+//
+// See also [container.Container.CalculateID], [container.Container.AssertID].
+func (id *ID) FromBinary(cnr []byte) {
+	id.SetSHA256(sha256.Sum256(cnr))
+}

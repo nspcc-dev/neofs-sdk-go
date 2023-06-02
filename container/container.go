@@ -1,7 +1,6 @@
 package container
 
 import (
-	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strconv"
@@ -472,21 +471,11 @@ func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
 	return sig.Verify(x.Marshal())
 }
 
-// CalculateIDFromBinary calculates identifier of the binary-encoded container
-// in CAS of the NeoFS containers and writes it into dst. ID instance MUST NOT
-// be nil.
-//
-// See also CalculateID, AssertID.
-func CalculateIDFromBinary(dst *cid.ID, cnr []byte) {
-	dst.SetSHA256(sha256.Sum256(cnr))
-}
-
-// CalculateID encodes the given Container and passes the result into
-// CalculateIDFromBinary.
+// CalculateID encodes the given Container and passes the result into FromBinary.
 //
 // See also Container.Marshal, AssertID.
 func (x Container) CalculateID(dst *cid.ID) {
-	CalculateIDFromBinary(dst, x.Marshal())
+	dst.FromBinary(x.Marshal())
 }
 
 // AssertID checks if the given Container matches its identifier in CAS of the
