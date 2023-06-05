@@ -97,6 +97,10 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 		return oid.ID{}, err
 	}
 
+	if err = p.withinContainerSession(ctx, c, containerID, p.actualSigner(prm.Signer()), session.VerbObjectDelete, &prm); err != nil {
+		return oid.ID{}, fmt.Errorf("session: %w", err)
+	}
+
 	return c.ObjectDelete(ctx, containerID, objectID, prm)
 }
 
