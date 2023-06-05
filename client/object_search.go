@@ -46,6 +46,11 @@ func (x *PrmObjectSearch) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tokv2)
 }
 
+// IsSessionSet checks is session within which object should be stored is set.
+func (x PrmObjectSearch) IsSessionSet() bool {
+	return x.meta.GetSessionToken() != nil
+}
+
 // WithBearerToken attaches bearer token to be used for the operation.
 //
 // If set, underlying eACL rules will be used in access control.
@@ -69,6 +74,11 @@ func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
 // If signer is not provided, then Client default signer is used.
 func (x *PrmObjectSearch) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
+}
+
+// Signer returns associated with request signer.
+func (x *PrmObjectSearch) Signer() neofscrypto.Signer {
+	return x.signer
 }
 
 // SetFilters sets filters by which to select objects. All container objects

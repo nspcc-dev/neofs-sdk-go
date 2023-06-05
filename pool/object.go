@@ -137,6 +137,10 @@ func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm cli
 		return nil, err
 	}
 
+	if err = p.withinContainerSession(ctx, c, containerID, p.actualSigner(prm.Signer()), session.VerbObjectSearch, &prm); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
+
 	return c.ObjectSearchInit(ctx, containerID, prm)
 }
 
