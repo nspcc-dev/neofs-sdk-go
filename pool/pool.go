@@ -593,56 +593,54 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 	}
 
 	start := time.Now()
-	wObj, err := cl.ObjectPutInit(ctx, cliPrm)
+	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, cliPrm)
 	c.incRequests(time.Since(start), methodObjectPut)
 	c.updateErrorRate(err)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
 	}
 
-	if wObj.WriteHeader(prm.hdr) {
-		sz := prm.hdr.PayloadSize()
+	sz := prm.hdr.PayloadSize()
 
-		if data := prm.hdr.Payload(); len(data) > 0 {
-			if prm.payload != nil {
-				prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
-			} else {
-				prm.payload = bytes.NewReader(data)
-				sz = uint64(len(data))
-			}
+	if data := prm.hdr.Payload(); len(data) > 0 {
+		if prm.payload != nil {
+			prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
+		} else {
+			prm.payload = bytes.NewReader(data)
+			sz = uint64(len(data))
+		}
+	}
+
+	if prm.payload != nil {
+		const defaultBufferSizePut = 3 << 20 // configure?
+
+		if sz == 0 || sz > defaultBufferSizePut {
+			sz = defaultBufferSizePut
 		}
 
-		if prm.payload != nil {
-			const defaultBufferSizePut = 3 << 20 // configure?
+		buf := make([]byte, sz)
 
-			if sz == 0 || sz > defaultBufferSizePut {
-				sz = defaultBufferSizePut
-			}
+		var n int
 
-			buf := make([]byte, sz)
-
-			var n int
-
-			for {
-				n, err = prm.payload.Read(buf)
-				if n > 0 {
-					start = time.Now()
-					successWrite := wObj.WritePayloadChunk(buf[:n])
-					c.incRequests(time.Since(start), methodObjectPut)
-					if !successWrite {
-						break
-					}
-
-					continue
-				}
-
-				if errors.Is(err, io.EOF) {
+		for {
+			n, err = prm.payload.Read(buf)
+			if n > 0 {
+				start = time.Now()
+				successWrite := wObj.WritePayloadChunk(buf[:n])
+				c.incRequests(time.Since(start), methodObjectPut)
+				if !successWrite {
 					break
 				}
 
-				c.updateErrorRate(err)
-				return oid.ID{}, fmt.Errorf("read payload: %w", err)
+				continue
 			}
+
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			c.updateErrorRate(err)
+			return oid.ID{}, fmt.Errorf("read payload: %w", err)
 		}
 	}
 

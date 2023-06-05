@@ -2,23 +2,49 @@ package pool
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
+
+type containerSessionParams interface {
+	IsSessionSet() bool
+	WithinSession(session.Object)
+}
+
+func (p *Pool) actualSigner(signer neofscrypto.Signer) neofscrypto.Signer {
+	if signer != nil {
+		return signer
+	}
+
+	return p.signer
+}
 
 // ObjectPutInit initiates writing an object through a remote server using NeoFS API protocol.
 //
 // See details in [client.Client.ObjectPutInit].
-func (p *Pool) ObjectPutInit(ctx context.Context, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
+func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
 	}
 
-	return c.ObjectPutInit(ctx, prm)
+	cnr, isSet := hdr.ContainerID()
+	if !isSet {
+		return nil, errContainerRequired
+	}
+
+	if err = p.withinContainerSession(ctx, c, cnr, p.actualSigner(prm.Signer()), session.VerbObjectPut, &prm); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
+
+	return c.ObjectPutInit(ctx, hdr, prm)
 }
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
