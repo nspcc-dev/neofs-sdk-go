@@ -121,6 +121,10 @@ func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.
 		return [][]byte{}, err
 	}
 
+	if err = p.withinContainerSession(ctx, c, containerID, p.actualSigner(prm.Signer()), session.VerbObjectRangeHash, &prm); err != nil {
+		return [][]byte{}, fmt.Errorf("session: %w", err)
+	}
+
 	return c.ObjectHash(ctx, containerID, objectID, prm)
 }
 

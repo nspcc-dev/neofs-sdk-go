@@ -34,6 +34,11 @@ func (x *PrmObjectHash) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
 
+// Signer returns associated with request signer.
+func (x *PrmObjectHash) Signer() neofscrypto.Signer {
+	return x.signer
+}
+
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectHash) MarkLocal() {
 	x.meta.SetTTL(1)
@@ -50,6 +55,11 @@ func (x *PrmObjectHash) WithinSession(t session.Object) {
 	t.WriteToV2(&tv2)
 
 	x.meta.SetSessionToken(&tv2)
+}
+
+// IsSessionSet checks is session within which object should be stored is set.
+func (x PrmObjectHash) IsSessionSet() bool {
+	return x.meta.GetSessionToken() != nil
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
