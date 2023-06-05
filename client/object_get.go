@@ -346,6 +346,11 @@ func (x *PrmObjectHead) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
 
+// Signer returns associated with request signer.
+func (x *PrmObjectHead) Signer() neofscrypto.Signer {
+	return x.signer
+}
+
 // ResObjectHead groups resulting values of ObjectHead operation.
 type ResObjectHead struct {
 	// requested object (response doesn't carry the ID)

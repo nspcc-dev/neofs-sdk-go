@@ -73,6 +73,10 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 		return nil, err
 	}
 
+	if err = p.withinContainerSession(ctx, c, containerID, p.actualSigner(prm.Signer()), session.VerbObjectHead, &prm); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
+
 	return c.ObjectHead(ctx, containerID, objectID, prm)
 }
 
