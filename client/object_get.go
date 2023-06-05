@@ -57,6 +57,11 @@ func (x *prmObjectRead) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tokv2)
 }
 
+// IsSessionSet checks is session within which object should be stored is set.
+func (x prmObjectRead) IsSessionSet() bool {
+	return x.meta.GetSessionToken() != nil
+}
+
 // WithBearerToken attaches bearer token to be used for the operation.
 //
 // If set, underlying eACL rules will be used in access control.
@@ -100,9 +105,14 @@ func (x *PrmObjectGet) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
 
-// ReadHeader reads header of the object. Result means success.
+// Signer returns associated with request signer.
+func (x *PrmObjectGet) Signer() neofscrypto.Signer {
+	return x.signer
+}
+
+// readHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
-func (x *ObjectReader) ReadHeader(dst *object.Object) bool {
+func (x *ObjectReader) readHeader(dst *object.Object) bool {
 	var resp v2object.GetResponse
 	x.err = x.stream.Read(&resp)
 	if x.err != nil {
@@ -269,17 +279,18 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (*ObjectReader, error) {
+func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (object.Object, *ObjectReader, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
 		oidV2 v2refs.ObjectID
 		body  v2object.GetRequestBody
+		hdr   object.Object
 	)
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
-		return nil, err
+		return hdr, nil, err
 	}
 
 	containerID.WriteToV2(&cidV2)
@@ -299,7 +310,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return hdr, nil, fmt.Errorf("sign request: %w", err)
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -307,7 +318,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	stream, err := rpcapi.GetObject(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("open stream: %w", err)
+		return hdr, nil, fmt.Errorf("open stream: %w", err)
 	}
 
 	var r ObjectReader
@@ -315,7 +326,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	r.stream = stream
 	r.client = c
 
-	return &r, nil
+	if !r.readHeader(&hdr) {
+		return hdr, nil, fmt.Errorf("header: %w", r.Close())
+	}
+
+	return hdr, &r, nil
 }
 
 // PrmObjectHead groups optional parameters of ObjectHead operation.

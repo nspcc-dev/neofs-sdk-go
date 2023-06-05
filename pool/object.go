@@ -50,10 +50,15 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, prm client.
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
 //
 // See details in [client.Client.ObjectGetInit].
-func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectGet) (*client.ObjectReader, error) {
+func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectGet) (object.Object, *client.ObjectReader, error) {
+	var hdr object.Object
 	c, err := p.sdkClient()
 	if err != nil {
-		return nil, err
+		return hdr, nil, err
+	}
+
+	if err = p.withinContainerSession(ctx, c, containerID, p.actualSigner(prm.Signer()), session.VerbObjectGet, &prm); err != nil {
+		return hdr, nil, fmt.Errorf("session: %w", err)
 	}
 
 	return c.ObjectGetInit(ctx, containerID, objectID, prm)

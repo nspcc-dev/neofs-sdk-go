@@ -683,7 +683,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, ob
 	return nil
 }
 
-// objectGet returns reader for object.
+// objectGet returns header and reader for object.
 func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
 	cl, err := c.getClient()
 	if err != nil {
@@ -705,20 +705,15 @@ func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objec
 
 	var res ResGetObject
 
-	rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, cliPrm)
+	hdr, rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
 	}
 
+	res.Header = hdr
 	start := time.Now()
-	successReadHeader := rObj.ReadHeader(&res.Header)
 	c.incRequests(time.Since(start), methodObjectGet)
-	if !successReadHeader {
-		err = rObj.Close()
-		c.updateErrorRate(err)
-		return res, fmt.Errorf("read header: %w", err)
-	}
 
 	res.Payload = &objectReadCloser{
 		reader: rObj,

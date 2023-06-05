@@ -26,7 +26,7 @@ func TestClient_Get(t *testing.T) {
 			{
 				"get",
 				func() error {
-					_, err := c.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{prmObjectRead: prmObjectRead{}})
+					_, _, err := c.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{prmObjectRead: prmObjectRead{}})
 					return err
 				},
 			},
