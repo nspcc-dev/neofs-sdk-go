@@ -1923,6 +1923,7 @@ func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oi
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
 	prmCtx.useVerb(session.VerbObjectDelete)
+	prmCtx.useContainer(containerID)
 
 	if prm.stoken == nil { // collect phy objects only if we are about to open default session
 		var tokens relations.Tokens
