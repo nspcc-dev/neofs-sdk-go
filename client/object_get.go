@@ -465,6 +465,11 @@ func (x *PrmObjectRange) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
 
+// Signer returns associated with request signer.
+func (x *PrmObjectRange) Signer() neofscrypto.Signer {
+	return x.signer
+}
+
 // ObjectRangeReader is designed to read payload range of one object
 // from NeoFS system.
 //

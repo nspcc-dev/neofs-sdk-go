@@ -89,6 +89,10 @@ func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID
 		return nil, err
 	}
 
+	if err = p.withinContainerSession(ctx, c, containerID, p.actualSigner(prm.Signer()), session.VerbObjectRange, &prm); err != nil {
+		return nil, fmt.Errorf("session: %w", err)
+	}
+
 	return c.ObjectRangeInit(ctx, containerID, objectID, offset, length, prm)
 }
 
