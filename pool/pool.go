@@ -1873,6 +1873,7 @@ func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
 // PutObject writes an object through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectPutInit instead.
 func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
 	cnr, _ := prm.hdr.ContainerID()
 
@@ -1912,6 +1913,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 // As a marker, a special unit called a tombstone is placed in the container.
 // It confirms the user's intent to delete the object, and is itself a container object.
 // Explicit deletion is done asynchronously, and is generally not guaranteed.
+// Deprecated: use ObjectDelete instead.
 func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
@@ -1991,6 +1993,7 @@ type ResGetObject struct {
 // GetObject reads object header and initiates reading an object payload through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectGetInit instead.
 func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2014,6 +2017,7 @@ func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.I
 // HeadObject reads object header through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectHead instead.
 func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2063,6 +2067,7 @@ func (x *ResObjectRange) Close() error {
 // server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectRangeInit instead.
 func (p *Pool) ObjectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2125,6 +2130,7 @@ func (x *ResObjectSearch) Close() {
 // is done using the ResObjectSearch. Resulting reader must be finally closed.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectSearchInit instead.
 func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2156,6 +2162,7 @@ func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObj
 // Success can be verified by reading by identifier (see [Pool.GetContainer]).
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ContainerPut instead.
 func (p *Pool) PutContainer(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2168,6 +2175,7 @@ func (p *Pool) PutContainer(ctx context.Context, cont container.Container, prm P
 // GetContainer reads NeoFS container by ID.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ContainerGet instead.
 func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2178,6 +2186,7 @@ func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container
 }
 
 // ListContainers requests identifiers of the account-owned containers.
+// Deprecated: use ContainerList instead.
 func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2195,6 +2204,7 @@ func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, e
 //	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
+// Deprecated: use ContainerDelete instead.
 func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
 	cp, err := p.connection()
 	if err != nil {
@@ -2207,6 +2217,7 @@ func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerD
 // GetEACL reads eACL table of the NeoFS container.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ContainerEACL instead.
 func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2224,6 +2235,7 @@ func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 //	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetEACL).
+// Deprecated: use ContainerSetEACL instead.
 func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
 	cp, err := p.connection()
 	if err != nil {
@@ -2236,6 +2248,7 @@ func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSe
 // Balance requests current balance of the NeoFS account.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use BalanceGet instead.
 func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	cp, err := p.connection()
 	if err != nil {
