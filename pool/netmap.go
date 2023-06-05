@@ -7,18 +7,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 )
 
-// EndpointInfo requests information about the storage node served on the remote endpoint.
-//
-// See details in [client.Client.EndpointInfo].
-func (p *Pool) EndpointInfo(ctx context.Context, prm client.PrmEndpointInfo) (*client.ResEndpointInfo, error) {
-	c, err := p.sdkClient()
-	if err != nil {
-		return nil, err
-	}
-
-	return c.EndpointInfo(ctx, prm)
-}
-
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
 //
 // See details in [client.Client.EndpointInfo].
