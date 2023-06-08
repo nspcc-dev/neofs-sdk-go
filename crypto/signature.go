@@ -7,6 +7,11 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
+// StablyMarshallable describes structs which can be marshalled transparently.
+type StablyMarshallable interface {
+	StableMarshal([]byte) []byte
+}
+
 // Signature represents a confirmation of data integrity received by the
 // digital signature mechanism.
 //
@@ -63,18 +68,29 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 		return fmt.Errorf("signer %T failure: %w", signer, err)
 	}
 
-	pub := signer.Public()
-
-	key := make([]byte, pub.MaxEncodedSize())
-	key = key[:pub.Encode(key)]
-
-	m := (*refs.Signature)(x)
-
-	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
-	m.SetSign(signature)
-	m.SetKey(key)
+	x.fillSignature(signer, signature)
 
 	return nil
+}
+
+// CalculateMarshalled signs data using Signer and encodes public key for subsequent verification.
+// If signer is a StaticSigner, just sets prepared signature.
+//
+// Signer MUST NOT be nil.
+//
+// See also Verify.
+func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable) error {
+	if static, ok := signer.(*StaticSigner); ok {
+		x.fillSignature(signer, static.sig)
+		return nil
+	}
+
+	var data []byte
+	if obj != nil {
+		data = obj.StableMarshal(nil)
+	}
+
+	return x.Calculate(signer, data)
 }
 
 // Verify verifies data signature using encoded public key. True means valid
@@ -99,4 +115,16 @@ func (x Signature) Verify(data []byte) bool {
 	}
 
 	return key.Verify(data, m.GetSign())
+}
+
+func (x *Signature) fillSignature(signer Signer, signature []byte) {
+	pub := signer.Public()
+
+	key := make([]byte, pub.MaxEncodedSize())
+	key = key[:pub.Encode(key)]
+
+	m := (*refs.Signature)(x)
+	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
+	m.SetSign(signature)
+	m.SetKey(key)
 }

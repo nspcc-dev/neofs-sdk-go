@@ -200,13 +200,7 @@ func signServiceMessagePart(signer neofscrypto.Signer, part stableMarshaler, sig
 	var sig neofscrypto.Signature
 	var sigv2 refs.Signature
 
-	m := &stableMarshalerWrapper{part}
-	data, err := m.ReadSignedData(nil)
-	if err != nil {
-		return fmt.Errorf("ReadSignedData %w", err)
-	}
-
-	if err = sig.Calculate(signer, data); err != nil {
+	if err := sig.CalculateMarshalled(signer, part); err != nil {
 		return fmt.Errorf("calculate %w", err)
 	}
 
