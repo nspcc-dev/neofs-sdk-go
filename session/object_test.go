@@ -642,7 +642,7 @@ func TestObject_SignedData(t *testing.T) {
 	tokenSession.BindContainer(cidtest.ID())
 	tokenSession.ForVerb(session.VerbObjectPut)
 	tokenSession.SetAuthKey(test.RandomSignerRFC6979(t).Public())
-	require.NoError(t, tokenSession.SetIssuer(issuer))
+	tokenSession.SetIssuer(issuer)
 
 	sign, err := issuerSigner.Sign(tokenSession.SignedData())
 	require.NoError(t, err)

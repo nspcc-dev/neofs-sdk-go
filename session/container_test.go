@@ -526,17 +526,27 @@ func TestIssuedBy(t *testing.T) {
 
 func TestContainer_Issuer(t *testing.T) {
 	var token session.Container
-	signer := test.RandomSignerRFC6979(t)
 
-	require.Zero(t, token.Issuer())
+	t.Run("signer", func(t *testing.T) {
+		signer := test.RandomSignerRFC6979(t)
 
-	require.NoError(t, token.Sign(signer))
+		require.Zero(t, token.Issuer())
+		require.NoError(t, token.Sign(signer))
 
-	var issuer user.ID
+		var issuer user.ID
 
-	require.NoError(t, user.IDFromSigner(&issuer, signer))
+		require.NoError(t, user.IDFromSigner(&issuer, signer))
+		require.True(t, token.Issuer().Equals(issuer))
+	})
 
-	require.True(t, token.Issuer().Equals(issuer))
+	t.Run("external", func(t *testing.T) {
+		var issuer user.ID
+		signer := test.RandomSignerRFC6979(t)
+		require.NoError(t, user.IDFromSigner(&issuer, signer))
+
+		token.SetIssuer(issuer)
+		require.True(t, token.Issuer().Equals(issuer))
+	})
 }
 
 func TestContainer_Sign(t *testing.T) {
