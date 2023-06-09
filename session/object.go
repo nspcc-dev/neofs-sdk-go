@@ -166,6 +166,11 @@ func (x *Object) Sign(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 
+// SignedData returns actual payload which would be signed, if you call [Object.Sign] method.
+func (x *Object) SignedData() []byte {
+	return x.signedData(x.writeContext)
+}
+
 // VerifySignature checks if Object signature is presented and valid.
 //
 // Zero Object fails the check.
