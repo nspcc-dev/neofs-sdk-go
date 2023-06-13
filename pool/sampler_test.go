@@ -58,7 +58,7 @@ func TestHealthyReweight(t *testing.T) {
 
 	inner := &innerPool{
 		sampler: newSampler(weights, rand.NewSource(0)),
-		clients: []client{client1, client2},
+		clients: []internalClient{client1, client2},
 	}
 	p := &Pool{
 		innerPools:      []*innerPool{inner},
@@ -104,7 +104,7 @@ func TestHealthyNoReweight(t *testing.T) {
 	sampl := newSampler(weights, rand.NewSource(0))
 	inner := &innerPool{
 		sampler: sampl,
-		clients: []client{
+		clients: []internalClient{
 			newMockClient(names[0], test.RandomSigner(t)),
 			newMockClient(names[1], test.RandomSigner(t)),
 		},

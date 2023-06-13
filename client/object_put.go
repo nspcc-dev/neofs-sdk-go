@@ -74,6 +74,11 @@ func (x *PrmObjectPutInit) UseSigner(signer neofscrypto.Signer) {
 	x.signer = signer
 }
 
+// Signer returns associated with request signer.
+func (x PrmObjectPutInit) Signer() neofscrypto.Signer {
+	return x.signer
+}
+
 // WithBearerToken attaches bearer token to be used for the operation.
 // Should be called once before any writing steps.
 func (x *PrmObjectPutInit) WithBearerToken(t bearer.Token) {
@@ -91,6 +96,11 @@ func (x *PrmObjectPutInit) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tv2)
 }
 
+// IsSessionSet checks is session within which object should be stored is set.
+func (x PrmObjectPutInit) IsSessionSet() bool {
+	return x.meta.GetSessionToken() != nil
+}
+
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectPutInit) MarkLocal() {
 	x.meta.SetTTL(1)
@@ -104,9 +114,9 @@ func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
 	writeXHeadersToMeta(hs, &x.meta)
 }
 
-// WriteHeader writes header of the object. Result means success.
+// writeHeader writes header of the object. Result means success.
 // Failure reason can be received via Close.
-func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {
+func (x *ObjectWriter) writeHeader(hdr object.Object) error {
 	v2Hdr := hdr.ToV2()
 
 	x.partInit.SetObjectID(v2Hdr.GetObjectID())
@@ -119,11 +129,11 @@ func (x *ObjectWriter) WriteHeader(hdr object.Object) bool {
 	x.err = signServiceMessage(x.signer, &x.req)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign message: %w", x.err)
-		return false
+		return x.err
 	}
 
 	x.err = x.stream.Write(&x.req)
-	return x.err == nil
+	return x.err
 }
 
 // WritePayloadChunk writes chunk of the object payload. Result means success.
@@ -233,7 +243,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 //
 // Returns errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*ObjectWriter, error) {
+func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, prm PrmObjectPutInit) (*ObjectWriter, error) {
 	var w ObjectWriter
 
 	signer, err := c.getSigner(prm.signer)
@@ -256,6 +266,11 @@ func (c *Client) ObjectPutInit(ctx context.Context, prm PrmObjectPutInit) (*Obje
 	w.req.SetBody(new(v2object.PutRequestBody))
 	c.prepareRequest(&w.req, &prm.meta)
 
+	if err = w.writeHeader(hdr); err != nil {
+		_, _ = w.Close()
+		return nil, fmt.Errorf("header write: %w", err)
+	}
+
 	return &w, nil
 }
 
@@ -267,23 +282,14 @@ type objectWriter struct {
 func (x *objectWriter) InitDataStream(header object.Object) (io.Writer, error) {
 	var prm PrmObjectPutInit
 
-	stream, err := x.client.ObjectPutInit(x.context, prm)
+	stream, err := x.client.ObjectPutInit(x.context, header, prm)
 	if err != nil {
 		return nil, fmt.Errorf("init object stream: %w", err)
 	}
 
-	if stream.WriteHeader(header) {
-		return &payloadWriter{
-			stream: stream,
-		}, nil
-	}
-
-	_, err = stream.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return nil, errors.New("unexpected error")
+	return &payloadWriter{
+		stream: stream,
+	}, nil
 }
 
 type payloadWriter struct {

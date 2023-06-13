@@ -38,6 +38,11 @@ func (x *PrmObjectDelete) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tv2)
 }
 
+// IsSessionSet checks is session within which object should be stored is set.
+func (x PrmObjectDelete) IsSessionSet() bool {
+	return x.meta.GetSessionToken() != nil
+}
+
 // WithBearerToken attaches bearer token to be used for the operation.
 //
 // If set, underlying eACL rules will be used in access control.
@@ -54,6 +59,11 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 func (x *PrmObjectDelete) UseSigner(signer neofscrypto.Signer) {
 	x.keySet = true
 	x.signer = signer
+}
+
+// Signer returns associated with request signer.
+func (x *PrmObjectDelete) Signer() neofscrypto.Signer {
+	return x.signer
 }
 
 // WithXHeaders specifies list of extended headers (string key-value pairs)

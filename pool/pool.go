@@ -35,7 +35,7 @@ import (
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
-type client interface {
+type internalClient interface {
 	// see clientWrapper.balanceGet.
 	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
@@ -593,56 +593,54 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 	}
 
 	start := time.Now()
-	wObj, err := cl.ObjectPutInit(ctx, cliPrm)
+	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, cliPrm)
 	c.incRequests(time.Since(start), methodObjectPut)
 	c.updateErrorRate(err)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
 	}
 
-	if wObj.WriteHeader(prm.hdr) {
-		sz := prm.hdr.PayloadSize()
+	sz := prm.hdr.PayloadSize()
 
-		if data := prm.hdr.Payload(); len(data) > 0 {
-			if prm.payload != nil {
-				prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
-			} else {
-				prm.payload = bytes.NewReader(data)
-				sz = uint64(len(data))
-			}
+	if data := prm.hdr.Payload(); len(data) > 0 {
+		if prm.payload != nil {
+			prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
+		} else {
+			prm.payload = bytes.NewReader(data)
+			sz = uint64(len(data))
+		}
+	}
+
+	if prm.payload != nil {
+		const defaultBufferSizePut = 3 << 20 // configure?
+
+		if sz == 0 || sz > defaultBufferSizePut {
+			sz = defaultBufferSizePut
 		}
 
-		if prm.payload != nil {
-			const defaultBufferSizePut = 3 << 20 // configure?
+		buf := make([]byte, sz)
 
-			if sz == 0 || sz > defaultBufferSizePut {
-				sz = defaultBufferSizePut
-			}
+		var n int
 
-			buf := make([]byte, sz)
-
-			var n int
-
-			for {
-				n, err = prm.payload.Read(buf)
-				if n > 0 {
-					start = time.Now()
-					successWrite := wObj.WritePayloadChunk(buf[:n])
-					c.incRequests(time.Since(start), methodObjectPut)
-					if !successWrite {
-						break
-					}
-
-					continue
-				}
-
-				if errors.Is(err, io.EOF) {
+		for {
+			n, err = prm.payload.Read(buf)
+			if n > 0 {
+				start = time.Now()
+				successWrite := wObj.WritePayloadChunk(buf[:n])
+				c.incRequests(time.Since(start), methodObjectPut)
+				if !successWrite {
 					break
 				}
 
-				c.updateErrorRate(err)
-				return oid.ID{}, fmt.Errorf("read payload: %w", err)
+				continue
 			}
+
+			if errors.Is(err, io.EOF) {
+				break
+			}
+
+			c.updateErrorRate(err)
+			return oid.ID{}, fmt.Errorf("read payload: %w", err)
 		}
 	}
 
@@ -685,7 +683,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, ob
 	return nil
 }
 
-// objectGet returns reader for object.
+// objectGet returns header and reader for object.
 func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
 	cl, err := c.getClient()
 	if err != nil {
@@ -707,20 +705,15 @@ func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objec
 
 	var res ResGetObject
 
-	rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, cliPrm)
+	hdr, rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
 	}
 
+	res.Header = hdr
 	start := time.Now()
-	successReadHeader := rObj.ReadHeader(&res.Header)
 	c.incRequests(time.Since(start), methodObjectGet)
-	if !successReadHeader {
-		err = rObj.Close()
-		c.updateErrorRate(err)
-		return res, fmt.Errorf("read header: %w", err)
-	}
 
 	res.Payload = &objectReadCloser{
 		reader: rObj,
@@ -954,7 +947,7 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 }
 
 // clientBuilder is a type alias of client constructors.
-type clientBuilder = func(endpoint string) (client, error)
+type clientBuilder = func(endpoint string) (internalClient, error)
 
 // RequestInfo groups info about pool request.
 type RequestInfo struct {
@@ -1385,7 +1378,7 @@ type Pool struct {
 type innerPool struct {
 	lock    sync.RWMutex
 	sampler *sampler
-	clients []client
+	clients []internalClient
 }
 
 const (
@@ -1455,7 +1448,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 	inner := make([]*innerPool, len(p.rebalanceParams.nodesParams))
 
 	for i, params := range p.rebalanceParams.nodesParams {
-		clients := make([]client, len(params.weights))
+		clients := make([]internalClient, len(params.weights))
 		for j, addr := range params.addresses {
 			clients[j], err = p.clientBuilder(addr)
 			if err != nil {
@@ -1533,7 +1526,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 	}
 
 	if params.isMissingClientBuilder() {
-		params.setClientBuilder(func(addr string) (client, error) {
+		params.setClientBuilder(func(addr string) (internalClient, error) {
 			var prm wrapperPrm
 			prm.setAddress(addr)
 			prm.setSigner(params.signer)
@@ -1625,7 +1618,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 
 	for j, cli := range pool.clients {
 		wg.Add(1)
-		go func(j int, cli client) {
+		go func(j int, cli internalClient) {
 			defer wg.Done()
 
 			tctx, c := context.WithTimeout(ctx, options.nodeRequestTimeout)
@@ -1670,7 +1663,7 @@ func adjustWeights(weights []float64) []float64 {
 	return adjusted
 }
 
-func (p *Pool) connection() (client, error) {
+func (p *Pool) connection() (internalClient, error) {
 	for _, inner := range p.innerPools {
 		cp, err := inner.connection()
 		if err == nil {
@@ -1681,7 +1674,7 @@ func (p *Pool) connection() (client, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func (p *innerPool) connection() (client, error) {
+func (p *innerPool) connection() (internalClient, error) {
 	p.lock.RLock() // need lock because of using p.sampler
 	defer p.lock.RUnlock()
 	if len(p.clients) == 1 {
@@ -1722,7 +1715,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string) bool {
 	return false
 }
 
-func initSessionForDuration(ctx context.Context, dst *session.Object, c client, dur uint64, signer neofscrypto.Signer) error {
+func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer neofscrypto.Signer) error {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return err
@@ -1770,7 +1763,7 @@ type callContext struct {
 	// base context for RPC
 	context.Context
 
-	client client
+	client internalClient
 
 	// client endpoint
 	endpoint string
@@ -1880,6 +1873,7 @@ func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
 // PutObject writes an object through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectPutInit instead.
 func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
 	cnr, _ := prm.hdr.ContainerID()
 
@@ -1919,6 +1913,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 // As a marker, a special unit called a tombstone is placed in the container.
 // It confirms the user's intent to delete the object, and is itself a container object.
 // Explicit deletion is done asynchronously, and is generally not guaranteed.
+// Deprecated: use ObjectDelete instead.
 func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
 	var prmCtx prmContext
 	prmCtx.useDefaultSession()
@@ -1999,6 +1994,7 @@ type ResGetObject struct {
 // GetObject reads object header and initiates reading an object payload through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectGetInit instead.
 func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2022,6 +2018,7 @@ func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.I
 // HeadObject reads object header through a remote server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectHead instead.
 func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2071,6 +2068,7 @@ func (x *ResObjectRange) Close() error {
 // server using NeoFS API protocol.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectRangeInit instead.
 func (p *Pool) ObjectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2133,6 +2131,7 @@ func (x *ResObjectSearch) Close() {
 // is done using the ResObjectSearch. Resulting reader must be finally closed.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ObjectSearchInit instead.
 func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
 	p.fillAppropriateSigner(&prm.prmCommon)
 
@@ -2164,6 +2163,7 @@ func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObj
 // Success can be verified by reading by identifier (see [Pool.GetContainer]).
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ContainerPut instead.
 func (p *Pool) PutContainer(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2176,6 +2176,7 @@ func (p *Pool) PutContainer(ctx context.Context, cont container.Container, prm P
 // GetContainer reads NeoFS container by ID.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ContainerGet instead.
 func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2186,6 +2187,7 @@ func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container
 }
 
 // ListContainers requests identifiers of the account-owned containers.
+// Deprecated: use ContainerList instead.
 func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2203,6 +2205,7 @@ func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, e
 //	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetContainer).
+// Deprecated: use ContainerDelete instead.
 func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
 	cp, err := p.connection()
 	if err != nil {
@@ -2215,6 +2218,7 @@ func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerD
 // GetEACL reads eACL table of the NeoFS container.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use ContainerEACL instead.
 func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2232,6 +2236,7 @@ func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 //	waiting timeout: 120s
 //
 // Success can be verified by reading by identifier (see GetEACL).
+// Deprecated: use ContainerSetEACL instead.
 func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
 	cp, err := p.connection()
 	if err != nil {
@@ -2244,6 +2249,7 @@ func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSe
 // Balance requests current balance of the NeoFS account.
 //
 // Main return value MUST NOT be processed on an erroneous return.
+// Deprecated: use BalanceGet instead.
 func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	cp, err := p.connection()
 	if err != nil {
@@ -2275,7 +2281,7 @@ func (p Pool) Statistic() Statistic {
 }
 
 // waitForContainerPresence waits until the container is found on the NeoFS network.
-func waitForContainerPresence(ctx context.Context, cli client, cnrID cid.ID, waitParams *WaitParams) error {
+func waitForContainerPresence(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, cnrID)
 		return err == nil
@@ -2283,7 +2289,7 @@ func waitForContainerPresence(ctx context.Context, cli client, cnrID cid.ID, wai
 }
 
 // waitForEACLPresence waits until the container eacl is applied on the NeoFS network.
-func waitForEACLPresence(ctx context.Context, cli client, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
+func waitForEACLPresence(ctx context.Context, cli internalClient, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		eaclTable, err := cli.containerEACL(ctx, cnrID)
 		if err == nil {
@@ -2294,7 +2300,7 @@ func waitForEACLPresence(ctx context.Context, cli client, cnrID cid.ID, table *e
 }
 
 // waitForContainerRemoved waits until the container is removed from the NeoFS network.
-func waitForContainerRemoved(ctx context.Context, cli client, cnrID cid.ID, waitParams *WaitParams) error {
+func waitForContainerRemoved(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
 		_, err := cli.containerGet(ctx, cnrID)
 		return errors.Is(err, apistatus.ErrContainerNotFound)
@@ -2324,18 +2330,6 @@ func waitFor(ctx context.Context, params *WaitParams, condition func(context.Con
 	}
 }
 
-// NetworkInfo requests information about the NeoFS network of which the remote server is a part.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-func (p *Pool) NetworkInfo(ctx context.Context) (netmap.NetworkInfo, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return netmap.NetworkInfo{}, err
-	}
-
-	return cp.networkInfo(ctx, prmNetworkInfo{})
-}
-
 // Close closes the Pool and releases all the associated resources.
 func (p *Pool) Close() {
 	p.cancel()
@@ -2351,7 +2345,7 @@ func (p *Pool) Close() {
 // Returns any error that does not allow reading configuration
 // from the network.
 func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *Pool) error {
-	ni, err := p.NetworkInfo(ctx)
+	ni, err := p.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
 	if err != nil {
 		return fmt.Errorf("network info: %w", err)
 	}
@@ -2469,4 +2463,18 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	}
 
 	return res, nil
+}
+
+func (p *Pool) sdkClient() (*sdkClient.Client, error) {
+	conn, err := p.connection()
+	if err != nil {
+		return nil, fmt.Errorf("connection: %w", err)
+	}
+
+	cl, err := conn.getClient()
+	if err != nil {
+		return nil, fmt.Errorf("get client: %w", err)
+	}
+
+	return cl, nil
 }
