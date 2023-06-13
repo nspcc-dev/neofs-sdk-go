@@ -629,3 +629,29 @@ func TestObject_Sign(t *testing.T) {
 
 	require.True(t, val.VerifySignature())
 }
+
+func TestObject_SignedData(t *testing.T) {
+	var issuer user.ID
+
+	issuerSigner := test.RandomSignerRFC6979(t)
+	require.NoError(t, user.IDFromSigner(&issuer, issuerSigner))
+
+	var tokenSession session.Object
+	tokenSession.SetID(uuid.New())
+	tokenSession.SetExp(100500)
+	tokenSession.BindContainer(cidtest.ID())
+	tokenSession.ForVerb(session.VerbObjectPut)
+	tokenSession.SetAuthKey(test.RandomSignerRFC6979(t).Public())
+	tokenSession.SetIssuer(issuer)
+
+	sign, err := issuerSigner.Sign(tokenSession.SignedData())
+	require.NoError(t, err)
+
+	require.NoError(t, tokenSession.Sign(issuerSigner))
+	require.True(t, tokenSession.VerifySignature())
+
+	var m v2session.Token
+	tokenSession.WriteToV2(&m)
+
+	require.Equal(t, m.GetSignature().GetSign(), sign)
+}

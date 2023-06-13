@@ -154,11 +154,13 @@ func (x commonData) signedData(w contextWriter) []byte {
 }
 
 func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
-	if err := user.IDFromSigner(&x.issuer, signer); err != nil {
-		return fmt.Errorf("IDFromSigner: %w", err)
-	}
+	if !x.issuerSet {
+		if err := user.IDFromSigner(&x.issuer, signer); err != nil {
+			return fmt.Errorf("IDFromSigner: %w", err)
+		}
 
-	x.issuerSet = true
+		x.issuerSet = true
+	}
 
 	var sig neofscrypto.Signature
 
@@ -306,6 +308,14 @@ func (x commonData) ID() uuid.UUID {
 func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
 	x.authKey = make([]byte, key.MaxEncodedSize())
 	x.authKey = x.authKey[:key.Encode(x.authKey)]
+}
+
+// SetIssuer allows to set issuer before Sign call.
+// Using this method is not required when Sign is used (issuer will be derived from the signer automatically).
+// When using it please ensure that the token is signed with the same signer as the issuer passed here.
+func (x *commonData) SetIssuer(id user.ID) {
+	x.issuer = id
+	x.issuerSet = true
 }
 
 // AssertAuthKey asserts public key bound to the session.
