@@ -665,3 +665,10 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{})
 	require.NoError(t, err)
 }
+
+func TestStatisticMethodsNames(t *testing.T) {
+	for i := methodBalanceGet; i < methodLast; i++ {
+		require.NotEqual(t, "unknown", i.String())
+		require.NotEqual(t, "it's a system name rather than a method", i.String())
+	}
+}

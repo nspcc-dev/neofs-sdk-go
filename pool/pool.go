@@ -70,6 +70,7 @@ type internalClient interface {
 	sessionCreate(context.Context, prmCreateSession) (resCreateSession, error)
 
 	clientStatus
+	statisticUpdater
 
 	// see clientWrapper.dial.
 	dial(ctx context.Context) error
@@ -77,6 +78,11 @@ type internalClient interface {
 	restartIfUnhealthy(ctx context.Context) (bool, bool)
 
 	getClient() (*sdkClient.Client, error)
+}
+
+type statisticUpdater interface {
+	updateErrorRate(err error)
+	incRequests(elapsed time.Duration, method MethodIndex)
 }
 
 // clientStatus provide access to some metrics for connection.
@@ -144,6 +150,9 @@ const (
 	methodObjectHead
 	methodObjectRange
 	methodSessionCreate
+	methodNetMapSnapshot
+	methodObjectHash
+	methodObjectSearch
 	methodLast
 )
 
@@ -180,6 +189,12 @@ func (m MethodIndex) String() string {
 		return "objectRange"
 	case methodSessionCreate:
 		return "sessionCreate"
+	case methodNetMapSnapshot:
+		return "netMapSnapshot"
+	case methodObjectHash:
+		return "objectHash"
+	case methodObjectSearch:
+		return "objectSearch"
 	case methodLast:
 		return "it's a system name rather than a method"
 	default:
@@ -2465,16 +2480,16 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	return res, nil
 }
 
-func (p *Pool) sdkClient() (*sdkClient.Client, error) {
+func (p *Pool) sdkClient() (*sdkClient.Client, statisticUpdater, error) {
 	conn, err := p.connection()
 	if err != nil {
-		return nil, fmt.Errorf("connection: %w", err)
+		return nil, nil, fmt.Errorf("connection: %w", err)
 	}
 
 	cl, err := conn.getClient()
 	if err != nil {
-		return nil, fmt.Errorf("get client: %w", err)
+		return nil, nil, fmt.Errorf("get client: %w", err)
 	}
 
-	return cl, nil
+	return cl, conn, nil
 }

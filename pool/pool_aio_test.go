@@ -42,10 +42,12 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 	containerName := "test-1"
 	creationTime := time.Now()
 
+	nodeAddr := "grpc://localhost:8080"
+
 	opts := InitParameters{
 		signer: signer,
 		nodeParams: []NodeParam{
-			{1, "grpc://localhost:8080", 1},
+			{1, nodeAddr, 1},
 		},
 		clientRebalanceInterval: 30 * time.Second,
 	}
@@ -70,6 +72,37 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 	payload := make([]byte, 8)
 	_, err = rand.Read(payload)
 	require.NoError(t, err)
+
+	t.Run("balance ok", func(t *testing.T) {
+		var cmd client.PrmBalanceGet
+		cmd.SetAccount(account)
+		_, err = pool.BalanceGet(ctx, cmd)
+		require.NoError(t, err)
+
+		stat := pool.Statistic()
+		nodeStat, err := stat.Node(nodeAddr)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(1), nodeStat.methods[methodBalanceGet].allRequests)
+		require.Greater(t, nodeStat.methods[methodBalanceGet].allTime, uint64(0))
+	})
+
+	t.Run("balance err", func(t *testing.T) {
+		var id user.ID
+
+		var cmd client.PrmBalanceGet
+		cmd.SetAccount(id)
+		_, err = pool.BalanceGet(ctx, cmd)
+		require.Error(t, err)
+
+		stat := pool.Statistic()
+		nodeStat, err := stat.Node(nodeAddr)
+		require.NoError(t, err)
+
+		require.Equal(t, uint32(1), nodeStat.currentErrors)
+		require.Equal(t, uint64(2), nodeStat.methods[methodBalanceGet].allRequests)
+		require.Greater(t, nodeStat.methods[methodBalanceGet].allTime, uint64(0))
+	})
 
 	t.Run("create container", func(t *testing.T) {
 		var pp netmap.PlacementPolicy
