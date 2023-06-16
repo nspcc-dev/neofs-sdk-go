@@ -38,7 +38,7 @@ func (w *ContainerSetEACLWaiter) SetPollInterval(interval time.Duration) {
 
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
-// See documentation for function in [client.Client.ContainerSetEACL].
+// ContainerSetEACL uses ContainerSetEACLExecutor to setEacl and check the eacl is set.
 func (w ContainerSetEACLWaiter) ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error {
 	if err := w.executor.ContainerSetEACL(ctx, table, prm); err != nil {
 		return fmt.Errorf("container setEacl: %w", err)

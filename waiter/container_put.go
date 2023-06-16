@@ -37,7 +37,7 @@ func (w *ContainerPutWaiter) SetPollInterval(interval time.Duration) {
 
 // ContainerPut sends request to save container in NeoFS.
 //
-// See documentation for function in [client.Client.ContainerPut].
+// ContainerPut uses ContainerPutExecutor to create container and check the container is created.
 func (w ContainerPutWaiter) ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error) {
 	id, err := w.executor.ContainerPut(ctx, cont, prm)
 	if err != nil {

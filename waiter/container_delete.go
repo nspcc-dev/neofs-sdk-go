@@ -37,7 +37,7 @@ func (w *ContainerDeleteWaiter) SetPollInterval(interval time.Duration) {
 
 // ContainerDelete sends request to remove the NeoFS container.
 //
-// See documentation for function in [client.Client.ContainerDelete].
+// ContainerDelete uses ContainerDeleteExecutor to delete and check the container is deleted.
 func (w ContainerDeleteWaiter) ContainerDelete(ctx context.Context, id cid.ID, prm client.PrmContainerDelete) error {
 	if err := w.executor.ContainerDelete(ctx, id, prm); err != nil {
 		return fmt.Errorf("delete: %w", err)
