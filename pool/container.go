@@ -112,15 +112,3 @@ func (p *Pool) ContainerSetEACL(ctx context.Context, table eacl.Table, prm clien
 
 	return err
 }
-
-// ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
-//
-// See details in [client.Client.ContainerAnnounceUsedSpace].
-func (p *Pool) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm client.PrmAnnounceSpace) error {
-	c, _, err := p.sdkClient()
-	if err != nil {
-		return err
-	}
-
-	return c.ContainerAnnounceUsedSpace(ctx, announcements, prm)
-}

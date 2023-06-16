@@ -10,7 +10,6 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -228,29 +227,4 @@ func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm cli
 	statUpdater.updateErrorRate(err)
 
 	return reader, err
-}
-
-// AnnounceLocalTrust sends client's trust values to the NeoFS network participants.
-//
-// See details in [client.Client.ObjectSearchInit].
-func (p *Pool) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []reputation.Trust, prm client.PrmAnnounceLocalTrust) error {
-	c, _, err := p.sdkClient()
-	if err != nil {
-		return err
-	}
-
-	return c.AnnounceLocalTrust(ctx, epoch, trusts, prm)
-}
-
-// AnnounceIntermediateTrust sends global trust values calculated for the specified NeoFS network participants
-// at some stage of client's calculation algorithm.
-//
-// See details in [client.Client.ObjectSearchInit].
-func (p *Pool) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, trust reputation.PeerToPeerTrust, prm client.PrmAnnounceIntermediateTrust) error {
-	c, _, err := p.sdkClient()
-	if err != nil {
-		return err
-	}
-
-	return c.AnnounceIntermediateTrust(ctx, epoch, trust, prm)
 }
