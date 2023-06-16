@@ -73,7 +73,8 @@ func (p *Pool) withinContainerSession(
 	params containerSessionParams,
 	statUpdate statisticUpdater,
 ) error {
-	if params.IsSessionSet() {
+	// empty error means the session was set.
+	if _, err := params.GetSession(); err == nil {
 		return nil
 	}
 

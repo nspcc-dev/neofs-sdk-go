@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -15,6 +16,11 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+)
+
+var (
+	// ErrNoSession indicates that session wasn't set in some Prm* structure.
+	ErrNoSession = errors.New("session is not set")
 )
 
 // PrmObjectDelete groups optional parameters of ObjectDelete operation.
@@ -38,9 +44,21 @@ func (x *PrmObjectDelete) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tv2)
 }
 
-// IsSessionSet checks is session within which object should be stored is set.
-func (x PrmObjectDelete) IsSessionSet() bool {
-	return x.meta.GetSessionToken() != nil
+// GetSession returns session object.
+//
+// Returns ErrNoSession err if session wasn't set.
+func (x PrmObjectDelete) GetSession() (*session.Object, error) {
+	token := x.meta.GetSessionToken()
+	if token == nil {
+		return nil, ErrNoSession
+	}
+
+	var sess session.Object
+	if err := sess.ReadFromV2(*token); err != nil {
+		return nil, err
+	}
+
+	return &sess, nil
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.

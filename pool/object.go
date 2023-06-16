@@ -14,7 +14,7 @@ import (
 )
 
 type containerSessionParams interface {
-	IsSessionSet() bool
+	GetSession() (*session.Object, error)
 	WithinSession(session.Object)
 }
 
