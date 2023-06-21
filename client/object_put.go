@@ -96,9 +96,21 @@ func (x *PrmObjectPutInit) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tv2)
 }
 
-// IsSessionSet checks is session within which object should be stored is set.
-func (x PrmObjectPutInit) IsSessionSet() bool {
-	return x.meta.GetSessionToken() != nil
+// GetSession returns session object.
+//
+// Returns ErrNoSession err if session wasn't set.
+func (x PrmObjectPutInit) GetSession() (*session.Object, error) {
+	token := x.meta.GetSessionToken()
+	if token == nil {
+		return nil, ErrNoSession
+	}
+
+	var sess session.Object
+	if err := sess.ReadFromV2(*token); err != nil {
+		return nil, err
+	}
+
+	return &sess, nil
 }
 
 // MarkLocal tells the server to execute the operation locally.

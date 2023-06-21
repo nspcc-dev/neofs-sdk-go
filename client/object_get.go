@@ -57,9 +57,21 @@ func (x *prmObjectRead) WithinSession(t session.Object) {
 	x.meta.SetSessionToken(&tokv2)
 }
 
-// IsSessionSet checks is session within which object should be stored is set.
-func (x prmObjectRead) IsSessionSet() bool {
-	return x.meta.GetSessionToken() != nil
+// GetSession returns session object.
+//
+// Returns ErrNoSession err if session wasn't set.
+func (x prmObjectRead) GetSession() (*session.Object, error) {
+	token := x.meta.GetSessionToken()
+	if token == nil {
+		return nil, ErrNoSession
+	}
+
+	var sess session.Object
+	if err := sess.ReadFromV2(*token); err != nil {
+		return nil, err
+	}
+
+	return &sess, nil
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.

@@ -8,9 +8,12 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
+	"math"
+	"strconv"
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -19,11 +22,45 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 	"github.com/stretchr/testify/require"
+)
+
+var (
+	defaultTimeOut = 5 * time.Second
+	tickInterval   = 1 * time.Second
+)
+
+type (
+	containerCreator interface {
+		ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error)
+	}
+
+	containerDeleter interface {
+		ContainerDelete(ctx context.Context, id cid.ID, prm client.PrmContainerDelete) error
+	}
+
+	objectPutIniter interface {
+		ObjectPutInit(ctx context.Context, hdr object.Object, prm client.PrmObjectPutInit) (*client.ObjectWriter, error)
+	}
+
+	objectDeleter interface {
+		ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectDelete) (oid.ID, error)
+	}
+
+	containerEaclSetter interface {
+		ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error
+	}
+
+	containerEaclGetter interface {
+		ContainerEACL(ctx context.Context, id cid.ID, prm client.PrmContainerEACL) (eacl.Table, error)
+	}
 )
 
 func getSigner() neofscrypto.Signer {
@@ -35,12 +72,46 @@ func getSigner() neofscrypto.Signer {
 	return neofsecdsa.SignerRFC6979(key.PrivateKey)
 }
 
+func testData(t *testing.T) (user.ID, neofscrypto.Signer, container.Container) {
+	signer := getSigner()
+
+	var account user.ID
+	require.NoError(t, user.IDFromSigner(&account, signer))
+
+	containerName := strconv.FormatInt(time.Now().UnixNano(), 16)
+	creationTime := time.Now()
+
+	var cont container.Container
+	cont.Init()
+	cont.SetBasicACL(acl.PublicRWExtended)
+	cont.SetOwner(account)
+	cont.SetName(containerName)
+	cont.SetCreationTime(creationTime)
+
+	return account, signer, cont
+}
+
+func testEaclTable(containerID cid.ID) eacl.Table {
+	var table eacl.Table
+	table.SetCID(containerID)
+
+	r := eacl.NewRecord()
+	r.SetOperation(eacl.OperationPut)
+	r.SetAction(eacl.ActionAllow)
+
+	var target eacl.Target
+	target.SetRole(eacl.RoleOthers)
+	r.SetTargets(target)
+	table.AddRecord(r)
+
+	return table
+}
+
 func TestPoolInterfaceWithAIO(t *testing.T) {
 	ctx := context.Background()
 
-	signer := getSigner()
-	containerName := "test-1"
-	creationTime := time.Now()
+	account, signer, cont := testData(t)
+	var eaclTable eacl.Table
 
 	nodeAddr := "grpc://localhost:8080"
 
@@ -55,16 +126,6 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
-
-	var account user.ID
-	require.NoError(t, user.IDFromSigner(&account, signer))
-
-	var cont container.Container
-	cont.Init()
-	cont.SetBasicACL(acl.PublicRW)
-	cont.SetOwner(account)
-	cont.SetName(containerName)
-	cont.SetCreationTime(creationTime)
 
 	var containerID cid.ID
 	var objectID oid.ID
@@ -105,56 +166,44 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 	})
 
 	t.Run("create container", func(t *testing.T) {
-		var pp netmap.PlacementPolicy
-		pp.SetContainerBackupFactor(1)
-
-		var rd netmap.ReplicaDescriptor
-		rd.SetNumberOfObjects(1)
-		pp.AddReplicas(rd)
-
-		cont.SetPlacementPolicy(pp)
-
-		var cmd client.PrmContainerPut
-
-		containerID, err = pool.ContainerPut(ctx, cont, cmd)
-		require.NoError(t, err)
-
-		ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctxTimeout, cancel := context.WithTimeout(context.Background(), defaultTimeOut)
 		defer cancel()
 
-		err = isBucketCreated(ctxTimeout, pool, containerID)
+		containerID = testCreateContainer(t, ctxTimeout, signer, cont, pool)
+		cl, _, err := pool.sdkClient()
+
 		require.NoError(t, err)
+		require.NoError(t, isBucketCreated(ctxTimeout, cl, containerID))
+
+		eaclTable = testEaclTable(containerID)
+	})
+
+	t.Run("set eacl", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		table := testSetEacl(t, ctxTimeout, signer, eaclTable, pool)
+		cl, _, err := pool.sdkClient()
+
+		require.NoError(t, err)
+		require.NoError(t, isEACLCreated(ctxTimeout, cl, containerID, table))
 	})
 
 	t.Run("upload object", func(t *testing.T) {
-		rf := object.RequiredFields{
-			Container: containerID,
-			Owner:     account,
-		}
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
 
-		var hdr object.Object
-		object.InitCreation(&hdr, rf)
-
-		var prm client.PrmObjectPutInit
-		prm.UseSigner(signer)
-		prm.SetCopiesNumber(1)
-
-		w, err := pool.ObjectPutInit(context.Background(), hdr, prm)
-		require.NoError(t, err)
-
-		require.True(t, w.WritePayloadChunk(payload))
-
-		resp, err := w.Close()
-		require.NoError(t, err)
-
-		objectID = resp.StoredObjectID()
+		objectID = testObjectPutInit(t, ctxTimeout, account, containerID, signer, payload, pool)
 	})
 
 	t.Run("download object", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
 		var cmd client.PrmObjectGet
 		cmd.UseSigner(signer)
 
-		hdr, read, err := pool.ObjectGetInit(ctx, containerID, objectID, cmd)
+		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, cmd)
 		defer func() {
 			_ = read.Close()
 		}()
@@ -173,35 +222,399 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 	})
 
 	t.Run("delete object", func(t *testing.T) {
-		var cmd client.PrmObjectDelete
-		cmd.UseSigner(signer)
-
-		_, err = pool.ObjectDelete(ctx, containerID, objectID, cmd)
-		require.NoError(t, err)
-
-		ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		err = isObjectDeleted(ctxTimeout, pool, containerID, objectID)
+		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, pool)
+		cl, _, err := pool.sdkClient()
+
 		require.NoError(t, err)
+		require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID))
 	})
 
 	t.Run("container delete", func(t *testing.T) {
-		var cmd client.PrmContainerDelete
-		cmd.SetSigner(signer)
-
-		require.NoError(t, pool.ContainerDelete(ctx, containerID, cmd))
-
-		ctxTimeout, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		err = isBucketDeleted(ctxTimeout, pool, containerID)
+		testDeleteContainer(t, ctxTimeout, signer, containerID, pool)
+		cl, _, err := pool.sdkClient()
+
 		require.NoError(t, err)
+		require.NoError(t, isBucketDeleted(ctxTimeout, cl, containerID))
+	})
+
+	t.Run("container really deleted", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		var prm client.PrmContainerGet
+		_, err = pool.ContainerGet(ctxTimeout, containerID, prm)
+		require.ErrorIs(t, err, apistatus.ErrContainerNotFound)
 	})
 }
 
-func isBucketCreated(ctx context.Context, c *Pool, id cid.ID) error {
-	t := time.NewTicker(1 * time.Second)
+func TestPoolWaiterWithAIO(t *testing.T) {
+	ctx := context.Background()
+
+	account, signer, cont := testData(t)
+	var eaclTable eacl.Table
+
+	opts := InitParameters{
+		signer: signer,
+		nodeParams: []NodeParam{
+			{1, "grpc://localhost:8080", 1},
+		},
+		clientRebalanceInterval: 30 * time.Second,
+	}
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	require.NoError(t, pool.Dial(ctx))
+
+	var containerID cid.ID
+	var objectID oid.ID
+
+	payload := make([]byte, 8)
+	_, err = rand.Read(payload)
+	require.NoError(t, err)
+
+	defaultPoolingTimeout := 1 * time.Second
+	wait := waiter.NewWaiter(pool, defaultPoolingTimeout)
+
+	t.Run("create container", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		containerID = testCreateContainer(t, ctxTimeout, signer, cont, wait)
+		eaclTable = testEaclTable(containerID)
+	})
+
+	t.Run("set eacl", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testSetEacl(t, ctxTimeout, signer, eaclTable, wait)
+	})
+
+	t.Run("get eacl", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testGetEacl(t, ctxTimeout, containerID, eaclTable, pool)
+	})
+
+	t.Run("upload object", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		rf := object.RequiredFields{
+			Container: containerID,
+			Owner:     account,
+		}
+
+		var hdr object.Object
+		object.InitCreation(&hdr, rf)
+
+		var prm client.PrmObjectPutInit
+		prm.UseSigner(signer)
+		prm.SetCopiesNumber(1)
+
+		w, err := pool.ObjectPutInit(ctxTimeout, hdr, prm)
+		require.NoError(t, err)
+
+		require.True(t, w.WritePayloadChunk(payload))
+
+		resp, err := w.Close()
+		require.NoError(t, err)
+
+		objectID = resp.StoredObjectID()
+	})
+
+	t.Run("download object", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		var cmd client.PrmObjectGet
+		cmd.UseSigner(signer)
+
+		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, cmd)
+		defer func() {
+			_ = read.Close()
+		}()
+
+		require.NoError(t, err)
+		require.NotNil(t, hdr.OwnerID())
+		require.True(t, hdr.OwnerID().Equals(account))
+
+		downloadedPayload := make([]byte, len(payload))
+
+		l, ok := read.ReadChunk(downloadedPayload)
+		require.True(t, ok)
+		require.Equal(t, l, len(payload))
+
+		require.True(t, bytes.Equal(payload, downloadedPayload))
+	})
+
+	t.Run("delete object", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, pool)
+	})
+
+	t.Run("container delete", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testDeleteContainer(t, ctxTimeout, signer, containerID, wait)
+	})
+
+	t.Run("container really deleted", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		var prm client.PrmContainerGet
+		_, err = pool.ContainerGet(ctxTimeout, containerID, prm)
+		require.ErrorIs(t, err, apistatus.ErrContainerNotFound)
+	})
+}
+
+func TestClientWaiterWithAIO(t *testing.T) {
+	ctx := context.Background()
+
+	account, signer, cont := testData(t)
+	var eaclTable eacl.Table
+
+	var prmInit client.PrmInit
+	prmInit.SetDefaultSigner(signer) // private signer for request signing
+
+	cl, err := client.New(prmInit)
+	if err != nil {
+		panic(fmt.Errorf("new client: %w", err))
+	}
+
+	// connect to NeoFS gateway
+	var prmDial client.PrmDial
+	prmDial.SetServerURI("grpc://localhost:8080") // endpoint address
+	prmDial.SetTimeout(15 * time.Second)
+	prmDial.SetStreamTimeout(15 * time.Second)
+
+	if err = cl.Dial(prmDial); err != nil {
+		panic(fmt.Errorf("dial %v", err))
+	}
+
+	var containerID cid.ID
+	var objectID oid.ID
+
+	payload := make([]byte, 8)
+	_, err = rand.Read(payload)
+	require.NoError(t, err)
+
+	defaultPoolingTimeout := 1 * time.Second
+	wait := waiter.NewWaiter(cl, defaultPoolingTimeout)
+
+	t.Run("create container", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		containerID = testCreateContainer(t, ctxTimeout, signer, cont, wait)
+		eaclTable = testEaclTable(containerID)
+	})
+
+	t.Run("set eacl", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testSetEacl(t, ctxTimeout, signer, eaclTable, wait)
+	})
+
+	t.Run("get eacl", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testGetEacl(t, ctxTimeout, containerID, eaclTable, cl)
+	})
+
+	t.Run("upload object", func(t *testing.T) {
+		var prmSess client.PrmSessionCreate
+		prmSess.SetExp(math.MaxUint64)
+		prmSess.UseSigner(signer)
+
+		res, err := cl.SessionCreate(ctx, prmSess)
+		require.NoError(t, err)
+
+		var id uuid.UUID
+		err = id.UnmarshalBinary(res.ID())
+		require.NoError(t, err)
+
+		var key neofsecdsa.PublicKey
+		err = key.Decode(res.PublicKey())
+		require.NoError(t, err)
+
+		var sess session.Object
+
+		sess.SetID(id)
+		sess.SetAuthKey(&key)
+		sess.SetExp(math.MaxUint64)
+		sess.ForVerb(session.VerbObjectPut)
+		sess.BindContainer(containerID)
+
+		err = sess.Sign(signer)
+		require.NoError(t, err)
+
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		rf := object.RequiredFields{
+			Container: containerID,
+			Owner:     account,
+		}
+
+		var hdr object.Object
+		object.InitCreation(&hdr, rf)
+
+		var prm client.PrmObjectPutInit
+		prm.UseSigner(signer)
+		prm.SetCopiesNumber(1)
+		prm.WithinSession(sess)
+
+		w, err := cl.ObjectPutInit(ctxTimeout, hdr, prm)
+		require.NoError(t, err)
+
+		require.True(t, w.WritePayloadChunk(payload))
+
+		resp, err := w.Close()
+		require.NoError(t, err)
+
+		objectID = resp.StoredObjectID()
+	})
+
+	t.Run("download object", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		var cmd client.PrmObjectGet
+		cmd.UseSigner(signer)
+
+		hdr, read, err := cl.ObjectGetInit(ctxTimeout, containerID, objectID, cmd)
+		defer func() {
+			_ = read.Close()
+		}()
+
+		require.NoError(t, err)
+		require.NotNil(t, hdr.OwnerID())
+		require.True(t, hdr.OwnerID().Equals(account))
+
+		downloadedPayload := make([]byte, len(payload))
+
+		l, ok := read.ReadChunk(downloadedPayload)
+		require.True(t, ok)
+		require.Equal(t, l, len(payload))
+
+		require.True(t, bytes.Equal(payload, downloadedPayload))
+	})
+
+	t.Run("delete object", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, cl)
+	})
+
+	t.Run("container delete", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testDeleteContainer(t, ctxTimeout, signer, containerID, wait)
+	})
+
+	t.Run("container really deleted", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		var prm client.PrmContainerGet
+		_, err = cl.ContainerGet(ctxTimeout, containerID, prm)
+		require.ErrorIs(t, err, apistatus.ErrContainerNotFound)
+	})
+}
+
+func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, containerID cid.ID, signer neofscrypto.Signer, payload []byte, putter objectPutIniter) oid.ID {
+	rf := object.RequiredFields{
+		Container: containerID,
+		Owner:     account,
+	}
+
+	var hdr object.Object
+	object.InitCreation(&hdr, rf)
+
+	var prm client.PrmObjectPutInit
+	prm.UseSigner(signer)
+	prm.SetCopiesNumber(1)
+
+	w, err := putter.ObjectPutInit(ctx, hdr, prm)
+	require.NoError(t, err)
+
+	require.True(t, w.WritePayloadChunk(payload))
+
+	resp, err := w.Close()
+	require.NoError(t, err)
+
+	return resp.StoredObjectID()
+}
+
+func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, cont container.Container, creator containerCreator) cid.ID {
+	var pp netmap.PlacementPolicy
+	pp.SetContainerBackupFactor(1)
+
+	var rd netmap.ReplicaDescriptor
+	rd.SetNumberOfObjects(1)
+	pp.AddReplicas(rd)
+
+	cont.SetPlacementPolicy(pp)
+
+	var cmd client.PrmContainerPut
+	cmd.SetSigner(signer)
+
+	containerID, err := creator.ContainerPut(ctx, cont, cmd)
+	require.NoError(t, err)
+
+	return containerID
+}
+
+func testDeleteContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, deleter containerDeleter) {
+	var cmd client.PrmContainerDelete
+	cmd.SetSigner(signer)
+
+	require.NoError(t, deleter.ContainerDelete(ctx, containerID, cmd))
+}
+
+func testDeleteObject(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
+	var cmd client.PrmObjectDelete
+	cmd.UseSigner(signer)
+
+	_, err := deleter.ObjectDelete(ctx, containerID, objectID, cmd)
+	require.NoError(t, err)
+}
+
+func testSetEacl(t *testing.T, ctx context.Context, signer neofscrypto.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
+	var prm client.PrmContainerSetEACL
+	prm.SetSigner(signer)
+
+	require.NoError(t, setter.ContainerSetEACL(ctx, table, prm))
+
+	return table
+}
+
+func testGetEacl(t *testing.T, ctx context.Context, containerID cid.ID, table eacl.Table, setter containerEaclGetter) {
+	var prm client.PrmContainerEACL
+
+	newTable, err := setter.ContainerEACL(ctx, containerID, prm)
+	require.NoError(t, err)
+	require.True(t, eacl.EqualTables(table, newTable))
+}
+
+func isBucketCreated(ctx context.Context, c *client.Client, id cid.ID) error {
+	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
 	var cmdGet client.PrmContainerGet
@@ -225,8 +638,68 @@ func isBucketCreated(ctx context.Context, c *Pool, id cid.ID) error {
 	}
 }
 
-func isObjectDeleted(ctx context.Context, c *Pool, id cid.ID, oid oid.ID) error {
-	t := time.NewTicker(1 * time.Second)
+func isBucketDeleted(ctx context.Context, c *client.Client, id cid.ID) error {
+	t := time.NewTicker(tickInterval)
+	defer t.Stop()
+
+	var cmdGet client.PrmContainerGet
+
+	for {
+		select {
+		case <-t.C:
+			_, err := c.ContainerGet(ctx, id, cmdGet)
+			if err != nil {
+				if errors.Is(err, apistatus.ErrContainerNotFound) {
+					return nil
+				}
+
+				return fmt.Errorf("ContainerGet %w", err)
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func isEACLCreated(ctx context.Context, c *client.Client, id cid.ID, oldTable eacl.Table) error {
+	oldBinary, err := oldTable.Marshal()
+	if err != nil {
+		return fmt.Errorf("oldTable.Marshal %w", err)
+	}
+
+	t := time.NewTicker(tickInterval)
+	defer t.Stop()
+
+	var cmdGet client.PrmContainerEACL
+
+	for {
+		select {
+		case <-t.C:
+			table, err := c.ContainerEACL(ctx, id, cmdGet)
+			if err != nil {
+				if errors.Is(err, apistatus.ErrEACLNotFound) {
+					continue
+				}
+
+				return fmt.Errorf("ContainerEACL %w", err)
+			}
+
+			newBinary, err := table.Marshal()
+			if err != nil {
+				return fmt.Errorf("table.Marshal %w", err)
+			}
+
+			if bytes.Equal(oldBinary, newBinary) {
+				return nil
+			}
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+func isObjectDeleted(ctx context.Context, c *client.Client, id cid.ID, oid oid.ID) error {
+	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
 	var prmHead client.PrmObjectHead
@@ -242,29 +715,6 @@ func isObjectDeleted(ctx context.Context, c *Pool, id cid.ID, oid oid.ID) error 
 				}
 
 				return fmt.Errorf("ObjectGetInit %w", err)
-			}
-		case <-ctx.Done():
-			return ctx.Err()
-		}
-	}
-}
-
-func isBucketDeleted(ctx context.Context, c *Pool, id cid.ID) error {
-	t := time.NewTicker(1 * time.Second)
-	defer t.Stop()
-
-	var cmdGet client.PrmContainerGet
-
-	for {
-		select {
-		case <-t.C:
-			_, err := c.ContainerGet(ctx, id, cmdGet)
-			if err != nil {
-				if errors.Is(err, apistatus.ErrContainerNotFound) {
-					return nil
-				}
-
-				return fmt.Errorf("ContainerGet %w", err)
 			}
 		case <-ctx.Done():
 			return ctx.Err()
