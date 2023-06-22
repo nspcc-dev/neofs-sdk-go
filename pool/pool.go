@@ -27,6 +27,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -236,6 +237,7 @@ type clientWrapper struct {
 	prm         wrapperPrm
 
 	clientStatusMonitor
+	statisticCallback stat.OperationCallback
 }
 
 // wrapperPrm is params to create clientWrapper.
@@ -247,6 +249,7 @@ type wrapperPrm struct {
 	errorThreshold          uint32
 	responseInfoCallback    func(sdkClient.ResponseMetaInfo) error
 	poolRequestInfoCallback func(RequestInfo)
+	statisticCallback       stat.OperationCallback
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -285,29 +288,47 @@ func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) 
 	x.responseInfoCallback = f
 }
 
+// setStatisticCallback set callback for external statistic.
+func (x *wrapperPrm) setStatisticCallback(statisticCallback stat.OperationCallback) {
+	x.statisticCallback = statisticCallback
+}
+
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
-func (x *wrapperPrm) getNewClient() (*sdkClient.Client, error) {
+func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
 	prmInit.SetDefaultSigner(x.signer)
 	prmInit.SetResponseInfoCallback(x.responseInfoCallback)
+	prmInit.SetStatisticCallback(statisticCallback)
 
 	return sdkClient.New(prmInit)
 }
 
 // newWrapper creates a clientWrapper that implements the client interface.
 func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
-	cl, err := prm.getNewClient()
+	res := &clientWrapper{
+		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
+		prm:                 prm,
+		statisticCallback:   prm.statisticCallback,
+	}
+
+	// integrate clientWrapper middleware to handle errors and wrapped client health.
+	cl, err := prm.getNewClient(res.statisticMiddleware)
 	if err != nil {
 		return nil, err
 	}
 
-	res := &clientWrapper{
-		client:              cl,
-		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
-		prm:                 prm,
-	}
+	res.client = cl
 
 	return res, nil
+}
+
+func (c *clientWrapper) statisticMiddleware(nodeKey []byte, endpoint string, method stat.Method, duration time.Duration, err error) {
+	c.incRequests(duration, MethodIndex(method))
+	c.updateErrorRate(err)
+
+	if c.statisticCallback != nil {
+		c.statisticCallback(nodeKey, endpoint, method, duration, err)
+	}
 }
 
 // dial establishes a connection to the server from the NeoFS network.
@@ -343,7 +364,7 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 		wasHealthy = true
 	}
 
-	cl, err := c.prm.getNewClient()
+	cl, err := c.prm.getNewClient(c.statisticMiddleware)
 	if err != nil {
 		c.setUnhealthy()
 		return false, wasHealthy
@@ -985,6 +1006,8 @@ type InitParameters struct {
 	requestCallback           func(RequestInfo)
 
 	clientBuilder clientBuilder
+
+	statisticCallback stat.OperationCallback
 }
 
 // SetSigner specifies default signer to be used for the protocol communication by default.
@@ -1053,6 +1076,11 @@ func (x *InitParameters) setClientBuilder(builder clientBuilder) {
 // isMissingClientBuilder checks if client constructor was not specified.
 func (x *InitParameters) isMissingClientBuilder() bool {
 	return x.clientBuilder == nil
+}
+
+// SetStatisticCallback makes the Pool to pass [stat.OperationCallback] for external statistic.
+func (x *InitParameters) SetStatisticCallback(statisticCallback stat.OperationCallback) {
+	x.statisticCallback = statisticCallback
 }
 
 type rebalanceParameters struct {
@@ -1388,6 +1416,8 @@ type Pool struct {
 	rebalanceParams rebalanceParameters
 	clientBuilder   clientBuilder
 	logger          *zap.Logger
+
+	statisticCallback stat.OperationCallback
 }
 
 type innerPool struct {
@@ -1480,21 +1510,22 @@ func NewPool(options InitParameters) (*Pool, error) {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
 
-	fillDefaultInitParams(&options, cache)
+	pool := &Pool{cache: cache}
 
-	pool := &Pool{
-		signer:         options.signer,
-		cache:          cache,
-		logger:         options.logger,
-		stokenDuration: options.sessionExpirationDuration,
-		rebalanceParams: rebalanceParameters{
-			nodesParams:               nodesParams,
-			nodeRequestTimeout:        options.healthcheckTimeout,
-			clientRebalanceInterval:   options.clientRebalanceInterval,
-			sessionExpirationDuration: options.sessionExpirationDuration,
-		},
-		clientBuilder: options.clientBuilder,
+	// we need our middleware integration in clientBuilder
+	fillDefaultInitParams(&options, cache, pool.statisticMiddleware)
+
+	pool.signer = options.signer
+	pool.logger = options.logger
+	pool.stokenDuration = options.sessionExpirationDuration
+	pool.rebalanceParams = rebalanceParameters{
+		nodesParams:               nodesParams,
+		nodeRequestTimeout:        options.healthcheckTimeout,
+		clientRebalanceInterval:   options.clientRebalanceInterval,
+		sessionExpirationDuration: options.sessionExpirationDuration,
 	}
+	pool.clientBuilder = options.clientBuilder
+	pool.statisticCallback = options.statisticCallback
 
 	return pool, nil
 }
@@ -1567,7 +1598,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 	return nil
 }
 
-func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
+func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisticCallback stat.OperationCallback) {
 	if params.sessionExpirationDuration == 0 {
 		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
 	}
@@ -1605,6 +1636,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 				cache.updateEpoch(info.Epoch())
 				return nil
 			})
+			prm.setStatisticCallback(statisticCallback)
 			return newWrapper(prm)
 		})
 	}
@@ -2544,4 +2576,10 @@ func (p *Pool) sdkClient() (*sdkClient.Client, statisticUpdater, error) {
 	}
 
 	return cl, conn, nil
+}
+
+func (p *Pool) statisticMiddleware(nodeKey []byte, endpoint string, method stat.Method, duration time.Duration, err error) {
+	if p.statisticCallback != nil {
+		p.statisticCallback(nodeKey, endpoint, method, duration, err)
+	}
 }

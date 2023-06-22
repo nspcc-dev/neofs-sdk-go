@@ -6,6 +6,7 @@ import (
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +32,11 @@ func newClient(t *testing.T, signer neofscrypto.Signer, server neoFSAPIServer) *
 }
 
 func TestClient_DialContext(t *testing.T) {
-	var c Client
+	var prmInit PrmInit
+	prmInit.SetDefaultSigner(test.RandomSignerRFC6979(t))
+
+	c, err := New(prmInit)
+	require.NoError(t, err)
 
 	// try to connect to any host
 	var prm PrmDial
