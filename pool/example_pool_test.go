@@ -5,7 +5,9 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
 func ExampleNew_easiestWay() {
@@ -29,6 +31,24 @@ func ExampleNew_adjustingParameters() {
 
 	pool, _ := New(NewFlatNodeParams([]string{"grpc://localhost:8080", "grpcs://localhost:8081"}), signer, opts)
 	_ = pool
+
+	// ...
+}
+
+func ExamplePool_ObjectPutInit_explicitAutoSessionDisabling() {
+	var prm client.PrmObjectPutInit
+
+	// If you don't provide the session manually with prm.WithinSession, the request will be executed without session.
+	prm.IgnoreSession()
+	// ...
+}
+
+func ExamplePool_ObjectPutInit_autoSessionDisabling() {
+	var sess session.Object
+	var prm client.PrmObjectPutInit
+
+	// Auto-session disabled, because you provided session already.
+	prm.WithinSession(sess)
 
 	// ...
 }
