@@ -68,8 +68,8 @@ func (p *Pool) withinContainerSession(
 	verb session.ObjectVerb,
 	params containerSessionParams,
 ) error {
-	// empty error means the session was set.
-	if _, err := params.GetSession(); err == nil {
+	_, err := params.GetSession()
+	if err == nil || errors.Is(err, client.ErrNoSessionExplicitly) {
 		return nil
 	}
 
@@ -78,7 +78,7 @@ func (p *Pool) withinContainerSession(
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
 		// init new session
-		err := initSession(ctx, &tok, c, p.stokenDuration, signer)
+		err = initSession(ctx, &tok, c, p.stokenDuration, signer)
 		if err != nil {
 			return fmt.Errorf("init session: %w", err)
 		}
