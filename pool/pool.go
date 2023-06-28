@@ -33,6 +33,10 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	relationsGet = relations.Get
+)
+
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
@@ -1834,14 +1838,19 @@ func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oi
 		var tokens relations.Tokens
 		tokens.Bearer = prm.btoken
 
-		relatives, err := relations.ListAllRelations(ctx, p, containerID, objectID, tokens)
+		relatives, linkerID, err := relationsGet(ctx, p, containerID, objectID, tokens)
 		if err != nil {
 			return fmt.Errorf("failed to collect relatives: %w", err)
 		}
 
 		if len(relatives) != 0 {
 			prmCtx.useContainer(containerID)
-			prmCtx.useObjects(append(relatives, objectID))
+			objList := append(relatives, objectID)
+			if linkerID != nil {
+				objList = append(objList, *linkerID)
+			}
+
+			prmCtx.useObjects(objList)
 		}
 	}
 

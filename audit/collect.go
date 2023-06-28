@@ -2,9 +2,11 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -13,16 +15,11 @@ import (
 	"github.com/nspcc-dev/tzhash/tz"
 )
 
-type Collector interface {
-	Head(ctx context.Context, addr oid.Address) (*object.Object, error)
-	relations.Relations
-}
-
 // CollectMembers creates new storage group structure and fills it
 // with information about members collected via HeadReceiver.
 //
 // Resulting storage group consists of physically stored objects only.
-func CollectMembers(ctx context.Context, collector Collector, cnr cid.ID, members []oid.ID, tokens relations.Tokens, calcHomoHash bool) (*storagegroup.StorageGroup, error) {
+func CollectMembers(ctx context.Context, collector relations.Executor, cnr cid.ID, members []oid.ID, tokens relations.Tokens, calcHomoHash bool) (*storagegroup.StorageGroup, error) {
 	var (
 		err        error
 		sumPhySize uint64
@@ -35,19 +32,25 @@ func CollectMembers(ctx context.Context, collector Collector, cnr cid.ID, member
 	addr.SetContainer(cnr)
 
 	for i := range members {
-		if phyMembers, err = relations.ListRelations(ctx, collector, cnr, members[i], tokens, false); err != nil {
+		if phyMembers, _, err = relations.Get(ctx, collector, cnr, members[i], tokens); err != nil {
 			return nil, err
 		}
 
+		var prmHead client.PrmObjectHead
 		for _, phyMember := range phyMembers {
 			addr.SetObject(phyMember)
-			leaf, err := collector.Head(ctx, addr)
+			leaf, err := collector.ObjectHead(ctx, addr.Container(), addr.Object(), prmHead)
 			if err != nil {
 				return nil, fmt.Errorf("head phy member '%s': %w", phyMember.EncodeToString(), err)
 			}
 
-			sumPhySize += leaf.PayloadSize()
-			cs, _ := leaf.PayloadHomomorphicHash()
+			var hdr object.Object
+			if !leaf.ReadHeader(&hdr) {
+				return nil, errors.New("header err")
+			}
+
+			sumPhySize += hdr.PayloadSize()
+			cs, _ := hdr.PayloadHomomorphicHash()
 
 			if calcHomoHash {
 				phyHashes = append(phyHashes, cs.Value())
