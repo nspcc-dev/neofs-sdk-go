@@ -1406,6 +1406,58 @@ const (
 	defaultStreamTimeout      = 10 * time.Second
 )
 
+// DefaultOptions returns default option preset for Pool creation. It may be used like start point for configuration or
+// like main configuration.
+func DefaultOptions() InitParameters {
+	params := InitParameters{
+		sessionExpirationDuration: defaultSessionTokenExpirationDuration,
+		errorThreshold:            defaultErrorThreshold,
+		clientRebalanceInterval:   defaultRebalanceInterval,
+		healthcheckTimeout:        defaultHealthcheckTimeout,
+		nodeDialTimeout:           defaultDialTimeout,
+		nodeStreamTimeout:         defaultStreamTimeout,
+	}
+
+	return params
+}
+
+// New creates connection pool using simple set of endpoints and parameters.
+//
+// See also [pool.DefaultOptions] and [pool.NewFlatNodeParams] for details.
+//
+// Returned errors:
+//   - [neofscrypto.ErrIncorrectSigner]
+func New(endpoints []NodeParam, signer neofscrypto.Signer, options InitParameters) (*Pool, error) {
+	if len(endpoints) == 0 {
+		return nil, errors.New("empty endpoints")
+	}
+
+	options.nodeParams = endpoints
+	options.signer = signer
+
+	return NewPool(options)
+}
+
+// NewFlatNodeParams converts endpoints to appropriate NodeParam.
+// It is useful for situations where all endpoints are equivalent.
+func NewFlatNodeParams(endpoints []string) []NodeParam {
+	if len(endpoints) == 0 {
+		return nil
+	}
+
+	params := make([]NodeParam, 0, len(endpoints))
+
+	for _, addr := range endpoints {
+		params = append(params, NodeParam{
+			priority: 1,
+			address:  addr,
+			weight:   1,
+		})
+	}
+
+	return params
+}
+
 // NewPool creates connection pool using parameters.
 //
 // Returned errors:
