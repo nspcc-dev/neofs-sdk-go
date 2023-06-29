@@ -115,15 +115,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 
 	nodeAddr := "grpc://localhost:8080"
 
-	opts := InitParameters{
-		signer: signer,
-		nodeParams: []NodeParam{
-			{1, nodeAddr, 1},
-		},
-		clientRebalanceInterval: 30 * time.Second,
-	}
-
-	pool, err := NewPool(opts)
+	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, DefaultOptions())
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
@@ -259,15 +251,7 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 	account, signer, cont := testData(t)
 	var eaclTable eacl.Table
 
-	opts := InitParameters{
-		signer: signer,
-		nodeParams: []NodeParam{
-			{1, "grpc://localhost:8080", 1},
-		},
-		clientRebalanceInterval: 30 * time.Second,
-	}
-
-	pool, err := NewPool(opts)
+	pool, err := New(NewFlatNodeParams([]string{"grpc://localhost:8080"}), signer, DefaultOptions())
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
