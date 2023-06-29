@@ -14,7 +14,7 @@ func TestInitCreation(t *testing.T) {
 	cnr := cidtest.ID()
 	own := *usertest.ID(t)
 
-	object.InitCreation(&o, object.RequiredFields{
+	o.InitCreation(object.RequiredFields{
 		Container: cnr,
 		Owner:     own,
 	})

@@ -17,9 +17,9 @@ func TestVerificationFields(t *testing.T) {
 	obj.SetPayload(payload)
 	obj.SetPayloadSize(uint64(len(payload)))
 
-	require.NoError(t, SetVerificationFields(test.RandomSigner(t), obj))
+	require.NoError(t, obj.SetVerificationFields(test.RandomSigner(t)))
 
-	require.NoError(t, CheckVerificationFields(obj))
+	require.NoError(t, obj.CheckVerificationFields())
 
 	items := []struct {
 		corrupt func()
@@ -54,10 +54,10 @@ func TestVerificationFields(t *testing.T) {
 	for _, item := range items {
 		item.corrupt()
 
-		require.Error(t, CheckVerificationFields(obj))
+		require.Error(t, obj.CheckVerificationFields())
 
 		item.restore()
 
-		require.NoError(t, CheckVerificationFields(obj))
+		require.NoError(t, obj.CheckVerificationFields())
 	}
 }

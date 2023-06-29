@@ -13,12 +13,11 @@ import (
 type Lock v2object.Lock
 
 // WriteLock writes Lock to the Object, and sets its type to TypeLock.
-// The object must not be nil.
 //
 // See also ReadLock.
-func WriteLock(obj *Object, l Lock) {
-	obj.SetType(TypeLock)
-	obj.SetPayload(l.Marshal())
+func (o *Object) WriteLock(l Lock) {
+	o.SetType(TypeLock)
+	o.SetPayload(l.Marshal())
 }
 
 // ReadLock reads Lock from the Object. The lock must not be nil.
@@ -26,8 +25,8 @@ func WriteLock(obj *Object, l Lock) {
 // if object has TypeLock type.
 //
 // See also WriteLock.
-func ReadLock(l *Lock, obj Object) error {
-	return l.Unmarshal(obj.Payload())
+func (o *Object) ReadLock(l *Lock) error {
+	return l.Unmarshal(o.Payload())
 }
 
 // NumberOfMembers returns number of members in lock list.

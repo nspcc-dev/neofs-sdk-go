@@ -363,7 +363,7 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.EqualValues(tb, in.currentEpoch, header.CreationEpoch(), "configured current epoch must be set as creation epoch")
 	require.Equal(tb, in.sessionToken, header.SessionToken(), "configured session token must be written into objects")
 
-	require.NoError(tb, object.CheckHeaderVerificationFields(&header), "verification fields must be correctly set in header")
+	require.NoError(tb, header.CheckHeaderVerificationFields(), "verification fields must be correctly set in header")
 
 	_, ok = header.PayloadHomomorphicHash()
 	require.Equal(tb, in.withHomo, ok)
@@ -373,7 +373,7 @@ func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.R
 	id, ok := header.ID()
 	require.True(x.tb, ok, "all objects must have an ID")
 
-	idCalc, err := object.CalculateID(&header)
+	idCalc, err := header.CalculateID()
 	require.NoError(x.tb, err)
 
 	require.True(x.tb, idCalc.Equals(id))
@@ -503,5 +503,5 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 	}
 
 	require.Equal(x.tb, in.payload, rootObj.Payload())
-	require.NoError(x.tb, object.VerifyPayloadChecksum(&rootObj), "payload checksum must be correctly set")
+	require.NoError(x.tb, rootObj.VerifyPayloadChecksum(), "payload checksum must be correctly set")
 }

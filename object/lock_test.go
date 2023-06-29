@@ -25,15 +25,15 @@ func TestWriteLock(t *testing.T) {
 	l := *objecttest.Lock()
 	var o object.Object
 
-	object.WriteLock(&o, l)
+	o.WriteLock(l)
 
 	var l2 object.Lock
 
-	require.NoError(t, object.ReadLock(&l2, o))
+	require.NoError(t, o.ReadLock(&l2))
 	require.Equal(t, l, l2)
 
 	// corrupt payload
 	o.Payload()[0]++
 
-	require.Error(t, object.ReadLock(&l2, o))
+	require.Error(t, o.ReadLock(&l2))
 }

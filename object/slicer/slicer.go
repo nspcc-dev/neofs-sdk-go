@@ -511,7 +511,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 
 	header.SetPayloadSize(meta.length)
 
-	id, err := object.CalculateID(header)
+	id, err := header.CalculateID()
 	if err != nil {
 		return id, fmt.Errorf("calculate ID: %w", err)
 	}

@@ -36,10 +36,9 @@ type RequiredFields struct {
 }
 
 // InitCreation initializes the object instance with minimum set of required fields.
-// Object is expected (but not required) to be blank. Object must not be nil.
-func InitCreation(dst *Object, rf RequiredFields) {
-	dst.SetContainerID(rf.Container)
-	dst.SetOwnerID(&rf.Owner)
+func (o *Object) InitCreation(rf RequiredFields) {
+	o.SetContainerID(rf.Container)
+	o.SetOwnerID(&rf.Owner)
 }
 
 // NewFromV2 wraps v2 Object message to Object.
