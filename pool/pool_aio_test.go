@@ -162,7 +162,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		containerID = testCreateContainer(t, ctxTimeout, signer, cont, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isBucketCreated(ctxTimeout, cl, containerID))
@@ -175,7 +175,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		table := testSetEacl(t, ctxTimeout, signer, eaclTable, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isEACLCreated(ctxTimeout, cl, containerID, table))
@@ -218,7 +218,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID))
@@ -229,7 +229,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		testDeleteContainer(t, ctxTimeout, signer, containerID, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isBucketDeleted(ctxTimeout, cl, containerID))

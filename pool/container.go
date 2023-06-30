@@ -14,7 +14,7 @@ import (
 //
 // See details in [client.Client.ContainerPut].
 func (p *Pool) ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return cid.ID{}, err
 	}
@@ -26,7 +26,7 @@ func (p *Pool) ContainerPut(ctx context.Context, cont container.Container, prm c
 //
 // See details in [client.Client.ContainerGet].
 func (p *Pool) ContainerGet(ctx context.Context, id cid.ID, prm client.PrmContainerGet) (container.Container, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return container.Container{}, err
 	}
@@ -38,7 +38,7 @@ func (p *Pool) ContainerGet(ctx context.Context, id cid.ID, prm client.PrmContai
 //
 // See details in [client.Client.ContainerList].
 func (p *Pool) ContainerList(ctx context.Context, ownerID user.ID, prm client.PrmContainerList) ([]cid.ID, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return []cid.ID{}, err
 	}
@@ -50,7 +50,7 @@ func (p *Pool) ContainerList(ctx context.Context, ownerID user.ID, prm client.Pr
 //
 // See details in [client.Client.ContainerDelete].
 func (p *Pool) ContainerDelete(ctx context.Context, id cid.ID, prm client.PrmContainerDelete) error {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (p *Pool) ContainerDelete(ctx context.Context, id cid.ID, prm client.PrmCon
 //
 // See details in [client.Client.ContainerEACL].
 func (p *Pool) ContainerEACL(ctx context.Context, id cid.ID, prm client.PrmContainerEACL) (eacl.Table, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return eacl.Table{}, err
 	}
@@ -74,7 +74,7 @@ func (p *Pool) ContainerEACL(ctx context.Context, id cid.ID, prm client.PrmConta
 //
 // See details in [client.Client.ContainerSetEACL].
 func (p *Pool) ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return err
 	}

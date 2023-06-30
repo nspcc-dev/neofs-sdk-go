@@ -29,7 +29,7 @@ func (p *Pool) actualSigner(signer neofscrypto.Signer) neofscrypto.Signer {
 //
 // See details in [client.Client.ObjectPutInit].
 func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, prm client.
 // See details in [client.Client.ObjectGetInit].
 func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectGet) (object.Object, *client.ObjectReader, error) {
 	var hdr object.Object
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return hdr, nil, err
 	}
@@ -80,7 +80,7 @@ func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID o
 //
 // See details in [client.Client.ObjectHead].
 func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectHead) (*client.ResObjectHead, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 //
 // See details in [client.Client.ObjectRangeInit].
 func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm client.PrmObjectRange) (*client.ObjectRangeReader, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
 	}
@@ -124,7 +124,7 @@ func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID
 //
 // See details in [client.Client.ObjectDelete].
 func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectDelete) (oid.ID, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return oid.ID{}, err
 	}
@@ -146,7 +146,7 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 //
 // See details in [client.Client.ObjectHash].
 func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectHash) ([][]byte, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return [][]byte{}, err
 	}
@@ -168,7 +168,7 @@ func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.
 //
 // See details in [client.Client.ObjectSearchInit].
 func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm client.PrmObjectSearch) (*client.ObjectListReader, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
 	}

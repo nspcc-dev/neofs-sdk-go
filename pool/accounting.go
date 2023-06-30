@@ -11,7 +11,7 @@ import (
 //
 // See details in [client.Client.BalanceGet].
 func (p *Pool) BalanceGet(ctx context.Context, prm client.PrmBalanceGet) (accounting.Decimal, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return accounting.Decimal{}, err
 	}

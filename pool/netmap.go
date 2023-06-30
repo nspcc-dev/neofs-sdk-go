@@ -11,7 +11,7 @@ import (
 //
 // See details in [client.Client.NetworkInfo].
 func (p *Pool) NetworkInfo(ctx context.Context, prm client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return netmap.NetworkInfo{}, err
 	}
@@ -23,7 +23,7 @@ func (p *Pool) NetworkInfo(ctx context.Context, prm client.PrmNetworkInfo) (netm
 //
 // See details in [client.Client.NetMapSnapshot].
 func (p *Pool) NetMapSnapshot(ctx context.Context, prm client.PrmNetMapSnapshot) (netmap.NetMap, error) {
-	c, _, err := p.sdkClient()
+	c, err := p.sdkClient()
 	if err != nil {
 		return netmap.NetMap{}, err
 	}

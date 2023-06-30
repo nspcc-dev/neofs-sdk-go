@@ -2573,18 +2573,18 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	return res, nil
 }
 
-func (p *Pool) sdkClient() (*sdkClient.Client, statisticUpdater, error) {
+func (p *Pool) sdkClient() (*sdkClient.Client, error) {
 	conn, err := p.connection()
 	if err != nil {
-		return nil, nil, fmt.Errorf("connection: %w", err)
+		return nil, fmt.Errorf("connection: %w", err)
 	}
 
 	cl, err := conn.getClient()
 	if err != nil {
-		return nil, nil, fmt.Errorf("get client: %w", err)
+		return nil, fmt.Errorf("get client: %w", err)
 	}
 
-	return cl, conn, nil
+	return cl, nil
 }
 
 func (p *Pool) statisticMiddleware(nodeKey []byte, endpoint string, method stat.Method, duration time.Duration, err error) {
