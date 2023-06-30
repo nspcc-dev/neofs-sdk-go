@@ -3,7 +3,6 @@ package pool
 import (
 	"context"
 	"errors"
-	"time"
 
 	"github.com/google/uuid"
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -199,7 +198,4 @@ func (m *mockClient) restartIfUnhealthy(ctx context.Context) (healthy bool, chan
 
 func (m *mockClient) getClient() (*sdkClient.Client, error) {
 	return nil, errors.New("now supported to return sdkClient from mockClient")
-}
-
-func (m *mockClient) incRequests(_ time.Duration, _ MethodIndex) {
 }

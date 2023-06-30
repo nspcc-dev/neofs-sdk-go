@@ -83,7 +83,6 @@ type internalClient interface {
 
 type statisticUpdater interface {
 	updateErrorRate(err error)
-	incRequests(elapsed time.Duration, method MethodIndex)
 }
 
 // clientStatus provide access to some metrics for connection.
@@ -100,8 +99,6 @@ type clientStatus interface {
 	currentErrorRate() uint32
 	// overallErrorRate returns the number of all happened errors.
 	overallErrorRate() uint64
-	// methodsStatus returns statistic for all used methods.
-	methodsStatus() []statusSnapshot
 }
 
 // errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
@@ -116,20 +113,6 @@ type clientStatusMonitor struct {
 	mu                sync.RWMutex // protect counters
 	currentErrorCount uint32
 	overallErrorCount uint64
-	methods           []*methodStatus
-}
-
-// methodStatus provide statistic for specific method.
-type methodStatus struct {
-	name string
-	mu   sync.RWMutex // protect counters
-	statusSnapshot
-}
-
-// statusSnapshot is statistic for specific method.
-type statusSnapshot struct {
-	allTime     uint64
-	allRequests uint64
 }
 
 // MethodIndex index of method in list of statuses in clientStatusMonitor.
@@ -213,30 +196,11 @@ func (m MethodIndex) String() string {
 }
 
 func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMonitor {
-	methods := make([]*methodStatus, methodLast)
-	for i := methodBalanceGet; i < methodLast; i++ {
-		methods[i] = &methodStatus{name: i.String()}
-	}
-
 	return clientStatusMonitor{
 		addr:           addr,
 		healthy:        atomic.NewBool(true),
 		errorThreshold: errorThreshold,
-		methods:        methods,
 	}
-}
-
-func (m *methodStatus) snapshot() statusSnapshot {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.statusSnapshot
-}
-
-func (m *methodStatus) incRequests(elapsed time.Duration) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.allTime += uint64(elapsed)
-	m.allRequests++
 }
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
@@ -942,18 +906,7 @@ func (c *clientStatusMonitor) overallErrorRate() uint64 {
 	return c.overallErrorCount
 }
 
-func (c *clientStatusMonitor) methodsStatus() []statusSnapshot {
-	result := make([]statusSnapshot, len(c.methods))
-	for i, val := range c.methods {
-		result[i] = val.snapshot()
-	}
-
-	return result
-}
-
 func (c *clientWrapper) incRequests(elapsed time.Duration, method MethodIndex) {
-	methodStat := c.methods[method]
-	methodStat.incRequests(elapsed)
 	if c.prm.poolRequestInfoCallback != nil {
 		c.prm.poolRequestInfoCallback(RequestInfo{
 			Address: c.prm.address,
@@ -2365,27 +2318,6 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decim
 	}
 
 	return cp.balanceGet(ctx, prm)
-}
-
-// Statistic returns connection statistics.
-func (p Pool) Statistic() Statistic {
-	stat := Statistic{}
-	for _, inner := range p.innerPools {
-		inner.lock.RLock()
-		for _, cl := range inner.clients {
-			node := NodeStatistic{
-				address:       cl.address(),
-				methods:       cl.methodsStatus(),
-				overallErrors: cl.overallErrorRate(),
-				currentErrors: cl.currentErrorRate(),
-			}
-			stat.nodes = append(stat.nodes, node)
-			stat.overallErrors += node.overallErrors
-		}
-		inner.lock.RUnlock()
-	}
-
-	return stat
 }
 
 // waitForContainerPresence waits until the container is found on the NeoFS network.

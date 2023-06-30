@@ -1,4 +1,4 @@
-package pool
+package stat
 
 import (
 	"errors"
@@ -38,22 +38,25 @@ func (s Statistic) Node(address string) (*NodeStatistic, error) {
 
 // NodeStatistic is metrics of certain connections.
 type NodeStatistic struct {
+	publicKey     []byte
 	address       string
-	methods       []statusSnapshot
+	methods       []Snapshot
 	overallErrors uint64
-	currentErrors uint32
+}
+
+// Snapshot returns snapshot statistic for method.
+func (n NodeStatistic) Snapshot(method Method) (Snapshot, error) {
+	if !IsMethodValid(method) {
+		return Snapshot{}, errors.New("invalid method")
+	}
+
+	return n.methods[method], nil
 }
 
 // OverallErrors returns all errors on current node.
 // This value never decreases.
 func (n NodeStatistic) OverallErrors() uint64 {
 	return n.overallErrors
-}
-
-// CurrentErrors returns errors on current node.
-// This value is always less than 'errorThreshold' from InitParameters.
-func (n NodeStatistic) CurrentErrors() uint32 {
-	return n.currentErrors
 }
 
 // Requests returns number of requests.
@@ -71,80 +74,80 @@ func (n NodeStatistic) Address() string {
 
 // AverageGetBalance returns average time to perform BalanceGet request.
 func (n NodeStatistic) AverageGetBalance() time.Duration {
-	return n.averageTime(methodBalanceGet)
+	return n.averageTime(MethodBalanceGet)
 }
 
 // AveragePutContainer returns average time to perform ContainerPut request.
 func (n NodeStatistic) AveragePutContainer() time.Duration {
-	return n.averageTime(methodContainerPut)
+	return n.averageTime(MethodContainerPut)
 }
 
 // AverageGetContainer returns average time to perform ContainerGet request.
 func (n NodeStatistic) AverageGetContainer() time.Duration {
-	return n.averageTime(methodContainerGet)
+	return n.averageTime(MethodContainerGet)
 }
 
 // AverageListContainer returns average time to perform ContainerList request.
 func (n NodeStatistic) AverageListContainer() time.Duration {
-	return n.averageTime(methodContainerList)
+	return n.averageTime(MethodContainerList)
 }
 
 // AverageDeleteContainer returns average time to perform ContainerDelete request.
 func (n NodeStatistic) AverageDeleteContainer() time.Duration {
-	return n.averageTime(methodContainerDelete)
+	return n.averageTime(MethodContainerDelete)
 }
 
 // AverageGetContainerEACL returns average time to perform ContainerEACL request.
 func (n NodeStatistic) AverageGetContainerEACL() time.Duration {
-	return n.averageTime(methodContainerEACL)
+	return n.averageTime(MethodContainerEACL)
 }
 
 // AverageSetContainerEACL returns average time to perform ContainerSetEACL request.
 func (n NodeStatistic) AverageSetContainerEACL() time.Duration {
-	return n.averageTime(methodContainerSetEACL)
+	return n.averageTime(MethodContainerSetEACL)
 }
 
 // AverageEndpointInfo returns average time to perform EndpointInfo request.
 func (n NodeStatistic) AverageEndpointInfo() time.Duration {
-	return n.averageTime(methodEndpointInfo)
+	return n.averageTime(MethodEndpointInfo)
 }
 
 // AverageNetworkInfo returns average time to perform NetworkInfo request.
 func (n NodeStatistic) AverageNetworkInfo() time.Duration {
-	return n.averageTime(methodNetworkInfo)
+	return n.averageTime(MethodNetworkInfo)
 }
 
 // AveragePutObject returns average time to perform ObjectPut request.
 func (n NodeStatistic) AveragePutObject() time.Duration {
-	return n.averageTime(methodObjectPut)
+	return n.averageTime(MethodObjectPut)
 }
 
 // AverageDeleteObject returns average time to perform ObjectDelete request.
 func (n NodeStatistic) AverageDeleteObject() time.Duration {
-	return n.averageTime(methodObjectDelete)
+	return n.averageTime(MethodObjectDelete)
 }
 
 // AverageGetObject returns average time to perform ObjectGet request.
 func (n NodeStatistic) AverageGetObject() time.Duration {
-	return n.averageTime(methodObjectGet)
+	return n.averageTime(MethodObjectGet)
 }
 
 // AverageHeadObject returns average time to perform ObjectHead request.
 func (n NodeStatistic) AverageHeadObject() time.Duration {
-	return n.averageTime(methodObjectHead)
+	return n.averageTime(MethodObjectHead)
 }
 
 // AverageRangeObject returns average time to perform ObjectRange request.
 func (n NodeStatistic) AverageRangeObject() time.Duration {
-	return n.averageTime(methodObjectRange)
+	return n.averageTime(MethodObjectRange)
 }
 
 // AverageCreateSession returns average time to perform SessionCreate request.
 func (n NodeStatistic) AverageCreateSession() time.Duration {
-	return n.averageTime(methodSessionCreate)
+	return n.averageTime(MethodSessionCreate)
 }
 
-func (n NodeStatistic) averageTime(method MethodIndex) time.Duration {
+func (n NodeStatistic) averageTime(method Method) time.Duration {
 	stat := n.methods[method]
 	if stat.allRequests == 0 {
 		return 0

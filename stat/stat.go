@@ -102,6 +102,11 @@ func (m Method) String() string {
 	}
 }
 
+// IsMethodValid check range of passed Method variable.
+func IsMethodValid(m Method) bool {
+	return m >= 0 && m < MethodLast
+}
+
 type (
 	// OperationCallback describes common interface to external statistic collection.
 	//
