@@ -377,7 +377,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	r.stream = stream
 	r.client = c
 	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectGet, err)
+		c.sendStatistic(stat.MethodObjectGetStream, err)
 	}
 
 	if !r.readHeader(&hdr) {

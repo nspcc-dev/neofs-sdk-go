@@ -283,7 +283,7 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm P
 	}
 	r.client = c
 	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectSearch, err)()
+		c.sendStatistic(stat.MethodObjectSearchStream, err)()
 	}
 
 	return &r, nil
