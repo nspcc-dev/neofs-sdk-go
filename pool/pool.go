@@ -1957,19 +1957,12 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 }
 
 type objectReadCloser struct {
-	reader              *sdkClient.ObjectReader
-	elapsedTimeCallback func(time.Duration)
+	reader *sdkClient.ObjectReader
 }
 
 // Read implements io.Reader of the object payload.
 func (x *objectReadCloser) Read(p []byte) (int, error) {
-	start := time.Now()
-	n, err := x.reader.Read(p)
-	if x.elapsedTimeCallback != nil {
-		x.elapsedTimeCallback(time.Since(start))
-	}
-
-	return n, err
+	return x.reader.Read(p)
 }
 
 // Close implements io.Closer of the object payload.
@@ -2039,19 +2032,12 @@ func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.
 // Must be initialized using Pool.ObjectRange, any other
 // usage is unsafe.
 type ResObjectRange struct {
-	payload             *sdkClient.ObjectRangeReader
-	elapsedTimeCallback func(time.Duration)
+	payload *sdkClient.ObjectRangeReader
 }
 
 // Read implements io.Reader of the object payload.
 func (x *ResObjectRange) Read(p []byte) (int, error) {
-	start := time.Now()
-	n, err := x.payload.Read(p)
-	if x.elapsedTimeCallback != nil {
-		x.elapsedTimeCallback(time.Since(start))
-	}
-
-	return n, err
+	return x.payload.Read(p)
 }
 
 // Close ends reading the payload range and returns the result of the operation
