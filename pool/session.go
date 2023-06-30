@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -19,7 +18,7 @@ var (
 	errContainerRequired = errors.New("container required")
 )
 
-func initSession(ctx context.Context, dst *session.Object, c *client.Client, dur uint64, signer neofscrypto.Signer, statUpdater statisticUpdater) error {
+func initSession(ctx context.Context, dst *session.Object, c *client.Client, dur uint64, signer neofscrypto.Signer) error {
 	ni, err := c.NetworkInfo(ctx, client.PrmNetworkInfo{})
 	if err != nil {
 		return err
@@ -38,10 +37,7 @@ func initSession(ctx context.Context, dst *session.Object, c *client.Client, dur
 	prm.SetExp(exp)
 	prm.UseSigner(signer)
 
-	start := time.Now()
 	res, err := c.SessionCreate(ctx, prm)
-	statUpdater.incRequests(time.Since(start), methodSessionCreate)
-	statUpdater.updateErrorRate(err)
 
 	if err != nil {
 		return err
@@ -71,7 +67,6 @@ func (p *Pool) withinContainerSession(
 	signer neofscrypto.Signer,
 	verb session.ObjectVerb,
 	params containerSessionParams,
-	statUpdate statisticUpdater,
 ) error {
 	// empty error means the session was set.
 	if _, err := params.GetSession(); err == nil {
@@ -83,7 +78,7 @@ func (p *Pool) withinContainerSession(
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
 		// init new session
-		err := initSession(ctx, &tok, c, p.stokenDuration, signer, statUpdate)
+		err := initSession(ctx, &tok, c, p.stokenDuration, signer)
 		if err != nil {
 			return fmt.Errorf("init session: %w", err)
 		}

@@ -15,7 +15,19 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+)
+
+var (
+	// special variables for test purposes, to overwrite real RPC calls.
+	rpcAPIPutContainer      = rpcapi.PutContainer
+	rpcAPIGetContainer      = rpcapi.GetContainer
+	rpcAPIListContainers    = rpcapi.ListContainers
+	rpcAPIDeleteContainer   = rpcapi.DeleteContainer
+	rpcAPIGetEACL           = rpcapi.GetEACL
+	rpcAPISetEACL           = rpcapi.SetEACL
+	rpcAPIAnnounceUsedSpace = rpcapi.AnnounceUsedSpace
 )
 
 // PrmContainerPut groups optional parameters of ContainerPut operation.
@@ -64,6 +76,11 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerPut, err)()
+	}()
+
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return cid.ID{}, err
@@ -76,7 +93,8 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 	var sig neofscrypto.Signature
 	err = cont.CalculateSignature(&sig, signer)
 	if err != nil {
-		return cid.ID{}, fmt.Errorf("calculate container signature: %w", err)
+		err = fmt.Errorf("calculate container signature: %w", err)
+		return cid.ID{}, err
 	}
 
 	var sigv2 refs.Signature
@@ -115,7 +133,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.PutContainer(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIPutContainer(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
@@ -136,6 +154,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return cid.ID{}, cc.err
 	}
 
@@ -157,8 +176,14 @@ type PrmContainerGet struct {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerGet, err)()
+	}()
+
 	if c.prm.signer == nil {
-		return container.Container{}, ErrMissingSigner
+		err = ErrMissingSigner
+		return container.Container{}, err
 	}
 
 	var cidV2 refs.ContainerID
@@ -184,7 +209,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.GetContainer(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIGetContainer(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetResponse)
@@ -203,6 +228,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return container.Container{}, cc.err
 	}
 
@@ -224,8 +250,14 @@ type PrmContainerList struct {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerList, err)()
+	}()
+
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		err = ErrMissingSigner
+		return nil, err
 	}
 
 	// form request body
@@ -251,7 +283,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.ListContainers(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIListContainers(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
@@ -269,6 +301,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return nil, cc.err
 	}
 
@@ -320,13 +353,19 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //   - [ErrMissingSigner]
 //   - [neofscrypto.ErrIncorrectSigner]
 func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerDelete, err)()
+	}()
+
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return err
 	}
 
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return errNonNeoSigner
+		err = errNonNeoSigner
+		return err
 	}
 
 	// sign container ID
@@ -340,7 +379,8 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContaine
 	var sig neofscrypto.Signature
 	err = sig.Calculate(signer, data)
 	if err != nil {
-		return fmt.Errorf("calculate signature: %w", err)
+		err = fmt.Errorf("calculate signature: %w", err)
+		return err
 	}
 
 	var sigv2 refs.Signature
@@ -378,11 +418,12 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContaine
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.DeleteContainer(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIDeleteContainer(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return cc.err
 	}
 
@@ -404,8 +445,14 @@ type PrmContainerEACL struct {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerEACL, err)()
+	}()
+
 	if c.prm.signer == nil {
-		return eacl.Table{}, ErrMissingSigner
+		err = ErrMissingSigner
+		return eacl.Table{}, err
 	}
 
 	var cidV2 refs.ContainerID
@@ -431,7 +478,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.GetEACL(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIGetEACL(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
@@ -447,6 +494,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return eacl.Table{}, cc.err
 	}
 
@@ -503,18 +551,25 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerSetEACL, err)()
+	}()
+
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return err
 	}
 
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return errNonNeoSigner
+		err = errNonNeoSigner
+		return err
 	}
 
 	_, isCIDSet := table.CID()
 	if !isCIDSet {
-		return ErrMissingEACLContainer
+		err = ErrMissingEACLContainer
+		return err
 	}
 
 	// sign the eACL table
@@ -523,7 +578,8 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm Prm
 	var sig neofscrypto.Signature
 	err = sig.CalculateMarshalled(signer, eaclV2)
 	if err != nil {
-		return fmt.Errorf("calculate signature: %w", err)
+		err = fmt.Errorf("calculate signature: %w", err)
+		return err
 	}
 
 	var sigv2 refs.Signature
@@ -561,11 +617,12 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm Prm
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.SetEACL(&c.c, &req, client.WithContext(ctx))
+		return rpcAPISetEACL(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return cc.err
 	}
 
@@ -595,14 +652,19 @@ type PrmAnnounceSpace struct {
 //   - [ErrMissingAnnouncements]
 //   - [ErrMissingSigner]
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
-	// check parameters
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodContainerAnnounceUsedSpace, err)()
+	}()
 
 	if len(announcements) == 0 {
-		return ErrMissingAnnouncements
+		err = ErrMissingAnnouncements
+		return err
 	}
 
 	if c.prm.signer == nil {
-		return ErrMissingSigner
+		err = ErrMissingSigner
+		return err
 	}
 
 	// convert list of SDK announcement structures into NeoFS-API v2 list
@@ -630,11 +692,12 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.AnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIAnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return cc.err
 	}
 

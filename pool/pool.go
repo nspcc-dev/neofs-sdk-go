@@ -154,6 +154,9 @@ const (
 	methodNetMapSnapshot
 	methodObjectHash
 	methodObjectSearch
+	methodContainerAnnounceUsedSpace
+	methodAnnounceIntermediateTrust
+	methodAnnounceLocalTrust
 	methodLast
 )
 
@@ -196,6 +199,12 @@ func (m MethodIndex) String() string {
 		return "objectHash"
 	case methodObjectSearch:
 		return "objectSearch"
+	case methodContainerAnnounceUsedSpace:
+		return "containerAnnounceUsedSpace"
+	case methodAnnounceIntermediateTrust:
+		return "announceIntermediateTrust"
+	case methodAnnounceLocalTrust:
+		return "announceLocalTrust"
 	case methodLast:
 		return "it's a system name rather than a method"
 	default:

@@ -16,9 +16,13 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
 
 var (
+	// special variable for test purposes only, to overwrite real RPC calls.
+	rpcAPIDeleteObject = rpcapi.DeleteObject
+
 	// ErrNoSession indicates that session wasn't set in some Prm* structure.
 	ErrNoSession = errors.New("session is not set")
 )
@@ -115,7 +119,12 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		cidV2 v2refs.ContainerID
 		oidV2 v2refs.ObjectID
 		body  v2object.DeleteRequestBody
+		err   error
 	)
+
+	defer func() {
+		c.sendStatistic(stat.MethodObjectDelete, err)()
+	}()
 
 	containerID.WriteToV2(&cidV2)
 	addr.SetContainerID(&cidV2)
@@ -138,10 +147,11 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return oid.ID{}, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return oid.ID{}, err
 	}
 
-	resp, err := rpcapi.DeleteObject(&c.c, &req, client.WithContext(ctx))
+	resp, err := rpcAPIDeleteObject(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
 		return oid.ID{}, err
 	}
@@ -155,12 +165,14 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 
 	idTombV2 := resp.GetBody().GetTombstone().GetObjectID()
 	if idTombV2 == nil {
-		return oid.ID{}, newErrMissingResponseField(fieldTombstone)
+		err = newErrMissingResponseField(fieldTombstone)
+		return oid.ID{}, err
 	}
 
 	err = res.ReadFromV2(*idTombV2)
 	if err != nil {
-		return oid.ID{}, newErrInvalidResponseField(fieldTombstone, err)
+		err = newErrInvalidResponseField(fieldTombstone, err)
+		return oid.ID{}, err
 	}
 
 	return res, nil

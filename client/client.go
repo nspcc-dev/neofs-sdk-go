@@ -168,9 +168,14 @@ func (c *Client) Close() error {
 	return c.c.Conn().Close()
 }
 
-func (c *Client) sendStatistic(m stat.Method, elapsed time.Duration, err error) {
-	if c.prm.statisticCallback != nil {
-		c.prm.statisticCallback(c.nodeKey, c.endpoint, m, elapsed, err)
+func (c *Client) sendStatistic(m stat.Method, err error) func() {
+	if c.prm.statisticCallback == nil {
+		return func() {}
+	}
+
+	ts := time.Now()
+	return func() {
+		c.prm.statisticCallback(c.nodeKey, c.endpoint, m, time.Since(ts), err)
 	}
 }
 

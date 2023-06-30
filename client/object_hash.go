@@ -15,6 +15,12 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
+)
+
+var (
+	// special variable for test purposes only, to overwrite real RPC calls.
+	rpcAPIHashObjectRange = rpcapi.HashObjectRange
 )
 
 // PrmObjectHash groups parameters of ObjectHash operation.
@@ -148,10 +154,16 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
 		oidV2 v2refs.ObjectID
+		err   error
 	)
 
+	defer func() {
+		c.sendStatistic(stat.MethodObjectHash, err)()
+	}()
+
 	if len(prm.body.GetRanges()) == 0 {
-		return nil, ErrMissingRanges
+		err = ErrMissingRanges
+		return nil, err
 	}
 
 	containerID.WriteToV2(&cidV2)
@@ -178,12 +190,14 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return nil, err
 	}
 
-	resp, err := rpcapi.HashObjectRange(&c.c, &req, client.WithContext(ctx))
+	resp, err := rpcAPIHashObjectRange(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("write request: %w", err)
+		err = fmt.Errorf("write request: %w", err)
+		return nil, err
 	}
 
 	var res [][]byte
@@ -193,7 +207,8 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 
 	res = resp.GetBody().GetHashList()
 	if len(res) == 0 {
-		return nil, newErrMissingResponseField("hash list")
+		err = newErrMissingResponseField("hash list")
+		return nil, err
 	}
 
 	return res, nil
