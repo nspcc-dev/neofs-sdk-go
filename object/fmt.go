@@ -29,18 +29,18 @@ func CalculatePayloadChecksum(payload []byte) checksum.Checksum {
 
 // CalculateAndSetPayloadChecksum calculates checksum of current
 // object payload and writes it to the object.
-func CalculateAndSetPayloadChecksum(obj *Object) {
-	obj.SetPayloadChecksum(
-		CalculatePayloadChecksum(obj.Payload()),
+func (o *Object) CalculateAndSetPayloadChecksum() {
+	o.SetPayloadChecksum(
+		CalculatePayloadChecksum(o.Payload()),
 	)
 }
 
 // VerifyPayloadChecksum checks if payload checksum in the object
 // corresponds to its payload.
-func VerifyPayloadChecksum(obj *Object) error {
-	actual := CalculatePayloadChecksum(obj.Payload())
+func (o *Object) VerifyPayloadChecksum() error {
+	actual := CalculatePayloadChecksum(o.Payload())
 
-	cs, set := obj.PayloadChecksum()
+	cs, set := o.PayloadChecksum()
 	if !set {
 		return errCheckSumNotSet
 	}
@@ -53,35 +53,35 @@ func VerifyPayloadChecksum(obj *Object) error {
 }
 
 // CalculateID calculates identifier for the object.
-func CalculateID(obj *Object) (oid.ID, error) {
+func (o *Object) CalculateID() (oid.ID, error) {
 	var id oid.ID
-	id.SetSHA256(sha256.Sum256(obj.ToV2().GetHeader().StableMarshal(nil)))
+	id.SetSHA256(sha256.Sum256(o.ToV2().GetHeader().StableMarshal(nil)))
 
 	return id, nil
 }
 
 // CalculateAndSetID calculates identifier for the object
 // and writes the result to it.
-func CalculateAndSetID(obj *Object) error {
-	id, err := CalculateID(obj)
+func (o *Object) CalculateAndSetID() error {
+	id, err := o.CalculateID()
 	if err != nil {
 		return err
 	}
 
-	obj.SetID(id)
+	o.SetID(id)
 
 	return nil
 }
 
 // VerifyID checks if identifier in the object corresponds to
 // its structure.
-func VerifyID(obj *Object) error {
-	id, err := CalculateID(obj)
+func (o *Object) VerifyID() error {
+	id, err := o.CalculateID()
 	if err != nil {
 		return err
 	}
 
-	oID, set := obj.ID()
+	oID, set := o.ID()
 	if !set {
 		return errOIDNotSet
 	}
@@ -95,8 +95,8 @@ func VerifyID(obj *Object) error {
 
 // CalculateAndSetSignature signs id with provided key and sets that signature to
 // the object.
-func CalculateAndSetSignature(signer neofscrypto.Signer, obj *Object) error {
-	oID, set := obj.ID()
+func (o *Object) CalculateAndSetSignature(signer neofscrypto.Signer) error {
+	oID, set := o.ID()
 	if !set {
 		return errOIDNotSet
 	}
@@ -106,7 +106,7 @@ func CalculateAndSetSignature(signer neofscrypto.Signer, obj *Object) error {
 		return err
 	}
 
-	obj.SetSignature(&sig)
+	o.SetSignature(&sig)
 
 	return nil
 }
@@ -131,12 +131,12 @@ func (o *Object) VerifyIDSignature() bool {
 }
 
 // SetIDWithSignature sets object identifier and signature.
-func SetIDWithSignature(signer neofscrypto.Signer, obj *Object) error {
-	if err := CalculateAndSetID(obj); err != nil {
+func (o *Object) SetIDWithSignature(signer neofscrypto.Signer) error {
+	if err := o.CalculateAndSetID(); err != nil {
 		return fmt.Errorf("could not set identifier: %w", err)
 	}
 
-	if err := CalculateAndSetSignature(signer, obj); err != nil {
+	if err := o.CalculateAndSetSignature(signer); err != nil {
 		return fmt.Errorf("could not set signature: %w", err)
 	}
 
@@ -144,19 +144,19 @@ func SetIDWithSignature(signer neofscrypto.Signer, obj *Object) error {
 }
 
 // SetVerificationFields calculates and sets all verification fields of the object.
-func SetVerificationFields(signer neofscrypto.Signer, obj *Object) error {
-	CalculateAndSetPayloadChecksum(obj)
+func (o *Object) SetVerificationFields(signer neofscrypto.Signer) error {
+	o.CalculateAndSetPayloadChecksum()
 
-	return SetIDWithSignature(signer, obj)
+	return o.SetIDWithSignature(signer)
 }
 
 // CheckVerificationFields checks all verification fields of the object.
-func CheckVerificationFields(obj *Object) error {
-	if err := CheckHeaderVerificationFields(obj); err != nil {
+func (o *Object) CheckVerificationFields() error {
+	if err := o.CheckHeaderVerificationFields(); err != nil {
 		return fmt.Errorf("invalid header structure: %w", err)
 	}
 
-	if err := VerifyPayloadChecksum(obj); err != nil {
+	if err := o.VerifyPayloadChecksum(); err != nil {
 		return fmt.Errorf("invalid payload checksum: %w", err)
 	}
 
@@ -166,12 +166,12 @@ func CheckVerificationFields(obj *Object) error {
 var errInvalidSignature = errors.New("invalid signature")
 
 // CheckHeaderVerificationFields checks all verification fields except payload.
-func CheckHeaderVerificationFields(obj *Object) error {
-	if !obj.VerifyIDSignature() {
+func (o *Object) CheckHeaderVerificationFields() error {
+	if !o.VerifyIDSignature() {
 		return errInvalidSignature
 	}
 
-	if err := VerifyID(obj); err != nil {
+	if err := o.VerifyID(); err != nil {
 		return fmt.Errorf("invalid identifier: %w", err)
 	}
 
