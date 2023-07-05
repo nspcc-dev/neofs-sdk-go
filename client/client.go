@@ -140,22 +140,6 @@ func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
 	c.server = server
 }
 
-// getSigner returns a signer for requests. Provided signer fromPrm (if any) is prioritized, otherwise
-// Client's default is used.
-// Returns [ErrMissingSigner] if no signer is provided at all.
-func (c *Client) getSigner(fromPrm neofscrypto.Signer) (neofscrypto.Signer, error) {
-	signer := fromPrm
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	if signer == nil {
-		return nil, ErrMissingSigner
-	}
-
-	return signer, nil
-}
-
 // Close closes underlying connection to the NeoFS server. Implements io.Closer.
 // MUST NOT be called before successful Dial. Can be called concurrently
 // with server operations processing on running goroutines: in this case
