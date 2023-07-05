@@ -28,8 +28,6 @@ var (
 type PrmObjectSearch struct {
 	sessionContainer
 
-	signer neofscrypto.Signer
-
 	filters object.SearchFilters
 }
 
@@ -55,17 +53,6 @@ func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
 // Slice must not be mutated until the operation completes.
 func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
 	writeXHeadersToMeta(hs, &x.meta)
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectSearch) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x *PrmObjectSearch) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // SetFilters sets filters by which to select objects. All container objects
@@ -210,17 +197,19 @@ func (x *ObjectListReader) Close() error {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
+// the specified Signer, which is taken into account, in particular, for access control.
+//
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (*ObjectListReader, error) {
+func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer neofscrypto.Signer, prm PrmObjectSearch) (*ObjectListReader, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodObjectSearch, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return nil, err
+	if signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	var cidV2 v2refs.ContainerID

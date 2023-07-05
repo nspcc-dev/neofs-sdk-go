@@ -40,7 +40,6 @@ type PrmObjectPutInit struct {
 	sessionContainer
 
 	copyNum uint32
-	signer  neofscrypto.Signer
 }
 
 // SetCopiesNumber sets number of object copies that is enough to consider put successful.
@@ -83,17 +82,6 @@ type ObjectWriter struct {
 	partChunk v2object.PutObjectPartChunk
 
 	statisticCallback shortStatisticCallback
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectPutInit) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x PrmObjectPutInit) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -268,22 +256,23 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of
+// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
+//
 // Returns errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, prm PrmObjectPutInit) (*ObjectWriter, error) {
+func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer neofscrypto.Signer, prm PrmObjectPutInit) (*ObjectWriter, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodObjectPut, err)()
 	}()
-
 	var w ObjectWriter
 	w.statisticCallback = func(err error) {
 		c.sendStatistic(stat.MethodObjectPutStream, err)()
 	}
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return nil, err
+	if signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -316,10 +305,10 @@ type objectWriter struct {
 	client  *Client
 }
 
-func (x *objectWriter) InitDataStream(header object.Object) (io.Writer, error) {
+func (x *objectWriter) InitDataStream(header object.Object, signer neofscrypto.Signer) (io.Writer, error) {
 	var prm PrmObjectPutInit
 
-	stream, err := x.client.ObjectPutInit(x.context, header, prm)
+	stream, err := x.client.ObjectPutInit(x.context, header, signer, prm)
 	if err != nil {
 		return nil, fmt.Errorf("init object stream: %w", err)
 	}

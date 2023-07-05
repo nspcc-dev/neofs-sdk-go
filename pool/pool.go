@@ -60,19 +60,19 @@ type internalClient interface {
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
 	// see clientWrapper.objectPut.
-	objectPut(context.Context, PrmObjectPut) (oid.ID, error)
+	objectPut(context.Context, neofscrypto.Signer, PrmObjectPut) (oid.ID, error)
 	// see clientWrapper.objectDelete.
-	objectDelete(context.Context, cid.ID, oid.ID, PrmObjectDelete) error
+	objectDelete(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
-	objectGet(context.Context, cid.ID, oid.ID, PrmObjectGet) (ResGetObject, error)
+	objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
-	objectHead(context.Context, cid.ID, oid.ID, PrmObjectHead) (object.Object, error)
+	objectHead(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
-	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, PrmObjectRange) (ResObjectRange, error)
+	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, cid.ID, PrmObjectSearch) (ResObjectSearch, error)
+	objectSearch(context.Context, cid.ID, neofscrypto.Signer, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
-	sessionCreate(context.Context, prmCreateSession) (resCreateSession, error)
+	sessionCreate(context.Context, neofscrypto.Signer, prmCreateSession) (resCreateSession, error)
 
 	clientStatus
 	statisticUpdater
@@ -482,7 +482,7 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 }
 
 // objectPut writes object to NeoFS.
-func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
+func (c *clientWrapper) objectPut(ctx context.Context, signer neofscrypto.Signer, prm PrmObjectPut) (oid.ID, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return oid.ID{}, err
@@ -493,14 +493,11 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 	if prm.stoken != nil {
 		cliPrm.WithinSession(*prm.stoken)
 	}
-	if prm.signer != nil {
-		cliPrm.UseSigner(prm.signer)
-	}
 	if prm.btoken != nil {
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, cliPrm)
+	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
@@ -558,7 +555,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
-func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
+func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectDelete) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
@@ -573,11 +570,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, ob
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.signer != nil {
-		cliPrm.UseSigner(prm.signer)
-	}
-
-	_, err = cl.ObjectDelete(ctx, containerID, objectID, cliPrm)
+	_, err = cl.ObjectDelete(ctx, containerID, objectID, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("delete object on client: %w", err)
@@ -586,7 +579,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, ob
 }
 
 // objectGet returns header and reader for object.
-func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
+func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (ResGetObject, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResGetObject{}, err
@@ -601,13 +594,9 @@ func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objec
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.signer != nil {
-		cliPrm.UseSigner(prm.signer)
-	}
-
 	var res ResGetObject
 
-	hdr, rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, cliPrm)
+	hdr, rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
@@ -622,7 +611,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objec
 }
 
 // objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
-func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
+func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectHead) (object.Object, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return object.Object{}, err
@@ -641,13 +630,9 @@ func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, obje
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.signer != nil {
-		cliPrm.UseSigner(prm.signer)
-	}
-
 	var obj object.Object
 
-	res, err := cl.ObjectHead(ctx, containerID, objectID, cliPrm)
+	res, err := cl.ObjectHead(ctx, containerID, objectID, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return obj, fmt.Errorf("read object header via client: %w", err)
@@ -660,7 +645,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, obje
 }
 
 // objectRange returns object range reader.
-func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
+func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer neofscrypto.Signer, prm PrmObjectRange) (ResObjectRange, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectRange{}, err
@@ -676,11 +661,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, obj
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.signer != nil {
-		cliPrm.UseSigner(prm.signer)
-	}
-
-	res, err := cl.ObjectRangeInit(ctx, containerID, objectID, offset, length, cliPrm)
+	res, err := cl.ObjectRangeInit(ctx, containerID, objectID, offset, length, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
@@ -692,7 +673,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, obj
 }
 
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
+func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, signer neofscrypto.Signer, prm PrmObjectSearch) (ResObjectSearch, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectSearch{}, err
@@ -709,11 +690,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, pr
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	if prm.signer != nil {
-		cliPrm.UseSigner(prm.signer)
-	}
-
-	res, err := cl.ObjectSearchInit(ctx, containerID, cliPrm)
+	res, err := cl.ObjectSearchInit(ctx, containerID, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
@@ -723,7 +700,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, pr
 }
 
 // sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
-func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession) (resCreateSession, error) {
+func (c *clientWrapper) sessionCreate(ctx context.Context, signer neofscrypto.Signer, prm prmCreateSession) (resCreateSession, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return resCreateSession{}, err
@@ -731,9 +708,8 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession)
 
 	var cliPrm sdkClient.PrmSessionCreate
 	cliPrm.SetExp(prm.exp)
-	cliPrm.UseSigner(prm.signer)
 
-	res, err := cl.SessionCreate(ctx, cliPrm)
+	res, err := cl.SessionCreate(ctx, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return resCreateSession{}, fmt.Errorf("session creation on client: %w", err)
@@ -1175,19 +1151,12 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 
 // prmEndpointInfo groups parameters of sessionCreate operation.
 type prmCreateSession struct {
-	exp    uint64
-	signer neofscrypto.Signer
+	exp uint64
 }
 
 // setExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
 func (x *prmCreateSession) setExp(exp uint64) {
 	x.exp = exp
-}
-
-// useSigner specifies owner private signer for session token.
-// If signer is not provided, then Pool default signer is used.
-func (x *prmCreateSession) useSigner(signer neofscrypto.Signer) {
-	x.signer = signer
 }
 
 // prmEndpointInfo groups parameters of endpointInfo operation.
@@ -1645,9 +1614,8 @@ func initSessionForDuration(ctx context.Context, dst *session.Object, c internal
 	}
 	var prm prmCreateSession
 	prm.setExp(exp)
-	prm.useSigner(signer)
 
-	res, err := c.sessionCreate(ctx, prm)
+	res, err := c.sessionCreate(ctx, signer, prm)
 	if err != nil {
 		return err
 	}
@@ -1813,7 +1781,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 		}
 	}
 
-	id, err := ctxCall.client.objectPut(ctx, prm)
+	id, err := ctxCall.client.objectPut(ctx, prm.signer, prm)
 	if err != nil {
 		// removes session token from cache in case of token error
 		p.checkSessionTokenErr(err, ctxCall.endpoint)
@@ -1838,7 +1806,7 @@ func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oi
 		var tokens relations.Tokens
 		tokens.Bearer = prm.btoken
 
-		relatives, linkerID, err := relationsGet(ctx, p, containerID, objectID, tokens)
+		relatives, linkerID, err := relationsGet(ctx, p, containerID, objectID, tokens, prm.signer)
 		if err != nil {
 			return fmt.Errorf("failed to collect relatives: %w", err)
 		}
@@ -1867,7 +1835,7 @@ func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oi
 	}
 
 	return p.call(&cc, func() error {
-		if err = cc.client.objectDelete(ctx, containerID, objectID, prm); err != nil {
+		if err = cc.client.objectDelete(ctx, containerID, objectID, prm.signer, prm); err != nil {
 			return fmt.Errorf("remove object via client: %w", err)
 		}
 
@@ -1925,7 +1893,7 @@ func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.I
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectGet(ctx, containerID, objectID, prm)
+		res, err = cc.client.objectGet(ctx, containerID, objectID, prm.signer, prm)
 		return err
 	})
 }
@@ -1950,7 +1918,7 @@ func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.
 	}
 
 	return obj, p.call(&cc, func() error {
-		obj, err = cc.client.objectHead(ctx, containerID, objectID, prm)
+		obj, err = cc.client.objectHead(ctx, containerID, objectID, prm.signer, prm)
 		return err
 	})
 }
@@ -1995,7 +1963,7 @@ func (p *Pool) ObjectRange(ctx context.Context, containerID cid.ID, objectID oid
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectRange(ctx, containerID, objectID, offset, length, prm)
+		res, err = cc.client.objectRange(ctx, containerID, objectID, offset, length, prm.signer, prm)
 		return err
 	})
 }
@@ -2059,7 +2027,7 @@ func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObj
 	}
 
 	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectSearch(ctx, containerID, prm)
+		res, err = cc.client.objectSearch(ctx, containerID, prm.signer, prm)
 		return err
 	})
 }

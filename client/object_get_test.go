@@ -26,21 +26,21 @@ func TestClient_Get(t *testing.T) {
 			{
 				"get",
 				func() error {
-					_, _, err := c.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{prmObjectRead: prmObjectRead{}})
+					_, _, err := c.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, nil, PrmObjectGet{prmObjectRead: prmObjectRead{}})
 					return err
 				},
 			},
 			{
 				"get_range",
 				func() error {
-					_, err := c.ObjectRangeInit(ctx, cid.ID{}, oid.ID{}, 0, 1, PrmObjectRange{prmObjectRead: prmObjectRead{}})
+					_, err := c.ObjectRangeInit(ctx, cid.ID{}, oid.ID{}, 0, 1, nil, PrmObjectRange{prmObjectRead: prmObjectRead{}})
 					return err
 				},
 			},
 			{
 				"get_head",
 				func() error {
-					_, err := c.ObjectHead(ctx, cid.ID{}, oid.ID{}, PrmObjectHead{prmObjectRead: prmObjectRead{}})
+					_, err := c.ObjectHead(ctx, cid.ID{}, oid.ID{}, nil, PrmObjectHead{prmObjectRead: prmObjectRead{}})
 					return err
 				},
 			},

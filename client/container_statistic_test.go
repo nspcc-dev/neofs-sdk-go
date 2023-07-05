@@ -574,9 +574,8 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
 	var prm PrmSessionCreate
-	prm.UseSigner(signer)
 
-	_, err := c.SessionCreate(ctx, prm)
+	_, err := c.SessionCreate(ctx, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodSessionCreate].requests)
@@ -614,14 +613,13 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	require.NoError(t, err)
 
 	var prm PrmObjectPutInit
-	prm.UseSigner(signer)
 	prm.WithinSession(tokenSession)
 
 	var hdr object.Object
 	hdr.SetOwnerID(account)
 	hdr.SetContainerID(containerID)
 
-	writer, err := c.ObjectPutInit(ctx, hdr, prm)
+	writer, err := c.ObjectPutInit(ctx, hdr, signer, prm)
 	require.NoError(t, err)
 
 	require.True(t, writer.WritePayloadChunk(randBytes(10)))
@@ -669,9 +667,8 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmObjectDelete
-	prm.UseSigner(signer)
 
-	_, err := c.ObjectDelete(ctx, containerID, objectID, prm)
+	_, err := c.ObjectDelete(ctx, containerID, objectID, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodObjectDelete].requests)
@@ -699,9 +696,8 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmObjectGet
-	prm.UseSigner(signer)
 
-	_, reader, err := c.ObjectGetInit(ctx, containerID, objectID, prm)
+	_, reader, err := c.ObjectGetInit(ctx, containerID, objectID, signer, prm)
 	require.NoError(t, err)
 
 	buff := make([]byte, 32)
@@ -741,9 +737,8 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmObjectHead
-	prm.UseSigner(signer)
 
-	_, err := c.ObjectHead(ctx, containerID, objectID, prm)
+	_, err := c.ObjectHead(ctx, containerID, objectID, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodObjectHead].requests)
@@ -771,9 +766,8 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmObjectRange
-	prm.UseSigner(signer)
 
-	reader, err := c.ObjectRangeInit(ctx, containerID, objectID, 0, 1, prm)
+	reader, err := c.ObjectRangeInit(ctx, containerID, objectID, 0, 1, signer, prm)
 	require.NoError(t, err)
 
 	buff := make([]byte, 32)
@@ -815,9 +809,8 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 
 	var prm PrmObjectHash
 	prm.SetRangeList(0, 2)
-	prm.UseSigner(signer)
 
-	_, err := c.ObjectHash(ctx, containerID, objectID, prm)
+	_, err := c.ObjectHash(ctx, containerID, objectID, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodObjectHash].requests)
@@ -844,9 +837,8 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmObjectSearch
-	prm.UseSigner(signer)
 
-	reader, err := c.ObjectSearchInit(ctx, containerID, prm)
+	reader, err := c.ObjectSearchInit(ctx, containerID, signer, prm)
 	require.NoError(t, err)
 
 	iterator := func(oid.ID) bool {

@@ -28,9 +28,6 @@ var (
 // PrmObjectDelete groups optional parameters of ObjectDelete operation.
 type PrmObjectDelete struct {
 	sessionContainer
-
-	keySet bool
-	signer neofscrypto.Signer
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -42,18 +39,6 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 	var v2token acl.BearerToken
 	t.WriteToV2(&v2token)
 	x.meta.SetBearerToken(&v2token)
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectDelete) UseSigner(signer neofscrypto.Signer) {
-	x.keySet = true
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x *PrmObjectDelete) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // WithXHeaders specifies list of extended headers (string key-value pairs)
@@ -74,6 +59,9 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of
+// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
+//
 // Return errors:
 //   - global (see Client docs)
 //   - [ErrMissingSigner]
@@ -81,7 +69,7 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) (oid.ID, error) {
+func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectDelete) (oid.ID, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -100,9 +88,8 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 	objectID.WriteToV2(&oidV2)
 	addr.SetObjectID(&oidV2)
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return oid.ID{}, err
+	if signer == nil {
+		return oid.ID{}, ErrMissingSigner
 	}
 
 	// form request body

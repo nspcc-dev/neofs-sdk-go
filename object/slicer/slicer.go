@@ -29,7 +29,10 @@ type ObjectWriter interface {
 	// InitDataStream initializes and returns a stream of writable data associated
 	// with the object according to its header. Provided header includes at least
 	// container, owner and object ID fields.
-	InitDataStream(header object.Object) (dataStream io.Writer, err error)
+	//
+	// Signer is required and must not be nil. The operation is executed on behalf of
+	// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
+	InitDataStream(header object.Object, signer neofscrypto.Signer) (dataStream io.Writer, err error)
 }
 
 // Slicer converts input raw data streams into NeoFS objects. Working Slicer
@@ -541,7 +544,7 @@ func writeInMemObject(signer neofscrypto.Signer, w ObjectWriter, header object.O
 		return id, err
 	}
 
-	stream, err := w.InitDataStream(header)
+	stream, err := w.InitDataStream(header, signer)
 	if err != nil {
 		return id, fmt.Errorf("init data stream for next object: %w", err)
 	}

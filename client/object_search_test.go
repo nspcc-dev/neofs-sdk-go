@@ -113,7 +113,7 @@ func TestClient_ObjectSearch(t *testing.T) {
 	c := newClient(t, nil, nil)
 
 	t.Run("missing signer", func(t *testing.T) {
-		_, err := c.ObjectSearchInit(context.Background(), cid.ID{}, PrmObjectSearch{})
+		_, err := c.ObjectSearchInit(context.Background(), cid.ID{}, nil, PrmObjectSearch{})
 		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }

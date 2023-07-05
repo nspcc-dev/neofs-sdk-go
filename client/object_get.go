@@ -65,8 +65,6 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 // PrmObjectGet groups optional parameters of ObjectGetInit operation.
 type PrmObjectGet struct {
 	prmObjectRead
-
-	signer neofscrypto.Signer
 }
 
 // ObjectReader is designed to read one object from NeoFS system.
@@ -88,17 +86,6 @@ type ObjectReader struct {
 	remainingPayloadLen int
 
 	statisticCallback shortStatisticCallback
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectGet) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x *PrmObjectGet) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // readHeader reads header of the object. Result means success.
@@ -290,9 +277,12 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
+// the specified Signer, which is taken into account, in particular, for access control.
+//
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (object.Object, *ObjectReader, error) {
+func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (object.Object, *ObjectReader, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -306,9 +296,8 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		c.sendStatistic(stat.MethodObjectGet, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return hdr, nil, err
+	if signer == nil {
+		return hdr, nil, ErrMissingSigner
 	}
 
 	containerID.WriteToV2(&cidV2)
@@ -360,19 +349,6 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 // PrmObjectHead groups optional parameters of ObjectHead operation.
 type PrmObjectHead struct {
 	prmObjectRead
-
-	signer neofscrypto.Signer
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectHead) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x *PrmObjectHead) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // ResObjectHead groups resulting values of ObjectHead operation.
@@ -411,6 +387,9 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
+// the specified Signer, which is taken into account, in particular, for access control.
+//
 // Return errors:
 //   - global (see Client docs)
 //   - [ErrMissingSigner]
@@ -420,7 +399,7 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectAlreadyRemoved]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (*ResObjectHead, error) {
+func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectHead) (*ResObjectHead, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -433,9 +412,8 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		c.sendStatistic(stat.MethodObjectHead, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return nil, err
+	if signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	containerID.WriteToV2(&cidV2)
@@ -488,19 +466,6 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 // PrmObjectRange groups optional parameters of ObjectRange operation.
 type PrmObjectRange struct {
 	prmObjectRead
-
-	signer neofscrypto.Signer
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectRange) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x *PrmObjectRange) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // ObjectRangeReader is designed to read payload range of one object
@@ -677,10 +642,13 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
+// the specified Signer, which is taken into account, in particular, for access control.
+//
 // Return errors:
 //   - [ErrZeroRangeLength]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (*ObjectRangeReader, error) {
+func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer neofscrypto.Signer, prm PrmObjectRange) (*ObjectRangeReader, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -699,9 +667,8 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		return nil, err
 	}
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return nil, err
+	if signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	containerID.WriteToV2(&cidV2)

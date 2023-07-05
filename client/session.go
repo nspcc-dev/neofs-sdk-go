@@ -17,19 +17,11 @@ type PrmSessionCreate struct {
 	prmCommonMeta
 
 	exp uint64
-
-	signer neofscrypto.Signer
 }
 
 // SetExp sets number of the last NepFS epoch in the lifetime of the session after which it will be expired.
 func (x *PrmSessionCreate) SetExp(exp uint64) {
 	x.exp = exp
-}
-
-// UseSigner specifies private signer to sign the requests and compute token owner.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmSessionCreate) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
 }
 
 // ResSessionCreate groups resulting values of SessionCreate operation.
@@ -68,17 +60,18 @@ func (x ResSessionCreate) PublicKey() []byte {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The account will be used as owner of new session.
+//
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
+func (c *Client) SessionCreate(ctx context.Context, signer neofscrypto.Signer, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodSessionCreate, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return nil, err
+	if signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	var ownerID user.ID

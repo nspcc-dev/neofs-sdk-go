@@ -128,15 +128,15 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	return ni, nil
 }
 
-func (m *mockClient) objectPut(context.Context, PrmObjectPut) (oid.ID, error) {
+func (m *mockClient) objectPut(context.Context, neofscrypto.Signer, PrmObjectPut) (oid.ID, error) {
 	return oid.ID{}, nil
 }
 
-func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, PrmObjectDelete) error {
+func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectDelete) error {
 	return nil
 }
 
-func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, PrmObjectGet) (ResGetObject, error) {
+func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error) {
 	var res ResGetObject
 
 	if m.errOnGetObject == nil {
@@ -147,19 +147,19 @@ func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, PrmObjectGet) (R
 	return res, m.errOnGetObject
 }
 
-func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, PrmObjectHead) (object.Object, error) {
+func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectHead) (object.Object, error) {
 	return object.Object{}, nil
 }
 
-func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, PrmObjectRange) (ResObjectRange, error) {
+func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error) {
 	return ResObjectRange{}, nil
 }
 
-func (m *mockClient) objectSearch(context.Context, cid.ID, PrmObjectSearch) (ResObjectSearch, error) {
+func (m *mockClient) objectSearch(context.Context, cid.ID, neofscrypto.Signer, PrmObjectSearch) (ResObjectSearch, error) {
 	return ResObjectSearch{}, nil
 }
 
-func (m *mockClient) sessionCreate(context.Context, prmCreateSession) (resCreateSession, error) {
+func (m *mockClient) sessionCreate(context.Context, neofscrypto.Signer, prmCreateSession) (resCreateSession, error) {
 	if m.errorOnCreateSession {
 		err := errors.New("create session")
 		m.updateErrorRate(err)

@@ -42,7 +42,6 @@ func TestClient_SessionCreate(t *testing.T) {
 	c := newClient(t, signer, nil)
 
 	var prmSessionCreate PrmSessionCreate
-	prmSessionCreate.UseSigner(signer)
 	prmSessionCreate.SetExp(1)
 
 	t.Run("missing session id", func(t *testing.T) {
@@ -50,7 +49,7 @@ func TestClient_SessionCreate(t *testing.T) {
 			body.SetSessionKey([]byte{1})
 		}})
 
-		result, err := c.SessionCreate(ctx, prmSessionCreate)
+		result, err := c.SessionCreate(ctx, signer, prmSessionCreate)
 		require.Nil(t, result)
 		require.ErrorIs(t, err, ErrMissingResponseField)
 		require.Equal(t, "missing session id field in the response", err.Error())
@@ -61,16 +60,9 @@ func TestClient_SessionCreate(t *testing.T) {
 			body.SetID([]byte{1})
 		}})
 
-		result, err := c.SessionCreate(ctx, prmSessionCreate)
+		result, err := c.SessionCreate(ctx, signer, prmSessionCreate)
 		require.Nil(t, result)
 		require.ErrorIs(t, err, ErrMissingResponseField)
 		require.Equal(t, "missing session key field in the response", err.Error())
-	})
-
-	t.Run("missing signer", func(t *testing.T) {
-		c := newClient(t, nil, nil)
-
-		_, err := c.SessionCreate(ctx, PrmSessionCreate{})
-		require.ErrorIs(t, err, ErrMissingSigner)
 	})
 }

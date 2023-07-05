@@ -35,9 +35,8 @@ func initSession(ctx context.Context, dst *session.Object, c *client.Client, dur
 
 	var prm client.PrmSessionCreate
 	prm.SetExp(exp)
-	prm.UseSigner(signer)
 
-	res, err := c.SessionCreate(ctx, prm)
+	res, err := c.SessionCreate(ctx, signer, prm)
 
 	if err != nil {
 		return err
