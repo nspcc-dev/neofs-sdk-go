@@ -214,7 +214,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerPut
-	_, err := c.ContainerPut(ctx, cont, prm)
+	_, err := c.ContainerPut(ctx, cont, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerPut].requests)
@@ -323,7 +323,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerDelete
-	err := c.ContainerDelete(ctx, cid.ID{}, prm)
+	err := c.ContainerDelete(ctx, cid.ID{}, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerDelete].requests)
@@ -387,7 +387,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 
 	var prm PrmContainerSetEACL
 	table := testEaclTable(cid.ID{})
-	err := c.ContainerSetEACL(ctx, table, prm)
+	err := c.ContainerSetEACL(ctx, table, signer, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerSetEACL].requests)

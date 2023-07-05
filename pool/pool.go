@@ -44,17 +44,17 @@ type internalClient interface {
 	// see clientWrapper.balanceGet.
 	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
-	containerPut(context.Context, container.Container, PrmContainerPut) (cid.ID, error)
+	containerPut(context.Context, container.Container, neofscrypto.Signer, PrmContainerPut) (cid.ID, error)
 	// see clientWrapper.containerGet.
 	containerGet(context.Context, cid.ID) (container.Container, error)
 	// see clientWrapper.containerList.
 	containerList(context.Context, user.ID) ([]cid.ID, error)
 	// see clientWrapper.containerDelete.
-	containerDelete(context.Context, cid.ID, PrmContainerDelete) error
+	containerDelete(context.Context, cid.ID, neofscrypto.Signer, PrmContainerDelete) error
 	// see clientWrapper.containerEACL.
 	containerEACL(context.Context, cid.ID) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
-	containerSetEACL(context.Context, eacl.Table, PrmContainerSetEACL) error
+	containerSetEACL(context.Context, eacl.Table, neofscrypto.Signer, PrmContainerSetEACL) error
 	// see clientWrapper.endpointInfo.
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
@@ -314,13 +314,13 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
 // It also waits for the container to appear on the network.
-func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
+func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return cid.ID{}, err
 	}
 
-	idCnr, err := cl.ContainerPut(ctx, cont, prm.prmClient)
+	idCnr, err := cl.ContainerPut(ctx, cont, signer, prm.prmClient)
 	c.updateErrorRate(err)
 	if err != nil {
 		return cid.ID{}, fmt.Errorf("container put on client: %w", err)
@@ -372,7 +372,7 @@ func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]c
 
 // containerDelete invokes sdkClient.ContainerDelete parse response status to error.
 // It also waits for the container to be removed from the network.
-func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
+func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
@@ -383,7 +383,7 @@ func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, prm PrmC
 		cliPrm.WithinSession(prm.stoken)
 	}
 
-	err = cl.ContainerDelete(ctx, id, cliPrm)
+	err = cl.ContainerDelete(ctx, id, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("container delete on client: %w", err)
@@ -414,7 +414,7 @@ func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Tabl
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
 // It also waits for the EACL to appear on the network.
-func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
+func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm PrmContainerSetEACL) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
@@ -425,7 +425,7 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, 
 		cliPrm.WithinSession(prm.session)
 	}
 
-	err = cl.ContainerSetEACL(ctx, table, cliPrm)
+	err = cl.ContainerSetEACL(ctx, table, signer, cliPrm)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("set eacl on client: %w", err)
@@ -2075,13 +2075,13 @@ func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObj
 //
 // Main return value MUST NOT be processed on an erroneous return.
 // Deprecated: use ContainerPut instead.
-func (p *Pool) PutContainer(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
+func (p *Pool) PutContainer(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return cid.ID{}, err
 	}
 
-	return cp.containerPut(ctx, cont, prm)
+	return cp.containerPut(ctx, cont, signer, prm)
 }
 
 // GetContainer reads NeoFS container by ID.
@@ -2117,13 +2117,13 @@ func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, e
 //
 // Success can be verified by reading by identifier (see GetContainer).
 // Deprecated: use ContainerDelete instead.
-func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
+func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err
 	}
 
-	return cp.containerDelete(ctx, id, prm)
+	return cp.containerDelete(ctx, id, signer, prm)
 }
 
 // GetEACL reads eACL table of the NeoFS container.
@@ -2148,13 +2148,13 @@ func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 //
 // Success can be verified by reading by identifier (see GetEACL).
 // Deprecated: use ContainerSetEACL instead.
-func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
+func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm PrmContainerSetEACL) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err
 	}
 
-	return cp.containerSetEACL(ctx, table, prm)
+	return cp.containerSetEACL(ctx, table, signer, prm)
 }
 
 // Balance requests current balance of the NeoFS account.

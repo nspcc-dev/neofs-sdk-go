@@ -36,15 +36,6 @@ type PrmContainerPut struct {
 
 	sessionSet bool
 	session    session.Container
-
-	signer neofscrypto.Signer
-}
-
-// SetSigner sets signer to sign request payload.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
-// Optional parameter: defaults to internal Client signer.
-func (x *PrmContainerPut) SetSigner(signer neofscrypto.Signer) {
-	x.signer = signer
 }
 
 // WithinSession specifies session within which container should be saved.
@@ -73,23 +64,24 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
+// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+//
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ContainerPut(ctx context.Context, cont container.Container, prm PrmContainerPut) (cid.ID, error) {
+func (c *Client) ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerPut, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return cid.ID{}, err
+	if signer == nil {
+		return cid.ID{}, ErrMissingSigner
 	}
 
 	var cnr v2container.Container
 	cont.WriteToV2(&cnr)
 
-	// TODO: check private signer is set before forming the request
 	var sig neofscrypto.Signature
 	err = cont.CalculateSignature(&sig, signer)
 	if err != nil {
@@ -172,19 +164,11 @@ type PrmContainerGet struct {
 // see [apistatus] package for NeoFS-specific error types.
 //
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return errors:
-//   - [ErrMissingSigner]
 func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerGet, err)()
 	}()
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
-		return container.Container{}, err
-	}
 
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -246,19 +230,11 @@ type PrmContainerList struct {
 // see [apistatus] package for NeoFS-specific error types.
 //
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return errors:
-//   - [ErrMissingSigner]
 func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerList, err)()
 	}()
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
-		return nil, err
-	}
 
 	// form request body
 	var ownerV2 refs.OwnerID
@@ -314,15 +290,6 @@ type PrmContainerDelete struct {
 
 	tokSet bool
 	tok    session.Container
-
-	signer neofscrypto.Signer
-}
-
-// SetSigner sets signer to sign request payload.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
-// Optional parameter: defaults to internal Client signer.
-func (x *PrmContainerDelete) SetSigner(signer neofscrypto.Signer) {
-	x.signer = signer
 }
 
 // WithinSession specifies session within which container should be removed.
@@ -348,24 +315,20 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
+// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+//
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 // Return errors:
 //   - [ErrMissingSigner]
-//   - [neofscrypto.ErrIncorrectSigner]
-func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, prm PrmContainerDelete) error {
+func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerDelete, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return err
-	}
-
-	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		err = errNonNeoSigner
-		return err
+	if signer == nil {
+		return ErrMissingSigner
 	}
 
 	// sign container ID
@@ -441,19 +404,11 @@ type PrmContainerEACL struct {
 // see [apistatus] package for NeoFS-specific error types.
 //
 // Context is required and must not be nil. It is used for network communication.
-//
-// Return errors:
-//   - [ErrMissingSigner]
 func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerEACL, err)()
 	}()
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
-		return eacl.Table{}, err
-	}
 
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -507,15 +462,6 @@ type PrmContainerSetEACL struct {
 
 	sessionSet bool
 	session    session.Container
-
-	signer neofscrypto.Signer
-}
-
-// SetSigner sets signer to sign request payload.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
-// Optional parameter: defaults to internal Client signer.
-func (x *PrmContainerSetEACL) SetSigner(signer neofscrypto.Signer) {
-	x.signer = signer
 }
 
 // WithinSession specifies session within which extended ACL of the container
@@ -544,26 +490,22 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //
 // Success can be verified by reading by identifier (see EACL).
 //
+// Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
+// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+//
 // Return errors:
 //   - [ErrMissingEACLContainer]
-//   - [neofscrypto.ErrIncorrectSigner]
 //   - [ErrMissingSigner]
 //
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, prm PrmContainerSetEACL) error {
+func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm PrmContainerSetEACL) error {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerSetEACL, err)()
 	}()
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return err
-	}
-
-	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		err = errNonNeoSigner
-		return err
+	if signer == nil {
+		return ErrMissingSigner
 	}
 
 	_, isCIDSet := table.CID()
@@ -650,7 +592,6 @@ type PrmAnnounceSpace struct {
 //
 // Return errors:
 //   - [ErrMissingAnnouncements]
-//   - [ErrMissingSigner]
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
 	var err error
 	defer func() {
@@ -659,11 +600,6 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 
 	if len(announcements) == 0 {
 		err = ErrMissingAnnouncements
-		return err
-	}
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
 		return err
 	}
 

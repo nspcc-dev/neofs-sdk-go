@@ -10,12 +10,13 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
 // ContainerPutExecutor represents requirements to async container put operation.
 // See documentation for functions in [client.Client]. The same semantics is expected.
 type ContainerPutExecutor interface {
-	ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error)
+	ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm client.PrmContainerPut) (cid.ID, error)
 	ContainerGet(ctx context.Context, id cid.ID, prm client.PrmContainerGet) (container.Container, error)
 }
 
@@ -38,8 +39,8 @@ func (w *ContainerPutWaiter) SetPollInterval(interval time.Duration) {
 // ContainerPut sends request to save container in NeoFS.
 //
 // ContainerPut uses ContainerPutExecutor to create container and check the container is created.
-func (w ContainerPutWaiter) ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error) {
-	id, err := w.executor.ContainerPut(ctx, cont, prm)
+func (w ContainerPutWaiter) ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm client.PrmContainerPut) (cid.ID, error) {
+	id, err := w.executor.ContainerPut(ctx, cont, signer, prm)
 	if err != nil {
 		return cid.ID{}, fmt.Errorf("put: %w", err)
 	}

@@ -79,7 +79,7 @@ func (m *mockClient) balanceGet(context.Context, PrmBalanceGet) (accounting.Deci
 	return accounting.Decimal{}, nil
 }
 
-func (m *mockClient) containerPut(context.Context, container.Container, PrmContainerPut) (cid.ID, error) {
+func (m *mockClient) containerPut(context.Context, container.Container, neofscrypto.Signer, PrmContainerPut) (cid.ID, error) {
 	return cid.ID{}, nil
 }
 
@@ -91,7 +91,7 @@ func (m *mockClient) containerList(context.Context, user.ID) ([]cid.ID, error) {
 	return nil, nil
 }
 
-func (m *mockClient) containerDelete(context.Context, cid.ID, PrmContainerDelete) error {
+func (m *mockClient) containerDelete(context.Context, cid.ID, neofscrypto.Signer, PrmContainerDelete) error {
 	return nil
 }
 
@@ -99,7 +99,7 @@ func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) 
 	return eacl.Table{}, nil
 }
 
-func (m *mockClient) containerSetEACL(context.Context, eacl.Table, PrmContainerSetEACL) error {
+func (m *mockClient) containerSetEACL(context.Context, eacl.Table, neofscrypto.Signer, PrmContainerSetEACL) error {
 	return nil
 }
 

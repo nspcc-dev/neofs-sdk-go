@@ -81,7 +81,7 @@ func ExampleClient_ContainerPut() {
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)
 
-	containerID, err = c.ContainerPut(ctx, cont, client.PrmContainerPut{})
+	containerID, err = c.ContainerPut(ctx, cont, signer, client.PrmContainerPut{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerPut %w", err))
 	}

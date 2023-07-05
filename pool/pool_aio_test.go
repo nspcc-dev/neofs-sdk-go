@@ -40,11 +40,11 @@ var (
 
 type (
 	containerCreator interface {
-		ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error)
+		ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm client.PrmContainerPut) (cid.ID, error)
 	}
 
 	containerDeleter interface {
-		ContainerDelete(ctx context.Context, id cid.ID, prm client.PrmContainerDelete) error
+		ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm client.PrmContainerDelete) error
 	}
 
 	objectPutIniter interface {
@@ -56,7 +56,7 @@ type (
 	}
 
 	containerEaclSetter interface {
-		ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error
+		ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm client.PrmContainerSetEACL) error
 	}
 
 	containerEaclGetter interface {
@@ -568,9 +568,8 @@ func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.S
 	cont.SetPlacementPolicy(pp)
 
 	var cmd client.PrmContainerPut
-	cmd.SetSigner(signer)
 
-	containerID, err := creator.ContainerPut(ctx, cont, cmd)
+	containerID, err := creator.ContainerPut(ctx, cont, signer, cmd)
 	require.NoError(t, err)
 
 	return containerID
@@ -578,9 +577,8 @@ func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.S
 
 func testDeleteContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, deleter containerDeleter) {
 	var cmd client.PrmContainerDelete
-	cmd.SetSigner(signer)
 
-	require.NoError(t, deleter.ContainerDelete(ctx, containerID, cmd))
+	require.NoError(t, deleter.ContainerDelete(ctx, containerID, signer, cmd))
 }
 
 func testDeleteObject(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
@@ -593,9 +591,8 @@ func testDeleteObject(t *testing.T, ctx context.Context, signer neofscrypto.Sign
 
 func testSetEacl(t *testing.T, ctx context.Context, signer neofscrypto.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
 	var prm client.PrmContainerSetEACL
-	prm.SetSigner(signer)
 
-	require.NoError(t, setter.ContainerSetEACL(ctx, table, prm))
+	require.NoError(t, setter.ContainerSetEACL(ctx, table, signer, prm))
 
 	return table
 }
