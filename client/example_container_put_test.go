@@ -35,7 +35,6 @@ func ExampleClient_ContainerPut() {
 
 	// prepare client
 	var prmInit client.PrmInit
-	prmInit.SetDefaultSigner(signer) // private signer for request signing
 
 	c, err := client.New(prmInit)
 	if err != nil {

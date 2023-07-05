@@ -12,7 +12,7 @@ import (
 
 func TestClient_Get(t *testing.T) {
 	t.Run("missing signer", func(t *testing.T) {
-		c := newClient(t, nil, nil)
+		c := newClient(t, nil)
 		ctx := context.Background()
 
 		var nonilAddr v2refs.Address

@@ -187,7 +187,6 @@ func (x *wrapperPrm) setStatisticCallback(statisticCallback stat.OperationCallba
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
 func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
-	prmInit.SetDefaultSigner(x.signer)
 	prmInit.SetResponseInfoCallback(x.responseInfoCallback)
 	prmInit.SetStatisticCallback(statisticCallback)
 

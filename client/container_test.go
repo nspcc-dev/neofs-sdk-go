@@ -11,7 +11,7 @@ import (
 )
 
 func TestClient_Container(t *testing.T) {
-	c := newClient(t, nil, nil)
+	c := newClient(t, nil)
 	ctx := context.Background()
 
 	t.Run("missing signer", func(t *testing.T) {

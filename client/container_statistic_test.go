@@ -153,7 +153,7 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 func TestClientStatistic_AccountBalance(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIBalance = func(cli *client.Client, req *accounting.BalanceRequest, opts ...client.CallOption) (*accounting.BalanceResponse, error) {
 		var resp accounting.BalanceResponse
@@ -188,7 +188,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 func TestClientStatistic_ContainerPut(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIPutContainer = func(cli *client.Client, req *v2container.PutRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
@@ -223,7 +223,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 func TestClientStatistic_ContainerGet(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIGetContainer = func(cli *client.Client, req *v2container.GetRequest, opts ...client.CallOption) (*v2container.GetResponse, error) {
 		var cont v2container.Container
@@ -272,7 +272,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 func TestClientStatistic_ContainerList(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIListContainers = func(cli *client.Client, req *v2container.ListRequest, opts ...client.CallOption) (*v2container.ListResponse, error) {
 		var resp v2container.ListResponse
@@ -302,7 +302,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 func TestClientStatistic_ContainerDelete(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIDeleteContainer = func(cli *client.Client, req *v2container.DeleteRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
@@ -332,7 +332,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 func TestClientStatistic_ContainerEacl(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIGetEACL = func(cli *client.Client, req *v2container.GetExtendedACLRequest, opts ...client.CallOption) (*v2container.GetExtendedACLResponse, error) {
 		var resp v2container.GetExtendedACLResponse
@@ -365,7 +365,7 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPISetEACL = func(cli *client.Client, req *v2container.SetExtendedACLRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
@@ -396,7 +396,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIAnnounceUsedSpace = func(cli *client.Client, req *v2container.AnnounceUsedSpaceRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
@@ -431,7 +431,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPINetworkInfo = func(cli *client.Client, req *netmapv2.NetworkInfoRequest, opts ...client.CallOption) (*netmapv2.NetworkInfoResponse, error) {
 		var resp netmapv2.NetworkInfoResponse
@@ -473,7 +473,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPILocalNodeInfo = func(cli *client.Client, req *netmapv2.LocalNodeInfoRequest, opts ...client.CallOption) (*netmapv2.LocalNodeInfoResponse, error) {
 		var resp netmapv2.LocalNodeInfoResponse
@@ -513,7 +513,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPINetMapSnapshot = func(cli *client.Client, req *netmapv2.SnapshotRequest, opts ...client.CallOption) (*netmapv2.SnapshotResponse, error) {
 		var resp netmapv2.SnapshotResponse
@@ -546,7 +546,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 func TestClientStatistic_CreateSession(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPICreateSession = func(cli *client.Client, req *session.CreateRequest, opts ...client.CallOption) (*session.CreateResponse, error) {
 		var resp session.CreateResponse
@@ -586,7 +586,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIPutObject = func(cli *client.Client, pResp *v2object.PutResponse, opts ...client.CallOption) (*rpcapi.PutRequestWriter, error) {
 		var resp rpcapi.PutRequestWriter
@@ -633,7 +633,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 func TestClientStatistic_ObjectDelete(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIDeleteObject = func(cli *client.Client, req *v2object.DeleteRequest, opts ...client.CallOption) (*v2object.DeleteResponse, error) {
 		var resp v2object.DeleteResponse
@@ -679,7 +679,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIGetObject = func(cli *client.Client, req *v2object.GetRequest, opts ...client.CallOption) (*rpcapi.GetResponseReader, error) {
 		var resp rpcapi.GetResponseReader
@@ -710,7 +710,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 func TestClientStatistic_ObjectHead(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIHeadObject = func(cli *client.Client, req *v2object.HeadRequest, opts ...client.CallOption) (*v2object.HeadResponse, error) {
 		var resp v2object.HeadResponse
@@ -749,7 +749,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIGetObjectRange = func(cli *client.Client, req *v2object.GetRangeRequest, opts ...client.CallOption) (*rpcapi.ObjectRangeResponseReader, error) {
 		var resp rpcapi.ObjectRangeResponseReader
@@ -780,7 +780,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 func TestClientStatistic_ObjectHash(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIHashObjectRange = func(cli *client.Client, req *v2object.GetRangeHashRequest, opts ...client.CallOption) (*v2object.GetRangeHashResponse, error) {
 		var resp v2object.GetRangeHashResponse
@@ -821,7 +821,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPISearchObjects = func(cli *client.Client, req *v2object.SearchRequest, opts ...client.CallOption) (*rpcapi.SearchResponseReader, error) {
 		var resp rpcapi.SearchResponseReader
@@ -854,7 +854,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIAnnounceIntermediateResult = func(cli *client.Client, req *reputation.AnnounceIntermediateResultRequest, opts ...client.CallOption) (*reputation.AnnounceIntermediateResultResponse, error) {
 		var resp reputation.AnnounceIntermediateResultResponse
@@ -886,7 +886,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 	ctx := context.Background()
-	c := newClient(t, signer, nil)
+	c := newClient(t, nil)
 
 	rpcAPIAnnounceLocalTrust = func(cli *client.Client, req *reputation.AnnounceLocalTrustRequest, opts ...client.CallOption) (*reputation.AnnounceLocalTrustResponse, error) {
 		var resp reputation.AnnounceLocalTrustResponse

@@ -110,7 +110,7 @@ func TestObjectIterate(t *testing.T) {
 }
 
 func TestClient_ObjectSearch(t *testing.T) {
-	c := newClient(t, nil, nil)
+	c := newClient(t, nil)
 
 	t.Run("missing signer", func(t *testing.T) {
 		_, err := c.ObjectSearchInit(context.Background(), cid.ID{}, nil, PrmObjectSearch{})
