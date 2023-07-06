@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
@@ -428,6 +429,10 @@ func TestSessionCacheWithKey(t *testing.T) {
 	var prm PrmObjectDelete
 	anonKey := test.RandomSignerRFC6979(t)
 	prm.UseSigner(anonKey)
+
+	relationsGet = func(ctx context.Context, executor relations.Executor, containerID cid.ID, rootObjectID oid.ID, tokens relations.Tokens) ([]oid.ID, *oid.ID, error) {
+		return nil, nil, nil
+	}
 
 	err = pool.DeleteObject(ctx, cid.ID{}, oid.ID{}, prm)
 	require.NoError(t, err)

@@ -33,6 +33,10 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	relationsGet = relations.Get
+)
+
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
@@ -1834,14 +1838,19 @@ func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oi
 		var tokens relations.Tokens
 		tokens.Bearer = prm.btoken
 
-		relatives, err := relations.ListAllRelations(ctx, p, containerID, objectID, tokens)
+		relatives, linkerID, err := relationsGet(ctx, p, containerID, objectID, tokens)
 		if err != nil {
 			return fmt.Errorf("failed to collect relatives: %w", err)
 		}
 
 		if len(relatives) != 0 {
 			prmCtx.useContainer(containerID)
-			prmCtx.useObjects(append(relatives, objectID))
+			objList := append(relatives, objectID)
+			if linkerID != nil {
+				objList = append(objList, *linkerID)
+			}
+
+			prmCtx.useObjects(objList)
 		}
 	}
 
@@ -2234,116 +2243,6 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *
 	cnr.ApplyNetworkConfig(ni)
 
 	return nil
-}
-
-// GetSplitInfo implements relations.Relations.
-func (p *Pool) GetSplitInfo(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) (*object.SplitInfo, error) {
-	var prm PrmObjectHead
-	if tokens.Bearer != nil {
-		prm.UseBearer(*tokens.Bearer)
-	}
-	if tokens.Session != nil {
-		prm.UseSession(*tokens.Session)
-	}
-	prm.MarkRaw()
-
-	res, err := p.HeadObject(ctx, cnrID, objID, prm)
-
-	var errSplit *object.SplitInfoError
-
-	switch {
-	case errors.As(err, &errSplit):
-		return errSplit.SplitInfo(), nil
-	case err == nil:
-		if res.SplitID() == nil {
-			return nil, relations.ErrNoSplitInfo
-		}
-
-		splitInfo := object.NewSplitInfo()
-		splitInfo.SetSplitID(res.SplitID())
-		if res.HasParent() {
-			if len(res.Children()) > 0 {
-				splitInfo.SetLink(objID)
-			} else {
-				splitInfo.SetLastPart(objID)
-			}
-		}
-
-		return splitInfo, nil
-	default:
-		return nil, fmt.Errorf("failed to get raw object header: %w", err)
-	}
-}
-
-// ListChildrenByLinker implements relations.Relations.
-func (p *Pool) ListChildrenByLinker(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) ([]oid.ID, error) {
-	var prm PrmObjectHead
-	if tokens.Bearer != nil {
-		prm.UseBearer(*tokens.Bearer)
-	}
-	if tokens.Session != nil {
-		prm.UseSession(*tokens.Session)
-	}
-
-	res, err := p.HeadObject(ctx, cnrID, objID, prm)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get linking object's header: %w", err)
-	}
-
-	return res.Children(), nil
-}
-
-// GetLeftSibling implements relations.Relations.
-func (p *Pool) GetLeftSibling(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) (oid.ID, error) {
-	var prm PrmObjectHead
-	if tokens.Bearer != nil {
-		prm.UseBearer(*tokens.Bearer)
-	}
-	if tokens.Session != nil {
-		prm.UseSession(*tokens.Session)
-	}
-
-	res, err := p.HeadObject(ctx, cnrID, objID, prm)
-	if err != nil {
-		return oid.ID{}, fmt.Errorf("failed to read split chain member's header: %w", err)
-	}
-
-	idMember, ok := res.PreviousID()
-	if !ok {
-		return oid.ID{}, relations.ErrNoLeftSibling
-	}
-	return idMember, nil
-}
-
-// FindSiblingByParentID implements relations.Relations.
-func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oid.ID, tokens relations.Tokens) ([]oid.ID, error) {
-	var query object.SearchFilters
-	query.AddParentIDFilter(object.MatchStringEqual, objID)
-
-	var prm PrmObjectSearch
-	prm.SetFilters(query)
-	if tokens.Bearer != nil {
-		prm.UseBearer(*tokens.Bearer)
-	}
-	if tokens.Session != nil {
-		prm.UseSession(*tokens.Session)
-	}
-
-	resSearch, err := p.SearchObjects(ctx, cnrID, prm)
-	if err != nil {
-		return nil, fmt.Errorf("failed to find object children: %w", err)
-	}
-
-	var res []oid.ID
-	err = resSearch.Iterate(func(id oid.ID) bool {
-		res = append(res, id)
-		return false
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to iterate found objects: %w", err)
-	}
-
-	return res, nil
 }
 
 func (p *Pool) sdkClient() (*sdkClient.Client, error) {
