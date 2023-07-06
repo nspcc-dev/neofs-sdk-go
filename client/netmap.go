@@ -9,7 +9,14 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+)
+
+var (
+	// special variables for test purposes only, to overwrite real RPC calls.
+	rpcAPINetworkInfo   = rpcapi.NetworkInfo
+	rpcAPILocalNodeInfo = rpcapi.LocalNodeInfo
 )
 
 // PrmEndpointInfo groups parameters of EndpointInfo operation.
@@ -49,8 +56,14 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 // Returns errors:
 //   - [ErrMissingSigner]
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodEndpointInfo, err)()
+	}()
+
 	if c.prm.signer == nil {
-		return nil, ErrMissingSigner
+		err = ErrMissingSigner
+		return nil, err
 	}
 
 	// form request
@@ -67,7 +80,7 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.LocalNodeInfo(&c.c, &req, client.WithContext(ctx))
+		return rpcAPILocalNodeInfo(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.LocalNodeInfoResponse)
@@ -105,7 +118,8 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 	// process call
 	if !cc.processCall() {
-		return nil, cc.err
+		err = cc.err
+		return nil, err
 	}
 
 	return &res, nil
@@ -125,6 +139,11 @@ type PrmNetworkInfo struct {
 //
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodNetworkInfo, err)()
+	}()
+
 	// form request
 	var req v2netmap.NetworkInfoRequest
 
@@ -139,7 +158,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.NetworkInfo(&c.c, &req, client.WithContext(ctx))
+		return rpcAPINetworkInfo(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.NetworkInfoResponse)
@@ -161,6 +180,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return netmap.NetworkInfo{}, cc.err
 	}
 
@@ -183,8 +203,14 @@ type PrmNetMapSnapshot struct {
 // Returns errors:
 //   - [ErrMissingSigner]
 func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netmap.NetMap, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodNetMapSnapshot, err)()
+	}()
+
 	if c.prm.signer == nil {
-		return netmap.NetMap{}, ErrMissingSigner
+		err = ErrMissingSigner
+		return netmap.NetMap{}, err
 	}
 	// form request body
 	var body v2netmap.SnapshotRequestBody
@@ -197,12 +223,15 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 	req.SetBody(&body)
 	c.prepareRequest(&req, &meta)
 
-	err := signServiceMessage(c.prm.signer, &req)
+	err = signServiceMessage(c.prm.signer, &req)
 	if err != nil {
-		return netmap.NetMap{}, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return netmap.NetMap{}, err
 	}
 
-	resp, err := c.server.netMapSnapshot(ctx, req)
+	var resp *v2netmap.SnapshotResponse
+
+	resp, err = c.server.netMapSnapshot(ctx, req)
 	if err != nil {
 		return netmap.NetMap{}, err
 	}
@@ -216,12 +245,14 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	netMapV2 := resp.GetBody().NetMap()
 	if netMapV2 == nil {
-		return netmap.NetMap{}, newErrMissingResponseField(fieldNetMap)
+		err = newErrMissingResponseField(fieldNetMap)
+		return netmap.NetMap{}, err
 	}
 
 	err = res.ReadFromV2(*netMapV2)
 	if err != nil {
-		return netmap.NetMap{}, newErrInvalidResponseField(fieldNetMap, err)
+		err = newErrInvalidResponseField(fieldNetMap, err)
+		return netmap.NetMap{}, err
 	}
 
 	return res, nil

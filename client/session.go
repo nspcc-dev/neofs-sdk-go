@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -70,6 +71,11 @@ func (x ResSessionCreate) PublicKey() []byte {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResSessionCreate, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodSessionCreate, err)()
+	}()
+
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
@@ -77,7 +83,8 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 
 	var ownerID user.ID
 	if err = user.IDFromSigner(&ownerID, signer); err != nil {
-		return nil, fmt.Errorf("IDFromSigner: %w", err)
+		err = fmt.Errorf("IDFromSigner: %w", err)
+		return nil, err
 	}
 
 	var ownerIDV2 refs.OwnerID
@@ -128,6 +135,7 @@ func (c *Client) SessionCreate(ctx context.Context, prm PrmSessionCreate) (*ResS
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return nil, cc.err
 	}
 

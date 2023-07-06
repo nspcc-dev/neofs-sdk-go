@@ -18,6 +18,14 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
+)
+
+var (
+	// special variables for test purposes only, to overwrite real RPC calls.
+	rpcAPIGetObject      = rpcapi.GetObject
+	rpcAPIHeadObject     = rpcapi.HeadObject
+	rpcAPIGetObjectRange = rpcapi.GetObjectRange
 )
 
 // shared parameters of GET/HEAD/RANGE.
@@ -109,6 +117,8 @@ type ObjectReader struct {
 	tailPayload []byte
 
 	remainingPayloadLen int
+
+	statisticCallback shortStatisticCallback
 }
 
 // UseSigner specifies private signer to sign the requests.
@@ -125,6 +135,12 @@ func (x *PrmObjectGet) Signer() neofscrypto.Signer {
 // readHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectReader) readHeader(dst *object.Object) bool {
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(x.err)
+		}()
+	}
+
 	var resp v2object.GetResponse
 	x.err = x.stream.Read(&resp)
 	if x.err != nil {
@@ -163,6 +179,12 @@ func (x *ObjectReader) readHeader(dst *object.Object) bool {
 }
 
 func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(x.err)
+		}()
+	}
+
 	var read int
 
 	// read remaining tail
@@ -225,17 +247,27 @@ func (x *ObjectReader) ReadChunk(buf []byte) (int, bool) {
 }
 
 func (x *ObjectReader) close(ignoreEOF bool) error {
+	var err error
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(err)
+		}()
+	}
+
 	defer x.cancelCtxStream()
 
 	if x.err != nil {
 		if !errors.Is(x.err, io.EOF) {
-			return x.err
+			err = x.err
+			return err
 		} else if !ignoreEOF {
 			if x.remainingPayloadLen > 0 {
-				return io.ErrUnexpectedEOF
+				err = io.ErrUnexpectedEOF
+				return err
 			}
 
-			return io.EOF
+			err = io.EOF
+			return err
 		}
 	}
 
@@ -298,7 +330,12 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		oidV2 v2refs.ObjectID
 		body  v2object.GetRequestBody
 		hdr   object.Object
+		err   error
 	)
+
+	defer func() {
+		c.sendStatistic(stat.MethodObjectGet, err)()
+	}()
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
@@ -322,24 +359,30 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return hdr, nil, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return hdr, nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := rpcapi.GetObject(&c.c, &req, client.WithContext(ctx))
+	stream, err := rpcAPIGetObject(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
 		cancel()
-		return hdr, nil, fmt.Errorf("open stream: %w", err)
+		err = fmt.Errorf("open stream: %w", err)
+		return hdr, nil, err
 	}
 
 	var r ObjectReader
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.client = c
+	r.statisticCallback = func(err error) {
+		c.sendStatistic(stat.MethodObjectGetStream, err)
+	}
 
 	if !r.readHeader(&hdr) {
-		return hdr, nil, fmt.Errorf("header: %w", r.Close())
+		err = fmt.Errorf("header: %w", r.Close())
+		return hdr, nil, err
 	}
 
 	return hdr, &r, nil
@@ -414,7 +457,12 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		cidV2 v2refs.ContainerID
 		oidV2 v2refs.ObjectID
 		body  v2object.HeadRequestBody
+		err   error
 	)
+
+	defer func() {
+		c.sendStatistic(stat.MethodObjectHead, err)()
+	}()
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
@@ -437,12 +485,14 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	// sign the request
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return nil, err
 	}
 
-	resp, err := rpcapi.HeadObject(&c.c, &req, client.WithContext(ctx))
+	resp, err := rpcAPIHeadObject(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("write request: %w", err)
+		err = fmt.Errorf("write request: %w", err)
+		return nil, err
 	}
 
 	var res ResObjectHead
@@ -454,9 +504,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 
 	switch v := resp.GetBody().GetHeaderPart().(type) {
 	default:
-		return nil, fmt.Errorf("unexpected header type %T", v)
+		err = fmt.Errorf("unexpected header type %T", v)
+		return nil, err
 	case *v2object.SplitInfo:
-		return nil, object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+		err = object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+		return nil, err
 	case *v2object.HeaderWithSignature:
 		res.hdr = v
 	}
@@ -501,9 +553,17 @@ type ObjectRangeReader struct {
 	tailPayload []byte
 
 	remainingPayloadLen int
+
+	statisticCallback shortStatisticCallback
 }
 
 func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(x.err)
+		}()
+	}
+
 	var read int
 
 	// read remaining tail
@@ -571,17 +631,27 @@ func (x *ObjectRangeReader) ReadChunk(buf []byte) (int, bool) {
 }
 
 func (x *ObjectRangeReader) close(ignoreEOF bool) error {
+	var err error
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(err)
+		}()
+	}
+
 	defer x.cancelCtxStream()
 
 	if x.err != nil {
 		if !errors.Is(x.err, io.EOF) {
-			return x.err
+			err = x.err
+			return err
 		} else if !ignoreEOF {
 			if x.remainingPayloadLen > 0 {
-				return io.ErrUnexpectedEOF
+				err = io.ErrUnexpectedEOF
+				return err
 			}
 
-			return io.EOF
+			err = io.EOF
+			return err
 		}
 	}
 
@@ -648,10 +718,16 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		oidV2 v2refs.ObjectID
 		rngV2 v2object.Range
 		body  v2object.GetRangeRequestBody
+		err   error
 	)
 
+	defer func() {
+		c.sendStatistic(stat.MethodObjectRange, err)()
+	}()
+
 	if length == 0 {
-		return nil, ErrZeroRangeLength
+		err = ErrZeroRangeLength
+		return nil, err
 	}
 
 	signer, err := c.getSigner(prm.signer)
@@ -681,15 +757,17 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := rpcapi.GetObjectRange(&c.c, &req, client.WithContext(ctx))
+	stream, err := rpcAPIGetObjectRange(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("open stream: %w", err)
+		err = fmt.Errorf("open stream: %w", err)
+		return nil, err
 	}
 
 	var r ObjectRangeReader
@@ -697,6 +775,9 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.client = c
+	r.statisticCallback = func(err error) {
+		c.sendStatistic(stat.MethodObjectRangeStream, err)()
+	}
 
 	return &r, nil
 }

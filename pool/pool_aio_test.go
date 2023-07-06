@@ -27,6 +27,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 	"github.com/stretchr/testify/require"
@@ -115,7 +116,11 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 
 	nodeAddr := "grpc://localhost:8080"
 
-	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, DefaultOptions())
+	poolStat := stat.NewPoolStatistic()
+	opts := DefaultOptions()
+	opts.SetStatisticCallback(poolStat.OperationCallback)
+
+	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, opts)
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
@@ -132,12 +137,15 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		_, err = pool.BalanceGet(ctx, cmd)
 		require.NoError(t, err)
 
-		stat := pool.Statistic()
-		nodeStat, err := stat.Node(nodeAddr)
+		st := poolStat.Statistic()
+		nodeStat, err := st.Node(nodeAddr)
 		require.NoError(t, err)
 
-		require.Equal(t, uint64(1), nodeStat.methods[methodBalanceGet].allRequests)
-		require.Greater(t, nodeStat.methods[methodBalanceGet].allTime, uint64(0))
+		snap, err := nodeStat.Snapshot(stat.MethodBalanceGet)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(1), snap.AllRequests())
+		require.Greater(t, snap.AllTime(), uint64(0))
 	})
 
 	t.Run("balance err", func(t *testing.T) {
@@ -148,13 +156,16 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		_, err = pool.BalanceGet(ctx, cmd)
 		require.Error(t, err)
 
-		stat := pool.Statistic()
-		nodeStat, err := stat.Node(nodeAddr)
+		st := poolStat.Statistic()
+		nodeStat, err := st.Node(nodeAddr)
 		require.NoError(t, err)
 
-		require.Equal(t, uint32(1), nodeStat.currentErrors)
-		require.Equal(t, uint64(2), nodeStat.methods[methodBalanceGet].allRequests)
-		require.Greater(t, nodeStat.methods[methodBalanceGet].allTime, uint64(0))
+		snap, err := nodeStat.Snapshot(stat.MethodBalanceGet)
+		require.NoError(t, err)
+
+		require.Equal(t, uint64(1), nodeStat.OverallErrors())
+		require.Equal(t, uint64(2), snap.AllRequests())
+		require.Greater(t, snap.AllTime(), uint64(0))
 	})
 
 	t.Run("create container", func(t *testing.T) {
@@ -162,7 +173,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		containerID = testCreateContainer(t, ctxTimeout, signer, cont, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isBucketCreated(ctxTimeout, cl, containerID))
@@ -175,7 +186,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		table := testSetEacl(t, ctxTimeout, signer, eaclTable, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isEACLCreated(ctxTimeout, cl, containerID, table))
@@ -218,7 +229,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID))
@@ -229,7 +240,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		testDeleteContainer(t, ctxTimeout, signer, containerID, pool)
-		cl, _, err := pool.sdkClient()
+		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isBucketDeleted(ctxTimeout, cl, containerID))
@@ -297,7 +308,7 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 		}
 
 		var hdr object.Object
-		object.InitCreation(&hdr, rf)
+		hdr.InitCreation(rf)
 
 		var prm client.PrmObjectPutInit
 		prm.UseSigner(signer)
@@ -455,7 +466,7 @@ func TestClientWaiterWithAIO(t *testing.T) {
 		}
 
 		var hdr object.Object
-		object.InitCreation(&hdr, rf)
+		hdr.InitCreation(rf)
 
 		var prm client.PrmObjectPutInit
 		prm.UseSigner(signer)
@@ -529,7 +540,7 @@ func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, conta
 	}
 
 	var hdr object.Object
-	object.InitCreation(&hdr, rf)
+	hdr.InitCreation(rf)
 
 	var prm client.PrmObjectPutInit
 	prm.UseSigner(signer)

@@ -3,14 +3,12 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"time"
 
-	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
 
 // Client represents virtual connection to the NeoFS network to communicate
@@ -48,6 +46,9 @@ type Client struct {
 	c client.Client
 
 	server neoFSAPIServer
+
+	endpoint string
+	nodeKey  []byte
 }
 
 var errNonNeoSigner = fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
@@ -90,6 +91,7 @@ func (c *Client) Dial(prm PrmDial) error {
 	if prm.endpoint == "" {
 		return ErrMissingServer
 	}
+	c.endpoint = prm.endpoint
 
 	if prm.timeoutDialSet {
 		if prm.timeoutDial <= 0 {
@@ -119,14 +121,12 @@ func (c *Client) Dial(prm PrmDial) error {
 		prm.parentCtx = context.Background()
 	}
 
-	// TODO: (neofs-api-go#382) perform generic dial stage of the client.Client
-	_, err := rpc.Balance(&c.c, new(v2accounting.BalanceRequest),
-		client.WithContext(prm.parentCtx),
-	)
-	// return context errors since they signal about dial problem
-	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+	endpointInfo, err := c.EndpointInfo(prm.parentCtx, PrmEndpointInfo{})
+	if err != nil {
 		return err
 	}
+
+	c.nodeKey = endpointInfo.NodeInfo().PublicKey()
 
 	return nil
 }
@@ -168,6 +168,17 @@ func (c *Client) Close() error {
 	return c.c.Conn().Close()
 }
 
+func (c *Client) sendStatistic(m stat.Method, err error) func() {
+	if c.prm.statisticCallback == nil {
+		return func() {}
+	}
+
+	ts := time.Now()
+	return func() {
+		c.prm.statisticCallback(c.nodeKey, c.endpoint, m, time.Since(ts), err)
+	}
+}
+
 // PrmInit groups initialization parameters of Client instances.
 //
 // See also [New].
@@ -177,6 +188,8 @@ type PrmInit struct {
 	cbRespInfo func(ResponseMetaInfo) error
 
 	netMagic uint64
+
+	statisticCallback stat.OperationCallback
 }
 
 // SetDefaultSigner sets Client private signer to be used for the protocol
@@ -194,6 +207,11 @@ func (x *PrmInit) SetDefaultSigner(signer neofscrypto.Signer) {
 // NeoFS server response to f. Nil (default) means ignore response meta info.
 func (x *PrmInit) SetResponseInfoCallback(f func(ResponseMetaInfo) error) {
 	x.cbRespInfo = f
+}
+
+// SetStatisticCallback makes the Client to pass [stat.OperationCallback] for the external statistic.
+func (x *PrmInit) SetStatisticCallback(statisticCallback stat.OperationCallback) {
+	x.statisticCallback = statisticCallback
 }
 
 // PrmDial groups connection parameters for the Client.

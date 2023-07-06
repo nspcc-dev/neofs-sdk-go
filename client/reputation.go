@@ -7,6 +7,13 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
+)
+
+var (
+	// special variables for test purposes only, to overwrite real RPC calls.
+	rpcAPIAnnounceIntermediateResult = rpcapi.AnnounceIntermediateResult
+	rpcAPIAnnounceLocalTrust         = rpcapi.AnnounceLocalTrust
 )
 
 // PrmAnnounceLocalTrust groups optional parameters of AnnounceLocalTrust operation.
@@ -29,16 +36,24 @@ type PrmAnnounceLocalTrust struct {
 // Parameter epoch must not be zero.
 // Parameter trusts must not be empty.
 func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []reputation.Trust, prm PrmAnnounceLocalTrust) error {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodAnnounceLocalTrust, err)()
+	}()
+
 	// check parameters
 	switch {
 	case epoch == 0:
-		return ErrZeroEpoch
+		err = ErrZeroEpoch
+		return err
 	case len(trusts) == 0:
-		return ErrMissingTrusts
+		err = ErrMissingTrusts
+		return err
 	}
 
 	if c.prm.signer == nil {
-		return ErrMissingSigner
+		err = ErrMissingSigner
+		return err
 	}
 
 	// form request body
@@ -68,12 +83,13 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.AnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIAnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
 	if !cc.processCall() {
-		return cc.err
+		err = cc.err
+		return err
 	}
 
 	return nil
@@ -106,12 +122,19 @@ func (x *PrmAnnounceIntermediateTrust) SetIteration(iter uint32) {
 //
 // Parameter epoch must not be zero.
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, trust reputation.PeerToPeerTrust, prm PrmAnnounceIntermediateTrust) error {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodAnnounceIntermediateTrust, err)()
+	}()
+
 	if epoch == 0 {
-		return ErrZeroEpoch
+		err = ErrZeroEpoch
+		return err
 	}
 
 	if c.prm.signer == nil {
-		return ErrMissingSigner
+		err = ErrMissingSigner
+		return err
 	}
 
 	var v2Trust v2reputation.PeerToPeerTrust
@@ -138,12 +161,13 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.AnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIAnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
 	}
 
 	// process call
 	if !cc.processCall() {
-		return cc.err
+		err = cc.err
+		return err
 	}
 
 	return nil

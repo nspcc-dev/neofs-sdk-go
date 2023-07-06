@@ -18,6 +18,12 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
+)
+
+var (
+	// special variable for test purposes only, to overwrite real RPC calls.
+	rpcAPISearchObjects = rpcapi.SearchObjects
 )
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.
@@ -110,6 +116,8 @@ type ObjectListReader struct {
 		Read(resp *v2object.SearchResponse) error
 	}
 	tail []v2refs.ObjectID
+
+	statisticCallback shortStatisticCallback
 }
 
 // Read reads another list of the object identifiers. Works similar to
@@ -121,6 +129,12 @@ type ObjectListReader struct {
 func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 	if len(buf) == 0 {
 		panic("empty buffer in ObjectListReader.ReadList")
+	}
+
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(x.err)
+		}()
 	}
 
 	read := copyIDBuffers(buf, x.tail)
@@ -202,10 +216,18 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectListReader) Close() error {
+	var err error
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(err)
+		}()
+	}
+
 	defer x.cancelCtxStream()
 
 	if x.err != nil && !errors.Is(x.err, io.EOF) {
-		return x.err
+		err = x.err
+		return err
 	}
 
 	return nil
@@ -222,6 +244,11 @@ func (x *ObjectListReader) Close() error {
 // Return errors:
 //   - [ErrMissingSigner]
 func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (*ObjectListReader, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodObjectSearch, err)()
+	}()
+
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
 		return nil, err
@@ -242,17 +269,22 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm P
 
 	err = signServiceMessage(signer, &req)
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("sign request: %w", err)
+		return nil, err
 	}
 
 	var r ObjectListReader
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
-	r.stream, err = rpcapi.SearchObjects(&c.c, &req, client.WithContext(ctx))
+	r.stream, err = rpcAPISearchObjects(&c.c, &req, client.WithContext(ctx))
 	if err != nil {
-		return nil, fmt.Errorf("open stream: %w", err)
+		err = fmt.Errorf("open stream: %w", err)
+		return nil, err
 	}
 	r.client = c
+	r.statisticCallback = func(err error) {
+		c.sendStatistic(stat.MethodObjectSearchStream, err)()
+	}
 
 	return &r, nil
 }

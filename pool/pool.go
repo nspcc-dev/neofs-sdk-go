@@ -27,6 +27,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
@@ -82,7 +83,6 @@ type internalClient interface {
 
 type statisticUpdater interface {
 	updateErrorRate(err error)
-	incRequests(elapsed time.Duration, method MethodIndex)
 }
 
 // clientStatus provide access to some metrics for connection.
@@ -99,8 +99,6 @@ type clientStatus interface {
 	currentErrorRate() uint32
 	// overallErrorRate returns the number of all happened errors.
 	overallErrorRate() uint64
-	// methodsStatus returns statistic for all used methods.
-	methodsStatus() []statusSnapshot
 }
 
 // errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
@@ -115,118 +113,14 @@ type clientStatusMonitor struct {
 	mu                sync.RWMutex // protect counters
 	currentErrorCount uint32
 	overallErrorCount uint64
-	methods           []*methodStatus
-}
-
-// methodStatus provide statistic for specific method.
-type methodStatus struct {
-	name string
-	mu   sync.RWMutex // protect counters
-	statusSnapshot
-}
-
-// statusSnapshot is statistic for specific method.
-type statusSnapshot struct {
-	allTime     uint64
-	allRequests uint64
-}
-
-// MethodIndex index of method in list of statuses in clientStatusMonitor.
-type MethodIndex int
-
-const (
-	methodBalanceGet MethodIndex = iota
-	methodContainerPut
-	methodContainerGet
-	methodContainerList
-	methodContainerDelete
-	methodContainerEACL
-	methodContainerSetEACL
-	methodEndpointInfo
-	methodNetworkInfo
-	methodObjectPut
-	methodObjectDelete
-	methodObjectGet
-	methodObjectHead
-	methodObjectRange
-	methodSessionCreate
-	methodNetMapSnapshot
-	methodObjectHash
-	methodObjectSearch
-	methodLast
-)
-
-// String implements fmt.Stringer.
-func (m MethodIndex) String() string {
-	switch m {
-	case methodBalanceGet:
-		return "balanceGet"
-	case methodContainerPut:
-		return "containerPut"
-	case methodContainerGet:
-		return "containerGet"
-	case methodContainerList:
-		return "containerList"
-	case methodContainerDelete:
-		return "containerDelete"
-	case methodContainerEACL:
-		return "containerEACL"
-	case methodContainerSetEACL:
-		return "containerSetEACL"
-	case methodEndpointInfo:
-		return "endpointInfo"
-	case methodNetworkInfo:
-		return "networkInfo"
-	case methodObjectPut:
-		return "objectPut"
-	case methodObjectDelete:
-		return "objectDelete"
-	case methodObjectGet:
-		return "objectGet"
-	case methodObjectHead:
-		return "objectHead"
-	case methodObjectRange:
-		return "objectRange"
-	case methodSessionCreate:
-		return "sessionCreate"
-	case methodNetMapSnapshot:
-		return "netMapSnapshot"
-	case methodObjectHash:
-		return "objectHash"
-	case methodObjectSearch:
-		return "objectSearch"
-	case methodLast:
-		return "it's a system name rather than a method"
-	default:
-		return "unknown"
-	}
 }
 
 func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMonitor {
-	methods := make([]*methodStatus, methodLast)
-	for i := methodBalanceGet; i < methodLast; i++ {
-		methods[i] = &methodStatus{name: i.String()}
-	}
-
 	return clientStatusMonitor{
 		addr:           addr,
 		healthy:        atomic.NewBool(true),
 		errorThreshold: errorThreshold,
-		methods:        methods,
 	}
-}
-
-func (m *methodStatus) snapshot() statusSnapshot {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.statusSnapshot
-}
-
-func (m *methodStatus) incRequests(elapsed time.Duration) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.allTime += uint64(elapsed)
-	m.allRequests++
 }
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
@@ -236,17 +130,18 @@ type clientWrapper struct {
 	prm         wrapperPrm
 
 	clientStatusMonitor
+	statisticCallback stat.OperationCallback
 }
 
 // wrapperPrm is params to create clientWrapper.
 type wrapperPrm struct {
-	address                 string
-	signer                  neofscrypto.Signer
-	dialTimeout             time.Duration
-	streamTimeout           time.Duration
-	errorThreshold          uint32
-	responseInfoCallback    func(sdkClient.ResponseMetaInfo) error
-	poolRequestInfoCallback func(RequestInfo)
+	address              string
+	signer               neofscrypto.Signer
+	dialTimeout          time.Duration
+	streamTimeout        time.Duration
+	errorThreshold       uint32
+	responseInfoCallback func(sdkClient.ResponseMetaInfo) error
+	statisticCallback    stat.OperationCallback
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -275,39 +170,51 @@ func (x *wrapperPrm) setErrorThreshold(threshold uint32) {
 	x.errorThreshold = threshold
 }
 
-// setPoolRequestCallback sets callback that will be invoked after every pool response.
-func (x *wrapperPrm) setPoolRequestCallback(f func(RequestInfo)) {
-	x.poolRequestInfoCallback = f
-}
-
 // setResponseInfoCallback sets callback that will be invoked after every response.
 func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) error) {
 	x.responseInfoCallback = f
 }
 
+// setStatisticCallback set callback for external statistic.
+func (x *wrapperPrm) setStatisticCallback(statisticCallback stat.OperationCallback) {
+	x.statisticCallback = statisticCallback
+}
+
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
-func (x *wrapperPrm) getNewClient() (*sdkClient.Client, error) {
+func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
 	prmInit.SetDefaultSigner(x.signer)
 	prmInit.SetResponseInfoCallback(x.responseInfoCallback)
+	prmInit.SetStatisticCallback(statisticCallback)
 
 	return sdkClient.New(prmInit)
 }
 
 // newWrapper creates a clientWrapper that implements the client interface.
 func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
-	cl, err := prm.getNewClient()
+	res := &clientWrapper{
+		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
+		prm:                 prm,
+		statisticCallback:   prm.statisticCallback,
+	}
+
+	// integrate clientWrapper middleware to handle errors and wrapped client health.
+	cl, err := prm.getNewClient(res.statisticMiddleware)
 	if err != nil {
 		return nil, err
 	}
 
-	res := &clientWrapper{
-		client:              cl,
-		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
-		prm:                 prm,
-	}
+	res.client = cl
 
 	return res, nil
+}
+
+func (c *clientWrapper) statisticMiddleware(nodeKey []byte, endpoint string, method stat.Method, duration time.Duration, err error) {
+	c.updateErrorRate(err)
+
+	if c.statisticCallback != nil {
+		c.statisticCallback(nodeKey, endpoint, method, duration, err)
+	}
 }
 
 // dial establishes a connection to the server from the NeoFS network.
@@ -343,7 +250,7 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 		wasHealthy = true
 	}
 
-	cl, err := c.prm.getNewClient()
+	cl, err := c.prm.getNewClient(c.statisticMiddleware)
 	if err != nil {
 		c.setUnhealthy()
 		return false, wasHealthy
@@ -392,9 +299,7 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 	var cliPrm sdkClient.PrmBalanceGet
 	cliPrm.SetAccount(prm.account)
 
-	start := time.Now()
 	res, err := cl.BalanceGet(ctx, cliPrm)
-	c.incRequests(time.Since(start), methodBalanceGet)
 	c.updateErrorRate(err)
 	if err != nil {
 		return accounting.Decimal{}, fmt.Errorf("balance get on client: %w", err)
@@ -411,9 +316,7 @@ func (c *clientWrapper) containerPut(ctx context.Context, cont container.Contain
 		return cid.ID{}, err
 	}
 
-	start := time.Now()
 	idCnr, err := cl.ContainerPut(ctx, cont, prm.prmClient)
-	c.incRequests(time.Since(start), methodContainerPut)
 	c.updateErrorRate(err)
 	if err != nil {
 		return cid.ID{}, fmt.Errorf("container put on client: %w", err)
@@ -439,9 +342,7 @@ func (c *clientWrapper) containerGet(ctx context.Context, cnrID cid.ID) (contain
 		return container.Container{}, err
 	}
 
-	start := time.Now()
 	res, err := cl.ContainerGet(ctx, cnrID, sdkClient.PrmContainerGet{})
-	c.incRequests(time.Since(start), methodContainerGet)
 	c.updateErrorRate(err)
 	if err != nil {
 		return container.Container{}, fmt.Errorf("container get on client: %w", err)
@@ -457,9 +358,7 @@ func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]c
 		return nil, err
 	}
 
-	start := time.Now()
 	res, err := cl.ContainerList(ctx, ownerID, sdkClient.PrmContainerList{})
-	c.incRequests(time.Since(start), methodContainerList)
 	c.updateErrorRate(err)
 	if err != nil {
 		return nil, fmt.Errorf("container list on client: %w", err)
@@ -480,9 +379,7 @@ func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, prm PrmC
 		cliPrm.WithinSession(prm.stoken)
 	}
 
-	start := time.Now()
 	err = cl.ContainerDelete(ctx, id, cliPrm)
-	c.incRequests(time.Since(start), methodContainerDelete)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("container delete on client: %w", err)
@@ -502,9 +399,7 @@ func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Tabl
 		return eacl.Table{}, err
 	}
 
-	start := time.Now()
 	res, err := cl.ContainerEACL(ctx, id, sdkClient.PrmContainerEACL{})
-	c.incRequests(time.Since(start), methodContainerEACL)
 	c.updateErrorRate(err)
 	if err != nil {
 		return eacl.Table{}, fmt.Errorf("get eacl on client: %w", err)
@@ -526,9 +421,7 @@ func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, 
 		cliPrm.WithinSession(prm.session)
 	}
 
-	start := time.Now()
 	err = cl.ContainerSetEACL(ctx, table, cliPrm)
-	c.incRequests(time.Since(start), methodContainerSetEACL)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("set eacl on client: %w", err)
@@ -559,9 +452,7 @@ func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (ne
 		return netmap.NodeInfo{}, err
 	}
 
-	start := time.Now()
 	res, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
-	c.incRequests(time.Since(start), methodEndpointInfo)
 	c.updateErrorRate(err)
 	if err != nil {
 		return netmap.NodeInfo{}, fmt.Errorf("endpoint info on client: %w", err)
@@ -577,9 +468,7 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 		return netmap.NetworkInfo{}, err
 	}
 
-	start := time.Now()
 	res, err := cl.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
-	c.incRequests(time.Since(start), methodNetworkInfo)
 	c.updateErrorRate(err)
 	if err != nil {
 		return netmap.NetworkInfo{}, fmt.Errorf("network info on client: %w", err)
@@ -607,9 +496,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 		cliPrm.WithBearerToken(*prm.btoken)
 	}
 
-	start := time.Now()
 	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, cliPrm)
-	c.incRequests(time.Since(start), methodObjectPut)
 	c.updateErrorRate(err)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
@@ -640,9 +527,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, prm PrmObjectPut) (oid.ID
 		for {
 			n, err = prm.payload.Read(buf)
 			if n > 0 {
-				start = time.Now()
 				successWrite := wObj.WritePayloadChunk(buf[:n])
-				c.incRequests(time.Since(start), methodObjectPut)
 				if !successWrite {
 					break
 				}
@@ -688,9 +573,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, ob
 		cliPrm.UseSigner(prm.signer)
 	}
 
-	start := time.Now()
 	_, err = cl.ObjectDelete(ctx, containerID, objectID, cliPrm)
-	c.incRequests(time.Since(start), methodObjectDelete)
 	c.updateErrorRate(err)
 	if err != nil {
 		return fmt.Errorf("delete object on client: %w", err)
@@ -727,14 +610,8 @@ func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objec
 	}
 
 	res.Header = hdr
-	start := time.Now()
-	c.incRequests(time.Since(start), methodObjectGet)
-
 	res.Payload = &objectReadCloser{
 		reader: rObj,
-		elapsedTimeCallback: func(elapsed time.Duration) {
-			c.incRequests(elapsed, methodObjectGet)
-		},
 	}
 
 	return res, nil
@@ -766,9 +643,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, obje
 
 	var obj object.Object
 
-	start := time.Now()
 	res, err := cl.ObjectHead(ctx, containerID, objectID, cliPrm)
-	c.incRequests(time.Since(start), methodObjectHead)
 	c.updateErrorRate(err)
 	if err != nil {
 		return obj, fmt.Errorf("read object header via client: %w", err)
@@ -801,9 +676,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, obj
 		cliPrm.UseSigner(prm.signer)
 	}
 
-	start := time.Now()
 	res, err := cl.ObjectRangeInit(ctx, containerID, objectID, offset, length, cliPrm)
-	c.incRequests(time.Since(start), methodObjectRange)
 	c.updateErrorRate(err)
 	if err != nil {
 		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
@@ -811,9 +684,6 @@ func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, obj
 
 	return ResObjectRange{
 		payload: res,
-		elapsedTimeCallback: func(elapsed time.Duration) {
-			c.incRequests(elapsed, methodObjectRange)
-		},
 	}, nil
 }
 
@@ -859,9 +729,7 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, prm prmCreateSession)
 	cliPrm.SetExp(prm.exp)
 	cliPrm.UseSigner(prm.signer)
 
-	start := time.Now()
 	res, err := cl.SessionCreate(ctx, cliPrm)
-	c.incRequests(time.Since(start), methodSessionCreate)
 	c.updateErrorRate(err)
 	if err != nil {
 		return resCreateSession{}, fmt.Errorf("session creation on client: %w", err)
@@ -912,27 +780,6 @@ func (c *clientStatusMonitor) overallErrorRate() uint64 {
 	return c.overallErrorCount
 }
 
-func (c *clientStatusMonitor) methodsStatus() []statusSnapshot {
-	result := make([]statusSnapshot, len(c.methods))
-	for i, val := range c.methods {
-		result[i] = val.snapshot()
-	}
-
-	return result
-}
-
-func (c *clientWrapper) incRequests(elapsed time.Duration, method MethodIndex) {
-	methodStat := c.methods[method]
-	methodStat.incRequests(elapsed)
-	if c.prm.poolRequestInfoCallback != nil {
-		c.prm.poolRequestInfoCallback(RequestInfo{
-			Address: c.prm.address,
-			Method:  method,
-			Elapsed: elapsed,
-		})
-	}
-}
-
 func (c *clientStatusMonitor) updateErrorRate(err error) {
 	if err == nil {
 		return
@@ -964,13 +811,6 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 // clientBuilder is a type alias of client constructors.
 type clientBuilder = func(endpoint string) (internalClient, error)
 
-// RequestInfo groups info about pool request.
-type RequestInfo struct {
-	Address string
-	Method  MethodIndex
-	Elapsed time.Duration
-}
-
 // InitParameters contains values used to initialize connection Pool.
 type InitParameters struct {
 	signer                    neofscrypto.Signer
@@ -982,9 +822,10 @@ type InitParameters struct {
 	sessionExpirationDuration uint64
 	errorThreshold            uint32
 	nodeParams                []NodeParam
-	requestCallback           func(RequestInfo)
 
 	clientBuilder clientBuilder
+
+	statisticCallback stat.OperationCallback
 }
 
 // SetSigner specifies default signer to be used for the protocol communication by default.
@@ -1033,12 +874,6 @@ func (x *InitParameters) SetErrorThreshold(threshold uint32) {
 	x.errorThreshold = threshold
 }
 
-// SetRequestCallback makes the pool client to pass RequestInfo for each
-// request to f. Nil (default) means ignore RequestInfo.
-func (x *InitParameters) SetRequestCallback(f func(RequestInfo)) {
-	x.requestCallback = f
-}
-
 // AddNode append information about the node to which you want to connect.
 func (x *InitParameters) AddNode(nodeParam NodeParam) {
 	x.nodeParams = append(x.nodeParams, nodeParam)
@@ -1053,6 +888,11 @@ func (x *InitParameters) setClientBuilder(builder clientBuilder) {
 // isMissingClientBuilder checks if client constructor was not specified.
 func (x *InitParameters) isMissingClientBuilder() bool {
 	return x.clientBuilder == nil
+}
+
+// SetStatisticCallback makes the Pool to pass [stat.OperationCallback] for external statistic.
+func (x *InitParameters) SetStatisticCallback(statisticCallback stat.OperationCallback) {
+	x.statisticCallback = statisticCallback
 }
 
 type rebalanceParameters struct {
@@ -1388,6 +1228,8 @@ type Pool struct {
 	rebalanceParams rebalanceParameters
 	clientBuilder   clientBuilder
 	logger          *zap.Logger
+
+	statisticCallback stat.OperationCallback
 }
 
 type innerPool struct {
@@ -1480,21 +1322,22 @@ func NewPool(options InitParameters) (*Pool, error) {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
 
-	fillDefaultInitParams(&options, cache)
+	pool := &Pool{cache: cache}
 
-	pool := &Pool{
-		signer:         options.signer,
-		cache:          cache,
-		logger:         options.logger,
-		stokenDuration: options.sessionExpirationDuration,
-		rebalanceParams: rebalanceParameters{
-			nodesParams:               nodesParams,
-			nodeRequestTimeout:        options.healthcheckTimeout,
-			clientRebalanceInterval:   options.clientRebalanceInterval,
-			sessionExpirationDuration: options.sessionExpirationDuration,
-		},
-		clientBuilder: options.clientBuilder,
+	// we need our middleware integration in clientBuilder
+	fillDefaultInitParams(&options, cache, pool.statisticMiddleware)
+
+	pool.signer = options.signer
+	pool.logger = options.logger
+	pool.stokenDuration = options.sessionExpirationDuration
+	pool.rebalanceParams = rebalanceParameters{
+		nodesParams:               nodesParams,
+		nodeRequestTimeout:        options.healthcheckTimeout,
+		clientRebalanceInterval:   options.clientRebalanceInterval,
+		sessionExpirationDuration: options.sessionExpirationDuration,
 	}
+	pool.clientBuilder = options.clientBuilder
+	pool.statisticCallback = options.statisticCallback
 
 	return pool, nil
 }
@@ -1567,7 +1410,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 	return nil
 }
 
-func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
+func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisticCallback stat.OperationCallback) {
 	if params.sessionExpirationDuration == 0 {
 		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
 	}
@@ -1600,11 +1443,11 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache) {
 			prm.setDialTimeout(params.nodeDialTimeout)
 			prm.setStreamTimeout(params.nodeStreamTimeout)
 			prm.setErrorThreshold(params.errorThreshold)
-			prm.setPoolRequestCallback(params.requestCallback)
 			prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
 				cache.updateEpoch(info.Epoch())
 				return nil
 			})
+			prm.setStatisticCallback(statisticCallback)
 			return newWrapper(prm)
 		})
 	}
@@ -2034,16 +1877,12 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 }
 
 type objectReadCloser struct {
-	reader              *sdkClient.ObjectReader
-	elapsedTimeCallback func(time.Duration)
+	reader *sdkClient.ObjectReader
 }
 
 // Read implements io.Reader of the object payload.
 func (x *objectReadCloser) Read(p []byte) (int, error) {
-	start := time.Now()
-	n, err := x.reader.Read(p)
-	x.elapsedTimeCallback(time.Since(start))
-	return n, err
+	return x.reader.Read(p)
 }
 
 // Close implements io.Closer of the object payload.
@@ -2113,16 +1952,12 @@ func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.
 // Must be initialized using Pool.ObjectRange, any other
 // usage is unsafe.
 type ResObjectRange struct {
-	payload             *sdkClient.ObjectRangeReader
-	elapsedTimeCallback func(time.Duration)
+	payload *sdkClient.ObjectRangeReader
 }
 
 // Read implements io.Reader of the object payload.
 func (x *ResObjectRange) Read(p []byte) (int, error) {
-	start := time.Now()
-	n, err := x.payload.Read(p)
-	x.elapsedTimeCallback(time.Since(start))
-	return n, err
+	return x.payload.Read(p)
 }
 
 // Close ends reading the payload range and returns the result of the operation
@@ -2326,27 +2161,6 @@ func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decim
 	return cp.balanceGet(ctx, prm)
 }
 
-// Statistic returns connection statistics.
-func (p Pool) Statistic() Statistic {
-	stat := Statistic{}
-	for _, inner := range p.innerPools {
-		inner.lock.RLock()
-		for _, cl := range inner.clients {
-			node := NodeStatistic{
-				address:       cl.address(),
-				methods:       cl.methodsStatus(),
-				overallErrors: cl.overallErrorRate(),
-				currentErrors: cl.currentErrorRate(),
-			}
-			stat.nodes = append(stat.nodes, node)
-			stat.overallErrors += node.overallErrors
-		}
-		inner.lock.RUnlock()
-	}
-
-	return stat
-}
-
 // waitForContainerPresence waits until the container is found on the NeoFS network.
 func waitForContainerPresence(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
@@ -2532,16 +2346,22 @@ func (p *Pool) FindSiblingByParentID(ctx context.Context, cnrID cid.ID, objID oi
 	return res, nil
 }
 
-func (p *Pool) sdkClient() (*sdkClient.Client, statisticUpdater, error) {
+func (p *Pool) sdkClient() (*sdkClient.Client, error) {
 	conn, err := p.connection()
 	if err != nil {
-		return nil, nil, fmt.Errorf("connection: %w", err)
+		return nil, fmt.Errorf("connection: %w", err)
 	}
 
 	cl, err := conn.getClient()
 	if err != nil {
-		return nil, nil, fmt.Errorf("get client: %w", err)
+		return nil, fmt.Errorf("get client: %w", err)
 	}
 
-	return cl, conn, nil
+	return cl, nil
+}
+
+func (p *Pool) statisticMiddleware(nodeKey []byte, endpoint string, method stat.Method, duration time.Duration, err error) {
+	if p.statisticCallback != nil {
+		p.statisticCallback(nodeKey, endpoint, method, duration, err)
+	}
 }

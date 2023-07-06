@@ -8,7 +8,13 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+)
+
+var (
+	// special variable for test purposes, to overwrite real RPC calls.
+	rpcAPIBalance = rpcapi.Balance
 )
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
@@ -37,13 +43,20 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 //   - [ErrMissingAccount]
 //   - [ErrMissingSigner]
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodBalanceGet, err)()
+	}()
+
 	switch {
 	case !prm.accountSet:
-		return accounting.Decimal{}, ErrMissingAccount
+		err = ErrMissingAccount
+		return accounting.Decimal{}, err
 	}
 
 	if c.prm.signer == nil {
-		return accounting.Decimal{}, ErrMissingSigner
+		err = ErrMissingSigner
+		return accounting.Decimal{}, err
 	}
 
 	// form request body
@@ -69,7 +82,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcapi.Balance(&c.c, &req, client.WithContext(ctx))
+		return rpcAPIBalance(&c.c, &req, client.WithContext(ctx))
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)
@@ -90,6 +103,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 
 	// process call
 	if !cc.processCall() {
+		err = cc.err
 		return accounting.Decimal{}, cc.err
 	}
 

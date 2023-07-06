@@ -18,8 +18,19 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/slicer"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
+
+var (
+	// special variable for test purposes only, to overwrite real RPC calls.
+	rpcAPIPutObject = rpcapi.PutObject
+)
+
+// shortStatisticCallback is a shorter version of [stat.OperationCallback] which is calling from [client.Client].
+// The difference is the client already know some info about itself. Despite it the client doesn't know
+// duration and error from writer/reader.
+type shortStatisticCallback func(err error)
 
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
 type PrmObjectPutInit struct {
@@ -66,6 +77,8 @@ type ObjectWriter struct {
 	req       v2object.PutRequest
 	partInit  v2object.PutObjectPartInit
 	partChunk v2object.PutObjectPartChunk
+
+	statisticCallback shortStatisticCallback
 }
 
 // UseSigner specifies private signer to sign the requests.
@@ -129,6 +142,12 @@ func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
 // writeHeader writes header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectWriter) writeHeader(hdr object.Object) error {
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(x.err)
+		}()
+	}
+
 	v2Hdr := hdr.ToV2()
 
 	x.partInit.SetObjectID(v2Hdr.GetObjectID())
@@ -151,6 +170,12 @@ func (x *ObjectWriter) writeHeader(hdr object.Object) error {
 // WritePayloadChunk writes chunk of the object payload. Result means success.
 // Failure reason can be received via Close.
 func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(x.err)
+		}()
+	}
+
 	if !x.chunkCalled {
 		x.chunkCalled = true
 		x.req.GetBody().SetObjectPart(&x.partChunk)
@@ -214,33 +239,45 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectWriter) Close() (*ResObjectPut, error) {
+	var err error
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(err)
+		}()
+	}
+
 	defer x.cancelCtxStream()
 
 	// Ignore io.EOF error, because it is expected error for client-side
 	// stream termination by the server. E.g. when stream contains invalid
 	// message. Server returns an error in response message (in status).
 	if x.err != nil && !errors.Is(x.err, io.EOF) {
-		return nil, x.err
+		err = x.err
+		return nil, err
 	}
 
 	if x.err = x.stream.Close(); x.err != nil {
-		return nil, x.err
+		err = x.err
+		return nil, err
 	}
 
 	if x.err = x.client.processResponse(&x.respV2); x.err != nil {
-		return nil, x.err
+		err = x.err
+		return nil, err
 	}
 
 	const fieldID = "ID"
 
 	idV2 := x.respV2.GetBody().GetObjectID()
 	if idV2 == nil {
-		return nil, newErrMissingResponseField(fieldID)
+		err = newErrMissingResponseField(fieldID)
+		return nil, err
 	}
 
 	x.err = x.res.obj.ReadFromV2(*idV2)
 	if x.err != nil {
 		x.err = newErrInvalidResponseField(fieldID, x.err)
+		err = x.err
 	}
 
 	return &x.res, nil
@@ -256,7 +293,15 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 // Returns errors:
 //   - [ErrMissingSigner]
 func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, prm PrmObjectPutInit) (*ObjectWriter, error) {
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodObjectPut, err)()
+	}()
+
 	var w ObjectWriter
+	w.statisticCallback = func(err error) {
+		c.sendStatistic(stat.MethodObjectPutStream, err)()
+	}
 
 	signer, err := c.getSigner(prm.signer)
 	if err != nil {
@@ -264,10 +309,11 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, prm PrmOb
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	stream, err := rpcapi.PutObject(&c.c, &w.respV2, client.WithContext(ctx))
+	stream, err := rpcAPIPutObject(&c.c, &w.respV2, client.WithContext(ctx))
 	if err != nil {
 		cancel()
-		return nil, fmt.Errorf("open stream: %w", err)
+		err = fmt.Errorf("open stream: %w", err)
+		return nil, err
 	}
 
 	w.signer = signer
@@ -280,7 +326,8 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, prm PrmOb
 
 	if err = w.writeHeader(hdr); err != nil {
 		_, _ = w.Close()
-		return nil, fmt.Errorf("header write: %w", err)
+		err = fmt.Errorf("header write: %w", err)
+		return nil, err
 	}
 
 	return &w, nil
