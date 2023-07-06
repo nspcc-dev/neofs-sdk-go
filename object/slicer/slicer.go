@@ -355,6 +355,9 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 
 	if !x.withSplit {
 		x.splitID = object.NewSplitID()
+		// note: don't move next row, the value of this flag will be used inside writeIntermediateChild
+		// to fill splitInfo in all child objects.
+		x.withSplit = true
 
 		err = x.writeIntermediateChild(x.rootMeta)
 		if err != nil {
@@ -362,7 +365,6 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 		}
 
 		x.currentWriter.reset(io.MultiWriter(&x.buf, &x.rootMeta, &x.childMeta))
-		x.withSplit = true
 	} else {
 		err = x.writeIntermediateChild(x.childMeta)
 		if err != nil {
