@@ -27,6 +27,8 @@ func (p *Pool) actualSigner(signer neofscrypto.Signer) neofscrypto.Signer {
 
 // ObjectPutInit initiates writing an object through a remote server using NeoFS API protocol.
 //
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
+//
 // See details in [client.Client.ObjectPutInit].
 func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
 	c, err := p.sdkClient()
@@ -55,6 +57,8 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, prm client.
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
 //
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
+//
 // See details in [client.Client.ObjectGetInit].
 func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectGet) (object.Object, *client.ObjectReader, error) {
 	var hdr object.Object
@@ -78,6 +82,8 @@ func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID o
 
 // ObjectHead reads object header through a remote server using NeoFS API protocol.
 //
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
+//
 // See details in [client.Client.ObjectHead].
 func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectHead) (*client.ResObjectHead, error) {
 	c, err := p.sdkClient()
@@ -99,6 +105,8 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 }
 
 // ObjectRangeInit initiates reading an object's payload range through a remote
+//
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectRangeInit].
 func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm client.PrmObjectRange) (*client.ObjectRangeReader, error) {
@@ -122,6 +130,8 @@ func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID
 
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
 //
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
+//
 // See details in [client.Client.ObjectDelete].
 func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectDelete) (oid.ID, error) {
 	c, err := p.sdkClient()
@@ -144,6 +154,8 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 
 // ObjectHash requests checksum of the range list of the object payload using
 //
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
+//
 // See details in [client.Client.ObjectHash].
 func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectHash) ([][]byte, error) {
 	c, err := p.sdkClient()
@@ -165,6 +177,8 @@ func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.
 }
 
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
+//
+// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectSearchInit].
 func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, prm client.PrmObjectSearch) (*client.ObjectListReader, error) {

@@ -11,13 +11,11 @@ import (
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
 
@@ -28,7 +26,7 @@ var (
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.
 type PrmObjectSearch struct {
-	meta v2session.RequestMetaHeader
+	sessionContainer
 
 	signer neofscrypto.Signer
 
@@ -38,35 +36,6 @@ type PrmObjectSearch struct {
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectSearch) MarkLocal() {
 	x.meta.SetTTL(1)
-}
-
-// WithinSession specifies session within which the search query must be executed.
-//
-// Creator of the session acquires the authorship of the request.
-// This may affect the execution of an operation (e.g. access control).
-//
-// Must be signed.
-func (x *PrmObjectSearch) WithinSession(t session.Object) {
-	var tokv2 v2session.Token
-	t.WriteToV2(&tokv2)
-	x.meta.SetSessionToken(&tokv2)
-}
-
-// GetSession returns session object.
-//
-// Returns ErrNoSession err if session wasn't set.
-func (x PrmObjectSearch) GetSession() (*session.Object, error) {
-	token := x.meta.GetSessionToken()
-	if token == nil {
-		return nil, ErrNoSession
-	}
-
-	var sess session.Object
-	if err := sess.ReadFromV2(*token); err != nil {
-		return nil, err
-	}
-
-	return &sess, nil
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.

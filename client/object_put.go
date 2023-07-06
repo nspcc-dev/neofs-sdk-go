@@ -10,16 +10,19 @@ import (
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/slicer"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+)
+
+var (
+	// ErrNoSessionExplicitly is a special error to show auto-session is disabled.
+	ErrNoSessionExplicitly = errors.New("session was removed explicitly")
 )
 
 var (
@@ -34,9 +37,10 @@ type shortStatisticCallback func(err error)
 
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
 type PrmObjectPutInit struct {
+	sessionContainer
+
 	copyNum uint32
 	signer  neofscrypto.Signer
-	meta    v2session.RequestMetaHeader
 }
 
 // SetCopiesNumber sets number of object copies that is enough to consider put successful.
@@ -98,32 +102,6 @@ func (x *PrmObjectPutInit) WithBearerToken(t bearer.Token) {
 	var v2token acl.BearerToken
 	t.WriteToV2(&v2token)
 	x.meta.SetBearerToken(&v2token)
-}
-
-// WithinSession specifies session within which object should be stored.
-// Should be called once before any writing steps.
-func (x *PrmObjectPutInit) WithinSession(t session.Object) {
-	var tv2 v2session.Token
-	t.WriteToV2(&tv2)
-
-	x.meta.SetSessionToken(&tv2)
-}
-
-// GetSession returns session object.
-//
-// Returns ErrNoSession err if session wasn't set.
-func (x PrmObjectPutInit) GetSession() (*session.Object, error) {
-	token := x.meta.GetSessionToken()
-	if token == nil {
-		return nil, ErrNoSession
-	}
-
-	var sess session.Object
-	if err := sess.ReadFromV2(*token); err != nil {
-		return nil, err
-	}
-
-	return &sess, nil
 }
 
 // MarkLocal tells the server to execute the operation locally.
