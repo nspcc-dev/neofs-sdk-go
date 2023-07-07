@@ -640,16 +640,17 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 	return nil
 }
 
-// SyncContainerWithNetwork requests network configuration using passed client
-// and applies it to the container. Container MUST not be nil.
-//
-// Note: if container does not match network configuration, SyncContainerWithNetwork
-// changes it.
+// SyncContainerWithNetwork requests network configuration using passed [NetworkInfoExecutor]
+// and applies/rewrites it to the container.
 //
 // Returns any network/parsing config errors.
 //
-// See also NetworkInfo, container.ApplyNetworkConfig.
-func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c *Client) error {
+// See also [client.Client.NetworkInfo], [container.Container.ApplyNetworkConfig].
+func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c NetworkInfoExecutor) error {
+	if cnr == nil {
+		return errors.New("empty container")
+	}
+
 	res, err := c.NetworkInfo(ctx, PrmNetworkInfo{})
 	if err != nil {
 		return fmt.Errorf("network info call: %w", err)
