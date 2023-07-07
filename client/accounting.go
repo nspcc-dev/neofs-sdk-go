@@ -41,7 +41,6 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 //
 // Return errors:
 //   - [ErrMissingAccount]
-//   - [ErrMissingSigner]
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	var err error
 	defer func() {
@@ -51,11 +50,6 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 	switch {
 	case !prm.accountSet:
 		err = ErrMissingAccount
-		return accounting.Decimal{}, err
-	}
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
 		return accounting.Decimal{}, err
 	}
 

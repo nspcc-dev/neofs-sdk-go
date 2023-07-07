@@ -40,23 +40,23 @@ var (
 
 type (
 	containerCreator interface {
-		ContainerPut(ctx context.Context, cont container.Container, prm client.PrmContainerPut) (cid.ID, error)
+		ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm client.PrmContainerPut) (cid.ID, error)
 	}
 
 	containerDeleter interface {
-		ContainerDelete(ctx context.Context, id cid.ID, prm client.PrmContainerDelete) error
+		ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm client.PrmContainerDelete) error
 	}
 
 	objectPutIniter interface {
-		ObjectPutInit(ctx context.Context, hdr object.Object, prm client.PrmObjectPutInit) (*client.ObjectWriter, error)
+		ObjectPutInit(ctx context.Context, hdr object.Object, signer neofscrypto.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error)
 	}
 
 	objectDeleter interface {
-		ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, prm client.PrmObjectDelete) (oid.ID, error)
+		ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectDelete) (oid.ID, error)
 	}
 
 	containerEaclSetter interface {
-		ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error
+		ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm client.PrmContainerSetEACL) error
 	}
 
 	containerEaclGetter interface {
@@ -204,9 +204,8 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		defer cancel()
 
 		var cmd client.PrmObjectGet
-		cmd.UseSigner(signer)
 
-		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, cmd)
+		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
 		defer func() {
 			_ = read.Close()
 		}()
@@ -232,7 +231,7 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
-		require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID))
+		require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID, signer))
 	})
 
 	t.Run("container delete", func(t *testing.T) {
@@ -311,10 +310,9 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 		hdr.InitCreation(rf)
 
 		var prm client.PrmObjectPutInit
-		prm.UseSigner(signer)
 		prm.SetCopiesNumber(1)
 
-		w, err := pool.ObjectPutInit(ctxTimeout, hdr, prm)
+		w, err := pool.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 		require.NoError(t, err)
 
 		require.True(t, w.WritePayloadChunk(payload))
@@ -330,9 +328,8 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 		defer cancel()
 
 		var cmd client.PrmObjectGet
-		cmd.UseSigner(signer)
 
-		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, cmd)
+		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
 		defer func() {
 			_ = read.Close()
 		}()
@@ -381,7 +378,6 @@ func TestClientWaiterWithAIO(t *testing.T) {
 	var eaclTable eacl.Table
 
 	var prmInit client.PrmInit
-	prmInit.SetDefaultSigner(signer) // private signer for request signing
 
 	cl, err := client.New(prmInit)
 	if err != nil {
@@ -433,9 +429,8 @@ func TestClientWaiterWithAIO(t *testing.T) {
 	t.Run("upload object", func(t *testing.T) {
 		var prmSess client.PrmSessionCreate
 		prmSess.SetExp(math.MaxUint64)
-		prmSess.UseSigner(signer)
 
-		res, err := cl.SessionCreate(ctx, prmSess)
+		res, err := cl.SessionCreate(ctx, signer, prmSess)
 		require.NoError(t, err)
 
 		var id uuid.UUID
@@ -469,11 +464,10 @@ func TestClientWaiterWithAIO(t *testing.T) {
 		hdr.InitCreation(rf)
 
 		var prm client.PrmObjectPutInit
-		prm.UseSigner(signer)
 		prm.SetCopiesNumber(1)
 		prm.WithinSession(sess)
 
-		w, err := cl.ObjectPutInit(ctxTimeout, hdr, prm)
+		w, err := cl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 		require.NoError(t, err)
 
 		require.True(t, w.WritePayloadChunk(payload))
@@ -489,9 +483,8 @@ func TestClientWaiterWithAIO(t *testing.T) {
 		defer cancel()
 
 		var cmd client.PrmObjectGet
-		cmd.UseSigner(signer)
 
-		hdr, read, err := cl.ObjectGetInit(ctxTimeout, containerID, objectID, cmd)
+		hdr, read, err := cl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
 		defer func() {
 			_ = read.Close()
 		}()
@@ -543,10 +536,9 @@ func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, conta
 	hdr.InitCreation(rf)
 
 	var prm client.PrmObjectPutInit
-	prm.UseSigner(signer)
 	prm.SetCopiesNumber(1)
 
-	w, err := putter.ObjectPutInit(ctx, hdr, prm)
+	w, err := putter.ObjectPutInit(ctx, hdr, signer, prm)
 	require.NoError(t, err)
 
 	require.True(t, w.WritePayloadChunk(payload))
@@ -568,9 +560,8 @@ func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.S
 	cont.SetPlacementPolicy(pp)
 
 	var cmd client.PrmContainerPut
-	cmd.SetSigner(signer)
 
-	containerID, err := creator.ContainerPut(ctx, cont, cmd)
+	containerID, err := creator.ContainerPut(ctx, cont, signer, cmd)
 	require.NoError(t, err)
 
 	return containerID
@@ -578,24 +569,21 @@ func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.S
 
 func testDeleteContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, deleter containerDeleter) {
 	var cmd client.PrmContainerDelete
-	cmd.SetSigner(signer)
 
-	require.NoError(t, deleter.ContainerDelete(ctx, containerID, cmd))
+	require.NoError(t, deleter.ContainerDelete(ctx, containerID, signer, cmd))
 }
 
 func testDeleteObject(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
 	var cmd client.PrmObjectDelete
-	cmd.UseSigner(signer)
 
-	_, err := deleter.ObjectDelete(ctx, containerID, objectID, cmd)
+	_, err := deleter.ObjectDelete(ctx, containerID, objectID, signer, cmd)
 	require.NoError(t, err)
 }
 
 func testSetEacl(t *testing.T, ctx context.Context, signer neofscrypto.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
 	var prm client.PrmContainerSetEACL
-	prm.SetSigner(signer)
 
-	require.NoError(t, setter.ContainerSetEACL(ctx, table, prm))
+	require.NoError(t, setter.ContainerSetEACL(ctx, table, signer, prm))
 
 	return table
 }
@@ -693,7 +681,7 @@ func isEACLCreated(ctx context.Context, c *client.Client, id cid.ID, oldTable ea
 	}
 }
 
-func isObjectDeleted(ctx context.Context, c *client.Client, id cid.ID, oid oid.ID) error {
+func isObjectDeleted(ctx context.Context, c *client.Client, id cid.ID, oid oid.ID, signer neofscrypto.Signer) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
@@ -702,7 +690,7 @@ func isObjectDeleted(ctx context.Context, c *client.Client, id cid.ID, oid oid.I
 	for {
 		select {
 		case <-t.C:
-			_, err := c.ObjectHead(ctx, id, oid, prmHead)
+			_, err := c.ObjectHead(ctx, id, oid, signer, prmHead)
 			if err != nil {
 				if errors.Is(err, apistatus.ErrObjectNotFound) ||
 					errors.Is(err, apistatus.ErrObjectAlreadyRemoved) {

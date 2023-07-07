@@ -35,7 +35,6 @@ func ExampleClient_ContainerPut() {
 
 	// prepare client
 	var prmInit client.PrmInit
-	prmInit.SetDefaultSigner(signer) // private signer for request signing
 
 	c, err := client.New(prmInit)
 	if err != nil {
@@ -81,7 +80,7 @@ func ExampleClient_ContainerPut() {
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)
 
-	containerID, err = c.ContainerPut(ctx, cont, client.PrmContainerPut{})
+	containerID, err = c.ContainerPut(ctx, cont, signer, client.PrmContainerPut{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerPut %w", err))
 	}

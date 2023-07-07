@@ -10,13 +10,14 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 )
 
 // ContainerSetEACLExecutor represents requirements to async container setEACL operation.
 // See documentation for functions in [client.Client]. The same semantics is expected.
 type ContainerSetEACLExecutor interface {
-	ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error
+	ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm client.PrmContainerSetEACL) error
 	ContainerEACL(ctx context.Context, id cid.ID, prm client.PrmContainerEACL) (eacl.Table, error)
 }
 
@@ -39,8 +40,8 @@ func (w *ContainerSetEACLWaiter) SetPollInterval(interval time.Duration) {
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // ContainerSetEACL uses ContainerSetEACLExecutor to setEacl and check the eacl is set.
-func (w ContainerSetEACLWaiter) ContainerSetEACL(ctx context.Context, table eacl.Table, prm client.PrmContainerSetEACL) error {
-	if err := w.executor.ContainerSetEACL(ctx, table, prm); err != nil {
+func (w ContainerSetEACLWaiter) ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm client.PrmContainerSetEACL) error {
+	if err := w.executor.ContainerSetEACL(ctx, table, signer, prm); err != nil {
 		return fmt.Errorf("container setEacl: %w", err)
 	}
 

@@ -7,12 +7,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
 func TestClient_Container(t *testing.T) {
-	c := newClient(t, nil, nil)
+	c := newClient(t, nil)
 	ctx := context.Background()
 
 	t.Run("missing signer", func(t *testing.T) {
@@ -23,47 +22,20 @@ func TestClient_Container(t *testing.T) {
 			{
 				"put",
 				func() error {
-					_, err := c.ContainerPut(ctx, container.Container{}, PrmContainerPut{})
-					return err
-				},
-			},
-			{
-				"get",
-				func() error {
-					_, err := c.ContainerGet(ctx, cid.ID{}, PrmContainerGet{})
-					return err
-				},
-			},
-			{
-				"list",
-				func() error {
-					_, err := c.ContainerList(ctx, user.ID{}, PrmContainerList{})
+					_, err := c.ContainerPut(ctx, container.Container{}, nil, PrmContainerPut{})
 					return err
 				},
 			},
 			{
 				"delete",
 				func() error {
-					return c.ContainerDelete(ctx, cid.ID{}, PrmContainerDelete{})
-				},
-			},
-			{
-				"eacl",
-				func() error {
-					_, err := c.ContainerEACL(ctx, cid.ID{}, PrmContainerEACL{})
-					return err
+					return c.ContainerDelete(ctx, cid.ID{}, nil, PrmContainerDelete{})
 				},
 			},
 			{
 				"set_eacl",
 				func() error {
-					return c.ContainerSetEACL(ctx, eacl.Table{}, PrmContainerSetEACL{})
-				},
-			},
-			{
-				"announce_space",
-				func() error {
-					return c.ContainerAnnounceUsedSpace(ctx, make([]container.SizeEstimation, 1), PrmAnnounceSpace{})
+					return c.ContainerSetEACL(ctx, eacl.Table{}, nil, PrmContainerSetEACL{})
 				},
 			},
 		}

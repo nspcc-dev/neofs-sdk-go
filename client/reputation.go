@@ -31,7 +31,6 @@ type PrmAnnounceLocalTrust struct {
 // Return errors:
 //   - [ErrZeroEpoch]
 //   - [ErrMissingTrusts]
-//   - [ErrMissingSigner]
 //
 // Parameter epoch must not be zero.
 // Parameter trusts must not be empty.
@@ -48,11 +47,6 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 		return err
 	case len(trusts) == 0:
 		err = ErrMissingTrusts
-		return err
-	}
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
 		return err
 	}
 
@@ -118,7 +112,6 @@ func (x *PrmAnnounceIntermediateTrust) SetIteration(iter uint32) {
 //
 // Return errors:
 //   - [ErrZeroEpoch]
-//   - [ErrMissingSigner]
 //
 // Parameter epoch must not be zero.
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, trust reputation.PeerToPeerTrust, prm PrmAnnounceIntermediateTrust) error {
@@ -129,11 +122,6 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 
 	if epoch == 0 {
 		err = ErrZeroEpoch
-		return err
-	}
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
 		return err
 	}
 

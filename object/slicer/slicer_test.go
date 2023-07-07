@@ -122,7 +122,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 
 type discardObject struct{}
 
-func (discardObject) InitDataStream(object.Object) (io.Writer, error) {
+func (discardObject) InitDataStream(object.Object, neofscrypto.Signer) (io.Writer, error) {
 	return discardPayload{}, nil
 }
 
@@ -252,7 +252,7 @@ type slicedObjectChecker struct {
 	chainCollector *chainCollector
 }
 
-func (x *slicedObjectChecker) InitDataStream(hdr object.Object) (io.Writer, error) {
+func (x *slicedObjectChecker) InitDataStream(hdr object.Object, _ neofscrypto.Signer) (io.Writer, error) {
 	checkStaticMetadata(x.tb, hdr, x.input)
 
 	buf := bytes.NewBuffer(nil)

@@ -79,7 +79,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	srv.signer = signer
 
-	c := newClient(t, signer, &srv)
+	c := newClient(t, &srv)
 	ctx := context.Background()
 
 	// request signature
@@ -140,13 +140,4 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	res, err = c.NetMapSnapshot(ctx, prm)
 	require.NoError(t, err)
 	require.Equal(t, netMap, res)
-}
-
-func TestClient_NetMapSnapshot_MissingSigner(t *testing.T) {
-	c := newClient(t, nil, nil)
-
-	t.Run("missing signer", func(t *testing.T) {
-		_, err := c.NetMapSnapshot(context.Background(), PrmNetMapSnapshot{})
-		require.ErrorIs(t, err, ErrMissingSigner)
-	})
 }

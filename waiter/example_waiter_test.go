@@ -61,19 +61,17 @@ func ExampleNewWaiter() {
 	wait := NewWaiter(p, DefaultPollInterval)
 
 	var prmPut client.PrmContainerPut
-	prmPut.SetSigner(signer)
 
 	// Waiter creates container and wait until container created or context timeout.
-	containerID, err := wait.ContainerPut(ctx, cont, prmPut)
+	containerID, err := wait.ContainerPut(ctx, cont, signer, prmPut)
 	if err != nil {
 		panic(err)
 	}
 
 	var prmDelete client.PrmContainerDelete
-	prmDelete.SetSigner(signer)
 
 	// Waiter deletes container and wait until container deleted or context timeout.
-	err = wait.ContainerDelete(ctx, containerID, prmDelete)
+	err = wait.ContainerDelete(ctx, containerID, signer, prmDelete)
 	if err != nil {
 		panic(err)
 	}

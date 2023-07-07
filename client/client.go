@@ -6,8 +6,10 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
 
@@ -51,19 +53,18 @@ type Client struct {
 	nodeKey  []byte
 }
 
-var errNonNeoSigner = fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
-
 // New creates an instance of Client initialized with the given parameters.
 //
 // See docs of [PrmInit] methods for details. See also [Client.Dial]/[Client.Close].
-//
-// Returned errors:
-//   - [neofscrypto.ErrIncorrectSigner]
 func New(prm PrmInit) (*Client, error) {
 	var c = new(Client)
-	if prm.signer != nil && prm.signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return nil, errNonNeoSigner
+	pk, err := keys.NewPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("private key: %w", err)
 	}
+
+	prm.signer = neofsecdsa.SignerRFC6979(pk.PrivateKey)
+
 	c.prm = prm
 	return c, nil
 }
@@ -139,22 +140,6 @@ func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
 	c.server = server
 }
 
-// getSigner returns a signer for requests. Provided signer fromPrm (if any) is prioritized, otherwise
-// Client's default is used.
-// Returns [ErrMissingSigner] if no signer is provided at all.
-func (c *Client) getSigner(fromPrm neofscrypto.Signer) (neofscrypto.Signer, error) {
-	signer := fromPrm
-	if signer == nil {
-		signer = c.prm.signer
-	}
-
-	if signer == nil {
-		return nil, ErrMissingSigner
-	}
-
-	return signer, nil
-}
-
 // Close closes underlying connection to the NeoFS server. Implements io.Closer.
 // MUST NOT be called before successful Dial. Can be called concurrently
 // with server operations processing on running goroutines: in this case
@@ -190,17 +175,6 @@ type PrmInit struct {
 	netMagic uint64
 
 	statisticCallback stat.OperationCallback
-}
-
-// SetDefaultSigner sets Client private signer to be used for the protocol
-// communication by default.
-//
-// Optional if you intend to sign every request separately (see Prm* docs), but
-// required if you'd like to use this signer for all operations implicitly.
-// If specified, MUST be of [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme,
-// for example, [neofsecdsa.SignerRFC6979] can be used.
-func (x *PrmInit) SetDefaultSigner(signer neofscrypto.Signer) {
-	x.signer = signer
 }
 
 // SetResponseInfoCallback makes the Client to pass ResponseMetaInfo from each

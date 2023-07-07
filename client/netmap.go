@@ -52,19 +52,11 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 //
 // Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-//
-// Returns errors:
-//   - [ErrMissingSigner]
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodEndpointInfo, err)()
 	}()
-
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
-		return nil, err
-	}
 
 	// form request
 	var req v2netmap.LocalNodeInfoRequest
@@ -199,19 +191,12 @@ type PrmNetMapSnapshot struct {
 // Context is required and MUST NOT be nil. It is used for network communication.
 //
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
-//
-// Returns errors:
-//   - [ErrMissingSigner]
 func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netmap.NetMap, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodNetMapSnapshot, err)()
 	}()
 
-	if c.prm.signer == nil {
-		err = ErrMissingSigner
-		return netmap.NetMap{}, err
-	}
 	// form request body
 	var body v2netmap.SnapshotRequestBody
 

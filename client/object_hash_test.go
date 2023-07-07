@@ -11,13 +11,13 @@ import (
 )
 
 func TestClient_ObjectHash(t *testing.T) {
-	c := newClient(t, nil, nil)
+	c := newClient(t, nil)
 
 	t.Run("missing signer", func(t *testing.T) {
 		var reqBody v2object.GetRangeHashRequestBody
 		reqBody.SetRanges(make([]v2object.Range, 1))
 
-		_, err := c.ObjectHash(context.Background(), cid.ID{}, oid.ID{}, PrmObjectHash{
+		_, err := c.ObjectHash(context.Background(), cid.ID{}, oid.ID{}, nil, PrmObjectHash{
 			body: reqBody,
 		})
 

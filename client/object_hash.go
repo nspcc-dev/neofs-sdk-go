@@ -28,19 +28,6 @@ type PrmObjectHash struct {
 	body v2object.GetRangeHashRequestBody
 
 	csAlgo v2refs.ChecksumType
-
-	signer neofscrypto.Signer
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Client default signer is used.
-func (x *PrmObjectHash) UseSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// Signer returns associated with request signer.
-func (x *PrmObjectHash) Signer() neofscrypto.Signer {
-	return x.signer
 }
 
 // MarkLocal tells the server to execute the operation locally.
@@ -114,10 +101,13 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 //
 // Context is required and must not be nil. It is used for network communication.
 //
+// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
+// the specified Signer, which is taken into account, in particular, for access control.
+//
 // Return errors:
 //   - [ErrMissingRanges]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHash) ([][]byte, error) {
+func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectHash) ([][]byte, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -140,9 +130,8 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 	objectID.WriteToV2(&oidV2)
 	addr.SetObjectID(&oidV2)
 
-	signer, err := c.getSigner(prm.signer)
-	if err != nil {
-		return nil, err
+	if signer == nil {
+		return nil, ErrMissingSigner
 	}
 
 	prm.body.SetAddress(&addr)

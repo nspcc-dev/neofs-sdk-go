@@ -430,7 +430,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	anonKey := test.RandomSignerRFC6979(t)
 	prm.UseSigner(anonKey)
 
-	relationsGet = func(ctx context.Context, executor relations.Executor, containerID cid.ID, rootObjectID oid.ID, tokens relations.Tokens) ([]oid.ID, *oid.ID, error) {
+	relationsGet = func(context.Context, relations.Executor, cid.ID, oid.ID, relations.Tokens, neofscrypto.Signer) ([]oid.ID, *oid.ID, error) {
 		return nil, nil, nil
 	}
 
@@ -640,8 +640,10 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 		return newMockClient(addr, key), nil
 	}
 
+	signer := test.RandomSignerRFC6979(t)
+
 	opts := InitParameters{
-		signer:                  test.RandomSignerRFC6979(t),
+		signer:                  signer,
 		nodeParams:              nodes,
 		clientRebalanceInterval: 30 * time.Second,
 	}
@@ -660,13 +662,13 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 		conn, err := pool.connection()
 		require.NoError(t, err)
 		require.Equal(t, nodes[0].address, conn.address())
-		_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{})
+		_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
 		require.Error(t, err)
 	}
 
 	conn, err := pool.connection()
 	require.NoError(t, err)
 	require.Equal(t, nodes[1].address, conn.address())
-	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, PrmObjectGet{})
+	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
 	require.NoError(t, err)
 }
