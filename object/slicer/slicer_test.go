@@ -511,7 +511,7 @@ type memoryWriter struct {
 	splitID *object.SplitID
 }
 
-func (w *memoryWriter) InitDataStream(hdr object.Object) (io.Writer, error) {
+func (w *memoryWriter) InitDataStream(hdr object.Object, _ neofscrypto.Signer) (io.Writer, error) {
 	w.headers = append(w.headers, hdr)
 	if w.splitID == nil && hdr.SplitID() != nil {
 		w.splitID = hdr.SplitID()
