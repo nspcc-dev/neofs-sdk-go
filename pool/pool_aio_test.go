@@ -264,7 +264,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(context.Background(), defaultTimeOut)
 		defer cancel()
 
-		containerID = testCreateContainer(t, ctxTimeout, signer, cont, pool)
+		containerID = testCreateContainer(ctxTimeout, t, signer, cont, pool)
 		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
@@ -277,7 +277,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		table := testSetEacl(t, ctxTimeout, signer, eaclTable, pool)
+		table := testSetEacl(ctxTimeout, t, signer, eaclTable, pool)
 		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
@@ -288,7 +288,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		objectID = testObjectPutInit(t, ctxTimeout, account, containerID, signer, payload, pool)
+		objectID = testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
 	})
 
 	t.Run("download object", func(t *testing.T) {
@@ -319,7 +319,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, pool)
+		testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
 		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
@@ -330,7 +330,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testDeleteContainer(t, ctxTimeout, signer, containerID, pool)
+		testDeleteContainer(ctxTimeout, t, signer, containerID, pool)
 		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
@@ -371,7 +371,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		containerID = testCreateContainer(t, ctxTimeout, signer, cont, wait)
+		containerID = testCreateContainer(ctxTimeout, t, signer, cont, wait)
 		eaclTable = testEaclTable(containerID)
 	})
 
@@ -379,14 +379,14 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testSetEacl(t, ctxTimeout, signer, eaclTable, wait)
+		testSetEacl(ctxTimeout, t, signer, eaclTable, wait)
 	})
 
 	t.Run("get eacl", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testGetEacl(t, ctxTimeout, containerID, eaclTable, pool)
+		testGetEacl(ctxTimeout, t, containerID, eaclTable, pool)
 	})
 
 	t.Run("upload object", func(t *testing.T) {
@@ -444,14 +444,14 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, pool)
+		testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
 	})
 
 	t.Run("container delete", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testDeleteContainer(t, ctxTimeout, signer, containerID, wait)
+		testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
 	})
 
 	t.Run("container really deleted", func(t *testing.T) {
@@ -501,7 +501,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		containerID = testCreateContainer(t, ctxTimeout, signer, cont, wait)
+		containerID = testCreateContainer(ctxTimeout, t, signer, cont, wait)
 		eaclTable = testEaclTable(containerID)
 	})
 
@@ -509,14 +509,14 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testSetEacl(t, ctxTimeout, signer, eaclTable, wait)
+		testSetEacl(ctxTimeout, t, signer, eaclTable, wait)
 	})
 
 	t.Run("get eacl", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testGetEacl(t, ctxTimeout, containerID, eaclTable, cl)
+		testGetEacl(ctxTimeout, t, containerID, eaclTable, cl)
 	})
 
 	t.Run("upload object", func(t *testing.T) {
@@ -600,14 +600,14 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testDeleteObject(t, ctxTimeout, signer, containerID, objectID, cl)
+		testDeleteObject(ctxTimeout, t, signer, containerID, objectID, cl)
 	})
 
 	t.Run("container delete", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 		defer cancel()
 
-		testDeleteContainer(t, ctxTimeout, signer, containerID, wait)
+		testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
 	})
 
 	t.Run("container really deleted", func(t *testing.T) {
@@ -620,7 +620,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	})
 }
 
-func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID {
+func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID {
 	rf := object.RequiredFields{
 		Container: containerID,
 		Owner:     account,
@@ -644,7 +644,7 @@ func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, conta
 	return w.GetResult().StoredObjectID()
 }
 
-func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, cont container.Container, creator containerCreator) cid.ID {
+func testCreateContainer(ctx context.Context, t *testing.T, signer neofscrypto.Signer, cont container.Container, creator containerCreator) cid.ID {
 	var pp netmap.PlacementPolicy
 	pp.SetContainerBackupFactor(1)
 
@@ -662,20 +662,20 @@ func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.S
 	return containerID
 }
 
-func testDeleteContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, deleter containerDeleter) {
+func testDeleteContainer(ctx context.Context, t *testing.T, signer neofscrypto.Signer, containerID cid.ID, deleter containerDeleter) {
 	var cmd client.PrmContainerDelete
 
 	require.NoError(t, deleter.ContainerDelete(ctx, containerID, signer, cmd))
 }
 
-func testDeleteObject(t *testing.T, ctx context.Context, signer user.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
+func testDeleteObject(ctx context.Context, t *testing.T, signer user.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
 	var cmd client.PrmObjectDelete
 
 	_, err := deleter.ObjectDelete(ctx, containerID, objectID, signer, cmd)
 	require.NoError(t, err)
 }
 
-func testSetEacl(t *testing.T, ctx context.Context, signer user.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
+func testSetEacl(ctx context.Context, t *testing.T, signer user.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
 	var prm client.PrmContainerSetEACL
 
 	require.NoError(t, setter.ContainerSetEACL(ctx, table, signer, prm))
@@ -683,7 +683,7 @@ func testSetEacl(t *testing.T, ctx context.Context, signer user.Signer, table ea
 	return table
 }
 
-func testGetEacl(t *testing.T, ctx context.Context, containerID cid.ID, table eacl.Table, setter containerEaclGetter) {
+func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table eacl.Table, setter containerEaclGetter) {
 	var prm client.PrmContainerEACL
 
 	newTable, err := setter.ContainerEACL(ctx, containerID, prm)
