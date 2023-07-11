@@ -37,7 +37,7 @@ jobs:
         run: make dep
 
       - name: Run tests
-        run: make test
+        run: make test-full
 
   lint:
     runs-on: ubuntu-20.04

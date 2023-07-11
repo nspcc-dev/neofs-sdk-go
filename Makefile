@@ -4,6 +4,10 @@
 test:
 	@go test ./... -cover
 
+# Run tests, plus a docker tests with AIO
+test-full:
+	@go test -tags aiotest ./... -cover
+
 # Pull go dependencies
 dep:
 	@printf "⇒ Download requirements: "

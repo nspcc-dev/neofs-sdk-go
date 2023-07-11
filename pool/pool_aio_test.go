@@ -134,8 +134,6 @@ func TestPoolAio(t *testing.T) {
 		image := fmt.Sprintf("%s:%s", version.image, version.version)
 
 		t.Run(image, func(t *testing.T) {
-			t.Parallel()
-
 			ctx, cancel := context.WithCancel(context.Background())
 			aioContainer := createDockerContainer(ctx, t, image)
 
