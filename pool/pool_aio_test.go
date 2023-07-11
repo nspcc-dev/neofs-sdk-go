@@ -31,14 +31,33 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/wait"
 )
 
 var (
 	defaultTimeOut = 5 * time.Second
 	tickInterval   = 1 * time.Second
+
+	tickEpoch = []string{
+		"neo-go", "contract", "invokefunction", "--wallet-config", "/config/node-config.yaml",
+		"-a", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP", "--force", "-r", "http://localhost:30333",
+		"707516630852f4179af43366917a36b9a78b93a5", "newEpoch", "int:10",
+		"--", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP:Global",
+	}
+
+	versions = []dockerImage{
+		{image: "nspccdev/neofs-aio", version: "0.36.0"},
+		{image: "nspccdev/neofs-aio", version: "latest"},
+	}
 )
 
 type (
+	dockerImage struct {
+		image   string
+		version string
+	}
+
 	containerCreator interface {
 		ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm client.PrmContainerPut) (cid.ID, error)
 	}
@@ -64,13 +83,17 @@ type (
 	}
 )
 
+func nodeAddress(nodeEndpoint string) string {
+	return "grpc://" + nodeEndpoint
+}
+
 func getSigner() user.Signer {
 	key, err := keys.NEP2Decrypt("6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY", "one", keys.NEP2ScryptParams())
 	if err != nil {
 		panic(err)
 	}
 
-	return user.NewSignerRFC6979(key.PrivateKey)
+	return user.NewAutoIDSignerRFC6979(key.PrivateKey)
 }
 
 func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
@@ -106,13 +129,84 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 	return table
 }
 
-func TestPoolInterfaceWithAIO(t *testing.T) {
+func TestPoolAio(t *testing.T) {
+	for _, version := range versions {
+		image := fmt.Sprintf("%s:%s", version.image, version.version)
+
+		t.Run(image, func(t *testing.T) {
+			t.Parallel()
+
+			ctx, cancel := context.WithCancel(context.Background())
+			aioContainer := createDockerContainer(ctx, t, image)
+
+			// for instance: localhost:32781
+			nodeEndpoint, err := aioContainer.Endpoint(ctx, "")
+			require.NoError(t, err)
+
+			runTests(ctx, t, nodeEndpoint)
+
+			err = aioContainer.Terminate(ctx)
+			require.NoError(t, err)
+			cancel()
+			<-ctx.Done()
+		})
+	}
+}
+
+func runTests(_ context.Context, t *testing.T, nodeEndpoint string) {
+	nodeAddr := nodeAddress(nodeEndpoint)
+
+	t.Run("PoolInterfaceWithAIO", func(t *testing.T) {
+		testPoolInterfaceWithAIO(t, nodeAddr)
+	})
+
+	t.Run("PoolWaiterWithAIO", func(t *testing.T) {
+		testPoolWaiterWithAIO(t, nodeAddr)
+	})
+
+	t.Run("ClientWaiterWithAIO", func(t *testing.T) {
+		testClientWaiterWithAIO(t, nodeAddr)
+	})
+}
+
+func createDockerContainer(ctx context.Context, t *testing.T, image string) testcontainers.Container {
+	req := testcontainers.ContainerRequest{
+		Image:        image,
+		WaitingFor:   wait.NewLogStrategy("Serving neofs rest gw").WithStartupTimeout(45 * time.Second),
+		Name:         "sdk-poll-tests-" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		Hostname:     "aio_autotest_" + strconv.FormatInt(time.Now().UnixNano(), 36),
+		ExposedPorts: []string{"8080/tcp"},
+		Env: map[string]string{
+			"REST_GW_WALLET_PATH":       "/config/wallet-rest.json",
+			"REST_GW_WALLET_PASSPHRASE": "one",
+			"REST_GW_WALLET_ADDRESS":    "NPFCqWHfi9ixCJRu7DABRbVfXRbkSEr9Vo",
+			"REST_GW_PEERS_0_ADDRESS":   "localhost:8080",
+			"REST_GW_LISTEN_ADDRESS":    "0.0.0.0:8090",
+		},
+	}
+	aioC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
+		ContainerRequest: req,
+		Started:          true,
+	})
+	require.NoError(t, err)
+
+	// Have to wait this time. Required for new tick event processing.
+	// Should be removed after fix epochs in AIO start.
+	<-time.After(3 * time.Second)
+
+	_, _, err = aioC.Exec(ctx, tickEpoch)
+	require.NoError(t, err)
+
+	<-time.After(3 * time.Second)
+
+	return aioC
+}
+
+func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	ctx := context.Background()
 
 	account, signer, cont := testData(t)
 	var eaclTable eacl.Table
-
-	nodeAddr := "grpc://localhost:8080"
 
 	poolStat := stat.NewPoolStatistic()
 	opts := DefaultOptions()
@@ -253,13 +347,13 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 	})
 }
 
-func TestPoolWaiterWithAIO(t *testing.T) {
+func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 	ctx := context.Background()
 
 	account, signer, cont := testData(t)
 	var eaclTable eacl.Table
 
-	pool, err := New(NewFlatNodeParams([]string{"grpc://localhost:8080"}), signer, DefaultOptions())
+	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, DefaultOptions())
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
@@ -370,7 +464,7 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 	})
 }
 
-func TestClientWaiterWithAIO(t *testing.T) {
+func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	ctx := context.Background()
 
 	account, signer, cont := testData(t)
@@ -385,7 +479,7 @@ func TestClientWaiterWithAIO(t *testing.T) {
 
 	// connect to NeoFS gateway
 	var prmDial client.PrmDial
-	prmDial.SetServerURI("grpc://localhost:8080") // endpoint address
+	prmDial.SetServerURI(nodeAddr) // endpoint address
 	prmDial.SetTimeout(15 * time.Second)
 	prmDial.SetStreamTimeout(15 * time.Second)
 
