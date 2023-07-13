@@ -20,7 +20,7 @@ import (
 // Type is compatible with NeoFS API V2 protocol.
 //
 // Instance can be created depending on scenario:
-//   - InitCreation (an object to be placed in container);
+//   - [Object.InitCreation] (an object to be placed in container);
 //   - New (blank instance, usually needed for decoding);
 //   - NewFromV2 (when working under NeoFS API V2 protocol).
 type Object object.Object
@@ -41,25 +41,24 @@ func (o *Object) InitCreation(rf RequiredFields) {
 	o.SetOwnerID(&rf.Owner)
 }
 
-// NewFromV2 wraps v2 Object message to Object.
+// NewFromV2 wraps v2 [object.Object] message to [Object].
 func NewFromV2(oV2 *object.Object) *Object {
 	return (*Object)(oV2)
 }
 
-// New creates and initializes blank Object.
+// New creates and initializes blank [Object].
 //
 // Works similar as NewFromV2(new(Object)).
 func New() *Object {
 	return NewFromV2(new(object.Object))
 }
 
-// ToV2 converts Object to v2 Object message.
+// ToV2 converts [Object] to v2 [object.Object] message.
 func (o *Object) ToV2() *object.Object {
 	return (*object.Object)(o)
 }
 
-// MarshalHeaderJSON marshals object's header
-// into JSON format.
+// MarshalHeaderJSON marshals object's header into JSON format.
 func (o *Object) MarshalHeaderJSON() ([]byte, error) {
 	return (*object.Object)(o).GetHeader().MarshalJSON()
 }
@@ -89,6 +88,8 @@ func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
 }
 
 // ID returns object identifier.
+//
+// See also [Object.SetID].
 func (o *Object) ID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 	if id := v2.GetObjectID(); id != nil {
@@ -100,6 +101,8 @@ func (o *Object) ID() (v oid.ID, isSet bool) {
 }
 
 // SetID sets object identifier.
+//
+// See also [Object.ID].
 func (o *Object) SetID(v oid.ID) {
 	var v2 refs.ObjectID
 	v.WriteToV2(&v2)
@@ -109,6 +112,8 @@ func (o *Object) SetID(v oid.ID) {
 }
 
 // Signature returns signature of the object identifier.
+//
+// See also [Object.SetSignature].
 func (o *Object) Signature() *neofscrypto.Signature {
 	sigv2 := (*object.Object)(o).GetSignature()
 	if sigv2 == nil {
@@ -122,6 +127,8 @@ func (o *Object) Signature() *neofscrypto.Signature {
 }
 
 // SetSignature sets signature of the object identifier.
+//
+// See also [Object.Signature].
 func (o *Object) SetSignature(v *neofscrypto.Signature) {
 	var sigv2 *refs.Signature
 
@@ -135,16 +142,22 @@ func (o *Object) SetSignature(v *neofscrypto.Signature) {
 }
 
 // Payload returns payload bytes.
+//
+// See also [Object.SetPayload].
 func (o *Object) Payload() []byte {
 	return (*object.Object)(o).GetPayload()
 }
 
 // SetPayload sets payload bytes.
+//
+// See also [Object.Payload].
 func (o *Object) SetPayload(v []byte) {
 	(*object.Object)(o).SetPayload(v)
 }
 
 // Version returns version of the object.
+//
+// See also [Object.SetVersion].
 func (o *Object) Version() *version.Version {
 	var ver version.Version
 	if verV2 := (*object.Object)(o).GetHeader().GetVersion(); verV2 != nil {
@@ -154,6 +167,8 @@ func (o *Object) Version() *version.Version {
 }
 
 // SetVersion sets version of the object.
+//
+// See also [Object.Version].
 func (o *Object) SetVersion(v *version.Version) {
 	var verV2 refs.Version
 	v.WriteToV2(&verV2)
@@ -164,6 +179,8 @@ func (o *Object) SetVersion(v *version.Version) {
 }
 
 // PayloadSize returns payload length of the object.
+//
+// See also [Object.SetPayloadSize].
 func (o *Object) PayloadSize() uint64 {
 	return (*object.Object)(o).
 		GetHeader().
@@ -171,6 +188,8 @@ func (o *Object) PayloadSize() uint64 {
 }
 
 // SetPayloadSize sets payload length of the object.
+//
+// See also [Object.PayloadSize].
 func (o *Object) SetPayloadSize(v uint64) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetPayloadLength(v)
@@ -178,6 +197,8 @@ func (o *Object) SetPayloadSize(v uint64) {
 }
 
 // ContainerID returns identifier of the related container.
+//
+// See also [Object.SetContainerID].
 func (o *Object) ContainerID() (v cid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 
@@ -191,6 +212,8 @@ func (o *Object) ContainerID() (v cid.ID, isSet bool) {
 }
 
 // SetContainerID sets identifier of the related container.
+//
+// See also [Object.ContainerID].
 func (o *Object) SetContainerID(v cid.ID) {
 	var cidV2 refs.ContainerID
 	v.WriteToV2(&cidV2)
@@ -201,6 +224,8 @@ func (o *Object) SetContainerID(v cid.ID) {
 }
 
 // OwnerID returns identifier of the object owner.
+//
+// See also [Object.SetOwnerID].
 func (o *Object) OwnerID() *user.ID {
 	var id user.ID
 
@@ -213,6 +238,8 @@ func (o *Object) OwnerID() *user.ID {
 }
 
 // SetOwnerID sets identifier of the object owner.
+//
+// See also [Object.OwnerID].
 func (o *Object) SetOwnerID(v *user.ID) {
 	o.setHeaderField(func(h *object.Header) {
 		var m refs.OwnerID
@@ -223,6 +250,8 @@ func (o *Object) SetOwnerID(v *user.ID) {
 }
 
 // CreationEpoch returns epoch number in which object was created.
+//
+// See also [Object.SetCreationEpoch].
 func (o *Object) CreationEpoch() uint64 {
 	return (*object.Object)(o).
 		GetHeader().
@@ -230,6 +259,8 @@ func (o *Object) CreationEpoch() uint64 {
 }
 
 // SetCreationEpoch sets epoch number in which object was created.
+//
+// See also [Object.CreationEpoch].
 func (o *Object) SetCreationEpoch(v uint64) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetCreationEpoch(v)
@@ -239,9 +270,9 @@ func (o *Object) SetCreationEpoch(v uint64) {
 // PayloadChecksum returns checksum of the object payload and
 // bool that indicates checksum presence in the object.
 //
-// Zero Object does not have payload checksum.
+// Zero [Object] does not have payload checksum.
 //
-// See also SetPayloadChecksum.
+// See also [Object.SetPayloadChecksum].
 func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
 	var v checksum.Checksum
 	v2 := (*object.Object)(o)
@@ -256,7 +287,7 @@ func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
 
 // SetPayloadChecksum sets checksum of the object payload.
 //
-// See also PayloadChecksum.
+// See also [Object.PayloadChecksum].
 func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 	var v2 refs.Checksum
 	v.WriteToV2(&v2)
@@ -269,9 +300,9 @@ func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 // PayloadHomomorphicHash returns homomorphic hash of the object
 // payload and bool that indicates checksum presence in the object.
 //
-// Zero Object does not have payload homomorphic checksum.
+// Zero [Object] does not have payload homomorphic checksum.
 //
-// See also SetPayloadHomomorphicHash.
+// See also [Object.SetPayloadHomomorphicHash].
 func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 	var v checksum.Checksum
 	v2 := (*object.Object)(o)
@@ -286,7 +317,7 @@ func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
 //
-// See also PayloadHomomorphicHash.
+// See also [Object.PayloadHomomorphicHash].
 func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 	var v2 refs.Checksum
 	v.WriteToV2(&v2)
@@ -325,6 +356,8 @@ func (o *Object) SetAttributes(v ...Attribute) {
 }
 
 // PreviousID returns identifier of the previous sibling object.
+//
+// See also [Object.SetPreviousID].
 func (o *Object) PreviousID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 
@@ -338,6 +371,8 @@ func (o *Object) PreviousID() (v oid.ID, isSet bool) {
 }
 
 // ResetPreviousID resets identifier of the previous sibling object.
+//
+// See also [Object.SetPreviousID], [Object.PreviousID].
 func (o *Object) ResetPreviousID() {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetPrevious(nil)
@@ -345,6 +380,8 @@ func (o *Object) ResetPreviousID() {
 }
 
 // SetPreviousID sets identifier of the previous sibling object.
+//
+// See also [Object.PreviousID].
 func (o *Object) SetPreviousID(v oid.ID) {
 	var v2 refs.ObjectID
 	v.WriteToV2(&v2)
@@ -355,6 +392,8 @@ func (o *Object) SetPreviousID(v oid.ID) {
 }
 
 // Children return list of the identifiers of the child objects.
+//
+// See also [Object.SetChildren].
 func (o *Object) Children() []oid.ID {
 	v2 := (*object.Object)(o)
 	ids := v2.GetHeader().GetSplit().GetChildren()
@@ -373,6 +412,8 @@ func (o *Object) Children() []oid.ID {
 }
 
 // SetChildren sets list of the identifiers of the child objects.
+//
+// See also [Object.Children].
 func (o *Object) SetChildren(v ...oid.ID) {
 	var (
 		v2  refs.ObjectID
@@ -397,34 +438,38 @@ type NotificationInfo struct {
 	ni object.NotificationInfo
 }
 
-// Epoch returns object notification tick
-// epoch.
+// Epoch returns object notification tick epoch.
+//
+// See also [NotificationInfo.SetEpoch].
 func (n NotificationInfo) Epoch() uint64 {
 	return n.ni.Epoch()
 }
 
-// SetEpoch sets object notification tick
-// epoch.
+// SetEpoch sets object notification tick epoch.
+//
+// See also [NotificationInfo.Epoch].
 func (n *NotificationInfo) SetEpoch(epoch uint64) {
 	n.ni.SetEpoch(epoch)
 }
 
-// Topic return optional object notification
-// topic.
+// Topic return optional object notification topic.
+//
+// See also [NotificationInfo.SetTopic].
 func (n NotificationInfo) Topic() string {
 	return n.ni.Topic()
 }
 
-// SetTopic sets optional object notification
-// topic.
+// SetTopic sets optional object notification topic.
+//
+// See also [NotificationInfo.Topic].
 func (n *NotificationInfo) SetTopic(topic string) {
 	n.ni.SetTopic(topic)
 }
 
-// NotificationInfo returns notification info
-// read from the object structure.
-// Returns any error that appeared during notification
-// information parsing.
+// NotificationInfo returns notification info read from the object structure.
+// Returns any error that appeared during notification information parsing.
+//
+// See also [Object.SetNotification].
 func (o *Object) NotificationInfo() (*NotificationInfo, error) {
 	ni, err := object.GetNotificationInfo((*object.Object)(o))
 	if err != nil {
@@ -436,13 +481,16 @@ func (o *Object) NotificationInfo() (*NotificationInfo, error) {
 	}, nil
 }
 
-// SetNotification writes NotificationInfo to the object structure.
+// SetNotification writes [NotificationInfo] to the object structure.
+//
+// See also [Object.NotificationInfo].
 func (o *Object) SetNotification(ni NotificationInfo) {
 	object.WriteNotificationInfo((*object.Object)(o), ni.ni)
 }
 
-// SplitID return split identity of split object. If object is not split
-// returns nil.
+// SplitID return split identity of split object. If object is not split returns nil.
+//
+// See also [Object.SetSplitID].
 func (o *Object) SplitID() *SplitID {
 	return NewSplitIDFromV2(
 		(*object.Object)(o).
@@ -453,6 +501,8 @@ func (o *Object) SplitID() *SplitID {
 }
 
 // SetSplitID sets split identifier for the split object.
+//
+// See also [Object.SplitID].
 func (o *Object) SetSplitID(id *SplitID) {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetSplitID(id.ToV2())
@@ -460,6 +510,8 @@ func (o *Object) SetSplitID(id *SplitID) {
 }
 
 // ParentID returns identifier of the parent object.
+//
+// See also [Object.SetParentID].
 func (o *Object) ParentID() (v oid.ID, isSet bool) {
 	v2 := (*object.Object)(o)
 
@@ -473,6 +525,8 @@ func (o *Object) ParentID() (v oid.ID, isSet bool) {
 }
 
 // SetParentID sets identifier of the parent object.
+//
+// See also [Object.ParentID].
 func (o *Object) SetParentID(v oid.ID) {
 	var v2 refs.ObjectID
 	v.WriteToV2(&v2)
@@ -483,6 +537,8 @@ func (o *Object) SetParentID(v oid.ID) {
 }
 
 // Parent returns parent object w/o payload.
+//
+// See also [Object.SetParent].
 func (o *Object) Parent() *Object {
 	h := (*object.Object)(o).
 		GetHeader().
@@ -504,6 +560,8 @@ func (o *Object) Parent() *Object {
 }
 
 // SetParent sets parent object w/o payload.
+//
+// See also [Object.Parent].
 func (o *Object) SetParent(v *Object) {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetParent((*object.Object)(v).GetObjectID())
@@ -524,8 +582,9 @@ func (o *Object) resetRelations() {
 	})
 }
 
-// SessionToken returns token of the session
-// within which object was created.
+// SessionToken returns token of the session within which object was created.
+//
+// See also [Object.SetSessionToken].
 func (o *Object) SessionToken() *session.Object {
 	tokv2 := (*object.Object)(o).GetHeader().GetSessionToken()
 	if tokv2 == nil {
@@ -539,8 +598,9 @@ func (o *Object) SessionToken() *session.Object {
 	return &res
 }
 
-// SetSessionToken sets token of the session
-// within which object was created.
+// SetSessionToken sets token of the session within which object was created.
+//
+// See also [Object.SessionToken].
 func (o *Object) SetSessionToken(v *session.Object) {
 	o.setHeaderField(func(h *object.Header) {
 		var tokv2 *v2session.Token
@@ -555,6 +615,8 @@ func (o *Object) SetSessionToken(v *session.Object) {
 }
 
 // Type returns type of the object.
+//
+// See also [Object.SetType].
 func (o *Object) Type() Type {
 	return TypeFromV2(
 		(*object.Object)(o).
@@ -564,13 +626,15 @@ func (o *Object) Type() Type {
 }
 
 // SetType sets type of the object.
+//
+// See also [Object.Type].
 func (o *Object) SetType(v Type) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetObjectType(v.ToV2())
 	})
 }
 
-// CutPayload returns Object w/ empty payload.
+// CutPayload returns [Object] w/ empty payload.
 //
 // Changes of non-payload fields affect source object.
 func (o *Object) CutPayload() *Object {
@@ -581,6 +645,7 @@ func (o *Object) CutPayload() *Object {
 	return (*Object)(ov2)
 }
 
+// HasParent checks if parent (split ID) is present.
 func (o *Object) HasParent() bool {
 	return (*object.Object)(o).
 		GetHeader().
@@ -598,11 +663,15 @@ func (o *Object) InitRelations() {
 }
 
 // Marshal marshals object into a protobuf binary form.
+//
+// See also [Object.Unmarshal].
 func (o *Object) Marshal() ([]byte, error) {
 	return (*object.Object)(o).StableMarshal(nil), nil
 }
 
 // Unmarshal unmarshals protobuf binary representation of object.
+//
+// See also [Object.Marshal].
 func (o *Object) Unmarshal(data []byte) error {
 	err := (*object.Object)(o).Unmarshal(data)
 	if err != nil {
@@ -613,11 +682,15 @@ func (o *Object) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes object to protobuf JSON format.
+//
+// See also [Object.UnmarshalJSON].
 func (o *Object) MarshalJSON() ([]byte, error) {
 	return (*object.Object)(o).MarshalJSON()
 }
 
 // UnmarshalJSON decodes object from protobuf JSON format.
+//
+// See also [Object.MarshalJSON].
 func (o *Object) UnmarshalJSON(data []byte) error {
 	err := (*object.Object)(o).UnmarshalJSON(data)
 	if err != nil {
