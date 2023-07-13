@@ -2193,25 +2193,6 @@ func (p *Pool) Close() {
 	<-p.closedCh
 }
 
-// SyncContainerWithNetwork applies network configuration received via
-// the Pool to the container. Changes the container if it does not satisfy
-// network configuration.
-//
-// Pool and container MUST not be nil.
-//
-// Returns any error that does not allow reading configuration
-// from the network.
-func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, p *Pool) error {
-	ni, err := p.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
-	if err != nil {
-		return fmt.Errorf("network info: %w", err)
-	}
-
-	cnr.ApplyNetworkConfig(ni)
-
-	return nil
-}
-
 func (p *Pool) sdkClient() (*sdkClient.Client, error) {
 	conn, err := p.connection()
 	if err != nil {
