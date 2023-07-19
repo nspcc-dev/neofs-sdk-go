@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
@@ -895,6 +896,7 @@ type NodeParam struct {
 }
 
 // NewNodeParam creates NodeParam using parameters.
+// Address parameter MUST follow the client requirements, see [sdkClient.PrmDial.SetServerURI] for details.
 func NewNodeParam(priority int, address string, weight float64) (prm NodeParam) {
 	prm.SetPriority(priority)
 	prm.SetAddress(address)
@@ -1284,6 +1286,12 @@ func NewPool(options InitParameters) (*Pool, error) {
 		return nil, fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
 	}
 
+	for _, node := range options.nodeParams {
+		if err := isNodeValid(node); err != nil {
+			return nil, fmt.Errorf("node: %w", err)
+		}
+	}
+
 	nodesParams, err := adjustNodeParams(options.nodeParams)
 	if err != nil {
 		return nil, err
@@ -1423,6 +1431,11 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 			return newWrapper(prm)
 		})
 	}
+}
+
+func isNodeValid(node NodeParam) error {
+	_, _, err := client.ParseURI(node.address)
+	return err
 }
 
 func adjustNodeParams(nodeParams []NodeParam) ([]*nodesParam, error) {
