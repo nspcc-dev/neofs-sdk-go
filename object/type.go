@@ -4,6 +4,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
+// Type is an enumerator for possible object types.
 type Type object.Type
 
 const (
@@ -13,35 +14,37 @@ const (
 	TypeLock
 )
 
+// ToV2 converts [Type] to v2 [object.Type].
 func (t Type) ToV2() object.Type {
 	return object.Type(t)
 }
 
+// TypeFromV2 converts v2 [object.Type] to [Type].
 func TypeFromV2(t object.Type) Type {
 	return Type(t)
 }
 
-// EncodeToString returns string representation of Type.
+// EncodeToString returns string representation of [Type].
 //
 // String mapping:
-//   - TypeTombstone: TOMBSTONE;
-//   - TypeStorageGroup: STORAGE_GROUP;
-//   - TypeLock: LOCK;
-//   - TypeRegular, default: REGULAR.
+//   - [TypeTombstone]: TOMBSTONE;
+//   - [TypeStorageGroup]: STORAGE_GROUP;
+//   - [TypeLock]: LOCK;
+//   - [TypeRegular], default: REGULAR.
 func (t Type) EncodeToString() string {
 	return t.ToV2().String()
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [Type.EncodeToString]. String MUST NOT
 // be used to encode ID into NeoFS protocol string.
 func (t Type) String() string {
 	return t.EncodeToString()
 }
 
-// DecodeString parses Type from a string representation.
+// DecodeString parses [Type] from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.

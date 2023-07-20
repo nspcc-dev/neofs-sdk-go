@@ -9,16 +9,17 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
+// SplitInfo is an SDK representation of [object.SplitInfo].
 type SplitInfo object.SplitInfo
 
-// NewSplitInfoFromV2 wraps v2 SplitInfo message to SplitInfo.
+// NewSplitInfoFromV2 wraps v2 [object.SplitInfo] message to [SplitInfo].
 //
 // Nil object.SplitInfo converts to nil.
 func NewSplitInfoFromV2(v2 *object.SplitInfo) *SplitInfo {
 	return (*SplitInfo)(v2)
 }
 
-// NewSplitInfo creates and initializes blank SplitInfo.
+// NewSplitInfo creates and initializes blank [SplitInfo].
 //
 // Defaults:
 //   - splitID: nil;
@@ -28,22 +29,32 @@ func NewSplitInfo() *SplitInfo {
 	return NewSplitInfoFromV2(new(object.SplitInfo))
 }
 
-// ToV2 converts SplitInfo to v2 SplitInfo message.
+// ToV2 converts [SplitInfo] to v2 [object.SplitInfo] message.
 //
 // Nil SplitInfo converts to nil.
 func (s *SplitInfo) ToV2() *object.SplitInfo {
 	return (*object.SplitInfo)(s)
 }
 
+// SplitID returns [SplitID] if it has been set.
+//
+// See also [SplitInfo.SetSplitID].
 func (s *SplitInfo) SplitID() *SplitID {
 	return NewSplitIDFromV2(
 		(*object.SplitInfo)(s).GetSplitID())
 }
 
+// SetSplitID sets split ID in object ID. It resets split ID if nil passed.
+//
+// See also [SplitInfo.SplitID].
 func (s *SplitInfo) SetSplitID(v *SplitID) {
 	(*object.SplitInfo)(s).SetSplitID(v.ToV2())
 }
 
+// LastPart returns last object ID, can be used to retrieve original object.
+// The second return value is a flag, indicating if the last part is present.
+//
+// See also [SplitInfo.SetLastPart].
 func (s SplitInfo) LastPart() (v oid.ID, isSet bool) {
 	v2 := (object.SplitInfo)(s)
 
@@ -56,6 +67,9 @@ func (s SplitInfo) LastPart() (v oid.ID, isSet bool) {
 	return
 }
 
+// SetLastPart sets the last object ID.
+//
+// See also [SplitInfo.LastPart].
 func (s *SplitInfo) SetLastPart(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)
@@ -63,6 +77,10 @@ func (s *SplitInfo) SetLastPart(v oid.ID) {
 	(*object.SplitInfo)(s).SetLastPart(&idV2)
 }
 
+// Link returns a linker object ID.
+// The second return value is a flag, indicating if the last part is present.
+//
+// See also [SplitInfo.SetLink].
 func (s SplitInfo) Link() (v oid.ID, isSet bool) {
 	v2 := (object.SplitInfo)(s)
 
@@ -75,6 +93,9 @@ func (s SplitInfo) Link() (v oid.ID, isSet bool) {
 	return
 }
 
+// SetLink sets linker object ID.
+//
+// See also [SplitInfo.Link].
 func (s *SplitInfo) SetLink(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)
@@ -82,10 +103,16 @@ func (s *SplitInfo) SetLink(v oid.ID) {
 	(*object.SplitInfo)(s).SetLink(&idV2)
 }
 
+// Marshal marshals [SplitInfo] into a protobuf binary form.
+//
+// See also [SplitInfo.Unmarshal].
 func (s *SplitInfo) Marshal() ([]byte, error) {
 	return (*object.SplitInfo)(s).StableMarshal(nil), nil
 }
 
+// Unmarshal unmarshals protobuf binary representation of [SplitInfo].
+//
+// See also [SplitInfo.Marshal].
 func (s *SplitInfo) Unmarshal(data []byte) error {
 	err := (*object.SplitInfo)(s).Unmarshal(data)
 	if err != nil {
@@ -96,11 +123,15 @@ func (s *SplitInfo) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON implements json.Marshaler.
+//
+// See also [SplitInfo.UnmarshalJSON].
 func (s *SplitInfo) MarshalJSON() ([]byte, error) {
 	return (*object.SplitInfo)(s).MarshalJSON()
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
+//
+// See also [SplitInfo.MarshalJSON].
 func (s *SplitInfo) UnmarshalJSON(data []byte) error {
 	err := (*object.SplitInfo)(s).UnmarshalJSON(data)
 	if err != nil {

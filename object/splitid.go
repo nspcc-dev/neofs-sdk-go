@@ -40,7 +40,7 @@ func NewSplitIDFromV2(v []byte) *SplitID {
 	}
 }
 
-// Parse converts UUIDv4 string representation into SplitID.
+// Parse converts UUIDv4 string representation into [SplitID].
 func (id *SplitID) Parse(s string) (err error) {
 	id.uuid, err = uuid.Parse(s)
 	if err != nil {
@@ -50,7 +50,7 @@ func (id *SplitID) Parse(s string) (err error) {
 	return nil
 }
 
-// String returns UUIDv4 string representation of SplitID.
+// String returns UUIDv4 string representation of [SplitID].
 func (id *SplitID) String() string {
 	if id == nil {
 		return ""
@@ -59,14 +59,14 @@ func (id *SplitID) String() string {
 	return id.uuid.String()
 }
 
-// SetUUID sets pre created UUID structure as SplitID.
+// SetUUID sets pre created UUID structure as [SplitID].
 func (id *SplitID) SetUUID(v uuid.UUID) {
 	if id != nil {
 		id.uuid = v
 	}
 }
 
-// ToV2 converts SplitID to a representation of SplitID in neofs-api v2.
+// ToV2 converts [SplitID] to a representation of SplitID in neofs-api v2.
 //
 // Nil SplitID converts to nil.
 func (id *SplitID) ToV2() []byte {

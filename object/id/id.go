@@ -105,7 +105,7 @@ func (id *ID) DecodeString(s string) error {
 	return id.Decode(data)
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions. String MAY return same result as EncodeToString. String MUST NOT

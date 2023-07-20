@@ -9,14 +9,14 @@ import (
 // Tombstone represents v2-compatible tombstone structure.
 type Tombstone tombstone.Tombstone
 
-// NewTombstoneFromV2 wraps v2 Tombstone message to Tombstone.
+// NewTombstoneFromV2 wraps v2 [tombstone.Tombstone] message to [Tombstone].
 //
-// Nil tombstone.Tombstone converts to nil.
+// Nil [tombstone.Tombstone] converts to nil.
 func NewTombstoneFromV2(tV2 *tombstone.Tombstone) *Tombstone {
 	return (*Tombstone)(tV2)
 }
 
-// NewTombstone creates and initializes blank Tombstone.
+// NewTombstone creates and initializes blank [Tombstone].
 //
 // Defaults:
 //   - exp: 0;
@@ -26,41 +26,45 @@ func NewTombstone() *Tombstone {
 	return NewTombstoneFromV2(new(tombstone.Tombstone))
 }
 
-// ToV2 converts Tombstone to v2 Tombstone message.
+// ToV2 converts [Tombstone] to v2 [tombstone.Tombstone] message.
 //
-// Nil Tombstone converts to nil.
+// Nil [Tombstone] converts to nil.
 func (t *Tombstone) ToV2() *tombstone.Tombstone {
 	return (*tombstone.Tombstone)(t)
 }
 
-// ExpirationEpoch returns the last NeoFS epoch
-// number of the tombstone lifetime.
+// ExpirationEpoch returns the last NeoFS epoch number of the tombstone lifetime.
 //
-// See also SetExpirationEpoch.
+// See also [Tombstone.SetExpirationEpoch].
 func (t *Tombstone) ExpirationEpoch() uint64 {
 	return (*tombstone.Tombstone)(t).GetExpirationEpoch()
 }
 
-// SetExpirationEpoch sets the last NeoFS epoch
-// number of the tombstone lifetime.
+// SetExpirationEpoch sets the last NeoFS epoch number of the tombstone lifetime.
 //
-// See also ExpirationEpoch.
+// See also [Tombstone.ExpirationEpoch].
 func (t *Tombstone) SetExpirationEpoch(v uint64) {
 	(*tombstone.Tombstone)(t).SetExpirationEpoch(v)
 }
 
 // SplitID returns identifier of object split hierarchy.
+//
+// See also [Tombstone.SetSplitID].
 func (t *Tombstone) SplitID() *SplitID {
 	return NewSplitIDFromV2(
 		(*tombstone.Tombstone)(t).GetSplitID())
 }
 
 // SetSplitID sets identifier of object split hierarchy.
+//
+// See also [Tombstone.SplitID].
 func (t *Tombstone) SetSplitID(v *SplitID) {
 	(*tombstone.Tombstone)(t).SetSplitID(v.ToV2())
 }
 
 // Members returns list of objects to be deleted.
+//
+// See also [Tombstone.SetMembers].
 func (t *Tombstone) Members() []oid.ID {
 	v2 := (*tombstone.Tombstone)(t)
 	msV2 := v2.GetMembers()
@@ -83,6 +87,8 @@ func (t *Tombstone) Members() []oid.ID {
 }
 
 // SetMembers sets list of objects to be deleted.
+//
+// See also [Tombstone.Members].
 func (t *Tombstone) SetMembers(v []oid.ID) {
 	var ms []refs.ObjectID
 
@@ -107,22 +113,30 @@ func (t *Tombstone) SetMembers(v []oid.ID) {
 	(*tombstone.Tombstone)(t).SetMembers(ms)
 }
 
-// Marshal marshals Tombstone into a protobuf binary form.
+// Marshal marshals [Tombstone] into a protobuf binary form.
+//
+// See also [Tombstone.Unmarshal].
 func (t *Tombstone) Marshal() ([]byte, error) {
 	return (*tombstone.Tombstone)(t).StableMarshal(nil), nil
 }
 
-// Unmarshal unmarshals protobuf binary representation of Tombstone.
+// Unmarshal unmarshals protobuf binary representation of [Tombstone].
+//
+// See also [Tombstone.Marshal].
 func (t *Tombstone) Unmarshal(data []byte) error {
 	return (*tombstone.Tombstone)(t).Unmarshal(data)
 }
 
-// MarshalJSON encodes Tombstone to protobuf JSON format.
+// MarshalJSON encodes [Tombstone] to protobuf JSON format.
+//
+// See also [Tombstone.UnmarshalJSON].
 func (t *Tombstone) MarshalJSON() ([]byte, error) {
 	return (*tombstone.Tombstone)(t).MarshalJSON()
 }
 
-// UnmarshalJSON decodes Tombstone from protobuf JSON format.
+// UnmarshalJSON decodes [Tombstone] from protobuf JSON format.
+//
+// See also [Tombstone.MarshalJSON].
 func (t *Tombstone) UnmarshalJSON(data []byte) error {
 	return (*tombstone.Tombstone)(t).UnmarshalJSON(data)
 }
