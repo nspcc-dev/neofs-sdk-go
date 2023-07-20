@@ -60,7 +60,7 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer neof
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectGetInit].
-func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectGet) (object.Object, *client.ObjectReader, error) {
+func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
 	var hdr object.Object
 	c, err := p.sdkClient()
 	if err != nil {

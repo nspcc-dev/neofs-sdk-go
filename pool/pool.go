@@ -1866,7 +1866,7 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 }
 
 type objectReadCloser struct {
-	reader *sdkClient.ObjectReader
+	reader *sdkClient.PayloadReader
 }
 
 // Read implements io.Reader of the object payload.

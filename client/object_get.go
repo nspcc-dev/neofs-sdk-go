@@ -67,11 +67,11 @@ type PrmObjectGet struct {
 	prmObjectRead
 }
 
-// ObjectReader is designed to read one object from NeoFS system.
+// PayloadReader is a data stream of the particular NeoFS object.
 //
 // Must be initialized using Client.ObjectGetInit, any other
 // usage is unsafe.
-type ObjectReader struct {
+type PayloadReader struct {
 	cancelCtxStream context.CancelFunc
 
 	client *Client
@@ -90,7 +90,7 @@ type ObjectReader struct {
 
 // readHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
-func (x *ObjectReader) readHeader(dst *object.Object) bool {
+func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	if x.statisticCallback != nil {
 		defer func() {
 			x.statisticCallback(x.err)
@@ -134,7 +134,7 @@ func (x *ObjectReader) readHeader(dst *object.Object) bool {
 	return true
 }
 
-func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
+func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 	if x.statisticCallback != nil {
 		defer func() {
 			x.statisticCallback(x.err)
@@ -198,11 +198,11 @@ func (x *ObjectReader) readChunk(buf []byte) (int, bool) {
 // io.Reader.Read but returns success flag instead of error.
 //
 // Failure reason can be received via Close.
-func (x *ObjectReader) ReadChunk(buf []byte) (int, bool) {
+func (x *PayloadReader) ReadChunk(buf []byte) (int, bool) {
 	return x.readChunk(buf)
 }
 
-func (x *ObjectReader) close(ignoreEOF bool) error {
+func (x *PayloadReader) close(ignoreEOF bool) error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
@@ -230,27 +230,14 @@ func (x *ObjectReader) close(ignoreEOF bool) error {
 	return nil
 }
 
-// Close ends reading the object and returns the result of the operation
-// along with the final results. Must be called after using the ObjectReader.
-//
-// Any client's internal or transport errors are returned as Go built-in error.
-// If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
-// codes are returned as error.
-//
-// Return errors:
-//   - global (see Client docs)
-//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectGet.MakeRaw)
-//   - [apistatus.ErrContainerNotFound]
-//   - [apistatus.ErrObjectNotFound]
-//   - [apistatus.ErrObjectAccessDenied]
-//   - [apistatus.ErrObjectAlreadyRemoved]
-//   - [apistatus.ErrSessionTokenExpired]
-func (x *ObjectReader) Close() error {
+// Close ends reading the object payload. Must be called after using the
+// PayloadReader.
+func (x *PayloadReader) Close() error {
 	return x.close(true)
 }
 
 // Read implements io.Reader of the object payload.
-func (x *ObjectReader) Read(p []byte) (int, error) {
+func (x *PayloadReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
 
 	x.remainingPayloadLen -= n
@@ -271,9 +258,9 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 }
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
+// Returns header of the requested object and stream of its payload separately.
 //
-// The call only opens the transmission channel, explicit fetching is done using the ObjectReader.
-// Exactly one return value is non-nil. Resulting reader must be finally closed.
+// Exactly one return value is non-nil. Resulting PayloadReader must be finally closed.
 //
 // Context is required and must not be nil. It is used for network communication.
 //
@@ -281,8 +268,15 @@ func (x *ObjectReader) Read(p []byte) (int, error) {
 // the specified Signer, which is taken into account, in particular, for access control.
 //
 // Return errors:
+//   - global (see Client docs)
 //   - [ErrMissingSigner]
-func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (object.Object, *ObjectReader, error) {
+//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectGet.MakeRaw)
+//   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrObjectNotFound]
+//   - [apistatus.ErrObjectAccessDenied]
+//   - [apistatus.ErrObjectAlreadyRemoved]
+//   - [apistatus.ErrSessionTokenExpired]
+func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (object.Object, *PayloadReader, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -330,7 +324,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		return hdr, nil, err
 	}
 
-	var r ObjectReader
+	var r PayloadReader
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.client = c
