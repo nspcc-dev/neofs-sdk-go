@@ -67,7 +67,8 @@ type PrmObjectGet struct {
 	prmObjectRead
 }
 
-// PayloadReader is a data stream of the particular NeoFS object.
+// PayloadReader is a data stream of the particular NeoFS object. Implements
+// [io.ReadCloser].
 //
 // Must be initialized using Client.ObjectGetInit, any other
 // usage is unsafe.
@@ -192,14 +193,6 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, true
 		}
 	}
-}
-
-// ReadChunk reads another chunk of the object payload. Works similar to
-// io.Reader.Read but returns success flag instead of error.
-//
-// Failure reason can be received via Close.
-func (x *PayloadReader) ReadChunk(buf []byte) (int, bool) {
-	return x.readChunk(buf)
 }
 
 func (x *PayloadReader) close(ignoreEOF bool) error {
@@ -463,7 +456,7 @@ type PrmObjectRange struct {
 }
 
 // ObjectRangeReader is designed to read payload range of one object
-// from NeoFS system.
+// from NeoFS system. Implements [io.ReadCloser].
 //
 // Must be initialized using Client.ObjectRangeInit, any other
 // usage is unsafe.
@@ -548,14 +541,6 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 			return read, true
 		}
 	}
-}
-
-// ReadChunk reads another chunk of the object payload range.
-// Works similar to io.Reader.Read but returns success flag instead of error.
-//
-// Failure reason can be received via Close.
-func (x *ObjectRangeReader) ReadChunk(buf []byte) (int, bool) {
-	return x.readChunk(buf)
 }
 
 func (x *ObjectRangeReader) close(ignoreEOF bool) error {

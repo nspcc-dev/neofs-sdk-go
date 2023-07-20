@@ -701,8 +701,8 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 	require.NoError(t, err)
 
 	buff := make([]byte, 32)
-	_, isOk := reader.ReadChunk(buff)
-	require.True(t, isOk)
+	_, err = reader.Read(buff)
+	require.NoError(t, err)
 
 	require.Equal(t, 2, collector.methods[stat.MethodObjectGet].requests)
 }
@@ -771,8 +771,8 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 	require.NoError(t, err)
 
 	buff := make([]byte, 32)
-	_, isOk := reader.ReadChunk(buff)
-	require.True(t, isOk)
+	_, err = reader.Read(buff)
+	require.NoError(t, err)
 
 	require.Equal(t, 2, collector.methods[stat.MethodObjectRange].requests)
 }
