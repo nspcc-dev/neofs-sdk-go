@@ -58,10 +58,15 @@ func (x ResObjectPut) StoredObjectID() oid.ID {
 }
 
 // ObjectWriter is designed to write one object to NeoFS system.
+type ObjectWriter interface {
+	io.WriteCloser
+	GetResult() ResObjectPut
+}
+
+// DefaultObjectWriter implements [ObjectWriter].
 //
-// Must be initialized using Client.ObjectPutInit, any other
-// usage is unsafe.
-type ObjectWriter struct {
+// Must be initialized using [Client.ObjectPutInit], any other usage is unsafe.
+type DefaultObjectWriter struct {
 	cancelCtxStream context.CancelFunc
 
 	client *Client
@@ -106,8 +111,8 @@ func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
 }
 
 // writeHeader writes header of the object. Result means success.
-// Failure reason can be received via Close.
-func (x *ObjectWriter) writeHeader(hdr object.Object) error {
+// Failure reason can be received via [DefaultObjectWriter.Close].
+func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	if x.statisticCallback != nil {
 		defer func() {
 			x.statisticCallback(x.err)
@@ -134,8 +139,8 @@ func (x *ObjectWriter) writeHeader(hdr object.Object) error {
 }
 
 // WritePayloadChunk writes chunk of the object payload. Result means success.
-// Failure reason can be received via Close.
-func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
+// Failure reason can be received via [DefaultObjectWriter.Close].
+func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 	if x.statisticCallback != nil {
 		defer func() {
 			x.statisticCallback(x.err)
@@ -146,6 +151,8 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 		x.chunkCalled = true
 		x.req.GetBody().SetObjectPart(&x.partChunk)
 	}
+
+	var writtenBytes int
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
 		// maxChunkLen restricts maximum byte length of the chunk
@@ -174,22 +181,23 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 		x.err = signServiceMessage(x.signer, &x.req)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
-			return false
+			return writtenBytes, x.err
 		}
 
 		x.err = x.stream.Write(&x.req)
 		if x.err != nil {
-			return false
+			return writtenBytes, x.err
 		}
 
+		writtenBytes += len(chunk[:ln])
 		chunk = chunk[ln:]
 	}
 
-	return true
+	return writtenBytes, nil
 }
 
 // Close ends writing the object and returns the result of the operation
-// along with the final results. Must be called after using the ObjectWriter.
+// along with the final results. Must be called after using the [DefaultObjectWriter].
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
 // Any client's internal or transport errors are returned as Go built-in error.
@@ -204,7 +212,7 @@ func (x *ObjectWriter) WritePayloadChunk(chunk []byte) bool {
 //   - [apistatus.ErrLockNonRegularObject]
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
-func (x *ObjectWriter) Close() (*ResObjectPut, error) {
+func (x *DefaultObjectWriter) Close() error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
@@ -219,17 +227,17 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 	// message. Server returns an error in response message (in status).
 	if x.err != nil && !errors.Is(x.err, io.EOF) {
 		err = x.err
-		return nil, err
+		return err
 	}
 
 	if x.err = x.stream.Close(); x.err != nil {
 		err = x.err
-		return nil, err
+		return err
 	}
 
 	if x.err = x.client.processResponse(&x.respV2); x.err != nil {
 		err = x.err
-		return nil, err
+		return err
 	}
 
 	const fieldID = "ID"
@@ -237,7 +245,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 	idV2 := x.respV2.GetBody().GetObjectID()
 	if idV2 == nil {
 		err = newErrMissingResponseField(fieldID)
-		return nil, err
+		return err
 	}
 
 	x.err = x.res.obj.ReadFromV2(*idV2)
@@ -246,27 +254,33 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 		err = x.err
 	}
 
-	return &x.res, nil
+	return nil
+}
+
+// GetResult returns the put operation result.
+func (x *DefaultObjectWriter) GetResult() ResObjectPut {
+	return x.res
 }
 
 // ObjectPutInit initiates writing an object through a remote server using NeoFS API protocol.
 //
-// The call only opens the transmission channel, explicit recording is done using the ObjectWriter.
+// The call only opens the transmission channel, explicit recording is done using the [ObjectWriter].
 // Exactly one return value is non-nil. Resulting writer must be finally closed.
 //
-// Context is required and must not be nil. It is used for network communication.
+// Context is required and must not be nil. It will be used for network communication for the whole object transmission,
+// including put init (this method) and subsequent object payload writes via ObjectWriter.
 //
 // Signer is required and must not be nil. The operation is executed on behalf of
 // the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
 //
 // Returns errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm PrmObjectPutInit) (*ObjectWriter, error) {
+func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm PrmObjectPutInit) (ObjectWriter, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodObjectPut, err)()
 	}()
-	var w ObjectWriter
+	var w DefaultObjectWriter
 	w.statisticCallback = func(err error) {
 		c.sendStatistic(stat.MethodObjectPutStream, err)()
 	}
@@ -292,7 +306,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	c.prepareRequest(&w.req, &prm.meta)
 
 	if err = w.writeHeader(hdr); err != nil {
-		_, _ = w.Close()
+		_ = w.Close()
 		err = fmt.Errorf("header write: %w", err)
 		return nil, err
 	}
@@ -319,11 +333,12 @@ func (x *objectWriter) InitDataStream(header object.Object, signer user.Signer) 
 }
 
 type payloadWriter struct {
-	stream *ObjectWriter
+	stream ObjectWriter
 }
 
 func (x *payloadWriter) Write(p []byte) (int, error) {
-	if !x.stream.WritePayloadChunk(p) {
+	if _, err := x.stream.Write(p); err != nil {
+		// returning x.Close() error instead of err. Because x.Close() make extra work.
 		return 0, x.Close()
 	}
 
@@ -331,12 +346,7 @@ func (x *payloadWriter) Write(p []byte) (int, error) {
 }
 
 func (x *payloadWriter) Close() error {
-	_, err := x.stream.Close()
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return x.stream.Close()
 }
 
 // CreateObject creates new NeoFS object with given payload data and stores it

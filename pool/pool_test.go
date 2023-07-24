@@ -1,8 +1,10 @@
 package pool
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
 	"strconv"
 	"testing"
 	"time"
@@ -670,4 +672,125 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.Equal(t, nodes[1].address, conn.address())
 	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
 	require.NoError(t, err)
+}
+
+type simpleWriter struct {
+	results []ioResult
+	data    []byte
+}
+
+func (s *simpleWriter) Write(p []byte) (n int, err error) {
+	if len(s.results) == 0 {
+		return 0, errors.New("unknown testcase")
+	}
+
+	s.data = append(s.data, p...)
+
+	d := s.results[0]
+	s.results = s.results[1:]
+
+	return d.n, d.err
+}
+
+type ioResult struct {
+	data []byte
+	n    int
+	err  error
+}
+
+type simpleReader struct {
+	results []ioResult
+}
+
+func (s *simpleReader) Read(p []byte) (n int, err error) {
+	if len(s.results) == 0 {
+		return 0, io.EOF
+	}
+
+	d := s.results[0]
+	copy(p, d.data)
+
+	s.results = s.results[1:]
+	return d.n, d.err
+}
+
+func TestWritePayload(t *testing.T) {
+	t.Run("n > 0, io.EOF", func(t *testing.T) {
+		writer := simpleWriter{
+			results: []ioResult{
+				{n: 1, err: nil},
+				{n: 1, err: nil},
+			},
+		}
+
+		reader := simpleReader{
+			results: []ioResult{
+				{data: []byte{0}, n: 1, err: nil},
+				{data: []byte{1}, n: 1, err: io.EOF},
+			},
+		}
+
+		require.NoError(t, writePayload(&writer, &reader, 1))
+		require.True(t, bytes.Equal([]byte{0, 1}, writer.data))
+	})
+
+	t.Run("n == 0, io.EOF", func(t *testing.T) {
+		writer := simpleWriter{
+			results: []ioResult{
+				{n: 1, err: nil},
+				{n: 1, err: nil},
+			},
+		}
+
+		reader := simpleReader{
+			results: []ioResult{
+				{data: []byte{0}, n: 1, err: nil},
+			},
+		}
+
+		require.NoError(t, writePayload(&writer, &reader, 1))
+		require.True(t, bytes.Equal([]byte{0}, writer.data))
+	})
+
+	t.Run("write err", func(t *testing.T) {
+		writer := simpleWriter{
+			results: []ioResult{
+				{n: 1, err: nil},
+				{n: 0, err: errors.New("some error")},
+			},
+		}
+
+		reader := simpleReader{
+			results: []ioResult{
+				{data: []byte{0}, n: 1, err: nil},
+				{data: []byte{1}, n: 1, err: nil},
+			},
+		}
+
+		require.Error(t, writePayload(&writer, &reader, 1))
+	})
+
+	t.Run("read err", func(t *testing.T) {
+		writer := simpleWriter{
+			results: []ioResult{
+				{n: 1, err: nil},
+			},
+		}
+
+		reader := simpleReader{
+			results: []ioResult{
+				{n: 0, err: errors.New("some err")},
+			},
+		}
+
+		require.Error(t, writePayload(&writer, &reader, 1))
+	})
+
+	t.Run("empty writer or reader", func(t *testing.T) {
+		writer := simpleWriter{}
+		require.NoError(t, writePayload(&writer, nil, 0))
+
+		reader := simpleReader{}
+		require.NoError(t, writePayload(nil, &reader, 0))
+	})
 }

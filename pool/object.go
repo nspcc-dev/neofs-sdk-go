@@ -30,7 +30,7 @@ func (p *Pool) actualSigner(signer user.Signer) user.Signer {
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectPutInit].
-func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
+func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (client.ObjectWriter, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
