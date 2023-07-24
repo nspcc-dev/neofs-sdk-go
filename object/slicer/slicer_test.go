@@ -187,6 +187,7 @@ type input struct {
 	signer       user.Signer
 	container    cid.ID
 	owner        user.ID
+	objectType   object.Type
 	currentEpoch uint64
 	payloadLimit uint64
 	sessionToken *session.Object
@@ -259,9 +260,20 @@ func testSlicer(t *testing.T, size, sizeLimit uint64) {
 		chainCollector: newChainCollector(t),
 	}
 
+	for i := object.TypeRegular; i <= object.TypeLock; i++ {
+		in.objectType = i
+
+		t.Run("slicer with "+i.EncodeToString(), func(t *testing.T) {
+			testSlicerByHeaderType(t, checker, in, opts)
+		})
+	}
+}
+
+func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input, opts slicer.Options) {
 	ctx := context.Background()
 
 	t.Run("Slicer.Put", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
 		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionToken)
 		require.NoError(t, err)
 
@@ -274,7 +286,7 @@ func testSlicer(t *testing.T, size, sizeLimit uint64) {
 		checker.chainCollector = newChainCollector(t)
 
 		var hdr object.Object
-		opts.Session()
+		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
 		hdr.SetOwnerID(&in.owner)
 		hdr.SetAttributes(in.attributes...)
@@ -321,7 +333,7 @@ func testSlicer(t *testing.T, size, sizeLimit uint64) {
 		checker.chainCollector = newChainCollector(t)
 
 		var hdr object.Object
-		opts.Session()
+		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
 		hdr.SetOwnerID(&in.owner)
 		hdr.SetAttributes(in.attributes...)
@@ -576,6 +588,8 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 
 	restoredChain := []oid.ID{x.first}
 	restoredPayload := bytes.NewBuffer(make([]byte, 0, rootObj.PayloadSize()))
+
+	require.Equal(x.tb, in.objectType, rootObj.Type())
 
 	for {
 		v, ok := x.mPayloads[restoredChain[len(restoredChain)-1]]
