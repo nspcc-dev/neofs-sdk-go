@@ -23,8 +23,6 @@ import (
 )
 
 var (
-	// ErrInvalidAttributeAmount indicates wrong number of arguments. Amount of arguments MUST be even number.
-	ErrInvalidAttributeAmount = errors.New("attributes must be even number of strings")
 	// ErrIncompleteHeader indicates some fields are missing in header.
 	ErrIncompleteHeader = errors.New("incomplete header")
 )
