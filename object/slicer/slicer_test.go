@@ -14,11 +14,13 @@ import (
 	"math/rand"
 	"testing"
 
+	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/slicer"
@@ -77,8 +79,18 @@ func BenchmarkSliceDataIntoObjects(b *testing.B) {
 }
 
 func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
+	ctx := context.Background()
+
 	in, opts := randomInput(b, size, sizeLimit)
-	s := slicer.NewSession(in.signer, in.container, *sessiontest.ObjectSigned(test.RandomSignerRFC6979(b)), discardObject{}, opts)
+	s, err := slicer.New(
+		ctx,
+		discardObject{opts: opts},
+		in.signer,
+		in.container,
+		in.owner,
+		sessiontest.ObjectSigned(test.RandomSignerRFC6979(b)),
+	)
+	require.NoError(b, err)
 
 	b.Run("reader", func(b *testing.B) {
 		var err error
@@ -88,7 +100,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 		b.ResetTimer()
 
 		for i := 0; i < b.N; i++ {
-			_, err = s.Slice(r, in.attributes...)
+			_, err = s.Put(ctx, r, in.attributes)
 			b.StopTimer()
 			require.NoError(b, err)
 			b.StartTimer()
@@ -103,7 +115,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 		var w *slicer.PayloadWriter
 
 		for i := 0; i < b.N; i++ {
-			w, err = s.InitPayloadStream(in.attributes...)
+			w, err = s.InitPut(ctx, in.attributes)
 			b.StopTimer()
 			require.NoError(b, err)
 			b.StartTimer()
@@ -120,10 +132,41 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 	})
 }
 
-type discardObject struct{}
+func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
+	var ni netmap.NetworkInfo
+	var v2 netmapv2.NetworkInfo
+	var netConfig netmapv2.NetworkConfig
+	var p1 netmapv2.NetworkParameter
+
+	p1.SetKey(randomData(10))
+	p1.SetValue(randomData(10))
+
+	netConfig.SetParameters(p1)
+	v2.SetNetworkConfig(&netConfig)
+
+	if err := ni.ReadFromV2(v2); err != nil {
+		return ni, err
+	}
+
+	ni.SetCurrentEpoch(opts.CurrentNeoFSEpoch())
+	ni.SetMaxObjectSize(opts.ObjectPayloadLimit())
+	if !opts.IsHomomorphicChecksumEnabled() {
+		ni.DisableHomomorphicHashing()
+	}
+
+	return ni, nil
+}
+
+type discardObject struct {
+	opts slicer.Options
+}
 
 func (discardObject) ObjectPutInit(context.Context, object.Object, user.Signer, client.PrmObjectPutInit) (client.ObjectWriter, error) {
 	return discardPayload{}, nil
+}
+
+func (o discardObject) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
+	return networkInfoFromOpts(o.opts)
 }
 
 type discardPayload struct{}
@@ -187,15 +230,16 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	in.payload = randomData(size)
 	in.attributes = attrs
 
+	var opts slicer.Options
 	if rand.Int()%2 == 0 {
 		in.sessionToken = sessiontest.ObjectSigned(test.RandomSignerRFC6979(tb))
+		opts.SetSession(in.sessionToken)
 	} else {
 		in.owner = *usertest.ID(tb)
 	}
 
 	in.withHomo = rand.Int()%2 == 0
 
-	var opts slicer.Options
 	opts.SetObjectPayloadLimit(in.payloadLimit)
 	opts.SetCurrentNeoFSEpoch(in.currentEpoch)
 	if in.withHomo {
@@ -205,62 +249,123 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	return in, opts
 }
 
-func testSlicer(tb testing.TB, size, sizeLimit uint64) {
-	in, opts := randomInput(tb, size, sizeLimit)
+func testSlicer(t *testing.T, size, sizeLimit uint64) {
+	in, opts := randomInput(t, size, sizeLimit)
 
 	checker := &slicedObjectChecker{
-		tb:             tb,
+		opts:           opts,
+		tb:             t,
 		input:          in,
-		chainCollector: newChainCollector(tb),
+		chainCollector: newChainCollector(t),
 	}
 
-	var s *slicer.Slicer
-	if checker.input.sessionToken != nil {
-		s = slicer.NewSession(in.signer, checker.input.container, *checker.input.sessionToken, checker, opts)
-	} else {
-		s = slicer.New(in.signer, checker.input.container, checker.input.owner, checker, opts)
-	}
+	ctx := context.Background()
 
-	// check reader
-	rootID, err := s.Slice(bytes.NewReader(in.payload), in.attributes...)
-	require.NoError(tb, err)
-	checker.chainCollector.verify(checker.input, rootID)
+	t.Run("Slicer.Put", func(t *testing.T) {
+		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionToken)
+		require.NoError(t, err)
 
-	// check writer with random written chunk's size
-	checker.chainCollector = newChainCollector(tb)
+		rootID, err := s.Put(ctx, bytes.NewReader(in.payload), in.attributes)
+		require.NoError(t, err)
+		checker.chainCollector.verify(checker.input, rootID)
+	})
 
-	w, err := s.InitPayloadStream(in.attributes...)
-	require.NoError(tb, err)
+	t.Run("slicer.Put", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
 
-	var chunkSize int
-	if len(in.payload) > 0 {
-		chunkSize = rand.Int() % len(in.payload)
-		if chunkSize == 0 {
-			chunkSize = 1
+		var hdr object.Object
+		opts.Session()
+		hdr.SetContainerID(in.container)
+		hdr.SetOwnerID(&in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, bytes.NewReader(in.payload), opts)
+		require.NoError(t, err)
+		checker.chainCollector.verify(checker.input, rootID)
+	})
+
+	t.Run("Slicer.InitPut", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		// check writer with random written chunk's size
+		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionToken)
+		require.NoError(t, err)
+
+		w, err := s.InitPut(ctx, in.attributes)
+		require.NoError(t, err)
+
+		var chunkSize int
+		if len(in.payload) > 0 {
+			chunkSize = rand.Int() % len(in.payload)
+			if chunkSize == 0 {
+				chunkSize = 1
+			}
 		}
-	}
 
-	for payload := in.payload; len(payload) > 0; payload = payload[chunkSize:] {
-		if chunkSize > len(payload) {
-			chunkSize = len(payload)
+		for payload := in.payload; len(payload) > 0; payload = payload[chunkSize:] {
+			if chunkSize > len(payload) {
+				chunkSize = len(payload)
+			}
+			n, err := w.Write(payload[:chunkSize])
+			require.NoError(t, err)
+			require.EqualValues(t, chunkSize, n)
 		}
-		n, err := w.Write(payload[:chunkSize])
-		require.NoError(tb, err)
-		require.EqualValues(tb, chunkSize, n)
-	}
 
-	err = w.Close()
-	require.NoError(tb, err)
+		err = w.Close()
+		require.NoError(t, err)
 
-	checker.chainCollector.verify(checker.input, w.ID())
+		checker.chainCollector.verify(checker.input, w.ID())
+	})
+
+	t.Run("slicer.InitPut", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		var hdr object.Object
+		opts.Session()
+		hdr.SetContainerID(in.container)
+		hdr.SetOwnerID(&in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		// check writer with random written chunk's size
+		w, err := slicer.InitPut(ctx, checker, hdr, checker.input.signer, opts)
+		require.NoError(t, err)
+
+		var chunkSize int
+		if len(in.payload) > 0 {
+			chunkSize = rand.Int() % len(in.payload)
+			if chunkSize == 0 {
+				chunkSize = 1
+			}
+		}
+
+		for payload := in.payload; len(payload) > 0; payload = payload[chunkSize:] {
+			if chunkSize > len(payload) {
+				chunkSize = len(payload)
+			}
+			n, err := w.Write(payload[:chunkSize])
+			require.NoError(t, err)
+			require.EqualValues(t, chunkSize, n)
+		}
+
+		err = w.Close()
+		require.NoError(t, err)
+
+		checker.chainCollector.verify(checker.input, w.ID())
+	})
 }
 
 type slicedObjectChecker struct {
+	opts slicer.Options
+
 	tb testing.TB
 
 	input input
 
 	chainCollector *chainCollector
+}
+
+func (x *slicedObjectChecker) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
+	return networkInfoFromOpts(x.opts)
 }
 
 func (x *slicedObjectChecker) ObjectPutInit(_ context.Context, hdr object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
@@ -522,6 +627,7 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 }
 
 type memoryWriter struct {
+	opts    slicer.Options
 	headers []object.Object
 	splitID *object.SplitID
 }
@@ -533,6 +639,10 @@ func (w *memoryWriter) ObjectPutInit(_ context.Context, hdr object.Object, _ use
 	}
 
 	return &memoryPayload{}, nil
+}
+
+func (w *memoryWriter) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
+	return networkInfoFromOpts(w.opts)
 }
 
 type memoryPayload struct {
@@ -553,6 +663,7 @@ func (p *memoryPayload) GetResult() client.ResObjectPut {
 func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	maxObjectSize := uint64(10)
 	overheadAmount := uint64(3)
+	ctx := context.Background()
 
 	var containerID cid.ID
 	id := make([]byte, sha256.Size)
@@ -574,31 +685,42 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	}
 
 	t.Run("slice", func(t *testing.T) {
-		writer := &memoryWriter{}
-		sl := slicer.New(signer, containerID, ownerID, writer, opts)
+		writer := &memoryWriter{
+			opts: opts,
+		}
+		sl, err := slicer.New(context.Background(), writer, signer, containerID, ownerID, nil)
+		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize*overheadAmount)
 		_, err = rand.Read(payload)
 		require.NoError(t, err)
 
-		_, err = sl.Slice(bytes.NewBuffer(payload))
+		_, err = sl.Put(ctx, bytes.NewBuffer(payload), nil)
 		require.NoError(t, err)
 
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
-		for _, h := range writer.headers {
+		for i, h := range writer.headers {
 			splitID := h.SplitID()
-			require.NotNil(t, splitID)
-			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+			if i == 0 {
+				require.Nil(t, splitID)
+			} else {
+				require.NotNil(t, splitID)
+				require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+			}
+
 			checkParentWithoutSplitInfo(h)
 		}
 	})
 
 	t.Run("InitPayloadStream", func(t *testing.T) {
-		writer := &memoryWriter{}
-		sl := slicer.New(signer, containerID, ownerID, writer, opts)
+		writer := &memoryWriter{
+			opts: opts,
+		}
+		sl, err := slicer.New(context.Background(), writer, signer, containerID, ownerID, nil)
+		require.NoError(t, err)
 
-		payloadWriter, err := sl.InitPayloadStream()
+		payloadWriter, err := sl.InitPut(ctx, nil)
 		require.NoError(t, err)
 
 		for i := uint64(0); i < overheadAmount; i++ {
@@ -613,23 +735,31 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.NoError(t, payloadWriter.Close())
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
-		for _, h := range writer.headers {
+		for i, h := range writer.headers {
 			splitID := h.SplitID()
-			require.NotNil(t, splitID)
-			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+			if i == 0 {
+				require.Nil(t, splitID)
+			} else {
+				require.NotNil(t, splitID)
+				require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+			}
+
 			checkParentWithoutSplitInfo(h)
 		}
 	})
 
 	t.Run("no split info if no overflow", func(t *testing.T) {
-		writer := &memoryWriter{}
-		sl := slicer.New(signer, containerID, ownerID, writer, opts)
+		writer := &memoryWriter{
+			opts: opts,
+		}
+		sl, err := slicer.New(context.Background(), writer, signer, containerID, ownerID, nil)
+		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize-1)
 		_, err = rand.Read(payload)
 		require.NoError(t, err)
 
-		_, err = sl.Slice(bytes.NewBuffer(payload))
+		_, err = sl.Put(ctx, bytes.NewBuffer(payload), nil)
 		require.NoError(t, err)
 
 		require.Equal(t, uint64(1), uint64(len(writer.headers)))

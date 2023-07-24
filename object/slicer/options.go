@@ -1,5 +1,9 @@
 package slicer
 
+import (
+	"github.com/nspcc-dev/neofs-sdk-go/session"
+)
+
 // Options groups Slicer options.
 type Options struct {
 	objectPayloadLimit uint64
@@ -7,6 +11,8 @@ type Options struct {
 	currentNeoFSEpoch uint64
 
 	withHomoChecksum bool
+
+	sessionToken *session.Object
 }
 
 // SetObjectPayloadLimit specifies data size limit for produced physically
@@ -24,4 +30,29 @@ func (x *Options) SetCurrentNeoFSEpoch(e uint64) {
 // checksum of the processed objects.
 func (x *Options) CalculateHomomorphicChecksum() {
 	x.withHomoChecksum = true
+}
+
+// SetSession sets session object.
+func (x *Options) SetSession(sess *session.Object) {
+	x.sessionToken = sess
+}
+
+// ObjectPayloadLimit returns required max object size.
+func (x *Options) ObjectPayloadLimit() uint64 {
+	return x.objectPayloadLimit
+}
+
+// CurrentNeoFSEpoch returns epoch.
+func (x *Options) CurrentNeoFSEpoch() uint64 {
+	return x.currentNeoFSEpoch
+}
+
+// IsHomomorphicChecksumEnabled indicates homomorphic checksum calculation status.
+func (x *Options) IsHomomorphicChecksumEnabled() bool {
+	return x.withHomoChecksum
+}
+
+// Session returns session object.
+func (x *Options) Session() *session.Object {
+	return x.sessionToken
 }
