@@ -105,18 +105,6 @@ func NewSession(signer user.Signer, cnr cid.ID, token session.Object, w ObjectWr
 	}
 }
 
-// fillCommonMetadata writes to the object metadata common to all objects of the
-// same stream.
-func (x *Slicer) fillCommonMetadata(obj *object.Object) {
-	currentVersion := version.Current()
-	obj.SetVersion(&currentVersion)
-	obj.SetContainerID(x.cnr)
-	obj.SetCreationEpoch(x.opts.currentNeoFSEpoch)
-	obj.SetType(object.TypeRegular)
-	obj.SetOwnerID(&x.owner)
-	obj.SetSessionToken(x.sessionToken)
-}
-
 const defaultPayloadSizeLimit = 1 << 20
 
 // childPayloadSizeLimit returns configured size limit of the child object's
@@ -143,152 +131,34 @@ func (x *Slicer) childPayloadSizeLimit() uint64 {
 func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
 	var rootID oid.ID
 
-	if len(attributes)%2 != 0 {
-		return rootID, ErrInvalidAttributeAmount
+	writer, err := x.InitPayloadStream(attributes...)
+	if err != nil {
+		return rootID, fmt.Errorf("init writer: %w", err)
 	}
 
-	if x.opts.objectPayloadLimit == 0 {
-		x.opts.objectPayloadLimit = 1 << 20
-	}
-
-	var rootHeader object.Object
-	var offset uint64
-	var isSplit bool
-	var childMeta dynamicObjectMetadata
-	var writtenChildren []oid.ID
-	var childHeader object.Object
-	rootMeta := newDynamicObjectMetadata(x.opts.withHomoChecksum)
-	bChunk := make([]byte, x.opts.objectPayloadLimit+1)
-
-	x.fillCommonMetadata(&rootHeader)
+	var n int
+	bChunk := make([]byte, x.opts.objectPayloadLimit)
 
 	for {
-		n, err := data.Read(bChunk[offset:])
-		if err == nil {
-			if last := offset + uint64(n); last <= x.opts.objectPayloadLimit {
-				rootMeta.accumulateNextPayloadChunk(bChunk[offset:last])
-				if isSplit {
-					childMeta.accumulateNextPayloadChunk(bChunk[offset:last])
-				}
-				offset = last
-				// data is not over, and we expect more bytes to form next object
-				continue
-			}
-		} else {
+		n, err = data.Read(bChunk)
+		if err != nil {
 			if !errors.Is(err, io.EOF) {
-				return rootID, fmt.Errorf("read payload chunk: %w", err)
+				return rootID, fmt.Errorf("read chunk: %w", err)
 			}
 
-			// there will be no more data
+			// no more data to read
 
-			toSend := offset + uint64(n)
-			if toSend <= x.opts.objectPayloadLimit {
-				// we can finalize the root object and send last part
-
-				if len(attributes) > 0 {
-					attrs := make([]object.Attribute, len(attributes)/2)
-
-					for i := 0; i < len(attrs); i++ {
-						attrs[i].SetKey(attributes[2*i])
-						attrs[i].SetValue(attributes[2*i+1])
-					}
-
-					rootHeader.SetAttributes(attrs...)
-				}
-
-				rootID, err = flushObjectMetadata(x.signer, rootMeta, &rootHeader)
-				if err != nil {
-					return rootID, fmt.Errorf("form root object: %w", err)
-				}
-
-				if isSplit {
-					// when splitting, root object's header is written into its last child
-					childHeader.SetParent(&rootHeader)
-					childHeader.SetPreviousID(writtenChildren[len(writtenChildren)-1])
-
-					childID, err := writeInMemObject(x.signer, x.w, childHeader, bChunk[:toSend], childMeta)
-					if err != nil {
-						return rootID, fmt.Errorf("write child object: %w", err)
-					}
-
-					writtenChildren = append(writtenChildren, childID)
-				} else {
-					// root object is single (full < limit), so send it directly
-					rootID, err = writeInMemObject(x.signer, x.w, rootHeader, bChunk[:toSend], rootMeta)
-					if err != nil {
-						return rootID, fmt.Errorf("write single root object: %w", err)
-					}
-
-					return rootID, nil
-				}
-
-				break
+			if err = writer.Close(); err != nil {
+				return rootID, fmt.Errorf("close writer: %w", err)
 			}
 
-			// otherwise, form penultimate object, then do one more iteration for
-			// simplicity: according to io.Reader, we'll get io.EOF again, but the overflow
-			// will no longer occur, so we'll finish the loop
+			rootID = writer.ID()
+			break
 		}
 
-		// according to buffer size, here we can overflow the object payload limit, e.g.
-		//  1. full=11B,limit=10B,read=11B (no objects created yet)
-		//  2. full=21B,limit=10B,read=11B (one object has been already sent with size=10B)
-
-		toSend := offset + uint64(n)
-		overflow := toSend > x.opts.objectPayloadLimit
-		if overflow {
-			toSend = x.opts.objectPayloadLimit
+		if _, err = writer.Write(bChunk[:n]); err != nil {
+			return oid.ID{}, err
 		}
-
-		// we could read some data even in case of io.EOF, so don't forget pick up the tail
-		if n > 0 {
-			rootMeta.accumulateNextPayloadChunk(bChunk[offset:toSend])
-			if isSplit {
-				childMeta.accumulateNextPayloadChunk(bChunk[offset:toSend])
-			}
-		}
-
-		if overflow {
-			isSplitCp := isSplit // we modify it in next condition below but need after it
-			if !isSplit {
-				// we send only child object below, but we can get here at the beginning (see
-				// option 1 described above), so we need to pre-init child resources
-				isSplit = true
-				x.fillCommonMetadata(&childHeader)
-				childHeader.SetSplitID(object.NewSplitID())
-				childMeta = rootMeta
-				// we do shallow copy of rootMeta because below we take this into account and do
-				// not corrupt it
-			} else {
-				childHeader.SetPreviousID(writtenChildren[len(writtenChildren)-1])
-			}
-
-			childID, err := writeInMemObject(x.signer, x.w, childHeader, bChunk[:toSend], childMeta)
-			if err != nil {
-				return rootID, fmt.Errorf("write child object: %w", err)
-			}
-
-			writtenChildren = append(writtenChildren, childID)
-
-			// shift overflow bytes to the beginning
-			if !isSplitCp {
-				childMeta = newDynamicObjectMetadata(x.opts.withHomoChecksum) // to avoid rootMeta corruption
-			}
-			childMeta.reset()
-			childMeta.accumulateNextPayloadChunk(bChunk[toSend:])
-			rootMeta.accumulateNextPayloadChunk(bChunk[toSend:])
-			offset = uint64(copy(bChunk, bChunk[toSend:]))
-		}
-	}
-
-	// linking object
-	childMeta.reset()
-	childHeader.ResetPreviousID()
-	childHeader.SetChildren(writtenChildren...)
-
-	_, err := writeInMemObject(x.signer, x.w, childHeader, nil, childMeta)
-	if err != nil {
-		return rootID, fmt.Errorf("write linking object: %w", err)
 	}
 
 	return rootID, nil
@@ -297,6 +167,10 @@ func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
 // InitPayloadStream works similar to Slice but provides PayloadWriter allowing
 // the caller to write data himself.
 func (x *Slicer) InitPayloadStream(attributes ...string) (*PayloadWriter, error) {
+	if len(attributes)%2 != 0 {
+		return nil, ErrInvalidAttributeAmount
+	}
+
 	res := &PayloadWriter{
 		stream:       x.w,
 		signer:       x.signer,
