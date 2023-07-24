@@ -11,11 +11,9 @@ import (
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/slicer"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -312,92 +310,4 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	}
 
 	return &w, nil
-}
-
-type objectWriter struct {
-	context context.Context
-	client  *Client
-}
-
-func (x *objectWriter) InitDataStream(header object.Object, signer user.Signer) (io.Writer, error) {
-	var prm PrmObjectPutInit
-
-	stream, err := x.client.ObjectPutInit(x.context, header, signer, prm)
-	if err != nil {
-		return nil, fmt.Errorf("init object stream: %w", err)
-	}
-
-	return &payloadWriter{
-		stream: stream,
-	}, nil
-}
-
-type payloadWriter struct {
-	stream ObjectWriter
-}
-
-func (x *payloadWriter) Write(p []byte) (int, error) {
-	if _, err := x.stream.Write(p); err != nil {
-		// returning x.Close() error instead of err. Because x.Close() make extra work.
-		return 0, x.Close()
-	}
-
-	return len(p), nil
-}
-
-func (x *payloadWriter) Close() error {
-	return x.stream.Close()
-}
-
-// CreateObject creates new NeoFS object with given payload data and stores it
-// in specified container of the NeoFS network using provided Client connection.
-// The object is created on behalf of provided neofscrypto.Signer, and owned by
-// the specified user.ID.
-//
-// In terms of NeoFS, parameterized neofscrypto.Signer represents object owner,
-// object signer and request sender. Container SHOULD be public-write or sender
-// SHOULD have corresponding rights.
-//
-// Client connection MUST be opened in advance, see Dial method for details.
-// Network communication is carried out within a given context, so it MUST NOT
-// be nil.
-//
-// Notice: This API is EXPERIMENTAL and is planned to be replaced/changed in the
-// future. Be ready to refactor your code regarding imports and call mechanics,
-// in essence the operation will not change.
-func CreateObject(ctx context.Context, cli *Client, signer user.Signer, cnr cid.ID, owner user.ID, data io.Reader, attributes ...string) (oid.ID, error) {
-	s, err := NewDataSlicer(ctx, cli, signer, cnr, owner)
-	if err != nil {
-		return oid.ID{}, err
-	}
-
-	return s.Slice(data, attributes...)
-}
-
-// NewDataSlicer creates slicer.Slicer that saves data in the NeoFS network
-// through provided Client. The data is packaged into NeoFS objects stored in
-// the specified container. Provided signer is being used to sign the resulting
-// objects as a system requirement. Produced objects are owned by the
-// parameterized NeoFS user.
-//
-// Notice: This API is EXPERIMENTAL and is planned to be replaced/changed in the
-// future. Be ready to refactor your code regarding imports and call mechanics,
-// in essence the operation will not change.
-func NewDataSlicer(ctx context.Context, cli *Client, signer user.Signer, cnr cid.ID, owner user.ID) (*slicer.Slicer, error) {
-	netInfo, err := cli.NetworkInfo(ctx, PrmNetworkInfo{})
-	if err != nil {
-		return nil, fmt.Errorf("read current network info: %w", err)
-	}
-
-	var opts slicer.Options
-	opts.SetObjectPayloadLimit(netInfo.MaxObjectSize())
-	opts.SetCurrentNeoFSEpoch(netInfo.CurrentEpoch())
-	if !netInfo.HomomorphicHashingDisabled() {
-		opts.CalculateHomomorphicChecksum()
-	}
-
-	return slicer.New(signer, cnr, owner, &objectWriter{
-		context: ctx,
-		client:  cli,
-	}, opts), nil
 }
