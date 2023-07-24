@@ -2,6 +2,7 @@ package slicer_test
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	cryptorand "crypto/rand"
@@ -14,6 +15,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
@@ -120,7 +122,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 
 type discardObject struct{}
 
-func (discardObject) InitDataStream(object.Object, user.Signer) (io.Writer, error) {
+func (discardObject) ObjectPutInit(context.Context, object.Object, user.Signer, client.PrmObjectPutInit) (client.ObjectWriter, error) {
 	return discardPayload{}, nil
 }
 
@@ -128,6 +130,14 @@ type discardPayload struct{}
 
 func (discardPayload) Write(p []byte) (n int, err error) {
 	return len(p), nil
+}
+
+func (discardPayload) Close() error {
+	return nil
+}
+
+func (discardPayload) GetResult() client.ResObjectPut {
+	return client.ResObjectPut{}
 }
 
 type input struct {
@@ -250,7 +260,7 @@ type slicedObjectChecker struct {
 	chainCollector *chainCollector
 }
 
-func (x *slicedObjectChecker) InitDataStream(hdr object.Object, _ user.Signer) (io.Writer, error) {
+func (x *slicedObjectChecker) ObjectPutInit(_ context.Context, hdr object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
 	checkStaticMetadata(x.tb, hdr, x.input)
 
 	buf := bytes.NewBuffer(nil)
@@ -269,7 +279,7 @@ type writeSizeChecker struct {
 	payloadSeen bool
 }
 
-func newSizeChecker(tb testing.TB, hdr object.Object, base io.Writer, sizeLimit uint64) io.Writer {
+func newSizeChecker(tb testing.TB, hdr object.Object, base io.Writer, sizeLimit uint64) *writeSizeChecker {
 	return &writeSizeChecker{
 		tb:    tb,
 		hdr:   hdr,
@@ -302,6 +312,10 @@ func (x *writeSizeChecker) Write(p []byte) (int, error) {
 func (x *writeSizeChecker) Close() error {
 	require.LessOrEqual(x.tb, x.processed, x.limit, "object payload must not overflow the limit")
 	return nil
+}
+
+func (x *writeSizeChecker) GetResult() client.ResObjectPut {
+	return client.ResObjectPut{}
 }
 
 type payloadWithChecksum struct {
@@ -509,7 +523,7 @@ type memoryWriter struct {
 	splitID *object.SplitID
 }
 
-func (w *memoryWriter) InitDataStream(hdr object.Object, _ user.Signer) (io.Writer, error) {
+func (w *memoryWriter) ObjectPutInit(_ context.Context, hdr object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
 	w.headers = append(w.headers, hdr)
 	if w.splitID == nil && hdr.SplitID() != nil {
 		w.splitID = hdr.SplitID()
@@ -523,6 +537,14 @@ type memoryPayload struct {
 
 func (p *memoryPayload) Write(data []byte) (int, error) {
 	return len(data), nil
+}
+
+func (p *memoryPayload) Close() error {
+	return nil
+}
+
+func (p *memoryPayload) GetResult() client.ResObjectPut {
+	return client.ResObjectPut{}
 }
 
 func TestSlicedObjectsHaveSplitID(t *testing.T) {

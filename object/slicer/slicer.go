@@ -2,6 +2,7 @@ package slicer
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"io"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -26,13 +28,13 @@ var (
 
 // ObjectWriter represents a virtual object recorder.
 type ObjectWriter interface {
-	// InitDataStream initializes and returns a stream of writable data associated
+	// ObjectPutInit initializes and returns a stream of writable data associated
 	// with the object according to its header. Provided header includes at least
 	// container, owner and object ID fields.
 	//
 	// Signer is required and must not be nil. The operation is executed on behalf of
 	// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
-	InitDataStream(header object.Object, signer user.Signer) (dataStream io.Writer, err error)
+	ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (client.ObjectWriter, error)
 }
 
 // Slicer converts input raw data streams into NeoFS objects. Working Slicer
@@ -349,7 +351,7 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		}
 	}
 
-	id, err := writeInMemObject(x.signer, x.stream, obj, x.buf.Bytes(), meta)
+	id, err := writeInMemObject(x.signer, x.stream, obj, x.buf.Bytes(), meta, x.sessionToken)
 	if err != nil {
 		return fmt.Errorf("write formed object: %w", err)
 	}
@@ -361,7 +363,7 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		obj.ResetPreviousID()
 		obj.SetChildren(x.writtenChildren...)
 
-		_, err = writeInMemObject(x.signer, x.stream, obj, nil, meta)
+		_, err = writeInMemObject(x.signer, x.stream, obj, nil, meta, x.sessionToken)
 		if err != nil {
 			return fmt.Errorf("write linking object: %w", err)
 		}
@@ -413,13 +415,18 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	return id, nil
 }
 
-func writeInMemObject(signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata) (oid.ID, error) {
+func writeInMemObject(signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata, session *session.Object) (oid.ID, error) {
 	id, err := flushObjectMetadata(signer, meta, &header)
 	if err != nil {
 		return id, err
 	}
 
-	stream, err := w.InitDataStream(header, signer)
+	var prm client.PrmObjectPutInit
+	if session != nil {
+		prm.WithinSession(*session)
+	}
+
+	stream, err := w.ObjectPutInit(context.TODO(), header, signer, prm)
 	if err != nil {
 		return id, fmt.Errorf("init data stream for next object: %w", err)
 	}
