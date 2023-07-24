@@ -130,7 +130,7 @@ func (x *Slicer) childPayloadSizeLimit() uint64 {
 // '__NEOFS__' prefix.
 //
 // See New for details.
-func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
+func (x *Slicer) Slice(data io.Reader, attributes ...object.Attribute) (oid.ID, error) {
 	var rootID oid.ID
 
 	writer, err := x.InitPayloadStream(attributes...)
@@ -168,11 +168,7 @@ func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
 
 // InitPayloadStream works similar to Slice but provides PayloadWriter allowing
 // the caller to write data himself.
-func (x *Slicer) InitPayloadStream(attributes ...string) (*PayloadWriter, error) {
-	if len(attributes)%2 != 0 {
-		return nil, ErrInvalidAttributeAmount
-	}
-
+func (x *Slicer) InitPayloadStream(attributes ...object.Attribute) (*PayloadWriter, error) {
 	res := &PayloadWriter{
 		stream:       x.w,
 		signer:       x.signer,
@@ -203,7 +199,7 @@ type PayloadWriter struct {
 	owner        user.ID
 	currentEpoch uint64
 	sessionToken *session.Object
-	attributes   []string
+	attributes   []object.Attribute
 
 	buf bytes.Buffer
 
@@ -324,17 +320,7 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		}
 
 		fCommon(rootObj)
-
-		if len(x.attributes) > 0 {
-			attrs := make([]object.Attribute, len(x.attributes)/2)
-
-			for i := 0; i < len(attrs); i++ {
-				attrs[i].SetKey(x.attributes[2*i])
-				attrs[i].SetValue(x.attributes[2*i+1])
-			}
-
-			rootObj.SetAttributes(attrs...)
-		}
+		rootObj.SetAttributes(x.attributes...)
 
 		rootID, err := flushObjectMetadata(x.signer, x.rootMeta, rootObj)
 		if err != nil {

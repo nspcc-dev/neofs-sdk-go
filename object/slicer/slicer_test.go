@@ -148,7 +148,7 @@ type input struct {
 	payloadLimit uint64
 	sessionToken *session.Object
 	payload      []byte
-	attributes   []string
+	attributes   []object.Attribute
 	withHomo     bool
 }
 
@@ -165,11 +165,14 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	}
 
 	attrNum := rand.Int() % 5
-	attrs := make([]string, 2*attrNum)
+	attrs := make([]object.Attribute, attrNum)
 
-	for i := 0; i < len(attrs); i += 2 {
-		attrs[i] = base64.StdEncoding.EncodeToString(randomData(32))
-		attrs[i+1] = base64.StdEncoding.EncodeToString(randomData(32))
+	for i := 0; i < attrNum; i++ {
+		var attr object.Attribute
+		attr.SetKey(base64.StdEncoding.EncodeToString(randomData(32)))
+		attr.SetValue(base64.StdEncoding.EncodeToString(randomData(32)))
+
+		attrs = append(attrs, attr)
 	}
 
 	var in input
@@ -508,10 +511,10 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 	checkStaticMetadata(x.tb, rootObj, in)
 
 	attrs := rootObj.Attributes()
-	require.Len(x.tb, attrs, len(in.attributes)/2)
+	require.Len(x.tb, attrs, len(in.attributes))
 	for i := range attrs {
-		require.Equal(x.tb, in.attributes[2*i], attrs[i].Key())
-		require.Equal(x.tb, in.attributes[2*i+1], attrs[i].Value())
+		require.Equal(x.tb, in.attributes[i].Key(), attrs[i].Key())
+		require.Equal(x.tb, in.attributes[i].Value(), attrs[i].Value())
 	}
 
 	require.Equal(x.tb, in.payload, rootObj.Payload())
