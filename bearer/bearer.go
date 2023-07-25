@@ -354,7 +354,8 @@ func (b Token) SigningKeyBytes() []byte {
 // Returns zero user.ID if Token is unsigned or key has incorrect format.
 //
 // See also SigningKeyBytes.
-func ResolveIssuer(b Token) (usr user.ID) {
+func (b Token) ResolveIssuer() user.ID {
+	var usr user.ID
 	binKey := b.SigningKeyBytes()
 
 	if len(binKey) != 0 {
@@ -363,5 +364,5 @@ func ResolveIssuer(b Token) (usr user.ID) {
 		}
 	}
 
-	return
+	return usr
 }

@@ -360,7 +360,7 @@ func TestResolveIssuer(t *testing.T) {
 
 	var val bearer.Token
 
-	require.Zero(t, bearer.ResolveIssuer(val))
+	require.Zero(t, val.ResolveIssuer())
 
 	var m acl.BearerToken
 
@@ -371,11 +371,11 @@ func TestResolveIssuer(t *testing.T) {
 
 	require.NoError(t, val.Unmarshal(m.StableMarshal(nil)))
 
-	require.Zero(t, bearer.ResolveIssuer(val))
+	require.Zero(t, val.ResolveIssuer())
 
 	require.NoError(t, val.Sign(signer))
 
 	usr := signer.UserID()
 
-	require.Equal(t, usr, bearer.ResolveIssuer(val))
+	require.Equal(t, usr, val.ResolveIssuer())
 }
