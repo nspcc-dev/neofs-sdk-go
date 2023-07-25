@@ -216,8 +216,8 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 
 		downloadedPayload := make([]byte, len(payload))
 
-		l, ok := read.ReadChunk(downloadedPayload)
-		require.True(t, ok)
+		l, err := read.Read(downloadedPayload)
+		require.NoError(t, err)
 		require.Equal(t, l, len(payload))
 
 		require.True(t, bytes.Equal(payload, downloadedPayload))
@@ -340,8 +340,8 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 
 		downloadedPayload := make([]byte, len(payload))
 
-		l, ok := read.ReadChunk(downloadedPayload)
-		require.True(t, ok)
+		l, err := read.Read(downloadedPayload)
+		require.NoError(t, err)
 		require.Equal(t, l, len(payload))
 
 		require.True(t, bytes.Equal(payload, downloadedPayload))
@@ -495,8 +495,8 @@ func TestClientWaiterWithAIO(t *testing.T) {
 
 		downloadedPayload := make([]byte, len(payload))
 
-		l, ok := read.ReadChunk(downloadedPayload)
-		require.True(t, ok)
+		l, err := read.Read(downloadedPayload)
+		require.NoError(t, err)
 		require.Equal(t, l, len(payload))
 
 		require.True(t, bytes.Equal(payload, downloadedPayload))
