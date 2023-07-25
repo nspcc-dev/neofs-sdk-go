@@ -18,10 +18,16 @@ var (
 	errContainerRequired = errors.New("container required")
 )
 
-func initSession(ctx context.Context, dst *session.Object, c *client.Client, dur uint64, signer neofscrypto.Signer) error {
+func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer neofscrypto.Signer) (session.Object, error) {
+	tok := c.nodeSession.GetNodeSession()
+	if tok != nil {
+		return *tok, nil
+	}
+
+	var dst session.Object
 	ni, err := c.NetworkInfo(ctx, client.PrmNetworkInfo{})
 	if err != nil {
-		return err
+		return dst, err
 	}
 
 	epoch := ni.CurrentEpoch()
@@ -39,29 +45,31 @@ func initSession(ctx context.Context, dst *session.Object, c *client.Client, dur
 	res, err := c.SessionCreate(ctx, signer, prm)
 
 	if err != nil {
-		return err
+		return dst, err
 	}
 
 	var id uuid.UUID
 	if err = id.UnmarshalBinary(res.ID()); err != nil {
-		return fmt.Errorf("invalid session token ID: %w", err)
+		return dst, fmt.Errorf("invalid session token ID: %w", err)
 	}
 
 	var key neofsecdsa.PublicKey
 	if err = key.Decode(res.PublicKey()); err != nil {
-		return fmt.Errorf("invalid public session key: %w", err)
+		return dst, fmt.Errorf("invalid public session key: %w", err)
 	}
 
 	dst.SetID(id)
 	dst.SetAuthKey(&key)
 	dst.SetExp(exp)
 
-	return nil
+	c.nodeSession.SetNodeSession(&dst)
+
+	return dst, nil
 }
 
 func (p *Pool) withinContainerSession(
 	ctx context.Context,
-	c *client.Client,
+	c *sdkClientWrapper,
 	containerID cid.ID,
 	signer neofscrypto.Signer,
 	verb session.ObjectVerb,
@@ -72,26 +80,26 @@ func (p *Pool) withinContainerSession(
 		return nil
 	}
 
-	cacheKey := formCacheKey(fmt.Sprintf("%p", c), signer)
+	cacheKey := cacheKeyForSession(c.addr, signer, verb, containerID)
 
 	tok, ok := p.cache.Get(cacheKey)
 	if !ok {
-		// init new session
-		err = initSession(ctx, &tok, c, p.stokenDuration, signer)
+		// init new session or take base session data from cache
+		tok, err = initSession(ctx, c, p.stokenDuration, signer)
 		if err != nil {
 			return fmt.Errorf("init session: %w", err)
 		}
 
+		tok.ForVerb(verb)
+		tok.BindContainer(containerID)
+
+		// sign the token
+		if err = tok.Sign(signer); err != nil {
+			return fmt.Errorf("sign token: %w", err)
+		}
+
 		// cache the opened session
 		p.cache.Put(cacheKey, tok)
-	}
-
-	tok.ForVerb(verb)
-	tok.BindContainer(containerID)
-
-	// sign the token
-	if err := tok.Sign(signer); err != nil {
-		return fmt.Errorf("sign token: %w", err)
 	}
 
 	params.WithinSession(tok)

@@ -38,6 +38,21 @@ var (
 	relationsGet = relations.Get
 )
 
+type sdkClientWrapper struct {
+	*sdkClient.Client
+
+	nodeSession nodeSessionContainer
+	addr        string
+}
+
+// nodeSessionContainer represents storage for a session token. It contains only basics session info: id, pub key, expiration.
+// This token is used for the final session tokens creation for specific verb. This token is 1:1 for each node.
+// Should be stored until token not expired.
+type nodeSessionContainer interface {
+	SetNodeSession(*session.Object)
+	GetNodeSession() *session.Object
+}
+
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
@@ -77,6 +92,7 @@ type internalClient interface {
 
 	clientStatus
 	statisticUpdater
+	nodeSessionContainer
 
 	// see clientWrapper.dial.
 	dial(ctx context.Context) error
@@ -136,6 +152,11 @@ type clientWrapper struct {
 
 	clientStatusMonitor
 	statisticCallback stat.OperationCallback
+
+	nodeSessionMutex sync.RWMutex
+	nodeSession      *session.Object
+
+	epoch atomic.Uint64
 }
 
 // wrapperPrm is params to create clientWrapper.
@@ -198,9 +219,24 @@ func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sd
 func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	res := &clientWrapper{
 		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
-		prm:                 prm,
 		statisticCallback:   prm.statisticCallback,
 	}
+
+	oldCallBack := prm.responseInfoCallback
+	prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
+		newEpoch := info.Epoch()
+		if newEpoch > res.epoch.Load() {
+			res.epoch.Store(newEpoch)
+		}
+
+		if oldCallBack != nil {
+			return oldCallBack(info)
+		}
+
+		return nil
+	})
+
+	res.prm = prm
 
 	// integrate clientWrapper middleware to handle errors and wrapped client health.
 	cl, err := prm.getNewClient(res.statisticMiddleware)
@@ -719,6 +755,28 @@ func (c *clientWrapper) sessionCreate(ctx context.Context, signer neofscrypto.Si
 		id:         res.ID(),
 		sessionKey: res.PublicKey(),
 	}, nil
+}
+
+func (c *clientWrapper) SetNodeSession(token *session.Object) {
+	c.nodeSessionMutex.Lock()
+	c.nodeSession = token
+	c.nodeSessionMutex.Unlock()
+}
+
+func (c *clientWrapper) GetNodeSession() *session.Object {
+	c.nodeSessionMutex.RLock()
+	defer c.nodeSessionMutex.RUnlock()
+
+	if c.nodeSession == nil {
+		return nil
+	}
+
+	if c.nodeSession.ExpiredAt(c.epoch.Load()) {
+		return nil
+	}
+
+	token := *c.nodeSession
+	return &token
 }
 
 func (c *clientStatusMonitor) isHealthy() bool {
@@ -1525,6 +1583,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 			} else {
 				bufferWeights[j] = 0
 				p.cache.DeleteByPrefix(cli.address())
+				cli.SetNodeSession(nil)
 			}
 
 			if changed {
@@ -1597,13 +1656,23 @@ func formCacheKey(address string, signer neofscrypto.Signer) string {
 	return address + string(b)
 }
 
-func (p *Pool) checkSessionTokenErr(err error, address string) bool {
+// cacheKeyForSession generates cache key for a signed session token.
+// It is used with pool methods compatible with [sdkClient.Client].
+func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.ObjectVerb, cnr cid.ID) string {
+	b := make([]byte, signer.Public().MaxEncodedSize())
+	signer.Public().Encode(b)
+
+	return fmt.Sprintf("%s%s%d%s", address, b, verb, cnr)
+}
+
+func (p *Pool) checkSessionTokenErr(err error, address string, cl internalClient) bool {
 	if err == nil {
 		return false
 	}
 
 	if errors.Is(err, apistatus.ErrSessionTokenNotFound) || errors.Is(err, apistatus.ErrSessionTokenExpired) {
 		p.cache.DeleteByPrefix(address)
+		cl.SetNodeSession(nil)
 		return true
 	}
 
@@ -1752,7 +1821,7 @@ func (p *Pool) call(ctx *callContext, f func() error) error {
 	}
 
 	err = f()
-	_ = p.checkSessionTokenErr(err, ctx.endpoint)
+	_ = p.checkSessionTokenErr(err, ctx.endpoint, ctx.client)
 
 	return err
 }
@@ -1796,7 +1865,7 @@ func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) 
 	id, err := ctxCall.client.objectPut(ctx, prm.signer, prm)
 	if err != nil {
 		// removes session token from cache in case of token error
-		p.checkSessionTokenErr(err, ctxCall.endpoint)
+		p.checkSessionTokenErr(err, ctxCall.endpoint, ctxCall.client)
 		return id, fmt.Errorf("init writing on API client: %w", err)
 	}
 
@@ -2206,7 +2275,7 @@ func (p *Pool) Close() {
 	<-p.closedCh
 }
 
-func (p *Pool) sdkClient() (*sdkClient.Client, error) {
+func (p *Pool) sdkClient() (*sdkClientWrapper, error) {
 	conn, err := p.connection()
 	if err != nil {
 		return nil, fmt.Errorf("connection: %w", err)
@@ -2217,7 +2286,11 @@ func (p *Pool) sdkClient() (*sdkClient.Client, error) {
 		return nil, fmt.Errorf("get client: %w", err)
 	}
 
-	return cl, nil
+	return &sdkClientWrapper{
+		Client:      cl,
+		nodeSession: conn,
+		addr:        conn.address(),
+	}, nil
 }
 
 func (p *Pool) statisticMiddleware(nodeKey []byte, endpoint string, method stat.Method, duration time.Duration, err error) {

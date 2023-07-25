@@ -199,3 +199,10 @@ func (m *mockClient) restartIfUnhealthy(ctx context.Context) (healthy bool, chan
 func (m *mockClient) getClient() (*sdkClient.Client, error) {
 	return nil, errors.New("now supported to return sdkClient from mockClient")
 }
+
+func (m *mockClient) SetNodeSession(*session.Object) {
+}
+
+func (m *mockClient) GetNodeSession() *session.Object {
+	return nil
+}
