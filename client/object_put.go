@@ -261,7 +261,7 @@ func (x *ObjectWriter) Close() (*ResObjectPut, error) {
 //
 // Returns errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer neofscrypto.Signer, prm PrmObjectPutInit) (*ObjectWriter, error) {
+func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm PrmObjectPutInit) (*ObjectWriter, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodObjectPut, err)()
@@ -305,7 +305,7 @@ type objectWriter struct {
 	client  *Client
 }
 
-func (x *objectWriter) InitDataStream(header object.Object, signer neofscrypto.Signer) (io.Writer, error) {
+func (x *objectWriter) InitDataStream(header object.Object, signer user.Signer) (io.Writer, error) {
 	var prm PrmObjectPutInit
 
 	stream, err := x.client.ObjectPutInit(x.context, header, signer, prm)
@@ -355,7 +355,7 @@ func (x *payloadWriter) Close() error {
 // Notice: This API is EXPERIMENTAL and is planned to be replaced/changed in the
 // future. Be ready to refactor your code regarding imports and call mechanics,
 // in essence the operation will not change.
-func CreateObject(ctx context.Context, cli *Client, signer neofscrypto.Signer, cnr cid.ID, owner user.ID, data io.Reader, attributes ...string) (oid.ID, error) {
+func CreateObject(ctx context.Context, cli *Client, signer user.Signer, cnr cid.ID, owner user.ID, data io.Reader, attributes ...string) (oid.ID, error) {
 	s, err := NewDataSlicer(ctx, cli, signer, cnr, owner)
 	if err != nil {
 		return oid.ID{}, err
@@ -373,7 +373,7 @@ func CreateObject(ctx context.Context, cli *Client, signer neofscrypto.Signer, c
 // Notice: This API is EXPERIMENTAL and is planned to be replaced/changed in the
 // future. Be ready to refactor your code regarding imports and call mechanics,
 // in essence the operation will not change.
-func NewDataSlicer(ctx context.Context, cli *Client, signer neofscrypto.Signer, cnr cid.ID, owner user.ID) (*slicer.Slicer, error) {
+func NewDataSlicer(ctx context.Context, cli *Client, signer user.Signer, cnr cid.ID, owner user.ID) (*slicer.Slicer, error) {
 	netInfo, err := cli.NetworkInfo(ctx, PrmNetworkInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("read current network info: %w", err)

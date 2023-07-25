@@ -74,7 +74,7 @@ func (p *Pool) ContainerEACL(ctx context.Context, id cid.ID, prm client.PrmConta
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // See details in [client.Client.ContainerSetEACL].
-func (p *Pool) ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm client.PrmContainerSetEACL) error {
+func (p *Pool) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm client.PrmContainerSetEACL) error {
 	c, err := p.sdkClient()
 	if err != nil {
 		return err

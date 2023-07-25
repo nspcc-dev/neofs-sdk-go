@@ -32,13 +32,13 @@ type ObjectWriter interface {
 	//
 	// Signer is required and must not be nil. The operation is executed on behalf of
 	// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
-	InitDataStream(header object.Object, signer neofscrypto.Signer) (dataStream io.Writer, err error)
+	InitDataStream(header object.Object, signer user.Signer) (dataStream io.Writer, err error)
 }
 
 // Slicer converts input raw data streams into NeoFS objects. Working Slicer
 // must be constructed via New.
 type Slicer struct {
-	signer neofscrypto.Signer
+	signer user.Signer
 
 	cnr cid.ID
 
@@ -79,7 +79,7 @@ type Slicer struct {
 // written to the metadata of all resulting objects as a creation epoch.
 //
 // See also NewSession.
-func New(signer neofscrypto.Signer, cnr cid.ID, owner user.ID, w ObjectWriter, opts Options) *Slicer {
+func New(signer user.Signer, cnr cid.ID, owner user.ID, w ObjectWriter, opts Options) *Slicer {
 	return &Slicer{
 		signer: signer,
 		cnr:    cnr,
@@ -94,7 +94,7 @@ func New(signer neofscrypto.Signer, cnr cid.ID, owner user.ID, w ObjectWriter, o
 // the produced objects. Specified session token is written to the metadata of
 // all resulting objects. In this case, the object is considered to be created
 // by a proxy on behalf of the session issuer.
-func NewSession(signer neofscrypto.Signer, cnr cid.ID, token session.Object, w ObjectWriter, opts Options) *Slicer {
+func NewSession(signer user.Signer, cnr cid.ID, token session.Object, w ObjectWriter, opts Options) *Slicer {
 	return &Slicer{
 		signer:       signer,
 		cnr:          cnr,
@@ -322,7 +322,7 @@ type PayloadWriter struct {
 
 	rootID oid.ID
 
-	signer       neofscrypto.Signer
+	signer       user.Signer
 	container    cid.ID
 	owner        user.ID
 	currentEpoch uint64
@@ -539,7 +539,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	return id, nil
 }
 
-func writeInMemObject(signer neofscrypto.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata) (oid.ID, error) {
+func writeInMemObject(signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata) (oid.ID, error) {
 	id, err := flushObjectMetadata(signer, meta, &header)
 	if err != nil {
 		return id, err

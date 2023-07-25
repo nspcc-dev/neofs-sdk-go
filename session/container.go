@@ -135,7 +135,7 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 // expected to be calculated as a final stage of Container formation.
 //
 // See also VerifySignature.
-func (x *Container) Sign(signer neofscrypto.Signer) error {
+func (x *Container) Sign(signer user.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 

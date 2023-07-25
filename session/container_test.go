@@ -270,8 +270,7 @@ func TestContainer_WriteToV2(t *testing.T) {
 
 	require.NoError(t, val.Sign(signer))
 
-	var usr user.ID
-	require.NoError(t, user.IDFromSigner(&usr, signer))
+	usr := signer.UserID()
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -516,7 +515,7 @@ func TestIssuedBy(t *testing.T) {
 		signer = test.RandomSignerRFC6979(t)
 	)
 
-	require.NoError(t, user.IDFromSigner(&issuer, signer))
+	issuer = signer.UserID()
 
 	require.False(t, session.IssuedBy(token, issuer))
 
@@ -533,16 +532,13 @@ func TestContainer_Issuer(t *testing.T) {
 		require.Zero(t, token.Issuer())
 		require.NoError(t, token.Sign(signer))
 
-		var issuer user.ID
-
-		require.NoError(t, user.IDFromSigner(&issuer, signer))
+		issuer := signer.UserID()
 		require.True(t, token.Issuer().Equals(issuer))
 	})
 
 	t.Run("external", func(t *testing.T) {
-		var issuer user.ID
 		signer := test.RandomSignerRFC6979(t)
-		require.NoError(t, user.IDFromSigner(&issuer, signer))
+		issuer := signer.UserID()
 
 		token.SetIssuer(issuer)
 		require.True(t, token.Issuer().Equals(issuer))

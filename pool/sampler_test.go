@@ -63,7 +63,7 @@ func TestHealthyReweight(t *testing.T) {
 	p := &Pool{
 		innerPools:      []*innerPool{inner},
 		cache:           cache,
-		signer:          test.RandomSigner(t),
+		signer:          test.RandomSignerRFC6979(t),
 		rebalanceParams: rebalanceParameters{nodesParams: []*nodesParam{{weights: weights}}},
 	}
 

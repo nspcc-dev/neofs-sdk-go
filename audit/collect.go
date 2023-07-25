@@ -8,11 +8,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/tzhash/tz"
 )
 
@@ -27,7 +27,7 @@ func CollectMembers(
 	members []oid.ID,
 	tokens relations.Tokens,
 	calcHomoHash bool,
-	signer neofscrypto.Signer,
+	signer user.Signer,
 ) (*storagegroup.StorageGroup, error) {
 	var (
 		err        error

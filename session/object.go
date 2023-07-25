@@ -7,8 +7,8 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Object represents token of the NeoFS Object session. A session is opened
@@ -162,7 +162,7 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 // expected to be calculated as a final stage of Object formation.
 //
 // See also VerifySignature.
-func (x *Object) Sign(signer neofscrypto.Signer) error {
+func (x *Object) Sign(signer user.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 

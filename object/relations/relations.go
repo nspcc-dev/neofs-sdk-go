@@ -8,10 +8,10 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Tokens contains different tokens to perform requests in Relations implementations.
@@ -30,12 +30,12 @@ var (
 
 // HeadExecutor describes methods to get object head.
 type HeadExecutor interface {
-	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error)
+	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error)
 }
 
 // SearchExecutor describes methods to search objects.
 type SearchExecutor interface {
-	ObjectSearchInit(ctx context.Context, containerID cid.ID, signer neofscrypto.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error)
+	ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error)
 }
 
 // Executor describes all methods required to find all siblings for object.
@@ -48,7 +48,7 @@ type Executor interface {
 // If linking object is found its id will be returned in the second result variable.
 //
 // Result doesn't include root object ID itself.
-func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectID oid.ID, tokens Tokens, signer neofscrypto.Signer) ([]oid.ID, *oid.ID, error) {
+func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectID oid.ID, tokens Tokens, signer user.Signer) ([]oid.ID, *oid.ID, error) {
 	splitInfo, err := getSplitInfo(ctx, executor, containerID, rootObjectID, tokens, signer)
 	if err != nil {
 		if errors.Is(err, ErrNoSplitInfo) {
@@ -122,7 +122,7 @@ func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectI
 	return chain, nil, nil
 }
 
-func getSplitInfo(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer neofscrypto.Signer) (*object.SplitInfo, error) {
+func getSplitInfo(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer user.Signer) (*object.SplitInfo, error) {
 	var prmHead client.PrmObjectHead
 	if tokens.Bearer != nil {
 		prmHead.WithBearerToken(*tokens.Bearer)
@@ -165,7 +165,7 @@ func getSplitInfo(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID 
 	return si, nil
 }
 
-func findSiblingByParentID(ctx context.Context, searcher SearchExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer neofscrypto.Signer) ([]oid.ID, error) {
+func findSiblingByParentID(ctx context.Context, searcher SearchExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer user.Signer) ([]oid.ID, error) {
 	var query object.SearchFilters
 	var prm client.PrmObjectSearch
 
@@ -197,7 +197,7 @@ func findSiblingByParentID(ctx context.Context, searcher SearchExecutor, cnrID c
 	return res, nil
 }
 
-func listChildrenByLinker(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer neofscrypto.Signer) ([]oid.ID, error) {
+func listChildrenByLinker(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer user.Signer) ([]oid.ID, error) {
 	var prm client.PrmObjectHead
 	if tokens.Bearer != nil {
 		prm.WithBearerToken(*tokens.Bearer)
@@ -219,7 +219,7 @@ func listChildrenByLinker(ctx context.Context, header HeadExecutor, cnrID cid.ID
 	return hdr.Children(), nil
 }
 
-func getLeftSibling(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer neofscrypto.Signer) (oid.ID, error) {
+func getLeftSibling(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID oid.ID, tokens Tokens, signer user.Signer) (oid.ID, error) {
 	var prm client.PrmObjectHead
 	if tokens.Bearer != nil {
 		prm.WithBearerToken(*tokens.Bearer)

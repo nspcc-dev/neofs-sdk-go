@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,11 +24,11 @@ func RandomSigner(tb testing.TB) neofscrypto.Signer {
 	return neofsecdsa.Signer(p.PrivateKey)
 }
 
-// RandomSignerRFC6979 return neofscrypto.Signer ONLY for TESTs purposes.
-// It may be used like helper to get new neofscrypto.Signer if you need it in yours tests.
-func RandomSignerRFC6979(tb testing.TB) neofscrypto.Signer {
+// RandomSignerRFC6979 return [user.Signer] ONLY for TESTs purposes.
+// It may be used like helper to get new [user.Signer] if you need it in yours tests.
+func RandomSignerRFC6979(tb testing.TB) user.Signer {
 	p, err := keys.NewPrivateKey()
 	require.NoError(tb, err)
 
-	return neofsecdsa.SignerRFC6979(p.PrivateKey)
+	return user.NewSignerRFC6979(p.PrivateKey)
 }

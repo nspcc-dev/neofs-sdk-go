@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
 // ErrOwnerExtract is returned when failed to extract account info from key.
@@ -20,14 +19,4 @@ func IDFromKey(id *ID, key []byte) error {
 
 	id.SetScriptHash(pk.GetScriptHash())
 	return nil
-}
-
-// IDFromSigner forms the ID using script hash calculated for the given key.
-func IDFromSigner(id *ID, signer neofscrypto.Signer) error {
-	public := signer.Public()
-
-	key := make([]byte, public.MaxEncodedSize())
-	key = key[:public.Encode(key)]
-
-	return IDFromKey(id, key)
 }

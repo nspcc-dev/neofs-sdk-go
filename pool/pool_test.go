@@ -132,7 +132,7 @@ func TestBuildPoolNoSigner(t *testing.T) {
 
 func TestBuildPoolWrongSigner(t *testing.T) {
 	opts := InitParameters{
-		signer: test.RandomSigner(t),
+		signer: test.RandomSignerRFC6979(t),
 	}
 	_, err := NewPool(opts)
 	require.Error(t, err)
@@ -430,7 +430,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	anonKey := test.RandomSignerRFC6979(t)
 	prm.UseSigner(anonKey)
 
-	relationsGet = func(context.Context, relations.Executor, cid.ID, oid.ID, relations.Tokens, neofscrypto.Signer) ([]oid.ID, *oid.ID, error) {
+	relationsGet = func(context.Context, relations.Executor, cid.ID, oid.ID, relations.Tokens, user.Signer) ([]oid.ID, *oid.ID, error) {
 		return nil, nil, nil
 	}
 
@@ -464,8 +464,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	t.Cleanup(p.Close)
 
 	anonKey := test.RandomSignerRFC6979(t)
-	var anonOwner user.ID
-	require.NoError(t, user.IDFromSigner(&anonOwner, anonKey))
+	anonOwner := anonKey.UserID()
 
 	var prm prmCommon
 	prm.UseSigner(anonKey)

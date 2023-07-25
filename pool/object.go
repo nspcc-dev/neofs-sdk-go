@@ -6,10 +6,10 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 type containerSessionParams interface {
@@ -17,7 +17,7 @@ type containerSessionParams interface {
 	WithinSession(session.Object)
 }
 
-func (p *Pool) actualSigner(signer neofscrypto.Signer) neofscrypto.Signer {
+func (p *Pool) actualSigner(signer user.Signer) user.Signer {
 	if signer != nil {
 		return signer
 	}
@@ -30,7 +30,7 @@ func (p *Pool) actualSigner(signer neofscrypto.Signer) neofscrypto.Signer {
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectPutInit].
-func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer neofscrypto.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
+func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
@@ -60,7 +60,7 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer neof
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectGetInit].
-func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
+func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
 	var hdr object.Object
 	c, err := p.sdkClient()
 	if err != nil {
@@ -85,7 +85,7 @@ func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID o
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectHead].
-func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error) {
+func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectRangeInit].
-func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer neofscrypto.Signer, prm client.PrmObjectRange) (*client.ObjectRangeReader, error) {
+func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm client.PrmObjectRange) (*client.ObjectRangeReader, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
@@ -133,7 +133,7 @@ func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectDelete].
-func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectDelete) (oid.ID, error) {
+func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectDelete) (oid.ID, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return oid.ID{}, err
@@ -157,7 +157,7 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectHash].
-func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectHash) ([][]byte, error) {
+func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHash) ([][]byte, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return [][]byte{}, err
@@ -181,7 +181,7 @@ func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectSearchInit].
-func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer neofscrypto.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error) {
+func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err

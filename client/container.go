@@ -498,7 +498,7 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //   - [ErrMissingSigner]
 //
 // Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm PrmContainerSetEACL) error {
+func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodContainerSetEACL, err)()

@@ -153,12 +153,9 @@ func (x commonData) signedData(w contextWriter) []byte {
 	return x.fillBody(w).StableMarshal(nil)
 }
 
-func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
+func (x *commonData) sign(signer user.Signer, w contextWriter) error {
 	if !x.issuerSet {
-		if err := user.IDFromSigner(&x.issuer, signer); err != nil {
-			return fmt.Errorf("IDFromSigner: %w", err)
-		}
-
+		x.issuer = signer.UserID()
 		x.issuerSet = true
 	}
 

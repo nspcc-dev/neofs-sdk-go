@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -26,12 +25,9 @@ func ExampleClient_ContainerPut() {
 		panic(err)
 	}
 
-	signer := neofsecdsa.SignerRFC6979(key.PrivateKey)
-
-	// decode account from user's signer
-	if err = user.IDFromSigner(&accountID, signer); err != nil {
-		panic(err)
-	}
+	signer := user.NewSignerRFC6979(key.PrivateKey)
+	// take account from user's signer
+	accountID = signer.UserID()
 
 	// prepare client
 	var prmInit client.PrmInit
