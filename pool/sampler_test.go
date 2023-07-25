@@ -48,7 +48,7 @@ func TestHealthyReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	cache, err := newCache()
+	cache, err := newCache(defaultSessionCacheSize)
 	require.NoError(t, err)
 
 	client1 := newMockClient(names[0], test.RandomSigner(t))

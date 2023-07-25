@@ -1355,7 +1355,7 @@ func NewPool(options InitParameters) (*Pool, error) {
 		return nil, err
 	}
 
-	cache, err := newCache()
+	cache, err := newCache(defaultSessionCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
