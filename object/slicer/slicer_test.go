@@ -545,6 +545,12 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	opts.SetObjectPayloadLimit(maxObjectSize)
 	opts.SetCurrentNeoFSEpoch(10)
 
+	checkParentWithoutSplitInfo := func(hdr object.Object) {
+		for o := hdr.Parent(); o != nil; o = o.Parent() {
+			require.Nil(t, o.ToV2().GetHeader().GetSplit())
+		}
+	}
+
 	t.Run("slice", func(t *testing.T) {
 		writer := &memoryWriter{}
 		sl := slicer.New(signer, containerID, ownerID, writer, opts)
@@ -562,6 +568,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 			splitID := h.SplitID()
 			require.NotNil(t, splitID)
 			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+			checkParentWithoutSplitInfo(h)
 		}
 	})
 
@@ -588,6 +595,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 			splitID := h.SplitID()
 			require.NotNil(t, splitID)
 			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+			checkParentWithoutSplitInfo(h)
 		}
 	})
 
@@ -607,6 +615,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		for _, h := range writer.headers {
 			splitID := h.SplitID()
 			require.Nil(t, splitID)
+			checkParentWithoutSplitInfo(h)
 		}
 	})
 }

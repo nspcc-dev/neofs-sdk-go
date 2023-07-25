@@ -429,14 +429,13 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		obj.SetType(object.TypeRegular)
 		obj.SetOwnerID(&x.owner)
 		obj.SetSessionToken(x.sessionToken)
-
-		if x.withSplit {
-			obj.SetSplitID(x.splitID)
-		}
 	}
 
 	var obj object.Object
 	fCommon(&obj)
+	if x.withSplit {
+		obj.SetSplitID(x.splitID)
+	}
 	if len(x.writtenChildren) > 0 {
 		obj.SetPreviousID(x.writtenChildren[len(x.writtenChildren)-1])
 	}
