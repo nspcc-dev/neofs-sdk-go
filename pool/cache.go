@@ -8,6 +8,10 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
+const (
+	defaultSessionCacheSize = 700
+)
+
 type sessionCache struct {
 	cache        *lru.Cache
 	currentEpoch uint64
@@ -17,8 +21,8 @@ type cacheValue struct {
 	token session.Object
 }
 
-func newCache() (*sessionCache, error) {
-	cache, err := lru.New(100)
+func newCache(cacheSize int) (*sessionCache, error) {
+	cache, err := lru.New(cacheSize)
 	if err != nil {
 		return nil, err
 	}

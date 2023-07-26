@@ -216,8 +216,8 @@ func TestPoolInterfaceWithAIO(t *testing.T) {
 
 		downloadedPayload := make([]byte, len(payload))
 
-		l, ok := read.ReadChunk(downloadedPayload)
-		require.True(t, ok)
+		l, err := read.Read(downloadedPayload)
+		require.NoError(t, err)
 		require.Equal(t, l, len(payload))
 
 		require.True(t, bytes.Equal(payload, downloadedPayload))
@@ -340,8 +340,8 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 
 		downloadedPayload := make([]byte, len(payload))
 
-		l, ok := read.ReadChunk(downloadedPayload)
-		require.True(t, ok)
+		l, err := read.Read(downloadedPayload)
+		require.NoError(t, err)
 		require.Equal(t, l, len(payload))
 
 		require.True(t, bytes.Equal(payload, downloadedPayload))
@@ -495,8 +495,8 @@ func TestClientWaiterWithAIO(t *testing.T) {
 
 		downloadedPayload := make([]byte, len(payload))
 
-		l, ok := read.ReadChunk(downloadedPayload)
-		require.True(t, ok)
+		l, err := read.Read(downloadedPayload)
+		require.NoError(t, err)
 		require.Equal(t, l, len(payload))
 
 		require.True(t, bytes.Equal(payload, downloadedPayload))
@@ -596,7 +596,7 @@ func testGetEacl(t *testing.T, ctx context.Context, containerID cid.ID, table ea
 	require.True(t, eacl.EqualTables(table, newTable))
 }
 
-func isBucketCreated(ctx context.Context, c *client.Client, id cid.ID) error {
+func isBucketCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
@@ -621,7 +621,7 @@ func isBucketCreated(ctx context.Context, c *client.Client, id cid.ID) error {
 	}
 }
 
-func isBucketDeleted(ctx context.Context, c *client.Client, id cid.ID) error {
+func isBucketDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
@@ -644,7 +644,7 @@ func isBucketDeleted(ctx context.Context, c *client.Client, id cid.ID) error {
 	}
 }
 
-func isEACLCreated(ctx context.Context, c *client.Client, id cid.ID, oldTable eacl.Table) error {
+func isEACLCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID, oldTable eacl.Table) error {
 	oldBinary, err := oldTable.Marshal()
 	if err != nil {
 		return fmt.Errorf("oldTable.Marshal %w", err)
@@ -681,7 +681,7 @@ func isEACLCreated(ctx context.Context, c *client.Client, id cid.ID, oldTable ea
 	}
 }
 
-func isObjectDeleted(ctx context.Context, c *client.Client, id cid.ID, oid oid.ID, signer neofscrypto.Signer) error {
+func isObjectDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID, oid oid.ID, signer neofscrypto.Signer) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 

@@ -17,7 +17,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 		require.False(t, tok.VerifySignature(), extra)
 	}
 
-	cache, err := newCache()
+	cache, err := newCache(defaultSessionCacheSize)
 	require.NoError(t, err)
 
 	cache.Put(key, target)
