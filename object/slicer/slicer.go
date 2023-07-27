@@ -469,9 +469,19 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 }
 
 func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata, session *session.Object) (oid.ID, error) {
-	id, err := flushObjectMetadata(signer, meta, &header)
-	if err != nil {
-		return id, err
+	var (
+		id    oid.ID
+		err   error
+		isSet bool
+	)
+
+	id, isSet = header.ID()
+	if !isSet || header.Signature() == nil {
+		id, err = flushObjectMetadata(signer, meta, &header)
+
+		if err != nil {
+			return id, err
+		}
 	}
 
 	var prm client.PrmObjectPutInit
