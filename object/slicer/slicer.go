@@ -217,7 +217,10 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		return nil, err
 	}
 
+	var prm client.PrmObjectPutInit
+
 	if opts.sessionToken != nil {
+		prm.WithinSession(*opts.sessionToken)
 		header.SetSessionToken(opts.sessionToken)
 		// session issuer is a container owner.
 		issuer := opts.sessionToken.Issuer()
@@ -241,6 +244,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		sessionToken:      opts.sessionToken,
 		rootMeta:          newDynamicObjectMetadata(opts.withHomoChecksum),
 		childMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
+		prmObjectPutInit:  prm,
 	}
 
 	maxObjSize := childPayloadSizeLimit(opts)
@@ -277,7 +281,8 @@ type PayloadWriter struct {
 	withSplit bool
 	splitID   *object.SplitID
 
-	writtenChildren []oid.ID
+	writtenChildren  []oid.ID
+	prmObjectPutInit client.PrmObjectPutInit
 }
 
 // Write writes next chunk of the object data. Concatenation of all chunks forms
@@ -400,9 +405,9 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 	// The first object must be a header. Note: if object is less than MaxObjectSize, we don't need to slice it.
 	// Thus, we have a legitimate situation when, last == true and x.isHeaderWriteStep == true.
 	if x.isHeaderWriteStep {
-		id, err = writeInMemObject(ctx, x.signer, x.stream, x.headerObject, x.buf.Bytes(), meta, x.sessionToken)
+		id, err = writeInMemObject(ctx, x.signer, x.stream, x.headerObject, x.buf.Bytes(), meta, x.prmObjectPutInit)
 	} else {
-		id, err = writeInMemObject(ctx, x.signer, x.stream, obj, x.buf.Bytes(), meta, x.sessionToken)
+		id, err = writeInMemObject(ctx, x.signer, x.stream, obj, x.buf.Bytes(), meta, x.prmObjectPutInit)
 	}
 
 	if err != nil {
@@ -416,7 +421,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		obj.ResetPreviousID()
 		obj.SetChildren(x.writtenChildren...)
 
-		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, nil, meta, x.sessionToken)
+		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, nil, meta, x.prmObjectPutInit)
 		if err != nil {
 			return fmt.Errorf("write linking object: %w", err)
 		}
@@ -468,7 +473,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	return id, nil
 }
 
-func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata, session *session.Object) (oid.ID, error) {
+func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
 	var (
 		id    oid.ID
 		err   error
@@ -482,11 +487,6 @@ func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, h
 		if err != nil {
 			return id, err
 		}
-	}
-
-	var prm client.PrmObjectPutInit
-	if session != nil {
-		prm.WithinSession(*session)
 	}
 
 	stream, err := w.ObjectPutInit(ctx, header, signer, prm)
