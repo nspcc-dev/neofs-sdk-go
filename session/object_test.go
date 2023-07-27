@@ -15,7 +15,6 @@ import (
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -280,8 +279,7 @@ func TestObject_WriteToV2(t *testing.T) {
 
 	require.NoError(t, val.Sign(signer))
 
-	var usr user.ID
-	require.NoError(t, user.IDFromSigner(&usr, signer))
+	usr := signer.UserID()
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -615,9 +613,7 @@ func TestObject_Issuer(t *testing.T) {
 
 	require.NoError(t, token.Sign(signer))
 
-	var issuer user.ID
-
-	require.NoError(t, user.IDFromSigner(&issuer, signer))
+	issuer := signer.UserID()
 
 	require.True(t, token.Issuer().Equals(issuer))
 }
@@ -631,10 +627,8 @@ func TestObject_Sign(t *testing.T) {
 }
 
 func TestObject_SignedData(t *testing.T) {
-	var issuer user.ID
-
 	issuerSigner := test.RandomSignerRFC6979(t)
-	require.NoError(t, user.IDFromSigner(&issuer, issuerSigner))
+	issuer := issuerSigner.UserID()
 
 	var tokenSession session.Object
 	tokenSession.SetID(uuid.New())

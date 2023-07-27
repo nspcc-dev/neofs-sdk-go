@@ -10,9 +10,8 @@ import (
 // ID returns random user.ID.
 func ID(tb testing.TB) *user.ID {
 	var x user.ID
-	if err := user.IDFromSigner(&x, test.RandomSigner(tb)); err != nil {
-		return nil
-	}
+	s := test.RandomSignerRFC6979(tb)
+	x = s.UserID()
 
 	return &x
 }

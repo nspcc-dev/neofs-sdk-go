@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -354,14 +355,25 @@ func (b Token) SigningKeyBytes() []byte {
 // Returns zero user.ID if Token is unsigned or key has incorrect format.
 //
 // See also SigningKeyBytes.
-func ResolveIssuer(b Token) (usr user.ID) {
+func (b Token) ResolveIssuer() user.ID {
+	var usr user.ID
 	binKey := b.SigningKeyBytes()
 
 	if len(binKey) != 0 {
-		if err := user.IDFromKey(&usr, binKey); err != nil {
+		if err := idFromKey(&usr, binKey); err != nil {
 			usr = user.ID{}
 		}
 	}
 
-	return
+	return usr
+}
+
+func idFromKey(id *user.ID, key []byte) error {
+	var pk keys.PublicKey
+	if err := pk.DecodeBytes(key); err != nil {
+		return fmt.Errorf("decode owner failed: %w", err)
+	}
+
+	id.SetScriptHash(pk.GetScriptHash())
+	return nil
 }

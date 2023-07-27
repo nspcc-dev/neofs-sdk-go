@@ -9,16 +9,16 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var (
 	errContainerRequired = errors.New("container required")
 )
 
-func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer neofscrypto.Signer) (session.Object, error) {
+func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer user.Signer) (session.Object, error) {
 	tok := c.nodeSession.GetNodeSession()
 	if tok != nil {
 		return *tok, nil
@@ -71,7 +71,7 @@ func (p *Pool) withinContainerSession(
 	ctx context.Context,
 	c *sdkClientWrapper,
 	containerID cid.ID,
-	signer neofscrypto.Signer,
+	signer user.Signer,
 	verb session.ObjectVerb,
 	params containerSessionParams,
 ) error {

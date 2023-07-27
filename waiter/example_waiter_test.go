@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -25,9 +24,10 @@ func ExampleNewWaiter() {
 		panic(err)
 	}
 
-	signer := neofsecdsa.SignerRFC6979(key.PrivateKey)
+	signer := user.NewSignerRFC6979(key.PrivateKey)
 
-	var account user.ID
+	account := signer.UserID()
+
 	var cont container.Container
 	var pp netmap.PlacementPolicy
 	var rd netmap.ReplicaDescriptor

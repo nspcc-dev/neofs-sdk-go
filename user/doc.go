@@ -14,9 +14,6 @@ NeoFS user identification is compatible with Neo accounts:
 	var scriptHash util.Uint160 // user account in NeoFS
 	id.SetScriptHash(scriptHash)
 
-	var key keys.PublicKey // user's public key
-	user.IDFromKey(&id, k.PrivateKey.PublicKey)
-
 ID is compatible with the NeoFS Smart Contract API:
 
 	var id user.ID

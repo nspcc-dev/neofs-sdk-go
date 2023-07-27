@@ -48,15 +48,15 @@ type (
 	}
 
 	objectPutIniter interface {
-		ObjectPutInit(ctx context.Context, hdr object.Object, signer neofscrypto.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error)
+		ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error)
 	}
 
 	objectDeleter interface {
-		ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm client.PrmObjectDelete) (oid.ID, error)
+		ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectDelete) (oid.ID, error)
 	}
 
 	containerEaclSetter interface {
-		ContainerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm client.PrmContainerSetEACL) error
+		ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm client.PrmContainerSetEACL) error
 	}
 
 	containerEaclGetter interface {
@@ -64,20 +64,18 @@ type (
 	}
 )
 
-func getSigner() neofscrypto.Signer {
+func getSigner() user.Signer {
 	key, err := keys.NEP2Decrypt("6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY", "one", keys.NEP2ScryptParams())
 	if err != nil {
 		panic(err)
 	}
 
-	return neofsecdsa.SignerRFC6979(key.PrivateKey)
+	return user.NewSignerRFC6979(key.PrivateKey)
 }
 
-func testData(t *testing.T) (user.ID, neofscrypto.Signer, container.Container) {
+func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
 	signer := getSigner()
-
-	var account user.ID
-	require.NoError(t, user.IDFromSigner(&account, signer))
+	account := signer.UserID()
 
 	containerName := strconv.FormatInt(time.Now().UnixNano(), 16)
 	creationTime := time.Now()
@@ -526,7 +524,7 @@ func TestClientWaiterWithAIO(t *testing.T) {
 	})
 }
 
-func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, containerID cid.ID, signer neofscrypto.Signer, payload []byte, putter objectPutIniter) oid.ID {
+func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID {
 	rf := object.RequiredFields{
 		Container: containerID,
 		Owner:     account,
@@ -573,14 +571,14 @@ func testDeleteContainer(t *testing.T, ctx context.Context, signer neofscrypto.S
 	require.NoError(t, deleter.ContainerDelete(ctx, containerID, signer, cmd))
 }
 
-func testDeleteObject(t *testing.T, ctx context.Context, signer neofscrypto.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
+func testDeleteObject(t *testing.T, ctx context.Context, signer user.Signer, containerID cid.ID, objectID oid.ID, deleter objectDeleter) {
 	var cmd client.PrmObjectDelete
 
 	_, err := deleter.ObjectDelete(ctx, containerID, objectID, signer, cmd)
 	require.NoError(t, err)
 }
 
-func testSetEacl(t *testing.T, ctx context.Context, signer neofscrypto.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
+func testSetEacl(t *testing.T, ctx context.Context, signer user.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
 	var prm client.PrmContainerSetEACL
 
 	require.NoError(t, setter.ContainerSetEACL(ctx, table, signer, prm))

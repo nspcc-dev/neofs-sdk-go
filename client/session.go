@@ -2,12 +2,10 @@ package client
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -64,7 +62,7 @@ func (x ResSessionCreate) PublicKey() []byte {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) SessionCreate(ctx context.Context, signer neofscrypto.Signer, prm PrmSessionCreate) (*ResSessionCreate, error) {
+func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodSessionCreate, err)()
@@ -74,11 +72,7 @@ func (c *Client) SessionCreate(ctx context.Context, signer neofscrypto.Signer, p
 		return nil, ErrMissingSigner
 	}
 
-	var ownerID user.ID
-	if err = user.IDFromSigner(&ownerID, signer); err != nil {
-		err = fmt.Errorf("IDFromSigner: %w", err)
-		return nil, err
-	}
+	ownerID := signer.UserID()
 
 	var ownerIDV2 refs.OwnerID
 	ownerID.WriteToV2(&ownerIDV2)

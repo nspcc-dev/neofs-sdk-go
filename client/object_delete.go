@@ -12,9 +12,9 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var (
@@ -69,7 +69,7 @@ func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectDelete) (oid.ID, error) {
+func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectDelete) (oid.ID, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID

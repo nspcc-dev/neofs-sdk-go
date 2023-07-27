@@ -60,7 +60,7 @@ type internalClient interface {
 	// see clientWrapper.balanceGet.
 	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
-	containerPut(context.Context, container.Container, neofscrypto.Signer, PrmContainerPut) (cid.ID, error)
+	containerPut(context.Context, container.Container, user.Signer, PrmContainerPut) (cid.ID, error)
 	// see clientWrapper.containerGet.
 	containerGet(context.Context, cid.ID) (container.Container, error)
 	// see clientWrapper.containerList.
@@ -70,15 +70,15 @@ type internalClient interface {
 	// see clientWrapper.containerEACL.
 	containerEACL(context.Context, cid.ID) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
-	containerSetEACL(context.Context, eacl.Table, neofscrypto.Signer, PrmContainerSetEACL) error
+	containerSetEACL(context.Context, eacl.Table, user.Signer, PrmContainerSetEACL) error
 	// see clientWrapper.endpointInfo.
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
 	// see clientWrapper.objectPut.
-	objectPut(context.Context, neofscrypto.Signer, PrmObjectPut) (oid.ID, error)
+	objectPut(context.Context, user.Signer, PrmObjectPut) (oid.ID, error)
 	// see clientWrapper.objectDelete.
-	objectDelete(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectDelete) error
+	objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
 	objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
@@ -86,9 +86,9 @@ type internalClient interface {
 	// see clientWrapper.objectRange.
 	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, cid.ID, neofscrypto.Signer, PrmObjectSearch) (ResObjectSearch, error)
+	objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
-	sessionCreate(context.Context, neofscrypto.Signer, prmCreateSession) (resCreateSession, error)
+	sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error)
 
 	clientStatus
 	statisticUpdater
@@ -350,7 +350,7 @@ func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (acco
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
 // It also waits for the container to appear on the network.
-func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
+func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, signer user.Signer, prm PrmContainerPut) (cid.ID, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return cid.ID{}, err
@@ -450,7 +450,7 @@ func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Tabl
 
 // containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
 // It also waits for the EACL to appear on the network.
-func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm PrmContainerSetEACL) error {
+func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
@@ -518,7 +518,7 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 }
 
 // objectPut writes object to NeoFS.
-func (c *clientWrapper) objectPut(ctx context.Context, signer neofscrypto.Signer, prm PrmObjectPut) (oid.ID, error) {
+func (c *clientWrapper) objectPut(ctx context.Context, signer user.Signer, prm PrmObjectPut) (oid.ID, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return oid.ID{}, err
@@ -591,7 +591,7 @@ func (c *clientWrapper) objectPut(ctx context.Context, signer neofscrypto.Signer
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
-func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectDelete) error {
+func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectDelete) error {
 	cl, err := c.getClient()
 	if err != nil {
 		return err
@@ -709,7 +709,7 @@ func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, obj
 }
 
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, signer neofscrypto.Signer, prm PrmObjectSearch) (ResObjectSearch, error) {
+func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (ResObjectSearch, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectSearch{}, err
@@ -736,7 +736,7 @@ func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, si
 }
 
 // sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
-func (c *clientWrapper) sessionCreate(ctx context.Context, signer neofscrypto.Signer, prm prmCreateSession) (resCreateSession, error) {
+func (c *clientWrapper) sessionCreate(ctx context.Context, signer user.Signer, prm prmCreateSession) (resCreateSession, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return resCreateSession{}, err
@@ -851,7 +851,7 @@ type clientBuilder = func(endpoint string) (internalClient, error)
 
 // InitParameters contains values used to initialize connection Pool.
 type InitParameters struct {
-	signer                    neofscrypto.Signer
+	signer                    user.Signer
 	logger                    *zap.Logger
 	nodeDialTimeout           time.Duration
 	nodeStreamTimeout         time.Duration
@@ -869,7 +869,7 @@ type InitParameters struct {
 // SetSigner specifies default signer to be used for the protocol communication by default.
 // MUST be of [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example,
 // [neofsecdsa.SignerRFC6979] can be used.
-func (x *InitParameters) SetSigner(signer neofscrypto.Signer) {
+func (x *InitParameters) SetSigner(signer user.Signer) {
 	x.signer = signer
 }
 
@@ -1035,14 +1035,14 @@ func (x *prmContext) useVerb(verb session.ObjectVerb) {
 }
 
 type prmCommon struct {
-	signer neofscrypto.Signer
+	signer user.Signer
 	btoken *bearer.Token
 	stoken *session.Object
 }
 
 // UseSigner specifies private signer to sign the requests.
 // If signer is not provided, then Pool default signer is used.
-func (x *prmCommon) UseSigner(signer neofscrypto.Signer) {
+func (x *prmCommon) UseSigner(signer user.Signer) {
 	x.signer = signer
 }
 
@@ -1252,7 +1252,7 @@ type resCreateSession struct {
 // See pool package overview to get some examples.
 type Pool struct {
 	innerPools      []*innerPool
-	signer          neofscrypto.Signer
+	signer          user.Signer
 	cancel          context.CancelFunc
 	closedCh        chan struct{}
 	cache           *sessionCache
@@ -1301,7 +1301,7 @@ func DefaultOptions() InitParameters {
 //
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
-func New(endpoints []NodeParam, signer neofscrypto.Signer, options InitParameters) (*Pool, error) {
+func New(endpoints []NodeParam, signer user.Signer, options InitParameters) (*Pool, error) {
 	if len(endpoints) == 0 {
 		return nil, errors.New("empty endpoints")
 	}
@@ -1679,7 +1679,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string, cl internalClient
 	return false
 }
 
-func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer neofscrypto.Signer) error {
+func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer user.Signer) error {
 	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
 	if err != nil {
 		return err
@@ -1732,7 +1732,7 @@ type callContext struct {
 	endpoint string
 
 	// request signer
-	signer neofscrypto.Signer
+	signer user.Signer
 
 	// flag to open default session if session token is missing
 	sessionDefault bool
@@ -2124,7 +2124,7 @@ func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObj
 //
 // Main return value MUST NOT be processed on an erroneous return.
 // Deprecated: use ContainerPut instead.
-func (p *Pool) PutContainer(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
+func (p *Pool) PutContainer(ctx context.Context, cont container.Container, signer user.Signer, prm PrmContainerPut) (cid.ID, error) {
 	cp, err := p.connection()
 	if err != nil {
 		return cid.ID{}, err
@@ -2197,7 +2197,7 @@ func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
 //
 // Success can be verified by reading by identifier (see GetEACL).
 // Deprecated: use ContainerSetEACL instead.
-func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, signer neofscrypto.Signer, prm PrmContainerSetEACL) error {
+func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
 	cp, err := p.connection()
 	if err != nil {
 		return err

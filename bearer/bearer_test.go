@@ -14,7 +14,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -357,11 +356,11 @@ func TestToken_ReadFromV2(t *testing.T) {
 }
 
 func TestResolveIssuer(t *testing.T) {
-	signer := test.RandomSigner(t)
+	signer := test.RandomSignerRFC6979(t)
 
 	var val bearer.Token
 
-	require.Zero(t, bearer.ResolveIssuer(val))
+	require.Zero(t, val.ResolveIssuer())
 
 	var m acl.BearerToken
 
@@ -372,12 +371,11 @@ func TestResolveIssuer(t *testing.T) {
 
 	require.NoError(t, val.Unmarshal(m.StableMarshal(nil)))
 
-	require.Zero(t, bearer.ResolveIssuer(val))
+	require.Zero(t, val.ResolveIssuer())
 
 	require.NoError(t, val.Sign(signer))
 
-	var usr user.ID
-	require.NoError(t, user.IDFromSigner(&usr, signer))
+	usr := signer.UserID()
 
-	require.Equal(t, usr, bearer.ResolveIssuer(val))
+	require.Equal(t, usr, val.ResolveIssuer())
 }

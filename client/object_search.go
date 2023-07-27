@@ -13,10 +13,10 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var (
@@ -202,7 +202,7 @@ func (x *ObjectListReader) Close() error {
 //
 // Return errors:
 //   - [ErrMissingSigner]
-func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer neofscrypto.Signer, prm PrmObjectSearch) (*ObjectListReader, error) {
+func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (*ObjectListReader, error) {
 	var err error
 	defer func() {
 		c.sendStatistic(stat.MethodObjectSearch, err)()

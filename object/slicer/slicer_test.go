@@ -16,8 +16,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -78,7 +76,7 @@ func BenchmarkSliceDataIntoObjects(b *testing.B) {
 
 func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 	in, opts := randomInput(b, size, sizeLimit)
-	s := slicer.NewSession(in.signer, in.container, *sessiontest.ObjectSigned(test.RandomSigner(b)), discardObject{}, opts)
+	s := slicer.NewSession(in.signer, in.container, *sessiontest.ObjectSigned(test.RandomSignerRFC6979(b)), discardObject{}, opts)
 
 	b.Run("reader", func(b *testing.B) {
 		var err error
@@ -122,7 +120,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 
 type discardObject struct{}
 
-func (discardObject) InitDataStream(object.Object, neofscrypto.Signer) (io.Writer, error) {
+func (discardObject) InitDataStream(object.Object, user.Signer) (io.Writer, error) {
 	return discardPayload{}, nil
 }
 
@@ -133,7 +131,7 @@ func (discardPayload) Write(p []byte) (n int, err error) {
 }
 
 type input struct {
-	signer       neofscrypto.Signer
+	signer       user.Signer
 	container    cid.ID
 	owner        user.ID
 	currentEpoch uint64
@@ -165,7 +163,7 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	}
 
 	var in input
-	in.signer = neofsecdsa.Signer(*key)
+	in.signer = user.NewSignerRFC6979(*key)
 	in.container = cidtest.ID()
 	in.currentEpoch = rand.Uint64()
 	if sizeLimit > 0 {
@@ -177,7 +175,7 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	in.attributes = attrs
 
 	if rand.Int()%2 == 0 {
-		in.sessionToken = sessiontest.ObjectSigned(test.RandomSigner(tb))
+		in.sessionToken = sessiontest.ObjectSigned(test.RandomSignerRFC6979(tb))
 	} else {
 		in.owner = *usertest.ID(tb)
 	}
@@ -252,7 +250,7 @@ type slicedObjectChecker struct {
 	chainCollector *chainCollector
 }
 
-func (x *slicedObjectChecker) InitDataStream(hdr object.Object, _ neofscrypto.Signer) (io.Writer, error) {
+func (x *slicedObjectChecker) InitDataStream(hdr object.Object, _ user.Signer) (io.Writer, error) {
 	checkStaticMetadata(x.tb, hdr, x.input)
 
 	buf := bytes.NewBuffer(nil)
@@ -511,7 +509,7 @@ type memoryWriter struct {
 	splitID *object.SplitID
 }
 
-func (w *memoryWriter) InitDataStream(hdr object.Object, _ neofscrypto.Signer) (io.Writer, error) {
+func (w *memoryWriter) InitDataStream(hdr object.Object, _ user.Signer) (io.Writer, error) {
 	w.headers = append(w.headers, hdr)
 	if w.splitID == nil && hdr.SplitID() != nil {
 		w.splitID = hdr.SplitID()
@@ -537,9 +535,8 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	require.NoError(t, err)
 	containerID.Encode(id)
 
-	var ownerID user.ID
 	signer := test.RandomSignerRFC6979(t)
-	require.NoError(t, user.IDFromSigner(&ownerID, signer))
+	ownerID := signer.UserID()
 
 	opts := slicer.Options{}
 	opts.SetObjectPayloadLimit(maxObjectSize)

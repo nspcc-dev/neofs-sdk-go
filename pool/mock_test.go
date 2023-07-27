@@ -79,7 +79,7 @@ func (m *mockClient) balanceGet(context.Context, PrmBalanceGet) (accounting.Deci
 	return accounting.Decimal{}, nil
 }
 
-func (m *mockClient) containerPut(context.Context, container.Container, neofscrypto.Signer, PrmContainerPut) (cid.ID, error) {
+func (m *mockClient) containerPut(context.Context, container.Container, user.Signer, PrmContainerPut) (cid.ID, error) {
 	return cid.ID{}, nil
 }
 
@@ -99,7 +99,7 @@ func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) 
 	return eacl.Table{}, nil
 }
 
-func (m *mockClient) containerSetEACL(context.Context, eacl.Table, neofscrypto.Signer, PrmContainerSetEACL) error {
+func (m *mockClient) containerSetEACL(context.Context, eacl.Table, user.Signer, PrmContainerSetEACL) error {
 	return nil
 }
 
@@ -128,11 +128,11 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	return ni, nil
 }
 
-func (m *mockClient) objectPut(context.Context, neofscrypto.Signer, PrmObjectPut) (oid.ID, error) {
+func (m *mockClient) objectPut(context.Context, user.Signer, PrmObjectPut) (oid.ID, error) {
 	return oid.ID{}, nil
 }
 
-func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectDelete) error {
+func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error {
 	return nil
 }
 
@@ -155,11 +155,11 @@ func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64
 	return ResObjectRange{}, nil
 }
 
-func (m *mockClient) objectSearch(context.Context, cid.ID, neofscrypto.Signer, PrmObjectSearch) (ResObjectSearch, error) {
+func (m *mockClient) objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error) {
 	return ResObjectSearch{}, nil
 }
 
-func (m *mockClient) sessionCreate(context.Context, neofscrypto.Signer, prmCreateSession) (resCreateSession, error) {
+func (m *mockClient) sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error) {
 	if m.errorOnCreateSession {
 		err := errors.New("create session")
 		m.updateErrorRate(err)

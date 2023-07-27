@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -108,9 +107,7 @@ func TestEmptyMessage(t *testing.T) {
 
 func TestBalanceRequest(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
-
-	var id user.ID
-	require.NoError(t, user.IDFromSigner(&id, signer))
+	id := signer.UserID()
 
 	var ownerID refs.OwnerID
 	id.WriteToV2(&ownerID)
@@ -167,9 +164,7 @@ func TestBalanceResponse(t *testing.T) {
 
 func TestCreateRequest(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
-
-	var id user.ID
-	require.NoError(t, user.IDFromSigner(&id, signer))
+	id := signer.UserID()
 
 	var ownerID refs.OwnerID
 	id.WriteToV2(&ownerID)

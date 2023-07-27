@@ -24,7 +24,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -98,14 +97,13 @@ func randContainerID() *cid.ID {
 	return &id
 }
 
-func randAccount(signer neofscrypto.Signer) *user.ID {
-	var u user.ID
-	_ = user.IDFromSigner(&u, signer)
+func randAccount(signer user.Signer) *user.ID {
+	u := signer.UserID()
 
 	return &u
 }
 
-func randOwner(signer neofscrypto.Signer) *refs.OwnerID {
+func randOwner(signer user.Signer) *refs.OwnerID {
 	acc := randAccount(signer)
 
 	var u refs.OwnerID

@@ -18,8 +18,7 @@ import (
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances can be created using built-in var declaration. Zero ID is not valid,
-// so it MUST be initialized using some modifying function (e.g. SetScriptHash,
-// IDFromKey, etc.).
+// so it MUST be initialized using some modifying function (e.g. SetScriptHash, etc.).
 type ID struct {
 	w []byte
 }
