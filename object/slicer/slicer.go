@@ -232,6 +232,14 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	currentVersion := version.Current()
 	header.SetVersion(&currentVersion)
 
+	var stubObject object.Object
+	stubObject.SetVersion(&currentVersion)
+	stubObject.SetContainerID(containerID)
+	stubObject.SetCreationEpoch(opts.currentNeoFSEpoch)
+	stubObject.SetType(object.TypeRegular)
+	stubObject.SetOwnerID(&owner)
+	stubObject.SetSessionToken(opts.sessionToken)
+
 	res := &PayloadWriter{
 		ctx:               ctx,
 		isHeaderWriteStep: true,
@@ -245,6 +253,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		rootMeta:          newDynamicObjectMetadata(opts.withHomoChecksum),
 		childMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
 		prmObjectPutInit:  prm,
+		stubObject:        &stubObject,
 	}
 
 	maxObjSize := childPayloadSizeLimit(opts)
@@ -283,6 +292,7 @@ type PayloadWriter struct {
 
 	writtenChildren  []oid.ID
 	prmObjectPutInit client.PrmObjectPutInit
+	stubObject       *object.Object
 }
 
 // Write writes next chunk of the object data. Concatenation of all chunks forms
@@ -364,19 +374,14 @@ func (x *PayloadWriter) writeLastChild(ctx context.Context, meta dynamicObjectMe
 }
 
 func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetadata, last bool, rootIDHandler func(id oid.ID)) error {
-	currentVersion := version.Current()
+	obj := *x.stubObject
+	obj.SetSplitID(nil)
+	obj.ResetPreviousID()
+	obj.SetParent(nil)
+	obj.ResetParentID()
+	obj.SetSignature(nil)
+	obj.ResetID()
 
-	fCommon := func(obj *object.Object) {
-		obj.SetVersion(&currentVersion)
-		obj.SetContainerID(x.container)
-		obj.SetCreationEpoch(x.currentEpoch)
-		obj.SetType(object.TypeRegular)
-		obj.SetOwnerID(&x.owner)
-		obj.SetSessionToken(x.sessionToken)
-	}
-
-	var obj object.Object
-	fCommon(&obj)
 	if x.withSplit {
 		obj.SetSplitID(x.splitID)
 	}
@@ -420,6 +425,9 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		meta.reset()
 		obj.ResetPreviousID()
 		obj.SetChildren(x.writtenChildren...)
+		// we reuse already written object, we should reset these fields, to eval them one more time in writeInMemObject.
+		obj.ResetID()
+		obj.SetSignature(nil)
 
 		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, nil, meta, x.prmObjectPutInit)
 		if err != nil {
