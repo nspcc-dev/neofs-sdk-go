@@ -16,8 +16,7 @@ func TestSignatureLifecycle(t *testing.T) {
 	signer := test.RandomSigner(t)
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
-	bPubKey := make([]byte, pubKey.MaxEncodedSize())
-	bPubKey = bPubKey[:pubKey.Encode(bPubKey)]
+	bPubKey := neofscrypto.PublicKeyBytes(pubKey)
 
 	var clientSig neofscrypto.Signature
 

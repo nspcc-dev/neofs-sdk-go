@@ -116,7 +116,7 @@ func (x *Signature) fillSignature(signer Signer, signature []byte) {
 	m := (*refs.Signature)(x)
 	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
 	m.SetSign(signature)
-	m.SetKey(key)
+	m.SetKey(PublicKeyBytes(signer.Public()))
 }
 
 // Scheme returns signature scheme used by signer to calculate the signature.

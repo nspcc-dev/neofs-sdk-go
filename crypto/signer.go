@@ -89,6 +89,8 @@ type PublicKey interface {
 	// on any failure except (*).
 	//
 	// Encode is a reverse operation to Decode.
+	//
+	// [PublicKeyBytes] may be used to skip explicit buffer allocation.
 	Encode(buf []byte) int
 
 	// Decode decodes binary public key.

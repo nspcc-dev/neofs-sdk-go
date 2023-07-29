@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -479,10 +480,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 		var ver refs.Version
 		var nodeInfo netmapv2.NodeInfo
 
-		b := make([]byte, signer.Public().MaxEncodedSize())
-		signer.Public().Encode(b)
-
-		nodeInfo.SetPublicKey(b)
+		nodeInfo.SetPublicKey(neofscrypto.PublicKeyBytes(signer.Public()))
 		nodeInfo.SetAddresses("https://some-endpont.com")
 
 		body := netmapv2.LocalNodeInfoResponseBody{}
@@ -553,9 +551,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 		body := session.CreateResponseBody{}
 		body.SetID(randBytes(10))
 
-		b := make([]byte, signer.Public().MaxEncodedSize())
-		signer.Public().Encode(b)
-		body.SetSessionKey(b)
+		body.SetSessionKey(neofscrypto.PublicKeyBytes(signer.Public()))
 
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)

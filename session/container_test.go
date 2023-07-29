@@ -57,8 +57,7 @@ func TestContainerProtocolV2(t *testing.T) {
 	// Session key
 	signer := test.RandomSignerRFC6979(t)
 	authKey := signer.Public()
-	binAuthKey := make([]byte, authKey.MaxEncodedSize())
-	binAuthKey = binAuthKey[:authKey.Encode(binAuthKey)]
+	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
 	restoreAuthKey := func() {
 		body.SetSessionKey(binAuthKey)
 	}
