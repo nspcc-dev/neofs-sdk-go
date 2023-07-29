@@ -8,65 +8,53 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 )
 
-// Signer is an interface of entities that can be used for signing operations
-// in NeoFS. It is the same as [neofscrypto.Signer], but has an extra method to retrieve [ID].
+// Signer represents a NeoFS user authorized by a digital signature.
 type Signer interface {
+	// Signer signs data on behalf of the user.
 	neofscrypto.Signer
-
+	// UserID returns ID of the associated user.
 	UserID() ID
 }
 
-// SignerRFC6979 wraps [ecdsa.PrivateKey] and represents signer based on deterministic
-// ECDSA with SHA-256 hashing (RFC 6979). Provides [Signer] interface.
+type signer struct {
+	neofscrypto.Signer
+	usr ID
+}
+
+func (s signer) UserID() ID {
+	return s.usr
+}
+
+// NewSigner combines provided [neofscrypto.Signer] and [ID] into [Signer].
 //
-// Instances SHOULD be initialized with [NewSignerRFC6979] or [NewSignerRFC6979WithID].
-type SignerRFC6979 struct {
-	neofsecdsa.SignerRFC6979
-	userID ID
+// See also [NewAutoIDSigner].
+func NewSigner(s neofscrypto.Signer, usr ID) Signer {
+	return signer{
+		Signer: s,
+		usr:    usr,
+	}
 }
 
-// NewSignerRFC6979 is a constructor for [SignerRFC6979].
-func NewSignerRFC6979(pk ecdsa.PrivateKey) *SignerRFC6979 {
+func newAutoResolvedSigner(s neofscrypto.Signer, pubKey ecdsa.PublicKey) Signer {
 	var id ID
-	id.SetScriptHash((*keys.PublicKey)(&pk.PublicKey).GetScriptHash())
+	id.SetScriptHash((*keys.PublicKey)(&pubKey).GetScriptHash())
 
-	return &SignerRFC6979{
-		userID:        id,
-		SignerRFC6979: neofsecdsa.SignerRFC6979(pk),
-	}
+	return NewSigner(s, id)
 }
 
-// NewSignerRFC6979WithID is a constructor for [SignerRFC6979] where you may specify [ID] associated with this signer.
-func NewSignerRFC6979WithID(pk ecdsa.PrivateKey, id ID) *SignerRFC6979 {
-	return &SignerRFC6979{
-		SignerRFC6979: neofsecdsa.SignerRFC6979(pk),
-		userID:        id,
-	}
+// NewAutoIDSigner returns [Signer] with neofscrypto.ECDSA_SHA512
+// signature scheme and user [ID] automatically resolved from the ECDSA public
+// key.
+//
+// See also [NewAutoIDSignerRFC6979].
+func NewAutoIDSigner(key ecdsa.PrivateKey) Signer {
+	return newAutoResolvedSigner(neofsecdsa.Signer(key), key.PublicKey)
 }
 
-// UserID returns the [ID] using script hash calculated for the given key.
-func (s SignerRFC6979) UserID() ID {
-	return s.userID
-}
-
-// StaticSigner emulates real sign and contains already precalculated hash.
-// Provides [Signer] interface.
-type StaticSigner struct {
-	neofscrypto.StaticSigner
-	id ID
-}
-
-// NewStaticSignerWithID creates new StaticSigner with specified [ID].
-func NewStaticSignerWithID(scheme neofscrypto.Scheme, sig []byte, pubKey neofscrypto.PublicKey, id ID) *StaticSigner {
-	return &StaticSigner{
-		StaticSigner: *neofscrypto.NewStaticSigner(scheme, sig, pubKey),
-		id:           id,
-	}
-}
-
-// UserID returns underlying [ID].
-func (s *StaticSigner) UserID() ID {
-	return s.id
+// NewAutoIDSignerRFC6979 is an analogue of [NewAutoIDSigner] but with
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] signature scheme.
+func NewAutoIDSignerRFC6979(key ecdsa.PrivateKey) Signer {
+	return newAutoResolvedSigner(neofsecdsa.SignerRFC6979(key), key.PublicKey)
 }
 
 // ResolveFromECDSAPublicKey resolves [ID] from the given [ecdsa.PublicKey].

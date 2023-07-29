@@ -220,7 +220,7 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	}
 
 	var in input
-	in.signer = user.NewSignerRFC6979(*key)
+	in.signer = user.NewAutoIDSigner(*key)
 	in.container = cidtest.ID()
 	in.currentEpoch = rand.Uint64()
 	if sizeLimit > 0 {
