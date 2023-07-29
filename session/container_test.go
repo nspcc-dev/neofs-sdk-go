@@ -523,9 +523,9 @@ func TestIssuedBy(t *testing.T) {
 }
 
 func TestContainer_Issuer(t *testing.T) {
-	var token session.Container
-
 	t.Run("signer", func(t *testing.T) {
+		var token session.Container
+
 		signer := test.RandomSignerRFC6979(t)
 
 		require.Zero(t, token.Issuer())
@@ -536,11 +536,24 @@ func TestContainer_Issuer(t *testing.T) {
 	})
 
 	t.Run("external", func(t *testing.T) {
+		var token session.Container
+
 		signer := test.RandomSignerRFC6979(t)
 		issuer := signer.UserID()
 
 		token.SetIssuer(issuer)
 		require.True(t, token.Issuer().Equals(issuer))
+	})
+
+	t.Run("public key", func(t *testing.T) {
+		var token session.Container
+
+		signer := test.RandomSignerRFC6979(t)
+
+		require.Nil(t, token.IssuerPublicKeyBytes())
+		require.NoError(t, token.Sign(signer))
+
+		require.Equal(t, neofscrypto.PublicKeyBytes(signer.Public()), token.IssuerPublicKeyBytes())
 	})
 }
 

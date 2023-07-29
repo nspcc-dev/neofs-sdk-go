@@ -610,12 +610,14 @@ func TestObject_Issuer(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 
 	require.Zero(t, token.Issuer())
+	require.Nil(t, token.IssuerPublicKeyBytes())
 
 	require.NoError(t, token.Sign(signer))
 
 	issuer := signer.UserID()
 
 	require.True(t, token.Issuer().Equals(issuer))
+	require.Equal(t, neofscrypto.PublicKeyBytes(signer.Public()), token.IssuerPublicKeyBytes())
 }
 
 func TestObject_Sign(t *testing.T) {

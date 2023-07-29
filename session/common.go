@@ -336,3 +336,14 @@ func (x commonData) Issuer() user.ID {
 
 	return user.ID{}
 }
+
+// IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
+//
+// IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
+func (x *commonData) IssuerPublicKeyBytes() []byte {
+	if x.sigSet {
+		return x.sig.GetKey()
+	}
+
+	return nil
+}
