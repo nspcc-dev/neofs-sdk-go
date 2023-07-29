@@ -550,44 +550,57 @@ func (c *clientWrapper) objectPut(ctx context.Context, signer user.Signer, prm P
 		}
 	}
 
-	if prm.payload != nil {
-		const defaultBufferSizePut = 3 << 20 // configure?
+	if err = writePayload(wObj, prm.payload, sz); err != nil {
+		c.updateErrorRate(err)
 
-		if sz == 0 || sz > defaultBufferSizePut {
-			sz = defaultBufferSizePut
-		}
-
-		buf := make([]byte, sz)
-
-		var n int
-
-		for {
-			n, err = prm.payload.Read(buf)
-			if n > 0 {
-				successWrite := wObj.WritePayloadChunk(buf[:n])
-				if !successWrite {
-					break
-				}
-
-				continue
-			}
-
-			if errors.Is(err, io.EOF) {
-				break
-			}
-
-			c.updateErrorRate(err)
-			return oid.ID{}, fmt.Errorf("read payload: %w", err)
-		}
+		return oid.ID{}, fmt.Errorf("writePayload: %w", err)
 	}
 
-	res, err := wObj.Close()
+	err = wObj.Close()
 	c.updateErrorRate(err)
 	if err != nil { // here err already carries both status and client errors
 		return oid.ID{}, fmt.Errorf("client failure: %w", err)
 	}
 
-	return res.StoredObjectID(), nil
+	return wObj.GetResult().StoredObjectID(), nil
+}
+
+func writePayload(wObj io.Writer, payload io.Reader, sz uint64) error {
+	if payload == nil || wObj == nil {
+		return nil
+	}
+
+	const defaultBufferSizePut = 3 << 20 // configure?
+	if sz == 0 || sz > defaultBufferSizePut {
+		sz = defaultBufferSizePut
+	}
+
+	buf := make([]byte, sz)
+
+	var (
+		n   int
+		err error
+	)
+
+	for {
+		n, err = payload.Read(buf)
+
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				return fmt.Errorf("read payload: %w", err)
+			}
+		}
+
+		if n == 0 {
+			break
+		}
+
+		if _, err = wObj.Write(buf[:n]); err != nil {
+			return fmt.Errorf("write payload: %w", err)
+		}
+	}
+
+	return nil
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.

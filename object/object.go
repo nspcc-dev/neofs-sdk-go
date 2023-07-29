@@ -111,6 +111,14 @@ func (o *Object) SetID(v oid.ID) {
 		SetObjectID(&v2)
 }
 
+// ResetID removes object identifier.
+//
+// See also [Object.SetID].
+func (o *Object) ResetID() {
+	(*object.Object)(o).
+		SetObjectID(nil)
+}
+
 // Signature returns signature of the object identifier.
 //
 // See also [Object.SetSignature].
@@ -533,6 +541,15 @@ func (o *Object) SetParentID(v oid.ID) {
 
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetParent(&v2)
+	})
+}
+
+// ResetParentID removes identifier of the parent object.
+//
+// See also [Object.SetParentID].
+func (o *Object) ResetParentID() {
+	o.setSplitFields(func(split *object.SplitHeader) {
+		split.SetParent(nil)
 	})
 }
 

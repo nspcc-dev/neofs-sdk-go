@@ -48,7 +48,7 @@ type (
 	}
 
 	objectPutIniter interface {
-		ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (*client.ObjectWriter, error)
+		ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (client.ObjectWriter, error)
 	}
 
 	objectDeleter interface {
@@ -313,12 +313,13 @@ func TestPoolWaiterWithAIO(t *testing.T) {
 		w, err := pool.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 		require.NoError(t, err)
 
-		require.True(t, w.WritePayloadChunk(payload))
-
-		resp, err := w.Close()
+		_, err = w.Write(payload)
 		require.NoError(t, err)
 
-		objectID = resp.StoredObjectID()
+		err = w.Close()
+		require.NoError(t, err)
+
+		objectID = w.GetResult().StoredObjectID()
 	})
 
 	t.Run("download object", func(t *testing.T) {
@@ -468,12 +469,13 @@ func TestClientWaiterWithAIO(t *testing.T) {
 		w, err := cl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 		require.NoError(t, err)
 
-		require.True(t, w.WritePayloadChunk(payload))
-
-		resp, err := w.Close()
+		_, err = w.Write(payload)
 		require.NoError(t, err)
 
-		objectID = resp.StoredObjectID()
+		err = w.Close()
+		require.NoError(t, err)
+
+		objectID = w.GetResult().StoredObjectID()
 	})
 
 	t.Run("download object", func(t *testing.T) {
@@ -539,12 +541,13 @@ func testObjectPutInit(t *testing.T, ctx context.Context, account user.ID, conta
 	w, err := putter.ObjectPutInit(ctx, hdr, signer, prm)
 	require.NoError(t, err)
 
-	require.True(t, w.WritePayloadChunk(payload))
-
-	resp, err := w.Close()
+	_, err = w.Write(payload)
 	require.NoError(t, err)
 
-	return resp.StoredObjectID()
+	err = w.Close()
+	require.NoError(t, err)
+
+	return w.GetResult().StoredObjectID()
 }
 
 func testCreateContainer(t *testing.T, ctx context.Context, signer neofscrypto.Signer, cont container.Container, creator containerCreator) cid.ID {

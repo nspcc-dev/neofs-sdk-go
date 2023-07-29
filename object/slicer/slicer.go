@@ -2,6 +2,7 @@ package slicer
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -9,8 +10,10 @@ import (
 	"io"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -20,19 +23,26 @@ import (
 )
 
 var (
-	// ErrInvalidAttributeAmount indicates wrong number of arguments. Amount of arguments MUST be even number.
-	ErrInvalidAttributeAmount = errors.New("attributes must be even number of strings")
+	// ErrIncompleteHeader indicates some fields are missing in header.
+	ErrIncompleteHeader = errors.New("incomplete header")
 )
 
 // ObjectWriter represents a virtual object recorder.
 type ObjectWriter interface {
-	// InitDataStream initializes and returns a stream of writable data associated
+	// ObjectPutInit initializes and returns a stream of writable data associated
 	// with the object according to its header. Provided header includes at least
 	// container, owner and object ID fields.
 	//
 	// Signer is required and must not be nil. The operation is executed on behalf of
 	// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
-	InitDataStream(header object.Object, signer user.Signer) (dataStream io.Writer, err error)
+	ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm client.PrmObjectPutInit) (client.ObjectWriter, error)
+}
+
+// NetworkedClient represents a virtual object recorder with possibility to get actual [netmap.NetworkInfo] data.
+type NetworkedClient interface {
+	ObjectWriter
+
+	NetworkInfo(ctx context.Context, prm client.PrmNetworkInfo) (netmap.NetworkInfo, error)
 }
 
 // Slicer converts input raw data streams into NeoFS objects. Working Slicer
@@ -40,15 +50,11 @@ type ObjectWriter interface {
 type Slicer struct {
 	signer user.Signer
 
-	cnr cid.ID
-
-	owner user.ID
-
 	w ObjectWriter
 
 	opts Options
 
-	sessionToken *session.Object
+	hdr object.Object
 }
 
 // New constructs Slicer which writes sliced ready-to-go objects owned by
@@ -59,8 +65,8 @@ type Slicer struct {
 // in Slicer.Slice after the payload of any object has been written. In this
 // case, Slicer.Slice fails immediately on Close error.
 //
-// Options parameter allows you to provide optional parameters which tune
-// the default Slicer behavior. They are detailed below.
+// NetworkedClient parameter allows to extract all required network-depended information for default Slicer behavior
+// tuning.
 //
 // If payload size limit is specified via Options.SetObjectPayloadLimit,
 // outgoing objects has payload not bigger than the limit. NeoFS stores the
@@ -75,259 +81,204 @@ type Slicer struct {
 // within the limit, one object is produced. Note that Slicer can write multiple
 // objects, but returns the root object ID only.
 //
-// If current NeoFS epoch is specified via Options.SetCurrentNeoFSEpoch, it is
-// written to the metadata of all resulting objects as a creation epoch.
-//
-// See also NewSession.
-func New(signer user.Signer, cnr cid.ID, owner user.ID, w ObjectWriter, opts Options) *Slicer {
+// Parameter sessionToken may be nil, if no session is used.
+func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID, owner user.ID, sessionToken *session.Object) (*Slicer, error) {
+	ni, err := nw.NetworkInfo(ctx, client.PrmNetworkInfo{})
+	if err != nil {
+		return nil, fmt.Errorf("network info: %w", err)
+	}
+
+	opts := Options{
+		objectPayloadLimit: ni.MaxObjectSize(),
+		currentNeoFSEpoch:  ni.CurrentEpoch(),
+		sessionToken:       sessionToken,
+	}
+
+	if !ni.HomomorphicHashingDisabled() {
+		opts.CalculateHomomorphicChecksum()
+	}
+
+	var hdr object.Object
+	hdr.SetContainerID(cnr)
+	hdr.SetType(object.TypeRegular)
+	hdr.SetOwnerID(&owner)
+	hdr.SetCreationEpoch(ni.CurrentEpoch())
+	hdr.SetSessionToken(sessionToken)
 	return &Slicer{
-		signer: signer,
-		cnr:    cnr,
-		owner:  owner,
-		w:      w,
 		opts:   opts,
-	}
+		w:      nw,
+		signer: signer,
+		hdr:    hdr,
+	}, nil
 }
 
-// NewSession creates Slicer which generates objects within provided session.
-// NewSession work similar to New with the detail that the session issuer owns
-// the produced objects. Specified session token is written to the metadata of
-// all resulting objects. In this case, the object is considered to be created
-// by a proxy on behalf of the session issuer.
-func NewSession(signer user.Signer, cnr cid.ID, token session.Object, w ObjectWriter, opts Options) *Slicer {
-	return &Slicer{
-		signer:       signer,
-		cnr:          cnr,
-		owner:        token.Issuer(),
-		w:            w,
-		opts:         opts,
-		sessionToken: &token,
-	}
+// Put creates new NeoFS object from the input data stream, associates the
+// object with the configured container and writes the object via underlying
+// [ObjectWriter]. After a successful write, Put returns an [oid.ID] which is a
+// unique reference to the object in the container. Put sets all required
+// calculated fields like payload length, checksum, etc.
+//
+// Put allows you to specify [object.Attribute] parameters to be written to the
+// resulting object's metadata. Keys SHOULD NOT start with system-reserved
+// '__NEOFS__' prefix.
+//
+// See [New] for details.
+func (x *Slicer) Put(ctx context.Context, data io.Reader, attrs []object.Attribute) (oid.ID, error) {
+	x.hdr.SetAttributes(attrs...)
+	return slice(ctx, x.w, x.hdr, data, x.signer, x.opts)
 }
 
-// fillCommonMetadata writes to the object metadata common to all objects of the
-// same stream.
-func (x *Slicer) fillCommonMetadata(obj *object.Object) {
-	currentVersion := version.Current()
-	obj.SetVersion(&currentVersion)
-	obj.SetContainerID(x.cnr)
-	obj.SetCreationEpoch(x.opts.currentNeoFSEpoch)
-	obj.SetType(object.TypeRegular)
-	obj.SetOwnerID(&x.owner)
-	obj.SetSessionToken(x.sessionToken)
+// InitPut works similar to [Slicer.Put] but provides [PayloadWriter] allowing
+// the caller to write data himself.
+func (x *Slicer) InitPut(ctx context.Context, attrs []object.Attribute) (*PayloadWriter, error) {
+	x.hdr.SetAttributes(attrs...)
+	return initPayloadStream(ctx, x.w, x.hdr, x.signer, x.opts)
+}
+
+// Put works similar to [Slicer.Put], but allows flexible configuration of object header.
+// The method accepts [Options] for adjusting max object size, epoch, session token, etc.
+func Put(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, data io.Reader, opts Options) (oid.ID, error) {
+	return slice(ctx, ow, header, data, signer, opts)
+}
+
+// InitPut works similar to [slicer.Put], but provides [ObjectWriter] allowing
+// the caller to write data himself.
+func InitPut(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
+	return initPayloadStream(ctx, ow, header, signer, opts)
 }
 
 const defaultPayloadSizeLimit = 1 << 20
 
 // childPayloadSizeLimit returns configured size limit of the child object's
 // payload which defaults to 1MB.
-func (x *Slicer) childPayloadSizeLimit() uint64 {
-	if x.opts.objectPayloadLimit > 0 {
-		return x.opts.objectPayloadLimit
+func childPayloadSizeLimit(opts Options) uint64 {
+	if opts.objectPayloadLimit > 0 {
+		return opts.objectPayloadLimit
 	}
 	return defaultPayloadSizeLimit
 }
 
-// Slice creates new NeoFS object from the input data stream, associates the
-// object with the configured container and writes the object via underlying
-// ObjectWriter. After a successful write, Slice returns an oid.ID which is a
-// unique reference to the object in the container. Slice sets all required
-// calculated fields like payload length, checksum, etc.
-//
-// Slice allows you to specify string key-value pairs to be written to the
-// resulting object's metadata as object attributes. Corresponding argument MUST
-// NOT be empty or have odd length. Keys SHOULD NOT start with system-reserved
-// '__NEOFS__' prefix.
-//
-// See New for details.
-func (x *Slicer) Slice(data io.Reader, attributes ...string) (oid.ID, error) {
+func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.Reader, signer user.Signer, opts Options) (oid.ID, error) {
 	var rootID oid.ID
 
-	if len(attributes)%2 != 0 {
-		return rootID, ErrInvalidAttributeAmount
+	objectPayloadLimit := childPayloadSizeLimit(opts)
+
+	var n int
+	bChunk := make([]byte, objectPayloadLimit)
+
+	writer, err := initPayloadStream(ctx, ow, header, signer, opts)
+	if err != nil {
+		return rootID, fmt.Errorf("init writter: %w", err)
 	}
-
-	if x.opts.objectPayloadLimit == 0 {
-		x.opts.objectPayloadLimit = 1 << 20
-	}
-
-	var rootHeader object.Object
-	var offset uint64
-	var isSplit bool
-	var childMeta dynamicObjectMetadata
-	var writtenChildren []oid.ID
-	var childHeader object.Object
-	rootMeta := newDynamicObjectMetadata(x.opts.withHomoChecksum)
-	bChunk := make([]byte, x.opts.objectPayloadLimit+1)
-
-	x.fillCommonMetadata(&rootHeader)
 
 	for {
-		n, err := data.Read(bChunk[offset:])
-		if err == nil {
-			if last := offset + uint64(n); last <= x.opts.objectPayloadLimit {
-				rootMeta.accumulateNextPayloadChunk(bChunk[offset:last])
-				if isSplit {
-					childMeta.accumulateNextPayloadChunk(bChunk[offset:last])
-				}
-				offset = last
-				// data is not over, and we expect more bytes to form next object
-				continue
-			}
-		} else {
+		n, err = data.Read(bChunk)
+		if err != nil {
 			if !errors.Is(err, io.EOF) {
 				return rootID, fmt.Errorf("read payload chunk: %w", err)
 			}
 
-			// there will be no more data
+			// no more data to read
 
-			toSend := offset + uint64(n)
-			if toSend <= x.opts.objectPayloadLimit {
-				// we can finalize the root object and send last part
-
-				if len(attributes) > 0 {
-					attrs := make([]object.Attribute, len(attributes)/2)
-
-					for i := 0; i < len(attrs); i++ {
-						attrs[i].SetKey(attributes[2*i])
-						attrs[i].SetValue(attributes[2*i+1])
-					}
-
-					rootHeader.SetAttributes(attrs...)
-				}
-
-				rootID, err = flushObjectMetadata(x.signer, rootMeta, &rootHeader)
-				if err != nil {
-					return rootID, fmt.Errorf("form root object: %w", err)
-				}
-
-				if isSplit {
-					// when splitting, root object's header is written into its last child
-					childHeader.SetParent(&rootHeader)
-					childHeader.SetPreviousID(writtenChildren[len(writtenChildren)-1])
-
-					childID, err := writeInMemObject(x.signer, x.w, childHeader, bChunk[:toSend], childMeta)
-					if err != nil {
-						return rootID, fmt.Errorf("write child object: %w", err)
-					}
-
-					writtenChildren = append(writtenChildren, childID)
-				} else {
-					// root object is single (full < limit), so send it directly
-					rootID, err = writeInMemObject(x.signer, x.w, rootHeader, bChunk[:toSend], rootMeta)
-					if err != nil {
-						return rootID, fmt.Errorf("write single root object: %w", err)
-					}
-
-					return rootID, nil
-				}
-
-				break
+			if err = writer.Close(); err != nil {
+				return rootID, fmt.Errorf("writer close: %w", err)
 			}
 
-			// otherwise, form penultimate object, then do one more iteration for
-			// simplicity: according to io.Reader, we'll get io.EOF again, but the overflow
-			// will no longer occur, so we'll finish the loop
+			rootID = writer.ID()
+			break
 		}
 
-		// according to buffer size, here we can overflow the object payload limit, e.g.
-		//  1. full=11B,limit=10B,read=11B (no objects created yet)
-		//  2. full=21B,limit=10B,read=11B (one object has been already sent with size=10B)
-
-		toSend := offset + uint64(n)
-		overflow := toSend > x.opts.objectPayloadLimit
-		if overflow {
-			toSend = x.opts.objectPayloadLimit
+		if _, err = writer.Write(bChunk[:n]); err != nil {
+			return oid.ID{}, err
 		}
-
-		// we could read some data even in case of io.EOF, so don't forget pick up the tail
-		if n > 0 {
-			rootMeta.accumulateNextPayloadChunk(bChunk[offset:toSend])
-			if isSplit {
-				childMeta.accumulateNextPayloadChunk(bChunk[offset:toSend])
-			}
-		}
-
-		if overflow {
-			isSplitCp := isSplit // we modify it in next condition below but need after it
-			if !isSplit {
-				// we send only child object below, but we can get here at the beginning (see
-				// option 1 described above), so we need to pre-init child resources
-				isSplit = true
-				x.fillCommonMetadata(&childHeader)
-				childHeader.SetSplitID(object.NewSplitID())
-				childMeta = rootMeta
-				// we do shallow copy of rootMeta because below we take this into account and do
-				// not corrupt it
-			} else {
-				childHeader.SetPreviousID(writtenChildren[len(writtenChildren)-1])
-			}
-
-			childID, err := writeInMemObject(x.signer, x.w, childHeader, bChunk[:toSend], childMeta)
-			if err != nil {
-				return rootID, fmt.Errorf("write child object: %w", err)
-			}
-
-			writtenChildren = append(writtenChildren, childID)
-
-			// shift overflow bytes to the beginning
-			if !isSplitCp {
-				childMeta = newDynamicObjectMetadata(x.opts.withHomoChecksum) // to avoid rootMeta corruption
-			}
-			childMeta.reset()
-			childMeta.accumulateNextPayloadChunk(bChunk[toSend:])
-			rootMeta.accumulateNextPayloadChunk(bChunk[toSend:])
-			offset = uint64(copy(bChunk, bChunk[toSend:]))
-		}
-	}
-
-	// linking object
-	childMeta.reset()
-	childHeader.ResetPreviousID()
-	childHeader.SetChildren(writtenChildren...)
-
-	_, err := writeInMemObject(x.signer, x.w, childHeader, nil, childMeta)
-	if err != nil {
-		return rootID, fmt.Errorf("write linking object: %w", err)
 	}
 
 	return rootID, nil
 }
 
-// InitPayloadStream works similar to Slice but provides PayloadWriter allowing
-// the caller to write data himself.
-func (x *Slicer) InitPayloadStream(attributes ...string) (*PayloadWriter, error) {
-	res := &PayloadWriter{
-		stream:       x.w,
-		signer:       x.signer,
-		container:    x.cnr,
-		owner:        x.owner,
-		currentEpoch: x.opts.currentNeoFSEpoch,
-		sessionToken: x.sessionToken,
-		attributes:   attributes,
-		rootMeta:     newDynamicObjectMetadata(x.opts.withHomoChecksum),
-		childMeta:    newDynamicObjectMetadata(x.opts.withHomoChecksum),
+// headerData extract required fields from header, otherwise throw the error.
+func headerData(header object.Object) (cid.ID, user.ID, error) {
+	containerID, isSet := header.ContainerID()
+	if !isSet {
+		return cid.ID{}, user.ID{}, fmt.Errorf("container-id: %w", ErrIncompleteHeader)
 	}
 
-	res.buf.Grow(int(x.childPayloadSizeLimit()))
+	owner := header.OwnerID()
+	if owner == nil {
+		return cid.ID{}, user.ID{}, fmt.Errorf("owner: %w", ErrIncompleteHeader)
+	}
+
+	return containerID, *owner, nil
+}
+
+func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
+	containerID, owner, err := headerData(header)
+	if err != nil {
+		return nil, err
+	}
+
+	var prm client.PrmObjectPutInit
+
+	if opts.sessionToken != nil {
+		prm.WithinSession(*opts.sessionToken)
+		header.SetSessionToken(opts.sessionToken)
+		// session issuer is a container owner.
+		issuer := opts.sessionToken.Issuer()
+		owner = issuer
+		header.SetOwnerID(&owner)
+	}
+
+	header.SetCreationEpoch(opts.currentNeoFSEpoch)
+	currentVersion := version.Current()
+	header.SetVersion(&currentVersion)
+
+	var stubObject object.Object
+	stubObject.SetVersion(&currentVersion)
+	stubObject.SetContainerID(containerID)
+	stubObject.SetCreationEpoch(opts.currentNeoFSEpoch)
+	stubObject.SetType(object.TypeRegular)
+	stubObject.SetOwnerID(&owner)
+	stubObject.SetSessionToken(opts.sessionToken)
+
+	res := &PayloadWriter{
+		ctx:               ctx,
+		isHeaderWriteStep: true,
+		headerObject:      header,
+		stream:            ow,
+		signer:            signer,
+		container:         containerID,
+		owner:             owner,
+		currentEpoch:      opts.currentNeoFSEpoch,
+		sessionToken:      opts.sessionToken,
+		rootMeta:          newDynamicObjectMetadata(opts.withHomoChecksum),
+		childMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
+		prmObjectPutInit:  prm,
+		stubObject:        &stubObject,
+	}
+
+	maxObjSize := childPayloadSizeLimit(opts)
+
+	res.buf.Grow(int(maxObjSize))
 	res.rootMeta.reset()
-	res.currentWriter = newLimitedWriter(io.MultiWriter(&res.buf, &res.rootMeta), x.childPayloadSizeLimit())
+	res.currentWriter = newLimitedWriter(io.MultiWriter(&res.buf, &res.rootMeta), maxObjSize)
 
 	return res, nil
 }
 
 // PayloadWriter is a single-object payload stream provided by Slicer.
 type PayloadWriter struct {
+	ctx    context.Context
 	stream ObjectWriter
 
-	rootID oid.ID
+	rootID            oid.ID
+	headerObject      object.Object
+	isHeaderWriteStep bool
 
 	signer       user.Signer
 	container    cid.ID
 	owner        user.ID
 	currentEpoch uint64
 	sessionToken *session.Object
-	attributes   []string
 
 	buf bytes.Buffer
 
@@ -339,7 +290,9 @@ type PayloadWriter struct {
 	withSplit bool
 	splitID   *object.SplitID
 
-	writtenChildren []oid.ID
+	writtenChildren  []oid.ID
+	prmObjectPutInit client.PrmObjectPutInit
+	stubObject       *object.Object
 }
 
 // Write writes next chunk of the object data. Concatenation of all chunks forms
@@ -362,14 +315,14 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 		// to fill splitInfo in all child objects.
 		x.withSplit = true
 
-		err = x.writeIntermediateChild(x.rootMeta)
+		err = x.writeIntermediateChild(x.ctx, x.rootMeta)
 		if err != nil {
 			return n, fmt.Errorf("write 1st child: %w", err)
 		}
 
 		x.currentWriter.reset(io.MultiWriter(&x.buf, &x.rootMeta, &x.childMeta))
 	} else {
-		err = x.writeIntermediateChild(x.childMeta)
+		err = x.writeIntermediateChild(x.ctx, x.childMeta)
 		if err != nil {
 			return n, fmt.Errorf("write next child: %w", err)
 		}
@@ -379,6 +332,7 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 
 	x.buf.Reset()
 	x.childMeta.reset()
+	x.isHeaderWriteStep = false
 
 	n2, err := x.Write(chunk[n:]) // here n > 0 so infinite recursion shouldn't occur
 
@@ -389,9 +343,9 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 // the stream. Reference to the stored object can be obtained by ID method.
 func (x *PayloadWriter) Close() error {
 	if x.withSplit {
-		return x.writeLastChild(x.childMeta, x.setID)
+		return x.writeLastChild(x.ctx, x.childMeta, x.setID)
 	}
-	return x.writeLastChild(x.rootMeta, x.setID)
+	return x.writeLastChild(x.ctx, x.rootMeta, x.setID)
 }
 
 func (x *PayloadWriter) setID(id oid.ID) {
@@ -408,31 +362,26 @@ func (x *PayloadWriter) ID() oid.ID {
 
 // writeIntermediateChild writes intermediate split-chain element with specified
 // dynamicObjectMetadata to the configured ObjectWriter.
-func (x *PayloadWriter) writeIntermediateChild(meta dynamicObjectMetadata) error {
-	return x._writeChild(meta, false, nil)
+func (x *PayloadWriter) writeIntermediateChild(ctx context.Context, meta dynamicObjectMetadata) error {
+	return x._writeChild(ctx, meta, false, nil)
 }
 
 // writeIntermediateChild writes last split-chain element with specified
 // dynamicObjectMetadata to the configured ObjectWriter. If rootIDHandler is
 // specified, ID of the resulting root object is passed into it.
-func (x *PayloadWriter) writeLastChild(meta dynamicObjectMetadata, rootIDHandler func(id oid.ID)) error {
-	return x._writeChild(meta, true, rootIDHandler)
+func (x *PayloadWriter) writeLastChild(ctx context.Context, meta dynamicObjectMetadata, rootIDHandler func(id oid.ID)) error {
+	return x._writeChild(ctx, meta, true, rootIDHandler)
 }
 
-func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootIDHandler func(id oid.ID)) error {
-	currentVersion := version.Current()
+func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetadata, last bool, rootIDHandler func(id oid.ID)) error {
+	obj := *x.stubObject
+	obj.SetSplitID(nil)
+	obj.ResetPreviousID()
+	obj.SetParent(nil)
+	obj.ResetParentID()
+	obj.SetSignature(nil)
+	obj.ResetID()
 
-	fCommon := func(obj *object.Object) {
-		obj.SetVersion(&currentVersion)
-		obj.SetContainerID(x.container)
-		obj.SetCreationEpoch(x.currentEpoch)
-		obj.SetType(object.TypeRegular)
-		obj.SetOwnerID(&x.owner)
-		obj.SetSessionToken(x.sessionToken)
-	}
-
-	var obj object.Object
-	fCommon(&obj)
 	if x.withSplit {
 		obj.SetSplitID(x.splitID)
 	}
@@ -440,27 +389,7 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		obj.SetPreviousID(x.writtenChildren[len(x.writtenChildren)-1])
 	}
 	if last {
-		var rootObj *object.Object
-		if x.withSplit {
-			rootObj = new(object.Object)
-		} else {
-			rootObj = &obj
-		}
-
-		fCommon(rootObj)
-
-		if len(x.attributes) > 0 {
-			attrs := make([]object.Attribute, len(x.attributes)/2)
-
-			for i := 0; i < len(attrs); i++ {
-				attrs[i].SetKey(x.attributes[2*i])
-				attrs[i].SetValue(x.attributes[2*i+1])
-			}
-
-			rootObj.SetAttributes(attrs...)
-		}
-
-		rootID, err := flushObjectMetadata(x.signer, x.rootMeta, rootObj)
+		rootID, err := flushObjectMetadata(x.signer, x.rootMeta, &x.headerObject)
 		if err != nil {
 			return fmt.Errorf("form root object: %w", err)
 		}
@@ -471,11 +400,21 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 
 		if x.withSplit {
 			obj.SetParentID(rootID)
-			obj.SetParent(rootObj)
+			obj.SetParent(&x.headerObject)
 		}
 	}
 
-	id, err := writeInMemObject(x.signer, x.stream, obj, x.buf.Bytes(), meta)
+	var id oid.ID
+	var err error
+
+	// The first object must be a header. Note: if object is less than MaxObjectSize, we don't need to slice it.
+	// Thus, we have a legitimate situation when, last == true and x.isHeaderWriteStep == true.
+	if x.isHeaderWriteStep {
+		id, err = writeInMemObject(ctx, x.signer, x.stream, x.headerObject, x.buf.Bytes(), meta, x.prmObjectPutInit)
+	} else {
+		id, err = writeInMemObject(ctx, x.signer, x.stream, obj, x.buf.Bytes(), meta, x.prmObjectPutInit)
+	}
+
 	if err != nil {
 		return fmt.Errorf("write formed object: %w", err)
 	}
@@ -486,8 +425,11 @@ func (x *PayloadWriter) _writeChild(meta dynamicObjectMetadata, last bool, rootI
 		meta.reset()
 		obj.ResetPreviousID()
 		obj.SetChildren(x.writtenChildren...)
+		// we reuse already written object, we should reset these fields, to eval them one more time in writeInMemObject.
+		obj.ResetID()
+		obj.SetSignature(nil)
 
-		_, err = writeInMemObject(x.signer, x.stream, obj, nil, meta)
+		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, nil, meta, x.prmObjectPutInit)
 		if err != nil {
 			return fmt.Errorf("write linking object: %w", err)
 		}
@@ -539,13 +481,23 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	return id, nil
 }
 
-func writeInMemObject(signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata) (oid.ID, error) {
-	id, err := flushObjectMetadata(signer, meta, &header)
-	if err != nil {
-		return id, err
+func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
+	var (
+		id    oid.ID
+		err   error
+		isSet bool
+	)
+
+	id, isSet = header.ID()
+	if !isSet || header.Signature() == nil {
+		id, err = flushObjectMetadata(signer, meta, &header)
+
+		if err != nil {
+			return id, err
+		}
 	}
 
-	stream, err := w.InitDataStream(header, signer)
+	stream, err := w.ObjectPutInit(ctx, header, signer, prm)
 	if err != nil {
 		return id, fmt.Errorf("init data stream for next object: %w", err)
 	}

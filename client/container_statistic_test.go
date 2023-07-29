@@ -620,9 +620,10 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	writer, err := c.ObjectPutInit(ctx, hdr, signer, prm)
 	require.NoError(t, err)
 
-	require.True(t, writer.WritePayloadChunk(randBytes(10)))
+	_, err = writer.Write(randBytes(10))
+	require.NoError(t, err)
 
-	_, err = writer.Close()
+	err = writer.Close()
 	require.NoError(t, err)
 
 	require.Equal(t, 2, collector.methods[stat.MethodObjectPut].requests)
