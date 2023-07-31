@@ -23,7 +23,7 @@ type (
 	}
 
 	minAgg struct {
-		min float64
+		min *float64
 	}
 
 	meanIQRAgg struct {
@@ -102,13 +102,17 @@ func (a *meanAgg) Compute() float64 {
 }
 
 func (a *minAgg) Add(n float64) {
-	if a.min == 0 || n < a.min {
-		a.min = n
+	if a.min == nil || n < *a.min {
+		a.min = &n
 	}
 }
 
 func (a *minAgg) Compute() float64 {
-	return a.min
+	if a.min == nil {
+		return 0
+	}
+
+	return *a.min
 }
 
 func (a *meanIQRAgg) Add(n float64) {

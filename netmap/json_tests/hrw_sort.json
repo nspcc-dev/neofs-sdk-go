@@ -2,6 +2,7 @@
   "name": "HRW ordering",
   "nodes": [
     {
+      "public_key": "AsGTU2KO25PRUWal5HzInv3LLqBedankF/scMr7VpVR/",
       "attributes": [
         {
           "key": "Country",
@@ -18,6 +19,7 @@
       ]
     },
     {
+      "public_key": "AltaQMNJ8k3awpg9q8Z+CFMXHt+io4ChddgBuRw8QSN+",
       "attributes": [
         {
           "key": "Country",
@@ -34,6 +36,7 @@
       ]
     },
     {
+      "public_key": "AoV8bh005WYoMAGpucDOZ1O704ySFlypTWP+pJP1trBo",
       "attributes": [
         {
           "key": "Country",
@@ -50,6 +53,7 @@
       ]
     },
     {
+      "public_key": "ApQN0UPXMeBcCiiw+UA3XRe5EESOFbu545lEaThaZ+4L",
       "attributes": [
         {
           "key": "Country",
@@ -66,6 +70,7 @@
       ]
     },
     {
+      "public_key": "AzG1GtS58K92j6dDrGXTzu3EKJ+9GFLZLMK6lpH+mIzE",
       "attributes": [
         {
           "key": "Country",
@@ -82,6 +87,7 @@
       ]
     },
     {
+      "public_key": "AzCRU8cw/WQRPZV/f5PjxXXFSZ7dakRvzlwwEVFQdaz4",
       "attributes": [
         {
           "key": "Country",
@@ -94,6 +100,7 @@
       ]
     },
     {
+      "public_key": "As8NhDYv70g2ivJ95guRdxtDuqzONOv0nlU36xuXI2Mx",
       "attributes": [
         {
           "key": "Country",
@@ -110,6 +117,7 @@
       ]
     },
     {
+      "public_key": "Ax9daczuWTOYdrsmGrqWRkDonY86GD1OE1WUrnsOjE9e",
       "attributes": [
         {
           "key": "Country",
@@ -126,6 +134,7 @@
       ]
     },
     {
+      "public_key": "AorNy+ku9CwiGdQO/TjcGHXYmvGks6ZIS9JqVO1+KXze",
       "attributes": [
         {
           "key": "Country",
@@ -146,19 +155,19 @@
     "select 3 nodes in 3 distinct countries, same placement": {
       "policy": {"replicas":[{"count":1,"selector":"Main"}],"containerBackupFactor":1,"selectors":[{"name":"Main","count":3,"clause":"DISTINCT","attribute":"Country","filter":"*"}],"filters":[],"subnetId":null},
       "pivot": "Y29udGFpbmVySUQ=",
-      "result": [[4, 0, 7]],
+      "result": [[1, 7, 5]],
       "placement": {
         "pivot": "b2JqZWN0SUQ=",
-        "result": [[4, 0, 7]]
+        "result": [[1, 7, 5]]
       }
     },
     "select 6 nodes in 3 distinct countries, different placement": {
       "policy": {"replicas":[{"count":1,"selector":"Main"}],"containerBackupFactor":2,"selectors":[{"name":"Main","count":3,"clause":"DISTINCT","attribute":"Country","filter":"*"}],"filters":[],"subnetId":null},
       "pivot": "Y29udGFpbmVySUQ=",
-      "result": [[4, 3, 0, 1, 7, 2]],
+      "result": [[1, 6, 0, 7, 5, 3]],
       "placement": {
         "pivot": "b2JqZWN0SUQ=",
-        "result": [[4, 3, 0, 7, 2, 1]]
+        "result": [[1, 6, 0, 7, 5, 3]]
       }
     }
   }
