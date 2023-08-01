@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var (
@@ -386,7 +387,7 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectAlreadyRemoved]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectHead) (*ResObjectHead, error) {
+func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (*ResObjectHead, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
