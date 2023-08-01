@@ -714,14 +714,10 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
-		for i, h := range writer.headers {
+		for _, h := range writer.headers {
 			splitID := h.SplitID()
-			if i == 0 {
-				require.Nil(t, splitID)
-			} else {
-				require.NotNil(t, splitID)
-				require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
-			}
+			require.NotNil(t, splitID)
+			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
 
 			checkParentWithoutSplitInfo(h)
 		}
@@ -749,14 +745,10 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.NoError(t, payloadWriter.Close())
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
-		for i, h := range writer.headers {
+		for _, h := range writer.headers {
 			splitID := h.SplitID()
-			if i == 0 {
-				require.Nil(t, splitID)
-			} else {
-				require.NotNil(t, splitID)
-				require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
-			}
+			require.NotNil(t, splitID)
+			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
 
 			checkParentWithoutSplitInfo(h)
 		}
