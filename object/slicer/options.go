@@ -1,6 +1,7 @@
 package slicer
 
 import (
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -13,6 +14,7 @@ type Options struct {
 	withHomoChecksum bool
 
 	sessionToken *session.Object
+	bearerToken  *bearer.Token
 }
 
 // SetObjectPayloadLimit specifies data size limit for produced physically
@@ -37,6 +39,11 @@ func (x *Options) SetSession(sess *session.Object) {
 	x.sessionToken = sess
 }
 
+// SetBearerToken allows to attach signed Extended ACL rules to the request.
+func (x *Options) SetBearerToken(bearerToken *bearer.Token) {
+	x.bearerToken = bearerToken
+}
+
 // ObjectPayloadLimit returns required max object size.
 func (x *Options) ObjectPayloadLimit() uint64 {
 	return x.objectPayloadLimit
@@ -55,4 +62,9 @@ func (x *Options) IsHomomorphicChecksumEnabled() bool {
 // Session returns session object.
 func (x *Options) Session() *session.Object {
 	return x.sessionToken
+}
+
+// BearerToken returns bearer token.
+func (x *Options) BearerToken() *bearer.Token {
+	return x.bearerToken
 }
