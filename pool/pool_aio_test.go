@@ -682,7 +682,7 @@ func isEACLCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID, oldTable
 	}
 }
 
-func isObjectDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID, oid oid.ID, signer neofscrypto.Signer) error {
+func isObjectDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID, oid oid.ID, signer user.Signer) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 

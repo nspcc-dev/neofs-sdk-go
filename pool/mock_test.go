@@ -147,7 +147,7 @@ func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Sign
 	return res, m.errOnGetObject
 }
 
-func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectHead) (object.Object, error) {
+func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error) {
 	return object.Object{}, nil
 }
 

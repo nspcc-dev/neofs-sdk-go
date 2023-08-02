@@ -241,19 +241,18 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	stubObject.SetSessionToken(opts.sessionToken)
 
 	res := &PayloadWriter{
-		ctx:               ctx,
-		isHeaderWriteStep: true,
-		headerObject:      header,
-		stream:            ow,
-		signer:            signer,
-		container:         containerID,
-		owner:             owner,
-		currentEpoch:      opts.currentNeoFSEpoch,
-		sessionToken:      opts.sessionToken,
-		rootMeta:          newDynamicObjectMetadata(opts.withHomoChecksum),
-		childMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
-		prmObjectPutInit:  prm,
-		stubObject:        &stubObject,
+		ctx:              ctx,
+		headerObject:     header,
+		stream:           ow,
+		signer:           signer,
+		container:        containerID,
+		owner:            owner,
+		currentEpoch:     opts.currentNeoFSEpoch,
+		sessionToken:     opts.sessionToken,
+		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
+		childMeta:        newDynamicObjectMetadata(opts.withHomoChecksum),
+		prmObjectPutInit: prm,
+		stubObject:       &stubObject,
 	}
 
 	maxObjSize := childPayloadSizeLimit(opts)
@@ -270,9 +269,8 @@ type PayloadWriter struct {
 	ctx    context.Context
 	stream ObjectWriter
 
-	rootID            oid.ID
-	headerObject      object.Object
-	isHeaderWriteStep bool
+	rootID       oid.ID
+	headerObject object.Object
 
 	signer       user.Signer
 	container    cid.ID
@@ -332,7 +330,6 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 
 	x.buf.Reset()
 	x.childMeta.reset()
-	x.isHeaderWriteStep = false
 
 	n2, err := x.Write(chunk[n:]) // here n > 0 so infinite recursion shouldn't occur
 
@@ -401,19 +398,15 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		if x.withSplit {
 			obj.SetParentID(rootID)
 			obj.SetParent(&x.headerObject)
+		} else {
+			obj = x.headerObject
 		}
 	}
 
 	var id oid.ID
 	var err error
 
-	// The first object must be a header. Note: if object is less than MaxObjectSize, we don't need to slice it.
-	// Thus, we have a legitimate situation when, last == true and x.isHeaderWriteStep == true.
-	if x.isHeaderWriteStep {
-		id, err = writeInMemObject(ctx, x.signer, x.stream, x.headerObject, x.buf.Bytes(), meta, x.prmObjectPutInit)
-	} else {
-		id, err = writeInMemObject(ctx, x.signer, x.stream, obj, x.buf.Bytes(), meta, x.prmObjectPutInit)
-	}
+	id, err = writeInMemObject(ctx, x.signer, x.stream, obj, x.buf.Bytes(), meta, x.prmObjectPutInit)
 
 	if err != nil {
 		return fmt.Errorf("write formed object: %w", err)

@@ -82,7 +82,7 @@ type internalClient interface {
 	// see clientWrapper.objectGet.
 	objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
-	objectHead(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectHead) (object.Object, error)
+	objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
 	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
@@ -660,7 +660,7 @@ func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objec
 }
 
 // objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
-func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectHead) (object.Object, error) {
+func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (object.Object, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return object.Object{}, err

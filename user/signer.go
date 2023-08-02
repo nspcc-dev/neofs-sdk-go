@@ -48,3 +48,31 @@ func NewSignerRFC6979WithID(pk ecdsa.PrivateKey, id ID) *SignerRFC6979 {
 func (s SignerRFC6979) UserID() ID {
 	return s.userID
 }
+
+// StaticSigner emulates real sign and contains already precalculated hash.
+// Provides [Signer] interface.
+type StaticSigner struct {
+	neofscrypto.StaticSigner
+	id ID
+}
+
+// NewStaticSignerWithID creates new StaticSigner with specified [ID].
+func NewStaticSignerWithID(scheme neofscrypto.Scheme, sig []byte, pubKey neofscrypto.PublicKey, id ID) *StaticSigner {
+	return &StaticSigner{
+		StaticSigner: *neofscrypto.NewStaticSigner(scheme, sig, pubKey),
+		id:           id,
+	}
+}
+
+// UserID returns underlying [ID].
+func (s *StaticSigner) UserID() ID {
+	return s.id
+}
+
+// ResolveFromECDSAPublicKey resolves [ID] from the given [ecdsa.PublicKey].
+func ResolveFromECDSAPublicKey(pk ecdsa.PublicKey) ID {
+	var id ID
+	id.SetScriptHash((*keys.PublicKey)(&pk).GetScriptHash())
+
+	return id
+}
