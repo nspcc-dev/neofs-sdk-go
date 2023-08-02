@@ -13,6 +13,8 @@ type Options struct {
 
 	withHomoChecksum bool
 
+	copiesNumber uint32
+
 	sessionToken *session.Object
 	bearerToken  *bearer.Token
 }
@@ -44,6 +46,13 @@ func (x *Options) SetBearerToken(bearerToken *bearer.Token) {
 	x.bearerToken = bearerToken
 }
 
+// SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
+// the object PUT operation to succeed. This means that object operation will return with successful status even before
+// container placement policy is completely satisfied.
+func (x *Options) SetCopiesNumber(copiesNumber uint32) {
+	x.copiesNumber = copiesNumber
+}
+
 // ObjectPayloadLimit returns required max object size.
 func (x *Options) ObjectPayloadLimit() uint64 {
 	return x.objectPayloadLimit
@@ -67,4 +76,9 @@ func (x *Options) Session() *session.Object {
 // BearerToken returns bearer token.
 func (x *Options) BearerToken() *bearer.Token {
 	return x.bearerToken
+}
+
+// CopiesNumber returns the number of object copies.
+func (x *Options) CopiesNumber() uint32 {
+	return x.copiesNumber
 }

@@ -218,6 +218,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	}
 
 	var prm client.PrmObjectPutInit
+	prm.SetCopiesNumber(opts.copiesNumber)
 
 	if opts.sessionToken != nil {
 		prm.WithinSession(*opts.sessionToken)
