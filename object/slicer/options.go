@@ -1,6 +1,7 @@
 package slicer
 
 import (
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -12,7 +13,10 @@ type Options struct {
 
 	withHomoChecksum bool
 
+	copiesNumber uint32
+
 	sessionToken *session.Object
+	bearerToken  *bearer.Token
 }
 
 // SetObjectPayloadLimit specifies data size limit for produced physically
@@ -33,8 +37,20 @@ func (x *Options) CalculateHomomorphicChecksum() {
 }
 
 // SetSession sets session object.
-func (x *Options) SetSession(sess *session.Object) {
-	x.sessionToken = sess
+func (x *Options) SetSession(sess session.Object) {
+	x.sessionToken = &sess
+}
+
+// SetBearerToken allows to attach signed Extended ACL rules to the request.
+func (x *Options) SetBearerToken(bearerToken bearer.Token) {
+	x.bearerToken = &bearerToken
+}
+
+// SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
+// the object PUT operation to succeed. This means that object operation will return with successful status even before
+// container placement policy is completely satisfied.
+func (x *Options) SetCopiesNumber(copiesNumber uint32) {
+	x.copiesNumber = copiesNumber
 }
 
 // ObjectPayloadLimit returns required max object size.
@@ -55,4 +71,14 @@ func (x *Options) IsHomomorphicChecksumEnabled() bool {
 // Session returns session object.
 func (x *Options) Session() *session.Object {
 	return x.sessionToken
+}
+
+// BearerToken returns bearer token.
+func (x *Options) BearerToken() *bearer.Token {
+	return x.bearerToken
+}
+
+// CopiesNumber returns the number of object copies.
+func (x *Options) CopiesNumber() uint32 {
+	return x.copiesNumber
 }

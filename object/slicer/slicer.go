@@ -218,12 +218,19 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	}
 
 	var prm client.PrmObjectPutInit
+	prm.SetCopiesNumber(opts.copiesNumber)
 
 	if opts.sessionToken != nil {
 		prm.WithinSession(*opts.sessionToken)
 		header.SetSessionToken(opts.sessionToken)
 		// session issuer is a container owner.
 		issuer := opts.sessionToken.Issuer()
+		owner = issuer
+		header.SetOwnerID(&owner)
+	} else if opts.bearerToken != nil {
+		prm.WithBearerToken(*opts.bearerToken)
+		// token issuer is a container owner.
+		issuer := opts.bearerToken.ResolveIssuer()
 		owner = issuer
 		header.SetOwnerID(&owner)
 	}

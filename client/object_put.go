@@ -40,7 +40,9 @@ type PrmObjectPutInit struct {
 	copyNum uint32
 }
 
-// SetCopiesNumber sets number of object copies that is enough to consider put successful.
+// SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
+// the object PUT operation to succeed. This means that object operation will return with successful status even before
+// container placement policy is completely satisfied.
 func (x *PrmObjectPutInit) SetCopiesNumber(copiesNumber uint32) {
 	x.copyNum = copiesNumber
 }
