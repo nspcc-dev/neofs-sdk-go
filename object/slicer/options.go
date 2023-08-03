@@ -37,13 +37,13 @@ func (x *Options) CalculateHomomorphicChecksum() {
 }
 
 // SetSession sets session object.
-func (x *Options) SetSession(sess *session.Object) {
-	x.sessionToken = sess
+func (x *Options) SetSession(sess session.Object) {
+	x.sessionToken = &sess
 }
 
 // SetBearerToken allows to attach signed Extended ACL rules to the request.
-func (x *Options) SetBearerToken(bearerToken *bearer.Token) {
-	x.bearerToken = bearerToken
+func (x *Options) SetBearerToken(bearerToken bearer.Token) {
+	x.bearerToken = &bearerToken
 }
 
 // SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for

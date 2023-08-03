@@ -234,7 +234,7 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
 		in.sessionToken = sessiontest.ObjectSigned(test.RandomSignerRFC6979(tb))
-		opts.SetSession(in.sessionToken)
+		opts.SetSession(*in.sessionToken)
 	} else {
 		in.owner = *usertest.ID(tb)
 	}
