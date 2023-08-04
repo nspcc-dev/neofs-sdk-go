@@ -1,5 +1,72 @@
 # Changelog
 
+## [1.0.0-rc.10] - 2023-08-04
+
+This RC is supposed to be the last one having this many changes. We don't have
+any API changes planned now (except deprecated APIs removal), we're just
+collecting feedback (for about a month) and improving the
+documentation. Depending on the feedback we may release RC11 in September with
+some cosmetic changes, but then a final 1.0 will be release. So please
+consider RC10 as a real stable RC and provide feedback if any.
+
+The most significant change in this new RC is unification of pool and client
+APIs. For a long time they were developed pretty much independently leading to
+differences in behavior and features, now that's fixed. Old pool APIs are
+available in this release to simplify transition, but will be removed before
+1.0. Another important thing to highlight is a new finalized slicer API that
+can now do much more than the previous one and do it easier.
+
+New features:
+ * additional APIs for data get/set in session package (#447)
+ * `waiter` package that implements waiting for asynchronous operations and
+   works both with Client and Pool (#451)
+ * statistics collection is available via callback both for Client and Pool
+   now, `stat` package contains an old Pool statistics data collector (#453)
+ * automatic session creation/use can be disabled for Pool now (#454)
+
+Behaviour changes:
+ * `container` package APIs using Container struct are now methods of the
+   Container struct (#435)
+ * container.CalculateIDFromBinary moved to container/id package (#435)
+ * Pool provides a set of methods compliant with Client now, old methods are
+   deprecated (#434, #450)
+ * Client.ObjectPutInit now requires an object header to be provided (but you
+   can write payload right after init, #434)
+ * Client.ObjectGetInit immediately returns an object header now (#434)
+ * `object` package APIs using Object struct are now methods of the
+   Object struct (#457)
+ * simplified `Pool` creation for flat node list (#456)
+ * `ns` package is gone, please refer to neofs-contracts repository for new
+   RPC bindings providing this and other functions (#460)
+ * `relations` interface can work with both Client and Pool now (#455)
+ * Signers are explicitly required in APIs that need them (#462)
+ * Pool.SyncContainerWithNetwork is gone and client.SyncContainerWithNetwork
+   can be used instead (#464)
+ * ReadChunk method is no longer provided by the object's PayloadReader,
+   please use plain Read (#473)
+ * new user.Signer interface and structures binding Signer and user ID,
+   removal of IDFromSigner and IDFromKey (#475, #481, #479)
+ * client's ObjectWriter is compatible with io.WriteCloser now (#466)
+ * completely reworked `slicer` that can be used in one-off mode with a simple
+   function call or can reuse some context for a set of objects (#466, #481)
+
+Improvements:
+ * structures are no longer serialized when signing with StaticSigner (#436)
+ * fail fast in Pool init if wrong node addresses are given (#471)
+ * documentation updates (#469, #473)
+ * optimized session creation in Pool (#468)
+ * slicer performance optimizations (#466)
+ * additional methods for Signature to avoid the need to use V2 structures in
+   many cases (#479)
+ * PublicKeyBytes helper for `crypto` package (#479)
+
+Bugs fixed:
+ * Pool.DeleteObject not working correctly (#440)
+ * missing split info in the first child object produced by `slicer` (#463)
+ * split info written into root object by `slicer` (#474)
+ * incorrect min aggregation result in netmap placement function (#480)
+ * excessive headers produced by `slicer` (#481)
+
 ## [1.0.0-rc.9] - 2023-05-29
 
 A number of API simplifications (with ResolveNeoFSFailures being the most
@@ -92,5 +159,6 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.10]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.9...v1.0.0-rc.10
 [1.0.0-rc.9]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.8...v1.0.0-rc.9
 [1.0.0-rc.8]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.7...v1.0.0-rc.8
