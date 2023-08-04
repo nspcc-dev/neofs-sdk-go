@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -56,8 +57,7 @@ func TestObjectProtocolV2(t *testing.T) {
 	// Session key
 	signer := test.RandomSignerRFC6979(t)
 	authKey := signer.Public()
-	binAuthKey := make([]byte, authKey.MaxEncodedSize())
-	binAuthKey = binAuthKey[:authKey.Encode(binAuthKey)]
+	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
 	restoreAuthKey := func() {
 		body.SetSessionKey(binAuthKey)
 	}
@@ -610,12 +610,14 @@ func TestObject_Issuer(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 
 	require.Zero(t, token.Issuer())
+	require.Nil(t, token.IssuerPublicKeyBytes())
 
 	require.NoError(t, token.Sign(signer))
 
 	issuer := signer.UserID()
 
 	require.True(t, token.Issuer().Equals(issuer))
+	require.Equal(t, neofscrypto.PublicKeyBytes(signer.Public()), token.IssuerPublicKeyBytes())
 }
 
 func TestObject_Sign(t *testing.T) {

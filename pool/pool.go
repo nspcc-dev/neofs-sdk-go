@@ -1663,19 +1663,13 @@ func (p *innerPool) connection() (internalClient, error) {
 }
 
 func formCacheKey(address string, signer neofscrypto.Signer) string {
-	b := make([]byte, signer.Public().MaxEncodedSize())
-	signer.Public().Encode(b)
-
-	return address + string(b)
+	return address + string(neofscrypto.PublicKeyBytes(signer.Public()))
 }
 
 // cacheKeyForSession generates cache key for a signed session token.
 // It is used with pool methods compatible with [sdkClient.Client].
 func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.ObjectVerb, cnr cid.ID) string {
-	b := make([]byte, signer.Public().MaxEncodedSize())
-	signer.Public().Encode(b)
-
-	return fmt.Sprintf("%s%s%d%s", address, b, verb, cnr)
+	return fmt.Sprintf("%s%s%d%s", address, neofscrypto.PublicKeyBytes(signer.Public()), verb, cnr)
 }
 
 func (p *Pool) checkSessionTokenErr(err error, address string, cl internalClient) bool {

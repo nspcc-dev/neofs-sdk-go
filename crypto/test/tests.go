@@ -30,5 +30,5 @@ func RandomSignerRFC6979(tb testing.TB) user.Signer {
 	p, err := keys.NewPrivateKey()
 	require.NoError(tb, err)
 
-	return user.NewSignerRFC6979(p.PrivateKey)
+	return user.NewAutoIDSignerRFC6979(p.PrivateKey)
 }

@@ -24,7 +24,7 @@ func ExampleNewWaiter() {
 		panic(err)
 	}
 
-	signer := user.NewSignerRFC6979(key.PrivateKey)
+	signer := user.NewAutoIDSignerRFC6979(key.PrivateKey)
 
 	account := signer.UserID()
 

@@ -303,8 +303,7 @@ func (x commonData) ID() uuid.UUID {
 //
 // See also AssertAuthKey.
 func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
-	x.authKey = make([]byte, key.MaxEncodedSize())
-	x.authKey = x.authKey[:key.Encode(x.authKey)]
+	x.authKey = neofscrypto.PublicKeyBytes(key)
 }
 
 // SetIssuer allows to set issuer before Sign call.
@@ -321,10 +320,7 @@ func (x *commonData) SetIssuer(id user.ID) {
 //
 // See also SetAuthKey.
 func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
-	bKey := make([]byte, key.MaxEncodedSize())
-	bKey = bKey[:key.Encode(bKey)]
-
-	return bytes.Equal(bKey, x.authKey)
+	return bytes.Equal(neofscrypto.PublicKeyBytes(key), x.authKey)
 }
 
 // Issuer returns user ID of the session issuer.
@@ -339,4 +335,15 @@ func (x commonData) Issuer() user.ID {
 	}
 
 	return user.ID{}
+}
+
+// IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
+//
+// IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
+func (x *commonData) IssuerPublicKeyBytes() []byte {
+	if x.sigSet {
+		return x.sig.GetKey()
+	}
+
+	return nil
 }

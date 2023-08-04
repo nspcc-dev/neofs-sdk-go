@@ -25,7 +25,7 @@ func ExampleClient_ContainerPut() {
 		panic(err)
 	}
 
-	signer := user.NewSignerRFC6979(key.PrivateKey)
+	signer := user.NewAutoIDSignerRFC6979(key.PrivateKey)
 	// take account from user's signer
 	accountID = signer.UserID()
 

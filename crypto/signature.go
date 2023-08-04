@@ -28,19 +28,19 @@ type Signature refs.Signature
 //
 // See also WriteToV2.
 func (x *Signature) ReadFromV2(m refs.Signature) error {
-	if len(m.GetKey()) == 0 {
+	bPubKey := m.GetKey()
+	if len(bPubKey) == 0 {
 		return errors.New("missing public key")
-	} else if len(m.GetSign()) == 0 {
+	}
+
+	sig := m.GetSign()
+	if len(sig) == 0 {
 		return errors.New("missing signature")
 	}
 
-	switch m.GetScheme() {
-	default:
-		return fmt.Errorf("unsupported scheme %v", m.GetSign())
-	case
-		refs.ECDSA_SHA512,
-		refs.ECDSA_RFC6979_SHA256,
-		refs.ECDSA_RFC6979_SHA256_WALLET_CONNECT:
+	_, err := decodePublicKey(m)
+	if err != nil {
+		return err
 	}
 
 	*x = Signature(m)
@@ -53,7 +53,7 @@ func (x *Signature) ReadFromV2(m refs.Signature) error {
 //
 // See also ReadFromV2.
 func (x Signature) WriteToV2(m *refs.Signature) {
-	*m = (refs.Signature)(x)
+	*m = refs.Signature(x)
 }
 
 // Calculate signs data using Signer and encodes public key for subsequent
@@ -100,21 +100,11 @@ func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable) e
 //
 // See also Calculate.
 func (x Signature) Verify(data []byte) bool {
-	m := (*refs.Signature)(&x)
+	m := refs.Signature(x)
 
-	f, ok := publicKeys[Scheme(m.GetScheme())]
-	if !ok {
-		return false
-	}
+	key, err := decodePublicKey(m)
 
-	key := f()
-
-	err := key.Decode(m.GetKey())
-	if err != nil {
-		return false
-	}
-
-	return key.Verify(data, m.GetSign())
+	return err == nil && key.Verify(data, m.GetSign())
 }
 
 func (x *Signature) fillSignature(signer Signer, signature []byte) {
@@ -126,5 +116,61 @@ func (x *Signature) fillSignature(signer Signer, signature []byte) {
 	m := (*refs.Signature)(x)
 	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
 	m.SetSign(signature)
-	m.SetKey(key)
+	m.SetKey(PublicKeyBytes(signer.Public()))
+}
+
+// Scheme returns signature scheme used by signer to calculate the signature.
+//
+// Scheme MUST NOT be called before [Signature.ReadFromV2] or
+// [Signature.Calculate] methods.
+func (x Signature) Scheme() Scheme {
+	return Scheme((*refs.Signature)(&x).GetScheme())
+}
+
+// PublicKey returns public key of the signer which calculated the signature.
+//
+// PublicKey MUST NOT be called before [Signature.ReadFromV2] or
+// [Signature.Calculate] methods.
+//
+// See also [Signature.PublicKeyBytes].
+func (x Signature) PublicKey() PublicKey {
+	key, _ := decodePublicKey(refs.Signature(x))
+	return key
+}
+
+// PublicKeyBytes returns binary-encoded public key of the signer which
+// calculated the signature.
+//
+// PublicKeyBytes MUST NOT be called before [Signature.ReadFromV2] or
+// [Signature.Calculate] methods.
+//
+// See also [Signature.PublicKey].
+func (x Signature) PublicKeyBytes() []byte {
+	return (*refs.Signature)(&x).GetKey()
+}
+
+// Value returns calculated digital signature.
+//
+// Value MUST NOT be called before [Signature.ReadFromV2] or
+// [Signature.Calculate] methods.
+func (x Signature) Value() []byte {
+	return (*refs.Signature)(&x).GetSign()
+}
+
+func decodePublicKey(m refs.Signature) (PublicKey, error) {
+	scheme := Scheme(m.GetScheme())
+
+	newPubKey, ok := publicKeys[scheme]
+	if !ok {
+		return nil, fmt.Errorf("unsupported scheme %d", scheme)
+	}
+
+	pubKey := newPubKey()
+
+	err := pubKey.Decode(m.GetKey())
+	if err != nil {
+		return nil, fmt.Errorf("decode public key from binary: %w", err)
+	}
+
+	return pubKey, nil
 }
