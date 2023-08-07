@@ -108,11 +108,6 @@ func (x Signature) Verify(data []byte) bool {
 }
 
 func (x *Signature) fillSignature(signer Signer, signature []byte) {
-	pub := signer.Public()
-
-	key := make([]byte, pub.MaxEncodedSize())
-	key = key[:pub.Encode(key)]
-
 	m := (*refs.Signature)(x)
 	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
 	m.SetSign(signature)
