@@ -269,6 +269,39 @@ func testSlicer(t *testing.T, size, sizeLimit uint64) {
 	}
 }
 
+// eofOnLastChunkReader is a special reader for tests. It returns io.EOF with the last data portion.
+type eofOnLastChunkReader struct {
+	// this option enable returning 0, nil before fina; result with io.EOF error.
+	// Only in case when we return 0, EOF result.
+	isZeroNilShowed bool
+	isZeroOnEOF     bool
+	payload         []byte
+	i               int
+}
+
+func (l *eofOnLastChunkReader) Read(p []byte) (int, error) {
+	n := copy(p, l.payload[l.i:])
+	l.i += n
+
+	if l.i == len(l.payload) {
+		if n == 0 {
+			// nothing happened case from io.Reader docs.
+			if !l.isZeroNilShowed {
+				l.isZeroNilShowed = true
+				return 0, nil
+			}
+
+			return 0, io.EOF
+		}
+
+		if !l.isZeroOnEOF {
+			return n, io.EOF
+		}
+	}
+
+	return n, nil
+}
+
 func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input, opts slicer.Options) {
 	ctx := context.Background()
 
@@ -363,6 +396,48 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		require.NoError(t, err)
 
 		checker.chainCollector.verify(checker.input, w.ID())
+	})
+
+	t.Run("slicer.Put, io.EOF in last chunk", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		var hdr object.Object
+		hdr.SetSessionToken(opts.Session())
+		hdr.SetContainerID(in.container)
+		hdr.SetOwnerID(&in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, &eofOnLastChunkReader{payload: in.payload, isZeroNilShowed: true}, opts)
+		require.NoError(t, err)
+		checker.chainCollector.verify(checker.input, rootID)
+	})
+
+	t.Run("slicer.Put, zeroNil before io.EOF in last chunk", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		var hdr object.Object
+		hdr.SetSessionToken(opts.Session())
+		hdr.SetContainerID(in.container)
+		hdr.SetOwnerID(&in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, &eofOnLastChunkReader{payload: in.payload}, opts)
+		require.NoError(t, err)
+		checker.chainCollector.verify(checker.input, rootID)
+	})
+
+	t.Run("slicer.Put, io.EOF after last chunk", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		var hdr object.Object
+		hdr.SetSessionToken(opts.Session())
+		hdr.SetContainerID(in.container)
+		hdr.SetOwnerID(&in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, &eofOnLastChunkReader{payload: in.payload, isZeroOnEOF: true, isZeroNilShowed: true}, opts)
+		require.NoError(t, err)
+		checker.chainCollector.verify(checker.input, rootID)
 	})
 }
 

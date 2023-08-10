@@ -173,24 +173,26 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 
 	for {
 		n, err = data.Read(bChunk)
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				return rootID, fmt.Errorf("read payload chunk: %w", err)
+		if n > 0 {
+			if _, err = writer.Write(bChunk[:n]); err != nil {
+				return oid.ID{}, err
 			}
-
-			// no more data to read
-
-			if err = writer.Close(); err != nil {
-				return rootID, fmt.Errorf("writer close: %w", err)
-			}
-
-			rootID = writer.ID()
-			break
 		}
 
-		if _, err = writer.Write(bChunk[:n]); err != nil {
-			return oid.ID{}, err
+		if err == nil {
+			continue
 		}
+
+		if !errors.Is(err, io.EOF) {
+			return rootID, fmt.Errorf("read payload chunk: %w", err)
+		}
+
+		if err = writer.Close(); err != nil {
+			return rootID, fmt.Errorf("writer close: %w", err)
+		}
+
+		rootID = writer.ID()
+		break
 	}
 
 	return rootID, nil
