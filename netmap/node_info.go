@@ -262,6 +262,12 @@ func (x *NodeInfo) SetCapacity(capacity uint64) {
 	x.setNumericAttribute(attrCapacity, capacity)
 }
 
+// SetVersion sets node's version. By default, version
+// is not announced.
+func (x *NodeInfo) SetVersion(version string) {
+	x.SetAttribute(attrVersion, version)
+}
+
 // capacity returns capacity set using SetCapacity.
 //
 // Zero NodeInfo has zero capacity.
@@ -358,6 +364,10 @@ const (
 	// attrPrice is a key to the node attribute that indicates the
 	// price in GAS tokens for storing one GB of data during one Epoch.
 	attrPrice = "Price"
+
+	// attrVersion is a key to the node attribute that indicates node's
+	// version.
+	attrVersion = "Version"
 
 	// attrCapacity is a key to the node attribute that indicates the
 	// total available disk space in Gigabytes.
