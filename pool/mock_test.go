@@ -132,8 +132,7 @@ func (m *mockClient) ObjectRangeInit(_ context.Context, _ cid.ID, _ oid.ID, _, _
 }
 
 func (m *mockClient) ObjectDelete(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectDelete) (oid.ID, error) {
-	// TODO implement me
-	panic("implement me")
+	return oid.ID{}, nil
 }
 
 func (m *mockClient) ObjectHash(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHash) ([][]byte, error) {
@@ -251,10 +250,6 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	}
 
 	return ni, nil
-}
-
-func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error {
-	return nil
 }
 
 func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectGet) (ResGetObject, error) {

@@ -25,16 +25,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
-)
-
-var (
-	relationsGet = relations.Get
 )
 
 type sdkClientInterface interface {
@@ -100,8 +95,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectDelete.
-	objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
 	objectGet(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
@@ -526,30 +519,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	return res, nil
 }
 
-// objectDelete invokes sdkClient.ObjectDelete parse response status to error.
-func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectDelete) error {
-	cl, err := c.getClient()
-	if err != nil {
-		return err
-	}
-
-	var cliPrm sdkClient.PrmObjectDelete
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	_, err = cl.ObjectDelete(ctx, containerID, objectID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return fmt.Errorf("delete object on client: %w", err)
-	}
-	return nil
-}
-
 // objectGet returns header and reader for object.
 func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectGet) (ResGetObject, error) {
 	cl, err := c.getClient()
@@ -957,19 +926,6 @@ func (x *prmContext) useDefaultSession() {
 	x.defaultSession = true
 }
 
-func (x *prmContext) useContainer(cnr cid.ID) {
-	x.cnr = cnr
-}
-
-func (x *prmContext) useObjects(ids []oid.ID) {
-	x.objs = ids
-	x.objSet = true
-}
-
-func (x *prmContext) useVerb(verb session.ObjectVerb) {
-	x.verb = verb
-}
-
 type prmCommon struct {
 	signer user.Signer
 	btoken *bearer.Token
@@ -990,11 +946,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmObjectDelete groups parameters of DeleteObject operation.
-type PrmObjectDelete struct {
-	prmCommon
 }
 
 // PrmObjectGet groups parameters of GetObject operation.
@@ -1724,58 +1675,6 @@ func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
 	if prm.signer == nil {
 		prm.signer = p.signer
 	}
-}
-
-// DeleteObject marks an object for deletion from the container using NeoFS API protocol.
-// As a marker, a special unit called a tombstone is placed in the container.
-// It confirms the user's intent to delete the object, and is itself a container object.
-// Explicit deletion is done asynchronously, and is generally not guaranteed.
-// Deprecated: use ObjectDelete instead.
-func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
-	var prmCtx prmContext
-	prmCtx.useDefaultSession()
-	prmCtx.useVerb(session.VerbObjectDelete)
-	prmCtx.useContainer(containerID)
-
-	if prm.stoken == nil { // collect phy objects only if we are about to open default session
-		var tokens relations.Tokens
-		tokens.Bearer = prm.btoken
-
-		relatives, linkerID, err := relationsGet(ctx, p, containerID, objectID, tokens, prm.signer)
-		if err != nil {
-			return fmt.Errorf("failed to collect relatives: %w", err)
-		}
-
-		if len(relatives) != 0 {
-			prmCtx.useContainer(containerID)
-			objList := append(relatives, objectID)
-			if linkerID != nil {
-				objList = append(objList, *linkerID)
-			}
-
-			prmCtx.useObjects(objList)
-		}
-	}
-
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmCtx)
-	if err != nil {
-		return err
-	}
-
-	return p.call(&cc, func() error {
-		if err = cc.client.objectDelete(ctx, containerID, objectID, prm.signer, prm); err != nil {
-			return fmt.Errorf("remove object via client: %w", err)
-		}
-
-		return nil
-	})
 }
 
 // RawClient returns single client instance to have possibility to work with exact one.

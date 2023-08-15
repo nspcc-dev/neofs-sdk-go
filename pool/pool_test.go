@@ -13,9 +13,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -447,24 +445,17 @@ func TestSessionCacheWithKey(t *testing.T) {
 	err = pool.Dial(ctx)
 	require.NoError(t, err)
 
-	// cache must contain session token
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key.Public()))
 
-	var prm PrmObjectDelete
-	anonKey := test.RandomSignerRFC6979(t)
-	prm.UseSigner(anonKey)
+	var prm client.PrmObjectDelete
+	anonSigner := test.RandomSignerRFC6979(t)
 
-	relationsGet = func(context.Context, relations.Executor, cid.ID, oid.ID, relations.Tokens, user.Signer) ([]oid.ID, *oid.ID, error) {
-		return nil, nil, nil
-	}
-
-	err = pool.DeleteObject(ctx, cid.ID{}, oid.ID{}, prm)
+	_, err = pool.ObjectDelete(ctx, cid.ID{}, oid.ID{}, anonSigner, prm)
 	require.NoError(t, err)
-	st, _ = pool.cache.Get(formCacheKey(cp.address(), anonKey))
-	require.True(t, st.AssertAuthKey(key.Public()))
+
+	st, _ := pool.cache.Get(cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectDelete, cid.ID{}))
+	require.True(t, st.AssertAuthKey(anonSigner.Public()))
 }
 
 func TestSessionTokenOwner(t *testing.T) {
