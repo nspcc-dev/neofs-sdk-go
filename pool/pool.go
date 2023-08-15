@@ -13,7 +13,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -622,41 +621,6 @@ func (x *WaitParams) SetPollInterval(tick time.Duration) {
 	x.pollInterval = tick
 }
 
-type prmContext struct {
-	defaultSession bool
-	verb           session.ObjectVerb
-	cnr            cid.ID
-
-	objSet bool
-	objs   []oid.ID
-}
-
-func (x *prmContext) useDefaultSession() {
-	x.defaultSession = true
-}
-
-type prmCommon struct {
-	signer user.Signer
-	btoken *bearer.Token
-	stoken *session.Object
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Pool default signer is used.
-func (x *prmCommon) UseSigner(signer user.Signer) {
-	x.signer = signer
-}
-
-// UseBearer attaches bearer token to be used for the operation.
-func (x *prmCommon) UseBearer(token bearer.Token) {
-	x.btoken = &token
-}
-
-// UseSession specifies session within which operation should be performed.
-func (x *prmCommon) UseSession(token session.Object) {
-	x.stoken = &token
-}
-
 // prmEndpointInfo groups parameters of sessionCreate operation.
 type prmCreateSession struct {
 	exp uint64
@@ -1158,92 +1122,6 @@ func initSessionForDuration(ctx context.Context, dst *session.Object, c internal
 	dst.SetID(id)
 	dst.SetAuthKey(&key)
 	dst.SetExp(exp)
-
-	return nil
-}
-
-type callContext struct {
-	// base context for RPC
-	context.Context
-
-	client internalClient
-
-	// client endpoint
-	endpoint string
-
-	// request signer
-	signer user.Signer
-
-	// flag to open default session if session token is missing
-	sessionDefault bool
-	sessionTarget  func(session.Object)
-	sessionVerb    session.ObjectVerb
-	sessionCnr     cid.ID
-	sessionObjSet  bool
-	sessionObjs    []oid.ID
-}
-
-func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContext) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
-
-	ctx.signer = cfg.signer
-	if ctx.signer == nil {
-		// use pool signer if caller didn't specify its own
-		ctx.signer = p.signer
-	}
-
-	ctx.endpoint = cp.address()
-	ctx.client = cp
-
-	if ctx.sessionTarget != nil && cfg.stoken != nil {
-		ctx.sessionTarget(*cfg.stoken)
-	}
-
-	// note that we don't override session provided by the caller
-	ctx.sessionDefault = cfg.stoken == nil && prmCtx.defaultSession
-	if ctx.sessionDefault {
-		ctx.sessionVerb = prmCtx.verb
-		ctx.sessionCnr = prmCtx.cnr
-		ctx.sessionObjSet = prmCtx.objSet
-		ctx.sessionObjs = prmCtx.objs
-	}
-
-	return err
-}
-
-// opens new session or uses cached one.
-// Must be called only on initialized callContext with set sessionTarget.
-func (p *Pool) openDefaultSession(ctx *callContext) error {
-	cacheKey := formCacheKey(ctx.endpoint, ctx.signer)
-
-	tok, ok := p.cache.Get(cacheKey)
-	if !ok {
-		// init new session
-		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration, ctx.signer)
-		if err != nil {
-			return fmt.Errorf("session API client: %w", err)
-		}
-
-		// cache the opened session
-		p.cache.Put(cacheKey, tok)
-	}
-
-	tok.ForVerb(ctx.sessionVerb)
-	tok.BindContainer(ctx.sessionCnr)
-
-	if ctx.sessionObjSet {
-		tok.LimitByObjects(ctx.sessionObjs...)
-	}
-
-	// sign the token
-	if err := tok.Sign(ctx.signer); err != nil {
-		return fmt.Errorf("sign token of the opened session: %w", err)
-	}
-
-	ctx.sessionTarget(tok)
 
 	return nil
 }

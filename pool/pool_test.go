@@ -481,27 +481,23 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(p.Close)
 
-	anonKey := test.RandomSignerRFC6979(t)
-	anonOwner := anonKey.UserID()
-
-	var prm prmCommon
-	prm.UseSigner(anonKey)
-	var prmCtx prmContext
-	prmCtx.useDefaultSession()
-
-	var tkn session.Object
-	var cc callContext
-	cc.Context = ctx
-	cc.sessionTarget = func(tok session.Object) {
-		tkn = tok
-	}
-	err = p.initCallContext(&cc, prm, prmCtx)
+	cp, err := p.connection()
 	require.NoError(t, err)
 
-	err = p.openDefaultSession(&cc)
+	anonSigner := test.RandomSignerRFC6979(t)
+
+	var containerID cid.ID
+
+	_, _, err = p.ObjectGetInit(ctx, containerID, oid.ID{}, anonSigner, client.PrmObjectGet{})
 	require.NoError(t, err)
-	require.True(t, tkn.VerifySignature())
-	require.True(t, tkn.Issuer().Equals(anonOwner))
+
+	cacheKey := cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectGet, containerID)
+	st, ok := p.cache.Get(cacheKey)
+	require.True(t, ok)
+	require.True(t, st.AssertAuthKey(anonSigner.Public()))
+
+	require.True(t, st.VerifySignature())
+	require.True(t, st.Issuer().Equals(anonSigner.UserID()))
 }
 
 func TestStatusMonitor(t *testing.T) {
