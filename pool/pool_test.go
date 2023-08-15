@@ -679,13 +679,19 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 		conn, err := pool.connection()
 		require.NoError(t, err)
 		require.Equal(t, nodes[0].address, conn.address())
-		_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
+		sdkClient, err := conn.getClient()
+		require.NoError(t, err)
+		_, _, err = sdkClient.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+
 		require.Error(t, err)
 	}
 
 	conn, err := pool.connection()
 	require.NoError(t, err)
 	require.Equal(t, nodes[1].address, conn.address())
-	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
+
+	sdkClient, err := conn.getClient()
+	require.NoError(t, err)
+	_, _, err = sdkClient.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
 	require.NoError(t, err)
 }

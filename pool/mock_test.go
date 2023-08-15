@@ -117,6 +117,7 @@ func (m *mockClient) ObjectPutInit(_ context.Context, _ object.Object, _ user.Si
 func (m *mockClient) ObjectGetInit(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
 	var hdr object.Object
 	var pl client.PayloadReader
+	m.updateErrorRate(m.errOnGetObject)
 
 	return hdr, &pl, m.errOnGetObject
 }
@@ -250,17 +251,6 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	}
 
 	return ni, nil
-}
-
-func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectGet) (ResGetObject, error) {
-	var res ResGetObject
-
-	if m.errOnGetObject == nil {
-		return res, nil
-	}
-
-	m.updateErrorRate(m.errOnGetObject)
-	return res, m.errOnGetObject
 }
 
 func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error) {

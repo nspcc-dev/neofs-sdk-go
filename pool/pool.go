@@ -95,8 +95,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectGet.
-	objectGet(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
 	objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
@@ -519,38 +517,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	return res, nil
 }
 
-// objectGet returns header and reader for object.
-func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectGet) (ResGetObject, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return ResGetObject{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectGet
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	var res ResGetObject
-
-	hdr, rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
-	}
-
-	res.Header = hdr
-	res.Payload = &objectReadCloser{
-		reader: rObj,
-	}
-
-	return res, nil
-}
-
 // objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
 func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (object.Object, error) {
 	cl, err := c.getClient()
@@ -946,11 +912,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmObjectGet groups parameters of GetObject operation.
-type PrmObjectGet struct {
-	prmCommon
 }
 
 // PrmObjectHead groups parameters of HeadObject operation.
@@ -1685,51 +1646,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	}
 
 	return conn.getRawClient()
-}
-
-type objectReadCloser struct {
-	reader *sdkClient.PayloadReader
-}
-
-// Read implements io.Reader of the object payload.
-func (x *objectReadCloser) Read(p []byte) (int, error) {
-	return x.reader.Read(p)
-}
-
-// Close implements io.Closer of the object payload.
-func (x *objectReadCloser) Close() error {
-	return x.reader.Close()
-}
-
-// ResGetObject is designed to provide object header nad read one object payload from NeoFS system.
-type ResGetObject struct {
-	Header object.Object
-
-	Payload io.ReadCloser
-}
-
-// GetObject reads object header and initiates reading an object payload through a remote server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectGetInit instead.
-func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var res ResGetObject
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return res, err
-	}
-
-	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectGet(ctx, containerID, objectID, prm.signer, prm)
-		return err
-	})
 }
 
 // HeadObject reads object header through a remote server using NeoFS API protocol.
