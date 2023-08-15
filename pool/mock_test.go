@@ -253,10 +253,6 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	return ni, nil
 }
 
-func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, user.Signer, PrmObjectRange) (ResObjectRange, error) {
-	return ResObjectRange{}, nil
-}
-
 func (m *mockClient) objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error) {
 	return ResObjectSearch{}, nil
 }

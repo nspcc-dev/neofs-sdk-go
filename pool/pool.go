@@ -95,8 +95,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectRange.
-	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, user.Signer, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
 	objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
@@ -515,34 +513,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	return res, nil
 }
 
-// objectRange returns object range reader.
-func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm PrmObjectRange) (ResObjectRange, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return ResObjectRange{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectRange
-
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	res, err := cl.ObjectRangeInit(ctx, containerID, objectID, offset, length, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
-	}
-
-	return ResObjectRange{
-		payload: res,
-	}, nil
-}
-
 // objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
 func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (ResObjectSearch, error) {
 	cl, err := c.getClient()
@@ -876,11 +846,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmObjectRange groups parameters of RangeObject operation.
-type PrmObjectRange struct {
-	prmCommon
 }
 
 // PrmObjectSearch groups parameters of SearchObjects operation.
@@ -1598,51 +1563,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	}
 
 	return conn.getRawClient()
-}
-
-// ResObjectRange is designed to read payload range of one object
-// from NeoFS system.
-//
-// Must be initialized using Pool.ObjectRange, any other
-// usage is unsafe.
-type ResObjectRange struct {
-	payload *sdkClient.ObjectRangeReader
-}
-
-// Read implements io.Reader of the object payload.
-func (x *ResObjectRange) Read(p []byte) (int, error) {
-	return x.payload.Read(p)
-}
-
-// Close ends reading the payload range and returns the result of the operation
-// along with the final results. Must be called after using the ResObjectRange.
-func (x *ResObjectRange) Close() error {
-	return x.payload.Close()
-}
-
-// ObjectRange initiates reading an object's payload range through a remote
-// server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectRangeInit instead.
-func (p *Pool) ObjectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var res ResObjectRange
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return res, err
-	}
-
-	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectRange(ctx, containerID, objectID, offset, length, prm.signer, prm)
-		return err
-	})
 }
 
 // ResObjectSearch is designed to read list of object identifiers from NeoFS system.
