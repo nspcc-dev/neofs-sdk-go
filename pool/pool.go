@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/rand"
 	"sort"
@@ -95,8 +94,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
 	sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error)
 
@@ -513,33 +510,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	return res, nil
 }
 
-// objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (ResObjectSearch, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return ResObjectSearch{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectSearch
-	cliPrm.SetFilters(prm.filters)
-
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	res, err := cl.ObjectSearchInit(ctx, containerID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
-	}
-
-	return ResObjectSearch{r: res}, nil
-}
-
 // sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
 func (c *clientWrapper) sessionCreate(ctx context.Context, signer user.Signer, prm prmCreateSession) (resCreateSession, error) {
 	cl, err := c.getClient()
@@ -846,18 +816,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmObjectSearch groups parameters of SearchObjects operation.
-type PrmObjectSearch struct {
-	prmCommon
-
-	filters object.SearchFilters
-}
-
-// SetFilters specifies filters by which to select objects.
-func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
-	x.filters = filters
 }
 
 // PrmContainerPut groups parameters of PutContainer operation.
@@ -1530,31 +1488,6 @@ func (p *Pool) openDefaultSession(ctx *callContext) error {
 	return nil
 }
 
-// opens default session (if sessionDefault is set), and calls f. If f returns
-// session-related error then cached token is removed.
-func (p *Pool) call(ctx *callContext, f func() error) error {
-	var err error
-
-	if ctx.sessionDefault {
-		err = p.openDefaultSession(ctx)
-		if err != nil {
-			return fmt.Errorf("open default session: %w", err)
-		}
-	}
-
-	err = f()
-	_ = p.checkSessionTokenErr(err, ctx.endpoint, ctx.client)
-
-	return err
-}
-
-// fillAppropriateSigner use pool signer if caller didn't specify its own.
-func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
-	if prm.signer == nil {
-		prm.signer = p.signer
-	}
-}
-
 // RawClient returns single client instance to have possibility to work with exact one.
 func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	conn, err := p.connection()
@@ -1563,70 +1496,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	}
 
 	return conn.getRawClient()
-}
-
-// ResObjectSearch is designed to read list of object identifiers from NeoFS system.
-//
-// Must be initialized using Pool.SearchObjects, any other usage is unsafe.
-type ResObjectSearch struct {
-	r *sdkClient.ObjectListReader
-}
-
-// Read reads another list of the object identifiers.
-func (x *ResObjectSearch) Read(buf []oid.ID) (int, error) {
-	n, ok := x.r.Read(buf)
-	if !ok {
-		err := x.r.Close()
-		if err == nil {
-			return n, io.EOF
-		}
-
-		return n, err
-	}
-
-	return n, nil
-}
-
-// Iterate iterates over the list of found object identifiers.
-// f can return true to stop iteration earlier.
-//
-// Returns an error if object can't be read.
-func (x *ResObjectSearch) Iterate(f func(oid.ID) bool) error {
-	return x.r.Iterate(f)
-}
-
-// Close ends reading list of the matched objects and returns the result of the operation
-// along with the final results. Must be called after using the ResObjectSearch.
-func (x *ResObjectSearch) Close() {
-	_ = x.r.Close()
-}
-
-// SearchObjects initiates object selection through a remote server using NeoFS API protocol.
-//
-// The call only opens the transmission channel, explicit fetching of matched objects
-// is done using the ResObjectSearch. Resulting reader must be finally closed.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectSearchInit instead.
-func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var res ResObjectSearch
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return res, err
-	}
-
-	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectSearch(ctx, containerID, prm.signer, prm)
-		return err
-	})
 }
 
 // PutContainer sends request to save container in NeoFS and waits for the operation to complete.

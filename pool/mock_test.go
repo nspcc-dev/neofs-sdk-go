@@ -253,10 +253,6 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	return ni, nil
 }
 
-func (m *mockClient) objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error) {
-	return ResObjectSearch{}, nil
-}
-
 func (m *mockClient) sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error) {
 	if m.errorOnCreateSession {
 		err := errors.New("create session")
