@@ -38,8 +38,36 @@ var (
 	relationsGet = relations.Get
 )
 
+type sdkClientInterface interface {
+	Dial(prm sdkClient.PrmDial) error
+
+	BalanceGet(ctx context.Context, prm sdkClient.PrmBalanceGet) (accounting.Decimal, error)
+
+	ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm sdkClient.PrmContainerPut) (cid.ID, error)
+	ContainerGet(ctx context.Context, id cid.ID, prm sdkClient.PrmContainerGet) (container.Container, error)
+	ContainerList(ctx context.Context, ownerID user.ID, prm sdkClient.PrmContainerList) ([]cid.ID, error)
+	ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm sdkClient.PrmContainerDelete) error
+	ContainerEACL(ctx context.Context, id cid.ID, prm sdkClient.PrmContainerEACL) (eacl.Table, error)
+	ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm sdkClient.PrmContainerSetEACL) error
+
+	NetworkInfo(ctx context.Context, prm sdkClient.PrmNetworkInfo) (netmap.NetworkInfo, error)
+	NetMapSnapshot(ctx context.Context, prm sdkClient.PrmNetMapSnapshot) (netmap.NetMap, error)
+
+	ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm sdkClient.PrmObjectPutInit) (sdkClient.ObjectWriter, error)
+	ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectGet) (object.Object, *sdkClient.PayloadReader, error)
+	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHead) (*sdkClient.ResObjectHead, error)
+	ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm sdkClient.PrmObjectRange) (*sdkClient.ObjectRangeReader, error)
+	ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectDelete) (oid.ID, error)
+	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHash) ([][]byte, error)
+	ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm sdkClient.PrmObjectSearch) (*sdkClient.ObjectListReader, error)
+
+	SessionCreate(ctx context.Context, signer user.Signer, prm sdkClient.PrmSessionCreate) (*sdkClient.ResSessionCreate, error)
+
+	EndpointInfo(ctx context.Context, prm sdkClient.PrmEndpointInfo) (*sdkClient.ResEndpointInfo, error)
+}
+
 type sdkClientWrapper struct {
-	*sdkClient.Client
+	sdkClientInterface
 
 	nodeSession nodeSessionContainer
 	addr        string
@@ -99,7 +127,8 @@ type internalClient interface {
 	// see clientWrapper.restartIfUnhealthy.
 	restartIfUnhealthy(ctx context.Context) (bool, bool)
 
-	getClient() (*sdkClient.Client, error)
+	getClient() (sdkClientInterface, error)
+	getRawClient() (*sdkClient.Client, error)
 }
 
 type statisticUpdater interface {
@@ -320,7 +349,11 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 	return true, !wasHealthy
 }
 
-func (c *clientWrapper) getClient() (*sdkClient.Client, error) {
+func (c *clientWrapper) getClient() (sdkClientInterface, error) {
+	return c.getRawClient()
+}
+
+func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 	c.clientMutex.RLock()
 	defer c.clientMutex.RUnlock()
 	if c.isHealthy() {
@@ -1938,7 +1971,7 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 		return nil, err
 	}
 
-	return conn.getClient()
+	return conn.getRawClient()
 }
 
 type objectReadCloser struct {
@@ -2294,9 +2327,9 @@ func (p *Pool) sdkClient() (*sdkClientWrapper, error) {
 	}
 
 	return &sdkClientWrapper{
-		Client:      cl,
-		nodeSession: conn,
-		addr:        conn.address(),
+		sdkClientInterface: cl,
+		nodeSession:        conn,
+		addr:               conn.address(),
 	}, nil
 }
 

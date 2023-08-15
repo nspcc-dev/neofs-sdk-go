@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -28,6 +28,103 @@ type mockClient struct {
 	errorOnEndpointInfo  bool
 	errorOnNetworkInfo   bool
 	errOnGetObject       error
+}
+
+func (m *mockClient) Dial(_ client.PrmDial) error {
+	if m.errorOnDial {
+		return errors.New("dial error")
+	}
+	return nil
+}
+
+func (m *mockClient) BalanceGet(_ context.Context, _ client.PrmBalanceGet) (accounting.Decimal, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ContainerPut(_ context.Context, _ container.Container, _ neofscrypto.Signer, _ client.PrmContainerPut) (cid.ID, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ContainerGet(_ context.Context, _ cid.ID, _ client.PrmContainerGet) (container.Container, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ContainerList(_ context.Context, _ user.ID, _ client.PrmContainerList) ([]cid.ID, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ContainerDelete(_ context.Context, _ cid.ID, _ neofscrypto.Signer, _ client.PrmContainerDelete) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ContainerEACL(_ context.Context, _ cid.ID, _ client.PrmContainerEACL) (eacl.Table, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ContainerSetEACL(_ context.Context, _ eacl.Table, _ user.Signer, _ client.PrmContainerSetEACL) error {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) NetMapSnapshot(_ context.Context, _ client.PrmNetMapSnapshot) (netmap.NetMap, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectPutInit(_ context.Context, _ object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectGetInit(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectHead(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHead) (*client.ResObjectHead, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectRangeInit(_ context.Context, _ cid.ID, _ oid.ID, _, _ uint64, _ user.Signer, _ client.PrmObjectRange) (*client.ObjectRangeReader, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectDelete(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectDelete) (oid.ID, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectHash(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHash) ([][]byte, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) ObjectSearchInit(_ context.Context, _ cid.ID, _ user.Signer, _ client.PrmObjectSearch) (*client.ObjectListReader, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) SessionCreate(_ context.Context, _ user.Signer, _ client.PrmSessionCreate) (*client.ResSessionCreate, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (*client.ResEndpointInfo, error) {
+	// TODO implement me
+	panic("implement me")
 }
 
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
@@ -196,7 +293,11 @@ func (m *mockClient) restartIfUnhealthy(ctx context.Context) (healthy bool, chan
 	return
 }
 
-func (m *mockClient) getClient() (*sdkClient.Client, error) {
+func (m *mockClient) getClient() (sdkClientInterface, error) {
+	return m, nil
+}
+
+func (m *mockClient) getRawClient() (*client.Client, error) {
 	return nil, errors.New("now supported to return sdkClient from mockClient")
 }
 
