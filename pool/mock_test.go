@@ -204,14 +204,6 @@ func newToken(signer neofscrypto.Signer) *session.Object {
 	return &tok
 }
 
-func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) {
-	return eacl.Table{}, nil
-}
-
-func (m *mockClient) containerSetEACL(context.Context, eacl.Table, user.Signer, PrmContainerSetEACL) error {
-	return nil
-}
-
 func (m *mockClient) endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error) {
 	var ni netmap.NodeInfo
 
