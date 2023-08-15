@@ -504,48 +504,6 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.True(t, tkn.Issuer().Equals(anonOwner))
 }
 
-func TestWaitPresence(t *testing.T) {
-	mockCli := newMockClient("", test.RandomSignerRFC6979(t))
-
-	t.Run("context canceled", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			cancel()
-		}()
-
-		var idCnr cid.ID
-
-		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
-			timeout:      120 * time.Second,
-			pollInterval: 5 * time.Second,
-		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "context canceled")
-	})
-
-	t.Run("context deadline exceeded", func(t *testing.T) {
-		ctx := context.Background()
-		var idCnr cid.ID
-		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
-			timeout:      500 * time.Millisecond,
-			pollInterval: 5 * time.Second,
-		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "context deadline exceeded")
-	})
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
-		var idCnr cid.ID
-		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
-			timeout:      10 * time.Second,
-			pollInterval: 500 * time.Millisecond,
-		})
-		require.NoError(t, err)
-	})
-}
-
 func TestStatusMonitor(t *testing.T) {
 	monitor := newClientStatusMonitor("", 10)
 	monitor.errorThreshold = 3

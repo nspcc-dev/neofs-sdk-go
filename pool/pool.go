@@ -78,12 +78,8 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.containerGet.
-	containerGet(context.Context, cid.ID) (container.Container, error)
 	// see clientWrapper.containerList.
 	containerList(context.Context, user.ID) ([]cid.ID, error)
-	// see clientWrapper.containerDelete.
-	containerDelete(context.Context, cid.ID, neofscrypto.Signer, PrmContainerDelete) error
 	// see clientWrapper.containerEACL.
 	containerEACL(context.Context, cid.ID) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
@@ -339,22 +335,6 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 	return nil, errPoolClientUnhealthy
 }
 
-// containerGet invokes sdkClient.ContainerGet parse response status to error and return result as is.
-func (c *clientWrapper) containerGet(ctx context.Context, cnrID cid.ID) (container.Container, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return container.Container{}, err
-	}
-
-	res, err := cl.ContainerGet(ctx, cnrID, sdkClient.PrmContainerGet{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return container.Container{}, fmt.Errorf("container get on client: %w", err)
-	}
-
-	return res, nil
-}
-
 // containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
 func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
 	cl, err := c.getClient()
@@ -368,32 +348,6 @@ func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]c
 		return nil, fmt.Errorf("container list on client: %w", err)
 	}
 	return res, nil
-}
-
-// containerDelete invokes sdkClient.ContainerDelete parse response status to error.
-// It also waits for the container to be removed from the network.
-func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
-	cl, err := c.getClient()
-	if err != nil {
-		return err
-	}
-
-	var cliPrm sdkClient.PrmContainerDelete
-	if prm.stokenSet {
-		cliPrm.WithinSession(prm.stoken)
-	}
-
-	err = cl.ContainerDelete(ctx, id, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return fmt.Errorf("container delete on client: %w", err)
-	}
-
-	if !prm.waitParamsSet {
-		prm.waitParams.setDefaults()
-	}
-
-	return waitForContainerRemoved(ctx, c, id, &prm.waitParams)
 }
 
 // containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
@@ -787,30 +741,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmContainerDelete groups parameters of DeleteContainer operation.
-type PrmContainerDelete struct {
-	stoken    session.Container
-	stokenSet bool
-
-	waitParams    WaitParams
-	waitParamsSet bool
-}
-
-// SetSessionToken specifies session within which operation should be performed.
-func (x *PrmContainerDelete) SetSessionToken(token session.Container) {
-	x.stoken = token
-	x.stokenSet = true
-}
-
-// SetWaitParams specifies timeout params to complete operation.
-// If not provided the default one will be used.
-// Panics if any of the wait params isn't positive.
-func (x *PrmContainerDelete) SetWaitParams(waitParams WaitParams) {
-	waitParams.checkForPositive()
-	x.waitParams = waitParams
-	x.waitParamsSet = true
 }
 
 // PrmContainerSetEACL groups parameters of SetEACL operation.
@@ -1441,19 +1371,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	return conn.getRawClient()
 }
 
-// GetContainer reads NeoFS container by ID.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ContainerGet instead.
-func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return container.Container{}, err
-	}
-
-	return cp.containerGet(ctx, id)
-}
-
 // ListContainers requests identifiers of the account-owned containers.
 // Deprecated: use ContainerList instead.
 func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
@@ -1463,24 +1380,6 @@ func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, e
 	}
 
 	return cp.containerList(ctx, ownerID)
-}
-
-// DeleteContainer sends request to remove the NeoFS container and waits for the operation to complete.
-//
-// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//
-//	polling interval: 5s
-//	waiting timeout: 120s
-//
-// Success can be verified by reading by identifier (see GetContainer).
-// Deprecated: use ContainerDelete instead.
-func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
-
-	return cp.containerDelete(ctx, id, signer, prm)
 }
 
 // GetEACL reads eACL table of the NeoFS container.
@@ -1514,14 +1413,6 @@ func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, signer user.Signer
 	return cp.containerSetEACL(ctx, table, signer, prm)
 }
 
-// waitForContainerPresence waits until the container is found on the NeoFS network.
-func waitForContainerPresence(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
-	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		_, err := cli.containerGet(ctx, cnrID)
-		return err == nil
-	})
-}
-
 // waitForEACLPresence waits until the container eacl is applied on the NeoFS network.
 func waitForEACLPresence(ctx context.Context, cli internalClient, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
 	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
@@ -1530,14 +1421,6 @@ func waitForEACLPresence(ctx context.Context, cli internalClient, cnrID cid.ID, 
 			return eacl.EqualTables(*table, eaclTable)
 		}
 		return false
-	})
-}
-
-// waitForContainerRemoved waits until the container is removed from the NeoFS network.
-func waitForContainerRemoved(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
-	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		_, err := cli.containerGet(ctx, cnrID)
-		return errors.Is(err, apistatus.ErrContainerNotFound)
 	})
 }
 
