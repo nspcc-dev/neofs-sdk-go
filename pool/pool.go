@@ -84,8 +84,6 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.balanceGet.
-	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
 	// see clientWrapper.containerPut.
 	containerPut(context.Context, container.Container, user.Signer, PrmContainerPut) (cid.ID, error)
 	// see clientWrapper.containerGet.
@@ -357,25 +355,6 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 		return c.client, nil
 	}
 	return nil, errPoolClientUnhealthy
-}
-
-// balanceGet invokes sdkClient.BalanceGet parse response status to error and return result as is.
-func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return accounting.Decimal{}, err
-	}
-
-	var cliPrm sdkClient.PrmBalanceGet
-	cliPrm.SetAccount(prm.account)
-
-	res, err := cl.BalanceGet(ctx, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return accounting.Decimal{}, fmt.Errorf("balance get on client: %w", err)
-	}
-
-	return res, nil
 }
 
 // containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
@@ -1126,16 +1105,6 @@ func (x *PrmContainerSetEACL) SetWaitParams(waitParams WaitParams) {
 	waitParams.checkForPositive()
 	x.waitParams = waitParams
 	x.waitParamsSet = true
-}
-
-// PrmBalanceGet groups parameters of Balance operation.
-type PrmBalanceGet struct {
-	account user.ID
-}
-
-// SetAccount specifies identifier of the NeoFS account for which the balance is requested.
-func (x *PrmBalanceGet) SetAccount(id user.ID) {
-	x.account = id
 }
 
 // prmEndpointInfo groups parameters of sessionCreate operation.
@@ -2089,19 +2058,6 @@ func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, signer user.Signer
 	}
 
 	return cp.containerSetEACL(ctx, table, signer, prm)
-}
-
-// Balance requests current balance of the NeoFS account.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use BalanceGet instead.
-func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return accounting.Decimal{}, err
-	}
-
-	return cp.balanceGet(ctx, prm)
 }
 
 // waitForContainerPresence waits until the container is found on the NeoFS network.
