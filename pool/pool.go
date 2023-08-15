@@ -80,11 +80,11 @@ type internalClient interface {
 	// see clientWrapper.objectDelete.
 	objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
-	objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error)
+	objectGet(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectGet) (ResGetObject, error)
 	// see clientWrapper.objectHead.
 	objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
-	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error)
+	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, user.Signer, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
 	objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error)
 	// see clientWrapper.sessionCreate.
@@ -628,7 +628,7 @@ func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, ob
 }
 
 // objectGet returns header and reader for object.
-func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (ResGetObject, error) {
+func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectGet) (ResGetObject, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResGetObject{}, err
@@ -694,7 +694,7 @@ func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, obje
 }
 
 // objectRange returns object range reader.
-func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer neofscrypto.Signer, prm PrmObjectRange) (ResObjectRange, error) {
+func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm PrmObjectRange) (ResObjectRange, error) {
 	cl, err := c.getClient()
 	if err != nil {
 		return ResObjectRange{}, err

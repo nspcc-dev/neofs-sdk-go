@@ -136,7 +136,7 @@ func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, user.Signer, 
 	return nil
 }
 
-func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error) {
+func (m *mockClient) objectGet(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectGet) (ResGetObject, error) {
 	var res ResGetObject
 
 	if m.errOnGetObject == nil {
@@ -151,7 +151,7 @@ func (m *mockClient) objectHead(context.Context, cid.ID, oid.ID, user.Signer, Pr
 	return object.Object{}, nil
 }
 
-func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error) {
+func (m *mockClient) objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, user.Signer, PrmObjectRange) (ResObjectRange, error) {
 	return ResObjectRange{}, nil
 }
 

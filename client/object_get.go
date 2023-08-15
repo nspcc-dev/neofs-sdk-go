@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -270,7 +269,7 @@ func (x *PayloadReader) Read(p []byte) (int, error) {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectAlreadyRemoved]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (object.Object, *PayloadReader, error) {
+func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectGet) (object.Object, *PayloadReader, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -628,7 +627,7 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 // Return errors:
 //   - [ErrZeroRangeLength]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer neofscrypto.Signer, prm PrmObjectRange) (*ObjectRangeReader, error) {
+func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm PrmObjectRange) (*ObjectRangeReader, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
