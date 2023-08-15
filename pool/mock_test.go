@@ -2,9 +2,12 @@ package pool
 
 import (
 	"context"
+	"crypto/rand"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
+	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -18,6 +21,13 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
+
+func randomBytes(size uint64) []byte {
+	data := make([]byte, size)
+	_, _ = rand.Read(data)
+
+	return data
+}
 
 type mockClient struct {
 	signer neofscrypto.Signer
@@ -73,8 +83,25 @@ func (m *mockClient) ContainerSetEACL(_ context.Context, _ eacl.Table, _ user.Si
 }
 
 func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
-	// TODO implement me
-	panic("implement me")
+	var ni netmap.NetworkInfo
+	var v2 netmapv2.NetworkInfo
+	var netConfig netmapv2.NetworkConfig
+	var p1 netmapv2.NetworkParameter
+
+	p1.SetKey(randomBytes(16))
+	p1.SetValue(randomBytes(16))
+
+	netConfig.SetParameters(p1)
+	v2.SetNetworkConfig(&netConfig)
+
+	if err := ni.ReadFromV2(v2); err != nil {
+		return ni, err
+	}
+
+	ni.SetCurrentEpoch(uint64(time.Now().Unix()))
+	ni.SetMaxObjectSize(1024)
+
+	return ni, nil
 }
 
 func (m *mockClient) NetMapSnapshot(_ context.Context, _ client.PrmNetMapSnapshot) (netmap.NetMap, error) {
@@ -88,8 +115,10 @@ func (m *mockClient) ObjectPutInit(_ context.Context, _ object.Object, _ user.Si
 }
 
 func (m *mockClient) ObjectGetInit(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
-	// TODO implement me
-	panic("implement me")
+	var hdr object.Object
+	var pl client.PayloadReader
+
+	return hdr, &pl, m.errOnGetObject
 }
 
 func (m *mockClient) ObjectHead(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHead) (*client.ResObjectHead, error) {
@@ -117,9 +146,12 @@ func (m *mockClient) ObjectSearchInit(_ context.Context, _ cid.ID, _ user.Signer
 	panic("implement me")
 }
 
-func (m *mockClient) SessionCreate(_ context.Context, _ user.Signer, _ client.PrmSessionCreate) (*client.ResSessionCreate, error) {
-	// TODO implement me
-	panic("implement me")
+func (m *mockClient) SessionCreate(_ context.Context, signer user.Signer, _ client.PrmSessionCreate) (*client.ResSessionCreate, error) {
+	b := make([]byte, signer.Public().MaxEncodedSize())
+	signer.Public().Encode(b)
+
+	res := client.NewResSessionCreate(randomBytes(16), b)
+	return &res, nil
 }
 
 func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (*client.ResEndpointInfo, error) {
@@ -223,10 +255,6 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	}
 
 	return ni, nil
-}
-
-func (m *mockClient) objectPut(context.Context, user.Signer, PrmObjectPut) (oid.ID, error) {
-	return oid.ID{}, nil
 }
 
 func (m *mockClient) objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error {

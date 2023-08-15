@@ -1,19 +1,17 @@
 package pool
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -284,16 +282,16 @@ func TestTwoFailed(t *testing.T) {
 }
 
 func TestSessionCache(t *testing.T) {
-	key := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979(t)
+	var mockCli *mockClient
 
 	mockClientBuilder := func(addr string) (internalClient, error) {
-		mockCli := newMockClient(addr, key)
-		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
+		mockCli = newMockClient(addr, signer)
 		return mockCli, nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSignerRFC6979(t),
+		signer: signer,
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -310,35 +308,62 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	// cache must contain session token
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key.Public()))
 
-	var prm PrmObjectGet
-	prm.UseSession(session.Object{})
+	var containerID cid.ID
+	cacheKey := cacheKeyForSession(cp.address(), pool.signer, session.VerbObjectGet, containerID)
 
-	_, err = pool.GetObject(ctx, cid.ID{}, oid.ID{}, prm)
-	require.Error(t, err)
+	t.Run("no session token after pool creation", func(t *testing.T) {
+		st, ok := pool.cache.Get(cacheKey)
+		require.False(t, ok)
+		require.False(t, st.AssertAuthKey(signer.Public()))
+	})
 
-	// cache must not contain session token
-	cp, err = pool.connection()
-	require.NoError(t, err)
-	_, ok := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.False(t, ok)
+	t.Run("session token was created after request", func(t *testing.T) {
+		_, _, err = pool.ObjectGetInit(ctx, containerID, oid.ID{}, signer, client.PrmObjectGet{})
+		require.NoError(t, err)
 
-	var prm2 PrmObjectPut
-	prm2.SetHeader(object.Object{})
+		st, ok := pool.cache.Get(cacheKey)
+		require.True(t, ok)
+		require.True(t, st.AssertAuthKey(signer.Public()))
+	})
 
-	_, err = pool.PutObject(ctx, prm2)
-	require.NoError(t, err)
+	t.Run("session is not removed", func(t *testing.T) {
+		// error on the next request to the node
+		mockCli.statusOnGetObject(errors.New("some error"))
 
-	// cache must contain session token
-	cp, err = pool.connection()
-	require.NoError(t, err)
-	st, _ = pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key.Public()))
+		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+		require.Error(t, err)
+
+		_, ok := pool.cache.Get(cacheKey)
+		require.True(t, ok)
+	})
+
+	t.Run("session is removed, because of the special error", func(t *testing.T) {
+		// error on the next request to the node
+		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
+
+		// make request,
+		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+		require.Error(t, err)
+
+		// cache must not contain session token
+		cp, err = pool.connection()
+		require.NoError(t, err)
+		_, ok := pool.cache.Get(cacheKey)
+		require.False(t, ok)
+	})
+
+	t.Run("session created again", func(t *testing.T) {
+		mockCli.statusOnGetObject(nil)
+
+		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+		require.NoError(t, err)
+
+		_, ok := pool.cache.Get(cacheKey)
+		require.True(t, ok)
+	})
 }
 
 func TestPriority(t *testing.T) {
@@ -672,125 +697,4 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.Equal(t, nodes[1].address, conn.address())
 	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
 	require.NoError(t, err)
-}
-
-type simpleWriter struct {
-	results []ioResult
-	data    []byte
-}
-
-func (s *simpleWriter) Write(p []byte) (n int, err error) {
-	if len(s.results) == 0 {
-		return 0, errors.New("unknown testcase")
-	}
-
-	s.data = append(s.data, p...)
-
-	d := s.results[0]
-	s.results = s.results[1:]
-
-	return d.n, d.err
-}
-
-type ioResult struct {
-	data []byte
-	n    int
-	err  error
-}
-
-type simpleReader struct {
-	results []ioResult
-}
-
-func (s *simpleReader) Read(p []byte) (n int, err error) {
-	if len(s.results) == 0 {
-		return 0, io.EOF
-	}
-
-	d := s.results[0]
-	copy(p, d.data)
-
-	s.results = s.results[1:]
-	return d.n, d.err
-}
-
-func TestWritePayload(t *testing.T) {
-	t.Run("n > 0, io.EOF", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-				{n: 1, err: nil},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{data: []byte{0}, n: 1, err: nil},
-				{data: []byte{1}, n: 1, err: io.EOF},
-			},
-		}
-
-		require.NoError(t, writePayload(&writer, &reader, 1))
-		require.True(t, bytes.Equal([]byte{0, 1}, writer.data))
-	})
-
-	t.Run("n == 0, io.EOF", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-				{n: 1, err: nil},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{data: []byte{0}, n: 1, err: nil},
-			},
-		}
-
-		require.NoError(t, writePayload(&writer, &reader, 1))
-		require.True(t, bytes.Equal([]byte{0}, writer.data))
-	})
-
-	t.Run("write err", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-				{n: 0, err: errors.New("some error")},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{data: []byte{0}, n: 1, err: nil},
-				{data: []byte{1}, n: 1, err: nil},
-			},
-		}
-
-		require.Error(t, writePayload(&writer, &reader, 1))
-	})
-
-	t.Run("read err", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{n: 0, err: errors.New("some err")},
-			},
-		}
-
-		require.Error(t, writePayload(&writer, &reader, 1))
-	})
-
-	t.Run("empty writer or reader", func(t *testing.T) {
-		writer := simpleWriter{}
-		require.NoError(t, writePayload(&writer, nil, 0))
-
-		reader := simpleReader{}
-		require.NoError(t, writePayload(nil, &reader, 0))
-	})
 }

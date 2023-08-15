@@ -1,7 +1,6 @@
 package pool
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -103,8 +102,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectPut.
-	objectPut(context.Context, user.Signer, PrmObjectPut) (oid.ID, error)
 	// see clientWrapper.objectDelete.
 	objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error
 	// see clientWrapper.objectGet.
@@ -548,92 +545,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	}
 
 	return res, nil
-}
-
-// objectPut writes object to NeoFS.
-func (c *clientWrapper) objectPut(ctx context.Context, signer user.Signer, prm PrmObjectPut) (oid.ID, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return oid.ID{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectPutInit
-	cliPrm.SetCopiesNumber(prm.copiesNumber)
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
-	}
-
-	sz := prm.hdr.PayloadSize()
-
-	if data := prm.hdr.Payload(); len(data) > 0 {
-		if prm.payload != nil {
-			prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
-		} else {
-			prm.payload = bytes.NewReader(data)
-			sz = uint64(len(data))
-		}
-	}
-
-	if err = writePayload(wObj, prm.payload, sz); err != nil {
-		c.updateErrorRate(err)
-
-		return oid.ID{}, fmt.Errorf("writePayload: %w", err)
-	}
-
-	err = wObj.Close()
-	c.updateErrorRate(err)
-	if err != nil { // here err already carries both status and client errors
-		return oid.ID{}, fmt.Errorf("client failure: %w", err)
-	}
-
-	return wObj.GetResult().StoredObjectID(), nil
-}
-
-func writePayload(wObj io.Writer, payload io.Reader, sz uint64) error {
-	if payload == nil || wObj == nil {
-		return nil
-	}
-
-	const defaultBufferSizePut = 3 << 20 // configure?
-	if sz == 0 || sz > defaultBufferSizePut {
-		sz = defaultBufferSizePut
-	}
-
-	buf := make([]byte, sz)
-
-	var (
-		n   int
-		err error
-	)
-
-	for {
-		n, err = payload.Read(buf)
-
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				return fmt.Errorf("read payload: %w", err)
-			}
-		}
-
-		if n == 0 {
-			break
-		}
-
-		if _, err = wObj.Write(buf[:n]); err != nil {
-			return fmt.Errorf("write payload: %w", err)
-		}
-	}
-
-	return nil
 }
 
 // objectDelete invokes sdkClient.ObjectDelete parse response status to error.
@@ -1100,33 +1011,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmObjectPut groups parameters of PutObject operation.
-type PrmObjectPut struct {
-	prmCommon
-
-	hdr object.Object
-
-	payload io.Reader
-
-	copiesNumber uint32
-}
-
-// SetHeader specifies header of the object.
-func (x *PrmObjectPut) SetHeader(hdr object.Object) {
-	x.hdr = hdr
-}
-
-// SetPayload specifies payload of the object.
-func (x *PrmObjectPut) SetPayload(payload io.Reader) {
-	x.payload = payload
-}
-
-// SetCopiesNumber sets number of object copies that is enough to consider put successful.
-// Zero means using default behavior.
-func (x *PrmObjectPut) SetCopiesNumber(copiesNumber uint32) {
-	x.copiesNumber = copiesNumber
 }
 
 // PrmObjectDelete groups parameters of DeleteObject operation.
@@ -1705,7 +1589,7 @@ func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.
 	return fmt.Sprintf("%s%s%d%s", address, neofscrypto.PublicKeyBytes(signer.Public()), verb, cnr)
 }
 
-func (p *Pool) checkSessionTokenErr(err error, address string, cl internalClient) bool {
+func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionContainer) bool {
 	if err == nil {
 		return false
 	}
@@ -1871,45 +1755,6 @@ func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
 	if prm.signer == nil {
 		prm.signer = p.signer
 	}
-}
-
-// PutObject writes an object through a remote server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectPutInit instead.
-func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
-	cnr, _ := prm.hdr.ContainerID()
-
-	var prmCtx prmContext
-	prmCtx.useDefaultSession()
-	prmCtx.useVerb(session.VerbObjectPut)
-	prmCtx.useContainer(cnr)
-
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var ctxCall callContext
-
-	ctxCall.Context = ctx
-
-	if err := p.initCallContext(&ctxCall, prm.prmCommon, prmCtx); err != nil {
-		return oid.ID{}, fmt.Errorf("init call context: %w", err)
-	}
-
-	if ctxCall.sessionDefault {
-		ctxCall.sessionTarget = prm.UseSession
-		if err := p.openDefaultSession(&ctxCall); err != nil {
-			return oid.ID{}, fmt.Errorf("open default session: %w", err)
-		}
-	}
-
-	id, err := ctxCall.client.objectPut(ctx, prm.signer, prm)
-	if err != nil {
-		// removes session token from cache in case of token error
-		p.checkSessionTokenErr(err, ctxCall.endpoint, ctxCall.client)
-		return id, fmt.Errorf("init writing on API client: %w", err)
-	}
-
-	return id, nil
 }
 
 // DeleteObject marks an object for deletion from the container using NeoFS API protocol.
