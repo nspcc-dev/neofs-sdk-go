@@ -95,8 +95,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectHead.
-	objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error)
 	// see clientWrapper.objectRange.
 	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, user.Signer, PrmObjectRange) (ResObjectRange, error)
 	// see clientWrapper.objectSearch.
@@ -517,40 +515,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	return res, nil
 }
 
-// objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
-func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (object.Object, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return object.Object{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectHead
-	if prm.raw {
-		cliPrm.MarkRaw()
-	}
-
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	var obj object.Object
-
-	res, err := cl.ObjectHead(ctx, containerID, objectID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return obj, fmt.Errorf("read object header via client: %w", err)
-	}
-	if !res.ReadHeader(&obj) {
-		return obj, errors.New("missing object header in response")
-	}
-
-	return obj, nil
-}
-
 // objectRange returns object range reader.
 func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm PrmObjectRange) (ResObjectRange, error) {
 	cl, err := c.getClient()
@@ -912,18 +876,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmObjectHead groups parameters of HeadObject operation.
-type PrmObjectHead struct {
-	prmCommon
-
-	raw bool
-}
-
-// MarkRaw marks an intent to read physically stored object.
-func (x *PrmObjectHead) MarkRaw() {
-	x.raw = true
 }
 
 // PrmObjectRange groups parameters of RangeObject operation.
@@ -1646,31 +1598,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	}
 
 	return conn.getRawClient()
-}
-
-// HeadObject reads object header through a remote server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectHead instead.
-func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var obj object.Object
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return obj, err
-	}
-
-	return obj, p.call(&cc, func() error {
-		obj, err = cc.client.objectHead(ctx, containerID, objectID, prm.signer, prm)
-		return err
-	})
 }
 
 // ResObjectRange is designed to read payload range of one object
