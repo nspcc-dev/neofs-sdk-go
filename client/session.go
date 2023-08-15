@@ -29,6 +29,14 @@ type ResSessionCreate struct {
 	sessionKey []byte
 }
 
+// NewResSessionCreate is a constructor for NewResSessionCreate.
+func NewResSessionCreate(id []byte, sessionKey []byte) ResSessionCreate {
+	return ResSessionCreate{
+		id:         id,
+		sessionKey: sessionKey,
+	}
+}
+
 func (x *ResSessionCreate) setID(id []byte) {
 	x.id = id
 }
