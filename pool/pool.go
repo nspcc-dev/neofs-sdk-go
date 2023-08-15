@@ -78,8 +78,6 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.containerList.
-	containerList(context.Context, user.ID) ([]cid.ID, error)
 	// see clientWrapper.containerEACL.
 	containerEACL(context.Context, cid.ID) (eacl.Table, error)
 	// see clientWrapper.containerSetEACL.
@@ -333,21 +331,6 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 		return c.client, nil
 	}
 	return nil, errPoolClientUnhealthy
-}
-
-// containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
-func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := cl.ContainerList(ctx, ownerID, sdkClient.PrmContainerList{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return nil, fmt.Errorf("container list on client: %w", err)
-	}
-	return res, nil
 }
 
 // containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
@@ -1369,17 +1352,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	}
 
 	return conn.getRawClient()
-}
-
-// ListContainers requests identifiers of the account-owned containers.
-// Deprecated: use ContainerList instead.
-func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return nil, err
-	}
-
-	return cp.containerList(ctx, ownerID)
 }
 
 // GetEACL reads eACL table of the NeoFS container.

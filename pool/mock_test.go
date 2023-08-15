@@ -204,10 +204,6 @@ func newToken(signer neofscrypto.Signer) *session.Object {
 	return &tok
 }
 
-func (m *mockClient) containerList(context.Context, user.ID) ([]cid.ID, error) {
-	return nil, nil
-}
-
 func (m *mockClient) containerEACL(context.Context, cid.ID) (eacl.Table, error) {
 	return eacl.Table{}, nil
 }
