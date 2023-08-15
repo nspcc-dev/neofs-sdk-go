@@ -78,8 +78,6 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.containerPut.
-	containerPut(context.Context, container.Container, user.Signer, PrmContainerPut) (cid.ID, error)
 	// see clientWrapper.containerGet.
 	containerGet(context.Context, cid.ID) (container.Container, error)
 	// see clientWrapper.containerList.
@@ -339,33 +337,6 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 		return c.client, nil
 	}
 	return nil, errPoolClientUnhealthy
-}
-
-// containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
-// It also waits for the container to appear on the network.
-func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, signer user.Signer, prm PrmContainerPut) (cid.ID, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return cid.ID{}, err
-	}
-
-	idCnr, err := cl.ContainerPut(ctx, cont, signer, prm.prmClient)
-	c.updateErrorRate(err)
-	if err != nil {
-		return cid.ID{}, fmt.Errorf("container put on client: %w", err)
-	}
-
-	if !prm.waitParamsSet {
-		prm.waitParams.setDefaults()
-	}
-
-	err = waitForContainerPresence(ctx, c, idCnr, &prm.waitParams)
-	c.updateErrorRate(err)
-	if err != nil {
-		return cid.ID{}, fmt.Errorf("wait container presence on client: %w", err)
-	}
-
-	return idCnr, nil
 }
 
 // containerGet invokes sdkClient.ContainerGet parse response status to error and return result as is.
@@ -816,31 +787,6 @@ func (x *prmCommon) UseBearer(token bearer.Token) {
 // UseSession specifies session within which operation should be performed.
 func (x *prmCommon) UseSession(token session.Object) {
 	x.stoken = &token
-}
-
-// PrmContainerPut groups parameters of PutContainer operation.
-type PrmContainerPut struct {
-	prmClient sdkClient.PrmContainerPut
-
-	waitParams    WaitParams
-	waitParamsSet bool
-}
-
-// WithinSession specifies session to be used as a parameter of the base
-// client's operation.
-//
-// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerPut.WithinSession.
-func (x *PrmContainerPut) WithinSession(s session.Container) {
-	x.prmClient.WithinSession(s)
-}
-
-// SetWaitParams specifies timeout params to complete operation.
-// If not provided the default one will be used.
-// Panics if any of the wait params isn't positive.
-func (x *PrmContainerPut) SetWaitParams(waitParams WaitParams) {
-	waitParams.checkForPositive()
-	x.waitParams = waitParams
-	x.waitParamsSet = true
 }
 
 // PrmContainerDelete groups parameters of DeleteContainer operation.
@@ -1493,26 +1439,6 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 	}
 
 	return conn.getRawClient()
-}
-
-// PutContainer sends request to save container in NeoFS and waits for the operation to complete.
-//
-// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//
-//	polling interval: 5s
-//	waiting timeout: 120s
-//
-// Success can be verified by reading by identifier (see [Pool.GetContainer]).
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ContainerPut instead.
-func (p *Pool) PutContainer(ctx context.Context, cont container.Container, signer user.Signer, prm PrmContainerPut) (cid.ID, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return cid.ID{}, err
-	}
-
-	return cp.containerPut(ctx, cont, signer, prm)
 }
 
 // GetContainer reads NeoFS container by ID.

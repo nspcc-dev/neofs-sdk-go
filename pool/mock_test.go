@@ -204,10 +204,6 @@ func newToken(signer neofscrypto.Signer) *session.Object {
 	return &tok
 }
 
-func (m *mockClient) containerPut(context.Context, container.Container, user.Signer, PrmContainerPut) (cid.ID, error) {
-	return cid.ID{}, nil
-}
-
 func (m *mockClient) containerGet(context.Context, cid.ID) (container.Container, error) {
 	return container.Container{}, nil
 }
