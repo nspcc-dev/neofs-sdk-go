@@ -36,6 +36,14 @@ type ResEndpointInfo struct {
 	ni netmap.NodeInfo
 }
 
+// NewResEndpointInfo is a constructor for ResEndpointInfo.
+func NewResEndpointInfo(version version.Version, ni netmap.NodeInfo) ResEndpointInfo {
+	return ResEndpointInfo{
+		version: version,
+		ni:      ni,
+	}
+}
+
 // LatestVersion returns latest NeoFS API protocol's version in use.
 func (x ResEndpointInfo) LatestVersion() version.Version {
 	return x.version

@@ -74,8 +74,6 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.endpointInfo.
-	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
 
@@ -274,13 +272,19 @@ func (c *clientWrapper) dial(ctx context.Context) error {
 // Return current healthy status and indicating if status was changed by this function call.
 func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, changed bool) {
 	var wasHealthy bool
-	if _, err := c.endpointInfo(ctx, prmEndpointInfo{}); err == nil {
+
+	cl, err := c.getRawClient()
+	if err != nil {
+		return false, false
+	}
+
+	if _, err = cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{}); err == nil {
 		return true, false
 	} else if !errors.Is(err, errPoolClientUnhealthy) {
 		wasHealthy = true
 	}
 
-	cl, err := c.prm.getNewClient(c.statisticMiddleware)
+	cl, err = c.prm.getNewClient(c.statisticMiddleware)
 	if err != nil {
 		c.setUnhealthy()
 		return false, wasHealthy
@@ -321,22 +325,6 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 		return c.client, nil
 	}
 	return nil, errPoolClientUnhealthy
-}
-
-// endpointInfo invokes sdkClient.EndpointInfo parse response status to error and return result as is.
-func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (netmap.NodeInfo, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return netmap.NodeInfo{}, err
-	}
-
-	res, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return netmap.NodeInfo{}, fmt.Errorf("endpoint info on client: %w", err)
-	}
-
-	return res.NodeInfo(), nil
 }
 
 // networkInfo invokes sdkClient.NetworkInfo parse response status to error and return result as is.
@@ -593,9 +581,6 @@ func (x *WaitParams) SetTimeout(timeout time.Duration) {
 func (x *WaitParams) SetPollInterval(tick time.Duration) {
 	x.pollInterval = tick
 }
-
-// prmEndpointInfo groups parameters of endpointInfo operation.
-type prmEndpointInfo struct{}
 
 // prmNetworkInfo groups parameters of networkInfo operation.
 type prmNetworkInfo struct{}

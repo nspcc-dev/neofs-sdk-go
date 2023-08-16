@@ -18,6 +18,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 func randomBytes(size uint64) []byte {
@@ -166,8 +167,17 @@ func (m *mockClient) SessionCreate(_ context.Context, signer user.Signer, _ clie
 }
 
 func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (*client.ResEndpointInfo, error) {
-	// TODO implement me
-	panic("implement me")
+	if m.errorOnEndpointInfo {
+		err := errors.New("endpoint info")
+		m.updateErrorRate(err)
+		return &client.ResEndpointInfo{}, err
+	}
+
+	var ni netmap.NodeInfo
+	ni.SetNetworkEndpoints(m.addr)
+	res := client.NewResEndpointInfo(version.Current(), ni)
+
+	return &res, nil
 }
 
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
@@ -204,19 +214,6 @@ func (m *mockClient) statusOnGetObject(err error) {
 	m.errOnGetObject = err
 }
 
-func (m *mockClient) endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error) {
-	var ni netmap.NodeInfo
-
-	if m.errorOnEndpointInfo {
-		err := errors.New("endpoint info")
-		m.updateErrorRate(err)
-		return ni, err
-	}
-
-	ni.SetNetworkEndpoints(m.addr)
-	return ni, nil
-}
-
 func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error) {
 	var ni netmap.NetworkInfo
 
@@ -237,7 +234,7 @@ func (m *mockClient) dial(context.Context) error {
 }
 
 func (m *mockClient) restartIfUnhealthy(ctx context.Context) (healthy bool, changed bool) {
-	_, err := m.endpointInfo(ctx, prmEndpointInfo{})
+	_, err := m.EndpointInfo(ctx, client.PrmEndpointInfo{})
 	healthy = err == nil
 	changed = healthy != m.isHealthy()
 	if healthy {
