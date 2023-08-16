@@ -547,22 +547,6 @@ func (x *NodeParam) SetWeight(weight float64) {
 	x.weight = weight
 }
 
-// WaitParams contains parameters used in polling is a something applied on NeoFS network.
-type WaitParams struct {
-	timeout      time.Duration
-	pollInterval time.Duration
-}
-
-// SetTimeout specifies the time to wait for the operation to complete.
-func (x *WaitParams) SetTimeout(timeout time.Duration) {
-	x.timeout = timeout
-}
-
-// SetPollInterval specifies the interval, once it will check the completion of the operation.
-func (x *WaitParams) SetPollInterval(tick time.Duration) {
-	x.pollInterval = tick
-}
-
 // Pool represents virtual connection to the NeoFS network to communicate
 // with multiple NeoFS servers without thinking about switching between servers
 // due to load balancing proportions or their unavailability.
