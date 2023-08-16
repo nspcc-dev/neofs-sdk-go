@@ -81,6 +81,14 @@ type (
 	containerEaclGetter interface {
 		ContainerEACL(ctx context.Context, id cid.ID, prm client.PrmContainerEACL) (eacl.Table, error)
 	}
+
+	containerGetter interface {
+		ContainerGet(ctx context.Context, id cid.ID, prm client.PrmContainerGet) (container.Container, error)
+	}
+
+	objectHeadGetter interface {
+		ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error)
+	}
 )
 
 func nodeAddress(nodeEndpoint string) string {
@@ -689,7 +697,7 @@ func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table ea
 	require.True(t, eacl.EqualTables(table, newTable))
 }
 
-func isBucketCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID) error {
+func isBucketCreated(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
@@ -714,7 +722,7 @@ func isBucketCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID) error 
 	}
 }
 
-func isBucketDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID) error {
+func isBucketDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
@@ -737,7 +745,7 @@ func isBucketDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID) error 
 	}
 }
 
-func isEACLCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID, oldTable eacl.Table) error {
+func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTable eacl.Table) error {
 	oldBinary, err := oldTable.Marshal()
 	if err != nil {
 		return fmt.Errorf("oldTable.Marshal %w", err)
@@ -774,7 +782,7 @@ func isEACLCreated(ctx context.Context, c *sdkClientWrapper, id cid.ID, oldTable
 	}
 }
 
-func isObjectDeleted(ctx context.Context, c *sdkClientWrapper, id cid.ID, oid oid.ID, signer user.Signer) error {
+func isObjectDeleted(ctx context.Context, c objectHeadGetter, id cid.ID, oid oid.ID, signer user.Signer) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
