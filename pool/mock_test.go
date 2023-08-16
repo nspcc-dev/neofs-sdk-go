@@ -214,18 +214,6 @@ func (m *mockClient) statusOnGetObject(err error) {
 	m.errOnGetObject = err
 }
 
-func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error) {
-	var ni netmap.NetworkInfo
-
-	if m.errorOnNetworkInfo {
-		err := errors.New("network info")
-		m.updateErrorRate(err)
-		return ni, err
-	}
-
-	return ni, nil
-}
-
 func (m *mockClient) dial(context.Context) error {
 	if m.errorOnDial {
 		return errors.New("dial error")

@@ -74,9 +74,6 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.networkInfo.
-	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-
 	clientStatus
 	statisticUpdater
 	nodeSessionContainer
@@ -327,22 +324,6 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 	return nil, errPoolClientUnhealthy
 }
 
-// networkInfo invokes sdkClient.NetworkInfo parse response status to error and return result as is.
-func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netmap.NetworkInfo, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return netmap.NetworkInfo{}, err
-	}
-
-	res, err := cl.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return netmap.NetworkInfo{}, fmt.Errorf("network info on client: %w", err)
-	}
-
-	return res, nil
-}
-
 func (c *clientWrapper) SetNodeSession(token *session.Object) {
 	c.nodeSessionMutex.Lock()
 	c.nodeSession = token
@@ -581,9 +562,6 @@ func (x *WaitParams) SetTimeout(timeout time.Duration) {
 func (x *WaitParams) SetPollInterval(tick time.Duration) {
 	x.pollInterval = tick
 }
-
-// prmNetworkInfo groups parameters of networkInfo operation.
-type prmNetworkInfo struct{}
 
 // Pool represents virtual connection to the NeoFS network to communicate
 // with multiple NeoFS servers without thinking about switching between servers
