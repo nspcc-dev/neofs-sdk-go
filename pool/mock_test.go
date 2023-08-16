@@ -6,9 +6,7 @@ import (
 	"errors"
 	"time"
 
-	"github.com/google/uuid"
 	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	sessionv2 "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -84,6 +82,13 @@ func (m *mockClient) ContainerSetEACL(_ context.Context, _ eacl.Table, _ user.Si
 
 func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
 	var ni netmap.NetworkInfo
+
+	if m.errorOnNetworkInfo {
+		err := errors.New("endpoint info")
+		m.updateErrorRate(err)
+		return ni, err
+	}
+
 	var v2 netmapv2.NetworkInfo
 	var netConfig netmapv2.NetworkConfig
 	var p1 netmapv2.NetworkParameter
@@ -147,6 +152,12 @@ func (m *mockClient) ObjectSearchInit(_ context.Context, _ cid.ID, _ user.Signer
 }
 
 func (m *mockClient) SessionCreate(_ context.Context, signer user.Signer, _ client.PrmSessionCreate) (*client.ResSessionCreate, error) {
+	if m.errorOnCreateSession {
+		err := errors.New("create session")
+		m.updateErrorRate(err)
+		return nil, err
+	}
+
 	b := make([]byte, signer.Public().MaxEncodedSize())
 	signer.Public().Encode(b)
 
@@ -193,17 +204,6 @@ func (m *mockClient) statusOnGetObject(err error) {
 	m.errOnGetObject = err
 }
 
-func newToken(signer neofscrypto.Signer) *session.Object {
-	var tok session.Object
-	tok.SetID(uuid.New())
-
-	public := signer.Public()
-
-	tok.SetAuthKey(public)
-
-	return &tok
-}
-
 func (m *mockClient) endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error) {
 	var ni netmap.NodeInfo
 
@@ -227,24 +227,6 @@ func (m *mockClient) networkInfo(context.Context, prmNetworkInfo) (netmap.Networ
 	}
 
 	return ni, nil
-}
-
-func (m *mockClient) sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error) {
-	if m.errorOnCreateSession {
-		err := errors.New("create session")
-		m.updateErrorRate(err)
-		return resCreateSession{}, err
-	}
-
-	tok := newToken(m.signer)
-
-	var v2tok sessionv2.Token
-	tok.WriteToV2(&v2tok)
-
-	return resCreateSession{
-		id:         v2tok.GetBody().GetID(),
-		sessionKey: v2tok.GetBody().GetSessionKey(),
-	}, nil
 }
 
 func (m *mockClient) dial(context.Context) error {

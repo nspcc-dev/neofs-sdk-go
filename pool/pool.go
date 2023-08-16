@@ -4,13 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math"
 	"math/rand"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
@@ -18,7 +16,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -81,8 +78,6 @@ type internalClient interface {
 	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
 	// see clientWrapper.networkInfo.
 	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.sessionCreate.
-	sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error)
 
 	clientStatus
 	statisticUpdater
@@ -360,28 +355,6 @@ func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netm
 	return res, nil
 }
 
-// sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
-func (c *clientWrapper) sessionCreate(ctx context.Context, signer user.Signer, prm prmCreateSession) (resCreateSession, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return resCreateSession{}, err
-	}
-
-	var cliPrm sdkClient.PrmSessionCreate
-	cliPrm.SetExp(prm.exp)
-
-	res, err := cl.SessionCreate(ctx, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return resCreateSession{}, fmt.Errorf("session creation on client: %w", err)
-	}
-
-	return resCreateSession{
-		id:         res.ID(),
-		sessionKey: res.PublicKey(),
-	}, nil
-}
-
 func (c *clientWrapper) SetNodeSession(token *session.Object) {
 	c.nodeSessionMutex.Lock()
 	c.nodeSession = token
@@ -621,28 +594,11 @@ func (x *WaitParams) SetPollInterval(tick time.Duration) {
 	x.pollInterval = tick
 }
 
-// prmEndpointInfo groups parameters of sessionCreate operation.
-type prmCreateSession struct {
-	exp uint64
-}
-
-// setExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
-func (x *prmCreateSession) setExp(exp uint64) {
-	x.exp = exp
-}
-
 // prmEndpointInfo groups parameters of endpointInfo operation.
 type prmEndpointInfo struct{}
 
 // prmNetworkInfo groups parameters of networkInfo operation.
 type prmNetworkInfo struct{}
-
-// resCreateSession groups resulting values of sessionCreate operation.
-type resCreateSession struct {
-	id []byte
-
-	sessionKey []byte
-}
 
 // Pool represents virtual connection to the NeoFS network to communicate
 // with multiple NeoFS servers without thinking about switching between servers
@@ -825,18 +781,6 @@ func (p *Pool) Dial(ctx context.Context) error {
 				continue
 			}
 
-			var st session.Object
-			err := initSessionForDuration(ctx, &st, clients[j], p.rebalanceParams.sessionExpirationDuration, p.signer)
-			if err != nil {
-				clients[j].setUnhealthy()
-				if p.logger != nil {
-					p.logger.Warn("failed to create neofs session token for client",
-						zap.String("address", addr), zap.Error(err))
-				}
-				continue
-			}
-
-			_ = p.cache.Put(formCacheKey(addr, p.signer), st)
 			atLeastOneHealthy = true
 		}
 		source := rand.NewSource(time.Now().UnixNano())
@@ -1062,10 +1006,6 @@ func (p *innerPool) connection() (internalClient, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func formCacheKey(address string, signer neofscrypto.Signer) string {
-	return address + string(neofscrypto.PublicKeyBytes(signer.Public()))
-}
-
 // cacheKeyForSession generates cache key for a signed session token.
 // It is used with pool methods compatible with [sdkClient.Client].
 func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.ObjectVerb, cnr cid.ID) string {
@@ -1081,49 +1021,6 @@ func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionCon
 		p.cache.DeleteByPrefix(address)
 		cl.SetNodeSession(nil)
 	}
-}
-
-func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer user.Signer) error {
-	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
-	if err != nil {
-		return err
-	}
-
-	epoch := ni.CurrentEpoch()
-
-	var exp uint64
-	if math.MaxUint64-epoch < dur {
-		exp = math.MaxUint64
-	} else {
-		exp = epoch + dur
-	}
-	var prm prmCreateSession
-	prm.setExp(exp)
-
-	res, err := c.sessionCreate(ctx, signer, prm)
-	if err != nil {
-		return err
-	}
-
-	var id uuid.UUID
-
-	err = id.UnmarshalBinary(res.id)
-	if err != nil {
-		return fmt.Errorf("invalid session token ID: %w", err)
-	}
-
-	var key neofsecdsa.PublicKey
-
-	err = key.Decode(res.sessionKey)
-	if err != nil {
-		return fmt.Errorf("invalid public session key: %w", err)
-	}
-
-	dst.SetID(id)
-	dst.SetAuthKey(&key)
-	dst.SetExp(exp)
-
-	return nil
 }
 
 // RawClient returns single client instance to have possibility to work with exact one.

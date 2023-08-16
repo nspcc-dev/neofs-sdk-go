@@ -47,25 +47,6 @@ func TestBuildPoolClientFailed(t *testing.T) {
 	}
 }
 
-func TestBuildPoolCreateSessionFailed(t *testing.T) {
-	clientMockBuilder := func(addr string) (internalClient, error) {
-		mockCli := newMockClient(addr, test.RandomSignerRFC6979(t))
-		mockCli.errOnCreateSession()
-		return mockCli, nil
-	}
-
-	opts := InitParameters{
-		signer:     test.RandomSignerRFC6979(t),
-		nodeParams: []NodeParam{{1, "peer0", 1}},
-	}
-	opts.setClientBuilder(clientMockBuilder)
-
-	pool, err := NewPool(opts)
-	require.NoError(t, err)
-	err = pool.Dial(context.Background())
-	require.Error(t, err)
-}
-
 func TestBuildPoolOneNodeFailed(t *testing.T) {
 	nodes := []NodeParam{
 		{1, "peer0", 1},
@@ -102,14 +83,13 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(clientPool.Close)
 
-	expectedAuthKey := clientKeys[1].Public()
 	condition := func() bool {
 		cp, err := clientPool.connection()
 		if err != nil {
 			return false
 		}
-		st, _ := clientPool.cache.Get(formCacheKey(cp.address(), clientPool.signer))
-		return st.AssertAuthKey(expectedAuthKey)
+
+		return cp.address() == nodes[1].address
 	}
 	require.Never(t, condition, 900*time.Millisecond, 100*time.Millisecond)
 	require.Eventually(t, condition, 3*time.Second, 300*time.Millisecond)
@@ -156,8 +136,7 @@ func TestOneNode(t *testing.T) {
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key1.Public()))
+	require.Equal(t, opts.nodeParams[0].address, cp.address())
 }
 
 func TestTwoNodes(t *testing.T) {
@@ -185,14 +164,12 @@ func TestTwoNodes(t *testing.T) {
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, assertAuthKeyForAny(st, clientKeys))
+	require.True(t, assertAuthKeyForAny(cp.address(), opts.nodeParams))
 }
 
-func assertAuthKeyForAny(st session.Object, clientKeys []neofscrypto.Signer) bool {
-	for _, key := range clientKeys {
-		expectedAuthKey := key.Public()
-		if st.AssertAuthKey(expectedAuthKey) {
+func assertAuthKeyForAny(addr string, nodes []NodeParam) bool {
+	for _, node := range nodes {
+		if addr == node.address {
 			return true
 		}
 	}
@@ -240,8 +217,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-		require.True(t, assertAuthKeyForAny(st, clientKeys))
+		require.True(t, assertAuthKeyForAny(cp.address(), nodes))
 	}
 }
 
@@ -400,20 +376,16 @@ func TestPriority(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	expectedAuthKey1 := clientKeys[0].Public()
 	firstNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-		return st.AssertAuthKey(expectedAuthKey1)
+		return cp.address() == nodes[0].address
 	}
 
-	expectedAuthKey2 := clientKeys[1].Public()
 	secondNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-		return st.AssertAuthKey(expectedAuthKey2)
+		return cp.address() == nodes[1].address
 	}
 	require.Never(t, secondNode, time.Second, 200*time.Millisecond)
 
