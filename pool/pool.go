@@ -75,7 +75,6 @@ type nodeSessionContainer interface {
 // Others are expected to be for test purposes only.
 type internalClient interface {
 	clientStatus
-	statisticUpdater
 	nodeSessionContainer
 
 	// see clientWrapper.dial.
@@ -85,10 +84,6 @@ type internalClient interface {
 
 	getClient() (sdkClientInterface, error)
 	getRawClient() (*sdkClient.Client, error)
-}
-
-type statisticUpdater interface {
-	updateErrorRate(err error)
 }
 
 // clientStatus provide access to some metrics for connection.
