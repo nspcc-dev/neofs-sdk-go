@@ -14,29 +14,6 @@ container creator.
 NetworkInfo type is dedicated to descriptive characterization of network state
 and settings.
 
-Instances can be also used to process NeoFS API V2 protocol messages
-(see neo.fs.v2.netmap package in https://github.com/nspcc-dev/neofs-api).
-
-On client side:
-
-	import "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-
-	var msg netmap.NodeInfo
-	info.WriteToV2(&msg)
-
-	// send msg
-
-On server side:
-
-	// recv msg
-
-	var info NodeInfo
-
-	err := info.ReadFromV2(msg)
-	// ...
-
-	// process info
-
 Using package types in an application is recommended to potentially work with
 different protocol versions with which these types are compatible.
 */
