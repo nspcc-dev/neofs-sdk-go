@@ -124,9 +124,9 @@ func prepareContainer(accountID user.ID) container.Container {
 
 	var pp netmap.PlacementPolicy
 	var rd netmap.ReplicaDescriptor
+	rd.SetNumberOfObjects(1)
 
 	pp.SetContainerBackupFactor(1)
-	rd.SetNumberOfObjects(1)
 	pp.AddReplicas(rd)
 	cont.SetPlacementPolicy(pp)
 
