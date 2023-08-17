@@ -1345,18 +1345,15 @@ func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.
 	return fmt.Sprintf("%s%s%d%s", address, neofscrypto.PublicKeyBytes(signer.Public()), verb, cnr)
 }
 
-func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionContainer) bool {
+func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionContainer) {
 	if err == nil {
-		return false
+		return
 	}
 
 	if errors.Is(err, apistatus.ErrSessionTokenNotFound) || errors.Is(err, apistatus.ErrSessionTokenExpired) {
 		p.cache.DeleteByPrefix(address)
 		cl.SetNodeSession(nil)
-		return true
 	}
-
-	return false
 }
 
 func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer user.Signer) error {
