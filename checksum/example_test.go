@@ -13,7 +13,10 @@ func ExampleCalculate() {
 	payload := []byte{0, 1, 2, 3, 4, 5, 6}
 	var cs Checksum
 
+	// sha256Sum contains SHA256 hash of the payload
 	Calculate(&cs, SHA256, payload)
+
+	// tzSum contains TZ hash of the payload
 	Calculate(&cs, TZ, payload)
 }
 
