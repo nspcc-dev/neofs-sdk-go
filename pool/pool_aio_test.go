@@ -651,11 +651,11 @@ func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, conta
 }
 
 func testCreateContainer(ctx context.Context, t *testing.T, signer neofscrypto.Signer, cont container.Container, creator containerCreator) cid.ID {
-	var pp netmap.PlacementPolicy
-	pp.SetContainerBackupFactor(1)
-
 	var rd netmap.ReplicaDescriptor
 	rd.SetNumberOfObjects(1)
+
+	var pp netmap.PlacementPolicy
+	pp.SetContainerBackupFactor(1)
 	pp.AddReplicas(rd)
 
 	cont.SetPlacementPolicy(pp)
