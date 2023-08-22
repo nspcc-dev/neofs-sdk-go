@@ -2,13 +2,11 @@ package audit
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
@@ -48,14 +46,9 @@ func CollectMembers(
 		var prmHead client.PrmObjectHead
 		for _, phyMember := range phyMembers {
 			addr.SetObject(phyMember)
-			leaf, err := collector.ObjectHead(ctx, addr.Container(), addr.Object(), signer, prmHead)
+			hdr, err := collector.ObjectHead(ctx, addr.Container(), addr.Object(), signer, prmHead)
 			if err != nil {
 				return nil, fmt.Errorf("head phy member '%s': %w", phyMember.EncodeToString(), err)
-			}
-
-			var hdr object.Object
-			if !leaf.ReadHeader(&hdr) {
-				return nil, errors.New("header err")
 			}
 
 			sumPhySize += hdr.PayloadSize()

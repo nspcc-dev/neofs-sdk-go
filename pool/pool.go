@@ -44,7 +44,7 @@ type sdkClientInterface interface {
 
 	ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm sdkClient.PrmObjectPutInit) (sdkClient.ObjectWriter, error)
 	ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectGet) (object.Object, *sdkClient.PayloadReader, error)
-	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHead) (*sdkClient.ResObjectHead, error)
+	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHead) (*object.Object, error)
 	ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm sdkClient.PrmObjectRange) (*sdkClient.ObjectRangeReader, error)
 	ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectDelete) (oid.ID, error)
 	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHash) ([][]byte, error)

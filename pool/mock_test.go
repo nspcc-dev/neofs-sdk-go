@@ -128,7 +128,7 @@ func (m *mockClient) ObjectGetInit(_ context.Context, _ cid.ID, _ oid.ID, _ user
 	return hdr, &pl, m.errOnGetObject
 }
 
-func (m *mockClient) ObjectHead(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHead) (*client.ResObjectHead, error) {
+func (m *mockClient) ObjectHead(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHead) (*object.Object, error) {
 	// TODO implement me
 	panic("implement me")
 }

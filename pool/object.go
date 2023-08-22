@@ -91,7 +91,7 @@ func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID o
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectHead].
-func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error) {
+func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, err
