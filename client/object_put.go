@@ -74,6 +74,7 @@ type DefaultObjectWriter struct {
 		Write(*v2object.PutRequest) error
 		Close() error
 	}
+	streamClosed bool
 
 	signer neofscrypto.Signer
 	res    ResObjectPut
@@ -186,6 +187,13 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 
 		x.err = x.stream.Write(&x.req)
 		if x.err != nil {
+			if errors.Is(x.err, io.EOF) {
+				_ = x.stream.Close()
+				x.err = x.client.processResponse(&x.respV2)
+				x.streamClosed = true
+				x.cancelCtxStream()
+			}
+
 			return writtenBytes, x.err
 		}
 
@@ -213,6 +221,10 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *DefaultObjectWriter) Close() error {
+	if x.streamClosed {
+		return nil
+	}
+
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
