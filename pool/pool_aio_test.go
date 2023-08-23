@@ -87,7 +87,7 @@ type (
 	}
 
 	objectHeadGetter interface {
-		ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error)
+		ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error)
 	}
 )
 

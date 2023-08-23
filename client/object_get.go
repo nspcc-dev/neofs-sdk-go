@@ -338,34 +338,6 @@ type PrmObjectHead struct {
 	prmObjectRead
 }
 
-// ResObjectHead groups resulting values of ObjectHead operation.
-type ResObjectHead struct {
-	// requested object (response doesn't carry the ID)
-	idObj oid.ID
-
-	hdr *v2object.HeaderWithSignature
-}
-
-// ReadHeader reads header of the requested object.
-// Returns false if header is missing in the response (not read).
-func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
-	if x.hdr == nil {
-		return false
-	}
-
-	var objv2 v2object.Object
-
-	objv2.SetHeader(x.hdr.GetHeader())
-	objv2.SetSignature(x.hdr.GetSignature())
-
-	obj := object.NewFromV2(&objv2)
-	obj.SetID(x.idObj)
-
-	*dst = *obj
-
-	return true
-}
-
 // ObjectHead reads object header through a remote server using NeoFS API protocol.
 //
 // Exactly one return value is non-nil. By default, server status is returned in res structure.
@@ -386,7 +358,7 @@ func (x *ResObjectHead) ReadHeader(dst *object.Object) bool {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectAlreadyRemoved]
 //   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (*ResObjectHead, error) {
+func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (*object.Object, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
@@ -429,12 +401,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	var res ResObjectHead
 	if err = c.processResponse(resp); err != nil {
 		return nil, err
 	}
-
-	_ = res.idObj.ReadFromV2(*addr.GetObjectID())
 
 	switch v := resp.GetBody().GetHeaderPart().(type) {
 	default:
@@ -444,10 +413,19 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		err = object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
 		return nil, err
 	case *v2object.HeaderWithSignature:
-		res.hdr = v
-	}
+		if v == nil {
+			return nil, errors.New("empty header")
+		}
 
-	return &res, nil
+		var objv2 v2object.Object
+		objv2.SetHeader(v.GetHeader())
+		objv2.SetSignature(v.GetSignature())
+
+		obj := object.NewFromV2(&objv2)
+		obj.SetID(objectID)
+
+		return obj, nil
+	}
 }
 
 // PrmObjectRange groups optional parameters of ObjectRange operation.

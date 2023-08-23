@@ -30,7 +30,7 @@ var (
 
 // HeadExecutor describes methods to get object head.
 type HeadExecutor interface {
-	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*client.ResObjectHead, error)
+	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHead) (*object.Object, error)
 }
 
 // SearchExecutor describes methods to search objects.
@@ -131,7 +131,7 @@ func getSplitInfo(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID 
 		prmHead.WithinSession(*tokens.Session)
 	}
 	prmHead.MarkRaw()
-	res, err := header.ObjectHead(ctx, cnrID, objID, signer, prmHead)
+	hdr, err := header.ObjectHead(ctx, cnrID, objID, signer, prmHead)
 
 	if err != nil {
 		var errSplit *object.SplitInfoError
@@ -140,11 +140,6 @@ func getSplitInfo(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID 
 		}
 
 		return nil, fmt.Errorf("raw object header: %w", err)
-	}
-
-	var hdr object.Object
-	if !res.ReadHeader(&hdr) {
-		return nil, errors.New("header")
 	}
 
 	if hdr.SplitID() == nil {
@@ -206,14 +201,9 @@ func listChildrenByLinker(ctx context.Context, header HeadExecutor, cnrID cid.ID
 		prm.WithinSession(*tokens.Session)
 	}
 
-	res, err := header.ObjectHead(ctx, cnrID, objID, signer, prm)
+	hdr, err := header.ObjectHead(ctx, cnrID, objID, signer, prm)
 	if err != nil {
 		return nil, fmt.Errorf("linking object's header: %w", err)
-	}
-
-	var hdr object.Object
-	if !res.ReadHeader(&hdr) {
-		return nil, errors.New("header")
 	}
 
 	return hdr.Children(), nil
@@ -228,14 +218,9 @@ func getLeftSibling(ctx context.Context, header HeadExecutor, cnrID cid.ID, objI
 		prm.WithinSession(*tokens.Session)
 	}
 
-	res, err := header.ObjectHead(ctx, cnrID, objID, signer, prm)
+	hdr, err := header.ObjectHead(ctx, cnrID, objID, signer, prm)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("split chain member's header: %w", err)
-	}
-
-	var hdr object.Object
-	if !res.ReadHeader(&hdr) {
-		return oid.ID{}, errors.New("header")
 	}
 
 	idMember, ok := hdr.PreviousID()
