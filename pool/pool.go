@@ -1,32 +1,25 @@
 package pool
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"io"
-	"math"
 	"math/rand"
 	"sort"
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	sdkClient "github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -34,12 +27,36 @@ import (
 	"go.uber.org/zap"
 )
 
-var (
-	relationsGet = relations.Get
-)
+type sdkClientInterface interface {
+	Dial(prm sdkClient.PrmDial) error
+
+	BalanceGet(ctx context.Context, prm sdkClient.PrmBalanceGet) (accounting.Decimal, error)
+
+	ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm sdkClient.PrmContainerPut) (cid.ID, error)
+	ContainerGet(ctx context.Context, id cid.ID, prm sdkClient.PrmContainerGet) (container.Container, error)
+	ContainerList(ctx context.Context, ownerID user.ID, prm sdkClient.PrmContainerList) ([]cid.ID, error)
+	ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm sdkClient.PrmContainerDelete) error
+	ContainerEACL(ctx context.Context, id cid.ID, prm sdkClient.PrmContainerEACL) (eacl.Table, error)
+	ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm sdkClient.PrmContainerSetEACL) error
+
+	NetworkInfo(ctx context.Context, prm sdkClient.PrmNetworkInfo) (netmap.NetworkInfo, error)
+	NetMapSnapshot(ctx context.Context, prm sdkClient.PrmNetMapSnapshot) (netmap.NetMap, error)
+
+	ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm sdkClient.PrmObjectPutInit) (sdkClient.ObjectWriter, error)
+	ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectGet) (object.Object, *sdkClient.PayloadReader, error)
+	ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHead) (*sdkClient.ResObjectHead, error)
+	ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm sdkClient.PrmObjectRange) (*sdkClient.ObjectRangeReader, error)
+	ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectDelete) (oid.ID, error)
+	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHash) ([][]byte, error)
+	ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm sdkClient.PrmObjectSearch) (*sdkClient.ObjectListReader, error)
+
+	SessionCreate(ctx context.Context, signer user.Signer, prm sdkClient.PrmSessionCreate) (*sdkClient.ResSessionCreate, error)
+
+	EndpointInfo(ctx context.Context, prm sdkClient.PrmEndpointInfo) (*sdkClient.ResEndpointInfo, error)
+}
 
 type sdkClientWrapper struct {
-	*sdkClient.Client
+	sdkClientInterface
 
 	nodeSession nodeSessionContainer
 	addr        string
@@ -57,41 +74,7 @@ type nodeSessionContainer interface {
 // This interface is expected to have exactly one production implementation - clientWrapper.
 // Others are expected to be for test purposes only.
 type internalClient interface {
-	// see clientWrapper.balanceGet.
-	balanceGet(context.Context, PrmBalanceGet) (accounting.Decimal, error)
-	// see clientWrapper.containerPut.
-	containerPut(context.Context, container.Container, user.Signer, PrmContainerPut) (cid.ID, error)
-	// see clientWrapper.containerGet.
-	containerGet(context.Context, cid.ID) (container.Container, error)
-	// see clientWrapper.containerList.
-	containerList(context.Context, user.ID) ([]cid.ID, error)
-	// see clientWrapper.containerDelete.
-	containerDelete(context.Context, cid.ID, neofscrypto.Signer, PrmContainerDelete) error
-	// see clientWrapper.containerEACL.
-	containerEACL(context.Context, cid.ID) (eacl.Table, error)
-	// see clientWrapper.containerSetEACL.
-	containerSetEACL(context.Context, eacl.Table, user.Signer, PrmContainerSetEACL) error
-	// see clientWrapper.endpointInfo.
-	endpointInfo(context.Context, prmEndpointInfo) (netmap.NodeInfo, error)
-	// see clientWrapper.networkInfo.
-	networkInfo(context.Context, prmNetworkInfo) (netmap.NetworkInfo, error)
-	// see clientWrapper.objectPut.
-	objectPut(context.Context, user.Signer, PrmObjectPut) (oid.ID, error)
-	// see clientWrapper.objectDelete.
-	objectDelete(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectDelete) error
-	// see clientWrapper.objectGet.
-	objectGet(context.Context, cid.ID, oid.ID, neofscrypto.Signer, PrmObjectGet) (ResGetObject, error)
-	// see clientWrapper.objectHead.
-	objectHead(context.Context, cid.ID, oid.ID, user.Signer, PrmObjectHead) (object.Object, error)
-	// see clientWrapper.objectRange.
-	objectRange(context.Context, cid.ID, oid.ID, uint64, uint64, neofscrypto.Signer, PrmObjectRange) (ResObjectRange, error)
-	// see clientWrapper.objectSearch.
-	objectSearch(context.Context, cid.ID, user.Signer, PrmObjectSearch) (ResObjectSearch, error)
-	// see clientWrapper.sessionCreate.
-	sessionCreate(context.Context, user.Signer, prmCreateSession) (resCreateSession, error)
-
 	clientStatus
-	statisticUpdater
 	nodeSessionContainer
 
 	// see clientWrapper.dial.
@@ -99,11 +82,8 @@ type internalClient interface {
 	// see clientWrapper.restartIfUnhealthy.
 	restartIfUnhealthy(ctx context.Context) (bool, bool)
 
-	getClient() (*sdkClient.Client, error)
-}
-
-type statisticUpdater interface {
-	updateErrorRate(err error)
+	getClient() (sdkClientInterface, error)
+	getRawClient() (*sdkClient.Client, error)
 }
 
 // clientStatus provide access to some metrics for connection.
@@ -284,13 +264,19 @@ func (c *clientWrapper) dial(ctx context.Context) error {
 // Return current healthy status and indicating if status was changed by this function call.
 func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, changed bool) {
 	var wasHealthy bool
-	if _, err := c.endpointInfo(ctx, prmEndpointInfo{}); err == nil {
+
+	cl, err := c.getRawClient()
+	if err != nil {
+		return false, false
+	}
+
+	if _, err = cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{}); err == nil {
 		return true, false
 	} else if !errors.Is(err, errPoolClientUnhealthy) {
 		wasHealthy = true
 	}
 
-	cl, err := c.prm.getNewClient(c.statisticMiddleware)
+	cl, err = c.prm.getNewClient(c.statisticMiddleware)
 	if err != nil {
 		c.setUnhealthy()
 		return false, wasHealthy
@@ -320,454 +306,17 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 	return true, !wasHealthy
 }
 
-func (c *clientWrapper) getClient() (*sdkClient.Client, error) {
+func (c *clientWrapper) getClient() (sdkClientInterface, error) {
+	return c.getRawClient()
+}
+
+func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 	c.clientMutex.RLock()
 	defer c.clientMutex.RUnlock()
 	if c.isHealthy() {
 		return c.client, nil
 	}
 	return nil, errPoolClientUnhealthy
-}
-
-// balanceGet invokes sdkClient.BalanceGet parse response status to error and return result as is.
-func (c *clientWrapper) balanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return accounting.Decimal{}, err
-	}
-
-	var cliPrm sdkClient.PrmBalanceGet
-	cliPrm.SetAccount(prm.account)
-
-	res, err := cl.BalanceGet(ctx, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return accounting.Decimal{}, fmt.Errorf("balance get on client: %w", err)
-	}
-
-	return res, nil
-}
-
-// containerPut invokes sdkClient.ContainerPut parse response status to error and return result as is.
-// It also waits for the container to appear on the network.
-func (c *clientWrapper) containerPut(ctx context.Context, cont container.Container, signer user.Signer, prm PrmContainerPut) (cid.ID, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return cid.ID{}, err
-	}
-
-	idCnr, err := cl.ContainerPut(ctx, cont, signer, prm.prmClient)
-	c.updateErrorRate(err)
-	if err != nil {
-		return cid.ID{}, fmt.Errorf("container put on client: %w", err)
-	}
-
-	if !prm.waitParamsSet {
-		prm.waitParams.setDefaults()
-	}
-
-	err = waitForContainerPresence(ctx, c, idCnr, &prm.waitParams)
-	c.updateErrorRate(err)
-	if err != nil {
-		return cid.ID{}, fmt.Errorf("wait container presence on client: %w", err)
-	}
-
-	return idCnr, nil
-}
-
-// containerGet invokes sdkClient.ContainerGet parse response status to error and return result as is.
-func (c *clientWrapper) containerGet(ctx context.Context, cnrID cid.ID) (container.Container, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return container.Container{}, err
-	}
-
-	res, err := cl.ContainerGet(ctx, cnrID, sdkClient.PrmContainerGet{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return container.Container{}, fmt.Errorf("container get on client: %w", err)
-	}
-
-	return res, nil
-}
-
-// containerList invokes sdkClient.ContainerList parse response status to error and return result as is.
-func (c *clientWrapper) containerList(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return nil, err
-	}
-
-	res, err := cl.ContainerList(ctx, ownerID, sdkClient.PrmContainerList{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return nil, fmt.Errorf("container list on client: %w", err)
-	}
-	return res, nil
-}
-
-// containerDelete invokes sdkClient.ContainerDelete parse response status to error.
-// It also waits for the container to be removed from the network.
-func (c *clientWrapper) containerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
-	cl, err := c.getClient()
-	if err != nil {
-		return err
-	}
-
-	var cliPrm sdkClient.PrmContainerDelete
-	if prm.stokenSet {
-		cliPrm.WithinSession(prm.stoken)
-	}
-
-	err = cl.ContainerDelete(ctx, id, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return fmt.Errorf("container delete on client: %w", err)
-	}
-
-	if !prm.waitParamsSet {
-		prm.waitParams.setDefaults()
-	}
-
-	return waitForContainerRemoved(ctx, c, id, &prm.waitParams)
-}
-
-// containerEACL invokes sdkClient.ContainerEACL parse response status to error and return result as is.
-func (c *clientWrapper) containerEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return eacl.Table{}, err
-	}
-
-	res, err := cl.ContainerEACL(ctx, id, sdkClient.PrmContainerEACL{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return eacl.Table{}, fmt.Errorf("get eacl on client: %w", err)
-	}
-
-	return res, nil
-}
-
-// containerSetEACL invokes sdkClient.ContainerSetEACL parse response status to error.
-// It also waits for the EACL to appear on the network.
-func (c *clientWrapper) containerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
-	cl, err := c.getClient()
-	if err != nil {
-		return err
-	}
-
-	var cliPrm sdkClient.PrmContainerSetEACL
-	if prm.sessionSet {
-		cliPrm.WithinSession(prm.session)
-	}
-
-	err = cl.ContainerSetEACL(ctx, table, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return fmt.Errorf("set eacl on client: %w", err)
-	}
-
-	if !prm.waitParamsSet {
-		prm.waitParams.setDefaults()
-	}
-
-	var cIDp cid.ID
-	if cID, set := table.CID(); set {
-		cIDp = cID
-	}
-
-	err = waitForEACLPresence(ctx, c, cIDp, &table, &prm.waitParams)
-	c.updateErrorRate(err)
-	if err != nil {
-		return fmt.Errorf("wait eacl presence on client: %w", err)
-	}
-
-	return nil
-}
-
-// endpointInfo invokes sdkClient.EndpointInfo parse response status to error and return result as is.
-func (c *clientWrapper) endpointInfo(ctx context.Context, _ prmEndpointInfo) (netmap.NodeInfo, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return netmap.NodeInfo{}, err
-	}
-
-	res, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return netmap.NodeInfo{}, fmt.Errorf("endpoint info on client: %w", err)
-	}
-
-	return res.NodeInfo(), nil
-}
-
-// networkInfo invokes sdkClient.NetworkInfo parse response status to error and return result as is.
-func (c *clientWrapper) networkInfo(ctx context.Context, _ prmNetworkInfo) (netmap.NetworkInfo, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return netmap.NetworkInfo{}, err
-	}
-
-	res, err := cl.NetworkInfo(ctx, sdkClient.PrmNetworkInfo{})
-	c.updateErrorRate(err)
-	if err != nil {
-		return netmap.NetworkInfo{}, fmt.Errorf("network info on client: %w", err)
-	}
-
-	return res, nil
-}
-
-// objectPut writes object to NeoFS.
-func (c *clientWrapper) objectPut(ctx context.Context, signer user.Signer, prm PrmObjectPut) (oid.ID, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return oid.ID{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectPutInit
-	cliPrm.SetCopiesNumber(prm.copiesNumber)
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	wObj, err := cl.ObjectPutInit(ctx, prm.hdr, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return oid.ID{}, fmt.Errorf("init writing on API client: %w", err)
-	}
-
-	sz := prm.hdr.PayloadSize()
-
-	if data := prm.hdr.Payload(); len(data) > 0 {
-		if prm.payload != nil {
-			prm.payload = io.MultiReader(bytes.NewReader(data), prm.payload)
-		} else {
-			prm.payload = bytes.NewReader(data)
-			sz = uint64(len(data))
-		}
-	}
-
-	if err = writePayload(wObj, prm.payload, sz); err != nil {
-		c.updateErrorRate(err)
-
-		return oid.ID{}, fmt.Errorf("writePayload: %w", err)
-	}
-
-	err = wObj.Close()
-	c.updateErrorRate(err)
-	if err != nil { // here err already carries both status and client errors
-		return oid.ID{}, fmt.Errorf("client failure: %w", err)
-	}
-
-	return wObj.GetResult().StoredObjectID(), nil
-}
-
-func writePayload(wObj io.Writer, payload io.Reader, sz uint64) error {
-	if payload == nil || wObj == nil {
-		return nil
-	}
-
-	const defaultBufferSizePut = 3 << 20 // configure?
-	if sz == 0 || sz > defaultBufferSizePut {
-		sz = defaultBufferSizePut
-	}
-
-	buf := make([]byte, sz)
-
-	var (
-		n   int
-		err error
-	)
-
-	for {
-		n, err = payload.Read(buf)
-
-		if err != nil {
-			if !errors.Is(err, io.EOF) {
-				return fmt.Errorf("read payload: %w", err)
-			}
-		}
-
-		if n == 0 {
-			break
-		}
-
-		if _, err = wObj.Write(buf[:n]); err != nil {
-			return fmt.Errorf("write payload: %w", err)
-		}
-	}
-
-	return nil
-}
-
-// objectDelete invokes sdkClient.ObjectDelete parse response status to error.
-func (c *clientWrapper) objectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectDelete) error {
-	cl, err := c.getClient()
-	if err != nil {
-		return err
-	}
-
-	var cliPrm sdkClient.PrmObjectDelete
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	_, err = cl.ObjectDelete(ctx, containerID, objectID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return fmt.Errorf("delete object on client: %w", err)
-	}
-	return nil
-}
-
-// objectGet returns header and reader for object.
-func (c *clientWrapper) objectGet(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectGet) (ResGetObject, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return ResGetObject{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectGet
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	var res ResGetObject
-
-	hdr, rObj, err := cl.ObjectGetInit(ctx, containerID, objectID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return ResGetObject{}, fmt.Errorf("init object reading on client: %w", err)
-	}
-
-	res.Header = hdr
-	res.Payload = &objectReadCloser{
-		reader: rObj,
-	}
-
-	return res, nil
-}
-
-// objectHead invokes sdkClient.ObjectHead parse response status to error and return result as is.
-func (c *clientWrapper) objectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (object.Object, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return object.Object{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectHead
-	if prm.raw {
-		cliPrm.MarkRaw()
-	}
-
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	var obj object.Object
-
-	res, err := cl.ObjectHead(ctx, containerID, objectID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return obj, fmt.Errorf("read object header via client: %w", err)
-	}
-	if !res.ReadHeader(&obj) {
-		return obj, errors.New("missing object header in response")
-	}
-
-	return obj, nil
-}
-
-// objectRange returns object range reader.
-func (c *clientWrapper) objectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer neofscrypto.Signer, prm PrmObjectRange) (ResObjectRange, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return ResObjectRange{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectRange
-
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	res, err := cl.ObjectRangeInit(ctx, containerID, objectID, offset, length, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return ResObjectRange{}, fmt.Errorf("init payload range reading on client: %w", err)
-	}
-
-	return ResObjectRange{
-		payload: res,
-	}, nil
-}
-
-// objectSearch invokes sdkClient.ObjectSearchInit parse response status to error and return result as is.
-func (c *clientWrapper) objectSearch(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (ResObjectSearch, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return ResObjectSearch{}, err
-	}
-
-	var cliPrm sdkClient.PrmObjectSearch
-	cliPrm.SetFilters(prm.filters)
-
-	if prm.stoken != nil {
-		cliPrm.WithinSession(*prm.stoken)
-	}
-
-	if prm.btoken != nil {
-		cliPrm.WithBearerToken(*prm.btoken)
-	}
-
-	res, err := cl.ObjectSearchInit(ctx, containerID, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return ResObjectSearch{}, fmt.Errorf("init object searching on client: %w", err)
-	}
-
-	return ResObjectSearch{r: res}, nil
-}
-
-// sessionCreate invokes sdkClient.SessionCreate parse response status to error and return result as is.
-func (c *clientWrapper) sessionCreate(ctx context.Context, signer user.Signer, prm prmCreateSession) (resCreateSession, error) {
-	cl, err := c.getClient()
-	if err != nil {
-		return resCreateSession{}, err
-	}
-
-	var cliPrm sdkClient.PrmSessionCreate
-	cliPrm.SetExp(prm.exp)
-
-	res, err := cl.SessionCreate(ctx, signer, cliPrm)
-	c.updateErrorRate(err)
-	if err != nil {
-		return resCreateSession{}, fmt.Errorf("session creation on client: %w", err)
-	}
-
-	return resCreateSession{
-		id:         res.ID(),
-		sessionKey: res.PublicKey(),
-	}, nil
 }
 
 func (c *clientWrapper) SetNodeSession(token *session.Object) {
@@ -993,257 +542,6 @@ func (x *NodeParam) SetWeight(weight float64) {
 	x.weight = weight
 }
 
-// WaitParams contains parameters used in polling is a something applied on NeoFS network.
-type WaitParams struct {
-	timeout      time.Duration
-	pollInterval time.Duration
-}
-
-// SetTimeout specifies the time to wait for the operation to complete.
-func (x *WaitParams) SetTimeout(timeout time.Duration) {
-	x.timeout = timeout
-}
-
-// SetPollInterval specifies the interval, once it will check the completion of the operation.
-func (x *WaitParams) SetPollInterval(tick time.Duration) {
-	x.pollInterval = tick
-}
-
-func (x *WaitParams) setDefaults() {
-	x.timeout = 120 * time.Second
-	x.pollInterval = 5 * time.Second
-}
-
-// checkForPositive panics if any of the wait params isn't positive.
-func (x *WaitParams) checkForPositive() {
-	if x.timeout <= 0 || x.pollInterval <= 0 {
-		panic("all wait params must be positive")
-	}
-}
-
-type prmContext struct {
-	defaultSession bool
-	verb           session.ObjectVerb
-	cnr            cid.ID
-
-	objSet bool
-	objs   []oid.ID
-}
-
-func (x *prmContext) useDefaultSession() {
-	x.defaultSession = true
-}
-
-func (x *prmContext) useContainer(cnr cid.ID) {
-	x.cnr = cnr
-}
-
-func (x *prmContext) useObjects(ids []oid.ID) {
-	x.objs = ids
-	x.objSet = true
-}
-
-func (x *prmContext) useVerb(verb session.ObjectVerb) {
-	x.verb = verb
-}
-
-type prmCommon struct {
-	signer user.Signer
-	btoken *bearer.Token
-	stoken *session.Object
-}
-
-// UseSigner specifies private signer to sign the requests.
-// If signer is not provided, then Pool default signer is used.
-func (x *prmCommon) UseSigner(signer user.Signer) {
-	x.signer = signer
-}
-
-// UseBearer attaches bearer token to be used for the operation.
-func (x *prmCommon) UseBearer(token bearer.Token) {
-	x.btoken = &token
-}
-
-// UseSession specifies session within which operation should be performed.
-func (x *prmCommon) UseSession(token session.Object) {
-	x.stoken = &token
-}
-
-// PrmObjectPut groups parameters of PutObject operation.
-type PrmObjectPut struct {
-	prmCommon
-
-	hdr object.Object
-
-	payload io.Reader
-
-	copiesNumber uint32
-}
-
-// SetHeader specifies header of the object.
-func (x *PrmObjectPut) SetHeader(hdr object.Object) {
-	x.hdr = hdr
-}
-
-// SetPayload specifies payload of the object.
-func (x *PrmObjectPut) SetPayload(payload io.Reader) {
-	x.payload = payload
-}
-
-// SetCopiesNumber sets number of object copies that is enough to consider put successful.
-// Zero means using default behavior.
-func (x *PrmObjectPut) SetCopiesNumber(copiesNumber uint32) {
-	x.copiesNumber = copiesNumber
-}
-
-// PrmObjectDelete groups parameters of DeleteObject operation.
-type PrmObjectDelete struct {
-	prmCommon
-}
-
-// PrmObjectGet groups parameters of GetObject operation.
-type PrmObjectGet struct {
-	prmCommon
-}
-
-// PrmObjectHead groups parameters of HeadObject operation.
-type PrmObjectHead struct {
-	prmCommon
-
-	raw bool
-}
-
-// MarkRaw marks an intent to read physically stored object.
-func (x *PrmObjectHead) MarkRaw() {
-	x.raw = true
-}
-
-// PrmObjectRange groups parameters of RangeObject operation.
-type PrmObjectRange struct {
-	prmCommon
-}
-
-// PrmObjectSearch groups parameters of SearchObjects operation.
-type PrmObjectSearch struct {
-	prmCommon
-
-	filters object.SearchFilters
-}
-
-// SetFilters specifies filters by which to select objects.
-func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
-	x.filters = filters
-}
-
-// PrmContainerPut groups parameters of PutContainer operation.
-type PrmContainerPut struct {
-	prmClient sdkClient.PrmContainerPut
-
-	waitParams    WaitParams
-	waitParamsSet bool
-}
-
-// WithinSession specifies session to be used as a parameter of the base
-// client's operation.
-//
-// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerPut.WithinSession.
-func (x *PrmContainerPut) WithinSession(s session.Container) {
-	x.prmClient.WithinSession(s)
-}
-
-// SetWaitParams specifies timeout params to complete operation.
-// If not provided the default one will be used.
-// Panics if any of the wait params isn't positive.
-func (x *PrmContainerPut) SetWaitParams(waitParams WaitParams) {
-	waitParams.checkForPositive()
-	x.waitParams = waitParams
-	x.waitParamsSet = true
-}
-
-// PrmContainerDelete groups parameters of DeleteContainer operation.
-type PrmContainerDelete struct {
-	stoken    session.Container
-	stokenSet bool
-
-	waitParams    WaitParams
-	waitParamsSet bool
-}
-
-// SetSessionToken specifies session within which operation should be performed.
-func (x *PrmContainerDelete) SetSessionToken(token session.Container) {
-	x.stoken = token
-	x.stokenSet = true
-}
-
-// SetWaitParams specifies timeout params to complete operation.
-// If not provided the default one will be used.
-// Panics if any of the wait params isn't positive.
-func (x *PrmContainerDelete) SetWaitParams(waitParams WaitParams) {
-	waitParams.checkForPositive()
-	x.waitParams = waitParams
-	x.waitParamsSet = true
-}
-
-// PrmContainerSetEACL groups parameters of SetEACL operation.
-type PrmContainerSetEACL struct {
-	sessionSet bool
-	session    session.Container
-
-	waitParams    WaitParams
-	waitParamsSet bool
-}
-
-// WithinSession specifies session to be used as a parameter of the base
-// client's operation.
-//
-// See github.com/nspcc-dev/neofs-sdk-go/client.PrmContainerSetEACL.WithinSession.
-func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
-	x.session = s
-	x.sessionSet = true
-}
-
-// SetWaitParams specifies timeout params to complete operation.
-// If not provided the default one will be used.
-// Panics if any of the wait params isn't positive.
-func (x *PrmContainerSetEACL) SetWaitParams(waitParams WaitParams) {
-	waitParams.checkForPositive()
-	x.waitParams = waitParams
-	x.waitParamsSet = true
-}
-
-// PrmBalanceGet groups parameters of Balance operation.
-type PrmBalanceGet struct {
-	account user.ID
-}
-
-// SetAccount specifies identifier of the NeoFS account for which the balance is requested.
-func (x *PrmBalanceGet) SetAccount(id user.ID) {
-	x.account = id
-}
-
-// prmEndpointInfo groups parameters of sessionCreate operation.
-type prmCreateSession struct {
-	exp uint64
-}
-
-// setExp sets number of the last NeoFS epoch in the lifetime of the session after which it will be expired.
-func (x *prmCreateSession) setExp(exp uint64) {
-	x.exp = exp
-}
-
-// prmEndpointInfo groups parameters of endpointInfo operation.
-type prmEndpointInfo struct{}
-
-// prmNetworkInfo groups parameters of networkInfo operation.
-type prmNetworkInfo struct{}
-
-// resCreateSession groups resulting values of sessionCreate operation.
-type resCreateSession struct {
-	id []byte
-
-	sessionKey []byte
-}
-
 // Pool represents virtual connection to the NeoFS network to communicate
 // with multiple NeoFS servers without thinking about switching between servers
 // due to load balancing proportions or their unavailability.
@@ -1425,18 +723,6 @@ func (p *Pool) Dial(ctx context.Context) error {
 				continue
 			}
 
-			var st session.Object
-			err := initSessionForDuration(ctx, &st, clients[j], p.rebalanceParams.sessionExpirationDuration, p.signer)
-			if err != nil {
-				clients[j].setUnhealthy()
-				if p.logger != nil {
-					p.logger.Warn("failed to create neofs session token for client",
-						zap.String("address", addr), zap.Error(err))
-				}
-				continue
-			}
-
-			_ = p.cache.Put(formCacheKey(addr, p.signer), st)
 			atLeastOneHealthy = true
 		}
 		source := rand.NewSource(time.Now().UnixNano())
@@ -1662,273 +948,21 @@ func (p *innerPool) connection() (internalClient, error) {
 	return nil, errors.New("no healthy client")
 }
 
-func formCacheKey(address string, signer neofscrypto.Signer) string {
-	return address + string(neofscrypto.PublicKeyBytes(signer.Public()))
-}
-
 // cacheKeyForSession generates cache key for a signed session token.
 // It is used with pool methods compatible with [sdkClient.Client].
 func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.ObjectVerb, cnr cid.ID) string {
 	return fmt.Sprintf("%s%s%d%s", address, neofscrypto.PublicKeyBytes(signer.Public()), verb, cnr)
 }
 
-func (p *Pool) checkSessionTokenErr(err error, address string, cl internalClient) bool {
+func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionContainer) {
 	if err == nil {
-		return false
+		return
 	}
 
 	if errors.Is(err, apistatus.ErrSessionTokenNotFound) || errors.Is(err, apistatus.ErrSessionTokenExpired) {
 		p.cache.DeleteByPrefix(address)
 		cl.SetNodeSession(nil)
-		return true
 	}
-
-	return false
-}
-
-func initSessionForDuration(ctx context.Context, dst *session.Object, c internalClient, dur uint64, signer user.Signer) error {
-	ni, err := c.networkInfo(ctx, prmNetworkInfo{})
-	if err != nil {
-		return err
-	}
-
-	epoch := ni.CurrentEpoch()
-
-	var exp uint64
-	if math.MaxUint64-epoch < dur {
-		exp = math.MaxUint64
-	} else {
-		exp = epoch + dur
-	}
-	var prm prmCreateSession
-	prm.setExp(exp)
-
-	res, err := c.sessionCreate(ctx, signer, prm)
-	if err != nil {
-		return err
-	}
-
-	var id uuid.UUID
-
-	err = id.UnmarshalBinary(res.id)
-	if err != nil {
-		return fmt.Errorf("invalid session token ID: %w", err)
-	}
-
-	var key neofsecdsa.PublicKey
-
-	err = key.Decode(res.sessionKey)
-	if err != nil {
-		return fmt.Errorf("invalid public session key: %w", err)
-	}
-
-	dst.SetID(id)
-	dst.SetAuthKey(&key)
-	dst.SetExp(exp)
-
-	return nil
-}
-
-type callContext struct {
-	// base context for RPC
-	context.Context
-
-	client internalClient
-
-	// client endpoint
-	endpoint string
-
-	// request signer
-	signer user.Signer
-
-	// flag to open default session if session token is missing
-	sessionDefault bool
-	sessionTarget  func(session.Object)
-	sessionVerb    session.ObjectVerb
-	sessionCnr     cid.ID
-	sessionObjSet  bool
-	sessionObjs    []oid.ID
-}
-
-func (p *Pool) initCallContext(ctx *callContext, cfg prmCommon, prmCtx prmContext) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
-
-	ctx.signer = cfg.signer
-	if ctx.signer == nil {
-		// use pool signer if caller didn't specify its own
-		ctx.signer = p.signer
-	}
-
-	ctx.endpoint = cp.address()
-	ctx.client = cp
-
-	if ctx.sessionTarget != nil && cfg.stoken != nil {
-		ctx.sessionTarget(*cfg.stoken)
-	}
-
-	// note that we don't override session provided by the caller
-	ctx.sessionDefault = cfg.stoken == nil && prmCtx.defaultSession
-	if ctx.sessionDefault {
-		ctx.sessionVerb = prmCtx.verb
-		ctx.sessionCnr = prmCtx.cnr
-		ctx.sessionObjSet = prmCtx.objSet
-		ctx.sessionObjs = prmCtx.objs
-	}
-
-	return err
-}
-
-// opens new session or uses cached one.
-// Must be called only on initialized callContext with set sessionTarget.
-func (p *Pool) openDefaultSession(ctx *callContext) error {
-	cacheKey := formCacheKey(ctx.endpoint, ctx.signer)
-
-	tok, ok := p.cache.Get(cacheKey)
-	if !ok {
-		// init new session
-		err := initSessionForDuration(ctx, &tok, ctx.client, p.stokenDuration, ctx.signer)
-		if err != nil {
-			return fmt.Errorf("session API client: %w", err)
-		}
-
-		// cache the opened session
-		p.cache.Put(cacheKey, tok)
-	}
-
-	tok.ForVerb(ctx.sessionVerb)
-	tok.BindContainer(ctx.sessionCnr)
-
-	if ctx.sessionObjSet {
-		tok.LimitByObjects(ctx.sessionObjs...)
-	}
-
-	// sign the token
-	if err := tok.Sign(ctx.signer); err != nil {
-		return fmt.Errorf("sign token of the opened session: %w", err)
-	}
-
-	ctx.sessionTarget(tok)
-
-	return nil
-}
-
-// opens default session (if sessionDefault is set), and calls f. If f returns
-// session-related error then cached token is removed.
-func (p *Pool) call(ctx *callContext, f func() error) error {
-	var err error
-
-	if ctx.sessionDefault {
-		err = p.openDefaultSession(ctx)
-		if err != nil {
-			return fmt.Errorf("open default session: %w", err)
-		}
-	}
-
-	err = f()
-	_ = p.checkSessionTokenErr(err, ctx.endpoint, ctx.client)
-
-	return err
-}
-
-// fillAppropriateSigner use pool signer if caller didn't specify its own.
-func (p *Pool) fillAppropriateSigner(prm *prmCommon) {
-	if prm.signer == nil {
-		prm.signer = p.signer
-	}
-}
-
-// PutObject writes an object through a remote server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectPutInit instead.
-func (p *Pool) PutObject(ctx context.Context, prm PrmObjectPut) (oid.ID, error) {
-	cnr, _ := prm.hdr.ContainerID()
-
-	var prmCtx prmContext
-	prmCtx.useDefaultSession()
-	prmCtx.useVerb(session.VerbObjectPut)
-	prmCtx.useContainer(cnr)
-
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var ctxCall callContext
-
-	ctxCall.Context = ctx
-
-	if err := p.initCallContext(&ctxCall, prm.prmCommon, prmCtx); err != nil {
-		return oid.ID{}, fmt.Errorf("init call context: %w", err)
-	}
-
-	if ctxCall.sessionDefault {
-		ctxCall.sessionTarget = prm.UseSession
-		if err := p.openDefaultSession(&ctxCall); err != nil {
-			return oid.ID{}, fmt.Errorf("open default session: %w", err)
-		}
-	}
-
-	id, err := ctxCall.client.objectPut(ctx, prm.signer, prm)
-	if err != nil {
-		// removes session token from cache in case of token error
-		p.checkSessionTokenErr(err, ctxCall.endpoint, ctxCall.client)
-		return id, fmt.Errorf("init writing on API client: %w", err)
-	}
-
-	return id, nil
-}
-
-// DeleteObject marks an object for deletion from the container using NeoFS API protocol.
-// As a marker, a special unit called a tombstone is placed in the container.
-// It confirms the user's intent to delete the object, and is itself a container object.
-// Explicit deletion is done asynchronously, and is generally not guaranteed.
-// Deprecated: use ObjectDelete instead.
-func (p *Pool) DeleteObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectDelete) error {
-	var prmCtx prmContext
-	prmCtx.useDefaultSession()
-	prmCtx.useVerb(session.VerbObjectDelete)
-	prmCtx.useContainer(containerID)
-
-	if prm.stoken == nil { // collect phy objects only if we are about to open default session
-		var tokens relations.Tokens
-		tokens.Bearer = prm.btoken
-
-		relatives, linkerID, err := relationsGet(ctx, p, containerID, objectID, tokens, prm.signer)
-		if err != nil {
-			return fmt.Errorf("failed to collect relatives: %w", err)
-		}
-
-		if len(relatives) != 0 {
-			prmCtx.useContainer(containerID)
-			objList := append(relatives, objectID)
-			if linkerID != nil {
-				objList = append(objList, *linkerID)
-			}
-
-			prmCtx.useObjects(objList)
-		}
-	}
-
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmCtx)
-	if err != nil {
-		return err
-	}
-
-	return p.call(&cc, func() error {
-		if err = cc.client.objectDelete(ctx, containerID, objectID, prm.signer, prm); err != nil {
-			return fmt.Errorf("remove object via client: %w", err)
-		}
-
-		return nil
-	})
 }
 
 // RawClient returns single client instance to have possibility to work with exact one.
@@ -1938,342 +972,7 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 		return nil, err
 	}
 
-	return conn.getClient()
-}
-
-type objectReadCloser struct {
-	reader *sdkClient.PayloadReader
-}
-
-// Read implements io.Reader of the object payload.
-func (x *objectReadCloser) Read(p []byte) (int, error) {
-	return x.reader.Read(p)
-}
-
-// Close implements io.Closer of the object payload.
-func (x *objectReadCloser) Close() error {
-	return x.reader.Close()
-}
-
-// ResGetObject is designed to provide object header nad read one object payload from NeoFS system.
-type ResGetObject struct {
-	Header object.Object
-
-	Payload io.ReadCloser
-}
-
-// GetObject reads object header and initiates reading an object payload through a remote server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectGetInit instead.
-func (p *Pool) GetObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectGet) (ResGetObject, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var res ResGetObject
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return res, err
-	}
-
-	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectGet(ctx, containerID, objectID, prm.signer, prm)
-		return err
-	})
-}
-
-// HeadObject reads object header through a remote server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectHead instead.
-func (p *Pool) HeadObject(ctx context.Context, containerID cid.ID, objectID oid.ID, prm PrmObjectHead) (object.Object, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var obj object.Object
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return obj, err
-	}
-
-	return obj, p.call(&cc, func() error {
-		obj, err = cc.client.objectHead(ctx, containerID, objectID, prm.signer, prm)
-		return err
-	})
-}
-
-// ResObjectRange is designed to read payload range of one object
-// from NeoFS system.
-//
-// Must be initialized using Pool.ObjectRange, any other
-// usage is unsafe.
-type ResObjectRange struct {
-	payload *sdkClient.ObjectRangeReader
-}
-
-// Read implements io.Reader of the object payload.
-func (x *ResObjectRange) Read(p []byte) (int, error) {
-	return x.payload.Read(p)
-}
-
-// Close ends reading the payload range and returns the result of the operation
-// along with the final results. Must be called after using the ResObjectRange.
-func (x *ResObjectRange) Close() error {
-	return x.payload.Close()
-}
-
-// ObjectRange initiates reading an object's payload range through a remote
-// server using NeoFS API protocol.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectRangeInit instead.
-func (p *Pool) ObjectRange(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, prm PrmObjectRange) (ResObjectRange, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var res ResObjectRange
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return res, err
-	}
-
-	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectRange(ctx, containerID, objectID, offset, length, prm.signer, prm)
-		return err
-	})
-}
-
-// ResObjectSearch is designed to read list of object identifiers from NeoFS system.
-//
-// Must be initialized using Pool.SearchObjects, any other usage is unsafe.
-type ResObjectSearch struct {
-	r *sdkClient.ObjectListReader
-}
-
-// Read reads another list of the object identifiers.
-func (x *ResObjectSearch) Read(buf []oid.ID) (int, error) {
-	n, ok := x.r.Read(buf)
-	if !ok {
-		err := x.r.Close()
-		if err == nil {
-			return n, io.EOF
-		}
-
-		return n, err
-	}
-
-	return n, nil
-}
-
-// Iterate iterates over the list of found object identifiers.
-// f can return true to stop iteration earlier.
-//
-// Returns an error if object can't be read.
-func (x *ResObjectSearch) Iterate(f func(oid.ID) bool) error {
-	return x.r.Iterate(f)
-}
-
-// Close ends reading list of the matched objects and returns the result of the operation
-// along with the final results. Must be called after using the ResObjectSearch.
-func (x *ResObjectSearch) Close() {
-	_ = x.r.Close()
-}
-
-// SearchObjects initiates object selection through a remote server using NeoFS API protocol.
-//
-// The call only opens the transmission channel, explicit fetching of matched objects
-// is done using the ResObjectSearch. Resulting reader must be finally closed.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ObjectSearchInit instead.
-func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, prm PrmObjectSearch) (ResObjectSearch, error) {
-	p.fillAppropriateSigner(&prm.prmCommon)
-
-	var cc callContext
-
-	cc.Context = ctx
-	cc.sessionTarget = prm.UseSession
-
-	var res ResObjectSearch
-
-	err := p.initCallContext(&cc, prm.prmCommon, prmContext{})
-	if err != nil {
-		return res, err
-	}
-
-	return res, p.call(&cc, func() error {
-		res, err = cc.client.objectSearch(ctx, containerID, prm.signer, prm)
-		return err
-	})
-}
-
-// PutContainer sends request to save container in NeoFS and waits for the operation to complete.
-//
-// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//
-//	polling interval: 5s
-//	waiting timeout: 120s
-//
-// Success can be verified by reading by identifier (see [Pool.GetContainer]).
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ContainerPut instead.
-func (p *Pool) PutContainer(ctx context.Context, cont container.Container, signer user.Signer, prm PrmContainerPut) (cid.ID, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return cid.ID{}, err
-	}
-
-	return cp.containerPut(ctx, cont, signer, prm)
-}
-
-// GetContainer reads NeoFS container by ID.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ContainerGet instead.
-func (p *Pool) GetContainer(ctx context.Context, id cid.ID) (container.Container, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return container.Container{}, err
-	}
-
-	return cp.containerGet(ctx, id)
-}
-
-// ListContainers requests identifiers of the account-owned containers.
-// Deprecated: use ContainerList instead.
-func (p *Pool) ListContainers(ctx context.Context, ownerID user.ID) ([]cid.ID, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return nil, err
-	}
-
-	return cp.containerList(ctx, ownerID)
-}
-
-// DeleteContainer sends request to remove the NeoFS container and waits for the operation to complete.
-//
-// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//
-//	polling interval: 5s
-//	waiting timeout: 120s
-//
-// Success can be verified by reading by identifier (see GetContainer).
-// Deprecated: use ContainerDelete instead.
-func (p *Pool) DeleteContainer(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
-
-	return cp.containerDelete(ctx, id, signer, prm)
-}
-
-// GetEACL reads eACL table of the NeoFS container.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use ContainerEACL instead.
-func (p *Pool) GetEACL(ctx context.Context, id cid.ID) (eacl.Table, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return eacl.Table{}, err
-	}
-
-	return cp.containerEACL(ctx, id)
-}
-
-// SetEACL sends request to update eACL table of the NeoFS container and waits for the operation to complete.
-//
-// Waiting parameters can be specified using SetWaitParams. If not called, defaults are used:
-//
-//	polling interval: 5s
-//	waiting timeout: 120s
-//
-// Success can be verified by reading by identifier (see GetEACL).
-// Deprecated: use ContainerSetEACL instead.
-func (p *Pool) SetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
-	cp, err := p.connection()
-	if err != nil {
-		return err
-	}
-
-	return cp.containerSetEACL(ctx, table, signer, prm)
-}
-
-// Balance requests current balance of the NeoFS account.
-//
-// Main return value MUST NOT be processed on an erroneous return.
-// Deprecated: use BalanceGet instead.
-func (p *Pool) Balance(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
-	cp, err := p.connection()
-	if err != nil {
-		return accounting.Decimal{}, err
-	}
-
-	return cp.balanceGet(ctx, prm)
-}
-
-// waitForContainerPresence waits until the container is found on the NeoFS network.
-func waitForContainerPresence(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
-	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		_, err := cli.containerGet(ctx, cnrID)
-		return err == nil
-	})
-}
-
-// waitForEACLPresence waits until the container eacl is applied on the NeoFS network.
-func waitForEACLPresence(ctx context.Context, cli internalClient, cnrID cid.ID, table *eacl.Table, waitParams *WaitParams) error {
-	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		eaclTable, err := cli.containerEACL(ctx, cnrID)
-		if err == nil {
-			return eacl.EqualTables(*table, eaclTable)
-		}
-		return false
-	})
-}
-
-// waitForContainerRemoved waits until the container is removed from the NeoFS network.
-func waitForContainerRemoved(ctx context.Context, cli internalClient, cnrID cid.ID, waitParams *WaitParams) error {
-	return waitFor(ctx, waitParams, func(ctx context.Context) bool {
-		_, err := cli.containerGet(ctx, cnrID)
-		return errors.Is(err, apistatus.ErrContainerNotFound)
-	})
-}
-
-// waitFor await that given condition will be met in waitParams time.
-func waitFor(ctx context.Context, params *WaitParams, condition func(context.Context) bool) error {
-	wctx, cancel := context.WithTimeout(ctx, params.timeout)
-	defer cancel()
-	ticker := time.NewTimer(params.pollInterval)
-	defer ticker.Stop()
-	wdone := wctx.Done()
-	done := ctx.Done()
-	for {
-		select {
-		case <-done:
-			return ctx.Err()
-		case <-wdone:
-			return wctx.Err()
-		case <-ticker.C:
-			if condition(ctx) {
-				return nil
-			}
-			ticker.Reset(params.pollInterval)
-		}
-	}
+	return conn.getRawClient()
 }
 
 // Close closes the Pool and releases all the associated resources.
@@ -2294,9 +993,9 @@ func (p *Pool) sdkClient() (*sdkClientWrapper, error) {
 	}
 
 	return &sdkClientWrapper{
-		Client:      cl,
-		nodeSession: conn,
-		addr:        conn.address(),
+		sdkClientInterface: cl,
+		nodeSession:        conn,
+		addr:               conn.address(),
 	}, nil
 }
 

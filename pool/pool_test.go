@@ -1,23 +1,19 @@
 package pool
 
 import (
-	"bytes"
 	"context"
 	"errors"
-	"io"
 	"strconv"
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/object/relations"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
@@ -49,25 +45,6 @@ func TestBuildPoolClientFailed(t *testing.T) {
 			require.Error(t, err)
 		})
 	}
-}
-
-func TestBuildPoolCreateSessionFailed(t *testing.T) {
-	clientMockBuilder := func(addr string) (internalClient, error) {
-		mockCli := newMockClient(addr, test.RandomSignerRFC6979(t))
-		mockCli.errOnCreateSession()
-		return mockCli, nil
-	}
-
-	opts := InitParameters{
-		signer:     test.RandomSignerRFC6979(t),
-		nodeParams: []NodeParam{{1, "peer0", 1}},
-	}
-	opts.setClientBuilder(clientMockBuilder)
-
-	pool, err := NewPool(opts)
-	require.NoError(t, err)
-	err = pool.Dial(context.Background())
-	require.Error(t, err)
 }
 
 func TestBuildPoolOneNodeFailed(t *testing.T) {
@@ -106,14 +83,13 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(clientPool.Close)
 
-	expectedAuthKey := clientKeys[1].Public()
 	condition := func() bool {
 		cp, err := clientPool.connection()
 		if err != nil {
 			return false
 		}
-		st, _ := clientPool.cache.Get(formCacheKey(cp.address(), clientPool.signer))
-		return st.AssertAuthKey(expectedAuthKey)
+
+		return cp.address() == nodes[1].address
 	}
 	require.Never(t, condition, 900*time.Millisecond, 100*time.Millisecond)
 	require.Eventually(t, condition, 3*time.Second, 300*time.Millisecond)
@@ -160,8 +136,7 @@ func TestOneNode(t *testing.T) {
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key1.Public()))
+	require.Equal(t, opts.nodeParams[0].address, cp.address())
 }
 
 func TestTwoNodes(t *testing.T) {
@@ -189,14 +164,12 @@ func TestTwoNodes(t *testing.T) {
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, assertAuthKeyForAny(st, clientKeys))
+	require.True(t, assertAuthKeyForAny(cp.address(), opts.nodeParams))
 }
 
-func assertAuthKeyForAny(st session.Object, clientKeys []neofscrypto.Signer) bool {
-	for _, key := range clientKeys {
-		expectedAuthKey := key.Public()
-		if st.AssertAuthKey(expectedAuthKey) {
+func assertAuthKeyForAny(addr string, nodes []NodeParam) bool {
+	for _, node := range nodes {
+		if addr == node.address {
 			return true
 		}
 	}
@@ -244,8 +217,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-		require.True(t, assertAuthKeyForAny(st, clientKeys))
+		require.True(t, assertAuthKeyForAny(cp.address(), nodes))
 	}
 }
 
@@ -284,16 +256,16 @@ func TestTwoFailed(t *testing.T) {
 }
 
 func TestSessionCache(t *testing.T) {
-	key := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979(t)
+	var mockCli *mockClient
 
 	mockClientBuilder := func(addr string) (internalClient, error) {
-		mockCli := newMockClient(addr, key)
-		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
+		mockCli = newMockClient(addr, signer)
 		return mockCli, nil
 	}
 
 	opts := InitParameters{
-		signer: test.RandomSignerRFC6979(t),
+		signer: signer,
 		nodeParams: []NodeParam{
 			{1, "peer0", 1},
 		},
@@ -310,35 +282,62 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	// cache must contain session token
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key.Public()))
 
-	var prm PrmObjectGet
-	prm.UseSession(session.Object{})
+	var containerID cid.ID
+	cacheKey := cacheKeyForSession(cp.address(), pool.signer, session.VerbObjectGet, containerID)
 
-	_, err = pool.GetObject(ctx, cid.ID{}, oid.ID{}, prm)
-	require.Error(t, err)
+	t.Run("no session token after pool creation", func(t *testing.T) {
+		st, ok := pool.cache.Get(cacheKey)
+		require.False(t, ok)
+		require.False(t, st.AssertAuthKey(signer.Public()))
+	})
 
-	// cache must not contain session token
-	cp, err = pool.connection()
-	require.NoError(t, err)
-	_, ok := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.False(t, ok)
+	t.Run("session token was created after request", func(t *testing.T) {
+		_, _, err = pool.ObjectGetInit(ctx, containerID, oid.ID{}, signer, client.PrmObjectGet{})
+		require.NoError(t, err)
 
-	var prm2 PrmObjectPut
-	prm2.SetHeader(object.Object{})
+		st, ok := pool.cache.Get(cacheKey)
+		require.True(t, ok)
+		require.True(t, st.AssertAuthKey(signer.Public()))
+	})
 
-	_, err = pool.PutObject(ctx, prm2)
-	require.NoError(t, err)
+	t.Run("session is not removed", func(t *testing.T) {
+		// error on the next request to the node
+		mockCli.statusOnGetObject(errors.New("some error"))
 
-	// cache must contain session token
-	cp, err = pool.connection()
-	require.NoError(t, err)
-	st, _ = pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key.Public()))
+		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+		require.Error(t, err)
+
+		_, ok := pool.cache.Get(cacheKey)
+		require.True(t, ok)
+	})
+
+	t.Run("session is removed, because of the special error", func(t *testing.T) {
+		// error on the next request to the node
+		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
+
+		// make request,
+		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+		require.Error(t, err)
+
+		// cache must not contain session token
+		cp, err = pool.connection()
+		require.NoError(t, err)
+		_, ok := pool.cache.Get(cacheKey)
+		require.False(t, ok)
+	})
+
+	t.Run("session created again", func(t *testing.T) {
+		mockCli.statusOnGetObject(nil)
+
+		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+		require.NoError(t, err)
+
+		_, ok := pool.cache.Get(cacheKey)
+		require.True(t, ok)
+	})
 }
 
 func TestPriority(t *testing.T) {
@@ -377,20 +376,16 @@ func TestPriority(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	expectedAuthKey1 := clientKeys[0].Public()
 	firstNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-		return st.AssertAuthKey(expectedAuthKey1)
+		return cp.address() == nodes[0].address
 	}
 
-	expectedAuthKey2 := clientKeys[1].Public()
 	secondNode := func() bool {
 		cp, err := pool.connection()
 		require.NoError(t, err)
-		st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-		return st.AssertAuthKey(expectedAuthKey2)
+		return cp.address() == nodes[1].address
 	}
 	require.Never(t, secondNode, time.Second, 200*time.Millisecond)
 
@@ -422,24 +417,17 @@ func TestSessionCacheWithKey(t *testing.T) {
 	err = pool.Dial(ctx)
 	require.NoError(t, err)
 
-	// cache must contain session token
 	cp, err := pool.connection()
 	require.NoError(t, err)
-	st, _ := pool.cache.Get(formCacheKey(cp.address(), pool.signer))
-	require.True(t, st.AssertAuthKey(key.Public()))
 
-	var prm PrmObjectDelete
-	anonKey := test.RandomSignerRFC6979(t)
-	prm.UseSigner(anonKey)
+	var prm client.PrmObjectDelete
+	anonSigner := test.RandomSignerRFC6979(t)
 
-	relationsGet = func(context.Context, relations.Executor, cid.ID, oid.ID, relations.Tokens, user.Signer) ([]oid.ID, *oid.ID, error) {
-		return nil, nil, nil
-	}
-
-	err = pool.DeleteObject(ctx, cid.ID{}, oid.ID{}, prm)
+	_, err = pool.ObjectDelete(ctx, cid.ID{}, oid.ID{}, anonSigner, prm)
 	require.NoError(t, err)
-	st, _ = pool.cache.Get(formCacheKey(cp.address(), anonKey))
-	require.True(t, st.AssertAuthKey(key.Public()))
+
+	st, _ := pool.cache.Get(cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectDelete, cid.ID{}))
+	require.True(t, st.AssertAuthKey(anonSigner.Public()))
 }
 
 func TestSessionTokenOwner(t *testing.T) {
@@ -465,69 +453,23 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(p.Close)
 
-	anonKey := test.RandomSignerRFC6979(t)
-	anonOwner := anonKey.UserID()
-
-	var prm prmCommon
-	prm.UseSigner(anonKey)
-	var prmCtx prmContext
-	prmCtx.useDefaultSession()
-
-	var tkn session.Object
-	var cc callContext
-	cc.Context = ctx
-	cc.sessionTarget = func(tok session.Object) {
-		tkn = tok
-	}
-	err = p.initCallContext(&cc, prm, prmCtx)
+	cp, err := p.connection()
 	require.NoError(t, err)
 
-	err = p.openDefaultSession(&cc)
+	anonSigner := test.RandomSignerRFC6979(t)
+
+	var containerID cid.ID
+
+	_, _, err = p.ObjectGetInit(ctx, containerID, oid.ID{}, anonSigner, client.PrmObjectGet{})
 	require.NoError(t, err)
-	require.True(t, tkn.VerifySignature())
-	require.True(t, tkn.Issuer().Equals(anonOwner))
-}
 
-func TestWaitPresence(t *testing.T) {
-	mockCli := newMockClient("", test.RandomSignerRFC6979(t))
+	cacheKey := cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectGet, containerID)
+	st, ok := p.cache.Get(cacheKey)
+	require.True(t, ok)
+	require.True(t, st.AssertAuthKey(anonSigner.Public()))
 
-	t.Run("context canceled", func(t *testing.T) {
-		ctx, cancel := context.WithCancel(context.Background())
-		go func() {
-			time.Sleep(500 * time.Millisecond)
-			cancel()
-		}()
-
-		var idCnr cid.ID
-
-		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
-			timeout:      120 * time.Second,
-			pollInterval: 5 * time.Second,
-		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "context canceled")
-	})
-
-	t.Run("context deadline exceeded", func(t *testing.T) {
-		ctx := context.Background()
-		var idCnr cid.ID
-		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
-			timeout:      500 * time.Millisecond,
-			pollInterval: 5 * time.Second,
-		})
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "context deadline exceeded")
-	})
-
-	t.Run("ok", func(t *testing.T) {
-		ctx := context.Background()
-		var idCnr cid.ID
-		err := waitForContainerPresence(ctx, mockCli, idCnr, &WaitParams{
-			timeout:      10 * time.Second,
-			pollInterval: 500 * time.Millisecond,
-		})
-		require.NoError(t, err)
-	})
+	require.True(t, st.VerifySignature())
+	require.True(t, st.Issuer().Equals(anonSigner.UserID()))
 }
 
 func TestStatusMonitor(t *testing.T) {
@@ -663,134 +605,19 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 		conn, err := pool.connection()
 		require.NoError(t, err)
 		require.Equal(t, nodes[0].address, conn.address())
-		_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
+		sdkClient, err := conn.getClient()
+		require.NoError(t, err)
+		_, _, err = sdkClient.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+
 		require.Error(t, err)
 	}
 
 	conn, err := pool.connection()
 	require.NoError(t, err)
 	require.Equal(t, nodes[1].address, conn.address())
-	_, err = conn.objectGet(ctx, cid.ID{}, oid.ID{}, signer, PrmObjectGet{})
+
+	sdkClient, err := conn.getClient()
 	require.NoError(t, err)
-}
-
-type simpleWriter struct {
-	results []ioResult
-	data    []byte
-}
-
-func (s *simpleWriter) Write(p []byte) (n int, err error) {
-	if len(s.results) == 0 {
-		return 0, errors.New("unknown testcase")
-	}
-
-	s.data = append(s.data, p...)
-
-	d := s.results[0]
-	s.results = s.results[1:]
-
-	return d.n, d.err
-}
-
-type ioResult struct {
-	data []byte
-	n    int
-	err  error
-}
-
-type simpleReader struct {
-	results []ioResult
-}
-
-func (s *simpleReader) Read(p []byte) (n int, err error) {
-	if len(s.results) == 0 {
-		return 0, io.EOF
-	}
-
-	d := s.results[0]
-	copy(p, d.data)
-
-	s.results = s.results[1:]
-	return d.n, d.err
-}
-
-func TestWritePayload(t *testing.T) {
-	t.Run("n > 0, io.EOF", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-				{n: 1, err: nil},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{data: []byte{0}, n: 1, err: nil},
-				{data: []byte{1}, n: 1, err: io.EOF},
-			},
-		}
-
-		require.NoError(t, writePayload(&writer, &reader, 1))
-		require.True(t, bytes.Equal([]byte{0, 1}, writer.data))
-	})
-
-	t.Run("n == 0, io.EOF", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-				{n: 1, err: nil},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{data: []byte{0}, n: 1, err: nil},
-			},
-		}
-
-		require.NoError(t, writePayload(&writer, &reader, 1))
-		require.True(t, bytes.Equal([]byte{0}, writer.data))
-	})
-
-	t.Run("write err", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-				{n: 0, err: errors.New("some error")},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{data: []byte{0}, n: 1, err: nil},
-				{data: []byte{1}, n: 1, err: nil},
-			},
-		}
-
-		require.Error(t, writePayload(&writer, &reader, 1))
-	})
-
-	t.Run("read err", func(t *testing.T) {
-		writer := simpleWriter{
-			results: []ioResult{
-				{n: 1, err: nil},
-			},
-		}
-
-		reader := simpleReader{
-			results: []ioResult{
-				{n: 0, err: errors.New("some err")},
-			},
-		}
-
-		require.Error(t, writePayload(&writer, &reader, 1))
-	})
-
-	t.Run("empty writer or reader", func(t *testing.T) {
-		writer := simpleWriter{}
-		require.NoError(t, writePayload(&writer, nil, 0))
-
-		reader := simpleReader{}
-		require.NoError(t, writePayload(nil, &reader, 0))
-	})
+	_, _, err = sdkClient.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, signer, client.PrmObjectGet{})
+	require.NoError(t, err)
 }

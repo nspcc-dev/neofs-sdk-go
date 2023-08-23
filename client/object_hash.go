@@ -11,9 +11,9 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 var (
@@ -107,7 +107,7 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 // Return errors:
 //   - [ErrMissingRanges]
 //   - [ErrMissingSigner]
-func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer neofscrypto.Signer, prm PrmObjectHash) ([][]byte, error) {
+func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHash) ([][]byte, error) {
 	var (
 		addr  v2refs.Address
 		cidV2 v2refs.ContainerID
