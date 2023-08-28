@@ -25,8 +25,15 @@ var (
 
 var (
 	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIPutObject = rpcapi.PutObject
+	rpcAPIPutObject = func(cli *client.Client, r *v2object.PutResponse, o ...client.CallOption) (objectWriter, error) {
+		return rpcapi.PutObject(cli, r, o...)
+	}
 )
+
+type objectWriter interface {
+	Write(*v2object.PutRequest) error
+	Close() error
+}
 
 // shortStatisticCallback is a shorter version of [stat.OperationCallback] which is calling from [client.Client].
 // The difference is the client already know some info about itself. Despite it the client doesn't know
@@ -69,11 +76,8 @@ type ObjectWriter interface {
 type DefaultObjectWriter struct {
 	cancelCtxStream context.CancelFunc
 
-	client *Client
-	stream interface {
-		Write(*v2object.PutRequest) error
-		Close() error
-	}
+	client       *Client
+	stream       objectWriter
 	streamClosed bool
 
 	signer neofscrypto.Signer
