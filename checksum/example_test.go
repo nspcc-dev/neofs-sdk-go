@@ -11,13 +11,17 @@ import (
 
 func ExampleCalculate() {
 	payload := []byte{0, 1, 2, 3, 4, 5, 6}
-	var cs Checksum
+	var checksum Checksum
 
-	Calculate(&cs, SHA256, payload)
-	Calculate(&cs, TZ, payload)
+	// checksum contains SHA256 hash of the payload
+	Calculate(&checksum, SHA256, payload)
+
+	// checksum contains TZ hash of the payload
+	Calculate(&checksum, TZ, payload)
 }
 
-func ExampleChecksum_WriteToV2() {
+// Instances can be also used to process NeoFS API V2 protocol messages with [https://github.com/nspcc-dev/neofs-api] package.
+func ExampleChecksum_marshalling() {
 	var (
 		csRaw [sha256.Size]byte
 		csV2  refs.Checksum
@@ -27,8 +31,16 @@ func ExampleChecksum_WriteToV2() {
 	rand.Read(csRaw[:])
 	cs.SetSHA256(csRaw)
 
+	// On the client side.
+
 	cs.WriteToV2(&csV2)
 
 	fmt.Println(bytes.Equal(cs.Value(), csV2.GetSum()))
 	// Output: true
+
+	// *send message*
+
+	// On the server side.
+
+	_ = cs.ReadFromV2(csV2)
 }

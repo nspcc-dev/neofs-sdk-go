@@ -13,8 +13,10 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 )
 
+// Put a new container into NeoFS.
 func ExampleClient_ContainerPut() {
 	ctx := context.Background()
 	var accountID user.ID
@@ -76,7 +78,10 @@ func ExampleClient_ContainerPut() {
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)
 
-	containerID, err = c.ContainerPut(ctx, cont, signer, client.PrmContainerPut{})
+	w := waiter.NewContainerPutWaiter(c, waiter.DefaultPollInterval)
+
+	// waiter creates the container and waits until it will be created or context canceled.
+	containerID, err = w.ContainerPut(ctx, cont, signer, client.PrmContainerPut{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerPut %w", err))
 	}
@@ -84,10 +89,6 @@ func ExampleClient_ContainerPut() {
 	// containerID already exists
 	fmt.Println(containerID)
 	// example output: 76wa5UNiT8gk8Q5rdCVCV4pKuZSmYsifh6g84BcL6Hqs
-
-	// but container creation is async operation. We should wait some time or make polling to ensure container created
-	// for simplifying we just wait
-	<-time.After(2 * time.Second)
 
 	contRes, err := c.ContainerGet(ctx, containerID, client.PrmContainerGet{})
 	if err != nil {
