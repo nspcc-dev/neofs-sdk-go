@@ -582,7 +582,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIPutObject = func(cli *client.Client, pResp *v2object.PutResponse, opts ...client.CallOption) (*rpcapi.PutRequestWriter, error) {
+	rpcAPIPutObject = func(cli *client.Client, pResp *v2object.PutResponse, opts ...client.CallOption) (objectWriter, error) {
 		var resp rpcapi.PutRequestWriter
 
 		return &resp, nil

@@ -25,8 +25,15 @@ var (
 
 var (
 	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIPutObject = rpcapi.PutObject
+	rpcAPIPutObject = func(cli *client.Client, r *v2object.PutResponse, o ...client.CallOption) (objectWriter, error) {
+		return rpcapi.PutObject(cli, r, o...)
+	}
 )
+
+type objectWriter interface {
+	Write(*v2object.PutRequest) error
+	Close() error
+}
 
 // shortStatisticCallback is a shorter version of [stat.OperationCallback] which is calling from [client.Client].
 // The difference is the client already know some info about itself. Despite it the client doesn't know
@@ -69,11 +76,9 @@ type ObjectWriter interface {
 type DefaultObjectWriter struct {
 	cancelCtxStream context.CancelFunc
 
-	client *Client
-	stream interface {
-		Write(*v2object.PutRequest) error
-		Close() error
-	}
+	client       *Client
+	stream       objectWriter
+	streamClosed bool
 
 	signer neofscrypto.Signer
 	res    ResObjectPut
@@ -186,6 +191,13 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 
 		x.err = x.stream.Write(&x.req)
 		if x.err != nil {
+			if errors.Is(x.err, io.EOF) {
+				_ = x.stream.Close()
+				x.err = x.client.processResponse(&x.respV2)
+				x.streamClosed = true
+				x.cancelCtxStream()
+			}
+
 			return writtenBytes, x.err
 		}
 
@@ -213,6 +225,10 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *DefaultObjectWriter) Close() error {
+	if x.streamClosed {
+		return nil
+	}
+
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
