@@ -77,12 +77,12 @@ type ObjectListReader struct {
 }
 
 // Read reads another list of the object identifiers. Works similar to
-// io.Reader.Read but copies oid.ID and returns success flag instead of error.
+// io.Reader.Read but copies oid.ID.
 //
 // Failure reason can be received via Close.
 //
 // Panics if buf has zero length.
-func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
+func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 	if len(buf) == 0 {
 		panic("empty buffer in ObjectListReader.ReadList")
 	}
@@ -97,19 +97,19 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 	x.tail = x.tail[read:]
 
 	if len(buf) == read {
-		return read, true
+		return read, nil
 	}
 
 	for {
 		var resp v2object.SearchResponse
 		x.err = x.stream.Read(&resp)
 		if x.err != nil {
-			return read, false
+			return read, x.err
 		}
 
 		x.err = x.client.processResponse(&resp)
 		if x.err != nil {
-			return read, false
+			return read, x.err
 		}
 
 		// read new chunk of objects
@@ -126,7 +126,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, bool) {
 			// save the tail
 			x.tail = append(x.tail, ids[ln:]...)
 
-			return read, true
+			return read, nil
 		}
 	}
 }
@@ -147,10 +147,8 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 	buf := make([]oid.ID, 1)
 
 	for {
-		// Do not check first return value because `len(buf) == 1`,
-		// so false means nothing was read.
-		_, ok := x.Read(buf)
-		if !ok {
+		_, err := x.Read(buf)
+		if err != nil {
 			return x.Close()
 		}
 		if f(buf[0]) {

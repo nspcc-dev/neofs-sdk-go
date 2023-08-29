@@ -25,9 +25,16 @@ func TestObjectSearch(t *testing.T) {
 	p, resp := testListReaderResponse(t)
 
 	buf := make([]oid.ID, 2)
-	checkRead := func(t *testing.T, expected []oid.ID) {
-		n, ok := resp.Read(buf)
-		require.True(t, ok == (len(expected) == len(buf)), "expected no error")
+	checkRead := func(t *testing.T, expected []oid.ID, expectedErr error) {
+		n, err := resp.Read(buf)
+		if expectedErr == nil {
+			require.NoError(t, err)
+			require.True(t, len(expected) == len(buf), "expected the same length")
+		} else {
+			require.Error(t, err)
+			require.True(t, len(expected) != len(buf), "expected different length")
+		}
+
 		require.Equal(t, len(expected), n, "expected %d items to be read", len(expected))
 		require.Equal(t, expected, buf[:len(expected)])
 	}
@@ -35,33 +42,37 @@ func TestObjectSearch(t *testing.T) {
 	// nil panic
 	require.Panics(t, func() { resp.Read(nil) })
 
+	// no data
+	resp.stream = newSearchStream(p, io.EOF, []oid.ID{})
+	checkRead(t, []oid.ID{}, io.EOF)
+
 	// both ID fetched
 	resp.stream = newSearchStream(p, nil, ids[:3])
-	checkRead(t, ids[:2])
+	checkRead(t, ids[:2], nil)
 
 	// one ID cached, second fetched
 	resp.stream = newSearchStream(p, nil, ids[3:6])
-	checkRead(t, ids[2:4])
+	checkRead(t, ids[2:4], nil)
 
 	// both ID cached
 	resp.stream = nil // shouldn't be called, panic if so
-	checkRead(t, ids[4:6])
+	checkRead(t, ids[4:6], nil)
 
 	// both ID fetched in 2 requests, with empty one in the middle
 	resp.stream = newSearchStream(p, nil, ids[6:7], nil, ids[7:8])
-	checkRead(t, ids[6:8])
+	checkRead(t, ids[6:8], nil)
 
 	// read from tail multiple times
 	resp.stream = newSearchStream(p, nil, ids[8:11])
 	buf = buf[:1]
-	checkRead(t, ids[8:9])
-	checkRead(t, ids[9:10])
-	checkRead(t, ids[10:11])
+	checkRead(t, ids[8:9], nil)
+	checkRead(t, ids[9:10], nil)
+	checkRead(t, ids[10:11], nil)
 
 	// handle EOF
 	buf = buf[:2]
 	resp.stream = newSearchStream(p, io.EOF, ids[11:12])
-	checkRead(t, ids[11:12])
+	checkRead(t, ids[11:12], io.EOF)
 }
 
 func TestObjectIterate(t *testing.T) {
@@ -70,6 +81,18 @@ func TestObjectIterate(t *testing.T) {
 		ids[i] = oidtest.ID()
 	}
 
+	t.Run("no objects", func(t *testing.T) {
+		p, resp := testListReaderResponse(t)
+
+		resp.stream = newSearchStream(p, io.EOF, []oid.ID{})
+
+		var actual []oid.ID
+		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
+			actual = append(actual, id)
+			return false
+		}))
+		require.Len(t, actual, 0)
+	})
 	t.Run("iterate all sequence", func(t *testing.T) {
 		p, resp := testListReaderResponse(t)
 
