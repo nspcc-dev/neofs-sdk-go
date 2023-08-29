@@ -36,7 +36,7 @@ func ExampleChecksum_marshalling() {
 	cs.WriteToV2(&csV2)
 
 	fmt.Println(bytes.Equal(cs.Value(), csV2.GetSum()))
-	// Output: true
+	// Example output: true
 
 	// *send message*
 
