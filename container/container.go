@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -329,12 +330,24 @@ func (x Container) Attribute(key string) string {
 // IterateAttributes iterates over all Container attributes and passes them
 // into f. The handler MUST NOT be nil.
 //
-// See also SetAttribute, Attribute.
+// See also [Container.SetAttribute], [Container.Attribute], [Container.IterateUserAttributes].
 func (x Container) IterateAttributes(f func(key, val string)) {
 	attrs := x.v2.GetAttributes()
 	for i := range attrs {
 		f(attrs[i].GetKey(), attrs[i].GetValue())
 	}
+}
+
+// IterateUserAttributes iterates over user attributes of the Container and
+// passes them into f. The handler MUST NOT be nil.
+//
+// See also [Container.SetAttribute], [Container.Attribute], [Container.IterateAttributes].
+func (x Container) IterateUserAttributes(f func(key, val string)) {
+	x.IterateAttributes(func(key, val string) {
+		if !strings.HasPrefix(key, container.SysAttributePrefix) {
+			f(key, val)
+		}
+	})
 }
 
 // SetName sets human-readable name of the Container. Name MUST NOT be empty.

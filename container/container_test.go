@@ -185,6 +185,36 @@ func TestContainer_Attribute(t *testing.T) {
 	require.Equal(t, attrVal1+"_", val2.Attribute(attrKey1))
 }
 
+func TestContainer_IterateUserAttributes(t *testing.T) {
+	var cnr container.Container
+	mSys := make(map[string]string)
+	mUsr := make(map[string]string)
+
+	for i := 0; i < 10; i++ {
+		si := strconv.Itoa(i)
+
+		keyUsr := "key" + si
+		valUsr := "val" + si
+		keySys := "__NEOFS__" + si
+		valSys := "sys-val" + si
+
+		mUsr[keyUsr] = valUsr
+		mSys[keySys] = valSys
+
+		cnr.SetAttribute(keySys, valSys)
+		cnr.SetAttribute(keyUsr, valUsr)
+	}
+
+	cnr.IterateUserAttributes(func(key, val string) {
+		_, isSys := mSys[key]
+		require.False(t, isSys, key)
+		require.Equal(t, mUsr[key], val, key)
+		delete(mUsr, key)
+	})
+
+	require.Empty(t, mUsr)
+}
+
 func TestSetName(t *testing.T) {
 	var val container.Container
 
