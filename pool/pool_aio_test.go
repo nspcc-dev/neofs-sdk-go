@@ -39,11 +39,13 @@ var (
 	defaultTimeOut = 5 * time.Second
 	tickInterval   = 1 * time.Second
 
-	tickEpoch = []string{
-		"neo-go", "contract", "invokefunction", "--wallet-config", "/config/node-config.yaml",
-		"-a", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP", "--force", "-r", "http://localhost:30333",
-		"707516630852f4179af43366917a36b9a78b93a5", "newEpoch", "int:10",
-		"--", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP:Global",
+	tickEpochCmdBuilder = func(epoch uint64) []string {
+		return []string{
+			"neo-go", "contract", "invokefunction", "--wallet-config", "/config/node-config.yaml",
+			"-a", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP", "--force", "-r", "http://localhost:30333",
+			"707516630852f4179af43366917a36b9a78b93a5", "newEpoch", fmt.Sprintf("int:%d", epoch),
+			"--", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP:Global",
+		}
 	}
 
 	versions = []dockerImage{
@@ -200,7 +202,7 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 	// Should be removed after fix epochs in AIO start.
 	<-time.After(3 * time.Second)
 
-	_, _, err = aioC.Exec(ctx, tickEpoch)
+	_, _, err = aioC.Exec(ctx, tickEpochCmdBuilder(3))
 	require.NoError(t, err)
 
 	<-time.After(3 * time.Second)
