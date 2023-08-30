@@ -39,20 +39,34 @@ var (
 	defaultTimeOut = 5 * time.Second
 	tickInterval   = 1 * time.Second
 
-	tickEpoch = []string{
-		"neo-go", "contract", "invokefunction", "--wallet-config", "/config/node-config.yaml",
-		"-a", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP", "--force", "-r", "http://localhost:30333",
-		"707516630852f4179af43366917a36b9a78b93a5", "newEpoch", "int:10",
-		"--", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP:Global",
+	tickEpochCmdBuilder = func(epoch uint64) []string {
+		return []string{
+			"neo-go", "contract", "invokefunction", "--wallet-config", "/config/node-config.yaml",
+			"-a", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP", "--force", "-r", "http://localhost:30333",
+			"707516630852f4179af43366917a36b9a78b93a5", "newEpoch", fmt.Sprintf("int:%d", epoch),
+			"--", "NfgHwwTi3wHAS8aFAN243C5vGbkYDpqLHP:Global",
+		}
 	}
+
+	tickNewEpoch newEpochTickerFunc
 
 	versions = []dockerImage{
 		{image: "nspccdev/neofs-aio", version: "0.36.0"},
 		{image: "nspccdev/neofs-aio", version: "latest"},
 	}
+
+	sessionExpirationInEpochs = uint64(2)
+
+	// clientRebalanceInterval must be lower than timeoutAfterEpochChange.
+	// It is important if you are forcing epoch changing. Otherwise, session tokens maybe expired and rejected by node.
+	// It happens because session cache inside pool just wasn't updated yet.
+	clientRebalanceInterval = 1 * time.Second
+	timeoutAfterEpochChange = 2 * time.Second
 )
 
 type (
+	newEpochTickerFunc func(context.Context, client.NetworkInfoExecutor) (int, error)
+
 	dockerImage struct {
 		image   string
 		version string
@@ -200,10 +214,27 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 	// Should be removed after fix epochs in AIO start.
 	<-time.After(3 * time.Second)
 
-	_, _, err = aioC.Exec(ctx, tickEpoch)
+	_, _, err = aioC.Exec(ctx, tickEpochCmdBuilder(3))
 	require.NoError(t, err)
 
 	<-time.After(3 * time.Second)
+
+	tickNewEpoch = func(ctx context.Context, executor client.NetworkInfoExecutor) (int, error) {
+		ni, err := executor.NetworkInfo(ctx, client.PrmNetworkInfo{})
+		if err != nil {
+			return 0, err
+		}
+
+		newEpoch := ni.CurrentEpoch() + 1
+
+		_, _, err = aioC.Exec(ctx, tickEpochCmdBuilder(newEpoch))
+		if err != nil {
+			return 0, err
+		}
+
+		<-time.After(timeoutAfterEpochChange)
+		return int(newEpoch), nil
+	}
 
 	return aioC
 }
@@ -217,6 +248,8 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	poolStat := stat.NewPoolStatistic()
 	opts := DefaultOptions()
 	opts.SetStatisticCallback(poolStat.OperationCallback)
+	opts.sessionExpirationDuration = sessionExpirationInEpochs
+	opts.clientRebalanceInterval = clientRebalanceInterval
 
 	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, opts)
 	require.NoError(t, err)
@@ -224,6 +257,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 	var containerID cid.ID
 	var objectID oid.ID
+	var objectList []oid.ID
 
 	payload := make([]byte, 8)
 	_, err = rand.Read(payload)
@@ -331,6 +365,37 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		require.NoError(t, err)
 		require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID, signer))
 	})
+
+	times := int(opts.sessionExpirationDuration * 3)
+	for i := 0; i < times; i++ {
+		epoch, err := tickNewEpoch(ctx, pool)
+		require.NoError(t, err)
+
+		t.Run(fmt.Sprintf("upload object through epoch:%d", epoch), func(t *testing.T) {
+			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
+			defer cancel()
+
+			objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
+			objectList = append(objectList, objID)
+		})
+	}
+
+	for _, objID := range objectList {
+		epoch, err := tickNewEpoch(ctx, pool)
+		require.NoError(t, err)
+
+		t.Run(fmt.Sprintf("delete object through epoch:%d", epoch), func(t *testing.T) {
+			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
+			defer cancel()
+
+			testDeleteObject(ctxTimeout, t, signer, containerID, objID, pool)
+
+			cl, err := pool.sdkClient()
+			require.NoError(t, err)
+
+			require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objID, signer))
+		})
+	}
 
 	t.Run("container delete", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
