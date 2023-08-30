@@ -102,74 +102,42 @@ type stringEncoder interface {
 
 // SearchFilter describes a single filter record.
 type SearchFilter struct {
-	header filterKey
+	header string
 	value  stringEncoder
 	op     SearchMatchType
 }
 
 type staticStringer string
 
-type filterKey struct {
-	typ filterKeyType
-
-	str string
-}
-
-// enumeration of reserved filter keys.
-type filterKeyType int
-
 // SearchFilters is type to describe a group of filters.
 type SearchFilters []SearchFilter
 
+// Various header filters.
 const (
-	_ filterKeyType = iota
-	fKeyVersion
-	fKeyObjectID
-	fKeyContainerID
-	fKeyOwnerID
-	fKeyCreationEpoch
-	fKeyPayloadLength
-	fKeyPayloadHash
-	fKeyType
-	fKeyHomomorphicHash
-	fKeyParent
-	fKeySplitID
-	fKeyPropRoot
-	fKeyPropPhy
+	FilterVersion                = v2object.FilterHeaderVersion
+	FilterID                     = v2object.FilterHeaderObjectID
+	FilterContainerID            = v2object.FilterHeaderContainerID
+	FilterOwnerID                = v2object.FilterHeaderOwnerID
+	FilterPayloadChecksum        = v2object.FilterHeaderPayloadHash
+	FilterType                   = v2object.FilterHeaderObjectType
+	FilterPayloadHomomorphicHash = v2object.FilterHeaderHomomorphicHash
+	FilterParentID               = v2object.FilterHeaderParent
+	FilterSplitID                = v2object.FilterHeaderSplitID
 )
 
-func (k filterKey) String() string {
-	switch k.typ {
-	default:
-		return k.str
-	case fKeyVersion:
-		return v2object.FilterHeaderVersion
-	case fKeyObjectID:
-		return v2object.FilterHeaderObjectID
-	case fKeyContainerID:
-		return v2object.FilterHeaderContainerID
-	case fKeyOwnerID:
-		return v2object.FilterHeaderOwnerID
-	case fKeyCreationEpoch:
-		return v2object.FilterHeaderCreationEpoch
-	case fKeyPayloadLength:
-		return v2object.FilterHeaderPayloadLength
-	case fKeyPayloadHash:
-		return v2object.FilterHeaderPayloadHash
-	case fKeyType:
-		return v2object.FilterHeaderObjectType
-	case fKeyHomomorphicHash:
-		return v2object.FilterHeaderHomomorphicHash
-	case fKeyParent:
-		return v2object.FilterHeaderParent
-	case fKeySplitID:
-		return v2object.FilterHeaderSplitID
-	case fKeyPropRoot:
-		return v2object.FilterPropertyRoot
-	case fKeyPropPhy:
-		return v2object.FilterPropertyPhy
-	}
-}
+// Various filters to match certain object properties.
+const (
+	// FilterRoot filters objects that are root: objects of TypeRegular type
+	// with user data that are not system-specific. In addition to such objects, the
+	// system may contain service objects that do not fall under this property
+	// (like split leaves, tombstones, storage groups, etc.).
+	FilterRoot = v2object.FilterPropertyRoot
+	// FilterPhysical filters indivisible objects that are intended to be stored
+	// on the physical devices of the system. In addition to such objects, the
+	//	system may contain so-called "virtual" objects that exist in the system in
+	//	disassembled form (like "huge" user object sliced into smaller ones).
+	FilterPhysical = v2object.FilterPropertyPhy
+)
 
 func (s staticStringer) EncodeToString() string {
 	return string(s)
@@ -177,7 +145,7 @@ func (s staticStringer) EncodeToString() string {
 
 // Header returns filter header value.
 func (f *SearchFilter) Header() string {
-	return f.header.String()
+	return f.header
 }
 
 // Value returns filter value.
@@ -210,55 +178,48 @@ func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
 	return filters
 }
 
-func (f *SearchFilters) addFilter(op SearchMatchType, keyTyp filterKeyType, key string, val stringEncoder) {
+func (f *SearchFilters) addFilter(op SearchMatchType, key string, val stringEncoder) {
 	if *f == nil {
 		*f = make(SearchFilters, 0, 1)
 	}
 
 	*f = append(*f, SearchFilter{
-		header: filterKey{
-			typ: keyTyp,
-			str: key,
-		},
-		value: val,
-		op:    op,
+		header: key,
+		value:  val,
+		op:     op,
 	})
 }
 
 // AddFilter adds a filter to group by simple plain parameters.
-func (f *SearchFilters) AddFilter(header, value string, op SearchMatchType) {
-	f.addFilter(op, 0, header, staticStringer(value))
-}
-
-func (f *SearchFilters) addReservedFilter(op SearchMatchType, keyTyp filterKeyType, val stringEncoder) {
-	f.addFilter(op, keyTyp, "", val)
+func (f *SearchFilters) AddFilter(key, value string, op SearchMatchType) {
+	f.addFilter(op, key, staticStringer(value))
 }
 
 // addFlagFilters adds filters that works like flags: they don't need to have
 // specific match type or value. They processed by NeoFS nodes by the fact
-// of presence in search query. E.g.: PHY, ROOT.
-func (f *SearchFilters) addFlagFilter(keyTyp filterKeyType) {
-	f.addFilter(MatchUnknown, keyTyp, "", staticStringer(""))
+// of presence in search query. E.g.: FilterRoot, FilterPhysical.
+func (f *SearchFilters) addFlagFilter(key string) {
+	f.addFilter(MatchUnknown, key, staticStringer(""))
 }
 
 // AddObjectVersionFilter adds a filter by version.
 func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v version.Version) {
-	f.addReservedFilter(op, fKeyVersion, staticStringer(version.EncodeToString(v)))
+	f.addFilter(op, FilterVersion, staticStringer(version.EncodeToString(v)))
 }
 
 // AddObjectContainerIDFilter adds a filter by container id.
 func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
-	f.addReservedFilter(m, fKeyContainerID, id)
+	f.addFilter(m, FilterContainerID, id)
 }
 
 // AddObjectOwnerIDFilter adds a filter by object owner id.
 func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
-	f.addReservedFilter(m, fKeyOwnerID, id)
+	f.addFilter(m, FilterOwnerID, id)
 }
 
 // AddNotificationEpochFilter adds a filter by epoch. This epoch is not about expiration, but about notification production.
 func (f *SearchFilters) AddNotificationEpochFilter(epoch uint64) {
-	f.addFilter(MatchStringEqual, 0, v2object.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
+	f.addFilter(MatchStringEqual, v2object.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
 }
 
 // ToV2 converts [SearchFilters] to [v2object.SearchFilter] slice.
@@ -266,7 +227,7 @@ func (f SearchFilters) ToV2() []v2object.SearchFilter {
 	result := make([]v2object.SearchFilter, len(f))
 
 	for i := range f {
-		result[i].SetKey(f[i].header.String())
+		result[i].SetKey(f[i].header)
 		result[i].SetValue(f[i].value.EncodeToString())
 		result[i].SetMatchType(f[i].op.ToV2())
 	}
@@ -275,7 +236,7 @@ func (f SearchFilters) ToV2() []v2object.SearchFilter {
 }
 
 func (f *SearchFilters) addRootFilter() {
-	f.addFlagFilter(fKeyPropRoot)
+	f.addFlagFilter(FilterRoot)
 }
 
 // AddRootFilter adds filter by objects that have been created by a user explicitly.
@@ -284,7 +245,7 @@ func (f *SearchFilters) AddRootFilter() {
 }
 
 func (f *SearchFilters) addPhyFilter() {
-	f.addFlagFilter(fKeyPropPhy)
+	f.addFlagFilter(FilterPhysical)
 }
 
 // AddPhyFilter adds filter by objects that are physically stored in the system.
@@ -294,22 +255,22 @@ func (f *SearchFilters) AddPhyFilter() {
 
 // AddParentIDFilter adds filter by parent identifier.
 func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id oid.ID) {
-	f.addReservedFilter(m, fKeyParent, id)
+	f.addFilter(m, FilterParentID, id)
 }
 
 // AddObjectIDFilter adds filter by object identifier.
 func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
-	f.addReservedFilter(m, fKeyObjectID, id)
+	f.addFilter(m, FilterID, id)
 }
 
 // AddSplitIDFilter adds filter by split ID.
 func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id *SplitID) {
-	f.addReservedFilter(m, fKeySplitID, staticStringer(id.String()))
+	f.addFilter(m, FilterSplitID, staticStringer(id.String()))
 }
 
 // AddTypeFilter adds filter by object type.
 func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
-	f.addReservedFilter(m, fKeyType, staticStringer(typ.EncodeToString()))
+	f.addFilter(m, FilterType, staticStringer(typ.EncodeToString()))
 }
 
 // MarshalJSON encodes [SearchFilters] to protobuf JSON format.
@@ -336,10 +297,10 @@ func (f *SearchFilters) UnmarshalJSON(data []byte) error {
 
 // AddPayloadHashFilter adds filter by payload hash.
 func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size]byte) {
-	f.addReservedFilter(m, fKeyPayloadHash, staticStringer(hex.EncodeToString(sum[:])))
+	f.addFilter(m, FilterPayloadChecksum, staticStringer(hex.EncodeToString(sum[:])))
 }
 
 // AddHomomorphicHashFilter adds filter by homomorphic hash.
 func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
-	f.addReservedFilter(m, fKeyHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
+	f.addFilter(m, FilterPayloadHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
 }

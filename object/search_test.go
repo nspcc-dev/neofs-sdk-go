@@ -86,8 +86,18 @@ func TestSearchFilters_AddRootFilter(t *testing.T) {
 	f := (*fs)[0]
 
 	require.Equal(t, object.MatchUnknown, f.Operation())
-	require.Equal(t, v2object.FilterPropertyRoot, f.Header())
+	require.Equal(t, object.FilterRoot, f.Header())
 	require.Equal(t, "", f.Value())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterPropertyRoot, fsV2[0].GetKey())
+		require.Equal(t, "", fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchUnknown, fsV2[0].GetMatchType())
+	})
 }
 
 func TestSearchFilters_AddPhyFilter(t *testing.T) {
@@ -100,8 +110,18 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 	f := (*fs)[0]
 
 	require.Equal(t, object.MatchUnknown, f.Operation())
-	require.Equal(t, v2object.FilterPropertyPhy, f.Header())
+	require.Equal(t, object.FilterPhysical, f.Header())
 	require.Equal(t, "", f.Value())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterPropertyPhy, fsV2[0].GetKey())
+		require.Equal(t, "", fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchUnknown, fsV2[0].GetMatchType())
+	})
 }
 
 func testOID() oid.ID {
@@ -121,13 +141,23 @@ func TestSearchFilters_AddParentIDFilter(t *testing.T) {
 	fs := object.SearchFilters{}
 	fs.AddParentIDFilter(object.MatchStringEqual, par)
 
-	fsV2 := fs.ToV2()
+	require.Len(t, fs, 1)
 
-	require.Len(t, fsV2, 1)
+	f := fs[0]
 
-	require.Equal(t, v2object.FilterHeaderParent, fsV2[0].GetKey())
-	require.Equal(t, par.EncodeToString(), fsV2[0].GetValue())
-	require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	require.Equal(t, object.FilterParentID, f.Header())
+	require.Equal(t, par.EncodeToString(), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderParent, fsV2[0].GetKey())
+		require.Equal(t, par.EncodeToString(), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
 }
 
 func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
@@ -135,6 +165,14 @@ func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
 
 	fs := new(object.SearchFilters)
 	fs.AddObjectIDFilter(object.MatchStringEqual, id)
+
+	require.Len(t, *fs, 1)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterID, f.Header())
+	require.Equal(t, id.EncodeToString(), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
 
 	t.Run("v2", func(t *testing.T) {
 		fsV2 := fs.ToV2()
@@ -153,6 +191,12 @@ func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
 	fs := new(object.SearchFilters)
 	fs.AddSplitIDFilter(object.MatchStringEqual, id)
 
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterSplitID, f.Header())
+	require.Equal(t, id.String(), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
 	t.Run("v2", func(t *testing.T) {
 		fsV2 := fs.ToV2()
 
@@ -169,6 +213,12 @@ func TestSearchFilters_AddTypeFilter(t *testing.T) {
 
 	fs := new(object.SearchFilters)
 	fs.AddTypeFilter(object.MatchStringEqual, typ)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterType, f.Header())
+	require.Equal(t, typ.String(), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
 
 	t.Run("v2", func(t *testing.T) {
 		fsV2 := fs.ToV2()
@@ -232,6 +282,12 @@ func TestSearchFilters_AddPayloadHashFilter(t *testing.T) {
 	fs := new(object.SearchFilters)
 	fs.AddPayloadHashFilter(object.MatchStringEqual, cs)
 
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterPayloadChecksum, f.Header())
+	require.Equal(t, hex.EncodeToString(cs[:]), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
 	t.Run("v2", func(t *testing.T) {
 		fsV2 := fs.ToV2()
 
@@ -261,6 +317,12 @@ func TestSearchFilters_AddHomomorphicHashFilter(t *testing.T) {
 
 	fs := new(object.SearchFilters)
 	fs.AddHomomorphicHashFilter(object.MatchStringEqual, cs)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterPayloadHomomorphicHash, f.Header())
+	require.Equal(t, hex.EncodeToString(cs[:]), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
 
 	t.Run("v2", func(t *testing.T) {
 		fsV2 := fs.ToV2()
