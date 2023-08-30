@@ -333,7 +333,7 @@ func (c *clientWrapper) GetNodeSession() *session.Object {
 		return nil
 	}
 
-	if c.nodeSession.ExpiredAt(c.epoch.Load()) {
+	if c.nodeSession.ExpiredAt(c.epoch.Load() + 1) {
 		return nil
 	}
 

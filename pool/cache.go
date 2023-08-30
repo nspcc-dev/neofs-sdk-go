@@ -71,5 +71,5 @@ func (c *sessionCache) updateEpoch(newEpoch uint64) {
 
 func (c *sessionCache) expired(val *cacheValue) bool {
 	epoch := atomic.LoadUint64(&c.currentEpoch)
-	return val.token.ExpiredAt(epoch)
+	return val.token.ExpiredAt(epoch + 1)
 }
