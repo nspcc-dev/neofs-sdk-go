@@ -4,6 +4,22 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
+// Various system attributes.
+const (
+	// AttributeExpirationEpoch is a key to an object attribute that determines
+	// after what epoch the object becomes expired. Objects that do not have this
+	// attribute never expire.
+	//
+	// Reaction of NeoFS system components to the objects' 'expired' property may
+	// vary. For example, in the basic scenario, expired objects are auto-deleted
+	// from the storage. Detailed behavior can be found in the NeoFS Specification.
+	//
+	// Note that the value determines exactly the last epoch of the object's
+	// relevance: for example, with the value N, the object is relevant in epoch N
+	// and expired in any epoch starting from N+1.
+	AttributeExpirationEpoch = object.SysAttributeExpEpoch
+)
+
 // Attribute represents v2-compatible object attribute.
 type Attribute object.Attribute
 
