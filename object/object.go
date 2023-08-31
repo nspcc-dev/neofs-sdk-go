@@ -3,6 +3,7 @@ package object
 import (
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -335,7 +336,9 @@ func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 	})
 }
 
-// Attributes returns object attributes.
+// Attributes returns all object attributes.
+//
+// See also [Object.SetAttributes], [Object.UserAttributes].
 func (o *Object) Attributes() []Attribute {
 	attrs := (*object.Object)(o).
 		GetHeader().
@@ -345,6 +348,25 @@ func (o *Object) Attributes() []Attribute {
 
 	for i := range attrs {
 		res[i] = *NewAttributeFromV2(&attrs[i])
+	}
+
+	return res
+}
+
+// UserAttributes returns user attributes of the Object.
+//
+// See also [Object.SetAttributes], [Object.Attributes].
+func (o *Object) UserAttributes() []Attribute {
+	attrs := (*object.Object)(o).
+		GetHeader().
+		GetAttributes()
+
+	res := make([]Attribute, 0, len(attrs))
+
+	for i := range attrs {
+		if !strings.HasPrefix(attrs[i].GetKey(), object.SysAttributePrefix) {
+			res = append(res, *NewAttributeFromV2(&attrs[i]))
+		}
 	}
 
 	return res
