@@ -156,9 +156,9 @@ func (x *NodeInfo) SetPublicKey(key []byte) {
 	x.m.SetPublicKey(key)
 }
 
-// PublicKey returns value set using SetPublicKey.
+// PublicKey returns value set using [NodeInfo.SetPublicKey].
 //
-// Zero NodeInfo has no public key, which is incorrect according to
+// Zero [NodeInfo] has no public key, which is incorrect according to
 // NeoFS system requirements.
 //
 // The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].

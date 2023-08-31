@@ -43,21 +43,21 @@ func (x PeerID) WriteToV2(m *reputation.PeerID) {
 	*m = x.m
 }
 
-// SetPublicKey sets PeerID as a binary-encoded public key which authenticates
+// SetPublicKey sets [PeerID] as a binary-encoded public key which authenticates
 // the participant of the NeoFS reputation system.
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
 // Parameter key is a serialized compressed public key. See [elliptic.MarshalCompressed].
 //
-// See also ComparePeerKey.
+// See also [ComparePeerKey].
 func (x *PeerID) SetPublicKey(key []byte) {
 	x.m.SetPublicKey(key)
 }
 
-// PublicKey return public key set using SetPublicKey.
+// PublicKey return public key set using [PeerID.SetPublicKey].
 //
-// Zero PeerID has zero key which is incorrect according to NeoFS API
+// Zero [PeerID] has zero key which is incorrect according to NeoFS API
 // protocol.
 //
 // The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].

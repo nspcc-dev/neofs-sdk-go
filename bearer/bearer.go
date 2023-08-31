@@ -340,7 +340,7 @@ func (b *Token) UnmarshalJSON(data []byte) error {
 // SigningKeyBytes returns issuer's public key in a binary format of
 // NeoFS API protocol.
 //
-// Unsigned Token has empty key.
+// Unsigned [Token] has empty key.
 //
 // The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
@@ -354,10 +354,10 @@ func (b Token) SigningKeyBytes() []byte {
 	return nil
 }
 
-// ResolveIssuer resolves issuer's user.ID from the key used for Token signing.
-// Returns zero user.ID if Token is unsigned or key has incorrect format.
+// ResolveIssuer resolves issuer's [user.ID] from the key used for [Token] signing.
+// Returns zero [user.ID] if Token is unsigned or key has incorrect format.
 //
-// See also SigningKeyBytes.
+// See also [Token.SigningKeyBytes].
 func (b Token) ResolveIssuer() user.ID {
 	var usr user.ID
 	binKey := b.SigningKeyBytes()
