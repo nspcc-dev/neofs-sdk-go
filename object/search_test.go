@@ -187,7 +187,7 @@ func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
 }
 
 func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
-	id := object.NewSplitID()
+	id := *object.NewSplitID()
 
 	fs := new(object.SearchFilters)
 	fs.AddSplitIDFilter(object.MatchStringEqual, id)

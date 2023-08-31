@@ -266,7 +266,7 @@ func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 }
 
 // AddSplitIDFilter adds filter by split ID.
-func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id *SplitID) {
+func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id SplitID) {
 	f.addFilter(m, FilterSplitID, staticStringer(id.String()))
 }
 
