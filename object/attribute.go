@@ -64,6 +64,9 @@ func (a *Attribute) SetValue(v string) {
 // ToV2 converts [Attribute] to v2 [object.Attribute] message.
 //
 // Nil [Attribute] converts to nil.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (a *Attribute) ToV2() *object.Attribute {
 	return (*object.Attribute)(a)
 }

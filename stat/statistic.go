@@ -17,6 +17,9 @@ func (s Statistic) OverallErrors() uint64 {
 }
 
 // Nodes returns list of nodes statistic.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (s Statistic) Nodes() []NodeStatistic {
 	return s.nodes
 }

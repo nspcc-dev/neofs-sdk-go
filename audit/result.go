@@ -139,8 +139,10 @@ func (r *Result) ForContainer(cnr cid.ID) {
 // AuditorKey returns public key of the auditing NeoFS Inner Ring node in
 // a NeoFS binary key format.
 //
-// Zero Result has nil key. Return value MUST NOT be mutated: to do this,
-// first make a copy.
+// Zero Result has nil key.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.

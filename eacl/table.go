@@ -45,6 +45,9 @@ func (t *Table) SetVersion(version version.Version) {
 }
 
 // Records returns list of extended ACL rules.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (t Table) Records() []Record {
 	return t.records
 }

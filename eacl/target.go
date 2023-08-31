@@ -32,6 +32,9 @@ func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
 //
 // Each element of the resulting slice is a serialized compressed public key. See [elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (t *Target) BinaryKeys() [][]byte {
 	return t.keys
 }

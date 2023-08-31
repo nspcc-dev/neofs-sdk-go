@@ -26,6 +26,9 @@ func NewRange() *Range {
 // ToV2 converts [Range] to v2 [object.Range] message.
 //
 // Nil [Range] converts to nil.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (r *Range) ToV2() *object.Range {
 	return (*object.Range)(r)
 }

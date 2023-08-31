@@ -132,6 +132,9 @@ func (s *StaticSigner) Scheme() Scheme {
 // Sign returns precalculated serialized signature that was provided upon
 // [StaticSigner] creation. Never returns an error.
 // Implements [Signer].
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (s *StaticSigner) Sign(_ []byte) ([]byte, error) {
 	return s.sig, nil
 }
