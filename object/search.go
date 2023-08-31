@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -158,6 +159,12 @@ func (f *SearchFilter) Value() string {
 // Operation returns filter operation value.
 func (f *SearchFilter) Operation() SearchMatchType {
 	return f.op
+}
+
+// IsNonAttribute checks if SearchFilter is non-attribute: such filter is
+// related to the particular property of the object instead of its attribute.
+func (f SearchFilter) IsNonAttribute() bool {
+	return strings.HasPrefix(f.header, v2object.ReservedFilterPrefix)
 }
 
 // NewSearchFilters constructs empty filter group.

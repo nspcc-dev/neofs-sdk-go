@@ -10,8 +10,13 @@ import (
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
@@ -397,4 +402,33 @@ func TestSearchFilters_AddPayloadSizeFilter(t *testing.T) {
 		require.Equal(t, strconv.FormatUint(size, 10), fsV2[0].GetValue())
 		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
 	})
+}
+
+func TestSearchFilters_HasNonAttributeFilter(t *testing.T) {
+	const anyMatcher = object.MatchStringEqual
+	var fs object.SearchFilters
+
+	fs.AddFilter("key", "value", anyMatcher)
+	require.False(t, fs[0].IsNonAttribute())
+
+	for _, f := range []func(){
+		func() { fs.AddFilter("$Object:any", "", anyMatcher) },
+		func() { fs.AddObjectVersionFilter(anyMatcher, versiontest.Version()) },
+		func() { fs.AddParentIDFilter(anyMatcher, oidtest.ID()) },
+		func() { fs.AddObjectContainerIDFilter(anyMatcher, cidtest.ID()) },
+		func() { fs.AddObjectOwnerIDFilter(anyMatcher, *usertest.ID(t)) },
+		func() { fs.AddCreationEpochFilter(anyMatcher, rand.Uint64()) },
+		func() { fs.AddPayloadSizeFilter(anyMatcher, rand.Uint64()) },
+		func() { fs.AddPayloadHashFilter(anyMatcher, [sha256.Size]byte{1}) },
+		func() { fs.AddTypeFilter(anyMatcher, object.TypeTombstone) },
+		func() { fs.AddHomomorphicHashFilter(anyMatcher, [tz.Size]byte{1}) },
+		func() { fs.AddParentIDFilter(anyMatcher, oidtest.ID()) },
+		func() { fs.AddSplitIDFilter(anyMatcher, *objecttest.SplitID()) },
+		func() { fs.AddRootFilter() },
+		func() { fs.AddPhyFilter() },
+	} {
+		fs = fs[:0]
+		f()
+		require.True(t, fs[0].IsNonAttribute())
+	}
 }
