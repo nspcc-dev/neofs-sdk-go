@@ -149,7 +149,9 @@ func (x *NodeInfo) UnmarshalJSON(data []byte) error {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also PublicKey.
+// The key parameter is a serialized compressed public key. See [elliptic.MarshalCompressed].
+//
+// See also [NodeInfo.PublicKey].
 func (x *NodeInfo) SetPublicKey(key []byte) {
 	x.m.SetPublicKey(key)
 }
@@ -158,6 +160,9 @@ func (x *NodeInfo) SetPublicKey(key []byte) {
 //
 // Zero NodeInfo has no public key, which is incorrect according to
 // NeoFS system requirements.
+//
+// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
 // Return value MUST not be mutated, make a copy first.
 func (x NodeInfo) PublicKey() []byte {

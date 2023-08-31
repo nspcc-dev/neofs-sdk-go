@@ -48,7 +48,9 @@ func (x PeerID) WriteToV2(m *reputation.PeerID) {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also CompareKey.
+// Parameter key is a serialized compressed public key. See [elliptic.MarshalCompressed].
+//
+// See also ComparePeerKey.
 func (x *PeerID) SetPublicKey(key []byte) {
 	x.m.SetPublicKey(key)
 }
@@ -58,6 +60,9 @@ func (x *PeerID) SetPublicKey(key []byte) {
 // Zero PeerID has zero key which is incorrect according to NeoFS API
 // protocol.
 //
+// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+//
 // Return value MUST NOT be mutated, make a copy first.
 func (x PeerID) PublicKey() []byte {
 	return x.m.GetPublicKey()
@@ -65,6 +70,8 @@ func (x PeerID) PublicKey() []byte {
 
 // ComparePeerKey checks if the given PeerID corresponds to the party
 // authenticated by the given binary public key.
+//
+// The key parameter is a slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
 func ComparePeerKey(peer PeerID, key []byte) bool {
 	return bytes.Equal(peer.PublicKey(), key)
 }

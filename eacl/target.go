@@ -29,12 +29,18 @@ func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
 
 // BinaryKeys returns list of public keys to identify
 // target subject in a binary format.
+//
+// Each element of the resulting slice is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 func (t *Target) BinaryKeys() [][]byte {
 	return t.keys
 }
 
 // SetBinaryKeys sets list of binary public keys to identify
 // target subject.
+//
+// Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
+// See [elliptic.MarshalCompressed].
 func (t *Target) SetBinaryKeys(keys [][]byte) {
 	t.keys = keys
 }

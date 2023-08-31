@@ -342,7 +342,10 @@ func (b *Token) UnmarshalJSON(data []byte) error {
 //
 // Unsigned Token has empty key.
 //
-// See also ResolveIssuer.
+// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+//
+// See also [Token.ResolveIssuer].
 func (b Token) SigningKeyBytes() []byte {
 	if b.sigSet {
 		return b.sig.GetKey()

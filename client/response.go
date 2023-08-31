@@ -16,6 +16,9 @@ type responseV2 interface {
 
 // ResponderKey returns responder's public key in a binary format.
 //
+// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+//
 // Result must not be mutated.
 func (x ResponseMetaInfo) ResponderKey() []byte {
 	return x.key
