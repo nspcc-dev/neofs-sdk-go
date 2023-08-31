@@ -123,6 +123,8 @@ const (
 	FilterPayloadHomomorphicHash = v2object.FilterHeaderHomomorphicHash
 	FilterParentID               = v2object.FilterHeaderParent
 	FilterSplitID                = v2object.FilterHeaderSplitID
+	FilterCreationEpoch          = v2object.FilterHeaderCreationEpoch
+	FilterPayloadSize            = v2object.FilterHeaderPayloadLength
 )
 
 // Various filters to match certain object properties.
@@ -303,4 +305,14 @@ func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size
 // AddHomomorphicHashFilter adds filter by homomorphic hash.
 func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
 	f.addFilter(m, FilterPayloadHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
+}
+
+// AddCreationEpochFilter adds filter by creation epoch.
+func (f *SearchFilters) AddCreationEpochFilter(m SearchMatchType, epoch uint64) {
+	f.addFilter(m, FilterCreationEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
+}
+
+// AddPayloadSizeFilter adds filter by payload size.
+func (f *SearchFilters) AddPayloadSizeFilter(m SearchMatchType, size uint64) {
+	f.addFilter(m, FilterPayloadSize, staticStringer(strconv.FormatUint(size, 10)))
 }

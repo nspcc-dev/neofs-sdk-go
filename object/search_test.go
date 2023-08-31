@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -346,4 +347,54 @@ func ExampleSearchFilters_AddHomomorphicHashFilter() {
 
 	fmt.Println(hex.EncodeToString(cs.Value()))
 	// Output: 7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c
+}
+
+func TestSearchFilters_AddCreationEpochFilter(t *testing.T) {
+	epoch := rand.Uint64()
+
+	fs := new(object.SearchFilters)
+	fs.AddCreationEpochFilter(object.MatchStringEqual, epoch)
+
+	require.Len(t, *fs, 1)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterCreationEpoch, f.Header())
+	require.Equal(t, strconv.FormatUint(epoch, 10), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderCreationEpoch, fsV2[0].GetKey())
+		require.Equal(t, strconv.FormatUint(epoch, 10), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
+}
+
+func TestSearchFilters_AddPayloadSizeFilter(t *testing.T) {
+	size := rand.Uint64()
+
+	fs := new(object.SearchFilters)
+	fs.AddPayloadSizeFilter(object.MatchStringEqual, size)
+
+	require.Len(t, *fs, 1)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterPayloadSize, f.Header())
+	require.Equal(t, strconv.FormatUint(size, 10), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderPayloadLength, fsV2[0].GetKey())
+		require.Equal(t, strconv.FormatUint(size, 10), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
 }
