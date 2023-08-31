@@ -136,8 +136,8 @@ const (
 	FilterRoot = v2object.FilterPropertyRoot
 	// FilterPhysical filters indivisible objects that are intended to be stored
 	// on the physical devices of the system. In addition to such objects, the
-	//	system may contain so-called "virtual" objects that exist in the system in
-	//	disassembled form (like "huge" user object sliced into smaller ones).
+	// system may contain so-called "virtual" objects that exist in the system in
+	// disassembled form (like "huge" user object sliced into smaller ones).
 	FilterPhysical = v2object.FilterPropertyPhy
 )
 
