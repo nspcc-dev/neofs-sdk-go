@@ -142,7 +142,10 @@ func (r *Result) ForContainer(cnr cid.ID) {
 // Zero Result has nil key. Return value MUST NOT be mutated: to do this,
 // first make a copy.
 //
-// See also SetAuditorPublicKey.
+// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+//
+// See also [Result.SetAuditorKey].
 func (r Result) AuditorKey() []byte {
 	return r.v2.GetPublicKey()
 }
@@ -152,7 +155,9 @@ func (r Result) AuditorKey() []byte {
 //
 // Argument MUST NOT be mutated at least until the end of using the Result.
 //
-// See also AuditorKey.
+// Parameter key is a serialized compressed public key. See [elliptic.MarshalCompressed].
+//
+// See also [Result.AuditorKey].
 func (r *Result) SetAuditorKey(key []byte) {
 	r.v2.SetPublicKey(key)
 }

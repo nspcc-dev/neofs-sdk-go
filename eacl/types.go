@@ -73,6 +73,8 @@ func (u *ValidationUnit) WithHeaderSource(v TypedHeaderSource) *ValidationUnit {
 }
 
 // WithSenderKey configures ValidationUnit to use as sender's public key.
+//
+// Parameter v is a serialized compressed public key. See [elliptic.MarshalCompressed].
 func (u *ValidationUnit) WithSenderKey(v []byte) *ValidationUnit {
 	if u != nil {
 		u.key = v
