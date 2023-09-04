@@ -80,7 +80,8 @@ func (m *NetMap) SetNodes(nodes []NodeInfo) {
 
 // Nodes returns nodes set using SetNodes.
 //
-// Return value MUST not be mutated, make a copy first.
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (m NetMap) Nodes() []NodeInfo {
 	return m.nodes
 }
@@ -172,6 +173,9 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 // node order in each vector may vary for call.
 //
 // Result can be used in PlacementVectors.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeInfo, error) {
 	c := newContext(m)
 	c.setCBF(p.backupFactor)

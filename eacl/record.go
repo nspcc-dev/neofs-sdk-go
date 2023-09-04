@@ -24,6 +24,9 @@ type Record struct {
 }
 
 // Targets returns list of target subjects to apply ACL rule to.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (r Record) Targets() []Target {
 	return r.targets
 }
@@ -34,6 +37,9 @@ func (r *Record) SetTargets(targets ...Target) {
 }
 
 // Filters returns list of filters to match and see if rule is applicable.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (r Record) Filters() []Filter {
 	return r.filters
 }

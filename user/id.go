@@ -69,7 +69,8 @@ func (x *ID) SetScriptHash(scriptHash util.Uint160) {
 
 // WalletBytes returns NeoFS user ID as Neo3 wallet address in a binary format.
 //
-// Return value MUST NOT be mutated: to do this, first make a copy.
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // See also Neo3 wallet docs.
 func (x ID) WalletBytes() []byte {

@@ -55,6 +55,9 @@ func New() *Object {
 }
 
 // ToV2 converts [Object] to v2 [object.Object] message.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (o *Object) ToV2() *object.Object {
 	return (*object.Object)(o)
 }
@@ -151,6 +154,9 @@ func (o *Object) SetSignature(v *neofscrypto.Signature) {
 }
 
 // Payload returns payload bytes.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // See also [Object.SetPayload].
 func (o *Object) Payload() []byte {
@@ -338,6 +344,9 @@ func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 
 // Attributes returns all object attributes.
 //
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+//
 // See also [Object.SetAttributes], [Object.UserAttributes].
 func (o *Object) Attributes() []Attribute {
 	attrs := (*object.Object)(o).
@@ -354,6 +363,9 @@ func (o *Object) Attributes() []Attribute {
 }
 
 // UserAttributes returns user attributes of the Object.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // See also [Object.SetAttributes], [Object.Attributes].
 func (o *Object) UserAttributes() []Attribute {
@@ -675,7 +687,8 @@ func (o *Object) SetType(v Type) {
 
 // CutPayload returns [Object] w/ empty payload.
 //
-// Changes of non-payload fields affect source object.
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (o *Object) CutPayload() *Object {
 	ov2 := new(object.Object)
 	*ov2 = *(*object.Object)(o)

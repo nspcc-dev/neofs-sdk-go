@@ -87,6 +87,9 @@ func (c Checksum) Type() Type {
 //
 // Zero Checksum has nil sum.
 //
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+//
 // See also SetTillichZemor and SetSHA256.
 func (c Checksum) Value() []byte {
 	v2 := (refs.Checksum)(c)

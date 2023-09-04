@@ -240,10 +240,11 @@ func (x *NetworkInfo) SetRawNetworkParameter(name string, value []byte) {
 	x.setConfig(name, value)
 }
 
-// RawNetworkParameter reads raw network parameter set using SetRawNetworkParameter
+// RawNetworkParameter reads raw network parameter set using [NetworkInfo.SetRawNetworkParameter]
 // by its name. Returns nil if value is missing.
 //
-// Return value MUST NOT be mutated, make a copy first.
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // Zero NetworkInfo has no network parameters.
 func (x *NetworkInfo) RawNetworkParameter(name string) []byte {

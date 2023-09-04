@@ -29,6 +29,9 @@ func NewTombstone() *Tombstone {
 // ToV2 converts [Tombstone] to v2 [tombstone.Tombstone] message.
 //
 // Nil [Tombstone] converts to nil.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (t *Tombstone) ToV2() *tombstone.Tombstone {
 	return (*tombstone.Tombstone)(t)
 }
@@ -48,6 +51,9 @@ func (t *Tombstone) SetExpirationEpoch(v uint64) {
 }
 
 // SplitID returns identifier of object split hierarchy.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // See also [Tombstone.SetSplitID].
 func (t *Tombstone) SplitID() *SplitID {

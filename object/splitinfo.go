@@ -32,11 +32,17 @@ func NewSplitInfo() *SplitInfo {
 // ToV2 converts [SplitInfo] to v2 [object.SplitInfo] message.
 //
 // Nil SplitInfo converts to nil.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 func (s *SplitInfo) ToV2() *object.SplitInfo {
 	return (*object.SplitInfo)(s)
 }
 
 // SplitID returns [SplitID] if it has been set.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // See also [SplitInfo.SetSplitID].
 func (s *SplitInfo) SplitID() *SplitID {

@@ -139,12 +139,18 @@ func (x Signature) PublicKey() PublicKey {
 // PublicKeyBytes MUST NOT be called before [Signature.ReadFromV2] or
 // [Signature.Calculate] methods.
 //
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+//
 // See also [Signature.PublicKey].
 func (x Signature) PublicKeyBytes() []byte {
 	return (*refs.Signature)(&x).GetKey()
 }
 
 // Value returns calculated digital signature.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
 //
 // Value MUST NOT be called before [Signature.ReadFromV2] or
 // [Signature.Calculate] methods.

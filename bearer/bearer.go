@@ -345,6 +345,9 @@ func (b *Token) UnmarshalJSON(data []byte) error {
 // The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+//
 // See also [Token.ResolveIssuer].
 func (b Token) SigningKeyBytes() []byte {
 	if b.sigSet {
