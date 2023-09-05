@@ -30,6 +30,47 @@ type PlacementPolicy struct {
 	replicas []netmap.Replica
 }
 
+func copyFilter(f netmap.Filter) netmap.Filter {
+	var filter netmap.Filter
+
+	filter.SetName(f.GetName())
+	filter.SetKey(f.GetKey())
+	filter.SetOp(f.GetOp())
+	filter.SetValue(f.GetValue())
+
+	if f.GetFilters() != nil {
+		filters := make([]netmap.Filter, len(f.GetFilters()))
+
+		for i, internalFilter := range f.GetFilters() {
+			filters[i] = copyFilter(internalFilter)
+		}
+
+		filter.SetFilters(filters)
+	} else {
+		filter.SetFilters(nil)
+	}
+
+	return filter
+}
+
+// CopyTo writes deep copy of the [PlacementPolicy] to dst.
+func (p PlacementPolicy) CopyTo(dst *PlacementPolicy) {
+	dst.SetContainerBackupFactor(p.backupFactor)
+
+	dst.filters = make([]netmap.Filter, len(p.filters))
+	for i, f := range p.filters {
+		dst.filters[i] = copyFilter(f)
+	}
+
+	// netmap.Selector is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
+	dst.selectors = make([]netmap.Selector, len(p.selectors))
+	copy(dst.selectors, p.selectors)
+
+	// netmap.Replica is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
+	dst.replicas = make([]netmap.Replica, len(p.replicas))
+	copy(dst.replicas, p.replicas)
+}
+
 func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresence bool) error {
 	p.replicas = m.GetReplicas()
 	if checkFieldPresence && len(p.replicas) == 0 {
