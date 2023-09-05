@@ -45,6 +45,62 @@ const (
 	attributeTimestamp = "Timestamp"
 )
 
+// CopyTo writes deep copy of the [Container] to dst.
+func (x Container) CopyTo(dst *Container) {
+	dst.SetBasicACL(x.BasicACL())
+
+	if owner := x.v2.GetOwnerID(); owner != nil {
+		var newOwner refs.OwnerID
+		if val := owner.GetValue(); val != nil {
+			bts := make([]byte, len(val))
+			copy(bts, val)
+
+			newOwner.SetValue(bts)
+		} else {
+			newOwner.SetValue(nil)
+		}
+
+		dst.v2.SetOwnerID(&newOwner)
+	} else {
+		dst.v2.SetOwnerID(nil)
+	}
+
+	if x.v2.GetVersion() != nil {
+		ver := x.v2.GetVersion()
+		newVer := *ver
+		dst.v2.SetVersion(&newVer)
+	} else {
+		dst.v2.SetVersion(nil)
+	}
+
+	// do we need to set the different nonce?
+	if nonce := x.v2.GetNonce(); nonce != nil {
+		newNonce := make([]byte, len(nonce))
+		copy(newNonce, nonce)
+		dst.v2.SetNonce(nonce)
+	} else {
+		dst.v2.SetNonce(nil)
+	}
+
+	if len(x.v2.GetAttributes()) > 0 {
+		dst.v2.SetAttributes([]container.Attribute{})
+
+		attributeIterator := func(key, val string) {
+			dst.SetAttribute(key, val)
+		}
+
+		x.IterateAttributes(attributeIterator)
+	}
+
+	if x.v2.GetPlacementPolicy() != nil {
+		var ppCopy netmap.PlacementPolicy
+		x.PlacementPolicy().CopyTo(&ppCopy)
+		dst.SetPlacementPolicy(ppCopy)
+	} else {
+		x.v2.SetPlacementPolicy(nil)
+	}
+}
+
 // reads Container from the container.Container message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
 func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) error {
