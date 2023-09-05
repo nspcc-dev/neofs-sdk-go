@@ -20,7 +20,7 @@ func TestContainer_CopyTo(t *testing.T) {
 	attrOne := "a0"
 	attrValue := "a1"
 
-	container.SetOwner(*owner)
+	container.SetOwner(owner)
 	container.SetBasicACL(acl.PublicRWExtended)
 	container.SetAttribute(attrOne, attrValue)
 
@@ -78,7 +78,7 @@ func TestContainer_CopyTo(t *testing.T) {
 		require.True(t, container.Owner().Equals(dst.Owner()))
 
 		newOwner := usertest.ID(t)
-		dst.SetOwner(*newOwner)
+		dst.SetOwner(newOwner)
 
 		require.False(t, container.Owner().Equals(dst.Owner()))
 	})

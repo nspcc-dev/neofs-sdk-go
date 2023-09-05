@@ -32,6 +32,24 @@ type Object struct {
 	objs []oid.ID
 }
 
+// CopyTo writes deep copy of the [Container] to dst.
+func (x Object) CopyTo(dst *Object) {
+	x.commonData.copyTo(&dst.commonData)
+
+	dst.verb = x.verb
+
+	dst.cnrSet = x.cnrSet
+	contID := x.cnr
+	dst.cnr = contID
+
+	if objs := x.objs; objs != nil {
+		dst.objs = make([]oid.ID, len(x.objs))
+		copy(dst.objs, x.objs)
+	} else {
+		dst.objs = nil
+	}
+}
+
 func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) error {
 	cObj, ok := c.(*session.ObjectSessionContext)
 	if !ok || cObj == nil {

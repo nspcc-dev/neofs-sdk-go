@@ -30,6 +30,48 @@ type commonData struct {
 
 type contextReader func(session.TokenContext, bool) error
 
+func (x commonData) copyTo(dst *commonData) {
+	dst.idSet = x.idSet
+	copy(dst.id[:], x.id[:])
+
+	dst.issuerSet = x.issuerSet
+	iss := x.issuer
+	dst.issuer = iss
+
+	dst.lifetimeSet = x.lifetimeSet
+	dst.iat = x.iat
+	dst.nbf = x.nbf
+	dst.exp = x.exp
+
+	if auth := x.authKey; auth != nil {
+		dst.authKey = make([]byte, len(x.authKey))
+		copy(dst.authKey, x.authKey)
+	} else {
+		dst.authKey = nil
+	}
+
+	dst.sigSet = x.sigSet
+	if sig := x.sig.GetKey(); sig != nil {
+		bts := make([]byte, len(sig))
+		copy(bts, sig)
+
+		dst.sig.SetKey(bts)
+	} else {
+		dst.sig.SetKey(nil)
+	}
+
+	dst.sig.SetScheme(x.sig.GetScheme())
+
+	if sign := x.sig.GetSign(); sign != nil {
+		bts := make([]byte, len(sign))
+		copy(bts, sign)
+
+		dst.sig.SetSign(sign)
+	} else {
+		dst.sig.SetSign(nil)
+	}
+}
+
 // reads commonData and custom context from the session.Token message.
 // If checkFieldPresence is set, returns an error on absence of any protocol-required
 // field. Verifies format of any presented field according to NeoFS API V2 protocol.
