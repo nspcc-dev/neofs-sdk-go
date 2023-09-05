@@ -19,6 +19,24 @@ type Table struct {
 	records []Record
 }
 
+// CopyTo writes deep copy of the [Table] to dst.
+func (t Table) CopyTo(dst *Table) {
+	ver := t.version
+	dst.version = ver
+
+	if t.cid != nil {
+		id := *t.cid
+		dst.cid = &id
+	} else {
+		dst.cid = nil
+	}
+
+	dst.records = make([]Record, len(t.records))
+	for i := range t.records {
+		t.records[i].CopyTo(&dst.records[i])
+	}
+}
+
 // CID returns identifier of the container that should use given access control rules.
 func (t Table) CID() (cID cid.ID, isSet bool) {
 	if t.cid != nil {

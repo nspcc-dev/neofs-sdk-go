@@ -52,6 +52,14 @@ func (u u64Stringer) EncodeToString() string {
 	return strconv.FormatUint(uint64(u), 10)
 }
 
+// CopyTo writes deep copy of the [Filter] to dst.
+func (f Filter) CopyTo(dst *Filter) {
+	dst.from = f.from
+	dst.matcher = f.matcher
+	dst.key = f.key
+	dst.value = f.value
+}
+
 // Value returns filtered string value.
 func (f Filter) Value() string {
 	return f.value.EncodeToString()
