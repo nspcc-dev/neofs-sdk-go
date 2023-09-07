@@ -365,7 +365,7 @@ func (x GlobalTrust) Trust() (res Trust) {
 // Note that any GlobalTrust mutation is likely to break the signature, so it is
 // expected to be calculated as a final stage of GlobalTrust formation.
 //
-// See also VerifySignature.
+// See also [GlobalTrust.VerifySignature], [GlobalTrust.SignedData].
 func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
 	var sig neofscrypto.Signature
 
@@ -380,6 +380,13 @@ func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
 	x.m.SetSignature(&sigv2)
 
 	return nil
+}
+
+// SignedData returns actual payload to sign.
+//
+// See also [GlobalTrust.Sign].
+func (x *GlobalTrust) SignedData() []byte {
+	return x.m.GetBody().StableMarshal(nil)
 }
 
 // VerifySignature checks if GlobalTrust signature is presented and valid.

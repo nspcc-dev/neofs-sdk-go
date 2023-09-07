@@ -155,6 +155,13 @@ func (x Container) Marshal() []byte {
 	return x.v2.StableMarshal(nil)
 }
 
+// SignedData returns actual payload to sign.
+//
+// See also [Container.CalculateSignature].
+func (x Container) SignedData() []byte {
+	return x.Marshal()
+}
+
 // Unmarshal decodes NeoFS API protocol binary format into the Container
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
@@ -467,7 +474,7 @@ func (x Container) ReadDomain() (res Domain) {
 // [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example, [neofsecdsa.SignerRFC6979]
 // can be used.
 //
-// See also VerifySignature.
+// See also [Container.VerifySignature], [Container.SignedData].
 //
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]

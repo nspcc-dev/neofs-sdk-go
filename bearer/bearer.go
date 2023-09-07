@@ -253,7 +253,7 @@ func (b Token) AssertUser(id user.ID) bool {
 // Note that any Token mutation is likely to break the signature, so it is
 // expected to be calculated as a final stage of Token formation.
 //
-// See also VerifySignature, Issuer.
+// See also [Token.VerifySignature], [Token.Issuer], [Token.SignedData].
 func (b *Token) Sign(signer neofscrypto.Signer) error {
 	var sig neofscrypto.Signature
 
@@ -266,6 +266,13 @@ func (b *Token) Sign(signer neofscrypto.Signer) error {
 	b.sigSet = true
 
 	return nil
+}
+
+// SignedData returns actual payload to sign.
+//
+// See also [Token.Sign].
+func (b *Token) SignedData() []byte {
+	return b.signedData()
 }
 
 // VerifySignature checks if Token signature is presented and valid.

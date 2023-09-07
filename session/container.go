@@ -134,9 +134,18 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 // Note that any Container mutation is likely to break the signature, so it is
 // expected to be calculated as a final stage of Container formation.
 //
-// See also VerifySignature.
+// See also [Container.VerifySignature], [Container.SignedData].
 func (x *Container) Sign(signer user.Signer) error {
 	return x.sign(signer, x.writeContext)
+}
+
+// SignedData returns actual payload to sign.
+//
+// Using this method require to set issuer via [Container.SetIssuer] before SignedData call.
+//
+// See also [Container.Sign].
+func (x *Container) SignedData() []byte {
+	return x.signedData(x.writeContext)
 }
 
 // VerifySignature checks if Container signature is presented and valid.

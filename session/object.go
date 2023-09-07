@@ -161,12 +161,14 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 // Note that any Object mutation is likely to break the signature, so it is
 // expected to be calculated as a final stage of Object formation.
 //
-// See also VerifySignature.
+// See also [Object.VerifySignature], [Object.SignedData].
 func (x *Object) Sign(signer user.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 
-// SignedData returns actual payload which would be signed, if you call [Object.Sign] method.
+// SignedData returns actual payload to sign.
+//
+// See also [Object.Sign].
 func (x *Object) SignedData() []byte {
 	return x.signedData(x.writeContext)
 }

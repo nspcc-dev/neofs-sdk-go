@@ -111,6 +111,16 @@ func (o *Object) CalculateAndSetSignature(signer neofscrypto.Signer) error {
 	return nil
 }
 
+// SignedData returns actual payload to sign.
+//
+// See also [Object.Sign].
+func (o *Object) SignedData() []byte {
+	oID, _ := o.ID()
+	bts, _ := oID.Marshal()
+
+	return bts
+}
+
 // VerifyIDSignature verifies object ID signature.
 func (o *Object) VerifyIDSignature() bool {
 	m := (*object.Object)(o)

@@ -159,6 +159,14 @@ func (t *Table) Marshal() ([]byte, error) {
 	return t.ToV2().StableMarshal(nil), nil
 }
 
+// SignedData returns actual payload to sign.
+//
+// See also [client.Client.ContainerSetEACL].
+func (t Table) SignedData() []byte {
+	data, _ := t.Marshal()
+	return data
+}
+
 // Unmarshal unmarshals protobuf binary representation of Table.
 func (t *Table) Unmarshal(data []byte) error {
 	fV2 := new(v2acl.Table)
