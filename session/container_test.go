@@ -565,6 +565,16 @@ func TestContainer_Sign(t *testing.T) {
 	require.True(t, val.VerifySignature())
 }
 
+func TestContainer_SignedData(t *testing.T) {
+	id := usertest.ID(t)
+
+	val := sessiontest.Container()
+	val.SetIssuer(id)
+
+	signer := test.RandomSignerRFC6979(t)
+	test.SignedDataComponentUser(t, signer, &val)
+}
+
 func TestContainer_VerifyDataSignature(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 

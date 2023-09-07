@@ -32,3 +32,48 @@ func RandomSignerRFC6979(tb testing.TB) user.Signer {
 
 	return user.NewAutoIDSignerRFC6979(p.PrivateKey)
 }
+
+// SignedComponent describes component which can signed and the signature may be verified.
+type SignedComponent interface {
+	SignedData() []byte
+	Sign(neofscrypto.Signer) error
+	VerifySignature() bool
+}
+
+// SignedComponentUserSigner is the same as [SignedComponent] but uses [user.Signer] instead of [neofscrypto.Signer].
+// It helps to cover all cases.
+type SignedComponentUserSigner interface {
+	SignedData() []byte
+	Sign(user.Signer) error
+	VerifySignature() bool
+}
+
+// SignedDataComponent tests [SignedComponent] for valid data generation by SignedData function.
+func SignedDataComponent(tb testing.TB, signer neofscrypto.Signer, cmp SignedComponent) {
+	data := cmp.SignedData()
+
+	sig, err := signer.Sign(data)
+	require.NoError(tb, err)
+
+	static := neofscrypto.NewStaticSigner(signer.Scheme(), sig, signer.Public())
+
+	err = cmp.Sign(static)
+	require.NoError(tb, err)
+
+	require.True(tb, cmp.VerifySignature())
+}
+
+// SignedDataComponentUser tests [SignedComponentUserSigner] for valid data generation by SignedData function.
+func SignedDataComponentUser(tb testing.TB, signer user.Signer, cmp SignedComponentUserSigner) {
+	data := cmp.SignedData()
+
+	sig, err := signer.Sign(data)
+	require.NoError(tb, err)
+
+	static := neofscrypto.NewStaticSigner(signer.Scheme(), sig, signer.Public())
+
+	err = cmp.Sign(user.NewSigner(static, signer.UserID()))
+	require.NoError(tb, err)
+
+	require.True(tb, cmp.VerifySignature())
+}

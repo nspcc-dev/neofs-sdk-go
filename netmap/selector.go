@@ -56,7 +56,7 @@ func calcBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
 
 // getSelection returns nodes grouped by s.attribute.
 // Last argument specifies if more buckets can be used to fulfill CBF.
-func (c *context) getSelection(p PlacementPolicy, s netmap.Selector) ([]nodes, error) {
+func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, error) {
 	bucketCount, nodesInBucket := calcNodesCount(s)
 	buckets := c.getSelectionBase(s)
 

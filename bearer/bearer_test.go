@@ -284,6 +284,17 @@ func TestToken_Sign(t *testing.T) {
 	require.True(t, val2.VerifySignature())
 }
 
+func TestToken_SignedData(t *testing.T) {
+	var val bearer.Token
+
+	require.False(t, val.VerifySignature())
+
+	signer := test.RandomSignerRFC6979(t)
+	val = bearertest.Token(t)
+
+	test.SignedDataComponent(t, signer, &val)
+}
+
 func TestToken_ReadFromV2(t *testing.T) {
 	var val bearer.Token
 	var m acl.BearerToken
