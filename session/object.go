@@ -153,13 +153,13 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
 
-// Sign calculates and writes signature of the Object data.
+// Sign calculates and writes signature of the [Object] data.
 // Returns signature calculation errors.
 //
-// Zero Object is unsigned.
+// Zero [Object] is unsigned.
 //
-// Note that any Object mutation is likely to break the signature, so it is
-// expected to be calculated as a final stage of Object formation.
+// Note that any [Object] mutation is likely to break the signature, so it is
+// expected to be calculated as a final stage of [Object] formation.
 //
 // See also [Object.VerifySignature], [Object.SignedData].
 func (x *Object) Sign(signer user.Signer) error {

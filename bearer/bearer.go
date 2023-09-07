@@ -244,13 +244,13 @@ func (b Token) AssertUser(id user.ID) bool {
 	return !b.targetUserSet || b.targetUser.Equals(id)
 }
 
-// Sign calculates and writes signature of the Token data using issuer's signer.
+// Sign calculates and writes signature of the [Token] data using issuer's signer.
 // Returns signature calculation errors.
 //
-// Sign MUST be called if Token is going to be transmitted over
+// Sign MUST be called if [Token] is going to be transmitted over
 // NeoFS API V2 protocol.
 //
-// Note that any Token mutation is likely to break the signature, so it is
+// Note that any [Token] mutation is likely to break the signature, so it is
 // expected to be calculated as a final stage of Token formation.
 //
 // See also [Token.VerifySignature], [Token.Issuer], [Token.SignedData].
