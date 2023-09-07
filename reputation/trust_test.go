@@ -190,6 +190,15 @@ func TestGlobalTrust_Sign(t *testing.T) {
 	require.True(t, val2.VerifySignature())
 }
 
+func TestGlobalTrust_SignedData(t *testing.T) {
+	val := reputationtest.GlobalTrust()
+
+	require.False(t, val.VerifySignature())
+	signer := test.RandomSigner(t)
+
+	test.SignedDataComponent(t, signer, &val)
+}
+
 func TestGlobalTrustEncoding(t *testing.T) {
 	val := reputationtest.SignedGlobalTrust(t)
 

@@ -650,4 +650,6 @@ func TestObject_SignedData(t *testing.T) {
 	tokenSession.WriteToV2(&m)
 
 	require.Equal(t, m.GetSignature().GetSign(), sign)
+
+	test.SignedDataComponentUser(t, issuerSigner, &tokenSession)
 }

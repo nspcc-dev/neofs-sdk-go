@@ -44,7 +44,7 @@ func GlobalTrust() (v reputation.GlobalTrust) {
 func SignedGlobalTrust(t *testing.T) reputation.GlobalTrust {
 	gt := GlobalTrust()
 
-	if err := gt.Sign(test.RandomSigner(t)); err != nil {
+	if err := gt.Sign(test.RandomSignerRFC6979(t)); err != nil {
 		t.Fatalf("unexpected error from GlobalTrust.Sign: %v", err)
 	}
 
