@@ -100,6 +100,11 @@ func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
 // suitable target OR suitable public key.
 func targetMatches(unit *ValidationUnit, record *Record) bool {
 	for _, target := range record.Targets() {
+		if target.Role() == RoleSystem {
+			// system role access modifications have been deprecated
+			continue
+		}
+
 		// check public key match
 		if pubs := target.BinaryKeys(); len(pubs) != 0 {
 			for _, key := range pubs {
