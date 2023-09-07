@@ -1,5 +1,45 @@
 # Changelog
 
+## [1.0.0-rc.11] - 2023-09-07
+
+We've received some valuable feedback and improved some aspects of SDK API in
+this release. Most of the changes are just extensions and only a few are
+incompatible with the previous RC (except for scheduled deprecated Pool API
+removal). Try it out and leave feedback. We don't currently have any API
+changes planned, so this might become 1.0 as is (not counting documentation
+improvements that will be done).
+
+New features:
+ * SignedData method for signed structures (#513)
+ * CopyTo method for deep structure copies (#512)
+
+Behaviour changes:
+ * ObjectRangeInit and ObjectRangeInit unification between Client and Pool
+   (#491)
+ * removal of all deprecated Pool APIs (#491)
+ * ObjectHead method now returns header instead of intermediate struct (#497)
+ * ObjectListReader now returns error from Read instead of bool flag
+ * Object's Sign/VerifySignature methods replacing
+   CalculateAndSetSignature/VerifyIDSignature, harmonizing this API with other
+   structures (#513)
+ * System role is ignored in the eACL matcher now (#515)
+
+Improvements:
+ * extended integration tests (#467)
+ * new well-known "Version" node attribute support (#490)
+ * documentation and examples (#495, #511, #507, #509)
+ * exported AttributeExpirationEpoch (#504)
+ * methods to work with user's container and object attributes (#505, #508)
+ * exported filter keys (#506)
+ * Signature constructor (#508)
+ * support for creation epoch/payload size search filters (#508)
+
+Bugs fixed:
+ * failing object upload via slicer in some cases (#486)
+ * io.EOF returned from payload writer on Write instead of protocol-specific
+   error (#498)
+ * late session token updates leading to call failures in Pool (#503)
+
 ## [1.0.0-rc.10] - 2023-08-04
 
 This RC is supposed to be the last one having this many changes. We don't have
@@ -159,6 +199,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.11]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.10...v1.0.0-rc.11
 [1.0.0-rc.10]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.9...v1.0.0-rc.10
 [1.0.0-rc.9]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.8...v1.0.0-rc.9
 [1.0.0-rc.8]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.7...v1.0.0-rc.8
