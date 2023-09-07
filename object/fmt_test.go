@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"testing"
 
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -60,4 +62,21 @@ func TestVerificationFields(t *testing.T) {
 
 		require.NoError(t, obj.CheckVerificationFields())
 	}
+}
+
+func TestObject_SignedData(t *testing.T) {
+	signer := test.RandomSigner(t)
+	uid := usertest.ID(t)
+
+	rf := RequiredFields{
+		Container: cidtest.ID(),
+		Owner:     uid,
+	}
+	var val Object
+
+	val.InitCreation(rf)
+
+	require.NoError(t, val.SetVerificationFields(signer))
+
+	test.SignedDataComponent(t, signer, &val)
 }

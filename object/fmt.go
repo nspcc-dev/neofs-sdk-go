@@ -93,9 +93,10 @@ func (o *Object) VerifyID() error {
 	return nil
 }
 
-// CalculateAndSetSignature signs id with provided key and sets that signature to
-// the object.
-func (o *Object) CalculateAndSetSignature(signer neofscrypto.Signer) error {
+// Sign signs object id with provided key and sets that signature to the object.
+//
+// See also [oid.ID.CalculateIDSignature].
+func (o *Object) Sign(signer neofscrypto.Signer) error {
 	oID, set := o.ID()
 	if !set {
 		return errOIDNotSet
@@ -121,8 +122,8 @@ func (o *Object) SignedData() []byte {
 	return bts
 }
 
-// VerifyIDSignature verifies object ID signature.
-func (o *Object) VerifyIDSignature() bool {
+// VerifySignature verifies object ID signature.
+func (o *Object) VerifySignature() bool {
 	m := (*object.Object)(o)
 
 	sigV2 := m.GetSignature()
@@ -146,7 +147,7 @@ func (o *Object) SetIDWithSignature(signer neofscrypto.Signer) error {
 		return fmt.Errorf("could not set identifier: %w", err)
 	}
 
-	if err := o.CalculateAndSetSignature(signer); err != nil {
+	if err := o.Sign(signer); err != nil {
 		return fmt.Errorf("could not set signature: %w", err)
 	}
 
@@ -177,7 +178,7 @@ var errInvalidSignature = errors.New("invalid signature")
 
 // CheckHeaderVerificationFields checks all verification fields except payload.
 func (o *Object) CheckHeaderVerificationFields() error {
-	if !o.VerifyIDSignature() {
+	if !o.VerifySignature() {
 		return errInvalidSignature
 	}
 
