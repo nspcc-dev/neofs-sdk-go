@@ -178,7 +178,7 @@ func TestResultData(t *testing.T) {
 }
 
 func TestResultEncoding(t *testing.T) {
-	r := *audittest.Result()
+	r := audittest.Result()
 
 	t.Run("binary", func(t *testing.T) {
 		data := r.Marshal()

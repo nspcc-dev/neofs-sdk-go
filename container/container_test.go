@@ -78,7 +78,7 @@ func TestContainer_Owner(t *testing.T) {
 
 	val = containertest.Container(t)
 
-	owner := *usertest.ID(t)
+	owner := usertest.ID(t)
 
 	val.SetOwner(owner)
 

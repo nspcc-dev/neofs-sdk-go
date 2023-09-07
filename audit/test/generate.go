@@ -7,7 +7,7 @@ import (
 )
 
 // Result returns random audit.Result.
-func Result() *audit.Result {
+func Result() audit.Result {
 	var x audit.Result
 
 	x.ForContainer(cidtest.ID())
@@ -32,5 +32,5 @@ func Result() *audit.Result {
 	x.SubmitFailedStorageGroup(oidtest.ID())
 	x.SubmitFailedStorageGroup(oidtest.ID())
 
-	return &x
+	return x
 }

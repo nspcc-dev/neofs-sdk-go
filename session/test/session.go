@@ -16,7 +16,7 @@ import (
 // Container returns random session.Container.
 //
 // Resulting token is unsigned.
-func Container() *session.Container {
+func Container() session.Container {
 	var tok session.Container
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -32,13 +32,13 @@ func Container() *session.Container {
 	tok.SetNbf(22)
 	tok.SetIat(33)
 
-	return &tok
+	return tok
 }
 
 // ContainerSigned returns signed random session.Container.
 //
 // Panics if token could not be signed (actually unexpected).
-func ContainerSigned(signer user.Signer) *session.Container {
+func ContainerSigned(signer user.Signer) session.Container {
 	tok := Container()
 
 	err := tok.Sign(signer)
@@ -52,7 +52,7 @@ func ContainerSigned(signer user.Signer) *session.Container {
 // Object returns random session.Object.
 //
 // Resulting token is unsigned.
-func Object() *session.Object {
+func Object() session.Object {
 	var tok session.Object
 
 	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -69,13 +69,13 @@ func Object() *session.Object {
 	tok.SetNbf(22)
 	tok.SetIat(33)
 
-	return &tok
+	return tok
 }
 
 // ObjectSigned returns signed random session.Object.
 //
 // Panics if token could not be signed (actually unexpected).
-func ObjectSigned(signer user.Signer) *session.Object {
+func ObjectSigned(signer user.Signer) session.Object {
 	tok := Object()
 
 	err := tok.Sign(signer)

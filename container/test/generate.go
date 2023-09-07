@@ -17,7 +17,7 @@ func Container(t *testing.T) (x container.Container) {
 
 	x.Init()
 	x.SetAttribute("some attribute", "value")
-	x.SetOwner(*owner)
+	x.SetOwner(owner)
 	x.SetBasicACL(BasicACL())
 	x.SetPlacementPolicy(netmaptest.PlacementPolicy())
 

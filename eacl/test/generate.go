@@ -10,7 +10,7 @@ import (
 )
 
 // Target returns random eacl.Target.
-func Target() *eacl.Target {
+func Target() eacl.Target {
 	x := eacl.NewTarget()
 
 	x.SetRole(eacl.RoleSystem)
@@ -19,29 +19,32 @@ func Target() *eacl.Target {
 		{4, 5, 6},
 	})
 
-	return x
+	return *x
 }
 
 // Record returns random eacl.Record.
-func Record(tb testing.TB) *eacl.Record {
+func Record(tb testing.TB) eacl.Record {
 	x := eacl.NewRecord()
 
 	x.SetAction(eacl.ActionAllow)
 	x.SetOperation(eacl.OperationRangeHash)
-	x.SetTargets(*Target(), *Target())
+	x.SetTargets(Target(), Target())
 	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, usertest.ID(tb))
+	usr := usertest.ID(tb)
+	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, &usr)
 
-	return x
+	return *x
 }
 
-func Table(tb testing.TB) *eacl.Table {
+func Table(tb testing.TB) eacl.Table {
 	x := eacl.NewTable()
 
 	x.SetCID(cidtest.ID())
-	x.AddRecord(Record(tb))
-	x.AddRecord(Record(tb))
+	r1 := Record(tb)
+	x.AddRecord(&r1)
+	r2 := Record(tb)
+	x.AddRecord(&r2)
 	x.SetVersion(versiontest.Version())
 
-	return x
+	return *x
 }

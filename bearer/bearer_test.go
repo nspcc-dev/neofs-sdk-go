@@ -56,7 +56,7 @@ func TestToken_SetEACLTable(t *testing.T) {
 
 	// set value
 
-	eaclTable := *eacltest.Table(t)
+	eaclTable := eacltest.Table(t)
 
 	val.SetEACLTable(eaclTable)
 	require.True(t, isEqualEACLTables(eaclTable, val.EACLTable()))
@@ -105,7 +105,7 @@ func TestToken_ForUser(t *testing.T) {
 	require.Zero(t, m.GetBody())
 
 	// set value
-	usr := *usertest.ID(t)
+	usr := usertest.ID(t)
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -228,7 +228,7 @@ func TestToken_AssertContainer(t *testing.T) {
 
 	require.True(t, val.AssertContainer(cnr))
 
-	eaclTable := *eacltest.Table(t)
+	eaclTable := eacltest.Table(t)
 
 	eaclTable.SetCID(cidtest.ID())
 	val.SetEACLTable(eaclTable)
@@ -241,11 +241,11 @@ func TestToken_AssertContainer(t *testing.T) {
 
 func TestToken_AssertUser(t *testing.T) {
 	var val bearer.Token
-	usr := *usertest.ID(t)
+	usr := usertest.ID(t)
 
 	require.True(t, val.AssertUser(usr))
 
-	val.ForUser(*usertest.ID(t))
+	val.ForUser(usertest.ID(t))
 	require.False(t, val.AssertUser(usr))
 
 	val.ForUser(usr)
@@ -295,8 +295,9 @@ func TestToken_ReadFromV2(t *testing.T) {
 
 	require.Error(t, val.ReadFromV2(m))
 
-	eaclTable := eacltest.Table(t).ToV2()
-	body.SetEACL(eaclTable)
+	eaclTable := eacltest.Table(t)
+	eaclTableV2 := eaclTable.ToV2()
+	body.SetEACL(eaclTableV2)
 
 	require.Error(t, val.ReadFromV2(m))
 
@@ -324,7 +325,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 	val.WriteToV2(&m2)
 	require.Equal(t, m, m2)
 
-	usr, usr2 := *usertest.ID(t), *usertest.ID(t)
+	usr, usr2 := usertest.ID(t), usertest.ID(t)
 
 	require.True(t, val.AssertUser(usr))
 	require.True(t, val.AssertUser(usr2))

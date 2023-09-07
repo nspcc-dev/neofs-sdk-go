@@ -11,7 +11,7 @@ import (
 
 func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	const key = "Foo"
-	target := *sessiontest.Object()
+	target := sessiontest.Object()
 
 	check := func(t *testing.T, tok session.Object, extra string) {
 		require.False(t, tok.VerifySignature(), extra)
