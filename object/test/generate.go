@@ -15,42 +15,44 @@ import (
 )
 
 // Range returns random object.Range.
-func Range() *object.Range {
+func Range() object.Range {
 	x := object.NewRange()
 
 	x.SetOffset(1024)
 	x.SetLength(2048)
 
-	return x
+	return *x
 }
 
 // Attribute returns random object.Attribute.
-func Attribute() *object.Attribute {
+func Attribute() object.Attribute {
 	x := object.NewAttribute()
 
 	x.SetKey("key")
 	x.SetValue("value")
 
-	return x
+	return *x
 }
 
 // SplitID returns random object.SplitID.
-func SplitID() *object.SplitID {
+func SplitID() object.SplitID {
 	x := object.NewSplitID()
 
 	x.SetUUID(uuid.New())
 
-	return x
+	return *x
 }
 
-func generate(t *testing.T, withParent bool) *object.Object {
+func generate(t *testing.T, withParent bool) object.Object {
 	x := object.New()
 	ver := version.Current()
 
 	x.SetID(oidtest.ID())
-	x.SetSessionToken(sessiontest.Object())
+	tok := sessiontest.Object()
+	x.SetSessionToken(&tok)
 	x.SetPayload([]byte{1, 2, 3})
-	x.SetOwnerID(usertest.ID(t))
+	owner := usertest.ID(t)
+	x.SetOwnerID(&owner)
 	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
 	x.SetVersion(&ver)
@@ -59,49 +61,53 @@ func generate(t *testing.T, withParent bool) *object.Object {
 	x.SetPreviousID(oidtest.ID())
 	x.SetParentID(oidtest.ID())
 	x.SetChildren(oidtest.ID(), oidtest.ID())
-	x.SetAttributes(*Attribute(), *Attribute())
-	x.SetSplitID(SplitID())
+	x.SetAttributes(Attribute(), Attribute())
+	splitID := SplitID()
+	x.SetSplitID(&splitID)
 	x.SetPayloadChecksum(checksumtest.Checksum())
 	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
 
 	if withParent {
-		x.SetParent(generate(t, false))
+		par := generate(t, false)
+		x.SetParent(&par)
 	}
 
-	return x
+	return *x
 }
 
 // Raw returns random object.Object.
 // Deprecated: (v1.0.0) use Object instead.
-func Raw(t *testing.T) *object.Object {
+func Raw(t *testing.T) object.Object {
 	return Object(t)
 }
 
 // Object returns random object.Object.
-func Object(t *testing.T) *object.Object {
+func Object(t *testing.T) object.Object {
 	return generate(t, true)
 }
 
 // Tombstone returns random object.Tombstone.
-func Tombstone() *object.Tombstone {
+func Tombstone() object.Tombstone {
 	x := object.NewTombstone()
 
-	x.SetSplitID(SplitID())
+	splitID := SplitID()
+	x.SetSplitID(&splitID)
 	x.SetExpirationEpoch(13)
 	x.SetMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
-	return x
+	return *x
 }
 
 // SplitInfo returns random object.SplitInfo.
-func SplitInfo() *object.SplitInfo {
+func SplitInfo() object.SplitInfo {
 	x := object.NewSplitInfo()
 
-	x.SetSplitID(SplitID())
+	splitID := SplitID()
+	x.SetSplitID(&splitID)
 	x.SetLink(oidtest.ID())
 	x.SetLastPart(oidtest.ID())
 
-	return x
+	return *x
 }
 
 // SearchFilters returns random object.SearchFilters.

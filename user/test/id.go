@@ -8,10 +8,10 @@ import (
 )
 
 // ID returns random user.ID.
-func ID(tb testing.TB) *user.ID {
+func ID(tb testing.TB) user.ID {
 	var x user.ID
 	s := test.RandomSignerRFC6979(tb)
 	x = s.UserID()
 
-	return &x
+	return x
 }

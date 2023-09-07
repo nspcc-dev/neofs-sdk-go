@@ -36,7 +36,7 @@ func TestObjectProtocolV2(t *testing.T) {
 	restoreID()
 
 	// Owner
-	usr := *usertest.ID(t)
+	usr := usertest.ID(t)
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
 	restoreUser := func() {

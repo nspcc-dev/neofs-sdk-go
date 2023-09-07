@@ -47,7 +47,7 @@ func TestDecimalMessageV2(t *testing.T) {
 }
 
 func TestDecimal_Marshal(t *testing.T) {
-	d := *accountingtest.Decimal()
+	d := accountingtest.Decimal()
 
 	var d2 accounting.Decimal
 	require.NoError(t, d2.Unmarshal(d.Marshal()))

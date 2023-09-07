@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"strconv"
+	"strings"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -123,6 +124,8 @@ const (
 	FilterPayloadHomomorphicHash = v2object.FilterHeaderHomomorphicHash
 	FilterParentID               = v2object.FilterHeaderParent
 	FilterSplitID                = v2object.FilterHeaderSplitID
+	FilterCreationEpoch          = v2object.FilterHeaderCreationEpoch
+	FilterPayloadSize            = v2object.FilterHeaderPayloadLength
 )
 
 // Various filters to match certain object properties.
@@ -134,8 +137,8 @@ const (
 	FilterRoot = v2object.FilterPropertyRoot
 	// FilterPhysical filters indivisible objects that are intended to be stored
 	// on the physical devices of the system. In addition to such objects, the
-	//	system may contain so-called "virtual" objects that exist in the system in
-	//	disassembled form (like "huge" user object sliced into smaller ones).
+	// system may contain so-called "virtual" objects that exist in the system in
+	// disassembled form (like "huge" user object sliced into smaller ones).
 	FilterPhysical = v2object.FilterPropertyPhy
 )
 
@@ -156,6 +159,12 @@ func (f *SearchFilter) Value() string {
 // Operation returns filter operation value.
 func (f *SearchFilter) Operation() SearchMatchType {
 	return f.op
+}
+
+// IsNonAttribute checks if SearchFilter is non-attribute: such filter is
+// related to the particular property of the object instead of its attribute.
+func (f SearchFilter) IsNonAttribute() bool {
+	return strings.HasPrefix(f.header, v2object.ReservedFilterPrefix)
 }
 
 // NewSearchFilters constructs empty filter group.
@@ -264,7 +273,7 @@ func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 }
 
 // AddSplitIDFilter adds filter by split ID.
-func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id *SplitID) {
+func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id SplitID) {
 	f.addFilter(m, FilterSplitID, staticStringer(id.String()))
 }
 
@@ -303,4 +312,14 @@ func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size
 // AddHomomorphicHashFilter adds filter by homomorphic hash.
 func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
 	f.addFilter(m, FilterPayloadHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
+}
+
+// AddCreationEpochFilter adds filter by creation epoch.
+func (f *SearchFilters) AddCreationEpochFilter(m SearchMatchType, epoch uint64) {
+	f.addFilter(m, FilterCreationEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
+}
+
+// AddPayloadSizeFilter adds filter by payload size.
+func (f *SearchFilters) AddPayloadSizeFilter(m SearchMatchType, size uint64) {
+	f.addFilter(m, FilterPayloadSize, staticStringer(strconv.FormatUint(size, 10)))
 }

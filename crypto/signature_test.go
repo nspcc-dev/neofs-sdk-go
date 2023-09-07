@@ -66,3 +66,31 @@ func TestSignatureLifecycle(t *testing.T) {
 		require.Errorf(t, err, "break func #%d", i)
 	}
 }
+
+func TestNewSignature(t *testing.T) {
+	signer := test.RandomSigner(t)
+	scheme := signer.Scheme()
+	pubKey := signer.Public()
+	val := []byte("Hello, world!") // may be any for this test
+
+	sig := neofscrypto.NewSignature(scheme, pubKey, val)
+
+	checkFields := func(sig neofscrypto.Signature) {
+		require.Equal(t, scheme, sig.Scheme())
+		require.Equal(t, pubKey, sig.PublicKey())
+		require.Equal(t, neofscrypto.PublicKeyBytes(pubKey), sig.PublicKeyBytes())
+		require.Equal(t, val, sig.Value())
+	}
+
+	checkFields(sig)
+
+	var sigMsg refs.Signature
+	sig.WriteToV2(&sigMsg)
+
+	var sig2 neofscrypto.Signature
+
+	err := sig2.ReadFromV2(sigMsg)
+	require.NoError(t, err)
+
+	checkFields(sig2)
+}

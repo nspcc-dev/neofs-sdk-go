@@ -185,7 +185,7 @@ func TestReservedRecords(t *testing.T) {
 			value: cid.EncodeToString(),
 		},
 		{
-			f:     func(r *Record) { r.AddObjectOwnerIDFilter(MatchStringEqual, ownerid) },
+			f:     func(r *Record) { r.AddObjectOwnerIDFilter(MatchStringEqual, &ownerid) },
 			key:   v2acl.FilterObjectOwnerID,
 			value: ownerid.EncodeToString(),
 		},

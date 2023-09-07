@@ -23,6 +23,13 @@ type StablyMarshallable interface {
 //	_ = Signature(refs.Signature{}) // not recommended
 type Signature refs.Signature
 
+// NewSignature is a Signature instance constructor.
+func NewSignature(scheme Scheme, publicKey PublicKey, value []byte) Signature {
+	var s Signature
+	s.setFields(scheme, publicKey, value)
+	return s
+}
+
 // ReadFromV2 reads Signature from the refs.Signature message. Checks if the
 // message conforms to NeoFS API V2 protocol.
 //
@@ -108,15 +115,19 @@ func (x Signature) Verify(data []byte) bool {
 }
 
 func (x *Signature) fillSignature(signer Signer, signature []byte) {
+	x.setFields(signer.Scheme(), signer.Public(), signature)
+}
+
+func (x *Signature) setFields(scheme Scheme, publicKey PublicKey, value []byte) {
 	m := (*refs.Signature)(x)
-	m.SetScheme(refs.SignatureScheme(signer.Scheme()))
-	m.SetSign(signature)
-	m.SetKey(PublicKeyBytes(signer.Public()))
+	m.SetScheme(refs.SignatureScheme(scheme))
+	m.SetSign(value)
+	m.SetKey(PublicKeyBytes(publicKey))
 }
 
 // Scheme returns signature scheme used by signer to calculate the signature.
 //
-// Scheme MUST NOT be called before [Signature.ReadFromV2] or
+// Scheme MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
 // [Signature.Calculate] methods.
 func (x Signature) Scheme() Scheme {
 	return Scheme((*refs.Signature)(&x).GetScheme())
@@ -124,7 +135,7 @@ func (x Signature) Scheme() Scheme {
 
 // PublicKey returns public key of the signer which calculated the signature.
 //
-// PublicKey MUST NOT be called before [Signature.ReadFromV2] or
+// PublicKey MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
 // [Signature.Calculate] methods.
 //
 // See also [Signature.PublicKeyBytes].
@@ -136,8 +147,8 @@ func (x Signature) PublicKey() PublicKey {
 // PublicKeyBytes returns binary-encoded public key of the signer which
 // calculated the signature.
 //
-// PublicKeyBytes MUST NOT be called before [Signature.ReadFromV2] or
-// [Signature.Calculate] methods.
+// PublicKeyBytes MUST NOT be called before [NewSignature],
+// [Signature.ReadFromV2] or [Signature.Calculate] methods.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -152,7 +163,7 @@ func (x Signature) PublicKeyBytes() []byte {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 //
-// Value MUST NOT be called before [Signature.ReadFromV2] or
+// Value MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
 // [Signature.Calculate] methods.
 func (x Signature) Value() []byte {
 	return (*refs.Signature)(&x).GetSign()

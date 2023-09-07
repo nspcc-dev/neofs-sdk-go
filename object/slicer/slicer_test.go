@@ -82,13 +82,14 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 	ctx := context.Background()
 
 	in, opts := randomInput(b, size, sizeLimit)
+	obj := sessiontest.ObjectSigned(test.RandomSignerRFC6979(b))
 	s, err := slicer.New(
 		ctx,
 		discardObject{opts: opts},
 		in.signer,
 		in.container,
 		in.owner,
-		sessiontest.ObjectSigned(test.RandomSignerRFC6979(b)),
+		&obj,
 	)
 	require.NoError(b, err)
 
@@ -233,10 +234,11 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
-		in.sessionToken = sessiontest.ObjectSigned(test.RandomSignerRFC6979(tb))
+		tok := sessiontest.ObjectSigned(test.RandomSignerRFC6979(tb))
+		in.sessionToken = &tok
 		opts.SetSession(*in.sessionToken)
 	} else {
-		in.owner = *usertest.ID(tb)
+		in.owner = usertest.ID(tb)
 	}
 
 	in.withHomo = rand.Int()%2 == 0

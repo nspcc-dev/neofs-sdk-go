@@ -15,8 +15,8 @@ func Token(t testing.TB) (tok bearer.Token) {
 	tok.SetExp(3)
 	tok.SetNbf(2)
 	tok.SetIat(1)
-	tok.ForUser(*usertest.ID(t))
-	tok.SetEACLTable(*eacltest.Table(t))
+	tok.ForUser(usertest.ID(t))
+	tok.SetEACLTable(eacltest.Table(t))
 
 	return tok
 }

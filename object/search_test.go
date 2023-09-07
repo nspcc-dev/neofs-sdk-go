@@ -5,12 +5,18 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
@@ -186,7 +192,7 @@ func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
 }
 
 func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
-	id := object.NewSplitID()
+	id := *object.NewSplitID()
 
 	fs := new(object.SearchFilters)
 	fs.AddSplitIDFilter(object.MatchStringEqual, id)
@@ -346,4 +352,83 @@ func ExampleSearchFilters_AddHomomorphicHashFilter() {
 
 	fmt.Println(hex.EncodeToString(cs.Value()))
 	// Output: 7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c
+}
+
+func TestSearchFilters_AddCreationEpochFilter(t *testing.T) {
+	epoch := rand.Uint64()
+
+	fs := new(object.SearchFilters)
+	fs.AddCreationEpochFilter(object.MatchStringEqual, epoch)
+
+	require.Len(t, *fs, 1)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterCreationEpoch, f.Header())
+	require.Equal(t, strconv.FormatUint(epoch, 10), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderCreationEpoch, fsV2[0].GetKey())
+		require.Equal(t, strconv.FormatUint(epoch, 10), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
+}
+
+func TestSearchFilters_AddPayloadSizeFilter(t *testing.T) {
+	size := rand.Uint64()
+
+	fs := new(object.SearchFilters)
+	fs.AddPayloadSizeFilter(object.MatchStringEqual, size)
+
+	require.Len(t, *fs, 1)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterPayloadSize, f.Header())
+	require.Equal(t, strconv.FormatUint(size, 10), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.FilterHeaderPayloadLength, fsV2[0].GetKey())
+		require.Equal(t, strconv.FormatUint(size, 10), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
+}
+
+func TestSearchFilters_HasNonAttributeFilter(t *testing.T) {
+	const anyMatcher = object.MatchStringEqual
+	var fs object.SearchFilters
+
+	fs.AddFilter("key", "value", anyMatcher)
+	require.False(t, fs[0].IsNonAttribute())
+
+	for _, f := range []func(){
+		func() { fs.AddFilter("$Object:any", "", anyMatcher) },
+		func() { fs.AddObjectVersionFilter(anyMatcher, versiontest.Version()) },
+		func() { fs.AddParentIDFilter(anyMatcher, oidtest.ID()) },
+		func() { fs.AddObjectContainerIDFilter(anyMatcher, cidtest.ID()) },
+		func() { fs.AddObjectOwnerIDFilter(anyMatcher, usertest.ID(t)) },
+		func() { fs.AddCreationEpochFilter(anyMatcher, rand.Uint64()) },
+		func() { fs.AddPayloadSizeFilter(anyMatcher, rand.Uint64()) },
+		func() { fs.AddPayloadHashFilter(anyMatcher, [sha256.Size]byte{1}) },
+		func() { fs.AddTypeFilter(anyMatcher, object.TypeTombstone) },
+		func() { fs.AddHomomorphicHashFilter(anyMatcher, [tz.Size]byte{1}) },
+		func() { fs.AddParentIDFilter(anyMatcher, oidtest.ID()) },
+		func() { fs.AddSplitIDFilter(anyMatcher, objecttest.SplitID()) },
+		func() { fs.AddRootFilter() },
+		func() { fs.AddPhyFilter() },
+	} {
+		fs = fs[:0]
+		f()
+		require.True(t, fs[0].IsNonAttribute())
+	}
 }
