@@ -12,7 +12,7 @@ import (
 )
 
 // Container returns random container.Container.
-func Container(t *testing.T) (x container.Container) {
+func Container(t testing.TB) (x container.Container) {
 	owner := usertest.ID(t)
 
 	x.Init()
