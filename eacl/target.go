@@ -27,6 +27,18 @@ func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
 	return keysPtr
 }
 
+// CopyTo writes deep copy of the [Target] to dst.
+func (t Target) CopyTo(dst *Target) {
+	dst.role = t.role
+
+	dst.keys = make([][]byte, len(t.keys))
+	for i, k := range t.keys {
+		dst.keys[i] = make([]byte, len(k))
+
+		copy(dst.keys[i], t.keys[i])
+	}
+}
+
 // BinaryKeys returns list of public keys to identify
 // target subject in a binary format.
 //

@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"strconv"
 	"testing"
 
@@ -98,5 +99,50 @@ func TestFilter_ToV2(t *testing.T) {
 			actual := NewFilterFromV2(fv2)
 			require.Equal(t, actual, &r.filters[i])
 		}
+	})
+}
+
+func TestFilter_CopyTo(t *testing.T) {
+	var filter Filter
+	filter.value = staticStringer("value")
+	filter.from = 1
+	filter.matcher = 1
+	filter.key = filterKey{
+		typ: 1,
+		str: "1",
+	}
+
+	var dst Filter
+	t.Run("copy", func(t *testing.T) {
+		filter.CopyTo(&dst)
+
+		bts, err := filter.Marshal()
+		require.NoError(t, err)
+
+		bts2, err := dst.Marshal()
+		require.NoError(t, err)
+
+		require.Equal(t, filter, dst)
+		require.True(t, bytes.Equal(bts, bts2))
+	})
+
+	t.Run("change", func(t *testing.T) {
+		require.Equal(t, filter.value, dst.value)
+		require.Equal(t, filter.from, dst.from)
+		require.Equal(t, filter.matcher, dst.matcher)
+		require.Equal(t, filter.key.typ, dst.key.typ)
+		require.Equal(t, filter.key.str, dst.key.str)
+
+		dst.value = staticStringer("value2")
+		dst.from = 2
+		dst.matcher = 2
+		dst.key.typ = 2
+		dst.key.str = "2"
+
+		require.NotEqual(t, filter.value, dst.value)
+		require.NotEqual(t, filter.from, dst.from)
+		require.NotEqual(t, filter.matcher, dst.matcher)
+		require.NotEqual(t, filter.key.typ, dst.key.typ)
+		require.NotEqual(t, filter.key.str, dst.key.str)
 	})
 }

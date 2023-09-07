@@ -30,6 +30,17 @@ type Container struct {
 	cnr    cid.ID
 }
 
+// CopyTo writes deep copy of the [Container] to dst.
+func (x Container) CopyTo(dst *Container) {
+	x.commonData.copyTo(&dst.commonData)
+
+	dst.verb = x.verb
+
+	dst.cnrSet = x.cnrSet
+	contID := x.cnr
+	dst.cnr = contID
+}
+
 // readContext is a contextReader needed for commonData methods.
 func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool) error {
 	cCnr, ok := c.(*session.ContainerSessionContext)

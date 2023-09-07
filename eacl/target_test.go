@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"testing"
 
@@ -81,5 +82,41 @@ func TestTarget_ToV2(t *testing.T) {
 
 		require.Equal(t, acl.RoleUnknown, targetV2.GetRole())
 		require.Nil(t, targetV2.GetKeys())
+	})
+}
+
+func TestTarget_CopyTo(t *testing.T) {
+	var target Target
+	target.SetRole(1)
+	target.SetBinaryKeys([][]byte{
+		{1, 2, 3},
+	})
+
+	t.Run("copy", func(t *testing.T) {
+		var dst Target
+		target.CopyTo(&dst)
+
+		bts, err := target.Marshal()
+		require.NoError(t, err)
+
+		bts2, err := dst.Marshal()
+		require.NoError(t, err)
+
+		require.Equal(t, target, dst)
+		require.True(t, bytes.Equal(bts, bts2))
+	})
+
+	t.Run("change", func(t *testing.T) {
+		var dst Target
+		target.CopyTo(&dst)
+
+		require.Equal(t, target.role, dst.role)
+		dst.SetRole(2)
+		require.NotEqual(t, target.role, dst.role)
+
+		require.True(t, bytes.Equal(target.keys[0], dst.keys[0]))
+		// change some key data
+		dst.keys[0][0] = 5
+		require.False(t, bytes.Equal(target.keys[0], dst.keys[0]))
 	})
 }

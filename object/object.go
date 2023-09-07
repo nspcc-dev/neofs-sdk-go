@@ -62,6 +62,20 @@ func (o *Object) ToV2() *object.Object {
 	return (*object.Object)(o)
 }
 
+// CopyTo writes deep copy of the [Object] to dst.
+func (o Object) CopyTo(dst *Object) {
+	id := (*object.Object)(&o).GetObjectID()
+	(*object.Object)(dst).SetObjectID(copyObjectID(id))
+
+	sig := (*object.Object)(&o).GetSignature()
+	(*object.Object)(dst).SetSignature(copySignature(sig))
+
+	header := (*object.Object)(&o).GetHeader()
+	(*object.Object)(dst).SetHeader(copyHeader(header))
+
+	dst.SetPayload(copyByteSlice(o.Payload()))
+}
+
 // MarshalHeaderJSON marshals object's header into JSON format.
 func (o *Object) MarshalHeaderJSON() ([]byte, error) {
 	return (*object.Object)(o).GetHeader().MarshalJSON()

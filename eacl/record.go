@@ -23,6 +23,23 @@ type Record struct {
 	targets   []Target
 }
 
+// CopyTo writes deep copy of the [Record] to dst.
+func (r Record) CopyTo(dst *Record) {
+	dst.action = r.action
+	dst.operation = r.operation
+
+	dst.filters = make([]Filter, len(r.filters))
+	copy(dst.filters, r.filters)
+
+	dst.targets = make([]Target, len(r.targets))
+	for i, t := range r.targets {
+		var newTarget Target
+		t.CopyTo(&newTarget)
+
+		dst.targets[i] = newTarget
+	}
+}
+
 // Targets returns list of target subjects to apply ACL rule to.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.

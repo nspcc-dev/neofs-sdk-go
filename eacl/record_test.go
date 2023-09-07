@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"crypto/ecdsa"
 	"fmt"
 	"testing"
@@ -250,4 +251,72 @@ func randomPublicKey(t *testing.T) *ecdsa.PublicKey {
 	p, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 	return &p.PrivateKey.PublicKey
+}
+
+func TestRecord_CopyTo(t *testing.T) {
+	var record Record
+	record.action = ActionAllow
+	record.operation = OperationPut
+	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+
+	var target Target
+	target.SetRole(1)
+	target.SetBinaryKeys([][]byte{
+		{1, 2, 3},
+	})
+
+	record.SetTargets(target)
+	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+
+	t.Run("copy", func(t *testing.T) {
+		var dst Record
+		record.CopyTo(&dst)
+
+		bts, err := record.Marshal()
+		require.NoError(t, err)
+
+		bts2, err := dst.Marshal()
+		require.NoError(t, err)
+
+		require.Equal(t, record, dst)
+		require.True(t, bytes.Equal(bts, bts2))
+	})
+
+	t.Run("change filters", func(t *testing.T) {
+		var dst Record
+		record.CopyTo(&dst)
+
+		require.Equal(t, record.filters[0].key.str, dst.filters[0].key.str)
+		require.Equal(t, record.filters[0].key.typ, dst.filters[0].key.typ)
+		require.Equal(t, record.filters[0].matcher, dst.filters[0].matcher)
+		require.Equal(t, record.filters[0].value, dst.filters[0].value)
+		require.Equal(t, record.filters[0].from, dst.filters[0].from)
+
+		dst.filters[0].key.str = "key2"
+		dst.filters[0].key.typ = 12345
+		dst.filters[0].matcher = MatchStringNotEqual
+		dst.filters[0].value = staticStringer("staticStringer")
+		dst.filters[0].from = 12345
+
+		require.NotEqual(t, record.filters[0].key.str, dst.filters[0].key.str)
+		require.NotEqual(t, record.filters[0].key.typ, dst.filters[0].key.typ)
+		require.NotEqual(t, record.filters[0].matcher, dst.filters[0].matcher)
+		require.NotEqual(t, record.filters[0].value, dst.filters[0].value)
+		require.NotEqual(t, record.filters[0].from, dst.filters[0].from)
+	})
+
+	t.Run("change target", func(t *testing.T) {
+		var dst Record
+		record.CopyTo(&dst)
+
+		require.Equal(t, record.targets[0].role, dst.targets[0].role)
+		dst.targets[0].role = 12345
+		require.NotEqual(t, record.targets[0].role, dst.targets[0].role)
+
+		for i, key := range dst.targets[0].keys {
+			require.True(t, bytes.Equal(key, record.targets[0].keys[i]))
+			key[0] = 10
+			require.False(t, bytes.Equal(key, record.targets[0].keys[i]))
+		}
+	})
 }
