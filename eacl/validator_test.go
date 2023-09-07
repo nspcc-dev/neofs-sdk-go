@@ -7,6 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func checkIgnoredAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit) {
+	action, ok := v.CalculateAction(vu)
+	require.False(t, ok)
+	require.Equal(t, expected, action)
+}
+
 func checkAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit) {
 	action, ok := v.CalculateAction(vu)
 	require.True(t, ok)
@@ -189,6 +195,33 @@ func TestTargetMatches(t *testing.T) {
 
 	u = newValidationUnit(RoleSystem, pubs[2], nil)
 	require.False(t, targetMatches(u, r))
+}
+
+func TestSystemRoleModificationIgnored(t *testing.T) {
+	tgt := *NewTarget()
+	tgt.SetRole(RoleSystem)
+
+	operations := []Operation{
+		OperationPut,
+		OperationGet,
+		OperationDelete,
+		OperationHead,
+		OperationRange,
+		OperationRangeHash,
+	}
+
+	tb := NewTable()
+	for _, operation := range operations {
+		tb.AddRecord(newRecord(ActionDeny, operation, tgt))
+	}
+
+	v := NewValidator()
+	vu := newValidationUnit(RoleSystem, nil, tb)
+
+	for _, operation := range operations {
+		vu.op = operation
+		checkIgnoredAction(t, ActionAllow, v, vu)
+	}
 }
 
 func makeKeys(t *testing.T, n int) [][]byte {
