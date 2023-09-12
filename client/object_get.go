@@ -92,12 +92,6 @@ type PayloadReader struct {
 // readHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *PayloadReader) readHeader(dst *object.Object) bool {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	var resp v2object.GetResponse
 	x.err = x.stream.Read(&resp)
 	if x.err != nil {
@@ -136,12 +130,6 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 }
 
 func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	var read int
 
 	// read remaining tail
@@ -196,37 +184,30 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 }
 
 func (x *PayloadReader) close(ignoreEOF bool) error {
+	defer x.cancelCtxStream()
+
+	if errors.Is(x.err, io.EOF) {
+		if ignoreEOF {
+			return nil
+		}
+		if x.remainingPayloadLen > 0 {
+			return io.ErrUnexpectedEOF
+		}
+	}
+	return x.err
+}
+
+// Close ends reading the object payload. Must be called after using the
+// PayloadReader.
+func (x *PayloadReader) Close() error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
 			x.statisticCallback(err)
 		}()
 	}
-
-	defer x.cancelCtxStream()
-
-	if x.err != nil {
-		if !errors.Is(x.err, io.EOF) {
-			err = x.err
-			return err
-		} else if !ignoreEOF {
-			if x.remainingPayloadLen > 0 {
-				err = io.ErrUnexpectedEOF
-				return err
-			}
-
-			err = io.EOF
-			return err
-		}
-	}
-
-	return nil
-}
-
-// Close ends reading the object payload. Must be called after using the
-// PayloadReader.
-func (x *PayloadReader) Close() error {
-	return x.close(true)
+	err = x.close(true)
+	return err
 }
 
 // Read implements io.Reader of the object payload.
