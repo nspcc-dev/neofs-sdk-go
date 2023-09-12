@@ -1,217 +1,211 @@
 package eacl
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
 	"strconv"
+	"strings"
 
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-api-go/v2/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"github.com/nspcc-dev/tzhash/tz"
 )
 
-// Filter defines check conditions if request header is matched or not. Matched
-// header means that request should be processed according to ContainerEACL action.
-//
-// Filter is compatible with v2 acl.EACLRecord.Filter message.
+// Filter describes a binary property of an access-controlled NeoFS resource
+// according to meta information about it. The meta information is represented
+// by a set of key-value headers of various types.
 type Filter struct {
-	from    FilterHeaderType
-	matcher Match
-	key     filterKey
-	value   stringEncoder
+	hdrType HeaderType
+	matcher Matcher
+	key     string
+	value   string
 }
 
-type staticStringer string
-
-type u64Stringer uint64
-
-type filterKey struct {
-	typ filterKeyType
-
-	str string
-}
-
-// enumeration of reserved filter keys.
-type filterKeyType int
-
-const (
-	_ filterKeyType = iota
-	fKeyObjVersion
-	fKeyObjID
-	fKeyObjContainerID
-	fKeyObjOwnerID
-	fKeyObjCreationEpoch
-	fKeyObjPayloadLength
-	fKeyObjPayloadHash
-	fKeyObjType
-	fKeyObjHomomorphicHash
-	fKeyObjLast // helper, used in tests
-)
-
-func (s staticStringer) EncodeToString() string {
-	return string(s)
-}
-
-func (u u64Stringer) EncodeToString() string {
-	return strconv.FormatUint(uint64(u), 10)
-}
-
-// CopyTo writes deep copy of the [Filter] to dst.
-func (f Filter) CopyTo(dst *Filter) {
-	dst.from = f.from
-	dst.matcher = f.matcher
-	dst.key = f.key
-	dst.value = f.value
-}
-
-// Value returns filtered string value.
-func (f Filter) Value() string {
-	return f.value.EncodeToString()
-}
-
-// Matcher returns filter Match type.
-func (f Filter) Matcher() Match {
-	return f.matcher
-}
-
-// Key returns key to the filtered header.
-func (f Filter) Key() string {
-	return f.key.String()
-}
-
-// From returns FilterHeaderType that defined which header will be filtered.
-func (f Filter) From() FilterHeaderType {
-	return f.from
-}
-
-// ToV2 converts Filter to v2 acl.EACLRecord.Filter message.
+// NewFilter returns Filter describing a condition that is suitable only for
+// access-controlled resources with a header of the given type whose value
+// corresponds to the specified value.
 //
-// Nil Filter converts to nil.
-func (f *Filter) ToV2() *v2acl.HeaderFilter {
-	if f == nil {
-		return nil
-	}
-
-	filter := new(v2acl.HeaderFilter)
-	filter.SetValue(f.value.EncodeToString())
-	filter.SetKey(f.key.String())
-	filter.SetMatchType(f.matcher.ToV2())
-	filter.SetHeaderType(f.from.ToV2())
-
-	return filter
-}
-
-func (k filterKey) String() string {
-	switch k.typ {
-	default:
-		return k.str
-	case fKeyObjVersion:
-		return v2acl.FilterObjectVersion
-	case fKeyObjID:
-		return v2acl.FilterObjectID
-	case fKeyObjContainerID:
-		return v2acl.FilterObjectContainerID
-	case fKeyObjOwnerID:
-		return v2acl.FilterObjectOwnerID
-	case fKeyObjCreationEpoch:
-		return v2acl.FilterObjectCreationEpoch
-	case fKeyObjPayloadLength:
-		return v2acl.FilterObjectPayloadLength
-	case fKeyObjPayloadHash:
-		return v2acl.FilterObjectPayloadHash
-	case fKeyObjType:
-		return v2acl.FilterObjectType
-	case fKeyObjHomomorphicHash:
-		return v2acl.FilterObjectHomomorphicHash
-	}
-}
-
-func (k *filterKey) fromString(s string) {
-	switch s {
-	default:
-		k.typ, k.str = 0, s
-	case v2acl.FilterObjectVersion:
-		k.typ, k.str = fKeyObjVersion, ""
-	case v2acl.FilterObjectID:
-		k.typ, k.str = fKeyObjID, ""
-	case v2acl.FilterObjectContainerID:
-		k.typ, k.str = fKeyObjContainerID, ""
-	case v2acl.FilterObjectOwnerID:
-		k.typ, k.str = fKeyObjOwnerID, ""
-	case v2acl.FilterObjectCreationEpoch:
-		k.typ, k.str = fKeyObjCreationEpoch, ""
-	case v2acl.FilterObjectPayloadLength:
-		k.typ, k.str = fKeyObjPayloadLength, ""
-	case v2acl.FilterObjectPayloadHash:
-		k.typ, k.str = fKeyObjPayloadHash, ""
-	case v2acl.FilterObjectType:
-		k.typ, k.str = fKeyObjType, ""
-	case v2acl.FilterObjectHomomorphicHash:
-		k.typ, k.str = fKeyObjHomomorphicHash, ""
-	}
-}
-
-// NewFilter creates, initializes and returns blank Filter instance.
+// Both typ and matcher MUST be supported values from corresponding enum.
+// Key MUST be non-empty.
 //
-// Defaults:
-//   - header type: HeaderTypeUnknown;
-//   - matcher: MatchUnknown;
-//   - key: "";
-//   - value: "".
-func NewFilter() *Filter {
-	return NewFilterFromV2(new(v2acl.HeaderFilter))
-}
-
-// NewFilterFromV2 converts v2 acl.EACLRecord.Filter message to Filter.
-func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
-	f := new(Filter)
-
-	if filter == nil {
-		return f
+// See also other helper constructors.
+func NewFilter(typ HeaderType, key string, matcher Matcher, value string) Filter {
+	f := Filter{
+		hdrType: typ,
+		matcher: matcher,
+		key:     key,
+		value:   value,
 	}
-
-	f.from = FilterHeaderTypeFromV2(filter.GetHeaderType())
-	f.matcher = MatchFromV2(filter.GetMatchType())
-	f.key.fromString(filter.GetKey())
-	f.value = staticStringer(filter.GetValue())
-
+	if msg := f.validate(); msg != "" {
+		panic(msg)
+	}
 	return f
 }
 
-// Marshal marshals Filter into a protobuf binary form.
-func (f *Filter) Marshal() ([]byte, error) {
-	return f.ToV2().StableMarshal(nil), nil
+// Various reserved types of header related to the NeoFS objects.
+const (
+	FilterObjectVersion                    = acl.FilterObjectVersion
+	FilterObjectID                         = acl.FilterObjectID
+	FilterObjectContainerID                = acl.FilterObjectContainerID
+	FilterObjectOwnerID                    = acl.FilterObjectOwnerID
+	FilterObjectCreationEpoch              = acl.FilterObjectCreationEpoch
+	FilterObjectPayloadSize                = acl.FilterObjectPayloadLength
+	FilterObjectPayloadChecksum            = acl.FilterObjectPayloadHash
+	FilterObjectType                       = acl.FilterObjectType
+	FilterObjectPayloadHomomorphicChecksum = acl.FilterObjectHomomorphicHash
+)
+
+// returns message about docs violation or zero if everything is OK.
+func (f Filter) validate() string {
+	switch {
+	case f.hdrType <= 0 || f.hdrType >= lastHeaderType:
+		return fmt.Sprintf("forbidden value %v from the enum %T", f.hdrType, f.hdrType)
+	case f.matcher <= 0 || f.matcher >= lastMatcher:
+		return fmt.Sprintf("forbidden value %v from the enum %T", f.matcher, f.matcher)
+	case f.key == "":
+		return "empty key"
+	}
+	return ""
 }
 
-// Unmarshal unmarshals protobuf binary representation of Filter.
-func (f *Filter) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.Unmarshal(data); err != nil {
-		return err
+// copyTo writes deep copy of the [Filter] to dst.
+func (f Filter) copyTo(dst *Filter) {
+	*dst = f
+}
+
+// HeaderValue returns value of the access-controlled resource's header to
+// match.
+func (f Filter) HeaderValue() string {
+	return f.value
+}
+
+// Matcher returns operator to match the header.
+func (f Filter) Matcher() Matcher {
+	return f.matcher
+}
+
+// HeaderKey returns key to the access-controlled resource's header to match.
+func (f Filter) HeaderKey() string {
+	return f.key
+}
+
+// HeaderType returns type of access-controlled resource's header to match.
+func (f Filter) HeaderType() HeaderType {
+	return f.hdrType
+}
+
+// readFromV2 reads Filter from the [acl.HeaderFilter] message. Returns an error
+// if the message is malformed according to the NeoFS API V2 protocol. Behavior
+// is forward-compatible: unknown enum values are not considered invalid.
+func (f *Filter) readFromV2(m acl.HeaderFilter) error {
+	key := m.GetKey()
+	if key == "" {
+		return errors.New("empty header key")
 	}
 
-	*f = *NewFilterFromV2(fV2)
+	f.hdrType = HeaderType(m.GetHeaderType())
+	f.matcher = Matcher(m.GetMatchType())
+	f.key = key
+	f.value = m.GetValue()
 
 	return nil
 }
 
-// MarshalJSON encodes Filter to protobuf JSON format.
-func (f *Filter) MarshalJSON() ([]byte, error) {
-	return f.ToV2().MarshalJSON()
+// writeToV2 writes Filter to the [acl.HeaderFilter] message of the NeoFS API V2
+// protocol.
+func (f Filter) writeToV2(m *acl.HeaderFilter) {
+	m.SetValue(f.value)
+	m.SetKey(f.key)
+	m.SetMatchType(acl.MatchType(f.matcher))
+	m.SetHeaderType(acl.HeaderType(f.hdrType))
 }
 
-// UnmarshalJSON decodes Filter from protobuf JSON format.
-func (f *Filter) UnmarshalJSON(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.UnmarshalJSON(data); err != nil {
-		return err
+func newFilterObject(key string, matcher Matcher, value string) Filter {
+	return NewFilter(HeaderFromObject, key, matcher, value)
+}
+
+// NewFilterObjectAttribute constructs Filter to object attribute. Key MUST NOT
+// start with reserved '$Object:' prefix.
+//
+// See also [NewFilter].
+func NewFilterObjectAttribute(key string, matcher Matcher, value string) Filter {
+	if strings.HasPrefix(key, acl.ObjectFilterPrefix) {
+		panic(fmt.Sprintf("reserved prefix in '%s'", key))
 	}
 
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
+	return newFilterObject(key, matcher, value)
 }
 
-// equalFilters compares Filter with each other.
-func equalFilters(f1, f2 Filter) bool {
-	return f1.From() == f2.From() &&
-		f1.Matcher() == f2.Matcher() &&
-		f1.Key() == f2.Key() &&
-		f1.Value() == f2.Value()
+// NewFilterObjectVersion constructs Filter to match protocol version of the
+// object.
+//
+// See also [NewFilter].
+func NewFilterObjectVersion(matcher Matcher, v version.Version) Filter {
+	return newFilterObject(FilterObjectVersion, matcher, version.EncodeToString(v))
+}
+
+// NewFilterObjectID constructs Filter to match objects' identifier.
+//
+// See also [NewFilter].
+func NewFilterObjectID(matcher Matcher, id oid.ID) Filter {
+	return newFilterObject(FilterObjectID, matcher, id.EncodeToString())
+}
+
+// NewFilterContainerID constructs Filter to match objects' container.
+//
+// See also [NewFilter].
+func NewFilterContainerID(matcher Matcher, cnr cid.ID) Filter {
+	return newFilterObject(FilterObjectContainerID, matcher, cnr.EncodeToString())
+}
+
+// NewFilterOwnerID constructs Filter to match objects' owner.
+//
+// See also [NewFilter].
+func NewFilterOwnerID(matcher Matcher, owner user.ID) Filter {
+	return newFilterObject(FilterObjectOwnerID, matcher, owner.EncodeToString())
+}
+
+// NewFilterObjectCreationEpoch constructs Filter to match creation epoch of the
+// objects.
+//
+// See also [NewFilter].
+func NewFilterObjectCreationEpoch(matcher Matcher, epoch uint64) Filter {
+	return newFilterObject(FilterObjectCreationEpoch, matcher, strconv.FormatUint(epoch, 10))
+}
+
+// NewFilterObjectPayloadSize constructs Filter to match payload size of the
+// objects.
+//
+// See also [NewFilter].
+func NewFilterObjectPayloadSize(matcher Matcher, size uint64) Filter {
+	return newFilterObject(FilterObjectPayloadSize, matcher, strconv.FormatUint(size, 10))
+}
+
+// NewFilterObjectType constructs Filter to match type of the objects.
+//
+// See also [NewFilter].
+func NewFilterObjectType(matcher Matcher, typ object.Type) Filter {
+	return newFilterObject(FilterObjectType, matcher, typ.EncodeToString())
+}
+
+// NewFilterObjectPayloadChecksum constructs Filter to match payload checksum of
+// the objects.
+//
+// See also [NewFilter].
+func NewFilterObjectPayloadChecksum(matcher Matcher, cs [sha256.Size]byte) Filter {
+	return newFilterObject(FilterObjectPayloadChecksum, matcher, hex.EncodeToString(cs[:]))
+}
+
+// NewFilterObjectPayloadHomomorphicChecksum constructs Filter to match
+// payload's homomorphic checksum of the objects.
+//
+// See also [NewFilter].
+func NewFilterObjectPayloadHomomorphicChecksum(matcher Matcher, cs [tz.Size]byte) Filter {
+	return newFilterObject(FilterObjectPayloadHomomorphicChecksum, matcher, hex.EncodeToString(cs[:]))
 }

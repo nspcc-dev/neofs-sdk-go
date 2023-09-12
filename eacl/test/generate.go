@@ -1,50 +1,44 @@
 package eacltest
 
 import (
+	"math/rand"
+	"strconv"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
-	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
 // Target returns random eacl.Target.
-func Target() eacl.Target {
-	x := eacl.NewTarget()
+func Target(tb testing.TB) eacl.Target {
+	roles := []eacl.Role{eacl.RoleContainerOwner, eacl.RoleOthers}
+	keys := []neofscrypto.PublicKey{test.RandomSigner(tb).Public(), test.RandomSignerRFC6979(tb).Public()}
 
-	x.SetRole(eacl.RoleSystem)
-	x.SetBinaryKeys([][]byte{
-		{1, 2, 3},
-		{4, 5, 6},
-	})
-
-	return *x
+	return eacl.NewTarget(roles, keys)
 }
 
 // Record returns random eacl.Record.
 func Record(tb testing.TB) eacl.Record {
-	x := eacl.NewRecord()
+	fNum := rand.Int() % 10
+	var fs []eacl.Filter
+	if fNum > 0 {
+		fs = make([]eacl.Filter, fNum)
+		for i := range fs {
+			fs[i] = eacl.NewFilter(eacl.HeaderFromObject, "key"+strconv.Itoa(i), eacl.MatchStringEqual, "val"+strconv.Itoa(i))
+		}
+	}
 
-	x.SetAction(eacl.ActionAllow)
-	x.SetOperation(eacl.OperationRangeHash)
-	x.SetTargets(Target(), Target())
-	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	usr := usertest.ID(tb)
-	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, &usr)
-
-	return *x
+	return eacl.NewRecord(eacl.ActionAllow, acl.OpObjectHash, eacl.NewTargetWithKey(test.RandomSigner(tb).Public()), fs...)
 }
 
 func Table(tb testing.TB) eacl.Table {
-	x := eacl.NewTable()
+	t := eacl.NewForContainer(cidtest.ID(), []eacl.Record{
+		Record(tb),
+		Record(tb),
+	})
 
-	x.SetCID(cidtest.ID())
-	r1 := Record(tb)
-	x.AddRecord(&r1)
-	r2 := Record(tb)
-	x.AddRecord(&r2)
-	x.SetVersion(versiontest.Version())
-
-	return *x
+	return t
 }

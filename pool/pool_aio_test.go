@@ -136,17 +136,11 @@ func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
 }
 
 func testEaclTable(containerID cid.ID) eacl.Table {
-	var table eacl.Table
-	table.SetCID(containerID)
+	table := eacl.New([]eacl.Record{
+		eacl.NewRecord(eacl.ActionAllow, acl.OpObjectPut, eacl.NewTargetWithRole(eacl.RoleOthers)),
+	})
 
-	r := eacl.NewRecord()
-	r.SetOperation(eacl.OperationPut)
-	r.SetAction(eacl.ActionAllow)
-
-	var target eacl.Target
-	target.SetRole(eacl.RoleOthers)
-	r.SetTargets(target)
-	table.AddRecord(r)
+	table.LimitByContainer(containerID)
 
 	return table
 }
@@ -759,7 +753,7 @@ func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table ea
 
 	newTable, err := setter.ContainerEACL(ctx, containerID, prm)
 	require.NoError(t, err)
-	require.True(t, eacl.EqualTables(table, newTable))
+	require.Equal(t, table.Marshal(), newTable.Marshal())
 }
 
 func isBucketCreated(ctx context.Context, c containerGetter, id cid.ID) error {
@@ -811,10 +805,7 @@ func isBucketDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
 }
 
 func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTable eacl.Table) error {
-	oldBinary, err := oldTable.Marshal()
-	if err != nil {
-		return fmt.Errorf("oldTable.Marshal %w", err)
-	}
+	oldBinary := oldTable.Marshal()
 
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
@@ -833,10 +824,7 @@ func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTab
 				return fmt.Errorf("ContainerEACL %w", err)
 			}
 
-			newBinary, err := table.Marshal()
-			if err != nil {
-				return fmt.Errorf("table.Marshal %w", err)
-			}
+			newBinary := table.Marshal()
 
 			if bytes.Equal(oldBinary, newBinary) {
 				return nil

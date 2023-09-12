@@ -1,102 +1,115 @@
 package eacl
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
 func TestTable_CopyTo(t *testing.T) {
-	sha := sha256.Sum256([]byte("container id"))
-	id := cidtest.IDWithChecksum(sha)
+	const srcRecordAction = ActionAllow
+	const srcRecordOp = acl.OpObjectGet
+	srcCnr := cidtest.ID()
 
-	var table Table
-	table.SetVersion(version.Current())
-	table.SetCID(id)
-
-	var target Target
-	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
-		{1, 2, 3},
+	src := NewForContainer(srcCnr, []Record{
+		NewRecord(srcRecordAction, srcRecordOp, NewTarget([]Role{
+			RoleContainerOwner,
+			RoleOthers,
+		}, []neofscrypto.PublicKey{
+			test.RandomSigner(t).Public(),
+			test.RandomSigner(t).Public(),
+		}),
+			NewFilter(HeaderFromRequest, "any_key", MatchStringEqual, "any_val"),
+		),
 	})
 
-	record := CreateRecord(ActionAllow, OperationPut)
-	record.SetTargets(target)
-	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+	srcTarget := Target{
+		roles: make([]Role, len(src.records[0].target.roles)),
+		keys:  make([][]byte, len(src.records[0].target.keys)),
+	}
 
-	table.AddRecord(record)
+	copy(srcTarget.roles, src.records[0].target.roles)
+	for i := range src.records[0].target.keys {
+		srcTarget.keys[i] = slice.Copy(src.records[0].target.keys[i])
+	}
 
-	t.Run("copy", func(t *testing.T) {
-		var dst Table
-		table.CopyTo(&dst)
+	srcFilters := make([]Filter, len(src.records[0].filters))
+	copy(srcFilters, src.records[0].filters)
 
-		bts, err := table.Marshal()
-		require.NoError(t, err)
+	var dst Table
+	src.CopyTo(&dst)
 
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
+	require.Equal(t, src, dst)
 
-		require.Equal(t, table, dst)
-		require.True(t, bytes.Equal(bts, bts2))
+	changeAllTableFields(&dst)
+
+	require.Equal(t, version.Current(), *src.version)
+	require.Equal(t, srcCnr, *src.cid)
+	require.Equal(t, srcRecordAction, src.records[0].action)
+	require.Equal(t, srcRecordOp, src.records[0].operation)
+	require.Equal(t, srcTarget, src.records[0].target)
+	require.Equal(t, srcFilters, src.records[0].filters)
+
+	t.Run("full-to-full", func(t *testing.T) {
+		src.CopyTo(&dst)
+		require.Equal(t, src, dst)
 	})
 
-	t.Run("change version", func(t *testing.T) {
-		var dst Table
-		table.CopyTo(&dst)
-
-		require.True(t, table.Version().Equal(dst.Version()))
-
-		var newVersion version.Version
-		newVersion.SetMajor(10)
-		newVersion.SetMinor(100)
-
-		dst.SetVersion(newVersion)
-
-		require.False(t, table.Version().Equal(dst.Version()))
+	t.Run("zero-to-full", func(t *testing.T) {
+		var zero Table
+		zero.CopyTo(&src)
+		require.Zero(t, src)
 	})
+}
 
-	t.Run("change cid", func(t *testing.T) {
-		var dst Table
-		table.CopyTo(&dst)
+func changeAllTableFields(t *Table) {
+	bCnr := make([]byte, sha256.Size)
+	t.cid.Encode(bCnr)
 
-		cid1, isSet1 := table.CID()
-		require.True(t, isSet1)
+	bCnr[0]++
 
-		cid2, isSet2 := dst.CID()
-		require.True(t, isSet2)
+	err := t.cid.Decode(bCnr)
+	if err != nil {
+		panic(err)
+	}
 
-		require.True(t, cid1.Equals(cid2))
+	t.version.SetMajor(t.version.Major() + 1)
+	t.version.SetMinor(t.version.Minor() + 1)
 
-		sha = sha256.Sum256([]byte("container id 2"))
-		dst.SetCID(cidtest.IDWithChecksum(sha))
+	for i := range t.records {
+		changeAllRecordFields(&t.records[i])
+	}
+}
 
-		cid1, isSet1 = table.CID()
-		require.True(t, isSet1)
+func changeAllRecordFields(r *Record) {
+	r.action++
+	r.operation++
+	changeAllTargetFields(&r.target)
+	for i := range r.filters {
+		changeAllFilterFields(&r.filters[i])
+	}
+}
 
-		cid2, isSet2 = dst.CID()
-		require.True(t, isSet2)
+func changeAllFilterFields(f *Filter) {
+	f.hdrType++
+	f.matcher++
+	f.key += "1"
+	f.value += "1"
+}
 
-		require.False(t, cid1.Equals(cid2))
-	})
+func changeAllTargetFields(t *Target) {
+	for i := range t.roles {
+		t.roles[i]++
+	}
 
-	t.Run("change record", func(t *testing.T) {
-		var dst Table
-		table.CopyTo(&dst)
-
-		require.Equal(t, table.records[0].action, dst.records[0].action)
-		dst.records[0].SetAction(ActionDeny)
-		require.NotEqual(t, table.records[0].action, dst.records[0].action)
-
-		require.Equal(t, table.records[0].operation, dst.records[0].operation)
-		dst.records[0].SetOperation(OperationDelete)
-		require.NotEqual(t, table.records[0].operation, dst.records[0].operation)
-
-		require.Equal(t, table.records[0].targets[0].role, dst.records[0].targets[0].role)
-		table.records[0].targets[0].SetRole(1234)
-		require.NotEqual(t, table.records[0].targets[0].role, dst.records[0].targets[0].role)
-	})
+	for i := range t.keys {
+		t.keys[i][0]++
+	}
 }

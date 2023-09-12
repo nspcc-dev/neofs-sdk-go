@@ -1,322 +1,145 @@
-package eacl
+package eacl_test
 
 import (
-	"bytes"
-	"crypto/ecdsa"
 	"fmt"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
-	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
-	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
-	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
-	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/stretchr/testify/require"
 )
 
-func TestRecord(t *testing.T) {
-	record := NewRecord()
-	record.SetOperation(OperationRange)
-	record.SetAction(ActionAllow)
-	record.AddFilter(HeaderFromRequest, MatchStringEqual, "A", "B")
-	record.AddFilter(HeaderFromRequest, MatchStringNotEqual, "C", "D")
-
-	target := NewTarget()
-	target.SetRole(RoleSystem)
-	AddRecordTarget(record, target)
-
-	v2 := record.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, v2acl.OperationRange, v2.GetOperation())
-	require.Equal(t, v2acl.ActionAllow, v2.GetAction())
-	require.Len(t, v2.GetFilters(), len(record.Filters()))
-	require.Len(t, v2.GetTargets(), len(record.Targets()))
-
-	newRecord := NewRecordFromV2(v2)
-	require.Equal(t, record, newRecord)
-
-	t.Run("create record", func(t *testing.T) {
-		record := CreateRecord(ActionAllow, OperationGet)
-		require.Equal(t, ActionAllow, record.Action())
-		require.Equal(t, OperationGet, record.Operation())
-	})
-
-	t.Run("new from nil v2 record", func(t *testing.T) {
-		require.Equal(t, new(Record), NewRecordFromV2(nil))
-	})
-}
-
-func TestAddFormedTarget(t *testing.T) {
-	items := []struct {
-		role Role
-		keys []ecdsa.PublicKey
-	}{
-		{
-			role: RoleUnknown,
-			keys: []ecdsa.PublicKey{*randomPublicKey(t)},
-		},
-		{
-			role: RoleSystem,
-			keys: []ecdsa.PublicKey{},
-		},
+func TestNewRecord(t *testing.T) {
+	const anyValidAction = eacl.ActionDeny
+	const anyValidOp = acl.OpObjectHash
+	allValidRoles := []eacl.Role{
+		eacl.RoleContainerOwner,
+		eacl.RoleOthers,
+	}
+	anyValidKeys := []neofscrypto.PublicKey{
+		test.RandomSigner(t).Public(),
+		test.RandomSigner(t).Public(),
+	}
+	validTarget := eacl.NewTarget(allValidRoles, anyValidKeys)
+	validFilters := []eacl.Filter{
+		eacl.NewFilter(eacl.HeaderFromObject, eacl.FilterObjectType, eacl.MatchStringEqual, "UNKNOWN"),
+		eacl.NewFilter(eacl.HeaderFromRequest, "ContentType", eacl.MatchStringNotEqual, "img/png"),
 	}
 
-	targets := make([]Target, len(items))
-
-	r := NewRecord()
-
-	for i := range items {
-		targets[i].SetRole(items[i].role)
-		SetTargetECDSAKeys(&targets[i], ecdsaKeysToPtrs(items[i].keys)...)
-		AddFormedTarget(r, items[i].role, items[i].keys...)
-	}
-
-	tgts := r.Targets()
-	require.Len(t, tgts, len(targets))
-
-	for _, tgt := range targets {
-		require.Contains(t, tgts, tgt)
-	}
-}
-
-func TestRecord_AddFilter(t *testing.T) {
-	filters := []Filter{
-		*newObjectFilter(MatchStringEqual, "some name", "ContainerID"),
-		*newObjectFilter(MatchStringNotEqual, "X-Header-Name", "X-Header-Value"),
-	}
-
-	r := NewRecord()
-	for _, filter := range filters {
-		r.AddFilter(filter.From(), filter.Matcher(), filter.Key(), filter.Value())
-	}
-
-	require.Equal(t, filters, r.Filters())
-}
-
-func TestRecordEncoding(t *testing.T) {
-	r := NewRecord()
-	r.SetOperation(OperationHead)
-	r.SetAction(ActionDeny)
-	r.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
-	AddFormedTarget(r, RoleSystem, *randomPublicKey(t))
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := r.Marshal()
-		require.NoError(t, err)
-
-		r2 := NewRecord()
-		require.NoError(t, r2.Unmarshal(data))
-
-		require.Equal(t, r, r2)
+	t.Run("uninitialized target", func(t *testing.T) {
+		require.Panics(t, func() {
+			var zeroTarget eacl.Target
+			eacl.NewRecord(anyValidAction, anyValidOp, zeroTarget, validFilters...)
+		})
 	})
 
-	t.Run("json", func(t *testing.T) {
-		data, err := r.MarshalJSON()
-		require.NoError(t, err)
-
-		r2 := NewRecord()
-		require.NoError(t, r2.UnmarshalJSON(data))
-
-		require.Equal(t, r, r2)
-	})
-}
-
-func TestRecord_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Record
-
-		require.Nil(t, x.ToV2())
-	})
-
-	t.Run("default values", func(t *testing.T) {
-		record := NewRecord()
-
-		// check initial values
-		require.Equal(t, OperationUnknown, record.Operation())
-		require.Equal(t, ActionUnknown, record.Action())
-		require.Nil(t, record.Targets())
-		require.Nil(t, record.Filters())
-
-		// convert to v2 message
-		recordV2 := record.ToV2()
-
-		require.Equal(t, v2acl.OperationUnknown, recordV2.GetOperation())
-		require.Equal(t, v2acl.ActionUnknown, recordV2.GetAction())
-		require.Nil(t, recordV2.GetTargets())
-		require.Nil(t, recordV2.GetFilters())
-	})
-}
-
-func TestReservedRecords(t *testing.T) {
-	var (
-		v       = versiontest.Version()
-		oid     = oidtest.ID()
-		cid     = cidtest.ID()
-		ownerid = usertest.ID(t)
-		h       = checksumtest.Checksum()
-		typ     = new(object.Type)
-	)
-
-	testSuit := []struct {
-		f     func(r *Record)
-		key   string
-		value string
-	}{
-		{
-			f:     func(r *Record) { r.AddObjectAttributeFilter(MatchStringEqual, "foo", "bar") },
-			key:   "foo",
-			value: "bar",
-		},
-		{
-			f:     func(r *Record) { r.AddObjectVersionFilter(MatchStringEqual, &v) },
-			key:   v2acl.FilterObjectVersion,
-			value: v.String(),
-		},
-		{
-			f:     func(r *Record) { r.AddObjectIDFilter(MatchStringEqual, oid) },
-			key:   v2acl.FilterObjectID,
-			value: oid.EncodeToString(),
-		},
-		{
-			f:     func(r *Record) { r.AddObjectContainerIDFilter(MatchStringEqual, cid) },
-			key:   v2acl.FilterObjectContainerID,
-			value: cid.EncodeToString(),
-		},
-		{
-			f:     func(r *Record) { r.AddObjectOwnerIDFilter(MatchStringEqual, &ownerid) },
-			key:   v2acl.FilterObjectOwnerID,
-			value: ownerid.EncodeToString(),
-		},
-		{
-			f:     func(r *Record) { r.AddObjectCreationEpoch(MatchStringEqual, 100) },
-			key:   v2acl.FilterObjectCreationEpoch,
-			value: "100",
-		},
-		{
-			f:     func(r *Record) { r.AddObjectPayloadLengthFilter(MatchStringEqual, 5000) },
-			key:   v2acl.FilterObjectPayloadLength,
-			value: "5000",
-		},
-		{
-			f:     func(r *Record) { r.AddObjectPayloadHashFilter(MatchStringEqual, h) },
-			key:   v2acl.FilterObjectPayloadHash,
-			value: h.String(),
-		},
-		{
-			f:     func(r *Record) { r.AddObjectHomomorphicHashFilter(MatchStringEqual, h) },
-			key:   v2acl.FilterObjectHomomorphicHash,
-			value: h.String(),
-		},
-		{
-			f: func(r *Record) {
-				require.True(t, typ.DecodeString("REGULAR"))
-				r.AddObjectTypeFilter(MatchStringEqual, *typ)
-			},
-			key:   v2acl.FilterObjectType,
-			value: "REGULAR",
-		},
-		{
-			f: func(r *Record) {
-				require.True(t, typ.DecodeString("TOMBSTONE"))
-				r.AddObjectTypeFilter(MatchStringEqual, *typ)
-			},
-			key:   v2acl.FilterObjectType,
-			value: "TOMBSTONE",
-		},
-		{
-			f: func(r *Record) {
-				require.True(t, typ.DecodeString("STORAGE_GROUP"))
-				r.AddObjectTypeFilter(MatchStringEqual, *typ)
-			},
-			key:   v2acl.FilterObjectType,
-			value: "STORAGE_GROUP",
-		},
+	for i, action := range []eacl.Action{
+		eacl.ActionAllow,
+		eacl.ActionDeny,
+	} {
+		t.Run(fmt.Sprintf("support action=%v", action), func(t *testing.T) {
+			r := eacl.NewRecord(action, anyValidOp, validTarget, validFilters...)
+			require.Equal(t, action, r.Action(), i)
+		})
 	}
 
-	for n, testCase := range testSuit {
-		desc := fmt.Sprintf("case #%d", n)
-		record := NewRecord()
-		testCase.f(record)
-		require.Len(t, record.Filters(), 1, desc)
-		f := record.Filters()[0]
-		require.Equal(t, f.Key(), testCase.key, desc)
-		require.Equal(t, f.Value(), testCase.value, desc)
+	for i, op := range []acl.Op{
+		acl.OpObjectGet,
+		acl.OpObjectHead,
+		acl.OpObjectPut,
+		acl.OpObjectDelete,
+		acl.OpObjectSearch,
+		acl.OpObjectRange,
+		acl.OpObjectHash,
+	} {
+		t.Run(fmt.Sprintf("support op=%v", op), func(t *testing.T) {
+			r := eacl.NewRecord(anyValidAction, op, validTarget, validFilters...)
+			require.Equal(t, op, r.Op())
+			require.True(t, r.IsForOp(op), i)
+		})
+	}
+
+	r := eacl.NewRecord(anyValidAction, anyValidOp, validTarget, validFilters...)
+	require.Equal(t, anyValidAction, r.Action())
+	require.Equal(t, validFilters, r.Filters())
+	require.Equal(t, anyValidOp, r.Op())
+	require.True(t, r.IsForOp(anyValidOp))
+
+	for i := range allValidRoles {
+		require.True(t, r.IsForRole(allValidRoles[i]))
+	}
+
+	bKeys := r.TargetBinaryKeys()
+	require.Len(t, bKeys, len(anyValidKeys))
+
+	for i := range anyValidKeys {
+		require.True(t, r.IsForKey(anyValidKeys[i]))
+		require.Contains(t, bKeys, neofscrypto.PublicKeyBytes(anyValidKeys[i]))
 	}
 }
 
-func randomPublicKey(t *testing.T) *ecdsa.PublicKey {
-	p, err := keys.NewPrivateKey()
-	require.NoError(t, err)
-	return &p.PrivateKey.PublicKey
-}
+func TestRecordTargetRole(t *testing.T) {
+	const anyValidAction = eacl.ActionDeny
+	const anyValidOp = acl.OpObjectHash
+	anyValidFilters := []eacl.Filter{
+		eacl.NewFilter(eacl.HeaderFromObject, eacl.FilterObjectType, eacl.MatchStringEqual, "UNKNOWN"),
+		eacl.NewFilter(eacl.HeaderFromRequest, "ContentType", eacl.MatchStringNotEqual, "img/png"),
+	}
 
-func TestRecord_CopyTo(t *testing.T) {
-	var record Record
-	record.action = ActionAllow
-	record.operation = OperationPut
-	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+	supportedRoles := []eacl.Role{
+		eacl.RoleContainerOwner,
+		eacl.RoleSystem,
+		eacl.RoleOthers,
+	}
 
-	var target Target
-	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
-		{1, 2, 3},
-	})
+	const targetRole = eacl.RoleContainerOwner
+	r := eacl.NewRecord(anyValidAction, anyValidOp, eacl.NewTargetWithRole(targetRole), anyValidFilters...)
 
-	record.SetTargets(target)
-	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+	for _, role := range supportedRoles {
+		t.Run(fmt.Sprintf("support role=%s", role), func(t *testing.T) {
+			require.NotPanics(t, func() { r.IsForRole(role) })
+			if role == targetRole {
+				require.True(t, r.IsForRole(role))
+			} else {
+				require.False(t, r.IsForRole(role))
+			}
+		})
+	}
 
-	t.Run("copy", func(t *testing.T) {
-		var dst Record
-		record.CopyTo(&dst)
-
-		bts, err := record.Marshal()
-		require.NoError(t, err)
-
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
-
-		require.Equal(t, record, dst)
-		require.True(t, bytes.Equal(bts, bts2))
-	})
-
-	t.Run("change filters", func(t *testing.T) {
-		var dst Record
-		record.CopyTo(&dst)
-
-		require.Equal(t, record.filters[0].key.str, dst.filters[0].key.str)
-		require.Equal(t, record.filters[0].key.typ, dst.filters[0].key.typ)
-		require.Equal(t, record.filters[0].matcher, dst.filters[0].matcher)
-		require.Equal(t, record.filters[0].value, dst.filters[0].value)
-		require.Equal(t, record.filters[0].from, dst.filters[0].from)
-
-		dst.filters[0].key.str = "key2"
-		dst.filters[0].key.typ = 12345
-		dst.filters[0].matcher = MatchStringNotEqual
-		dst.filters[0].value = staticStringer("staticStringer")
-		dst.filters[0].from = 12345
-
-		require.NotEqual(t, record.filters[0].key.str, dst.filters[0].key.str)
-		require.NotEqual(t, record.filters[0].key.typ, dst.filters[0].key.typ)
-		require.NotEqual(t, record.filters[0].matcher, dst.filters[0].matcher)
-		require.NotEqual(t, record.filters[0].value, dst.filters[0].value)
-		require.NotEqual(t, record.filters[0].from, dst.filters[0].from)
-	})
-
-	t.Run("change target", func(t *testing.T) {
-		var dst Record
-		record.CopyTo(&dst)
-
-		require.Equal(t, record.targets[0].role, dst.targets[0].role)
-		dst.targets[0].role = 12345
-		require.NotEqual(t, record.targets[0].role, dst.targets[0].role)
-
-		for i, key := range dst.targets[0].keys {
-			require.True(t, bytes.Equal(key, record.targets[0].keys[i]))
-			key[0] = 10
-			require.False(t, bytes.Equal(key, record.targets[0].keys[i]))
+	t.Run("keys only", func(t *testing.T) {
+		r = eacl.NewRecord(anyValidAction, anyValidOp, eacl.NewTargetWithKey(test.RandomSigner(t).Public()), anyValidFilters...)
+		for i := range supportedRoles {
+			require.False(t, r.IsForRole(supportedRoles[i]), i)
 		}
 	})
+}
+
+func TestRecordTargetKeys(t *testing.T) {
+	const anyValidAction = eacl.ActionDeny
+	const anyValidOp = acl.OpObjectHash
+	anyValidFilters := []eacl.Filter{
+		eacl.NewFilter(eacl.HeaderFromObject, eacl.FilterObjectType, eacl.MatchStringEqual, "UNKNOWN"),
+		eacl.NewFilter(eacl.HeaderFromRequest, "ContentType", eacl.MatchStringNotEqual, "img/png"),
+	}
+
+	targetKeys := []neofscrypto.PublicKey{
+		test.RandomSigner(t).Public(),
+		test.RandomSigner(t).Public(),
+	}
+	otherKey := test.RandomSigner(t).Public()
+
+	r := eacl.NewRecord(anyValidAction, anyValidOp, eacl.NewTargetWithKeys(targetKeys), anyValidFilters...)
+
+	bKeys := r.TargetBinaryKeys()
+	require.Len(t, bKeys, len(targetKeys))
+
+	for i := range targetKeys {
+		require.True(t, r.IsForKey(targetKeys[i]))
+		require.Contains(t, bKeys, neofscrypto.PublicKeyBytes(targetKeys[i]))
+	}
+
+	require.False(t, r.IsForKey(otherKey))
+	require.NotContains(t, bKeys, neofscrypto.PublicKeyBytes(otherKey))
 }

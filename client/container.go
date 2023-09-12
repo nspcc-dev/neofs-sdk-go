@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
@@ -437,14 +438,19 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
+		const eACLField = "eACL"
 
 		eACL := resp.GetBody().GetEACL()
 		if eACL == nil {
-			cc.err = newErrMissingResponseField("eACL")
+			cc.err = newErrMissingResponseField(eACLField)
 			return
 		}
 
-		res = *eacl.NewTableFromV2(eACL)
+		cc.err = res.ReadFromV2(*eACL)
+		if cc.err != nil {
+			cc.err = newErrInvalidResponseField(eACLField, cc.err)
+			return
+		}
 	}
 
 	// process call
@@ -508,14 +514,15 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		return ErrMissingSigner
 	}
 
-	_, isCIDSet := table.CID()
+	_, isCIDSet := table.Container()
 	if !isCIDSet {
 		err = ErrMissingEACLContainer
 		return err
 	}
 
 	// sign the eACL table
-	eaclV2 := table.ToV2()
+	eaclV2 := new(acl.Table)
+	table.WriteToV2(eaclV2)
 
 	var sig neofscrypto.Signature
 	err = sig.CalculateMarshalled(signer, eaclV2)

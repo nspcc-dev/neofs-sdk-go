@@ -45,15 +45,12 @@ func (w ContainerSetEACLWaiter) ContainerSetEACL(ctx context.Context, table eacl
 		return fmt.Errorf("container setEacl: %w", err)
 	}
 
-	contID, ok := table.CID()
+	contID, ok := table.Container()
 	if !ok {
 		return client.ErrMissingEACLContainer
 	}
 
-	newBinary, err := table.Marshal()
-	if err != nil {
-		return fmt.Errorf("newTable.Marshal: %w", err)
-	}
+	newBinary := table.Marshal()
 
 	var prmEacl client.PrmContainerEACL
 
@@ -67,10 +64,7 @@ func (w ContainerSetEACLWaiter) ContainerSetEACL(ctx context.Context, table eacl
 			return fmt.Errorf("ContainerEACL: %w", err)
 		}
 
-		actualBinary, err := actualTable.Marshal()
-		if err != nil {
-			return fmt.Errorf("table.Marshal: %w", err)
-		}
+		actualBinary := actualTable.Marshal()
 
 		if bytes.Equal(newBinary, actualBinary) {
 			return nil

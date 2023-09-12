@@ -45,7 +45,10 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 
 	eaclTable := body.GetEACL()
 	if b.eaclTableSet = eaclTable != nil; b.eaclTableSet {
-		b.eaclTable = *eacl.NewTableFromV2(eaclTable)
+		err = b.eaclTable.ReadFromV2(*eaclTable)
+		if err != nil {
+			return fmt.Errorf("invalid eACL: %w", err)
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing eACL table")
 	}
@@ -92,7 +95,10 @@ func (b Token) fillBody() *acl.BearerTokenBody {
 	var body acl.BearerTokenBody
 
 	if b.eaclTableSet {
-		body.SetEACL(b.eaclTable.ToV2())
+		var eACL acl.Table
+		b.eaclTable.WriteToV2(&eACL)
+
+		body.SetEACL(&eACL)
 	}
 
 	if b.targetUserSet {
@@ -220,7 +226,7 @@ func (b Token) AssertContainer(cnr cid.ID) bool {
 		return true
 	}
 
-	cnrTable, set := b.eaclTable.CID()
+	cnrTable, set := b.eaclTable.Container()
 	return !set || cnrTable.Equals(cnr)
 }
 
