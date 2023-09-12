@@ -69,7 +69,7 @@ func TestObject_CopyTo(t *testing.T) {
 	obj.SetVersion(&v)
 
 	require.NoError(t, obj.CalculateAndSetID())
-	require.NoError(t, obj.CalculateAndSetSignature(signer))
+	require.NoError(t, obj.Sign(signer))
 
 	t.Run("copy", func(t *testing.T) {
 		var dst Object
@@ -136,7 +136,7 @@ func TestObject_CopyTo(t *testing.T) {
 
 		var dst Object
 		require.NoError(t, dst.CalculateAndSetID())
-		require.NoError(t, dst.CalculateAndSetSignature(signer))
+		require.NoError(t, dst.Sign(signer))
 		require.NotNil(t, dst.Signature())
 
 		local.CopyTo(&dst)
@@ -146,7 +146,7 @@ func TestObject_CopyTo(t *testing.T) {
 		checkObjectEquals(t, local, dst)
 
 		require.NoError(t, dst.CalculateAndSetID())
-		require.NoError(t, dst.CalculateAndSetSignature(signer))
+		require.NoError(t, dst.Sign(signer))
 		require.NotNil(t, dst.Signature())
 		require.Nil(t, local.Signature())
 	})
