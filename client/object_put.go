@@ -118,12 +118,6 @@ func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
 // writeHeader writes header of the object. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	v2Hdr := hdr.ToV2()
 
 	x.partInit.SetObjectID(v2Hdr.GetObjectID())
@@ -146,12 +140,6 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 // WritePayloadChunk writes chunk of the object payload. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	if !x.chunkCalled {
 		x.chunkCalled = true
 		x.req.GetBody().SetObjectPart(&x.partChunk)
@@ -226,6 +214,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *DefaultObjectWriter) Close() error {
 	if x.streamClosed {
+		x.statisticCallback(x.err)
 		return nil
 	}
 
