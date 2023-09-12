@@ -438,12 +438,6 @@ type ObjectRangeReader struct {
 }
 
 func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	var read int
 
 	// read remaining tail
@@ -503,31 +497,17 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 }
 
 func (x *ObjectRangeReader) close(ignoreEOF bool) error {
-	var err error
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(err)
-		}()
-	}
-
 	defer x.cancelCtxStream()
 
-	if x.err != nil {
-		if !errors.Is(x.err, io.EOF) {
-			err = x.err
-			return err
-		} else if !ignoreEOF {
-			if x.remainingPayloadLen > 0 {
-				err = io.ErrUnexpectedEOF
-				return err
-			}
-
-			err = io.EOF
-			return err
+	if errors.Is(x.err, io.EOF) {
+		if ignoreEOF {
+			return nil
+		}
+		if x.remainingPayloadLen > 0 {
+			return io.ErrUnexpectedEOF
 		}
 	}
-
-	return nil
+	return x.err
 }
 
 // Close ends reading the payload range and returns the result of the operation
@@ -547,7 +527,14 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) error {
 //   - [apistatus.ErrObjectOutOfRange]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectRangeReader) Close() error {
-	return x.close(true)
+	var err error
+	if x.statisticCallback != nil {
+		defer func() {
+			x.statisticCallback(err)
+		}()
+	}
+	err = x.close(true)
+	return err
 }
 
 // Read implements io.Reader of the object payload.
