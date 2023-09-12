@@ -87,12 +87,6 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 		panic("empty buffer in ObjectListReader.ReadList")
 	}
 
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	read := copyIDBuffers(buf, x.tail)
 	x.tail = x.tail[read:]
 
