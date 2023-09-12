@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"math/rand"
 	"sort"
 	"sync"
@@ -403,9 +404,18 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 	// from the SDK client; should not be considered
 	// as a connection error
 	var siErr *object.SplitInfoError
-	if !errors.As(err, &siErr) {
-		c.incErrorRate()
+	if errors.As(err, &siErr) {
+		return
 	}
+
+	// EOF is a critical error, but it makes different sense for different requests and places.
+	// Each code should process it properly in its own way.
+	// But it isn't a reason to mark clients as unhealthy.
+	if errors.Is(err, io.EOF) {
+		return
+	}
+
+	c.incErrorRate()
 }
 
 // clientBuilder is a type alias of client constructors.

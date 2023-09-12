@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"errors"
+	"io"
 	"strconv"
 	"testing"
 	"time"
@@ -542,6 +543,11 @@ func TestHandleError(t *testing.T) {
 			err:           apistatus.NodeUnderMaintenance{},
 			expectedError: true,
 			countError:    true,
+		},
+		{
+			err:           io.EOF,
+			expectedError: true,
+			countError:    false,
 		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
