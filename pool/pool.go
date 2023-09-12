@@ -267,37 +267,32 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 
 	cl, err := c.getRawClient()
 	if err != nil {
-		return false, false
-	}
+		cl, err = c.prm.getNewClient(c.statisticMiddleware)
+		if err != nil {
+			c.setUnhealthy()
+			return false, wasHealthy
+		}
 
-	if _, err = cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{}); err == nil {
-		return true, false
-	} else if !errors.Is(err, errPoolClientUnhealthy) {
+		var prmDial sdkClient.PrmDial
+		prmDial.SetServerURI(c.prm.address)
+		prmDial.SetTimeout(c.prm.dialTimeout)
+		prmDial.SetStreamTimeout(c.prm.streamTimeout)
+		prmDial.SetContext(ctx)
+
+		if err := cl.Dial(prmDial); err != nil {
+			c.setUnhealthy()
+			return false, wasHealthy
+		}
+
+		c.clientMutex.Lock()
+		c.client = cl
+		c.clientMutex.Unlock()
+	} else {
 		wasHealthy = true
 	}
 
-	cl, err = c.prm.getNewClient(c.statisticMiddleware)
+	_, err = cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
 	if err != nil {
-		c.setUnhealthy()
-		return false, wasHealthy
-	}
-
-	var prmDial sdkClient.PrmDial
-	prmDial.SetServerURI(c.prm.address)
-	prmDial.SetTimeout(c.prm.dialTimeout)
-	prmDial.SetStreamTimeout(c.prm.streamTimeout)
-	prmDial.SetContext(ctx)
-
-	if err := cl.Dial(prmDial); err != nil {
-		c.setUnhealthy()
-		return false, wasHealthy
-	}
-
-	c.clientMutex.Lock()
-	c.client = cl
-	c.clientMutex.Unlock()
-
-	if _, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{}); err != nil {
 		c.setUnhealthy()
 		return false, wasHealthy
 	}
