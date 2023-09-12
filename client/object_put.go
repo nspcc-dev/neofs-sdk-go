@@ -118,12 +118,6 @@ func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
 // writeHeader writes header of the object. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	v2Hdr := hdr.ToV2()
 
 	x.partInit.SetObjectID(v2Hdr.GetObjectID())
@@ -146,12 +140,6 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 // WritePayloadChunk writes chunk of the object payload. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(x.err)
-		}()
-	}
-
 	if !x.chunkCalled {
 		x.chunkCalled = true
 		x.req.GetBody().SetObjectPart(&x.partChunk)
@@ -225,15 +213,14 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *DefaultObjectWriter) Close() error {
-	if x.streamClosed {
-		return nil
-	}
-
-	var err error
 	if x.statisticCallback != nil {
 		defer func() {
-			x.statisticCallback(err)
+			x.statisticCallback(x.err)
 		}()
+	}
+
+	if x.streamClosed {
+		return nil
 	}
 
 	defer x.cancelCtxStream()
@@ -242,35 +229,31 @@ func (x *DefaultObjectWriter) Close() error {
 	// stream termination by the server. E.g. when stream contains invalid
 	// message. Server returns an error in response message (in status).
 	if x.err != nil && !errors.Is(x.err, io.EOF) {
-		err = x.err
-		return err
+		return x.err
 	}
 
 	if x.err = x.stream.Close(); x.err != nil {
-		err = x.err
-		return err
+		return x.err
 	}
 
 	if x.err = x.client.processResponse(&x.respV2); x.err != nil {
-		err = x.err
-		return err
+		return x.err
 	}
 
 	const fieldID = "ID"
 
 	idV2 := x.respV2.GetBody().GetObjectID()
 	if idV2 == nil {
-		err = newErrMissingResponseField(fieldID)
-		return err
+		x.err = newErrMissingResponseField(fieldID)
+		return x.err
 	}
 
 	x.err = x.res.obj.ReadFromV2(*idV2)
 	if x.err != nil {
 		x.err = newErrInvalidResponseField(fieldID, x.err)
-		err = x.err
 	}
 
-	return nil
+	return x.err
 }
 
 // GetResult returns the put operation result.
