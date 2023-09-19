@@ -15,7 +15,7 @@ import (
 // Target returns random eacl.Target.
 func Target(tb testing.TB) eacl.Target {
 	roles := []eacl.Role{eacl.RoleContainerOwner, eacl.RoleOthers}
-	keys := []neofscrypto.PublicKey{test.RandomSigner(tb).Public(), test.RandomSignerRFC6979(tb).Public()}
+	keys := []neofscrypto.PublicKey{test.RandomPublicKey(), test.RandomPublicKey()}
 
 	return eacl.NewTarget(roles, keys)
 }
@@ -31,7 +31,7 @@ func Record(tb testing.TB) eacl.Record {
 		}
 	}
 
-	return eacl.NewRecord(eacl.ActionAllow, acl.OpObjectHash, eacl.NewTargetWithKey(test.RandomSigner(tb).Public()), fs...)
+	return eacl.NewRecord(eacl.ActionAllow, acl.OpObjectHash, eacl.NewTargetWithKey(test.RandomPublicKey()), fs...)
 }
 
 func Table(tb testing.TB) eacl.Table {

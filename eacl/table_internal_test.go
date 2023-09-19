@@ -23,8 +23,8 @@ func TestTable_CopyTo(t *testing.T) {
 			RoleContainerOwner,
 			RoleOthers,
 		}, []neofscrypto.PublicKey{
-			test.RandomSigner(t).Public(),
-			test.RandomSigner(t).Public(),
+			test.RandomPublicKey(),
+			test.RandomPublicKey(),
 		}),
 			NewFilter(HeaderFromRequest, "any_key", MatchStringEqual, "any_val"),
 		),

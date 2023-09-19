@@ -19,8 +19,8 @@ func TestNewRecord(t *testing.T) {
 		eacl.RoleOthers,
 	}
 	anyValidKeys := []neofscrypto.PublicKey{
-		test.RandomSigner(t).Public(),
-		test.RandomSigner(t).Public(),
+		test.RandomPublicKey(),
+		test.RandomPublicKey(),
 	}
 	validTarget := eacl.NewTarget(allValidRoles, anyValidKeys)
 	validFilters := []eacl.Filter{
@@ -109,7 +109,7 @@ func TestRecordTargetRole(t *testing.T) {
 	}
 
 	t.Run("keys only", func(t *testing.T) {
-		r = eacl.NewRecord(anyValidAction, anyValidOp, eacl.NewTargetWithKey(test.RandomSigner(t).Public()), anyValidFilters...)
+		r = eacl.NewRecord(anyValidAction, anyValidOp, eacl.NewTargetWithKey(test.RandomPublicKey()), anyValidFilters...)
 		for i := range supportedRoles {
 			require.False(t, r.IsForRole(supportedRoles[i]), i)
 		}
@@ -125,10 +125,10 @@ func TestRecordTargetKeys(t *testing.T) {
 	}
 
 	targetKeys := []neofscrypto.PublicKey{
-		test.RandomSigner(t).Public(),
-		test.RandomSigner(t).Public(),
+		test.RandomPublicKey(),
+		test.RandomPublicKey(),
 	}
-	otherKey := test.RandomSigner(t).Public()
+	otherKey := test.RandomPublicKey()
 
 	r := eacl.NewRecord(anyValidAction, anyValidOp, eacl.NewTargetWithKeys(targetKeys), anyValidFilters...)
 

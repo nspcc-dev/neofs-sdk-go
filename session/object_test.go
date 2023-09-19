@@ -521,7 +521,7 @@ func TestObject_ID(t *testing.T) {
 func TestObject_AssertAuthKey(t *testing.T) {
 	var x session.Object
 
-	key := test.RandomSignerRFC6979(t).Public()
+	key := test.RandomPublicKey()
 
 	require.False(t, x.AssertAuthKey(key))
 
@@ -637,7 +637,7 @@ func TestObject_SignedData(t *testing.T) {
 	tokenSession.SetExp(100500)
 	tokenSession.BindContainer(cidtest.ID())
 	tokenSession.ForVerb(session.VerbObjectPut)
-	tokenSession.SetAuthKey(test.RandomSignerRFC6979(t).Public())
+	tokenSession.SetAuthKey(test.RandomPublicKey())
 	tokenSession.SetIssuer(issuer)
 
 	sign, err := issuerSigner.Sign(tokenSession.SignedData())

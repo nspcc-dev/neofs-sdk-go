@@ -1,29 +1,17 @@
 package eacl_test
 
 import (
-	"fmt"
-
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 )
 
-func randomPublicKey() neofscrypto.PublicKey {
-	k, err := keys.NewPrivateKey()
-	if err != nil {
-		panic(fmt.Errorf("randomize private key: %v", err))
-	}
-
-	return neofsecdsa.Signer(k.PrivateKey).Public()
-}
-
 // eACL provides ability to determine target subjects of access rules, in
 // particular, distribute/restrict access on an exclusive basis.
 func ExampleTable_exclusiveRights() {
-	friendPubKey := randomPublicKey()
+	friendPubKey := test.RandomPublicKey()
 	vacationPhotos := eacl.NewFilterObjectAttribute(object.AttributeFileName, eacl.MatchStringEqual, "vacation_photos.zip")
 
 	_ = eacl.New([]eacl.Record{
@@ -33,10 +21,10 @@ func ExampleTable_exclusiveRights() {
 	})
 
 	cvApplication := eacl.NewFilterObjectAttribute(object.AttributeName, eacl.MatchStringEqual, "CV")
-	bannedApplicantPubKey := randomPublicKey()
+	bannedApplicantPubKey := test.RandomPublicKey()
 	managerPubKeys := []neofscrypto.PublicKey{
-		randomPublicKey(),
-		randomPublicKey(),
+		test.RandomPublicKey(),
+		test.RandomPublicKey(),
 	}
 
 	_ = eacl.New([]eacl.Record{
@@ -53,9 +41,9 @@ func ExampleTable_exclusiveRights() {
 // user actions.
 func ExampleTable_objectOps() {
 	// forbid user with this key to modify any object
-	observerPubKey := randomPublicKey()
+	observerPubKey := test.RandomPublicKey()
 	// allow user with this public key to do everything with all objects
-	adminPubKey := randomPublicKey()
+	adminPubKey := test.RandomPublicKey()
 
 	observerOnly := eacl.NewTargetWithKey(observerPubKey)
 	adminOnly := eacl.NewTargetWithKey(adminPubKey)

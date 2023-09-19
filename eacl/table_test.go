@@ -28,7 +28,7 @@ func TestNew(t *testing.T) {
 			eacl.NewFilter(eacl.HeaderFromObject, "FileName", eacl.MatchStringEqual, "my_photo.png"),
 			eacl.NewFilter(eacl.HeaderFromRequest, "MODE", eacl.MatchStringNotEqual, "GATEWAY"),
 		),
-		eacl.NewRecord(eacl.ActionDeny, acl.OpObjectGet, eacl.NewTargetWithKey(test.RandomSigner(t).Public()),
+		eacl.NewRecord(eacl.ActionDeny, acl.OpObjectGet, eacl.NewTargetWithKey(test.RandomPublicKey()),
 			eacl.NewFilter(eacl.HeaderFromObject, "FileName", eacl.MatchStringEqual, "passport.pdf"),
 		),
 	}
@@ -55,7 +55,7 @@ func TestNewForContainer(t *testing.T) {
 			eacl.NewFilter(eacl.HeaderFromObject, "FileName", eacl.MatchStringEqual, "my_photo.png"),
 			eacl.NewFilter(eacl.HeaderFromRequest, "MODE", eacl.MatchStringNotEqual, "GATEWAY"),
 		),
-		eacl.NewRecord(eacl.ActionDeny, acl.OpObjectGet, eacl.NewTargetWithKey(test.RandomSigner(t).Public()),
+		eacl.NewRecord(eacl.ActionDeny, acl.OpObjectGet, eacl.NewTargetWithKey(test.RandomPublicKey()),
 			eacl.NewFilter(eacl.HeaderFromObject, "FileName", eacl.MatchStringEqual, "passport.pdf"),
 		),
 	}
@@ -74,7 +74,7 @@ func TestTable_LimitByContainer(t *testing.T) {
 			eacl.NewFilter(eacl.HeaderFromObject, "FileName", eacl.MatchStringEqual, "my_photo.png"),
 			eacl.NewFilter(eacl.HeaderFromRequest, "MODE", eacl.MatchStringNotEqual, "GATEWAY"),
 		),
-		eacl.NewRecord(eacl.ActionDeny, acl.OpObjectGet, eacl.NewTargetWithKey(test.RandomSigner(t).Public()),
+		eacl.NewRecord(eacl.ActionDeny, acl.OpObjectGet, eacl.NewTargetWithKey(test.RandomPublicKey()),
 			eacl.NewFilter(eacl.HeaderFromObject, "FileName", eacl.MatchStringEqual, "passport.pdf"),
 		),
 	}
@@ -135,8 +135,8 @@ func TestTableEncoding(t *testing.T) {
 func TestTable_ReadFromV2(t *testing.T) {
 	newValidTargetKeys := func() [][]byte {
 		return [][]byte{
-			neofscrypto.PublicKeyBytes(test.RandomSigner(t).Public()),
-			neofscrypto.PublicKeyBytes(test.RandomSigner(t).Public()),
+			neofscrypto.PublicKeyBytes(test.RandomPublicKey()),
+			neofscrypto.PublicKeyBytes(test.RandomPublicKey()),
 		}
 	}
 

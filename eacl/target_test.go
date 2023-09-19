@@ -12,7 +12,7 @@ import (
 
 func TestNewTarget(t *testing.T) {
 	validRoles := []eacl.Role{eacl.RoleContainerOwner, eacl.RoleOthers}
-	validKeys := []neofscrypto.PublicKey{test.RandomSigner(t).Public(), test.RandomSignerRFC6979(t).Public()}
+	validKeys := []neofscrypto.PublicKey{test.RandomPublicKey(), test.RandomPublicKey()}
 
 	for i, tc := range []struct {
 		rs []eacl.Role

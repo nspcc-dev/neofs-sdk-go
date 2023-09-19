@@ -70,8 +70,8 @@ func TestRecordDeepCopy(t *testing.T) {
 		RoleContainerOwner,
 		RoleOthers,
 	}, []neofscrypto.PublicKey{
-		test.RandomSigner(t).Public(),
-		test.RandomSigner(t).Public(),
+		test.RandomPublicKey(),
+		test.RandomPublicKey(),
 	})
 
 	src := NewRecord(srcAction, srcOp, srcTarget,
@@ -105,7 +105,7 @@ func TestRecordDeepCopy(t *testing.T) {
 	require.Equal(t, srcFilters, src.filters)
 
 	t.Run("full-to-full", func(t *testing.T) {
-		target := NewTarget([]Role{RoleContainerOwner}, []neofscrypto.PublicKey{test.RandomSigner(t).Public()})
+		target := NewTarget([]Role{RoleContainerOwner}, []neofscrypto.PublicKey{test.RandomPublicKey()})
 		dst = NewRecord(ActionDeny, acl.OpObjectPut, target,
 			NewFilter(HeaderFromService, "key", MatchStringEqual, "val"),
 		)

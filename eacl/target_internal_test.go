@@ -37,8 +37,8 @@ func TestTargetDeepCopy(t *testing.T) {
 		RoleContainerOwner,
 		RoleOthers,
 	}, []neofscrypto.PublicKey{
-		test.RandomSigner(t).Public(),
-		test.RandomSigner(t).Public(),
+		test.RandomPublicKey(),
+		test.RandomPublicKey(),
 	})
 
 	srcKeys := make([][]byte, len(src.keys))
@@ -60,7 +60,7 @@ func TestTargetDeepCopy(t *testing.T) {
 	require.Equal(t, srcKeys, src.keys)
 
 	t.Run("full-to-full", func(t *testing.T) {
-		dst = NewTarget([]Role{RoleContainerOwner}, []neofscrypto.PublicKey{test.RandomSigner(t).Public()})
+		dst = NewTarget([]Role{RoleContainerOwner}, []neofscrypto.PublicKey{test.RandomPublicKey()})
 		src.copyTo(&dst)
 		require.Equal(t, src, dst)
 	})

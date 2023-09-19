@@ -6,6 +6,7 @@ All functions accepting `t *testing.T` that emphasize there are only for tests p
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -76,4 +77,14 @@ func SignedDataComponentUser(tb testing.TB, signer user.Signer, cmp SignedCompon
 	require.NoError(tb, err)
 
 	require.True(tb, cmp.VerifySignature())
+}
+
+// RandomPublicKey returns random [neofscrypto.PublicKey].
+func RandomPublicKey() neofscrypto.PublicKey {
+	p, err := keys.NewPrivateKey()
+	if err != nil {
+		panic(fmt.Errorf("randomize private key: %w", err))
+	}
+
+	return neofsecdsa.Signer(p.PrivateKey).Public()
 }

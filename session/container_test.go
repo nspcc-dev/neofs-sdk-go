@@ -428,7 +428,7 @@ func TestContainer_ID(t *testing.T) {
 func TestContainer_AssertAuthKey(t *testing.T) {
 	var x session.Container
 
-	key := test.RandomSignerRFC6979(t).Public()
+	key := test.RandomPublicKey()
 
 	require.False(t, x.AssertAuthKey(key))
 
