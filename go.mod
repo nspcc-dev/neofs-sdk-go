@@ -8,7 +8,7 @@ require (
 	github.com/hashicorp/golang-lru v0.6.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw v1.0.9
-	github.com/nspcc-dev/neo-go v0.100.1
+	github.com/nspcc-dev/neo-go v0.102.0
 	github.com/nspcc-dev/neofs-api-go/v2 v2.14.0
 	github.com/nspcc-dev/tzhash v1.7.0
 	github.com/stretchr/testify v1.8.4
