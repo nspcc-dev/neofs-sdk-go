@@ -111,7 +111,7 @@ type clientStatusMonitor struct {
 	healthy        *atomic.Bool
 	errorThreshold uint32
 
-	mu                sync.RWMutex // protect counters
+	mu                *sync.RWMutex // protect counters
 	currentErrorCount uint32
 	overallErrorCount uint64
 }
@@ -120,6 +120,7 @@ func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMoni
 	m := clientStatusMonitor{
 		addr:           addr,
 		healthy:        &atomic.Bool{},
+		mu:             &sync.RWMutex{},
 		errorThreshold: errorThreshold,
 	}
 
