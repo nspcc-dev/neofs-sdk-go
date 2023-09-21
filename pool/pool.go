@@ -7,6 +7,7 @@ import (
 	"math/rand"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -23,7 +24,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"go.uber.org/atomic"
 	"go.uber.org/zap"
 )
 
@@ -117,11 +117,14 @@ type clientStatusMonitor struct {
 }
 
 func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMonitor {
-	return clientStatusMonitor{
+	m := clientStatusMonitor{
 		addr:           addr,
-		healthy:        atomic.NewBool(true),
+		healthy:        &atomic.Bool{},
 		errorThreshold: errorThreshold,
 	}
+
+	m.healthy.Store(true)
+	return m
 }
 
 // clientWrapper is used by default, alternative implementations are intended for testing purposes only.
@@ -860,7 +863,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 	pool := p.innerPools[i]
 	options := p.rebalanceParams
 
-	healthyChanged := atomic.NewBool(false)
+	healthyChanged := &atomic.Bool{}
 	wg := sync.WaitGroup{}
 
 	for j, cli := range pool.clients {
