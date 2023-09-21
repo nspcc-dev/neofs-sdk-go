@@ -4,7 +4,7 @@ import (
 	"strings"
 	"sync/atomic"
 
-	lru "github.com/hashicorp/golang-lru"
+	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -13,7 +13,7 @@ const (
 )
 
 type sessionCache struct {
-	cache        *lru.Cache
+	cache        *lru.Cache[string, *cacheValue]
 	currentEpoch uint64
 }
 
@@ -22,7 +22,7 @@ type cacheValue struct {
 }
 
 func newCache(cacheSize int) (*sessionCache, error) {
-	cache, err := lru.New(cacheSize)
+	cache, err := lru.New[string, *cacheValue](cacheSize)
 	if err != nil {
 		return nil, err
 	}
@@ -34,12 +34,11 @@ func newCache(cacheSize int) (*sessionCache, error) {
 // and context related fields. Returns nil if token is missing in the cache.
 // It is safe to modify and re-sign returned session token.
 func (c *sessionCache) Get(key string) (session.Object, bool) {
-	valueRaw, ok := c.cache.Get(key)
+	value, ok := c.cache.Get(key)
 	if !ok {
 		return session.Object{}, false
 	}
 
-	value := valueRaw.(*cacheValue)
 	if c.expired(value) {
 		c.cache.Remove(key)
 		return session.Object{}, false
@@ -56,7 +55,7 @@ func (c *sessionCache) Put(key string, token session.Object) bool {
 
 func (c *sessionCache) DeleteByPrefix(prefix string) {
 	for _, key := range c.cache.Keys() {
-		if strings.HasPrefix(key.(string), prefix) {
+		if strings.HasPrefix(key, prefix) {
 			c.cache.Remove(key)
 		}
 	}
