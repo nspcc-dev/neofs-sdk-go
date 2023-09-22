@@ -147,7 +147,9 @@ func (o *Object) Signature() *neofscrypto.Signature {
 	}
 
 	var sig neofscrypto.Signature
-	sig.ReadFromV2(*sigv2) // FIXME(@cthulhu-rider): #226 handle error
+	if err := sig.ReadFromV2(*sigv2); err != nil {
+		return nil
+	}
 
 	return &sig
 }
@@ -190,7 +192,9 @@ func (o *Object) SetPayload(v []byte) {
 func (o *Object) Version() *version.Version {
 	var ver version.Version
 	if verV2 := (*object.Object)(o).GetHeader().GetVersion(); verV2 != nil {
-		ver.ReadFromV2(*verV2) // FIXME(@cthulhu-rider): #226 handle error
+		if err := ver.ReadFromV2(*verV2); err != nil {
+			return nil
+		}
 	}
 	return &ver
 }
