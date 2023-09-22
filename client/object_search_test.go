@@ -40,7 +40,9 @@ func TestObjectSearch(t *testing.T) {
 	}
 
 	// nil panic
-	require.Panics(t, func() { resp.Read(nil) })
+	require.Panics(t, func() {
+		_, _ = resp.Read(nil)
+	})
 
 	// no data
 	resp.stream = newSearchStream(p, io.EOF, []oid.ID{})
