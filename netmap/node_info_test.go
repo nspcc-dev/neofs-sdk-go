@@ -3,6 +3,7 @@ package netmap
 import (
 	"testing"
 
+	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,4 +59,30 @@ func TestNodeInfo_ExternalAddr(t *testing.T) {
 
 	n.SetExternalAddresses(addr[1:]...)
 	require.Equal(t, addr[1:], n.ExternalAddresses())
+}
+
+func TestNodeInfo_SetVerifiedNodesDomain(t *testing.T) {
+	const domain = "example.some-org.neofs"
+	var n NodeInfo
+
+	require.Zero(t, n.VerifiedNodesDomain())
+
+	n.SetVerifiedNodesDomain(domain)
+	require.Equal(t, domain, n.VerifiedNodesDomain())
+
+	var msg netmap.NodeInfo
+	n.WriteToV2(&msg)
+
+	attrFound := false
+	msgAttrs := msg.GetAttributes()
+
+	for i := range msgAttrs {
+		if msgAttrs[i].GetKey() == "VerifiedNodesDomain" {
+			require.False(t, attrFound)
+			attrFound = true
+			require.Equal(t, domain, msgAttrs[i].GetValue())
+		}
+	}
+
+	require.True(t, attrFound)
 }
