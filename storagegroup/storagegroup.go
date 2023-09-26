@@ -140,6 +140,7 @@ func (sg *StorageGroup) SetValidationDataHash(hash checksum.Checksum) {
 // See also SetExpirationEpoch.
 func (sg StorageGroup) ExpirationEpoch() uint64 {
 	v2 := (storagegroup.StorageGroup)(sg)
+	// nolint:staticcheck
 	return v2.GetExpirationEpoch()
 }
 
@@ -148,6 +149,7 @@ func (sg StorageGroup) ExpirationEpoch() uint64 {
 //
 // See also ExpirationEpoch.
 func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
+	// nolint:staticcheck
 	(*storagegroup.StorageGroup)(sg).SetExpirationEpoch(epoch)
 }
 

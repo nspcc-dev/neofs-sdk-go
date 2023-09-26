@@ -62,6 +62,7 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 		v2.SetMembers(generateOIDList())
 
 		size := v2.GetValidationDataSize()
+		// nolint:staticcheck
 		epoch := v2.GetExpirationEpoch()
 		mm := v2.GetMembers()
 		hashV2 := v2.GetValidationHash()
@@ -122,6 +123,7 @@ func TestStorageGroup_WriteToV2(t *testing.T) {
 		require.Nil(t, v2.GetValidationHash())
 		require.Nil(t, v2.GetMembers())
 		require.Zero(t, v2.GetValidationDataSize())
+		// nolint:staticcheck
 		require.Zero(t, v2.GetExpirationEpoch())
 	})
 
@@ -133,6 +135,7 @@ func TestStorageGroup_WriteToV2(t *testing.T) {
 
 		x.WriteToV2(&v2)
 
+		// nolint:staticcheck
 		require.Equal(t, x.ExpirationEpoch(), v2.GetExpirationEpoch())
 		require.Equal(t, x.ValidationDataSize(), v2.GetValidationDataSize())
 
