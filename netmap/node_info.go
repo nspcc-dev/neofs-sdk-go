@@ -532,3 +532,32 @@ func (x *NodeInfo) SetMaintenance() {
 func (x NodeInfo) IsMaintenance() bool {
 	return x.m.GetState() == netmap.Maintenance
 }
+
+const attrVerifiedNodesDomain = "VerifiedNodesDomain"
+
+// SetVerifiedNodesDomain sets optional NeoFS NNS domain name to be used to
+// confirm admission to a storage nodes' group on registration in the NeoFS
+// network of a storage node submitting this NodeInfo about itself. If domain is
+// specified, the storage node requesting entry into the NeoFS network map with
+// must be included in the access list located on the specified domain. The
+// access list is represented by a set of TXT records: Neo script hashes from
+// public keys. To be admitted to the network, script hash of the
+// [NodeInfo.PublicKey] must be present in domain records. Otherwise,
+// registration will be denied. By default, this check is not carried out.
+//
+// Value MUST be a valid NeoFS NNS domain name.
+//
+// See also [NodeInfo.VerifiedNodesDomain].
+func (x *NodeInfo) SetVerifiedNodesDomain(domain string) {
+	x.SetAttribute(attrVerifiedNodesDomain, domain)
+}
+
+// VerifiedNodesDomain returns optional NeoFS NNS domain name to be used to
+// confirm admission to a storage nodes' group on registration in the NeoFS
+// network of a storage node submitting this NodeInfo about itself. Returns zero
+// value if domain is not specified.
+//
+// See also [NodeInfo.SetVerifiedNodesDomain].
+func (x NodeInfo) VerifiedNodesDomain() string {
+	return x.Attribute(attrVerifiedNodesDomain)
+}
