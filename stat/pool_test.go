@@ -4,11 +4,11 @@ import (
 	"errors"
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 )
 
 func TestStatisticConcurrency(t *testing.T) {
@@ -50,7 +50,7 @@ func TestStatisticConcurrency(t *testing.T) {
 				var err error
 				if rand.Int63n(2) > 0 {
 					err = errors.New("some err")
-					c.errors.Inc()
+					c.errors.Add(1)
 				}
 
 				duration := time.Duration(rand.Int63n(200)+1) * time.Millisecond

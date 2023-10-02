@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-20.04
     strategy:
       matrix:
-        go_versions: [ '1.18.x', '1.19.x', '1.20.x' ]
+        go_versions: [ '1.19', '1.20', '1.21' ]
       fail-fast: false
     steps:
       - uses: actions/checkout@v3
@@ -49,4 +49,3 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
-          only-new-issues: true
