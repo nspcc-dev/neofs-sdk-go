@@ -185,7 +185,7 @@ func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
 	}
 	resp.SetBody(&body)
 
-	err := signServiceMessage(s.signer, resp)
+	err := signServiceMessage(s.signer, resp, nil)
 	if err != nil {
 		return err
 	}

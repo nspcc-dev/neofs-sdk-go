@@ -30,7 +30,7 @@ func testRequestSign(t *testing.T, signer neofscrypto.Signer, meta *session.Requ
 	require.Error(t, verifyServiceMessage(req))
 
 	// sign request
-	require.NoError(t, signServiceMessage(signer, req))
+	require.NoError(t, signServiceMessage(signer, req, nil))
 
 	// verification must pass
 	require.NoError(t, verifyServiceMessage(req))
@@ -39,7 +39,7 @@ func testRequestSign(t *testing.T, signer neofscrypto.Signer, meta *session.Requ
 	req.SetMetaHeader(meta)
 
 	// sign request
-	require.NoError(t, signServiceMessage(signer, req))
+	require.NoError(t, signServiceMessage(signer, req, nil))
 
 	// verification must pass
 	require.NoError(t, verifyServiceMessage(req))
@@ -66,7 +66,7 @@ func testResponseSign(t *testing.T, signer neofscrypto.Signer, meta *session.Res
 	require.Error(t, verifyServiceMessage(resp))
 
 	// sign request
-	require.NoError(t, signServiceMessage(signer, resp))
+	require.NoError(t, signServiceMessage(signer, resp, nil))
 
 	// verification must pass
 	require.NoError(t, verifyServiceMessage(resp))
@@ -75,7 +75,7 @@ func testResponseSign(t *testing.T, signer neofscrypto.Signer, meta *session.Res
 	resp.SetMetaHeader(meta)
 
 	// sign request
-	require.NoError(t, signServiceMessage(signer, resp))
+	require.NoError(t, signServiceMessage(signer, resp, nil))
 
 	// verification must pass
 	require.NoError(t, verifyServiceMessage(resp))
@@ -102,7 +102,7 @@ func TestEmptyMessage(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 
 	require.NoError(t, verifyServiceMessage(nil))
-	require.NoError(t, signServiceMessage(signer, nil))
+	require.NoError(t, signServiceMessage(signer, nil, nil))
 }
 
 func TestBalanceRequest(t *testing.T) {

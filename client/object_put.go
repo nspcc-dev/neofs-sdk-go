@@ -92,6 +92,9 @@ type DefaultObjectWriter struct {
 	partChunk v2object.PutObjectPartChunk
 
 	statisticCallback shortStatisticCallback
+
+	buf              []byte
+	bufCleanCallback func()
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -127,7 +130,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	x.req.GetBody().SetObjectPart(&x.partInit)
 	x.req.SetVerificationHeader(nil)
 
-	x.err = signServiceMessage(x.signer, &x.req)
+	x.err = signServiceMessage(x.signer, &x.req, x.buf)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign message: %w", x.err)
 		return x.err
@@ -171,7 +174,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		x.partChunk.SetChunk(chunk[:ln])
 		x.req.SetVerificationHeader(nil)
 
-		x.err = signServiceMessage(x.signer, &x.req)
+		x.err = signServiceMessage(x.signer, &x.req, x.buf)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
 			return writtenBytes, x.err
@@ -217,6 +220,10 @@ func (x *DefaultObjectWriter) Close() error {
 		defer func() {
 			x.statisticCallback(x.err)
 		}()
+	}
+
+	if x.bufCleanCallback != nil {
+		defer x.bufCleanCallback()
 	}
 
 	if x.streamClosed {
@@ -294,6 +301,12 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
 		return nil, err
+	}
+
+	buf := c.buffers.Get().(*[]byte)
+	w.buf = *buf
+	w.bufCleanCallback = func() {
+		c.buffers.Put(buf)
 	}
 
 	w.signer = signer

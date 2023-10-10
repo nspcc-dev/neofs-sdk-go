@@ -10,6 +10,7 @@ import (
 // StablyMarshallable describes structs which can be marshalled transparently.
 type StablyMarshallable interface {
 	StableMarshal([]byte) []byte
+	StableSize() int
 }
 
 // Signature represents a confirmation of data integrity received by the
@@ -83,10 +84,13 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 // CalculateMarshalled signs data using Signer and encodes public key for subsequent verification.
 // If signer is a StaticSigner, just sets prepared signature.
 //
+// Pre-allocated byte slice can be passed in buf parameter to avoid new allocations. In ideal case buf length should be
+// StableSize length. If buffer length shorter than StableSize or nil, new slice will be allocated.
+//
 // Signer MUST NOT be nil.
 //
 // See also Verify.
-func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable) error {
+func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable, buf []byte) error {
 	if static, ok := signer.(*StaticSigner); ok {
 		x.fillSignature(signer, static.sig)
 		return nil
@@ -94,7 +98,11 @@ func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable) e
 
 	var data []byte
 	if obj != nil {
-		data = obj.StableMarshal(nil)
+		if len(buf) >= obj.StableSize() {
+			data = obj.StableMarshal(buf[0:obj.StableSize()])
+		} else {
+			data = obj.StableMarshal(nil)
+		}
 	}
 
 	return x.Calculate(signer, data)
