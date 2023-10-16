@@ -60,7 +60,7 @@ func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRe
 	resp.SetMetaHeader(&meta)
 
 	if x.signResponse {
-		err = signServiceMessage(x.signer, &resp)
+		err = signServiceMessage(x.signer, &resp, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}

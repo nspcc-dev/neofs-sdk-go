@@ -165,7 +165,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		err := signServiceMessage(signer, &resp)
+		err := signServiceMessage(signer, &resp, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
@@ -199,7 +199,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		err := signServiceMessage(signer, &resp)
+		err := signServiceMessage(signer, &resp, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
@@ -251,7 +251,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err = signServiceMessage(signer, &resp); err != nil {
+		if err = signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -281,7 +281,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -311,7 +311,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -344,7 +344,7 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -374,7 +374,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -405,7 +405,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -451,7 +451,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -490,7 +490,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -522,7 +522,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -556,7 +556,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -648,7 +648,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -718,7 +718,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -789,7 +789,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -859,7 +859,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -891,7 +891,7 @@ func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp); err != nil {
+		if err := signServiceMessage(signer, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 

@@ -369,7 +369,7 @@ func (x GlobalTrust) Trust() (res Trust) {
 func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
 	var sig neofscrypto.Signature
 
-	err := sig.CalculateMarshalled(signer, x.m.GetBody())
+	err := sig.CalculateMarshalled(signer, x.m.GetBody(), nil)
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}

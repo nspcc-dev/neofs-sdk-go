@@ -27,6 +27,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	// max GRPC message size.
+	defaultBufferSize = 4194304 // 4MB
+)
+
 type sdkClientInterface interface {
 	Dial(prm sdkClient.PrmDial) error
 
@@ -152,6 +157,7 @@ type wrapperPrm struct {
 	errorThreshold       uint32
 	responseInfoCallback func(sdkClient.ResponseMetaInfo) error
 	statisticCallback    stat.OperationCallback
+	buffers              *sync.Pool
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -190,11 +196,17 @@ func (x *wrapperPrm) setStatisticCallback(statisticCallback stat.OperationCallba
 	x.statisticCallback = statisticCallback
 }
 
+// setBuffers set buffer to message sign routine inside sdkClient.Client.
+func (x *wrapperPrm) setBuffers(buffers *sync.Pool) {
+	x.buffers = buffers
+}
+
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
 func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
 	prmInit.SetResponseInfoCallback(x.responseInfoCallback)
 	prmInit.SetStatisticCallback(statisticCallback)
+	prmInit.SetSignMessageBuffers(x.buffers)
 
 	return sdkClient.New(prmInit)
 }
@@ -572,6 +584,8 @@ type Pool struct {
 	logger          *zap.Logger
 
 	statisticCallback stat.OperationCallback
+
+	buffers *sync.Pool
 }
 
 type innerPool struct {
@@ -670,10 +684,16 @@ func NewPool(options InitParameters) (*Pool, error) {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
 
-	pool := &Pool{cache: cache}
+	buffers := &sync.Pool{}
+	buffers.New = func() any {
+		b := make([]byte, defaultBufferSize)
+		return &b
+	}
+
+	pool := &Pool{cache: cache, buffers: buffers}
 
 	// we need our middleware integration in clientBuilder
-	fillDefaultInitParams(&options, cache, pool.statisticMiddleware)
+	fillDefaultInitParams(&options, cache, pool.statisticMiddleware, pool.buffers)
 
 	pool.signer = options.signer
 	pool.logger = options.logger
@@ -746,7 +766,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 	return nil
 }
 
-func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisticCallback stat.OperationCallback) {
+func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisticCallback stat.OperationCallback, buffers *sync.Pool) {
 	if params.sessionExpirationDuration == 0 {
 		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
 	}
@@ -784,6 +804,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 				return nil
 			})
 			prm.setStatisticCallback(statisticCallback)
+			prm.setBuffers(buffers)
 			return newWrapper(prm)
 		})
 	}

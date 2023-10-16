@@ -518,7 +518,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	eaclV2 := table.ToV2()
 
 	var sig neofscrypto.Signature
-	err = sig.CalculateMarshalled(signer, eaclV2)
+	err = sig.CalculateMarshalled(signer, eaclV2, nil)
 	if err != nil {
 		err = fmt.Errorf("calculate signature: %w", err)
 		return err

@@ -93,6 +93,9 @@ type contextCall struct {
 
 	// function of writing response fields to the resulting structure (optional)
 	result func(v2 responseV2)
+
+	buf              []byte
+	bufCleanCallback func()
 }
 
 type request interface {
@@ -151,7 +154,7 @@ func (x *contextCall) writeRequest() bool {
 	x.req.SetVerificationHeader(nil)
 
 	// sign the request
-	x.err = signServiceMessage(x.signer, x.req)
+	x.err = signServiceMessage(x.signer, x.req, x.buf)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign request: %w", x.err)
 		return false
@@ -255,6 +258,10 @@ func (x *contextCall) processCall() bool {
 
 	// write request
 	ok := x.writeRequest()
+	if x.bufCleanCallback != nil {
+		x.bufCleanCallback()
+	}
+
 	if !ok {
 		return false
 	}
@@ -279,6 +286,12 @@ func (c *Client) initCallContext(ctx *contextCall) {
 	ctx.signer = c.prm.signer
 	ctx.callbackResp = c.prm.cbRespInfo
 	ctx.netMagic = c.prm.netMagic
+
+	buf := c.buffers.Get().(*[]byte)
+	ctx.buf = *buf
+	ctx.bufCleanCallback = func() {
+		c.buffers.Put(buf)
+	}
 }
 
 // ExecRaw executes f with underlying github.com/nspcc-dev/neofs-api-go/v2/rpc/client.Client

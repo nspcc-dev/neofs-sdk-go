@@ -134,7 +134,7 @@ func (s stableMarshalerWrapper) SignedDataSize() int {
 // signServiceMessage signing request or response messages which can be sent or received from neofs endpoint.
 // Return errors:
 //   - [ErrSign]
-func signServiceMessage(signer neofscrypto.Signer, msg interface{}) error {
+func signServiceMessage(signer neofscrypto.Signer, msg interface{}, buf []byte) error {
 	var (
 		body, meta, verifyOrigin stableMarshaler
 		verifyHdr                verificationHeader
@@ -172,18 +172,18 @@ func signServiceMessage(signer neofscrypto.Signer, msg interface{}) error {
 
 	if verifyOrigin == nil {
 		// sign session message body
-		if err := signServiceMessagePart(signer, body, verifyHdr.SetBodySignature); err != nil {
+		if err := signServiceMessagePart(signer, body, verifyHdr.SetBodySignature, buf); err != nil {
 			return NewSignError(fmt.Errorf("body: %w", err))
 		}
 	}
 
 	// sign meta header
-	if err := signServiceMessagePart(signer, meta, verifyHdr.SetMetaSignature); err != nil {
+	if err := signServiceMessagePart(signer, meta, verifyHdr.SetMetaSignature, buf); err != nil {
 		return NewSignError(fmt.Errorf("meta header: %w", err))
 	}
 
 	// sign verification header origin
-	if err := signServiceMessagePart(signer, verifyOrigin, verifyHdr.SetOriginSignature); err != nil {
+	if err := signServiceMessagePart(signer, verifyOrigin, verifyHdr.SetOriginSignature, buf); err != nil {
 		return NewSignError(fmt.Errorf("origin of verification header: %w", err))
 	}
 
@@ -196,11 +196,11 @@ func signServiceMessage(signer neofscrypto.Signer, msg interface{}) error {
 	return nil
 }
 
-func signServiceMessagePart(signer neofscrypto.Signer, part stableMarshaler, sigWrite func(*refs.Signature)) error {
+func signServiceMessagePart(signer neofscrypto.Signer, part stableMarshaler, sigWrite func(*refs.Signature), buf []byte) error {
 	var sig neofscrypto.Signature
 	var sigv2 refs.Signature
 
-	if err := sig.CalculateMarshalled(signer, part); err != nil {
+	if err := sig.CalculateMarshalled(signer, part, buf); err != nil {
 		return fmt.Errorf("calculate %w", err)
 	}
 

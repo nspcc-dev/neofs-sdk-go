@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -11,6 +12,11 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+)
+
+const (
+	// max GRPC message size.
+	defaultBufferSize = 4194304 // 4MB
 )
 
 // Client represents virtual connection to the NeoFS network to communicate
@@ -51,6 +57,8 @@ type Client struct {
 
 	endpoint string
 	nodeKey  []byte
+
+	buffers *sync.Pool
 }
 
 // New creates an instance of Client initialized with the given parameters.
@@ -64,6 +72,21 @@ func New(prm PrmInit) (*Client, error) {
 	}
 
 	prm.signer = neofsecdsa.SignerRFC6979(pk.PrivateKey)
+
+	if prm.buffers != nil {
+		c.buffers = prm.buffers
+	} else {
+		size := prm.signMessageBufferSizes
+		if size == 0 {
+			size = defaultBufferSize
+		}
+
+		c.buffers = &sync.Pool{}
+		c.buffers.New = func() any {
+			b := make([]byte, size)
+			return &b
+		}
+	}
 
 	c.prm = prm
 	return c, nil
@@ -175,6 +198,20 @@ type PrmInit struct {
 	netMagic uint64
 
 	statisticCallback stat.OperationCallback
+
+	signMessageBufferSizes uint64
+	buffers                *sync.Pool
+}
+
+// SetSignMessageBufferSizes sets single buffer size to the buffers pool inside client.
+// This pool are using in GRPC message signing process and helps to reduce memory allocations.
+func (x *PrmInit) SetSignMessageBufferSizes(size uint64) {
+	x.signMessageBufferSizes = size
+}
+
+// SetSignMessageBuffers sets buffers which are using in GRPC message signing process and helps to reduce memory allocations.
+func (x *PrmInit) SetSignMessageBuffers(buffers *sync.Pool) {
+	x.buffers = buffers
 }
 
 // SetResponseInfoCallback makes the Client to pass ResponseMetaInfo from each

@@ -145,7 +145,9 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 	c.prepareRequest(&req, &prm.meta)
 	req.SetBody(&prm.body)
 
-	err = signServiceMessage(signer, &req)
+	buf := c.buffers.Get().(*[]byte)
+	err = signServiceMessage(signer, &req, *buf)
+	c.buffers.Put(buf)
 	if err != nil {
 		err = fmt.Errorf("sign request: %w", err)
 		return nil, err

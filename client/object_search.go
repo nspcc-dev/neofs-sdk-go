@@ -217,7 +217,9 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	err = signServiceMessage(signer, &req)
+	buf := c.buffers.Get().(*[]byte)
+	err = signServiceMessage(signer, &req, *buf)
+	c.buffers.Put(buf)
 	if err != nil {
 		err = fmt.Errorf("sign request: %w", err)
 		return nil, err

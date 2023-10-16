@@ -15,6 +15,8 @@ type Options struct {
 
 	copiesNumber uint32
 
+	payloadBuffer []byte
+
 	sessionToken *session.Object
 	bearerToken  *bearer.Token
 }
@@ -53,6 +55,12 @@ func (x *Options) SetCopiesNumber(copiesNumber uint32) {
 	x.copiesNumber = copiesNumber
 }
 
+// SetPayloadBuffer sets pre-allocated payloadBuffer to be used to object uploading.
+// For better performance payloadBuffer length should be MaxObjectSize from NeoFS.
+func (x *Options) SetPayloadBuffer(payloadBuffer []byte) {
+	x.payloadBuffer = payloadBuffer
+}
+
 // ObjectPayloadLimit returns required max object size.
 func (x *Options) ObjectPayloadLimit() uint64 {
 	return x.objectPayloadLimit
@@ -81,4 +89,9 @@ func (x *Options) BearerToken() *bearer.Token {
 // CopiesNumber returns the number of object copies.
 func (x *Options) CopiesNumber() uint32 {
 	return x.copiesNumber
+}
+
+// PayloadBuffer returns chunk which are using to object uploading.
+func (x *Options) PayloadBuffer() []byte {
+	return x.payloadBuffer
 }

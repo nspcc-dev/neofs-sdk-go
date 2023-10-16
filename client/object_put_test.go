@@ -45,7 +45,7 @@ func (t *testPutStreamAccessDenied) Close() error {
 	m.SetStatus(apistatus.ErrObjectAccessDenied.ErrorToV2())
 
 	t.resp.SetMetaHeader(m)
-	require.NoError(t.t, signServiceMessage(t.signer, t.resp))
+	require.NoError(t.t, signServiceMessage(t.signer, t.resp, nil))
 
 	return nil
 }

@@ -28,7 +28,7 @@ func (m sessionAPIServer) createSession(*client.Client, *session.CreateRequest, 
 	var resp session.CreateResponse
 	resp.SetBody(&body)
 
-	if err := signServiceMessage(m.signer, &resp); err != nil {
+	if err := signServiceMessage(m.signer, &resp, nil); err != nil {
 		return nil, err
 	}
 

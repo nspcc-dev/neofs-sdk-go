@@ -282,8 +282,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
-
-	err = signServiceMessage(signer, &req)
+	buf := c.buffers.Get().(*[]byte)
+	err = signServiceMessage(signer, &req, *buf)
+	c.buffers.Put(buf)
 	if err != nil {
 		err = fmt.Errorf("sign request: %w", err)
 		return hdr, nil, err
@@ -369,8 +370,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	// sign the request
-	err = signServiceMessage(signer, &req)
+	buf := c.buffers.Get().(*[]byte)
+	err = signServiceMessage(signer, &req, *buf)
+	c.buffers.Put(buf)
 	if err != nil {
 		err = fmt.Errorf("sign request: %w", err)
 		return nil, err
@@ -616,7 +618,9 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	req.SetBody(&body)
 	c.prepareRequest(&req, &prm.meta)
 
-	err = signServiceMessage(signer, &req)
+	buf := c.buffers.Get().(*[]byte)
+	err = signServiceMessage(signer, &req, *buf)
+	c.buffers.Put(buf)
 	if err != nil {
 		err = fmt.Errorf("sign request: %w", err)
 		return nil, err

@@ -164,7 +164,10 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 	objectPayloadLimit := childPayloadSizeLimit(opts)
 
 	var n int
-	bChunk := make([]byte, objectPayloadLimit)
+	bChunk := opts.payloadBuffer
+	if bChunk == nil {
+		bChunk = make([]byte, objectPayloadLimit)
+	}
 
 	writer, err := initPayloadStream(ctx, ow, header, signer, opts)
 	if err != nil {
