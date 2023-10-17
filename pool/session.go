@@ -19,7 +19,7 @@ var (
 )
 
 func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer user.Signer) (session.Object, error) {
-	tok := c.nodeSession.GetNodeSession()
+	tok := c.nodeSession.GetNodeSession(signer.Public())
 	if tok != nil {
 		return *tok, nil
 	}
@@ -62,7 +62,7 @@ func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer us
 	dst.SetAuthKey(&key)
 	dst.SetExp(exp)
 
-	c.nodeSession.SetNodeSession(&dst)
+	c.nodeSession.SetNodeSession(&dst, signer.Public())
 
 	return dst, nil
 }
