@@ -30,6 +30,8 @@ import (
 const (
 	// max GRPC message size.
 	defaultBufferSize = 4194304 // 4MB
+
+	defaultNodeSessionCacheSize = 100
 )
 
 type sdkClientInterface interface {
@@ -67,12 +69,13 @@ type sdkClientWrapper struct {
 	addr        string
 }
 
-// nodeSessionContainer represents storage for a session token. It contains only basics session info: id, pub key, expiration.
-// This token is used for the final session tokens creation for specific verb. This token is 1:1 for each node.
+// nodeSessionContainer represents storage for a session tokens. It contains only basics session info: id, pub key, expiration.
+// This tokens are used for the final session tokens creation for specific verb. This token is 1:1 for each public key in the node.
 // Should be stored until token not expired.
 type nodeSessionContainer interface {
-	SetNodeSession(*session.Object)
-	GetNodeSession() *session.Object
+	SetNodeSession(*session.Object, neofscrypto.PublicKey)
+	GetNodeSession(neofscrypto.PublicKey) *session.Object
+	ResetSessions()
 }
 
 // client represents virtual connection to the single NeoFS network endpoint from which Pool is formed.
@@ -142,8 +145,7 @@ type clientWrapper struct {
 	clientStatusMonitor
 	statisticCallback stat.OperationCallback
 
-	nodeSessionMutex sync.RWMutex
-	nodeSession      *session.Object
+	nodeSessionCache *sessionCache
 
 	epoch atomic.Uint64
 }
@@ -158,6 +160,7 @@ type wrapperPrm struct {
 	responseInfoCallback func(sdkClient.ResponseMetaInfo) error
 	statisticCallback    stat.OperationCallback
 	buffers              *sync.Pool
+	nodeSessionCacheSize int
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -201,6 +204,11 @@ func (x *wrapperPrm) setBuffers(buffers *sync.Pool) {
 	x.buffers = buffers
 }
 
+// SetNodeSessionCacheSize sets cache size for the basic sessions for node.
+func (x *wrapperPrm) setNodeSessionCacheSize(cacheSize int) {
+	x.nodeSessionCacheSize = cacheSize
+}
+
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
 func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
@@ -213,9 +221,20 @@ func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sd
 
 // newWrapper creates a clientWrapper that implements the client interface.
 func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
+	cacheSize := prm.nodeSessionCacheSize
+	if cacheSize == 0 {
+		cacheSize = defaultNodeSessionCacheSize
+	}
+
+	cache, err := newCache(cacheSize)
+	if err != nil {
+		return nil, fmt.Errorf("cacheNodeSessions: %w", err)
+	}
+
 	res := &clientWrapper{
 		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
 		statisticCallback:   prm.statisticCallback,
+		nodeSessionCache:    cache,
 	}
 
 	oldCallBack := prm.responseInfoCallback
@@ -223,6 +242,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 		newEpoch := info.Epoch()
 		if newEpoch > res.epoch.Load() {
 			res.epoch.Store(newEpoch)
+			cache.updateEpoch(newEpoch)
 		}
 
 		if oldCallBack != nil {
@@ -330,26 +350,25 @@ func (c *clientWrapper) getRawClient() (*sdkClient.Client, error) {
 	return nil, errPoolClientUnhealthy
 }
 
-func (c *clientWrapper) SetNodeSession(token *session.Object) {
-	c.nodeSessionMutex.Lock()
-	c.nodeSession = token
-	c.nodeSessionMutex.Unlock()
+func (c *clientWrapper) nodeSessionKey(pubKey neofscrypto.PublicKey) string {
+	return string(neofscrypto.PublicKeyBytes(pubKey))
 }
 
-func (c *clientWrapper) GetNodeSession() *session.Object {
-	c.nodeSessionMutex.RLock()
-	defer c.nodeSessionMutex.RUnlock()
+func (c *clientWrapper) SetNodeSession(token *session.Object, pubKey neofscrypto.PublicKey) {
+	c.nodeSessionCache.Put(c.nodeSessionKey(pubKey), *token)
+}
 
-	if c.nodeSession == nil {
-		return nil
+func (c *clientWrapper) GetNodeSession(pubKey neofscrypto.PublicKey) *session.Object {
+	tok, ok := c.nodeSessionCache.Get(c.nodeSessionKey(pubKey))
+	if ok {
+		return &tok
 	}
 
-	if c.nodeSession.ExpiredAt(c.epoch.Load() + 1) {
-		return nil
-	}
+	return nil
+}
 
-	token := *c.nodeSession
-	return &token
+func (c *clientWrapper) ResetSessions() {
+	c.nodeSessionCache.Purge()
 }
 
 func (c *clientStatusMonitor) isHealthy() bool {
@@ -433,6 +452,7 @@ type InitParameters struct {
 	sessionExpirationDuration uint64
 	errorThreshold            uint32
 	nodeParams                []NodeParam
+	nodeSessionCacheSize      int
 
 	clientBuilder clientBuilder
 
@@ -504,6 +524,11 @@ func (x *InitParameters) isMissingClientBuilder() bool {
 // SetStatisticCallback makes the Pool to pass [stat.OperationCallback] for external statistic.
 func (x *InitParameters) SetStatisticCallback(statisticCallback stat.OperationCallback) {
 	x.statisticCallback = statisticCallback
+}
+
+// SetNodeSessionCacheSize sets cache size for the basic sessions for node.
+func (x *InitParameters) SetNodeSessionCacheSize(cacheSize int) {
+	x.nodeSessionCacheSize = cacheSize
 }
 
 type rebalanceParameters struct {
@@ -805,6 +830,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 			})
 			prm.setStatisticCallback(statisticCallback)
 			prm.setBuffers(buffers)
+			prm.setNodeSessionCacheSize(params.nodeSessionCacheSize)
 			return newWrapper(prm)
 		})
 	}
@@ -902,7 +928,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 			} else {
 				bufferWeights[j] = 0
 				p.cache.DeleteByPrefix(cli.address())
-				cli.SetNodeSession(nil)
+				cli.ResetSessions()
 			}
 
 			if changed {
@@ -981,7 +1007,7 @@ func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionCon
 
 	if errors.Is(err, apistatus.ErrSessionTokenNotFound) || errors.Is(err, apistatus.ErrSessionTokenExpired) {
 		p.cache.DeleteByPrefix(address)
-		cl.SetNodeSession(nil)
+		cl.ResetSessions()
 	}
 }
 

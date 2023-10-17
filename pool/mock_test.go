@@ -241,9 +241,12 @@ func (m *mockClient) getRawClient() (*client.Client, error) {
 	return nil, errors.New("now supported to return sdkClient from mockClient")
 }
 
-func (m *mockClient) SetNodeSession(*session.Object) {
+func (m *mockClient) SetNodeSession(*session.Object, neofscrypto.PublicKey) {
 }
 
-func (m *mockClient) GetNodeSession() *session.Object {
+func (m *mockClient) GetNodeSession(neofscrypto.PublicKey) *session.Object {
 	return nil
+}
+
+func (m *mockClient) ResetSessions() {
 }
