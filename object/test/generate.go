@@ -26,10 +26,7 @@ func Range() object.Range {
 
 // Attribute returns random object.Attribute.
 func Attribute() object.Attribute {
-	x := object.NewAttribute()
-
-	x.SetKey("key")
-	x.SetValue("value")
+	x := object.NewAttribute("key", "value")
 
 	return *x
 }

@@ -10,9 +10,7 @@ import (
 func TestAttribute(t *testing.T) {
 	key, val := "some key", "some value"
 
-	a := NewAttribute()
-	a.SetKey(key)
-	a.SetValue(val)
+	a := NewAttribute(key, val)
 
 	require.Equal(t, key, a.Key())
 	require.Equal(t, val, a.Value())
@@ -24,15 +22,13 @@ func TestAttribute(t *testing.T) {
 }
 
 func TestAttributeEncoding(t *testing.T) {
-	a := NewAttribute()
-	a.SetKey("key")
-	a.SetValue("value")
+	a := NewAttribute("key", "value")
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := a.Marshal()
 		require.NoError(t, err)
 
-		a2 := NewAttribute()
+		a2 := NewAttribute("", "")
 		require.NoError(t, a2.Unmarshal(data))
 
 		require.Equal(t, a, a2)
@@ -42,7 +38,7 @@ func TestAttributeEncoding(t *testing.T) {
 		data, err := a.MarshalJSON()
 		require.NoError(t, err)
 
-		a2 := NewAttribute()
+		a2 := NewAttribute("", "")
 		require.NoError(t, a2.UnmarshalJSON(data))
 
 		require.Equal(t, a, a2)
@@ -67,7 +63,7 @@ func TestAttribute_ToV2(t *testing.T) {
 
 func TestNewAttribute(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
-		a := NewAttribute()
+		a := NewAttribute("", "")
 
 		// check initial values
 		require.Empty(t, a.Key())
@@ -78,5 +74,18 @@ func TestNewAttribute(t *testing.T) {
 
 		require.Empty(t, aV2.GetKey())
 		require.Empty(t, aV2.GetValue())
+	})
+
+	t.Run("pre installed key and value", func(t *testing.T) {
+		a := NewAttribute("key", "value")
+
+		require.NotEmpty(t, a.Key())
+		require.NotEmpty(t, a.Value())
+
+		// convert to v2 message
+		aV2 := a.ToV2()
+
+		require.NotEmpty(t, aV2.GetKey())
+		require.NotEmpty(t, aV2.GetValue())
 	})
 }
