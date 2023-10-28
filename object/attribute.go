@@ -30,15 +30,13 @@ func NewAttributeFromV2(aV2 *object.Attribute) *Attribute {
 	return (*Attribute)(aV2)
 }
 
-// NewAttribute creates and initializes blank [Attribute].
-//
-// Works similar as NewAttributeFromV2(new(Attribute)).
-//
-// Defaults:
-//   - key: "";
-//   - value: "".
-func NewAttribute() *Attribute {
-	return NewAttributeFromV2(new(object.Attribute))
+// NewAttribute creates and initializes new [Attribute].
+func NewAttribute(key, value string) *Attribute {
+	attr := new(object.Attribute)
+	attr.SetKey(key)
+	attr.SetValue(value)
+
+	return NewAttributeFromV2(attr)
 }
 
 // Key returns key to the object attribute.

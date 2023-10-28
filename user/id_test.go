@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	. "github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -17,7 +17,7 @@ func TestID_WalletBytes(t *testing.T) {
 	var scriptHash util.Uint160
 	rand.Read(scriptHash[:])
 
-	var id ID
+	var id user.ID
 	id.SetScriptHash(scriptHash)
 
 	w := id.WalletBytes()
@@ -33,13 +33,13 @@ func TestID_SetScriptHash(t *testing.T) {
 	var scriptHash util.Uint160
 	rand.Read(scriptHash[:])
 
-	var id ID
+	var id user.ID
 	id.SetScriptHash(scriptHash)
 
 	var m refs.OwnerID
 	id.WriteToV2(&m)
 
-	var id2 ID
+	var id2 user.ID
 
 	err := id2.ReadFromV2(m)
 	require.NoError(t, err)
@@ -50,7 +50,7 @@ func TestID_SetScriptHash(t *testing.T) {
 func TestV2_ID(t *testing.T) {
 	id := usertest.ID(t)
 	var m refs.OwnerID
-	var id2 ID
+	var id2 user.ID
 
 	t.Run("OK", func(t *testing.T) {
 		id.WriteToV2(&m)
@@ -98,7 +98,7 @@ func TestID_EncodeToString(t *testing.T) {
 	_, err := base58.Decode(s)
 	require.NoError(t, err)
 
-	var id2 ID
+	var id2 user.ID
 
 	err = id2.DecodeString(s)
 	require.NoError(t, err)
