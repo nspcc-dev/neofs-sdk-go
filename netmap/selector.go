@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/nspcc-dev/hrw"
+	"github.com/nspcc-dev/hrw/v2"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
@@ -107,7 +107,7 @@ func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, e
 			weights[i] = calcBucketWeight(res[i], newMeanIQRAgg(), c.weightFunc)
 		}
 
-		hrw.SortSliceByWeightValue(res, weights, c.hrwSeedHash)
+		hrw.SortWeighted(res, weights, c.hrwSeedHash)
 	}
 
 	if s.GetAttribute() == "" {
@@ -159,7 +159,7 @@ func (c *context) getSelectionBase(s netmap.Selector) []nodeAttrPair {
 
 	if len(c.hrwSeed) != 0 {
 		for i := range result {
-			hrw.SortSliceByWeightValue(result[i].nodes, result[i].nodes.weights(c.weightFunc), c.hrwSeedHash)
+			hrw.SortWeighted(result[i].nodes, result[i].nodes.weights(c.weightFunc), c.hrwSeedHash)
 		}
 	}
 

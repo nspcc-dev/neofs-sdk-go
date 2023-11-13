@@ -3,7 +3,7 @@ package netmap
 import (
 	"errors"
 
-	"github.com/nspcc-dev/hrw"
+	"github.com/nspcc-dev/hrw/v2"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
@@ -27,7 +27,7 @@ type context struct {
 	hrwSeed []byte
 
 	// hrw.Hash of hrwSeed
-	hrwSeedHash uint64
+	hrwSeedHash hrw.Hashable
 
 	// weightFunc is a weighting function for determining node priority
 	// which combines low price and high performance
@@ -64,7 +64,7 @@ func newContext(nm NetMap) *context {
 func (c *context) setPivot(pivot []byte) {
 	if len(pivot) != 0 {
 		c.hrwSeed = pivot
-		c.hrwSeedHash = hrw.Hash(pivot)
+		c.hrwSeedHash = hrw.WrapBytes(pivot)
 	}
 }
 

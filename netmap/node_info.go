@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nspcc-dev/hrw"
+	"github.com/nspcc-dev/hrw/v2"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
@@ -217,7 +217,7 @@ func IterateNetworkEndpoints(node NodeInfo, f func(string)) {
 }
 
 // assert NodeInfo type provides hrw.Hasher required for HRW sorting.
-var _ hrw.Hasher = NodeInfo{}
+var _ hrw.Hashable = NodeInfo{}
 
 // Hash implements hrw.Hasher interface.
 //

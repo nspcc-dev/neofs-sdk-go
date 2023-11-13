@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/nspcc-dev/hrw"
+	"github.com/nspcc-dev/hrw/v2"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -104,7 +104,7 @@ func (m NetMap) Epoch() uint64 {
 type nodes []NodeInfo
 
 // assert nodes type provides hrw.Hasher required for HRW sorting.
-var _ hrw.Hasher = nodes{}
+var _ hrw.Hashable = nodes{}
 
 // Hash is a function from hrw.Hasher interface. It is implemented
 // to support weighted hrw sorting of buckets. Each bucket is already sorted by hrw,
@@ -152,14 +152,14 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 	pivot := make([]byte, sha256.Size)
 	objectID.Encode(pivot)
 
-	h := hrw.Hash(pivot)
+	h := hrw.WrapBytes(pivot)
 	wf := defaultWeightFunc(m.nodes)
 	result := make([][]NodeInfo, len(vectors))
 
 	for i := range vectors {
 		result[i] = make([]NodeInfo, len(vectors[i]))
 		copy(result[i], vectors[i])
-		hrw.SortSliceByWeightValue(result[i], nodes(result[i]).weights(wf), h)
+		hrw.SortWeighted(result[i], nodes(result[i]).weights(wf), h)
 	}
 
 	return result, nil
