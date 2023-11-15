@@ -40,7 +40,7 @@ func SplitID() object.SplitID {
 	return *x
 }
 
-func generate(t *testing.T, withParent bool) object.Object {
+func generate(t testing.TB, withParent bool) object.Object {
 	x := object.New()
 	ver := version.Current()
 
@@ -74,12 +74,12 @@ func generate(t *testing.T, withParent bool) object.Object {
 
 // Raw returns random object.Object.
 // Deprecated: (v1.0.0) use Object instead.
-func Raw(t *testing.T) object.Object {
+func Raw(t testing.TB) object.Object {
 	return Object(t)
 }
 
 // Object returns random object.Object.
-func Object(t *testing.T) object.Object {
+func Object(t testing.TB) object.Object {
 	return generate(t, true)
 }
 
