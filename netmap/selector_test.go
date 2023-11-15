@@ -3,15 +3,20 @@ package netmap
 import (
 	"fmt"
 	"math/rand"
-	"sort"
 	"strconv"
 	"testing"
 
-	"github.com/nspcc-dev/hrw"
+	"github.com/nspcc-dev/hrw/v2"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/stretchr/testify/require"
 )
+
+type hashableUint uint64
+
+func (h hashableUint) Hash() uint64 {
+	return uint64(h)
+}
 
 func BenchmarkHRWSort(b *testing.B) {
 	const netmapSize = 1000
@@ -31,18 +36,7 @@ func BenchmarkHRWSort(b *testing.B) {
 		weights[i] = float64(rand.Uint32()%10) / 10.0
 	}
 
-	pivot := rand.Uint64()
-	b.Run("sort by index, no weight", func(b *testing.B) {
-		realNodes := make([]nodes, netmapSize)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			copy(realNodes, vectors)
-			b.StartTimer()
-
-			hrw.SortSliceByIndex(realNodes, pivot)
-		}
-	})
+	pivot := hashableUint(rand.Uint64())
 	b.Run("sort by value, no weight", func(b *testing.B) {
 		realNodes := make([]nodes, netmapSize)
 		b.ResetTimer()
@@ -51,18 +45,7 @@ func BenchmarkHRWSort(b *testing.B) {
 			copy(realNodes, vectors)
 			b.StartTimer()
 
-			hrw.SortSliceByValue(realNodes, pivot)
-		}
-	})
-	b.Run("only sort by index", func(b *testing.B) {
-		realNodes := make([]nodes, netmapSize)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			copy(realNodes, vectors)
-			b.StartTimer()
-
-			hrw.SortSliceByWeightIndex(realNodes, weights, pivot)
+			hrw.Sort(realNodes, pivot)
 		}
 	})
 	b.Run("sort by value", func(b *testing.B) {
@@ -73,21 +56,7 @@ func BenchmarkHRWSort(b *testing.B) {
 			copy(realNodes, vectors)
 			b.StartTimer()
 
-			hrw.SortSliceByWeightValue(realNodes, weights, pivot)
-		}
-	})
-	b.Run("sort by ID, then by index (deterministic)", func(b *testing.B) {
-		realNodes := make([]nodes, netmapSize)
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			b.StopTimer()
-			copy(realNodes, vectors)
-			b.StartTimer()
-
-			sort.Slice(vectors, func(i, j int) bool {
-				return less(vectors[i][0], vectors[j][0])
-			})
-			hrw.SortSliceByWeightIndex(realNodes, weights, pivot)
+			hrw.SortWeighted(realNodes, weights, pivot)
 		}
 	})
 }
