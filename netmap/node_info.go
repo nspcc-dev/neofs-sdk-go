@@ -314,53 +314,35 @@ func (x NodeInfo) LOCODE() string {
 
 // SetCountryCode sets code of the country in ISO 3166-1_alpha-2 to which
 // storage node belongs (or the closest one).
-//
-// SetCountryCode is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetCountryCode(countryCode string) {
 	x.SetAttribute("CountryCode", countryCode)
 }
 
 // SetCountryName sets short name of the country in ISO-3166 format to which
 // storage node belongs (or the closest one).
-//
-// SetCountryName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetCountryName(country string) {
 	x.SetAttribute("Country", country)
 }
 
 // SetLocationName sets storage node's location name from "NameWoDiacritics"
 // column in the UN/LOCODE record corresponding to the specified LOCODE.
-//
-// SetLocationName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetLocationName(location string) {
 	x.SetAttribute("Location", location)
 }
 
 // SetSubdivisionCode sets storage node's subdivision code from "SubDiv" column in
 // the UN/LOCODE record corresponding to the specified LOCODE.
-//
-// SetSubdivisionCode is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetSubdivisionCode(subDiv string) {
 	x.SetAttribute("SubDivCode", subDiv)
 }
 
 // SetSubdivisionName sets storage node's subdivision name in ISO 3166-2 format.
-//
-// SetSubdivisionName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetSubdivisionName(subDiv string) {
 	x.SetAttribute("SubDiv", subDiv)
 }
 
 // SetContinentName sets name of the storage node's continent from
 // Seven-Continent model.
-//
-// SetContinentName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetContinentName(continent string) {
 	x.SetAttribute("Continent", continent)
 }
