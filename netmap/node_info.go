@@ -291,7 +291,15 @@ func (x NodeInfo) capacity() uint64 {
 	return capacity
 }
 
-const attrUNLOCODE = "UN-LOCODE"
+const (
+	attrUNLOCODE    = "UN-LOCODE"
+	attrCountryCode = "CountryCode"
+	attrCountryName = "Country"
+	attrLocation    = "Location"
+	attrSubDivCode  = "SubDivCode"
+	attrSubDivName  = "SubDiv"
+	attrContinent   = "Continent"
+)
 
 // SetLOCODE specifies node's geographic location in UN/LOCODE format. Each
 // storage node MUST declare it for entrance to the NeoFS network. Node MAY
@@ -314,55 +322,85 @@ func (x NodeInfo) LOCODE() string {
 
 // SetCountryCode sets code of the country in ISO 3166-1_alpha-2 to which
 // storage node belongs (or the closest one).
-//
-// SetCountryCode is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetCountryCode(countryCode string) {
-	x.SetAttribute("CountryCode", countryCode)
+	x.SetAttribute(attrCountryCode, countryCode)
+}
+
+// CountryCode returns node's country code set using SetCountryCode.
+//
+// Zero NodeInfo has empty country code which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) CountryCode() string {
+	return x.Attribute(attrCountryCode)
 }
 
 // SetCountryName sets short name of the country in ISO-3166 format to which
 // storage node belongs (or the closest one).
-//
-// SetCountryName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetCountryName(country string) {
-	x.SetAttribute("Country", country)
+	x.SetAttribute(attrCountryName, country)
+}
+
+// CountryName returns node's country name set using SetCountryName.
+//
+// Zero NodeInfo has empty country name which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) CountryName() string {
+	return x.Attribute(attrCountryName)
 }
 
 // SetLocationName sets storage node's location name from "NameWoDiacritics"
 // column in the UN/LOCODE record corresponding to the specified LOCODE.
-//
-// SetLocationName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetLocationName(location string) {
-	x.SetAttribute("Location", location)
+	x.SetAttribute(attrLocation, location)
+}
+
+// LocationName returns node's location set using SetLocationName.
+//
+// Zero NodeInfo has empty location which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) LocationName() string {
+	return x.Attribute(attrLocation)
 }
 
 // SetSubdivisionCode sets storage node's subdivision code from "SubDiv" column in
 // the UN/LOCODE record corresponding to the specified LOCODE.
-//
-// SetSubdivisionCode is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetSubdivisionCode(subDiv string) {
-	x.SetAttribute("SubDivCode", subDiv)
+	x.SetAttribute(attrSubDivCode, subDiv)
+}
+
+// SubdivisionCode returns node's subdivision code set using SetSubdivisionCode.
+//
+// Zero NodeInfo has subdivision code which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) SubdivisionCode() string {
+	return x.Attribute(attrSubDivCode)
 }
 
 // SetSubdivisionName sets storage node's subdivision name in ISO 3166-2 format.
-//
-// SetSubdivisionName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetSubdivisionName(subDiv string) {
-	x.SetAttribute("SubDiv", subDiv)
+	x.SetAttribute(attrSubDivName, subDiv)
+}
+
+// SubdivisionName returns node's subdivision name set using SetSubdivisionName.
+//
+// Zero NodeInfo has subdivision name which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) SubdivisionName() string {
+	return x.Attribute(attrSubDivName)
 }
 
 // SetContinentName sets name of the storage node's continent from
 // Seven-Continent model.
-//
-// SetContinentName is intended only for processing the network registration
-// request by the Inner Ring. Other parties SHOULD NOT use it.
 func (x *NodeInfo) SetContinentName(continent string) {
-	x.SetAttribute("Continent", continent)
+	x.SetAttribute(attrContinent, continent)
+}
+
+// ContinentName returns node's continent set using SetContinentName.
+//
+// Zero NodeInfo has continent which is invalid according to
+// NeoFS API system requirement.
+func (x NodeInfo) ContinentName() string {
+	return x.Attribute(attrContinent)
 }
 
 // Enumeration of well-known attributes.
