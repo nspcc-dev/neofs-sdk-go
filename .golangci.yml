@@ -24,6 +24,9 @@ linters-settings:
   govet:
     # report about shadowed variables
     check-shadowing: false
+  ireturn:
+    reject:
+      - empty
 
 linters:
   enable:
@@ -43,6 +46,7 @@ linters:
     - exhaustive
     - godot
     - gofmt
+    - ireturn
     - whitespace
     - goimports
   disable-all: true
