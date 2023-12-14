@@ -134,7 +134,7 @@ func (s stableMarshalerWrapper) SignedDataSize() int {
 // signServiceMessage signing request or response messages which can be sent or received from neofs endpoint.
 // Return errors:
 //   - [ErrSign]
-func signServiceMessage(signer neofscrypto.Signer, msg interface{}, buf []byte) error {
+func signServiceMessage(signer neofscrypto.Signer, msg any, buf []byte) error {
 	var (
 		body, meta, verifyOrigin stableMarshaler
 		verifyHdr                verificationHeader
@@ -210,7 +210,7 @@ func signServiceMessagePart(signer neofscrypto.Signer, part stableMarshaler, sig
 	return nil
 }
 
-func verifyServiceMessage(msg interface{}) error {
+func verifyServiceMessage(msg any) error {
 	var (
 		meta   metaHeader
 		verify verificationHeader
