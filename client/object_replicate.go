@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sync"
 
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -35,6 +36,8 @@ import (
 // Source [io.ReadSeeker] must point to the start. Note that ReplicateObject
 // does not reset src to start after the call. If it is needed, do not forget to
 // Seek.
+//
+// See also [DemuxReplicatedObject].
 //
 // Return errors:
 //   - [apistatus.ErrServerInternal]: internal server error described in the text message;
@@ -77,7 +80,49 @@ func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer 
 	return resp.err
 }
 
+// DemuxReplicatedObject allows to share same argument between multiple
+// [Client.ReplicateObject] calls for deduplication of network messages. This
+// option should be used with caution and only to achieve traffic demux
+// optimization goals.
+func DemuxReplicatedObject(src io.ReadSeeker) io.ReadSeeker {
+	return &demuxReplicationMessage{
+		rs: src,
+	}
+}
+
+type demuxReplicationMessage struct {
+	rs io.ReadSeeker
+
+	mtx sync.Mutex
+	msg []byte
+	err error
+}
+
+func (x *demuxReplicationMessage) Read(p []byte) (n int, err error) {
+	return x.rs.Read(p)
+}
+
+func (x *demuxReplicationMessage) Seek(offset int64, whence int) (int64, error) {
+	return x.rs.Seek(offset, whence)
+}
+
 func prepareReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
+	srm, ok := src.(*demuxReplicationMessage)
+	if !ok {
+		return newReplicateMessage(src, signer)
+	}
+
+	srm.mtx.Lock()
+	defer srm.mtx.Unlock()
+
+	if srm.msg == nil && srm.err == nil {
+		srm.msg, srm.err = newReplicateMessage(src, signer)
+	}
+
+	return srm.msg, srm.err
+}
+
+func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
 	var objSize uint64
 	switch v := src.(type) {
 	default:

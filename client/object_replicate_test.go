@@ -6,8 +6,10 @@ import (
 	"crypto/rand"
 	"fmt"
 	"net"
+	"sync"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	status "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
@@ -177,5 +179,33 @@ func TestClient_ReplicateObject(t *testing.T) {
 			err := cli.ReplicateObject(ctx, bytes.NewReader(bObj), signer)
 			require.ErrorIs(t, err, tc.expErr, tc.desc)
 		}
+	})
+
+	t.Run("demux", func(t *testing.T) {
+		demuxObj := DemuxReplicatedObject(bytes.NewReader(bObj))
+		_, cli := serveObjectReplication(t, signer, obj)
+
+		err := cli.ReplicateObject(ctx, demuxObj, signer)
+		require.NoError(t, err)
+
+		msgCp := slice.Copy(demuxObj.(*demuxReplicationMessage).msg)
+		initBufPtr := &demuxObj.(*demuxReplicationMessage).msg[0]
+
+		var wg sync.WaitGroup
+		for i := 0; i < 5; i++ {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+
+				err := cli.ReplicateObject(ctx, demuxObj, signer)
+				fmt.Println(err)
+				require.NoError(t, err)
+			}()
+		}
+
+		wg.Wait()
+
+		require.Equal(t, msgCp, demuxObj.(*demuxReplicationMessage).msg)
+		require.Equal(t, initBufPtr, &demuxObj.(*demuxReplicationMessage).msg[0])
 	})
 }
