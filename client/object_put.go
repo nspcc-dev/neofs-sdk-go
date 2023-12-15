@@ -5,18 +5,32 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	"github.com/nspcc-dev/neofs-api-go/v2/rpc/common"
+	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"google.golang.org/protobuf/encoding/protowire"
 )
+
+// maxChunkLen restricts maximum byte length of the chunk
+// transmitted in a single stream message. It depends on
+// server settings and other message fields, but for now
+// we simply assume that 3MB is large enough to reduce the
+// number of messages, and not to exceed the limit
+// (4MB by default for gRPC servers).
+const maxChunkLen = 3 << 20
 
 var (
 	// ErrNoSessionExplicitly is a special error to show auto-session is disabled.
@@ -151,13 +165,6 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 	var writtenBytes int
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
-		// maxChunkLen restricts maximum byte length of the chunk
-		// transmitted in a single stream message. It depends on
-		// server settings and other message fields, but for now
-		// we simply assume that 3MB is large enough to reduce the
-		// number of messages, and not to exceed the limit
-		// (4MB by default for gRPC servers).
-		const maxChunkLen = 3 << 20
 		if ln > maxChunkLen {
 			ln = maxChunkLen
 		}
@@ -324,4 +331,349 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	}
 
 	return &w, nil
+}
+
+type PutFullObjectToNodeOptions struct {
+	sessionToken v2session.Token
+	bearerToken  acl.BearerToken
+}
+
+// WithinSession specifies session within which the operation should be
+// executed. The token must be signed.
+func (x *PutFullObjectToNodeOptions) WithinSession(t session.Object) {
+	t.WriteToV2(&x.sessionToken)
+}
+
+// WithBearerToken attaches bearer token to be used for the operation.
+func (x *PutFullObjectToNodeOptions) WithBearerToken(t bearer.Token) {
+	t.WriteToV2(&x.bearerToken)
+}
+
+func (c *Client) PutFullObjectToNode(ctx context.Context, obj object.Object, signer neofscrypto.Signer, opts PutFullObjectToNodeOptions) error {
+	if signer == nil {
+		// note that we don't stat this error
+		return ErrMissingSigner
+	}
+
+	var err error
+	defer func() {
+		c.sendStatistic(stat.MethodObjectPut, err)()
+	}()
+
+	const svcName = "neo.fs.v2.object.ObjectService"
+	const opName = "Put"
+	stream, err := c.c.Init(common.CallMethodInfoClientStream(svcName, opName),
+		client.WithContext(ctx), client.AllowBinarySendingOnly())
+	if err != nil {
+		return fmt.Errorf("init service=%s/op=%s RPC: %w", svcName, opName, err)
+	}
+
+	err = streamFullObject(ctx, obj, signer, opts, func(msg []byte) error {
+		return stream.WriteMessage(client.BinaryMessage(msg))
+	})
+	if err != nil && !errors.Is(err, io.EOF) {
+		return fmt.Errorf("send request: %w", err)
+	}
+
+	if err == nil {
+		err = stream.Close()
+		if err != nil && !errors.Is(err, io.EOF) {
+			return fmt.Errorf("finish object stream: %w", err)
+		}
+	}
+
+	var resp v2object.PutResponse
+	err = stream.ReadMessage(&resp)
+	if err != nil {
+		if errors.Is(err, io.EOF) {
+			err = io.ErrUnexpectedEOF
+		}
+
+		return fmt.Errorf("recv response: %w", err)
+	}
+
+	return c.processResponse(&resp)
+}
+
+func NewSharedPutFullObjectContext(parent context.Context) context.Context {
+	return &sharedPutFullObjectContext{
+		Context: parent,
+	}
+}
+
+type sharedPutFullObjectContext struct {
+	context.Context
+
+	mtx sync.Mutex
+
+	err error
+
+	markup putObjectStreamMsgMarkup
+	msgs   [][]byte
+}
+
+func streamFullObject(ctx context.Context, obj object.Object, signer neofscrypto.Signer, opts PutFullObjectToNodeOptions, writeMsg func([]byte) error) error {
+	payload := obj.Payload()
+
+	msgNum := 1 + len(payload)/maxChunkLen // 1 for header
+	if len(payload)%maxChunkLen != 0 {
+		msgNum += 1
+	}
+
+	var markup putObjectStreamMsgMarkup
+	var headingMsg []byte
+
+	sharedCtx, isShared := ctx.(*sharedPutFullObjectContext)
+	if isShared {
+		sharedCtx.mtx.Lock()
+
+		if sharedCtx.err != nil {
+			err := sharedCtx.err
+			sharedCtx.mtx.Unlock()
+			return err
+		}
+
+		if sharedCtx.msgs == nil {
+			sharedCtx.msgs = make([][]byte, msgNum)
+			sharedCtx.msgs[0], sharedCtx.markup, sharedCtx.err = prepPutObjectHeadingMsgWithMarkup(obj, signer, opts)
+			if sharedCtx.err != nil {
+				err := sharedCtx.err
+				sharedCtx.mtx.Unlock()
+				return err
+			}
+		}
+
+		headingMsg, markup = sharedCtx.msgs[0], sharedCtx.markup
+
+		sharedCtx.mtx.Unlock()
+	} else {
+		var err error
+		headingMsg, markup, err = prepPutObjectHeadingMsgWithMarkup(obj, signer, opts)
+		if err != nil {
+			return err
+		}
+	}
+
+	err := writeMsg(headingMsg)
+	if err != nil {
+		return fmt.Errorf("write heading message: %w", err)
+	}
+
+	var msg []byte
+	chunkSize := maxChunkLen
+	msgPrefix := headingMsg[:markup.bodyFieldOff]
+
+	for i := 1; i < msgNum; i++ {
+		if len(payload) < chunkSize {
+			chunkSize = len(payload)
+		}
+
+		if isShared {
+			sharedCtx.mtx.Lock()
+
+			if sharedCtx.err != nil {
+				err := sharedCtx.err
+				sharedCtx.mtx.Unlock()
+				return err
+			}
+
+			if sharedCtx.msgs[i] == nil {
+				sharedCtx.msgs[i], sharedCtx.err = prepPutObjectChunkMsg(msgPrefix, markup, signer, payload[:chunkSize])
+				if sharedCtx.err != nil {
+					err := sharedCtx.err
+					sharedCtx.mtx.Unlock()
+					return err
+				}
+			}
+
+			msg = sharedCtx.msgs[i]
+
+			sharedCtx.mtx.Unlock()
+		} else {
+			msg, err = prepPutObjectChunkMsg(msgPrefix, markup, signer, payload[:chunkSize])
+			if err != nil {
+				return err
+			}
+		}
+
+		err = writeMsg(msg)
+		if err != nil {
+			return fmt.Errorf("write chunk message: %w", err)
+		}
+
+		payload = payload[chunkSize:]
+	}
+
+	return nil
+}
+
+type putObjectStreamMsgMarkup struct {
+	fixedSigSize int
+	bodySigOff   int
+
+	bodyFieldOff int
+}
+
+func prepPutObjectHeadingMsgWithMarkup(obj object.Object, signer neofscrypto.Signer, opts PutFullObjectToNodeOptions) (msg []byte, markup putObjectStreamMsgMarkup, err error) {
+	emptyDataSig, err := signer.Sign(nil)
+	if err != nil {
+		return msg, markup, fmt.Errorf("calculate empty data signature: %w", err)
+	}
+
+	const ttl = 1
+	markup.fixedSigSize = len(emptyDataSig)
+	vNeoFS := version.Current()
+	vNeoFSMjr := uint64(vNeoFS.Major())
+	vNeoFSMnr := uint64(vNeoFS.Minor())
+
+	metaHdrVersionFieldSize := protowire.SizeTag(fieldNumVersionMajor) + protowire.SizeVarint(uint64(vNeoFSMjr)) +
+		protowire.SizeTag(fieldNumVersionMinor) + protowire.SizeVarint(vNeoFSMnr)
+
+	metaHdrFieldSize := protowire.SizeTag(fieldNumRequestMetaVersion) + protowire.SizeBytes(metaHdrVersionFieldSize) +
+		protowire.SizeTag(fieldNumRequestMetaTTL) + protowire.SizeVarint(ttl)
+
+	sessionTokenSize := opts.sessionToken.StableSize()
+	if sessionTokenSize > 0 {
+		metaHdrFieldSize += protowire.SizeTag(fieldNumRequestMetaSession) + protowire.SizeBytes(sessionTokenSize)
+	}
+
+	bearerTokenSize := opts.bearerToken.StableSize()
+	if bearerTokenSize > 0 {
+		metaHdrFieldSize += protowire.SizeTag(fieldNumRequestMetaBearer) + protowire.SizeBytes(bearerTokenSize)
+	}
+
+	const fieldNumRequestMetaHdr = 2
+	msgSize := protowire.SizeTag(fieldNumRequestMetaHdr) + protowire.SizeBytes(metaHdrFieldSize)
+
+	pubKey := signer.Public()
+	sigScheme := uint64(signer.Scheme())
+	bPubKey := neofscrypto.PublicKeyBytes(pubKey) // can be improved through Encode but requires fixed size
+	sigMsgSize := protowire.SizeTag(fieldNumSigPubKey) + protowire.SizeBytes(len(bPubKey)) +
+		protowire.SizeTag(fieldNumSigVal) + +protowire.SizeBytes(markup.fixedSigSize) +
+		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
+	verifyHdrSize := protowire.SizeTag(fieldNumVerifyHdrBodySig) + protowire.SizeBytes(sigMsgSize) +
+		protowire.SizeTag(fieldNumVerifyHdrMetaSig) + protowire.SizeBytes(sigMsgSize) +
+		protowire.SizeTag(fieldNumVerifyHdrOriginSig) + protowire.SizeBytes(sigMsgSize)
+
+	const fieldNumRequestVerifyHdr = 3
+	const fieldNumRequestBody = 1
+	msgSize += protowire.SizeTag(fieldNumRequestVerifyHdr) + protowire.SizeBytes(verifyHdrSize) +
+		protowire.SizeTag(fieldNumRequestBody)
+
+	var objHdr *v2object.Object
+	if len(obj.Payload()) > 0 {
+		objHdr = obj.CutPayload().ToV2()
+	} else {
+		objHdr = obj.ToV2()
+	}
+
+	const fieldNumObjHdr = 1
+	objHdrSize := objHdr.StableSize()
+	objHdrFieldSize := protowire.SizeTag(fieldNumObjHdr) + protowire.SizeBytes(objHdrSize)
+
+	// TODO: support custom allocs
+	msg = make([]byte, 0, msgSize+protowire.SizeBytes(objHdrFieldSize))
+
+	msg = protowire.AppendTag(msg, fieldNumRequestMetaHdr, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(metaHdrFieldSize))
+	metaHdrOff := len(msg)
+	msg = protowire.AppendTag(msg, fieldNumRequestMetaVersion, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(metaHdrVersionFieldSize))
+	msg = protowire.AppendTag(msg, fieldNumVersionMajor, protowire.VarintType)
+	msg = protowire.AppendVarint(msg, vNeoFSMjr)
+	msg = protowire.AppendTag(msg, fieldNumVersionMinor, protowire.VarintType)
+	msg = protowire.AppendVarint(msg, vNeoFSMnr)
+	msg = protowire.AppendTag(msg, fieldNumRequestMetaTTL, protowire.VarintType)
+	msg = protowire.AppendVarint(msg, ttl)
+	if sessionTokenSize > 0 {
+		msg = protowire.AppendTag(msg, fieldNumRequestMetaSession, protowire.BytesType)
+		msg = protowire.AppendVarint(msg, uint64(sessionTokenSize))
+		msg = msg[:len(msg)+sessionTokenSize]
+		opts.sessionToken.StableMarshal(msg[len(msg)-sessionTokenSize:])
+	}
+	if bearerTokenSize > 0 {
+		msg = protowire.AppendTag(msg, fieldNumRequestMetaBearer, protowire.BytesType)
+		msg = protowire.AppendVarint(msg, uint64(bearerTokenSize))
+		msg = msg[:len(msg)+bearerTokenSize]
+		opts.bearerToken.StableMarshal(msg[len(msg)-bearerTokenSize:])
+	}
+
+	metaHdrSig, err := signer.Sign(msg[metaHdrOff:])
+	if err != nil {
+		return msg, markup, fmt.Errorf("sign meta header: %w", err)
+	} else if len(metaHdrSig) != markup.fixedSigSize {
+		return msg, markup, fmt.Errorf("various sizes of signatures detected: %d and %d", markup.fixedSigSize, len(metaHdrSig))
+	}
+
+	msg = protowire.AppendTag(msg, fieldNumRequestVerifyHdr, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(verifyHdrSize))
+	msg = protowire.AppendTag(msg, fieldNumVerifyHdrBodySig, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(sigMsgSize))
+	msg = protowire.AppendTag(msg, fieldNumSigPubKey, protowire.BytesType)
+	msg = protowire.AppendBytes(msg, bPubKey)
+	msg = protowire.AppendTag(msg, fieldNumSigVal, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(markup.fixedSigSize))
+	markup.bodySigOff = len(msg)
+	msg = msg[:markup.bodySigOff+markup.fixedSigSize]
+	msg = protowire.AppendTag(msg, fieldNumSigScheme, protowire.VarintType)
+	msg = protowire.AppendVarint(msg, sigScheme)
+	msg = protowire.AppendTag(msg, fieldNumVerifyHdrMetaSig, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(sigMsgSize))
+	msg = protowire.AppendTag(msg, fieldNumSigPubKey, protowire.BytesType)
+	msg = protowire.AppendBytes(msg, bPubKey)
+	msg = protowire.AppendTag(msg, fieldNumSigVal, protowire.BytesType)
+	msg = protowire.AppendBytes(msg, metaHdrSig)
+	msg = protowire.AppendTag(msg, fieldNumSigScheme, protowire.VarintType)
+	msg = protowire.AppendVarint(msg, sigScheme)
+	msg = protowire.AppendTag(msg, fieldNumVerifyHdrOriginSig, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(sigMsgSize))
+	msg = protowire.AppendTag(msg, fieldNumSigPubKey, protowire.BytesType)
+	msg = protowire.AppendBytes(msg, bPubKey)
+	msg = protowire.AppendTag(msg, fieldNumSigVal, protowire.BytesType)
+	msg = protowire.AppendBytes(msg, emptyDataSig)
+	msg = protowire.AppendTag(msg, fieldNumSigScheme, protowire.VarintType)
+	msg = protowire.AppendVarint(msg, sigScheme)
+	msg = protowire.AppendTag(msg, fieldNumRequestBody, protowire.BytesType)
+	markup.bodyFieldOff = len(msg)
+	msg = protowire.AppendVarint(msg, uint64(objHdrFieldSize))
+	bodyOff := len(msg)
+	msg = protowire.AppendTag(msg, fieldNumObjHdr, protowire.BytesType)
+	msg = protowire.AppendVarint(msg, uint64(objHdrSize))
+	msg = msg[:len(msg)+objHdrSize]
+	objHdr.StableMarshal(msg[len(msg)-objHdrSize:])
+
+	bodySig, err := signer.Sign(msg[bodyOff:])
+	if err != nil {
+		return msg, markup, fmt.Errorf("sign request body: %w", err)
+	} else if len(bodySig) != markup.fixedSigSize {
+		return msg, markup, fmt.Errorf("various sizes of signatures detected: %d and %d", markup.fixedSigSize, len(bodySig))
+	}
+
+	copy(msg[markup.bodySigOff:], bodySig)
+
+	return
+}
+
+func prepPutObjectChunkMsg(prefix []byte, markup putObjectStreamMsgMarkup, signer neofscrypto.Signer, chunk []byte) ([]byte, error) {
+	const fieldNumObjPayloadChunk = 2
+	bodySize := protowire.SizeTag(fieldNumObjPayloadChunk) + protowire.SizeBytes(len(chunk))
+
+	// TODO: support custom allocs
+	msg := make([]byte, 0, len(prefix)+protowire.SizeBytes(bodySize))
+	msg = append(msg, prefix...)
+	msg = protowire.AppendVarint(msg, uint64(bodySize))
+	bodyOff := len(msg)
+	msg = protowire.AppendTag(msg, fieldNumObjPayloadChunk, protowire.BytesType)
+	msg = protowire.AppendBytes(msg, chunk)
+
+	bodySig, err := signer.Sign(msg[bodyOff:])
+	if err != nil {
+		return nil, fmt.Errorf("sign request body: %w", err)
+	} else if len(bodySig) != markup.fixedSigSize {
+		return nil, fmt.Errorf("various sizes of signatures detected: %d and %d", markup.fixedSigSize, len(bodySig))
+	}
+
+	copy(msg[markup.bodySigOff:], bodySig)
+
+	return msg, nil
 }
