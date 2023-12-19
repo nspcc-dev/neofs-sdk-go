@@ -254,7 +254,16 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 }
 
 func testSlicer(t *testing.T, size, sizeLimit uint64) {
+	testSlicerWithKnownSize(t, size, sizeLimit, true)
+	testSlicerWithKnownSize(t, size, sizeLimit, false)
+}
+
+func testSlicerWithKnownSize(t *testing.T, size, sizeLimit uint64, known bool) {
 	in, opts := randomInput(t, size, sizeLimit)
+
+	if known {
+		opts.SetPayloadSize(uint64(len(in.payload)))
+	}
 
 	checker := &slicedObjectChecker{
 		opts:           opts,
@@ -266,7 +275,7 @@ func testSlicer(t *testing.T, size, sizeLimit uint64) {
 	for i := object.TypeRegular; i <= object.TypeLock; i++ {
 		in.objectType = i
 
-		t.Run("slicer with "+i.EncodeToString(), func(t *testing.T) {
+		t.Run(fmt.Sprintf("slicer with %s,known_size=%t", i.EncodeToString(), known), func(t *testing.T) {
 			testSlicerByHeaderType(t, checker, in, opts)
 		})
 	}
@@ -1005,6 +1014,134 @@ func TestOptions_SetPayloadBuffer(t *testing.T) {
 			}
 
 			testSlicerByHeaderType(t, checker, in, opts)
+		})
+	}
+}
+
+func TestKnownPayloadSize(t *testing.T) {
+	ctx := context.Background()
+	t.Run("overflow", func(t *testing.T) {
+		t.Run("read", func(t *testing.T) {
+			in, opts := randomInput(t, 1, 1)
+			obj := objecttest.Object(t)
+			hdr := *obj.CutPayload()
+
+			opts.SetPayloadSize(20)
+			r := bytes.NewReader(make([]byte, 21))
+
+			_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, in.signer, r, opts)
+			require.ErrorContains(t, err, "payload size exceeded")
+		})
+
+		t.Run("write", func(t *testing.T) {
+			in, opts := randomInput(t, 1, 1)
+			obj := objecttest.Object(t)
+			hdr := *obj.CutPayload()
+
+			opts.SetPayloadSize(20)
+
+			w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
+			require.NoError(t, err)
+
+			for i := byte(0); i < 21; i++ {
+				_, err = w.Write([]byte{1})
+				if i < 20 {
+					require.NoError(t, err)
+				} else {
+					require.ErrorContains(t, err, "payload size exceeded")
+				}
+			}
+		})
+	})
+
+	t.Run("flaw", func(t *testing.T) {
+		t.Run("read", func(t *testing.T) {
+			in, opts := randomInput(t, 1, 1)
+			obj := objecttest.Object(t)
+			hdr := *obj.CutPayload()
+
+			opts.SetPayloadSize(20)
+			r := bytes.NewReader(make([]byte, 19))
+
+			_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, in.signer, r, opts)
+			require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		})
+
+		t.Run("write", func(t *testing.T) {
+			in, opts := randomInput(t, 1, 1)
+			obj := objecttest.Object(t)
+			hdr := *obj.CutPayload()
+
+			opts.SetPayloadSize(20)
+
+			w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
+			require.NoError(t, err)
+
+			_, err = w.Write(make([]byte, 19))
+			require.NoError(t, err)
+
+			err = w.Close()
+			require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+		})
+	})
+}
+
+func BenchmarkKnownPayloadSize(b *testing.B) {
+	ctx := context.Background()
+	for _, tc := range []struct {
+		sizeLimit uint64
+		size      uint64
+	}{
+		{sizeLimit: 1 << 10, size: 1},
+		{sizeLimit: 1 << 10, size: 1 << 10},
+		{sizeLimit: 1 << 10, size: 10 << 10},
+	} {
+		b.Run(fmt.Sprintf("limit=%d,size=%d", tc.sizeLimit, tc.size), func(b *testing.B) {
+			b.Run("read", func(b *testing.B) {
+				obj := objecttest.Object(b)
+				hdr := *obj.CutPayload()
+				signer := user.NewSigner(test.RandomSigner(b), usertest.ID(b))
+				payload := make([]byte, tc.size)
+				rand.Read(payload)
+
+				var opts slicer.Options
+				opts.SetObjectPayloadLimit(tc.sizeLimit)
+				opts.SetPayloadSize(tc.size)
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, signer, bytes.NewReader(payload), opts)
+					require.NoError(b, err)
+				}
+			})
+
+			b.Run("write", func(b *testing.B) {
+				obj := objecttest.Object(b)
+				hdr := *obj.CutPayload()
+				signer := user.NewSigner(test.RandomSigner(b), usertest.ID(b))
+				payload := make([]byte, tc.size)
+				rand.Read(payload)
+
+				var opts slicer.Options
+				opts.SetObjectPayloadLimit(tc.sizeLimit)
+				opts.SetPayloadSize(tc.size)
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, signer, opts)
+					require.NoError(b, err)
+
+					_, err = w.Write(payload)
+					if err == nil {
+						err = w.Close()
+					}
+					require.NoError(b, err)
+				}
+			})
 		})
 	}
 }

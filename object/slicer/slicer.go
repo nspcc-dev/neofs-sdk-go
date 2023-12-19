@@ -213,6 +213,10 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 			return rootID, fmt.Errorf("read payload chunk: %w", err)
 		}
 
+		if writer.payloadSizeFixed && writer.rootMeta.length < writer.payloadSize {
+			return oid.ID{}, io.ErrUnexpectedEOF
+		}
+
 		if err = writer.Close(); err != nil {
 			return rootID, fmt.Errorf("writer close: %w", err)
 		}
@@ -287,8 +291,14 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
 		childMeta:        newDynamicObjectMetadata(opts.withHomoChecksum),
 		payloadSizeLimit: childPayloadSizeLimit(opts),
+		payloadSizeFixed: opts.payloadSizeFixed,
+		payloadSize:      opts.payloadSize,
 		prmObjectPutInit: prm,
 		stubObject:       &stubObject,
+	}
+
+	if res.payloadSizeFixed && res.payloadSize < res.payloadSizeLimit {
+		res.payloadSizeLimit = res.payloadSize
 	}
 
 	res.payloadBuffer = opts.payloadBuffer
@@ -320,6 +330,8 @@ type PayloadWriter struct {
 
 	// max payload size of produced objects in bytes
 	payloadSizeLimit uint64
+	payloadSizeFixed bool
+	payloadSize      uint64
 
 	metaWriter io.Writer
 
@@ -331,6 +343,8 @@ type PayloadWriter struct {
 	stubObject       *object.Object
 }
 
+var errPayloadSizeExceeded = errors.New("payload size exceeded")
+
 // Write writes next chunk of the object data. Concatenation of all chunks forms
 // the payload of the final object. When the data is over, the PayloadWriter
 // should be closed.
@@ -338,6 +352,10 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 	if len(chunk) == 0 {
 		// not explicitly prohibited in the io.Writer documentation
 		return 0, nil
+	}
+
+	if x.payloadSizeFixed && x.rootMeta.length+uint64(len(chunk)) > x.payloadSize {
+		return 0, errPayloadSizeExceeded
 	}
 
 	buffered := x.rootMeta.length
@@ -365,11 +383,16 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 		}
 
 		if x.extraPayloadBuffer == nil {
-			// if here for the first time, then allocate the minimum buffer sufficient for
-			// writing: user may do one Write followed by Close. In such cases there is no
-			// point in allocating a buffer of payloadSizeLimit size.
-			// TODO(#544): support external buffer pools
-			x.extraPayloadBuffer = make([]byte, len(chunk))
+			if x.payloadSizeFixed {
+				// in this case x.payloadSizeLimit >= x.payloadSize
+				x.extraPayloadBuffer = make([]byte, x.payloadSizeLimit)
+			} else {
+				// if here for the first time, then allocate the minimum buffer sufficient for
+				// writing: user may do one Write followed by Close. In such cases there is no
+				// point in allocating a buffer of payloadSizeLimit size.
+				// TODO(#544): support external buffer pools
+				x.extraPayloadBuffer = make([]byte, len(chunk))
+			}
 		} else if payloadBufferLen+uint64(len(x.extraPayloadBuffer)) < x.payloadSizeLimit {
 			b := make([]byte, uint64(len(x.extraPayloadBuffer))+x.payloadSizeLimit-buffered)
 			copy(b, x.extraPayloadBuffer)
@@ -432,6 +455,10 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 // Close finalizes object with written payload data, saves the object and closes
 // the stream. Reference to the stored object can be obtained by ID method.
 func (x *PayloadWriter) Close() error {
+	if x.payloadSizeFixed && x.rootMeta.length < x.payloadSize {
+		return io.ErrUnexpectedEOF
+	}
+
 	buffered := x.rootMeta.length
 	if x.withSplit {
 		buffered = x.childMeta.length
