@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object/slicer"
+	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -853,4 +854,102 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 			checkParentWithoutSplitInfo(h)
 		}
 	})
+}
+
+func BenchmarkWritePayloadBuffer(b *testing.B) {
+	for _, tc := range []struct {
+		sizeLimit uint64
+		size      uint64
+	}{
+		{sizeLimit: 1 << 10, size: 1},
+		{sizeLimit: 1 << 10, size: 1 << 10},
+		{sizeLimit: 1 << 10, size: 10 << 10},
+		{sizeLimit: 1 << 10, size: 200 << 10},
+		{sizeLimit: 1 << 26, size: 1 << 10},
+	} {
+		b.Run(fmt.Sprintf("limit=%d,size=%d", tc.sizeLimit, tc.size), func(b *testing.B) {
+			ctx := context.Background()
+			in, opts := randomInput(b, tc.size, tc.sizeLimit)
+			obj := objecttest.Object(b)
+			hdr := *obj.CutPayload()
+
+			b.Run("with payload buffer", func(b *testing.B) {
+				opts := opts
+				opts.SetPayloadBuffer(make([]byte, tc.sizeLimit+1))
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
+					require.NoError(b, err)
+
+					_, err = w.Write(in.payload)
+					if err == nil {
+						err = w.Close()
+					}
+					require.NoError(b, err)
+				}
+			})
+
+			b.Run("without payload buffer", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
+					require.NoError(b, err)
+
+					_, err = w.Write(in.payload)
+					if err == nil {
+						err = w.Close()
+					}
+					require.NoError(b, err)
+				}
+			})
+		})
+	}
+}
+
+func BenchmarkReadPayloadBuffer(b *testing.B) {
+	for _, tc := range []struct {
+		sizeLimit uint64
+		size      uint64
+	}{
+		{sizeLimit: 1 << 10, size: 1},
+		{sizeLimit: 1 << 10, size: 1 << 10},
+		{sizeLimit: 1 << 10, size: 10 << 10},
+		{sizeLimit: 1 << 10, size: 200 << 10},
+		{sizeLimit: 1 << 26, size: 1 << 10},
+	} {
+		b.Run(fmt.Sprintf("limit=%d,size=%d", tc.sizeLimit, tc.size), func(b *testing.B) {
+			ctx := context.Background()
+			in, opts := randomInput(b, tc.size, tc.sizeLimit)
+			obj := objecttest.Object(b)
+			hdr := *obj.CutPayload()
+
+			b.Run("with payload buffer", func(b *testing.B) {
+				opts := opts
+				opts.SetPayloadBuffer(make([]byte, tc.sizeLimit+1))
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, in.signer, bytes.NewReader(in.payload), opts)
+					require.NoError(b, err)
+				}
+			})
+
+			b.Run("without payload buffer", func(b *testing.B) {
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for i := 0; i < b.N; i++ {
+					_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, in.signer, bytes.NewReader(in.payload), opts)
+					require.NoError(b, err)
+				}
+			})
+		})
+	}
 }
