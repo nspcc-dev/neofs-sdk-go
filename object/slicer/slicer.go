@@ -263,15 +263,14 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		sessionToken:     opts.sessionToken,
 		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
 		childMeta:        newDynamicObjectMetadata(opts.withHomoChecksum),
+		payloadSizeLimit: childPayloadSizeLimit(opts),
 		prmObjectPutInit: prm,
 		stubObject:       &stubObject,
 	}
 
-	maxObjSize := childPayloadSizeLimit(opts)
-
-	res.buf.Grow(int(maxObjSize))
+	res.buf.Grow(int(res.payloadSizeLimit))
 	res.rootMeta.reset()
-	res.currentWriter = newLimitedWriter(io.MultiWriter(&res.buf, &res.rootMeta), maxObjSize)
+	res.currentWriter = io.MultiWriter(&res.buf, &res.rootMeta)
 
 	return res, nil
 }
@@ -295,7 +294,10 @@ type PayloadWriter struct {
 	rootMeta  dynamicObjectMetadata
 	childMeta dynamicObjectMetadata
 
-	currentWriter limitedWriter
+	// max payload size of produced objects in bytes
+	payloadSizeLimit uint64
+
+	currentWriter io.Writer
 
 	withSplit bool
 	splitID   *object.SplitID
@@ -314,8 +316,17 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 		return 0, nil
 	}
 
-	n, err := x.currentWriter.Write(chunk)
-	if err == nil || !errors.Is(err, errOverflow) {
+	alreadyWritten := x.rootMeta.length
+	if x.withSplit {
+		alreadyWritten = x.childMeta.length
+	}
+
+	if alreadyWritten+uint64(len(chunk)) <= x.payloadSizeLimit {
+		return x.currentWriter.Write(chunk)
+	}
+
+	n, err := x.currentWriter.Write(chunk[:x.payloadSizeLimit-alreadyWritten])
+	if err != nil {
 		return n, err
 	}
 
@@ -330,14 +341,12 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 			return n, fmt.Errorf("write 1st child: %w", err)
 		}
 
-		x.currentWriter.reset(io.MultiWriter(&x.buf, &x.rootMeta, &x.childMeta))
+		x.currentWriter = io.MultiWriter(&x.buf, &x.rootMeta, &x.childMeta)
 	} else {
 		err = x.writeIntermediateChild(x.ctx, x.childMeta)
 		if err != nil {
 			return n, fmt.Errorf("write next child: %w", err)
 		}
-
-		x.currentWriter.resetProgress()
 	}
 
 	x.buf.Reset()
@@ -564,54 +573,4 @@ func (x *dynamicObjectMetadata) reset() {
 	if x.homomorphicChecksum != nil {
 		x.homomorphicChecksum.Reset()
 	}
-}
-
-var errOverflow = errors.New("overflow")
-
-// limitedWriter provides io.Writer limiting data volume.
-type limitedWriter struct {
-	base io.Writer
-
-	limit, written uint64
-}
-
-// newLimitedWriter initializes limiterWriter which writes data to the base
-// writer before the specified limit.
-func newLimitedWriter(base io.Writer, limit uint64) limitedWriter {
-	return limitedWriter{
-		base:  base,
-		limit: limit,
-	}
-}
-
-// reset resets progress to zero and sets the base target for writing subsequent
-// data.
-func (x *limitedWriter) reset(base io.Writer) {
-	x.base = base
-	x.resetProgress()
-}
-
-// resetProgress resets progress to zero.
-func (x *limitedWriter) resetProgress() {
-	x.written = 0
-}
-
-// Write writes next chunk of the data to the base writer. If chunk along with
-// already written data overflows configured limit, Write returns errOverflow.
-func (x *limitedWriter) Write(p []byte) (n int, err error) {
-	overflow := uint64(len(p)) > x.limit-x.written
-
-	if overflow {
-		n, err = x.base.Write(p[:x.limit-x.written])
-	} else {
-		n, err = x.base.Write(p)
-	}
-
-	x.written += uint64(n)
-
-	if overflow && err == nil {
-		return n, errOverflow
-	}
-
-	return n, err
 }
