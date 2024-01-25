@@ -11,6 +11,25 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
+// Various field numbers in from NeoFS API definitions.
+const (
+	fieldNumSigPubKey = 1
+	fieldNumSigVal    = 2
+	fieldNumSigScheme = 3
+
+	fieldNumVersionMajor = 1
+	fieldNumVersionMinor = 2
+
+	fieldNumRequestMetaVersion = 1
+	fieldNumRequestMetaTTL     = 3
+	fieldNumRequestMetaSession = 5
+	fieldNumRequestMetaBearer  = 6
+
+	fieldNumVerifyHdrBodySig   = 1
+	fieldNumVerifyHdrMetaSig   = 2
+	fieldNumVerifyHdrOriginSig = 3
+)
+
 // groups meta parameters shared between all Client operations.
 type prmCommonMeta struct {
 	// NeoFS request X-Headers
