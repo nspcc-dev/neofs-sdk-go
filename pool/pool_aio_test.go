@@ -191,8 +191,9 @@ func runTests(_ context.Context, t *testing.T, nodeEndpoint string) {
 
 func createDockerContainer(ctx context.Context, t *testing.T, image string) testcontainers.Container {
 	req := testcontainers.ContainerRequest{
-		Image:        image,
-		WaitingFor:   wait.NewLogStrategy("Serving neofs rest gw").WithStartupTimeout(45 * time.Second),
+		Image: image,
+		// timeout is chosen to have enough time for NeoFS chain deployment from scratch within NeoFS AIO
+		WaitingFor:   wait.NewLogStrategy("Serving neofs rest gw").WithStartupTimeout(2 * time.Minute),
 		Name:         "sdk-poll-tests-" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		Hostname:     "aio_autotest_" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		ExposedPorts: []string{"8080/tcp"},
