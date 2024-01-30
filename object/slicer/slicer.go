@@ -1,7 +1,6 @@
 package slicer
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -164,20 +163,44 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 	objectPayloadLimit := childPayloadSizeLimit(opts)
 
 	var n int
-	bChunk := opts.payloadBuffer
-	if bChunk == nil {
-		bChunk = make([]byte, objectPayloadLimit)
-	}
 
 	writer, err := initPayloadStream(ctx, ow, header, signer, opts)
 	if err != nil {
 		return rootID, fmt.Errorf("init writter: %w", err)
 	}
 
+	var buf []byte
+	var buffered uint64
+
 	for {
-		n, err = data.Read(bChunk)
+		buffered = writer.rootMeta.length
+		if writer.withSplit {
+			buffered = writer.childMeta.length
+		}
+
+		if buffered == objectPayloadLimit && uint64(len(writer.payloadBuffer)) <= objectPayloadLimit {
+			// in this case, the read buffers are exhausted, and it is unclear whether there
+			// will be more data. We need to know this right away, because the format of the
+			// final objects depends on it. So read to temp buffer
+			buf = []byte{0}
+		} else {
+			payloadBufferLen := uint64(len(writer.payloadBuffer))
+			if payloadBufferLen > buffered {
+				buf = writer.payloadBuffer[buffered:]
+			} else {
+				if writer.extraPayloadBuffer == nil {
+					// TODO(#544): support external buffer pools
+					writer.extraPayloadBuffer = make([]byte, writer.payloadSizeLimit-payloadBufferLen)
+					buf = writer.extraPayloadBuffer
+				} else {
+					buf = writer.extraPayloadBuffer[buffered-payloadBufferLen:]
+				}
+			}
+		}
+
+		n, err = data.Read(buf)
 		if n > 0 {
-			if _, err = writer.Write(bChunk[:n]); err != nil {
+			if _, err = writer.Write(buf[:n]); err != nil {
 				return oid.ID{}, err
 			}
 		}
@@ -188,6 +211,10 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 
 		if !errors.Is(err, io.EOF) {
 			return rootID, fmt.Errorf("read payload chunk: %w", err)
+		}
+
+		if writer.payloadSizeFixed && writer.rootMeta.length < writer.payloadSize {
+			return oid.ID{}, io.ErrUnexpectedEOF
 		}
 
 		if err = writer.Close(); err != nil {
@@ -263,15 +290,20 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		sessionToken:     opts.sessionToken,
 		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
 		childMeta:        newDynamicObjectMetadata(opts.withHomoChecksum),
+		payloadSizeLimit: childPayloadSizeLimit(opts),
+		payloadSizeFixed: opts.payloadSizeFixed,
+		payloadSize:      opts.payloadSize,
 		prmObjectPutInit: prm,
 		stubObject:       &stubObject,
 	}
 
-	maxObjSize := childPayloadSizeLimit(opts)
+	if res.payloadSizeFixed && res.payloadSize < res.payloadSizeLimit {
+		res.payloadSizeLimit = res.payloadSize
+	}
 
-	res.buf.Grow(int(maxObjSize))
+	res.payloadBuffer = opts.payloadBuffer
 	res.rootMeta.reset()
-	res.currentWriter = newLimitedWriter(io.MultiWriter(&res.buf, &res.rootMeta), maxObjSize)
+	res.metaWriter = &res.rootMeta
 
 	return res, nil
 }
@@ -290,12 +322,18 @@ type PayloadWriter struct {
 	currentEpoch uint64
 	sessionToken *session.Object
 
-	buf bytes.Buffer
+	payloadBuffer      []byte
+	extraPayloadBuffer []byte
 
 	rootMeta  dynamicObjectMetadata
 	childMeta dynamicObjectMetadata
 
-	currentWriter limitedWriter
+	// max payload size of produced objects in bytes
+	payloadSizeLimit uint64
+	payloadSizeFixed bool
+	payloadSize      uint64
+
+	metaWriter io.Writer
 
 	withSplit bool
 	splitID   *object.SplitID
@@ -304,6 +342,8 @@ type PayloadWriter struct {
 	prmObjectPutInit client.PrmObjectPutInit
 	stubObject       *object.Object
 }
+
+var errPayloadSizeExceeded = errors.New("payload size exceeded")
 
 // Write writes next chunk of the object data. Concatenation of all chunks forms
 // the payload of the final object. When the data is over, the PayloadWriter
@@ -314,9 +354,76 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 		return 0, nil
 	}
 
-	n, err := x.currentWriter.Write(chunk)
-	if err == nil || !errors.Is(err, errOverflow) {
-		return n, err
+	if x.payloadSizeFixed && x.rootMeta.length+uint64(len(chunk)) > x.payloadSize {
+		return 0, errPayloadSizeExceeded
+	}
+
+	buffered := x.rootMeta.length
+	if x.withSplit {
+		buffered = x.childMeta.length
+	}
+
+	if buffered+uint64(len(chunk)) <= x.payloadSizeLimit {
+		// buffer data to produce as few objects as possible for better storage efficiency
+		_, err := x.metaWriter.Write(chunk)
+		if err != nil {
+			return 0, err
+		}
+
+		var n int
+		payloadBufferLen := uint64(len(x.payloadBuffer))
+		if payloadBufferLen > buffered {
+			n = copy(x.payloadBuffer[buffered:], chunk)
+			if n == len(chunk) {
+				return n, nil
+			}
+
+			chunk = chunk[n:]
+			buffered += uint64(n)
+		}
+
+		if x.extraPayloadBuffer == nil {
+			if x.payloadSizeFixed {
+				// in this case x.payloadSizeLimit >= x.payloadSize
+				x.extraPayloadBuffer = make([]byte, x.payloadSizeLimit)
+			} else {
+				// if here for the first time, then allocate the minimum buffer sufficient for
+				// writing: user may do one Write followed by Close. In such cases there is no
+				// point in allocating a buffer of payloadSizeLimit size.
+				// TODO(#544): support external buffer pools
+				x.extraPayloadBuffer = make([]byte, len(chunk))
+			}
+		} else if payloadBufferLen+uint64(len(x.extraPayloadBuffer)) < x.payloadSizeLimit {
+			b := make([]byte, uint64(len(x.extraPayloadBuffer))+x.payloadSizeLimit-buffered)
+			copy(b, x.extraPayloadBuffer)
+			x.extraPayloadBuffer = b
+		}
+
+		return n + copy(x.extraPayloadBuffer[buffered-payloadBufferLen:], chunk), nil
+	}
+
+	// at this point there is enough data to flush the buffer by sending the next
+	n := int(x.payloadSizeLimit - buffered)
+	_, err := x.metaWriter.Write(chunk[:n])
+	if err != nil {
+		return 0, err
+	}
+
+	payloadBuffers := make([][]byte, 0, 3)
+	if buffered > 0 {
+		if len(x.payloadBuffer) > 0 {
+			if uint64(len(x.payloadBuffer)) >= buffered {
+				payloadBuffers = append(payloadBuffers, x.payloadBuffer[:buffered])
+			} else {
+				payloadBuffers = append(payloadBuffers, x.payloadBuffer, x.extraPayloadBuffer[:buffered-uint64(len(x.payloadBuffer))])
+			}
+		} else {
+			payloadBuffers = append(payloadBuffers, x.extraPayloadBuffer[:buffered])
+		}
+	}
+
+	if n > 0 {
+		payloadBuffers = append(payloadBuffers, chunk[:n])
 	}
 
 	if !x.withSplit {
@@ -325,22 +432,19 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 		// to fill splitInfo in all child objects.
 		x.withSplit = true
 
-		err = x.writeIntermediateChild(x.ctx, x.rootMeta)
+		err := x.writeIntermediateChild(x.ctx, x.rootMeta, payloadBuffers)
 		if err != nil {
 			return n, fmt.Errorf("write 1st child: %w", err)
 		}
 
-		x.currentWriter.reset(io.MultiWriter(&x.buf, &x.rootMeta, &x.childMeta))
+		x.metaWriter = io.MultiWriter(&x.rootMeta, &x.childMeta)
 	} else {
-		err = x.writeIntermediateChild(x.ctx, x.childMeta)
+		err := x.writeIntermediateChild(x.ctx, x.childMeta, payloadBuffers)
 		if err != nil {
 			return n, fmt.Errorf("write next child: %w", err)
 		}
-
-		x.currentWriter.resetProgress()
 	}
 
-	x.buf.Reset()
 	x.childMeta.reset()
 
 	n2, err := x.Write(chunk[n:]) // here n > 0 so infinite recursion shouldn't occur
@@ -351,10 +455,32 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 // Close finalizes object with written payload data, saves the object and closes
 // the stream. Reference to the stored object can be obtained by ID method.
 func (x *PayloadWriter) Close() error {
-	if x.withSplit {
-		return x.writeLastChild(x.ctx, x.childMeta, x.setID)
+	if x.payloadSizeFixed && x.rootMeta.length < x.payloadSize {
+		return io.ErrUnexpectedEOF
 	}
-	return x.writeLastChild(x.ctx, x.rootMeta, x.setID)
+
+	buffered := x.rootMeta.length
+	if x.withSplit {
+		buffered = x.childMeta.length
+	}
+
+	var payloadBuffers [][]byte
+	if buffered > 0 {
+		if len(x.payloadBuffer) > 0 {
+			if uint64(len(x.payloadBuffer)) >= buffered {
+				payloadBuffers = [][]byte{x.payloadBuffer[:buffered]}
+			} else {
+				payloadBuffers = [][]byte{x.payloadBuffer, x.extraPayloadBuffer[:buffered-uint64(len(x.payloadBuffer))]}
+			}
+		} else {
+			payloadBuffers = [][]byte{x.extraPayloadBuffer[:buffered]}
+		}
+	}
+
+	if x.withSplit {
+		return x.writeLastChild(x.ctx, x.childMeta, payloadBuffers, x.setID)
+	}
+	return x.writeLastChild(x.ctx, x.rootMeta, payloadBuffers, x.setID)
 }
 
 func (x *PayloadWriter) setID(id oid.ID) {
@@ -371,18 +497,18 @@ func (x *PayloadWriter) ID() oid.ID {
 
 // writeIntermediateChild writes intermediate split-chain element with specified
 // dynamicObjectMetadata to the configured ObjectWriter.
-func (x *PayloadWriter) writeIntermediateChild(ctx context.Context, meta dynamicObjectMetadata) error {
-	return x._writeChild(ctx, meta, false, nil)
+func (x *PayloadWriter) writeIntermediateChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte) error {
+	return x._writeChild(ctx, meta, payloadBuffers, false, nil)
 }
 
 // writeIntermediateChild writes last split-chain element with specified
 // dynamicObjectMetadata to the configured ObjectWriter. If rootIDHandler is
 // specified, ID of the resulting root object is passed into it.
-func (x *PayloadWriter) writeLastChild(ctx context.Context, meta dynamicObjectMetadata, rootIDHandler func(id oid.ID)) error {
-	return x._writeChild(ctx, meta, true, rootIDHandler)
+func (x *PayloadWriter) writeLastChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte, rootIDHandler func(id oid.ID)) error {
+	return x._writeChild(ctx, meta, payloadBuffers, true, rootIDHandler)
 }
 
-func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetadata, last bool, rootIDHandler func(id oid.ID)) error {
+func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte, last bool, rootIDHandler func(id oid.ID)) error {
 	obj := *x.stubObject
 	obj.SetSplitID(nil)
 	obj.ResetPreviousID()
@@ -418,8 +544,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 	var id oid.ID
 	var err error
 
-	id, err = writeInMemObject(ctx, x.signer, x.stream, obj, x.buf.Bytes(), meta, x.prmObjectPutInit)
-
+	id, err = writeInMemObject(ctx, x.signer, x.stream, obj, payloadBuffers, meta, x.prmObjectPutInit)
 	if err != nil {
 		return fmt.Errorf("write formed object: %w", err)
 	}
@@ -486,7 +611,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	return id, nil
 }
 
-func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payload []byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
+func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payloadBuffers [][]byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
 	var (
 		id    oid.ID
 		err   error
@@ -507,9 +632,11 @@ func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, h
 		return id, fmt.Errorf("init data stream for next object: %w", err)
 	}
 
-	_, err = stream.Write(payload)
-	if err != nil {
-		return id, fmt.Errorf("write object payload: %w", err)
+	for i := range payloadBuffers {
+		_, err = stream.Write(payloadBuffers[i])
+		if err != nil {
+			return id, fmt.Errorf("write object payload: %w", err)
+		}
 	}
 
 	if c, ok := stream.(io.Closer); ok {
@@ -564,54 +691,4 @@ func (x *dynamicObjectMetadata) reset() {
 	if x.homomorphicChecksum != nil {
 		x.homomorphicChecksum.Reset()
 	}
-}
-
-var errOverflow = errors.New("overflow")
-
-// limitedWriter provides io.Writer limiting data volume.
-type limitedWriter struct {
-	base io.Writer
-
-	limit, written uint64
-}
-
-// newLimitedWriter initializes limiterWriter which writes data to the base
-// writer before the specified limit.
-func newLimitedWriter(base io.Writer, limit uint64) limitedWriter {
-	return limitedWriter{
-		base:  base,
-		limit: limit,
-	}
-}
-
-// reset resets progress to zero and sets the base target for writing subsequent
-// data.
-func (x *limitedWriter) reset(base io.Writer) {
-	x.base = base
-	x.resetProgress()
-}
-
-// resetProgress resets progress to zero.
-func (x *limitedWriter) resetProgress() {
-	x.written = 0
-}
-
-// Write writes next chunk of the data to the base writer. If chunk along with
-// already written data overflows configured limit, Write returns errOverflow.
-func (x *limitedWriter) Write(p []byte) (n int, err error) {
-	overflow := uint64(len(p)) > x.limit-x.written
-
-	if overflow {
-		n, err = x.base.Write(p[:x.limit-x.written])
-	} else {
-		n, err = x.base.Write(p)
-	}
-
-	x.written += uint64(n)
-
-	if overflow && err == nil {
-		return n, errOverflow
-	}
-
-	return n, err
 }

@@ -19,6 +19,9 @@ type Options struct {
 
 	sessionToken *session.Object
 	bearerToken  *bearer.Token
+
+	payloadSizeFixed bool
+	payloadSize      uint64
 }
 
 // SetObjectPayloadLimit specifies data size limit for produced physically
@@ -59,6 +62,17 @@ func (x *Options) SetCopiesNumber(copiesNumber uint32) {
 // For better performance payloadBuffer length should be MaxObjectSize from NeoFS.
 func (x *Options) SetPayloadBuffer(payloadBuffer []byte) {
 	x.payloadBuffer = payloadBuffer
+}
+
+// SetPayloadSize allows to specify object's payload size known in advance. If
+// set, reading functions will read at least size bytes while writing functions
+// will expect exactly size bytes.
+//
+// If the size is known, the option is recommended as it improves the
+// performance of the application using the [Slicer].
+func (x *Options) SetPayloadSize(size uint64) {
+	x.payloadSizeFixed = true
+	x.payloadSize = size
 }
 
 // ObjectPayloadLimit returns required max object size.
