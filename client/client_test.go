@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -58,3 +59,16 @@ func TestClient_DialContext(t *testing.T) {
 
 	assert(ctx, context.DeadlineExceeded)
 }
+
+type nopPublicKey struct{}
+
+func (x nopPublicKey) MaxEncodedSize() int     { return 10 }
+func (x nopPublicKey) Encode(buf []byte) int   { return copy(buf, "public_key") }
+func (x nopPublicKey) Decode([]byte) error     { return nil }
+func (x nopPublicKey) Verify(_, _ []byte) bool { return true }
+
+type nopSigner struct{}
+
+func (nopSigner) Scheme() neofscrypto.Scheme      { return neofscrypto.ECDSA_SHA512 }
+func (nopSigner) Sign([]byte) ([]byte, error)     { return []byte("signature"), nil }
+func (x nopSigner) Public() neofscrypto.PublicKey { return nopPublicKey{} }
