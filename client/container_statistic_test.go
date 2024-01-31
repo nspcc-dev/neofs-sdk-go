@@ -27,6 +27,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -134,19 +135,8 @@ func prepareContainer(accountID user.ID) container.Container {
 }
 
 func testEaclTable(containerID cid.ID) eacl.Table {
-	var table eacl.Table
-	table.SetCID(containerID)
-
-	r := eacl.NewRecord()
-	r.SetOperation(eacl.OperationPut)
-	r.SetAction(eacl.ActionAllow)
-
-	var target eacl.Target
-	target.SetRole(eacl.RoleOthers)
-	r.SetTargets(target)
-	table.AddRecord(r)
-
-	return table
+	record := eacl.NewRecord(eacl.ActionAllow, acl.OpObjectPut, eacl.NewTargetWithRole(eacl.RoleOthers))
+	return eacl.NewForContainer(containerID, []eacl.Record{record})
 }
 
 func TestClientStatistic_AccountBalance(t *testing.T) {
@@ -338,6 +328,8 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 		var meta session.ResponseMetaHeader
 		var aclTable v2acl.Table
 		var body v2container.GetExtendedACLResponseBody
+
+		eacltest.Table(t).WriteToV2(&aclTable)
 
 		body.SetEACL(&aclTable)
 

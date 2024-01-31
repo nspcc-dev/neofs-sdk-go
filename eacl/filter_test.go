@@ -1,148 +1,184 @@
-package eacl
+package eacl_test
 
 import (
-	"bytes"
-	"strconv"
+	"crypto/sha256"
+	"encoding/hex"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
 
-func newObjectFilter(match Match, key, val string) *Filter {
-	return &Filter{
-		from: HeaderFromObject,
-		key: filterKey{
-			str: key,
-		},
-		matcher: match,
-		value:   staticStringer(val),
-	}
+func TestNewFilter(t *testing.T) {
+	const typ = eacl.HeaderFromRequest
+	const key = "any_key"
+	const matcher = eacl.MatchStringNotEqual
+	const val = "any_value"
+
+	t.Run("empty key", func(t *testing.T) {
+		require.Panics(t, func() { eacl.NewFilter(typ, "", matcher, val) })
+	})
+
+	f := eacl.NewFilter(typ, key, matcher, val)
+
+	require.Equal(t, typ, f.HeaderType())
+	require.Equal(t, key, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, val, f.HeaderValue())
 }
 
-func TestFilter(t *testing.T) {
-	filter := newObjectFilter(MatchStringEqual, "some name", "200")
+func TestNewFilterObjectAttribute(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const value = "any_value"
 
-	v2 := filter.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, v2acl.HeaderTypeObject, v2.GetHeaderType())
-	require.EqualValues(t, v2acl.MatchTypeStringEqual, v2.GetMatchType())
-	require.Equal(t, filter.Key(), v2.GetKey())
-	require.Equal(t, filter.Value(), v2.GetValue())
-
-	newFilter := NewFilterFromV2(v2)
-	require.Equal(t, filter, newFilter)
-
-	t.Run("from nil v2 filter", func(t *testing.T) {
-		require.Equal(t, new(Filter), NewFilterFromV2(nil))
+	t.Run("reserved", func(t *testing.T) {
+		require.Panics(t, func() { eacl.NewFilterObjectAttribute("$Object:any", matcher, value) })
 	})
+
+	const key = "any_key"
+
+	f := eacl.NewFilterObjectAttribute(key, matcher, value)
+
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, key, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, value, f.HeaderValue())
 }
 
-func TestFilterEncoding(t *testing.T) {
-	f := newObjectFilter(MatchStringEqual, "key", "value")
+func TestNewFilterObjectVersion(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	var ver version.Version
 
-	t.Run("binary", func(t *testing.T) {
-		data, err := f.Marshal()
-		require.NoError(t, err)
+	ver.SetMajor(123)
+	ver.SetMinor(456)
 
-		f2 := NewFilter()
-		require.NoError(t, f2.Unmarshal(data))
+	f := eacl.NewFilterObjectVersion(matcher, ver)
 
-		require.Equal(t, f, f2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := f.MarshalJSON()
-		require.NoError(t, err)
-
-		d2 := NewFilter()
-		require.NoError(t, d2.UnmarshalJSON(data))
-
-		require.Equal(t, f, d2)
-	})
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectVersion, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, "v123.456", f.HeaderValue())
 }
 
-func TestFilter_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Filter
+func TestNewFilterObjectID(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const strID = "CdrUYtHAuDDzFF8iw4mAgN2qqb8SDKPo8Gpyg12Ree2k"
 
-		require.Nil(t, x.ToV2())
-	})
+	var id oid.ID
+	require.NoError(t, id.DecodeString(strID))
 
-	t.Run("default values", func(t *testing.T) {
-		filter := NewFilter()
+	f := eacl.NewFilterObjectID(matcher, id)
 
-		// check initial values
-		require.Empty(t, filter.Key())
-		require.Empty(t, filter.Value())
-		require.Equal(t, HeaderTypeUnknown, filter.From())
-		require.Equal(t, MatchUnknown, filter.Matcher())
-
-		// convert to v2 message
-		filterV2 := filter.ToV2()
-
-		require.Empty(t, filterV2.GetKey())
-		require.Empty(t, filterV2.GetValue())
-		require.Equal(t, acl.HeaderTypeUnknown, filterV2.GetHeaderType())
-		require.Equal(t, acl.MatchTypeUnknown, filterV2.GetMatchType())
-	})
-
-	t.Run("reserved types", func(t *testing.T) {
-		r := NewRecord()
-		for i := filterKeyType(1); i < fKeyObjLast; i++ {
-			r.addObjectReservedFilter(MatchStringEqual, i, staticStringer(strconv.FormatUint(uint64(i), 16)))
-		}
-
-		for i := range r.filters {
-			fv2 := r.filters[i].ToV2()
-			actual := NewFilterFromV2(fv2)
-			require.Equal(t, actual, &r.filters[i])
-		}
-	})
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectID, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, strID, f.HeaderValue())
 }
 
-func TestFilter_CopyTo(t *testing.T) {
-	var filter Filter
-	filter.value = staticStringer("value")
-	filter.from = 1
-	filter.matcher = 1
-	filter.key = filterKey{
-		typ: 1,
-		str: "1",
-	}
+func TestNewFilterContainerID(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const strCnr = "AT95KqvYRw3AC1cCmPJdxwYAcXDJGFLv89rZaZKsmJk3"
 
-	var dst Filter
-	t.Run("copy", func(t *testing.T) {
-		filter.CopyTo(&dst)
+	var cnr cid.ID
+	require.NoError(t, cnr.DecodeString(strCnr))
 
-		bts, err := filter.Marshal()
-		require.NoError(t, err)
+	f := eacl.NewFilterContainerID(matcher, cnr)
 
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectContainerID, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, strCnr, f.HeaderValue())
+}
 
-		require.Equal(t, filter, dst)
-		require.True(t, bytes.Equal(bts, bts2))
-	})
+func TestNewFilterOwnerID(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const strOwner = "AT95KqvYRw3AC1cCmPJdxwYAcXDJGFLv89rZaZKsmJk3"
 
-	t.Run("change", func(t *testing.T) {
-		require.Equal(t, filter.value, dst.value)
-		require.Equal(t, filter.from, dst.from)
-		require.Equal(t, filter.matcher, dst.matcher)
-		require.Equal(t, filter.key.typ, dst.key.typ)
-		require.Equal(t, filter.key.str, dst.key.str)
+	var owner user.ID
+	require.NoError(t, owner.DecodeString(strOwner))
 
-		dst.value = staticStringer("value2")
-		dst.from = 2
-		dst.matcher = 2
-		dst.key.typ = 2
-		dst.key.str = "2"
+	f := eacl.NewFilterOwnerID(matcher, owner)
 
-		require.NotEqual(t, filter.value, dst.value)
-		require.NotEqual(t, filter.from, dst.from)
-		require.NotEqual(t, filter.matcher, dst.matcher)
-		require.NotEqual(t, filter.key.typ, dst.key.typ)
-		require.NotEqual(t, filter.key.str, dst.key.str)
-	})
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectOwnerID, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, strOwner, f.HeaderValue())
+}
+
+func TestNewFilterObjectCreationEpoch(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const epoch = 321
+
+	f := eacl.NewFilterObjectCreationEpoch(matcher, epoch)
+
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectCreationEpoch, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, "321", f.HeaderValue())
+}
+
+func TestNewFilterObjectPayloadSize(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const size = 987
+
+	f := eacl.NewFilterObjectPayloadSize(matcher, size)
+
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectPayloadSize, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, "987", f.HeaderValue())
+}
+
+func TestNewFilterObjectType(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const typ = object.TypeTombstone
+
+	f := eacl.NewFilterObjectType(matcher, typ)
+
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectType, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, "TOMBSTONE", f.HeaderValue())
+}
+
+func TestNewFilterObjectPayloadChecksum(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const strChecksum = "9789ec335ad13e956261e82c5f1acb7fdb7b03d766dc53565bb17ca663f002a6"
+
+	d, err := hex.DecodeString(strChecksum)
+	require.NoError(t, err)
+
+	var cs [sha256.Size]byte
+	require.Equal(t, len(cs), copy(cs[:], d))
+
+	f := eacl.NewFilterObjectPayloadChecksum(matcher, cs)
+
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectPayloadChecksum, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, strChecksum, f.HeaderValue())
+}
+
+func TestNewFilterObjectPayloadHomomorphicChecksum(t *testing.T) {
+	const matcher = eacl.MatchStringNotEqual
+	const strChecksum = "631e30ec9730f0580192cdaa6edbbeb704adfa4fd37dde65ceb9d0d357242338d14f7bea2a2dcf09b67b5e74e71bb8398954093059e972e5a551a28d28c6653a"
+
+	d, err := hex.DecodeString(strChecksum)
+	require.NoError(t, err)
+
+	var cs [tz.Size]byte
+	require.Equal(t, len(cs), copy(cs[:], d))
+
+	f := eacl.NewFilterObjectPayloadHomomorphicChecksum(matcher, cs)
+
+	require.Equal(t, eacl.HeaderFromObject, f.HeaderType())
+	require.Equal(t, eacl.FilterObjectPayloadHomomorphicChecksum, f.HeaderKey())
+	require.Equal(t, matcher, f.Matcher())
+	require.Equal(t, strChecksum, f.HeaderValue())
 }

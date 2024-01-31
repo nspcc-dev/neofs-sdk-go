@@ -1,200 +1,174 @@
 package eacl
 
 import (
-	"bytes"
-	"crypto/ecdsa"
+	"fmt"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
 
-// Target is a group of request senders to match ContainerEACL. Defined by role enum
-// and set of public keys.
-//
-// Target is compatible with v2 acl.EACLRecord.Target message.
+// Target describes the parties that are subject to a specific access rule.
 type Target struct {
-	role Role
-	keys [][]byte
+	roles []Role
+	keys  [][]byte
 }
 
-func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
-	keysPtr := make([]*ecdsa.PublicKey, len(keys))
+// NewTarget returns Target that matches parties with at least one of the
+// specified roles or public keys.
+//
+// At least one argument MUST be non-empty. Both arguments MUST NOT be mutated
+// within resulting Target lifetime. All roles MUST be supported values from the
+// corresponding enum except [RoleSystem] which is no longer supported. All keys
+// MUST be non-nil.
+//
+// See also other helper constructors.
+func NewTarget(roles []Role, publicKeys []neofscrypto.PublicKey) Target {
+	var res Target
+	res.roles = roles
 
-	for i := range keys {
-		keysPtr[i] = &keys[i]
+	if publicKeys != nil {
+		res.keys = make([][]byte, len(publicKeys))
+
+		for i := range publicKeys {
+			if publicKeys[i] == nil {
+				panic(fmt.Sprintf("key #%d is nil", i))
+			}
+
+			res.keys[i] = neofscrypto.PublicKeyBytes(publicKeys[i])
+		}
 	}
 
-	return keysPtr
-}
-
-// CopyTo writes deep copy of the [Target] to dst.
-func (t Target) CopyTo(dst *Target) {
-	dst.role = t.role
-
-	dst.keys = make([][]byte, len(t.keys))
-	for i, k := range t.keys {
-		dst.keys[i] = make([]byte, len(k))
-
-		copy(dst.keys[i], t.keys[i])
+	if msg := res.validate(); msg != "" {
+		panic(msg)
 	}
+
+	return res
 }
 
-// BinaryKeys returns list of public keys to identify
-// target subject in a binary format.
-//
-// Each element of the resulting slice is a serialized compressed public key. See [elliptic.MarshalCompressed].
-// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (t *Target) BinaryKeys() [][]byte {
-	return t.keys
+// returns message about docs violation or zero if everything is OK.
+func (t Target) validate() string {
+	if len(t.roles)+len(t.keys) == 0 {
+		return "neither roles nor keys are presented"
+	}
+
+	for i := range t.keys {
+		if len(t.keys[i]) == 0 {
+			return fmt.Sprintf("invalid key #%d: key is empty", i)
+		}
+	}
+
+	for i := range t.roles {
+		switch t.roles[i] {
+		default:
+			panic(fmt.Sprintf("invalid role #%d: forbidden value %v of enum %T", i, t.roles[i], t.roles[i]))
+		case
+			RoleContainerOwner,
+			RoleOthers:
+		}
+	}
+
+	return ""
 }
 
-// SetBinaryKeys sets list of binary public keys to identify
-// target subject.
-//
-// Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
-// See [elliptic.MarshalCompressed].
-func (t *Target) SetBinaryKeys(keys [][]byte) {
-	t.keys = keys
-}
-
-// SetTargetECDSAKeys converts ECDSA public keys to a binary
-// format and stores them in Target.
-func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
-	binKeys := t.BinaryKeys()
-	ln := len(pubs)
-
-	if cap(binKeys) >= ln {
-		binKeys = binKeys[:0]
+// copyTo writes deep copy of the [Target] to dst.
+func (t Target) copyTo(dst *Target) {
+	if t.roles != nil {
+		dst.roles = make([]Role, len(t.roles))
+		copy(dst.roles, t.roles)
 	} else {
-		binKeys = make([][]byte, 0, ln)
+		dst.roles = nil
 	}
 
-	for i := 0; i < ln; i++ {
-		binKeys = append(binKeys, (*keys.PublicKey)(pubs[i]).Bytes())
+	if t.keys != nil {
+		dst.keys = make([][]byte, len(t.keys))
+		for i := range t.keys {
+			dst.keys[i] = slice.Copy(t.keys[i])
+		}
+	} else {
+		dst.keys = nil
 	}
-
-	t.SetBinaryKeys(binKeys)
 }
 
-// TargetECDSAKeys interprets binary public keys of Target
-// as ECDSA public keys. If any key has a different format,
-// the corresponding element will be nil.
-func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
-	binKeys := t.BinaryKeys()
-	ln := len(binKeys)
+// NewTargetWithRole returns Target for the given role only.
+//
+// See also [NewTarget].
+func NewTargetWithRole(role Role) Target {
+	return NewTarget([]Role{role}, nil)
+}
 
-	pubs := make([]*ecdsa.PublicKey, ln)
+// NewTargetWithKey returns Target for the given public key only.
+//
+// See also [NewTarget], [NewTargetWithKeys].
+func NewTargetWithKey(key neofscrypto.PublicKey) Target {
+	return NewTargetWithKeys([]neofscrypto.PublicKey{key})
+}
 
-	for i := 0; i < ln; i++ {
-		p := new(keys.PublicKey)
-		if p.DecodeBytes(binKeys[i]) == nil {
-			pubs[i] = (*ecdsa.PublicKey)(p)
+// NewTargetWithKeys returns Target for the given list of public keys.
+//
+// See also [NewTarget], [NewTargetWithKey].
+func NewTargetWithKeys(publicKeys []neofscrypto.PublicKey) Target {
+	return NewTarget(nil, publicKeys)
+}
+
+// readFromV2 reads Target from the [v2acl.Target] messages. Returns an error if
+// any message is malformed according to the NeoFS API V2 protocol. Behavior is
+// forward-compatible:
+//   - unknown enum values are considered valid
+//   - unknown format of binary public keys is considered valid
+//
+// The argument MUST be non-empty.
+func (t *Target) readFromV2(ms []v2acl.Target) error {
+	if len(ms) == 0 {
+		panic("empty slice of targets")
+	}
+
+	for i := range ms {
+		role := ms[i].GetRole()
+		keys := ms[i].GetKeys()
+
+		if role == 0 && len(keys) == 0 {
+			return fmt.Errorf("invalid target #%d: neither role nor public keys are set", i)
+		}
+
+		if role != 0 && len(keys) != 0 {
+			return fmt.Errorf("invalid target #%d: both role and public keys are set", i)
+		}
+
+		for j := range keys {
+			if len(keys[j]) == 0 {
+				return fmt.Errorf("invalid target #%d: empty key #%d", i, j)
+			}
+		}
+
+		if role != 0 {
+			t.roles = append(t.roles, Role(role))
+		} else {
+			t.keys = append(t.keys, keys...)
 		}
 	}
-
-	return pubs
-}
-
-// SetRole sets target subject's role class.
-func (t *Target) SetRole(r Role) {
-	t.role = r
-}
-
-// Role returns target subject's role class.
-func (t Target) Role() Role {
-	return t.role
-}
-
-// ToV2 converts Target to v2 acl.EACLRecord.Target message.
-//
-// Nil Target converts to nil.
-func (t *Target) ToV2() *v2acl.Target {
-	if t == nil {
-		return nil
-	}
-
-	target := new(v2acl.Target)
-	target.SetRole(t.role.ToV2())
-	target.SetKeys(t.keys)
-
-	return target
-}
-
-// NewTarget creates, initializes and returns blank Target instance.
-//
-// Defaults:
-//   - role: RoleUnknown;
-//   - keys: nil.
-func NewTarget() *Target {
-	return NewTargetFromV2(new(v2acl.Target))
-}
-
-// NewTargetFromV2 converts v2 acl.EACLRecord.Target message to Target.
-func NewTargetFromV2(target *v2acl.Target) *Target {
-	if target == nil {
-		return new(Target)
-	}
-
-	return &Target{
-		role: RoleFromV2(target.GetRole()),
-		keys: target.GetKeys(),
-	}
-}
-
-// Marshal marshals Target into a protobuf binary form.
-func (t *Target) Marshal() ([]byte, error) {
-	return t.ToV2().StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of Target.
-func (t *Target) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Target)
-	if err := fV2.Unmarshal(data); err != nil {
-		return err
-	}
-
-	*t = *NewTargetFromV2(fV2)
 
 	return nil
 }
 
-// MarshalJSON encodes Target to protobuf JSON format.
-func (t *Target) MarshalJSON() ([]byte, error) {
-	return t.ToV2().MarshalJSON()
-}
+// toV2 writes Target to [v2acl.Target] messages of the NeoFS API protocol.
+func (t Target) toV2() []v2acl.Target {
+	var ms []v2acl.Target
 
-// UnmarshalJSON decodes Target from protobuf JSON format.
-func (t *Target) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Target)
-	if err := tV2.UnmarshalJSON(data); err != nil {
-		return err
+	withKeys := len(t.keys) > 0
+	if withKeys {
+		ms = make([]v2acl.Target, len(t.roles)+1)
+	} else {
+		ms = make([]v2acl.Target, len(t.roles))
 	}
 
-	*t = *NewTargetFromV2(tV2)
-
-	return nil
-}
-
-// equalTargets compares Target with each other.
-func equalTargets(t1, t2 Target) bool {
-	if t1.Role() != t2.Role() {
-		return false
+	for i := range t.roles {
+		ms[i].SetRole(v2acl.Role(t.roles[i]))
 	}
 
-	keys1, keys2 := t1.BinaryKeys(), t2.BinaryKeys()
-
-	if len(keys1) != len(keys2) {
-		return false
+	if withKeys {
+		ms[len(ms)-1].SetKeys(t.keys)
 	}
 
-	for i := 0; i < len(keys1); i++ {
-		if !bytes.Equal(keys1[i], keys2[i]) {
-			return false
-		}
-	}
-
-	return true
+	return ms
 }

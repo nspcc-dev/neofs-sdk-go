@@ -1,28 +1,71 @@
 package eacl
 
 import (
-	"crypto/sha256"
+	"errors"
 	"fmt"
 
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Table is a group of ContainerEACL records for single container.
+// Table represents NeoFS extended ACL (eACL): group of rules managing access to
+// NeoFS resources in addition to the basic ACL.
 //
-// Table is compatible with v2 acl.EACLTable message.
+// See also [acl.Basic].
 type Table struct {
-	version version.Version
+	version *version.Version
 	cid     *cid.ID
 	records []Record
 }
 
+// New constructs eACL from the given list of access rules. Being applied as
+// part of access control to the NeoFS resources, the rules are matched
+// according to the first hit: if a rule with a certain index is applicable,
+// then any rule with a larger index is ignored. Thus, to increase the priority
+// of a rule, place it before all adjacent ones (for example, at the beginning).
+//
+// The argument MUST be non-empty and MUST NOT be mutated within lifetime of the
+// resulting Table. All records MUST be correctly constructed.
+//
+// See also [NewForContainer].
+func New(records []Record) Table {
+	if len(records) == 0 {
+		panic("empty records")
+	}
+
+	for i := range records {
+		if msg := records[i].validate(); msg != "" {
+			panic(fmt.Sprintf("invalid record #%d: %s", i, msg))
+		}
+	}
+
+	v := version.Current()
+	return Table{
+		version: &v,
+		records: records,
+	}
+}
+
+// NewForContainer constructs the eACL similar to [New] but also limits its
+// scope by NeoFS container with the specified reference.
+//
+// See also [Table.LimitByContainer].
+func NewForContainer(cnr cid.ID, records []Record) Table {
+	res := New(records)
+	res.LimitByContainer(cnr)
+	return res
+}
+
 // CopyTo writes deep copy of the [Table] to dst.
 func (t Table) CopyTo(dst *Table) {
-	ver := t.version
-	dst.version = ver
+	if t.version != nil {
+		dst.version = new(version.Version)
+		*dst.version = *t.version
+	} else {
+		dst.version = nil
+	}
 
 	if t.cid != nil {
 		id := *t.cid
@@ -31,237 +74,198 @@ func (t Table) CopyTo(dst *Table) {
 		dst.cid = nil
 	}
 
-	dst.records = make([]Record, len(t.records))
-	for i := range t.records {
-		t.records[i].CopyTo(&dst.records[i])
+	if t.records != nil {
+		dst.records = make([]Record, len(t.records))
+		for i := range t.records {
+			t.records[i].copyTo(&dst.records[i])
+		}
+	} else {
+		dst.records = nil
 	}
 }
 
-// CID returns identifier of the container that should use given access control rules.
-func (t Table) CID() (cID cid.ID, isSet bool) {
-	if t.cid != nil {
-		cID = *t.cid
-		isSet = true
+// LimitByContainer limits scope of the eACL to a given container.
+// By default, the eACL is applicable to any container.
+//
+// See also [Table.Container], [NewForContainer].
+func (t *Table) LimitByContainer(cnr cid.ID) {
+	t.cid = &cnr
+}
+
+// Container returns identifier of the NeoFS container to which the eACL scope
+// is limited. If container is not specified, second value is false meaning that
+// eACL may be applied to any container.
+//
+// See also [Table.LimitByContainer].
+func (t Table) Container() (cid.ID, bool) {
+	if t.cid == nil {
+		var zero cid.ID
+		return zero, false
 	}
 
-	return
-}
-
-// SetCID sets identifier of the container that should use given access control rules.
-func (t *Table) SetCID(cid cid.ID) {
-	t.cid = &cid
-}
-
-// Version returns version of eACL format.
-func (t Table) Version() version.Version {
-	return t.version
-}
-
-// SetVersion sets version of eACL format.
-func (t *Table) SetVersion(version version.Version) {
-	t.version = version
+	return *t.cid, true
 }
 
 // Records returns list of extended ACL rules.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
+//
+// See also [Table.SetRecords].
 func (t Table) Records() []Record {
 	return t.records
 }
 
-// AddRecord adds single eACL rule.
-func (t *Table) AddRecord(r *Record) {
-	if r != nil {
-		t.records = append(t.records, *r)
-	}
-}
-
-// ToV2 converts Table to v2 acl.EACLTable message.
+// WriteToV2 writes Table to the [acl.Table] message of the NeoFS API protocol.
 //
-// Nil Table converts to nil.
-func (t *Table) ToV2() *v2acl.Table {
-	if t == nil {
-		return nil
-	}
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Table.ReadFromV2].
+func (t Table) WriteToV2(m *acl.Table) {
+	if t.version != nil {
+		var ver refs.Version
+		t.version.WriteToV2(&ver)
 
-	v2 := new(v2acl.Table)
-	var cidV2 refs.ContainerID
+		m.SetVersion(&ver)
+	} else {
+		m.SetVersion(nil)
+	}
 
 	if t.cid != nil {
-		t.cid.WriteToV2(&cidV2)
-		v2.SetContainerID(&cidV2)
+		var cnr refs.ContainerID
+		t.cid.WriteToV2(&cnr)
+
+		m.SetContainerID(&cnr)
+	} else {
+		m.SetContainerID(nil)
 	}
 
 	if t.records != nil {
-		records := make([]v2acl.Record, len(t.records))
+		rs := make([]acl.Record, len(t.records))
 		for i := range t.records {
-			records[i] = *t.records[i].ToV2()
+			t.records[i].writeToV2(&rs[i])
 		}
 
-		v2.SetRecords(records)
+		m.SetRecords(rs)
+	} else {
+		m.SetRecords(nil)
 	}
-
-	var verV2 refs.Version
-	t.version.WriteToV2(&verV2)
-	v2.SetVersion(&verV2)
-
-	return v2
 }
 
-// NewTable creates, initializes and returns blank Table instance.
+func (t *Table) readFromV2(m acl.Table, checkFieldPresence bool) error {
+	var err error
+
+	ver := m.GetVersion()
+	if ver != nil {
+		t.version = new(version.Version)
+
+		err = t.version.ReadFromV2(*ver)
+		if err != nil {
+			return fmt.Errorf("invalid version: %w", err)
+		}
+	} else {
+		if checkFieldPresence {
+			return errors.New("missing version")
+		}
+
+		t.version = nil
+	}
+
+	cnr := m.GetContainerID()
+	if cnr != nil {
+		t.cid = new(cid.ID)
+
+		err = t.cid.ReadFromV2(*cnr)
+		if err != nil {
+			return fmt.Errorf("invalid container reference: %w", err)
+		}
+	} else {
+		t.cid = nil
+	}
+
+	records := m.GetRecords()
+	if len(records) == 0 {
+		return errors.New("missing records")
+	}
+
+	t.records = make([]Record, len(records))
+	for i := range records {
+		err := t.records[i].readFromV2(records[i])
+		if err != nil {
+			return fmt.Errorf("invalid record #%d: %w", i, err)
+		}
+	}
+
+	return nil
+}
+
+// ReadFromV2 reads Table from the [v2acl.Table] messages. Returns an error if
+// any message is malformed according to the NeoFS API V2 protocol. Behavior is
+// forward-compatible:
+//   - unknown enum values are considered valid
+//   - unknown format of binary public keys is considered valid
 //
-// Defaults:
-//   - version: version.Current();
-//   - container ID: nil;
-//   - records: nil;
-//   - session token: nil;
-//   - signature: nil.
-func NewTable() *Table {
-	t := new(Table)
-	t.SetVersion(version.Current())
-
-	return t
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Table.WriteToV2].
+func (t *Table) ReadFromV2(m acl.Table) error {
+	return t.readFromV2(m, true)
 }
 
-// CreateTable creates, initializes with parameters and returns Table instance.
-func CreateTable(cid cid.ID) *Table {
-	t := NewTable()
-	t.SetCID(cid)
+// Marshal encodes Table into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
+//
+// See also [Table.Unmarshal].
+func (t Table) Marshal() []byte {
+	var m acl.Table
+	t.WriteToV2(&m)
 
-	return t
+	return m.StableMarshal(nil)
 }
 
-// NewTableFromV2 converts v2 acl.EACLTable message to Table.
-func NewTableFromV2(table *v2acl.Table) *Table {
-	t := new(Table)
-
-	if table == nil {
-		return t
-	}
-
-	// set version
-	if v := table.GetVersion(); v != nil {
-		ver := version.Version{}
-		ver.SetMajor(v.GetMajor())
-		ver.SetMinor(v.GetMinor())
-
-		t.SetVersion(ver)
-	}
-
-	// set container id
-	if id := table.GetContainerID(); id != nil {
-		if t.cid == nil {
-			t.cid = new(cid.ID)
-		}
-
-		var h [sha256.Size]byte
-
-		copy(h[:], id.GetValue())
-		t.cid.SetSHA256(h)
-	}
-
-	// set eacl records
-	v2records := table.GetRecords()
-	t.records = make([]Record, len(v2records))
-
-	for i := range v2records {
-		t.records[i] = *NewRecordFromV2(&v2records[i])
-	}
-
-	return t
-}
-
-// Marshal marshals Table into a protobuf binary form.
-func (t *Table) Marshal() ([]byte, error) {
-	return t.ToV2().StableMarshal(nil), nil
-}
-
-// SignedData returns actual payload to sign.
+// SignedData returns signed data of the Table.
 //
 // See also [client.Client.ContainerSetEACL].
 func (t Table) SignedData() []byte {
-	data, _ := t.Marshal()
-	return data
+	return t.Marshal()
 }
 
-// Unmarshal unmarshals protobuf binary representation of Table.
+// Unmarshal decodes NeoFS API protocol binary format into the Table (Protocol
+// Buffers with direct field order). Returns an error describing a format
+// violation.
+//
+// See also [Table.Marshal].
 func (t *Table) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Table)
-	if err := fV2.Unmarshal(data); err != nil {
+	var m acl.Table
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
 
-	// format checks
-	err := checkFormat(fV2)
-	if err != nil {
-		return err
-	}
-
-	*t = *NewTableFromV2(fV2)
-
-	return nil
+	return t.readFromV2(m, false)
 }
 
-// MarshalJSON encodes Table to protobuf JSON format.
-func (t *Table) MarshalJSON() ([]byte, error) {
-	return t.ToV2().MarshalJSON()
+// MarshalJSON encodes Table into a JSON format of the NeoFS API protocol
+// (Protocol Buffers JSON).
+//
+// See also [Table.UnmarshalJSON].
+func (t Table) MarshalJSON() ([]byte, error) {
+	var m acl.Table
+	t.WriteToV2(&m)
+
+	return m.MarshalJSON()
 }
 
-// UnmarshalJSON decodes Table from protobuf JSON format.
+// UnmarshalJSON decodes NeoFS API protocol JSON format into the Table
+// (Protocol Buffers JSON). Returns an error describing a format violation.
+//
+// See also [Table.MarshalJSON].
 func (t *Table) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Table)
-	if err := tV2.UnmarshalJSON(data); err != nil {
+	var m acl.Table
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
 
-	err := checkFormat(tV2)
-	if err != nil {
-		return err
-	}
-
-	*t = *NewTableFromV2(tV2)
-
-	return nil
-}
-
-// EqualTables compares Table with each other.
-func EqualTables(t1, t2 Table) bool {
-	cID1, set1 := t1.CID()
-	cID2, set2 := t2.CID()
-
-	if set1 != set2 || cID1 != cID2 ||
-		!t1.Version().Equal(t2.Version()) {
-		return false
-	}
-
-	rs1, rs2 := t1.Records(), t2.Records()
-
-	if len(rs1) != len(rs2) {
-		return false
-	}
-
-	for i := 0; i < len(rs1); i++ {
-		if !equalRecords(rs1[i], rs2[i]) {
-			return false
-		}
-	}
-
-	return true
-}
-
-func checkFormat(v2 *v2acl.Table) error {
-	var cID cid.ID
-
-	cidV2 := v2.GetContainerID()
-	if cidV2 == nil {
-		return nil
-	}
-
-	err := cID.ReadFromV2(*cidV2)
-	if err != nil {
-		return fmt.Errorf("could not convert V2 container ID: %w", err)
-	}
-
-	return nil
+	return t.readFromV2(m, false)
 }

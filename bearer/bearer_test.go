@@ -20,17 +20,7 @@ import (
 
 // compares binary representations of two eacl.Table instances.
 func isEqualEACLTables(t1, t2 eacl.Table) bool {
-	d1, err := t1.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	d2, err := t2.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.Equal(d1, d2)
+	return bytes.Equal(t1.Marshal(), t2.Marshal())
 }
 
 func TestToken_SetEACLTable(t *testing.T) {
@@ -62,7 +52,9 @@ func TestToken_SetEACLTable(t *testing.T) {
 	require.True(t, isEqualEACLTables(eaclTable, val.EACLTable()))
 
 	val.WriteToV2(&m)
-	eaclTableV2 := eaclTable.ToV2()
+
+	eaclTableV2 := new(acl.Table)
+	eaclTable.WriteToV2(eaclTableV2)
 	require.Equal(t, eaclTableV2, m.GetBody().GetEACL())
 
 	val2 = filled
@@ -230,11 +222,11 @@ func TestToken_AssertContainer(t *testing.T) {
 
 	eaclTable := eacltest.Table(t)
 
-	eaclTable.SetCID(cidtest.ID())
+	eaclTable.LimitByContainer(cidtest.ID())
 	val.SetEACLTable(eaclTable)
 	require.False(t, val.AssertContainer(cnr))
 
-	eaclTable.SetCID(cnr)
+	eaclTable.LimitByContainer(cnr)
 	val.SetEACLTable(eaclTable)
 	require.True(t, val.AssertContainer(cnr))
 }
@@ -307,7 +299,8 @@ func TestToken_ReadFromV2(t *testing.T) {
 	require.Error(t, val.ReadFromV2(m))
 
 	eaclTable := eacltest.Table(t)
-	eaclTableV2 := eaclTable.ToV2()
+	eaclTableV2 := new(acl.Table)
+	eaclTable.WriteToV2(eaclTableV2)
 	body.SetEACL(eaclTableV2)
 
 	require.Error(t, val.ReadFromV2(m))
