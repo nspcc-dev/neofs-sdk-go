@@ -55,9 +55,13 @@ func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer 
 		return fmt.Errorf("init service=%s/op=%s RPC: %w", svcName, opName, err)
 	}
 
-	msg, err := prepareReplicateMessage(src, signer)
+	msg, shared, err := prepareReplicateMessage(src, signer)
 	if err != nil {
 		return err
+	}
+
+	if !shared {
+		defer bp.put(msg)
 	}
 
 	err = stream.WriteMessage(client.BinaryMessage(msg))
@@ -84,13 +88,13 @@ func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer 
 // [Client.ReplicateObject] calls for deduplication of network messages. This
 // option should be used with caution and only to achieve traffic demux
 // optimization goals.
-func DemuxReplicatedObject(src io.ReadSeeker) io.ReadSeeker {
-	return &demuxReplicationMessage{
+func DemuxReplicatedObject(src io.ReadSeeker) *DemuxReplicationMessage {
+	return &DemuxReplicationMessage{
 		rs: src,
 	}
 }
 
-type demuxReplicationMessage struct {
+type DemuxReplicationMessage struct {
 	rs io.ReadSeeker
 
 	mtx sync.Mutex
@@ -98,18 +102,27 @@ type demuxReplicationMessage struct {
 	err error
 }
 
-func (x *demuxReplicationMessage) Read(p []byte) (n int, err error) {
+func (x *DemuxReplicationMessage) Read(p []byte) (n int, err error) {
 	return x.rs.Read(p)
 }
 
-func (x *demuxReplicationMessage) Seek(offset int64, whence int) (int64, error) {
+func (x *DemuxReplicationMessage) Seek(offset int64, whence int) (int64, error) {
 	return x.rs.Seek(offset, whence)
 }
 
-func prepareReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
-	srm, ok := src.(*demuxReplicationMessage)
+func (x *DemuxReplicationMessage) Release() {
+	x.mtx.Lock()
+	if x.msg != nil {
+		bp.put(x.msg)
+	}
+	x.mtx.Unlock()
+}
+
+func prepareReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, bool, error) {
+	srm, ok := src.(*DemuxReplicationMessage)
 	if !ok {
-		return newReplicateMessage(src, signer)
+		msg, err := newReplicateMessage(src, signer)
+		return msg, false, err
 	}
 
 	srm.mtx.Lock()
@@ -119,7 +132,65 @@ func prepareReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]by
 		srm.msg, srm.err = newReplicateMessage(src, signer)
 	}
 
-	return srm.msg, srm.err
+	return srm.msg, true, srm.err
+}
+
+const (
+	poolCap0 = 32 << 10  // 32KB
+	poolCap1 = 512 << 10 // 512KB
+	poolCap2 = 4 << 20   // 4MB
+	poolCap3 = 16 << 20  // 6MB
+	poolCap4 = 65 << 20  // 68MB
+)
+
+type bufferPool struct {
+	pools [5]sync.Pool
+}
+
+var bp = bufferPool{
+	pools: [5]sync.Pool{
+		{New: func() any { return make([]byte, 0, poolCap0) }},
+		{New: func() any { return make([]byte, 0, poolCap1) }},
+		{New: func() any { return make([]byte, 0, poolCap2) }},
+		{New: func() any { return make([]byte, 0, poolCap3) }},
+		{New: func() any { return make([]byte, 0, poolCap4) }},
+	},
+}
+
+func (x *bufferPool) get(cp int) []byte {
+	switch {
+	case cp <= poolCap0:
+		return x.pools[0].Get().([]byte)
+	case cp <= poolCap1:
+		return x.pools[1].Get().([]byte)
+	case cp <= poolCap2:
+		return x.pools[2].Get().([]byte)
+	case cp <= poolCap3:
+		return x.pools[3].Get().([]byte)
+	case cp <= poolCap4:
+		return x.pools[4].Get().([]byte)
+	default:
+		return make([]byte, 0, cp)
+	}
+}
+
+func (x *bufferPool) put(b []byte) {
+	switch cp := cap(b); {
+	case cp <= poolCap0:
+		x.pools[0].Put(b)
+	case cp <= poolCap1:
+		x.pools[1].Put(b)
+	case cp <= poolCap2:
+		x.pools[2].Put(b)
+	case cp <= poolCap3:
+		x.pools[3].Put(b)
+	default:
+		cp := cap(b)
+		if cp > poolCap4 {
+			cp = poolCap4
+		}
+		x.pools[4].Put(b[:0:cp])
+	}
 }
 
 func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
@@ -174,10 +245,10 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
 
 	msgSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(objSize) +
-		protowire.SizeTag(fieldNumSignature) + sigSize
+		protowire.SizeTag(fieldNumSignature) + protowire.SizeBytes(sigSize)
 
 	// TODO(#544): support external buffers
-	msg := make([]byte, 0, uint64(msgSize)+objSize)
+	msg := bp.get(msgSize + int(objSize))[:0]
 
 	msg = protowire.AppendTag(msg, fieldNumObject, protowire.BytesType)
 	msg = protowire.AppendVarint(msg, objSize)

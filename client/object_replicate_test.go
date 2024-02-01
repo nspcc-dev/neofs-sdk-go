@@ -121,7 +121,7 @@ func serveObjectReplication(tb testing.TB, clientSigner neofscrypto.Signer, clie
 
 	var replicationSrv testReplicationServer
 
-	gSrv := grpc.NewServer()
+	gSrv := grpc.NewServer(grpc.MaxRecvMsgSize(65 << 20))
 	objectgrpc.RegisterObjectServiceServer(gSrv, &replicationSrv)
 
 	gConn, err := grpc.Dial("", grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
@@ -145,6 +145,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 	ctx := context.Background()
 	signer := test.RandomSigner(t)
 	obj := objecttest.Object(t)
+	obj.SetPayload(make([]byte, 64<<20))
 	bObj, _ := obj.Marshal()
 
 	t.Run("OK", func(t *testing.T) {
@@ -188,8 +189,8 @@ func TestClient_ReplicateObject(t *testing.T) {
 		err := cli.ReplicateObject(ctx, demuxObj, signer)
 		require.NoError(t, err)
 
-		msgCp := slice.Copy(demuxObj.(*demuxReplicationMessage).msg)
-		initBufPtr := &demuxObj.(*demuxReplicationMessage).msg[0]
+		msgCp := slice.Copy(demuxObj.(*DemuxReplicationMessage).msg)
+		initBufPtr := &demuxObj.(*DemuxReplicationMessage).msg[0]
 
 		var wg sync.WaitGroup
 		for i := 0; i < 5; i++ {
@@ -198,14 +199,13 @@ func TestClient_ReplicateObject(t *testing.T) {
 				defer wg.Done()
 
 				err := cli.ReplicateObject(ctx, demuxObj, signer)
-				fmt.Println(err)
 				require.NoError(t, err)
 			}()
 		}
 
 		wg.Wait()
 
-		require.Equal(t, msgCp, demuxObj.(*demuxReplicationMessage).msg)
-		require.Equal(t, initBufPtr, &demuxObj.(*demuxReplicationMessage).msg[0])
+		require.Equal(t, msgCp, demuxObj.(*DemuxReplicationMessage).msg)
+		require.Equal(t, initBufPtr, &demuxObj.(*DemuxReplicationMessage).msg[0])
 	})
 }
