@@ -3,11 +3,12 @@ package client
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
-	"sync"
 
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -17,8 +18,33 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"google.golang.org/protobuf/encoding/protowire"
 )
+
+// TODO: docs
+type ReplicatedObject struct {
+	s int
+	r io.Reader
+}
+
+func (x ReplicatedObject) Reset() error {
+	if s, ok := x.r.(io.Seeker); ok {
+		_, err := s.Seek(0, io.SeekStart)
+		return err
+	}
+	return nil
+}
+
+func ReplicateFromReader(s int, r io.Reader) ReplicatedObject {
+	return ReplicatedObject{s, r}
+}
+
+func ReplicateFromReadSeeker(rs io.ReadSeeker) ReplicatedObject {
+	return ReplicatedObject{-1, rs}
+}
+
+// TODO: update docs
 
 // ReplicateObject copies binary-encoded NeoFS object from the given
 // [io.ReadSeeker] to remote server for local storage. The signer must
@@ -46,7 +72,44 @@ import (
 //     replicated object;
 //   - [apistatus.ErrContainerNotFound]: the container to which the replicated
 //     object is associated was not found.
-func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer neofscrypto.Signer) error {
+func (c *Client) ReplicateObject(ctx context.Context, id oid.ID, ro ReplicatedObject, signer neofscrypto.Signer) error {
+	if ro.s < 0 {
+		s, ok := ro.r.(io.Seeker)
+		if !ok {
+			return errors.New("negative size")
+		}
+		var sz int64
+		switch v := s.(type) {
+		default:
+			var err error
+			sz, err = s.Seek(0, io.SeekEnd)
+			if err != nil {
+				return fmt.Errorf("seek to end: %w", err)
+			} else if sz < 0 {
+				return fmt.Errorf("seek to end returned negative value %d", sz)
+			}
+			_, err = s.Seek(-sz, io.SeekCurrent)
+			if err != nil {
+				return fmt.Errorf("seek back to initial pos: %w", err)
+			}
+		case *os.File:
+			fileInfo, err := v.Stat()
+			if err != nil {
+				return fmt.Errorf("get file info: %w", err)
+			}
+			sz = fileInfo.Size()
+		case *bytes.Reader:
+			sz = v.Size()
+			if sz < 0 {
+				return fmt.Errorf("negative byte buffer size return %d", sz)
+			}
+		}
+		if sz > math.MaxInt {
+			return fmt.Errorf("object size is too big for this OS %d > %d", sz, math.MaxInt)
+		}
+		ro.s = int(sz)
+	}
+
 	const svcName = "neo.fs.v2.object.ObjectService"
 	const opName = "Replicate"
 	stream, err := c.c.Init(common.CallMethodInfoUnary(svcName, opName),
@@ -55,12 +118,15 @@ func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer 
 		return fmt.Errorf("init service=%s/op=%s RPC: %w", svcName, opName, err)
 	}
 
-	msg, err := prepareReplicateMessage(src, signer)
+	r, sz, err := prepareReplicateMessage(id, ro, signer)
 	if err != nil {
 		return err
 	}
 
-	err = stream.WriteMessage(client.BinaryMessage(msg))
+	err = stream.WriteMessage(client.BinaryMessage{
+		R:    r,
+		Size: sz,
+	})
 	if err != nil && !errors.Is(err, io.EOF) { // io.EOF means the server closed the stream on its side
 		return fmt.Errorf("send request: %w", err)
 	}
@@ -80,87 +146,16 @@ func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer 
 	return resp.err
 }
 
-// DemuxReplicatedObject allows to share same argument between multiple
-// [Client.ReplicateObject] calls for deduplication of network messages. This
-// option should be used with caution and only to achieve traffic demux
-// optimization goals.
-func DemuxReplicatedObject(src io.ReadSeeker) io.ReadSeeker {
-	return &demuxReplicationMessage{
-		rs: src,
-	}
-}
-
-type demuxReplicationMessage struct {
-	rs io.ReadSeeker
-
-	mtx sync.Mutex
-	msg []byte
-	err error
-}
-
-func (x *demuxReplicationMessage) Read(p []byte) (n int, err error) {
-	return x.rs.Read(p)
-}
-
-func (x *demuxReplicationMessage) Seek(offset int64, whence int) (int64, error) {
-	return x.rs.Seek(offset, whence)
-}
-
-func prepareReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
-	srm, ok := src.(*demuxReplicationMessage)
-	if !ok {
-		return newReplicateMessage(src, signer)
+func prepareReplicateMessage(id oid.ID, ro ReplicatedObject, signer neofscrypto.Signer) (io.Reader, int, error) {
+	if ro.s < 0 {
+		panic("negative size")
 	}
 
-	srm.mtx.Lock()
-	defer srm.mtx.Unlock()
-
-	if srm.msg == nil && srm.err == nil {
-		srm.msg, srm.err = newReplicateMessage(src, signer)
-	}
-
-	return srm.msg, srm.err
-}
-
-func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
-	var objSize uint64
-	switch v := src.(type) {
-	default:
-		n, err := src.Seek(0, io.SeekEnd)
-		if err != nil {
-			return nil, fmt.Errorf("seek to end: %w", err)
-		} else if n < 0 {
-			return nil, fmt.Errorf("seek to end returned negative value %d", objSize)
-		}
-
-		_, err = src.Seek(-n, io.SeekCurrent)
-		if err != nil {
-			return nil, fmt.Errorf("seek back to initial pos: %w", err)
-		}
-
-		objSize = uint64(n)
-	case *os.File:
-		fileInfo, err := v.Stat()
-		if err != nil {
-			return nil, fmt.Errorf("get file info: %w", err)
-		}
-
-		objSize = uint64(fileInfo.Size())
-	case *bytes.Reader:
-		n := v.Size()
-		if n < 0 {
-			return nil, fmt.Errorf("negative byte buffer size return %d", objSize)
-		}
-
-		objSize = uint64(n)
-	}
-
-	// TODO: limit the objSize?
-
-	// calculate template signature to know its size
-	sigTmpl, err := signer.Sign(nil)
+	var buf [sha256.Size]byte
+	id.Encode(buf[:])
+	objSig, err := signer.Sign(buf[:])
 	if err != nil {
-		return nil, fmt.Errorf("calculate signature of empty ata: %w", err)
+		return nil, 0, fmt.Errorf("sign object ID: %w", err)
 	}
 
 	bPubKey := neofscrypto.PublicKeyBytes(signer.Public())
@@ -170,40 +165,39 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 	const fieldNumSignature = 2
 
 	sigSize := protowire.SizeTag(fieldNumSigPubKey) + protowire.SizeBytes(len(bPubKey)) +
-		protowire.SizeTag(fieldNumSigVal) + +protowire.SizeBytes(len(sigTmpl)) +
+		protowire.SizeTag(fieldNumSigVal) + +protowire.SizeBytes(len(objSig)) +
 		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
 
-	msgSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(objSize) +
-		protowire.SizeTag(fieldNumSignature) + protowire.SizeBytes(sigSize)
+	sigFieldSize := protowire.SizeTag(fieldNumSignature) + protowire.SizeBytes(sigSize)
 
-	// TODO(#544): support external buffers
-	msg := make([]byte, 0, uint64(msgSize)+objSize)
+	// TODO(#544): we can reuse such buffers - remember fieldNumSigVal field
+	//  offset/len and pool them all
+	// TODO: the data below could be read smart or even piped. For the sake of
+	//  code simplicity, additional buffer is used for now
+	sigField := make([]byte, 0, sigFieldSize)
+	sigField = protowire.AppendTag(sigField, fieldNumSignature, protowire.BytesType)
+	sigField = protowire.AppendVarint(sigField, uint64(sigSize))
+	sigField = protowire.AppendTag(sigField, fieldNumSigPubKey, protowire.BytesType)
+	sigField = protowire.AppendBytes(sigField, bPubKey)
+	sigField = protowire.AppendTag(sigField, fieldNumSigVal, protowire.BytesType)
+	sigField = protowire.AppendBytes(sigField, objSig)
+	sigField = protowire.AppendTag(sigField, fieldNumSigScheme, protowire.VarintType)
+	sigField = protowire.AppendVarint(sigField, sigScheme)
 
-	msg = protowire.AppendTag(msg, fieldNumObject, protowire.BytesType)
-	msg = protowire.AppendVarint(msg, objSize)
-	msg = msg[:uint64(len(msg))+objSize]
+	objFieldPrefixSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(uint64(ro.s))
+	objFieldPrefix := make([]byte, 0, objFieldPrefixSize)
+	objFieldPrefix = protowire.AppendTag(objFieldPrefix, fieldNumObject, protowire.BytesType)
+	objFieldPrefix = protowire.AppendVarint(objFieldPrefix, uint64(ro.s))
 
-	bufObj := msg[uint64(len(msg))-objSize:]
-	_, err = io.ReadFull(src, bufObj)
-	if err != nil {
-		return nil, fmt.Errorf("read full object into the buffer: %w", err)
+	ro.r = io.LimitReader(ro.r, int64(ro.s))
+
+	if sigFieldSize < objFieldPrefixSize+ro.s { // overflow is not expected in practice
+		r := io.MultiReader(bytes.NewReader(sigField), io.MultiReader(bytes.NewReader(objFieldPrefix), ro.r))
+		return r, sigFieldSize + objFieldPrefixSize + ro.s, nil
 	}
 
-	objSig, err := signer.Sign(bufObj)
-	if err != nil {
-		return nil, fmt.Errorf("sign object: %w", err)
-	}
-
-	msg = protowire.AppendTag(msg, fieldNumSignature, protowire.BytesType)
-	msg = protowire.AppendVarint(msg, uint64(sigSize))
-	msg = protowire.AppendTag(msg, fieldNumSigPubKey, protowire.BytesType)
-	msg = protowire.AppendBytes(msg, bPubKey)
-	msg = protowire.AppendTag(msg, fieldNumSigVal, protowire.BytesType)
-	msg = protowire.AppendBytes(msg, objSig)
-	msg = protowire.AppendTag(msg, fieldNumSigScheme, protowire.VarintType)
-	msg = protowire.AppendVarint(msg, sigScheme)
-
-	return msg, nil
+	r := io.MultiReader(io.MultiReader(bytes.NewReader(objFieldPrefix), ro.r), bytes.NewReader(sigField))
+	return r, sigFieldSize + objFieldPrefixSize + ro.s, nil
 }
 
 type replicateResponse struct {
