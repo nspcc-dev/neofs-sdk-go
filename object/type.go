@@ -12,6 +12,7 @@ const (
 	TypeTombstone
 	TypeStorageGroup
 	TypeLock
+	TypeLink
 )
 
 // ToV2 converts [Type] to v2 [object.Type].
@@ -31,6 +32,7 @@ func TypeFromV2(t object.Type) Type {
 //   - [TypeStorageGroup]: STORAGE_GROUP;
 //   - [TypeLock]: LOCK;
 //   - [TypeRegular], default: REGULAR.
+//   - [TypeLink], default: LINK.
 func (t Type) EncodeToString() string {
 	return t.ToV2().String()
 }

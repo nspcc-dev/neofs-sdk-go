@@ -90,6 +90,7 @@ func copySplitHeader(spl *object.SplitHeader) *object.SplitHeader {
 
 	newSpl.SetParent(copyObjectID(spl.GetParent()))
 	newSpl.SetPrevious(copyObjectID(spl.GetPrevious()))
+	newSpl.SetFirst(copyObjectID(spl.GetFirst()))
 	newSpl.SetParentSignature(copySignature(spl.GetParentSignature()))
 	newSpl.SetParentHeader(copyHeader(spl.GetParentHeader()))
 

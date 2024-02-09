@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	objecttest "github.com/nspcc-dev/neofs-api-go/v2/object/test"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -123,4 +124,9 @@ func Lock() *object.Lock {
 	l.WriteMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
 
 	return &l
+}
+
+// Link returns random object.Link.
+func Link() *object.Link {
+	return (*object.Link)(objecttest.GenerateLink(false))
 }
