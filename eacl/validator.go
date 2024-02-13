@@ -2,6 +2,7 @@ package eacl
 
 import (
 	"bytes"
+	"math/big"
 )
 
 // Validator is a tool that calculates
@@ -25,6 +26,9 @@ func NewValidator() *Validator {
 //
 // If no matching table entry is found or some filters are missing,
 // ActionAllow is returned and the second return value is false.
+//
+// Note that if some rule imposes requirements on the format of values (like
+// numeric), but they do not comply with it - such a rule does not match.
 func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool) {
 	for _, record := range unit.table.Records() {
 		// check type of operation
@@ -56,11 +60,20 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool) {
 //   - negative value if the headers of at least one filter cannot be obtained.
 func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
 	matched := 0
+	var nv, nf big.Int
 
+nextFilter:
 	for _, filter := range filters {
 		headers, ok := hdrSrc.HeadersOfType(filter.From())
 		if !ok {
 			return -1
+		}
+
+		m := filter.Matcher()
+		if m == MatchNumGT || m == MatchNumGE || m == MatchNumLT || m == MatchNumLE {
+			if _, ok = nf.SetString(filter.Value(), 10); !ok {
+				continue
+			}
 		}
 
 		// get headers of filtering type
@@ -75,21 +88,52 @@ func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
 				continue
 			}
 
-			// get match function
-			matchFn, ok := mMatchFns[filter.Matcher()]
-			if !ok {
-				continue
-			}
-
 			// check match
-			if !matchFn(header, &filter) {
+			switch m {
+			default:
 				continue
+			case MatchNotPresent:
+				continue nextFilter
+			case MatchStringEqual:
+				if header.Value() != filter.Value() {
+					continue
+				}
+			case MatchStringNotEqual:
+				if header.Value() == filter.Value() {
+					continue
+				}
+			case MatchNumGT, MatchNumGE, MatchNumLT, MatchNumLE:
+				// TODO: big math simplifies coding but almost always not efficient
+				//  enough, try to optimize
+				if _, ok = nv.SetString(header.Value(), 10); !ok {
+					continue
+				}
+				switch nf.Cmp(&nv) {
+				default:
+					continue // should never happen but just in case
+				case -1:
+					if m == MatchNumGT || m == MatchNumGE {
+						continue
+					}
+				case 0:
+					if m == MatchNumGT || m == MatchNumLT {
+						continue
+					}
+				case 1:
+					if m == MatchNumLT || m == MatchNumLE {
+						continue
+					}
+				}
 			}
 
 			// increment match counter
 			matched++
 
 			break
+		}
+
+		if m == MatchNotPresent {
+			matched++
 		}
 	}
 
@@ -122,15 +166,4 @@ func targetMatches(unit *ValidationUnit, record *Record) bool {
 	}
 
 	return false
-}
-
-// Maps match type to corresponding function.
-var mMatchFns = map[Match]func(Header, *Filter) bool{
-	MatchStringEqual: func(header Header, filter *Filter) bool {
-		return header.Value() == filter.Value()
-	},
-
-	MatchStringNotEqual: func(header Header, filter *Filter) bool {
-		return header.Value() != filter.Value()
-	},
 }
