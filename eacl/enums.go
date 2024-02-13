@@ -81,6 +81,21 @@ const (
 
 	// MatchStringNotEqual is a Match of string inequality.
 	MatchStringNotEqual
+
+	// MatchNotPresent is an operator for attribute absence.
+	MatchNotPresent
+
+	// MatchNumGT is a numeric "greater than" operator.
+	MatchNumGT
+
+	// MatchNumGE is a numeric "greater or equal than" operator.
+	MatchNumGE
+
+	// MatchNumLT is a numeric "less than" operator.
+	MatchNumLT
+
+	// MatchNumLE is a numeric "less or equal than" operator.
+	MatchNumLE
 )
 
 // FilterHeaderType indicates source of headers to make matches.
@@ -317,27 +332,35 @@ func (r *Role) DecodeString(s string) bool {
 // ToV2 converts Match to v2 MatchType enum value.
 func (m Match) ToV2() v2acl.MatchType {
 	switch m {
-	case MatchStringEqual:
-		return v2acl.MatchTypeStringEqual
-	case MatchStringNotEqual:
-		return v2acl.MatchTypeStringNotEqual
+	case
+		MatchStringEqual,
+		MatchStringNotEqual,
+		MatchNotPresent,
+		MatchNumGT,
+		MatchNumGE,
+		MatchNumLT,
+		MatchNumLE:
+		return v2acl.MatchType(m)
 	default:
 		return v2acl.MatchTypeUnknown
 	}
 }
 
 // MatchFromV2 converts v2 MatchType enum value to Match.
-func MatchFromV2(match v2acl.MatchType) (m Match) {
+func MatchFromV2(match v2acl.MatchType) Match {
 	switch match {
-	case v2acl.MatchTypeStringEqual:
-		m = MatchStringEqual
-	case v2acl.MatchTypeStringNotEqual:
-		m = MatchStringNotEqual
+	case
+		v2acl.MatchTypeStringEqual,
+		v2acl.MatchTypeStringNotEqual,
+		v2acl.MatchTypeNotPresent,
+		v2acl.MatchTypeNumGT,
+		v2acl.MatchTypeNumGE,
+		v2acl.MatchTypeNumLT,
+		v2acl.MatchTypeNumLE:
+		return Match(match)
 	default:
-		m = MatchUnknown
+		return MatchUnknown
 	}
-
-	return m
 }
 
 // EncodeToString returns string representation of Match.
@@ -345,6 +368,11 @@ func MatchFromV2(match v2acl.MatchType) (m Match) {
 // String mapping:
 //   - MatchStringEqual: STRING_EQUAL;
 //   - MatchStringNotEqual: STRING_NOT_EQUAL;
+//   - MatchNotPresent: NOT_PRESENT;
+//   - MatchNumGT: NUM_GT;
+//   - MatchNumGE: NUM_GE;
+//   - MatchNumLT: NUM_LT;
+//   - MatchNumLE: NUM_LE;
 //   - MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
 func (m Match) EncodeToString() string {
 	return m.ToV2().String()

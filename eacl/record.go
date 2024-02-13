@@ -123,56 +123,80 @@ func (r *Record) addObjectReservedFilter(m Match, typ filterKeyType, val stringE
 }
 
 // AddFilter adds generic filter.
+//
+// If matcher is [MatchNotPresent], the value must be empty. If matcher is
+// numeric (e.g. [MatchNumGT]), value must be a base-10 integer.
 func (r *Record) AddFilter(from FilterHeaderType, matcher Match, name, value string) {
 	r.addFilter(from, matcher, 0, name, staticStringer(value))
 }
 
 // AddObjectAttributeFilter adds filter by object attribute.
+//
+// If m is [MatchNotPresent], the value must be empty. If matcher is numeric
+// (e.g. [MatchNumGT]), value must be a base-10 integer.
 func (r *Record) AddObjectAttributeFilter(m Match, key, value string) {
 	r.addObjectFilter(m, 0, key, staticStringer(value))
 }
 
 // AddObjectVersionFilter adds filter by object version.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectVersionFilter(m Match, v *version.Version) {
 	r.addObjectReservedFilter(m, fKeyObjVersion, staticStringer(version.EncodeToString(*v)))
 }
 
 // AddObjectIDFilter adds filter by object ID.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectIDFilter(m Match, id oid.ID) {
 	r.addObjectReservedFilter(m, fKeyObjID, id)
 }
 
 // AddObjectContainerIDFilter adds filter by object container ID.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectContainerIDFilter(m Match, id cid.ID) {
 	r.addObjectReservedFilter(m, fKeyObjContainerID, id)
 }
 
 // AddObjectOwnerIDFilter adds filter by object owner ID.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectOwnerIDFilter(m Match, id *user.ID) {
 	r.addObjectReservedFilter(m, fKeyObjOwnerID, id)
 }
 
 // AddObjectCreationEpoch adds filter by object creation epoch.
+//
+// The m must not be [MatchNotPresent].
 func (r *Record) AddObjectCreationEpoch(m Match, epoch uint64) {
 	r.addObjectReservedFilter(m, fKeyObjCreationEpoch, u64Stringer(epoch))
 }
 
 // AddObjectPayloadLengthFilter adds filter by object payload length.
+//
+// The m must not be [MatchNotPresent].
 func (r *Record) AddObjectPayloadLengthFilter(m Match, size uint64) {
 	r.addObjectReservedFilter(m, fKeyObjPayloadLength, u64Stringer(size))
 }
 
 // AddObjectPayloadHashFilter adds filter by object payload hash value.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
 	r.addObjectReservedFilter(m, fKeyObjPayloadHash, staticStringer(h.String()))
 }
 
 // AddObjectTypeFilter adds filter by object type.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
 	r.addObjectReservedFilter(m, fKeyObjType, staticStringer(t.EncodeToString()))
 }
 
 // AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.
+//
+// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
 	r.addObjectReservedFilter(m, fKeyObjHomomorphicHash, staticStringer(h.String()))
 }
