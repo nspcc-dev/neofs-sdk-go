@@ -154,7 +154,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIBalance = func(cli *client.Client, req *accounting.BalanceRequest, opts ...client.CallOption) (*accounting.BalanceResponse, error) {
+	rpcAPIBalance = func(_ *client.Client, _ *accounting.BalanceRequest, _ ...client.CallOption) (*accounting.BalanceResponse, error) {
 		var resp accounting.BalanceResponse
 		var meta session.ResponseMetaHeader
 		var balance accounting.Decimal
@@ -189,7 +189,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIPutContainer = func(cli *client.Client, req *v2container.PutRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
+	rpcAPIPutContainer = func(_ *client.Client, _ *v2container.PutRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
 		var meta session.ResponseMetaHeader
 		var body v2container.PutResponseBody
@@ -224,7 +224,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIGetContainer = func(cli *client.Client, req *v2container.GetRequest, opts ...client.CallOption) (*v2container.GetResponse, error) {
+	rpcAPIGetContainer = func(_ *client.Client, _ *v2container.GetRequest, _ ...client.CallOption) (*v2container.GetResponse, error) {
 		var cont v2container.Container
 		var ver refs.Version
 		var placementPolicyV2 netmapv2.PlacementPolicy
@@ -273,7 +273,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIListContainers = func(cli *client.Client, req *v2container.ListRequest, opts ...client.CallOption) (*v2container.ListResponse, error) {
+	rpcAPIListContainers = func(_ *client.Client, _ *v2container.ListRequest, _ ...client.CallOption) (*v2container.ListResponse, error) {
 		var resp v2container.ListResponse
 		var meta session.ResponseMetaHeader
 		var body v2container.ListResponseBody
@@ -303,7 +303,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIDeleteContainer = func(cli *client.Client, req *v2container.DeleteRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
+	rpcAPIDeleteContainer = func(_ *client.Client, _ *v2container.DeleteRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
 		var meta session.ResponseMetaHeader
 		var body v2container.PutResponseBody
@@ -333,7 +333,7 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIGetEACL = func(cli *client.Client, req *v2container.GetExtendedACLRequest, opts ...client.CallOption) (*v2container.GetExtendedACLResponse, error) {
+	rpcAPIGetEACL = func(_ *client.Client, _ *v2container.GetExtendedACLRequest, _ ...client.CallOption) (*v2container.GetExtendedACLResponse, error) {
 		var resp v2container.GetExtendedACLResponse
 		var meta session.ResponseMetaHeader
 		var aclTable v2acl.Table
@@ -366,7 +366,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPISetEACL = func(cli *client.Client, req *v2container.SetExtendedACLRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
+	rpcAPISetEACL = func(_ *client.Client, _ *v2container.SetExtendedACLRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
 		var meta session.ResponseMetaHeader
 		var body v2container.PutResponseBody
@@ -397,7 +397,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIAnnounceUsedSpace = func(cli *client.Client, req *v2container.AnnounceUsedSpaceRequest, opts ...client.CallOption) (*v2container.PutResponse, error) {
+	rpcAPIAnnounceUsedSpace = func(_ *client.Client, _ *v2container.AnnounceUsedSpaceRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
 		var resp v2container.PutResponse
 		var meta session.ResponseMetaHeader
 		var body v2container.PutResponseBody
@@ -432,7 +432,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPINetworkInfo = func(cli *client.Client, req *netmapv2.NetworkInfoRequest, opts ...client.CallOption) (*netmapv2.NetworkInfoResponse, error) {
+	rpcAPINetworkInfo = func(_ *client.Client, _ *netmapv2.NetworkInfoRequest, _ ...client.CallOption) (*netmapv2.NetworkInfoResponse, error) {
 		var resp netmapv2.NetworkInfoResponse
 		var meta session.ResponseMetaHeader
 		var netInfo netmapv2.NetworkInfo
@@ -474,7 +474,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPILocalNodeInfo = func(cli *client.Client, req *netmapv2.LocalNodeInfoRequest, opts ...client.CallOption) (*netmapv2.LocalNodeInfoResponse, error) {
+	rpcAPILocalNodeInfo = func(_ *client.Client, _ *netmapv2.LocalNodeInfoRequest, _ ...client.CallOption) (*netmapv2.LocalNodeInfoResponse, error) {
 		var resp netmapv2.LocalNodeInfoResponse
 		var meta session.ResponseMetaHeader
 		var ver refs.Version
@@ -511,7 +511,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPINetMapSnapshot = func(cli *client.Client, req *netmapv2.SnapshotRequest, opts ...client.CallOption) (*netmapv2.SnapshotResponse, error) {
+	rpcAPINetMapSnapshot = func(_ *client.Client, _ *netmapv2.SnapshotRequest, _ ...client.CallOption) (*netmapv2.SnapshotResponse, error) {
 		var resp netmapv2.SnapshotResponse
 		var meta session.ResponseMetaHeader
 		var netMap netmapv2.NetMap
@@ -544,7 +544,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPICreateSession = func(cli *client.Client, req *session.CreateRequest, opts ...client.CallOption) (*session.CreateResponse, error) {
+	rpcAPICreateSession = func(_ *client.Client, _ *session.CreateRequest, _ ...client.CallOption) (*session.CreateResponse, error) {
 		var resp session.CreateResponse
 		var meta session.ResponseMetaHeader
 
@@ -582,7 +582,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIPutObject = func(cli *client.Client, pResp *v2object.PutResponse, opts ...client.CallOption) (objectWriter, error) {
+	rpcAPIPutObject = func(_ *client.Client, _ *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
 		var resp rpcapi.PutRequestWriter
 
 		return &resp, nil
@@ -630,7 +630,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIDeleteObject = func(cli *client.Client, req *v2object.DeleteRequest, opts ...client.CallOption) (*v2object.DeleteResponse, error) {
+	rpcAPIDeleteObject = func(_ *client.Client, _ *v2object.DeleteRequest, _ ...client.CallOption) (*v2object.DeleteResponse, error) {
 		var resp v2object.DeleteResponse
 		var meta session.ResponseMetaHeader
 		var body v2object.DeleteResponseBody
@@ -676,7 +676,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIGetObject = func(cli *client.Client, req *v2object.GetRequest, opts ...client.CallOption) (*rpcapi.GetResponseReader, error) {
+	rpcAPIGetObject = func(_ *client.Client, _ *v2object.GetRequest, _ ...client.CallOption) (*rpcapi.GetResponseReader, error) {
 		var resp rpcapi.GetResponseReader
 
 		// todo: fill
@@ -707,7 +707,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIHeadObject = func(cli *client.Client, req *v2object.HeadRequest, opts ...client.CallOption) (*v2object.HeadResponse, error) {
+	rpcAPIHeadObject = func(_ *client.Client, _ *v2object.HeadRequest, _ ...client.CallOption) (*v2object.HeadResponse, error) {
 		var resp v2object.HeadResponse
 		var meta session.ResponseMetaHeader
 		var body v2object.HeadResponseBody
@@ -746,7 +746,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIGetObjectRange = func(cli *client.Client, req *v2object.GetRangeRequest, opts ...client.CallOption) (*rpcapi.ObjectRangeResponseReader, error) {
+	rpcAPIGetObjectRange = func(_ *client.Client, _ *v2object.GetRangeRequest, _ ...client.CallOption) (*rpcapi.ObjectRangeResponseReader, error) {
 		var resp rpcapi.ObjectRangeResponseReader
 
 		// todo: fill
@@ -777,7 +777,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIHashObjectRange = func(cli *client.Client, req *v2object.GetRangeHashRequest, opts ...client.CallOption) (*v2object.GetRangeHashResponse, error) {
+	rpcAPIHashObjectRange = func(_ *client.Client, _ *v2object.GetRangeHashRequest, _ ...client.CallOption) (*v2object.GetRangeHashResponse, error) {
 		var resp v2object.GetRangeHashResponse
 		var meta session.ResponseMetaHeader
 		var body v2object.GetRangeHashResponseBody
@@ -818,7 +818,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPISearchObjects = func(cli *client.Client, req *v2object.SearchRequest, opts ...client.CallOption) (*rpcapi.SearchResponseReader, error) {
+	rpcAPISearchObjects = func(_ *client.Client, _ *v2object.SearchRequest, _ ...client.CallOption) (*rpcapi.SearchResponseReader, error) {
 		var resp rpcapi.SearchResponseReader
 
 		// todo: fill
@@ -851,7 +851,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIAnnounceIntermediateResult = func(cli *client.Client, req *reputation.AnnounceIntermediateResultRequest, opts ...client.CallOption) (*reputation.AnnounceIntermediateResultResponse, error) {
+	rpcAPIAnnounceIntermediateResult = func(_ *client.Client, _ *reputation.AnnounceIntermediateResultRequest, _ ...client.CallOption) (*reputation.AnnounceIntermediateResultResponse, error) {
 		var resp reputation.AnnounceIntermediateResultResponse
 		var meta session.ResponseMetaHeader
 		var body reputation.AnnounceIntermediateResultResponseBody
@@ -883,7 +883,7 @@ func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
 	ctx := context.Background()
 	c := newClient(t, nil)
 
-	rpcAPIAnnounceLocalTrust = func(cli *client.Client, req *reputation.AnnounceLocalTrustRequest, opts ...client.CallOption) (*reputation.AnnounceLocalTrustResponse, error) {
+	rpcAPIAnnounceLocalTrust = func(_ *client.Client, _ *reputation.AnnounceLocalTrustRequest, _ ...client.CallOption) (*reputation.AnnounceLocalTrustResponse, error) {
 		var resp reputation.AnnounceLocalTrustResponse
 		var meta session.ResponseMetaHeader
 		var body reputation.AnnounceLocalTrustResponseBody

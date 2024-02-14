@@ -896,7 +896,7 @@ func (p *Pool) updateNodesHealth(ctx context.Context, buffers [][]float64) {
 		wg.Add(1)
 
 		bufferWeights := buffers[i]
-		go func(i int, innerPool *innerPool) {
+		go func(i int, _ *innerPool) {
 			defer wg.Done()
 			p.updateInnerNodesHealth(ctx, i, bufferWeights)
 		}(i, inner)
