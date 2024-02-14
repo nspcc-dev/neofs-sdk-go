@@ -272,10 +272,10 @@ func testSlicerWithKnownSize(t *testing.T, size, sizeLimit uint64, known bool) {
 		chainCollector: newChainCollector(t),
 	}
 
-	for i := object.TypeRegular; i <= object.TypeLock; i++ {
+	for i := object.TypeRegular; i <= object.TypeLink; i++ {
 		in.objectType = i
 
-		t.Run(fmt.Sprintf("slicer with %s,known_size=%t", i.EncodeToString(), known), func(t *testing.T) {
+		t.Run(fmt.Sprintf("slicer with %s,known_size=%t,size=%d,limit=%d", i.EncodeToString(), known, size, sizeLimit), func(t *testing.T) {
 			testSlicerByHeaderType(t, checker, in, opts)
 		})
 	}
@@ -536,10 +536,10 @@ type chainCollector struct {
 
 	mProcessed map[oid.ID]struct{}
 
+	shortParentHeader *object.Object
+
 	parentHeaderSet bool
 	parentHeader    object.Object
-
-	splitID *object.SplitID
 
 	firstSet    bool
 	first       oid.ID
@@ -549,7 +549,7 @@ type chainCollector struct {
 
 	mPayloads map[oid.ID]payloadWithChecksum
 
-	children []oid.ID
+	children []object.MeasuredObject
 }
 
 func newChainCollector(tb testing.TB) *chainCollector {
@@ -578,7 +578,9 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.NotNil(tb, ver, "version must be set in all objects")
 	require.Equal(tb, version.Current(), *ver, "the version must be set to current SDK one")
 
-	require.Equal(tb, object.TypeRegular, header.Type(), "only regular objects must be produced")
+	typ := header.Type()
+	require.True(tb, typ == object.TypeRegular || typ == object.TypeLink, "only regular and link objects must be produced")
+
 	require.EqualValues(tb, in.currentEpoch, header.CreationEpoch(), "configured current epoch must be set as creation epoch")
 	require.Equal(tb, in.sessionToken, header.SessionToken(), "configured session token must be written into objects")
 
@@ -588,7 +590,13 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.Equal(tb, in.withHomo, ok)
 }
 
-func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.Reader) {
+func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payload io.Reader) {
+	// copy the header cause some slicer code is written considering
+	// that sent object is a safe-to-change object, while tests store
+	// and share the "sent" objects
+	var header object.Object
+	headerOriginal.CopyTo(&header)
+
 	id, ok := header.ID()
 	require.True(x.tb, ok, "all objects must have an ID")
 
@@ -602,22 +610,39 @@ func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.R
 
 	x.mProcessed[id] = struct{}{}
 
-	splitID := header.SplitID()
-	if x.splitID == nil && splitID != nil {
-		x.splitID = splitID
-	} else {
-		require.Equal(x.tb, x.splitID, splitID, "split ID must the same in all objects")
-	}
+	require.Nil(x.tb, header.SplitID(), "split ID is deprecated and must be nil")
 
 	parent := header.Parent()
 	if parent != nil {
 		require.Nil(x.tb, parent.Parent(), "multi-level genealogy is not supported")
 
-		if x.parentHeaderSet {
-			require.Equal(x.tb, x.parentHeader, *parent, "root header must the same")
-		} else {
+		if x.shortParentHeader == nil {
+			// parent in the first part
+
+			_, set := parent.ID()
+			require.False(x.tb, set, "first object's parent cannot have ID")
+
+			require.Nil(x.tb, parent.Signature(), "first object's parent cannot have signature")
+
+			x.shortParentHeader = parent
+		} else if !x.parentHeaderSet {
 			x.parentHeaderSet = true
 			x.parentHeader = *parent
+		} else {
+			require.Equal(x.tb, x.parentHeader, *parent, "root header must the same")
+
+			var parentNoPayloadInfo object.Object
+
+			cID, _ := x.parentHeader.ContainerID()
+			parentNoPayloadInfo.SetVersion(x.parentHeader.Version())
+			parentNoPayloadInfo.SetContainerID(cID)
+			parentNoPayloadInfo.SetCreationEpoch(x.parentHeader.CreationEpoch())
+			parentNoPayloadInfo.SetType(x.parentHeader.Type())
+			parentNoPayloadInfo.SetOwnerID(x.parentHeader.OwnerID())
+			parentNoPayloadInfo.SetSessionToken(x.parentHeader.SessionToken())
+			parentNoPayloadInfo.SetAttributes(x.parentHeader.Attributes()...)
+
+			require.Equal(x.tb, *x.shortParentHeader, parentNoPayloadInfo, "first object's parent should be equal to the resulting (without payload info)")
 		}
 	}
 
@@ -631,20 +656,35 @@ func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.R
 		}
 
 		x.mNext[prev] = id
-	} else if len(header.Children()) == 0 { // 1st split-chain or linking object
-		require.False(x.tb, x.firstSet, "there must not be multiple split-chains")
+	} else if header.HasParent() {
+		if !x.firstSet {
+			// 1st split-chain
+
+			require.Equal(x.tb, object.TypeRegular, header.Type())
+			require.NotNil(x.tb, header.Parent())
+		} else {
+			// linking object
+
+			require.Equal(x.tb, object.TypeLink, header.Type())
+
+			var testLink object.Link
+			require.NoError(x.tb, header.ReadLink(&testLink))
+
+			children := testLink.Objects()
+			if len(children) > 0 {
+				if len(x.children) > 0 {
+					require.Equal(x.tb, x.children, children, "children list must be the same")
+				} else {
+					x.children = children
+				}
+			}
+		}
+	}
+
+	if !x.firstSet {
 		x.firstSet = true
 		x.first = id
 		x.firstHeader = header
-	}
-
-	children := header.Children()
-	if len(children) > 0 {
-		if len(x.children) > 0 {
-			require.Equal(x.tb, x.children, children, "children list must be the same")
-		} else {
-			x.children = children
-		}
 	}
 
 	cs, ok := header.PayloadChecksum()
@@ -665,6 +705,17 @@ func (x *chainCollector) handleOutgoingObject(header object.Object, payload io.R
 	x.mPayloads[id] = pcs
 }
 
+type payloadCounter struct {
+	res int
+}
+
+func (p *payloadCounter) Write(payload []byte) (n int, err error) {
+	read := len(payload)
+	p.res += read
+
+	return read, nil
+}
+
 func (x *chainCollector) verify(in input, rootID oid.ID) {
 	require.True(x.tb, x.firstSet, "initial split-chain element must be set")
 
@@ -673,16 +724,22 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 		rootObj = x.firstHeader
 	}
 
-	restoredChain := []oid.ID{x.first}
+	var firstObject object.MeasuredObject
+	firstObject.SetObjectID(x.first)
+	firstObject.SetObjectSize(uint32(x.firstHeader.PayloadSize()))
+
+	restoredChain := []object.MeasuredObject{firstObject}
 	restoredPayload := bytes.NewBuffer(make([]byte, 0, rootObj.PayloadSize()))
 
 	require.Equal(x.tb, in.objectType, rootObj.Type())
 
 	for {
-		v, ok := x.mPayloads[restoredChain[len(restoredChain)-1]]
+		v, ok := x.mPayloads[restoredChain[len(restoredChain)-1].ObjectID()]
 		require.True(x.tb, ok)
 
-		ws := []io.Writer{restoredPayload}
+		var counter payloadCounter
+
+		ws := []io.Writer{restoredPayload, &counter}
 		for i := range v.hs {
 			ws = append(ws, v.hs[i])
 		}
@@ -690,16 +747,21 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 		_, err := io.Copy(io.MultiWriter(ws...), v.r)
 		require.NoError(x.tb, err)
 
+		restoredChain[len(restoredChain)-1].SetObjectSize(uint32(counter.res))
+
 		for i := range v.cs {
 			require.True(x.tb, bytes.Equal(v.cs[i].Value(), v.hs[i].Sum(nil)))
 		}
 
-		next, ok := x.mNext[restoredChain[len(restoredChain)-1]]
+		nextObjectID, ok := x.mNext[restoredChain[len(restoredChain)-1].ObjectID()]
 		if !ok {
 			break
 		}
 
-		restoredChain = append(restoredChain, next)
+		var nextObject object.MeasuredObject
+		nextObject.SetObjectID(nextObjectID)
+
+		restoredChain = append(restoredChain, nextObject)
 	}
 
 	rootObj.SetPayload(restoredPayload.Bytes())
@@ -728,15 +790,21 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 }
 
 type memoryWriter struct {
-	opts    slicer.Options
-	headers []object.Object
-	splitID *object.SplitID
+	opts        slicer.Options
+	headers     []object.Object
+	firstObject *oid.ID
 }
 
 func (w *memoryWriter) ObjectPutInit(_ context.Context, hdr object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
-	w.headers = append(w.headers, hdr)
-	if w.splitID == nil && hdr.SplitID() != nil {
-		w.splitID = hdr.SplitID()
+	var objectCopy object.Object
+	hdr.CopyTo(&objectCopy)
+	w.headers = append(w.headers, objectCopy)
+
+	if w.firstObject == nil {
+		first, set := hdr.FirstID()
+		if set {
+			w.firstObject = &first
+		}
 	}
 
 	return &memoryPayload{}, nil
@@ -801,10 +869,17 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
-		for _, h := range writer.headers {
-			splitID := h.SplitID()
-			require.NotNil(t, splitID)
-			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+		for i, h := range writer.headers {
+			first, set := h.FirstID()
+
+			if i == 0 {
+				require.False(t, set)
+			} else {
+				require.True(t, set)
+				require.Equal(t, *writer.firstObject, first)
+			}
+
+			require.Nil(t, h.SplitID())
 
 			checkParentWithoutSplitInfo(h)
 		}
@@ -832,10 +907,17 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.NoError(t, payloadWriter.Close())
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
-		for _, h := range writer.headers {
-			splitID := h.SplitID()
-			require.NotNil(t, splitID)
-			require.Equal(t, writer.splitID.ToV2(), splitID.ToV2())
+		for i, h := range writer.headers {
+			first, set := h.FirstID()
+
+			if i == 0 {
+				require.False(t, set)
+			} else {
+				require.True(t, set)
+				require.Equal(t, *writer.firstObject, first)
+			}
+
+			require.Nil(t, h.SplitID())
 
 			checkParentWithoutSplitInfo(h)
 		}
