@@ -55,7 +55,7 @@ func TestClient_ObjectPutInit(t *testing.T) {
 		c := newClient(t, nil)
 		signer := test.RandomSignerRFC6979(t)
 
-		rpcAPIPutObject = func(cli *client.Client, r *v2object.PutResponse, o ...client.CallOption) (objectWriter, error) {
+		rpcAPIPutObject = func(_ *client.Client, r *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
 			return &testPutStreamAccessDenied{resp: r, signer: signer, t: t}, nil
 		}
 
