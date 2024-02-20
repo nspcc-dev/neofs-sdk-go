@@ -27,6 +27,10 @@ var eqV2Matches = map[object.SearchMatchType]v2object.MatchType{
 	object.MatchStringNotEqual: v2object.MatchStringNotEqual,
 	object.MatchNotPresent:     v2object.MatchNotPresent,
 	object.MatchCommonPrefix:   v2object.MatchCommonPrefix,
+	object.MatchNumGT:          v2object.MatchNumGT,
+	object.MatchNumGE:          v2object.MatchNumGE,
+	object.MatchNumLT:          v2object.MatchNumLT,
+	object.MatchNumLE:          v2object.MatchNumLE,
 }
 
 func TestMatch(t *testing.T) {
@@ -265,6 +269,10 @@ func TestSearchMatchType_String(t *testing.T) {
 		{val: toPtr(object.MatchStringNotEqual), str: "STRING_NOT_EQUAL"},
 		{val: toPtr(object.MatchNotPresent), str: "NOT_PRESENT"},
 		{val: toPtr(object.MatchUnknown), str: "MATCH_TYPE_UNSPECIFIED"},
+		{val: toPtr(object.MatchNumGT), str: "NUM_GT"},
+		{val: toPtr(object.MatchNumGE), str: "NUM_GE"},
+		{val: toPtr(object.MatchNumLT), str: "NUM_LT"},
+		{val: toPtr(object.MatchNumLE), str: "NUM_LE"},
 	})
 }
 

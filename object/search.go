@@ -24,40 +24,46 @@ const (
 	MatchStringNotEqual
 	MatchNotPresent
 	MatchCommonPrefix
+	MatchNumGT
+	MatchNumGE
+	MatchNumLT
+	MatchNumLE
 )
 
 // ToV2 converts [SearchMatchType] to v2 [v2object.MatchType] enum value.
 func (m SearchMatchType) ToV2() v2object.MatchType {
 	switch m {
-	case MatchStringEqual:
-		return v2object.MatchStringEqual
-	case MatchStringNotEqual:
-		return v2object.MatchStringNotEqual
-	case MatchNotPresent:
-		return v2object.MatchNotPresent
-	case MatchCommonPrefix:
-		return v2object.MatchCommonPrefix
+	case
+		MatchStringEqual,
+		MatchStringNotEqual,
+		MatchNotPresent,
+		MatchCommonPrefix,
+		MatchNumGT,
+		MatchNumGE,
+		MatchNumLT,
+		MatchNumLE:
+		return v2object.MatchType(m)
 	default:
 		return v2object.MatchUnknown
 	}
 }
 
 // SearchMatchFromV2 converts v2 [v2object.MatchType] to [SearchMatchType] enum value.
-func SearchMatchFromV2(t v2object.MatchType) (m SearchMatchType) {
+func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
 	switch t {
-	case v2object.MatchStringEqual:
-		m = MatchStringEqual
-	case v2object.MatchStringNotEqual:
-		m = MatchStringNotEqual
-	case v2object.MatchNotPresent:
-		m = MatchNotPresent
-	case v2object.MatchCommonPrefix:
-		m = MatchCommonPrefix
+	case
+		v2object.MatchStringEqual,
+		v2object.MatchStringNotEqual,
+		v2object.MatchNotPresent,
+		v2object.MatchCommonPrefix,
+		v2object.MatchNumGT,
+		v2object.MatchNumGE,
+		v2object.MatchNumLT,
+		v2object.MatchNumLE:
+		return SearchMatchType(t)
 	default:
-		m = MatchUnknown
+		return MatchUnknown
 	}
-
-	return m
 }
 
 // EncodeToString returns string representation of [SearchMatchType].
@@ -67,6 +73,10 @@ func SearchMatchFromV2(t v2object.MatchType) (m SearchMatchType) {
 //   - [MatchStringNotEqual]: STRING_NOT_EQUAL;
 //   - [MatchNotPresent]: NOT_PRESENT;
 //   - [MatchCommonPrefix]: COMMON_PREFIX;
+//   - [MatchNumGT], default: NUM_GT;
+//   - [MatchNumGE], default: NUM_GE;
+//   - [MatchNumLT], default: NUM_LT;
+//   - [MatchNumLE], default: NUM_LE;
 //   - [MatchUnknown], default: MATCH_TYPE_UNSPECIFIED.
 func (m SearchMatchType) EncodeToString() string {
 	return m.ToV2().String()
@@ -200,6 +210,8 @@ func (f *SearchFilters) addFilter(op SearchMatchType, key string, val stringEnco
 }
 
 // AddFilter adds a filter to group by simple plain parameters.
+//
+// If op is numeric (like [MatchNumGT]), value must be a base-10 integer.
 func (f *SearchFilters) AddFilter(key, value string, op SearchMatchType) {
 	f.addFilter(op, key, staticStringer(value))
 }
@@ -212,16 +224,22 @@ func (f *SearchFilters) addFlagFilter(key string) {
 }
 
 // AddObjectVersionFilter adds a filter by version.
+//
+// The op must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v version.Version) {
 	f.addFilter(op, FilterVersion, staticStringer(version.EncodeToString(v)))
 }
 
 // AddObjectContainerIDFilter adds a filter by container id.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
 	f.addFilter(m, FilterContainerID, id)
 }
 
 // AddObjectOwnerIDFilter adds a filter by object owner id.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
 	f.addFilter(m, FilterOwnerID, id)
 }
@@ -263,21 +281,29 @@ func (f *SearchFilters) AddPhyFilter() {
 }
 
 // AddParentIDFilter adds filter by parent identifier.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id oid.ID) {
 	f.addFilter(m, FilterParentID, id)
 }
 
 // AddObjectIDFilter adds filter by object identifier.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 	f.addFilter(m, FilterID, id)
 }
 
 // AddSplitIDFilter adds filter by split ID.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id SplitID) {
 	f.addFilter(m, FilterSplitID, staticStringer(id.String()))
 }
 
 // AddTypeFilter adds filter by object type.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
 	f.addFilter(m, FilterType, staticStringer(typ.EncodeToString()))
 }
@@ -305,11 +331,15 @@ func (f *SearchFilters) UnmarshalJSON(data []byte) error {
 }
 
 // AddPayloadHashFilter adds filter by payload hash.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size]byte) {
 	f.addFilter(m, FilterPayloadChecksum, staticStringer(hex.EncodeToString(sum[:])))
 }
 
 // AddHomomorphicHashFilter adds filter by homomorphic hash.
+//
+// The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
 	f.addFilter(m, FilterPayloadHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
 }
