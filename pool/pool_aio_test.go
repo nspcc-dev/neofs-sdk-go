@@ -376,6 +376,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
 			defer cancel()
 
+			payload = append(payload, 0x01) // Make it different from the one above, otherwise OID will be the same and we can get "status: code = 2052 message = object already removed"
 			objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
 			objectList = append(objectList, objID)
 		})
