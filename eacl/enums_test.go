@@ -37,6 +37,11 @@ var (
 		eacl.MatchUnknown:        v2acl.MatchTypeUnknown,
 		eacl.MatchStringEqual:    v2acl.MatchTypeStringEqual,
 		eacl.MatchStringNotEqual: v2acl.MatchTypeStringNotEqual,
+		eacl.MatchNotPresent:     v2acl.MatchTypeNotPresent,
+		eacl.MatchNumGT:          v2acl.MatchTypeNumGT,
+		eacl.MatchNumGE:          v2acl.MatchTypeNumGE,
+		eacl.MatchNumLT:          v2acl.MatchTypeNumLT,
+		eacl.MatchNumLE:          v2acl.MatchTypeNumLE,
 	}
 
 	eqV2HeaderTypes = map[eacl.FilterHeaderType]v2acl.HeaderType{
@@ -98,8 +103,8 @@ func TestMatch(t *testing.T) {
 	})
 
 	t.Run("unknown matches", func(t *testing.T) {
-		require.Equal(t, (eacl.MatchStringNotEqual + 1).ToV2(), v2acl.MatchTypeUnknown)
-		require.Equal(t, eacl.MatchFromV2(v2acl.MatchTypeStringNotEqual+1), eacl.MatchUnknown)
+		require.Equal(t, (eacl.MatchNumLE + 1).ToV2(), v2acl.MatchTypeUnknown)
+		require.Equal(t, eacl.MatchFromV2(v2acl.MatchTypeNumLE+1), eacl.MatchUnknown)
 	})
 }
 
@@ -198,6 +203,11 @@ func TestMatch_String(t *testing.T) {
 		{val: toPtr(eacl.MatchStringEqual), str: "STRING_EQUAL"},
 		{val: toPtr(eacl.MatchStringNotEqual), str: "STRING_NOT_EQUAL"},
 		{val: toPtr(eacl.MatchUnknown), str: "MATCH_TYPE_UNSPECIFIED"},
+		{val: toPtr(eacl.MatchNotPresent), str: "NOT_PRESENT"},
+		{val: toPtr(eacl.MatchNumGT), str: "NUM_GT"},
+		{val: toPtr(eacl.MatchNumGE), str: "NUM_GE"},
+		{val: toPtr(eacl.MatchNumLT), str: "NUM_LT"},
+		{val: toPtr(eacl.MatchNumLE), str: "NUM_LE"},
 	})
 }
 

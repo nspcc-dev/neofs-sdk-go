@@ -19,10 +19,10 @@ func checkAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit
 	require.Equal(t, expected, action)
 }
 
-func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit) {
+func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit, msgAndArgs ...any) {
 	action, ok := v.CalculateAction(vu)
-	require.False(t, ok)
-	require.Equal(t, ActionAllow, action)
+	require.False(t, ok, msgAndArgs)
+	require.Equal(t, ActionAllow, action, msgAndArgs...)
 }
 
 func TestFilterMatch(t *testing.T) {
@@ -282,4 +282,112 @@ func newValidationUnit(role Role, key []byte, table *Table) *ValidationUnit {
 		WithRole(role).
 		WithSenderKey(key).
 		WithEACLTable(table)
+}
+
+func TestNumericRules(t *testing.T) {
+	for _, tc := range []struct {
+		m   Match
+		f   string
+		h   string
+		exp bool
+	}{
+		// >
+		{MatchNumGT, "non-decimal", "0", false},
+		{MatchNumGT, "0", "non-decimal", false},
+		{MatchNumGT, "-1", "-2", true},
+		{MatchNumGT, "0", "0", false},
+		{MatchNumGT, "0", "-1", true},
+		{MatchNumGT, "1", "0", true},
+		{MatchNumGT, "111111111111111111111111111111", "111111111111111111111111111110", true}, // more than 64-bit
+		{MatchNumGT, "111111111111111111111111111111", "111111111111111111111111111111", false},
+		{MatchNumGT, "-111111111111111111111111111110", "-111111111111111111111111111111", true},
+		{MatchNumGT, "-2", "-1", false},
+		{MatchNumGT, "-1", "0", false},
+		{MatchNumGT, "0", "1", false},
+		{MatchNumGT, "111111111111111111111111111110", "111111111111111111111111111111", false},
+		{MatchNumGT, "-111111111111111111111111111111", "-111111111111111111111111111110", false},
+		// >=
+		{MatchNumGE, "non-decimal", "0", false},
+		{MatchNumGE, "0", "non-decimal", false},
+		{MatchNumGE, "-1", "-2", true},
+		{MatchNumGE, "0", "0", true},
+		{MatchNumGE, "0", "-1", true},
+		{MatchNumGE, "1", "0", true},
+		{MatchNumGE, "111111111111111111111111111111", "111111111111111111111111111110", true},
+		{MatchNumGE, "111111111111111111111111111111", "111111111111111111111111111111", true},
+		{MatchNumGE, "-111111111111111111111111111110", "-111111111111111111111111111111", true},
+		{MatchNumGE, "-2", "-1", false},
+		{MatchNumGE, "-1", "0", false},
+		{MatchNumGE, "0", "1", false},
+		{MatchNumGE, "111111111111111111111111111110", "111111111111111111111111111111", false},
+		{MatchNumGE, "-111111111111111111111111111111", "-111111111111111111111111111110", false},
+		// <
+		{MatchNumLT, "non-decimal", "0", false},
+		{MatchNumLT, "0", "non-decimal", false},
+		{MatchNumLT, "-1", "-2", false},
+		{MatchNumLT, "0", "0", false},
+		{MatchNumLT, "0", "-1", false},
+		{MatchNumLT, "1", "0", false},
+		{MatchNumLT, "111111111111111111111111111111", "111111111111111111111111111110", false},
+		{MatchNumLT, "111111111111111111111111111111", "111111111111111111111111111111", false},
+		{MatchNumLT, "-111111111111111111111111111110", "-111111111111111111111111111111", false},
+		{MatchNumLT, "-2", "-1", true},
+		{MatchNumLT, "-1", "0", true},
+		{MatchNumLT, "0", "1", true},
+		{MatchNumLT, "111111111111111111111111111110", "111111111111111111111111111111", true},
+		{MatchNumLT, "-111111111111111111111111111111", "-111111111111111111111111111110", true},
+		// <=
+		{MatchNumLE, "non-decimal", "0", false},
+		{MatchNumLE, "0", "non-decimal", false},
+		{MatchNumLE, "-1", "-2", false},
+		{MatchNumLE, "0", "0", true},
+		{MatchNumLE, "0", "-1", false},
+		{MatchNumLE, "1", "0", false},
+		{MatchNumLE, "111111111111111111111111111111", "111111111111111111111111111110", false},
+		{MatchNumLE, "111111111111111111111111111111", "111111111111111111111111111111", true},
+		{MatchNumLE, "-111111111111111111111111111110", "-111111111111111111111111111111", false},
+		{MatchNumLE, "-2", "-1", true},
+		{MatchNumLE, "-1", "0", true},
+		{MatchNumLE, "0", "1", true},
+		{MatchNumLE, "111111111111111111111111111110", "111111111111111111111111111111", true},
+		{MatchNumLE, "-111111111111111111111111111111", "-111111111111111111111111111110", true},
+	} {
+		var rec Record
+		rec.AddObjectAttributeFilter(tc.m, "any_key", tc.f)
+		hs := headers{obj: makeHeaders("any_key", tc.h)}
+
+		v := matchFilters(hs, rec.filters)
+		if tc.exp {
+			require.Zero(t, v, tc)
+		} else {
+			require.Positive(t, v, tc)
+		}
+	}
+}
+
+func TestAbsenceRules(t *testing.T) {
+	hs := headers{obj: makeHeaders(
+		"key1", "val1",
+		"key2", "val2",
+	)}
+
+	var r Record
+
+	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
+	r.AddObjectAttributeFilter(MatchNotPresent, "key1", "")
+	v := matchFilters(hs, r.filters)
+	require.Positive(t, v)
+
+	r.filters = r.filters[:0]
+	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
+	r.AddObjectAttributeFilter(MatchNotPresent, "key2", "")
+	v = matchFilters(hs, r.filters)
+	require.Positive(t, v)
+
+	r.filters = r.filters[:0]
+	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
+	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
+	r.AddObjectAttributeFilter(MatchNotPresent, "key3", "")
+	v = matchFilters(hs, r.filters)
+	require.Zero(t, v)
 }
