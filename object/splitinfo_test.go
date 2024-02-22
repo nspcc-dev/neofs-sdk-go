@@ -16,6 +16,7 @@ func TestSplitInfo(t *testing.T) {
 	splitID := object.NewSplitID()
 	lastPart := generateID()
 	link := generateID()
+	firstPart := generateID()
 
 	s.SetSplitID(splitID)
 	require.Equal(t, splitID, s.SplitID())
@@ -29,6 +30,11 @@ func TestSplitInfo(t *testing.T) {
 	l, set := s.Link()
 	require.True(t, set)
 	require.Equal(t, link, l)
+
+	s.SetFirstPart(firstPart)
+	ip, set := s.FirstPart()
+	require.True(t, set)
+	require.Equal(t, firstPart, ip)
 }
 
 func TestSplitInfoMarshal(t *testing.T) {
@@ -49,11 +55,12 @@ func TestSplitInfoMarshal(t *testing.T) {
 		require.Equal(t, s, newS)
 	}
 
-	t.Run("good, both fields are set", func(t *testing.T) {
+	t.Run("good, all fields are set", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
 		s.SetLink(generateID())
 		s.SetLastPart(generateID())
+		s.SetFirstPart(generateID())
 
 		testToV2(t, s)
 		testMarshal(t, s)
@@ -120,6 +127,8 @@ func TestNewSplitInfo(t *testing.T) {
 		require.False(t, set)
 		_, set = si.Link()
 		require.False(t, set)
+		_, set = si.FirstPart()
+		require.False(t, set)
 
 		// convert to v2 message
 		siV2 := si.ToV2()
@@ -127,6 +136,7 @@ func TestNewSplitInfo(t *testing.T) {
 		require.Nil(t, siV2.GetSplitID())
 		require.Nil(t, siV2.GetLastPart())
 		require.Nil(t, siV2.GetLink())
+		require.Nil(t, siV2.GetFirstPart())
 	})
 }
 
@@ -136,6 +146,7 @@ func TestSplitInfoMarshalJSON(t *testing.T) {
 		s.SetSplitID(object.NewSplitID())
 		s.SetLastPart(generateID())
 		s.SetLink(generateID())
+		s.SetFirstPart(generateID())
 
 		data, err := s.MarshalJSON()
 		require.NoError(t, err)
@@ -150,6 +161,10 @@ func TestSplitInfoMarshalJSON(t *testing.T) {
 	})
 	t.Run("bad last part", func(t *testing.T) {
 		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","lastPart":{"value":"bad"},"link":{"value":"eRyPNCNNxHfxPcjijlv05HEcdoep/b7eHNLRSmDlnts="}}`
+		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
+	})
+	t.Run("bad first part", func(t *testing.T) {
+		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","firstPart":{"value":"bad"},"link":{"value":"eRyPNCNNxHfxPcjijlv05HEcdoep/b7eHNLRSmDlnts="}}`
 		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
 	})
 }

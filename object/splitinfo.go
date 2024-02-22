@@ -39,7 +39,8 @@ func (s *SplitInfo) ToV2() *object.SplitInfo {
 	return (*object.SplitInfo)(s)
 }
 
-// SplitID returns [SplitID] if it has been set.
+// SplitID returns [SplitID] if it has been set. New objects may miss it,
+// use [SplitInfo.FirstPart] as a split chain identifier.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -53,6 +54,9 @@ func (s *SplitInfo) SplitID() *SplitID {
 // SetSplitID sets split ID in object ID. It resets split ID if nil passed.
 //
 // See also [SplitInfo.SplitID].
+//
+// DEPRECATED.[SplitInfo.SetFirstPart] usage is required for the _new_ split
+// objects, it serves as chain identification.
 func (s *SplitInfo) SetSplitID(v *SplitID) {
 	(*object.SplitInfo)(s).SetSplitID(v.ToV2())
 }
@@ -107,6 +111,31 @@ func (s *SplitInfo) SetLink(v oid.ID) {
 	v.WriteToV2(&idV2)
 
 	(*object.SplitInfo)(s).SetLink(&idV2)
+}
+
+// FirstPart returns the first part of the split chain.
+//
+// See also [SplitInfo.SetFirstPart].
+func (s SplitInfo) FirstPart() (v oid.ID, isSet bool) {
+	v2 := (object.SplitInfo)(s)
+
+	firstV2 := v2.GetFirstPart()
+	if firstV2 != nil {
+		_ = v.ReadFromV2(*firstV2)
+		isSet = true
+	}
+
+	return
+}
+
+// SetFirstPart sets the first part of the split chain.
+//
+// See also [SplitInfo.FirstPart].
+func (s *SplitInfo) SetFirstPart(v oid.ID) {
+	var idV2 refs.ObjectID
+	v.WriteToV2(&idV2)
+
+	(*object.SplitInfo)(s).SetFirstPart(&idV2)
 }
 
 // Marshal marshals [SplitInfo] into a protobuf binary form.
@@ -169,6 +198,14 @@ func formatCheckSI(v2 *object.SplitInfo) error {
 		err := oID.ReadFromV2(*lastPart)
 		if err != nil {
 			return fmt.Errorf("could not convert last part object ID: %w", err)
+		}
+	}
+
+	firstPart := v2.GetFirstPart()
+	if firstPart != nil { // can be missing for old objects
+		err := oID.ReadFromV2(*firstPart)
+		if err != nil {
+			return fmt.Errorf("could not convert first part object ID: %w", err)
 		}
 	}
 

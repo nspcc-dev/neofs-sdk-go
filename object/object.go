@@ -490,6 +490,34 @@ func (o *Object) SetChildren(v ...oid.ID) {
 	})
 }
 
+// SetFirstID sets the first part's ID of the object's
+// split chain.
+//
+// See also [Object.FirstID].
+func (o *Object) SetFirstID(id oid.ID) {
+	var v2 refs.ObjectID
+	id.WriteToV2(&v2)
+
+	o.setSplitFields(func(split *object.SplitHeader) {
+		split.SetFirst(&v2)
+	})
+}
+
+// FirstID returns the first part of the object's split chain.
+//
+// See also [Object.SetFirstID].
+func (o *Object) FirstID() (v oid.ID, isSet bool) {
+	v2 := (*object.Object)(o)
+
+	v2First := v2.GetHeader().GetSplit().GetFirst()
+	if v2First != nil {
+		err := v.ReadFromV2(*v2First)
+		isSet = (err == nil)
+	}
+
+	return
+}
+
 // NotificationInfo groups information about object notification
 // that can be written to object.
 //

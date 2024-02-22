@@ -335,10 +335,10 @@ type PayloadWriter struct {
 
 	metaWriter io.Writer
 
-	withSplit bool
-	splitID   *object.SplitID
+	withSplit   bool
+	firstObject *oid.ID
 
-	writtenChildren  []oid.ID
+	writtenChildren  []object.MeasuredObject
 	prmObjectPutInit client.PrmObjectPutInit
 	stubObject       *object.Object
 }
@@ -427,7 +427,6 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 	}
 
 	if !x.withSplit {
-		x.splitID = object.NewSplitID()
 		// note: don't move next row, the value of this flag will be used inside writeIntermediateChild
 		// to fill splitInfo in all child objects.
 		x.withSplit = true
@@ -518,10 +517,19 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 	obj.ResetID()
 
 	if x.withSplit {
-		obj.SetSplitID(x.splitID)
+		if x.firstObject == nil {
+			// first child object, has parent header,
+			// does not have split chain ID
+			obj.SetParent(&x.headerObject)
+		} else {
+			// any non-first split object, has
+			// the first child object ID as a
+			// split chain identifier
+			obj.SetFirstID(*x.firstObject)
+		}
 	}
 	if len(x.writtenChildren) > 0 {
-		obj.SetPreviousID(x.writtenChildren[len(x.writtenChildren)-1])
+		obj.SetPreviousID(x.writtenChildren[len(x.writtenChildren)-1].ObjectID())
 	}
 	if last {
 		rootID, err := flushObjectMetadata(x.signer, x.rootMeta, &x.headerObject)
@@ -549,12 +557,23 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		return fmt.Errorf("write formed object: %w", err)
 	}
 
-	x.writtenChildren = append(x.writtenChildren, id)
+	if x.withSplit && x.firstObject == nil {
+		x.firstObject = &id
+	}
+
+	var measuredObject object.MeasuredObject
+	measuredObject.SetObjectSize(uint32(meta.length))
+	measuredObject.SetObjectID(id)
+
+	x.writtenChildren = append(x.writtenChildren, measuredObject)
 
 	if x.withSplit && last {
+		var linkObj object.Link
+		linkObj.SetObjects(x.writtenChildren)
+		obj.WriteLink(linkObj)
+
 		meta.reset()
 		obj.ResetPreviousID()
-		obj.SetChildren(x.writtenChildren...)
 		// we reuse already written object, we should reset these fields, to eval them one more time in writeInMemObject.
 		obj.ResetID()
 		obj.SetSignature(nil)
