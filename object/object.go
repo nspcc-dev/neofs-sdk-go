@@ -518,64 +518,6 @@ func (o *Object) FirstID() (v oid.ID, isSet bool) {
 	return
 }
 
-// NotificationInfo groups information about object notification
-// that can be written to object.
-//
-// Topic is an optional field.
-type NotificationInfo struct {
-	ni object.NotificationInfo
-}
-
-// Epoch returns object notification tick epoch.
-//
-// See also [NotificationInfo.SetEpoch].
-func (n NotificationInfo) Epoch() uint64 {
-	return n.ni.Epoch()
-}
-
-// SetEpoch sets object notification tick epoch.
-//
-// See also [NotificationInfo.Epoch].
-func (n *NotificationInfo) SetEpoch(epoch uint64) {
-	n.ni.SetEpoch(epoch)
-}
-
-// Topic return optional object notification topic.
-//
-// See also [NotificationInfo.SetTopic].
-func (n NotificationInfo) Topic() string {
-	return n.ni.Topic()
-}
-
-// SetTopic sets optional object notification topic.
-//
-// See also [NotificationInfo.Topic].
-func (n *NotificationInfo) SetTopic(topic string) {
-	n.ni.SetTopic(topic)
-}
-
-// NotificationInfo returns notification info read from the object structure.
-// Returns any error that appeared during notification information parsing.
-//
-// See also [Object.SetNotification].
-func (o *Object) NotificationInfo() (*NotificationInfo, error) {
-	ni, err := object.GetNotificationInfo((*object.Object)(o))
-	if err != nil {
-		return nil, err
-	}
-
-	return &NotificationInfo{
-		ni: *ni,
-	}, nil
-}
-
-// SetNotification writes [NotificationInfo] to the object structure.
-//
-// See also [Object.NotificationInfo].
-func (o *Object) SetNotification(ni NotificationInfo) {
-	object.WriteNotificationInfo((*object.Object)(o), ni.ni)
-}
-
 // SplitID return split identity of split object. If object is not split returns nil.
 //
 // See also [Object.SetSplitID].
