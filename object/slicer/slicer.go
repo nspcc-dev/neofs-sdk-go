@@ -30,7 +30,8 @@ var (
 type ObjectWriter interface {
 	// ObjectPutInit initializes and returns a stream of writable data associated
 	// with the object according to its header. Provided header includes at least
-	// container, owner and object ID fields.
+	// container, owner and object ID fields. Header length is limited to
+	// [object.MaxHeaderLen].
 	//
 	// Signer is required and must not be nil. The operation is executed on behalf of
 	// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.

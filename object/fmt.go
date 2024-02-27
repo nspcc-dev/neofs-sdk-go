@@ -12,6 +12,10 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
+// MaxHeaderLen is a maximum allowed length of binary object header to be
+// created via NeoFS API protocol.
+const MaxHeaderLen = 16 << 10
+
 var (
 	errCheckSumMismatch = errors.New("payload checksum mismatch")
 	errCheckSumNotSet   = errors.New("payload checksum is not set")
