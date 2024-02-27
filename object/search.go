@@ -244,11 +244,6 @@ func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
 	f.addFilter(m, FilterOwnerID, id)
 }
 
-// AddNotificationEpochFilter adds a filter by epoch. This epoch is not about expiration, but about notification production.
-func (f *SearchFilters) AddNotificationEpochFilter(epoch uint64) {
-	f.addFilter(MatchStringEqual, v2object.SysAttributeTickEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
-}
-
 // ToV2 converts [SearchFilters] to [v2object.SearchFilter] slice.
 func (f SearchFilters) ToV2() []v2object.SearchFilter {
 	result := make([]v2object.SearchFilter, len(f))
