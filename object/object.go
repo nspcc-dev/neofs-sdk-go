@@ -843,3 +843,8 @@ func formatCheck(v2 *object.Object) error {
 
 	return nil
 }
+
+// HeaderLen returns length of the binary header.
+func (o *Object) HeaderLen() int {
+	return (*object.Object)(o).GetHeader().StableSize()
+}

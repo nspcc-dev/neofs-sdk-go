@@ -26,6 +26,7 @@ func (p *Pool) actualSigner(signer user.Signer) user.Signer {
 }
 
 // ObjectPutInit initiates writing an object through a remote server using NeoFS API protocol.
+// Header length is limited to [object.MaxHeaderLen].
 //
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //

@@ -269,6 +269,7 @@ func (x *DefaultObjectWriter) GetResult() ResObjectPut {
 }
 
 // ObjectPutInit initiates writing an object through a remote server using NeoFS API protocol.
+// Header length is limited to [object.MaxHeaderLen].
 //
 // The call only opens the transmission channel, explicit recording is done using the [ObjectWriter].
 // Exactly one return value is non-nil. Resulting writer must be finally closed.
