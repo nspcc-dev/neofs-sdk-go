@@ -573,13 +573,18 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		linkObj.SetObjects(x.writtenChildren)
 		obj.WriteLink(linkObj)
 
-		meta.reset()
 		obj.ResetPreviousID()
 		// we reuse already written object, we should reset these fields, to eval them one more time in writeInMemObject.
 		obj.ResetID()
 		obj.SetSignature(nil)
 
-		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, nil, meta, x.prmObjectPutInit)
+		payload := obj.Payload()
+		payloadAsBuffers := [][]byte{obj.Payload()}
+
+		meta.reset()
+		meta.accumulateNextPayloadChunk(payload)
+
+		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, payloadAsBuffers, meta, x.prmObjectPutInit)
 		if err != nil {
 			return fmt.Errorf("write linking object: %w", err)
 		}
