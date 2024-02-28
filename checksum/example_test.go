@@ -28,6 +28,7 @@ func ExampleChecksum_marshalling() {
 		cs    Checksum
 	)
 
+	//nolint:staticcheck
 	rand.Read(csRaw[:])
 	cs.SetSHA256(csRaw)
 

@@ -10,7 +10,7 @@ import (
 // Checksum returns random checksum.Checksum.
 func Checksum() checksum.Checksum {
 	var cs [sha256.Size]byte
-
+	//nolint:staticcheck
 	rand.Read(cs[:])
 
 	var x checksum.Checksum

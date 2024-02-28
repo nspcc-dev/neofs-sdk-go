@@ -15,6 +15,7 @@ import (
 
 func TestID_WalletBytes(t *testing.T) {
 	var scriptHash util.Uint160
+	//nolint:staticcheck
 	rand.Read(scriptHash[:])
 
 	var id user.ID
@@ -31,6 +32,7 @@ func TestID_WalletBytes(t *testing.T) {
 
 func TestID_SetScriptHash(t *testing.T) {
 	var scriptHash util.Uint160
+	//nolint:staticcheck
 	rand.Read(scriptHash[:])
 
 	var id user.ID

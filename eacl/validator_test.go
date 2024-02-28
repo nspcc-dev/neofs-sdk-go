@@ -229,7 +229,7 @@ func makeKeys(t *testing.T, n int) [][]byte {
 	for i := range pubs {
 		pubs[i] = make([]byte, 33)
 		pubs[i][0] = 0x02
-
+		//nolint:staticcheck
 		_, err := rand.Read(pubs[i][1:])
 		require.NoError(t, err)
 	}

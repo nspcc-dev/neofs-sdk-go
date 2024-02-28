@@ -13,6 +13,7 @@ import (
 
 func TestSignature(t *testing.T) {
 	data := make([]byte, 512)
+	//nolint:staticcheck
 	rand.Read(data)
 
 	k, err := keys.NewPrivateKey()

@@ -13,6 +13,7 @@ import (
 )
 
 func randSHA256Checksum() (cs [sha256.Size]byte) {
+	//nolint:staticcheck
 	rand.Read(cs[:])
 	return
 }

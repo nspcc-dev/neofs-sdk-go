@@ -25,6 +25,7 @@ func BenchmarkHRWSort(b *testing.B) {
 	weights := make([]float64, netmapSize)
 	for i := range vectors {
 		key := make([]byte, 33)
+		//nolint:staticcheck
 		rand.Read(key)
 
 		var node NodeInfo

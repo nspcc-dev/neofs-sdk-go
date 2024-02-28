@@ -136,7 +136,7 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 
 func testOID() oid.ID {
 	cs := [sha256.Size]byte{}
-
+	//nolint:staticcheck
 	rand.Read(cs[:])
 
 	var id oid.ID
@@ -278,6 +278,7 @@ func TestSearchMatchType_String(t *testing.T) {
 
 func testChecksumSha256() [sha256.Size]byte {
 	cs := [sha256.Size]byte{}
+	//nolint:staticcheck
 	rand.Read(cs[:])
 
 	return cs
@@ -285,6 +286,7 @@ func testChecksumSha256() [sha256.Size]byte {
 
 func testChecksumTZ() [tz.Size]byte {
 	cs := [tz.Size]byte{}
+	//nolint:staticcheck
 	rand.Read(cs[:])
 
 	return cs

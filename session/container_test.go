@@ -581,6 +581,7 @@ func TestContainer_VerifyDataSignature(t *testing.T) {
 	var tok session.Container
 
 	data := make([]byte, 100)
+	//nolint:staticcheck
 	rand.Read(data)
 
 	var sig neofscrypto.Signature
