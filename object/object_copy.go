@@ -1,20 +1,12 @@
 package object
 
 import (
+	"bytes"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 )
-
-func copyByteSlice(sl []byte) []byte {
-	if sl == nil {
-		return nil
-	}
-
-	bts := make([]byte, len(sl))
-	copy(bts, sl)
-	return bts
-}
 
 func copyObjectID(id *refs.ObjectID) *refs.ObjectID {
 	if id == nil {
@@ -22,7 +14,7 @@ func copyObjectID(id *refs.ObjectID) *refs.ObjectID {
 	}
 
 	var newID refs.ObjectID
-	newID.SetValue(copyByteSlice(id.GetValue()))
+	newID.SetValue(bytes.Clone(id.GetValue()))
 
 	return &newID
 }
@@ -34,8 +26,8 @@ func copySignature(sig *refs.Signature) *refs.Signature {
 
 	var newSig refs.Signature
 	newSig.SetScheme(sig.GetScheme())
-	newSig.SetKey(copyByteSlice(sig.GetKey()))
-	newSig.SetSign(copyByteSlice(sig.GetSign()))
+	newSig.SetKey(bytes.Clone(sig.GetKey()))
+	newSig.SetSign(bytes.Clone(sig.GetSign()))
 
 	return &newSig
 }
@@ -48,11 +40,11 @@ func copySession(session *v2session.Token) *v2session.Token {
 	var newSession v2session.Token
 	if body := session.GetBody(); body != nil {
 		var newBody v2session.TokenBody
-		newBody.SetID(copyByteSlice(body.GetID()))
+		newBody.SetID(bytes.Clone(body.GetID()))
 
 		if ownerID := body.GetOwnerID(); ownerID != nil {
 			var newOwnerID refs.OwnerID
-			newOwnerID.SetValue(copyByteSlice(ownerID.GetValue()))
+			newOwnerID.SetValue(bytes.Clone(ownerID.GetValue()))
 
 			newBody.SetOwnerID(&newOwnerID)
 		} else {
@@ -66,7 +58,7 @@ func copySession(session *v2session.Token) *v2session.Token {
 			newBody.SetLifetime(nil)
 		}
 
-		newBody.SetSessionKey(copyByteSlice(body.GetSessionKey()))
+		newBody.SetSessionKey(bytes.Clone(body.GetSessionKey()))
 
 		// it is an interface. Both implementations do nothing inside implemented functions.
 		newBody.SetContext(body.GetContext())
@@ -103,7 +95,7 @@ func copySplitHeader(spl *object.SplitHeader) *object.SplitHeader {
 		newSpl.SetChildren(nil)
 	}
 
-	newSpl.SetSplitID(copyByteSlice(spl.GetSplitID()))
+	newSpl.SetSplitID(bytes.Clone(spl.GetSplitID()))
 
 	return &newSpl
 }
@@ -128,7 +120,7 @@ func copyHeader(header *object.Header) *object.Header {
 
 	if containerID := header.GetContainerID(); containerID != nil {
 		var newContainerID refs.ContainerID
-		newContainerID.SetValue(copyByteSlice(containerID.GetValue()))
+		newContainerID.SetValue(bytes.Clone(containerID.GetValue()))
 
 		newHeader.SetContainerID(&newContainerID)
 	} else {
@@ -137,7 +129,7 @@ func copyHeader(header *object.Header) *object.Header {
 
 	if ownerID := header.GetOwnerID(); ownerID != nil {
 		var newOwnerID refs.OwnerID
-		newOwnerID.SetValue(copyByteSlice(ownerID.GetValue()))
+		newOwnerID.SetValue(bytes.Clone(ownerID.GetValue()))
 
 		newHeader.SetOwnerID(&newOwnerID)
 	} else {
@@ -147,7 +139,7 @@ func copyHeader(header *object.Header) *object.Header {
 	if payloadHash := header.GetPayloadHash(); payloadHash != nil {
 		var newPayloadHash refs.Checksum
 		newPayloadHash.SetType(payloadHash.GetType())
-		newPayloadHash.SetSum(copyByteSlice(payloadHash.GetSum()))
+		newPayloadHash.SetSum(bytes.Clone(payloadHash.GetSum()))
 
 		newHeader.SetPayloadHash(&newPayloadHash)
 	} else {
@@ -157,7 +149,7 @@ func copyHeader(header *object.Header) *object.Header {
 	if homoHash := header.GetHomomorphicHash(); homoHash != nil {
 		var newHomoHash refs.Checksum
 		newHomoHash.SetType(homoHash.GetType())
-		newHomoHash.SetSum(copyByteSlice(homoHash.GetSum()))
+		newHomoHash.SetSum(bytes.Clone(homoHash.GetSum()))
 
 		newHeader.SetHomomorphicHash(&newHomoHash)
 	} else {
