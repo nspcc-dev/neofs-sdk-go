@@ -16,6 +16,11 @@ const (
 	fieldNumSigPubKey = 1
 	fieldNumSigVal    = 2
 	fieldNumSigScheme = 3
+
+	// DefaultTTL is a TTL used for NeoFS requests if no other value is
+	// set specifically for a call. It limits the number of hops the
+	// request can transit (see specification for details).
+	DefaultTTL = 8
 )
 
 // groups meta parameters shared between all Client operations.
@@ -120,7 +125,7 @@ func (x contextCall) prepareRequest() {
 	}
 
 	if meta.GetTTL() == 0 {
-		meta.SetTTL(2)
+		meta.SetTTL(DefaultTTL)
 	}
 
 	if meta.GetVersion() == nil {
@@ -137,7 +142,7 @@ func (x contextCall) prepareRequest() {
 func (c *Client) prepareRequest(req request, meta *v2session.RequestMetaHeader) {
 	ttl := meta.GetTTL()
 	if ttl == 0 {
-		ttl = 2
+		ttl = DefaultTTL
 	}
 
 	verV2 := meta.GetVersion()
