@@ -479,15 +479,14 @@ func (x *slicedObjectChecker) ObjectPutInit(_ context.Context, hdr object.Object
 }
 
 type writeSizeChecker struct {
-	tb          testing.TB
-	hdr         object.Object
-	limit       uint64
-	processed   uint64
-	base        io.Writer
-	payloadSeen bool
+	tb        testing.TB
+	hdr       object.Object
+	limit     uint64
+	processed uint64
+	base      *bytes.Buffer
 }
 
-func newSizeChecker(tb testing.TB, hdr object.Object, base io.Writer, sizeLimit uint64) *writeSizeChecker {
+func newSizeChecker(tb testing.TB, hdr object.Object, base *bytes.Buffer, sizeLimit uint64) *writeSizeChecker {
 	return &writeSizeChecker{
 		tb:    tb,
 		hdr:   hdr,
@@ -497,20 +496,7 @@ func newSizeChecker(tb testing.TB, hdr object.Object, base io.Writer, sizeLimit 
 }
 
 func (x *writeSizeChecker) Write(p []byte) (int, error) {
-	if !x.payloadSeen && len(p) > 0 {
-		x.payloadSeen = true
-	}
-
-	if x.payloadSeen {
-		if len(x.hdr.Children()) == 0 {
-			// only linking objects should be streamed with
-			// empty payload
-			require.NotZero(x.tb, len(p))
-		} else {
-			// linking object should have empty payload
-			require.Zero(x.tb, x.hdr.PayloadSize())
-		}
-	}
+	require.NotZero(x.tb, len(p), "non of the split object should be empty")
 
 	n, err := x.base.Write(p)
 	x.processed += uint64(n)
@@ -518,7 +504,21 @@ func (x *writeSizeChecker) Write(p []byte) (int, error) {
 }
 
 func (x *writeSizeChecker) Close() error {
-	require.LessOrEqual(x.tb, x.processed, x.limit, "object payload must not overflow the limit")
+	if x.hdr.Type() == object.TypeLink {
+		payload := x.base.Bytes()
+
+		var testLink object.Link
+		require.NoError(x.tb, testLink.Unmarshal(payload), "link object's payload must be structured")
+	} else {
+		require.LessOrEqual(x.tb, x.processed, x.limit, "object payload must not overflow the limit")
+	}
+
+	require.Equal(x.tb, x.processed, x.hdr.PayloadSize())
+
+	// deprecated things
+	require.Nil(x.tb, x.hdr.SplitID(), "no split ID should be presented")
+	require.Empty(x.tb, x.hdr.Children(), "no child should be stored in the headers")
+
 	return nil
 }
 
