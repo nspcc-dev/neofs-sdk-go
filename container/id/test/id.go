@@ -10,7 +10,7 @@ import (
 // ID returns random cid.ID.
 func ID() cid.ID {
 	checksum := [sha256.Size]byte{}
-
+	//nolint:staticcheck
 	rand.Read(checksum[:])
 
 	return IDWithChecksum(checksum)

@@ -18,6 +18,7 @@ func generateIDList(sz int) []oid.ID {
 		var oID oid.ID
 
 		res[i] = oID
+		//nolint:staticcheck
 		rand.Read(cs[:])
 		res[i].SetSHA256(cs)
 	}

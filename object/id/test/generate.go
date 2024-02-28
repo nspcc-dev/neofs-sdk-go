@@ -11,7 +11,7 @@ import (
 // ID returns random oid.ID.
 func ID() oid.ID {
 	checksum := [sha256.Size]byte{}
-
+	//nolint:staticcheck
 	rand.Read(checksum[:])
 
 	return idWithChecksum(checksum)

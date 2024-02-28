@@ -32,10 +32,8 @@ func (t Target) CopyTo(dst *Target) {
 	dst.role = t.role
 
 	dst.keys = make([][]byte, len(t.keys))
-	for i, k := range t.keys {
-		dst.keys[i] = make([]byte, len(k))
-
-		copy(dst.keys[i], t.keys[i])
+	for i := range t.keys {
+		dst.keys[i] = bytes.Clone(t.keys[i])
 	}
 }
 

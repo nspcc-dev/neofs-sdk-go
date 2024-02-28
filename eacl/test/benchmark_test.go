@@ -78,6 +78,7 @@ func TargetN(n int) *eacl.Target {
 
 	for i := 0; i < n; i++ {
 		keys[i] = make([]byte, 32)
+		//nolint:staticcheck
 		rand.Read(keys[i])
 	}
 

@@ -1,6 +1,7 @@
 package object
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strings"
@@ -73,7 +74,7 @@ func (o Object) CopyTo(dst *Object) {
 	header := (*object.Object)(&o).GetHeader()
 	(*object.Object)(dst).SetHeader(copyHeader(header))
 
-	dst.SetPayload(copyByteSlice(o.Payload()))
+	dst.SetPayload(bytes.Clone(o.Payload()))
 }
 
 // MarshalHeaderJSON marshals object's header into JSON format.

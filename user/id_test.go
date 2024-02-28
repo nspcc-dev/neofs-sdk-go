@@ -1,12 +1,12 @@
 package user_test
 
 import (
+	"bytes"
 	"math/rand"
 	"testing"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -15,6 +15,7 @@ import (
 
 func TestID_WalletBytes(t *testing.T) {
 	var scriptHash util.Uint160
+	//nolint:staticcheck
 	rand.Read(scriptHash[:])
 
 	var id user.ID
@@ -31,6 +32,7 @@ func TestID_WalletBytes(t *testing.T) {
 
 func TestID_SetScriptHash(t *testing.T) {
 	var scriptHash util.Uint160
+	//nolint:staticcheck
 	rand.Read(scriptHash[:])
 
 	var id user.ID
@@ -70,7 +72,7 @@ func TestV2_ID(t *testing.T) {
 	})
 
 	t.Run("invalid prefix", func(t *testing.T) {
-		val := slice.Copy(val)
+		val := bytes.Clone(val)
 		val[0]++
 
 		m.SetValue(val)
@@ -80,7 +82,7 @@ func TestV2_ID(t *testing.T) {
 	})
 
 	t.Run("invalid checksum", func(t *testing.T) {
-		val := slice.Copy(val)
+		val := bytes.Clone(val)
 		val[21]++
 
 		m.SetValue(val)

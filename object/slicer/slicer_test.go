@@ -200,6 +200,7 @@ type input struct {
 
 func randomData(size uint64) []byte {
 	data := make([]byte, size)
+	//nolint:staticcheck
 	rand.Read(data)
 	return data
 }
@@ -836,6 +837,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 
 	var containerID cid.ID
 	id := make([]byte, sha256.Size)
+	//nolint:staticcheck
 	_, err := rand.Read(id)
 	require.NoError(t, err)
 	containerID.Encode(id)
@@ -861,6 +863,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize*overheadAmount)
+		//nolint:staticcheck
 		_, err = rand.Read(payload)
 		require.NoError(t, err)
 
@@ -897,6 +900,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 
 		for i := uint64(0); i < overheadAmount; i++ {
 			payload := make([]byte, maxObjectSize)
+			//nolint:staticcheck
 			_, err = rand.Read(payload)
 			require.NoError(t, err)
 
@@ -931,6 +935,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize-1)
+		//nolint:staticcheck
 		_, err = rand.Read(payload)
 		require.NoError(t, err)
 
@@ -1184,6 +1189,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 				hdr := *obj.CutPayload()
 				signer := user.NewSigner(test.RandomSigner(b), usertest.ID(b))
 				payload := make([]byte, tc.size)
+				//nolint:staticcheck
 				rand.Read(payload)
 
 				var opts slicer.Options
@@ -1204,6 +1210,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 				hdr := *obj.CutPayload()
 				signer := user.NewSigner(test.RandomSigner(b), usertest.ID(b))
 				payload := make([]byte, tc.size)
+				//nolint:staticcheck
 				rand.Read(payload)
 
 				var opts slicer.Options

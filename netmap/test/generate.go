@@ -72,6 +72,7 @@ func NetworkInfo() (x netmap.NetworkInfo) {
 // NodeInfo returns random netmap.NodeInfo.
 func NodeInfo() (x netmap.NodeInfo) {
 	key := make([]byte, 33)
+	//nolint:staticcheck
 	rand.Read(key)
 
 	x.SetPublicKey(key)

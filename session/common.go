@@ -42,34 +42,11 @@ func (x commonData) copyTo(dst *commonData) {
 	dst.iat = x.iat
 	dst.nbf = x.nbf
 	dst.exp = x.exp
-
-	if auth := x.authKey; auth != nil {
-		dst.authKey = make([]byte, len(x.authKey))
-		copy(dst.authKey, x.authKey)
-	} else {
-		dst.authKey = nil
-	}
-
+	dst.authKey = bytes.Clone(x.authKey)
 	dst.sigSet = x.sigSet
-	if sig := x.sig.GetKey(); sig != nil {
-		bts := make([]byte, len(sig))
-		copy(bts, sig)
-
-		dst.sig.SetKey(bts)
-	} else {
-		dst.sig.SetKey(nil)
-	}
-
+	dst.sig.SetKey(bytes.Clone(x.sig.GetKey()))
 	dst.sig.SetScheme(x.sig.GetScheme())
-
-	if sign := x.sig.GetSign(); sign != nil {
-		bts := make([]byte, len(sign))
-		copy(bts, sign)
-
-		dst.sig.SetSign(sign)
-	} else {
-		dst.sig.SetSign(nil)
-	}
+	dst.sig.SetSign(bytes.Clone(x.sig.GetSign()))
 }
 
 // reads commonData and custom context from the session.Token message.

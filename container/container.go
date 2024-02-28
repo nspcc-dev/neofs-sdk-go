@@ -1,6 +1,7 @@
 package container
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"strconv"
@@ -51,14 +52,7 @@ func (x Container) CopyTo(dst *Container) {
 
 	if owner := x.v2.GetOwnerID(); owner != nil {
 		var newOwner refs.OwnerID
-		if val := owner.GetValue(); val != nil {
-			bts := make([]byte, len(val))
-			copy(bts, val)
-
-			newOwner.SetValue(bts)
-		} else {
-			newOwner.SetValue(nil)
-		}
+		newOwner.SetValue(bytes.Clone(owner.GetValue()))
 
 		dst.v2.SetOwnerID(&newOwner)
 	} else {
@@ -74,13 +68,7 @@ func (x Container) CopyTo(dst *Container) {
 	}
 
 	// do we need to set the different nonce?
-	if nonce := x.v2.GetNonce(); nonce != nil {
-		newNonce := make([]byte, len(nonce))
-		copy(newNonce, nonce)
-		dst.v2.SetNonce(nonce)
-	} else {
-		dst.v2.SetNonce(nil)
-	}
+	dst.v2.SetNonce(bytes.Clone(x.v2.GetNonce()))
 
 	if len(x.v2.GetAttributes()) > 0 {
 		dst.v2.SetAttributes([]container.Attribute{})

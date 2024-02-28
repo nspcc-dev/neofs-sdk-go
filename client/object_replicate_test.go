@@ -9,7 +9,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	status "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
@@ -188,7 +187,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 		err := cli.ReplicateObject(ctx, demuxObj, signer)
 		require.NoError(t, err)
 
-		msgCp := slice.Copy(demuxObj.(*demuxReplicationMessage).msg)
+		msgCp := bytes.Clone(demuxObj.(*demuxReplicationMessage).msg)
 		initBufPtr := &demuxObj.(*demuxReplicationMessage).msg[0]
 
 		var wg sync.WaitGroup

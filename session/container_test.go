@@ -1,13 +1,13 @@
 package session_test
 
 import (
+	"bytes"
 	"fmt"
 	"math"
 	"math/rand"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/util/slice"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -177,7 +177,7 @@ func TestContainerProtocolV2(t *testing.T) {
 			breakSign: func(m *v2session.Token) {
 				body := m.GetBody()
 				key := body.GetSessionKey()
-				cp := slice.Copy(key)
+				cp := bytes.Clone(key)
 				cp[len(cp)-1]++
 				body.SetSessionKey(cp)
 			},
@@ -581,6 +581,7 @@ func TestContainer_VerifyDataSignature(t *testing.T) {
 	var tok session.Container
 
 	data := make([]byte, 100)
+	//nolint:staticcheck
 	rand.Read(data)
 
 	var sig neofscrypto.Signature
