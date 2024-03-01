@@ -12,10 +12,28 @@ on:
 jobs:
   tests:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go_versions: [ '1.20', '1.21', '1.22' ]
+        os: [ubuntu-latest, windows-2022, macos-12, macos-14]
+        go: [ '1.20', '1.21', '1.22' ]
+        exclude:
+          # Only latest Go version for Windows and MacOS.
+          - os: windows-2022
+            go: '1.20'
+          - os: windows-2022
+            go: '1.21'
+          - os: macos-12
+            go: '1.20'
+          - os: macos-12
+            go: '1.21'
+          - os: macos-14
+            go: '1.20'
+          - os: macos-14
+            go: '1.21'
+          # Exclude latest Go version for Ubuntu as Coverage uses it.
+          - os: ubuntu-latest
+            go: '1.22'
       fail-fast: false
     steps:
       - uses: actions/checkout@v4
@@ -25,19 +43,15 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '${{ matrix.go_versions }}'
+          go-version: '${{ matrix.go }}'
 
-      - name: Restore Go modules from cache
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
+      - name: Run tests (with AIO)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: go test -race -tags aiotest ./...
 
-      - name: Update Go modules
-        run: make dep
-
-      - name: Run tests
-        run: make test-full
+      - name: Run tests (without AIO)
+        if: ${{ matrix.os == 'ubuntu-latest' }}
+        run: go test -race ./...
 
   lint:
     runs-on: ubuntu-latest
@@ -49,3 +63,77 @@ jobs:
         uses: golangci/golangci-lint-action@v3
         with:
           version: latest
+
+  cover:
+    name: Coverage
+    runs-on: ubuntu-latest
+
+    env:
+      CGO_ENABLED: 0
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          cache: true
+          go-version: 1.22
+
+      - name: Test and write coverage profile
+        run: go test -tags aiotest -coverprofile=coverage.txt -covermode=atomic ./...
+
+      - name: Upload coverage results to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: nspcc-dev/neofs-sdk-go
+          fail_ci_if_error: true
+          files: ./coverage.txt
+          verbose: true
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ 'go' ]
+        # CodeQL supports [ 'cpp', 'csharp', 'go', 'java', 'javascript', 'python' ]
+        # Learn more:
+        # https://docs.github.com/en/free-pro-team@latest/github/finding-security-vulnerabilities-and-errors-in-your-code/configuring-code-scanning#changing-the-languages-that-are-analyzed
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # Initializes the CodeQL tools for scanning.
+    - name: Initialize CodeQL
+      uses: github/codeql-action/init@v2
+      with:
+        languages: ${{ matrix.language }}
+        # If you wish to specify custom queries, you can do so here or in a config file.
+        # By default, queries listed here will override any specified in a config file.
+        # Prefix the list here with "+" to use these queries and those in the config file.
+        # queries: ./path/to/local/query, your-org/your-repo/queries@main
+
+    # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
+    # If this step fails, then you should remove it and run the build manually (see below)
+    - name: Autobuild
+      uses: github/codeql-action/autobuild@v2
+
+    # ℹ️ Command-line programs to run using the OS shell.
+    # 📚 https://git.io/JvXDl
+
+    # ✏️ If the Autobuild fails above, remove it and uncomment the following three lines
+    #    and modify them (or add more) to build your code if your project
+    #    uses a compiled language
+
+    #- run: |
+    #   make bootstrap
+    #   make release
+
+    - name: Perform CodeQL Analysis
+      uses: github/codeql-action/analyze@v2
