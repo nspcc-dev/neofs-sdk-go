@@ -27,15 +27,6 @@ jobs:
         with:
           go-version: '${{ matrix.go_versions }}'
 
-      - name: Restore Go modules from cache
-        uses: actions/cache@v4
-        with:
-          path: /home/runner/go/pkg/mod
-          key: deps-${{ hashFiles('go.sum') }}
-
-      - name: Update Go modules
-        run: make dep
-
       - name: Run tests
         run: make test-full
 
