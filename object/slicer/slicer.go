@@ -263,7 +263,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	} else if opts.bearerToken != nil {
 		prm.WithBearerToken(*opts.bearerToken)
 		// token issuer is a container owner.
-		issuer := opts.bearerToken.ResolveIssuer()
+		issuer := opts.bearerToken.Issuer()
 		owner = issuer
 		header.SetOwnerID(&owner)
 	}

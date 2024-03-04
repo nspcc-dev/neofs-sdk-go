@@ -6,7 +6,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -31,7 +30,7 @@ func Example() {
 	// Bearer token must be signed by owner of the container.
 	// import neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 
-	var signer neofscrypto.Signer
+	var signer user.Signer
 	// signer initialization, bearerToken initialization, other steps ...
 
 	_ = bearerToken.Sign(signer)
