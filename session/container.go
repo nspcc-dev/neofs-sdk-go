@@ -137,8 +137,8 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
 
-// Sign calculates and writes signature of the [Container] data.
-// Returns signature calculation errors.
+// Sign calculates and writes signature of the [Container] data along with
+// issuer ID using signer. Returns signature calculation errors.
 //
 // Zero [Container] is unsigned.
 //

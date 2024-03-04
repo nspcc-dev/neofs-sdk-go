@@ -173,10 +173,8 @@ func (x commonData) signedData(w contextWriter) []byte {
 }
 
 func (x *commonData) sign(signer user.Signer, w contextWriter) error {
-	if !x.issuerSet {
-		x.issuer = signer.UserID()
-		x.issuerSet = true
-	}
+	x.issuer = signer.UserID()
+	x.issuerSet = true
 
 	var sig neofscrypto.Signature
 

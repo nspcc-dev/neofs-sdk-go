@@ -171,8 +171,8 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
 
-// Sign calculates and writes signature of the [Object] data.
-// Returns signature calculation errors.
+// Sign calculates and writes signature of the [Object] data along with issuer
+// ID using signer. Returns signature calculation errors.
 //
 // Zero [Object] is unsigned.
 //

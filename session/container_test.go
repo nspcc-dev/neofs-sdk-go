@@ -563,6 +563,22 @@ func TestContainer_Sign(t *testing.T) {
 	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
 
 	require.True(t, val.VerifySignature())
+
+	t.Run("issue#546", func(t *testing.T) {
+		signer1 := test.RandomSignerRFC6979(t)
+		signer2 := test.RandomSignerRFC6979(t)
+		require.False(t, signer1.UserID().Equals(signer2.UserID()))
+
+		token1 := sessiontest.Container()
+		require.NoError(t, token1.Sign(signer1))
+		require.Equal(t, signer1.UserID(), token1.Issuer())
+
+		// copy token and re-sign
+		var token2 session.Container
+		token1.CopyTo(&token2)
+		require.NoError(t, token2.Sign(signer2))
+		require.Equal(t, signer2.UserID(), token2.Issuer())
+	})
 }
 
 func TestContainer_SignedData(t *testing.T) {
@@ -571,7 +587,7 @@ func TestContainer_SignedData(t *testing.T) {
 	val := sessiontest.Container()
 	val.SetIssuer(id)
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := user.NewSigner(test.RandomSigner(t), id)
 	test.SignedDataComponentUser(t, signer, &val)
 }
 
