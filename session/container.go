@@ -147,6 +147,14 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 //
 // See also [Container.VerifySignature], [Container.SignedData].
 func (x *Container) Sign(signer user.Signer) error {
+	x.issuer = signer.UserID()
+	x.issuerSet = true
+	return x.SetSignature(signer)
+}
+
+// SetSignature allows to sign Container like [Container.Sign] but without
+// issuer setting.
+func (x *Container) SetSignature(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 

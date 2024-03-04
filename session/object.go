@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -181,6 +182,14 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 //
 // See also [Object.VerifySignature], [Object.SignedData].
 func (x *Object) Sign(signer user.Signer) error {
+	x.issuer = signer.UserID()
+	x.issuerSet = true
+	return x.SetSignature(signer)
+}
+
+// SetSignature allows to sign Object like [Object.Sign] but without issuer
+// setting.
+func (x *Object) SetSignature(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 

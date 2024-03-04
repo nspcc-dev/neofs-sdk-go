@@ -560,6 +560,10 @@ func TestContainer_Issuer(t *testing.T) {
 func TestContainer_Sign(t *testing.T) {
 	val := sessiontest.Container()
 
+	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979(t)))
+	require.Zero(t, val.Issuer())
+	require.True(t, val.VerifySignature())
+
 	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
 
 	require.True(t, val.VerifySignature())

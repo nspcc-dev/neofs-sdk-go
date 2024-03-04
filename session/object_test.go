@@ -623,6 +623,10 @@ func TestObject_Issuer(t *testing.T) {
 func TestObject_Sign(t *testing.T) {
 	val := sessiontest.Object()
 
+	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979(t)))
+	require.Zero(t, val.Issuer())
+	require.True(t, val.VerifySignature())
+
 	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
 
 	require.True(t, val.VerifySignature())
