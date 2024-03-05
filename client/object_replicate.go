@@ -170,7 +170,7 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 	const fieldNumSignature = 2
 
 	sigSize := protowire.SizeTag(fieldNumSigPubKey) + protowire.SizeBytes(len(bPubKey)) +
-		protowire.SizeTag(fieldNumSigVal) + +protowire.SizeBytes(len(sigTmpl)) +
+		protowire.SizeTag(fieldNumSigVal) + protowire.SizeBytes(len(sigTmpl)) +
 		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
 
 	msgSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(objSize) +
