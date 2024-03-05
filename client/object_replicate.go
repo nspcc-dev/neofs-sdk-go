@@ -174,7 +174,7 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
 
 	msgSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(objSize) +
-		protowire.SizeTag(fieldNumSignature) + sigSize
+		protowire.SizeTag(fieldNumSignature) + protowire.SizeBytes(sigSize)
 
 	// TODO(#544): support external buffers
 	msg := make([]byte, 0, uint64(msgSize)+objSize)
