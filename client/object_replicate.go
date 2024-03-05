@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -25,7 +26,8 @@ import (
 // authenticate a storage node that matches the object's storage policy. Since
 // this property can change over NeoFS system time, compliance with the policy
 // is checked back to foreseeable moment in the past. The server must be a
-// storage node compliant with the current object's storage policy.
+// storage node compliant with the current object's storage policy. ID must be
+// the same as in src.
 //
 // ReplicateObject is intended for maintaining data storage by NeoFS system
 // nodes only, not for regular use.
@@ -46,7 +48,7 @@ import (
 //     replicated object;
 //   - [apistatus.ErrContainerNotFound]: the container to which the replicated
 //     object is associated was not found.
-func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer neofscrypto.Signer) error {
+func (c *Client) ReplicateObject(ctx context.Context, id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer) error {
 	const svcName = "neo.fs.v2.object.ObjectService"
 	const opName = "Replicate"
 	stream, err := c.c.Init(common.CallMethodInfoUnary(svcName, opName),
@@ -55,7 +57,7 @@ func (c *Client) ReplicateObject(ctx context.Context, src io.ReadSeeker, signer 
 		return fmt.Errorf("init service=%s/op=%s RPC: %w", svcName, opName, err)
 	}
 
-	msg, err := prepareReplicateMessage(src, signer)
+	msg, err := prepareReplicateMessage(id, src, signer)
 	if err != nil {
 		return err
 	}
@@ -106,23 +108,23 @@ func (x *demuxReplicationMessage) Seek(offset int64, whence int) (int64, error) 
 	return x.rs.Seek(offset, whence)
 }
 
-func prepareReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
+func prepareReplicateMessage(id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
 	srm, ok := src.(*demuxReplicationMessage)
 	if !ok {
-		return newReplicateMessage(src, signer)
+		return newReplicateMessage(id, src, signer)
 	}
 
 	srm.mtx.Lock()
 	defer srm.mtx.Unlock()
 
 	if srm.msg == nil && srm.err == nil {
-		srm.msg, srm.err = newReplicateMessage(src, signer)
+		srm.msg, srm.err = newReplicateMessage(id, src, signer)
 	}
 
 	return srm.msg, srm.err
 }
 
-func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
+func newReplicateMessage(id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, error) {
 	var objSize uint64
 	switch v := src.(type) {
 	default:
@@ -157,10 +159,9 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 
 	// TODO: limit the objSize?
 
-	// calculate template signature to know its size
-	sigTmpl, err := signer.Sign(nil)
+	idSig, err := signer.Sign(id[:])
 	if err != nil {
-		return nil, fmt.Errorf("calculate signature of empty ata: %w", err)
+		return nil, fmt.Errorf("sign object ID: %w", err)
 	}
 
 	bPubKey := neofscrypto.PublicKeyBytes(signer.Public())
@@ -170,7 +171,7 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 	const fieldNumSignature = 2
 
 	sigSize := protowire.SizeTag(fieldNumSigPubKey) + protowire.SizeBytes(len(bPubKey)) +
-		protowire.SizeTag(fieldNumSigVal) + protowire.SizeBytes(len(sigTmpl)) +
+		protowire.SizeTag(fieldNumSigVal) + protowire.SizeBytes(len(idSig)) +
 		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
 
 	msgSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(objSize) +
@@ -189,17 +190,12 @@ func newReplicateMessage(src io.ReadSeeker, signer neofscrypto.Signer) ([]byte, 
 		return nil, fmt.Errorf("read full object into the buffer: %w", err)
 	}
 
-	objSig, err := signer.Sign(bufObj)
-	if err != nil {
-		return nil, fmt.Errorf("sign object: %w", err)
-	}
-
 	msg = protowire.AppendTag(msg, fieldNumSignature, protowire.BytesType)
 	msg = protowire.AppendVarint(msg, uint64(sigSize))
 	msg = protowire.AppendTag(msg, fieldNumSigPubKey, protowire.BytesType)
 	msg = protowire.AppendBytes(msg, bPubKey)
 	msg = protowire.AppendTag(msg, fieldNumSigVal, protowire.BytesType)
-	msg = protowire.AppendBytes(msg, objSig)
+	msg = protowire.AppendBytes(msg, idSig)
 	msg = protowire.AppendTag(msg, fieldNumSigScheme, protowire.VarintType)
 	msg = protowire.AppendVarint(msg, sigScheme)
 
