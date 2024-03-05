@@ -581,6 +581,10 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		payload := obj.Payload()
 		payloadAsBuffers := [][]byte{obj.Payload()}
 
+		if uint64(len(payload)) > x.payloadSizeLimit {
+			return fmt.Errorf("link's payload exceeds max available size: %d > %d", uint64(len(payload)), x.payloadSizeLimit)
+		}
+
 		meta.reset()
 		meta.accumulateNextPayloadChunk(payload)
 
