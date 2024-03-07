@@ -831,7 +831,7 @@ func (p *memoryPayload) GetResult() client.ResObjectPut {
 }
 
 func TestSlicedObjectsHaveSplitID(t *testing.T) {
-	maxObjectSize := uint64(10)
+	maxObjectSize := uint64(200) // some reasonable value that a link object can fit
 	overheadAmount := uint64(3)
 	ctx := context.Background()
 
@@ -1057,35 +1057,35 @@ func TestOptions_SetPayloadBuffer(t *testing.T) {
 		bufSize      int
 	}{
 		// buffer smaller than limit
-		{dataSize: 0, payloadLimit: 10, bufSize: 5},
-		{dataSize: 1, payloadLimit: 10, bufSize: 5},
-		{dataSize: 5, payloadLimit: 10, bufSize: 5},
-		{dataSize: 6, payloadLimit: 10, bufSize: 5},
-		{dataSize: 10, payloadLimit: 10, bufSize: 5},
-		{dataSize: 12, payloadLimit: 10, bufSize: 5},
-		{dataSize: 15, payloadLimit: 10, bufSize: 5},
-		{dataSize: 20, payloadLimit: 10, bufSize: 5},
-		{dataSize: 21, payloadLimit: 10, bufSize: 5},
+		{dataSize: 0, payloadLimit: 200, bufSize: 50},
+		{dataSize: 10, payloadLimit: 200, bufSize: 50},
+		{dataSize: 50, payloadLimit: 200, bufSize: 50},
+		{dataSize: 60, payloadLimit: 200, bufSize: 50},
+		{dataSize: 100, payloadLimit: 200, bufSize: 50},
+		{dataSize: 120, payloadLimit: 200, bufSize: 50},
+		{dataSize: 150, payloadLimit: 200, bufSize: 50},
+		{dataSize: 200, payloadLimit: 200, bufSize: 50},
+		{dataSize: 210, payloadLimit: 200, bufSize: 50},
 		// buffer of limit size
-		{dataSize: 0, payloadLimit: 10, bufSize: 10},
-		{dataSize: 1, payloadLimit: 10, bufSize: 10},
-		{dataSize: 5, payloadLimit: 10, bufSize: 10},
-		{dataSize: 6, payloadLimit: 10, bufSize: 10},
-		{dataSize: 10, payloadLimit: 10, bufSize: 10},
-		{dataSize: 12, payloadLimit: 10, bufSize: 10},
-		{dataSize: 15, payloadLimit: 10, bufSize: 10},
-		{dataSize: 20, payloadLimit: 10, bufSize: 10},
-		{dataSize: 21, payloadLimit: 10, bufSize: 10},
+		{dataSize: 0, payloadLimit: 200, bufSize: 200},
+		{dataSize: 10, payloadLimit: 200, bufSize: 200},
+		{dataSize: 50, payloadLimit: 200, bufSize: 200},
+		{dataSize: 60, payloadLimit: 200, bufSize: 200},
+		{dataSize: 100, payloadLimit: 200, bufSize: 200},
+		{dataSize: 120, payloadLimit: 200, bufSize: 200},
+		{dataSize: 150, payloadLimit: 200, bufSize: 200},
+		{dataSize: 200, payloadLimit: 200, bufSize: 200},
+		{dataSize: 210, payloadLimit: 200, bufSize: 200},
 		// buffer bigger than limit
-		{dataSize: 0, payloadLimit: 10, bufSize: 11},
-		{dataSize: 1, payloadLimit: 10, bufSize: 11},
-		{dataSize: 5, payloadLimit: 10, bufSize: 11},
-		{dataSize: 6, payloadLimit: 10, bufSize: 11},
-		{dataSize: 10, payloadLimit: 10, bufSize: 11},
-		{dataSize: 12, payloadLimit: 10, bufSize: 11},
-		{dataSize: 15, payloadLimit: 10, bufSize: 11},
-		{dataSize: 20, payloadLimit: 10, bufSize: 11},
-		{dataSize: 21, payloadLimit: 10, bufSize: 11},
+		{dataSize: 0, payloadLimit: 200, bufSize: 210},
+		{dataSize: 10, payloadLimit: 200, bufSize: 210},
+		{dataSize: 50, payloadLimit: 200, bufSize: 210},
+		{dataSize: 60, payloadLimit: 200, bufSize: 210},
+		{dataSize: 100, payloadLimit: 200, bufSize: 210},
+		{dataSize: 120, payloadLimit: 200, bufSize: 210},
+		{dataSize: 150, payloadLimit: 200, bufSize: 210},
+		{dataSize: 200, payloadLimit: 200, bufSize: 210},
+		{dataSize: 210, payloadLimit: 200, bufSize: 210},
 	} {
 		t.Run(fmt.Sprintf("with_buffer=%d_data=%d_limit=%d", tc.bufSize, tc.dataSize, tc.payloadLimit), func(t *testing.T) {
 			in, opts := randomInput(t, tc.dataSize, tc.payloadLimit)
