@@ -13,7 +13,7 @@ import (
 type Filter struct {
 	from    FilterHeaderType
 	matcher Match
-	key     filterKey
+	key     string
 	value   stringEncoder
 }
 
@@ -21,27 +21,17 @@ type staticStringer string
 
 type u64Stringer uint64
 
-type filterKey struct {
-	typ filterKeyType
-
-	str string
-}
-
-// enumeration of reserved filter keys.
-type filterKeyType int
-
+// Various keys to object filters.
 const (
-	_ filterKeyType = iota
-	fKeyObjVersion
-	fKeyObjID
-	fKeyObjContainerID
-	fKeyObjOwnerID
-	fKeyObjCreationEpoch
-	fKeyObjPayloadLength
-	fKeyObjPayloadHash
-	fKeyObjType
-	fKeyObjHomomorphicHash
-	fKeyObjLast // helper, used in tests
+	FilterObjectVersion                    = v2acl.FilterObjectVersion
+	FilterObjectID                         = v2acl.FilterObjectID
+	FilterObjectContainerID                = v2acl.FilterObjectContainerID
+	FilterObjectOwnerID                    = v2acl.FilterObjectOwnerID
+	FilterObjectCreationEpoch              = v2acl.FilterObjectCreationEpoch
+	FilterObjectPayloadSize                = v2acl.FilterObjectPayloadLength
+	FilterObjectPayloadChecksum            = v2acl.FilterObjectPayloadHash
+	FilterObjectType                       = v2acl.FilterObjectType
+	FilterObjectPayloadHomomorphicChecksum = v2acl.FilterObjectHomomorphicHash
 )
 
 func (s staticStringer) EncodeToString() string {
@@ -72,7 +62,7 @@ func (f Filter) Matcher() Match {
 
 // Key returns key to the filtered header.
 func (f Filter) Key() string {
-	return f.key.String()
+	return f.key
 }
 
 // From returns FilterHeaderType that defined which header will be filtered.
@@ -90,61 +80,11 @@ func (f *Filter) ToV2() *v2acl.HeaderFilter {
 
 	filter := new(v2acl.HeaderFilter)
 	filter.SetValue(f.value.EncodeToString())
-	filter.SetKey(f.key.String())
+	filter.SetKey(f.key)
 	filter.SetMatchType(f.matcher.ToV2())
 	filter.SetHeaderType(f.from.ToV2())
 
 	return filter
-}
-
-func (k filterKey) String() string {
-	switch k.typ {
-	default:
-		return k.str
-	case fKeyObjVersion:
-		return v2acl.FilterObjectVersion
-	case fKeyObjID:
-		return v2acl.FilterObjectID
-	case fKeyObjContainerID:
-		return v2acl.FilterObjectContainerID
-	case fKeyObjOwnerID:
-		return v2acl.FilterObjectOwnerID
-	case fKeyObjCreationEpoch:
-		return v2acl.FilterObjectCreationEpoch
-	case fKeyObjPayloadLength:
-		return v2acl.FilterObjectPayloadLength
-	case fKeyObjPayloadHash:
-		return v2acl.FilterObjectPayloadHash
-	case fKeyObjType:
-		return v2acl.FilterObjectType
-	case fKeyObjHomomorphicHash:
-		return v2acl.FilterObjectHomomorphicHash
-	}
-}
-
-func (k *filterKey) fromString(s string) {
-	switch s {
-	default:
-		k.typ, k.str = 0, s
-	case v2acl.FilterObjectVersion:
-		k.typ, k.str = fKeyObjVersion, ""
-	case v2acl.FilterObjectID:
-		k.typ, k.str = fKeyObjID, ""
-	case v2acl.FilterObjectContainerID:
-		k.typ, k.str = fKeyObjContainerID, ""
-	case v2acl.FilterObjectOwnerID:
-		k.typ, k.str = fKeyObjOwnerID, ""
-	case v2acl.FilterObjectCreationEpoch:
-		k.typ, k.str = fKeyObjCreationEpoch, ""
-	case v2acl.FilterObjectPayloadLength:
-		k.typ, k.str = fKeyObjPayloadLength, ""
-	case v2acl.FilterObjectPayloadHash:
-		k.typ, k.str = fKeyObjPayloadHash, ""
-	case v2acl.FilterObjectType:
-		k.typ, k.str = fKeyObjType, ""
-	case v2acl.FilterObjectHomomorphicHash:
-		k.typ, k.str = fKeyObjHomomorphicHash, ""
-	}
 }
 
 // NewFilter creates, initializes and returns blank Filter instance.
@@ -168,7 +108,7 @@ func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 
 	f.from = FilterHeaderTypeFromV2(filter.GetHeaderType())
 	f.matcher = MatchFromV2(filter.GetMatchType())
-	f.key.fromString(filter.GetKey())
+	f.key = filter.GetKey()
 	f.value = staticStringer(filter.GetValue())
 
 	return f

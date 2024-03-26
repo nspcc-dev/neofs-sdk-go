@@ -2,7 +2,6 @@ package eacl
 
 import (
 	"bytes"
-	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -12,10 +11,8 @@ import (
 
 func newObjectFilter(match Match, key, val string) *Filter {
 	return &Filter{
-		from: HeaderFromObject,
-		key: filterKey{
-			str: key,
-		},
+		from:    HeaderFromObject,
+		key:     key,
 		matcher: match,
 		value:   staticStringer(val),
 	}
@@ -87,19 +84,6 @@ func TestFilter_ToV2(t *testing.T) {
 		require.Equal(t, acl.HeaderTypeUnknown, filterV2.GetHeaderType())
 		require.Equal(t, acl.MatchTypeUnknown, filterV2.GetMatchType())
 	})
-
-	t.Run("reserved types", func(t *testing.T) {
-		r := NewRecord()
-		for i := filterKeyType(1); i < fKeyObjLast; i++ {
-			r.addObjectReservedFilter(MatchStringEqual, i, staticStringer(strconv.FormatUint(uint64(i), 16)))
-		}
-
-		for i := range r.filters {
-			fv2 := r.filters[i].ToV2()
-			actual := NewFilterFromV2(fv2)
-			require.Equal(t, actual, &r.filters[i])
-		}
-	})
 }
 
 func TestFilter_CopyTo(t *testing.T) {
@@ -107,10 +91,7 @@ func TestFilter_CopyTo(t *testing.T) {
 	filter.value = staticStringer("value")
 	filter.from = 1
 	filter.matcher = 1
-	filter.key = filterKey{
-		typ: 1,
-		str: "1",
-	}
+	filter.key = "1"
 
 	var dst Filter
 	t.Run("copy", func(t *testing.T) {
@@ -130,19 +111,16 @@ func TestFilter_CopyTo(t *testing.T) {
 		require.Equal(t, filter.value, dst.value)
 		require.Equal(t, filter.from, dst.from)
 		require.Equal(t, filter.matcher, dst.matcher)
-		require.Equal(t, filter.key.typ, dst.key.typ)
-		require.Equal(t, filter.key.str, dst.key.str)
+		require.Equal(t, filter.key, dst.key)
 
 		dst.value = staticStringer("value2")
 		dst.from = 2
 		dst.matcher = 2
-		dst.key.typ = 2
-		dst.key.str = "2"
+		dst.key = "2"
 
 		require.NotEqual(t, filter.value, dst.value)
 		require.NotEqual(t, filter.from, dst.from)
 		require.NotEqual(t, filter.matcher, dst.matcher)
-		require.NotEqual(t, filter.key.typ, dst.key.typ)
-		require.NotEqual(t, filter.key.str, dst.key.str)
+		require.NotEqual(t, filter.key, dst.key)
 	})
 }
