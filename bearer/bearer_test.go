@@ -257,7 +257,7 @@ func TestToken_Sign(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	signer := test.RandomSigner(t)
+	signer := test.RandomSignerRFC6979(t)
 
 	val = bearertest.Token(t)
 
@@ -291,8 +291,9 @@ func TestToken_SignedData(t *testing.T) {
 
 	signer := test.RandomSignerRFC6979(t)
 	val = bearertest.Token(t)
+	val.SetIssuer(signer.UserID())
 
-	test.SignedDataComponent(t, signer, &val)
+	test.SignedDataComponentUser(t, signer, &val)
 }
 
 func TestToken_ReadFromV2(t *testing.T) {
@@ -390,4 +391,61 @@ func TestResolveIssuer(t *testing.T) {
 	usr := signer.UserID()
 
 	require.Equal(t, usr, val.ResolveIssuer())
+	require.Equal(t, usr, val.Issuer())
+}
+
+func TestToken_Issuer(t *testing.T) {
+	var token bearer.Token
+	var msg acl.BearerToken
+	filled := bearertest.Token(t)
+
+	token.WriteToV2(&msg)
+	require.Zero(t, msg.GetBody())
+
+	val2 := filled
+	require.NoError(t, val2.Unmarshal(token.Marshal()))
+
+	val2.WriteToV2(&msg)
+	require.Zero(t, msg.GetBody())
+
+	val2 = filled
+
+	jd, err := token.MarshalJSON()
+	require.NoError(t, err)
+
+	require.NoError(t, val2.UnmarshalJSON(jd))
+
+	val2.WriteToV2(&msg)
+	require.Zero(t, msg.GetBody())
+
+	// set value
+	usr := usertest.ID(t)
+
+	var usrV2 refs.OwnerID
+	usr.WriteToV2(&usrV2)
+
+	token.SetIssuer(usr)
+
+	require.True(t, usr.Equals(token.Issuer()))
+	require.True(t, usr.Equals(token.ResolveIssuer()))
+
+	token.WriteToV2(&msg)
+	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())
+
+	val2 = filled
+
+	require.NoError(t, val2.Unmarshal(token.Marshal()))
+
+	val2.WriteToV2(&msg)
+	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())
+
+	val2 = filled
+
+	jd, err = token.MarshalJSON()
+	require.NoError(t, err)
+
+	require.NoError(t, val2.UnmarshalJSON(jd))
+
+	val2.WriteToV2(&msg)
+	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())
 }

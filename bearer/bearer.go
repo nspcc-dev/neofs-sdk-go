@@ -23,6 +23,9 @@ type Token struct {
 	targetUserSet bool
 	targetUser    user.ID
 
+	issuerSet bool
+	issuer    user.ID
+
 	eaclTableSet bool
 	eaclTable    eacl.Table
 
@@ -58,6 +61,14 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 		}
 	}
 
+	issuer := body.GetIssuer()
+	if b.issuerSet = issuer != nil; b.issuerSet {
+		err = b.issuer.ReadFromV2(*issuer)
+		if err != nil {
+			return fmt.Errorf("invalid issuer: %w", err)
+		}
+	}
+
 	lifetime := body.GetLifetime()
 	if b.lifetimeSet = lifetime != nil; b.lifetimeSet {
 		b.iat = lifetime.GetIat()
@@ -85,7 +96,7 @@ func (b *Token) ReadFromV2(m acl.BearerToken) error {
 }
 
 func (b Token) fillBody() *acl.BearerTokenBody {
-	if !b.eaclTableSet && !b.targetUserSet && !b.lifetimeSet {
+	if !b.eaclTableSet && !b.targetUserSet && !b.lifetimeSet && !b.issuerSet {
 		return nil
 	}
 
@@ -100,6 +111,13 @@ func (b Token) fillBody() *acl.BearerTokenBody {
 		b.targetUser.WriteToV2(&targetUser)
 
 		body.SetOwnerID(&targetUser)
+	}
+
+	if b.issuerSet {
+		var issuer refs.OwnerID
+		b.issuer.WriteToV2(&issuer)
+
+		body.SetIssuer(&issuer)
 	}
 
 	if b.lifetimeSet {
@@ -244,8 +262,8 @@ func (b Token) AssertUser(id user.ID) bool {
 	return !b.targetUserSet || b.targetUser.Equals(id)
 }
 
-// Sign calculates and writes signature of the [Token] data using issuer's signer.
-// Returns signature calculation errors.
+// Sign calculates and writes signature of the [Token] data along with issuer ID
+// using signer. Returns signature calculation errors.
 //
 // Sign MUST be called if [Token] is going to be transmitted over
 // NeoFS API V2 protocol.
@@ -254,7 +272,9 @@ func (b Token) AssertUser(id user.ID) bool {
 // expected to be calculated as a final stage of Token formation.
 //
 // See also [Token.VerifySignature], [Token.Issuer], [Token.SignedData].
-func (b *Token) Sign(signer neofscrypto.Signer) error {
+func (b *Token) Sign(signer user.Signer) error {
+	b.SetIssuer(signer.UserID())
+
 	var sig neofscrypto.Signature
 
 	err := sig.Calculate(signer, b.signedData())
@@ -364,11 +384,36 @@ func (b Token) SigningKeyBytes() []byte {
 	return nil
 }
 
-// ResolveIssuer resolves issuer's [user.ID] from the key used for [Token] signing.
-// Returns zero [user.ID] if Token is unsigned or key has incorrect format.
+// SetIssuer sets NeoFS user ID of the Token issuer.
 //
-// See also [Token.SigningKeyBytes].
+// See also [Token.Issuer], [Token.Sign].
+func (b *Token) SetIssuer(usr user.ID) {
+	b.issuerSet = true
+	b.issuer = usr
+}
+
+// Issuer returns NeoFS user ID of the explicitly set Token issuer. Zero value
+// means unset issuer. In this case, [Token.ResolveIssuer] can be used to get ID
+// resolved from signer's public key.
+//
+// See also [Token.SetIssuer], [Token.Sign].
+func (b Token) Issuer() user.ID {
+	if b.issuerSet {
+		return b.issuer
+	}
+	return user.ID{}
+}
+
+// ResolveIssuer works like [Token.Issuer] with fallback to the public key
+// resolution when explicit issuer ID is unset. Returns zero [user.ID] when
+// neither issuer is set nor key resolution succeeds.
+//
+// See also [Token.SigningKeyBytes], [Token.Sign].
 func (b Token) ResolveIssuer() user.ID {
+	if b.issuerSet {
+		return b.issuer
+	}
+
 	var usr user.ID
 	binKey := b.SigningKeyBytes()
 

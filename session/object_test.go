@@ -623,9 +623,29 @@ func TestObject_Issuer(t *testing.T) {
 func TestObject_Sign(t *testing.T) {
 	val := sessiontest.Object()
 
+	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979(t)))
+	require.Zero(t, val.Issuer())
+	require.True(t, val.VerifySignature())
+
 	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
 
 	require.True(t, val.VerifySignature())
+
+	t.Run("issue#546", func(t *testing.T) {
+		signer1 := test.RandomSignerRFC6979(t)
+		signer2 := test.RandomSignerRFC6979(t)
+		require.False(t, signer1.UserID().Equals(signer2.UserID()))
+
+		token1 := sessiontest.Object()
+		require.NoError(t, token1.Sign(signer1))
+		require.Equal(t, signer1.UserID(), token1.Issuer())
+
+		// copy token and re-sign
+		var token2 session.Object
+		token1.CopyTo(&token2)
+		require.NoError(t, token2.Sign(signer2))
+		require.Equal(t, signer2.UserID(), token2.Issuer())
+	})
 }
 
 func TestObject_SignedData(t *testing.T) {
