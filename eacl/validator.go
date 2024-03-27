@@ -108,7 +108,7 @@ nextFilter:
 				if _, ok = nv.SetString(header.Value(), 10); !ok {
 					continue
 				}
-				switch nf.Cmp(&nv) {
+				switch nv.Cmp(&nf) {
 				default:
 					continue // should never happen but just in case
 				case -1:
