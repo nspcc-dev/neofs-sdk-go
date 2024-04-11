@@ -51,7 +51,7 @@ var (
 	tickNewEpoch newEpochTickerFunc
 
 	versions = []dockerImage{
-		{image: "nspccdev/neofs-aio", version: "0.36.0"},
+		{image: "nspccdev/neofs-aio", version: "0.39.0"},
 		{image: "nspccdev/neofs-aio", version: "latest"},
 	}
 
@@ -193,7 +193,7 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 	req := testcontainers.ContainerRequest{
 		Image: image,
 		// timeout is chosen to have enough time for NeoFS chain deployment from scratch within NeoFS AIO
-		WaitingFor:   wait.NewLogStrategy("Serving neofs rest gw").WithStartupTimeout(2 * time.Minute),
+		WaitingFor:   wait.NewLogStrategy("aio container started").WithStartupTimeout(2 * time.Minute),
 		Name:         "sdk-poll-tests-" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		Hostname:     "aio_autotest_" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		ExposedPorts: []string{"8080/tcp"},
