@@ -134,6 +134,7 @@ const (
 	FilterPayloadHomomorphicHash = v2object.FilterHeaderHomomorphicHash
 	FilterParentID               = v2object.FilterHeaderParent
 	FilterSplitID                = v2object.FilterHeaderSplitID
+	FilterFirstSplitObject       = v2object.ReservedFilterPrefix + "split.first"
 	FilterCreationEpoch          = v2object.FilterHeaderCreationEpoch
 	FilterPayloadSize            = v2object.FilterHeaderPayloadLength
 )
@@ -294,6 +295,13 @@ func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id SplitID) {
 	f.addFilter(m, FilterSplitID, staticStringer(id.String()))
+}
+
+// AddFirstSplitObjectFilter adds filter by first object ID.
+//
+// The m must not be numeric (like [MatchNumGT]).
+func (f *SearchFilters) AddFirstSplitObjectFilter(m SearchMatchType, id oid.ID) {
+	f.addFilter(m, FilterFirstSplitObject, staticStringer(id.String()))
 }
 
 // AddTypeFilter adds filter by object type.

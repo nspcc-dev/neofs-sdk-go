@@ -218,6 +218,29 @@ func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
 	})
 }
 
+func TestSearchFilters_AddFirstIDFilter(t *testing.T) {
+	id := testOID()
+
+	fs := new(object.SearchFilters)
+	fs.AddFirstSplitObjectFilter(object.MatchStringEqual, id)
+
+	f := (*fs)[0]
+
+	require.Equal(t, object.FilterFirstSplitObject, f.Header())
+	require.Equal(t, id.String(), f.Value())
+	require.Equal(t, object.MatchStringEqual, f.Operation())
+
+	t.Run("v2", func(t *testing.T) {
+		fsV2 := fs.ToV2()
+
+		require.Len(t, fsV2, 1)
+
+		require.Equal(t, v2object.ReservedFilterPrefix+"split.first", fsV2[0].GetKey())
+		require.Equal(t, id.String(), fsV2[0].GetValue())
+		require.Equal(t, v2object.MatchStringEqual, fsV2[0].GetMatchType())
+	})
+}
+
 func TestSearchFilters_AddTypeFilter(t *testing.T) {
 	typ := object.TypeTombstone
 
