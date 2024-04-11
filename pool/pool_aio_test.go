@@ -51,7 +51,7 @@ var (
 	tickNewEpoch newEpochTickerFunc
 
 	versions = []dockerImage{
-		{image: "nspccdev/neofs-aio", version: "0.36.0"},
+		{image: "nspccdev/neofs-aio", version: "0.39.0"},
 		{image: "nspccdev/neofs-aio", version: "latest"},
 	}
 
