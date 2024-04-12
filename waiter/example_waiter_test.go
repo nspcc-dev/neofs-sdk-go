@@ -42,7 +42,7 @@ func ExampleNewWaiter() {
 	// prepare placement policy.
 	pp.SetContainerBackupFactor(1)
 	rd.SetNumberOfObjects(1)
-	pp.AddReplicas(rd)
+	pp.SetReplicas([]netmap.ReplicaDescriptor{rd})
 	cont.SetPlacementPolicy(pp)
 
 	// prepare pool.

@@ -234,23 +234,21 @@ func (r ReplicaDescriptor) SelectorName() string {
 	return r.m.GetSelector()
 }
 
-// AddReplicas adds a bunch object replica's characteristics.
+// SetReplicas sets list of object replica's characteristics.
 //
 // See also [PlacementPolicy.Replicas], [PlacementPolicy.NumberOfReplicas],
 // [PlacementPolicy.ReplicaNumberByIndex].
-func (p *PlacementPolicy) AddReplicas(rs ...ReplicaDescriptor) {
-	off := len(p.replicas)
-
-	p.replicas = append(p.replicas, make([]netmap.Replica, len(rs))...)
+func (p *PlacementPolicy) SetReplicas(rs []ReplicaDescriptor) {
+	p.replicas = make([]netmap.Replica, len(rs))
 
 	for i := range rs {
-		p.replicas[off+i] = rs[i].m
+		p.replicas[i] = rs[i].m
 	}
 }
 
 // Replicas returns list of object replica characteristics.
 //
-// See also [PlacementPolicy.AddReplicas], [PlacementPolicy.NumberOfReplicas],
+// See also [PlacementPolicy.SetReplicas], [PlacementPolicy.NumberOfReplicas],
 // [PlacementPolicy.ReplicaNumberByIndex].
 func (p PlacementPolicy) Replicas() []ReplicaDescriptor {
 	rs := make([]ReplicaDescriptor, len(p.replicas))
@@ -260,7 +258,7 @@ func (p PlacementPolicy) Replicas() []ReplicaDescriptor {
 	return rs
 }
 
-// NumberOfReplicas returns number of replica descriptors set using AddReplicas.
+// NumberOfReplicas returns number of replica descriptors set using SetReplicas.
 //
 // Zero PlacementPolicy has no replicas which is incorrect according to the
 // NeoFS API protocol.
@@ -408,19 +406,17 @@ func (s *Selector) FilterName() string {
 	return s.m.GetFilter()
 }
 
-// AddSelectors adds a Selector bunch to form the subset of the nodes
-// to store container objects.
+// SetSelectors sets list of Selector to form the subset of the nodes to store
+// container objects.
 //
 // Zero PlacementPolicy does not declare selectors.
 //
 // See also [PlacementPolicy.Selectors].
-func (p *PlacementPolicy) AddSelectors(ss ...Selector) {
-	off := len(p.selectors)
-
-	p.selectors = append(p.selectors, make([]netmap.Selector, len(ss))...)
+func (p *PlacementPolicy) SetSelectors(ss []Selector) {
+	p.selectors = make([]netmap.Selector, len(ss))
 
 	for i := range ss {
-		p.selectors[off+i] = ss[i].m
+		p.selectors[i] = ss[i].m
 	}
 }
 
@@ -429,7 +425,7 @@ func (p *PlacementPolicy) AddSelectors(ss ...Selector) {
 //
 // Zero PlacementPolicy does not declare selectors.
 //
-// See also [PlacementPolicy.AddSelectors].
+// See also [PlacementPolicy.SetSelectors].
 func (p PlacementPolicy) Selectors() []Selector {
 	ss := make([]Selector, len(p.selectors))
 	for i := range p.selectors {
@@ -582,7 +578,7 @@ func (x *Filter) LogicalAND(filters ...Filter) {
 //
 // Zero PlacementPolicy has no filters.
 //
-// See also [PlacementPolicy.AddFilters].
+// See also [PlacementPolicy.SetFilters].
 func (p PlacementPolicy) Filters() []Filter {
 	fs := make([]Filter, len(p.filters))
 	for i := range p.filters {
@@ -591,18 +587,16 @@ func (p PlacementPolicy) Filters() []Filter {
 	return fs
 }
 
-// AddFilters adds a Filter bunch that will be applied when selecting nodes.
+// SetFilters sets list of Filter that will be applied when selecting nodes.
 //
 // Zero PlacementPolicy has no filters.
 //
 // See also [PlacementPolicy.Filters].
-func (p *PlacementPolicy) AddFilters(fs ...Filter) {
-	off := len(p.filters)
-
-	p.filters = append(p.filters, make([]netmap.Filter, len(fs))...)
+func (p *PlacementPolicy) SetFilters(fs []Filter) {
+	p.filters = make([]netmap.Filter, len(fs))
 
 	for i := range fs {
-		p.filters[off+i] = fs[i].m
+		p.filters[i] = fs[i].m
 	}
 }
 

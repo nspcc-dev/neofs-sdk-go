@@ -28,9 +28,9 @@ func newSelector(name string, attr string, count uint32, filter string, clause f
 
 func newPlacementPolicy(bf uint32, rs []ReplicaDescriptor, ss []Selector, fs []Filter) (p PlacementPolicy) {
 	p.SetContainerBackupFactor(bf)
-	p.AddReplicas(rs...)
-	p.AddSelectors(ss...)
-	p.AddFilters(fs...)
+	p.SetReplicas(rs)
+	p.SetSelectors(ss)
+	p.SetFilters(fs)
 	return p
 }
 

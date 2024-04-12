@@ -100,7 +100,7 @@ func TestPlacementPolicy_Replicas(t *testing.T) {
 	r.SetNumberOfObjects(2)
 	rs = append(rs, r)
 
-	p.AddReplicas(rs...)
+	p.SetReplicas(rs)
 	require.Equal(t, rs, p.Replicas())
 
 	var m netmapv2.PlacementPolicy
@@ -147,7 +147,7 @@ func TestPlacementPolicy_Selectors(t *testing.T) {
 	s.SelectDistinct()
 	ss = append(ss, s)
 
-	p.AddSelectors(ss...)
+	p.SetSelectors(ss)
 	require.Equal(t, ss, p.Selectors())
 
 	var m netmapv2.PlacementPolicy
@@ -228,7 +228,7 @@ func TestPlacementPolicy_Filters(t *testing.T) {
 	f.LogicalAND(sub1, sub2)
 	fs = append(fs, f)
 
-	p.AddFilters(fs...)
+	p.SetFilters(fs)
 	require.Equal(t, fs, p.Filters())
 
 	var m netmapv2.PlacementPolicy

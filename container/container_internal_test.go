@@ -30,15 +30,15 @@ func TestContainer_CopyTo(t *testing.T) {
 	var rd netmap.ReplicaDescriptor
 	rd.SetSelectorName("selector")
 	rd.SetNumberOfObjects(100)
-	pp.AddReplicas(rd)
+	pp.SetReplicas([]netmap.ReplicaDescriptor{rd})
 
 	var f netmap.Filter
 	f.SetName("filter")
-	pp.AddFilters(f)
+	pp.SetFilters([]netmap.Filter{f})
 
 	var s netmap.Selector
 	s.SetName("selector")
-	pp.AddSelectors(s)
+	pp.SetSelectors([]netmap.Selector{s})
 
 	container.SetPlacementPolicy(pp)
 

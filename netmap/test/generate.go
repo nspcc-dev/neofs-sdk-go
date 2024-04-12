@@ -44,9 +44,9 @@ func Selector() (x netmap.Selector) {
 // PlacementPolicy returns random netmap.PlacementPolicy.
 func PlacementPolicy() (p netmap.PlacementPolicy) {
 	p.SetContainerBackupFactor(9)
-	p.AddFilters(Filter(), Filter())
-	p.AddReplicas(Replica(), Replica())
-	p.AddSelectors(Selector(), Selector())
+	p.SetFilters([]netmap.Filter{Filter(), Filter()})
+	p.SetReplicas([]netmap.ReplicaDescriptor{Replica(), Replica()})
+	p.SetSelectors([]netmap.Selector{Selector(), Selector()})
 
 	return
 }

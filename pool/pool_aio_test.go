@@ -723,7 +723,7 @@ func testCreateContainer(ctx context.Context, t *testing.T, signer neofscrypto.S
 
 	var pp netmap.PlacementPolicy
 	pp.SetContainerBackupFactor(1)
-	pp.AddReplicas(rd)
+	pp.SetReplicas(rd)
 
 	cont.SetPlacementPolicy(pp)
 
