@@ -36,7 +36,7 @@ func ExampleContainer_Init() {
 	// placement policy and replicas definition is required
 	var pp netmap.PlacementPolicy
 	pp.SetContainerBackupFactor(1)
-	pp.AddReplicas(rd)
+	pp.SetReplicas([]netmap.ReplicaDescriptor{rd})
 
 	cnr.SetPlacementPolicy(pp)
 }

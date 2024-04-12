@@ -286,20 +286,17 @@ func TestRecord_CopyTo(t *testing.T) {
 		var dst Record
 		record.CopyTo(&dst)
 
-		require.Equal(t, record.filters[0].key.str, dst.filters[0].key.str)
-		require.Equal(t, record.filters[0].key.typ, dst.filters[0].key.typ)
+		require.Equal(t, record.filters[0].key, dst.filters[0].key)
 		require.Equal(t, record.filters[0].matcher, dst.filters[0].matcher)
 		require.Equal(t, record.filters[0].value, dst.filters[0].value)
 		require.Equal(t, record.filters[0].from, dst.filters[0].from)
 
-		dst.filters[0].key.str = "key2"
-		dst.filters[0].key.typ = 12345
+		dst.filters[0].key = "key2"
 		dst.filters[0].matcher = MatchStringNotEqual
 		dst.filters[0].value = staticStringer("staticStringer")
 		dst.filters[0].from = 12345
 
-		require.NotEqual(t, record.filters[0].key.str, dst.filters[0].key.str)
-		require.NotEqual(t, record.filters[0].key.typ, dst.filters[0].key.typ)
+		require.NotEqual(t, record.filters[0].key, dst.filters[0].key)
 		require.NotEqual(t, record.filters[0].matcher, dst.filters[0].matcher)
 		require.NotEqual(t, record.filters[0].value, dst.filters[0].value)
 		require.NotEqual(t, record.filters[0].from, dst.filters[0].from)

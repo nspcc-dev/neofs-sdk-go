@@ -30,6 +30,46 @@ type PlacementPolicy struct {
 	replicas []netmap.Replica
 }
 
+// FilterOp defines the matching property.
+type FilterOp uint32
+
+// Supported FilterOp values.
+const (
+	_           FilterOp = iota
+	FilterOpEQ           // String 'equal'
+	FilterOpNE           // String 'not equal'
+	FilterOpGT           // Numeric 'greater than'
+	FilterOpGE           // Numeric 'greater or equal than'
+	FilterOpLT           // Numeric 'less than'
+	FilterOpLE           // Numeric 'less or equal than'
+	FilterOpOR           // Logical disjunction
+	FilterOpAND          // Logical conjunction
+)
+
+// String implements [fmt.Stringer].
+func (x FilterOp) String() string {
+	switch x {
+	default:
+		return "UNKNOWN"
+	case FilterOpEQ:
+		return "EQ"
+	case FilterOpNE:
+		return "NE"
+	case FilterOpGT:
+		return "GT"
+	case FilterOpGE:
+		return "GE"
+	case FilterOpLT:
+		return "LT"
+	case FilterOpLE:
+		return "LE"
+	case FilterOpOR:
+		return "OR"
+	case FilterOpAND:
+		return "AND"
+	}
+}
+
 func copyFilter(f netmap.Filter) netmap.Filter {
 	var filter netmap.Filter
 
@@ -178,24 +218,47 @@ func (r ReplicaDescriptor) NumberOfObjects() uint32 {
 //
 // Zero ReplicaDescriptor references to the root bucket's selector: it contains
 // all possible nodes to store the object.
+//
+// See also [ReplicaDescriptor.SelectorName].
 func (r *ReplicaDescriptor) SetSelectorName(s string) {
 	r.m.SetSelector(s)
 }
 
-// AddReplicas adds a bunch object replica's characteristics.
+// SelectorName returns name of the related Selector.
 //
-// See also IterateReplicas.
-func (p *PlacementPolicy) AddReplicas(rs ...ReplicaDescriptor) {
-	off := len(p.replicas)
+// Zero ReplicaDescriptor references to the root bucket's selector: it contains
+// all possible nodes to store the object.
+//
+// See also [ReplicaDescriptor.SetSelectorName].
+func (r ReplicaDescriptor) SelectorName() string {
+	return r.m.GetSelector()
+}
 
-	p.replicas = append(p.replicas, make([]netmap.Replica, len(rs))...)
+// SetReplicas sets list of object replica's characteristics.
+//
+// See also [PlacementPolicy.Replicas], [PlacementPolicy.NumberOfReplicas],
+// [PlacementPolicy.ReplicaNumberByIndex].
+func (p *PlacementPolicy) SetReplicas(rs []ReplicaDescriptor) {
+	p.replicas = make([]netmap.Replica, len(rs))
 
 	for i := range rs {
-		p.replicas[off+i] = rs[i].m
+		p.replicas[i] = rs[i].m
 	}
 }
 
-// NumberOfReplicas returns number of replica descriptors set using AddReplicas.
+// Replicas returns list of object replica characteristics.
+//
+// See also [PlacementPolicy.SetReplicas], [PlacementPolicy.NumberOfReplicas],
+// [PlacementPolicy.ReplicaNumberByIndex].
+func (p PlacementPolicy) Replicas() []ReplicaDescriptor {
+	rs := make([]ReplicaDescriptor, len(p.replicas))
+	for i := range p.replicas {
+		rs[i].m = p.replicas[i]
+	}
+	return rs
+}
+
+// NumberOfReplicas returns number of replica descriptors set using SetReplicas.
 //
 // Zero PlacementPolicy has no replicas which is incorrect according to the
 // NeoFS API protocol.
@@ -215,8 +278,20 @@ func (p PlacementPolicy) ReplicaNumberByIndex(i int) uint32 {
 // NeoFS will search for nodes alternatives to include into container's nodes subset.
 //
 // Zero PlacementPolicy has zero container backup factor.
+//
+// See also [PlacementPolicy.ContainerBackupFactor].
 func (p *PlacementPolicy) SetContainerBackupFactor(f uint32) {
 	p.backupFactor = f
+}
+
+// ContainerBackupFactor returns container backup factor: it controls how deep
+// NeoFS will search for nodes alternatives to include into container's nodes subset.
+//
+// Zero PlacementPolicy has zero container backup factor.
+//
+// See also [PlacementPolicy.SetContainerBackupFactor].
+func (p *PlacementPolicy) ContainerBackupFactor() uint32 {
+	return p.backupFactor
 }
 
 // Selector describes the bucket selection operator: choose a number of nodes
@@ -232,18 +307,49 @@ func (s *Selector) SetName(name string) {
 	s.m.SetName(name)
 }
 
+// Name returns name with which the Selector can be referenced.
+//
+// Zero Selector is unnamed.
+//
+// See also [Selector.Name].
+func (s Selector) Name() string {
+	return s.m.GetName()
+}
+
 // SetNumberOfNodes sets number of nodes to select from the bucket.
 //
 // Zero Selector selects nothing.
+//
+// See also [Selector.NumberOfNodes].
 func (s *Selector) SetNumberOfNodes(num uint32) {
 	s.m.SetCount(num)
+}
+
+// NumberOfNodes returns number of nodes to select from the bucket.
+//
+// Zero Selector selects nothing.
+//
+// See also [Selector.SetNumberOfNodes].
+func (s Selector) NumberOfNodes() uint32 {
+	return s.m.GetCount()
 }
 
 // SelectByBucketAttribute sets attribute of the bucket to select nodes from.
 //
 // Zero Selector has empty attribute.
+//
+// See also [Selector.BucketAttribute].
 func (s *Selector) SelectByBucketAttribute(bucket string) {
 	s.m.SetAttribute(bucket)
+}
+
+// BucketAttribute returns attribute of the bucket to select nodes from.
+//
+// Zero Selector has empty attribute.
+//
+// See also [Selector.SelectByBucketAttribute].
+func (s *Selector) BucketAttribute() string {
+	return s.m.GetAttribute()
 }
 
 // SelectSame makes selection algorithm to select only nodes having the same values
@@ -251,9 +357,17 @@ func (s *Selector) SelectByBucketAttribute(bucket string) {
 //
 // Zero Selector doesn't specify selection modifier so nodes are selected randomly.
 //
-// See also SelectByBucketAttribute.
+// See also [Selector.SelectByBucketAttribute], [Selector.IsSame].
 func (s *Selector) SelectSame() {
 	s.m.SetClause(netmap.Same)
+}
+
+// IsSame checks whether selection algorithm is set to select only nodes having
+// the same values of the bucket attribute.
+//
+// See also [Selector.SelectSame].
+func (s *Selector) IsSame() bool {
+	return s.m.GetClause() == netmap.Same
 }
 
 // SelectDistinct makes selection algorithm to select only nodes having the different values
@@ -261,9 +375,17 @@ func (s *Selector) SelectSame() {
 //
 // Zero Selector doesn't specify selection modifier so nodes are selected randomly.
 //
-// See also SelectByBucketAttribute.
+// See also [Selector.SelectByBucketAttribute], [Selector.IsDistinct].
 func (s *Selector) SelectDistinct() {
 	s.m.SetClause(netmap.Distinct)
+}
+
+// IsDistinct checks whether selection algorithm is set to select only nodes
+// having the different values of the bucket attribute.
+//
+// See also [Selector.SelectByBucketAttribute], [Selector.SelectDistinct].
+func (s *Selector) IsDistinct() bool {
+	return s.m.GetClause() == netmap.Distinct
 }
 
 // SetFilterName sets reference to pre-filtering nodes for selection.
@@ -275,18 +397,41 @@ func (s *Selector) SetFilterName(f string) {
 	s.m.SetFilter(f)
 }
 
-// AddSelectors adds a Selector bunch to form the subset of the nodes
-// to store container objects.
+// FilterName returns reference to pre-filtering nodes for selection.
+//
+// Zero Selector has no filtering reference.
+//
+// See also [Filter.SetName], [Selector.SetFilterName].
+func (s *Selector) FilterName() string {
+	return s.m.GetFilter()
+}
+
+// SetSelectors sets list of Selector to form the subset of the nodes to store
+// container objects.
 //
 // Zero PlacementPolicy does not declare selectors.
-func (p *PlacementPolicy) AddSelectors(ss ...Selector) {
-	off := len(p.selectors)
-
-	p.selectors = append(p.selectors, make([]netmap.Selector, len(ss))...)
+//
+// See also [PlacementPolicy.Selectors].
+func (p *PlacementPolicy) SetSelectors(ss []Selector) {
+	p.selectors = make([]netmap.Selector, len(ss))
 
 	for i := range ss {
-		p.selectors[off+i] = ss[i].m
+		p.selectors[i] = ss[i].m
 	}
+}
+
+// Selectors returns list of Selector to form the subset of the nodes to store
+// container objects.
+//
+// Zero PlacementPolicy does not declare selectors.
+//
+// See also [PlacementPolicy.SetSelectors].
+func (p PlacementPolicy) Selectors() []Selector {
+	ss := make([]Selector, len(p.selectors))
+	for i := range p.selectors {
+		ss[i].m = p.selectors[i]
+	}
+	return ss
 }
 
 // Filter contains rules for filtering the node sets.
@@ -299,8 +444,51 @@ type Filter struct {
 // MUST NOT be '*'.
 //
 // Zero Filter is unnamed.
+//
+// See also [Filter.Name].
 func (x *Filter) SetName(name string) {
 	x.m.SetName(name)
+}
+
+// Name returns name with which the Filter can be referenced or, for inner
+// filters, to which the Filter references. Top-level filters MUST be named. The
+// name MUST NOT be '*'.
+//
+// Zero Filter is unnamed.
+//
+// See also [Filter.SetName].
+func (x Filter) Name() string {
+	return x.m.GetName()
+}
+
+// Key returns key to the property.
+func (x Filter) Key() string {
+	return x.m.GetKey()
+}
+
+// Op returns operator to match the property.
+func (x Filter) Op() FilterOp {
+	return FilterOp(x.m.GetOp())
+}
+
+// Value returns value to check the property against.
+func (x Filter) Value() string {
+	return x.m.GetValue()
+}
+
+// SubFilters returns list of sub-filters when Filter is complex.
+func (x Filter) SubFilters() []Filter {
+	fsm := x.m.GetFilters()
+	if len(fsm) == 0 {
+		return nil
+	}
+
+	fs := make([]Filter, len(fsm))
+	for i := range fsm {
+		fs[i] = Filter{m: fsm[i]}
+	}
+
+	return fs
 }
 
 func (x *Filter) setAttribute(key string, op netmap.Operation, val string) {
@@ -386,16 +574,29 @@ func (x *Filter) LogicalAND(filters ...Filter) {
 	x.setInnerFilters(netmap.AND, filters)
 }
 
-// AddFilters adds a Filter bunch that will be applied when selecting nodes.
+// Filters returns list of Filter that will be applied when selecting nodes.
 //
 // Zero PlacementPolicy has no filters.
-func (p *PlacementPolicy) AddFilters(fs ...Filter) {
-	off := len(p.filters)
+//
+// See also [PlacementPolicy.SetFilters].
+func (p PlacementPolicy) Filters() []Filter {
+	fs := make([]Filter, len(p.filters))
+	for i := range p.filters {
+		fs[i] = Filter{m: p.filters[i]}
+	}
+	return fs
+}
 
-	p.filters = append(p.filters, make([]netmap.Filter, len(fs))...)
+// SetFilters sets list of Filter that will be applied when selecting nodes.
+//
+// Zero PlacementPolicy has no filters.
+//
+// See also [PlacementPolicy.Filters].
+func (p *PlacementPolicy) SetFilters(fs []Filter) {
+	p.filters = make([]netmap.Filter, len(fs))
 
 	for i := range fs {
-		p.filters[off+i] = fs[i].m
+		p.filters[i] = fs[i].m
 	}
 }
 

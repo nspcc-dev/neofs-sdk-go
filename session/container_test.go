@@ -591,6 +591,11 @@ func TestContainer_SignedData(t *testing.T) {
 	val := sessiontest.Container()
 	val.SetIssuer(id)
 
+	signedData := val.SignedData()
+	var dec session.Container
+	require.NoError(t, dec.UnmarshalSignedData(signedData))
+	require.Equal(t, val, dec)
+
 	signer := user.NewSigner(test.RandomSigner(t), id)
 	test.SignedDataComponentUser(t, signer, &val)
 }

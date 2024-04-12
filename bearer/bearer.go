@@ -290,9 +290,22 @@ func (b *Token) Sign(signer user.Signer) error {
 
 // SignedData returns actual payload to sign.
 //
-// See also [Token.Sign].
+// See also [Token.Sign], [Token.UnmarshalSignedData].
 func (b *Token) SignedData() []byte {
 	return b.signedData()
+}
+
+// UnmarshalSignedData is a reverse op to [Token.SignedData].
+func (b *Token) UnmarshalSignedData(data []byte) error {
+	var body acl.BearerTokenBody
+	err := body.Unmarshal(data)
+	if err != nil {
+		return fmt.Errorf("decode body: %w", err)
+	}
+
+	var tok acl.BearerToken
+	tok.SetBody(&body)
+	return b.readFromV2(tok, false)
 }
 
 // VerifySignature checks if Token signature is presented and valid.

@@ -162,9 +162,22 @@ func (x *Container) SetSignature(signer neofscrypto.Signer) error {
 //
 // Using this method require to set issuer via [Container.SetIssuer] before SignedData call.
 //
-// See also [Container.Sign].
+// See also [Container.Sign], [Container.UnmarshalSignedData].
 func (x *Container) SignedData() []byte {
 	return x.signedData(x.writeContext)
+}
+
+// UnmarshalSignedData is a reverse op to [Container.SignedData].
+func (x *Container) UnmarshalSignedData(data []byte) error {
+	var body session.TokenBody
+	err := body.Unmarshal(data)
+	if err != nil {
+		return fmt.Errorf("decode body: %w", err)
+	}
+
+	var tok session.Token
+	tok.SetBody(&body)
+	return x.readFromV2(tok, false)
 }
 
 // VerifySignature checks if Container signature is presented and valid.

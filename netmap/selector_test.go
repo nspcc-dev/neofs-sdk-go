@@ -220,9 +220,11 @@ func TestSelector_SetName(t *testing.T) {
 	var s Selector
 
 	require.Zero(t, s.m.GetName())
+	require.Zero(t, s.Name())
 
 	s.SetName(name)
 	require.Equal(t, name, s.m.GetName())
+	require.Equal(t, name, s.Name())
 }
 
 func TestSelector_SetNumberOfNodes(t *testing.T) {
@@ -230,22 +232,30 @@ func TestSelector_SetNumberOfNodes(t *testing.T) {
 	var s Selector
 
 	require.Zero(t, s.m.GetCount())
+	require.Zero(t, s.NumberOfNodes())
 
 	s.SetNumberOfNodes(num)
 
 	require.EqualValues(t, num, s.m.GetCount())
+	require.EqualValues(t, num, s.NumberOfNodes())
 }
 
 func TestSelectorClauses(t *testing.T) {
 	var s Selector
 
 	require.Equal(t, netmap.UnspecifiedClause, s.m.GetClause())
+	require.False(t, s.IsSame())
+	require.False(t, s.IsDistinct())
 
 	s.SelectDistinct()
 	require.Equal(t, netmap.Distinct, s.m.GetClause())
+	require.False(t, s.IsSame())
+	require.True(t, s.IsDistinct())
 
 	s.SelectSame()
 	require.Equal(t, netmap.Same, s.m.GetClause())
+	require.True(t, s.IsSame())
+	require.False(t, s.IsDistinct())
 }
 
 func TestSelector_SelectByBucketAttribute(t *testing.T) {

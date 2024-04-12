@@ -15,15 +15,15 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 	var rd ReplicaDescriptor
 	rd.SetSelectorName("selector")
 	rd.SetNumberOfObjects(100)
-	pp.AddReplicas(rd)
+	pp.SetReplicas([]ReplicaDescriptor{rd})
 
 	var f Filter
 	f.SetName("filter")
-	pp.AddFilters(f)
+	pp.SetFilters([]Filter{f})
 
 	var s Selector
 	s.SetName("selector")
-	pp.AddSelectors(s)
+	pp.SetSelectors([]Selector{s})
 
 	t.Run("copy", func(t *testing.T) {
 		var dst PlacementPolicy
@@ -57,7 +57,7 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		topFilter.setInnerFilters(netmap.EQ, []Filter{includedFilter})
 
 		var policy PlacementPolicy
-		policy.AddFilters(topFilter)
+		policy.SetFilters([]Filter{topFilter})
 
 		var dst PlacementPolicy
 		policy.CopyTo(&dst)

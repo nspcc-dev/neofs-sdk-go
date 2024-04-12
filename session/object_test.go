@@ -660,7 +660,12 @@ func TestObject_SignedData(t *testing.T) {
 	tokenSession.SetAuthKey(test.RandomSignerRFC6979(t).Public())
 	tokenSession.SetIssuer(issuer)
 
-	sign, err := issuerSigner.Sign(tokenSession.SignedData())
+	signedData := tokenSession.SignedData()
+	var dec session.Object
+	require.NoError(t, dec.UnmarshalSignedData(signedData))
+	require.Equal(t, tokenSession, dec)
+
+	sign, err := issuerSigner.Sign(signedData)
 	require.NoError(t, err)
 
 	require.NoError(t, tokenSession.Sign(issuerSigner))

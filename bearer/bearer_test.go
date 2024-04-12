@@ -289,6 +289,11 @@ func TestToken_SignedData(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
+	signedData := val.SignedData()
+	var dec bearer.Token
+	require.NoError(t, dec.UnmarshalSignedData(signedData))
+	require.Equal(t, val, dec)
+
 	signer := test.RandomSignerRFC6979(t)
 	val = bearertest.Token(t)
 	val.SetIssuer(signer.UserID())
