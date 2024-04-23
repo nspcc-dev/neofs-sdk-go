@@ -552,3 +552,10 @@ func (x Container) AssertID(id cid.ID) bool {
 
 	return id2.Equals(id)
 }
+
+// Version returns the NeoFS API version this container was created with.
+func (x Container) Version() version.Version {
+	var v version.Version
+	_ = v.ReadFromV2(*x.v2.GetVersion()) // No, this can't fail for x.
+	return v
+}

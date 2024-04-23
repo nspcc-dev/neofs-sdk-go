@@ -48,6 +48,9 @@ func TestContainer_Init(t *testing.T) {
 
 	val.Init()
 
+	var ver = val.Version()
+	require.Equal(t, version.Current(), ver)
+
 	var msg v2container.Container
 	val.WriteToV2(&msg)
 
@@ -60,7 +63,6 @@ func TestContainer_Init(t *testing.T) {
 	verV2 := msg.GetVersion()
 	require.NotNil(t, verV2)
 
-	var ver version.Version
 	require.NoError(t, ver.ReadFromV2(*verV2))
 
 	require.Equal(t, version.Current(), ver)
