@@ -46,9 +46,12 @@ func writeXHeadersToMeta(xHeaders []string, h *v2session.RequestMetaHeader) {
 	}
 
 	hs := make([]v2session.XHeader, len(xHeaders)/2)
+	j := 0
+
 	for i := 0; i < len(xHeaders); i += 2 {
-		hs[i].SetKey(xHeaders[i])
-		hs[i].SetValue(xHeaders[i+1])
+		hs[j].SetKey(xHeaders[i])
+		hs[j].SetValue(xHeaders[i+1])
+		j++
 	}
 
 	h.SetXHeaders(hs)
