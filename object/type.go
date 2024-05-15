@@ -1,63 +1,86 @@
 package object
 
 import (
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	"fmt"
+	"strconv"
 )
 
-// Type is an enumerator for possible object types.
-type Type object.Type
+// Type defines the payload format of the object.
+type Type uint16
 
+// Supported Type values.
 const (
-	TypeRegular Type = iota
-	TypeTombstone
-	TypeStorageGroup
-	TypeLock
-	TypeLink
+	TypeRegular      Type = iota // uninterpretable plain data
+	TypeTombstone                // [Tombstone] carrier
+	TypeStorageGroup             // storage group carrier
+	TypeLock                     // [Lock] carrier
+	TypeLink                     // [SplitChain] carrier
 )
 
-// ToV2 converts [Type] to v2 [object.Type].
-func (t Type) ToV2() object.Type {
-	return object.Type(t)
-}
-
-// TypeFromV2 converts v2 [object.Type] to [Type].
-func TypeFromV2(t object.Type) Type {
-	return Type(t)
-}
-
-// EncodeToString returns string representation of [Type].
+// EncodeToString encodes Type into NeoFS API V2 protocol string.
 //
-// String mapping:
-//   - [TypeTombstone]: TOMBSTONE;
-//   - [TypeStorageGroup]: STORAGE_GROUP;
-//   - [TypeLock]: LOCK;
-//   - [TypeRegular], default: REGULAR.
-//   - [TypeLink], default: LINK.
+// See also [Type.DecodeString].
 func (t Type) EncodeToString() string {
-	return t.ToV2().String()
+	switch t {
+	default:
+		return strconv.FormatUint(uint64(t), 10)
+	case TypeRegular:
+		return "REGULAR"
+	case TypeTombstone:
+		return "TOMBSTONE"
+	case TypeStorageGroup:
+		return "STORAGE_GROUP"
+	case TypeLock:
+		return "LOCK"
+	case TypeLink:
+		return "LINK"
+	}
 }
 
 // String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as [Type.EncodeToString]. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. String MAY return same result as [Type.EncodeToString]. String
+// MUST NOT be used to encode Type into NeoFS protocol string.
 func (t Type) String() string {
-	return t.EncodeToString()
+	switch t {
+	default:
+		return fmt.Sprintf("UNKNOWN#%d", t)
+	case TypeRegular:
+		return "REGULAR"
+	case TypeTombstone:
+		return "TOMBSTONE"
+	case TypeStorageGroup:
+		return "STORAGE_GROUP"
+	case TypeLock:
+		return "LOCK"
+	case TypeLink:
+		return "LINK"
+	}
 }
 
-// DecodeString parses [Type] from a string representation.
-// It is a reverse action to EncodeToString().
+// DecodeString decodes string into Type according to NeoFS API protocol.
+// Returns an error if s is malformed.
 //
-// Returns true if s was parsed successfully.
-func (t *Type) DecodeString(s string) bool {
-	var g object.Type
-
-	ok := g.FromString(s)
-
-	if ok {
-		*t = TypeFromV2(g)
+// See also [Type.EncodeToString].
+func (t *Type) DecodeString(s string) error {
+	switch s {
+	default:
+		n, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return fmt.Errorf("decode numeric value: %w", err)
+		}
+		*t = Type(n)
+	case "REGULAR":
+		*t = TypeRegular
+	case "TOMBSTONE":
+		*t = TypeTombstone
+	case "STORAGE_GROUP":
+		*t = TypeStorageGroup
+	case "LOCK":
+		*t = TypeLock
+	case "LINK":
+		*t = TypeLink
 	}
-
-	return ok
+	return nil
 }

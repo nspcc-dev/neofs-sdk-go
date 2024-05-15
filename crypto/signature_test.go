@@ -3,17 +3,18 @@ package neofscrypto_test
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 const anyUnsupportedScheme = neofscrypto.ECDSA_WALLETCONNECT + 1
 
 func TestSignatureLifecycle(t *testing.T) {
 	data := []byte("Hello, world!")
-	signer := test.RandomSigner(t)
+	signer := neofscryptotest.RandomSigner()
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
 	bPubKey := neofscrypto.PublicKeyBytes(pubKey)
@@ -33,34 +34,34 @@ func TestSignatureLifecycle(t *testing.T) {
 
 	testSig(clientSig)
 
-	var sigV2 refs.Signature
-	clientSig.WriteToV2(&sigV2)
+	var apiSig refs.Signature
+	clientSig.WriteToV2(&apiSig)
 
-	require.Equal(t, refs.SignatureScheme(scheme), sigV2.GetScheme())
-	require.Equal(t, bPubKey, sigV2.GetKey())
-	require.Equal(t, clientSig.Value(), sigV2.GetSign())
+	require.Equal(t, refs.SignatureScheme(scheme), apiSig.GetScheme())
+	require.Equal(t, bPubKey, apiSig.GetKey())
+	require.Equal(t, clientSig.Value(), apiSig.GetSign())
 
-	// sigV2 transmitted to server over the network
+	// apiSig transmitted to server over the network
 
 	var serverSig neofscrypto.Signature
 
-	err = serverSig.ReadFromV2(sigV2)
+	err = serverSig.ReadFromV2(&apiSig)
 	require.NoError(t, err)
 
 	testSig(serverSig)
 
 	// break the message in different ways
 	for i, breakSig := range []func(*refs.Signature){
-		func(sigV2 *refs.Signature) { sigV2.SetScheme(refs.SignatureScheme(anyUnsupportedScheme)) },
-		func(sigV2 *refs.Signature) {
-			key := sigV2.GetKey()
-			sigV2.SetKey(key[:len(key)-1])
+		func(apiSig *refs.Signature) { apiSig.Scheme = refs.SignatureScheme(anyUnsupportedScheme) },
+		func(apiSig *refs.Signature) {
+			key := apiSig.GetKey()
+			apiSig.Key = key[:len(key)-1]
 		},
-		func(sigV2 *refs.Signature) { sigV2.SetKey(append(sigV2.GetKey(), 1)) },
-		func(sigV2 *refs.Signature) { sigV2.SetSign(nil) },
+		func(apiSig *refs.Signature) { apiSig.Key = append(apiSig.GetKey(), 1) },
+		func(apiSig *refs.Signature) { apiSig.Sign = nil },
 	} {
-		sigV2Cp := sigV2
-		breakSig(&sigV2Cp)
+		sigV2Cp := proto.Clone(&apiSig).(*refs.Signature)
+		breakSig(sigV2Cp)
 
 		err = serverSig.ReadFromV2(sigV2Cp)
 		require.Errorf(t, err, "break func #%d", i)
@@ -68,7 +69,7 @@ func TestSignatureLifecycle(t *testing.T) {
 }
 
 func TestNewSignature(t *testing.T) {
-	signer := test.RandomSigner(t)
+	signer := neofscryptotest.RandomSigner()
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
 	val := []byte("Hello, world!") // may be any for this test
@@ -89,7 +90,7 @@ func TestNewSignature(t *testing.T) {
 
 	var sig2 neofscrypto.Signature
 
-	err := sig2.ReadFromV2(sigMsg)
+	err := sig2.ReadFromV2(&sigMsg)
 	require.NoError(t, err)
 
 	checkFields(sig2)

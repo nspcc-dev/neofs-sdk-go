@@ -1,52 +1,65 @@
 package reputationtest
 
 import (
-	"testing"
+	"fmt"
+	"math/rand"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 )
 
-func PeerID() (v reputation.PeerID) {
-	p, err := keys.NewPrivateKey()
-	if err != nil {
-		panic(err)
+// PeerID returns random reputation.PeerID.
+func PeerID() reputation.PeerID {
+	var res reputation.PeerID
+	rand.Read(res[:])
+	return res
+}
+
+// ChangePeerID returns reputation.PeerID other than the given one.
+func ChangePeerID(id reputation.PeerID) reputation.PeerID {
+	id[0]++
+	return id
+}
+
+// Trust returns random reputation.Trust.
+func Trust() reputation.Trust {
+	var res reputation.Trust
+	res.SetPeer(PeerID())
+	res.SetValue(rand.Float64())
+	return res
+}
+
+// NTrusts returns n random reputation.Trust instances.
+func NTrusts(n int) []reputation.Trust {
+	res := make([]reputation.Trust, n)
+	for i := range res {
+		res[i] = Trust()
 	}
-
-	v.SetPublicKey(p.PublicKey().Bytes())
-
-	return
+	return res
 }
 
-func Trust() (v reputation.Trust) {
-	v.SetPeer(PeerID())
-	v.SetValue(0.5)
-
-	return
-}
-
-func PeerToPeerTrust() (v reputation.PeerToPeerTrust) {
+// PeerToPeerTrust returns random reputation.PeerToPeerTrust.
+func PeerToPeerTrust() reputation.PeerToPeerTrust {
+	var v reputation.PeerToPeerTrust
 	v.SetTrustingPeer(PeerID())
 	v.SetTrust(Trust())
-
-	return
+	return v
 }
 
-func GlobalTrust() (v reputation.GlobalTrust) {
-	v.Init()
-	v.SetManager(PeerID())
-	v.SetTrust(Trust())
-
-	return
+func globalTrustUnsigned() reputation.GlobalTrust {
+	return reputation.NewGlobalTrust(PeerID(), Trust())
 }
 
-func SignedGlobalTrust(t *testing.T) reputation.GlobalTrust {
-	gt := GlobalTrust()
-
-	if err := gt.Sign(test.RandomSignerRFC6979(t)); err != nil {
-		t.Fatalf("unexpected error from GlobalTrust.Sign: %v", err)
+// GlobalTrust returns random reputation.GlobalTrust.
+func GlobalTrust() reputation.GlobalTrust {
+	tr := globalTrustUnsigned()
+	if err := tr.Sign(neofscryptotest.RandomSigner()); err != nil {
+		panic(fmt.Errorf("unexpected sign error: %w", err))
 	}
+	return tr
+}
 
-	return gt
+// GlobalTrustUnsigned returns random unsigned reputation.GlobalTrust.
+func GlobalTrustUnsigned() reputation.GlobalTrust {
+	return globalTrustUnsigned()
 }

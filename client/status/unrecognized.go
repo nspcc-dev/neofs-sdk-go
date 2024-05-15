@@ -1,34 +1,36 @@
 package apistatus
 
 import (
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	"fmt"
+
+	"github.com/nspcc-dev/neofs-sdk-go/api/status"
 )
 
-// ErrUnrecognizedStatusV2 is an instance of UnrecognizedStatusV2 error status. It's expected to be used for [errors.Is]
-// and MUST NOT be changed.
-var ErrUnrecognizedStatusV2 UnrecognizedStatusV2
-
-// UnrecognizedStatusV2 describes status of the uncertain failure.
-// Instances provide [StatusV2] and error interfaces.
-type UnrecognizedStatusV2 struct {
-	v2 status.Status
+// unrecognizedStatus is used for unknown statuses which cannot be interpreted
+// by this package.
+type unrecognizedStatusV2 struct {
+	code    uint32
+	msg     string
+	details []*status.Status_Detail
 }
 
-func (x UnrecognizedStatusV2) Error() string {
-	return errMessageStatusV2("unrecognized", x.v2.Message())
+func (x unrecognizedStatusV2) Error() string {
+	const desc = "unknown"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, x.code, fmt.Sprintf("%s, details count = %d", desc, len(x.details)), x.msg)
+	}
+	return fmt.Sprintf(errFmtNoMessage, x.code, fmt.Sprintf("%s, details count = %d", desc, len(x.details)))
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x UnrecognizedStatusV2) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return false
-	case UnrecognizedStatusV2, *UnrecognizedStatusV2:
-		return true
+func (x unrecognizedStatusV2) ErrorToV2() *status.Status {
+	return &status.Status{
+		Code:    x.code,
+		Message: x.msg,
+		Details: x.details,
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *UnrecognizedStatusV2) fromStatusV2(st *status.Status) {
-	x.v2 = *st
-}
+// Is checks whether target is of type unrecognizedStatusV2,
+// *unrecognizedStatusV2 or [Error]. Is implements interface consumed by
+// [errors.Is].
+func (x unrecognizedStatusV2) Is(target error) bool { return errorIs(x, target) }

@@ -4,12 +4,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
+	apicontainer "github.com/nspcc-dev/neofs-sdk-go/api/container"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	apisession "github.com/nspcc-dev/neofs-sdk-go/api/session"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -19,644 +20,631 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-var (
-	// special variables for test purposes, to overwrite real RPC calls.
-	rpcAPIPutContainer      = rpcapi.PutContainer
-	rpcAPIGetContainer      = rpcapi.GetContainer
-	rpcAPIListContainers    = rpcapi.ListContainers
-	rpcAPIDeleteContainer   = rpcapi.DeleteContainer
-	rpcAPIGetEACL           = rpcapi.GetEACL
-	rpcAPISetEACL           = rpcapi.SetEACL
-	rpcAPIAnnounceUsedSpace = rpcapi.AnnounceUsedSpace
-)
-
-// PrmContainerPut groups optional parameters of ContainerPut operation.
-type PrmContainerPut struct {
-	prmCommonMeta
-
+// PutContainerOptions groups optional parameters of [Client.PutContainer].
+type PutContainerOptions struct {
 	sessionSet bool
 	session    session.Container
 }
 
 // WithinSession specifies session within which container should be saved.
-//
-// Creator of the session acquires the authorship of the request. This affects
-// the execution of an operation (e.g. access control).
-//
-// Session is optional, if set the following requirements apply:
-//   - session operation MUST be session.VerbContainerPut (ForVerb)
-//   - token MUST be signed using private signer of the owner of the container to be saved
-func (x *PrmContainerPut) WithinSession(s session.Container) {
+// Session tokens grant user-to-user power of attorney: the subject can create
+// containers on behalf of the issuer. Session op must be
+// [session.VerbContainerPut]. If used, [Client.PutContainer] default ownership
+// behavior is replaced with:
+//   - session issuer becomes the container's owner;
+//   - session must target the subject authenticated by signer passed to
+//     [Client.PutContainer].
+func (x *PutContainerOptions) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
 }
 
-// ContainerPut sends request to save container in NeoFS.
+// PutContainer sends request to save given container in NeoFS. If the request
+// is accepted, PutContainer returns no error and ID of the new container which
+// is going to be saved asynchronously. The completion can be checked by polling
+// the container presence using returned ID until it will appear (e.g. call
+// [Client.GetContainer] until no error).
 //
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
-//
-// Success can be verified by reading [Client.ContainerGet] using the returned
-// identifier (notice that it needs some time to succeed).
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
-//
-// Return errors:
-//   - [ErrMissingSigner]
-func (c *Client) ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerPut, err)()
-	}()
-
+// Signer must authenticate container's owner. The signature scheme MUST be
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] (e.g. [neofsecdsa.SignerRFC6979]).
+// Owner's NeoFS account can be charged for the operation.
+func (c *Client) PutContainer(ctx context.Context, cnr container.Container, signer neofscrypto.Signer, opts PutContainerOptions) (cid.ID, error) {
+	var res cid.ID
 	if signer == nil {
-		return cid.ID{}, ErrMissingSigner
+		return res, errMissingSigner
+	} else if scheme := signer.Scheme(); scheme != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return res, fmt.Errorf("wrong signature scheme: %v instead of %v", scheme, neofscrypto.ECDSA_DETERMINISTIC_SHA256)
 	}
 
-	var cnr v2container.Container
-	cont.WriteToV2(&cnr)
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerPut, time.Since(start), err)
+		}(time.Now())
+	}
 
-	var sig neofscrypto.Signature
-	err = cont.CalculateSignature(&sig, signer)
+	sig, err := signer.Sign(cnr.Marshal())
 	if err != nil {
-		err = fmt.Errorf("calculate container signature: %w", err)
-		return cid.ID{}, err
-	}
-
-	var sigv2 refs.Signature
-
-	sig.WriteToV2(&sigv2)
-
-	// form request body
-	reqBody := new(v2container.PutRequestBody)
-	reqBody.SetContainer(&cnr)
-	reqBody.SetSignature(&sigv2)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
-	if prm.sessionSet {
-		var tokv2 v2session.Token
-		prm.session.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
+		err = fmt.Errorf("sign container: %w", err) // for closure above
+		return res, err
 	}
 
 	// form request
-	var req v2container.PutRequest
-
-	req.SetBody(reqBody)
-	req.SetMetaHeader(&meta)
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res cid.ID
-	)
-
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIPutContainer(&c.c, &req, client.WithContext(ctx))
+	req := &apicontainer.PutRequest{
+		Body: &apicontainer.PutRequest_Body{
+			Container: new(apicontainer.Container),
+			Signature: &refs.SignatureRFC6979{Key: neofscrypto.PublicKeyBytes(signer.Public()), Sign: sig},
+		},
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.PutResponse)
+	cnr.WriteToV2(req.Body.Container)
+	if opts.sessionSet {
+		req.MetaHeader = &apisession.RequestMetaHeader{SessionToken: new(apisession.SessionToken)}
+		opts.session.WriteToV2(req.MetaHeader.SessionToken)
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
+	}
 
-		const fieldCnrID = "container ID"
+	// send request
+	resp, err := c.transport.container.Put(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
+	}
 
-		cidV2 := resp.GetBody().GetContainerID()
-		if cidV2 == nil {
-			cc.err = newErrMissingResponseField(fieldCnrID)
-			return
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
 		}
-
-		cc.err = res.ReadFromV2(*cidV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldCnrID, cc.err)
-		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cid.ID{}, cc.err
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
 	}
 
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
+	}
+	const fieldID = "ID"
+	if resp.Body.ContainerId == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldID) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.ContainerId); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldID, err) // for closure above
+		return res, err
+	}
 	return res, nil
 }
 
-// PrmContainerGet groups optional parameters of ContainerGet operation.
-type PrmContainerGet struct {
-	prmCommonMeta
-}
+// GetContainerOptions groups optional parameters of [Client.GetContainer].
+type GetContainerOptions struct{}
 
-// ContainerGet reads NeoFS container by ID.
-//
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
+// GetContainer reads NeoFS container by ID. Returns
+// [apistatus.ErrContainerNotFound] if there is no such container.
+func (c *Client) GetContainer(ctx context.Context, id cid.ID, _ GetContainerOptions) (container.Container, error) {
+	var res container.Container
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerGet, err)()
-	}()
-
-	var cidV2 refs.ContainerID
-	id.WriteToV2(&cidV2)
-
-	// form request body
-	reqBody := new(v2container.GetRequestBody)
-	reqBody.SetContainerID(&cidV2)
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerGet, time.Since(start), err)
+		}(time.Now())
+	}
 
 	// form request
-	var req v2container.GetRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res container.Container
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIGetContainer(&c.c, &req, client.WithContext(ctx))
+	req := &apicontainer.GetRequest{
+		Body: &apicontainer.GetRequest_Body{ContainerId: new(refs.ContainerID)},
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.GetResponse)
+	id.WriteToV2(req.Body.ContainerId)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
+	}
 
-		cnrV2 := resp.GetBody().GetContainer()
-		if cnrV2 == nil {
-			cc.err = errors.New("missing container in response")
-			return
+	// send request
+	resp, err := c.transport.container.Get(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
+	}
+
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
 		}
-
-		cc.err = res.ReadFromV2(*cnrV2)
-		if cc.err != nil {
-			cc.err = fmt.Errorf("invalid container in response: %w", cc.err)
-		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return container.Container{}, cc.err
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
 	}
 
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
+	}
+	const fieldContainer = "container"
+	if resp.Body.Container == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldContainer) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.Container); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldContainer, err) // for closure above
+		return res, err
+	}
 	return res, nil
 }
 
-// PrmContainerList groups optional parameters of ContainerList operation.
-type PrmContainerList struct {
-	prmCommonMeta
-}
+// ListContainersOptions groups optional parameters of [Client.ListContainers].
+type ListContainersOptions struct{}
 
-// ContainerList requests identifiers of the account-owned containers.
-//
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
+// ListContainers requests identifiers of all user-owned containers.
+func (c *Client) ListContainers(ctx context.Context, usr user.ID, _ ListContainersOptions) ([]cid.ID, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerList, err)()
-	}()
-
-	// form request body
-	var ownerV2 refs.OwnerID
-	ownerID.WriteToV2(&ownerV2)
-
-	reqBody := new(v2container.ListRequestBody)
-	reqBody.SetOwnerID(&ownerV2)
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerList, time.Since(start), err)
+		}(time.Now())
+	}
 
 	// form request
-	var req v2container.ListRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res []cid.ID
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIListContainers(&c.c, &req, client.WithContext(ctx))
+	req := &apicontainer.ListRequest{
+		Body: &apicontainer.ListRequest_Body{OwnerId: new(refs.OwnerID)},
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.ListResponse)
+	usr.WriteToV2(req.Body.OwnerId)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return nil, err
+	}
 
-		res = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
+	// send request
+	resp, err := c.transport.container.List(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return nil, err
+	}
 
-		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			cc.err = res[i].ReadFromV2(cidV2)
-			if cc.err != nil {
-				cc.err = fmt.Errorf("invalid ID in the response: %w", cc.err)
-				return
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return nil, err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return nil, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return nil, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return nil, err
+	}
+
+	// decode response payload
+	var res []cid.ID
+	if resp.Body != nil && len(resp.Body.ContainerIds) > 0 {
+		const fieldIDs = "ID list"
+		res = make([]cid.ID, len(resp.Body.ContainerIds))
+		for i := range resp.Body.ContainerIds {
+			if resp.Body.ContainerIds == nil {
+				err = fmt.Errorf("%s (%s): nil element #%d", errInvalidResponseBodyField, fieldIDs, i) // for closure above
+				return nil, err
+			} else if err = res[i].ReadFromV2(resp.Body.ContainerIds[i]); err != nil {
+				err = fmt.Errorf("%s (%s): invalid element #%d: %w", errInvalidResponseBodyField, fieldIDs, i, err) // for closure above
+				return nil, err
 			}
 		}
 	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return nil, cc.err
-	}
-
 	return res, nil
 }
 
-// PrmContainerDelete groups optional parameters of ContainerDelete operation.
-type PrmContainerDelete struct {
-	prmCommonMeta
-
-	tokSet bool
-	tok    session.Container
+// DeleteContainerOptions groups optional parameters of
+// [Client.DeleteContainer].
+type DeleteContainerOptions struct {
+	sessionSet bool
+	session    session.Container
 }
 
 // WithinSession specifies session within which container should be removed.
-//
-// Creator of the session acquires the authorship of the request.
-// This may affect the execution of an operation (e.g. access control).
-//
-// Must be signed.
-func (x *PrmContainerDelete) WithinSession(tok session.Container) {
-	x.tok = tok
-	x.tokSet = true
+// Session tokens grant user-to-user power of attorney: the subject can remove
+// specified issuer's containers. Session op must be
+// [session.VerbContainerDelete]. If used, [Client.DeleteContainer] default
+// ownership behavior is replaced with:
+//   - session must be issued by the container owner;
+//   - session must target the subject authenticated by signer passed to
+//     [Client.DeleteContainer].
+func (x *DeleteContainerOptions) WithinSession(tok session.Container) {
+	x.session = tok
+	x.sessionSet = true
 }
 
-// ContainerDelete sends request to remove the NeoFS container.
+// DeleteContainer sends request to remove the NeoFS container. If the request
+// is accepted, DeleteContainer returns no error and the container is going to
+// be removed asynchronously. The completion can be checked by polling the
+// container presence until it won't be found (e.g. call [Client.GetContainer]
+// until [apistatus.ErrContainerNotFound]).
 //
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
-//
-// Success can be verified by reading by identifier (see GetContainer).
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
-//
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
-// Return errors:
-//   - [ErrMissingSigner]
-func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerDelete, err)()
-	}()
-
+// Signer must authenticate container's owner. The signature scheme MUST be
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] (e.g. [neofsecdsa.SignerRFC6979]).
+// Corresponding NeoFS account can be charged for the operation.
+func (c *Client) DeleteContainer(ctx context.Context, id cid.ID, signer neofscrypto.Signer, opts DeleteContainerOptions) error {
 	if signer == nil {
-		return ErrMissingSigner
+		return errMissingSigner
+	} else if scheme := signer.Scheme(); scheme != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return fmt.Errorf("wrong signature scheme: %v instead of %v", scheme, neofscrypto.ECDSA_DETERMINISTIC_SHA256)
 	}
 
-	// sign container ID
-	var cidV2 refs.ContainerID
-	id.WriteToV2(&cidV2)
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerDelete, time.Since(start), err)
+		}(time.Now())
+	}
 
-	// container contract expects signature of container ID value
-	// don't get confused with stable marshaled protobuf container.ID structure
-	data := cidV2.GetValue()
-
-	var sig neofscrypto.Signature
-	err = sig.Calculate(signer, data)
+	sig, err := signer.Sign(id[:])
 	if err != nil {
-		err = fmt.Errorf("calculate signature: %w", err)
+		err = fmt.Errorf("sign container ID: %w", err) // for closure above
 		return err
 	}
 
-	var sigv2 refs.Signature
-
-	sig.WriteToV2(&sigv2)
-
-	// form request body
-	reqBody := new(v2container.DeleteRequestBody)
-	reqBody.SetContainerID(&cidV2)
-	reqBody.SetSignature(&sigv2)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
-	if prm.tokSet {
-		var tokv2 v2session.Token
-		prm.tok.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
-	}
-
 	// form request
-	var req v2container.DeleteRequest
-
-	req.SetBody(reqBody)
-	req.SetMetaHeader(&meta)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIDeleteContainer(&c.c, &req, client.WithContext(ctx))
+	req := &apicontainer.DeleteRequest{
+		Body: &apicontainer.DeleteRequest_Body{
+			ContainerId: new(refs.ContainerID),
+			Signature:   &refs.SignatureRFC6979{Key: neofscrypto.PublicKeyBytes(signer.Public()), Sign: sig},
+		},
+	}
+	id.WriteToV2(req.Body.ContainerId)
+	if opts.sessionSet {
+		req.MetaHeader = &apisession.RequestMetaHeader{SessionToken: new(apisession.SessionToken)}
+		opts.session.WriteToV2(req.MetaHeader.SessionToken)
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return err
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cc.err
+	// send request
+	resp, err := c.transport.container.Delete(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return err
 	}
 
-	return nil
-}
-
-// PrmContainerEACL groups optional parameters of ContainerEACL operation.
-type PrmContainerEACL struct {
-	prmCommonMeta
-}
-
-// ContainerEACL reads eACL table of the NeoFS container.
-//
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerEACL, err)()
-	}()
-
-	var cidV2 refs.ContainerID
-	id.WriteToV2(&cidV2)
-
-	// form request body
-	reqBody := new(v2container.GetExtendedACLRequestBody)
-	reqBody.SetContainerID(&cidV2)
-
-	// form request
-	var req v2container.GetExtendedACLRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res eacl.Table
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIGetEACL(&c.c, &req, client.WithContext(ctx))
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.GetExtendedACLResponse)
-
-		eACL := resp.GetBody().GetEACL()
-		if eACL == nil {
-			cc.err = newErrMissingResponseField("eACL")
-			return
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return err
 		}
-
-		res = *eacl.NewTableFromV2(eACL)
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return eacl.Table{}, cc.err
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+	} else if sts != nil {
+		err = sts // for closure above
+	}
+	return err
+}
+
+// GetEACLOptions groups optional parameters of [Client.GetEACL].
+type GetEACLOptions struct{}
+
+// GetEACL reads eACL table of the NeoFS container. Returns
+// [apistatus.ErrEACLNotFound] if eACL is unset for this container. Returns
+// [apistatus.ErrContainerNotFound] if there is no such container.
+func (c *Client) GetEACL(ctx context.Context, id cid.ID, _ GetEACLOptions) (eacl.Table, error) {
+	var res eacl.Table
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerEACL, time.Since(start), err)
+		}(time.Now())
 	}
 
+	// form request
+	req := &apicontainer.GetExtendedACLRequest{
+		Body: &apicontainer.GetExtendedACLRequest_Body{ContainerId: new(refs.ContainerID)},
+	}
+	id.WriteToV2(req.Body.ContainerId)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
+	}
+
+	// send request
+	resp, err := c.transport.container.GetExtendedACL(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
+	}
+
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts
+		return res, err // for closure above
+	}
+
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
+	}
+	const fieldEACL = "eACL"
+	if resp.Body.Eacl == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldEACL) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.Eacl); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldEACL, err) // for closure above
+		return res, err
+	}
 	return res, nil
 }
 
-// PrmContainerSetEACL groups optional parameters of ContainerSetEACL operation.
-type PrmContainerSetEACL struct {
-	prmCommonMeta
-
+// SetEACLOptions groups optional parameters of [Client.SetEACLOptions].
+type SetEACLOptions struct {
 	sessionSet bool
 	session    session.Container
 }
 
 // WithinSession specifies session within which extended ACL of the container
-// should be saved.
-//
-// Creator of the session acquires the authorship of the request. This affects
-// the execution of an operation (e.g. access control).
-//
-// Session is optional, if set the following requirements apply:
-//   - if particular container is specified (ApplyOnlyTo), it MUST equal the container
-//     for which extended ACL is going to be set
-//   - session operation MUST be session.VerbContainerSetEACL (ForVerb)
-//   - token MUST be signed using private signer of the owner of the container to be saved
-func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
+// should be saved. Session tokens grant user-to-user power of attorney: the
+// subject can modify eACL rules of specified issuer's containers. Session op
+// must be [session.VerbContainerSetEACL]. If used, [Client.SetEACL] default
+// ownership behavior is replaced with:
+//   - session must be issued by the container owner;
+//   - session must target the subject authenticated by signer passed to
+//     [Client.SetEACL].
+func (x *SetEACLOptions) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
 }
 
-// ContainerSetEACL sends request to update eACL table of the NeoFS container.
+// SetEACL sends request to update eACL table of the NeoFS container. If the
+// request is accepted, SetEACL returns no error and the eACL is going to be set
+// asynchronously. The completion can be checked by eACL polling
+// ([Client.GetEACL]) and binary comparison. SetEACL returns
+// [apistatus.ErrContainerNotFound] if container is missing.
 //
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
-//
-// Success can be verified by reading by identifier (see EACL).
-//
-// Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
-//
-// Return errors:
-//   - [ErrMissingEACLContainer]
-//   - [ErrMissingSigner]
-//
-// Context is required and must not be nil. It is used for network communication.
-func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerSetEACL, err)()
-	}()
-
+// Signer must authenticate container's owner. The signature scheme MUST be
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] (e.g. [neofsecdsa.SignerRFC6979]).
+// Owner's NeoFS account can be charged for the operation.
+func (c *Client) SetEACL(ctx context.Context, eACL eacl.Table, signer neofscrypto.Signer, opts SetEACLOptions) error {
 	if signer == nil {
-		return ErrMissingSigner
+		return errMissingSigner
+	} else if scheme := signer.Scheme(); scheme != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return fmt.Errorf("wrong signature scheme: %v instead of %v", scheme, neofscrypto.ECDSA_DETERMINISTIC_SHA256)
+	} else if eACL.LimitedContainer().IsZero() {
+		return errors.New("missing container in the eACL")
 	}
 
-	_, isCIDSet := table.CID()
-	if !isCIDSet {
-		err = ErrMissingEACLContainer
-		return err
-	}
-
-	// sign the eACL table
-	eaclV2 := table.ToV2()
-
-	var sig neofscrypto.Signature
-	err = sig.CalculateMarshalled(signer, eaclV2, nil)
-	if err != nil {
-		err = fmt.Errorf("calculate signature: %w", err)
-		return err
-	}
-
-	var sigv2 refs.Signature
-
-	sig.WriteToV2(&sigv2)
-
-	// form request body
-	reqBody := new(v2container.SetExtendedACLRequestBody)
-	reqBody.SetEACL(eaclV2)
-	reqBody.SetSignature(&sigv2)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
-	if prm.sessionSet {
-		var tokv2 v2session.Token
-		prm.session.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
-	}
-
-	// form request
-	var req v2container.SetExtendedACLRequest
-
-	req.SetBody(reqBody)
-	req.SetMetaHeader(&meta)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPISetEACL(&c.c, &req, client.WithContext(ctx))
-	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cc.err
-	}
-
-	return nil
-}
-
-// PrmAnnounceSpace groups optional parameters of ContainerAnnounceUsedSpace operation.
-type PrmAnnounceSpace struct {
-	prmCommonMeta
-}
-
-// ContainerAnnounceUsedSpace sends request to announce volume of the space used for the container objects.
-//
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
-//
-// At this moment success can not be checked.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Announcements parameter MUST NOT be empty slice.
-//
-// Return errors:
-//   - [ErrMissingAnnouncements]
-func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerAnnounceUsedSpace, err)()
-	}()
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerSetEACL, time.Since(start), err)
+		}(time.Now())
+	}
 
-	if len(announcements) == 0 {
-		err = ErrMissingAnnouncements
+	sig, err := signer.Sign(eACL.Marshal())
+	if err != nil {
+		err = fmt.Errorf("sign eACL: %w", err) // for closure above
 		return err
 	}
 
-	// convert list of SDK announcement structures into NeoFS-API v2 list
-	v2announce := make([]v2container.UsedSpaceAnnouncement, len(announcements))
-	for i := range announcements {
-		announcements[i].WriteToV2(&v2announce[i])
-	}
-
-	// prepare body of the NeoFS-API v2 request and request itself
-	reqBody := new(v2container.AnnounceUsedSpaceRequestBody)
-	reqBody.SetAnnouncements(v2announce)
-
 	// form request
-	var req v2container.AnnounceUsedSpaceRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
+	req := &apicontainer.SetExtendedACLRequest{
+		Body: &apicontainer.SetExtendedACLRequest_Body{
+			Eacl:      new(apiacl.EACLTable),
+			Signature: &refs.SignatureRFC6979{Key: neofscrypto.PublicKeyBytes(signer.Public()), Sign: sig},
+		},
+	}
+	eACL.WriteToV2(req.Body.Eacl)
+	if opts.sessionSet {
+		req.MetaHeader = &apisession.RequestMetaHeader{SessionToken: new(apisession.SessionToken)}
+		opts.session.WriteToV2(req.MetaHeader.SessionToken)
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return err
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cc.err
+	// send request
+	resp, err := c.transport.container.SetExtendedACL(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return err
 	}
 
-	return nil
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+	} else {
+		err = sts // for closure above
+	}
+	return err
 }
 
-// SyncContainerWithNetwork requests network configuration using passed [NetworkInfoExecutor]
-// and applies/rewrites it to the container.
+// SendContainerSizeEstimationsOptions groups optional parameters of
+// [Client.SendContainerSizeEstimations].
+type SendContainerSizeEstimationsOptions struct{}
+
+// SendContainerSizeEstimations sends container size estimations to the remote
+// node. The estimation set must not be empty.
 //
-// Returns any network/parsing config errors.
-//
-// See also [client.Client.NetworkInfo], [container.Container.ApplyNetworkConfig].
-func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c NetworkInfoExecutor) error {
-	if cnr == nil {
-		return errors.New("empty container")
+// SendContainerSizeEstimations is used for system needs and is not intended to
+// be called by regular users.
+func (c *Client) SendContainerSizeEstimations(ctx context.Context, es []container.SizeEstimation, _ SendContainerSizeEstimationsOptions) error {
+	if len(es) == 0 {
+		return errors.New("missing estimations")
 	}
 
-	res, err := c.NetworkInfo(ctx, PrmNetworkInfo{})
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodContainerAnnounceUsedSpace, time.Since(start), err)
+		}(time.Now())
+	}
+
+	// form request
+	req := &apicontainer.AnnounceUsedSpaceRequest{
+		Body: &apicontainer.AnnounceUsedSpaceRequest_Body{
+			Announcements: make([]*apicontainer.AnnounceUsedSpaceRequest_Body_Announcement, len(es)),
+		},
+	}
+	for i := range es {
+		req.Body.Announcements[i] = new(apicontainer.AnnounceUsedSpaceRequest_Body_Announcement)
+		es[i].WriteToV2(req.Body.Announcements[i])
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return err
+	}
+
+	// send request
+	resp, err := c.transport.container.AnnounceUsedSpace(ctx, req)
 	if err != nil {
-		return fmt.Errorf("network info call: %w", err)
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return err
 	}
 
-	cnr.ApplyNetworkConfig(res)
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return err
+		}
+	}
 
-	return nil
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+	}
+	if sts != nil {
+		err = sts // for closure above
+	}
+	return err
 }

@@ -4,89 +4,163 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/audit"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/audit"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"google.golang.org/protobuf/proto"
 )
 
 // Result represents report on the results of the data audit in NeoFS system.
 //
-// Result is mutually binary-compatible with github.com/nspcc-dev/neofs-api-go/v2/audit.DataAuditResult
-// message. See Marshal / Unmarshal methods.
-//
 // Instances can be created using built-in var declaration.
 type Result struct {
-	versionEncoded bool
+	decoded bool
 
-	v2 audit.DataAuditResult
+	versionSet bool
+	version    version.Version
+
+	auditEpoch    uint64
+	auditorPubKey []byte
+
+	cnrSet bool
+	cnr    cid.ID
+
+	completed bool
+
+	requestsPoR, retriesPoR uint32
+
+	hits, misses, fails uint32
+
+	passSG, failSG []oid.ID
+
+	passNodes, failNodes [][]byte
 }
 
-// Marshal encodes Result into a canonical NeoFS binary format (Protocol Buffers
-// with direct field order).
+// Marshal encodes Result into a Protocol Buffers V3 binary format.
 //
-// Writes version.Current() protocol version into the resulting message if Result
-// hasn't been already decoded from such a message using Unmarshal.
+// Writes current protocol version into the resulting message if Result hasn't
+// been already decoded from such a message.
 //
-// See also Unmarshal.
-func (r *Result) Marshal() []byte {
-	if !r.versionEncoded {
-		var verV2 refs.Version
-		version.Current().WriteToV2(&verV2)
-		r.v2.SetVersion(&verV2)
-		r.versionEncoded = true
+// See also [Result.Unmarshal].
+func (r Result) Marshal() []byte {
+	m := &audit.DataAuditResult{
+		AuditEpoch: r.auditEpoch,
+		PublicKey:  r.auditorPubKey,
+		Complete:   r.completed,
+		Requests:   r.requestsPoR,
+		Retries:    r.retriesPoR,
+		Hit:        r.hits,
+		Miss:       r.misses,
+		Fail:       r.fails,
+		PassNodes:  r.passNodes,
+		FailNodes:  r.failNodes,
+	}
+	if r.versionSet {
+		m.Version = new(refs.Version)
+		r.version.WriteToV2(m.Version)
+	} else if !r.decoded {
+		m.Version = new(refs.Version)
+		version.Current().WriteToV2(m.Version)
+	}
+	if r.cnrSet {
+		m.ContainerId = new(refs.ContainerID)
+		r.cnr.WriteToV2(m.ContainerId)
+	}
+	if r.passSG != nil {
+		m.PassSg = make([]*refs.ObjectID, len(r.passSG))
+		for i := range r.passSG {
+			m.PassSg[i] = new(refs.ObjectID)
+			r.passSG[i].WriteToV2(m.PassSg[i])
+		}
+	}
+	if r.failSG != nil {
+		m.FailSg = make([]*refs.ObjectID, len(r.failSG))
+		for i := range r.failSG {
+			m.FailSg[i] = new(refs.ObjectID)
+			r.failSG[i].WriteToV2(m.FailSg[i])
+		}
 	}
 
-	return r.v2.StableMarshal(nil)
+	b, err := proto.Marshal(m)
+	if err != nil {
+		// while it is bad to panic on external package return, we can do nothing better
+		// for this case: how can a normal message not be encoded?
+		panic(fmt.Errorf("unexpected marshal protobuf message failure: %w", err))
+	}
+	return b
 }
 
 var errCIDNotSet = errors.New("container ID is not set")
 
-// Unmarshal decodes Result from its canonical NeoFS binary format (Protocol Buffers
-// with direct field order). Returns an error describing a format violation.
+// Unmarshal decodes Protocol Buffers V3 binary data into the Result. Returns an
+// error describing a format violation of the specified fields. Unmarshal does
+// not check presence of the required fields and, at the same time, checks
+// format of presented fields.
 //
-// See also Marshal.
+// See also [Result.Marshal].
 func (r *Result) Unmarshal(data []byte) error {
-	err := r.v2.Unmarshal(data)
+	var m audit.DataAuditResult
+	err := proto.Unmarshal(data, &m)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode protobuf: %w", err)
 	}
 
-	r.versionEncoded = true
-
 	// format checks
-
-	var cID cid.ID
-
-	cidV2 := r.v2.GetContainerID()
-	if cidV2 == nil {
+	r.cnrSet = m.ContainerId != nil
+	if !r.cnrSet {
 		return errCIDNotSet
 	}
 
-	err = cID.ReadFromV2(*cidV2)
+	err = r.cnr.ReadFromV2(m.ContainerId)
 	if err != nil {
-		return fmt.Errorf("could not convert V2 container ID: %w", err)
+		return fmt.Errorf("invalid container ID: %w", err)
 	}
 
-	var (
-		oID   oid.ID
-		oidV2 refs.ObjectID
-	)
-
-	for _, oidV2 = range r.v2.GetPassSG() {
-		err = oID.ReadFromV2(oidV2)
+	r.versionSet = m.Version != nil
+	if r.versionSet {
+		err = r.version.ReadFromV2(m.Version)
 		if err != nil {
-			return fmt.Errorf("invalid passed storage group ID: %w", err)
+			return fmt.Errorf("invalid protocol version: %w", err)
 		}
 	}
 
-	for _, oidV2 = range r.v2.GetFailSG() {
-		err = oID.ReadFromV2(oidV2)
-		if err != nil {
-			return fmt.Errorf("invalid failed storage group ID: %w", err)
+	if m.PassSg != nil {
+		r.passSG = make([]oid.ID, len(m.PassSg))
+		for i := range m.PassSg {
+			err = r.passSG[i].ReadFromV2(m.PassSg[i])
+			if err != nil {
+				return fmt.Errorf("invalid passed storage group ID #%d: %w", i, err)
+			}
 		}
+	} else {
+		r.passSG = nil
 	}
+
+	if m.FailSg != nil {
+		r.failSG = make([]oid.ID, len(m.FailSg))
+		for i := range m.FailSg {
+			err = r.failSG[i].ReadFromV2(m.FailSg[i])
+			if err != nil {
+				return fmt.Errorf("invalid failed storage group ID #%d: %w", i, err)
+			}
+		}
+	} else {
+		r.failSG = nil
+	}
+
+	r.auditEpoch = m.AuditEpoch
+	r.auditorPubKey = m.PublicKey
+	r.completed = m.Complete
+	r.requestsPoR = m.Requests
+	r.retriesPoR = m.Retries
+	r.hits = m.Hit
+	r.misses = m.Miss
+	r.fails = m.Fail
+	r.passNodes = m.PassNodes
+	r.failNodes = m.FailNodes
+	r.decoded = true
 
 	return nil
 }
@@ -95,16 +169,16 @@ func (r *Result) Unmarshal(data []byte) error {
 //
 // Zero Result has zero epoch.
 //
-// See also ForEpoch.
+// See also [Result.ForEpoch].
 func (r Result) Epoch() uint64 {
-	return r.v2.GetAuditEpoch()
+	return r.auditEpoch
 }
 
 // ForEpoch specifies NeoFS epoch when the data associated with the Result was audited.
 //
-// See also Epoch.
+// See also [Result.Epoch].
 func (r *Result) ForEpoch(epoch uint64) {
-	r.v2.SetAuditEpoch(epoch)
+	r.auditEpoch = epoch
 }
 
 // Container returns identifier of the container with which the data audit Result
@@ -112,28 +186,17 @@ func (r *Result) ForEpoch(epoch uint64) {
 //
 // Zero Result does not have container ID.
 //
-// See also ForContainer.
+// See also [Result.ForContainer].
 func (r Result) Container() (cid.ID, bool) {
-	var cID cid.ID
-
-	cidV2 := r.v2.GetContainerID()
-	if cidV2 != nil {
-		_ = cID.ReadFromV2(*cidV2)
-		return cID, true
-	}
-
-	return cID, false
+	return r.cnr, r.cnrSet
 }
 
 // ForContainer sets identifier of the container with which the data audit Result
 // is associated.
 //
-// See also Container.
+// See also [Result.Container].
 func (r *Result) ForContainer(cnr cid.ID) {
-	var cidV2 refs.ContainerID
-	cnr.WriteToV2(&cidV2)
-
-	r.v2.SetContainerID(&cidV2)
+	r.cnr, r.cnrSet = cnr, true
 }
 
 // AuditorKey returns public key of the auditing NeoFS Inner Ring node in
@@ -149,7 +212,7 @@ func (r *Result) ForContainer(cnr cid.ID) {
 //
 // See also [Result.SetAuditorKey].
 func (r Result) AuditorKey() []byte {
-	return r.v2.GetPublicKey()
+	return r.auditorPubKey
 }
 
 // SetAuditorKey specifies public key of the auditing NeoFS Inner Ring node in
@@ -161,23 +224,23 @@ func (r Result) AuditorKey() []byte {
 //
 // See also [Result.AuditorKey].
 func (r *Result) SetAuditorKey(key []byte) {
-	r.v2.SetPublicKey(key)
+	r.auditorPubKey = key
 }
 
 // Completed returns completion state of the data audit associated with the Result.
 //
 // Zero Result corresponds to incomplete data audit.
 //
-// See also Complete.
+// See also [Result.SetCompleted].
 func (r Result) Completed() bool {
-	return r.v2.GetComplete()
+	return r.completed
 }
 
-// Complete marks the data audit associated with the Result as completed.
+// SetCompleted sets data audit completion flag.
 //
-// See also Completed.
-func (r *Result) Complete() {
-	r.v2.SetComplete(true)
+// See also [Result.SetCompleted].
+func (r *Result) SetCompleted(completed bool) {
+	r.completed = completed
 }
 
 // RequestsPoR returns number of requests made by Proof-of-Retrievability
@@ -185,17 +248,17 @@ func (r *Result) Complete() {
 //
 // Zero Result has zero requests.
 //
-// See also SetRequestsPoR.
+// See also [Result.SetRequestsPoR].
 func (r Result) RequestsPoR() uint32 {
-	return r.v2.GetRequests()
+	return r.requestsPoR
 }
 
 // SetRequestsPoR sets number of requests made by Proof-of-Retrievability
 // audit check to get all headers of the objects inside storage groups.
 //
-// See also RequestsPoR.
+// See also [Result.RequestsPoR].
 func (r *Result) SetRequestsPoR(v uint32) {
-	r.v2.SetRequests(v)
+	r.requestsPoR = v
 }
 
 // RetriesPoR returns number of retries made by Proof-of-Retrievability
@@ -203,74 +266,54 @@ func (r *Result) SetRequestsPoR(v uint32) {
 //
 // Zero Result has zero retries.
 //
-// See also SetRetriesPoR.
+// See also [Result.SetRetriesPoR].
 func (r Result) RetriesPoR() uint32 {
-	return r.v2.GetRetries()
+	return r.retriesPoR
 }
 
 // SetRetriesPoR sets number of retries made by Proof-of-Retrievability
 // audit check to get all headers of the objects inside storage groups.
 //
-// See also RetriesPoR.
+// See also [Result.RetriesPoR].
 func (r *Result) SetRetriesPoR(v uint32) {
-	r.v2.SetRetries(v)
+	r.retriesPoR = v
 }
 
-// IteratePassedStorageGroups iterates over all storage groups that passed
-// Proof-of-Retrievability audit check and passes them into f. Breaks on f's
-// false return, f MUST NOT be nil.
+// PassedStorageGroups returns storage groups that passed
+// Proof-of-Retrievability audit check. Breaks on f's false return, f MUST NOT
+// be nil.
 //
 // Zero Result has no passed storage groups and doesn't call f.
 //
-// See also SubmitPassedStorageGroup.
-func (r Result) IteratePassedStorageGroups(f func(oid.ID) bool) {
-	r2 := r.v2.GetPassSG()
-
-	var id oid.ID
-
-	for i := range r2 {
-		_ = id.ReadFromV2(r2[i])
-
-		if !f(id) {
-			return
-		}
-	}
+// Return value MUST NOT be mutated at least until the end of using the Result.
+//
+// See also [Result.SetPassedStorageGroups].
+func (r Result) PassedStorageGroups() []oid.ID {
+	return r.passSG
 }
 
-// SubmitPassedStorageGroup marks storage group as passed Proof-of-Retrievability
+// SetPassedStorageGroups sets storage groups that passed Proof-of-Retrievability
 // audit check.
 //
-// See also IteratePassedStorageGroups.
-func (r *Result) SubmitPassedStorageGroup(sg oid.ID) {
-	var idV2 refs.ObjectID
-	sg.WriteToV2(&idV2)
-
-	r.v2.SetPassSG(append(r.v2.GetPassSG(), idV2))
+// Argument MUST NOT be mutated at least until the end of using the Result.
+//
+// See also [Result.PassedStorageGroups].
+func (r *Result) SetPassedStorageGroups(ids []oid.ID) {
+	r.passSG = ids
 }
 
-// IterateFailedStorageGroups is similar to IteratePassedStorageGroups but for failed groups.
+// FailedStorageGroups is similar to [Result.PassedStorageGroups] but for failed groups.
 //
-// See also SubmitFailedStorageGroup.
-func (r Result) IterateFailedStorageGroups(f func(oid.ID) bool) {
-	v := r.v2.GetFailSG()
-	var id oid.ID
-
-	for i := range v {
-		_ = id.ReadFromV2(v[i])
-		if !f(id) {
-			return
-		}
-	}
+// See also [Result.SetFailedStorageGroups].
+func (r Result) FailedStorageGroups() []oid.ID {
+	return r.failSG
 }
 
-// SubmitFailedStorageGroup is similar to SubmitPassedStorageGroup but for failed groups.
+// SetFailedStorageGroups is similar to [Result.PassedStorageGroups] but for failed groups.
 //
-// See also IterateFailedStorageGroups.
-func (r *Result) SubmitFailedStorageGroup(sg oid.ID) {
-	var idV2 refs.ObjectID
-	sg.WriteToV2(&idV2)
-
-	r.v2.SetFailSG(append(r.v2.GetFailSG(), idV2))
+// See also [Result.FailedStorageGroups].
+func (r *Result) SetFailedStorageGroups(ids []oid.ID) {
+	r.failSG = ids
 }
 
 // Hits returns number of sampled objects under audit placed
@@ -279,18 +322,18 @@ func (r *Result) SubmitFailedStorageGroup(sg oid.ID) {
 //
 // Zero result has zero hits.
 //
-// See also SetHits.
+// See also [Result.SetHits].
 func (r Result) Hits() uint32 {
-	return r.v2.GetHit()
+	return r.hits
 }
 
 // SetHits sets number of sampled objects under audit placed
 // in an optimal way according to the containers placement policy
 // when checking Proof-of-Placement.
 //
-// See also Hits.
-func (r *Result) SetHits(hit uint32) {
-	r.v2.SetHit(hit)
+// See also [Result.Hits].
+func (r *Result) SetHits(hits uint32) {
+	r.hits = hits
 }
 
 // Misses returns number of sampled objects under audit placed
@@ -299,18 +342,18 @@ func (r *Result) SetHits(hit uint32) {
 //
 // Zero Result has zero misses.
 //
-// See also SetMisses.
+// See also [Result.SetMisses].
 func (r Result) Misses() uint32 {
-	return r.v2.GetMiss()
+	return r.misses
 }
 
 // SetMisses sets number of sampled objects under audit placed
 // in suboptimal way according to the container's placement policy,
 // but still at a satisfactory level when checking Proof-of-Placement.
 //
-// See also Misses.
-func (r *Result) SetMisses(miss uint32) {
-	r.v2.SetMiss(miss)
+// See also [Result.Misses].
+func (r *Result) SetMisses(misses uint32) {
+	r.misses = misses
 }
 
 // Failures returns number of sampled objects under audit stored
@@ -319,66 +362,55 @@ func (r *Result) SetMisses(miss uint32) {
 //
 // Zero result has zero failures.
 //
-// See also SetFailures.
+// See also [Result.SetFailures].
 func (r Result) Failures() uint32 {
-	return r.v2.GetFail()
+	return r.fails
 }
 
 // SetFailures sets number of sampled objects under audit stored
 // in a way not confirming placement policy or not found at all
 // when checking Proof-of-Placement.
 //
-// See also Failures.
-func (r *Result) SetFailures(fail uint32) {
-	r.v2.SetFail(fail)
+// See also [Result.Failures].
+func (r *Result) SetFailures(fails uint32) {
+	r.fails = fails
 }
 
-// IteratePassedStorageNodes iterates over all storage nodes that passed at least one
-// Proof-of-Data-Possession audit check and passes their public keys into f. Breaks on
-// f's false return.
+// PassedStorageNodes returns public keys of storage nodes that passed at least
+// one Proof-of-Data-Possession audit check. Breaks on f's false return.
 //
 // f MUST NOT be nil and MUST NOT mutate parameter passed into it at least until
 // the end of using the Result.
 //
 // Zero Result has no passed storage nodes and doesn't call f.
 //
-// See also SubmitPassedStorageNode.
-func (r Result) IteratePassedStorageNodes(f func([]byte) bool) {
-	v := r.v2.GetPassNodes()
-
-	for i := range v {
-		if !f(v[i]) {
-			return
-		}
-	}
+// See also [Result.SetPassedStorageNodes]].
+func (r Result) PassedStorageNodes() [][]byte {
+	return r.passNodes
 }
 
-// SubmitPassedStorageNodes marks storage node list as passed Proof-of-Data-Possession
-// audit check. The list contains public keys.
+// SetPassedStorageNodes sets public keys of storage nodes that passed at least
+// one Proof-of-Data-Possession audit check.
 //
 // Argument and its elements MUST NOT be mutated at least until the end of using the Result.
 //
-// See also IteratePassedStorageNodes.
-func (r *Result) SubmitPassedStorageNodes(list [][]byte) {
-	r.v2.SetPassNodes(list)
+// See also [Result.PassedStorageNodes].
+func (r *Result) SetPassedStorageNodes(list [][]byte) {
+	r.passNodes = list
 }
 
-// IterateFailedStorageNodes is similar to IteratePassedStorageNodes but for failed nodes.
+// FailedStorageNodes is similar to [Result.PassedStorageNodes] but for
+// failures.
 //
-// See also SubmitPassedStorageNodes.
-func (r Result) IterateFailedStorageNodes(f func([]byte) bool) {
-	v := r.v2.GetFailNodes()
-
-	for i := range v {
-		if !f(v[i]) {
-			return
-		}
-	}
+// See also [Result.SetFailedStorageNodes].
+func (r Result) FailedStorageNodes() [][]byte {
+	return r.failNodes
 }
 
-// SubmitFailedStorageNodes is similar to SubmitPassedStorageNodes but for failed nodes.
+// SetFailedStorageNodes is similar to [Result.SetPassedStorageNodes] but for
+// failures.
 //
-// See also IterateFailedStorageNodes.
-func (r *Result) SubmitFailedStorageNodes(list [][]byte) {
-	r.v2.SetFailNodes(list)
+// See also [Result.SetFailedStorageNodes].
+func (r *Result) SetFailedStorageNodes(list [][]byte) {
+	r.failNodes = list
 }

@@ -1,11 +1,10 @@
 package netmap
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/nspcc-dev/hrw/v2"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/api/netmap"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
@@ -13,8 +12,8 @@ import (
 // NetMap represents NeoFS network map. It includes information about all
 // storage nodes registered in NeoFS the network.
 //
-// NetMap is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.NetMap
-// message. See ReadFromV2 / WriteToV2 methods.
+// NetMap is mutually compatible with [netmap.Netmap] message. See
+// [NetMap.ReadFromV2] / [NetMap.WriteToV2] methods.
 //
 // Instances can be created using built-in var declaration.
 type NetMap struct {
@@ -23,62 +22,66 @@ type NetMap struct {
 	nodes []NodeInfo
 }
 
-// ReadFromV2 reads NetMap from the netmap.NetMap message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// ReadFromV2 reads NetMap from the [netmap.Netmap] message. Returns an error if
+// the message is malformed according to the NeoFS API V2 protocol. The message
+// must not be nil.
 //
-// See also WriteToV2.
-func (m *NetMap) ReadFromV2(msg netmap.NetMap) error {
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [NetMap.WriteToV2].
+func (m *NetMap) ReadFromV2(msg *netmap.Netmap) error {
 	var err error
-	nodes := msg.Nodes()
-
-	if nodes == nil {
+	if len(msg.Nodes) == 0 {
 		m.nodes = nil
 	} else {
-		m.nodes = make([]NodeInfo, len(nodes))
-
-		for i := range nodes {
-			err = m.nodes[i].ReadFromV2(nodes[i])
+		m.nodes = make([]NodeInfo, len(msg.Nodes))
+		for i := range msg.Nodes {
+			err = m.nodes[i].ReadFromV2(msg.Nodes[i])
 			if err != nil {
-				return fmt.Errorf("invalid node info: %w", err)
+				return fmt.Errorf("invalid node info #%d: %w", i, err)
 			}
 		}
 	}
 
-	m.epoch = msg.Epoch()
+	m.epoch = msg.Epoch
 
 	return nil
 }
 
-// WriteToV2 writes NetMap to the netmap.NetMap message. The message
-// MUST NOT be nil.
+// WriteToV2 writes NetMap to the [netmap.Netmap] message of the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (m NetMap) WriteToV2(msg *netmap.NetMap) {
-	var nodes []netmap.NodeInfo
-
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [NetMap.ReadFromV2].
+func (m NetMap) WriteToV2(msg *netmap.Netmap) {
 	if m.nodes != nil {
-		nodes = make([]netmap.NodeInfo, len(m.nodes))
-
+		msg.Nodes = make([]*netmap.NodeInfo, len(m.nodes))
 		for i := range m.nodes {
-			m.nodes[i].WriteToV2(&nodes[i])
+			if !isEmptyNodeInfo(m.nodes[i]) {
+				msg.Nodes[i] = new(netmap.NodeInfo)
+				m.nodes[i].WriteToV2(msg.Nodes[i])
+			}
 		}
-
-		msg.SetNodes(nodes)
+	} else {
+		msg.Nodes = nil
 	}
 
-	msg.SetEpoch(m.epoch)
+	msg.Epoch = m.epoch
 }
 
 // SetNodes sets information list about all storage nodes from the NeoFS network.
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also Nodes.
+// See also [NetMap.Nodes].
 func (m *NetMap) SetNodes(nodes []NodeInfo) {
 	m.nodes = nodes
 }
 
-// Nodes returns nodes set using SetNodes.
+// Nodes returns nodes set using [NetMap.SetNodes].
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -88,12 +91,12 @@ func (m NetMap) Nodes() []NodeInfo {
 
 // SetEpoch specifies revision number of the NetMap.
 //
-// See also Epoch.
+// See also [NetMap.Epoch].
 func (m *NetMap) SetEpoch(epoch uint64) {
 	m.epoch = epoch
 }
 
-// Epoch returns epoch set using SetEpoch.
+// Epoch returns epoch set using [NetMap.SetEpoch].
 //
 // Zero NetMap has zero revision.
 func (m NetMap) Epoch() uint64 {
@@ -149,10 +152,7 @@ func flattenNodes(ns []nodes) nodes {
 // object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
-	pivot := make([]byte, sha256.Size)
-	objectID.Encode(pivot)
-
-	h := hrw.WrapBytes(pivot)
+	h := hrw.WrapBytes(objectID[:])
 	wf := defaultWeightFunc(m.nodes)
 	result := make([][]NodeInfo, len(vectors))
 
@@ -172,7 +172,7 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 // the policy, and then selected by Selector list. Result is not deterministic and
 // node order in each vector may vary for call.
 //
-// Result can be used in PlacementVectors.
+// Result can be used in [NetMap.PlacementVectors].
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -180,9 +180,7 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 	c := newContext(m)
 	c.setCBF(p.backupFactor)
 
-	pivot := make([]byte, sha256.Size)
-	containerID.Encode(pivot)
-	c.setPivot(pivot)
+	c.setPivot(containerID[:])
 
 	if err := c.processFilters(p); err != nil {
 		return nil, err
@@ -195,12 +193,12 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 	result := make([][]NodeInfo, len(p.replicas))
 
 	for i := range p.replicas {
-		sName := p.replicas[i].GetSelector()
+		sName := p.replicas[i].SelectorName()
 		if sName == "" {
 			if len(p.selectors) == 0 {
-				var s netmap.Selector
-				s.SetCount(p.replicas[i].GetCount())
-				s.SetFilter(mainFilterName)
+				var s Selector
+				s.SetNumberOfNodes(p.replicas[i].NumberOfObjects())
+				s.SetFilterName(mainFilterName)
 
 				nodes, err := c.getSelection(p, s)
 				if err != nil {
@@ -211,7 +209,7 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 			}
 
 			for i := range p.selectors {
-				result[i] = append(result[i], flattenNodes(c.selections[p.selectors[i].GetName()])...)
+				result[i] = append(result[i], flattenNodes(c.selections[p.selectors[i].Name()])...)
 			}
 
 			continue

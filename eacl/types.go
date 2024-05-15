@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
 
@@ -18,7 +19,7 @@ type TypedHeaderSource interface {
 	//
 	// It returns any problem encountered through the boolean
 	// false value.
-	HeadersOfType(FilterHeaderType) ([]Header, bool)
+	HeadersOfType(AttributeType) ([]Header, bool)
 }
 
 // ValidationUnit represents unit of check for Validator.
@@ -27,7 +28,7 @@ type ValidationUnit struct {
 
 	role Role
 
-	op Operation
+	op acl.Op
 
 	hdrSrc TypedHeaderSource
 
@@ -55,7 +56,7 @@ func (u *ValidationUnit) WithRole(v Role) *ValidationUnit {
 }
 
 // WithOperation configures ValidationUnit to use v as request's operation.
-func (u *ValidationUnit) WithOperation(v Operation) *ValidationUnit {
+func (u *ValidationUnit) WithOperation(v acl.Op) *ValidationUnit {
 	if u != nil {
 		u.op = v
 	}

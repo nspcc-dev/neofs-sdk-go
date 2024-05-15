@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/stretchr/testify/require"
 )
+
+const testDataDir = "testdata"
 
 func TestSignature(t *testing.T) {
 	data := make([]byte, 512)
@@ -40,7 +42,7 @@ func TestSignature(t *testing.T) {
 
 		s.WriteToV2(&m)
 
-		require.NoError(t, s.ReadFromV2(m))
+		require.NoError(t, s.ReadFromV2(&m))
 
 		valid := s.Verify(data)
 		require.True(t, valid, "type %T", signer)

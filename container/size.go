@@ -4,101 +4,102 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/container"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 )
 
 // SizeEstimation groups information about estimation of the size of the data
 // stored in the NeoFS container.
 //
-// SizeEstimation is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/container.UsedSpaceAnnouncement
-// message. See ReadFromV2 / WriteToV2 methods.
+// SizeEstimation is mutually compatible with
+// [container.AnnounceUsedSpaceRequest_Body_Announcement] message. See
+// [SizeEstimation.ReadFromV2] / [SizeEstimation.WriteToV2] methods.
 type SizeEstimation struct {
-	m container.UsedSpaceAnnouncement
+	epoch uint64
+	val   uint64
+	cnr   cid.ID
 }
 
-// ReadFromV2 reads SizeEstimation from the container.UsedSpaceAnnouncement message.
-// Checks if the message conforms to NeoFS API V2 protocol.
+// ReadFromV2 reads SizeEstimation from the
+// [container.AnnounceUsedSpaceRequest_Body_Announcement] message. Returns an
+// error if the message is malformed according to the NeoFS API V2 protocol. The
+// message must not be nil.
 //
-// See also WriteToV2.
-func (x *SizeEstimation) ReadFromV2(m container.UsedSpaceAnnouncement) error {
-	cnrV2 := m.GetContainerID()
-	if cnrV2 == nil {
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [SizeEstimation.WriteToV2].
+func (x *SizeEstimation) ReadFromV2(m *container.AnnounceUsedSpaceRequest_Body_Announcement) error {
+	if m.ContainerId == nil {
 		return errors.New("missing container")
 	}
-
-	var cnr cid.ID
-
-	err := cnr.ReadFromV2(*cnrV2)
+	err := x.cnr.ReadFromV2(m.ContainerId)
 	if err != nil {
 		return fmt.Errorf("invalid container: %w", err)
 	}
 
-	x.m = m
+	x.epoch = m.Epoch
+	x.val = m.UsedSpace
 
 	return nil
 }
 
-// WriteToV2 writes SizeEstimation into the container.UsedSpaceAnnouncement message.
-// The message MUST NOT be nil.
+// WriteToV2 writes ID to the
+// [container.AnnounceUsedSpaceRequest_Body_Announcement] message of the NeoFS
+// API protocol.
 //
-// See also ReadFromV2.
-func (x SizeEstimation) WriteToV2(m *container.UsedSpaceAnnouncement) {
-	*m = x.m
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [ID.ReadFromV2].
+func (x SizeEstimation) WriteToV2(m *container.AnnounceUsedSpaceRequest_Body_Announcement) {
+	m.ContainerId = new(refs.ContainerID)
+	x.cnr.WriteToV2(m.ContainerId)
+	m.Epoch = x.epoch
+	m.UsedSpace = x.val
 }
 
 // SetEpoch sets epoch when estimation of the container data size was calculated.
 //
-// See also Epoch.
+// See also [SizeEstimation.Epoch].
 func (x *SizeEstimation) SetEpoch(epoch uint64) {
-	x.m.SetEpoch(epoch)
+	x.epoch = epoch
 }
 
-// Epoch return epoch set using SetEpoch.
+// Epoch returns epoch set using [SizeEstimation.SetEpoch].
 //
 // Zero SizeEstimation represents estimation in zero epoch.
 func (x SizeEstimation) Epoch() uint64 {
-	return x.m.GetEpoch()
+	return x.epoch
 }
 
-// SetContainer specifies the container for which the amount of data is estimated.
-// Required by the NeoFS API protocol.
+// SetContainer specifies the container for which the amount of data is
+// estimated. Required by the NeoFS API protocol.
 //
-// See also Container.
+// See also [SizeEstimation.Container].
 func (x *SizeEstimation) SetContainer(cnr cid.ID) {
-	var cidV2 refs.ContainerID
-	cnr.WriteToV2(&cidV2)
-
-	x.m.SetContainerID(&cidV2)
+	x.cnr = cnr
 }
 
-// Container returns container set using SetContainer.
+// Container returns container set using [SizeEstimation.SetContainer].
 //
 // Zero SizeEstimation is not bound to any container (returns zero) which is
 // incorrect according to NeoFS API protocol.
-func (x SizeEstimation) Container() (res cid.ID) {
-	m := x.m.GetContainerID()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Errorf("unexpected error from cid.ID.ReadFromV2: %w", err))
-		}
-	}
-
-	return
+func (x SizeEstimation) Container() cid.ID {
+	return x.cnr
 }
 
 // SetValue sets estimated amount of data (in bytes) in the specified container.
 //
-// See also Value.
+// See also [SizeEstimation.Value].
 func (x *SizeEstimation) SetValue(value uint64) {
-	x.m.SetUsedSpace(value)
+	x.val = value
 }
 
-// Value returns data size estimation set using SetValue.
+// Value returns data size estimation set using [SizeEstimation.SetValue].
 //
 // Zero SizeEstimation has zero value.
 func (x SizeEstimation) Value() uint64 {
-	return x.m.GetUsedSpace()
+	return x.val
 }

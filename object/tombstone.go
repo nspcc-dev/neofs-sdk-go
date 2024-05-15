@@ -1,148 +1,118 @@
 package object
 
 import (
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/tombstone"
+	"errors"
+	"fmt"
+
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/tombstone"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"google.golang.org/protobuf/proto"
 )
 
-// Tombstone represents v2-compatible tombstone structure.
-type Tombstone tombstone.Tombstone
-
-// NewTombstoneFromV2 wraps v2 [tombstone.Tombstone] message to [Tombstone].
-//
-// Nil [tombstone.Tombstone] converts to nil.
-func NewTombstoneFromV2(tV2 *tombstone.Tombstone) *Tombstone {
-	return (*Tombstone)(tV2)
+// Tombstone contains information about removed objects. Tombstone is stored and
+// transmitted as payload of system NeoFS objects.
+type Tombstone struct {
+	members []oid.ID
+	exp     uint64 // deprecated
+	splitID []byte // deprecated
 }
 
-// NewTombstone creates and initializes blank [Tombstone].
+// readFromV2 reads Tombstone from the [tombstone.Tombstone] message. Returns an
+// error if the message is malformed according to the NeoFS API V2 protocol. The
+// message must not be nil.
 //
-// Defaults:
-//   - exp: 0;
-//   - splitID: nil;
-//   - members: nil.
-func NewTombstone() *Tombstone {
-	return NewTombstoneFromV2(new(tombstone.Tombstone))
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also writeToV2.
+func (t *Tombstone) readFromV2(m *tombstone.Tombstone) error {
+	if len(m.Members) == 0 {
+		return errors.New("missing members")
+	}
+
+	if ln := len(m.SplitId); ln > 0 && ln != 16 {
+		return fmt.Errorf("invalid split ID length %d", ln)
+	}
+
+	t.members = make([]oid.ID, len(m.Members))
+	for i := range m.Members {
+		if m.Members[i] == nil {
+			return fmt.Errorf("member #%d is nil", i)
+		}
+		err := t.members[i].ReadFromV2(m.Members[i])
+		if err != nil {
+			return fmt.Errorf("invalid member #%d: %w", i, err)
+		}
+	}
+
+	t.exp = m.ExpirationEpoch
+	t.splitID = m.SplitId
+
+	return nil
 }
 
-// ToV2 converts [Tombstone] to v2 [tombstone.Tombstone] message.
+// writeToV2 writes Tombstone to the [tombstone.Tombstone] message of the NeoFS
+// API protocol.
 //
-// Nil [Tombstone] converts to nil.
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
 //
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (t *Tombstone) ToV2() *tombstone.Tombstone {
-	return (*tombstone.Tombstone)(t)
-}
+// See also readFromV2.
+func (t Tombstone) writeToV2(m *tombstone.Tombstone) {
+	if t.members != nil {
+		m.Members = make([]*refs.ObjectID, len(t.members))
+		for i := range t.members {
+			m.Members[i] = new(refs.ObjectID)
+			t.members[i].WriteToV2(m.Members[i])
+		}
+	} else {
+		m.Members = nil
+	}
 
-// ExpirationEpoch returns the last NeoFS epoch number of the tombstone lifetime.
-//
-// See also [Tombstone.SetExpirationEpoch].
-func (t *Tombstone) ExpirationEpoch() uint64 {
-	return (*tombstone.Tombstone)(t).GetExpirationEpoch()
-}
-
-// SetExpirationEpoch sets the last NeoFS epoch number of the tombstone lifetime.
-//
-// See also [Tombstone.ExpirationEpoch].
-func (t *Tombstone) SetExpirationEpoch(v uint64) {
-	(*tombstone.Tombstone)(t).SetExpirationEpoch(v)
-}
-
-// SplitID returns identifier of object split hierarchy.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-//
-// See also [Tombstone.SetSplitID].
-func (t *Tombstone) SplitID() *SplitID {
-	return NewSplitIDFromV2(
-		(*tombstone.Tombstone)(t).GetSplitID())
-}
-
-// SetSplitID sets identifier of object split hierarchy.
-//
-// See also [Tombstone.SplitID].
-func (t *Tombstone) SetSplitID(v *SplitID) {
-	(*tombstone.Tombstone)(t).SetSplitID(v.ToV2())
+	m.ExpirationEpoch = t.exp
+	m.SplitId = t.splitID
 }
 
 // Members returns list of objects to be deleted.
 //
 // See also [Tombstone.SetMembers].
-func (t *Tombstone) Members() []oid.ID {
-	v2 := (*tombstone.Tombstone)(t)
-	msV2 := v2.GetMembers()
-
-	if msV2 == nil {
-		return nil
-	}
-
-	var (
-		ms = make([]oid.ID, len(msV2))
-		id oid.ID
-	)
-
-	for i := range msV2 {
-		_ = id.ReadFromV2(msV2[i])
-		ms[i] = id
-	}
-
-	return ms
+func (t Tombstone) Members() []oid.ID {
+	return t.members
 }
 
 // SetMembers sets list of objects to be deleted.
 //
 // See also [Tombstone.Members].
 func (t *Tombstone) SetMembers(v []oid.ID) {
-	var ms []refs.ObjectID
-
-	if v != nil {
-		ms = (*tombstone.Tombstone)(t).
-			GetMembers()
-
-		if ln := len(v); cap(ms) >= ln {
-			ms = ms[:0]
-		} else {
-			ms = make([]refs.ObjectID, 0, ln)
-		}
-
-		var idV2 refs.ObjectID
-
-		for i := range v {
-			v[i].WriteToV2(&idV2)
-			ms = append(ms, idV2)
-		}
-	}
-
-	(*tombstone.Tombstone)(t).SetMembers(ms)
+	t.members = v
 }
 
-// Marshal marshals [Tombstone] into a protobuf binary form.
+// Marshal encodes Tombstone into a Protocol Buffers V3 binary format.
 //
 // See also [Tombstone.Unmarshal].
-func (t *Tombstone) Marshal() ([]byte, error) {
-	return (*tombstone.Tombstone)(t).StableMarshal(nil), nil
+func (t Tombstone) Marshal() []byte {
+	var m tombstone.Tombstone
+	t.writeToV2(&m)
+
+	b, err := proto.Marshal(&m)
+	if err != nil {
+		// while it is bad to panic on external package return, we can do nothing better
+		// for this case: how can a normal message not be encoded?
+		panic(fmt.Errorf("unexpected marshal protobuf message failure: %w", err))
+	}
+	return b
 }
 
-// Unmarshal unmarshals protobuf binary representation of [Tombstone].
+// Unmarshal decodes Protocol Buffers V3 binary data into the Tombstone. Returns
+// an error if the message is malformed according to the NeoFS API V2 protocol.
 //
 // See also [Tombstone.Marshal].
 func (t *Tombstone) Unmarshal(data []byte) error {
-	return (*tombstone.Tombstone)(t).Unmarshal(data)
-}
-
-// MarshalJSON encodes [Tombstone] to protobuf JSON format.
-//
-// See also [Tombstone.UnmarshalJSON].
-func (t *Tombstone) MarshalJSON() ([]byte, error) {
-	return (*tombstone.Tombstone)(t).MarshalJSON()
-}
-
-// UnmarshalJSON decodes [Tombstone] from protobuf JSON format.
-//
-// See also [Tombstone.MarshalJSON].
-func (t *Tombstone) UnmarshalJSON(data []byte) error {
-	return (*tombstone.Tombstone)(t).UnmarshalJSON(data)
+	var m tombstone.Tombstone
+	err := proto.Unmarshal(data, &m)
+	if err != nil {
+		return fmt.Errorf("decode protobuf: %w", err)
+	}
+	return t.readFromV2(&m)
 }

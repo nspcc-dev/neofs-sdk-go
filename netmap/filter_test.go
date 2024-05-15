@@ -4,17 +4,16 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/stretchr/testify/require"
 )
 
 func TestContext_ProcessFilters(t *testing.T) {
 	fs := []Filter{
-		newFilter("StorageSSD", "Storage", "SSD", netmap.EQ),
-		newFilter("GoodRating", "Rating", "4", netmap.GE),
-		newFilter("Main", "", "", netmap.AND,
+		newFilter("StorageSSD", "Storage", "SSD", FilterOpEQ),
+		newFilter("GoodRating", "Rating", "4", FilterOpGE),
+		newFilter("Main", "", "", FilterOpAND,
 			newFilter("StorageSSD", "", "", 0),
-			newFilter("", "IntField", "123", netmap.LT),
+			newFilter("", "IntField", "123", FilterOpLT),
 			newFilter("GoodRating", "", "", 0)),
 	}
 
@@ -23,11 +22,11 @@ func TestContext_ProcessFilters(t *testing.T) {
 	require.NoError(t, c.processFilters(p))
 	require.Equal(t, 3, len(c.processedFilters))
 	for _, f := range fs {
-		require.Equal(t, f.m, *c.processedFilters[f.m.GetName()])
+		require.Equal(t, f, *c.processedFilters[f.Name()])
 	}
 
-	require.Equal(t, uint64(4), c.numCache[fs[1].m.GetValue()])
-	require.Equal(t, uint64(123), c.numCache[fs[2].m.GetFilters()[1].GetValue()])
+	require.Equal(t, uint64(4), c.numCache[fs[1].Value()])
+	require.Equal(t, uint64(123), c.numCache[fs[2].SubFilters()[1].Value()])
 }
 
 func TestContext_ProcessFiltersInvalid(t *testing.T) {
@@ -38,24 +37,24 @@ func TestContext_ProcessFiltersInvalid(t *testing.T) {
 	}{
 		{
 			"UnnamedTop",
-			newFilter("", "Storage", "SSD", netmap.EQ),
+			newFilter("", "Storage", "SSD", FilterOpEQ),
 			errUnnamedTopFilter,
 		},
 		{
 			"InvalidReference",
-			newFilter("Main", "", "", netmap.AND,
+			newFilter("Main", "", "", FilterOpAND,
 				newFilter("StorageSSD", "", "", 0)),
 			errFilterNotFound,
 		},
 		{
 			"NonEmptyKeyed",
-			newFilter("Main", "Storage", "SSD", netmap.EQ,
+			newFilter("Main", "Storage", "SSD", FilterOpEQ,
 				newFilter("StorageSSD", "", "", 0)),
 			errNonEmptyFilters,
 		},
 		{
 			"InvalidNumber",
-			newFilter("Main", "Rating", "three", netmap.GE),
+			newFilter("Main", "Rating", "three", FilterOpGE),
 			errInvalidNumber,
 		},
 		{
@@ -65,7 +64,7 @@ func TestContext_ProcessFiltersInvalid(t *testing.T) {
 		},
 		{
 			"InvalidName",
-			newFilter("*", "Rating", "3", netmap.GE),
+			newFilter("*", "Rating", "3", FilterOpGE),
 			errInvalidFilterName,
 		},
 	}
@@ -84,12 +83,12 @@ func TestFilter_MatchSimple_InvalidOp(t *testing.T) {
 	b.SetAttribute("Rating", "4")
 	b.SetAttribute("Country", "Germany")
 
-	f := newFilter("Main", "Rating", "5", netmap.EQ)
+	f := newFilter("Main", "Rating", "5", FilterOpEQ)
 	c := newContext(NetMap{})
 	p := newPlacementPolicy(1, nil, nil, []Filter{f})
 	require.NoError(t, c.processFilters(p))
 
 	// just for the coverage
-	f.m.SetOp(0)
-	require.False(t, c.match(&f.m, b))
+	f.op = 0
+	require.False(t, c.match(&f, b))
 }

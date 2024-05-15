@@ -28,22 +28,18 @@ func ExampleNewWaiter() {
 
 	account := signer.UserID()
 
-	var cont container.Container
 	var pp netmap.PlacementPolicy
 	var rd netmap.ReplicaDescriptor
-
-	// prepare container.
-	cont.Init()
-	cont.SetBasicACL(acl.PublicRW)
-	cont.SetOwner(account)
-	cont.SetName(strconv.FormatInt(time.Now().UnixNano(), 16))
-	cont.SetCreationTime(time.Now())
 
 	// prepare placement policy.
 	pp.SetContainerBackupFactor(1)
 	rd.SetNumberOfObjects(1)
 	pp.SetReplicas([]netmap.ReplicaDescriptor{rd})
-	cont.SetPlacementPolicy(pp)
+
+	// prepare container.
+	cont := container.New(account, acl.PublicRW, pp)
+	cont.SetName(strconv.FormatInt(time.Now().UnixNano(), 16))
+	cont.SetCreationTime(time.Now())
 
 	// prepare pool.
 	opts := pool.InitParameters{}

@@ -2,197 +2,89 @@ package eacl
 
 import (
 	"bytes"
-	"crypto/ecdsa"
+	"errors"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
 )
 
-// Target is a group of request senders to match ContainerEACL. Defined by role enum
-// and set of public keys.
-//
-// Target is compatible with v2 acl.EACLRecord.Target message.
+// Target describes the parties that are subject to a specific access rule.
 type Target struct {
 	role Role
 	keys [][]byte
-}
-
-func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
-	keysPtr := make([]*ecdsa.PublicKey, len(keys))
-
-	for i := range keys {
-		keysPtr[i] = &keys[i]
-	}
-
-	return keysPtr
 }
 
 // CopyTo writes deep copy of the [Target] to dst.
 func (t Target) CopyTo(dst *Target) {
 	dst.role = t.role
 
-	dst.keys = make([][]byte, len(t.keys))
-	for i := range t.keys {
-		dst.keys[i] = bytes.Clone(t.keys[i])
+	if t.keys != nil {
+		dst.keys = make([][]byte, len(t.keys))
+		for i := range t.keys {
+			dst.keys[i] = bytes.Clone(t.keys[i])
+		}
+	} else {
+		dst.keys = nil
 	}
 }
 
-// BinaryKeys returns list of public keys to identify
-// target subject in a binary format.
+func isEmptyTarget(t Target) bool {
+	return t.role == 0 && len(t.keys) == 0
+}
+
+func targetToAPI(t Target) *apiacl.EACLRecord_Target {
+	if isEmptyTarget(t) {
+		return nil
+	}
+	return &apiacl.EACLRecord_Target{
+		Role: apiacl.Role(t.role),
+		Keys: t.keys,
+	}
+}
+
+func (t *Target) readFromV2(m *apiacl.EACLRecord_Target, checkFieldPresence bool) error {
+	if checkFieldPresence && (m.Role == 0 == (len(m.Keys) == 0)) {
+		return errors.New("role and public keys are not mutually exclusive")
+	}
+
+	t.role = Role(m.Role)
+	t.keys = m.Keys
+
+	return nil
+}
+
+// PublicKeys returns list of public keys to identify target subjects. Overlaps
+// [Target.Role].
 //
 // Each element of the resulting slice is a serialized compressed public key. See [elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
-func (t *Target) BinaryKeys() [][]byte {
+func (t Target) PublicKeys() [][]byte {
 	return t.keys
 }
 
-// SetBinaryKeys sets list of binary public keys to identify
-// target subject.
+// SetPublicKeys sets list of binary public keys to identify target subjects.
+// Overlaps [Target.SetRole].
 //
 // Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
 // See [elliptic.MarshalCompressed].
-func (t *Target) SetBinaryKeys(keys [][]byte) {
+func (t *Target) SetPublicKeys(keys [][]byte) {
 	t.keys = keys
 }
 
-// SetTargetECDSAKeys converts ECDSA public keys to a binary
-// format and stores them in Target.
-func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
-	binKeys := t.BinaryKeys()
-	ln := len(pubs)
-
-	if cap(binKeys) >= ln {
-		binKeys = binKeys[:0]
-	} else {
-		binKeys = make([][]byte, 0, ln)
-	}
-
-	for i := 0; i < ln; i++ {
-		binKeys = append(binKeys, (*keys.PublicKey)(pubs[i]).Bytes())
-	}
-
-	t.SetBinaryKeys(binKeys)
-}
-
-// TargetECDSAKeys interprets binary public keys of Target
-// as ECDSA public keys. If any key has a different format,
-// the corresponding element will be nil.
-func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
-	binKeys := t.BinaryKeys()
-	ln := len(binKeys)
-
-	pubs := make([]*ecdsa.PublicKey, ln)
-
-	for i := 0; i < ln; i++ {
-		p := new(keys.PublicKey)
-		if p.DecodeBytes(binKeys[i]) == nil {
-			pubs[i] = (*ecdsa.PublicKey)(p)
-		}
-	}
-
-	return pubs
-}
-
-// SetRole sets target subject's role class.
+// SetRole sets role to identify group of target subjects. Overlaps with
+// [Target.SetPublicKeys].
+//
+// See also [Target.Role].
 func (t *Target) SetRole(r Role) {
 	t.role = r
 }
 
-// Role returns target subject's role class.
+// Role returns role to identify group of target subjects. Overlaps with
+// [Target.PublicKeys].
+//
+// See also [Target.SetRole].
 func (t Target) Role() Role {
 	return t.role
-}
-
-// ToV2 converts Target to v2 acl.EACLRecord.Target message.
-//
-// Nil Target converts to nil.
-func (t *Target) ToV2() *v2acl.Target {
-	if t == nil {
-		return nil
-	}
-
-	target := new(v2acl.Target)
-	target.SetRole(t.role.ToV2())
-	target.SetKeys(t.keys)
-
-	return target
-}
-
-// NewTarget creates, initializes and returns blank Target instance.
-//
-// Defaults:
-//   - role: RoleUnknown;
-//   - keys: nil.
-func NewTarget() *Target {
-	return NewTargetFromV2(new(v2acl.Target))
-}
-
-// NewTargetFromV2 converts v2 acl.EACLRecord.Target message to Target.
-func NewTargetFromV2(target *v2acl.Target) *Target {
-	if target == nil {
-		return new(Target)
-	}
-
-	return &Target{
-		role: RoleFromV2(target.GetRole()),
-		keys: target.GetKeys(),
-	}
-}
-
-// Marshal marshals Target into a protobuf binary form.
-func (t *Target) Marshal() ([]byte, error) {
-	return t.ToV2().StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of Target.
-func (t *Target) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Target)
-	if err := fV2.Unmarshal(data); err != nil {
-		return err
-	}
-
-	*t = *NewTargetFromV2(fV2)
-
-	return nil
-}
-
-// MarshalJSON encodes Target to protobuf JSON format.
-func (t *Target) MarshalJSON() ([]byte, error) {
-	return t.ToV2().MarshalJSON()
-}
-
-// UnmarshalJSON decodes Target from protobuf JSON format.
-func (t *Target) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Target)
-	if err := tV2.UnmarshalJSON(data); err != nil {
-		return err
-	}
-
-	*t = *NewTargetFromV2(tV2)
-
-	return nil
-}
-
-// equalTargets compares Target with each other.
-func equalTargets(t1, t2 Target) bool {
-	if t1.Role() != t2.Role() {
-		return false
-	}
-
-	keys1, keys2 := t1.BinaryKeys(), t2.BinaryKeys()
-
-	if len(keys1) != len(keys2) {
-		return false
-	}
-
-	for i := 0; i < len(keys1); i++ {
-		if !bytes.Equal(keys1[i], keys2[i]) {
-			return false
-		}
-	}
-
-	return true
 }

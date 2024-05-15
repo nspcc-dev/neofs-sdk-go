@@ -12,7 +12,7 @@ func ExampleResult() {
 	res.ForEpoch(32)
 	res.ForContainer(cnr)
 	// ...
-	res.Complete()
+	res.SetCompleted(true)
 
 	// Result instances can be stored in a binary format on client side.
 	data := res.Marshal()

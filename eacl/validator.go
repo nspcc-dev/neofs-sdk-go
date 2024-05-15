@@ -64,7 +64,7 @@ func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
 
 nextFilter:
 	for _, filter := range filters {
-		headers, ok := hdrSrc.HeadersOfType(filter.From())
+		headers, ok := hdrSrc.HeadersOfType(filter.AttributeType())
 		if !ok {
 			return -1
 		}
@@ -150,7 +150,7 @@ func targetMatches(unit *ValidationUnit, record *Record) bool {
 		}
 
 		// check public key match
-		if pubs := target.BinaryKeys(); len(pubs) != 0 {
+		if pubs := target.PublicKeys(); len(pubs) != 0 {
 			for _, key := range pubs {
 				if bytes.Equal(key, unit.key) {
 					return true

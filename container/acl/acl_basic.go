@@ -19,6 +19,8 @@ import (
 // However, these similarities should only be used for better understanding,
 // in general these mechanisms are different.
 //
+// Basic implements built-in comparable interface.
+//
 // Instances can be created using built-in var declaration, but look carefully
 // at the default values, and how individual permissions are regulated.
 // Some frequently used values are presented in exported variables.
@@ -32,14 +34,14 @@ type Basic uint32
 
 // FromBits decodes Basic from the numerical representation.
 //
-// See also Bits.
+// See also [Basic.Bits].
 func (x *Basic) FromBits(bits uint32) {
 	*x = Basic(bits)
 }
 
 // Bits returns numerical encoding of Basic.
 //
-// See also FromBits.
+// See also [Basic.FromBits].
 func (x Basic) Bits() uint32 {
 	return uint32(x)
 }
@@ -64,12 +66,12 @@ const (
 // DisableExtension makes Basic FINAL. FINAL indicates the ACL non-extendability
 // in the related container.
 //
-// See also Extendable.
+// See also [Basic.Extendable].
 func (x *Basic) DisableExtension() {
 	setBit((*uint32)(x), bitPosFinal)
 }
 
-// Extendable checks if Basic is NOT made FINAL using DisableExtension.
+// Extendable checks if Basic is NOT made FINAL using [Basic.DisableExtension].
 //
 // Zero Basic is extendable.
 func (x Basic) Extendable() bool {
@@ -79,12 +81,12 @@ func (x Basic) Extendable() bool {
 // MakeSticky makes Basic STICKY. STICKY indicates that only the owner of any
 // particular object is allowed to operate on it.
 //
-// See also Sticky.
+// See also [Basic.Sticky].
 func (x *Basic) MakeSticky() {
 	setBit((*uint32)(x), bitPosSticky)
 }
 
-// Sticky checks if Basic is made STICKY using MakeSticky.
+// Sticky checks if Basic is made STICKY using [Basic.MakeSticky].
 //
 // Zero Basic is NOT STICKY.
 func (x Basic) Sticky() bool {
@@ -121,7 +123,7 @@ func isReplicationOp(op Op) bool {
 //	OpObjectSearch
 //	OpObjectHash
 //
-// See also IsOpAllowed.
+// See also [Basic.IsOpAllowed].
 func (x *Basic) AllowOp(op Op, role Role) {
 	var bitPos uint8
 
@@ -168,7 +170,7 @@ func (x *Basic) AllowOp(op Op, role Role) {
 // Zero Basic prevents any role from accessing any operation in the absence
 // of default rights.
 //
-// See also AllowOp.
+// See also [Basic.AllowOp].
 func (x Basic) IsOpAllowed(op Op, role Role) bool {
 	var bitPos uint8
 
@@ -204,12 +206,12 @@ func (x Basic) IsOpAllowed(op Op, role Role) bool {
 // AllowBearerRules allows bearer to provide extended ACL rules for the given
 // operation. Bearer rules doesn't depend on container ACL extensibility.
 //
-// See also AllowedBearerRules.
+// See also [Basic.AllowedBearerRules].
 func (x *Basic) AllowBearerRules(op Op) {
 	setOpBit((*uint32)(x), op, opBitPosBearer)
 }
 
-// AllowedBearerRules checks if bearer rules are allowed using AllowBearerRules.
+// AllowedBearerRules checks if bearer rules are allowed using [Basic.AllowBearerRules].
 // Op MUST be one of the Op enumeration.
 //
 // Zero Basic disallows bearer rules for any op.
@@ -224,7 +226,7 @@ func (x Basic) EncodeToString() string {
 	return strconv.FormatUint(uint64(x), 16)
 }
 
-// Names of the frequently used Basic values.
+// Names of the frequently used [Basic] values.
 const (
 	NamePrivate              = "private"
 	NamePrivateExtended      = "eacl-private"
@@ -236,7 +238,7 @@ const (
 	NamePublicAppendExtended = "eacl-public-append"
 )
 
-// Frequently used Basic values. Bitmasks are taken from the NeoFS Specification.
+// Frequently used [Basic] values. Bitmasks are taken from the NeoFS Specification.
 const (
 	Private              = Basic(0x1C8C8CCC) // private
 	PrivateExtended      = Basic(0x0C8C8CCC) // eacl-private
@@ -248,8 +250,8 @@ const (
 	PublicAppendExtended = Basic(0x0FBF9FFF) // eacl-public-append
 )
 
-// DecodeString decodes string calculated using EncodeToString. Also supports
-// human-readable names (Name* constants).
+// DecodeString decodes string calculated using [Basic.EncodeToString]. Also
+// supports human-readable names (Name* constants).
 func (x *Basic) DecodeString(s string) (e error) {
 	switch s {
 	case NamePrivate:

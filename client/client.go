@@ -2,22 +2,21 @@ package client
 
 import (
 	"context"
-	"crypto/tls"
 	"fmt"
+	"net"
+	"net/url"
 	"sync"
-	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
-const (
-	// max GRPC message size.
-	defaultBufferSize = 4194304 // 4MB
-)
+const defaultSignBufferSize = 4 << 20 // 4MB, max GRPC message size.
 
 // Client represents virtual connection to the NeoFS network to communicate
 // with NeoFS server using NeoFS API protocol. It is designed to provide
@@ -49,242 +48,180 @@ const (
 //
 // See client package overview to get some examples.
 type Client struct {
-	prm PrmInit
-
-	c client.Client
-
-	server neoFSAPIServer
-
 	endpoint string
-	nodeKey  []byte
+	dial     func(context.Context, string) (net.Conn, error)
+	withTLS  bool
 
-	buffers *sync.Pool
+	signer      neofscrypto.Signer
+	signBuffers *sync.Pool
+
+	interceptAPIRespInfo func(ResponseMetaInfo) error
+	handleAPIOpResult    stat.OperationCallback
+
+	// set on dial
+	conn         *grpc.ClientConn
+	transport    grpcTransport // based on conn
+	serverPubKey []byte
 }
 
-// New creates an instance of Client initialized with the given parameters.
+// parses s into a URI and returns host:port and a flag indicating enabled TLS.
+func parseURI(s string) (string, bool, error) {
+	uri, err := url.ParseRequestURI(s)
+	if err != nil {
+		return s, false, err
+	}
+
+	const grpcScheme = "grpc"
+	const grpcTLSScheme = "grpcs"
+	// check if passed string was parsed correctly
+	// URIs that do not start with a slash after the scheme are interpreted as:
+	// `scheme:opaque` => if `opaque` is not empty, then it is supposed that URI
+	// is in `host:port` format
+	if uri.Host == "" {
+		uri.Host = uri.Scheme
+		uri.Scheme = grpcScheme
+		if uri.Opaque != "" {
+			uri.Host = net.JoinHostPort(uri.Host, uri.Opaque)
+		}
+	}
+
+	if uri.Scheme != grpcScheme && uri.Scheme != grpcTLSScheme {
+		return "", false, fmt.Errorf("unsupported URI scheme: %s", uri.Scheme)
+	}
+
+	return uri.Host, uri.Scheme == grpcTLSScheme, nil
+}
+
+// New initializes new Client to connect to NeoFS API server at the specified
+// network endpoint with options. New does not dial the server: [Client.Dial]
+// must be done after. Use [Dial] to open instant connection.
 //
-// See docs of [PrmInit] methods for details. See also [Client.Dial]/[Client.Close].
-func New(prm PrmInit) (*Client, error) {
-	var c = new(Client)
+// URI format:
+//
+//	[scheme://]host:port
+//
+// with one of supported schemes:
+//
+//	grpc
+//	grpcs
+func New(uri string, opts Options) (*Client, error) {
+	endpoint, withTLS, err := parseURI(uri)
+	if err != nil {
+		return nil, fmt.Errorf("invalid URI: %w", err)
+	}
+
 	pk, err := keys.NewPrivateKey()
 	if err != nil {
-		return nil, fmt.Errorf("private key: %w", err)
+		return nil, fmt.Errorf("randomize private key: %w", err)
 	}
 
-	prm.signer = neofsecdsa.SignerRFC6979(pk.PrivateKey)
-
-	if prm.buffers != nil {
-		c.buffers = prm.buffers
-	} else {
-		size := prm.signMessageBufferSizes
-		if size == 0 {
-			size = defaultBufferSize
-		}
-
-		c.buffers = &sync.Pool{}
-		c.buffers.New = func() any {
-			b := make([]byte, size)
+	return &Client{
+		endpoint: endpoint,
+		withTLS:  withTLS,
+		signer:   neofsecdsa.Signer(pk.PrivateKey),
+		signBuffers: &sync.Pool{New: func() any {
+			b := make([]byte, defaultSignBufferSize)
 			return &b
-		}
-	}
-
-	c.prm = prm
-	return c, nil
+		}},
+		interceptAPIRespInfo: opts.interceptAPIRespInfo,
+		handleAPIOpResult:    opts.handleAPIReqResult,
+	}, nil
 }
 
-// Dial establishes a connection to the server from the NeoFS network.
-// Returns an error describing failure reason. If failed, the Client
-// SHOULD NOT be used.
+// Dial establishes connection to the NeoFS API server by its parameterized
+// network URI and options. After use, the connection must be closed using
+// [Client.Close]. If Dial fails, the Client must no longer be used.
 //
-// Uses the context specified by SetContext if it was called with non-nil
-// argument, otherwise context.Background() is used. Dial returns context
-// errors, see context package docs for details.
+// If operation result handler is specified, Dial also requests server info
+// required for it. See [Options.SetOpResultHandler].
 //
-// Panics if required parameters are set incorrectly, look carefully
-// at the method documentation.
-//
-// One-time method call during application start-up stage is expected.
-// Calling multiple times leads to undefined behavior.
-//
-// Return client errors:
-//   - [ErrMissingServer]
-//   - [ErrNonPositiveTimeout]
-//
-// See also [Client.Close].
-func (c *Client) Dial(prm PrmDial) error {
-	if prm.endpoint == "" {
-		return ErrMissingServer
-	}
-	c.endpoint = prm.endpoint
-
-	if prm.timeoutDialSet {
-		if prm.timeoutDial <= 0 {
-			return ErrNonPositiveTimeout
-		}
+// Dial does not modify context whose deadline may interrupt the connection. Use
+// [context.WithTimeout] to prevent potential hangup.
+func (c *Client) Dial(ctx context.Context) error {
+	var creds credentials.TransportCredentials
+	if c.withTLS {
+		creds = credentials.NewTLS(nil)
 	} else {
-		prm.timeoutDial = 5 * time.Second
+		creds = insecure.NewCredentials()
 	}
 
-	if prm.streamTimeoutSet {
-		if prm.streamTimeout <= 0 {
-			return ErrNonPositiveTimeout
-		}
-	} else {
-		prm.streamTimeout = 10 * time.Second
-	}
-
-	c.c = *client.New(append(
-		client.WithNetworkURIAddress(prm.endpoint, prm.tlsConfig),
-		client.WithDialTimeout(prm.timeoutDial),
-		client.WithRWTimeout(prm.streamTimeout),
-	)...)
-
-	c.setNeoFSAPIServer((*coreServer)(&c.c))
-
-	if prm.parentCtx == nil {
-		prm.parentCtx = context.Background()
-	}
-
-	endpointInfo, err := c.EndpointInfo(prm.parentCtx, PrmEndpointInfo{})
+	var err error
+	c.conn, err = grpc.DialContext(ctx, c.endpoint,
+		grpc.WithContextDialer(c.dial),
+		grpc.WithTransportCredentials(creds),
+		grpc.WithReturnConnectionError(),
+		grpc.FailOnNonTempDialError(true),
+	)
 	if err != nil {
-		return err
+		return fmt.Errorf("gRPC dial %s: %w", c.endpoint, err)
 	}
 
-	c.nodeKey = endpointInfo.NodeInfo().PublicKey()
+	c.transport = newGRPCTransport(c.conn)
+
+	if c.handleAPIOpResult != nil {
+		endpointInfo, err := c.GetEndpointInfo(ctx, GetEndpointInfoOptions{})
+		if err != nil {
+			return fmt.Errorf("request node info from the server for stat tracking: %w", err)
+		}
+		c.serverPubKey = endpointInfo.Node.PublicKey()
+	}
 
 	return nil
 }
 
-// sets underlying provider of neoFSAPIServer. The method is used for testing as an approach
-// to skip Dial stage and override NeoFS API server. MUST NOT be used outside test code.
-// In real applications wrapper over github.com/nspcc-dev/neofs-api-go/v2/rpc/client
-// is statically used.
-func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
-	c.server = server
+// Dial connects to the NeoFS API server by its URI with options and returns
+// ready-to-go Client. After use, the connection must be closed via
+// [Client.Close]. If application needs delayed dial, use [New] + [Client.Dial]
+// combo.
+func Dial(ctx context.Context, uri string, opts Options) (*Client, error) {
+	c, err := New(uri, opts)
+	if err != nil {
+		return nil, err
+	}
+	return c, c.Dial(ctx)
 }
 
-// Close closes underlying connection to the NeoFS server. Implements io.Closer.
-// MUST NOT be called before successful Dial. Can be called concurrently
-// with server operations processing on running goroutines: in this case
-// they are likely to fail due to a connection error.
+// Close closes underlying connection to the NeoFS server. Implements
+// [io.Closer]. Close MUST NOT be called before successful [Client.Dial]. Close
+// can be called concurrently with server operations processing on running
+// goroutines: in this case they are likely to fail due to a connection error.
 //
-// One-time method call during application shutdown stage (after [Client.Dial])
-// is expected. Calling multiple times leads to undefined behavior.
-//
-// See also [Client.Dial].
+// One-time method call during application shutdown stage is expected. Calling
+// multiple times leads to undefined behavior.
 func (c *Client) Close() error {
-	return c.c.Conn().Close()
+	return c.conn.Close()
 }
 
-func (c *Client) sendStatistic(m stat.Method, err error) func() {
-	if c.prm.statisticCallback == nil {
-		return func() {}
-	}
+// // SetSignMessageBuffers sets buffers which are using in GRPC message signing
+// // process and helps to reduce memory allocations.
+// func (x *Options) SetSignMessageBuffers(buffers *sync.Pool) {
+// 	x.signBuffers = buffers
+// }
 
-	ts := time.Now()
-	return func() {
-		c.prm.statisticCallback(c.nodeKey, c.endpoint, m, time.Since(ts), err)
-	}
-}
-
-// PrmInit groups initialization parameters of Client instances.
+// Options groups optional Client parameters.
 //
 // See also [New].
-type PrmInit struct {
-	signer neofscrypto.Signer
-
-	cbRespInfo func(ResponseMetaInfo) error
-
+type Options struct {
 	netMagic uint64
 
-	statisticCallback stat.OperationCallback
+	handleAPIReqResult   stat.OperationCallback
+	interceptAPIRespInfo func(ResponseMetaInfo) error
 
-	signMessageBufferSizes uint64
-	buffers                *sync.Pool
+	signBuffersSize uint64
+	signBuffers     *sync.Pool
 }
 
-// SetSignMessageBufferSizes sets single buffer size to the buffers pool inside client.
-// This pool are using in GRPC message signing process and helps to reduce memory allocations.
-func (x *PrmInit) SetSignMessageBufferSizes(size uint64) {
-	x.signMessageBufferSizes = size
+// SetAPIResponseInfoInterceptor allows to intercept meta information from each
+// NeoFS server response before its processing. If f returns an error, [Client]
+// immediately returns it from the method. Nil (default) means ignore response
+// meta info.
+func (x *Options) SetAPIResponseInfoInterceptor(f func(ResponseMetaInfo) error) {
+	x.interceptAPIRespInfo = f
 }
 
-// SetSignMessageBuffers sets buffers which are using in GRPC message signing process and helps to reduce memory allocations.
-func (x *PrmInit) SetSignMessageBuffers(buffers *sync.Pool) {
-	x.buffers = buffers
-}
-
-// SetResponseInfoCallback makes the Client to pass ResponseMetaInfo from each
-// NeoFS server response to f. Nil (default) means ignore response meta info.
-func (x *PrmInit) SetResponseInfoCallback(f func(ResponseMetaInfo) error) {
-	x.cbRespInfo = f
-}
-
-// SetStatisticCallback makes the Client to pass [stat.OperationCallback] for the external statistic.
-func (x *PrmInit) SetStatisticCallback(statisticCallback stat.OperationCallback) {
-	x.statisticCallback = statisticCallback
-}
-
-// PrmDial groups connection parameters for the Client.
-//
-// See also Dial.
-type PrmDial struct {
-	endpoint string
-
-	tlsConfig *tls.Config
-
-	timeoutDialSet bool
-	timeoutDial    time.Duration
-
-	streamTimeoutSet bool
-	streamTimeout    time.Duration
-
-	parentCtx context.Context
-}
-
-// SetServerURI sets server URI in the NeoFS network.
-// Required parameter.
-//
-// Format of the URI:
-//
-//	[scheme://]host:port
-//
-// Supported schemes:
-//
-//	grpc
-//	grpcs
-//
-// See also SetTLSConfig.
-func (x *PrmDial) SetServerURI(endpoint string) {
-	x.endpoint = endpoint
-}
-
-// SetTLSConfig sets tls.Config to open TLS client connection
-// to the NeoFS server. Nil (default) means insecure connection.
-//
-// See also SetServerURI.
-func (x *PrmDial) SetTLSConfig(tlsConfig *tls.Config) {
-	x.tlsConfig = tlsConfig
-}
-
-// SetTimeout sets the timeout for connection to be established.
-// MUST BE positive. If not called, 5s timeout will be used by default.
-func (x *PrmDial) SetTimeout(timeout time.Duration) {
-	x.timeoutDialSet = true
-	x.timeoutDial = timeout
-}
-
-// SetStreamTimeout sets the timeout for individual operations in streaming RPC.
-// MUST BE positive. If not called, 10s timeout will be used by default.
-func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
-	x.streamTimeoutSet = true
-	x.streamTimeout = timeout
-}
-
-// SetContext allows to specify optional base context within which connection
-// should be established.
-//
-// Context SHOULD NOT be nil.
-func (x *PrmDial) SetContext(ctx context.Context) {
-	x.parentCtx = ctx
+// SetAPIRequestResultHandler makes the [Client] to pass result of each
+// performed NeoFS API operation to the specified handler. Nil (default)
+// disables handling.
+func (x *Options) SetAPIRequestResultHandler(f stat.OperationCallback) {
+	x.handleAPIReqResult = f
 }

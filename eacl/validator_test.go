@@ -4,6 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,24 +27,39 @@ func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit, msgAndAr
 }
 
 func TestFilterMatch(t *testing.T) {
-	tgt := *NewTarget()
+	var tgt Target
 	tgt.SetRole(RoleOthers)
 
 	t.Run("simple header match", func(t *testing.T) {
-		tb := NewTable()
+		var f Filter
+		f.SetAttributeType(AttributeObject)
+		f.SetKey("a")
+		f.SetMatcher(MatchStringEqual)
+		f.SetValue("xxx")
 
-		r := newRecord(ActionDeny, OperationUnknown, tgt)
-		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
-		tb.AddRecord(r)
+		var r1 Record
+		r1.SetAction(ActionDeny)
+		r1.SetTargets([]Target{tgt})
+		r1.SetFilters([]Filter{f})
 
-		r = newRecord(ActionDeny, OperationUnknown, tgt)
-		r.AddFilter(HeaderFromRequest, MatchStringNotEqual, "b", "yyy")
-		tb.AddRecord(r)
+		f.SetAttributeType(AttributeAPIRequest)
+		f.SetKey("b")
+		f.SetMatcher(MatchStringNotEqual)
+		f.SetValue("yyy")
 
-		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
+		var r2 Record
+		r1.CopyTo(&r2)
+		r2.SetFilters([]Filter{f})
+
+		var r3 Record
+		r3.SetAction(ActionAllow)
+		r3.SetTargets([]Target{tgt})
+
+		var tb Table
+		tb.SetRecords([]Record{r1, r2, r3})
 
 		v := NewValidator()
-		vu := newValidationUnit(RoleOthers, nil, tb)
+		vu := newValidationUnit(RoleOthers, nil, &tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -64,15 +80,30 @@ func TestFilterMatch(t *testing.T) {
 	})
 
 	t.Run("all filters must match", func(t *testing.T) {
-		tb := NewTable()
-		r := newRecord(ActionDeny, OperationUnknown, tgt)
-		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
-		r.AddFilter(HeaderFromRequest, MatchStringEqual, "b", "yyy")
-		tb.AddRecord(r)
-		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
+		fs := make([]Filter, 2)
+		fs[0].SetAttributeType(AttributeObject)
+		fs[0].SetKey("a")
+		fs[0].SetMatcher(MatchStringEqual)
+		fs[0].SetValue("xxx")
+		fs[1].SetAttributeType(AttributeAPIRequest)
+		fs[1].SetKey("b")
+		fs[1].SetMatcher(MatchStringEqual)
+		fs[1].SetValue("yyy")
+
+		var r1 Record
+		r1.SetAction(ActionDeny)
+		r1.SetTargets([]Target{tgt})
+		r1.SetFilters(fs)
+
+		var r2 Record
+		r2.SetAction(ActionAllow)
+		r2.SetTargets([]Target{tgt})
+
+		var tb Table
+		tb.SetRecords([]Record{r1, r2})
 
 		v := NewValidator()
-		vu := newValidationUnit(RoleOthers, nil, tb)
+		vu := newValidationUnit(RoleOthers, nil, &tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -87,19 +118,35 @@ func TestFilterMatch(t *testing.T) {
 	})
 
 	t.Run("filters with unknown type are skipped", func(t *testing.T) {
-		tb := NewTable()
-		r := newRecord(ActionDeny, OperationUnknown, tgt)
-		r.AddFilter(HeaderTypeUnknown, MatchStringEqual, "a", "xxx")
-		tb.AddRecord(r)
+		var f Filter
+		f.SetAttributeType(0)
+		f.SetKey("a")
+		f.SetMatcher(MatchStringEqual)
+		f.SetValue("xxx")
 
-		r = newRecord(ActionDeny, OperationUnknown, tgt)
-		r.AddFilter(0xFF, MatchStringEqual, "b", "yyy")
-		tb.AddRecord(r)
+		var r1 Record
+		r1.SetAction(ActionDeny)
+		r1.SetTargets([]Target{tgt})
+		r1.SetFilters([]Filter{f})
 
-		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+		f.SetAttributeType(0xFF)
+		f.SetKey("b")
+		f.SetValue("yyy")
+
+		var r2 Record
+		r2.SetAction(ActionDeny)
+		r2.SetTargets([]Target{tgt})
+		r2.SetFilters([]Filter{f})
+
+		var r3 Record
+		r2.SetAction(ActionDeny)
+		r2.SetTargets([]Target{tgt})
+
+		var tb Table
+		tb.SetRecords([]Record{r1, r2, r3})
 
 		v := NewValidator()
-		vu := newValidationUnit(RoleOthers, nil, tb)
+		vu := newValidationUnit(RoleOthers, nil, &tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -114,14 +161,26 @@ func TestFilterMatch(t *testing.T) {
 	})
 
 	t.Run("filters with match function are skipped", func(t *testing.T) {
-		tb := NewTable()
-		r := newRecord(ActionAllow, OperationUnknown, tgt)
-		r.AddFilter(HeaderFromObject, 0xFF, "a", "xxx")
-		tb.AddRecord(r)
-		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+		var f Filter
+		f.SetAttributeType(AttributeObject)
+		f.SetKey("a")
+		f.SetMatcher(0xFF)
+		f.SetValue("xxx")
+
+		var r1 Record
+		r1.SetAction(ActionAllow)
+		r1.SetTargets([]Target{tgt})
+		r1.SetFilters([]Filter{f})
+
+		var r2 Record
+		r2.SetAction(ActionDeny)
+		r2.SetTargets([]Target{tgt})
+
+		var tb Table
+		tb.SetRecords([]Record{r1, r2})
 
 		v := NewValidator()
-		vu := newValidationUnit(RoleOthers, nil, tb)
+		vu := newValidationUnit(RoleOthers, nil, &tb)
 		hs := headers{}
 		vu.hdrSrc = &hs
 
@@ -133,37 +192,51 @@ func TestFilterMatch(t *testing.T) {
 }
 
 func TestOperationMatch(t *testing.T) {
-	tgt := *NewTarget()
+	var tgt Target
 	tgt.SetRole(RoleOthers)
 
 	t.Run("single operation", func(t *testing.T) {
-		tb := NewTable()
-		tb.AddRecord(newRecord(ActionDeny, OperationPut, tgt))
-		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
+		var r1, r2 Record
+		r1.SetAction(ActionDeny)
+		r1.SetOperation(acl.OpObjectPut)
+		r1.SetTargets([]Target{tgt})
+		r2.SetAction(ActionAllow)
+		r2.SetOperation(acl.OpObjectGet)
+		r2.SetTargets([]Target{tgt})
+
+		var tb Table
+		tb.SetRecords([]Record{r1, r2})
 
 		v := NewValidator()
-		vu := newValidationUnit(RoleOthers, nil, tb)
+		vu := newValidationUnit(RoleOthers, nil, &tb)
 
-		vu.op = OperationPut
+		vu.op = acl.OpObjectPut
 		checkAction(t, ActionDeny, v, vu)
 
-		vu.op = OperationGet
+		vu.op = acl.OpObjectGet
 		checkAction(t, ActionAllow, v, vu)
 	})
 
 	t.Run("unknown operation", func(t *testing.T) {
-		tb := NewTable()
-		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
-		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
+		var r1, r2 Record
+		r1.SetAction(ActionDeny)
+		r1.SetOperation(0)
+		r1.SetTargets([]Target{tgt})
+		r2.SetAction(ActionAllow)
+		r2.SetOperation(acl.OpObjectGet)
+		r2.SetTargets([]Target{tgt})
+
+		var tb Table
+		tb.SetRecords([]Record{r1, r2})
 
 		v := NewValidator()
-		vu := newValidationUnit(RoleOthers, nil, tb)
+		vu := newValidationUnit(RoleOthers, nil, &tb)
 
 		// TODO discuss if both next tests should result in DENY
-		vu.op = OperationPut
+		vu.op = acl.OpObjectPut
 		checkDefaultAction(t, v, vu)
 
-		vu.op = OperationGet
+		vu.op = acl.OpObjectGet
 		checkAction(t, ActionAllow, v, vu)
 	})
 }
@@ -171,52 +244,55 @@ func TestOperationMatch(t *testing.T) {
 func TestTargetMatches(t *testing.T) {
 	pubs := makeKeys(t, 3)
 
-	tgt1 := NewTarget()
-	tgt1.SetBinaryKeys(pubs[0:2])
+	var tgt1 Target
+	tgt1.SetPublicKeys(pubs[0:2])
 	tgt1.SetRole(RoleUser)
 
-	tgt2 := NewTarget()
+	var tgt2 Target
 	tgt2.SetRole(RoleOthers)
 
-	r := NewRecord()
-	r.SetTargets(*tgt1, *tgt2)
+	var r Record
+	r.SetTargets([]Target{tgt1, tgt2})
 
 	u := newValidationUnit(RoleUser, pubs[0], nil)
-	require.True(t, targetMatches(u, r))
+	require.True(t, targetMatches(u, &r))
 
 	u = newValidationUnit(RoleUser, pubs[2], nil)
-	require.False(t, targetMatches(u, r))
+	require.False(t, targetMatches(u, &r))
 
-	u = newValidationUnit(RoleUnknown, pubs[1], nil)
-	require.True(t, targetMatches(u, r))
+	u = newValidationUnit(0, pubs[1], nil)
+	require.True(t, targetMatches(u, &r))
 
 	u = newValidationUnit(RoleOthers, pubs[2], nil)
-	require.True(t, targetMatches(u, r))
+	require.True(t, targetMatches(u, &r))
 
 	u = newValidationUnit(RoleSystem, pubs[2], nil)
-	require.False(t, targetMatches(u, r))
+	require.False(t, targetMatches(u, &r))
 }
 
 func TestSystemRoleModificationIgnored(t *testing.T) {
-	tgt := *NewTarget()
+	var tgt Target
 	tgt.SetRole(RoleSystem)
 
-	operations := []Operation{
-		OperationPut,
-		OperationGet,
-		OperationDelete,
-		OperationHead,
-		OperationRange,
-		OperationRangeHash,
+	operations := []acl.Op{
+		acl.OpObjectPut,
+		acl.OpObjectGet,
+		acl.OpObjectDelete,
+		acl.OpObjectHead,
+		acl.OpObjectRange,
+		acl.OpObjectHash,
 	}
 
-	tb := NewTable()
+	var tb Table
 	for _, operation := range operations {
-		tb.AddRecord(newRecord(ActionDeny, operation, tgt))
+		var r Record
+		r.SetAction(ActionDeny)
+		r.SetOperation(operation)
+		r.SetTargets([]Target{tgt})
 	}
 
 	v := NewValidator()
-	vu := newValidationUnit(RoleSystem, nil, tb)
+	vu := newValidationUnit(RoleSystem, nil, &tb)
 
 	for _, operation := range operations {
 		vu.op = operation
@@ -258,23 +334,15 @@ func makeHeaders(kv ...string) []Header {
 	return hs
 }
 
-func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool) {
+func (h headers) HeadersOfType(ht AttributeType) ([]Header, bool) {
 	switch ht {
-	case HeaderFromRequest:
+	case AttributeAPIRequest:
 		return h.req, true
-	case HeaderFromObject:
+	case AttributeObject:
 		return h.obj, true
 	default:
 		return nil, false
 	}
-}
-
-func newRecord(a Action, op Operation, tgt ...Target) *Record {
-	r := NewRecord()
-	r.SetAction(a)
-	r.SetOperation(op)
-	r.SetTargets(tgt...)
-	return r
 }
 
 func newValidationUnit(role Role, key []byte, table *Table) *ValidationUnit {
@@ -352,11 +420,14 @@ func TestNumericRules(t *testing.T) {
 		{MatchNumLE, "111111111111111111111111111111", "111111111111111111111111111110", false},
 		{MatchNumLE, "-111111111111111111111111111110", "-111111111111111111111111111111", false},
 	} {
-		var rec Record
-		rec.AddObjectAttributeFilter(tc.m, "any_key", tc.f)
+		var f Filter
+		f.SetAttributeType(AttributeObject)
+		f.SetKey("any_key")
+		f.SetMatcher(tc.m)
+		f.SetValue(tc.f)
 		hs := headers{obj: makeHeaders("any_key", tc.h)}
 
-		v := matchFilters(hs, rec.filters)
+		v := matchFilters(hs, []Filter{f})
 		if tc.exp {
 			require.Zero(t, v, tc)
 		} else {
@@ -371,23 +442,29 @@ func TestAbsenceRules(t *testing.T) {
 		"key2", "val2",
 	)}
 
-	var r Record
+	fs := make([]Filter, 2)
+	fs[0].SetAttributeType(AttributeObject)
+	fs[0].SetKey("key2")
+	fs[0].SetMatcher(MatchStringEqual)
+	fs[0].SetValue("val2")
+	fs[1].SetAttributeType(AttributeObject)
+	fs[1].SetKey("key1")
+	fs[1].SetMatcher(MatchNotPresent)
+	fs[1].SetValue("")
 
-	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
-	r.AddObjectAttributeFilter(MatchNotPresent, "key1", "")
-	v := matchFilters(hs, r.filters)
+	v := matchFilters(hs, fs)
 	require.Positive(t, v)
 
-	r.filters = r.filters[:0]
-	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
-	r.AddObjectAttributeFilter(MatchNotPresent, "key2", "")
-	v = matchFilters(hs, r.filters)
+	fs[0].SetKey("key1")
+	fs[0].SetValue("val1")
+	fs[1].SetKey("key2")
+	v = matchFilters(hs, fs)
 	require.Positive(t, v)
 
-	r.filters = r.filters[:0]
-	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
-	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
-	r.AddObjectAttributeFilter(MatchNotPresent, "key3", "")
-	v = matchFilters(hs, r.filters)
+	fs = []Filter{fs[0], fs[0], fs[1]}
+	fs[1].SetKey("key2")
+	fs[1].SetValue("val2")
+	fs[2].SetKey("key3")
+	v = matchFilters(hs, fs)
 	require.Zero(t, v)
 }

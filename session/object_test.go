@@ -1,680 +1,424 @@
 package session_test
 
 import (
-	"bytes"
-	"fmt"
-	"math"
-	"math/rand"
+	mrand "math/rand"
 	"testing"
 
-	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	apisession "github.com/nspcc-dev/neofs-sdk-go/api/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
-	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestObjectProtocolV2(t *testing.T) {
-	var validV2 v2session.Token
-
-	var body v2session.TokenBody
-	validV2.SetBody(&body)
-
-	// ID
-	id := uuid.New()
-	binID, err := id.MarshalBinary()
-	require.NoError(t, err)
-	restoreID := func() {
-		body.SetID(binID)
-	}
-	restoreID()
-
-	// Owner
-	usr := usertest.ID(t)
-	var usrV2 refs.OwnerID
-	usr.WriteToV2(&usrV2)
-	restoreUser := func() {
-		body.SetOwnerID(&usrV2)
-	}
-	restoreUser()
-
-	// Lifetime
-	var lifetime v2session.TokenLifetime
-	lifetime.SetIat(1)
-	lifetime.SetNbf(2)
-	lifetime.SetExp(3)
-	restoreLifetime := func() {
-		body.SetLifetime(&lifetime)
-	}
-	restoreLifetime()
-
-	// Session key
-	signer := test.RandomSignerRFC6979(t)
-	authKey := signer.Public()
-	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
-	restoreAuthKey := func() {
-		body.SetSessionKey(binAuthKey)
-	}
-	restoreAuthKey()
-
-	// Context
-	cnr := cidtest.ID()
-	obj1 := oidtest.ID()
-	obj2 := oidtest.ID()
-	var cnrV2 refs.ContainerID
-	cnr.WriteToV2(&cnrV2)
-	var obj1V2 refs.ObjectID
-	obj1.WriteToV2(&obj1V2)
-	var obj2V2 refs.ObjectID
-	obj2.WriteToV2(&obj2V2)
-	var cObj v2session.ObjectSessionContext
-	restoreCtx := func() {
-		cObj.SetTarget(&cnrV2, obj1V2, obj2V2)
-		body.SetContext(&cObj)
-	}
-	restoreCtx()
-
-	// Signature
-	var sig refs.Signature
-	restoreSig := func() {
-		validV2.SetSignature(&sig)
-	}
-	restoreSig()
-
-	// TODO(@cthulhu-rider): #260 use functionality for message corruption
-
-	for _, testcase := range []struct {
-		name      string
-		corrupt   []func()
-		restore   func()
-		assert    func(session.Object)
-		breakSign func(*v2session.Token)
-	}{
-		{
-			name: "Signature",
-			corrupt: []func(){
-				func() {
-					validV2.SetSignature(nil)
-				},
-			},
-			restore: restoreSig,
-		},
-		{
-			name: "ID",
-			corrupt: []func(){
-				func() {
-					body.SetID([]byte{1, 2, 3})
-				},
-				func() {
-					id, err := uuid.NewDCEPerson()
-					require.NoError(t, err)
-					bindID, err := id.MarshalBinary()
-					require.NoError(t, err)
-					body.SetID(bindID)
-				},
-			},
-			restore: restoreID,
-			assert: func(val session.Object) {
-				require.Equal(t, id, val.ID())
-			},
-			breakSign: func(m *v2session.Token) {
-				id := m.GetBody().GetID()
-				id[len(id)-1]++
-			},
-		},
-		{
-			name: "User",
-			corrupt: []func(){
-				func() {
-					var brokenUsrV2 refs.OwnerID
-					brokenUsrV2.SetValue(append(usrV2.GetValue(), 1))
-					body.SetOwnerID(&brokenUsrV2)
-				},
-			},
-			restore: restoreUser,
-			assert: func(val session.Object) {
-				require.Equal(t, usr, val.Issuer())
-			},
-			breakSign: func(m *v2session.Token) {
-				id := m.GetBody().GetOwnerID().GetValue()
-				copy(id, usertest.ID(t).WalletBytes())
-			},
-		},
-		{
-			name: "Lifetime",
-			corrupt: []func(){
-				func() {
-					body.SetLifetime(nil)
-				},
-			},
-			restore: restoreLifetime,
-			assert: func(val session.Object) {
-				require.True(t, val.InvalidAt(1))
-				require.False(t, val.InvalidAt(2))
-				require.False(t, val.InvalidAt(3))
-				require.True(t, val.InvalidAt(4))
-			},
-			breakSign: func(m *v2session.Token) {
-				lt := m.GetBody().GetLifetime()
-				lt.SetIat(lt.GetIat() + 1)
-			},
-		},
-		{
-			name: "Auth key",
-			corrupt: []func(){
-				func() {
-					body.SetSessionKey(nil)
-				},
-				func() {
-					body.SetSessionKey([]byte{})
-				},
-			},
-			restore: restoreAuthKey,
-			assert: func(val session.Object) {
-				require.True(t, val.AssertAuthKey(authKey))
-			},
-			breakSign: func(m *v2session.Token) {
-				body := m.GetBody()
-				key := body.GetSessionKey()
-				cp := bytes.Clone(key)
-				cp[len(cp)-1]++
-				body.SetSessionKey(cp)
-			},
-		},
-		{
-			name: "Context",
-			corrupt: []func(){
-				func() {
-					body.SetContext(nil)
-				},
-				func() {
-					cObj.SetTarget(nil)
-				},
-				func() {
-					var brokenCnr refs.ContainerID
-					brokenCnr.SetValue(append(cnrV2.GetValue(), 1))
-					cObj.SetTarget(&brokenCnr)
-				},
-				func() {
-					var brokenObj refs.ObjectID
-					brokenObj.SetValue(append(obj1V2.GetValue(), 1))
-					cObj.SetTarget(&cnrV2, brokenObj)
-				},
-			},
-			restore: restoreCtx,
-			assert: func(val session.Object) {
-				require.True(t, val.AssertContainer(cnr))
-				require.False(t, val.AssertContainer(cidtest.ID()))
-				require.True(t, val.AssertObject(obj1))
-				require.True(t, val.AssertObject(obj2))
-				require.False(t, val.AssertObject(oidtest.ID()))
-			},
-			breakSign: func(m *v2session.Token) {
-				cnr := m.GetBody().GetContext().(*v2session.ObjectSessionContext).GetContainer().GetValue()
-				cnr[len(cnr)-1]++
-			},
-		},
-	} {
-		var val session.Object
-
-		for i, corrupt := range testcase.corrupt {
-			corrupt()
-			require.Error(t, val.ReadFromV2(validV2), testcase.name, fmt.Sprintf("corrupt #%d", i))
-
-			testcase.restore()
-			require.NoError(t, val.ReadFromV2(validV2), testcase.name, fmt.Sprintf("corrupt #%d", i))
-
-			if testcase.assert != nil {
-				testcase.assert(val)
-			}
-
-			if testcase.breakSign != nil {
-				require.NoError(t, val.Sign(signer), testcase.name)
-				require.True(t, val.VerifySignature(), testcase.name)
-
-				var signedV2 v2session.Token
-				val.WriteToV2(&signedV2)
-
-				var restored session.Object
-				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
-				require.True(t, restored.VerifySignature(), testcase.name)
-
-				testcase.breakSign(&signedV2)
-
-				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
-				require.False(t, restored.VerifySignature(), testcase.name)
-			}
-		}
-	}
+var knownObjectVerbs = map[session.ObjectVerb]apisession.ObjectSessionContext_Verb{
+	session.VerbObjectPut:       apisession.ObjectSessionContext_PUT,
+	session.VerbObjectGet:       apisession.ObjectSessionContext_GET,
+	session.VerbObjectHead:      apisession.ObjectSessionContext_HEAD,
+	session.VerbObjectDelete:    apisession.ObjectSessionContext_DELETE,
+	session.VerbObjectSearch:    apisession.ObjectSessionContext_SEARCH,
+	session.VerbObjectRange:     apisession.ObjectSessionContext_RANGE,
+	session.VerbObjectRangeHash: apisession.ObjectSessionContext_RANGEHASH,
 }
 
-func TestObject_WriteToV2(t *testing.T) {
-	var val session.Object
+func setRequiredObjectAPIFields(o *session.Object) {
+	setRequiredTokenAPIFields(o)
+	o.BindContainer(cidtest.ID())
+}
 
-	assert := func(baseAssert func(v2session.Token)) {
-		var m v2session.Token
-		val.WriteToV2(&m)
-		baseAssert(m)
+func TestObjectDecoding(t *testing.T) {
+	testDecoding(t, sessiontest.Object, []invalidAPITestCase{
+		{name: "body/context/wrong", err: "wrong context field", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context = new(apisession.SessionToken_Body_Container)
+		}},
+		{name: "body/context/target/container/value/nil", err: "invalid context: invalid target container: missing value field", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Container.Value = nil
+		}},
+		{name: "body/context/target/container/value/empty", err: "invalid context: invalid target container: missing value field", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Container.Value = []byte{}
+		}},
+		{name: "body/context/target/container/value/wrong length", err: "invalid context: invalid target container: invalid value length 31", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Container.Value = make([]byte, 31)
+		}},
+		{name: "body/context/target/objects/value/nil", err: "invalid context: invalid target object #1: missing value field", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Objects = []*refs.ObjectID{
+				{Value: make([]byte, 32)}, {Value: nil}}
+		}},
+		{name: "body/context/target/objects/value/empty", err: "invalid context: invalid target object #1: missing value field", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Objects = []*refs.ObjectID{
+				{Value: make([]byte, 32)}, {Value: nil}}
+		}},
+		{name: "body/context/target/objects/value/wrong length", err: "invalid context: invalid target object #1: invalid value length 31", corrupt: func(st *apisession.SessionToken) {
+			st.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Objects = []*refs.ObjectID{
+				{Value: make([]byte, 32)}, {Value: make([]byte, 31)}}
+		}},
+	})
+}
+
+func TestObject_Unmarshal(t *testing.T) {
+	t.Run("invalid binary", func(t *testing.T) {
+		var c session.Object
+		msg := []byte("definitely_not_protobuf")
+		err := c.Unmarshal(msg)
+		require.ErrorContains(t, err, "decode protobuf")
+	})
+}
+
+func TestObject_UnmarshalJSON(t *testing.T) {
+	t.Run("invalid json", func(t *testing.T) {
+		var c session.Object
+		msg := []byte("definitely_not_protojson")
+		err := c.UnmarshalJSON(msg)
+		require.ErrorContains(t, err, "decode protojson")
+	})
+}
+
+func TestObject_CopyTo(t *testing.T) {
+	testCopyTo(t, sessiontest.Object())
+}
+
+func TestObject_UnmarshalSignedData(t *testing.T) {
+	testSignedData(t, sessiontest.ObjectUnsigned())
+}
+
+func TestObject_SetAuthKey(t *testing.T) {
+	testAuthKey(t, setRequiredObjectAPIFields)
+}
+
+func TestObject_Sign(t *testing.T) {
+	testSign(t, setRequiredObjectAPIFields)
+}
+
+func TestObject_SetSignature(t *testing.T) {
+	testSetSignature(t, setRequiredObjectAPIFields)
+}
+
+func TestObject_SetIssuer(t *testing.T) {
+	testIssuer(t, setRequiredObjectAPIFields)
+}
+
+func TestObject_SetID(t *testing.T) {
+	testID(t, setRequiredObjectAPIFields)
+}
+
+func TestObject_InvalidAt(t *testing.T) {
+	testInvalidAt(t, session.Object{})
+}
+
+func TestObject_SetExp(t *testing.T) {
+	testLifetimeField(t, session.Object.Exp, (*session.Object).SetExp, (*apisession.SessionToken_Body_TokenLifetime).GetExp, setRequiredObjectAPIFields)
+}
+
+func TestObject_SetNbf(t *testing.T) {
+	testLifetimeField(t, session.Object.Nbf, (*session.Object).SetNbf, (*apisession.SessionToken_Body_TokenLifetime).GetNbf, setRequiredObjectAPIFields)
+}
+
+func TestObject_SetIat(t *testing.T) {
+	testLifetimeField(t, session.Object.Iat, (*session.Object).SetIat, (*apisession.SessionToken_Body_TokenLifetime).GetIat, setRequiredObjectAPIFields)
+}
+
+func TestObject_ExpiredAt(t *testing.T) {
+	var o session.Object
+	require.True(t, o.ExpiredAt(0))
+	require.True(t, o.ExpiredAt(1))
+
+	o.SetExp(1)
+	require.False(t, o.ExpiredAt(0))
+	require.False(t, o.ExpiredAt(1))
+	require.True(t, o.ExpiredAt(2))
+	require.True(t, o.ExpiredAt(3))
+
+	o.SetExp(2)
+	require.False(t, o.ExpiredAt(0))
+	require.False(t, o.ExpiredAt(1))
+	require.False(t, o.ExpiredAt(2))
+	require.True(t, o.ExpiredAt(3))
+}
+
+func TestObject_ForVerb(t *testing.T) {
+	var c session.Object
+
+	for verb := range knownObjectVerbs {
+		require.False(t, c.AssertVerb(verb))
+		c.ForVerb(verb)
+		require.True(t, c.AssertVerb(verb))
 	}
 
-	// ID
-	id := uuid.New()
+	verb := session.ObjectVerb(mrand.Uint32() % 256)
+	verbOther := verb + 1
+	c.ForVerb(verb)
+	require.True(t, c.AssertVerb(verb))
+	require.False(t, c.AssertVerb(verbOther))
 
-	binID, err := id.MarshalBinary()
-	require.NoError(t, err)
+	c.ForVerb(verbOther)
+	require.False(t, c.AssertVerb(verb))
+	require.True(t, c.AssertVerb(verbOther))
 
-	val.SetID(id)
-	assert(func(m v2session.Token) {
-		require.Equal(t, binID, m.GetBody().GetID())
-	})
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst session.Object
 
-	// Owner/Signature
-	signer := test.RandomSignerRFC6979(t)
+			dst.ForVerb(verb)
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.False(t, dst.AssertVerb(verb))
+			require.False(t, dst.AssertVerb(verbOther))
 
-	require.NoError(t, val.Sign(signer))
+			dst.ForVerb(verbOther)
+			src.ForVerb(verb)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.AssertVerb(verb))
+			require.False(t, dst.AssertVerb(verbOther))
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst session.Object
+			var msg apisession.SessionToken
 
-	usr := signer.UserID()
+			// set required data just to satisfy decoder
+			setRequiredObjectAPIFields(&src)
 
-	var usrV2 refs.OwnerID
-	usr.WriteToV2(&usrV2)
+			dst.ForVerb(verb)
+			src.WriteToV2(&msg)
+			require.Zero(t, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Verb)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.False(t, dst.AssertVerb(verb))
+			require.False(t, dst.AssertVerb(verbOther))
 
-	assert(func(m v2session.Token) {
-		require.Equal(t, &usrV2, m.GetBody().GetOwnerID())
+			dst.ForVerb(verbOther)
+			src.ForVerb(verb)
+			src.WriteToV2(&msg)
+			require.EqualValues(t, verb, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Verb)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.True(t, dst.AssertVerb(verb))
+			require.False(t, dst.AssertVerb(verbOther))
 
-		sig := m.GetSignature()
-		require.NotZero(t, sig.GetKey())
-		require.NotZero(t, sig.GetSign())
-	})
+			for verb, apiVerb := range knownObjectVerbs {
+				src.ForVerb(verb)
+				src.WriteToV2(&msg)
+				require.EqualValues(t, apiVerb, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Verb)
+				require.NoError(t, dst.ReadFromV2(&msg))
+				require.True(t, dst.AssertVerb(verb))
+			}
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst session.Object
 
-	// Lifetime
-	const iat, nbf, exp = 1, 2, 3
-	val.SetIat(iat)
-	val.SetNbf(nbf)
-	val.SetExp(exp)
+			dst.ForVerb(verb)
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.False(t, dst.AssertVerb(verb))
+			require.False(t, dst.AssertVerb(verbOther))
 
-	assert(func(m v2session.Token) {
-		lt := m.GetBody().GetLifetime()
-		require.EqualValues(t, iat, lt.GetIat())
-		require.EqualValues(t, nbf, lt.GetNbf())
-		require.EqualValues(t, exp, lt.GetExp())
-	})
-
-	// Context
-	assert(func(m v2session.Token) {
-		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Zero(t, cCnr.GetContainer())
-		require.Zero(t, cCnr.GetObjects())
-	})
-
-	cnr := cidtest.ID()
-
-	var cnrV2 refs.ContainerID
-	cnr.WriteToV2(&cnrV2)
-
-	obj1 := oidtest.ID()
-	obj2 := oidtest.ID()
-
-	var obj1V2 refs.ObjectID
-	obj1.WriteToV2(&obj1V2)
-	var obj2V2 refs.ObjectID
-	obj2.WriteToV2(&obj2V2)
-
-	val.BindContainer(cnr)
-	val.LimitByObjects(obj1, obj2)
-
-	assert(func(m v2session.Token) {
-		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Equal(t, &cnrV2, cCnr.GetContainer())
-		require.Equal(t, []refs.ObjectID{obj1V2, obj2V2}, cCnr.GetObjects())
+			dst.ForVerb(verbOther)
+			src.ForVerb(verb)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.AssertVerb(verb))
+			require.False(t, dst.AssertVerb(verbOther))
+		})
 	})
 }
 
 func TestObject_BindContainer(t *testing.T) {
-	var val session.Object
-	var m v2session.Token
-	filled := sessiontest.Object()
-
-	assertDefaults := func() {
-		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Zero(t, cCnr.GetContainer())
-		require.Zero(t, cCnr.GetObjects())
-	}
-
-	assertBinary := func(baseAssert func()) {
-		val2 := filled
-
-		require.NoError(t, val2.Unmarshal(val.Marshal()))
-		baseAssert()
-	}
-
-	assertJSON := func(baseAssert func()) {
-		val2 := filled
-
-		jd, err := val.MarshalJSON()
-		require.NoError(t, err)
-
-		require.NoError(t, val2.UnmarshalJSON(jd))
-		baseAssert()
-	}
-
-	val.WriteToV2(&m)
-
-	assertDefaults()
-	assertBinary(assertDefaults)
-	assertJSON(assertDefaults)
-
-	// set value
+	var c session.Object
 
 	cnr := cidtest.ID()
-
-	var cnrV2 refs.ContainerID
-	cnr.WriteToV2(&cnrV2)
-
-	val.BindContainer(cnr)
-
-	val.WriteToV2(&m)
-
-	assertCnr := func() {
-		cObj, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Equal(t, &cnrV2, cObj.GetContainer())
-	}
-
-	assertCnr()
-	assertBinary(assertCnr)
-	assertJSON(assertCnr)
-}
-
-func TestObject_AssertContainer(t *testing.T) {
-	var x session.Object
-
-	cnr := cidtest.ID()
-
-	require.False(t, x.AssertContainer(cnr))
-
-	x.BindContainer(cnr)
-
-	require.True(t, x.AssertContainer(cnr))
-}
-
-func TestObject_LimitByObjects(t *testing.T) {
-	var val session.Object
-	var m v2session.Token
-	filled := sessiontest.Object()
-
-	assertDefaults := func() {
-		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Zero(t, cCnr.GetContainer())
-		require.Zero(t, cCnr.GetObjects())
-	}
-
-	assertBinary := func(baseAssert func()) {
-		val2 := filled
-
-		require.NoError(t, val2.Unmarshal(val.Marshal()))
-		baseAssert()
-	}
-
-	assertJSON := func(baseAssert func()) {
-		val2 := filled
-
-		jd, err := val.MarshalJSON()
-		require.NoError(t, err)
-
-		require.NoError(t, val2.UnmarshalJSON(jd))
-		baseAssert()
-	}
-
-	val.WriteToV2(&m)
-
-	assertDefaults()
-	assertBinary(assertDefaults)
-	assertJSON(assertDefaults)
-
-	// set value
-
-	obj1 := oidtest.ID()
-	obj2 := oidtest.ID()
-
-	var obj1V2 refs.ObjectID
-	obj1.WriteToV2(&obj1V2)
-	var obj2V2 refs.ObjectID
-	obj2.WriteToV2(&obj2V2)
-
-	val.LimitByObjects(obj1, obj2)
-
-	val.WriteToV2(&m)
-
-	assertObj := func() {
-		cObj, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Equal(t, []refs.ObjectID{obj1V2, obj2V2}, cObj.GetObjects())
-	}
-
-	assertObj()
-	assertBinary(assertObj)
-	assertJSON(assertObj)
-}
-
-func TestObject_AssertObject(t *testing.T) {
-	var x session.Object
-
-	obj1 := oidtest.ID()
-	obj2 := oidtest.ID()
-	objOther := oidtest.ID()
-
-	require.True(t, x.AssertObject(obj1))
-	require.True(t, x.AssertObject(obj2))
-	require.True(t, x.AssertObject(objOther))
-
-	x.LimitByObjects(obj1, obj2)
-
-	require.True(t, x.AssertObject(obj1))
-	require.True(t, x.AssertObject(obj2))
-	require.False(t, x.AssertObject(objOther))
-}
-
-func TestObject_InvalidAt(t *testing.T) {
-	var x session.Object
-
-	nbf := rand.Uint64()
-	if nbf == math.MaxUint64 {
-		nbf--
-	}
-
-	iat := nbf
-	exp := iat + 1
-
-	x.SetNbf(nbf)
-	x.SetIat(iat)
-	x.SetExp(exp)
-
-	require.True(t, x.InvalidAt(nbf-1))
-	require.True(t, x.InvalidAt(iat-1))
-	require.False(t, x.InvalidAt(iat))
-	require.False(t, x.InvalidAt(exp))
-	require.True(t, x.InvalidAt(exp+1))
-}
-
-func TestObject_ID(t *testing.T) {
-	var x session.Object
-
-	require.Zero(t, x.ID())
-
-	id := uuid.New()
-
-	x.SetID(id)
-
-	require.Equal(t, id, x.ID())
-}
-
-func TestObject_AssertAuthKey(t *testing.T) {
-	var x session.Object
-
-	key := test.RandomSignerRFC6979(t).Public()
-
-	require.False(t, x.AssertAuthKey(key))
-
-	x.SetAuthKey(key)
-
-	require.True(t, x.AssertAuthKey(key))
-}
-
-func TestObject_ForVerb(t *testing.T) {
-	var val session.Object
-	var m v2session.Token
-	filled := sessiontest.Object()
-
-	assertDefaults := func() {
-		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Zero(t, cCnr.GetVerb())
-	}
-
-	assertBinary := func(baseAssert func()) {
-		val2 := filled
-
-		require.NoError(t, val2.Unmarshal(val.Marshal()))
-		baseAssert()
-	}
-
-	assertJSON := func(baseAssert func()) {
-		val2 := filled
-
-		jd, err := val.MarshalJSON()
-		require.NoError(t, err)
-
-		require.NoError(t, val2.UnmarshalJSON(jd))
-		baseAssert()
-	}
-
-	val.WriteToV2(&m)
-
-	assertDefaults()
-	assertBinary(assertDefaults)
-	assertJSON(assertDefaults)
-
-	// set value
-
-	assertVerb := func(verb v2session.ObjectSessionVerb) {
-		cCnr, ok := m.GetBody().GetContext().(*v2session.ObjectSessionContext)
-		require.True(t, ok)
-		require.Equal(t, verb, cCnr.GetVerb())
-	}
-
-	for from, to := range map[session.ObjectVerb]v2session.ObjectSessionVerb{
-		session.VerbObjectPut:       v2session.ObjectVerbPut,
-		session.VerbObjectGet:       v2session.ObjectVerbGet,
-		session.VerbObjectHead:      v2session.ObjectVerbHead,
-		session.VerbObjectSearch:    v2session.ObjectVerbSearch,
-		session.VerbObjectRangeHash: v2session.ObjectVerbRangeHash,
-		session.VerbObjectRange:     v2session.ObjectVerbRange,
-		session.VerbObjectDelete:    v2session.ObjectVerbDelete,
-	} {
-		val.ForVerb(from)
-
-		val.WriteToV2(&m)
-
-		assertVerb(to)
-		assertBinary(func() { assertVerb(to) })
-		assertJSON(func() { assertVerb(to) })
-	}
-}
-
-func TestObject_AssertVerb(t *testing.T) {
-	var x session.Object
-
-	const v1, v2 = session.VerbObjectGet, session.VerbObjectPut
-
-	require.False(t, x.AssertVerb(v1, v2))
-
-	x.ForVerb(v1)
-	require.True(t, x.AssertVerb(v1))
-	require.False(t, x.AssertVerb(v2))
-	require.True(t, x.AssertVerb(v1, v2))
-	require.True(t, x.AssertVerb(v2, v1))
-}
-
-func TestObject_Issuer(t *testing.T) {
-	var token session.Object
-	signer := test.RandomSignerRFC6979(t)
-
-	require.Zero(t, token.Issuer())
-	require.Nil(t, token.IssuerPublicKeyBytes())
-
-	require.NoError(t, token.Sign(signer))
-
-	issuer := signer.UserID()
-
-	require.True(t, token.Issuer().Equals(issuer))
-	require.Equal(t, neofscrypto.PublicKeyBytes(signer.Public()), token.IssuerPublicKeyBytes())
-}
-
-func TestObject_Sign(t *testing.T) {
-	val := sessiontest.Object()
-
-	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979(t)))
-	require.Zero(t, val.Issuer())
-	require.True(t, val.VerifySignature())
-
-	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
-
-	require.True(t, val.VerifySignature())
-
-	t.Run("issue#546", func(t *testing.T) {
-		signer1 := test.RandomSignerRFC6979(t)
-		signer2 := test.RandomSignerRFC6979(t)
-		require.False(t, signer1.UserID().Equals(signer2.UserID()))
-
-		token1 := sessiontest.Object()
-		require.NoError(t, token1.Sign(signer1))
-		require.Equal(t, signer1.UserID(), token1.Issuer())
-
-		// copy token and re-sign
-		var token2 session.Object
-		token1.CopyTo(&token2)
-		require.NoError(t, token2.Sign(signer2))
-		require.Equal(t, signer2.UserID(), token2.Issuer())
+	cnrOther := cidtest.ChangeID(cnr)
+	require.False(t, c.AssertContainer(cnr))
+	require.False(t, c.AssertContainer(cnrOther))
+
+	c.BindContainer(cnr)
+	require.True(t, c.AssertContainer(cnr))
+	require.False(t, c.AssertContainer(cnrOther))
+
+	c.BindContainer(cnrOther)
+	require.False(t, c.AssertContainer(cnr))
+	require.True(t, c.AssertContainer(cnrOther))
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst session.Object
+
+			dst.BindContainer(cnr)
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.False(t, dst.AssertContainer(cnr))
+			require.False(t, dst.AssertContainer(cnrOther))
+
+			src.BindContainer(cnr)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.AssertContainer(cnr))
+			require.False(t, dst.AssertContainer(cnrOther))
+
+			src.BindContainer(cnrOther)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.False(t, dst.AssertContainer(cnr))
+			require.True(t, dst.AssertContainer(cnrOther))
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst session.Object
+			var msg apisession.SessionToken
+
+			// set required data just to satisfy decoder
+			setRequiredTokenAPIFields(&src)
+
+			src.BindContainer(cnr)
+			src.WriteToV2(&msg)
+			require.Equal(t, &refs.ContainerID{Value: cnr[:]}, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Container)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.True(t, dst.AssertContainer(cnr))
+			require.False(t, dst.AssertContainer(cnrOther))
+
+			src.BindContainer(cnrOther)
+			src.WriteToV2(&msg)
+			require.Equal(t, &refs.ContainerID{Value: cnrOther[:]}, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Container)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.False(t, dst.AssertContainer(cnr))
+			require.True(t, dst.AssertContainer(cnrOther))
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst session.Object
+
+			dst.BindContainer(cnr)
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.False(t, dst.AssertContainer(cnr))
+			require.False(t, dst.AssertContainer(cnrOther))
+
+			src.BindContainer(cnr)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.AssertContainer(cnr))
+			require.False(t, dst.AssertContainer(cnrOther))
+
+			src.BindContainer(cnrOther)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.False(t, dst.AssertContainer(cnr))
+			require.True(t, dst.AssertContainer(cnrOther))
+		})
 	})
 }
 
-func TestObject_SignedData(t *testing.T) {
-	issuerSigner := test.RandomSignerRFC6979(t)
-	issuer := issuerSigner.UserID()
+func TestObject_LimitByObjects(t *testing.T) {
+	var c session.Object
+	checkMatch := func(c session.Object, objs []oid.ID) {
+		for i := range objs {
+			require.True(t, c.AssertObject(objs[i]))
+		}
+	}
+	checkMismatch := func(c session.Object, objs []oid.ID) {
+		for i := range objs {
+			require.False(t, c.AssertObject(objs[i]))
+		}
+	}
 
-	var tokenSession session.Object
-	tokenSession.SetID(uuid.New())
-	tokenSession.SetExp(100500)
-	tokenSession.BindContainer(cidtest.ID())
-	tokenSession.ForVerb(session.VerbObjectPut)
-	tokenSession.SetAuthKey(test.RandomSignerRFC6979(t).Public())
-	tokenSession.SetIssuer(issuer)
+	objs := oidtest.NIDs(4)
+	checkMatch(c, objs)
 
-	signedData := tokenSession.SignedData()
-	var dec session.Object
-	require.NoError(t, dec.UnmarshalSignedData(signedData))
-	require.Equal(t, tokenSession, dec)
+	c.LimitByObjects(objs[:2])
+	checkMatch(c, objs[:2])
+	checkMismatch(c, objs[2:])
 
-	sign, err := issuerSigner.Sign(signedData)
-	require.NoError(t, err)
+	c.LimitByObjects(objs[2:])
+	checkMismatch(c, objs[:2])
+	checkMatch(c, objs[2:])
 
-	require.NoError(t, tokenSession.Sign(issuerSigner))
-	require.True(t, tokenSession.VerifySignature())
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst session.Object
 
-	var m v2session.Token
-	tokenSession.WriteToV2(&m)
+			dst.LimitByObjects(oidtest.NIDs(3))
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			checkMatch(dst, objs)
 
-	require.Equal(t, m.GetSignature().GetSign(), sign)
+			src.LimitByObjects(objs[:2])
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			checkMatch(dst, objs[:2])
+			checkMismatch(dst, objs[2:])
 
-	test.SignedDataComponentUser(t, issuerSigner, &tokenSession)
+			src.LimitByObjects(objs[2:])
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			checkMismatch(dst, objs[:2])
+			checkMatch(dst, objs[2:])
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst session.Object
+			var msg apisession.SessionToken
+
+			// set required data just to satisfy decoder
+			setRequiredObjectAPIFields(&src)
+
+			dst.LimitByObjects(oidtest.NIDs(3))
+			src.WriteToV2(&msg)
+			require.Zero(t, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Objects)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			checkMatch(dst, objs)
+
+			src.LimitByObjects(objs[:2])
+			src.WriteToV2(&msg)
+			require.ElementsMatch(t, []*refs.ObjectID{
+				{Value: objs[0][:]},
+				{Value: objs[1][:]},
+			}, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Objects)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			checkMatch(dst, objs[:2])
+			checkMismatch(dst, objs[2:])
+
+			src.LimitByObjects(objs[2:])
+			src.WriteToV2(&msg)
+			require.ElementsMatch(t, []*refs.ObjectID{
+				{Value: objs[2][:]},
+				{Value: objs[3][:]},
+			}, msg.Body.Context.(*apisession.SessionToken_Body_Object).Object.Target.Objects)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			checkMismatch(dst, objs[:2])
+			checkMatch(dst, objs[2:])
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst session.Object
+
+			dst.LimitByObjects(oidtest.NIDs(3))
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			checkMatch(dst, objs)
+
+			src.LimitByObjects(objs[:2])
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			checkMatch(dst, objs[:2])
+			checkMismatch(dst, objs[2:])
+
+			src.LimitByObjects(objs[2:])
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			checkMismatch(dst, objs[:2])
+			checkMatch(dst, objs[2:])
+		})
+	})
 }

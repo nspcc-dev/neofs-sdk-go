@@ -1,0 +1,118 @@
+{
+  "body": {
+    "balance": {
+      "value": "1",
+      "precision": 2
+    }
+  },
+  "metaHeader": {
+    "version": {
+      "major": 201,
+      "minor": 202
+    },
+    "epoch": "304",
+    "ttl": 303,
+    "xHeaders": [
+      {
+        "key": "xheader_key301",
+        "value": "xheader_val301"
+      },
+      {
+        "key": "xheader_key302",
+        "value": "xheader_val302"
+      }
+    ],
+    "origin": {
+      "version": {
+        "major": 201,
+        "minor": 202
+      },
+      "epoch": "204",
+      "ttl": 203,
+      "xHeaders": [
+        {
+          "key": "xheader_key201",
+          "value": "xheader_val201"
+        },
+        {
+          "key": "xheader_key202",
+          "value": "xheader_val202"
+        }
+      ],
+      "origin": {
+        "version": {
+          "major": 101,
+          "minor": 102
+        },
+        "epoch": "104",
+        "ttl": 103,
+        "xHeaders": [
+          {
+            "key": "xheader_key101",
+            "value": "xheader_val101"
+          },
+          {
+            "key": "xheader_key102",
+            "value": "xheader_val102"
+          }
+        ],
+        "status": {
+          "code": 106,
+          "message": "",
+          "details": []
+        }
+      },
+      "status": {
+        "code": 206,
+        "message": "",
+        "details": []
+      }
+    },
+    "status": {
+      "code": 306,
+      "message": "",
+      "details": []
+    }
+  },
+  "verifyHeader": {
+    "metaSignature": {
+      "key": "AtTNQm7Eogr1HvWiCMslml93/X85lqwwGVLFuBA2XP/H",
+      "signature": "9PrvXl9KPo4r7PV/i5FCqRL+ERS0wrh70/DX7MKmq3fblE6vbmCdrjV1Kh/d70cUVpILylMLOTbFJ/oIcLkfIGqbQxREVDDvn+Zgk0ka9S0=",
+      "scheme": "ECDSA_RFC6979_SHA256_WALLET_CONNECT"
+    },
+    "originSignature": {
+      "key": "AtTNQm7Eogr1HvWiCMslml93/X85lqwwGVLFuBA2XP/H",
+      "signature": "J1xBhki9adGM7OlFDGPze15O8uIwL1sNiMfRucGZMqqDgyOx9Q6lmh42oznJ25UzofEFlUsH+Fl+Gk/3rua8OQthQ7IeBAc+jHqn/oGdNq8=",
+      "scheme": "ECDSA_RFC6979_SHA256_WALLET_CONNECT"
+    },
+    "origin": {
+      "metaSignature": {
+        "key": "A3Ke5yVWmk7buA6Flp4eqZuoVVOIbxKtQ+t0BWnkI09V",
+        "signature": "mFNKmbiflnBCGRbEzebd7cioRu2XAVjC8Kr+2M/OZERnk9uRY8+cox63BGiqHYus5xgZKKNF4mIOZOjcMlKgMA==",
+        "scheme": "ECDSA_RFC6979_SHA256"
+      },
+      "originSignature": {
+        "key": "A3Ke5yVWmk7buA6Flp4eqZuoVVOIbxKtQ+t0BWnkI09V",
+        "signature": "Dl4PcskKVo8FXQ3LlldB8t7cT3Q45IBOX2Twf1tx/nA2z5uJazvGi42NgThssLNlho20mAc2K7NoQO6gLiK9Kw==",
+        "scheme": "ECDSA_RFC6979_SHA256"
+      },
+      "origin": {
+        "bodySignature": {
+          "key": "AzGCK/s8GajUcYgZrwQwwo1uT6KfDQTu6SOFwWg4778r",
+          "signature": "BOtKDrnF9Yg/VTY7EFe1NYJj/b3CGFnWdovGvghp9wS3LMXrwO5fsJKwCmdt6RciFzVfEgD5B3DTBtIgRrbS6nE=",
+          "scheme": "ECDSA_SHA512"
+        },
+        "metaSignature": {
+          "key": "AzGCK/s8GajUcYgZrwQwwo1uT6KfDQTu6SOFwWg4778r",
+          "signature": "BEV0KLJ4Eet7kAy+vdK3DXvXUJ1GDUG5VfAvxqZL+chxDfolZzG6rKHQFKav+4VIUhDoFZFDZ7G5B1PfGvikspI=",
+          "scheme": "ECDSA_SHA512"
+        },
+        "originSignature": {
+          "key": "AzGCK/s8GajUcYgZrwQwwo1uT6KfDQTu6SOFwWg4778r",
+          "signature": "BFksC2BOokZhGqMHtvs1+n0+PrSXDpmaFwayLigA9wQhYEPURSXXuKfAE1ui8y1/zUQ8WzQJjR3Q3SfaaPKwq+Q=",
+          "scheme": "ECDSA_SHA512"
+        }
+      }
+    }
+  }
+}

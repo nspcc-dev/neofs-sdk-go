@@ -1,93 +1,33 @@
-package apistatus
+package apistatus_test
 
 import (
 	"fmt"
 	"testing"
 
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/stretchr/testify/require"
 )
 
-func TestErrors(t *testing.T) {
-	for _, tc := range []struct {
-		errs        []error
-		errVariable error
-	}{
-		{
-			errs:        []error{ServerInternal{}, new(ServerInternal)},
-			errVariable: ErrServerInternal,
-		},
-		{
-			errs:        []error{WrongMagicNumber{}, new(WrongMagicNumber)},
-			errVariable: ErrWrongMagicNumber,
-		},
-		{
-			errs:        []error{SignatureVerification{}, new(SignatureVerification)},
-			errVariable: ErrSignatureVerification,
-		},
-		{
-			errs:        []error{NodeUnderMaintenance{}, new(NodeUnderMaintenance)},
-			errVariable: ErrNodeUnderMaintenance,
-		},
-
-		{
-			errs:        []error{ObjectLocked{}, new(ObjectLocked)},
-			errVariable: ErrObjectLocked,
-		},
-		{
-			errs:        []error{LockNonRegularObject{}, new(LockNonRegularObject)},
-			errVariable: ErrLockNonRegularObject,
-		},
-		{
-			errs:        []error{ObjectAccessDenied{}, new(ObjectAccessDenied)},
-			errVariable: ErrObjectAccessDenied,
-		},
-		{
-			errs:        []error{ObjectNotFound{}, new(ObjectNotFound)},
-			errVariable: ErrObjectNotFound,
-		},
-		{
-			errs:        []error{ObjectAlreadyRemoved{}, new(ObjectAlreadyRemoved)},
-			errVariable: ErrObjectAlreadyRemoved,
-		},
-		{
-			errs:        []error{ObjectOutOfRange{}, new(ObjectOutOfRange)},
-			errVariable: ErrObjectOutOfRange,
-		},
-
-		{
-			errs:        []error{ContainerNotFound{}, new(ContainerNotFound)},
-			errVariable: ErrContainerNotFound,
-		},
-		{
-			errs:        []error{EACLNotFound{}, new(EACLNotFound)},
-			errVariable: ErrEACLNotFound,
-		},
-
-		{
-			errs:        []error{SessionTokenExpired{}, new(SessionTokenExpired)},
-			errVariable: ErrSessionTokenExpired,
-		},
-		{
-			errs:        []error{SessionTokenNotFound{}, new(SessionTokenNotFound)},
-			errVariable: ErrSessionTokenNotFound,
-		},
-
-		{
-			errs:        []error{UnrecognizedStatusV2{}, new(UnrecognizedStatusV2)},
-			errVariable: ErrUnrecognizedStatusV2,
-		},
-	} {
-		require.NotEmpty(t, tc.errs)
-		require.NotNil(t, tc.errVariable)
-
-		for i := range tc.errs {
-			require.ErrorIs(t, tc.errs[i], tc.errVariable)
-
-			wrapped := fmt.Errorf("some message %w", tc.errs[i])
-			require.ErrorIs(t, wrapped, tc.errVariable)
-
-			wrappedTwice := fmt.Errorf("another message %w", wrapped)
-			require.ErrorIs(t, wrappedTwice, tc.errVariable)
-		}
-	}
+func assertErrorIs[T error, PTR interface {
+	*T
+	error
+}](t testing.TB, constErr T) {
+	var e T
+	var pe PTR = &e
+	require.ErrorIs(t, e, e)
+	require.ErrorIs(t, e, pe)
+	require.ErrorIs(t, pe, e)
+	require.ErrorIs(t, pe, pe)
+	require.ErrorIs(t, e, apistatus.Error)
+	require.ErrorIs(t, e, constErr)
+	we := fmt.Errorf("wrapped %w", e)
+	require.ErrorIs(t, we, e)
+	require.ErrorIs(t, we, pe)
+	require.ErrorIs(t, we, apistatus.Error)
+	require.ErrorIs(t, we, constErr)
+	wwe := fmt.Errorf("again %w", e)
+	require.ErrorIs(t, wwe, e)
+	require.ErrorIs(t, wwe, pe)
+	require.ErrorIs(t, wwe, apistatus.Error)
+	require.ErrorIs(t, wwe, constErr)
 }

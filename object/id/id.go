@@ -2,92 +2,61 @@ package oid
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 
 	"github.com/mr-tron/base58"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 )
 
 // ID represents NeoFS object identifier in a container.
 //
-// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ObjectID
-// message. See ReadFromV2 / WriteToV2 methods.
+// ID implements built-in comparable interface.
+//
+// ID is mutually compatible with [refs.ObjectID] message. See [ID.ReadFromV2] /
+// [ID.WriteToV2] methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = ID([32]byte{}) // not recommended
 type ID [sha256.Size]byte
 
-// ReadFromV2 reads ID from the refs.ObjectID message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol.
-//
-// See also WriteToV2.
-func (id *ID) ReadFromV2(m refs.ObjectID) error {
-	return id.Decode(m.GetValue())
-}
-
-// WriteToV2 writes ID to the refs.ObjectID message.
-// The message must not be nil.
-//
-// See also ReadFromV2.
-func (id ID) WriteToV2(m *refs.ObjectID) {
-	m.SetValue(id[:])
-}
-
-// Encode encodes ID into 32 bytes of dst. Panics if
-// dst length is less than 32.
-//
-// Zero ID is all zeros.
-//
-// See also Decode.
-func (id ID) Encode(dst []byte) {
-	if l := len(dst); l < sha256.Size {
-		panic(fmt.Sprintf("destination length is less than %d bytes: %d", sha256.Size, l))
+func (id *ID) decodeBinary(b []byte) error {
+	if len(b) != sha256.Size {
+		return fmt.Errorf("invalid value length %d", len(b))
 	}
-
-	copy(dst, id[:])
-}
-
-// Decode decodes src bytes into ID.
-//
-// Decode expects that src has 32 bytes length. If the input is malformed,
-// Decode returns an error describing format violation. In this case ID
-// remains unchanged.
-//
-// Decode doesn't mutate src.
-//
-// See also Encode.
-func (id *ID) Decode(src []byte) error {
-	if len(src) != 32 {
-		return fmt.Errorf("invalid length %d", len(src))
-	}
-
-	copy(id[:], src)
-
+	copy(id[:], b)
 	return nil
 }
 
-// SetSHA256 sets object identifier value to SHA256 checksum.
-func (id *ID) SetSHA256(v [sha256.Size]byte) {
-	copy(id[:], v[:])
+// ReadFromV2 reads ID from the [refs.ObjectID] message. Returns an error if the
+// message is malformed according to the NeoFS API V2 protocol. The message must
+// not be nil.
+//
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [ID.WriteToV2].
+func (id *ID) ReadFromV2(m *refs.ObjectID) error {
+	if len(m.Value) == 0 {
+		return errors.New("missing value field")
+	}
+	return id.decodeBinary(m.Value)
 }
 
-// Equals defines a comparison relation between two ID instances.
+// WriteToV2 writes ID to the [refs.ObjectID] message of the NeoFS API protocol.
 //
-// Note that comparison using '==' operator is not recommended since it MAY result
-// in loss of compatibility.
-func (id ID) Equals(id2 ID) bool {
-	return id == id2
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [ID.ReadFromV2].
+func (id ID) WriteToV2(m *refs.ObjectID) {
+	m.Value = id[:]
 }
 
 // EncodeToString encodes ID into NeoFS API protocol string.
 //
 // Zero ID is base58 encoding of 32 zeros.
 //
-// See also DecodeString.
+// See also [ID.DecodeString].
 func (id ID) EncodeToString() string {
 	return base58.Encode(id[:])
 }
@@ -95,73 +64,46 @@ func (id ID) EncodeToString() string {
 // DecodeString decodes string into ID according to NeoFS API protocol. Returns
 // an error if s is malformed.
 //
-// See also DecodeString.
+// See also [ID.EncodeToString].
 func (id *ID) DecodeString(s string) error {
-	data, err := base58.Decode(s)
-	if err != nil {
-		return fmt.Errorf("decode base58: %w", err)
+	var b []byte
+	if s != "" {
+		var err error
+		b, err = base58.Decode(s)
+		if err != nil {
+			return fmt.Errorf("decode base58: %w", err)
+		}
 	}
-
-	return id.Decode(data)
+	return id.decodeBinary(b)
 }
 
 // String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. String MAY return same result as [ID.EncodeToString]. String
+// MUST NOT be used to encode ID into NeoFS protocol string.
 func (id ID) String() string {
 	return id.EncodeToString()
 }
 
-// CalculateIDSignature signs object id with provided key.
-func (id ID) CalculateIDSignature(signer neofscrypto.Signer) (neofscrypto.Signature, error) {
-	data, err := id.Marshal()
-	if err != nil {
-		return neofscrypto.Signature{}, fmt.Errorf("marshal ID: %w", err)
+// Marshal encodes ID into a binary format of the NeoFS API protocol
+// (Protocol Buffers with direct field order).
+//
+// See also [ID.Unmarshal].
+func (id ID) Marshal() []byte {
+	var m refs.ObjectID
+	id.WriteToV2(&m)
+	b := make([]byte, m.MarshaledSize())
+	m.MarshalStable(b)
+	return b
+}
+
+// IsZero checks whether ID is zero.
+func (id ID) IsZero() bool {
+	for i := range id {
+		if id[i] != 0 {
+			return false
+		}
 	}
-
-	var sig neofscrypto.Signature
-
-	return sig, sig.Calculate(signer, data)
-}
-
-// Marshal marshals ID into a protobuf binary form.
-func (id ID) Marshal() ([]byte, error) {
-	var v2 refs.ObjectID
-	v2.SetValue(id[:])
-
-	return v2.StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of ID.
-func (id *ID) Unmarshal(data []byte) error {
-	var v2 refs.ObjectID
-	if err := v2.Unmarshal(data); err != nil {
-		return err
-	}
-
-	copy(id[:], v2.GetValue())
-
-	return nil
-}
-
-// MarshalJSON encodes ID to protobuf JSON format.
-func (id ID) MarshalJSON() ([]byte, error) {
-	var v2 refs.ObjectID
-	v2.SetValue(id[:])
-
-	return v2.MarshalJSON()
-}
-
-// UnmarshalJSON decodes ID from protobuf JSON format.
-func (id *ID) UnmarshalJSON(data []byte) error {
-	var v2 refs.ObjectID
-	if err := v2.UnmarshalJSON(data); err != nil {
-		return err
-	}
-
-	copy(id[:], v2.GetValue())
-
-	return nil
+	return true
 }

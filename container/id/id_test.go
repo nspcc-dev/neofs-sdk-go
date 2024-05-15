@@ -1,109 +1,113 @@
 package cid_test
 
 import (
-	"crypto/sha256"
-	"math/rand"
 	"testing"
 
-	"github.com/mr-tron/base58"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/stretchr/testify/require"
 )
 
-func randSHA256Checksum() (cs [sha256.Size]byte) {
-	//nolint:staticcheck
-	rand.Read(cs[:])
-	return
+func TestIDComparable(t *testing.T) {
+	id1 := cidtest.ID()
+	require.True(t, id1 == id1)
+	id2 := cidtest.ChangeID(id1)
+	require.NotEqual(t, id1, id2)
+	require.False(t, id1 == id2)
 }
 
-const emptyID = "11111111111111111111111111111111"
+func TestID_ReadFromV2(t *testing.T) {
+	t.Run("missing fields", func(t *testing.T) {
+		t.Run("value", func(t *testing.T) {
+			id := cidtest.ID()
+			var m refs.ContainerID
 
-func TestID_ToV2(t *testing.T) {
-	t.Run("non-zero", func(t *testing.T) {
-		checksum := randSHA256Checksum()
-
-		id := cidtest.IDWithChecksum(checksum)
-
-		var idV2 refs.ContainerID
-		id.WriteToV2(&idV2)
-
-		var newID cid.ID
-		require.NoError(t, newID.ReadFromV2(idV2))
-
-		require.Equal(t, id, newID)
-		require.Equal(t, checksum[:], idV2.GetValue())
+			id.WriteToV2(&m)
+			m.Value = nil
+			require.ErrorContains(t, id.ReadFromV2(&m), "missing value field")
+			m.Value = []byte{}
+			require.ErrorContains(t, id.ReadFromV2(&m), "missing value field")
+		})
 	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("value", func(t *testing.T) {
+			id := cidtest.ID()
+			var m refs.ContainerID
 
-	t.Run("zero", func(t *testing.T) {
-		var (
-			x  cid.ID
-			v2 refs.ContainerID
-		)
-
-		x.WriteToV2(&v2)
-		require.Equal(t, emptyID, base58.Encode(v2.GetValue()))
-	})
-}
-
-func TestID_Equal(t *testing.T) {
-	cs := randSHA256Checksum()
-
-	id1 := cidtest.IDWithChecksum(cs)
-	id2 := cidtest.IDWithChecksum(cs)
-
-	require.True(t, id1.Equals(id2))
-
-	id3 := cidtest.ID()
-
-	require.False(t, id1.Equals(id3))
-}
-
-func TestID_String(t *testing.T) {
-	t.Run("DecodeString/EncodeToString", func(t *testing.T) {
-		id := cidtest.ID()
-		var id2 cid.ID
-
-		require.NoError(t, id2.DecodeString(id.EncodeToString()))
-		require.Equal(t, id, id2)
-	})
-
-	t.Run("zero", func(t *testing.T) {
-		var id cid.ID
-
-		require.Equal(t, emptyID, id.EncodeToString())
+			id.WriteToV2(&m)
+			m.Value = make([]byte, 31)
+			require.ErrorContains(t, id.ReadFromV2(&m), "invalid value length 31")
+			m.Value = make([]byte, 33)
+			require.ErrorContains(t, id.ReadFromV2(&m), "invalid value length 33")
+		})
 	})
 }
 
-func TestNewFromV2(t *testing.T) {
-	t.Run("from zero", func(t *testing.T) {
-		var (
-			x  cid.ID
-			v2 refs.ContainerID
-		)
-
-		require.Error(t, x.ReadFromV2(v2))
-	})
-}
-
-func TestID_Encode(t *testing.T) {
+func TestID_DecodeString(t *testing.T) {
 	var id cid.ID
 
-	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, sha256.Size-1)
+	const zeroIDString = "11111111111111111111111111111111"
+	require.Equal(t, zeroIDString, id.EncodeToString())
+	id = cidtest.ChangeID(id)
+	require.NoError(t, id.DecodeString(zeroIDString))
+	require.Equal(t, zeroIDString, id.EncodeToString())
+	require.Zero(t, id)
 
-		require.Panics(t, func() {
-			id.Encode(dst)
+	var bin = [32]byte{231, 129, 236, 104, 74, 71, 155, 100, 72, 209, 186, 80, 2, 184, 9, 161, 10, 76, 18, 203, 126, 94, 101, 42, 157, 211, 66, 99, 247, 143, 226, 23}
+	const str = "Gai5pjZVewwmscQ5UczQbj2W8Wkh9d1BGUoRNzjR6QCN"
+	require.NoError(t, id.DecodeString(str))
+	require.Equal(t, str, id.EncodeToString())
+	require.EqualValues(t, bin, id)
+
+	var binOther = [32]byte{216, 146, 23, 99, 156, 90, 232, 244, 202, 213, 0, 92, 22, 194, 164, 150, 233, 163, 175, 199, 187, 45, 65, 7, 190, 124, 77, 99, 8, 172, 36, 112}
+	const strOther = "FaQGU3PHuHjhHbce1u8AuHuabx4Ra9CxREsMcZffXwM1"
+	require.NoError(t, id.DecodeString(strOther))
+	require.Equal(t, strOther, id.EncodeToString())
+	require.EqualValues(t, binOther, id)
+
+	t.Run("invalid", func(t *testing.T) {
+		var id cid.ID
+		for _, testCase := range []struct{ input, err string }{
+			{input: "not_a_base58_string", err: "decode base58"},
+			{input: "", err: "invalid value length 0"},
+			{input: "qxAE9SLuDq7dARPAFaWG6vbuGoocwoTn19LK5YVqnS", err: "invalid value length 31"},
+			{input: "HJJEkEKthnvMw7NsZNgzBEQ4tf9AffmaBYWxfBULvvbPW", err: "invalid value length 33"},
+		} {
+			require.ErrorContains(t, id.DecodeString(testCase.input), testCase.err, testCase)
+		}
+	})
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("api", func(t *testing.T) {
+			var src, dst cid.ID
+			var msg refs.ContainerID
+
+			require.NoError(t, dst.DecodeString(str))
+
+			src.WriteToV2(&msg)
+			require.Equal(t, make([]byte, 32), msg.Value)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.Zero(t, dst)
+			require.Equal(t, zeroIDString, dst.EncodeToString())
+
+			require.NoError(t, src.DecodeString(str))
+
+			src.WriteToV2(&msg)
+			require.Equal(t, bin[:], msg.Value)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.EqualValues(t, bin, dst)
+			require.Equal(t, str, dst.EncodeToString())
 		})
 	})
+}
 
-	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, sha256.Size)
-
-		require.NotPanics(t, func() {
-			id.Encode(dst)
-		})
-		require.Equal(t, emptyID, id.EncodeToString())
-	})
+func TestID_IsZero(t *testing.T) {
+	var id cid.ID
+	require.True(t, id.IsZero())
+	for i := range id {
+		id2 := id
+		id2[i]++
+		require.False(t, id2.IsZero())
+	}
 }

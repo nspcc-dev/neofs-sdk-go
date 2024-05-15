@@ -4,7 +4,6 @@ import (
 	"errors"
 
 	"github.com/nspcc-dev/hrw/v2"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
 // context of a placement build process.
@@ -13,10 +12,10 @@ type context struct {
 	netMap NetMap
 
 	// cache of processed filters
-	processedFilters map[string]*netmap.Filter
+	processedFilters map[string]*Filter
 
 	// cache of processed selectors
-	processedSelectors map[string]*netmap.Selector
+	processedSelectors map[string]*Selector
 
 	// stores results of selector processing
 	selections map[string][]nodes
@@ -52,8 +51,8 @@ var (
 func newContext(nm NetMap) *context {
 	return &context{
 		netMap:             nm,
-		processedFilters:   make(map[string]*netmap.Filter),
-		processedSelectors: make(map[string]*netmap.Selector),
+		processedFilters:   make(map[string]*Filter),
+		processedSelectors: make(map[string]*Selector),
 		selections:         make(map[string][]nodes),
 
 		numCache:   make(map[string]uint64),
@@ -81,7 +80,7 @@ func defaultWeightFunc(ns nodes) weightFunc {
 	min := newMinAgg()
 
 	for i := range ns {
-		mean.Add(float64(ns[i].capacity()))
+		mean.Add(float64(ns[i].Capacity()))
 		min.Add(float64(ns[i].Price()))
 	}
 
