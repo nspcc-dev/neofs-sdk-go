@@ -1,5 +1,49 @@
 # Changelog
 
+## [1.0.0-rc.12] - 2024-05-29
+
+RC12 brings some protocol updates, new dependencies and solves a number of
+bugs. There are some very minor API changes, mostly it's compatible with
+RC11. No further API changes are planned.
+
+New features:
+ * verified node domains support (#523)
+ * LOCODE getters for node info (#534)
+ * binary object replication support (#535, #565)
+ * numeric matches for SEARCH queries (#550)
+ * numeric matches for EACLs (#554, #573)
+ * new split object scheme support (#543, #560, #566, #575)
+ * explicit issuer field in bearer token, new SetSignature method (#564)
+ * additional methods for things that were previously only provided by
+   neofs-api-go module (#570)
+ * container version getter (#581)
+
+Behaviour changes:
+ * minimal required Go is 1.20 now (#522, #559)
+ * parameterized constructor for attributes (#528)
+ * header size limit (#558)
+ * removal of notification functionality (#557)
+
+Improvements:
+ * updated github.com/hashicorp/golang-lru dependency to v2.0.7 (#522, #527)
+ * updated go.uber.org/zap dependency to v1.27.0 (#522, #559)
+ * updated github.com/nspcc-dev/tzhash dependency to v1.7.2 (#524, #559)
+ * buffer reuse in slicer (#525)
+ * per-key node session caches in pool (#527)
+ * updated github.com/nspcc-dev/hrw/v2 dependency to v2.0.1 (#529, #559)
+ * buffer size hints for slicer (#539)
+ * updated github.com/nspcc-dev/neo-go dependency to v0.106.0 (#559, #584)
+ * updated google.golang.org/grpc dependency to v1.62.0 (#559)
+ * updated google.golang.org/protobuf dependency to v1.33.0 (#559, #569)
+ * updated golang.org/x/net dependency to 0.23.0 (#579)
+
+Bugs fixed:
+ * incorrect number of objectGetStream, objectRangeStream, objectPutStream,
+   objectSearchStream events counted (#521)
+ * error not returned from object writer in some cases (#521)
+ * pool failed to restart temporary unhealthy clients (#521)
+ * panic in xheaders handler (#582)
+
 ## [1.0.0-rc.11] - 2023-09-07
 
 We've received some valuable feedback and improved some aspects of SDK API in
@@ -199,6 +243,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.12]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.11...v1.0.0-rc.12
 [1.0.0-rc.11]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.10...v1.0.0-rc.11
 [1.0.0-rc.10]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.9...v1.0.0-rc.10
 [1.0.0-rc.9]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.8...v1.0.0-rc.9
