@@ -4,17 +4,31 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	"github.com/nspcc-dev/neofs-sdk-go/api/status"
 )
 
-// StatusV2 defines a variety of status instances compatible with NeoFS API V2 protocol.
+const (
+	errFmtNoMessage = "status: code = %v (%s)"
+	errFmt          = errFmtNoMessage + " message = %s"
+)
+
+// errorIs checks whether target is of type T, *T or [Error].
+func errorIs[T error, PTR *T](_ T, target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case T, PTR:
+		return true
+	}
+}
+
+// StatusV2 defines a variety of status instances compatible with NeoFS API V2
+// protocol.
 //
 // Note: it is not recommended to use this type directly, it is intended for documentation of the library functionality.
 type StatusV2 interface {
-	// ErrorToV2 returns the status as github.com/nspcc-dev/neofs-api-go/v2/status.Status message structure.
+	error
+	// ErrorToV2 returns the status as [status.Status] message structure.
 	ErrorToV2() *status.Status
 }
 
@@ -30,100 +44,127 @@ type StatusV2 interface {
 //   - [status.OK]: nil (this also includes nil argument).
 //
 // Common failures:
-//   - [status.Internal]: *[ServerInternal];
-//   - [status.SignatureVerificationFail]: *[SignatureVerification].
-//   - [status.WrongMagicNumber]: *[WrongMagicNumber].
-//   - [status.NodeUnderMaintenance]: *[NodeUnderMaintenance].
+//   - [status.InternalServerError]: [InternalServerError];
+//   - [status.SignatureVerificationFail]: [SignatureVerification].
+//   - [status.WrongMagicNumber]: [WrongMagicNumber].
+//   - [status.NodeUnderMaintenance]: [NodeUnderMaintenance].
 //
 // Object failures:
-//   - [object.StatusLocked]: *[ObjectLocked];
-//   - [object.StatusLockNonRegularObject]: *[LockNonRegularObject].
-//   - [object.StatusAccessDenied]: *[ObjectAccessDenied].
-//   - [object.StatusNotFound]: *[ObjectNotFound].
-//   - [object.StatusAlreadyRemoved]: *[ObjectAlreadyRemoved].
-//   - [object.StatusOutOfRange]: *[ObjectOutOfRange].
+//   - [status.ObjectLocked]: [ObjectLocked];
+//   - [status.LockIrregularObject]: [LockNonRegularObject].
+//   - [status.ObjectAccessDenied]: [ObjectAccessDenied].
+//   - [status.ObjectNotFound]: [ObjectNotFound].
+//   - [status.ObjectAlreadyRemoved]: [ObjectAlreadyRemoved].
+//   - [status.OutOfRange]: [ObjectOutOfRange].
 //
 // Container failures:
-//   - [container.StatusNotFound]: *[ContainerNotFound];
-//   - [container.StatusEACLNotFound]: *[EACLNotFound];
+//   - [status.ContainerNotFound]: [ContainerNotFound];
+//   - [status.EACLNotFound]: [EACLNotFound];
 //
 // Session failures:
-//   - [session.StatusTokenNotFound]: *[SessionTokenNotFound];
-//   - [session.StatusTokenExpired]: *[SessionTokenExpired];
-func ErrorFromV2(st *status.Status) error {
-	var decoder interface {
-		fromStatusV2(*status.Status)
-		Error() string
+//   - [status.SessionTokenNotFound]: [SessionTokenNotFound];
+//   - [status.SessionTokenExpired]: [SessionTokenExpired];
+func ErrorFromV2(st *status.Status) (StatusV2, error) {
+	switch st.GetCode() {
+	default:
+		return unrecognizedStatusV2{st.Code, st.Message, st.Details}, nil
+	case status.OK:
+		return nil, nil
+	case status.InternalServerError:
+		var e InternalServerError
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid internal server error status: %w", err)
+		}
+		return e, nil
+	case status.WrongNetMagic:
+		var e WrongNetMagic
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid wrong network magic status: %w", err)
+		}
+		return e, nil
+	case status.SignatureVerificationFail:
+		var e SignatureVerificationFailure
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid signature verification failure status: %w", err)
+		}
+		return e, nil
+	case status.NodeUnderMaintenance:
+		var e NodeUnderMaintenance
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid node maintenance status: %w", err)
+		}
+		return e, nil
+	case status.ObjectAccessDenied:
+		var e ObjectAccessDenied
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid object access denial status: %w", err)
+		}
+		return e, nil
+	case status.ObjectNotFound:
+		var e ObjectNotFound
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid missing object status: %w", err)
+		}
+		return e, nil
+	case status.ObjectLocked:
+		var e ObjectLocked
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid locked object status: %w", err)
+		}
+		return e, nil
+	case status.LockIrregularObject:
+		var e LockIrregularObject
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid locking irregular object status: %w", err)
+		}
+		return e, nil
+	case status.ObjectAlreadyRemoved:
+		var e ObjectAlreadyRemoved
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid already removed object status: %w", err)
+		}
+		return e, nil
+	case status.OutOfRange:
+		var e ObjectOutOfRange
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid out-of-range status: %w", err)
+		}
+		return e, nil
+	case status.ContainerNotFound:
+		var e ContainerNotFound
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid missing container status: %w", err)
+		}
+		return e, nil
+	case status.EACLNotFound:
+		var e EACLNotFound
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid missing eACL status: %w", err)
+		}
+		return e, nil
+	case status.SessionTokenNotFound:
+		var e SessionTokenNotFound
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid missing session token status: %w", err)
+		}
+		return e, nil
+	case status.SessionTokenExpired:
+		var e SessionTokenExpired
+		if err := e.readFromV2(st); err != nil {
+			return nil, fmt.Errorf("invalid expired session token status: %w", err)
+		}
+		return e, nil
 	}
-
-	switch code := st.Code(); {
-	case status.IsSuccess(code):
-		//nolint:exhaustive
-		switch status.LocalizeSuccess(&code); code {
-		case status.OK:
-			return nil
-		}
-	case status.IsCommonFail(code):
-		switch status.LocalizeCommonFail(&code); code {
-		case status.Internal:
-			decoder = new(ServerInternal)
-		case status.WrongMagicNumber:
-			decoder = new(WrongMagicNumber)
-		case status.SignatureVerificationFail:
-			decoder = new(SignatureVerification)
-		case status.NodeUnderMaintenance:
-			decoder = new(NodeUnderMaintenance)
-		}
-	case object.LocalizeFailStatus(&code):
-		switch code {
-		case object.StatusLocked:
-			decoder = new(ObjectLocked)
-		case object.StatusLockNonRegularObject:
-			decoder = new(LockNonRegularObject)
-		case object.StatusAccessDenied:
-			decoder = new(ObjectAccessDenied)
-		case object.StatusNotFound:
-			decoder = new(ObjectNotFound)
-		case object.StatusAlreadyRemoved:
-			decoder = new(ObjectAlreadyRemoved)
-		case object.StatusOutOfRange:
-			decoder = new(ObjectOutOfRange)
-		}
-	case container.LocalizeFailStatus(&code):
-		//nolint:exhaustive
-		switch code {
-		case container.StatusNotFound:
-			decoder = new(ContainerNotFound)
-		case container.StatusEACLNotFound:
-			decoder = new(EACLNotFound)
-		}
-	case session.LocalizeFailStatus(&code):
-		//nolint:exhaustive
-		switch code {
-		case session.StatusTokenNotFound:
-			decoder = new(SessionTokenNotFound)
-		case session.StatusTokenExpired:
-			decoder = new(SessionTokenExpired)
-		}
-	}
-
-	if decoder == nil {
-		decoder = new(UnrecognizedStatusV2)
-	}
-
-	decoder.fromStatusV2(st)
-
-	return decoder
 }
 
 // ErrorToV2 converts error to status.Status message structure. Inverse to [ErrorFromV2] operation.
 //
-// If argument is the [StatusV2] instance, it is converted directly.
-// Otherwise, successes are converted with [status.OK] code w/o details and message,
-// failures - with [status.Internal] and error text message w/o details.
+// If argument is the [StatusV2] instance, it is converted directly. Otherwise,
+// successes are returned as nil, failures - with [status.Internal] and error
+// text message w/o details.
 func ErrorToV2(err error) *status.Status {
 	if err == nil {
-		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
+		return nil
 	}
 
 	var instance StatusV2
@@ -131,34 +172,5 @@ func ErrorToV2(err error) *status.Status {
 		return instance.ErrorToV2()
 	}
 
-	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
-	internalErrorStatus.SetMessage(err.Error())
-
-	return internalErrorStatus
-}
-
-func errMessageStatusV2(code any, msg string) string {
-	const (
-		noMsgFmt = "status: code = %v"
-		msgFmt   = noMsgFmt + " message = %s"
-	)
-
-	if msg != "" {
-		return fmt.Sprintf(msgFmt, code, msg)
-	}
-
-	return fmt.Sprintf(noMsgFmt, code)
-}
-
-func newStatusV2WithLocalCode(code status.Code, globalizer func(*status.Code)) *status.Status {
-	var st status.Status
-
-	st.SetCode(globalizeCodeV2(code, globalizer))
-
-	return &st
-}
-
-func globalizeCodeV2(code status.Code, globalizer func(*status.Code)) status.Code {
-	globalizer(&code)
-	return code
+	return &status.Status{Code: status.InternalServerError, Message: err.Error()}
 }

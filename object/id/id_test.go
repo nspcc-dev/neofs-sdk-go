@@ -1,182 +1,128 @@
-package oid
+package oid_test
 
 import (
-	"crypto/rand"
-	"crypto/sha256"
-	"strconv"
 	"testing"
 
-	"github.com/mr-tron/base58"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
-const emptyID = "11111111111111111111111111111111"
-
-func randID(t *testing.T) ID {
-	var id ID
-	id.SetSHA256(randSHA256Checksum(t))
-
-	return id
+func TestIDComparable(t *testing.T) {
+	id1 := oidtest.ID()
+	require.True(t, id1 == id1)
+	id2 := oidtest.ChangeID(id1)
+	require.NotEqual(t, id1, id2)
+	require.False(t, id1 == id2)
 }
 
-func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
-	_, err := rand.Read(cs[:])
-	require.NoError(t, err)
+func TestID_ReadFromV2(t *testing.T) {
+	t.Run("missing fields", func(t *testing.T) {
+		t.Run("value", func(t *testing.T) {
+			id := oidtest.ID()
+			var m refs.ObjectID
 
-	return
-}
-
-func TestIDV2(t *testing.T) {
-	var id ID
-
-	checksum := [sha256.Size]byte{}
-
-	_, err := rand.Read(checksum[:])
-	require.NoError(t, err)
-
-	id.SetSHA256(checksum)
-
-	var idV2 refs.ObjectID
-	id.WriteToV2(&idV2)
-
-	require.Equal(t, checksum[:], idV2.GetValue())
-}
-
-func TestID_Equal(t *testing.T) {
-	cs := randSHA256Checksum(t)
-
-	var id1 ID
-	id1.SetSHA256(cs)
-
-	var id2 ID
-	id2.SetSHA256(cs)
-
-	var id3 ID
-	id3.SetSHA256(randSHA256Checksum(t))
-
-	require.True(t, id1.Equals(id2))
-	require.False(t, id1.Equals(id3))
-}
-
-func TestID_Parse(t *testing.T) {
-	t.Run("should parse successful", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				cs := randSHA256Checksum(t)
-				str := base58.Encode(cs[:])
-				var oid ID
-
-				require.NoError(t, oid.DecodeString(str))
-
-				var oidV2 refs.ObjectID
-				oid.WriteToV2(&oidV2)
-
-				require.Equal(t, cs[:], oidV2.GetValue())
-			})
-		}
-	})
-
-	t.Run("should failure on parse", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			j := i
-			t.Run(strconv.Itoa(j), func(t *testing.T) {
-				cs := []byte{1, 2, 3, 4, 5, byte(j)}
-				str := base58.Encode(cs)
-				var oid ID
-
-				require.Error(t, oid.DecodeString(str))
-			})
-		}
-	})
-}
-
-func TestID_String(t *testing.T) {
-	t.Run("zero", func(t *testing.T) {
-		var id ID
-		require.Equal(t, emptyID, id.EncodeToString())
-	})
-
-	t.Run("should be equal", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				cs := randSHA256Checksum(t)
-				str := base58.Encode(cs[:])
-				var oid ID
-
-				require.NoError(t, oid.DecodeString(str))
-				require.Equal(t, str, oid.EncodeToString())
-			})
-		}
-	})
-}
-
-func TestObjectIDEncoding(t *testing.T) {
-	id := randID(t)
-
-	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
-
-		var id2 ID
-		require.NoError(t, id2.Unmarshal(data))
-
-		require.Equal(t, id, id2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := id.MarshalJSON()
-		require.NoError(t, err)
-
-		var id2 ID
-		require.NoError(t, id2.UnmarshalJSON(data))
-
-		require.Equal(t, id, id2)
-	})
-}
-
-func TestNewIDFromV2(t *testing.T) {
-	t.Run("from zero", func(t *testing.T) {
-		var (
-			x  ID
-			v2 refs.ObjectID
-		)
-
-		require.Error(t, x.ReadFromV2(v2))
-	})
-}
-
-func TestID_ToV2(t *testing.T) {
-	t.Run("zero to v2", func(t *testing.T) {
-		var (
-			x  ID
-			v2 refs.ObjectID
-		)
-
-		x.WriteToV2(&v2)
-
-		require.Equal(t, sha256.Size, len(v2.GetValue()))
-		require.Equal(t, emptyID, base58.Encode(v2.GetValue()))
-	})
-}
-
-func TestID_Encode(t *testing.T) {
-	var id ID
-
-	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, sha256.Size-1)
-
-		require.Panics(t, func() {
-			id.Encode(dst)
+			id.WriteToV2(&m)
+			m.Value = nil
+			require.ErrorContains(t, id.ReadFromV2(&m), "missing value field")
+			m.Value = []byte{}
+			require.ErrorContains(t, id.ReadFromV2(&m), "missing value field")
 		})
 	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("value", func(t *testing.T) {
+			id := oidtest.ID()
+			var m refs.ObjectID
 
-	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, sha256.Size)
-
-		require.NotPanics(t, func() {
-			id.Encode(dst)
+			id.WriteToV2(&m)
+			m.Value = make([]byte, 31)
+			require.ErrorContains(t, id.ReadFromV2(&m), "invalid value length 31")
+			m.Value = make([]byte, 33)
+			require.ErrorContains(t, id.ReadFromV2(&m), "invalid value length 33")
 		})
-		require.Equal(t, emptyID, id.EncodeToString())
 	})
+}
+
+func TestID_DecodeString(t *testing.T) {
+	var id oid.ID
+
+	const zeroIDString = "11111111111111111111111111111111"
+	require.Equal(t, zeroIDString, id.EncodeToString())
+	id = oidtest.ChangeID(id)
+	require.NoError(t, id.DecodeString(zeroIDString))
+	require.Equal(t, zeroIDString, id.EncodeToString())
+	require.Zero(t, id)
+
+	var bin = [32]byte{231, 129, 236, 104, 74, 71, 155, 100, 72, 209, 186, 80, 2, 184, 9, 161, 10, 76, 18, 203, 126, 94, 101, 42, 157, 211, 66, 99, 247, 143, 226, 23}
+	const str = "Gai5pjZVewwmscQ5UczQbj2W8Wkh9d1BGUoRNzjR6QCN"
+	require.NoError(t, id.DecodeString(str))
+	require.Equal(t, str, id.EncodeToString())
+	require.EqualValues(t, bin, id)
+
+	var binOther = [32]byte{216, 146, 23, 99, 156, 90, 232, 244, 202, 213, 0, 92, 22, 194, 164, 150, 233, 163, 175, 199, 187, 45, 65, 7, 190, 124, 77, 99, 8, 172, 36, 112}
+	const strOther = "FaQGU3PHuHjhHbce1u8AuHuabx4Ra9CxREsMcZffXwM1"
+	require.NoError(t, id.DecodeString(strOther))
+	require.Equal(t, strOther, id.EncodeToString())
+	require.EqualValues(t, binOther, id)
+
+	t.Run("invalid", func(t *testing.T) {
+		var id oid.ID
+		for _, testCase := range []struct{ input, err string }{
+			{input: "not_a_base58_string", err: "decode base58"},
+			{input: "", err: "invalid value length 0"},
+			{input: "qxAE9SLuDq7dARPAFaWG6vbuGoocwoTn19LK5YVqnS", err: "invalid value length 31"},
+			{input: "HJJEkEKthnvMw7NsZNgzBEQ4tf9AffmaBYWxfBULvvbPW", err: "invalid value length 33"},
+		} {
+			require.ErrorContains(t, id.DecodeString(testCase.input), testCase.err, testCase)
+		}
+	})
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src oid.ID
+			var msg refs.ObjectID
+
+			msg.Value = []byte("any")
+
+			require.NoError(t, proto.Unmarshal(src.Marshal(), &msg))
+			require.Equal(t, make([]byte, 32), msg.Value)
+
+			require.NoError(t, src.DecodeString(str))
+
+			require.NoError(t, proto.Unmarshal(src.Marshal(), &msg))
+			require.Equal(t, bin[:], msg.Value)
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst oid.ID
+			var msg refs.ObjectID
+
+			require.NoError(t, dst.DecodeString(str))
+
+			src.WriteToV2(&msg)
+			require.Equal(t, make([]byte, 32), msg.Value)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.Zero(t, dst)
+			require.Equal(t, zeroIDString, dst.EncodeToString())
+
+			require.NoError(t, src.DecodeString(str))
+
+			src.WriteToV2(&msg)
+			require.Equal(t, bin[:], msg.Value)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.EqualValues(t, bin, dst)
+			require.Equal(t, str, dst.EncodeToString())
+		})
+	})
+}
+
+func TestID_IsZero(t *testing.T) {
+	var id oid.ID
+	require.True(t, id.IsZero())
+	for i := range id {
+		id2 := id
+		id2[i]++
+		require.False(t, id2.IsZero())
+	}
 }

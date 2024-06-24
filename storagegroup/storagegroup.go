@@ -1,87 +1,29 @@
 package storagegroup
 
 import (
-	"errors"
 	"fmt"
-	"strconv"
 
-	objectV2 "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/storagegroup"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
-	objectSDK "github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"google.golang.org/protobuf/proto"
 )
 
-// StorageGroup represents storage group of the NeoFS objects.
+// StorageGroup represents storage group of the NeoFS objects. StorageGroup is
+// stored and transmitted as payload of system NeoFS objects.
 //
-// StorageGroup is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/storagegroup.StorageGroup
-// message. See ReadFromMessageV2 / WriteToMessageV2 methods.
+// StorageGroup is mutually compatible with [storagegroup.StorageGroup] message.
+// See [StorageGroup.ReadFromV2] / [StorageGroup.WriteToV2] methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
-type StorageGroup storagegroup.StorageGroup
+type StorageGroup struct {
+	sz  uint64
+	exp uint64
+	ids []oid.ID
 
-// reads StorageGroup from the storagegroup.StorageGroup message. If checkFieldPresence is set,
-// returns an error on absence of any protocol-required field.
-func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresence bool) error {
-	var err error
-
-	h := m.GetValidationHash()
-	if h != nil {
-		err = new(checksum.Checksum).ReadFromV2(*h)
-		if err != nil {
-			return fmt.Errorf("invalid hash: %w", err)
-		}
-	} else if checkFieldPresence {
-		return errors.New("missing hash")
-	}
-
-	members := m.GetMembers()
-	if len(members) > 0 {
-		var member oid.ID
-		mMembers := make(map[oid.ID]struct{}, len(members))
-		var exits bool
-
-		for i := range members {
-			err = member.ReadFromV2(members[i])
-			if err != nil {
-				return fmt.Errorf("invalid member: %w", err)
-			}
-
-			_, exits = mMembers[member]
-			if exits {
-				return fmt.Errorf("duplicated member %s", member)
-			}
-
-			mMembers[member] = struct{}{}
-		}
-	} else if checkFieldPresence {
-		return errors.New("missing members")
-	}
-
-	*sg = StorageGroup(m)
-
-	return nil
-}
-
-// ReadFromV2 reads StorageGroup from the storagegroup.StorageGroup message.
-// Checks if the message conforms to NeoFS API V2 protocol.
-//
-// See also WriteToV2.
-func (sg *StorageGroup) ReadFromV2(m storagegroup.StorageGroup) error {
-	return sg.readFromV2(m, true)
-}
-
-// WriteToV2 writes StorageGroup to the storagegroup.StorageGroup message.
-// The message must not be nil.
-//
-// See also ReadFromV2.
-func (sg StorageGroup) WriteToV2(m *storagegroup.StorageGroup) {
-	*m = (storagegroup.StorageGroup)(sg)
+	csSet bool
+	cs    checksum.Checksum
 }
 
 // ValidationDataSize returns total size of the payloads
@@ -89,18 +31,17 @@ func (sg StorageGroup) WriteToV2(m *storagegroup.StorageGroup) {
 //
 // Zero StorageGroup has 0 data size.
 //
-// See also SetValidationDataSize.
+// See also [StorageGroup.SetValidationDataSize].
 func (sg StorageGroup) ValidationDataSize() uint64 {
-	v2 := (storagegroup.StorageGroup)(sg)
-	return v2.GetValidationDataSize()
+	return sg.sz
 }
 
 // SetValidationDataSize sets total size of the payloads
 // of objects in the storage group.
 //
-// See also ValidationDataSize.
-func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
-	(*storagegroup.StorageGroup)(sg).SetValidationDataSize(epoch)
+// See also [StorageGroup.ValidationDataSize].
+func (sg *StorageGroup) SetValidationDataSize(sz uint64) {
+	sg.sz = sz
 }
 
 // ValidationDataHash returns homomorphic hash from the
@@ -108,224 +49,193 @@ func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 // and bool that indicates checksum presence in the storage
 // group.
 //
-// Zero StorageGroup does not have validation data checksum.
+// Zero StorageGroup does not have validation data checksum (zero type).
 //
-// See also SetValidationDataHash.
-func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum, isSet bool) {
-	v2 := (storagegroup.StorageGroup)(sg)
-	if checksumV2 := v2.GetValidationHash(); checksumV2 != nil {
-		err := v.ReadFromV2(*checksumV2)
-		isSet = (err == nil)
+// See also [StorageGroup.SetValidationDataHash].
+func (sg StorageGroup) ValidationDataHash() checksum.Checksum {
+	if sg.csSet {
+		return sg.cs
 	}
-
-	return
+	return checksum.Checksum{}
 }
 
 // SetValidationDataHash sets homomorphic hash from the
 // concatenation of the payloads of the storage group members.
 //
-// See also ValidationDataHash.
+// See also [StorageGroup.ValidationDataHash].
 func (sg *StorageGroup) SetValidationDataHash(hash checksum.Checksum) {
-	var v2 refs.Checksum
-	hash.WriteToV2(&v2)
-
-	(*storagegroup.StorageGroup)(sg).SetValidationHash(&v2)
+	sg.cs, sg.csSet = hash, true
 }
 
-// ExpirationEpoch returns last NeoFS epoch number
-// of the storage group lifetime.
+// Members returns strictly ordered list of storage group member objects.
 //
-// Zero StorageGroup has 0 expiration epoch.
+// Zero StorageGroup has no members.
 //
-// See also SetExpirationEpoch.
-func (sg StorageGroup) ExpirationEpoch() uint64 {
-	v2 := (storagegroup.StorageGroup)(sg)
-	// nolint:staticcheck
-	return v2.GetExpirationEpoch()
-}
-
-// SetExpirationEpoch sets last NeoFS epoch number
-// of the storage group lifetime.
-//
-// See also ExpirationEpoch.
-func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
-	// nolint:staticcheck
-	(*storagegroup.StorageGroup)(sg).SetExpirationEpoch(epoch)
-}
-
-// Members returns strictly ordered list of
-// storage group member objects.
-//
-// Zero StorageGroup has nil members value.
-//
-// See also SetMembers.
+// See also [StorageGroup.SetMembers].
 func (sg StorageGroup) Members() []oid.ID {
-	v2 := (storagegroup.StorageGroup)(sg)
-	mV2 := v2.GetMembers()
-
-	if mV2 == nil {
-		return nil
-	}
-
-	m := make([]oid.ID, len(mV2))
-
-	for i := range mV2 {
-		_ = m[i].ReadFromV2(mV2[i])
-	}
-
-	return m
+	return sg.ids
 }
 
 // SetMembers sets strictly ordered list of
 // storage group member objects.
 //
-// See also Members.
+// See also [StorageGroup.Members].
 func (sg *StorageGroup) SetMembers(members []oid.ID) {
-	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
+	sg.ids = members
+}
 
-	if members == nil {
-		mV2 = nil
-	} else {
-		ln := len(members)
+// Marshal encodes StorageGroup into a Protocol Buffers V3 binary format.
+//
+// See also [StorageGroup.Unmarshal].
+func (sg StorageGroup) Marshal() []byte {
+	m := storagegroup.StorageGroup{
+		ValidationDataSize: sg.sz,
+		ExpirationEpoch:    sg.exp,
+	}
 
-		if cap(mV2) >= ln {
-			mV2 = mV2[:0]
-		} else {
-			mV2 = make([]refs.ObjectID, 0, ln)
-		}
+	if sg.csSet {
+		m.ValidationHash = new(refs.Checksum)
+		sg.cs.WriteToV2(m.ValidationHash)
+	}
 
-		var oidV2 refs.ObjectID
-
-		for i := 0; i < ln; i++ {
-			members[i].WriteToV2(&oidV2)
-			mV2 = append(mV2, oidV2)
+	if sg.ids != nil {
+		m.Members = make([]*refs.ObjectID, len(sg.ids))
+		for i := range sg.ids {
+			m.Members[i] = new(refs.ObjectID)
+			sg.ids[i].WriteToV2(m.Members[i])
 		}
 	}
 
-	(*storagegroup.StorageGroup)(sg).SetMembers(mV2)
+	b, err := proto.Marshal(&m)
+	if err != nil {
+		// while it is bad to panic on external package return, we can do nothing better
+		// for this case: how can a normal message not be encoded?
+		panic(fmt.Errorf("unexpected marshal protobuf message failure: %w", err))
+	}
+
+	return b
 }
 
-// Marshal marshals StorageGroup into a protobuf binary form.
+// Unmarshal decodes Protocol Buffers V3 binary data into the StorageGroup.
+// Returns an error describing a format violation of the specified fields.
+// Unmarshal does not check presence of the required fields and, at the same
+// time, checks format of presented fields.
 //
-// See also Unmarshal.
-func (sg StorageGroup) Marshal() ([]byte, error) {
-	return (*storagegroup.StorageGroup)(&sg).StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of StorageGroup.
-//
-// See also Marshal.
+// See also [StorageGroup.Marshal].
 func (sg *StorageGroup) Unmarshal(data []byte) error {
-	v2 := (*storagegroup.StorageGroup)(sg)
-	err := v2.Unmarshal(data)
+	var m storagegroup.StorageGroup
+	err := proto.Unmarshal(data, &m)
 	if err != nil {
-		return err
+		return fmt.Errorf("decode protobuf: %w", err)
 	}
 
-	return sg.readFromV2(*v2, false)
-}
-
-// MarshalJSON encodes StorageGroup to protobuf JSON format.
-//
-// See also UnmarshalJSON.
-func (sg StorageGroup) MarshalJSON() ([]byte, error) {
-	v2 := (storagegroup.StorageGroup)(sg)
-	return v2.MarshalJSON()
-}
-
-// UnmarshalJSON decodes StorageGroup from protobuf JSON format.
-//
-// See also MarshalJSON.
-func (sg *StorageGroup) UnmarshalJSON(data []byte) error {
-	v2 := (*storagegroup.StorageGroup)(sg)
-	err := v2.UnmarshalJSON(data)
-	if err != nil {
-		return err
+	if sg.csSet = m.ValidationHash != nil; sg.csSet {
+		err = sg.cs.ReadFromV2(m.ValidationHash)
+		if err != nil {
+			return fmt.Errorf("invalid hash: %w", err)
+		}
 	}
 
-	return sg.readFromV2(*v2, false)
-}
-
-// ReadFromObject assemble StorageGroup from a regular
-// Object structure. Object must contain unambiguous information
-// about its expiration epoch, otherwise behaviour is undefined.
-//
-// Returns any error appeared during storage group parsing; returns
-// error if object is not of TypeStorageGroup type.
-func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
-	if typ := o.Type(); typ != objectSDK.TypeStorageGroup {
-		return fmt.Errorf("object is not of StorageGroup type: %v", typ)
-	}
-
-	err := sg.Unmarshal(o.Payload())
-	if err != nil {
-		return fmt.Errorf("could not unmarshal object: %w", err)
-	}
-
-	var expObj uint64
-
-	for _, attr := range o.Attributes() {
-		if attr.Key() == objectV2.SysAttributeExpEpoch {
-			expObj, err = strconv.ParseUint(attr.Value(), 10, 64)
+	if len(m.Members) > 0 {
+		sg.ids = make([]oid.ID, len(m.Members))
+		for i := range m.Members {
+			if m.Members[i] == nil {
+				return fmt.Errorf("member #%d is nil", m.Members[i])
+			}
+			err = sg.ids[i].ReadFromV2(m.Members[i])
 			if err != nil {
-				return fmt.Errorf("could not get expiration from object: %w", err)
+				return fmt.Errorf("invalid member #%d: %w", i, err)
 			}
 
-			break
+			for j := 0; j < i; j++ {
+				if sg.ids[i] == sg.ids[j] {
+					return fmt.Errorf("duplicated member %s", sg.ids[i])
+				}
+			}
 		}
+	} else {
+		sg.ids = nil
 	}
 
-	// Supporting deprecated functionality.
-	// See https://github.com/nspcc-dev/neofs-api/pull/205.
-	if expSG := sg.ExpirationEpoch(); expObj != expSG {
-		return fmt.Errorf(
-			"expiration does not match: from object: %d, from payload: %d",
-			expObj, expSG)
-	}
+	sg.sz = m.ValidationDataSize
+	sg.exp = m.ExpirationEpoch
 
 	return nil
 }
 
-// WriteToObject writes StorageGroup to a regular
-// Object structure. Object must not contain ambiguous
-// information about its expiration epoch or must not
-// have it at all.
+// // ReadFromObject reads StorageGroup from the NeoFS object. Object must contain
+// // unambiguous information about its expiration epoch, otherwise behaviour is
+// // undefined.
+// //
+// // Returns any error appeared during storage group parsing; returns error if
+// // object is not of [object.TypeStorageGroup] type.
+// func ReadFromObject(sg *StorageGroup, o object.Object) error {
+// 	if typ := o.Type(); typ != object.TypeStorageGroup {
+// 		return fmt.Errorf("object is not of StorageGroup type: %v", typ)
+// 	}
 //
-// Written information:
-//   - expiration epoch;
-//   - object type (TypeStorageGroup);
-//   - raw payload.
-func WriteToObject(sg StorageGroup, o *objectSDK.Object) {
-	sgRaw, err := sg.Marshal()
-	if err != nil {
-		// Marshal() does not return errors
-		// in the next API release
-		panic(fmt.Errorf("could not marshal storage group: %w", err))
-	}
-
-	o.SetPayload(sgRaw)
-	o.SetType(objectSDK.TypeStorageGroup)
-
-	attrs := o.Attributes()
-	var expAttrFound bool
-
-	for i := range attrs {
-		if attrs[i].Key() == objectV2.SysAttributeExpEpoch {
-			expAttrFound = true
-			attrs[i].SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
-
-			break
-		}
-	}
-
-	if !expAttrFound {
-		var attr objectSDK.Attribute
-
-		attr.SetKey(objectV2.SysAttributeExpEpoch)
-		attr.SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
-
-		attrs = append(attrs, attr)
-	}
-
-	o.SetAttributes(attrs...)
-}
+// 	err := sg.Unmarshal(o.Payload())
+// 	if err != nil {
+// 		return fmt.Errorf("could not unmarshal object: %w", err)
+// 	}
+//
+// 	var expObj uint64
+//
+// 	for _, attr := range o.Attributes() {
+// 		if attr.Key() == object.AttributeExpirationEpoch {
+// 			expObj, err = strconv.ParseUint(attr.Value(), 10, 64)
+// 			if err != nil {
+// 				return fmt.Errorf("could not get expiration from object: %w", err)
+// 			}
+//
+// 			break
+// 		}
+// 	}
+//
+// 	// Supporting deprecated functionality.
+// 	// See https://github.com/nspcc-dev/neofs-api/pull/205.
+// 	if expObj != sg.exp {
+// 		return fmt.Errorf(
+// 			"expiration does not match: from object: %d, from payload: %d",
+// 			expObj, sg.exp)
+// 	}
+//
+// 	return nil
+// }
+//
+// // WriteToObject writes StorageGroup to the NeoFS object. Object must not
+// // contain ambiguous information about its expiration epoch or must not have it
+// // at all.
+// //
+// // Written information:
+// //   - expiration epoch;
+// //   - object type ([object.TypeStorageGroup]);
+// //   - raw payload.
+// func WriteToObject(sg StorageGroup, o *object.Object) {
+// 	o.SetPayload(sg.Marshal())
+// 	o.SetType(object.TypeStorageGroup)
+//
+// 	// TODO: simplify object attribute setting like for container
+// 	attrs := o.Attributes()
+// 	var expAttrFound bool
+//
+// 	for i := range attrs {
+// 		if attrs[i].Key() == object.AttributeExpirationEpoch {
+// 			expAttrFound = true
+// 			attrs[i].SetValue(strconv.FormatUint(sg.exp, 10))
+//
+// 			break
+// 		}
+// 	}
+//
+// 	if !expAttrFound {
+// 		var attr object.Attribute
+//
+// 		attr.SetKey(object.AttributeExpirationEpoch)
+// 		attr.SetValue(strconv.FormatUint(sg.exp, 10))
+//
+// 		attrs = append(attrs, attr)
+// 	}
+//
+// 	o.SetAttributes(attrs...)
+// }

@@ -1,78 +1,103 @@
 package object
 
 import (
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"errors"
+	"fmt"
+
+	"github.com/nspcc-dev/neofs-sdk-go/api/lock"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"google.golang.org/protobuf/proto"
 )
 
-// Lock represents record with locked objects. It is compatible with
-// NeoFS API V2 protocol.
-//
-// Lock instance can be written to the [Object], see WriteLock/ReadLock.
-type Lock v2object.Lock
-
-// WriteLock writes [Lock] to the [Object], and sets its type to [TypeLock].
-//
-// See also ReadLock.
-func (o *Object) WriteLock(l Lock) {
-	o.SetType(TypeLock)
-	o.SetPayload(l.Marshal())
+// Lock represents record with locked objects, i.e. objects protected from
+// deletion. SplitChain is stored and transmitted as payload of system NeoFS
+// objects.
+type Lock struct {
+	list []oid.ID
 }
 
-// ReadLock reads [Lock] from the [Object]. The lock must not be nil.
-// Returns an error describing incorrect format. Makes sense only
-// if object has [TypeLock] type.
+// readFromV2 reads Lock from the lock.Lock message. Returns an error if the
+// message is malformed according to the NeoFS API V2 protocol. The message must
+// not be nil.
 //
-// See also [Object.WriteLock].
-func (o *Object) ReadLock(l *Lock) error {
-	return l.Unmarshal(o.Payload())
-}
-
-// NumberOfMembers returns number of members in lock list.
-func (x Lock) NumberOfMembers() int {
-	return (*v2object.Lock)(&x).NumberOfMembers()
-}
-
-// ReadMembers reads list of locked members.
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
 //
-// Buffer length must not be less than [Lock.NumberOfMembers].
-func (x Lock) ReadMembers(buf []oid.ID) {
-	var i int
+// See also writeToV2.
+func (x *Lock) readFromV2(m *lock.Lock) error {
+	if len(m.Members) == 0 {
+		return errors.New("missing members")
+	}
 
-	(*v2object.Lock)(&x).IterateMembers(func(idV2 refs.ObjectID) {
-		_ = buf[i].ReadFromV2(idV2)
-		i++
-	})
-}
-
-// WriteMembers writes list of locked members.
-//
-// See also [Lock.ReadMembers].
-func (x *Lock) WriteMembers(ids []oid.ID) {
-	var members []refs.ObjectID
-
-	if ids != nil {
-		members = make([]refs.ObjectID, len(ids))
-
-		for i := range ids {
-			ids[i].WriteToV2(&members[i])
+	x.list = make([]oid.ID, len(m.Members))
+	for i := range m.Members {
+		err := x.list[i].ReadFromV2(m.Members[i])
+		if err != nil {
+			return fmt.Errorf("invalid member #%d: %w", i, err)
 		}
 	}
 
-	(*v2object.Lock)(x).SetMembers(members)
+	return nil
 }
 
-// Marshal encodes the [Lock] into a NeoFS protocol binary format.
+// writeToV2 writes Lock to the lock.Lock message of the NeoFS API protocol.
+//
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also readFromV2.
+func (x Lock) writeToV2(m *lock.Lock) {
+	if len(x.list) > 0 {
+		m.Members = make([]*refs.ObjectID, len(x.list))
+		for i := range x.list {
+			m.Members[i] = new(refs.ObjectID)
+			x.list[i].WriteToV2(m.Members[i])
+		}
+	} else {
+		x.list = nil
+	}
+}
+
+// List returns list of locked objects.
+//
+// See also [Lock.SetList].
+func (x Lock) List() []oid.ID {
+	return x.list
+}
+
+// SetList sets list of locked objects.
+//
+// See also [Lock.List].
+func (x *Lock) SetList(ids []oid.ID) {
+	x.list = ids
+}
+
+// Marshal encodes Lock into a Protocol Buffers V3 binary format.
 //
 // See also [Lock.Unmarshal].
 func (x Lock) Marshal() []byte {
-	return (*v2object.Lock)(&x).StableMarshal(nil)
+	var m lock.Lock
+	x.writeToV2(&m)
+
+	b, err := proto.Marshal(&m)
+	if err != nil {
+		// while it is bad to panic on external package return, we can do nothing better
+		// for this case: how can a normal message not be encoded?
+		panic(fmt.Errorf("unexpected marshal protobuf message failure: %w", err))
+	}
+	return b
 }
 
-// Unmarshal decodes the [Lock] from its NeoFS protocol binary representation.
+// Unmarshal decodes Protocol Buffers V3 binary data into the Lock. Returns an
+// error if the message is malformed according to the NeoFS API V2 protocol.
 //
 // See also [Lock.Marshal].
 func (x *Lock) Unmarshal(data []byte) error {
-	return (*v2object.Lock)(x).Unmarshal(data)
+	var m lock.Lock
+	err := proto.Unmarshal(data, &m)
+	if err != nil {
+		return fmt.Errorf("decode protobuf: %w", err)
+	}
+	return x.readFromV2(&m)
 }

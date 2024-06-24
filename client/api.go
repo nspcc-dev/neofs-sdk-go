@@ -1,53 +1,46 @@
 package client
 
 import (
-	"context"
-	"fmt"
-
-	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
+	apiaccounting "github.com/nspcc-dev/neofs-sdk-go/api/accounting"
+	apicontainer "github.com/nspcc-dev/neofs-sdk-go/api/container"
+	apinetmap "github.com/nspcc-dev/neofs-sdk-go/api/netmap"
+	apiobject "github.com/nspcc-dev/neofs-sdk-go/api/object"
+	apireputation "github.com/nspcc-dev/neofs-sdk-go/api/reputation"
+	apisession "github.com/nspcc-dev/neofs-sdk-go/api/session"
+	"google.golang.org/grpc"
 )
 
+// cross-RPC non-status errors.
 var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPINetMapSnapshot = rpcapi.NetMapSnapshot
-	rpcAPICreateSession  = rpcapi.CreateSession
+	errSignRequest              = "sign request"
+	errTransport                = "transport failure"
+	errInterceptResponseInfo    = "intercept response info"
+	errResponseSignature        = "verify response signature"
+	errInvalidResponse          = "invalid response"
+	errInvalidResponseStatus    = errInvalidResponse + ": invalid status"
+	errMissingResponseBody      = errInvalidResponse + ": missing body"
+	errInvalidResponseBody      = errInvalidResponse + ": invalid body"
+	errMissingResponseBodyField = errInvalidResponseBody + ": missing required field"
+	errInvalidResponseBodyField = errInvalidResponseBody + ": invalid field"
 )
 
-// interface of NeoFS API server. Exists for test purposes only.
-type neoFSAPIServer interface {
-	createSession(cli *client.Client, req *session.CreateRequest, opts ...client.CallOption) (*session.CreateResponse, error)
-
-	netMapSnapshot(context.Context, v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error)
+// unites all NeoFS services served over gRPC.
+type grpcTransport struct {
+	accounting apiaccounting.AccountingServiceClient
+	container  apicontainer.ContainerServiceClient
+	netmap     apinetmap.NetmapServiceClient
+	object     apiobject.ObjectServiceClient
+	reputation apireputation.ReputationServiceClient
+	session    apisession.SessionServiceClient
 }
 
-// wrapper over real client connection which communicates over NeoFS API protocol.
-// Provides neoFSAPIServer for Client instances used in real applications.
-type coreServer client.Client
-
-// unifies errors of all RPC.
-func rpcErr(e error) error {
-	return fmt.Errorf("rpc failure: %w", e)
-}
-
-// executes NetmapService.NetmapSnapshot RPC declared in NeoFS API protocol
-// using underlying client.Client.
-func (x *coreServer) netMapSnapshot(ctx context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	resp, err := rpcAPINetMapSnapshot((*client.Client)(x), &req, client.WithContext(ctx))
-	if err != nil {
-		return nil, rpcErr(err)
+func newGRPCTransport(con *grpc.ClientConn) grpcTransport {
+	return grpcTransport{
+		accounting: apiaccounting.NewAccountingServiceClient(con),
+		container:  apicontainer.NewContainerServiceClient(con),
+		netmap:     apinetmap.NewNetmapServiceClient(con),
+		object:     apiobject.NewObjectServiceClient(con),
+		reputation: apireputation.NewReputationServiceClient(con),
+		session:    apisession.NewSessionServiceClient(con),
 	}
-
-	return resp, nil
-}
-
-func (x *coreServer) createSession(cli *client.Client, req *session.CreateRequest, opts ...client.CallOption) (*session.CreateResponse, error) {
-	resp, err := rpcAPICreateSession(cli, req, opts...)
-	if err != nil {
-		return nil, rpcErr(err)
-	}
-
-	return resp, nil
 }

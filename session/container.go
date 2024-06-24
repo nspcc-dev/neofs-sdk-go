@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 // Container represents token of the NeoFS Container session. A session is opened
@@ -17,8 +20,8 @@ import (
 // limited validity period, and applies to a strictly defined set of operations.
 // See methods for details.
 //
-// Container is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/session.Token
-// message. See ReadFromV2 / WriteToV2 methods.
+// Container is mutually compatible with [session.SessionToken] message. See
+// [Container.ReadFromV2] / [Container.WriteToV2] methods.
 //
 // Instances can be created using built-in var declaration.
 type Container struct {
@@ -41,100 +44,136 @@ func (x Container) CopyTo(dst *Container) {
 	dst.cnr = contID
 }
 
-// readContext is a contextReader needed for commonData methods.
-func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool) error {
-	cCnr, ok := c.(*session.ContainerSessionContext)
-	if !ok || cCnr == nil {
-		return fmt.Errorf("invalid context %T", c)
+func (x *Container) readFromV2(m *session.SessionToken, checkFieldPresence bool) error {
+	err := x.commonData.readFromV2(m, checkFieldPresence)
+	if err != nil {
+		return err
 	}
 
-	x.cnrSet = !cCnr.Wildcard()
-	cnr := cCnr.ContainerID()
+	var ctx *session.ContainerSessionContext
+	if c := m.GetBody().GetContext(); c != nil {
+		cc, ok := c.(*session.SessionToken_Body_Container)
+		if !ok {
+			return errors.New("wrong context field")
+		}
+		ctx = cc.Container
+	} else if checkFieldPresence {
+		return errors.New("missing session context")
+	} else {
+		x.cnrSet = false
+		x.verb = 0
+		return nil
+	}
+
+	x.cnrSet = !ctx.GetWildcard()
+	cnr := ctx.GetContainerId()
 
 	if x.cnrSet {
 		if cnr != nil {
-			err := x.cnr.ReadFromV2(*cnr)
+			err := x.cnr.ReadFromV2(cnr)
 			if err != nil {
-				return fmt.Errorf("invalid container ID: %w", err)
+				return fmt.Errorf("invalid context: invalid container ID: %w", err)
 			}
-		} else if checkFieldPresence {
-			return errors.New("missing container or wildcard flag")
+		} else {
+			return errors.New("invalid context: missing container or wildcard flag")
 		}
 	} else if cnr != nil {
-		return errors.New("container conflicts with wildcard flag")
+		return errors.New("invalid context: container conflicts with wildcard flag")
 	}
 
-	x.verb = ContainerVerb(cCnr.Verb())
+	x.verb = ContainerVerb(ctx.GetVerb())
 
 	return nil
 }
 
-func (x *Container) readFromV2(m session.Token, checkFieldPresence bool) error {
-	return x.commonData.readFromV2(m, checkFieldPresence, x.readContext)
-}
-
-// ReadFromV2 reads Container from the session.Token message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// ReadFromV2 reads Container from the [session.SessionToken] message. Returns
+// an error if the message is malformed according to the NeoFS API V2 protocol.
+// The message must not be nil.
 //
-// See also WriteToV2.
-func (x *Container) ReadFromV2(m session.Token) error {
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Container.WriteToV2].
+func (x *Container) ReadFromV2(m *session.SessionToken) error {
 	return x.readFromV2(m, true)
 }
 
-func (x Container) writeContext() session.TokenContext {
-	var c session.ContainerSessionContext
-	c.SetWildcard(!x.cnrSet)
-	c.SetVerb(session.ContainerSessionVerb(x.verb))
-
-	if x.cnrSet {
-		var cnr refs.ContainerID
-		x.cnr.WriteToV2(&cnr)
-
-		c.SetContainerID(&cnr)
+func (x Container) fillContext() *session.SessionToken_Body_Container {
+	c := session.SessionToken_Body_Container{
+		Container: &session.ContainerSessionContext{
+			Verb:     session.ContainerSessionContext_Verb(x.verb),
+			Wildcard: !x.cnrSet,
+		},
 	}
-
+	if x.cnrSet {
+		c.Container.ContainerId = new(refs.ContainerID)
+		x.cnr.WriteToV2(c.Container.ContainerId)
+	}
 	return &c
 }
 
-// WriteToV2 writes Container to the session.Token message.
-// The message must not be nil.
+// WriteToV2 writes Container to the [session.SessionToken] message of the NeoFS
+// API protocol.
 //
-// See also ReadFromV2.
-func (x Container) WriteToV2(m *session.Token) {
-	x.writeToV2(m, x.writeContext)
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Container.ReadFromV2].
+func (x Container) WriteToV2(m *session.SessionToken) {
+	x.writeToV2(m)
+	m.Body.Context = x.fillContext()
 }
 
 // Marshal encodes Container into a binary format of the NeoFS API protocol
-// (Protocol Buffers with direct field order).
+// (Protocol Buffers V3 with direct field order).
 //
-// See also Unmarshal.
+// See also [Container.Unmarshal].
 func (x Container) Marshal() []byte {
-	return x.marshal(x.writeContext)
+	var m session.SessionToken
+	x.WriteToV2(&m)
+	b := make([]byte, m.MarshaledSize())
+	m.MarshalStable(b)
+	return b
 }
 
-// Unmarshal decodes NeoFS API protocol binary format into the Container
-// (Protocol Buffers with direct field order). Returns an error describing
-// a format violation.
+// Unmarshal decodes Protocol Buffers V3 binary data into the Container. Returns
+// an error describing a format violation of the specified fields. Unmarshal
+// does not check presence of the required fields and, at the same time, checks
+// format of presented fields.
 //
-// See also Marshal.
+// See also [Container.Marshal].
 func (x *Container) Unmarshal(data []byte) error {
-	return x.unmarshal(data, x.readContext)
+	var m session.SessionToken
+	err := proto.Unmarshal(data, &m)
+	if err != nil {
+		return fmt.Errorf("decode protobuf: %w", err)
+	}
+	return x.readFromV2(&m, false)
 }
 
 // MarshalJSON encodes Container into a JSON format of the NeoFS API protocol
-// (Protocol Buffers JSON).
+// (Protocol Buffers V3 JSON).
 //
-// See also UnmarshalJSON.
+// See also [Container.UnmarshalJSON].
 func (x Container) MarshalJSON() ([]byte, error) {
-	return x.marshalJSON(x.writeContext)
+	var m session.SessionToken
+	x.WriteToV2(&m)
+	return protojson.Marshal(&m)
 }
 
-// UnmarshalJSON decodes NeoFS API protocol JSON format into the Container
-// (Protocol Buffers JSON). Returns an error describing a format violation.
+// UnmarshalJSON decodes NeoFS API protocol JSON data into the Container
+// (Protocol Buffers V3 JSON). Returns an error describing a format violation.
+// UnmarshalJSON does not check presence of the required fields and, at the same
+// time, checks format of presented fields.
 //
-// See also MarshalJSON.
+// See also [Container.MarshalJSON].
 func (x *Container) UnmarshalJSON(data []byte) error {
-	return x.unmarshalJSON(data, x.readContext)
+	var m session.SessionToken
+	err := protojson.Unmarshal(data, &m)
+	if err != nil {
+		return fmt.Errorf("decode protojson: %w", err)
+	}
+	return x.readFromV2(&m, false)
 }
 
 // Sign calculates and writes signature of the [Container] data along with
@@ -155,43 +194,51 @@ func (x *Container) Sign(signer user.Signer) error {
 // SetSignature allows to sign Container like [Container.Sign] but without
 // issuer setting.
 func (x *Container) SetSignature(signer neofscrypto.Signer) error {
-	return x.sign(signer, x.writeContext)
+	err := x.sig.Calculate(signer, x.SignedData())
+	if err != nil {
+		return err
+	}
+	x.sigSet = true
+	return nil
 }
 
-// SignedData returns actual payload to sign.
+// SignedData returns signed data of the Container.
 //
-// Using this method require to set issuer via [Container.SetIssuer] before SignedData call.
+// [Container.SetIssuer] must be called before.
 //
 // See also [Container.Sign], [Container.UnmarshalSignedData].
-func (x *Container) SignedData() []byte {
-	return x.signedData(x.writeContext)
+func (x Container) SignedData() []byte {
+	body := x.fillBody()
+	body.Context = x.fillContext()
+	b := make([]byte, body.MarshaledSize())
+	body.MarshalStable(b)
+	return b
 }
 
 // UnmarshalSignedData is a reverse op to [Container.SignedData].
 func (x *Container) UnmarshalSignedData(data []byte) error {
-	var body session.TokenBody
-	err := body.Unmarshal(data)
+	var body session.SessionToken_Body
+	err := proto.Unmarshal(data, &body)
 	if err != nil {
-		return fmt.Errorf("decode body: %w", err)
+		return fmt.Errorf("decode protobuf: %w", err)
 	}
 
-	var tok session.Token
-	tok.SetBody(&body)
-	return x.readFromV2(tok, false)
+	return x.readFromV2(&session.SessionToken{Body: &body}, false)
 }
 
 // VerifySignature checks if Container signature is presented and valid.
 //
 // Zero Container fails the check.
 //
-// See also Sign.
+// See also [Container.Sign], [Container.SetSignature].
 func (x Container) VerifySignature() bool {
-	return x.verifySignature(x.writeContext)
+	// TODO: (#233) check owner<->key relation
+	return x.sigSet && x.sig.Verify(x.SignedData())
 }
 
 // ApplyOnlyTo limits session scope to a given author container.
 //
-// See also AppliedTo.
+// See also [Container.AppliedTo].
 func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 	x.cnr = cnr
 	x.cnrSet = true
@@ -201,13 +248,13 @@ func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 //
 // Zero Container is applied to all author's containers.
 //
-// See also ApplyOnlyTo.
+// See also [Container.ApplyOnlyTo].
 func (x Container) AppliedTo(cnr cid.ID) bool {
-	return !x.cnrSet || x.cnr.Equals(cnr)
+	return !x.cnrSet || x.cnr == cnr
 }
 
 // ContainerVerb enumerates container operations.
-type ContainerVerb int8
+type ContainerVerb uint8
 
 const (
 	_ ContainerVerb = iota
@@ -220,7 +267,7 @@ const (
 // ForVerb specifies the container operation of the session scope. Each
 // Container is related to the single operation.
 //
-// See also AssertVerb.
+// See also [Container.AssertVerb].
 func (x *Container) ForVerb(verb ContainerVerb) {
 	x.verb = verb
 }
@@ -229,27 +276,21 @@ func (x *Container) ForVerb(verb ContainerVerb) {
 //
 // Zero Container relates to zero (unspecified) verb.
 //
-// See also ForVerb.
+// See also [Container.ForVerb].
 func (x Container) AssertVerb(verb ContainerVerb) bool {
 	return x.verb == verb
 }
 
 // IssuedBy checks if Container session is issued by the given user.
 //
-// See also Container.Issuer.
+// See also [Container.Issuer].
 func IssuedBy(cnr Container, id user.ID) bool {
-	return cnr.Issuer().Equals(id)
+	return cnr.Issuer() == id
 }
 
 // VerifySessionDataSignature verifies signature of the session data. In practice,
 // the method is used to authenticate an operation with session data.
 func (x Container) VerifySessionDataSignature(data, signature []byte) bool {
-	var sigV2 refs.Signature
-	sigV2.SetKey(x.authKey)
-	sigV2.SetScheme(refs.ECDSA_RFC6979_SHA256)
-	sigV2.SetSign(signature)
-
-	var sig neofscrypto.Signature
-
-	return sig.ReadFromV2(sigV2) == nil && sig.Verify(data)
+	var pubKey neofsecdsa.PublicKeyRFC6979
+	return pubKey.Decode(x.authKey) == nil && pubKey.Verify(data, signature)
 }

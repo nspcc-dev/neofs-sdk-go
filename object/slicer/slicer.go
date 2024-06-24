@@ -21,11 +21,6 @@ import (
 	"github.com/nspcc-dev/tzhash/tz"
 )
 
-var (
-	// ErrIncompleteHeader indicates some fields are missing in header.
-	ErrIncompleteHeader = errors.New("incomplete header")
-)
-
 // ObjectWriter represents a virtual object recorder.
 type ObjectWriter interface {
 	// ObjectPutInit initializes and returns a stream of writable data associated

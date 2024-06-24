@@ -1,157 +1,120 @@
 package eacl
 
 import (
-	"strconv"
+	"errors"
 
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
 )
 
-// Filter defines check conditions if request header is matched or not. Matched
-// header means that request should be processed according to ContainerEACL action.
-//
-// Filter is compatible with v2 acl.EACLRecord.Filter message.
+// Filter describes a binary property of an access-controlled NeoFS resource
+// according to meta information about it. The meta information is represented
+// by a set of key-value attributes of various types.
 type Filter struct {
-	from    FilterHeaderType
-	matcher Match
-	key     string
-	value   stringEncoder
+	attrType AttributeType
+	matcher  Match
+	key      string
+	value    string
 }
-
-type staticStringer string
-
-type u64Stringer uint64
 
 // Various keys to object filters.
 const (
-	FilterObjectVersion                    = v2acl.FilterObjectVersion
-	FilterObjectID                         = v2acl.FilterObjectID
-	FilterObjectContainerID                = v2acl.FilterObjectContainerID
-	FilterObjectOwnerID                    = v2acl.FilterObjectOwnerID
-	FilterObjectCreationEpoch              = v2acl.FilterObjectCreationEpoch
-	FilterObjectPayloadSize                = v2acl.FilterObjectPayloadLength
-	FilterObjectPayloadChecksum            = v2acl.FilterObjectPayloadHash
-	FilterObjectType                       = v2acl.FilterObjectType
-	FilterObjectPayloadHomomorphicChecksum = v2acl.FilterObjectHomomorphicHash
+	objectFilterPrefix                     = "$Object:"
+	FilterObjectVersion                    = objectFilterPrefix + "version"
+	FilterObjectID                         = objectFilterPrefix + "objectID"
+	FilterObjectContainerID                = objectFilterPrefix + "containerID"
+	FilterObjectOwnerID                    = objectFilterPrefix + "ownerID"
+	FilterObjectCreationEpoch              = objectFilterPrefix + "creationEpoch"
+	FilterObjectPayloadSize                = objectFilterPrefix + "payloadLength"
+	FilterObjectPayloadChecksum            = objectFilterPrefix + "payloadHash"
+	FilterObjectType                       = objectFilterPrefix + "objectType"
+	FilterObjectPayloadHomomorphicChecksum = objectFilterPrefix + "homomorphicHash"
 )
-
-func (s staticStringer) EncodeToString() string {
-	return string(s)
-}
-
-func (u u64Stringer) EncodeToString() string {
-	return strconv.FormatUint(uint64(u), 10)
-}
 
 // CopyTo writes deep copy of the [Filter] to dst.
 func (f Filter) CopyTo(dst *Filter) {
-	dst.from = f.from
-	dst.matcher = f.matcher
-	dst.key = f.key
-	dst.value = f.value
+	*dst = f
 }
 
-// Value returns filtered string value.
+func isEmptyFilter(f Filter) bool {
+	return f.attrType == 0 && f.matcher == 0 && f.key == "" && f.value == ""
+}
+
+func filterToAPI(f Filter) *apiacl.EACLRecord_Filter {
+	if isEmptyFilter(f) {
+		return nil
+	}
+	return &apiacl.EACLRecord_Filter{
+		HeaderType: apiacl.HeaderType(f.attrType),
+		MatchType:  apiacl.MatchType(f.matcher),
+		Key:        f.key,
+		Value:      f.value,
+	}
+}
+
+func (f *Filter) readFromV2(m *apiacl.EACLRecord_Filter, checkFieldPresence bool) error {
+	if checkFieldPresence && m.Key == "" {
+		return errors.New("missing key")
+	}
+
+	f.attrType = AttributeType(m.HeaderType)
+	f.matcher = Match(m.MatchType)
+	f.key = m.Key
+	f.value = m.Value
+
+	return nil
+}
+
+// SetValue sets value of the access-controlled resource's attribute to match.
+//
+// See also [Filter.Value].
+func (f *Filter) SetValue(value string) {
+	f.value = value
+}
+
+// Value returns value of the access-controlled resource's attribute to match.
+//
+// See also [Filter.SetValue].
 func (f Filter) Value() string {
-	return f.value.EncodeToString()
+	return f.value
 }
 
-// Matcher returns filter Match type.
+// Matcher returns operator to match the attribute.
 func (f Filter) Matcher() Match {
 	return f.matcher
 }
 
-// Key returns key to the filtered header.
+// SetMatcher sets operator to match the attribute.
+//
+// See also [Filter.Matcher].
+func (f *Filter) SetMatcher(m Match) {
+	f.matcher = m
+}
+
+// Key returns key to the access-controlled resource's attribute to match.
+//
+// See also [Filter.SetKey].
 func (f Filter) Key() string {
 	return f.key
 }
 
-// From returns FilterHeaderType that defined which header will be filtered.
-func (f Filter) From() FilterHeaderType {
-	return f.from
-}
-
-// ToV2 converts Filter to v2 acl.EACLRecord.Filter message.
+// SetKey sets key to the access-controlled resource's attribute to match.
 //
-// Nil Filter converts to nil.
-func (f *Filter) ToV2() *v2acl.HeaderFilter {
-	if f == nil {
-		return nil
-	}
-
-	filter := new(v2acl.HeaderFilter)
-	filter.SetValue(f.value.EncodeToString())
-	filter.SetKey(f.key)
-	filter.SetMatchType(f.matcher.ToV2())
-	filter.SetHeaderType(f.from.ToV2())
-
-	return filter
+// See also [Filter.Key].
+func (f *Filter) SetKey(key string) {
+	f.key = key
 }
 
-// NewFilter creates, initializes and returns blank Filter instance.
+// AttributeType returns type of access-controlled resource's attribute to
+// match.
 //
-// Defaults:
-//   - header type: HeaderTypeUnknown;
-//   - matcher: MatchUnknown;
-//   - key: "";
-//   - value: "".
-func NewFilter() *Filter {
-	return NewFilterFromV2(new(v2acl.HeaderFilter))
+// See also [Filter.AttributeType].
+func (f Filter) AttributeType() AttributeType {
+	return f.attrType
 }
 
-// NewFilterFromV2 converts v2 acl.EACLRecord.Filter message to Filter.
-func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
-	f := new(Filter)
-
-	if filter == nil {
-		return f
-	}
-
-	f.from = FilterHeaderTypeFromV2(filter.GetHeaderType())
-	f.matcher = MatchFromV2(filter.GetMatchType())
-	f.key = filter.GetKey()
-	f.value = staticStringer(filter.GetValue())
-
-	return f
-}
-
-// Marshal marshals Filter into a protobuf binary form.
-func (f *Filter) Marshal() ([]byte, error) {
-	return f.ToV2().StableMarshal(nil), nil
-}
-
-// Unmarshal unmarshals protobuf binary representation of Filter.
-func (f *Filter) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.Unmarshal(data); err != nil {
-		return err
-	}
-
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
-}
-
-// MarshalJSON encodes Filter to protobuf JSON format.
-func (f *Filter) MarshalJSON() ([]byte, error) {
-	return f.ToV2().MarshalJSON()
-}
-
-// UnmarshalJSON decodes Filter from protobuf JSON format.
-func (f *Filter) UnmarshalJSON(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.UnmarshalJSON(data); err != nil {
-		return err
-	}
-
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
-}
-
-// equalFilters compares Filter with each other.
-func equalFilters(f1, f2 Filter) bool {
-	return f1.From() == f2.From() &&
-		f1.Matcher() == f2.Matcher() &&
-		f1.Key() == f2.Key() &&
-		f1.Value() == f2.Value()
+// SetAttributeType sets type of access-controlled resource's attribute to match.
+//
+// See also [Filter.AttributeType].
+func (f *Filter) SetAttributeType(v AttributeType) {
+	f.attrType = v
 }

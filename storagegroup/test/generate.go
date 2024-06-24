@@ -1,8 +1,9 @@
 package storagegrouptest
 
 import (
+	"math/rand"
+
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 )
@@ -10,11 +11,9 @@ import (
 // StorageGroup returns random storagegroup.StorageGroup.
 func StorageGroup() storagegroup.StorageGroup {
 	var x storagegroup.StorageGroup
-
-	x.SetExpirationEpoch(66)
-	x.SetValidationDataSize(322)
+	x.SetValidationDataSize(rand.Uint64())
 	x.SetValidationDataHash(checksumtest.Checksum())
-	x.SetMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
+	x.SetMembers(oidtest.NIDs(1 + rand.Int()%3))
 
 	return x
 }

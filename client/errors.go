@@ -13,16 +13,13 @@ var (
 
 	// ErrMissingAccount is returned when account/owner is not provided.
 	ErrMissingAccount = errors.New("missing account")
-	// ErrMissingSigner is returned when signer is not provided.
-	ErrMissingSigner = errors.New("missing signer")
+	errMissingSigner  = errors.New("missing signer")
 	// ErrMissingEACLContainer is returned when container info is not provided in eACL table.
 	ErrMissingEACLContainer = errors.New("missing container in eACL table")
 	// ErrMissingAnnouncements is returned when announcements are not provided.
 	ErrMissingAnnouncements = errors.New("missing announcements")
 	// ErrZeroRangeLength is returned when range parameter has zero length.
 	ErrZeroRangeLength = errors.New("zero range length")
-	// ErrMissingRanges is returned when empty ranges list is provided.
-	ErrMissingRanges = errors.New("missing ranges")
 	// ErrZeroEpoch is returned when zero epoch is provided.
 	ErrZeroEpoch = errors.New("zero epoch")
 	// ErrMissingTrusts is returned when empty slice of trusts is provided.

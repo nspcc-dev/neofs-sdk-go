@@ -1,119 +1,341 @@
 package eacl_test
 
 import (
-	"crypto/sha256"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
-func TestTable(t *testing.T) {
-	var v version.Version
+func TestTable_Version(t *testing.T) {
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst eacl.Table
+			var msg apiacl.EACLTable
 
-	sha := sha256.Sum256([]byte("container id"))
-	id := cidtest.IDWithChecksum(sha)
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			err = proto.Unmarshal(dst.Marshal(), &msg)
+			require.Equal(t, &refs.Version{Major: 2, Minor: 13}, msg.Version)
 
-	v.SetMajor(3)
-	v.SetMinor(2)
+			msg.Version.Major, msg.Version.Minor = 3, 14
 
-	table := eacl.NewTable()
-	table.SetVersion(v)
-	table.SetCID(id)
-	table.AddRecord(eacl.CreateRecord(eacl.ActionAllow, eacl.OperationPut))
+			b, err := proto.Marshal(&msg)
+			require.NoError(t, err)
+			err = src.Unmarshal(b)
+			require.NoError(t, err)
 
-	v2 := table.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, uint32(3), v2.GetVersion().GetMajor())
-	require.Equal(t, uint32(2), v2.GetVersion().GetMinor())
-	require.Equal(t, sha[:], v2.GetContainerID().GetValue())
-	require.Len(t, v2.GetRecords(), 1)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			msg.Version = nil
+			err = proto.Unmarshal(dst.Marshal(), &msg)
+			require.Equal(t, &refs.Version{Major: 3, Minor: 14}, msg.Version)
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst eacl.Table
+			var msg apiacl.EACLTable
 
-	newTable := eacl.NewTableFromV2(v2)
-	require.Equal(t, table, newTable)
+			src.SetRecords(eacltest.NRecords(2)) // just to satisfy decoder
 
-	t.Run("new from nil v2 table", func(t *testing.T) {
-		require.Equal(t, new(eacl.Table), eacl.NewTableFromV2(nil))
-	})
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			err = proto.Unmarshal(dst.Marshal(), &msg)
+			require.Equal(t, &refs.Version{Major: 2, Minor: 13}, msg.Version)
 
-	t.Run("create table", func(t *testing.T) {
-		id := cidtest.ID()
+			msg.Version.Major, msg.Version.Minor = 3, 14
 
-		table := eacl.CreateTable(id)
-		cID, set := table.CID()
-		require.True(t, set)
-		require.Equal(t, id, cID)
-		require.Equal(t, version.Current(), table.Version())
+			b, err := proto.Marshal(&msg)
+			require.NoError(t, err)
+			err = src.Unmarshal(b)
+			require.NoError(t, err)
+
+			src.WriteToV2(&msg)
+			err = dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			msg.Version = nil
+			err = proto.Unmarshal(dst.Marshal(), &msg)
+			require.Equal(t, &refs.Version{Major: 3, Minor: 14}, msg.Version)
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst eacl.Table
+			var msg apiacl.EACLTable
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			j, err = dst.MarshalJSON()
+			require.NoError(t, err)
+			err = protojson.Unmarshal(j, &msg)
+			require.EqualValues(t, 2, msg.Version.Major)
+			require.EqualValues(t, 13, msg.Version.Minor)
+
+			msg.Version.Major, msg.Version.Minor = 3, 14
+
+			b, err := protojson.Marshal(&msg)
+			require.NoError(t, err)
+			err = src.UnmarshalJSON(b)
+			require.NoError(t, err)
+
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			msg.Version = nil
+			j, err = dst.MarshalJSON()
+			require.NoError(t, err)
+			err = protojson.Unmarshal(j, &msg)
+			require.EqualValues(t, 3, msg.Version.Major)
+			require.EqualValues(t, 14, msg.Version.Minor)
+		})
 	})
 }
 
-func TestTable_AddRecord(t *testing.T) {
-	records := []eacl.Record{
-		*eacl.CreateRecord(eacl.ActionDeny, eacl.OperationDelete),
-		*eacl.CreateRecord(eacl.ActionAllow, eacl.OperationPut),
-	}
+func TestTable_LimitToContainer(t *testing.T) {
+	var tbl eacl.Table
 
-	table := eacl.NewTable()
-	for _, record := range records {
-		table.AddRecord(&record)
-	}
+	require.Zero(t, tbl.LimitedContainer())
 
-	require.Equal(t, records, table.Records())
+	cnr := cidtest.ID()
+	cnrOther := cidtest.ChangeID(cnr)
+
+	tbl.LimitToContainer(cnr)
+	require.Equal(t, cnr, tbl.LimitedContainer())
+
+	tbl.LimitToContainer(cnrOther)
+	require.Equal(t, cnrOther, tbl.LimitedContainer())
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst eacl.Table
+
+			dst.LimitToContainer(cnr)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Zero(t, dst.LimitedContainer())
+
+			dst.LimitToContainer(cnrOther)
+			src.LimitToContainer(cnr)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Equal(t, cnr, dst.LimitedContainer())
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst eacl.Table
+			var msg apiacl.EACLTable
+
+			src.SetRecords(eacltest.NRecords(2)) // just to satisfy decoder
+
+			dst.LimitToContainer(cnr)
+
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Zero(t, dst.LimitedContainer())
+
+			dst.LimitToContainer(cnrOther)
+			src.LimitToContainer(cnr)
+			src.WriteToV2(&msg)
+			err = dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Equal(t, cnr, dst.LimitedContainer())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst eacl.Table
+
+			dst.LimitToContainer(cnr)
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Zero(t, dst.LimitedContainer())
+
+			dst.LimitToContainer(cnrOther)
+			src.LimitToContainer(cnr)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Equal(t, cnr, dst.LimitedContainer())
+		})
+	})
 }
 
-func TestTableEncoding(t *testing.T) {
-	tab := eacltest.Table(t)
+func TestTable_Records(t *testing.T) {
+	var tbl eacl.Table
 
-	t.Run("binary", func(t *testing.T) {
-		data, err := tab.Marshal()
-		require.NoError(t, err)
+	require.Zero(t, tbl.Records())
 
-		tab2 := eacl.NewTable()
-		require.NoError(t, tab2.Unmarshal(data))
+	rs := eacltest.NRecords(3)
+	tbl.SetRecords(rs)
+	require.Equal(t, rs, tbl.Records())
 
-		// FIXME: we compare v2 messages because
-		//  Filter contains fmt.Stringer interface
-		require.Equal(t, tab.ToV2(), tab2.ToV2())
-	})
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst eacl.Table
 
-	t.Run("json", func(t *testing.T) {
-		data, err := tab.MarshalJSON()
-		require.NoError(t, err)
+			dst.SetRecords(eacltest.NRecords(2))
 
-		tab2 := eacl.NewTable()
-		require.NoError(t, tab2.UnmarshalJSON(data))
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Nil(t, dst.Records())
 
-		require.Equal(t, tab.ToV2(), tab2.ToV2())
+			dst.SetRecords(eacltest.NRecords(3))
+			rs := eacltest.NRecords(3)
+			src.SetRecords(rs)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Equal(t, rs, dst.Records())
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst eacl.Table
+			var msg apiacl.EACLTable
+
+			dst.SetRecords(eacltest.NRecords(3))
+			rs := eacltest.NRecords(3)
+			src.SetRecords(rs)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Equal(t, rs, dst.Records())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst eacl.Table
+
+			dst.SetRecords(eacltest.NRecords(2))
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Nil(t, dst.Records())
+
+			dst.SetRecords(eacltest.NRecords(3))
+			rs := eacltest.NRecords(3)
+			src.SetRecords(rs)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Equal(t, rs, dst.Records())
+		})
 	})
 }
 
-func TestTable_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *eacl.Table
+func TestTable_CopyTo(t *testing.T) {
+	src := eacltest.Table()
 
-		require.Nil(t, x.ToV2())
+	dst := eacltest.Table()
+	src.CopyTo(&dst)
+	require.Equal(t, src, dst)
+
+	originAction := src.Records()[0].Action()
+	otherAction := originAction + 1
+	src.Records()[0].SetAction(otherAction)
+	require.Equal(t, otherAction, src.Records()[0].Action())
+	require.Equal(t, originAction, dst.Records()[0].Action())
+}
+
+func TestTable_SignedData(t *testing.T) {
+	tbl := eacltest.Table()
+	require.Equal(t, tbl.Marshal(), tbl.SignedData())
+}
+
+func TestTable_ReadFromV2(t *testing.T) {
+	t.Run("missing fields", func(t *testing.T) {
+		t.Run("records", func(t *testing.T) {
+			tbl := eacltest.Table()
+			tbl.SetRecords(nil)
+			var m apiacl.EACLTable
+			tbl.WriteToV2(&m)
+			require.ErrorContains(t, tbl.ReadFromV2(&m), "missing records")
+		})
 	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("container", func(t *testing.T) {
+			tbl := eacltest.Table()
+			var m apiacl.EACLTable
+			tbl.WriteToV2(&m)
 
-	t.Run("default values", func(t *testing.T) {
-		table := eacl.NewTable()
+			m.ContainerId.Value = []byte("not_a_container_ID")
+			require.ErrorContains(t, tbl.ReadFromV2(&m), "invalid container")
+		})
+		t.Run("records", func(t *testing.T) {
+			t.Run("targets", func(t *testing.T) {
+				rs := eacltest.NRecords(2)
+				rs[1].SetTargets(eacltest.NTargets(3))
+				tbl := eacltest.Table()
+				tbl.SetRecords(rs)
+				var m apiacl.EACLTable
+				tbl.WriteToV2(&m)
 
-		// check initial values
-		require.Equal(t, version.Current(), table.Version())
-		require.Nil(t, table.Records())
-		_, set := table.CID()
-		require.False(t, set)
+				m.Records[1].Targets[2].Role, m.Records[1].Targets[2].Keys = 0, nil
+				require.ErrorContains(t, tbl.ReadFromV2(&m), "invalid record #1: invalid target #2: role and public keys are not mutually exclusive")
+				m.Records[1].Targets[2].Role, m.Records[1].Targets[2].Keys = 1, make([][]byte, 1)
+				require.ErrorContains(t, tbl.ReadFromV2(&m), "invalid record #1: invalid target #2: role and public keys are not mutually exclusive")
+				m.Records[1].Targets = nil
+				require.ErrorContains(t, tbl.ReadFromV2(&m), "invalid record #1: missing target subjects")
+			})
+			t.Run("filters", func(t *testing.T) {
+				rs := eacltest.NRecords(2)
+				rs[1].SetFilters(eacltest.NFilters(3))
+				tbl := eacltest.Table()
+				tbl.SetRecords(rs)
+				var m apiacl.EACLTable
+				tbl.WriteToV2(&m)
 
-		// convert to v2 message
-		tableV2 := table.ToV2()
+				m.Records[1].Filters[2].Key = ""
+				require.ErrorContains(t, tbl.ReadFromV2(&m), "invalid record #1: invalid filter #2: missing key")
+			})
+		})
+	})
+}
 
-		var verV2 refs.Version
-		version.Current().WriteToV2(&verV2)
-		require.Equal(t, verV2, *tableV2.GetVersion())
-		require.Nil(t, tableV2.GetRecords())
-		require.Nil(t, tableV2.GetContainerID())
+func TestTable_Unmarshal(t *testing.T) {
+	t.Run("invalid binary", func(t *testing.T) {
+		var tbl eacl.Table
+		msg := []byte("definitely_not_protobuf")
+		err := tbl.Unmarshal(msg)
+		require.ErrorContains(t, err, "decode protobuf")
+	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("container", func(t *testing.T) {
+			tbl := eacltest.Table()
+			var m apiacl.EACLTable
+			tbl.WriteToV2(&m)
+			m.ContainerId.Value = []byte("not_a_container_ID")
+			b, err := proto.Marshal(&m)
+			require.NoError(t, err)
+			require.ErrorContains(t, tbl.Unmarshal(b), "invalid container")
+		})
+	})
+}
+
+func TestTable_UnmarshalJSON(t *testing.T) {
+	t.Run("invalid json", func(t *testing.T) {
+		var tbl eacl.Table
+		msg := []byte("definitely_not_protojson")
+		err := tbl.UnmarshalJSON(msg)
+		require.ErrorContains(t, err, "decode protojson")
+	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("container", func(t *testing.T) {
+			tbl := eacltest.Table()
+			var m apiacl.EACLTable
+			tbl.WriteToV2(&m)
+			m.ContainerId.Value = []byte("not_a_container_ID")
+			b, err := protojson.Marshal(&m)
+			require.NoError(t, err)
+			require.ErrorContains(t, tbl.UnmarshalJSON(b), "invalid container")
+		})
 	})
 }

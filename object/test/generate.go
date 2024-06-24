@@ -1,132 +1,92 @@
 package objecttest
 
 import (
-	"testing"
+	"math/rand"
+	"strconv"
 
-	"github.com/google/uuid"
-	objecttest "github.com/nspcc-dev/neofs-api-go/v2/object/test"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Range returns random object.Range.
-func Range() object.Range {
-	x := object.NewRange()
+func header(withParent bool) object.Header {
+	h := object.New(cidtest.ID(), usertest.ID()).Header
+	h.SetSessionToken(sessiontest.Object())
+	h.SetType(object.Type(rand.Uint32()))
+	h.SetPayloadSize(rand.Uint64())
+	h.SetCreationEpoch(rand.Uint64())
+	h.SetPreviousSplitObject(oidtest.ID())
+	h.SetFirstSplitObject(oidtest.ID())
+	h.SetParentID(oidtest.ID())
+	h.SetParentSignature(neofscryptotest.Signature())
+	h.SetPayloadChecksum(checksumtest.Checksum())
+	h.SetPayloadHomomorphicChecksum(checksumtest.Checksum())
 
-	x.SetOffset(1024)
-	x.SetLength(2048)
-
-	return *x
-}
-
-// Attribute returns random object.Attribute.
-func Attribute() object.Attribute {
-	x := object.NewAttribute("key", "value")
-
-	return *x
-}
-
-// SplitID returns random object.SplitID.
-func SplitID() object.SplitID {
-	x := object.NewSplitID()
-
-	x.SetUUID(uuid.New())
-
-	return *x
-}
-
-func generate(t testing.TB, withParent bool) object.Object {
-	x := object.New()
-	ver := version.Current()
-
-	x.SetID(oidtest.ID())
-	tok := sessiontest.Object()
-	x.SetSessionToken(&tok)
-	x.SetPayload([]byte{1, 2, 3})
-	owner := usertest.ID(t)
-	x.SetOwnerID(&owner)
-	x.SetContainerID(cidtest.ID())
-	x.SetType(object.TypeTombstone)
-	x.SetVersion(&ver)
-	x.SetPayloadSize(111)
-	x.SetCreationEpoch(222)
-	x.SetPreviousID(oidtest.ID())
-	x.SetParentID(oidtest.ID())
-	x.SetChildren(oidtest.ID(), oidtest.ID())
-	x.SetAttributes(Attribute(), Attribute())
-	splitID := SplitID()
-	x.SetSplitID(&splitID)
-	x.SetPayloadChecksum(checksumtest.Checksum())
-	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
-
-	if withParent {
-		par := generate(t, false)
-		x.SetParent(&par)
+	nAttr := rand.Int() % 4
+	for i := 0; i < nAttr; i++ {
+		si := strconv.Itoa(rand.Int())
+		h.SetAttribute("attr_"+si, "val_"+si)
 	}
 
-	return *x
+	if withParent {
+		h.SetParentHeader(header(false))
+	}
+
+	return h
 }
 
-// Raw returns random object.Object.
-// Deprecated: (v1.0.0) use Object instead.
-func Raw(t testing.TB) object.Object {
-	return Object(t)
+// Header returns random object.Header.
+func Header() object.Header {
+	return header(true)
 }
 
 // Object returns random object.Object.
-func Object(t testing.TB) object.Object {
-	return generate(t, true)
+func Object() object.Object {
+	payload := make([]byte, rand.Int()%32)
+	rand.Read(payload)
+
+	obj := object.Object{Header: Header()}
+	obj.SetID(oidtest.ID())
+	obj.SetSignature(neofscryptotest.Signature())
+	obj.SetPayload(payload)
+	return obj
 }
 
 // Tombstone returns random object.Tombstone.
 func Tombstone() object.Tombstone {
-	x := object.NewTombstone()
-
-	splitID := SplitID()
-	x.SetSplitID(&splitID)
-	x.SetExpirationEpoch(13)
-	x.SetMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
-
-	return *x
+	var x object.Tombstone
+	x.SetMembers(oidtest.NIDs(rand.Int()%3 + 1))
+	return x
 }
 
 // SplitInfo returns random object.SplitInfo.
 func SplitInfo() object.SplitInfo {
-	x := object.NewSplitInfo()
-
-	splitID := SplitID()
-	x.SetSplitID(&splitID)
-	x.SetLink(oidtest.ID())
+	var x object.SplitInfo
+	x.SetFirstPart(oidtest.ID())
 	x.SetLastPart(oidtest.ID())
-
-	return *x
-}
-
-// SearchFilters returns random object.SearchFilters.
-func SearchFilters() object.SearchFilters {
-	x := object.NewSearchFilters()
-
-	x.AddObjectIDFilter(object.MatchStringEqual, oidtest.ID())
-	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.ID())
-
+	x.SetLinker(oidtest.ID())
 	return x
 }
 
 // Lock returns random object.Lock.
-func Lock() *object.Lock {
+func Lock() object.Lock {
 	var l object.Lock
-	l.WriteMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
-
-	return &l
+	l.SetList(oidtest.NIDs(rand.Int()%3 + 1))
+	return l
 }
 
-// Link returns random object.Link.
-func Link() *object.Link {
-	return (*object.Link)(objecttest.GenerateLink(false))
+// SplitChain returns random object.SplitChain.
+func SplitChain() object.SplitChain {
+	els := make([]object.SplitChainElement, rand.Int()%3+1)
+	for i := range els {
+		els[i].SetID(oidtest.ID())
+		els[i].SetPayloadSize(rand.Uint32())
+	}
+	var x object.SplitChain
+	x.SetElements(els)
+	return x
 }

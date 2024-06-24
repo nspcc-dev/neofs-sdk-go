@@ -3,69 +3,69 @@ package version
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 )
 
 // Version represents revision number in SemVer scheme.
 //
-// Version is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Version
-// message. See ReadFromV2 / WriteToV2 methods.
+// Version implements built-in comparable interface.
+//
+// Version is mutually compatible with [refs.Version] message. See
+// [Version.ReadFromV2] / [Version.WriteToV2] methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = Version(refs.Version{}) // not recommended
-type Version refs.Version
+type Version struct{ mjr, mnr uint32 }
 
 const sdkMjr, sdkMnr = 2, 16
 
-// Current returns Version instance that initialized to the
-// latest supported NeoFS API revision number in SDK.
-func Current() (v Version) {
-	v.SetMajor(sdkMjr)
-	v.SetMinor(sdkMnr)
-	return v
-}
+// Current is the latest NeoFS API protocol version supported by this library.
+var Current = Version{sdkMjr, sdkMnr}
 
 // Major returns major number of the revision.
-func (v *Version) Major() uint32 {
-	return (*refs.Version)(v).GetMajor()
+func (v Version) Major() uint32 {
+	return v.mjr
 }
 
 // SetMajor sets major number of the revision.
 func (v *Version) SetMajor(val uint32) {
-	(*refs.Version)(v).SetMajor(val)
+	v.mjr = val
 }
 
 // Minor returns minor number of the revision.
-func (v *Version) Minor() uint32 {
-	return (*refs.Version)(v).GetMinor()
+func (v Version) Minor() uint32 {
+	return v.mnr
 }
 
 // SetMinor sets minor number of the revision.
 func (v *Version) SetMinor(val uint32) {
-	(*refs.Version)(v).SetMinor(val)
+	v.mnr = val
 }
 
-// WriteToV2 writes Version to the refs.Version message.
-// The message must not be nil.
+// WriteToV2 writes Version to the [refs.Version] message of the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Version.ReadFromV2].
 func (v Version) WriteToV2(m *refs.Version) {
-	*m = (refs.Version)(v)
+	m.Major, m.Minor = v.mjr, v.mnr
 }
 
-// ReadFromV2 reads Version from the refs.Version message. Checks if the message
-// conforms to NeoFS API V2 protocol.
+// ReadFromV2 reads Version from the [refs.Version] message. Returns an error if
+// the message is malformed according to the NeoFS API V2 protocol. The message
+// must not be nil.
 //
-// See also WriteToV2.
-func (v *Version) ReadFromV2(m refs.Version) error {
-	*v = Version(m)
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Version.WriteToV2].
+func (v *Version) ReadFromV2(m *refs.Version) error {
+	v.mjr, v.mnr = m.Major, m.Minor
 	return nil
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.
@@ -77,36 +77,4 @@ func (v Version) String() string {
 // semver formatted value without patch and with v prefix, e.g. 'v2.1'.
 func EncodeToString(v Version) string {
 	return fmt.Sprintf("v%d.%d", v.Major(), v.Minor())
-}
-
-// Equal returns true if versions are identical.
-func (v Version) Equal(v2 Version) bool {
-	return v.Major() == v2.Major() &&
-		v.Minor() == v2.Minor()
-}
-
-// MarshalJSON encodes Version into a JSON format of the NeoFS API
-// protocol (Protocol Buffers JSON).
-//
-// See also UnmarshalJSON.
-func (v Version) MarshalJSON() ([]byte, error) {
-	var m refs.Version
-	v.WriteToV2(&m)
-
-	return m.MarshalJSON()
-}
-
-// UnmarshalJSON decodes NeoFS API protocol JSON format into the Version
-// (Protocol Buffers JSON). Returns an error describing a format violation.
-//
-// See also MarshalJSON.
-func (v *Version) UnmarshalJSON(data []byte) error {
-	var m refs.Version
-
-	err := m.UnmarshalJSON(data)
-	if err != nil {
-		return err
-	}
-
-	return v.ReadFromV2(m)
 }

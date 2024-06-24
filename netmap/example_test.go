@@ -3,24 +3,22 @@ package netmap_test
 import (
 	"fmt"
 
-	apiGoNetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	apinetmap "github.com/nspcc-dev/neofs-sdk-go/api/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 )
 
 // Instances can be also used to process NeoFS API V2 protocol messages with [https://github.com/nspcc-dev/neofs-api] package.
 func ExampleNodeInfo_marshalling() {
-	// import apiGoNetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-
 	// On the client side.
 
 	var info netmap.NodeInfo
-	var msg apiGoNetmap.NodeInfo
+	var msg apinetmap.NodeInfo
 	info.WriteToV2(&msg)
 	// *send message*
 
 	// On the server side.
 
-	_ = info.ReadFromV2(msg)
+	_ = info.ReadFromV2(&msg)
 }
 
 // When forming information about storage node to be registered the NeoFS

@@ -1,0 +1,102 @@
+{
+  "body": {
+    "ownerId": {
+      "value": "YW55X3VzZXI="
+    }
+  },
+  "metaHeader": {
+    "version": {
+      "major": 201,
+      "minor": 202
+    },
+    "epoch": "304",
+    "ttl": 303,
+    "xHeaders": [
+      {
+        "key": "xheader_key301",
+        "value": "xheader_val301"
+      },
+      {
+        "key": "xheader_key302",
+        "value": "xheader_val302"
+      }
+    ],
+    "origin": {
+      "version": {
+        "major": 201,
+        "minor": 202
+      },
+      "epoch": "204",
+      "ttl": 203,
+      "xHeaders": [
+        {
+          "key": "xheader_key201",
+          "value": "xheader_val201"
+        },
+        {
+          "key": "xheader_key202",
+          "value": "xheader_val202"
+        }
+      ],
+      "origin": {
+        "version": {
+          "major": 101,
+          "minor": 102
+        },
+        "epoch": "104",
+        "ttl": 103,
+        "xHeaders": [
+          {
+            "key": "xheader_key101",
+            "value": "xheader_val101"
+          },
+          {
+            "key": "xheader_key102",
+            "value": "xheader_val102"
+          }
+        ],
+        "magicNumber": "5"
+      },
+      "magicNumber": "205"
+    },
+    "magicNumber": "305"
+  },
+  "verifyHeader": {
+    "metaSignature": {
+      "key": "A8Qg2J9zJSORiYIbYK/Yq0q45FIUsgLAXuSeOYI4Ng8W",
+      "signature": "HZrUx+Xp9iRjDbgasmr6Mwv65p1lycfj2nlus9AmNh5KCdm4NFHlPv8nnXEFx7BANKTYdm0PbYzZZJNlZcklL/qMzY0aw6MEvvIutlFc5TU=",
+      "scheme": "ECDSA_RFC6979_SHA256_WALLET_CONNECT"
+    },
+    "originSignature": {
+      "key": "A8Qg2J9zJSORiYIbYK/Yq0q45FIUsgLAXuSeOYI4Ng8W",
+      "signature": "fk3uE/WAjqAx4XoZOM24mS9o4CgmNsg5SwSkD4Xy72c4RVixr5oLL5GMr1h338Vnse5AwkkB8xvY2OFBHhvWhQFPSZ1spO1bu/oExsjaGPQ=",
+      "scheme": "ECDSA_RFC6979_SHA256_WALLET_CONNECT"
+    },
+    "origin": {
+      "metaSignature": {
+        "key": "A3TULHJQEcSFVgyefjFDXR8M0tI9uIotoUhx9Ctt6Jpv",
+        "signature": "CwI49sXPCAhv2vkJ6xtSyZzUs7nwX82dqRGwgHN0eqlTCsQtaXXhUHGthbN6vsyRmoQHchEwFxLIMytkiU+eCQ==",
+        "scheme": "ECDSA_RFC6979_SHA256"
+      },
+      "originSignature": {
+        "key": "A3TULHJQEcSFVgyefjFDXR8M0tI9uIotoUhx9Ctt6Jpv",
+        "signature": "eOro0HBg3Qbx7QVJUP7TjxbsKewO093JmCzvaQNI1YFyrgh0Ngx+mYx3ONCRLGeh2QQZIASHcE8FRvFJGjw+kw==",
+        "scheme": "ECDSA_RFC6979_SHA256"
+      },
+      "origin": {
+        "bodySignature": {
+          "key": "AvaGlS3fnT8F8pvULFsKUh+J/DL/1EqR7+FuaoA4KdhR",
+          "signature": "BPz2w6D81tsid4Yzwh52iYx5kSWavh1IhOrreKdglE0yCvI+D2j4MV9H5jUTqsl9wyqDpoNNhDa3qnezXLyPOVk="
+        },
+        "metaSignature": {
+          "key": "AvaGlS3fnT8F8pvULFsKUh+J/DL/1EqR7+FuaoA4KdhR",
+          "signature": "BMOw657qNlqfHwUtZ01p1APPeTVMluY0abKlL/Q4AuyjZjWQPq3mYEkv6mgg3kg2zv3pLRUSCltE76zrquVDe0A="
+        },
+        "originSignature": {
+          "key": "AvaGlS3fnT8F8pvULFsKUh+J/DL/1EqR7+FuaoA4KdhR",
+          "signature": "BInVOszWEJAJc0sfhoSzAlTJQYY1hDqCP0gI84bLDhaajX4cTSPZsjKJgmuvrLSYqnakvFLxhgKI7ZUc9zL0JnI="
+        }
+      }
+    }
+  }
+}

@@ -2,161 +2,153 @@ package client
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"time"
 
-	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	apireputation "github.com/nspcc-dev/neofs-sdk-go/api/reputation"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
 
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPIAnnounceIntermediateResult = rpcapi.AnnounceIntermediateResult
-	rpcAPIAnnounceLocalTrust         = rpcapi.AnnounceLocalTrust
-)
+// SendLocalTrustsOptions groups optional parameters of [Client.SendLocalTrusts]
+// operation.
+type SendLocalTrustsOptions struct{}
 
-// PrmAnnounceLocalTrust groups optional parameters of AnnounceLocalTrust operation.
-type PrmAnnounceLocalTrust struct {
-	prmCommonMeta
-}
-
-// AnnounceLocalTrust sends client's trust values to the NeoFS network participants.
+// SendLocalTrusts sends client's trust values to the NeoFS network participants
+// collected for a given epoch. The trust set must not be empty.
 //
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Return errors:
-//   - [ErrZeroEpoch]
-//   - [ErrMissingTrusts]
-//
-// Parameter epoch must not be zero.
-// Parameter trusts must not be empty.
-func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []reputation.Trust, prm PrmAnnounceLocalTrust) error {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodAnnounceLocalTrust, err)()
-	}()
-
-	// check parameters
-	switch {
-	case epoch == 0:
-		err = ErrZeroEpoch
-		return err
-	case len(trusts) == 0:
-		err = ErrMissingTrusts
-		return err
+// SendLocalTrusts is used for system needs and is not intended to be called by
+// regular users.
+func (c *Client) SendLocalTrusts(ctx context.Context, epoch uint64, trusts []reputation.Trust, _ SendLocalTrustsOptions) error {
+	if len(trusts) == 0 {
+		return errors.New("missing trusts")
 	}
 
-	// form request body
-	reqBody := new(v2reputation.AnnounceLocalTrustRequestBody)
-	reqBody.SetEpoch(epoch)
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodAnnounceLocalTrust, time.Since(start), err)
+		}(time.Now())
+	}
 
-	trustList := make([]v2reputation.Trust, len(trusts))
-
+	// form request
+	req := &apireputation.AnnounceLocalTrustRequest{
+		Body: &apireputation.AnnounceLocalTrustRequest_Body{
+			Epoch:  epoch,
+			Trusts: make([]*apireputation.Trust, len(trusts)),
+		},
+	}
 	for i := range trusts {
-		trusts[i].WriteToV2(&trustList[i])
+		req.Body.Trusts[i] = new(apireputation.Trust)
+		trusts[i].WriteToV2(req.Body.Trusts[i])
 	}
-
-	reqBody.SetTrusts(trustList)
-
-	// form request
-	var req v2reputation.AnnounceLocalTrustRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
-	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
 		return err
 	}
 
-	return nil
+	// send request
+	resp, err := c.transport.reputation.AnnounceLocalTrust(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return err
+	}
+
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+	} else if sts != nil {
+		err = sts // for closure above
+	}
+	return err
 }
 
-// PrmAnnounceIntermediateTrust groups optional parameters of AnnounceIntermediateTrust operation.
-type PrmAnnounceIntermediateTrust struct {
-	prmCommonMeta
+// SendIntermediateTrustOptions groups optional parameters of [Client.SendIntermediateTrust]
+// operation.
+type SendIntermediateTrustOptions struct{}
 
-	iter uint32
-}
-
-// SetIteration sets current sequence number of the client's calculation algorithm.
-// By default, corresponds to initial (zero) iteration.
-func (x *PrmAnnounceIntermediateTrust) SetIteration(iter uint32) {
-	x.iter = iter
-}
-
-// AnnounceIntermediateTrust sends global trust values calculated for the specified NeoFS network participants
-// at some stage of client's calculation algorithm.
+// SendIntermediateTrust sends global trust value calculated for the specified
+// NeoFS network participant at given stage of client's iteration algorithm.
 //
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Return errors:
-//   - [ErrZeroEpoch]
-//
-// Parameter epoch must not be zero.
-func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, trust reputation.PeerToPeerTrust, prm PrmAnnounceIntermediateTrust) error {
+// SendIntermediateTrust is used for system needs and is not intended to be
+// called by regular users.
+func (c *Client) SendIntermediateTrust(ctx context.Context, epoch uint64, iter uint32, trust reputation.PeerToPeerTrust, _ SendIntermediateTrustOptions) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodAnnounceIntermediateTrust, err)()
-	}()
-
-	if epoch == 0 {
-		err = ErrZeroEpoch
-		return err
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodAnnounceIntermediateTrust, time.Since(start), err)
+		}(time.Now())
 	}
-
-	var v2Trust v2reputation.PeerToPeerTrust
-	trust.WriteToV2(&v2Trust)
-
-	// form request body
-	reqBody := new(v2reputation.AnnounceIntermediateResultRequestBody)
-	reqBody.SetEpoch(epoch)
-	reqBody.SetIteration(prm.iter)
-	reqBody.SetTrust(&v2Trust)
 
 	// form request
-	var req v2reputation.AnnounceIntermediateResultRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
+	req := &apireputation.AnnounceIntermediateResultRequest{
+		Body: &apireputation.AnnounceIntermediateResultRequest_Body{
+			Epoch:     epoch,
+			Iteration: iter,
+			Trust:     new(apireputation.PeerToPeerTrust),
+		},
 	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
+	trust.WriteToV2(req.Body.Trust)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
 		return err
 	}
 
-	return nil
+	// send request
+	resp, err := c.transport.reputation.AnnounceIntermediateResult(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return err
+	}
+
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+	} else if sts != nil {
+		err = sts // for closure above
+	}
+	return err
 }

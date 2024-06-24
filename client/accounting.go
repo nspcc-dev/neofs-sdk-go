@@ -2,104 +2,91 @@ package client
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"time"
 
-	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	apiaccounting "github.com/nspcc-dev/neofs-sdk-go/api/accounting"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-var (
-	// special variable for test purposes, to overwrite real RPC calls.
-	rpcAPIBalance = rpcapi.Balance
-)
+// GetBalanceOptions groups optional parameters of [Client.GetBalance].
+type GetBalanceOptions struct{}
 
-// PrmBalanceGet groups parameters of BalanceGet operation.
-type PrmBalanceGet struct {
-	prmCommonMeta
-
-	accountSet bool
-	account    user.ID
-}
-
-// SetAccount sets identifier of the NeoFS account for which the balance is requested.
-// Required parameter.
-func (x *PrmBalanceGet) SetAccount(id user.ID) {
-	x.account = id
-	x.accountSet = true
-}
-
-// BalanceGet requests current balance of the NeoFS account.
-//
-// Any errors (local or remote, including returned status codes) are returned as Go errors,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Return errors:
-//   - [ErrMissingAccount]
-func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
+// GetBalance requests current balance of the NeoFS account.
+func (c *Client) GetBalance(ctx context.Context, usr user.ID, _ GetBalanceOptions) (accounting.Decimal, error) {
+	var res accounting.Decimal
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodBalanceGet, err)()
-	}()
-
-	switch {
-	case !prm.accountSet:
-		err = ErrMissingAccount
-		return accounting.Decimal{}, err
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodBalanceGet, time.Since(start), err)
+		}(time.Now())
 	}
-
-	// form request body
-	var accountV2 refs.OwnerID
-	prm.account.WriteToV2(&accountV2)
-
-	var body v2accounting.BalanceRequestBody
-	body.SetOwnerID(&accountV2)
 
 	// form request
-	var req v2accounting.BalanceRequest
-
-	req.SetBody(&body)
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res accounting.Decimal
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPIBalance(&c.c, &req, client.WithContext(ctx))
+	req := &apiaccounting.BalanceRequest{
+		Body: &apiaccounting.BalanceRequest_Body{OwnerId: new(refs.OwnerID)},
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2accounting.BalanceResponse)
+	usr.WriteToV2(req.Body.OwnerId)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%v: %w", errSignRequest, err) // for closure above
+		return res, err
+	}
 
-		const fieldBalance = "balance"
+	// send request
+	resp, err := c.transport.accounting.Balance(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
+	}
 
-		bal := resp.GetBody().GetBalance()
-		if bal == nil {
-			cc.err = newErrMissingResponseField(fieldBalance)
-			return
-		}
-
-		cc.err = res.ReadFromV2(*bal)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldBalance, cc.err)
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return accounting.Decimal{}, cc.err
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
 	}
 
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
+	}
+	const fieldBalance = "balance"
+	if resp.Body.Balance == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldBalance) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.Balance); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldBalance, err) // for closure above
+		return res, err
+	}
 	return res, nil
 }

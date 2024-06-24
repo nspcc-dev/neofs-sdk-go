@@ -5,238 +5,240 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
+	apiobject "github.com/nspcc-dev/neofs-sdk-go/api/object"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	apisession "github.com/nspcc-dev/neofs-sdk-go/api/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPISearchObjects = rpcapi.SearchObjects
-)
+const fieldObjectIDList = "object ID list"
 
-// PrmObjectSearch groups optional parameters of ObjectSearch operation.
-type PrmObjectSearch struct {
-	sessionContainer
+// SelectObjectsOptions groups optional parameters of [Client.SelectObjects].
+type SelectObjectsOptions struct {
+	local bool
 
-	filters object.SearchFilters
+	sessionSet bool
+	session    session.Object
+
+	bearerTokenSet bool
+	bearerToken    bearer.Token
 }
 
-// MarkLocal tells the server to execute the operation locally.
-func (x *PrmObjectSearch) MarkLocal() {
-	x.meta.SetTTL(1)
+// PreventForwarding disables request forwarding to container nodes and
+// instructs the server to select objects from the local storage only.
+func (x *SelectObjectsOptions) PreventForwarding() {
+	x.local = true
 }
 
-// WithBearerToken attaches bearer token to be used for the operation.
+// WithinSession specifies token of the session preliminary issued by some user
+// with the client signer. Session must include [session.VerbObjectSearch]
+// action. The token must be signed and target the subject authenticated by
+// signer passed to [Client.SelectObjects]. If set, the session issuer will be
+// treated as the original request sender.
 //
-// If set, underlying eACL rules will be used in access control.
+// Note that sessions affect access control only indirectly: they just replace
+// request originator.
 //
-// Must be signed.
-func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
+// With session, [Client.SelectObjects] can also return
+// [apistatus.ErrSessionTokenExpired] if the token has expired: this usually
+// requires re-issuing the session.
+//
+// Note that it makes no sense to start session with the server via
+// [Client.StartSession] like for [Client.DeleteObject] or [Client.PutObject].
+func (x *SelectObjectsOptions) WithinSession(s session.Object) {
+	x.session, x.sessionSet = s, true
 }
 
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
-//
-// Slice must not be mutated until the operation completes.
-func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
+// WithBearerToken attaches bearer token carrying extended ACL rules that
+// replace eACL of the container. The token must be issued by the container
+// owner and target the subject authenticated by signer passed to
+// [Client.SelectObjects]. In practice, bearer token makes sense only if it
+// grants selecting rights to the subject.
+func (x *SelectObjectsOptions) WithBearerToken(t bearer.Token) {
+	x.bearerToken, x.bearerTokenSet = t, true
 }
 
-// SetFilters sets filters by which to select objects. All container objects
-// match unset/empty filters.
-func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
-	x.filters = filters
-}
+// AllObjectsQuery returns search query to select all objects in particular
+// container.
+func AllObjectsQuery() []object.SearchFilter { return nil }
 
-// ObjectListReader is designed to read list of object identifiers from NeoFS system.
-//
-// Must be initialized using Client.ObjectSearch, any other usage is unsafe.
-type ObjectListReader struct {
-	client          *Client
-	cancelCtxStream context.CancelFunc
-	err             error
-	stream          interface {
-		Read(resp *v2object.SearchResponse) error
-	}
-	tail []v2refs.ObjectID
+var errBreak = errors.New("break")
 
-	statisticCallback shortStatisticCallback
-}
-
-// Read reads another list of the object identifiers. Works similar to
-// io.Reader.Read but copies oid.ID.
-//
-// Failure reason can be received via Close.
-//
-// Panics if buf has zero length.
-func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
-	if len(buf) == 0 {
-		panic("empty buffer in ObjectListReader.ReadList")
+// allows to share code b/w various methods calling object search. ID list
+// passed to f is always non-empty. If f returns errBreak, this method breaks
+// with no error.
+func (c *Client) forEachSelectedObjectsSet(ctx context.Context, cnr cid.ID, signer neofscrypto.Signer, opts SelectObjectsOptions,
+	filters []object.SearchFilter, f func(nResp int, ids []*refs.ObjectID) error) (err error) {
+	if signer == nil {
+		return errMissingSigner
 	}
 
-	read := copyIDBuffers(buf, x.tail)
-	x.tail = x.tail[read:]
-
-	if len(buf) == read {
-		return read, nil
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodObjectSearch, time.Since(start), err)
+		}(time.Now())
 	}
 
-	for {
-		var resp v2object.SearchResponse
-		x.err = x.stream.Read(&resp)
-		if x.err != nil {
-			return read, x.err
+	// form request
+	req := &apiobject.SearchRequest{
+		Body: &apiobject.SearchRequest_Body{
+			ContainerId: new(refs.ContainerID),
+		},
+		MetaHeader: new(apisession.RequestMetaHeader),
+	}
+	cnr.WriteToV2(req.Body.ContainerId)
+	if len(filters) > 0 {
+		req.Body.Filters = make([]*apiobject.SearchRequest_Body_Filter, len(filters))
+		for i := range filters {
+			req.Body.Filters[i] = new(apiobject.SearchRequest_Body_Filter)
+			filters[i].WriteToV2(req.Body.Filters[i])
 		}
+	}
+	if opts.sessionSet {
+		req.MetaHeader.SessionToken = new(apisession.SessionToken)
+		opts.session.WriteToV2(req.MetaHeader.SessionToken)
+	}
+	if opts.bearerTokenSet {
+		req.MetaHeader.BearerToken = new(apiacl.BearerToken)
+		opts.bearerToken.WriteToV2(req.MetaHeader.BearerToken)
+	}
+	if opts.local {
+		req.MetaHeader.Ttl = 1
+	} else {
+		req.MetaHeader.Ttl = 2
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(signer, req, req.Body, *buf); err != nil {
+		return fmt.Errorf("%s: %w", errSignRequest, err)
+	}
 
-		x.err = x.client.processResponse(&resp)
-		if x.err != nil {
-			return read, x.err
+	// send request
+	ctx, cancelStream := context.WithCancel(ctx)
+	defer cancelStream()
+	stream, err := c.transport.object.Search(ctx, req)
+	if err != nil {
+		return fmt.Errorf("%s: %w", errTransport, err)
+	}
+
+	// read the stream
+	var resp apiobject.SearchResponse
+	var lastStatus apistatus.StatusV2
+	mustFin := false
+	for n := 0; ; n++ {
+		err = stream.RecvMsg(&resp)
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				if n > 0 { // at least 1 message carrying status is required
+					return lastStatus
+				}
+				return errors.New("stream ended without a status response")
+			}
+			return fmt.Errorf("%s while reading response #%d: %w", errTransport, n, err)
+		} else if mustFin {
+			return fmt.Errorf("stream is not completed after the message #%d which must be the last one", n-1)
 		}
-
-		// read new chunk of objects
-		ids := resp.GetBody().GetIDList()
-		if len(ids) == 0 {
-			// just skip empty lists since they are not prohibited by protocol
+		// intercept response info
+		if c.interceptAPIRespInfo != nil && n == 0 {
+			if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+				key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+				epoch: resp.GetMetaHeader().GetEpoch(),
+			}); err != nil {
+				return fmt.Errorf("%s: %w", errInterceptResponseInfo, err)
+			}
+		}
+		if err = neofscrypto.VerifyResponse(&resp, resp.Body); err != nil {
+			return fmt.Errorf("invalid response #%d: %s: %w", n, errResponseSignature, err)
+		}
+		lastStatus, err = apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+		if err != nil {
+			return fmt.Errorf("invalid response #%d: %s: %w", n, errInvalidResponseStatus, err)
+		} else if lastStatus != nil {
+			mustFin = true
 			continue
 		}
-
-		ln := copyIDBuffers(buf[read:], ids)
-		read += ln
-
-		if read == len(buf) {
-			// save the tail
-			x.tail = append(x.tail, ids[ln:]...)
-
-			return read, nil
+		if resp.Body == nil || len(resp.Body.IdList) == 0 {
+			if n == 0 {
+				mustFin = true
+				continue
+			}
+			// technically, we can continue. But if the server is malicious/buggy, it may
+			// return zillion of such messages, and the only thing that could save us is the
+			// context. So, it's safer to fail immediately.
+			return fmt.Errorf("invalid response #%d: empty %s is only allowed in the first stream message", n, fieldObjectIDList)
+		}
+		if err = f(n, resp.Body.IdList); err != nil {
+			if errors.Is(err, errBreak) {
+				return nil
+			}
+			return err
 		}
 	}
 }
 
-func copyIDBuffers(dst []oid.ID, src []v2refs.ObjectID) int {
-	var i int
-	for ; i < len(dst) && i < len(src); i++ {
-		_ = dst[i].ReadFromV2(src[i])
-	}
-	return i
-}
-
-// Iterate iterates over the list of found object identifiers.
-// f can return true to stop iteration earlier.
+// SelectObjects selects objects from the referenced container that match all
+// specified search filters and returns their IDs. In particular, the empty set
+// of filters matches all container objects ([AllObjectsQuery] may be used for
+// this to make code clearer). if no matching objects are found, SelectObjects
+// returns an empty result without an error. SelectObjects returns buffered
+// objects regardless of error so that the caller can process the partial result
+// if needed.
 //
-// Returns an error if object can't be read.
-func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
-	buf := make([]oid.ID, 1)
-
-	for {
-		_, err := x.Read(buf)
-		if err != nil {
-			return x.Close()
+// SelectObjects returns:
+//   - [apistatus.ErrContainerNotFound] if referenced container is missing
+//   - [apistatus.ErrObjectAccessDenied] if signer has no access to select objects
+//
+// The method places the identifiers of all selected objects in a memory buffer,
+// which can be quite large for some containers/queries. If full buffering is
+// not required, [Client.ForEachSelectedObject] may be used to increase resource
+// efficiency.
+func (c *Client) SelectObjects(ctx context.Context, cnr cid.ID, signer neofscrypto.Signer, opts SelectObjectsOptions, filters []object.SearchFilter) ([]oid.ID, error) {
+	var res []oid.ID
+	return res, c.forEachSelectedObjectsSet(ctx, cnr, signer, opts, filters, func(nResp int, ids []*refs.ObjectID) error {
+		off := len(res)
+		res = append(res, make([]oid.ID, len(ids))...)
+		for i := range ids {
+			if ids[i] == nil {
+				return fmt.Errorf("invalid respone #%d: invalid body: invalid field (%s): nil element #%d", nResp, fieldObjectIDList, i)
+			} else if err := res[off+i].ReadFromV2(ids[i]); err != nil {
+				res = res[:off+i]
+				return fmt.Errorf("invalid response #%d: invalid body: invalid field (%s): invalid element #%d: %w", nResp, fieldObjectIDList, i, err)
+			}
 		}
-		if f(buf[0]) {
-			return nil
+		return nil
+	})
+}
+
+// ForEachSelectedObject works like [Client.SelectObjects] but passes each
+// select object's ID to f. If f returns false, ForEachSelectedObject breaks
+// without an error. ForEachSelectedObject, like [Client.SelectObjects], returns
+// no error if no matching objects are found (this case can be detected by the
+// caller via f closure).
+func (c *Client) ForEachSelectedObject(ctx context.Context, cnr cid.ID, signer neofscrypto.Signer, opts SelectObjectsOptions,
+	filters []object.SearchFilter, f func(oid.ID) bool) error {
+	return c.forEachSelectedObjectsSet(ctx, cnr, signer, opts, filters, func(nResp int, ids []*refs.ObjectID) error {
+		var id oid.ID
+		for i := range ids {
+			if ids[i] == nil {
+				return fmt.Errorf("invalid respone #%d: invalid body: invalid field (%s): nil element #%d", nResp, fieldObjectIDList, i)
+			} else if err := id.ReadFromV2(ids[i]); err != nil {
+				return fmt.Errorf("invalid response #%d: invalid body: invalid field (%s): invalid element #%d: %w", nResp, fieldObjectIDList, i, err)
+			} else if !f(id) {
+				return errBreak
+			}
 		}
-	}
-}
-
-// Close ends reading list of the matched objects and returns the result of the operation
-// along with the final results. Must be called after using the ObjectListReader.
-//
-// Any client's internal or transport errors are returned as Go built-in error.
-// If Client is tuned to resolve NeoFS API statuses, then NeoFS failures
-// codes are returned as error.
-//
-// Return errors:
-//   - global (see Client docs)
-//   - [apistatus.ErrContainerNotFound]
-//   - [apistatus.ErrObjectAccessDenied]
-//   - [apistatus.ErrSessionTokenExpired]
-func (x *ObjectListReader) Close() error {
-	var err error
-	if x.statisticCallback != nil {
-		defer func() {
-			x.statisticCallback(err)
-		}()
-	}
-
-	defer x.cancelCtxStream()
-
-	if x.err != nil && !errors.Is(x.err, io.EOF) {
-		err = x.err
-		return err
-	}
-
-	return nil
-}
-
-// ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
-//
-// The call only opens the transmission channel, explicit fetching of matched objects
-// is done using the ObjectListReader. Exactly one return value is non-nil.
-// Resulting reader must be finally closed.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
-// the specified Signer, which is taken into account, in particular, for access control.
-//
-// Return errors:
-//   - [ErrMissingSigner]
-func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (*ObjectListReader, error) {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodObjectSearch, err)()
-	}()
-
-	if signer == nil {
-		return nil, ErrMissingSigner
-	}
-
-	var cidV2 v2refs.ContainerID
-	containerID.WriteToV2(&cidV2)
-
-	var body v2object.SearchRequestBody
-	body.SetVersion(1)
-	body.SetContainerID(&cidV2)
-	body.SetFilters(prm.filters.ToV2())
-
-	// init reader
-	var req v2object.SearchRequest
-	req.SetBody(&body)
-	c.prepareRequest(&req, &prm.meta)
-
-	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
-	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
-		return nil, err
-	}
-
-	var r ObjectListReader
-	ctx, r.cancelCtxStream = context.WithCancel(ctx)
-
-	r.stream, err = rpcAPISearchObjects(&c.c, &req, client.WithContext(ctx))
-	if err != nil {
-		err = fmt.Errorf("open stream: %w", err)
-		return nil, err
-	}
-	r.client = c
-	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectSearchStream, err)()
-	}
-
-	return &r, nil
+		return nil
+	})
 }

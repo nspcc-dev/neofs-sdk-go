@@ -1,16 +1,17 @@
 package netmap_test
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 
-	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	apinetmap "github.com/nspcc-dev/neofs-sdk-go/api/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestEncode(t *testing.T) {
+func TestPlacementPolicy_DecodeString(t *testing.T) {
 	testCases := []string{
 		`REP 1 IN X
 CBF 1
@@ -46,24 +47,38 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 	}
 }
 
-func TestPlacementPolicyEncoding(t *testing.T) {
-	v := netmaptest.PlacementPolicy()
+func TestPlacementPolicy_ReadFromV2(t *testing.T) {
+	t.Run("missing fields", func(t *testing.T) {
+		t.Run("replicas", func(t *testing.T) {
+			n := netmaptest.PlacementPolicy()
+			var m apinetmap.PlacementPolicy
 
-	t.Run("binary", func(t *testing.T) {
-		var v2 netmap.PlacementPolicy
-		require.NoError(t, v2.Unmarshal(v.Marshal()))
+			n.WriteToV2(&m)
+			m.Replicas = nil
+			require.ErrorContains(t, n.ReadFromV2(&m), "missing replicas")
 
-		require.Equal(t, v, v2)
+			n.WriteToV2(&m)
+			m.Replicas = []*apinetmap.Replica{}
+			require.ErrorContains(t, n.ReadFromV2(&m), "missing replicas")
+		})
 	})
+}
 
-	t.Run("json", func(t *testing.T) {
-		data, err := v.MarshalJSON()
-		require.NoError(t, err)
+func TestPlacementPolicy_Marshal(t *testing.T) {
+	t.Run("invalid binary", func(t *testing.T) {
+		var n netmap.PlacementPolicy
+		msg := []byte("definitely_not_protobuf")
+		err := n.Unmarshal(msg)
+		require.ErrorContains(t, err, "decode protobuf")
+	})
+}
 
-		var v2 netmap.PlacementPolicy
-		require.NoError(t, v2.UnmarshalJSON(data))
-
-		require.Equal(t, v, v2)
+func TestPlacementPolicy_UnmarshalJSON(t *testing.T) {
+	t.Run("invalid json", func(t *testing.T) {
+		var n netmap.PlacementPolicy
+		msg := []byte("definitely_not_protojson")
+		err := n.UnmarshalJSON(msg)
+		require.ErrorContains(t, err, "decode protojson")
 	})
 }
 
@@ -71,291 +86,312 @@ func TestPlacementPolicy_ContainerBackupFactor(t *testing.T) {
 	var p netmap.PlacementPolicy
 	require.Zero(t, p.ContainerBackupFactor())
 
-	p = netmaptest.PlacementPolicy()
-	p.SetContainerBackupFactor(42)
-	require.EqualValues(t, 42, p.ContainerBackupFactor())
+	const val = 42
+	p.SetContainerBackupFactor(val)
+	require.EqualValues(t, val, p.ContainerBackupFactor())
 
-	var m netmapv2.PlacementPolicy
-	p.WriteToV2(&m)
-	require.EqualValues(t, 42, m.GetContainerBackupFactor())
+	const otherVal = 13
+	p.SetContainerBackupFactor(otherVal)
+	require.EqualValues(t, otherVal, p.ContainerBackupFactor())
 
-	m.SetContainerBackupFactor(13)
-	err := p.ReadFromV2(m)
-	require.NoError(t, err)
-	require.EqualValues(t, 13, m.GetContainerBackupFactor())
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+
+			dst.SetContainerBackupFactor(otherVal)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Zero(t, dst.ContainerBackupFactor())
+
+			src.SetContainerBackupFactor(val)
+
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.EqualValues(t, val, dst.ContainerBackupFactor())
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+			var msg apinetmap.PlacementPolicy
+
+			// set required data just to satisfy decoder
+			src.SetReplicas(netmaptest.NReplicas(2))
+
+			dst.SetContainerBackupFactor(otherVal)
+
+			src.WriteToV2(&msg)
+			require.Zero(t, msg.ContainerBackupFactor)
+			require.NoError(t, dst.ReadFromV2(&msg))
+			require.Zero(t, dst.ContainerBackupFactor())
+
+			src.SetContainerBackupFactor(val)
+
+			src.WriteToV2(&msg)
+			require.EqualValues(t, val, msg.ContainerBackupFactor)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.EqualValues(t, val, dst.ContainerBackupFactor())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+
+			dst.SetContainerBackupFactor(otherVal)
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Zero(t, dst.ContainerBackupFactor())
+
+			src.SetContainerBackupFactor(val)
+
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.EqualValues(t, val, dst.ContainerBackupFactor())
+		})
+	})
 }
 
 func TestPlacementPolicy_Replicas(t *testing.T) {
 	var p netmap.PlacementPolicy
-	require.Empty(t, p.Replicas())
 
-	var r netmap.ReplicaDescriptor
-	var rs []netmap.ReplicaDescriptor
+	require.Zero(t, p.Replicas())
+	require.Zero(t, p.NumberOfReplicas())
 
-	r.SetSelectorName("selector_1")
-	r.SetNumberOfObjects(1)
-	rs = append(rs, r)
-
-	r.SetSelectorName("selector_2")
-	r.SetNumberOfObjects(2)
-	rs = append(rs, r)
-
+	rs := netmaptest.NReplicas(3)
 	p.SetReplicas(rs)
 	require.Equal(t, rs, p.Replicas())
+	require.EqualValues(t, 3, p.NumberOfReplicas())
+	for i := range rs {
+		require.Equal(t, rs[i].NumberOfObjects(), p.ReplicaNumberByIndex(i))
+	}
+	require.Panics(t, func() { p.ReplicaNumberByIndex(len(rs)) })
 
-	var m netmapv2.PlacementPolicy
-	p.WriteToV2(&m)
-	rsm := m.GetReplicas()
-	require.Len(t, rsm, 2)
-	rm := rsm[0]
-	require.Equal(t, "selector_1", rm.GetSelector())
-	require.EqualValues(t, 1, rm.GetCount())
-	rm = rsm[1]
-	require.Equal(t, "selector_2", rm.GetSelector())
-	require.EqualValues(t, 2, rm.GetCount())
+	rsOther := netmaptest.NReplicas(2)
+	p.SetReplicas(rsOther)
+	require.Equal(t, rsOther, p.Replicas())
 
-	err := p.ReadFromV2(m)
-	require.NoError(t, err)
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
 
-	rs = p.Replicas()
-	r = rs[0]
-	require.Equal(t, "selector_1", r.SelectorName())
-	require.EqualValues(t, 1, r.NumberOfObjects())
-	r = rs[1]
-	require.Equal(t, "selector_2", r.SelectorName())
-	require.EqualValues(t, 2, r.NumberOfObjects())
-}
+			src.SetReplicas(rs)
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Equal(t, rs, dst.Replicas())
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+			var msg apinetmap.PlacementPolicy
 
-func TestPlacementPolicy_Selectors(t *testing.T) {
-	var p netmap.PlacementPolicy
-	require.Empty(t, p.Selectors())
+			src.WriteToV2(&msg)
+			require.Zero(t, msg.Replicas)
+			err := dst.ReadFromV2(&msg)
+			require.ErrorContains(t, err, "missing replicas")
 
-	var s netmap.Selector
-	var ss []netmap.Selector
+			rs := make([]netmap.ReplicaDescriptor, 3)
+			for i := range rs {
+				rs[i].SetNumberOfObjects(uint32(i + 1))
+				rs[i].SetSelectorName("selector_" + strconv.Itoa(i+1))
+			}
 
-	s.SetName("name_1")
-	s.SelectByBucketAttribute("bucket_1")
-	s.SetFilterName("filter_1")
-	s.SetNumberOfNodes(1)
-	s.SelectSame()
-	ss = append(ss, s)
+			src.SetReplicas(rs)
 
-	s.SetName("name_2")
-	s.SelectByBucketAttribute("bucket_2")
-	s.SetFilterName("filter_2")
-	s.SetNumberOfNodes(2)
-	s.SelectDistinct()
-	ss = append(ss, s)
+			src.WriteToV2(&msg)
+			require.Equal(t, []*apinetmap.Replica{
+				{Count: 1, Selector: "selector_1"},
+				{Count: 2, Selector: "selector_2"},
+				{Count: 3, Selector: "selector_3"},
+			}, msg.Replicas)
+			err = dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Equal(t, rs, dst.Replicas())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
 
-	p.SetSelectors(ss)
-	require.Equal(t, ss, p.Selectors())
+			src.SetReplicas(rs)
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
 
-	var m netmapv2.PlacementPolicy
-	p.WriteToV2(&m)
-	ssm := m.GetSelectors()
-	require.Len(t, ssm, 2)
-	sm := ssm[0]
-	require.Equal(t, "name_1", sm.GetName())
-	require.Equal(t, "bucket_1", sm.GetAttribute())
-	require.Equal(t, "filter_1", sm.GetFilter())
-	require.EqualValues(t, 1, sm.GetCount())
-	require.Equal(t, netmapv2.Same, sm.GetClause())
-	sm = ssm[1]
-	require.Equal(t, "name_2", sm.GetName())
-	require.Equal(t, "bucket_2", sm.GetAttribute())
-	require.Equal(t, "filter_2", sm.GetFilter())
-	require.EqualValues(t, 2, sm.GetCount())
-	require.Equal(t, netmapv2.Distinct, sm.GetClause())
-
-	m.SetReplicas([]netmapv2.Replica{{}}) // required
-	err := p.ReadFromV2(m)
-	require.NoError(t, err)
-
-	ss = p.Selectors()
-	s = ss[0]
-	require.Equal(t, "name_1", s.Name())
-	require.Equal(t, "bucket_1", s.BucketAttribute())
-	require.Equal(t, "filter_1", s.FilterName())
-	require.EqualValues(t, 1, s.NumberOfNodes())
-	require.True(t, s.IsSame())
-	s = ss[1]
-	require.Equal(t, "name_2", s.Name())
-	require.Equal(t, "bucket_2", s.BucketAttribute())
-	require.Equal(t, "filter_2", s.FilterName())
-	require.EqualValues(t, 2, s.NumberOfNodes())
-	require.True(t, s.IsDistinct())
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Equal(t, rs, dst.Replicas())
+		})
+	})
 }
 
 func TestPlacementPolicy_Filters(t *testing.T) {
 	var p netmap.PlacementPolicy
-	require.Empty(t, p.Filters())
 
-	var f netmap.Filter
-	var fs []netmap.Filter
+	require.Zero(t, p.Filters())
 
-	// 'key_1' == 'val_1'
-	f.SetName("filter_1")
-	f.Equal("key_1", "val_1")
-	fs = append(fs, f)
-
-	// 'key_2' != 'val_2'
-	f.SetName("filter_2")
-	f.NotEqual("key_2", "val_2")
-	fs = append(fs, f)
-
-	// 'key_3_1' > 31 || 'key_3_2' >= 32
-	var sub1 netmap.Filter
-	sub1.SetName("filter_3_1")
-	sub1.NumericGT("key_3_1", 3_1)
-
-	var sub2 netmap.Filter
-	sub2.SetName("filter_3_2")
-	sub2.NumericGE("key_3_2", 3_2)
-
-	f.SetName("filter_3")
-	f.LogicalOR(sub1, sub2)
-	fs = append(fs, f)
-
-	// 'key_4_1' < 41 || 'key_4_2' <= 42
-	sub1.SetName("filter_4_1")
-	sub1.NumericLT("key_4_1", 4_1)
-
-	sub2.SetName("filter_4_2")
-	sub2.NumericLE("key_4_2", 4_2)
-
-	f = netmap.Filter{}
-	f.SetName("filter_4")
-	f.LogicalAND(sub1, sub2)
-	fs = append(fs, f)
-
+	fs := netmaptest.NFilters(3)
 	p.SetFilters(fs)
 	require.Equal(t, fs, p.Filters())
 
-	var m netmapv2.PlacementPolicy
-	p.WriteToV2(&m)
-	fsm := m.GetFilters()
-	require.Len(t, fsm, 4)
-	// 1
-	fm := fsm[0]
-	require.Equal(t, "filter_1", fm.GetName())
-	require.Equal(t, "key_1", fm.GetKey())
-	require.Equal(t, netmapv2.EQ, fm.GetOp())
-	require.Equal(t, "val_1", fm.GetValue())
-	require.Zero(t, fm.GetFilters())
-	// 2
-	fm = fsm[1]
-	require.Equal(t, "filter_2", fm.GetName())
-	require.Equal(t, "key_2", fm.GetKey())
-	require.Equal(t, netmapv2.NE, fm.GetOp())
-	require.Equal(t, "val_2", fm.GetValue())
-	require.Zero(t, fm.GetFilters())
-	// 3
-	fm = fsm[2]
-	require.Equal(t, "filter_3", fm.GetName())
-	require.Zero(t, fm.GetKey())
-	require.Equal(t, netmapv2.OR, fm.GetOp())
-	require.Zero(t, fm.GetValue())
-	// 3.1
-	subm := fm.GetFilters()
-	require.Len(t, subm, 2)
-	fm = subm[0]
-	require.Equal(t, "filter_3_1", fm.GetName())
-	require.Equal(t, "key_3_1", fm.GetKey())
-	require.Equal(t, netmapv2.GT, fm.GetOp())
-	require.Equal(t, "31", fm.GetValue())
-	require.Zero(t, fm.GetFilters())
-	// 3.2
-	fm = subm[1]
-	require.Equal(t, "filter_3_2", fm.GetName())
-	require.Equal(t, "key_3_2", fm.GetKey())
-	require.Equal(t, netmapv2.GE, fm.GetOp())
-	require.Equal(t, "32", fm.GetValue())
-	require.Zero(t, fm.GetFilters())
-	// 4
-	fm = fsm[3]
-	require.Equal(t, "filter_4", fm.GetName())
-	require.Zero(t, fm.GetKey())
-	require.Equal(t, netmapv2.AND, fm.GetOp())
-	require.Zero(t, fm.GetValue())
-	// 4.1
-	subm = fm.GetFilters()
-	require.Len(t, subm, 2)
-	fm = subm[0]
-	require.Equal(t, "filter_4_1", fm.GetName())
-	require.Equal(t, "key_4_1", fm.GetKey())
-	require.Equal(t, netmapv2.LT, fm.GetOp())
-	require.Equal(t, "41", fm.GetValue())
-	require.Zero(t, fm.GetFilters())
-	// 4.2
-	fm = subm[1]
-	require.Equal(t, "filter_4_2", fm.GetName())
-	require.Equal(t, "key_4_2", fm.GetKey())
-	require.Equal(t, netmapv2.LE, fm.GetOp())
-	require.Equal(t, "42", fm.GetValue())
-	require.Zero(t, fm.GetFilters())
+	fsOther := netmaptest.NFilters(2)
+	p.SetFilters(fsOther)
+	require.Equal(t, fsOther, p.Filters())
 
-	m.SetReplicas([]netmapv2.Replica{{}}) // required
-	err := p.ReadFromV2(m)
-	require.NoError(t, err)
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
 
-	fs = p.Filters()
-	require.Len(t, fs, 4)
-	// 1
-	f = fs[0]
-	require.Equal(t, "filter_1", f.Name())
-	require.Equal(t, "key_1", f.Key())
-	require.Equal(t, netmap.FilterOpEQ, f.Op())
-	require.Equal(t, "val_1", f.Value())
-	require.Zero(t, f.SubFilters())
-	// 2
-	f = fs[1]
-	require.Equal(t, "filter_2", f.Name())
-	require.Equal(t, "key_2", f.Key())
-	require.Equal(t, netmap.FilterOpNE, f.Op())
-	require.Equal(t, "val_2", f.Value())
-	require.Zero(t, f.SubFilters())
-	// 3
-	f = fs[2]
-	require.Equal(t, "filter_3", f.Name())
-	require.Zero(t, f.Key())
-	require.Equal(t, netmap.FilterOpOR, f.Op())
-	require.Zero(t, f.Value())
-	// 3.1
-	sub := f.SubFilters()
-	require.Len(t, sub, 2)
-	f = sub[0]
-	require.Equal(t, "filter_3_1", f.Name())
-	require.Equal(t, "key_3_1", f.Key())
-	require.Equal(t, netmap.FilterOpGT, f.Op())
-	require.Equal(t, "31", f.Value())
-	require.Zero(t, f.SubFilters())
-	// 3.2
-	f = sub[1]
-	require.Equal(t, "filter_3_2", f.Name())
-	require.Equal(t, "key_3_2", f.Key())
-	require.Equal(t, netmap.FilterOpGE, f.Op())
-	require.Equal(t, "32", f.Value())
-	require.Zero(t, f.SubFilters())
-	// 4
-	f = fs[3]
-	require.Equal(t, "filter_4", f.Name())
-	require.Zero(t, f.Key())
-	require.Equal(t, netmap.FilterOpAND, f.Op())
-	require.Zero(t, f.Value())
-	// 4.1
-	sub = f.SubFilters()
-	require.Len(t, sub, 2)
-	f = sub[0]
-	require.Equal(t, "filter_4_1", f.Name())
-	require.Equal(t, "key_4_1", f.Key())
-	require.Equal(t, netmap.FilterOpLT, f.Op())
-	require.Equal(t, "41", f.Value())
-	require.Zero(t, f.SubFilters())
-	// 4.2
-	f = sub[1]
-	require.Equal(t, "filter_4_2", f.Name())
-	require.Equal(t, "key_4_2", f.Key())
-	require.Equal(t, netmap.FilterOpLE, f.Op())
-	require.Equal(t, "42", f.Value())
-	require.Zero(t, f.SubFilters())
+			dst.SetFilters(fsOther)
+			src.SetFilters(fs)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Equal(t, fs, dst.Filters())
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+			var msg apinetmap.PlacementPolicy
+
+			// set required data just to satisfy decoder
+			src.SetReplicas(netmaptest.NReplicas(3))
+
+			dst.SetFilters(fs)
+
+			src.WriteToV2(&msg)
+			require.Zero(t, msg.Filters)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Zero(t, dst.Filters())
+
+			fs := make([]netmap.Filter, 8)
+			for i := range fs {
+				fs[i].SetName("name" + strconv.Itoa(i))
+			}
+			fs[0].Equal("key0", "val0")
+			fs[1].NotEqual("key1", "val1")
+			fs[2].NumericGT("key2", 2)
+			fs[3].NumericGE("key3", 3)
+			fs[4].NumericLT("key4", 4)
+			fs[5].NumericLE("key5", 5)
+			subs0 := make([]netmap.Filter, 2)
+			subs0[0].SetName("sub0_0")
+			subs0[0].Equal("key0_0", "val0_0")
+			subs0[1].SetName("sub0_1")
+			subs0[1].NotEqual("key0_1", "val0_1")
+			fs[6].LogicalOR(subs0...)
+			subs1 := make([]netmap.Filter, 2)
+			subs1[0].SetName("sub1_0")
+			subs1[0].NumericGT("key1_0", 6)
+			subs1[1].SetName("sub1_1")
+			subs1[1].NumericGE("key1_1", 7)
+			fs[7].LogicalAND(subs1...)
+
+			src.SetFilters(fs)
+
+			src.WriteToV2(&msg)
+			require.Equal(t, []*apinetmap.Filter{
+				{Name: "name0", Key: "key0", Op: apinetmap.Operation_EQ, Value: "val0"},
+				{Name: "name1", Key: "key1", Op: apinetmap.Operation_NE, Value: "val1"},
+				{Name: "name2", Key: "key2", Op: apinetmap.Operation_GT, Value: "2"},
+				{Name: "name3", Key: "key3", Op: apinetmap.Operation_GE, Value: "3"},
+				{Name: "name4", Key: "key4", Op: apinetmap.Operation_LT, Value: "4"},
+				{Name: "name5", Key: "key5", Op: apinetmap.Operation_LE, Value: "5"},
+				{Name: "name6", Key: "", Op: apinetmap.Operation_OR, Value: "", Filters: []*apinetmap.Filter{
+					{Name: "sub0_0", Key: "key0_0", Op: apinetmap.Operation_EQ, Value: "val0_0"},
+					{Name: "sub0_1", Key: "key0_1", Op: apinetmap.Operation_NE, Value: "val0_1"},
+				}},
+				{Name: "name7", Key: "", Op: apinetmap.Operation_AND, Value: "", Filters: []*apinetmap.Filter{
+					{Name: "sub1_0", Key: "key1_0", Op: apinetmap.Operation_GT, Value: "6"},
+					{Name: "sub1_1", Key: "key1_1", Op: apinetmap.Operation_GE, Value: "7"},
+				}},
+			}, msg.Filters)
+			err = dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Equal(t, fs, dst.Filters())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+
+			src.SetFilters(fs)
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Equal(t, fs, dst.Filters())
+		})
+	})
+}
+func TestPlacementPolicy_Selectors(t *testing.T) {
+	var p netmap.PlacementPolicy
+
+	require.Zero(t, p.Selectors())
+
+	ss := netmaptest.NSelectors(3)
+	p.SetSelectors(ss)
+	require.Equal(t, ss, p.Selectors())
+
+	ssOther := netmaptest.NSelectors(2)
+	p.SetSelectors(ssOther)
+	require.Equal(t, ssOther, p.Selectors())
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+
+			dst.SetSelectors(ssOther)
+			src.SetSelectors(ss)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Equal(t, ss, dst.Selectors())
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+			var msg apinetmap.PlacementPolicy
+
+			// set required data just to satisfy decoder
+			src.SetReplicas(netmaptest.NReplicas(3))
+
+			dst.SetSelectors(ss)
+
+			src.WriteToV2(&msg)
+			require.Zero(t, msg.Selectors)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Zero(t, dst.Selectors())
+
+			ss := make([]netmap.Selector, 2)
+			for i := range ss {
+				si := strconv.Itoa(i + 1)
+				ss[i].SetName("name" + si)
+				ss[i].SetFilterName("filter" + si)
+				ss[i].SelectByBucketAttribute("bucket" + si)
+				ss[i].SetNumberOfNodes(uint32(i + 1))
+			}
+			ss[0].SelectSame()
+			ss[1].SelectDistinct()
+
+			src.SetSelectors(ss)
+
+			src.WriteToV2(&msg)
+			require.Equal(t, []*apinetmap.Selector{
+				{Name: "name1", Count: 1, Clause: apinetmap.Clause_SAME, Attribute: "bucket1", Filter: "filter1"},
+				{Name: "name2", Count: 2, Clause: apinetmap.Clause_DISTINCT, Attribute: "bucket2", Filter: "filter2"},
+			}, msg.Selectors)
+			err = dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Equal(t, ss, dst.Selectors())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst netmap.PlacementPolicy
+
+			src.SetSelectors(ss)
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Equal(t, ss, dst.Selectors())
+		})
+	})
 }

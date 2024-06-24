@@ -1,6 +1,10 @@
 package audittest
 
 import (
+	"fmt"
+	"math/rand"
+	"strconv"
+
 	"github.com/nspcc-dev/neofs-sdk-go/audit"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
@@ -11,26 +15,32 @@ func Result() audit.Result {
 	var x audit.Result
 
 	x.ForContainer(cidtest.ID())
-	x.SetAuditorKey([]byte("key"))
-	x.Complete()
-	x.ForEpoch(44)
-	x.SetHits(55)
-	x.SetMisses(66)
-	x.SetFailures(77)
-	x.SetRequestsPoR(88)
-	x.SetRequestsPoR(99)
-	x.SubmitFailedStorageNodes([][]byte{
-		[]byte("node1"),
-		[]byte("node2"),
-	})
-	x.SubmitPassedStorageNodes([][]byte{
-		[]byte("node3"),
-		[]byte("node4"),
-	})
-	x.SubmitPassedStorageGroup(oidtest.ID())
-	x.SubmitPassedStorageGroup(oidtest.ID())
-	x.SubmitFailedStorageGroup(oidtest.ID())
-	x.SubmitFailedStorageGroup(oidtest.ID())
+	auditorKey := make([]byte, 33)
+	rand.Read(auditorKey)
+	x.SetAuditorKey(auditorKey)
+	x.SetCompleted(rand.Int()%2 == 0)
+	x.ForEpoch(rand.Uint64())
+	x.SetHits(rand.Uint32())
+	x.SetMisses(rand.Uint32())
+	x.SetFailures(rand.Uint32())
+	x.SetRequestsPoR(rand.Uint32())
+	x.SetRequestsPoR(rand.Uint32())
+	failedNodes := make([][]byte, rand.Int()%4)
+	for i := range failedNodes {
+		failedNodes[i] = []byte("failed_node_" + strconv.Itoa(i+1))
+	}
+	x.SetFailedStorageNodes(failedNodes)
+	passedNodes := make([][]byte, rand.Int()%4)
+	for i := range passedNodes {
+		passedNodes[i] = []byte("passed_node_" + strconv.Itoa(i+1))
+	}
+	x.SetPassedStorageNodes(passedNodes)
+	x.SetPassedStorageGroups(oidtest.NIDs(rand.Int() % 4))
+	x.SetFailedStorageGroups(oidtest.NIDs(rand.Int() % 4))
+
+	if err := x.Unmarshal(x.Marshal()); err != nil { // to set all defaults
+		panic(fmt.Errorf("unexpected encode-decode failure: %w", err))
+	}
 
 	return x
 }

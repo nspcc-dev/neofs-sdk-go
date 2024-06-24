@@ -1,21 +1,23 @@
 package checksumtest
 
 import (
-	"crypto/sha256"
 	"math/rand"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 )
 
+type fixedHash []byte
+
+func (x fixedHash) Sum([]byte) []byte {
+	return x
+}
+
+func (x fixedHash) Write([]byte) (n int, err error) { panic("unexpected call") }
+func (x fixedHash) Reset()                          { panic("unexpected call") }
+func (x fixedHash) Size() int                       { panic("unexpected call") }
+func (x fixedHash) BlockSize() int                  { panic("unexpected call") }
+
 // Checksum returns random checksum.Checksum.
 func Checksum() checksum.Checksum {
-	var cs [sha256.Size]byte
-	//nolint:staticcheck
-	rand.Read(cs[:])
-
-	var x checksum.Checksum
-
-	x.SetSHA256(cs)
-
-	return x
+	return checksum.NewFromHash(checksum.Type(rand.Uint32()%256), fixedHash("Hello, world!"))
 }

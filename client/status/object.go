@@ -2,322 +2,257 @@ package apistatus
 
 import (
 	"errors"
+	"fmt"
+	"unicode/utf8"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	"github.com/nspcc-dev/neofs-sdk-go/api/status"
 )
 
+// Object error instances which may be used to check API errors against using
+// [errors.Is]. All of them MUST NOT be changed.
 var (
-	// ErrObjectLocked is an instance of ObjectLocked error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
-	ErrObjectLocked ObjectLocked
-	// ErrObjectAlreadyRemoved is an instance of ObjectAlreadyRemoved error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
+	ErrObjectAccessDenied   ObjectAccessDenied
+	ErrObjectNotFound       ObjectNotFound
+	ErrObjectLocked         ObjectLocked
+	ErrLockIrregularObject  LockIrregularObject
 	ErrObjectAlreadyRemoved ObjectAlreadyRemoved
-	// ErrLockNonRegularObject is an instance of LockNonRegularObject error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
-	ErrLockNonRegularObject LockNonRegularObject
-	// ErrObjectAccessDenied is an instance of ObjectAccessDenied error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
-	ErrObjectAccessDenied ObjectAccessDenied
-	// ErrObjectNotFound is an instance of ObjectNotFound error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
-	ErrObjectNotFound ObjectNotFound
-	// ErrObjectOutOfRange is an instance of ObjectOutOfRange error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
-	ErrObjectOutOfRange ObjectOutOfRange
+	ErrObjectOutOfRange     ObjectOutOfRange
 )
 
 // ObjectLocked describes status of the failure because of the locked object.
-// Instances provide [StatusV2] and error interfaces.
-type ObjectLocked struct {
-	v2 status.Status
-}
+type ObjectLocked struct{ msg string }
 
-const defaultObjectLockedMsg = "object is locked"
-
+// Error implements built-in error interface.
 func (x ObjectLocked) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultObjectLockedMsg
+	const desc = "object is locked"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, status.ObjectLocked, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(object.StatusLocked, object.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.ObjectLocked, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x ObjectLocked) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case ObjectLocked, *ObjectLocked:
-		return true
-	}
-}
+// Is checks whether target is of type ObjectLocked, *ObjectLocked or [Error].
+// Is implements interface consumed by [errors.Is].
+func (x ObjectLocked) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ObjectLocked) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *ObjectLocked) readFromV2(m *status.Status) error {
+	if m.Code != status.ObjectLocked {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.ObjectLocked))
+	}
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: LOCKED;
-//   - string message: "object is locked";
-//   - details: empty.
 func (x ObjectLocked) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(object.StatusLocked, object.GlobalizeFail))
-	x.v2.SetMessage(defaultObjectLockedMsg)
-	return &x.v2
+	return &status.Status{Code: status.ObjectLocked, Message: x.msg}
 }
 
-// LockNonRegularObject describes status returned on locking the non-regular object.
-// Instances provide [StatusV2] and error interfaces.
-type LockNonRegularObject struct {
-	v2 status.Status
-}
+// LockIrregularObject describes status returned on locking the irregular
+// object.
+type LockIrregularObject struct{ msg string }
 
-const defaultLockNonRegularObjectMsg = "locking non-regular object is forbidden"
-
-func (x LockNonRegularObject) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultLockNonRegularObjectMsg
+// Error implements built-in error interface.
+func (x LockIrregularObject) Error() string {
+	const desc = "locking irregular object is forbidden"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, status.LockIrregularObject, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(object.StatusLockNonRegularObject, object.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.LockIrregularObject, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x LockNonRegularObject) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case LockNonRegularObject, *LockNonRegularObject:
-		return true
+// Is checks whether target is of type LockIrregularObject, *LockIrregularObject
+// or [Error]. Is implements interface consumed by [errors.Is].
+func (x LockIrregularObject) Is(target error) bool { return errorIs(x, target) }
+
+func (x *LockIrregularObject) readFromV2(m *status.Status) error {
+	if m.Code != status.LockIrregularObject {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.LockIrregularObject))
 	}
-}
-
-// implements local interface defined in [ErrorFromV2] func.
-func (x *LockNonRegularObject) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: LOCK_NON_REGULAR_OBJECT;
-//   - string message: "locking non-regular object is forbidden";
-//   - details: empty.
-func (x LockNonRegularObject) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(object.StatusLockNonRegularObject, object.GlobalizeFail))
-	x.v2.SetMessage(defaultLockNonRegularObjectMsg)
-	return &x.v2
+func (x LockIrregularObject) ErrorToV2() *status.Status {
+	return &status.Status{Code: status.LockIrregularObject, Message: x.msg}
 }
 
-// ObjectAccessDenied describes status of the failure because of the access control violation.
-// Instances provide [StatusV2] and error interfaces.
-type ObjectAccessDenied struct {
-	v2 status.Status
+// ObjectAccessDenied describes status of the failure because of the access
+// control violation.
+type ObjectAccessDenied struct{ reason, msg string }
+
+// NewObjectAccessDeniedError constructs object access denial error indicating
+// the reason.
+func NewObjectAccessDeniedError(reason string) ObjectAccessDenied {
+	return ObjectAccessDenied{reason: reason}
 }
 
-const defaultObjectAccessDeniedMsg = "access to object operation denied"
-
+// Error implements built-in error interface.
 func (x ObjectAccessDenied) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultObjectAccessDeniedMsg
+	const desc = "object access denied"
+	if x.msg != "" {
+		if x.reason != "" {
+			return fmt.Sprintf(errFmt, status.ObjectAccessDenied, fmt.Sprintf("%s, reason: %s", desc, x.reason), x.msg)
+		}
+		return fmt.Sprintf(errFmt, status.ObjectAccessDenied, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail),
-		msg,
-	)
+	if x.reason != "" {
+		return fmt.Sprintf(errFmtNoMessage, status.ObjectAccessDenied, fmt.Sprintf("%s, reason: %s", desc, x.reason))
+	}
+	return fmt.Sprintf(errFmtNoMessage, status.ObjectAccessDenied, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x ObjectAccessDenied) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case ObjectAccessDenied, *ObjectAccessDenied:
-		return true
-	}
-}
+// Is checks whether target is of type ObjectAccessDenied, *ObjectAccessDenied
+// or [Error]. Is implements interface consumed by [errors.Is].
+func (x ObjectAccessDenied) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ObjectAccessDenied) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *ObjectAccessDenied) readFromV2(m *status.Status) error {
+	if m.Code != status.ObjectAccessDenied {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.ObjectAccessDenied))
+	}
+	if len(m.Details) > 0 {
+		if len(m.Details) > 1 {
+			return fmt.Errorf("too many details (%d)", len(m.Details))
+		}
+		if m.Details[0].Id != status.DetailObjectAccessDenialReason {
+			return fmt.Errorf("unsupported detail ID=%d", m.Details[0].Id)
+		}
+		if !utf8.Valid(m.Details[0].Value) {
+			return errors.New("invalid reason detail: invalid UTF-8 string")
+		}
+		x.reason = string(m.Details[0].Value)
+	} else {
+		x.reason = ""
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: ACCESS_DENIED;
-//   - string message: "access to object operation denied";
-//   - details: empty.
 func (x ObjectAccessDenied) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(object.StatusAccessDenied, object.GlobalizeFail))
-	x.v2.SetMessage(defaultObjectAccessDeniedMsg)
-	return &x.v2
-}
-
-// WriteReason writes human-readable access rejection reason.
-func (x *ObjectAccessDenied) WriteReason(reason string) {
-	object.WriteAccessDeniedDesc(&x.v2, reason)
+	st := status.Status{Code: status.ObjectAccessDenied, Message: x.msg}
+	if x.reason != "" {
+		st.Details = []*status.Status_Detail{{
+			Id:    status.DetailObjectAccessDenialReason,
+			Value: []byte(x.reason),
+		}}
+	}
+	return &st
 }
 
 // Reason returns human-readable access rejection reason returned by the server.
 // Returns empty value is reason is not presented.
 func (x ObjectAccessDenied) Reason() string {
-	return object.ReadAccessDeniedDesc(x.v2)
+	return x.reason
 }
 
 // ObjectNotFound describes status of the failure because of the missing object.
-// Instances provide [StatusV2] and error interfaces.
-type ObjectNotFound struct {
-	v2 status.Status
+type ObjectNotFound string
+
+// NewObjectNotFoundError constructs missing object error with specified cause.
+func NewObjectNotFoundError(cause error) ObjectNotFound {
+	return ObjectNotFound(cause.Error())
 }
 
-const defaultObjectNotFoundMsg = "object not found"
-
+// Error implements built-in error interface.
 func (x ObjectNotFound) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultObjectNotFoundMsg
+	const desc = "object not found"
+	if x != "" {
+		return fmt.Sprintf(errFmt, status.ObjectNotFound, desc, string(x))
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.ObjectNotFound, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x ObjectNotFound) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case ObjectNotFound, *ObjectNotFound:
-		return true
-	}
-}
+// Is checks whether target is of type ObjectNotFound, *ObjectNotFound or
+// [Error]. Is implements interface consumed by [errors.Is].
+func (x ObjectNotFound) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ObjectNotFound) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *ObjectNotFound) readFromV2(m *status.Status) error {
+	if m.Code != status.ObjectNotFound {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.ObjectNotFound))
+	}
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	*x = ObjectNotFound(m.Message)
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: OBJECT_NOT_FOUND;
-//   - string message: "object not found";
-//   - details: empty.
 func (x ObjectNotFound) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(object.StatusNotFound, object.GlobalizeFail))
-	x.v2.SetMessage(defaultObjectNotFoundMsg)
-	return &x.v2
+	return &status.Status{Code: status.ObjectNotFound, Message: string(x)}
 }
 
 // ObjectAlreadyRemoved describes status of the failure because object has been
-// already removed. Instances provide Status and StatusV2 interfaces.
-type ObjectAlreadyRemoved struct {
-	v2 status.Status
-}
+// already removed.
+type ObjectAlreadyRemoved struct{ msg string }
 
-const defaultObjectAlreadyRemovedMsg = "object already removed"
-
+// Error implements built-in error interface.
 func (x ObjectAlreadyRemoved) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultObjectAlreadyRemovedMsg
+	const desc = "object already removed"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, status.ObjectAlreadyRemoved, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.ObjectAlreadyRemoved, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x ObjectAlreadyRemoved) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case ObjectAlreadyRemoved, *ObjectAlreadyRemoved:
-		return true
-	}
-}
+// Is checks whether target is of type ObjectAlreadyRemoved,
+// *ObjectAlreadyRemoved or [Error]. Is implements interface consumed by
+// [errors.Is].
+func (x ObjectAlreadyRemoved) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ObjectAlreadyRemoved) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *ObjectAlreadyRemoved) readFromV2(m *status.Status) error {
+	if m.Code != status.ObjectAlreadyRemoved {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.ObjectAlreadyRemoved))
+	}
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: OBJECT_ALREADY_REMOVED;
-//   - string message: "object already removed";
-//   - details: empty.
 func (x ObjectAlreadyRemoved) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(object.StatusAlreadyRemoved, object.GlobalizeFail))
-	x.v2.SetMessage(defaultObjectAlreadyRemovedMsg)
-	return &x.v2
+	return &status.Status{Code: status.ObjectAlreadyRemoved, Message: x.msg}
 }
 
 // ObjectOutOfRange describes status of the failure because of the incorrect
 // provided object ranges.
-// Instances provide [StatusV2] and error interfaces.
-type ObjectOutOfRange struct {
-	v2 status.Status
-}
+type ObjectOutOfRange struct{ msg string }
 
-const defaultObjectOutOfRangeMsg = "out of range"
-
+// Error implements built-in error interface.
 func (x ObjectOutOfRange) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultObjectOutOfRangeMsg
+	const desc = "out of range"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, status.OutOfRange, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.OutOfRange, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x ObjectOutOfRange) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case ObjectOutOfRange, *ObjectOutOfRange:
-		return true
-	}
-}
+// Is checks whether target is of type ObjectOutOfRange, *ObjectOutOfRange or
+// [Error]. Is implements interface consumed by [errors.Is].
+func (x ObjectOutOfRange) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ObjectOutOfRange) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *ObjectOutOfRange) readFromV2(m *status.Status) error {
+	if m.Code != status.OutOfRange {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.OutOfRange))
+	}
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: OUT_OF_RANGE;
-//   - string message: "out of range";
-//   - details: empty.
 func (x ObjectOutOfRange) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(object.StatusOutOfRange, object.GlobalizeFail))
-	x.v2.SetMessage(defaultObjectOutOfRangeMsg)
-	return &x.v2
+	return &status.Status{Code: status.OutOfRange, Message: x.msg}
 }

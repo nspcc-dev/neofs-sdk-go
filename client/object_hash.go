@@ -2,173 +2,192 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
+	apiobject "github.com/nspcc-dev/neofs-sdk-go/api/object"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	apisession "github.com/nspcc-dev/neofs-sdk-go/api/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIHashObjectRange = rpcapi.HashObjectRange
-)
+// HashObjectPayloadRangesOptions groups optional parameters of
+// [Client.HashObjectPayloadRanges].
+type HashObjectPayloadRangesOptions struct {
+	local bool
 
-// PrmObjectHash groups parameters of ObjectHash operation.
-type PrmObjectHash struct {
-	sessionContainer
+	sessionSet bool
+	session    session.Object
 
-	body v2object.GetRangeHashRequestBody
+	bearerTokenSet bool
+	bearerToken    bearer.Token
 
-	csAlgo v2refs.ChecksumType
+	salt []byte
 }
 
-// MarkLocal tells the server to execute the operation locally.
-func (x *PrmObjectHash) MarkLocal() {
-	x.meta.SetTTL(1)
+// PreventForwarding disables request forwarding to container nodes and
+// instructs the server to hash object payload stored locally.
+func (x *HashObjectPayloadRangesOptions) PreventForwarding() {
+	x.local = true
 }
 
-// WithBearerToken attaches bearer token to be used for the operation.
+// WithinSession specifies token of the session preliminary issued by some user
+// with the client signer. Session must include [session.VerbObjectRangeHash]
+// action. The token must be signed and target the subject authenticated by
+// signer passed to [Client.HashObjectPayloadRanges]. If set, the session issuer
+// will be treated as the original request sender.
 //
-// If set, underlying eACL rules will be used in access control.
+// Note that sessions affect access control only indirectly: they just replace
+// request originator.
 //
-// Must be signed.
-func (x *PrmObjectHash) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
+// With session, [Client.HashObjectPayloadRanges] can also return
+// [apistatus.ErrSessionTokenExpired] if the token has expired: this usually
+// requires re-issuing the session.
+//
+// Note that it makes no sense to start session with the server via
+// [Client.StartSession] like for [Client.DeleteObject] or [Client.PutObject].
+func (x *HashObjectPayloadRangesOptions) WithinSession(s session.Object) {
+	x.session, x.sessionSet = s, true
 }
 
-// SetRangeList sets list of ranges in (offset, length) pair format.
-// Required parameter.
-//
-// If passed as slice, then it must not be mutated before the operation completes.
-func (x *PrmObjectHash) SetRangeList(r ...uint64) {
-	ln := len(r)
-	if ln%2 != 0 {
-		panic("odd number of range parameters")
-	}
-
-	rs := make([]v2object.Range, ln/2)
-
-	for i := 0; i < ln/2; i++ {
-		rs[i].SetOffset(r[2*i])
-		rs[i].SetLength(r[2*i+1])
-	}
-
-	x.body.SetRanges(rs)
+// WithBearerToken attaches bearer token carrying extended ACL rules that
+// replace eACL of the object's container. The token must be issued by the
+// container owner and target the subject authenticated by signer passed to
+// [Client.HashObjectPayloadRanges]. In practice, bearer token makes sense only
+// if it grants hashing rights to the subject.
+func (x *HashObjectPayloadRangesOptions) WithBearerToken(t bearer.Token) {
+	x.bearerToken, x.bearerTokenSet = t, true
 }
 
-// TillichZemorAlgo changes the hash function to Tillich-Zemor
-// (https://link.springer.com/content/pdf/10.1007/3-540-48658-5_5.pdf).
-//
-// By default, SHA256 hash function is used.
-func (x *PrmObjectHash) TillichZemorAlgo() {
-	x.csAlgo = v2refs.TillichZemor
+// WithSalt attaches salt to XOR the object's payload range before hashing.
+func (x *HashObjectPayloadRangesOptions) WithSalt(salt []byte) {
+	x.salt = salt
 }
 
-// UseSalt sets the salt to XOR the data range before hashing.
+// HashObjectPayloadRanges requests checksum of the referenced object's payload
+// ranges. Checksum type must not be zero, range set must not be empty and
+// contain zero-length element. Returns a list of checksums in raw form: the
+// format of hashes and their number is left for the caller to check. Client
+// preserves the order of the server's response.
 //
-// Must not be mutated before the operation completes.
-func (x *PrmObjectHash) UseSalt(salt []byte) {
-	x.body.SetSalt(salt)
-}
-
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
+// When only object payload's checksums are needed, HashObjectPayloadRanges
+// should be used instead of hashing the [Client.GetObjectPayloadRange] or
+// [Client.GetObject] result as much more efficient.
 //
-// Slice must not be mutated until the operation completes.
-func (x *PrmObjectHash) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
-}
-
-// ObjectHash requests checksum of the range list of the object payload using
-// NeoFS API protocol.
-//
-// Returns a list of checksums in raw form: the format of hashes and their number
-// is left for the caller to check. Client preserves the order of the server's response.
-//
-// Exactly one return value is non-nil. By default, server status is returned in res structure.
-// Any client's internal or transport errors are returned as `error`,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
-// the specified Signer, which is taken into account, in particular, for access control.
-//
-// Return errors:
-//   - [ErrMissingRanges]
-//   - [ErrMissingSigner]
-func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHash) ([][]byte, error) {
-	var (
-		addr  v2refs.Address
-		cidV2 v2refs.ContainerID
-		oidV2 v2refs.ObjectID
-		err   error
-	)
-
-	defer func() {
-		c.sendStatistic(stat.MethodObjectHash, err)()
-	}()
-
-	if len(prm.body.GetRanges()) == 0 {
-		err = ErrMissingRanges
-		return nil, err
-	}
-
-	containerID.WriteToV2(&cidV2)
-	addr.SetContainerID(&cidV2)
-
-	objectID.WriteToV2(&oidV2)
-	addr.SetObjectID(&oidV2)
-
+// HashObjectPayloadRanges returns:
+//   - [apistatus.ErrContainerNotFound] if referenced container is missing
+//   - [apistatus.ErrObjectNotFound] if referenced object is missing
+//   - [apistatus.ErrObjectAccessDenied] if signer has no access to hash the payload
+//   - [apistatus.ErrObjectOutOfRange] if at least one range is out of bounds
+func (c *Client) HashObjectPayloadRanges(ctx context.Context, cnr cid.ID, obj oid.ID, typ checksum.Type, signer neofscrypto.Signer,
+	opts HashObjectPayloadRangesOptions, ranges []object.Range) ([][]byte, error) {
 	if signer == nil {
-		return nil, ErrMissingSigner
+		return nil, errMissingSigner
+	} else if typ == 0 {
+		return nil, errors.New("zero checksum type")
+	} else if len(ranges) == 0 {
+		return nil, errors.New("missing ranges")
+	}
+	for i := range ranges {
+		if ranges[i].Length == 0 {
+			return nil, fmt.Errorf("zero length of range #%d", i)
+		}
 	}
 
-	prm.body.SetAddress(&addr)
-	if prm.csAlgo == v2refs.UnknownChecksum {
-		prm.body.SetType(v2refs.SHA256)
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodObjectHash, time.Since(start), err)
+		}(time.Now())
+	}
+
+	// form request
+	req := &apiobject.GetRangeHashRequest{
+		Body: &apiobject.GetRangeHashRequest_Body{
+			Address: &refs.Address{
+				ContainerId: new(refs.ContainerID),
+				ObjectId:    new(refs.ObjectID),
+			},
+			Ranges: make([]*apiobject.Range, len(ranges)),
+			Salt:   opts.salt,
+			Type:   refs.ChecksumType(typ),
+		},
+		MetaHeader: new(apisession.RequestMetaHeader),
+	}
+	cnr.WriteToV2(req.Body.Address.ContainerId)
+	obj.WriteToV2(req.Body.Address.ObjectId)
+	for i := range ranges {
+		req.Body.Ranges[i] = &apiobject.Range{Offset: ranges[i].Offset, Length: ranges[i].Length}
+	}
+	if opts.sessionSet {
+		req.MetaHeader.SessionToken = new(apisession.SessionToken)
+		opts.session.WriteToV2(req.MetaHeader.SessionToken)
+	}
+	if opts.bearerTokenSet {
+		req.MetaHeader.BearerToken = new(apiacl.BearerToken)
+		opts.bearerToken.WriteToV2(req.MetaHeader.BearerToken)
+	}
+	if opts.local {
+		req.MetaHeader.Ttl = 1
 	} else {
-		prm.body.SetType(prm.csAlgo)
+		req.MetaHeader.Ttl = 2
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return nil, err
 	}
 
-	var req v2object.GetRangeHashRequest
-	c.prepareRequest(&req, &prm.meta)
-	req.SetBody(&prm.body)
-
-	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	// send request
+	resp, err := c.transport.object.GetRangeHash(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
 		return nil, err
 	}
 
-	resp, err := rpcAPIHashObjectRange(&c.c, &req, client.WithContext(ctx))
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return nil, err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return nil, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
 	if err != nil {
-		err = fmt.Errorf("write request: %w", err)
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return nil, err
+	}
+	if sts != nil {
+		err = sts // for closure above
 		return nil, err
 	}
 
-	var res [][]byte
-	if err = c.processResponse(resp); err != nil {
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
 		return nil, err
 	}
-
-	res = resp.GetBody().GetHashList()
-	if len(res) == 0 {
-		err = newErrMissingResponseField("hash list")
-		return nil, err
-	}
-
-	return res, nil
+	return resp.Body.HashList, nil
 }

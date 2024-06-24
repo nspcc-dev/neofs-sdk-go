@@ -1,205 +1,476 @@
 package bearer_test
 
 import (
-	"bytes"
-	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
-	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
-// compares binary representations of two eacl.Table instances.
-func isEqualEACLTables(t1, t2 eacl.Table) bool {
-	d1, err := t1.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	d2, err := t2.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.Equal(d1, d2)
-}
-
 func TestToken_SetEACLTable(t *testing.T) {
-	var val bearer.Token
-	var m acl.BearerToken
-	filled := bearertest.Token(t)
+	var tok bearer.Token
 
-	val.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
+	_, ok := tok.EACLTable()
+	require.False(t, ok)
 
-	val2 := filled
+	tbl := eacltest.Table()
+	tblOther := eacltest.Table()
 
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-	require.Zero(t, val2.EACLTable())
+	tok.SetEACLTable(tbl)
+	res, ok := tok.EACLTable()
+	require.True(t, ok)
+	require.Equal(t, tbl, res)
 
-	val2 = filled
+	tok.SetEACLTable(tblOther)
+	res, ok = tok.EACLTable()
+	require.True(t, ok)
+	require.Equal(t, tblOther, res)
 
-	jd, err := val.MarshalJSON()
-	require.NoError(t, err)
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst bearer.Token
 
-	require.NoError(t, val2.UnmarshalJSON(jd))
-	require.Zero(t, val2.EACLTable())
+			dst.SetEACLTable(tbl)
 
-	// set value
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			_, ok = dst.EACLTable()
+			require.False(t, ok)
 
-	eaclTable := eacltest.Table(t)
+			dst.SetEACLTable(tblOther)
+			src.SetEACLTable(tbl)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			res, ok = dst.EACLTable()
+			require.True(t, ok)
+			require.Equal(t, tbl, res)
+		})
+		t.Run("api", func(t *testing.T) {
+			src := bearertest.Token()
+			var dst bearer.Token
+			var msg apiacl.BearerToken
 
-	val.SetEACLTable(eaclTable)
-	require.True(t, isEqualEACLTables(eaclTable, val.EACLTable()))
+			src.SetEACLTable(tbl)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			res, ok = dst.EACLTable()
+			require.True(t, ok)
+			require.Equal(t, tbl, res)
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst bearer.Token
 
-	val.WriteToV2(&m)
-	eaclTableV2 := eaclTable.ToV2()
-	require.Equal(t, eaclTableV2, m.GetBody().GetEACL())
+			dst.SetEACLTable(tbl)
 
-	val2 = filled
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			_, ok = dst.EACLTable()
+			require.False(t, ok)
 
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-	require.True(t, isEqualEACLTables(eaclTable, val.EACLTable()))
-
-	val2 = filled
-
-	jd, err = val.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-	require.True(t, isEqualEACLTables(eaclTable, val.EACLTable()))
+			dst.SetEACLTable(tblOther)
+			src.SetEACLTable(tbl)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			res, ok = dst.EACLTable()
+			require.True(t, ok)
+			require.Equal(t, tbl, res)
+		})
+	})
 }
 
 func TestToken_ForUser(t *testing.T) {
-	var val bearer.Token
-	var m acl.BearerToken
-	filled := bearertest.Token(t)
+	var tok bearer.Token
 
-	val.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
+	usr := usertest.ID()
+	otherUsr := usertest.ChangeID(usr)
 
-	val2 := filled
+	require.True(t, tok.AssertUser(usr))
+	require.True(t, tok.AssertUser(otherUsr))
 
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
+	tok.ForUser(usr)
+	require.True(t, tok.AssertUser(usr))
+	require.False(t, tok.AssertUser(otherUsr))
 
-	val2.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
+	tok.ForUser(otherUsr)
+	require.False(t, tok.AssertUser(usr))
+	require.True(t, tok.AssertUser(otherUsr))
 
-	val2 = filled
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
 
-	jd, err := val.MarshalJSON()
-	require.NoError(t, err)
+			dst.ForUser(usr)
 
-	require.NoError(t, val2.UnmarshalJSON(jd))
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.AssertUser(otherUsr))
+			dst.WriteToV2(&msg)
+			require.Nil(t, msg.GetBody().GetOwnerId())
 
-	val2.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
+			dst.ForUser(otherUsr)
+			src.ForUser(usr)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.AssertUser(usr))
+		})
+		t.Run("api", func(t *testing.T) {
+			src := bearertest.Token()
+			var dst bearer.Token
+			var msg apiacl.BearerToken
 
-	// set value
-	usr := usertest.ID(t)
+			src.ForUser(usr)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.True(t, dst.AssertUser(usr))
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
 
-	var usrV2 refs.OwnerID
-	usr.WriteToV2(&usrV2)
+			dst.ForUser(usr)
 
-	val.ForUser(usr)
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.AssertUser(otherUsr))
+			dst.WriteToV2(&msg)
+			require.Nil(t, msg.GetBody().GetOwnerId())
 
-	val.WriteToV2(&m)
-	require.Equal(t, usrV2, *m.GetBody().GetOwnerID())
-
-	val2 = filled
-
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-
-	val2.WriteToV2(&m)
-	require.Equal(t, usrV2, *m.GetBody().GetOwnerID())
-
-	val2 = filled
-
-	jd, err = val.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-
-	val2.WriteToV2(&m)
-	require.Equal(t, usrV2, *m.GetBody().GetOwnerID())
-}
-
-func testLifetimeClaim(t *testing.T, setter func(*bearer.Token, uint64), getter func(*acl.BearerToken) uint64) {
-	var val bearer.Token
-	var m acl.BearerToken
-	filled := bearertest.Token(t)
-
-	val.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
-
-	val2 := filled
-
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-
-	val2.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
-
-	val2 = filled
-
-	jd, err := val.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-
-	val2.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
-
-	// set value
-	exp := rand.Uint64()
-
-	setter(&val, exp)
-
-	val.WriteToV2(&m)
-	require.Equal(t, exp, getter(&m))
-
-	val2 = filled
-
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-
-	val2.WriteToV2(&m)
-	require.Equal(t, exp, getter(&m))
-
-	val2 = filled
-
-	jd, err = val.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-
-	val2.WriteToV2(&m)
-	require.Equal(t, exp, getter(&m))
-}
-
-func TestToken_SetLifetime(t *testing.T) {
-	t.Run("iat", func(t *testing.T) {
-		testLifetimeClaim(t, (*bearer.Token).SetIat, func(token *acl.BearerToken) uint64 {
-			return token.GetBody().GetLifetime().GetIat()
+			dst.ForUser(otherUsr)
+			src.ForUser(usr)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.AssertUser(usr))
 		})
 	})
+}
 
-	t.Run("nbf", func(t *testing.T) {
-		testLifetimeClaim(t, (*bearer.Token).SetNbf, func(token *acl.BearerToken) uint64 {
-			return token.GetBody().GetLifetime().GetNbf()
+func TestToken_SetExp(t *testing.T) {
+	var tok bearer.Token
+
+	require.True(t, tok.InvalidAt(13))
+	require.True(t, tok.InvalidAt(14))
+	require.True(t, tok.InvalidAt(15))
+
+	tok.SetExp(13)
+	require.False(t, tok.InvalidAt(13))
+	require.True(t, tok.InvalidAt(14))
+	require.True(t, tok.InvalidAt(15))
+
+	tok.SetExp(14)
+	require.False(t, tok.InvalidAt(13))
+	require.False(t, tok.InvalidAt(14))
+	require.True(t, tok.InvalidAt(15))
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
+
+			dst.SetExp(13)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(0))
+			dst.WriteToV2(&msg)
+			require.Zero(t, msg.GetBody().GetLifetime().GetExp())
+
+			dst.SetExp(42)
+			src.SetExp(13)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.False(t, dst.InvalidAt(13))
+			require.True(t, dst.InvalidAt(14))
+			dst.WriteToV2(&msg)
+			require.EqualValues(t, 13, msg.Body.Lifetime.Exp)
+		})
+		t.Run("api", func(t *testing.T) {
+			src := bearertest.Token()
+			src.SetNbf(0)
+			src.SetIat(0)
+			var dst bearer.Token
+			var msg apiacl.BearerToken
+
+			src.SetExp(13)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.False(t, dst.InvalidAt(13))
+			require.True(t, dst.InvalidAt(14))
+			require.EqualValues(t, 13, msg.Body.Lifetime.Exp)
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
+
+			dst.SetExp(13)
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(0))
+			dst.WriteToV2(&msg)
+			require.Zero(t, msg.GetBody().GetLifetime().GetExp())
+
+			dst.SetExp(42)
+			src.SetExp(13)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.False(t, dst.InvalidAt(13))
+			require.True(t, dst.InvalidAt(14))
+			dst.WriteToV2(&msg)
+			require.EqualValues(t, 13, msg.Body.Lifetime.Exp)
 		})
 	})
+}
 
-	t.Run("exp", func(t *testing.T) {
-		testLifetimeClaim(t, (*bearer.Token).SetExp, func(token *acl.BearerToken) uint64 {
-			return token.GetBody().GetLifetime().GetExp()
+func TestToken_SetIat(t *testing.T) {
+	var tok bearer.Token
+
+	require.True(t, tok.InvalidAt(13))
+	require.True(t, tok.InvalidAt(14))
+	require.True(t, tok.InvalidAt(15))
+
+	tok.SetExp(15)
+	tok.SetIat(14)
+	require.True(t, tok.InvalidAt(13))
+	require.False(t, tok.InvalidAt(14))
+	require.False(t, tok.InvalidAt(15))
+
+	tok.SetIat(15)
+	require.True(t, tok.InvalidAt(13))
+	require.True(t, tok.InvalidAt(14))
+	require.False(t, tok.InvalidAt(15))
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
+
+			dst.SetExp(15)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(0))
+			dst.WriteToV2(&msg)
+			require.Zero(t, msg.GetBody().GetLifetime().GetIat())
+
+			dst.SetIat(42)
+			src.SetExp(15)
+			src.SetIat(14)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(13))
+			require.False(t, dst.InvalidAt(14))
+			dst.WriteToV2(&msg)
+			require.EqualValues(t, 14, msg.Body.Lifetime.Iat)
+		})
+		t.Run("api", func(t *testing.T) {
+			src := bearertest.Token()
+			src.SetNbf(0)
+			src.SetExp(15)
+			var dst bearer.Token
+			var msg apiacl.BearerToken
+
+			src.SetIat(14)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(13))
+			require.False(t, dst.InvalidAt(14))
+			require.EqualValues(t, 14, msg.Body.Lifetime.Iat)
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
+
+			dst.SetExp(15)
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(0))
+			dst.WriteToV2(&msg)
+			require.Zero(t, msg.GetBody().GetLifetime().GetIat())
+
+			dst.SetIat(42)
+			src.SetExp(15)
+			src.SetIat(14)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(13))
+			require.False(t, dst.InvalidAt(14))
+			dst.WriteToV2(&msg)
+			require.EqualValues(t, 14, msg.Body.Lifetime.Iat)
+		})
+	})
+}
+
+func TestToken_SetNbf(t *testing.T) {
+	var tok bearer.Token
+
+	require.True(t, tok.InvalidAt(13))
+	require.True(t, tok.InvalidAt(14))
+	require.True(t, tok.InvalidAt(15))
+
+	tok.SetExp(15)
+	tok.SetNbf(14)
+	require.True(t, tok.InvalidAt(13))
+	require.False(t, tok.InvalidAt(14))
+	require.False(t, tok.InvalidAt(15))
+
+	tok.SetNbf(15)
+	require.True(t, tok.InvalidAt(13))
+	require.True(t, tok.InvalidAt(14))
+	require.False(t, tok.InvalidAt(15))
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
+
+			dst.SetExp(15)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(0))
+			dst.WriteToV2(&msg)
+			require.Zero(t, msg.GetBody().GetLifetime().GetNbf())
+
+			dst.SetNbf(42)
+			src.SetExp(15)
+			src.SetNbf(14)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(13))
+			require.False(t, dst.InvalidAt(14))
+			dst.WriteToV2(&msg)
+			require.EqualValues(t, 14, msg.Body.Lifetime.Nbf)
+		})
+		t.Run("api", func(t *testing.T) {
+			src := bearertest.Token()
+			src.SetIat(0)
+			src.SetExp(15)
+			var dst bearer.Token
+			var msg apiacl.BearerToken
+
+			src.SetNbf(14)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(13))
+			require.False(t, dst.InvalidAt(14))
+			require.EqualValues(t, 14, msg.Body.Lifetime.Nbf)
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst bearer.Token
+			var msg apiacl.BearerToken
+
+			dst.SetExp(15)
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(0))
+			dst.WriteToV2(&msg)
+			require.Zero(t, msg.GetBody().GetLifetime().GetNbf())
+
+			dst.SetNbf(42)
+			src.SetExp(15)
+			src.SetNbf(14)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.True(t, dst.InvalidAt(13))
+			require.False(t, dst.InvalidAt(14))
+			dst.WriteToV2(&msg)
+			require.EqualValues(t, 14, msg.Body.Lifetime.Nbf)
+		})
+	})
+}
+
+func TestToken_Issuer(t *testing.T) {
+	var tok bearer.Token
+
+	require.Zero(t, tok.Issuer())
+
+	usr := usertest.ID()
+	tok.SetIssuer(usr)
+	require.Equal(t, usr, tok.Issuer())
+
+	otherUsr := usertest.ChangeID(usr)
+	tok.SetIssuer(otherUsr)
+	require.Equal(t, otherUsr, tok.Issuer())
+
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst bearer.Token
+
+			dst.SetIssuer(usr)
+
+			err := dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Zero(t, dst.Issuer())
+
+			dst.SetIssuer(otherUsr)
+			src.SetIssuer(usr)
+			err = dst.Unmarshal(src.Marshal())
+			require.NoError(t, err)
+			require.Equal(t, usr, dst.Issuer())
+		})
+		t.Run("api", func(t *testing.T) {
+			src := bearertest.Token()
+			var dst bearer.Token
+			var msg apiacl.BearerToken
+
+			src.SetIssuer(usr)
+			src.WriteToV2(&msg)
+			err := dst.ReadFromV2(&msg)
+			require.NoError(t, err)
+			require.Equal(t, usr, dst.Issuer())
+		})
+		t.Run("json", func(t *testing.T) {
+			var src, dst bearer.Token
+
+			dst.SetIssuer(usr)
+
+			j, err := src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Zero(t, dst.Issuer())
+
+			dst.SetIssuer(otherUsr)
+			src.SetIssuer(usr)
+			j, err = src.MarshalJSON()
+			require.NoError(t, err)
+			err = dst.UnmarshalJSON(j)
+			require.NoError(t, err)
+			require.Equal(t, usr, dst.Issuer())
 		})
 	})
 }
@@ -222,56 +493,26 @@ func TestToken_InvalidAt(t *testing.T) {
 	require.True(t, val.InvalidAt(5))
 }
 
-func TestToken_AssertContainer(t *testing.T) {
-	var val bearer.Token
-	cnr := cidtest.ID()
-
-	require.True(t, val.AssertContainer(cnr))
-
-	eaclTable := eacltest.Table(t)
-
-	eaclTable.SetCID(cidtest.ID())
-	val.SetEACLTable(eaclTable)
-	require.False(t, val.AssertContainer(cnr))
-
-	eaclTable.SetCID(cnr)
-	val.SetEACLTable(eaclTable)
-	require.True(t, val.AssertContainer(cnr))
-}
-
-func TestToken_AssertUser(t *testing.T) {
-	var val bearer.Token
-	usr := usertest.ID(t)
-
-	require.True(t, val.AssertUser(usr))
-
-	val.ForUser(usertest.ID(t))
-	require.False(t, val.AssertUser(usr))
-
-	val.ForUser(usr)
-	require.True(t, val.AssertUser(usr))
-}
-
 func TestToken_Sign(t *testing.T) {
 	var val bearer.Token
 
 	require.False(t, val.VerifySignature())
 
-	signer := test.RandomSignerRFC6979(t)
+	usr, _ := usertest.TwoUsers()
 
-	val = bearertest.Token(t)
+	val = bearertest.Token()
 
-	require.NoError(t, val.Sign(signer))
+	require.NoError(t, val.Sign(usr))
 
 	require.True(t, val.VerifySignature())
 
-	var m acl.BearerToken
+	var m apiacl.BearerToken
 	val.WriteToV2(&m)
 
 	require.NotZero(t, m.GetSignature().GetKey())
 	require.NotZero(t, m.GetSignature().GetSign())
 
-	val2 := bearertest.Token(t)
+	val2 := bearertest.Token()
 
 	require.NoError(t, val2.Unmarshal(val.Marshal()))
 	require.True(t, val2.VerifySignature())
@@ -279,7 +520,7 @@ func TestToken_Sign(t *testing.T) {
 	jd, err := val.MarshalJSON()
 	require.NoError(t, err)
 
-	val2 = bearertest.Token(t)
+	val2 = bearertest.Token()
 	require.NoError(t, val2.UnmarshalJSON(jd))
 	require.True(t, val2.VerifySignature())
 }
@@ -295,99 +536,124 @@ func TestToken_SignedData(t *testing.T) {
 	require.Equal(t, val, dec)
 
 	signer := test.RandomSignerRFC6979(t)
-	val = bearertest.Token(t)
+	val = bearertest.Token()
 	val.SetIssuer(signer.UserID())
 
 	test.SignedDataComponentUser(t, signer, &val)
 }
 
 func TestToken_ReadFromV2(t *testing.T) {
-	var val bearer.Token
-	var m acl.BearerToken
+	t.Run("missing fields", func(t *testing.T) {
+		t.Run("signature", func(t *testing.T) {
+			tok := bearertest.Token()
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
+			require.ErrorContains(t, tok.ReadFromV2(&m), "missing body signature")
+		})
+		t.Run("body", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
+			m.Body = nil
+			require.ErrorContains(t, tok.ReadFromV2(&m), "missing token body")
+		})
+		t.Run("eACL", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
+			m.Body.EaclTable = nil
+			require.ErrorContains(t, tok.ReadFromV2(&m), "missing eACL table")
+		})
+		t.Run("lifetime", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
+			m.Body.Lifetime = nil
+			require.ErrorContains(t, tok.ReadFromV2(&m), "missing token lifetime")
+		})
+	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("target user", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
 
-	require.Error(t, val.ReadFromV2(m))
+			m.Body.OwnerId.Value = []byte("not_a_user")
+			require.ErrorContains(t, tok.ReadFromV2(&m), "invalid target user")
+		})
+		t.Run("issuer", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
 
-	var body acl.BearerTokenBody
-	m.SetBody(&body)
+			m.Body.Issuer.Value = []byte("not_a_user")
+			require.ErrorContains(t, tok.ReadFromV2(&m), "invalid issuer")
+		})
+		t.Run("signature", func(t *testing.T) {
+			t.Run("public key", func(t *testing.T) {
+				tok := bearertest.SignedToken(t)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	require.Error(t, val.ReadFromV2(m))
+				m.Signature.Key = nil
+				require.ErrorContains(t, tok.ReadFromV2(&m), "invalid body signature: missing public key")
+				m.Signature.Key = []byte("not_a_key")
+				require.ErrorContains(t, tok.ReadFromV2(&m), "invalid body signature: decode public key from binary")
+			})
+			t.Run("value", func(t *testing.T) {
+				tok := bearertest.SignedToken(t)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	eaclTable := eacltest.Table(t)
-	eaclTableV2 := eaclTable.ToV2()
-	body.SetEACL(eaclTableV2)
+				m.Signature.Sign = nil
+				require.ErrorContains(t, tok.ReadFromV2(&m), "invalid body signature: missing signature")
+			})
+		})
+		t.Run("eACL", func(t *testing.T) {
+			t.Run("records", func(t *testing.T) {
+				t.Run("targets", func(t *testing.T) {
+					rs := eacltest.NRecords(2)
+					rs[1].SetTargets(eacltest.NTargets(3))
+					tbl := eacltest.Table()
+					tbl.SetRecords(rs)
+					tok := bearertest.SignedToken(t)
+					tok.SetEACLTable(tbl)
+					var m apiacl.BearerToken
+					tok.WriteToV2(&m)
 
-	require.Error(t, val.ReadFromV2(m))
+					m.Body.EaclTable.Records[1].Targets[2].Role, m.Body.EaclTable.Records[1].Targets[2].Keys = 0, nil
+					err := tok.ReadFromV2(&m)
+					require.ErrorContains(t, err, "invalid eACL table: invalid record #1: invalid target #2: role and public keys are not mutually exclusive")
+					m.Body.EaclTable.Records[1].Targets[2].Role, m.Body.EaclTable.Records[1].Targets[2].Keys = 1, make([][]byte, 1)
+					err = tok.ReadFromV2(&m)
+					require.ErrorContains(t, err, "invalid eACL table: invalid record #1: invalid target #2: role and public keys are not mutually exclusive")
+					m.Body.EaclTable.Records[1].Targets = nil
+					err = tok.ReadFromV2(&m)
+					require.ErrorContains(t, err, "invalid eACL table: invalid record #1: missing target subjects")
+				})
+				t.Run("filters", func(t *testing.T) {
+					rs := eacltest.NRecords(2)
+					rs[1].SetFilters(eacltest.NFilters(3))
+					tbl := eacltest.Table()
+					tbl.SetRecords(rs)
+					tok := bearertest.SignedToken(t)
+					tok.SetEACLTable(tbl)
+					var m apiacl.BearerToken
+					tok.WriteToV2(&m)
 
-	var lifetime acl.TokenLifetime
-	body.SetLifetime(&lifetime)
-
-	require.Error(t, val.ReadFromV2(m))
-
-	const iat, nbf, exp = 1, 2, 3
-	lifetime.SetIat(iat)
-	lifetime.SetNbf(nbf)
-	lifetime.SetExp(exp)
-
-	body.SetLifetime(&lifetime)
-
-	require.Error(t, val.ReadFromV2(m))
-
-	var sig refs.Signature
-	m.SetSignature(&sig)
-
-	require.NoError(t, val.ReadFromV2(m))
-
-	var m2 acl.BearerToken
-
-	val.WriteToV2(&m2)
-	require.Equal(t, m, m2)
-
-	usr, usr2 := usertest.ID(t), usertest.ID(t)
-
-	require.True(t, val.AssertUser(usr))
-	require.True(t, val.AssertUser(usr2))
-
-	var usrV2 refs.OwnerID
-	usr.WriteToV2(&usrV2)
-
-	body.SetOwnerID(&usrV2)
-
-	require.NoError(t, val.ReadFromV2(m))
-
-	val.WriteToV2(&m2)
-	require.Equal(t, m, m2)
-
-	require.True(t, val.AssertUser(usr))
-	require.False(t, val.AssertUser(usr2))
-
-	signer := test.RandomSigner(t)
-
-	var s neofscrypto.Signature
-
-	require.NoError(t, s.CalculateMarshalled(signer, &body, nil))
-
-	s.WriteToV2(&sig)
-
-	require.NoError(t, val.ReadFromV2(m))
-	require.True(t, val.VerifySignature())
-	require.Equal(t, sig.GetKey(), val.SigningKeyBytes())
+					m.Body.EaclTable.Records[1].Filters[2].Key = ""
+					err := tok.ReadFromV2(&m)
+					require.ErrorContains(t, err, "invalid eACL table: invalid record #1: invalid filter #2: missing key")
+				})
+			})
+		})
+	})
 }
 
 func TestResolveIssuer(t *testing.T) {
 	signer := test.RandomSignerRFC6979(t)
 
 	var val bearer.Token
-
-	require.Zero(t, val.ResolveIssuer())
-
-	var m acl.BearerToken
-
-	var sig refs.Signature
-	sig.SetKey([]byte("invalid key"))
-
-	m.SetSignature(&sig)
-
-	require.NoError(t, val.Unmarshal(m.StableMarshal(nil)))
 
 	require.Zero(t, val.ResolveIssuer())
 
@@ -399,58 +665,146 @@ func TestResolveIssuer(t *testing.T) {
 	require.Equal(t, usr, val.Issuer())
 }
 
-func TestToken_Issuer(t *testing.T) {
-	var token bearer.Token
-	var msg acl.BearerToken
-	filled := bearertest.Token(t)
+func TestToken_Unmarshal(t *testing.T) {
+	t.Run("invalid binary", func(t *testing.T) {
+		var tok bearer.Token
+		msg := []byte("definitely_not_protobuf")
+		err := tok.Unmarshal(msg)
+		require.ErrorContains(t, err, "decode protobuf")
+	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("target user", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
 
-	token.WriteToV2(&msg)
-	require.Zero(t, msg.GetBody())
+			m.Body.OwnerId.Value = []byte("not_a_user")
+			b, err := proto.Marshal(&m)
+			require.NoError(t, err)
+			require.ErrorContains(t, tok.Unmarshal(b), "invalid target user")
+		})
+		t.Run("issuer", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
 
-	val2 := filled
-	require.NoError(t, val2.Unmarshal(token.Marshal()))
+			m.Body.Issuer.Value = []byte("not_a_user")
+			b, err := proto.Marshal(&m)
+			require.NoError(t, err)
+			require.ErrorContains(t, tok.Unmarshal(b), "invalid issuer")
+		})
+		t.Run("signature", func(t *testing.T) {
+			t.Run("public key", func(t *testing.T) {
+				tok := bearertest.SignedToken(t)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	val2.WriteToV2(&msg)
-	require.Zero(t, msg.GetBody())
+				m.Signature.Key = nil
+				b, err := proto.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.Unmarshal(b), "invalid body signature: missing public key")
 
-	val2 = filled
+				m.Signature.Key = []byte("not_a_key")
+				b, err = proto.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.Unmarshal(b), "invalid body signature: decode public key from binary")
+			})
+			t.Run("value", func(t *testing.T) {
+				tok := bearertest.SignedToken(t)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	jd, err := token.MarshalJSON()
-	require.NoError(t, err)
+				m.Signature.Sign = nil
+				b, err := proto.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.Unmarshal(b), "invalid body signature: missing signature")
+			})
+		})
+		t.Run("eACL", func(t *testing.T) {
+			t.Run("container", func(t *testing.T) {
+				tbl := eacltest.Table()
+				tok := bearertest.SignedToken(t)
+				tok.SetEACLTable(tbl)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	require.NoError(t, val2.UnmarshalJSON(jd))
+				m.Body.EaclTable.ContainerId.Value = []byte("not_a_container_ID")
+				b, err := proto.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.Unmarshal(b), "invalid eACL table: invalid container")
+			})
+		})
+	})
+}
 
-	val2.WriteToV2(&msg)
-	require.Zero(t, msg.GetBody())
+func TestToken_UnmarshalJSON(t *testing.T) {
+	t.Run("invalid json", func(t *testing.T) {
+		var tok bearer.Token
+		msg := []byte("definitely_not_protojson")
+		err := tok.UnmarshalJSON(msg)
+		require.ErrorContains(t, err, "decode protojson")
+	})
+	t.Run("invalid fields", func(t *testing.T) {
+		t.Run("target user", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
 
-	// set value
-	usr := usertest.ID(t)
+			m.Body.OwnerId.Value = []byte("not_a_user")
+			b, err := protojson.Marshal(&m)
+			require.NoError(t, err)
+			require.ErrorContains(t, tok.UnmarshalJSON(b), "invalid target user")
+		})
+		t.Run("issuer", func(t *testing.T) {
+			tok := bearertest.SignedToken(t)
+			var m apiacl.BearerToken
+			tok.WriteToV2(&m)
 
-	var usrV2 refs.OwnerID
-	usr.WriteToV2(&usrV2)
+			m.Body.Issuer.Value = []byte("not_a_user")
+			b, err := protojson.Marshal(&m)
+			require.NoError(t, err)
+			require.ErrorContains(t, tok.UnmarshalJSON(b), "invalid issuer")
+		})
+		t.Run("signature", func(t *testing.T) {
+			t.Run("public key", func(t *testing.T) {
+				tok := bearertest.SignedToken(t)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	token.SetIssuer(usr)
+				m.Signature.Key = nil
+				b, err := protojson.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.UnmarshalJSON(b), "invalid body signature: missing public key")
 
-	require.True(t, usr.Equals(token.Issuer()))
-	require.True(t, usr.Equals(token.ResolveIssuer()))
+				m.Signature.Key = []byte("not_a_key")
+				b, err = protojson.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.UnmarshalJSON(b), "invalid body signature: decode public key from binary")
+			})
+			t.Run("value", func(t *testing.T) {
+				tok := bearertest.SignedToken(t)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	token.WriteToV2(&msg)
-	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())
+				m.Signature.Sign = nil
+				b, err := protojson.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.UnmarshalJSON(b), "invalid body signature: missing signature")
+			})
+		})
+		t.Run("eACL", func(t *testing.T) {
+			t.Run("container", func(t *testing.T) {
+				tbl := eacltest.Table()
+				tok := bearertest.SignedToken(t)
+				tok.SetEACLTable(tbl)
+				var m apiacl.BearerToken
+				tok.WriteToV2(&m)
 
-	val2 = filled
-
-	require.NoError(t, val2.Unmarshal(token.Marshal()))
-
-	val2.WriteToV2(&msg)
-	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())
-
-	val2 = filled
-
-	jd, err = token.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-
-	val2.WriteToV2(&msg)
-	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())
+				m.Body.EaclTable.ContainerId.Value = []byte("not_a_container_ID")
+				b, err := protojson.Marshal(&m)
+				require.NoError(t, err)
+				require.ErrorContains(t, tok.UnmarshalJSON(b), "invalid eACL table: invalid container")
+			})
+		})
+	})
 }

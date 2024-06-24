@@ -2,258 +2,254 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
-	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	apinetmap "github.com/nspcc-dev/neofs-sdk-go/api/netmap"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPINetworkInfo   = rpcapi.NetworkInfo
-	rpcAPILocalNodeInfo = rpcapi.LocalNodeInfo
-)
+// GetEndpointInfoOptions groups optional parameters of [Client.GetEndpointInfo].
+type GetEndpointInfoOptions struct{}
 
-// NetworkInfoExecutor describes methods to get network information.
-type NetworkInfoExecutor interface {
-	NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error)
+// EndpointInfo is a result of [Client.GetEndpointInfo] operation.
+type EndpointInfo struct {
+	// The latest NeoFS API protocol's version in use.
+	LatestVersion version.Version
+	// Information about the NeoFS node served on the remote endpoint.
+	Node netmap.NodeInfo
 }
 
-// PrmEndpointInfo groups parameters of EndpointInfo operation.
-type PrmEndpointInfo struct {
-	prmCommonMeta
-}
-
-// ResEndpointInfo group resulting values of EndpointInfo operation.
-type ResEndpointInfo struct {
-	version version.Version
-
-	ni netmap.NodeInfo
-}
-
-// NewResEndpointInfo is a constructor for ResEndpointInfo.
-func NewResEndpointInfo(version version.Version, ni netmap.NodeInfo) ResEndpointInfo {
-	return ResEndpointInfo{
-		version: version,
-		ni:      ni,
-	}
-}
-
-// LatestVersion returns latest NeoFS API protocol's version in use.
-func (x ResEndpointInfo) LatestVersion() version.Version {
-	return x.version
-}
-
-// NodeInfo returns information about the NeoFS node served on the remote endpoint.
-func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
-	return x.ni
-}
-
-// EndpointInfo requests information about the storage node served on the remote endpoint.
-//
-// Method can be used as a health check to see if node is alive and responds to requests.
-//
-// Any client's internal or transport errors are returned as `error`,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Exactly one return value is non-nil. Server status return is returned in ResEndpointInfo.
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
+// GetEndpointInfo requests information about the storage node served on the
+// remote endpoint. GetEndpointInfo can be used as a health check to see if node
+// is alive and responds to requests.
+func (c *Client) GetEndpointInfo(ctx context.Context, _ GetEndpointInfoOptions) (EndpointInfo, error) {
+	var res EndpointInfo
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodEndpointInfo, err)()
-	}()
+	if c.serverPubKey != nil && c.handleAPIOpResult != nil {
+		// serverPubKey can be nil since it's initialized using EndpointInfo itself on dial
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodEndpointInfo, time.Since(start), err)
+		}(time.Now())
+	}
 
 	// form request
-	var req v2netmap.LocalNodeInfoRequest
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res ResEndpointInfo
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPILocalNodeInfo(&c.c, &req, client.WithContext(ctx))
+	req := new(apinetmap.LocalNodeInfoRequest)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2netmap.LocalNodeInfoResponse)
 
-		body := resp.GetBody()
+	// send request
+	resp, err := c.transport.netmap.LocalNodeInfo(ctx, req)
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
+	}
 
-		const fieldVersion = "version"
-
-		verV2 := body.GetVersion()
-		if verV2 == nil {
-			cc.err = newErrMissingResponseField(fieldVersion)
-			return
-		}
-
-		cc.err = res.version.ReadFromV2(*verV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldVersion, cc.err)
-			return
-		}
-
-		const fieldNodeInfo = "node info"
-
-		nodeInfoV2 := body.GetNodeInfo()
-		if nodeInfoV2 == nil {
-			cc.err = newErrMissingResponseField(fieldNodeInfo)
-			return
-		}
-
-		cc.err = res.ni.ReadFromV2(*nodeInfoV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldNodeInfo, cc.err)
-			return
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return nil, err
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
 	}
 
-	return &res, nil
-}
-
-// PrmNetworkInfo groups parameters of NetworkInfo operation.
-type PrmNetworkInfo struct {
-	prmCommonMeta
-}
-
-// NetworkInfo requests information about the NeoFS network of which the remote server is a part.
-//
-// Any client's internal or transport errors are returned as `error`,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error) {
-	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodNetworkInfo, err)()
-	}()
-
-	// form request
-	var req v2netmap.NetworkInfoRequest
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res netmap.NetworkInfo
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		return rpcAPINetworkInfo(&c.c, &req, client.WithContext(ctx))
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2netmap.NetworkInfoResponse)
-
-		const fieldNetInfo = "network info"
-
-		netInfoV2 := resp.GetBody().GetNetworkInfo()
-		if netInfoV2 == nil {
-			cc.err = newErrMissingResponseField(fieldNetInfo)
-			return
-		}
-
-		cc.err = res.ReadFromV2(*netInfoV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldNetInfo, cc.err)
-			return
-		}
+	const fieldVersion = "version"
+	if resp.Body.Version == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldVersion) // for closure above
+		return res, err
 	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return netmap.NetworkInfo{}, cc.err
+	if err = res.LatestVersion.ReadFromV2(resp.Body.Version); err != nil {
+		err = fmt.Errorf("%s (%s)", errInvalidResponseBodyField, fieldVersion) // for closure above
+		return res, err
 	}
-
+	const fieldNodeInfo = "node info"
+	if resp.Body.NodeInfo == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldNodeInfo) // for closure above
+		return res, err
+	} else if err = res.Node.ReadFromV2(resp.Body.NodeInfo); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldNodeInfo, err) // for closure above
+		return res, err
+	}
 	return res, nil
 }
 
-// PrmNetMapSnapshot groups parameters of NetMapSnapshot operation.
-type PrmNetMapSnapshot struct {
-}
+// GetNetworkInfoOptions groups optional parameters of [Client.GetNetworkInfo].
+type GetNetworkInfoOptions struct{}
 
-// NetMapSnapshot requests current network view of the remote server.
-//
-// Any client's internal or transport errors are returned as `error`,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and MUST NOT be nil. It is used for network communication.
-//
-// Reflects all internal errors in second return value (transport problems, response processing, etc.).
-func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netmap.NetMap, error) {
+// GetNetworkInfo requests information about the NeoFS network of which the remote
+// server is a part.
+func (c *Client) GetNetworkInfo(ctx context.Context, _ GetNetworkInfoOptions) (netmap.NetworkInfo, error) {
+	var res netmap.NetworkInfo
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodNetMapSnapshot, err)()
-	}()
-
-	// form request body
-	var body v2netmap.SnapshotRequestBody
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodNetworkInfo, time.Since(start), err)
+		}(time.Now())
+	}
 
 	// form request
-	var req v2netmap.SnapshotRequest
-	req.SetBody(&body)
-	c.prepareRequest(&req, &meta)
-
-	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(c.prm.signer, &req, *buf)
-	c.buffers.Put(buf)
-	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
-		return netmap.NetMap{}, err
+	req := new(apinetmap.NetworkInfoRequest)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
 	}
 
-	var resp *v2netmap.SnapshotResponse
-
-	resp, err = c.server.netMapSnapshot(ctx, req)
+	// send request
+	resp, err := c.transport.netmap.NetworkInfo(ctx, req)
 	if err != nil {
-		return netmap.NetMap{}, err
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
 	}
 
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
+	}
+
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
+	}
+	const fieldNetworkInfo = "network info"
+	if resp.Body.NetworkInfo == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldNetworkInfo) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.NetworkInfo); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldNetworkInfo, err) // for closure above
+		return res, err
+	}
+	return res, nil
+}
+
+// GetCurrentNetmapOptions groups optional parameters of [Client.GetCurrentNetmap] operation.
+type GetCurrentNetmapOptions struct{}
+
+// GetCurrentNetmap requests current network map from the remote server.
+func (c *Client) GetCurrentNetmap(ctx context.Context, _ GetCurrentNetmapOptions) (netmap.NetMap, error) {
 	var res netmap.NetMap
-	if err = c.processResponse(resp); err != nil {
-		return netmap.NetMap{}, err
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodNetMapSnapshot, time.Since(start), err)
+		}(time.Now())
 	}
 
-	const fieldNetMap = "network map"
-
-	netMapV2 := resp.GetBody().NetMap()
-	if netMapV2 == nil {
-		err = newErrMissingResponseField(fieldNetMap)
-		return netmap.NetMap{}, err
+	// form request
+	req := new(apinetmap.NetmapSnapshotRequest)
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(c.signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
 	}
 
-	err = res.ReadFromV2(*netMapV2)
+	// send request
+	resp, err := c.transport.netmap.NetmapSnapshot(ctx, req)
 	if err != nil {
-		err = newErrInvalidResponseField(fieldNetMap, err)
-		return netmap.NetMap{}, err
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
 	}
 
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
+	if err != nil {
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
+	}
+
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
+	}
+	const fieldNetmap = "network map"
+	if resp.Body.Netmap == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldNetmap) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.Netmap); err != nil {
+		err = fmt.Errorf("%s (%s): %w", errInvalidResponseBodyField, fieldNetmap, err) // for closure above
+		return res, err
+	}
 	return res, nil
 }

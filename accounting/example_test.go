@@ -1,8 +1,8 @@
 package accounting_test
 
 import (
-	apiGoAccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	apiaccounting "github.com/nspcc-dev/neofs-sdk-go/api/accounting"
 )
 
 func Example() {
@@ -16,11 +16,10 @@ func Example() {
 
 	// On the client side.
 
-	// import apiGoAccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
-	var msg apiGoAccounting.Decimal
+	var msg apiaccounting.Decimal
 	dec.WriteToV2(&msg)
 	// *send message*
 
 	// On the server side.
-	_ = dec.ReadFromV2(msg)
+	_ = dec.ReadFromV2(&msg)
 }

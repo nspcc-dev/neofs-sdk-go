@@ -2,7 +2,8 @@ package containertest
 
 import (
 	"math/rand"
-	"testing"
+	"strconv"
+	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
@@ -12,20 +13,28 @@ import (
 )
 
 // Container returns random container.Container.
-func Container(t testing.TB) (x container.Container) {
-	owner := usertest.ID(t)
+func Container() container.Container {
+	x := container.New(usertest.ID(), BasicACL(), netmaptest.PlacementPolicy())
+	x.SetName("name_" + strconv.Itoa(rand.Int()))
+	x.SetCreationTime(time.Now())
+	x.SetHomomorphicHashingDisabled(rand.Int()%2 == 0)
+	var d container.Domain
+	d.SetName("domain_" + strconv.Itoa(rand.Int()))
+	d.SetZone("zone_" + strconv.Itoa(rand.Int()))
+	x.SetDomain(d)
 
-	x.Init()
-	x.SetAttribute("some attribute", "value")
-	x.SetOwner(owner)
-	x.SetBasicACL(BasicACL())
-	x.SetPlacementPolicy(netmaptest.PlacementPolicy())
+	nAttr := rand.Int() % 4
+	for i := 0; i < nAttr; i++ {
+		si := strconv.Itoa(rand.Int())
+		x.SetAttribute("key_"+si, "val_"+si)
+	}
 
 	return x
 }
 
 // SizeEstimation returns random container.SizeEstimation.
-func SizeEstimation() (x container.SizeEstimation) {
+func SizeEstimation() container.SizeEstimation {
+	var x container.SizeEstimation
 	x.SetContainer(cidtest.ID())
 	x.SetEpoch(rand.Uint64())
 	x.SetValue(rand.Uint64())
@@ -34,7 +43,8 @@ func SizeEstimation() (x container.SizeEstimation) {
 }
 
 // BasicACL returns random acl.Basic.
-func BasicACL() (x acl.Basic) {
+func BasicACL() acl.Basic {
+	var x acl.Basic
 	x.FromBits(rand.Uint32())
-	return
+	return x
 }

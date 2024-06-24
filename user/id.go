@@ -9,108 +9,116 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
 )
+
+// IDSize is a size of NeoFS user ID in bytes.
+const IDSize = 25
 
 // ID identifies users of the NeoFS system.
 //
-// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.OwnerID
-// message. See ReadFromV2 / WriteToV2 methods.
+// ID implements built-in comparable interface.
 //
-// Instances can be created using built-in var declaration. Zero ID is not valid,
-// so it MUST be initialized using some modifying function (e.g. SetScriptHash, etc.).
-type ID struct {
-	w []byte
+// ID is mutually compatible with [refs.OwnerID] message. See [ID.ReadFromV2] /
+// [ID.WriteToV2] methods.
+//
+// Instances can be created using built-in var declaration. Zero ID is not
+// valid, so it MUST be initialized using [NewID] or
+// [ResolveFromECDSAPublicKey].
+type ID [IDSize]byte
+
+// NewID returns the user ID for his wallet address scripthash.
+func NewID(scriptHash util.Uint160) ID {
+	var id ID
+	id[0] = address.Prefix
+	copy(id[1:], scriptHash.BytesBE())
+	copy(id[21:], hash.Checksum(id[:21]))
+	return id
 }
 
-// ReadFromV2 reads ID from the refs.OwnerID message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol.
-//
-// See also WriteToV2.
-func (x *ID) ReadFromV2(m refs.OwnerID) error {
-	w := m.GetValue()
-	if len(w) != 25 {
-		return fmt.Errorf("invalid length %d, expected 25", len(w))
+func (x *ID) decodeBinary(b []byte) error {
+	if len(b) != IDSize {
+		return fmt.Errorf("invalid value length %d", len(b))
 	}
 
-	if w[0] != address.NEO3Prefix {
-		return fmt.Errorf("invalid prefix byte 0x%X, expected 0x%X", w[0], address.NEO3Prefix)
+	if b[0] != address.NEO3Prefix {
+		return fmt.Errorf("invalid prefix byte 0x%X, expected 0x%X", b[0], address.NEO3Prefix)
 	}
 
-	if !bytes.Equal(w[21:], hash.Checksum(w[:21])) {
-		return errors.New("checksum mismatch")
+	if !bytes.Equal(b[21:], hash.Checksum(b[:21])) {
+		return errors.New("value checksum mismatch")
 	}
 
-	x.w = w
+	copy(x[:], b)
 
 	return nil
 }
 
-// WriteToV2 writes ID to the refs.OwnerID message.
-// The message must not be nil.
+// ReadFromV2 reads ID from the [refs.OwnerID] message. Returns an error if the
+// message is malformed according to the NeoFS API V2 protocol. The message must
+// not be nil.
 //
-// See also ReadFromV2.
-func (x ID) WriteToV2(m *refs.OwnerID) {
-	m.SetValue(x.w)
-}
-
-// SetScriptHash forms user ID from wallet address scripthash.
-func (x *ID) SetScriptHash(scriptHash util.Uint160) {
-	if cap(x.w) < 25 {
-		x.w = make([]byte, 25)
-	} else if len(x.w) < 25 {
-		x.w = x.w[:25]
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [ID.WriteToV2].
+func (x *ID) ReadFromV2(m *refs.OwnerID) error {
+	if len(m.Value) == 0 {
+		return errors.New("missing value field")
 	}
-
-	x.w[0] = address.Prefix
-	copy(x.w[1:], scriptHash.BytesBE())
-	copy(x.w[21:], hash.Checksum(x.w[:21]))
+	return x.decodeBinary(m.Value)
 }
 
-// WalletBytes returns NeoFS user ID as Neo3 wallet address in a binary format.
+// WriteToV2 writes ID to the [refs.OwnerID] message of the NeoFS API protocol.
 //
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
+// WriteToV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
 //
-// See also Neo3 wallet docs.
-func (x ID) WalletBytes() []byte {
-	return x.w
+// See also [ID.ReadFromV2].
+func (x ID) WriteToV2(m *refs.OwnerID) {
+	m.Value = x[:]
 }
 
 // EncodeToString encodes ID into NeoFS API V2 protocol string.
 //
-// See also DecodeString.
+// Zero ID is base58 encoding of [IDSize] zeros.
+//
+// See also [ID.DecodeString].
 func (x ID) EncodeToString() string {
-	return base58.Encode(x.w)
+	return base58.Encode(x[:])
 }
 
-// DecodeString decodes NeoFS API V2 protocol string. Returns an error
-// if s is malformed.
+// DecodeString decodes string into ID according to NeoFS API protocol. Returns
+// an error if s is malformed.
 //
-// DecodeString always changes the ID.
-//
-// See also EncodeToString.
+// See also [ID.EncodeToString].
 func (x *ID) DecodeString(s string) error {
-	var err error
-
-	x.w, err = base58.Decode(s)
-	if err != nil {
-		return fmt.Errorf("decode base58: %w", err)
+	var b []byte
+	if s != "" {
+		var err error
+		b, err = base58.Decode(s)
+		if err != nil {
+			return fmt.Errorf("decode base58: %w", err)
+		}
 	}
-
-	return nil
+	return x.decodeBinary(b)
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. String MAY return same result as [ID.EncodeToString]. String
+// MUST NOT be used to encode ID into NeoFS protocol string.
 func (x ID) String() string {
 	return x.EncodeToString()
 }
 
-// Equals defines a comparison relation between two ID instances.
-func (x ID) Equals(x2 ID) bool {
-	return bytes.Equal(x.w, x2.w)
+// IsZero checks whether ID is zero.
+func (x ID) IsZero() bool {
+	for i := range x {
+		if x[i] != 0 {
+			return false
+		}
+	}
+	return true
 }

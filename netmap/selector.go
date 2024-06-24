@@ -5,21 +5,20 @@ import (
 	"sort"
 
 	"github.com/nspcc-dev/hrw/v2"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 )
 
 // processSelectors processes selectors and returns error is any of them is invalid.
 func (c *context) processSelectors(p PlacementPolicy) error {
 	for i := range p.selectors {
-		fName := p.selectors[i].GetFilter()
+		fName := p.selectors[i].FilterName()
 		if fName != mainFilterName {
-			_, ok := c.processedFilters[p.selectors[i].GetFilter()]
+			_, ok := c.processedFilters[fName]
 			if !ok {
 				return fmt.Errorf("%w: SELECT FROM '%s'", errFilterNotFound, fName)
 			}
 		}
 
-		sName := p.selectors[i].GetName()
+		sName := p.selectors[i].Name()
 
 		c.processedSelectors[sName] = &p.selectors[i]
 
@@ -36,12 +35,12 @@ func (c *context) processSelectors(p PlacementPolicy) error {
 
 // calcNodesCount returns number of buckets and minimum number of nodes in every bucket
 // for the given selector.
-func calcNodesCount(s netmap.Selector) (int, int) {
-	switch s.GetClause() {
-	case netmap.Same:
-		return 1, int(s.GetCount())
+func calcNodesCount(s Selector) (int, int) {
+	switch {
+	case s.IsSame():
+		return 1, int(s.NumberOfNodes())
 	default:
-		return int(s.GetCount()), 1
+		return int(s.NumberOfNodes()), 1
 	}
 }
 
@@ -56,12 +55,12 @@ func calcBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
 
 // getSelection returns nodes grouped by s.attribute.
 // Last argument specifies if more buckets can be used to fulfill CBF.
-func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, error) {
+func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 	bucketCount, nodesInBucket := calcNodesCount(s)
 	buckets := c.getSelectionBase(s)
 
 	if len(buckets) < bucketCount {
-		return nil, fmt.Errorf("%w: '%s'", errNotEnoughNodes, s.GetName())
+		return nil, fmt.Errorf("%w: '%s'", errNotEnoughNodes, s.Name())
 	}
 
 	// We need deterministic output in case there is no pivot.
@@ -69,7 +68,7 @@ func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, e
 	// However, because initial order influences HRW order for buckets with equal weights,
 	// we also need to have deterministic input to HRW sorting routine.
 	if len(c.hrwSeed) == 0 {
-		if s.GetAttribute() == "" {
+		if s.BucketAttribute() == "" {
 			sort.Slice(buckets, func(i, j int) bool {
 				return less(buckets[i].nodes[0], buckets[j].nodes[0])
 			})
@@ -97,7 +96,7 @@ func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, e
 		// Fallback to using minimum allowed backup factor (1).
 		res = append(res, fallback...)
 		if len(res) < bucketCount {
-			return nil, fmt.Errorf("%w: '%s'", errNotEnoughNodes, s.GetName())
+			return nil, fmt.Errorf("%w: '%s'", errNotEnoughNodes, s.Name())
 		}
 	}
 
@@ -110,7 +109,7 @@ func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, e
 		hrw.SortWeighted(res, weights, c.hrwSeedHash)
 	}
 
-	if s.GetAttribute() == "" {
+	if s.BucketAttribute() == "" {
 		res, fallback = res[:bucketCount], res[bucketCount:]
 		for i := range fallback {
 			index := i % bucketCount
@@ -131,13 +130,13 @@ type nodeAttrPair struct {
 
 // getSelectionBase returns nodes grouped by selector attribute.
 // It it guaranteed that each pair will contain at least one node.
-func (c *context) getSelectionBase(s netmap.Selector) []nodeAttrPair {
-	fName := s.GetFilter()
+func (c *context) getSelectionBase(s Selector) []nodeAttrPair {
+	fName := s.FilterName()
 	f := c.processedFilters[fName]
 	isMain := fName == mainFilterName
 	result := []nodeAttrPair{}
 	nodeMap := map[string][]NodeInfo{}
-	attr := s.GetAttribute()
+	attr := s.BucketAttribute()
 
 	for i := range c.netMap.nodes {
 		if isMain || c.match(f, c.netMap.nodes[i]) {

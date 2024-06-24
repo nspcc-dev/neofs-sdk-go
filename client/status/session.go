@@ -2,110 +2,80 @@ package apistatus
 
 import (
 	"errors"
+	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	"github.com/nspcc-dev/neofs-sdk-go/api/status"
 )
 
+// Session error instances which may be used to check API errors against using
+// [errors.Is]. All of them MUST NOT be changed.
 var (
-	// ErrSessionTokenNotFound is an instance of SessionTokenNotFound error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
 	ErrSessionTokenNotFound SessionTokenNotFound
-	// ErrSessionTokenExpired is an instance of SessionTokenExpired error status. It's expected to be used for [errors.Is]
-	// and MUST NOT be changed.
-	ErrSessionTokenExpired SessionTokenExpired
+	ErrSessionTokenExpired  SessionTokenExpired
 )
 
 // SessionTokenNotFound describes status of the failure because of the missing session token.
-// Instances provide [StatusV2] and error interfaces.
-type SessionTokenNotFound struct {
-	v2 status.Status
-}
+type SessionTokenNotFound struct{ msg string }
 
-const defaultSessionTokenNotFoundMsg = "session token not found"
-
+// Error implements built-in error interface.
 func (x SessionTokenNotFound) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultSessionTokenNotFoundMsg
+	const desc = "session token not found"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, status.SessionTokenNotFound, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.SessionTokenNotFound, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x SessionTokenNotFound) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case SessionTokenNotFound, *SessionTokenNotFound:
-		return true
-	}
-}
+// Is checks whether target is of type SessionTokenNotFound,
+// *SessionTokenNotFound or [Error]. Is implements interface consumed by
+// [errors.Is].
+func (x SessionTokenNotFound) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *SessionTokenNotFound) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *SessionTokenNotFound) readFromV2(m *status.Status) error {
+	if m.Code != status.SessionTokenNotFound {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.SessionTokenNotFound))
+	}
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: TOKEN_NOT_FOUND;
-//   - string message: "session token not found";
-//   - details: empty.
 func (x SessionTokenNotFound) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail))
-	x.v2.SetMessage(defaultSessionTokenNotFoundMsg)
-	return &x.v2
+	return &status.Status{Code: status.SessionTokenNotFound, Message: x.msg}
 }
 
-// SessionTokenExpired describes status of the failure because of the expired session token.
-// Instances provide [StatusV2] and error interfaces.
-type SessionTokenExpired struct {
-	v2 status.Status
-}
+// SessionTokenExpired describes status of the failure because of the expired
+// session token.
+type SessionTokenExpired struct{ msg string }
 
-const defaultSessionTokenExpiredMsg = "expired session token"
-
+// Error implements built-in error interface.
 func (x SessionTokenExpired) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultSessionTokenExpiredMsg
+	const desc = "session token has expired"
+	if x.msg != "" {
+		return fmt.Sprintf(errFmt, status.SessionTokenExpired, desc, x.msg)
 	}
-
-	return errMessageStatusV2(
-		globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail),
-		msg,
-	)
+	return fmt.Sprintf(errFmtNoMessage, status.SessionTokenExpired, desc)
 }
 
-// Is implements interface for correct checking current error type with [errors.Is].
-func (x SessionTokenExpired) Is(target error) bool {
-	switch target.(type) {
-	default:
-		return errors.Is(Error, target)
-	case SessionTokenExpired, *SessionTokenExpired:
-		return true
-	}
-}
+// Is checks whether target is of type SessionTokenExpired, *SessionTokenExpired
+// or [Error]. Is implements interface consumed by [errors.Is].
+func (x SessionTokenExpired) Is(target error) bool { return errorIs(x, target) }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *SessionTokenExpired) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+func (x *SessionTokenExpired) readFromV2(m *status.Status) error {
+	if m.Code != status.SessionTokenExpired {
+		panic(fmt.Sprintf("unexpected code %d instead of %d", m.Code, status.SessionTokenExpired))
+	}
+	if len(m.Details) > 0 {
+		return errors.New("details attached but not supported")
+	}
+	x.msg = m.Message
+	return nil
 }
 
 // ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: TOKEN_EXPIRED;
-//   - string message: "expired session token";
-//   - details: empty.
 func (x SessionTokenExpired) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail))
-	x.v2.SetMessage(defaultSessionTokenExpiredMsg)
-	return &x.v2
+	return &status.Status{Code: status.SessionTokenExpired, Message: x.msg}
 }

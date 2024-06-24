@@ -3,30 +3,33 @@ package container_test
 import (
 	"testing"
 
-	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
-	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
+	"github.com/nspcc-dev/neofs-sdk-go/container"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
 )
 
-func TestContainer_NetworkConfig(t *testing.T) {
-	c := containertest.Container(t)
-	nc := netmaptest.NetworkInfo()
+func TestContainer_ApplyNetworkConfig(t *testing.T) {
+	var c container.Container
+	var n netmap.NetworkInfo
 
-	t.Run("default", func(t *testing.T) {
-		require.False(t, c.IsHomomorphicHashingDisabled())
+	require.True(t, c.AssertNetworkConfig(n))
 
-		res := c.AssertNetworkConfig(nc)
+	n.SetHomomorphicHashingDisabled(true)
+	require.False(t, c.AssertNetworkConfig(n))
 
-		require.True(t, res)
-	})
+	for _, testCase := range []struct {
+		cnr, net bool
+	}{
+		{cnr: false, net: false},
+		{cnr: false, net: true},
+		{cnr: true, net: false},
+		{cnr: true, net: true},
+	} {
+		c.SetHomomorphicHashingDisabled(testCase.cnr)
+		n.SetHomomorphicHashingDisabled(testCase.net)
+		require.Equal(t, testCase.cnr == testCase.net, c.AssertNetworkConfig(n), testCase)
 
-	nc.DisableHomomorphicHashing()
-
-	t.Run("apply", func(t *testing.T) {
-		require.False(t, c.IsHomomorphicHashingDisabled())
-
-		c.ApplyNetworkConfig(nc)
-
-		require.True(t, c.IsHomomorphicHashingDisabled())
-	})
+		c.ApplyNetworkConfig(n)
+		require.True(t, c.AssertNetworkConfig(n))
+	}
 }

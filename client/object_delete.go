@@ -4,133 +4,159 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	apiacl "github.com/nspcc-dev/neofs-sdk-go/api/acl"
+	apiobject "github.com/nspcc-dev/neofs-sdk-go/api/object"
+	"github.com/nspcc-dev/neofs-sdk-go/api/refs"
+	apisession "github.com/nspcc-dev/neofs-sdk-go/api/session"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIDeleteObject = rpcapi.DeleteObject
+// DeleteObjectOptions groups optional parameters of [Client.DeleteObject].
+type DeleteObjectOptions struct {
+	sessionSet bool
+	session    session.Object
 
-	// ErrNoSession indicates that session wasn't set in some Prm* structure.
-	ErrNoSession = errors.New("session is not set")
-)
-
-// PrmObjectDelete groups optional parameters of ObjectDelete operation.
-type PrmObjectDelete struct {
-	sessionContainer
+	bearerTokenSet bool
+	bearerToken    bearer.Token
 }
 
-// WithBearerToken attaches bearer token to be used for the operation.
+// WithinSession specifies token of the session preliminary opened with the
+// remote server. Session tokens grants user-to-user power of attorney: remote
+// server still creates tombstone objects, but they are owned by the session
+// issuer. Session must include [session.VerbObjectDelete] action. The token
+// must be signed by the user passed to [Client.DeleteObject].
 //
-// If set, underlying eACL rules will be used in access control.
+// With session, [Client.DeleteObject] can also return
+// [apistatus.ErrSessionTokenNotFound] if the session is missing on the server
+// or [apistatus.ErrSessionTokenExpired] if it has expired: this usually
+// requires re-issuing the session.
 //
-// Must be signed.
-func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
+// To start a session, use [Client.StartSession].
+func (x *DeleteObjectOptions) WithinSession(s session.Object) {
+	x.session, x.sessionSet = s, true
 }
 
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
-//
-// Slice must not be mutated until the operation completes.
-func (x *PrmObjectDelete) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
+// WithBearerToken attaches bearer token carrying extended ACL rules that
+// replace eACL of the object's container. The token must be issued by the
+// container owner and target the subject authenticated by signer passed to
+// [Client.DeleteObject]. In practice, bearer token makes sense only if it
+// grants deletion rights to the subject.
+func (x *DeleteObjectOptions) WithBearerToken(t bearer.Token) {
+	x.bearerToken, x.bearerTokenSet = t, true
 }
 
-// ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
-// As a marker, a special unit called a tombstone is placed in the container.
-// It confirms the user's intent to delete the object, and is itself a container object.
-// Explicit deletion is done asynchronously, and is generally not guaranteed.
+// DeleteObject sends request to remove the referenced object. If the request is
+// accepted, a special marker called a tombstone is created by the remote server
+// and placed in the container. The tombstone confirms the user's intent to
+// delete the object, and is itself a system server-owned object in the
+// container: DeleteObject returns its ID. The tombstone has limited lifetime
+// depending on the server configuration. Explicit deletion is done
+// asynchronously, and is generally not guaranteed. Created tombstone is owned
+// by specified user.
 //
-// Any client's internal or transport errors are returned as `error`,
-// see [apistatus] package for NeoFS-specific error types.
-//
-// Context is required and must not be nil. It is used for network communication.
-//
-// Signer is required and must not be nil. The operation is executed on behalf of
-// the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
-//
-// Return errors:
-//   - global (see Client docs)
-//   - [ErrMissingSigner]
-//   - [apistatus.ErrContainerNotFound]
-//   - [apistatus.ErrObjectAccessDenied]
-//   - [apistatus.ErrObjectLocked]
-//   - [apistatus.ErrSessionTokenExpired]
-func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectDelete) (oid.ID, error) {
-	var (
-		addr  v2refs.Address
-		cidV2 v2refs.ContainerID
-		oidV2 v2refs.ObjectID
-		body  v2object.DeleteRequestBody
-		err   error
-	)
-
-	defer func() {
-		c.sendStatistic(stat.MethodObjectDelete, err)()
-	}()
-
-	containerID.WriteToV2(&cidV2)
-	addr.SetContainerID(&cidV2)
-
-	objectID.WriteToV2(&oidV2)
-	addr.SetObjectID(&oidV2)
-
+// DeleteObject returns:
+//   - [apistatus.ErrContainerNotFound] if referenced container is missing
+//   - [apistatus.ErrObjectAccessDenied] if signer has no access to remove the object
+//   - [apistatus.ErrObjectLocked] if referenced objects is locked (meaning
+//     protection from the removal while the lock is active)
+func (c *Client) DeleteObject(ctx context.Context, cnr cid.ID, obj oid.ID, signer neofscrypto.Signer, opts DeleteObjectOptions) (oid.ID, error) {
+	var res oid.ID
 	if signer == nil {
-		return oid.ID{}, ErrMissingSigner
+		return res, errMissingSigner
 	}
 
-	// form request body
-	body.SetAddress(&addr)
+	var err error
+	if c.handleAPIOpResult != nil {
+		defer func(start time.Time) {
+			c.handleAPIOpResult(c.serverPubKey, c.endpoint, stat.MethodObjectDelete, time.Since(start), err)
+		}(time.Now())
+	}
 
 	// form request
-	var req v2object.DeleteRequest
-	req.SetBody(&body)
-	c.prepareRequest(&req, &prm.meta)
+	req := &apiobject.DeleteRequest{
+		Body: &apiobject.DeleteRequest_Body{
+			Address: &refs.Address{
+				ContainerId: new(refs.ContainerID),
+				ObjectId:    new(refs.ObjectID),
+			},
+		},
+		MetaHeader: &apisession.RequestMetaHeader{Ttl: 2},
+	}
+	cnr.WriteToV2(req.Body.Address.ContainerId)
+	obj.WriteToV2(req.Body.Address.ObjectId)
+	if opts.sessionSet {
+		req.MetaHeader.SessionToken = new(apisession.SessionToken)
+		opts.session.WriteToV2(req.MetaHeader.SessionToken)
+	}
+	if opts.bearerTokenSet {
+		req.MetaHeader.BearerToken = new(apiacl.BearerToken)
+		opts.bearerToken.WriteToV2(req.MetaHeader.BearerToken)
+	}
+	// FIXME: balance requests need small fixed-size buffers for encoding, its makes
+	// no sense to mosh them with other buffers
+	buf := c.signBuffers.Get().(*[]byte)
+	defer c.signBuffers.Put(buf)
+	if req.VerifyHeader, err = neofscrypto.SignRequest(signer, req, req.Body, *buf); err != nil {
+		err = fmt.Errorf("%s: %w", errSignRequest, err) // for closure above
+		return res, err
+	}
 
-	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	// send request
+	resp, err := c.transport.object.Delete(ctx, req)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
-		return oid.ID{}, err
+		err = fmt.Errorf("%s: %w", errTransport, err) // for closure above
+		return res, err
 	}
 
-	resp, err := rpcAPIDeleteObject(&c.c, &req, client.WithContext(ctx))
+	// intercept response info
+	if c.interceptAPIRespInfo != nil {
+		if err = c.interceptAPIRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		}); err != nil {
+			err = fmt.Errorf("%s: %w", errInterceptResponseInfo, err) // for closure above
+			return res, err
+		}
+	}
+
+	// verify response integrity
+	if err = neofscrypto.VerifyResponse(resp, resp.Body); err != nil {
+		err = fmt.Errorf("%s: %w", errResponseSignature, err) // for closure above
+		return res, err
+	}
+	sts, err := apistatus.ErrorFromV2(resp.GetMetaHeader().GetStatus())
 	if err != nil {
-		return oid.ID{}, err
+		err = fmt.Errorf("%s: %w", errInvalidResponseStatus, err) // for closure above
+		return res, err
+	}
+	if sts != nil {
+		err = sts // for closure above
+		return res, err
 	}
 
-	var res oid.ID
-	if err = c.processResponse(resp); err != nil {
-		return oid.ID{}, err
+	// decode response payload
+	if resp.Body == nil {
+		err = errors.New(errMissingResponseBody) // for closure above
+		return res, err
 	}
-
 	const fieldTombstone = "tombstone"
-
-	idTombV2 := resp.GetBody().GetTombstone().GetObjectID()
-	if idTombV2 == nil {
-		err = newErrMissingResponseField(fieldTombstone)
-		return oid.ID{}, err
+	if resp.Body.Tombstone == nil {
+		err = fmt.Errorf("%s (%s)", errMissingResponseBodyField, fieldTombstone) // for closure above
+		return res, err
+	} else if resp.Body.Tombstone.ObjectId == nil {
+		err = fmt.Errorf("%s (%s): missing ID field", errInvalidResponseBodyField, fieldTombstone) // for closure above
+		return res, err
+	} else if err = res.ReadFromV2(resp.Body.Tombstone.ObjectId); err != nil {
+		err = fmt.Errorf("%s (%s): invalid ID: %w", errInvalidResponseBodyField, fieldTombstone, err) // for closure above
+		return res, err
 	}
-
-	err = res.ReadFromV2(*idTombV2)
-	if err != nil {
-		err = newErrInvalidResponseField(fieldTombstone, err)
-		return oid.ID{}, err
-	}
-
 	return res, nil
 }
