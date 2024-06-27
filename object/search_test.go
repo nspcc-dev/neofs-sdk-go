@@ -449,7 +449,7 @@ func TestSearchFilters_HasNonAttributeFilter(t *testing.T) {
 		func() { fs.AddObjectVersionFilter(anyMatcher, versiontest.Version()) },
 		func() { fs.AddParentIDFilter(anyMatcher, oidtest.ID()) },
 		func() { fs.AddObjectContainerIDFilter(anyMatcher, cidtest.ID()) },
-		func() { fs.AddObjectOwnerIDFilter(anyMatcher, usertest.ID(t)) },
+		func() { fs.AddObjectOwnerIDFilter(anyMatcher, usertest.ID()) },
 		func() { fs.AddCreationEpochFilter(anyMatcher, rand.Uint64()) },
 		func() { fs.AddPayloadSizeFilter(anyMatcher, rand.Uint64()) },
 		func() { fs.AddPayloadHashFilter(anyMatcher, [sha256.Size]byte{1}) },

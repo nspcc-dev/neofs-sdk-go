@@ -53,7 +53,7 @@ func (t *testPutStreamAccessDenied) Close() error {
 func TestClient_ObjectPutInit(t *testing.T) {
 	t.Run("EOF-on-status-return", func(t *testing.T) {
 		c := newClient(t, nil)
-		signer := test.RandomSignerRFC6979(t)
+		signer := test.RandomSignerRFC6979()
 
 		rpcAPIPutObject = func(_ *client.Client, r *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
 			return &testPutStreamAccessDenied{resp: r, signer: signer, t: t}, nil

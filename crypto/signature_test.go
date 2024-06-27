@@ -13,7 +13,7 @@ const anyUnsupportedScheme = neofscrypto.ECDSA_WALLETCONNECT + 1
 
 func TestSignatureLifecycle(t *testing.T) {
 	data := []byte("Hello, world!")
-	signer := test.RandomSigner(t)
+	signer := test.RandomSigner()
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
 	bPubKey := neofscrypto.PublicKeyBytes(pubKey)
@@ -68,7 +68,7 @@ func TestSignatureLifecycle(t *testing.T) {
 }
 
 func TestNewSignature(t *testing.T) {
-	signer := test.RandomSigner(t)
+	signer := test.RandomSigner()
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
 	val := []byte("Hello, world!") // may be any for this test

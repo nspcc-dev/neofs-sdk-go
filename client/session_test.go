@@ -37,7 +37,7 @@ func (m sessionAPIServer) createSession(*client.Client, *session.CreateRequest, 
 
 func TestClient_SessionCreate(t *testing.T) {
 	ctx := context.Background()
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	c := newClient(t, nil)
 

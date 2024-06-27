@@ -66,7 +66,7 @@ func TestTable_AddRecord(t *testing.T) {
 }
 
 func TestTableEncoding(t *testing.T) {
-	tab := eacltest.Table(t)
+	tab := eacltest.Table()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := tab.Marshal()

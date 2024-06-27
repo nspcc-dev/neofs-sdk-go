@@ -75,7 +75,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	var res netmap.NetMap
 	var srv serverNetMap
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	srv.signer = signer
 

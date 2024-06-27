@@ -127,7 +127,7 @@ func TestGlobalTrust_Manager(t *testing.T) {
 
 	require.Zero(t, val.Manager())
 
-	val = reputationtest.SignedGlobalTrust(t)
+	val = reputationtest.SignedGlobalTrust()
 
 	peer := reputationtest.PeerID()
 
@@ -152,7 +152,7 @@ func TestGlobalTrust_Trust(t *testing.T) {
 
 	require.Zero(t, val.Trust())
 
-	val = reputationtest.SignedGlobalTrust(t)
+	val = reputationtest.SignedGlobalTrust()
 
 	trust := reputationtest.Trust()
 
@@ -177,7 +177,7 @@ func TestGlobalTrust_Sign(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	require.NoError(t, val.Sign(test.RandomSigner(t)))
+	require.NoError(t, val.Sign(test.RandomSigner()))
 
 	var valV2 v2reputation.GlobalTrust
 	val.WriteToV2(&valV2)
@@ -194,13 +194,13 @@ func TestGlobalTrust_SignedData(t *testing.T) {
 	val := reputationtest.GlobalTrust()
 
 	require.False(t, val.VerifySignature())
-	signer := test.RandomSigner(t)
+	signer := test.RandomSigner()
 
 	test.SignedDataComponent(t, signer, &val)
 }
 
 func TestGlobalTrustEncoding(t *testing.T) {
-	val := reputationtest.SignedGlobalTrust(t)
+	val := reputationtest.SignedGlobalTrust()
 
 	t.Run("binary", func(t *testing.T) {
 		data := val.Marshal()

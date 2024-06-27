@@ -25,7 +25,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	require.True(t, ok)
 	check(t, value, "before sign")
 
-	err = value.Sign(test.RandomSignerRFC6979(t))
+	err = value.Sign(test.RandomSignerRFC6979())
 	require.NoError(t, err)
 
 	value, ok = cache.Get(key)

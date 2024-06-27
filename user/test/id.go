@@ -1,17 +1,18 @@
 package usertest
 
 import (
-	"testing"
+	"math/rand"
 
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // ID returns random user.ID.
-func ID(tb testing.TB) user.ID {
-	var x user.ID
-	s := test.RandomSignerRFC6979(tb)
-	x = s.UserID()
-
-	return x
+func ID() user.ID {
+	var h util.Uint160
+	//nolint:staticcheck
+	rand.Read(h[:])
+	var res user.ID
+	res.SetScriptHash(h)
+	return res
 }

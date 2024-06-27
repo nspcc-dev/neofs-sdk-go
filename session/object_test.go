@@ -36,7 +36,7 @@ func TestObjectProtocolV2(t *testing.T) {
 	restoreID()
 
 	// Owner
-	usr := usertest.ID(t)
+	usr := usertest.ID()
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
 	restoreUser := func() {
@@ -55,7 +55,7 @@ func TestObjectProtocolV2(t *testing.T) {
 	restoreLifetime()
 
 	// Session key
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	authKey := signer.Public()
 	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
 	restoreAuthKey := func() {
@@ -143,7 +143,7 @@ func TestObjectProtocolV2(t *testing.T) {
 			},
 			breakSign: func(m *v2session.Token) {
 				id := m.GetBody().GetOwnerID().GetValue()
-				copy(id, usertest.ID(t).WalletBytes())
+				copy(id, usertest.ID().WalletBytes())
 			},
 		},
 		{
@@ -275,7 +275,7 @@ func TestObject_WriteToV2(t *testing.T) {
 	})
 
 	// Owner/Signature
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	require.NoError(t, val.Sign(signer))
 
@@ -521,7 +521,7 @@ func TestObject_ID(t *testing.T) {
 func TestObject_AssertAuthKey(t *testing.T) {
 	var x session.Object
 
-	key := test.RandomSignerRFC6979(t).Public()
+	key := test.RandomSignerRFC6979().Public()
 
 	require.False(t, x.AssertAuthKey(key))
 
@@ -607,7 +607,7 @@ func TestObject_AssertVerb(t *testing.T) {
 
 func TestObject_Issuer(t *testing.T) {
 	var token session.Object
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	require.Zero(t, token.Issuer())
 	require.Nil(t, token.IssuerPublicKeyBytes())
@@ -623,17 +623,17 @@ func TestObject_Issuer(t *testing.T) {
 func TestObject_Sign(t *testing.T) {
 	val := sessiontest.Object()
 
-	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979(t)))
+	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979()))
 	require.Zero(t, val.Issuer())
 	require.True(t, val.VerifySignature())
 
-	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
+	require.NoError(t, val.Sign(test.RandomSignerRFC6979()))
 
 	require.True(t, val.VerifySignature())
 
 	t.Run("issue#546", func(t *testing.T) {
-		signer1 := test.RandomSignerRFC6979(t)
-		signer2 := test.RandomSignerRFC6979(t)
+		signer1 := test.RandomSignerRFC6979()
+		signer2 := test.RandomSignerRFC6979()
 		require.False(t, signer1.UserID().Equals(signer2.UserID()))
 
 		token1 := sessiontest.Object()
@@ -649,7 +649,7 @@ func TestObject_Sign(t *testing.T) {
 }
 
 func TestObject_SignedData(t *testing.T) {
-	issuerSigner := test.RandomSignerRFC6979(t)
+	issuerSigner := test.RandomSignerRFC6979()
 	issuer := issuerSigner.UserID()
 
 	var tokenSession session.Object
@@ -657,7 +657,7 @@ func TestObject_SignedData(t *testing.T) {
 	tokenSession.SetExp(100500)
 	tokenSession.BindContainer(cidtest.ID())
 	tokenSession.ForVerb(session.VerbObjectPut)
-	tokenSession.SetAuthKey(test.RandomSignerRFC6979(t).Public())
+	tokenSession.SetAuthKey(test.RandomSignerRFC6979().Public())
 	tokenSession.SetIssuer(issuer)
 
 	signedData := tokenSession.SignedData()

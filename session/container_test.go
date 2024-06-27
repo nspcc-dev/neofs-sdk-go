@@ -36,7 +36,7 @@ func TestContainerProtocolV2(t *testing.T) {
 	restoreID()
 
 	// Owner
-	usr := usertest.ID(t)
+	usr := usertest.ID()
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
 	restoreUser := func() {
@@ -55,7 +55,7 @@ func TestContainerProtocolV2(t *testing.T) {
 	restoreLifetime()
 
 	// Session key
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	authKey := signer.Public()
 	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
 	restoreAuthKey := func() {
@@ -138,7 +138,7 @@ func TestContainerProtocolV2(t *testing.T) {
 			},
 			breakSign: func(m *v2session.Token) {
 				id := m.GetBody().GetOwnerID().GetValue()
-				copy(id, usertest.ID(t).WalletBytes())
+				copy(id, usertest.ID().WalletBytes())
 			},
 		},
 		{
@@ -265,7 +265,7 @@ func TestContainer_WriteToV2(t *testing.T) {
 	})
 
 	// Owner/Signature
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	require.NoError(t, val.Sign(signer))
 
@@ -428,7 +428,7 @@ func TestContainer_ID(t *testing.T) {
 func TestContainer_AssertAuthKey(t *testing.T) {
 	var x session.Container
 
-	key := test.RandomSignerRFC6979(t).Public()
+	key := test.RandomSignerRFC6979().Public()
 
 	require.False(t, x.AssertAuthKey(key))
 
@@ -511,7 +511,7 @@ func TestIssuedBy(t *testing.T) {
 	var (
 		token  session.Container
 		issuer user.ID
-		signer = test.RandomSignerRFC6979(t)
+		signer = test.RandomSignerRFC6979()
 	)
 
 	issuer = signer.UserID()
@@ -526,7 +526,7 @@ func TestContainer_Issuer(t *testing.T) {
 	t.Run("signer", func(t *testing.T) {
 		var token session.Container
 
-		signer := test.RandomSignerRFC6979(t)
+		signer := test.RandomSignerRFC6979()
 
 		require.Zero(t, token.Issuer())
 		require.NoError(t, token.Sign(signer))
@@ -538,7 +538,7 @@ func TestContainer_Issuer(t *testing.T) {
 	t.Run("external", func(t *testing.T) {
 		var token session.Container
 
-		signer := test.RandomSignerRFC6979(t)
+		signer := test.RandomSignerRFC6979()
 		issuer := signer.UserID()
 
 		token.SetIssuer(issuer)
@@ -548,7 +548,7 @@ func TestContainer_Issuer(t *testing.T) {
 	t.Run("public key", func(t *testing.T) {
 		var token session.Container
 
-		signer := test.RandomSignerRFC6979(t)
+		signer := test.RandomSignerRFC6979()
 
 		require.Nil(t, token.IssuerPublicKeyBytes())
 		require.NoError(t, token.Sign(signer))
@@ -560,17 +560,17 @@ func TestContainer_Issuer(t *testing.T) {
 func TestContainer_Sign(t *testing.T) {
 	val := sessiontest.Container()
 
-	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979(t)))
+	require.NoError(t, val.SetSignature(test.RandomSignerRFC6979()))
 	require.Zero(t, val.Issuer())
 	require.True(t, val.VerifySignature())
 
-	require.NoError(t, val.Sign(test.RandomSignerRFC6979(t)))
+	require.NoError(t, val.Sign(test.RandomSignerRFC6979()))
 
 	require.True(t, val.VerifySignature())
 
 	t.Run("issue#546", func(t *testing.T) {
-		signer1 := test.RandomSignerRFC6979(t)
-		signer2 := test.RandomSignerRFC6979(t)
+		signer1 := test.RandomSignerRFC6979()
+		signer2 := test.RandomSignerRFC6979()
 		require.False(t, signer1.UserID().Equals(signer2.UserID()))
 
 		token1 := sessiontest.Container()
@@ -586,7 +586,7 @@ func TestContainer_Sign(t *testing.T) {
 }
 
 func TestContainer_SignedData(t *testing.T) {
-	id := usertest.ID(t)
+	id := usertest.ID()
 
 	val := sessiontest.Container()
 	val.SetIssuer(id)
@@ -596,12 +596,12 @@ func TestContainer_SignedData(t *testing.T) {
 	require.NoError(t, dec.UnmarshalSignedData(signedData))
 	require.Equal(t, val, dec)
 
-	signer := user.NewSigner(test.RandomSigner(t), id)
+	signer := user.NewSigner(test.RandomSigner(), id)
 	test.SignedDataComponentUser(t, signer, &val)
 }
 
 func TestContainer_VerifyDataSignature(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	var tok session.Container
 

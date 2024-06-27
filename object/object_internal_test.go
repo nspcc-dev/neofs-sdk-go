@@ -39,11 +39,11 @@ func parenObject(cnr cid.ID, owner user.ID) *Object {
 }
 
 func TestObject_CopyTo(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	var obj Object
 	cnr := cidtest.ID()
-	own := usertest.ID(t)
+	own := usertest.ID()
 
 	obj.InitCreation(RequiredFields{
 		Container: cnr,

@@ -152,8 +152,8 @@ func serveObjectReplication(tb testing.TB, clientSigner neofscrypto.Signer, clie
 
 func TestClient_ReplicateObject(t *testing.T) {
 	ctx := context.Background()
-	signer := test.RandomSigner(t)
-	obj := objecttest.Object(t)
+	signer := test.RandomSigner()
+	obj := objecttest.Object()
 	id := oidtest.ID()
 	obj.SetID(id)
 	bObj, _ := obj.Marshal()
