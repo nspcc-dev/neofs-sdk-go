@@ -18,7 +18,7 @@ func Test_commonData_copyTo(t *testing.T) {
 	sig.SetSign([]byte("sign"))
 	sig.SetScheme(refs.ECDSA_SHA512)
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	data := commonData{
 		idSet:       true,
@@ -98,7 +98,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.Equal(t, data.issuerSet, dst.issuerSet)
 		require.True(t, data.issuer.Equals(dst.issuer))
 
-		dst.SetIssuer(test.RandomSignerRFC6979(t).UserID())
+		dst.SetIssuer(test.RandomSignerRFC6979().UserID())
 
 		require.Equal(t, data.issuerSet, dst.issuerSet)
 		require.False(t, data.issuer.Equals(dst.issuer))
@@ -109,7 +109,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.False(t, local.issuerSet)
 
 		var dst commonData
-		dst.SetIssuer(test.RandomSignerRFC6979(t).UserID())
+		dst.SetIssuer(test.RandomSignerRFC6979().UserID())
 		require.True(t, dst.issuerSet)
 
 		local.copyTo(&dst)
@@ -124,7 +124,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.Equal(t, local.issuerSet, dst.issuerSet)
 		require.True(t, local.issuer.Equals(dst.issuer))
 
-		dst.SetIssuer(test.RandomSignerRFC6979(t).UserID())
+		dst.SetIssuer(test.RandomSignerRFC6979().UserID())
 		require.False(t, local.issuerSet)
 		require.True(t, dst.issuerSet)
 

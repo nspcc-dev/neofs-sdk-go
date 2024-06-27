@@ -99,14 +99,14 @@ func testResponseMeta(t *testing.T, meta *session.ResponseMetaHeader, req servic
 }
 
 func TestEmptyMessage(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	require.NoError(t, verifyServiceMessage(nil))
 	require.NoError(t, signServiceMessage(signer, nil, nil))
 }
 
 func TestBalanceRequest(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	id := signer.UserID()
 
 	var ownerID refs.OwnerID
@@ -131,7 +131,7 @@ func TestBalanceRequest(t *testing.T) {
 }
 
 func TestBalanceResponse(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	dec := new(accounting.Decimal)
 	dec.SetValue(100)
@@ -163,7 +163,7 @@ func TestBalanceResponse(t *testing.T) {
 }
 
 func TestCreateRequest(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	id := signer.UserID()
 
 	var ownerID refs.OwnerID
@@ -199,7 +199,7 @@ func TestCreateRequest(t *testing.T) {
 }
 
 func TestCreateResponse(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	id := make([]byte, 8)
 	_, err := rand.Read(id)

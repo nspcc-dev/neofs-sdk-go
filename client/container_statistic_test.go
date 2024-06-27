@@ -150,7 +150,7 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 }
 
 func TestClientStatistic_AccountBalance(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -185,7 +185,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerPut(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -220,7 +220,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerGet(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -269,7 +269,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerList(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -299,7 +299,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerDelete(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -329,7 +329,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerEacl(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -362,7 +362,7 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerSetEacl(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -393,7 +393,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -428,7 +428,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -470,7 +470,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -507,7 +507,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -540,7 +540,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 }
 
 func TestClientStatistic_CreateSession(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -578,7 +578,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 func TestClientStatistic_ObjectPut(t *testing.T) {
 	t.Skip("need changes to api-go, to set `wc client.MessageWriterCloser` in rpcapi.PutRequestWriter")
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -626,7 +626,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectDelete(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -672,7 +672,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 func TestClientStatistic_ObjectGet(t *testing.T) {
 	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.GetResponseReader")
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -703,7 +703,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectHead(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -742,7 +742,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 func TestClientStatistic_ObjectRange(t *testing.T) {
 	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.ObjectRangeResponseReader")
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -773,7 +773,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectHash(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -814,7 +814,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 func TestClientStatistic_ObjectSearch(t *testing.T) {
 	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.SearchResponseReader")
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -847,7 +847,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 }
 
 func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -879,7 +879,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 }
 
 func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ctx := context.Background()
 	c := newClient(t, nil)
 

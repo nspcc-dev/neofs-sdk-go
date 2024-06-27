@@ -1,7 +1,7 @@
 package reputationtest
 
 import (
-	"testing"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
@@ -41,11 +41,11 @@ func GlobalTrust() (v reputation.GlobalTrust) {
 	return
 }
 
-func SignedGlobalTrust(t *testing.T) reputation.GlobalTrust {
+func SignedGlobalTrust() reputation.GlobalTrust {
 	gt := GlobalTrust()
 
-	if err := gt.Sign(test.RandomSignerRFC6979(t)); err != nil {
-		t.Fatalf("unexpected error from GlobalTrust.Sign: %v", err)
+	if err := gt.Sign(test.RandomSignerRFC6979()); err != nil {
+		panic(fmt.Sprintf("unexpected error from GlobalTrust.Sign: %v", err))
 	}
 
 	return gt

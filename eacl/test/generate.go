@@ -30,7 +30,7 @@ func Record(tb testing.TB) eacl.Record {
 	x.SetOperation(eacl.OperationRangeHash)
 	x.SetTargets(Target(), Target())
 	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	usr := usertest.ID(tb)
+	usr := usertest.ID()
 	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, &usr)
 
 	return *x

@@ -83,7 +83,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 	ctx := context.Background()
 
 	in, opts := randomInput(b, size, sizeLimit)
-	obj := sessiontest.ObjectSigned(test.RandomSignerRFC6979(b))
+	obj := sessiontest.ObjectSigned(test.RandomSignerRFC6979())
 	s, err := slicer.New(
 		ctx,
 		discardObject{opts: opts},
@@ -236,11 +236,11 @@ func randomInput(tb testing.TB, size, sizeLimit uint64) (input, slicer.Options) 
 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
-		tok := sessiontest.ObjectSigned(test.RandomSignerRFC6979(tb))
+		tok := sessiontest.ObjectSigned(test.RandomSignerRFC6979())
 		in.sessionToken = &tok
 		opts.SetSession(*in.sessionToken)
 	} else {
-		in.owner = usertest.ID(tb)
+		in.owner = usertest.ID()
 	}
 
 	in.withHomo = rand.Int()%2 == 0
@@ -842,7 +842,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	require.NoError(t, err)
 	containerID.Encode(id)
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	ownerID := signer.UserID()
 
 	opts := slicer.Options{}
@@ -966,7 +966,7 @@ func BenchmarkWritePayloadBuffer(b *testing.B) {
 		b.Run(fmt.Sprintf("limit=%d,size=%d", tc.sizeLimit, tc.size), func(b *testing.B) {
 			ctx := context.Background()
 			in, opts := randomInput(b, tc.size, tc.sizeLimit)
-			obj := objecttest.Object(b)
+			obj := objecttest.Object()
 			hdr := *obj.CutPayload()
 
 			b.Run("with payload buffer", func(b *testing.B) {
@@ -1021,7 +1021,7 @@ func BenchmarkReadPayloadBuffer(b *testing.B) {
 		b.Run(fmt.Sprintf("limit=%d,size=%d", tc.sizeLimit, tc.size), func(b *testing.B) {
 			ctx := context.Background()
 			in, opts := randomInput(b, tc.size, tc.sizeLimit)
-			obj := objecttest.Object(b)
+			obj := objecttest.Object()
 			hdr := *obj.CutPayload()
 
 			b.Run("with payload buffer", func(b *testing.B) {
@@ -1110,7 +1110,7 @@ func TestKnownPayloadSize(t *testing.T) {
 	t.Run("overflow", func(t *testing.T) {
 		t.Run("read", func(t *testing.T) {
 			in, opts := randomInput(t, 1, 1)
-			obj := objecttest.Object(t)
+			obj := objecttest.Object()
 			hdr := *obj.CutPayload()
 
 			opts.SetPayloadSize(20)
@@ -1122,7 +1122,7 @@ func TestKnownPayloadSize(t *testing.T) {
 
 		t.Run("write", func(t *testing.T) {
 			in, opts := randomInput(t, 1, 1)
-			obj := objecttest.Object(t)
+			obj := objecttest.Object()
 			hdr := *obj.CutPayload()
 
 			opts.SetPayloadSize(20)
@@ -1144,7 +1144,7 @@ func TestKnownPayloadSize(t *testing.T) {
 	t.Run("flaw", func(t *testing.T) {
 		t.Run("read", func(t *testing.T) {
 			in, opts := randomInput(t, 1, 1)
-			obj := objecttest.Object(t)
+			obj := objecttest.Object()
 			hdr := *obj.CutPayload()
 
 			opts.SetPayloadSize(20)
@@ -1156,7 +1156,7 @@ func TestKnownPayloadSize(t *testing.T) {
 
 		t.Run("write", func(t *testing.T) {
 			in, opts := randomInput(t, 1, 1)
-			obj := objecttest.Object(t)
+			obj := objecttest.Object()
 			hdr := *obj.CutPayload()
 
 			opts.SetPayloadSize(20)
@@ -1185,9 +1185,9 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 	} {
 		b.Run(fmt.Sprintf("limit=%d,size=%d", tc.sizeLimit, tc.size), func(b *testing.B) {
 			b.Run("read", func(b *testing.B) {
-				obj := objecttest.Object(b)
+				obj := objecttest.Object()
 				hdr := *obj.CutPayload()
-				signer := user.NewSigner(test.RandomSigner(b), usertest.ID(b))
+				signer := user.NewSigner(test.RandomSigner(), usertest.ID())
 				payload := make([]byte, tc.size)
 				//nolint:staticcheck
 				rand.Read(payload)
@@ -1206,9 +1206,9 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 			})
 
 			b.Run("write", func(b *testing.B) {
-				obj := objecttest.Object(b)
+				obj := objecttest.Object()
 				hdr := *obj.CutPayload()
-				signer := user.NewSigner(test.RandomSigner(b), usertest.ID(b))
+				signer := user.NewSigner(test.RandomSigner(), usertest.ID())
 				payload := make([]byte, tc.size)
 				//nolint:staticcheck
 				rand.Read(payload)

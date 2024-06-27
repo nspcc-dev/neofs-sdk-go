@@ -105,7 +105,7 @@ func TestToken_ForUser(t *testing.T) {
 	require.Zero(t, m.GetBody())
 
 	// set value
-	usr := usertest.ID(t)
+	usr := usertest.ID()
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)
@@ -241,11 +241,11 @@ func TestToken_AssertContainer(t *testing.T) {
 
 func TestToken_AssertUser(t *testing.T) {
 	var val bearer.Token
-	usr := usertest.ID(t)
+	usr := usertest.ID()
 
 	require.True(t, val.AssertUser(usr))
 
-	val.ForUser(usertest.ID(t))
+	val.ForUser(usertest.ID())
 	require.False(t, val.AssertUser(usr))
 
 	val.ForUser(usr)
@@ -257,7 +257,7 @@ func TestToken_Sign(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	val = bearertest.Token(t)
 
@@ -294,7 +294,7 @@ func TestToken_SignedData(t *testing.T) {
 	require.NoError(t, dec.UnmarshalSignedData(signedData))
 	require.Equal(t, val, dec)
 
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 	val = bearertest.Token(t)
 	val.SetIssuer(signer.UserID())
 
@@ -342,7 +342,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 	val.WriteToV2(&m2)
 	require.Equal(t, m, m2)
 
-	usr, usr2 := usertest.ID(t), usertest.ID(t)
+	usr, usr2 := usertest.ID(), usertest.ID()
 
 	require.True(t, val.AssertUser(usr))
 	require.True(t, val.AssertUser(usr2))
@@ -360,7 +360,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 	require.True(t, val.AssertUser(usr))
 	require.False(t, val.AssertUser(usr2))
 
-	signer := test.RandomSigner(t)
+	signer := test.RandomSigner()
 
 	var s neofscrypto.Signature
 
@@ -374,7 +374,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 }
 
 func TestResolveIssuer(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	signer := test.RandomSignerRFC6979()
 
 	var val bearer.Token
 
@@ -424,7 +424,7 @@ func TestToken_Issuer(t *testing.T) {
 	require.Zero(t, msg.GetBody())
 
 	// set value
-	usr := usertest.ID(t)
+	usr := usertest.ID()
 
 	var usrV2 refs.OwnerID
 	usr.WriteToV2(&usrV2)

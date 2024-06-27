@@ -23,7 +23,7 @@ import (
 )
 
 func TestPlacementPolicyEncoding(t *testing.T) {
-	v := containertest.Container(t)
+	v := containertest.Container()
 
 	t.Run("binary", func(t *testing.T) {
 		var v2 container.Container
@@ -44,7 +44,7 @@ func TestPlacementPolicyEncoding(t *testing.T) {
 }
 
 func TestContainer_Init(t *testing.T) {
-	val := containertest.Container(t)
+	val := containertest.Container()
 
 	val.Init()
 
@@ -78,9 +78,9 @@ func TestContainer_Owner(t *testing.T) {
 
 	require.Zero(t, val.Owner())
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
-	owner := usertest.ID(t)
+	owner := usertest.ID()
 
 	val.SetOwner(owner)
 
@@ -103,7 +103,7 @@ func TestContainer_BasicACL(t *testing.T) {
 
 	require.Zero(t, val.BasicACL())
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
 	basicACL := containertest.BasicACL()
 	val.SetBasicACL(basicACL)
@@ -124,7 +124,7 @@ func TestContainer_PlacementPolicy(t *testing.T) {
 
 	require.Zero(t, val.PlacementPolicy())
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
 	pp := netmaptest.PlacementPolicy()
 	val.SetPlacementPolicy(pp)
@@ -155,7 +155,7 @@ func TestContainer_Attribute(t *testing.T) {
 	const attrKey1, attrKey2 = "key1", "key2"
 	const attrVal1, attrVal2 = "val1", "val2"
 
-	val := containertest.Container(t)
+	val := containertest.Container()
 
 	val.SetAttribute(attrKey1, attrVal1)
 	val.SetAttribute(attrKey2, attrVal2)
@@ -224,7 +224,7 @@ func TestSetName(t *testing.T) {
 		val.SetName("")
 	})
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
 	const name = "some name"
 
@@ -246,7 +246,7 @@ func TestSetCreationTime(t *testing.T) {
 
 	require.Zero(t, val.CreatedAt().Unix())
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
 	creat := time.Now()
 
@@ -268,7 +268,7 @@ func TestDisableHomomorphicHashing(t *testing.T) {
 
 	require.False(t, val.IsHomomorphicHashingDisabled())
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
 	val.DisableHomomorphicHashing()
 
@@ -288,7 +288,7 @@ func TestWriteDomain(t *testing.T) {
 
 	require.Zero(t, val.ReadDomain().Name())
 
-	val = containertest.Container(t)
+	val = containertest.Container()
 
 	const name = "domain name"
 
@@ -320,7 +320,7 @@ func TestWriteDomain(t *testing.T) {
 }
 
 func TestCalculateID(t *testing.T) {
-	val := containertest.Container(t)
+	val := containertest.Container()
 
 	require.False(t, val.AssertID(cidtest.ID()))
 
@@ -340,12 +340,12 @@ func TestCalculateID(t *testing.T) {
 }
 
 func TestCalculateSignature(t *testing.T) {
-	val := containertest.Container(t)
+	val := containertest.Container()
 
 	var sig neofscrypto.Signature
 
-	require.Error(t, val.CalculateSignature(&sig, test.RandomSigner(t)))
-	require.NoError(t, val.CalculateSignature(&sig, test.RandomSignerRFC6979(t)))
+	require.Error(t, val.CalculateSignature(&sig, test.RandomSigner()))
+	require.NoError(t, val.CalculateSignature(&sig, test.RandomSignerRFC6979()))
 
 	var msg refs.Signature
 	sig.WriteToV2(&msg)

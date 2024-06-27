@@ -19,7 +19,7 @@ func TestVerificationFields(t *testing.T) {
 	obj.SetPayload(payload)
 	obj.SetPayloadSize(uint64(len(payload)))
 
-	require.NoError(t, obj.SetVerificationFields(test.RandomSigner(t)))
+	require.NoError(t, obj.SetVerificationFields(test.RandomSigner()))
 
 	require.NoError(t, obj.CheckVerificationFields())
 
@@ -65,8 +65,8 @@ func TestVerificationFields(t *testing.T) {
 }
 
 func TestObject_SignedData(t *testing.T) {
-	signer := test.RandomSigner(t)
-	uid := usertest.ID(t)
+	signer := test.RandomSigner()
+	uid := usertest.ID()
 
 	rf := RequiredFields{
 		Container: cidtest.ID(),

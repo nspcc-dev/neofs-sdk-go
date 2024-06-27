@@ -6,6 +6,7 @@ All functions accepting `t *testing.T` that emphasize there are only for tests p
 package test
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -17,18 +18,22 @@ import (
 
 // RandomSigner return neofscrypto.Signer ONLY for TESTs purposes.
 // It may be used like helper to get new neofscrypto.Signer if you need it in yours tests.
-func RandomSigner(tb testing.TB) neofscrypto.Signer {
+func RandomSigner() neofscrypto.Signer {
 	p, err := keys.NewPrivateKey()
-	require.NoError(tb, err)
+	if err != nil {
+		panic(fmt.Errorf("failed to randomize private key: %w", err))
+	}
 
 	return neofsecdsa.Signer(p.PrivateKey)
 }
 
 // RandomSignerRFC6979 return [user.Signer] ONLY for TESTs purposes.
 // It may be used like helper to get new [user.Signer] if you need it in yours tests.
-func RandomSignerRFC6979(tb testing.TB) user.Signer {
+func RandomSignerRFC6979() user.Signer {
 	p, err := keys.NewPrivateKey()
-	require.NoError(tb, err)
+	if err != nil {
+		panic(fmt.Errorf("failed to randomize private key: %w", err))
+	}
 
 	return user.NewAutoIDSignerRFC6979(p.PrivateKey)
 }
