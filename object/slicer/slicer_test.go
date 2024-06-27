@@ -19,7 +19,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -83,7 +83,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 	ctx := context.Background()
 
 	in, opts := randomInput(size, sizeLimit)
-	obj := sessiontest.ObjectSigned(test.RandomSignerRFC6979())
+	obj := sessiontest.ObjectSigned(usertest.User())
 	s, err := slicer.New(
 		ctx,
 		discardObject{opts: opts},
@@ -236,7 +236,7 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
-		tok := sessiontest.ObjectSigned(test.RandomSignerRFC6979())
+		tok := sessiontest.ObjectSigned(usertest.User())
 		in.sessionToken = &tok
 		opts.SetSession(*in.sessionToken)
 	} else {
@@ -842,8 +842,8 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	require.NoError(t, err)
 	containerID.Encode(id)
 
-	signer := test.RandomSignerRFC6979()
-	ownerID := signer.UserID()
+	usr := usertest.User()
+	usrID := usr.UserID()
 
 	opts := slicer.Options{}
 	opts.SetObjectPayloadLimit(maxObjectSize)
@@ -859,7 +859,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		writer := &memoryWriter{
 			opts: opts,
 		}
-		sl, err := slicer.New(context.Background(), writer, signer, containerID, ownerID, nil)
+		sl, err := slicer.New(context.Background(), writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize*overheadAmount)
@@ -892,7 +892,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		writer := &memoryWriter{
 			opts: opts,
 		}
-		sl, err := slicer.New(context.Background(), writer, signer, containerID, ownerID, nil)
+		sl, err := slicer.New(context.Background(), writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
 		payloadWriter, err := sl.InitPut(ctx, nil)
@@ -931,7 +931,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		writer := &memoryWriter{
 			opts: opts,
 		}
-		sl, err := slicer.New(context.Background(), writer, signer, containerID, ownerID, nil)
+		sl, err := slicer.New(context.Background(), writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize-1)
@@ -1187,7 +1187,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 			b.Run("read", func(b *testing.B) {
 				obj := objecttest.Object()
 				hdr := *obj.CutPayload()
-				signer := user.NewSigner(test.RandomSigner(), usertest.ID())
+				signer := user.NewSigner(neofscryptotest.Signer(), usertest.ID())
 				payload := make([]byte, tc.size)
 				//nolint:staticcheck
 				rand.Read(payload)
@@ -1208,7 +1208,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 			b.Run("write", func(b *testing.B) {
 				obj := objecttest.Object()
 				hdr := *obj.CutPayload()
-				signer := user.NewSigner(test.RandomSigner(), usertest.ID())
+				signer := user.NewSigner(neofscryptotest.Signer(), usertest.ID())
 				payload := make([]byte, tc.size)
 				//nolint:staticcheck
 				rand.Read(payload)

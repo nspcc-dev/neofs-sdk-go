@@ -11,9 +11,9 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -53,13 +53,13 @@ func (t *testPutStreamAccessDenied) Close() error {
 func TestClient_ObjectPutInit(t *testing.T) {
 	t.Run("EOF-on-status-return", func(t *testing.T) {
 		c := newClient(t, nil)
-		signer := test.RandomSignerRFC6979()
+		usr := usertest.User()
 
 		rpcAPIPutObject = func(_ *client.Client, r *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
-			return &testPutStreamAccessDenied{resp: r, signer: signer, t: t}, nil
+			return &testPutStreamAccessDenied{resp: r, signer: usr, t: t}, nil
 		}
 
-		w, err := c.ObjectPutInit(context.Background(), object.Object{}, signer, PrmObjectPutInit{})
+		w, err := c.ObjectPutInit(context.Background(), object.Object{}, usr, PrmObjectPutInit{})
 		require.NoError(t, err)
 
 		n, err := w.Write([]byte{1})

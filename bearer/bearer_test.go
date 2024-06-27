@@ -11,7 +11,7 @@ import (
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -257,11 +257,11 @@ func TestToken_Sign(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	signer := test.RandomSignerRFC6979()
+	usr := usertest.User()
 
 	val = bearertest.Token()
 
-	require.NoError(t, val.Sign(signer))
+	require.NoError(t, val.Sign(usr))
 
 	require.True(t, val.VerifySignature())
 
@@ -294,11 +294,11 @@ func TestToken_SignedData(t *testing.T) {
 	require.NoError(t, dec.UnmarshalSignedData(signedData))
 	require.Equal(t, val, dec)
 
-	signer := test.RandomSignerRFC6979()
+	usr := usertest.User()
 	val = bearertest.Token()
-	val.SetIssuer(signer.UserID())
+	val.SetIssuer(usr.UserID())
 
-	test.SignedDataComponentUser(t, signer, &val)
+	usertest.TestSignedData(t, usr, &val)
 }
 
 func TestToken_ReadFromV2(t *testing.T) {
@@ -360,11 +360,9 @@ func TestToken_ReadFromV2(t *testing.T) {
 	require.True(t, val.AssertUser(usr))
 	require.False(t, val.AssertUser(usr2))
 
-	signer := test.RandomSigner()
-
 	var s neofscrypto.Signature
 
-	require.NoError(t, s.CalculateMarshalled(signer, &body, nil))
+	require.NoError(t, s.CalculateMarshalled(neofscryptotest.Signer(), &body, nil))
 
 	s.WriteToV2(&sig)
 
@@ -374,7 +372,7 @@ func TestToken_ReadFromV2(t *testing.T) {
 }
 
 func TestResolveIssuer(t *testing.T) {
-	signer := test.RandomSignerRFC6979()
+	usr := usertest.User()
 
 	var val bearer.Token
 
@@ -391,12 +389,12 @@ func TestResolveIssuer(t *testing.T) {
 
 	require.Zero(t, val.ResolveIssuer())
 
-	require.NoError(t, val.Sign(signer))
+	require.NoError(t, val.Sign(usr))
 
-	usr := signer.UserID()
+	usrID := usr.UserID()
 
-	require.Equal(t, usr, val.ResolveIssuer())
-	require.Equal(t, usr, val.Issuer())
+	require.Equal(t, usrID, val.ResolveIssuer())
+	require.Equal(t, usrID, val.Issuer())
 }
 
 func TestToken_Issuer(t *testing.T) {

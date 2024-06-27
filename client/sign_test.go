@@ -8,7 +8,8 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -99,15 +100,15 @@ func testResponseMeta(t *testing.T, meta *session.ResponseMetaHeader, req servic
 }
 
 func TestEmptyMessage(t *testing.T) {
-	signer := test.RandomSignerRFC6979()
+	signer := neofscryptotest.Signer()
 
 	require.NoError(t, verifyServiceMessage(nil))
 	require.NoError(t, signServiceMessage(signer, nil, nil))
 }
 
 func TestBalanceRequest(t *testing.T) {
-	signer := test.RandomSignerRFC6979()
-	id := signer.UserID()
+	signer := neofscryptotest.Signer()
+	id := usertest.ID()
 
 	var ownerID refs.OwnerID
 	id.WriteToV2(&ownerID)
@@ -131,7 +132,7 @@ func TestBalanceRequest(t *testing.T) {
 }
 
 func TestBalanceResponse(t *testing.T) {
-	signer := test.RandomSignerRFC6979()
+	signer := neofscryptotest.Signer()
 
 	dec := new(accounting.Decimal)
 	dec.SetValue(100)
@@ -163,8 +164,8 @@ func TestBalanceResponse(t *testing.T) {
 }
 
 func TestCreateRequest(t *testing.T) {
-	signer := test.RandomSignerRFC6979()
-	id := signer.UserID()
+	signer := neofscryptotest.Signer()
+	id := usertest.ID()
 
 	var ownerID refs.OwnerID
 	id.WriteToV2(&ownerID)
@@ -199,7 +200,7 @@ func TestCreateRequest(t *testing.T) {
 }
 
 func TestCreateResponse(t *testing.T) {
-	signer := test.RandomSignerRFC6979()
+	signer := neofscryptotest.Signer()
 
 	id := make([]byte, 8)
 	_, err := rand.Read(id)

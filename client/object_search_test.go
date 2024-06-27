@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
@@ -144,7 +144,7 @@ func TestClient_ObjectSearch(t *testing.T) {
 }
 
 func testListReaderResponse() (neofscrypto.Signer, *ObjectListReader) {
-	return test.RandomSigner(), &ObjectListReader{
+	return neofscryptotest.Signer(), &ObjectListReader{
 		cancelCtxStream: func() {},
 		client:          &Client{},
 		tail:            nil,
