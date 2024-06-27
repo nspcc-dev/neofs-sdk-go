@@ -5,7 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	reputationtest "github.com/nspcc-dev/neofs-sdk-go/reputation/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -177,7 +177,7 @@ func TestGlobalTrust_Sign(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	require.NoError(t, val.Sign(test.RandomSigner()))
+	require.NoError(t, val.Sign(neofscryptotest.Signer()))
 
 	var valV2 v2reputation.GlobalTrust
 	val.WriteToV2(&valV2)
@@ -194,9 +194,8 @@ func TestGlobalTrust_SignedData(t *testing.T) {
 	val := reputationtest.GlobalTrust()
 
 	require.False(t, val.VerifySignature())
-	signer := test.RandomSigner()
 
-	test.SignedDataComponent(t, signer, &val)
+	neofscryptotest.TestSignedData(t, neofscryptotest.Signer(), &val)
 }
 
 func TestGlobalTrustEncoding(t *testing.T) {

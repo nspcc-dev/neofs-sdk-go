@@ -14,7 +14,7 @@ import (
 	status "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
@@ -152,7 +152,7 @@ func serveObjectReplication(tb testing.TB, clientSigner neofscrypto.Signer, clie
 
 func TestClient_ReplicateObject(t *testing.T) {
 	ctx := context.Background()
-	signer := test.RandomSigner()
+	signer := neofscryptotest.Signer()
 	obj := objecttest.Object()
 	id := oidtest.ID()
 	obj.SetID(id)

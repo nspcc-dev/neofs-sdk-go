@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
 )
@@ -75,7 +75,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	var res netmap.NetMap
 	var srv serverNetMap
 
-	signer := test.RandomSignerRFC6979()
+	signer := neofscryptotest.Signer()
 
 	srv.signer = signer
 
