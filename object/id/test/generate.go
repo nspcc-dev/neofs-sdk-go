@@ -1,7 +1,6 @@
 package oidtest
 
 import (
-	"crypto/sha256"
 	"math/rand"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -10,20 +9,33 @@ import (
 
 // ID returns random oid.ID.
 func ID() oid.ID {
-	checksum := [sha256.Size]byte{}
+	var res oid.ID
 	//nolint:staticcheck
-	rand.Read(checksum[:])
-
-	return idWithChecksum(checksum)
+	rand.Read(res[:])
+	return res
 }
 
-// idWithChecksum returns oid.ID initialized
-// with specified checksum.
-func idWithChecksum(cs [sha256.Size]byte) oid.ID {
-	var id oid.ID
-	id.SetSHA256(cs)
+// OtherID returns random oid.ID other than any given one.
+func OtherID(vs ...oid.ID) oid.ID {
+loop:
+	for {
+		v := ID()
+		for i := range vs {
+			if v == vs[i] {
+				continue loop
+			}
+		}
+		return v
+	}
+}
 
-	return id
+// IDs returns n random oid.ID instances.
+func IDs(n int) []oid.ID {
+	res := make([]oid.ID, n)
+	for i := range res {
+		res[i] = ID()
+	}
+	return res
 }
 
 // Address returns random oid.Address.
@@ -34,4 +46,27 @@ func Address() oid.Address {
 	x.SetObject(ID())
 
 	return x
+}
+
+// OtherAddress returns random oid.Address other than any given one.
+func OtherAddress(vs ...oid.Address) oid.Address {
+loop:
+	for {
+		v := Address()
+		for i := range vs {
+			if v == vs[i] {
+				continue loop
+			}
+		}
+		return v
+	}
+}
+
+// Addresses returns n random oid.Address instances.
+func Addresses(n int) []oid.Address {
+	res := make([]oid.Address, n)
+	for i := range res {
+		res[i] = Address()
+	}
+	return res
 }
