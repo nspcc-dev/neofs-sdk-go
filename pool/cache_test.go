@@ -3,9 +3,9 @@ package pool
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +25,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	require.True(t, ok)
 	check(t, value, "before sign")
 
-	err = value.Sign(test.RandomSignerRFC6979(t))
+	err = value.Sign(usertest.User())
 	require.NoError(t, err)
 
 	value, ok = cache.Get(key)

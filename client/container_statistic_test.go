@@ -25,7 +25,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -34,6 +33,7 @@ import (
 	session2 "github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -150,7 +150,7 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 }
 
 func TestClientStatistic_AccountBalance(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -165,7 +165,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		err := signServiceMessage(signer, &resp, nil)
+		err := signServiceMessage(usr, &resp, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
@@ -177,7 +177,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmBalanceGet
-	prm.SetAccount(*randAccount(signer))
+	prm.SetAccount(*randAccount(usr))
 	_, err := c.BalanceGet(ctx, prm)
 	require.NoError(t, err)
 
@@ -185,7 +185,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerPut(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -199,7 +199,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		err := signServiceMessage(signer, &resp, nil)
+		err := signServiceMessage(usr.RFC6979, &resp, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
@@ -207,20 +207,20 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 		return &resp, nil
 	}
 
-	cont := prepareContainer(*randAccount(signer))
+	cont := prepareContainer(*randAccount(usr))
 
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerPut
-	_, err := c.ContainerPut(ctx, cont, signer, prm)
+	_, err := c.ContainerPut(ctx, cont, usr.RFC6979, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerPut].requests)
 }
 
 func TestClientStatistic_ContainerGet(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -232,7 +232,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 		var resp v2container.GetResponse
 		var meta session.ResponseMetaHeader
 
-		cont.SetOwnerID(randOwner(signer))
+		cont.SetOwnerID(randOwner(usr))
 		cont.SetVersion(&ver)
 
 		nonce, err := uuid.New().MarshalBinary()
@@ -251,7 +251,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err = signServiceMessage(signer, &resp, nil); err != nil {
+		if err = signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -269,7 +269,7 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerList(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -281,7 +281,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -292,14 +292,14 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerList
-	_, err := c.ContainerList(ctx, *randAccount(signer), prm)
+	_, err := c.ContainerList(ctx, *randAccount(usr), prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerList].requests)
 }
 
 func TestClientStatistic_ContainerDelete(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -311,7 +311,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -322,14 +322,14 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerDelete
-	err := c.ContainerDelete(ctx, cid.ID{}, signer, prm)
+	err := c.ContainerDelete(ctx, cid.ID{}, usr, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerDelete].requests)
 }
 
 func TestClientStatistic_ContainerEacl(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -344,7 +344,7 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -362,7 +362,7 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerSetEacl(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -374,7 +374,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -386,14 +386,14 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 
 	var prm PrmContainerSetEACL
 	table := testEaclTable(cid.ID{})
-	err := c.ContainerSetEACL(ctx, table, signer, prm)
+	err := c.ContainerSetEACL(ctx, table, usr, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerSetEACL].requests)
 }
 
 func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -405,7 +405,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -428,7 +428,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -451,7 +451,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -461,7 +461,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
-	cont := prepareContainer(*randAccount(signer))
+	cont := prepareContainer(*randAccount(usr))
 
 	err := SyncContainerWithNetwork(ctx, &cont, c)
 	require.NoError(t, err)
@@ -470,7 +470,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -480,7 +480,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 		var ver refs.Version
 		var nodeInfo netmapv2.NodeInfo
 
-		nodeInfo.SetPublicKey(neofscrypto.PublicKeyBytes(signer.Public()))
+		nodeInfo.SetPublicKey(neofscrypto.PublicKeyBytes(usr.Public()))
 		nodeInfo.SetAddresses("https://some-endpont.com")
 
 		body := netmapv2.LocalNodeInfoResponseBody{}
@@ -490,7 +490,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -507,7 +507,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -522,7 +522,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -540,7 +540,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 }
 
 func TestClientStatistic_CreateSession(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -551,12 +551,12 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 		body := session.CreateResponseBody{}
 		body.SetID(randBytes(10))
 
-		body.SetSessionKey(neofscrypto.PublicKeyBytes(signer.Public()))
+		body.SetSessionKey(neofscrypto.PublicKeyBytes(usr.Public()))
 
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -569,7 +569,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 
 	var prm PrmSessionCreate
 
-	_, err := c.SessionCreate(ctx, signer, prm)
+	_, err := c.SessionCreate(ctx, usr, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodSessionCreate].requests)
@@ -578,7 +578,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 func TestClientStatistic_ObjectPut(t *testing.T) {
 	t.Skip("need changes to api-go, to set `wc client.MessageWriterCloser` in rpcapi.PutRequestWriter")
 
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -589,7 +589,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	}
 
 	containerID := *randContainerID()
-	account := randAccount(signer)
+	account := randAccount(usr)
 
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
@@ -600,10 +600,10 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	tokenSession.SetExp(1)
 	tokenSession.BindContainer(containerID)
 	tokenSession.ForVerb(session2.VerbObjectPut)
-	tokenSession.SetAuthKey(signer.Public())
+	tokenSession.SetAuthKey(usr.Public())
 	tokenSession.SetIssuer(*account)
 
-	err := tokenSession.Sign(signer)
+	err := tokenSession.Sign(usr)
 	require.NoError(t, err)
 
 	var prm PrmObjectPutInit
@@ -613,7 +613,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	hdr.SetOwnerID(account)
 	hdr.SetContainerID(containerID)
 
-	writer, err := c.ObjectPutInit(ctx, hdr, signer, prm)
+	writer, err := c.ObjectPutInit(ctx, hdr, usr, prm)
 	require.NoError(t, err)
 
 	_, err = writer.Write(randBytes(10))
@@ -626,7 +626,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectDelete(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -648,7 +648,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -663,7 +663,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 
 	var prm PrmObjectDelete
 
-	_, err := c.ObjectDelete(ctx, containerID, objectID, signer, prm)
+	_, err := c.ObjectDelete(ctx, containerID, objectID, usr, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodObjectDelete].requests)
@@ -672,7 +672,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 func TestClientStatistic_ObjectGet(t *testing.T) {
 	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.GetResponseReader")
 
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -692,7 +692,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 
 	var prm PrmObjectGet
 
-	_, reader, err := c.ObjectGetInit(ctx, containerID, objectID, signer, prm)
+	_, reader, err := c.ObjectGetInit(ctx, containerID, objectID, usr, prm)
 	require.NoError(t, err)
 
 	buff := make([]byte, 32)
@@ -703,7 +703,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectHead(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -718,7 +718,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -733,7 +733,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 
 	var prm PrmObjectHead
 
-	_, err := c.ObjectHead(ctx, containerID, objectID, signer, prm)
+	_, err := c.ObjectHead(ctx, containerID, objectID, usr, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodObjectHead].requests)
@@ -742,7 +742,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 func TestClientStatistic_ObjectRange(t *testing.T) {
 	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.ObjectRangeResponseReader")
 
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -762,7 +762,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 
 	var prm PrmObjectRange
 
-	reader, err := c.ObjectRangeInit(ctx, containerID, objectID, 0, 1, signer, prm)
+	reader, err := c.ObjectRangeInit(ctx, containerID, objectID, 0, 1, usr, prm)
 	require.NoError(t, err)
 
 	buff := make([]byte, 32)
@@ -773,7 +773,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectHash(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -789,7 +789,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -805,7 +805,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 	var prm PrmObjectHash
 	prm.SetRangeList(0, 2)
 
-	_, err := c.ObjectHash(ctx, containerID, objectID, signer, prm)
+	_, err := c.ObjectHash(ctx, containerID, objectID, usr, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodObjectHash].requests)
@@ -814,7 +814,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 func TestClientStatistic_ObjectSearch(t *testing.T) {
 	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.SearchResponseReader")
 
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -833,7 +833,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 
 	var prm PrmObjectSearch
 
-	reader, err := c.ObjectSearchInit(ctx, containerID, signer, prm)
+	reader, err := c.ObjectSearchInit(ctx, containerID, usr, prm)
 	require.NoError(t, err)
 
 	iterator := func(oid.ID) bool {
@@ -847,7 +847,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 }
 
 func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -859,7 +859,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 
@@ -879,7 +879,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 }
 
 func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 	ctx := context.Background()
 	c := newClient(t, nil)
 
@@ -891,7 +891,7 @@ func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
 		resp.SetBody(&body)
 		resp.SetMetaHeader(&meta)
 
-		if err := signServiceMessage(signer, &resp, nil); err != nil {
+		if err := signServiceMessage(usr, &resp, nil); err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 

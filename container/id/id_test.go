@@ -22,9 +22,7 @@ const emptyID = "11111111111111111111111111111111"
 
 func TestID_ToV2(t *testing.T) {
 	t.Run("non-zero", func(t *testing.T) {
-		checksum := randSHA256Checksum()
-
-		id := cidtest.IDWithChecksum(checksum)
+		id := cidtest.ID()
 
 		var idV2 refs.ContainerID
 		id.WriteToV2(&idV2)
@@ -33,7 +31,7 @@ func TestID_ToV2(t *testing.T) {
 		require.NoError(t, newID.ReadFromV2(idV2))
 
 		require.Equal(t, id, newID)
-		require.Equal(t, checksum[:], idV2.GetValue())
+		require.Equal(t, id[:], idV2.GetValue())
 	})
 
 	t.Run("zero", func(t *testing.T) {
@@ -48,16 +46,16 @@ func TestID_ToV2(t *testing.T) {
 }
 
 func TestID_Equal(t *testing.T) {
-	cs := randSHA256Checksum()
-
-	id1 := cidtest.IDWithChecksum(cs)
-	id2 := cidtest.IDWithChecksum(cs)
-
+	id1 := cidtest.ID()
+	require.True(t, id1.Equals(id1))
+	id2 := id1
 	require.True(t, id1.Equals(id2))
-
-	id3 := cidtest.ID()
-
+	require.True(t, id2.Equals(id1))
+	id3 := cidtest.OtherID(id1)
 	require.False(t, id1.Equals(id3))
+	require.False(t, id3.Equals(id1))
+	require.False(t, id2.Equals(id3))
+	require.False(t, id3.Equals(id2))
 }
 
 func TestID_String(t *testing.T) {

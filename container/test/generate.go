@@ -2,7 +2,6 @@ package containertest
 
 import (
 	"math/rand"
-	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
@@ -12,8 +11,8 @@ import (
 )
 
 // Container returns random container.Container.
-func Container(t testing.TB) (x container.Container) {
-	owner := usertest.ID(t)
+func Container() (x container.Container) {
+	owner := usertest.ID()
 
 	x.Init()
 	x.SetAttribute("some attribute", "value")

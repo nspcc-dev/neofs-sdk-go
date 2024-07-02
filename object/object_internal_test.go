@@ -9,7 +9,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -39,11 +38,11 @@ func parenObject(cnr cid.ID, owner user.ID) *Object {
 }
 
 func TestObject_CopyTo(t *testing.T) {
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 
 	var obj Object
 	cnr := cidtest.ID()
-	own := usertest.ID(t)
+	own := usertest.ID()
 
 	obj.InitCreation(RequiredFields{
 		Container: cnr,
@@ -69,7 +68,7 @@ func TestObject_CopyTo(t *testing.T) {
 	obj.SetVersion(&v)
 
 	require.NoError(t, obj.CalculateAndSetID())
-	require.NoError(t, obj.Sign(signer))
+	require.NoError(t, obj.Sign(usr))
 
 	t.Run("copy", func(t *testing.T) {
 		var dst Object
@@ -136,7 +135,7 @@ func TestObject_CopyTo(t *testing.T) {
 
 		var dst Object
 		require.NoError(t, dst.CalculateAndSetID())
-		require.NoError(t, dst.Sign(signer))
+		require.NoError(t, dst.Sign(usr))
 		require.NotNil(t, dst.Signature())
 
 		local.CopyTo(&dst)
@@ -146,7 +145,7 @@ func TestObject_CopyTo(t *testing.T) {
 		checkObjectEquals(t, local, dst)
 
 		require.NoError(t, dst.CalculateAndSetID())
-		require.NoError(t, dst.Sign(signer))
+		require.NoError(t, dst.Sign(usr))
 		require.NotNil(t, dst.Signature())
 		require.Nil(t, local.Signature())
 	})
@@ -269,7 +268,7 @@ func TestObject_CopyTo(t *testing.T) {
 	t.Run("header, set session owner", func(t *testing.T) {
 		var local Object
 		sess := sessionToken(cnr)
-		sess.SetIssuer(signer.UserID())
+		sess.SetIssuer(usr.UserID())
 
 		local.SetSessionToken(sess)
 
@@ -289,7 +288,7 @@ func TestObject_CopyTo(t *testing.T) {
 		local.SetSessionToken(sessionToken(cnr))
 
 		sess := sessionToken(cnr)
-		sess.SetIssuer(signer.UserID())
+		sess.SetIssuer(usr.UserID())
 
 		var dst Object
 		dst.SetSessionToken(sess)

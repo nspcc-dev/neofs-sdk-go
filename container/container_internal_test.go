@@ -12,7 +12,7 @@ import (
 )
 
 func TestContainer_CopyTo(t *testing.T) {
-	owner := usertest.ID(t)
+	owner := usertest.ID()
 
 	var container Container
 	container.Init()
@@ -65,7 +65,7 @@ func TestContainer_CopyTo(t *testing.T) {
 
 		require.True(t, container.Owner().Equals(dst.Owner()))
 
-		newOwner := usertest.ID(t)
+		newOwner := usertest.ID()
 		dst.v2.GetOwnerID().SetValue(newOwner.WalletBytes())
 
 		require.False(t, container.Owner().Equals(dst.Owner()))
@@ -77,7 +77,7 @@ func TestContainer_CopyTo(t *testing.T) {
 
 		require.True(t, container.Owner().Equals(dst.Owner()))
 
-		newOwner := usertest.ID(t)
+		newOwner := usertest.ID()
 		dst.SetOwner(newOwner)
 
 		require.False(t, container.Owner().Equals(dst.Owner()))

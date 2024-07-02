@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -18,13 +18,13 @@ func Test_commonData_copyTo(t *testing.T) {
 	sig.SetSign([]byte("sign"))
 	sig.SetScheme(refs.ECDSA_SHA512)
 
-	signer := test.RandomSignerRFC6979(t)
+	usr := usertest.User()
 
 	data := commonData{
 		idSet:       true,
 		id:          uuid.New(),
 		issuerSet:   true,
-		issuer:      signer.UserID(),
+		issuer:      usr.UserID(),
 		lifetimeSet: true,
 		iat:         1,
 		nbf:         2,
@@ -98,7 +98,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.Equal(t, data.issuerSet, dst.issuerSet)
 		require.True(t, data.issuer.Equals(dst.issuer))
 
-		dst.SetIssuer(test.RandomSignerRFC6979(t).UserID())
+		dst.SetIssuer(usertest.OtherID(usr.ID))
 
 		require.Equal(t, data.issuerSet, dst.issuerSet)
 		require.False(t, data.issuer.Equals(dst.issuer))
@@ -109,7 +109,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.False(t, local.issuerSet)
 
 		var dst commonData
-		dst.SetIssuer(test.RandomSignerRFC6979(t).UserID())
+		dst.SetIssuer(usertest.OtherID(usr.ID))
 		require.True(t, dst.issuerSet)
 
 		local.copyTo(&dst)
@@ -124,7 +124,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.Equal(t, local.issuerSet, dst.issuerSet)
 		require.True(t, local.issuer.Equals(dst.issuer))
 
-		dst.SetIssuer(test.RandomSignerRFC6979(t).UserID())
+		dst.SetIssuer(usertest.OtherID(usr.ID))
 		require.False(t, local.issuerSet)
 		require.True(t, dst.issuerSet)
 
@@ -218,7 +218,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		}
 
 		var dst commonData
-		require.NoError(t, dst.sign(signer, emptyWriter))
+		require.NoError(t, dst.sign(usr, emptyWriter))
 		require.True(t, dst.sigSet)
 
 		local.copyTo(&dst)
@@ -227,7 +227,7 @@ func Test_commonData_copyTo(t *testing.T) {
 
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
-		require.NoError(t, dst.sign(signer, emptyWriter))
+		require.NoError(t, dst.sign(usr, emptyWriter))
 		require.False(t, local.sigSet)
 		require.True(t, dst.sigSet)
 	})

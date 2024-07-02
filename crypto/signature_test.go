@@ -5,7 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -13,7 +13,7 @@ const anyUnsupportedScheme = neofscrypto.ECDSA_WALLETCONNECT + 1
 
 func TestSignatureLifecycle(t *testing.T) {
 	data := []byte("Hello, world!")
-	signer := test.RandomSigner(t)
+	signer := neofscryptotest.Signer()
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
 	bPubKey := neofscrypto.PublicKeyBytes(pubKey)
@@ -68,7 +68,7 @@ func TestSignatureLifecycle(t *testing.T) {
 }
 
 func TestNewSignature(t *testing.T) {
-	signer := test.RandomSigner(t)
+	signer := neofscryptotest.Signer()
 	scheme := signer.Scheme()
 	pubKey := signer.Public()
 	val := []byte("Hello, world!") // may be any for this test

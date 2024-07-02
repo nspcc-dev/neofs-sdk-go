@@ -1,56 +1,65 @@
 package accounting_test
 
 import (
+	"math/rand"
 	"testing"
 
-	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
+	apiaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
-	accountingtest "github.com/nspcc-dev/neofs-sdk-go/accounting/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestDecimalData(t *testing.T) {
-	const v, p = 4, 2
-
+func testDecimalField[T uint32 | int64](
+	t *testing.T,
+	get func(accounting.Decimal) T,
+	set func(*accounting.Decimal, T),
+	getAPI func(*apiaccounting.Decimal) T,
+) {
 	var d accounting.Decimal
+	require.Zero(t, get(d))
 
-	require.Zero(t, d.Value())
-	require.Zero(t, d.Precision())
+	val := T(rand.Uint64())
+	set(&d, val)
+	require.EqualValues(t, val, get(d))
+	valOther := val + 1
+	set(&d, valOther)
+	require.EqualValues(t, valOther, get(d))
 
-	d.SetValue(v)
-	d.SetPrecision(p)
+	t.Run("encoding", func(t *testing.T) {
+		t.Run("binary", func(t *testing.T) {
+			var src, dst accounting.Decimal
 
-	require.EqualValues(t, v, d.Value())
-	require.EqualValues(t, p, d.Precision())
+			set(&dst, val)
+			require.NoError(t, dst.Unmarshal(src.Marshal()))
+			require.Zero(t, get(dst))
+
+			set(&src, val)
+			require.NoError(t, dst.Unmarshal(src.Marshal()))
+			require.EqualValues(t, val, get(dst))
+		})
+		t.Run("api", func(t *testing.T) {
+			var src, dst accounting.Decimal
+			var msg apiaccounting.Decimal
+
+			set(&dst, val)
+			src.WriteToV2(&msg)
+			require.Zero(t, getAPI(&msg))
+			require.NoError(t, dst.ReadFromV2(msg))
+			require.Zero(t, get(dst))
+
+			set(&src, val)
+			src.WriteToV2(&msg)
+			require.EqualValues(t, val, getAPI(&msg))
+			require.NoError(t, dst.ReadFromV2(msg))
+			require.EqualValues(t, val, get(dst))
+		})
+	})
 }
 
-func TestDecimalMessageV2(t *testing.T) {
-	var (
-		d accounting.Decimal
-		m v2accounting.Decimal
-	)
-
-	m.SetValue(7)
-	m.SetPrecision(8)
-
-	require.NoError(t, d.ReadFromV2(m))
-
-	require.EqualValues(t, m.GetValue(), d.Value())
-	require.EqualValues(t, m.GetPrecision(), d.Precision())
-
-	var m2 v2accounting.Decimal
-
-	d.WriteToV2(&m2)
-
-	require.EqualValues(t, d.Value(), m2.GetValue())
-	require.EqualValues(t, d.Precision(), m2.GetPrecision())
+func TestDecimal_SetValue(t *testing.T) {
+	testDecimalField(t, accounting.Decimal.Value, (*accounting.Decimal).SetValue, (*apiaccounting.Decimal).GetValue)
 }
 
-func TestDecimal_Marshal(t *testing.T) {
-	d := accountingtest.Decimal()
-
-	var d2 accounting.Decimal
-	require.NoError(t, d2.Unmarshal(d.Marshal()))
-
-	require.Equal(t, d, d2)
+func TestDecimal_SetPrecision(t *testing.T) {
+	testDecimalField(t, accounting.Decimal.Precision, (*accounting.Decimal).SetPrecision, (*apiaccounting.Decimal).GetPrecision)
 }

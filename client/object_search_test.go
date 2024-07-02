@@ -10,7 +10,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,7 @@ func TestObjectSearch(t *testing.T) {
 		ids[i] = oidtest.ID()
 	}
 
-	p, resp := testListReaderResponse(t)
+	p, resp := testListReaderResponse()
 
 	buf := make([]oid.ID, 2)
 	checkRead := func(t *testing.T, expected []oid.ID, expectedErr error) {
@@ -84,7 +84,7 @@ func TestObjectIterate(t *testing.T) {
 	}
 
 	t.Run("no objects", func(t *testing.T) {
-		p, resp := testListReaderResponse(t)
+		p, resp := testListReaderResponse()
 
 		resp.stream = newSearchStream(p, io.EOF, []oid.ID{})
 
@@ -96,7 +96,7 @@ func TestObjectIterate(t *testing.T) {
 		require.Len(t, actual, 0)
 	})
 	t.Run("iterate all sequence", func(t *testing.T) {
-		p, resp := testListReaderResponse(t)
+		p, resp := testListReaderResponse()
 
 		resp.stream = newSearchStream(p, io.EOF, ids[0:2], nil, ids[2:3])
 
@@ -108,7 +108,7 @@ func TestObjectIterate(t *testing.T) {
 		require.Equal(t, ids[:3], actual)
 	})
 	t.Run("stop by return value", func(t *testing.T) {
-		p, resp := testListReaderResponse(t)
+		p, resp := testListReaderResponse()
 
 		var actual []oid.ID
 		resp.stream = &singleStreamResponder{signer: p, idList: [][]oid.ID{ids}}
@@ -119,7 +119,7 @@ func TestObjectIterate(t *testing.T) {
 		require.Equal(t, ids[:2], actual)
 	})
 	t.Run("stop after error", func(t *testing.T) {
-		p, resp := testListReaderResponse(t)
+		p, resp := testListReaderResponse()
 		expectedErr := errors.New("test error")
 
 		resp.stream = newSearchStream(p, expectedErr, ids[:2])
@@ -143,8 +143,8 @@ func TestClient_ObjectSearch(t *testing.T) {
 	})
 }
 
-func testListReaderResponse(t *testing.T) (neofscrypto.Signer, *ObjectListReader) {
-	return test.RandomSigner(t), &ObjectListReader{
+func testListReaderResponse() (neofscrypto.Signer, *ObjectListReader) {
+	return neofscryptotest.Signer(), &ObjectListReader{
 		cancelCtxStream: func() {},
 		client:          &Client{},
 		tail:            nil,
