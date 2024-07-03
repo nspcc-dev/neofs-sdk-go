@@ -132,3 +132,13 @@ Wrapper over `zap.Logger` which is used across NeoFS codebase.
 
 ### util
 Utilities for working with signature-related code.
+
+## Development
+
+### NeoFS API protocol codegen
+Go code for NeoFS protocol messages, client and server is in `api` directory.
+To compile source files from https://github.com/nspcc-dev/neofs-api repository,
+clone it first and then exec:
+```
+$ ./scripts/genapi.sh /path/to/neofs-api
+```
