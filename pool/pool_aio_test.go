@@ -190,6 +190,7 @@ func runTests(_ context.Context, t *testing.T, nodeEndpoint string) {
 }
 
 func createDockerContainer(ctx context.Context, t *testing.T, image string) testcontainers.Container {
+	const restGWListenEndpoint = "0.0.0.0:8090"
 	req := testcontainers.ContainerRequest{
 		Image: image,
 		// timeout is chosen to have enough time for NeoFS chain deployment from scratch within NeoFS AIO
@@ -198,11 +199,12 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 		Hostname:     "aio_autotest_" + strconv.FormatInt(time.Now().UnixNano(), 36),
 		ExposedPorts: []string{"8080/tcp"},
 		Env: map[string]string{
-			"REST_GW_WALLET_PATH":       "/config/wallet-rest.json",
-			"REST_GW_WALLET_PASSPHRASE": "one",
-			"REST_GW_WALLET_ADDRESS":    "NPFCqWHfi9ixCJRu7DABRbVfXRbkSEr9Vo",
-			"REST_GW_PEERS_0_ADDRESS":   "localhost:8080",
-			"REST_GW_LISTEN_ADDRESS":    "0.0.0.0:8090",
+			"REST_GW_WALLET_PATH":                "/config/wallet-rest.json",
+			"REST_GW_WALLET_PASSPHRASE":          "one",
+			"REST_GW_WALLET_ADDRESS":             "NPFCqWHfi9ixCJRu7DABRbVfXRbkSEr9Vo",
+			"REST_GW_POOL_PEERS_0_ADDRESS":       "localhost:8080",
+			"REST_GW_LISTEN_ADDRESS":             restGWListenEndpoint, // 0.39.0
+			"REST_GW_SERVER_ENDPOINTS_0_ADDRESS": restGWListenEndpoint, // latest
 		},
 	}
 	aioC, err := testcontainers.GenericContainer(ctx, testcontainers.GenericContainerRequest{
