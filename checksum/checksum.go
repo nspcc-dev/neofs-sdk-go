@@ -25,7 +25,7 @@ type Checksum refs.Checksum
 
 // Type represents the enumeration
 // of checksum types.
-type Type uint8
+type Type uint32
 
 const (
 	// Unknown is an undefined checksum type.
@@ -96,12 +96,6 @@ func NewFromData(typ Type, data []byte) (Checksum, error) {
 func (c *Checksum) ReadFromV2(m refs.Checksum) error {
 	if len(m.GetSum()) == 0 {
 		return errors.New("missing value")
-	}
-
-	switch m.GetType() {
-	default:
-		return fmt.Errorf("unsupported type %v", m.GetType())
-	case refs.SHA256, refs.TillichZemor:
 	}
 
 	*c = Checksum(m)
