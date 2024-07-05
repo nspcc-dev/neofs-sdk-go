@@ -29,6 +29,7 @@ type Type uint8
 
 const (
 	// Unknown is an undefined checksum type.
+	// Deprecated: use 0 instead.
 	Unknown Type = iota
 
 	// SHA256 is a SHA256 checksum type.
@@ -123,13 +124,13 @@ func (c Checksum) WriteToV2(m *refs.Checksum) {
 // See also [NewTillichZemor], [NewSHA256].
 func (c Checksum) Type() Type {
 	v2 := (refs.Checksum)(c)
-	switch v2.GetType() {
+	switch typ := v2.GetType(); typ {
 	case refs.SHA256:
 		return SHA256
 	case refs.TillichZemor:
 		return TZ
 	default:
-		return Unknown
+		return Type(typ)
 	}
 }
 
@@ -190,16 +191,5 @@ func (c Checksum) String() string {
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.
 func (m Type) String() string {
-	var m2 refs.ChecksumType
-
-	switch m {
-	default:
-		m2 = refs.UnknownChecksum
-	case TZ:
-		m2 = refs.TillichZemor
-	case SHA256:
-		m2 = refs.SHA256
-	}
-
-	return m2.String()
+	return typeToProto(m).String()
 }

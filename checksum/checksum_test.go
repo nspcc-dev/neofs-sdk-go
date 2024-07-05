@@ -44,7 +44,7 @@ func TestNewChecksum(t *testing.T) {
 		var chs Checksum
 
 		// check initial values
-		require.Equal(t, Unknown, chs.Type())
+		require.Zero(t, chs.Type())
 		require.Nil(t, chs.Value())
 
 		// convert to v2 message
