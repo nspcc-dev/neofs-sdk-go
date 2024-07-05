@@ -1,12 +1,52 @@
 package checksum
 
-func ExampleCalculate() {
-	payload := []byte{0, 1, 2, 3, 4, 5, 6}
-	var checksum Checksum
+import (
+	"crypto/sha256"
+	"fmt"
+	"hash"
 
-	// checksum contains SHA256 hash of the payload
-	Calculate(&checksum, SHA256, payload)
+	"github.com/nspcc-dev/tzhash/tz"
+)
 
-	// checksum contains TZ hash of the payload
-	Calculate(&checksum, TZ, payload)
+func ExampleNewSHA256() {
+	data := []byte("Hello, world!")
+	c := NewSHA256(sha256.Sum256(data))
+	fmt.Println(c)
+}
+
+func ExampleNewTillichZemor() {
+	data := []byte("Hello, world!")
+	c := NewTillichZemor(tz.Sum(data))
+	fmt.Println(c)
+}
+
+func ExampleNewFromHash() {
+	data := []byte("Hello, world!")
+	for _, tc := range []struct {
+		typ     Type
+		newHash func() hash.Hash
+	}{
+		{SHA256, sha256.New},
+		{TZ, tz.New},
+	} {
+		h := tc.newHash()
+		h.Write(data)
+		cs := NewFromHash(tc.typ, h)
+		fmt.Println(cs)
+	}
+}
+
+func ExampleNewFromData() {
+	data := []byte("Hello, world!")
+	for _, typ := range []Type{
+		SHA256,
+		TZ,
+	} {
+		cs, err := NewFromData(typ, data)
+		if err != nil {
+			fmt.Printf("calculation for %v failed: %v\n", typ, err)
+			return
+		}
+		fmt.Println(cs)
+	}
 }

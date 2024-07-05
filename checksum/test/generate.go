@@ -12,10 +12,5 @@ func Checksum() checksum.Checksum {
 	var cs [sha256.Size]byte
 	//nolint:staticcheck
 	rand.Read(cs[:])
-
-	var x checksum.Checksum
-
-	x.SetSHA256(cs)
-
-	return x
+	return checksum.NewSHA256(cs)
 }

@@ -25,10 +25,7 @@ var (
 // CalculatePayloadChecksum calculates and returns checksum of
 // object payload bytes.
 func CalculatePayloadChecksum(payload []byte) checksum.Checksum {
-	var res checksum.Checksum
-	checksum.Calculate(&res, checksum.SHA256, payload)
-
-	return res
+	return checksum.NewSHA256(sha256.Sum256(payload))
 }
 
 // CalculateAndSetPayloadChecksum calculates checksum of current

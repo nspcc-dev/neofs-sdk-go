@@ -11,12 +11,12 @@ import (
 )
 
 func TestChecksum(t *testing.T) {
-	var c Checksum
+	data := make([]byte, 32)
+	//nolint:staticcheck
+	rand.Read(data)
 
-	cSHA256 := [sha256.Size]byte{}
-	_, _ = rand.Read(cSHA256[:])
-
-	c.SetSHA256(cSHA256)
+	cSHA256 := sha256.Sum256(data)
+	c := NewSHA256(cSHA256)
 
 	require.Equal(t, SHA256, c.Type())
 	require.Equal(t, cSHA256[:], c.Value())
@@ -27,10 +27,8 @@ func TestChecksum(t *testing.T) {
 	require.Equal(t, refs.SHA256, cV2.GetType())
 	require.Equal(t, cSHA256[:], cV2.GetSum())
 
-	cTZ := [tz.Size]byte{}
-	_, _ = rand.Read(cSHA256[:])
-
-	c.SetTillichZemor(cTZ)
+	cTZ := tz.Sum(data)
+	c = NewTillichZemor(cTZ)
 
 	require.Equal(t, TZ, c.Type())
 	require.Equal(t, cTZ[:], c.Value())
@@ -58,23 +56,44 @@ func TestNewChecksum(t *testing.T) {
 	})
 }
 
-func TestCalculation(t *testing.T) {
-	var c Checksum
+func TestNewFromData(t *testing.T) {
+	_, err := NewFromData(0, nil)
+	require.EqualError(t, err, "unsupported checksum type 0")
+	var cs Checksum
+	Calculate(&cs, 0, nil)
+	require.Zero(t, cs)
+	_, err = NewFromData(TZ+1, nil)
+	require.EqualError(t, err, "unsupported checksum type 3")
+	Calculate(&cs, TZ+1, nil)
+	require.Zero(t, cs)
+
 	payload := []byte{0, 1, 2, 3, 4, 5}
 
 	t.Run("SHA256", func(t *testing.T) {
 		orig := sha256.Sum256(payload)
 
-		Calculate(&c, SHA256, payload)
-
+		c, err := NewFromData(SHA256, payload)
+		require.NoError(t, err)
 		require.Equal(t, orig[:], c.Value())
+		require.Equal(t, SHA256, c.Type())
+
+		c = Checksum{}
+		Calculate(&c, SHA256, payload)
+		require.Equal(t, orig[:], c.Value())
+		require.Equal(t, SHA256, c.Type())
 	})
 
 	t.Run("TZ", func(t *testing.T) {
 		orig := tz.Sum(payload)
 
-		Calculate(&c, TZ, payload)
-
+		c, err := NewFromData(TZ, payload)
+		require.NoError(t, err)
 		require.Equal(t, orig[:], c.Value())
+		require.Equal(t, TZ, c.Type())
+
+		c = Checksum{}
+		Calculate(&c, TZ, payload)
+		require.Equal(t, orig[:], c.Value())
+		require.Equal(t, TZ, c.Type())
 	})
 }
