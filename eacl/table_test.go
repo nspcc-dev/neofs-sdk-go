@@ -1,7 +1,6 @@
 package eacl_test
 
 import (
-	"crypto/sha256"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -13,11 +12,8 @@ import (
 )
 
 func TestTable(t *testing.T) {
+	id := cidtest.ID()
 	var v version.Version
-
-	sha := sha256.Sum256([]byte("container id"))
-	id := cidtest.IDWithChecksum(sha)
-
 	v.SetMajor(3)
 	v.SetMinor(2)
 
@@ -30,7 +26,7 @@ func TestTable(t *testing.T) {
 	require.NotNil(t, v2)
 	require.Equal(t, uint32(3), v2.GetVersion().GetMajor())
 	require.Equal(t, uint32(2), v2.GetVersion().GetMinor())
-	require.Equal(t, sha[:], v2.GetContainerID().GetValue())
+	require.Equal(t, id[:], v2.GetContainerID().GetValue())
 	require.Len(t, v2.GetRecords(), 1)
 
 	newTable := eacl.NewTableFromV2(v2)
@@ -66,7 +62,7 @@ func TestTable_AddRecord(t *testing.T) {
 }
 
 func TestTableEncoding(t *testing.T) {
-	tab := eacltest.Table(t)
+	tab := eacltest.Table()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := tab.Marshal()

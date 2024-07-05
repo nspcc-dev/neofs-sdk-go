@@ -1,55 +1,31 @@
 /*
-Package tests provides special help functions for testing NeoFS API and its environment.
-
-All functions accepting `t *testing.T` that emphasize there are only for tests purposes.
+Package neofscryptotest provides helper functions to test code importing [neofscrypto].
 */
-package test
+package neofscryptotest
 
 import (
+	"crypto/ecdsa"
+	"errors"
+	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
-// RandomSigner return neofscrypto.Signer ONLY for TESTs purposes.
-// It may be used like helper to get new neofscrypto.Signer if you need it in yours tests.
-func RandomSigner(tb testing.TB) neofscrypto.Signer {
-	p, err := keys.NewPrivateKey()
-	require.NoError(tb, err)
-
-	return neofsecdsa.Signer(p.PrivateKey)
-}
-
-// RandomSignerRFC6979 return [user.Signer] ONLY for TESTs purposes.
-// It may be used like helper to get new [user.Signer] if you need it in yours tests.
-func RandomSignerRFC6979(tb testing.TB) user.Signer {
-	p, err := keys.NewPrivateKey()
-	require.NoError(tb, err)
-
-	return user.NewAutoIDSignerRFC6979(p.PrivateKey)
-}
-
-// SignedComponent describes component which can signed and the signature may be verified.
+// SignedComponent contains data to be signed and its signature to be verified.
 type SignedComponent interface {
 	SignedData() []byte
 	Sign(neofscrypto.Signer) error
 	VerifySignature() bool
 }
 
-// SignedComponentUserSigner is the same as [SignedComponent] but uses [user.Signer] instead of [neofscrypto.Signer].
-// It helps to cover all cases.
-type SignedComponentUserSigner interface {
-	SignedData() []byte
-	Sign(user.Signer) error
-	VerifySignature() bool
-}
-
-// SignedDataComponent tests [SignedComponent] for valid data generation by SignedData function.
-func SignedDataComponent(tb testing.TB, signer neofscrypto.Signer, cmp SignedComponent) {
+// TestSignedData tests signing and verification of
+// [SignedComponent.SignedData].
+func TestSignedData(tb testing.TB, signer neofscrypto.Signer, cmp SignedComponent) {
 	data := cmp.SignedData()
 
 	sig, err := signer.Sign(data)
@@ -63,17 +39,53 @@ func SignedDataComponent(tb testing.TB, signer neofscrypto.Signer, cmp SignedCom
 	require.True(tb, cmp.VerifySignature())
 }
 
-// SignedDataComponentUser tests [SignedComponentUserSigner] for valid data generation by SignedData function.
-func SignedDataComponentUser(tb testing.TB, signer user.Signer, cmp SignedComponentUserSigner) {
-	data := cmp.SignedData()
+type failedSigner struct {
+	neofscrypto.Signer
+}
 
-	sig, err := signer.Sign(data)
-	require.NoError(tb, err)
+func (x failedSigner) Sign([]byte) ([]byte, error) { return nil, errors.New("[test] failed to sign") }
 
-	static := neofscrypto.NewStaticSigner(signer.Scheme(), sig, signer.Public())
+// FailSigner wraps s to always return error from Sign method.
+func FailSigner(s neofscrypto.Signer) neofscrypto.Signer {
+	return failedSigner{s}
+}
 
-	err = cmp.Sign(user.NewSigner(static, signer.UserID()))
-	require.NoError(tb, err)
+// Signature returns random neofscrypto.Signature.
+func Signature() neofscrypto.Signature {
+	sig := make([]byte, rand.Int()%128)
+	//nolint:staticcheck // cryptorandom is not required for testing
+	rand.Read(sig)
+	return neofscrypto.NewSignature(neofscrypto.Scheme(rand.Uint32()%3), Signer().Public(), sig)
+}
 
-	require.True(tb, cmp.VerifySignature())
+// ECDSAPrivateKey returns random ECDSA private key.
+func ECDSAPrivateKey() ecdsa.PrivateKey {
+	p, err := keys.NewPrivateKey()
+	if err != nil {
+		panic(fmt.Errorf("unexpected private key randomizaiton failure: %w", err))
+	}
+	return p.PrivateKey
+}
+
+// VariableSigner unites various elements of NeoFS cryptography frequently used
+// in testing.
+type VariableSigner struct {
+	ECDSAPrivateKey ecdsa.PrivateKey
+	// Components calculated for ECDSAPrivateKey.
+	PublicKeyBytes []byte
+	neofscrypto.Signer
+	RFC6979       neofscrypto.Signer
+	WalletConnect neofscrypto.Signer
+}
+
+// Signer returns random VariableSigner.
+func Signer() VariableSigner {
+	pk := ECDSAPrivateKey()
+	return VariableSigner{
+		ECDSAPrivateKey: pk,
+		Signer:          neofsecdsa.Signer(pk),
+		RFC6979:         neofsecdsa.SignerRFC6979(pk),
+		WalletConnect:   neofsecdsa.SignerWalletConnect(pk),
+		PublicKeyBytes:  neofscrypto.PublicKeyBytes((*neofsecdsa.PublicKey)(&pk.PublicKey)),
+	}
 }

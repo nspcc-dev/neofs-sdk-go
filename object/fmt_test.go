@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -19,7 +19,7 @@ func TestVerificationFields(t *testing.T) {
 	obj.SetPayload(payload)
 	obj.SetPayloadSize(uint64(len(payload)))
 
-	require.NoError(t, obj.SetVerificationFields(test.RandomSigner(t)))
+	require.NoError(t, obj.SetVerificationFields(neofscryptotest.Signer()))
 
 	require.NoError(t, obj.CheckVerificationFields())
 
@@ -65,8 +65,8 @@ func TestVerificationFields(t *testing.T) {
 }
 
 func TestObject_SignedData(t *testing.T) {
-	signer := test.RandomSigner(t)
-	uid := usertest.ID(t)
+	signer := neofscryptotest.Signer()
+	uid := usertest.ID()
 
 	rf := RequiredFields{
 		Container: cidtest.ID(),
@@ -78,5 +78,5 @@ func TestObject_SignedData(t *testing.T) {
 
 	require.NoError(t, val.SetVerificationFields(signer))
 
-	test.SignedDataComponent(t, signer, &val)
+	neofscryptotest.TestSignedData(t, signer, &val)
 }

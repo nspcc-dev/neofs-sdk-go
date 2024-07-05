@@ -2,7 +2,6 @@ package eacl
 
 import (
 	"bytes"
-	"crypto/sha256"
 	"testing"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -11,8 +10,7 @@ import (
 )
 
 func TestTable_CopyTo(t *testing.T) {
-	sha := sha256.Sum256([]byte("container id"))
-	id := cidtest.IDWithChecksum(sha)
+	id := cidtest.ID()
 
 	var table Table
 	table.SetVersion(version.Current())
@@ -71,8 +69,7 @@ func TestTable_CopyTo(t *testing.T) {
 
 		require.True(t, cid1.Equals(cid2))
 
-		sha = sha256.Sum256([]byte("container id 2"))
-		dst.SetCID(cidtest.IDWithChecksum(sha))
+		dst.SetCID(cidtest.OtherID(id))
 
 		cid1, isSet1 = table.CID()
 		require.True(t, isSet1)

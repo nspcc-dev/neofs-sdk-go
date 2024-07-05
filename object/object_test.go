@@ -13,7 +13,7 @@ import (
 func TestInitCreation(t *testing.T) {
 	var o object.Object
 	cnr := cidtest.ID()
-	own := usertest.ID(t)
+	own := usertest.ID()
 
 	o.InitCreation(object.RequiredFields{
 		Container: cnr,
