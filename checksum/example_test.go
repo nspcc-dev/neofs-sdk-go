@@ -27,7 +27,7 @@ func ExampleNewFromHash() {
 		newHash func() hash.Hash
 	}{
 		{SHA256, sha256.New},
-		{TZ, tz.New},
+		{TillichZemor, tz.New},
 	} {
 		h := tc.newHash()
 		h.Write(data)
@@ -40,7 +40,7 @@ func ExampleNewFromData() {
 	data := []byte("Hello, world!")
 	for _, typ := range []Type{
 		SHA256,
-		TZ,
+		TillichZemor,
 	} {
 		cs, err := NewFromData(typ, data)
 		if err != nil {

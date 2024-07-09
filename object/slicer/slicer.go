@@ -601,7 +601,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	header.SetPayloadChecksum(checksum.NewFromHash(checksum.SHA256, meta.checksum))
 
 	if meta.homomorphicChecksum != nil {
-		header.SetPayloadHomomorphicHash(checksum.NewFromHash(checksum.TZ, meta.homomorphicChecksum))
+		header.SetPayloadHomomorphicHash(checksum.NewFromHash(checksum.TillichZemor, meta.homomorphicChecksum))
 	}
 
 	header.SetPayloadSize(meta.length)

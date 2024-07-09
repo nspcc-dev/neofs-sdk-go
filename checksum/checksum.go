@@ -28,10 +28,14 @@ type Checksum refs.Checksum
 type Type uint32
 
 const (
-	Unknown Type = iota // Deprecated: use 0 instead.
-	SHA256              // SHA-256 hash
-	TZ                  // Tillich-Zémor homomorphic hash
+	Unknown      Type = iota // Deprecated: use 0 instead.
+	SHA256                   // SHA-256 hash
+	TillichZemor             // Tillich-Zémor homomorphic hash
 )
+
+// TZ is a type for Tillich-Zémor homomorphic hash.
+// Deprecated: use TillichZemor instead.
+const TZ = TillichZemor
 
 func typeToProto(t Type) refs.ChecksumType {
 	switch t {
@@ -39,7 +43,7 @@ func typeToProto(t Type) refs.ChecksumType {
 		return refs.ChecksumType(t)
 	case SHA256:
 		return refs.SHA256
-	case TZ:
+	case TillichZemor:
 		return refs.TillichZemor
 	}
 }
@@ -60,7 +64,7 @@ func NewSHA256(h [sha256.Size]byte) Checksum {
 
 // NewTillichZemor constructs new Checksum from Tillich-Zémor homomorphic hash.
 func NewTillichZemor(h [tz.Size]byte) Checksum {
-	return New(TZ, h[:])
+	return New(TillichZemor, h[:])
 }
 
 // NewFromHash constructs new Checksum of specified type from accumulated
@@ -78,7 +82,7 @@ func NewFromData(typ Type, data []byte) (Checksum, error) {
 		return Checksum{}, fmt.Errorf("unsupported checksum type %d", typ)
 	case SHA256:
 		return NewSHA256(sha256.Sum256(data)), nil
-	case TZ:
+	case TillichZemor:
 		return NewTillichZemor(tz.Sum(data)), nil
 	}
 }
@@ -116,7 +120,7 @@ func (c Checksum) Type() Type {
 	case refs.SHA256:
 		return SHA256
 	case refs.TillichZemor:
-		return TZ
+		return TillichZemor
 	default:
 		return Type(typ)
 	}
@@ -147,7 +151,7 @@ func (c *Checksum) SetSHA256(v [sha256.Size]byte) { *c = NewSHA256(v) }
 //
 // Does nothing if the passed type is not one of the:
 //   - SHA256;
-//   - TZ.
+//   - TillichZemor.
 //
 // Does not mutate the passed value.
 //

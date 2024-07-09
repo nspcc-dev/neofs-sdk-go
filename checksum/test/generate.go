@@ -7,7 +7,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 )
 
-var allSupportedTypes = []checksum.Type{checksum.SHA256, checksum.TZ}
+var allSupportedTypes = []checksum.Type{checksum.SHA256, checksum.TillichZemor}
 
 // Checksum returns random checksum.Checksum.
 func Checksum() checksum.Checksum {
