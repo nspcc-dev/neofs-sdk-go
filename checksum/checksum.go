@@ -28,15 +28,9 @@ type Checksum refs.Checksum
 type Type uint32
 
 const (
-	// Unknown is an undefined checksum type.
-	// Deprecated: use 0 instead.
-	Unknown Type = iota
-
-	// SHA256 is a SHA256 checksum type.
-	SHA256
-
-	// TZ is a Tillich-Zémor checksum type.
-	TZ
+	Unknown Type = iota // Deprecated: use 0 instead.
+	SHA256              // SHA-256 hash
+	TZ                  // Tillich-Zémor homomorphic hash
 )
 
 func typeToProto(t Type) refs.ChecksumType {
