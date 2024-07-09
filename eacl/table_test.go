@@ -31,6 +31,9 @@ func TestTable(t *testing.T) {
 
 	newTable := eacl.NewTableFromV2(v2)
 	require.Equal(t, table, newTable)
+	var res eacl.Table
+	require.NoError(t, res.ReadFromV2(*v2))
+	require.Equal(t, table, newTable)
 
 	t.Run("new from nil v2 table", func(t *testing.T) {
 		require.Equal(t, new(eacl.Table), eacl.NewTableFromV2(nil))

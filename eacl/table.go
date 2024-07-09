@@ -77,9 +77,50 @@ func (t *Table) AddRecord(r *Record) {
 	}
 }
 
+// ReadFromV2 reads Table from the [v2acl.Table] message. Returns an error if
+// the message is malformed according to the NeoFS API V2 protocol. The message
+// must not be nil.
+//
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+//
+// See also [Table.ToV2].
+func (t *Table) ReadFromV2(m v2acl.Table) error {
+	// set container id
+	if id := m.GetContainerID(); id != nil {
+		if t.cid == nil {
+			t.cid = new(cid.ID)
+		}
+		if err := t.cid.ReadFromV2(*id); err != nil {
+			return fmt.Errorf("invalid container ID: %w", err)
+		}
+	}
+
+	// set version
+	if v := m.GetVersion(); v != nil {
+		ver := version.Version{}
+		ver.SetMajor(v.GetMajor())
+		ver.SetMinor(v.GetMinor())
+
+		t.SetVersion(ver)
+	}
+
+	// set eacl records
+	v2records := m.GetRecords()
+	t.records = make([]Record, len(v2records))
+
+	for i := range v2records {
+		t.records[i] = *NewRecordFromV2(&v2records[i])
+	}
+
+	return nil
+}
+
 // ToV2 converts Table to v2 acl.EACLTable message.
 //
 // Nil Table converts to nil.
+//
+// See also [Table.ReadFromV2].
 func (t *Table) ToV2() *v2acl.Table {
 	if t == nil {
 		return nil
@@ -133,6 +174,9 @@ func CreateTable(cid cid.ID) *Table {
 }
 
 // NewTableFromV2 converts v2 acl.EACLTable message to Table.
+//
+// Deprecated: BUG: container ID length is not checked. Use [Table.ReadFromV2]
+// instead.
 func NewTableFromV2(table *v2acl.Table) *Table {
 	t := new(Table)
 
@@ -187,20 +231,11 @@ func (t Table) SignedData() []byte {
 
 // Unmarshal unmarshals protobuf binary representation of Table.
 func (t *Table) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Table)
-	if err := fV2.Unmarshal(data); err != nil {
+	var m v2acl.Table
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	// format checks
-	err := checkFormat(fV2)
-	if err != nil {
-		return err
-	}
-
-	*t = *NewTableFromV2(fV2)
-
-	return nil
+	return t.ReadFromV2(m)
 }
 
 // MarshalJSON encodes Table to protobuf JSON format.
@@ -210,19 +245,11 @@ func (t *Table) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes Table from protobuf JSON format.
 func (t *Table) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Table)
-	if err := tV2.UnmarshalJSON(data); err != nil {
+	var m v2acl.Table
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	err := checkFormat(tV2)
-	if err != nil {
-		return err
-	}
-
-	*t = *NewTableFromV2(tV2)
-
-	return nil
+	return t.ReadFromV2(m)
 }
 
 // EqualTables compares Table with each other.
@@ -248,20 +275,4 @@ func EqualTables(t1, t2 Table) bool {
 	}
 
 	return true
-}
-
-func checkFormat(v2 *v2acl.Table) error {
-	var cID cid.ID
-
-	cidV2 := v2.GetContainerID()
-	if cidV2 == nil {
-		return nil
-	}
-
-	err := cID.ReadFromV2(*cidV2)
-	if err != nil {
-		return fmt.Errorf("could not convert V2 container ID: %w", err)
-	}
-
-	return nil
 }
