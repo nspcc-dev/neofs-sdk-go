@@ -65,14 +65,14 @@ func (id *ID) Decode(src []byte) error {
 		return fmt.Errorf("invalid length %d", len(src))
 	}
 
-	copy(id[:], src)
+	*id = ID(src)
 
 	return nil
 }
 
 // SetSHA256 sets object identifier value to SHA256 checksum.
 func (id *ID) SetSHA256(v [sha256.Size]byte) {
-	copy(id[:], v[:])
+	*id = v
 }
 
 // Equals defines a comparison relation between two ID instances.
