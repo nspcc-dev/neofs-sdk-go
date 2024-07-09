@@ -437,14 +437,15 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
-
+		const fieldEACL = "eACL"
 		eACL := resp.GetBody().GetEACL()
 		if eACL == nil {
-			cc.err = newErrMissingResponseField("eACL")
+			cc.err = newErrMissingResponseField(fieldEACL)
 			return
 		}
-
-		res = *eacl.NewTableFromV2(eACL)
+		if cc.err = res.ReadFromV2(*eACL); cc.err != nil {
+			cc.err = newErrInvalidResponseField(fieldEACL, cc.err)
+		}
 	}
 
 	// process call

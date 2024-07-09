@@ -32,7 +32,7 @@ type contextReader func(session.TokenContext, bool) error
 
 func (x commonData) copyTo(dst *commonData) {
 	dst.idSet = x.idSet
-	copy(dst.id[:], x.id[:])
+	dst.id = x.id
 
 	dst.issuerSet = x.issuerSet
 	iss := x.issuer

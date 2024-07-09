@@ -341,11 +341,8 @@ func TestSearchFilters_AddPayloadHashFilter(t *testing.T) {
 func ExampleSearchFilters_AddPayloadHashFilter() {
 	hash, _ := hex.DecodeString("66842cfea090b1d906b52400fae49d86df078c0670f2bdd059ba289ebe24a498")
 
-	var v [sha256.Size]byte
-	copy(v[:], hash[:sha256.Size])
-
 	var cs checksum.Checksum
-	cs.SetSHA256(v)
+	cs.SetSHA256([sha256.Size]byte(hash))
 
 	fmt.Println(hex.EncodeToString(cs.Value()))
 	// Output: 66842cfea090b1d906b52400fae49d86df078c0670f2bdd059ba289ebe24a498
@@ -377,11 +374,8 @@ func TestSearchFilters_AddHomomorphicHashFilter(t *testing.T) {
 func ExampleSearchFilters_AddHomomorphicHashFilter() {
 	hash, _ := hex.DecodeString("7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c")
 
-	var v [tz.Size]byte
-	copy(v[:], hash[:tz.Size])
-
 	var cs checksum.Checksum
-	cs.SetTillichZemor(v)
+	cs.SetTillichZemor([tz.Size]byte(hash))
 
 	fmt.Println(hex.EncodeToString(cs.Value()))
 	// Output: 7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c

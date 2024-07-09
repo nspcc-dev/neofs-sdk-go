@@ -48,7 +48,9 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 
 	eaclTable := body.GetEACL()
 	if b.eaclTableSet = eaclTable != nil; b.eaclTableSet {
-		b.eaclTable = *eacl.NewTableFromV2(eaclTable)
+		if err = b.eaclTable.ReadFromV2(*eaclTable); err != nil {
+			return fmt.Errorf("invalid eACL")
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing eACL table")
 	}

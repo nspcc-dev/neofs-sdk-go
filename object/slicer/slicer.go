@@ -600,17 +600,11 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, header *object.Object) (oid.ID, error) {
 	var cs checksum.Checksum
 
-	var csBytes [sha256.Size]byte
-	copy(csBytes[:], meta.checksum.Sum(nil))
-
-	cs.SetSHA256(csBytes)
+	cs.SetSHA256([sha256.Size]byte(meta.checksum.Sum(nil)))
 	header.SetPayloadChecksum(cs)
 
 	if meta.homomorphicChecksum != nil {
-		var csHomoBytes [tz.Size]byte
-		copy(csHomoBytes[:], meta.homomorphicChecksum.Sum(nil))
-
-		cs.SetTillichZemor(csHomoBytes)
+		cs.SetTillichZemor([tz.Size]byte(meta.homomorphicChecksum.Sum(nil)))
 		header.SetPayloadHomomorphicHash(cs)
 	}
 
