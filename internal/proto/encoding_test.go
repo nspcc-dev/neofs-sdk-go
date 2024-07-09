@@ -163,6 +163,9 @@ func testEncoding[T anySupportedType](
 	msg := fmt.Sprintf("num=%d,val=%v", fieldNum, v)
 
 	sz := sizeFunc(fieldNum, v)
+	if sz > 0 {
+		require.Panics(t, func() { marshalFunc(make([]byte, sz-1), fieldNum, v) }, msg)
+	}
 	b := make([]byte, sz)
 	require.EqualValues(t, sz, marshalFunc(b, fieldNum, v), msg)
 
@@ -193,6 +196,9 @@ func testPackedRepeated[T proto.Bytes](t testing.TB,
 	msg := fmt.Sprintf("num=%d,val=%v", fieldNum, v)
 
 	sz := sizeFunc(fieldNum, v)
+	if sz > 0 {
+		require.Panics(t, func() { marshalFunc(make([]byte, sz-1), fieldNum, v) }, msg)
+	}
 	b := make([]byte, sz)
 	require.EqualValues(t, sz, marshalFunc(b, fieldNum, v), msg)
 
