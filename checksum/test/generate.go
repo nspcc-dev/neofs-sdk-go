@@ -1,21 +1,23 @@
 package checksumtest
 
 import (
-	"crypto/sha256"
+	"fmt"
 	"math/rand"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 )
 
+var allSupportedTypes = []checksum.Type{checksum.SHA256, checksum.TillichZemor}
+
 // Checksum returns random checksum.Checksum.
 func Checksum() checksum.Checksum {
-	var cs [sha256.Size]byte
+	data := make([]byte, 32)
 	//nolint:staticcheck
-	rand.Read(cs[:])
-
-	var x checksum.Checksum
-
-	x.SetSHA256(cs)
-
-	return x
+	rand.Read(data)
+	i := rand.Int() % len(allSupportedTypes)
+	res, err := checksum.NewFromData(allSupportedTypes[i], data)
+	if err != nil {
+		panic(fmt.Errorf("unexpected NewFromData error: %w", err))
+	}
+	return res
 }

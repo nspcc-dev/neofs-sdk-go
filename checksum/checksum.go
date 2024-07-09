@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"hash"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/tzhash/tz"
@@ -15,7 +16,7 @@ import (
 // Checksum is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Checksum
 // message. See ReadFromV2 / WriteToV2 methods.
 //
-// Instances can be created using built-in var declaration.
+// Instances must be created using one of the constructors.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
 //
@@ -24,18 +25,67 @@ type Checksum refs.Checksum
 
 // Type represents the enumeration
 // of checksum types.
-type Type uint8
+type Type uint32
 
 const (
-	// Unknown is an undefined checksum type.
-	Unknown Type = iota
-
-	// SHA256 is a SHA256 checksum type.
-	SHA256
-
-	// TZ is a Tillich-Zémor checksum type.
-	TZ
+	Unknown      Type = iota // Deprecated: use 0 instead.
+	SHA256                   // SHA-256 hash
+	TillichZemor             // Tillich-Zémor homomorphic hash
 )
+
+// TZ is a type for Tillich-Zémor homomorphic hash.
+// Deprecated: use TillichZemor instead.
+const TZ = TillichZemor
+
+func typeToProto(t Type) refs.ChecksumType {
+	switch t {
+	default:
+		return refs.ChecksumType(t)
+	case SHA256:
+		return refs.SHA256
+	case TillichZemor:
+		return refs.TillichZemor
+	}
+}
+
+// New constructs new Checksum instance. It is the caller's responsibility to
+// ensure that the hash matches the type.
+func New(typ Type, hsh []byte) Checksum {
+	var res refs.Checksum
+	res.SetType(typeToProto(typ))
+	res.SetSum(hsh)
+	return Checksum(res)
+}
+
+// NewSHA256 constructs new Checksum from SHA-256 hash.
+func NewSHA256(h [sha256.Size]byte) Checksum {
+	return New(SHA256, h[:])
+}
+
+// NewTillichZemor constructs new Checksum from Tillich-Zémor homomorphic hash.
+func NewTillichZemor(h [tz.Size]byte) Checksum {
+	return New(TillichZemor, h[:])
+}
+
+// NewFromHash constructs new Checksum of specified type from accumulated
+// hash.Hash. It is the caller's responsibility to ensure that the hash matches
+// the type.
+func NewFromHash(t Type, h hash.Hash) Checksum {
+	return New(t, h.Sum(nil))
+}
+
+// NewFromData calculates Checksum of given type for specified data. The typ
+// must be an enum value declared in current package.
+func NewFromData(typ Type, data []byte) (Checksum, error) {
+	switch typ {
+	default:
+		return Checksum{}, fmt.Errorf("unsupported checksum type %d", typ)
+	case SHA256:
+		return NewSHA256(sha256.Sum256(data)), nil
+	case TillichZemor:
+		return NewTillichZemor(tz.Sum(data)), nil
+	}
+}
 
 // ReadFromV2 reads Checksum from the refs.Checksum message. Checks if the
 // message conforms to NeoFS API V2 protocol.
@@ -44,12 +94,6 @@ const (
 func (c *Checksum) ReadFromV2(m refs.Checksum) error {
 	if len(m.GetSum()) == 0 {
 		return errors.New("missing value")
-	}
-
-	switch m.GetType() {
-	default:
-		return fmt.Errorf("unsupported type %v", m.GetType())
-	case refs.SHA256, refs.TillichZemor:
 	}
 
 	*c = Checksum(m)
@@ -69,16 +113,16 @@ func (c Checksum) WriteToV2(m *refs.Checksum) {
 //
 // Zero Checksum has Unknown checksum type.
 //
-// See also SetTillichZemor and SetSHA256.
+// See also [NewTillichZemor], [NewSHA256].
 func (c Checksum) Type() Type {
 	v2 := (refs.Checksum)(c)
-	switch v2.GetType() {
+	switch typ := v2.GetType(); typ {
 	case refs.SHA256:
 		return SHA256
 	case refs.TillichZemor:
-		return TZ
+		return TillichZemor
 	default:
-		return Unknown
+		return Type(typ)
 	}
 }
 
@@ -90,7 +134,7 @@ func (c Checksum) Type() Type {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 //
-// See also SetTillichZemor and SetSHA256.
+// See also [NewTillichZemor], [NewSHA256].
 func (c Checksum) Value() []byte {
 	v2 := (refs.Checksum)(c)
 	return v2.GetSum()
@@ -99,42 +143,31 @@ func (c Checksum) Value() []byte {
 // SetSHA256 sets checksum to SHA256 hash.
 //
 // See also Calculate.
-func (c *Checksum) SetSHA256(v [sha256.Size]byte) {
-	v2 := (*refs.Checksum)(c)
-
-	v2.SetType(refs.SHA256)
-	v2.SetSum(v[:])
-}
+// Deprecated: use [NewSHA256] instead.
+func (c *Checksum) SetSHA256(v [sha256.Size]byte) { *c = NewSHA256(v) }
 
 // Calculate calculates checksum and sets it
 // to the passed checksum. Checksum must not be nil.
 //
 // Does nothing if the passed type is not one of the:
 //   - SHA256;
-//   - TZ.
+//   - TillichZemor.
 //
 // Does not mutate the passed value.
 //
 // See also SetSHA256, SetTillichZemor.
+// Deprecated: use [NewFromData] instead.
 func Calculate(c *Checksum, t Type, v []byte) {
-	switch t {
-	case SHA256:
-		c.SetSHA256(sha256.Sum256(v))
-	case TZ:
-		c.SetTillichZemor(tz.Sum(v))
-	default:
+	if cs, err := NewFromData(t, v); err == nil {
+		*c = cs
 	}
 }
 
 // SetTillichZemor sets checksum to Tillich-Zémor hash.
 //
 // See also Calculate.
-func (c *Checksum) SetTillichZemor(v [tz.Size]byte) {
-	v2 := (*refs.Checksum)(c)
-
-	v2.SetType(refs.TillichZemor)
-	v2.SetSum(v[:])
-}
+// Deprecated: use [NewTillichZemor] instead.
+func (c *Checksum) SetTillichZemor(v [tz.Size]byte) { *c = NewTillichZemor(v) }
 
 // String implements fmt.Stringer.
 //
@@ -150,16 +183,5 @@ func (c Checksum) String() string {
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.
 func (m Type) String() string {
-	var m2 refs.ChecksumType
-
-	switch m {
-	default:
-		m2 = refs.UnknownChecksum
-	case TZ:
-		m2 = refs.TillichZemor
-	case SHA256:
-		m2 = refs.SHA256
-	}
-
-	return m2.String()
+	return typeToProto(m).String()
 }
