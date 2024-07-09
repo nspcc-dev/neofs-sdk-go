@@ -180,3 +180,52 @@ func TestID_Encode(t *testing.T) {
 		require.Equal(t, emptyID, id.EncodeToString())
 	})
 }
+
+func TestID_Unmarshal(t *testing.T) {
+	t.Run("invalid value length", func(t *testing.T) {
+		var id ID
+		var m refs.ObjectID
+		for _, tc := range []struct {
+			err string
+			val []byte
+		}{
+			{"invalid length 0", nil},
+			{"invalid length 0", []byte{}},
+			{"invalid length 31", make([]byte, 31)},
+			{"invalid length 33", make([]byte, 33)},
+		} {
+			m.SetValue(tc.val)
+			b := m.StableMarshal(nil)
+			require.EqualError(t, id.Unmarshal(b), tc.err)
+		}
+	})
+}
+
+func TestIDDecodingFailures(t *testing.T) {
+	var id ID
+	var m refs.ObjectID
+	for _, tc := range []struct {
+		err     string
+		corrupt func(*refs.ObjectID)
+	}{
+		{"invalid length 0", func(m *refs.ObjectID) { m.SetValue(nil) }},
+		{"invalid length 0", func(m *refs.ObjectID) { m.SetValue([]byte{}) }},
+		{"invalid length 31", func(m *refs.ObjectID) { m.SetValue(make([]byte, 31)) }},
+		{"invalid length 33", func(m *refs.ObjectID) { m.SetValue(make([]byte, 33)) }},
+	} {
+		id.WriteToV2(&m)
+		tc.corrupt(&m)
+		t.Run(tc.err+"/api", func(t *testing.T) {
+			require.EqualError(t, id.ReadFromV2(m), tc.err)
+		})
+		t.Run(tc.err+"/binary", func(t *testing.T) {
+			b := m.StableMarshal(nil)
+			require.EqualError(t, id.Unmarshal(b), tc.err)
+		})
+		t.Run(tc.err+"/json", func(t *testing.T) {
+			b, err := m.MarshalJSON()
+			require.NoError(t, err, tc.err)
+			require.EqualError(t, id.UnmarshalJSON(b), tc.err)
+		})
+	}
+}
