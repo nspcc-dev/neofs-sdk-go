@@ -26,9 +26,6 @@ linters-settings:
     rewrite-rules:
       - pattern: 'interface{}'
         replacement: 'any'
-  govet:
-    # report about shadowed variables
-    check-shadowing: false
 
 linters:
   enable:
