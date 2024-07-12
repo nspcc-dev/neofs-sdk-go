@@ -22,9 +22,7 @@ const IDSize = 25
 //
 // Instances can be created using built-in var declaration. Zero ID is not valid,
 // so it MUST be initialized using some modifying function (e.g. SetScriptHash, etc.).
-type ID struct {
-	w []byte
-}
+type ID [IDSize]byte
 
 func (x *ID) decodeBytes(b []byte) error {
 	switch {
@@ -35,7 +33,7 @@ func (x *ID) decodeBytes(b []byte) error {
 	case !bytes.Equal(b[21:], hash.Checksum(b[:21])):
 		return errors.New("checksum mismatch")
 	}
-	x.w = b
+	*x = ID(b)
 	return nil
 }
 
@@ -52,20 +50,14 @@ func (x *ID) ReadFromV2(m refs.OwnerID) error {
 //
 // See also ReadFromV2.
 func (x ID) WriteToV2(m *refs.OwnerID) {
-	m.SetValue(x.w)
+	m.SetValue(x[:])
 }
 
 // SetScriptHash forms user ID from wallet address scripthash.
 func (x *ID) SetScriptHash(scriptHash util.Uint160) {
-	if cap(x.w) < IDSize {
-		x.w = make([]byte, IDSize)
-	} else if len(x.w) < IDSize {
-		x.w = x.w[:IDSize]
-	}
-
-	x.w[0] = address.Prefix
-	copy(x.w[1:], scriptHash.BytesBE())
-	copy(x.w[21:], hash.Checksum(x.w[:21]))
+	x[0] = address.Prefix
+	copy(x[1:], scriptHash.BytesBE())
+	copy(x[21:], hash.Checksum(x[:21]))
 }
 
 // WalletBytes returns NeoFS user ID as Neo3 wallet address in a binary format.
@@ -75,14 +67,14 @@ func (x *ID) SetScriptHash(scriptHash util.Uint160) {
 //
 // See also Neo3 wallet docs.
 func (x ID) WalletBytes() []byte {
-	return x.w
+	return x[:]
 }
 
 // EncodeToString encodes ID into NeoFS API V2 protocol string.
 //
 // See also DecodeString.
 func (x ID) EncodeToString() string {
-	return base58.Encode(x.w)
+	return base58.Encode(x[:])
 }
 
 // DecodeString decodes NeoFS API V2 protocol string. Returns an error
@@ -111,5 +103,5 @@ func (x ID) String() string {
 
 // Equals defines a comparison relation between two ID instances.
 func (x ID) Equals(x2 ID) bool {
-	return bytes.Equal(x.w, x2.w)
+	return x == x2
 }
