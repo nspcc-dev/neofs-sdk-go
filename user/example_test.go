@@ -15,17 +15,6 @@ func ExampleID_SetScriptHash() {
 	id.SetScriptHash(scriptHash)
 }
 
-// ID is compatible with the NeoFS Smart Contract API.
-func ExampleID_WalletBytes() {
-	var id user.ID
-	// ...
-
-	wallet := id.WalletBytes()
-	_ = wallet
-
-	// use wallet in call
-}
-
 // Encoding mechanisms are used to transfer identifiers on client.
 func ExampleID_EncodeToString() {
 	var id user.ID

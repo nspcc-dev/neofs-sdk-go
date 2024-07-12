@@ -198,10 +198,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 			t.cid = new(cid.ID)
 		}
 
-		var h [cid.Size]byte
-
-		copy(h[:], id.GetValue())
-		t.cid.SetSHA256(h)
+		copy(t.cid[:], id.GetValue())
 	}
 
 	// set eacl records

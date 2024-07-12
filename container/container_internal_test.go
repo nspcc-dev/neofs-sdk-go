@@ -66,7 +66,7 @@ func TestContainer_CopyTo(t *testing.T) {
 		require.True(t, container.Owner() == dst.Owner())
 
 		newOwner := usertest.ID()
-		dst.v2.GetOwnerID().SetValue(newOwner.WalletBytes())
+		dst.v2.GetOwnerID().SetValue(newOwner[:])
 
 		require.False(t, container.Owner() == dst.Owner())
 	})

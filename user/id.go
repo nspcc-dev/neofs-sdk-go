@@ -15,7 +15,7 @@ import (
 // IDSize is the size of an [ID] in bytes.
 const IDSize = 25
 
-// ID identifies users of the NeoFS system.
+// ID identifies users of the NeoFS system and represents Neo3 account address.
 //
 // ID implements built-in comparable interface.
 //
@@ -68,6 +68,7 @@ func (x *ID) SetScriptHash(scriptHash util.Uint160) {
 // Make a copy if you need to change it.
 //
 // See also Neo3 wallet docs.
+// Deprecated: use x[:] instead.
 func (x ID) WalletBytes() []byte {
 	return x[:]
 }

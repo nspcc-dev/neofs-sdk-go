@@ -20,10 +20,6 @@ const Size = sha256.Size
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = ID([32]byte{}) // not recommended
 type ID [Size]byte
 
 // ReadFromV2 reads ID from the refs.ObjectID message. Returns an error if
@@ -48,6 +44,7 @@ func (id ID) WriteToV2(m *refs.ObjectID) {
 // Zero ID is all zeros.
 //
 // See also Decode.
+// Deprecated: use id[:] instead.
 func (id ID) Encode(dst []byte) {
 	if l := len(dst); l < Size {
 		panic(fmt.Sprintf("destination length is less than %d bytes: %d", Size, l))
@@ -58,13 +55,11 @@ func (id ID) Encode(dst []byte) {
 
 // Decode decodes src bytes into ID.
 //
-// Decode expects that src has [Size] bytes length. If the input is malformed,
+// Decode expects that src has [IDSize] bytes length. If the input is malformed,
 // Decode returns an error describing format violation. In this case ID
 // remains unchanged.
 //
 // Decode doesn't mutate src.
-//
-// See also Encode.
 func (id *ID) Decode(src []byte) error {
 	if len(src) != Size {
 		return fmt.Errorf("invalid length %d", len(src))
@@ -76,6 +71,7 @@ func (id *ID) Decode(src []byte) error {
 }
 
 // SetSHA256 sets object identifier value to SHA256 checksum.
+// Deprecated: use direct assignment instead.
 func (id *ID) SetSHA256(v [sha256.Size]byte) {
 	*id = v
 }

@@ -25,30 +25,19 @@ func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
 func TestIDV2(t *testing.T) {
 	var id oid.ID
 
-	checksum := [sha256.Size]byte{}
-
-	_, err := rand.Read(checksum[:])
+	_, err := rand.Read(id[:])
 	require.NoError(t, err)
-
-	id.SetSHA256(checksum)
 
 	var idV2 refs.ObjectID
 	id.WriteToV2(&idV2)
 
-	require.Equal(t, checksum[:], idV2.GetValue())
+	require.Equal(t, id[:], idV2.GetValue())
 }
 
 func TestID_Equal(t *testing.T) {
-	cs := randSHA256Checksum(t)
-
-	var id1 oid.ID
-	id1.SetSHA256(cs)
-
-	var id2 oid.ID
-	id2.SetSHA256(cs)
-
-	var id3 oid.ID
-	id3.SetSHA256(randSHA256Checksum(t))
+	id1 := oidtest.ID()
+	id2 := id1
+	id3 := oidtest.OtherID(id1)
 
 	require.True(t, id1.Equals(id2))
 	require.False(t, id1.Equals(id3))

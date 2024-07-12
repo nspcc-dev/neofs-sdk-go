@@ -19,10 +19,6 @@ const Size = sha256.Size
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = ID([32]byte) // not recommended
 type ID [Size]byte
 
 // ReadFromV2 reads ID from the refs.ContainerID message.
@@ -48,6 +44,7 @@ func (id ID) WriteToV2(m *refs.ContainerID) {
 // Zero ID is all zeros.
 //
 // See also Decode.
+// Deprecated: use id[:] instead.
 func (id ID) Encode(dst []byte) {
 	if l := len(dst); l < Size {
 		panic(fmt.Sprintf("destination length is less than %d bytes: %d", Size, l))
@@ -63,8 +60,6 @@ func (id ID) Encode(dst []byte) {
 // remains unchanged.
 //
 // Decode doesn't mutate src.
-//
-// See also Encode.
 func (id *ID) Decode(src []byte) error {
 	if len(src) != Size {
 		return fmt.Errorf("invalid length %d", len(src))
@@ -76,6 +71,7 @@ func (id *ID) Decode(src []byte) error {
 }
 
 // SetSHA256 sets container identifier value to SHA256 checksum of container structure.
+// Deprecated: use direct assignment instead.
 func (id *ID) SetSHA256(v [sha256.Size]byte) {
 	*id = v
 }
@@ -125,5 +121,5 @@ func (id ID) String() string {
 //
 // See also [container.Container.CalculateID], [container.Container.AssertID].
 func (id *ID) FromBinary(cnr []byte) {
-	id.SetSHA256(sha256.Sum256(cnr))
+	*id = sha256.Sum256(cnr)
 }

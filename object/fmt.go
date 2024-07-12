@@ -55,10 +55,7 @@ func (o *Object) VerifyPayloadChecksum() error {
 
 // CalculateID calculates identifier for the object.
 func (o *Object) CalculateID() (oid.ID, error) {
-	var id oid.ID
-	id.SetSHA256(sha256.Sum256(o.ToV2().GetHeader().StableMarshal(nil)))
-
-	return id, nil
+	return sha256.Sum256(o.ToV2().GetHeader().StableMarshal(nil)), nil
 }
 
 // CalculateAndSetID calculates identifier for the object

@@ -94,13 +94,7 @@ func TestV2_ID(t *testing.T) {
 func TestID_EncodeToString(t *testing.T) {
 	const s = "NXWcEedga62wcBmfb9dPwar3vbbZJrMtT1"
 	b := [user.IDSize]byte{53, 127, 54, 116, 58, 70, 206, 247, 185, 103, 214, 89, 184, 42, 40, 234, 173, 68, 209, 25, 168, 14, 134, 47, 224}
-	var id user.ID
-
-	var m refs.OwnerID
-	m.SetValue(b[:])
-	require.NoError(t, id.ReadFromV2(m))
-
-	require.Equal(t, s, id.EncodeToString())
+	require.Equal(t, s, user.ID(b).EncodeToString())
 }
 
 func TestID_DecodeString(t *testing.T) {

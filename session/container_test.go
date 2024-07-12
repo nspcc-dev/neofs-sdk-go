@@ -137,8 +137,10 @@ func TestContainerProtocolV2(t *testing.T) {
 				require.Equal(t, usrID, val.Issuer())
 			},
 			breakSign: func(m *v2session.Token) {
-				id := m.GetBody().GetOwnerID().GetValue()
-				copy(id, usertest.ID().WalletBytes())
+				otherUsr := usertest.OtherID(usrID)
+				var mID refs.OwnerID
+				otherUsr.WriteToV2(&mID)
+				m.GetBody().SetOwnerID(&mID)
 			},
 		},
 		{
