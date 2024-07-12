@@ -429,8 +429,8 @@ func TestToken_Issuer(t *testing.T) {
 
 	token.SetIssuer(usr)
 
-	require.True(t, usr.Equals(token.Issuer()))
-	require.True(t, usr.Equals(token.ResolveIssuer()))
+	require.True(t, usr == token.Issuer())
+	require.True(t, usr == token.ResolveIssuer())
 
 	token.WriteToV2(&msg)
 	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())

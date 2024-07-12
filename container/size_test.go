@@ -35,7 +35,7 @@ func TestSizeEstimation_Container(t *testing.T) {
 	cnr := cidtest.ID()
 
 	val.SetContainer(cnr)
-	require.True(t, val.Container().Equals(cnr))
+	require.True(t, val.Container() == cnr)
 
 	var msg v2container.UsedSpaceAnnouncement
 	val.WriteToV2(&msg)

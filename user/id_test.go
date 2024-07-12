@@ -45,7 +45,7 @@ func TestID_SetScriptHash(t *testing.T) {
 	err := id2.ReadFromV2(m)
 	require.NoError(t, err)
 
-	require.True(t, id2.Equals(id))
+	require.True(t, id2 == id)
 }
 
 func TestV2_ID(t *testing.T) {
@@ -58,7 +58,7 @@ func TestV2_ID(t *testing.T) {
 
 		err := id2.ReadFromV2(m)
 		require.NoError(t, err)
-		require.True(t, id2.Equals(id))
+		require.True(t, id2 == id)
 	})
 
 	val := m.GetValue()
@@ -144,4 +144,14 @@ func TestID_Equal(t *testing.T) {
 	require.True(t, id1.Equals(id3))
 	require.True(t, id3.Equals(id1)) // commutativity
 	require.False(t, id1.Equals(id2))
+}
+
+func TestIDComparable(t *testing.T) {
+	x := usertest.ID()
+	y := x
+	require.True(t, x == y)
+	require.False(t, x != y)
+	y = usertest.OtherID(x)
+	require.False(t, x == y)
+	require.True(t, x != y)
 }

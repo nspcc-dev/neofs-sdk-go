@@ -87,7 +87,7 @@ func (o *Object) VerifyID() error {
 		return errOIDNotSet
 	}
 
-	if !id.Equals(oID) {
+	if id != oID {
 		return errIncorrectID
 	}
 

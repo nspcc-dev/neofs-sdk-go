@@ -95,7 +95,7 @@ func TestContainer_Owner(t *testing.T) {
 	var val2 container.Container
 	require.NoError(t, val2.ReadFromV2(msg))
 
-	require.True(t, val2.Owner().Equals(owner))
+	require.True(t, val2.Owner() == owner)
 }
 
 func TestContainer_BasicACL(t *testing.T) {

@@ -565,14 +565,14 @@ func newChainCollector(tb testing.TB) *chainCollector {
 func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	cnr, ok := header.ContainerID()
 	require.True(tb, ok, "all objects must be bound to some container")
-	require.True(tb, cnr.Equals(in.container), "the container must be set to the configured one")
+	require.True(tb, cnr == in.container, "the container must be set to the configured one")
 
 	owner := header.OwnerID()
 	require.NotNil(tb, owner, "any object must be owned by somebody")
 	if in.sessionToken != nil {
-		require.True(tb, in.sessionToken.Issuer().Equals(*owner), "owner must be set to the session issuer")
+		require.True(tb, in.sessionToken.Issuer() == *owner, "owner must be set to the session issuer")
 	} else {
-		require.True(tb, owner.Equals(in.owner), "owner must be set to the particular user")
+		require.True(tb, *owner == in.owner, "owner must be set to the particular user")
 	}
 
 	ver := header.Version()
@@ -604,7 +604,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 	idCalc, err := header.CalculateID()
 	require.NoError(x.tb, err)
 
-	require.True(x.tb, idCalc.Equals(id))
+	require.True(x.tb, idCalc == id)
 
 	_, ok = x.mProcessed[id]
 	require.False(x.tb, ok, "object must be written exactly once")
@@ -653,7 +653,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 		require.False(x.tb, ok, "split-chain must not be forked")
 
 		for k := range x.mNext {
-			require.False(x.tb, k.Equals(prev), "split-chain must not be cycled")
+			require.False(x.tb, k == prev, "split-chain must not be cycled")
 		}
 
 		x.mNext[prev] = id
@@ -775,7 +775,7 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 
 	id, ok := rootObj.ID()
 	require.True(x.tb, ok, "root object must have an ID")
-	require.True(x.tb, id.Equals(rootID), "root ID in root object must be returned in the result")
+	require.True(x.tb, id == rootID, "root ID in root object must be returned in the result")
 
 	checkStaticMetadata(x.tb, rootObj, in)
 

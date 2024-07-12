@@ -224,3 +224,13 @@ func TestIDDecodingFailures(t *testing.T) {
 		})
 	}
 }
+
+func TestIDComparable(t *testing.T) {
+	x := oidtest.ID()
+	y := x
+	require.True(t, x == y)
+	require.False(t, x != y)
+	y = oidtest.OtherID(x)
+	require.False(t, x == y)
+	require.True(t, x != y)
+}

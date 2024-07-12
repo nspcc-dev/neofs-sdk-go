@@ -12,6 +12,8 @@ import (
 // Address represents global object identifier in NeoFS network. Each object
 // belongs to exactly one container and is uniquely addressed within the container.
 //
+// ID implements built-in comparable interface.
+//
 // Address is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Address
 // message. See ReadFromV2 / WriteToV2 methods.
 //

@@ -616,7 +616,7 @@ func TestObject_Issuer(t *testing.T) {
 
 	issuer := usr.UserID()
 
-	require.True(t, token.Issuer().Equals(issuer))
+	require.True(t, token.Issuer() == issuer)
 	require.Equal(t, neofscrypto.PublicKeyBytes(usr.Public()), token.IssuerPublicKeyBytes())
 }
 
@@ -634,7 +634,7 @@ func TestObject_Sign(t *testing.T) {
 	t.Run("issue#546", func(t *testing.T) {
 		usr1 := usertest.User()
 		usr2 := usertest.User()
-		require.False(t, usr1.UserID().Equals(usr2.UserID()))
+		require.False(t, usr1.UserID() == usr2.UserID())
 
 		token1 := sessiontest.Object()
 		require.NoError(t, token1.Sign(usr1))

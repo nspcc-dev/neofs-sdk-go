@@ -452,7 +452,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.True(t, st.AssertAuthKey(anonSigner.Public()))
 
 	require.True(t, st.VerifySignature())
-	require.True(t, st.Issuer().Equals(anonSigner.UserID()))
+	require.True(t, st.Issuer() == anonSigner.UserID())
 }
 
 func TestStatusMonitor(t *testing.T) {

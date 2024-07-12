@@ -532,7 +532,7 @@ func TestContainer_Issuer(t *testing.T) {
 		require.NoError(t, token.Sign(usr))
 
 		issuer := usr.UserID()
-		require.True(t, token.Issuer().Equals(issuer))
+		require.True(t, token.Issuer() == issuer)
 	})
 
 	t.Run("external", func(t *testing.T) {
@@ -541,7 +541,7 @@ func TestContainer_Issuer(t *testing.T) {
 		issuer := usertest.ID()
 
 		token.SetIssuer(issuer)
-		require.True(t, token.Issuer().Equals(issuer))
+		require.True(t, token.Issuer() == issuer)
 	})
 
 	t.Run("public key", func(t *testing.T) {
@@ -570,7 +570,7 @@ func TestContainer_Sign(t *testing.T) {
 	t.Run("issue#546", func(t *testing.T) {
 		usr1 := usertest.User()
 		usr2 := usertest.User()
-		require.False(t, usr1.UserID().Equals(usr2.UserID()))
+		require.False(t, usr1.UserID() == usr2.UserID())
 
 		token1 := sessiontest.Container()
 		require.NoError(t, token1.Sign(usr1))

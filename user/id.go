@@ -17,6 +17,8 @@ const IDSize = 25
 
 // ID identifies users of the NeoFS system.
 //
+// ID implements built-in comparable interface.
+//
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.OwnerID
 // message. See ReadFromV2 / WriteToV2 methods.
 //
@@ -102,6 +104,7 @@ func (x ID) String() string {
 }
 
 // Equals defines a comparison relation between two ID instances.
+// Deprecated: ID is comparable.
 func (x ID) Equals(x2 ID) bool {
 	return x == x2
 }

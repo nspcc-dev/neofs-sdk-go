@@ -347,7 +347,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NotNil(t, hdr.OwnerID())
-		require.True(t, hdr.OwnerID().Equals(account))
+		require.True(t, *hdr.OwnerID() == account)
 
 		downloadedPayload := make([]byte, len(payload))
 
@@ -504,7 +504,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NotNil(t, hdr.OwnerID())
-		require.True(t, hdr.OwnerID().Equals(account))
+		require.True(t, *hdr.OwnerID() == account)
 
 		downloadedPayload := make([]byte, len(payload))
 
@@ -660,7 +660,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NotNil(t, hdr.OwnerID())
-		require.True(t, hdr.OwnerID().Equals(account))
+		require.True(t, *hdr.OwnerID() == account)
 
 		downloadedPayload := make([]byte, len(payload))
 

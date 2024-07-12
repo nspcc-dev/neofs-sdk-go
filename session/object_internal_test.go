@@ -51,7 +51,7 @@ func TestObject_CopyTo(t *testing.T) {
 		container.CopyTo(&dst)
 
 		for i := range container.objs {
-			require.True(t, container.objs[i].Equals(dst.objs[i]))
+			require.True(t, container.objs[i] == dst.objs[i])
 
 			// change object id in the new object
 			for j := range dst.objs[i] {
@@ -60,7 +60,7 @@ func TestObject_CopyTo(t *testing.T) {
 		}
 
 		for i := range container.objs {
-			require.False(t, container.objs[i].Equals(dst.objs[i]))
+			require.False(t, container.objs[i] == dst.objs[i])
 		}
 	})
 

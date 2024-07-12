@@ -97,3 +97,13 @@ func TestID_Encode(t *testing.T) {
 		require.Equal(t, emptyID, id.EncodeToString())
 	})
 }
+
+func TestIDComparable(t *testing.T) {
+	x := cidtest.ID()
+	y := x
+	require.True(t, x == y)
+	require.False(t, x != y)
+	y = cidtest.OtherID(x)
+	require.False(t, x == y)
+	require.True(t, x != y)
+}

@@ -67,7 +67,7 @@ func TestTable_CopyTo(t *testing.T) {
 		cid2, isSet2 := dst.CID()
 		require.True(t, isSet2)
 
-		require.True(t, cid1.Equals(cid2))
+		require.True(t, cid1 == cid2)
 
 		dst.SetCID(cidtest.OtherID(id))
 
@@ -77,7 +77,7 @@ func TestTable_CopyTo(t *testing.T) {
 		cid2, isSet2 = dst.CID()
 		require.True(t, isSet2)
 
-		require.False(t, cid1.Equals(cid2))
+		require.False(t, cid1 == cid2)
 	})
 
 	t.Run("change record", func(t *testing.T) {

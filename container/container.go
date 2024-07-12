@@ -550,7 +550,7 @@ func (x Container) AssertID(id cid.ID) bool {
 	var id2 cid.ID
 	x.CalculateID(&id2)
 
-	return id2.Equals(id)
+	return id2 == id
 }
 
 // Version returns the NeoFS API version this container was created with.

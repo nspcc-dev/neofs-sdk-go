@@ -29,7 +29,7 @@ loop:
 	for {
 		v := ID()
 		for i := range vs {
-			if v.Equals(vs[i]) {
+			if v == vs[i] {
 				continue loop
 			}
 		}

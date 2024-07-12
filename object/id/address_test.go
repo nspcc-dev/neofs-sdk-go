@@ -107,3 +107,13 @@ func TestAddressEncoding(t *testing.T) {
 		require.Equal(t, v, v2)
 	})
 }
+
+func TestAddressComparable(t *testing.T) {
+	x := oidtest.Address()
+	y := x
+	require.True(t, x == y)
+	require.False(t, x != y)
+	y = oidtest.OtherAddress(x)
+	require.False(t, x == y)
+	require.True(t, x != y)
+}

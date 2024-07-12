@@ -13,6 +13,8 @@ const Size = sha256.Size
 
 // ID represents NeoFS container identifier.
 //
+// ID implements built-in comparable interface.
+//
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ContainerID
 // message. See ReadFromV2 / WriteToV2 methods.
 //
@@ -82,6 +84,7 @@ func (id *ID) SetSHA256(v [sha256.Size]byte) {
 //
 // Note that comparison using '==' operator is not recommended since it MAY result
 // in loss of compatibility.
+// Deprecated: ID is comparable.
 func (id ID) Equals(id2 ID) bool {
 	return id == id2
 }
