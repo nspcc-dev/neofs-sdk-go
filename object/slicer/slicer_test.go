@@ -835,12 +835,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 	overheadAmount := uint64(3)
 	ctx := context.Background()
 
-	var containerID cid.ID
-	id := make([]byte, sha256.Size)
-	//nolint:staticcheck
-	_, err := rand.Read(id)
-	require.NoError(t, err)
-	containerID.Encode(id)
+	containerID := cidtest.ID()
 
 	usr := usertest.User()
 	usrID := usr.UserID()

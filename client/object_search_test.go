@@ -17,10 +17,7 @@ import (
 )
 
 func TestObjectSearch(t *testing.T) {
-	ids := make([]oid.ID, 20)
-	for i := range ids {
-		ids[i] = oidtest.ID()
-	}
+	ids := oidtest.IDs(20)
 
 	p, resp := testListReaderResponse()
 
@@ -78,10 +75,7 @@ func TestObjectSearch(t *testing.T) {
 }
 
 func TestObjectIterate(t *testing.T) {
-	ids := make([]oid.ID, 3)
-	for i := range ids {
-		ids[i] = oidtest.ID()
-	}
+	ids := oidtest.IDs(3)
 
 	t.Run("no objects", func(t *testing.T) {
 		p, resp := testListReaderResponse()

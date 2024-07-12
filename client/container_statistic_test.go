@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"fmt"
 	mathRand "math/rand"
 	"strconv"
@@ -24,6 +23,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -84,33 +84,8 @@ func randBytes(l int) []byte {
 
 func randRefsContainerID() *refs.ContainerID {
 	var id refs.ContainerID
-	id.SetValue(randBytes(sha256.Size))
+	cidtest.ID().WriteToV2(&id)
 	return &id
-}
-
-func randContainerID() *cid.ID {
-	var refID refs.ContainerID
-	refID.SetValue(randBytes(sha256.Size))
-
-	var id cid.ID
-	_ = id.ReadFromV2(refID)
-
-	return &id
-}
-
-func randAccount(signer user.Signer) *user.ID {
-	u := signer.UserID()
-
-	return &u
-}
-
-func randOwner(signer user.Signer) *refs.OwnerID {
-	acc := randAccount(signer)
-
-	var u refs.OwnerID
-	acc.WriteToV2(&u)
-
-	return &u
 }
 
 func prepareContainer(accountID user.ID) container.Container {
@@ -177,7 +152,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmBalanceGet
-	prm.SetAccount(*randAccount(usr))
+	prm.SetAccount(usr.ID)
 	_, err := c.BalanceGet(ctx, prm)
 	require.NoError(t, err)
 
@@ -207,7 +182,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 		return &resp, nil
 	}
 
-	cont := prepareContainer(*randAccount(usr))
+	cont := prepareContainer(usr.ID)
 
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
@@ -231,8 +206,10 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 		var replicas []netmapv2.Replica
 		var resp v2container.GetResponse
 		var meta session.ResponseMetaHeader
+		var owner refs.OwnerID
 
-		cont.SetOwnerID(randOwner(usr))
+		usr.ID.WriteToV2(&owner)
+		cont.SetOwnerID(&owner)
 		cont.SetVersion(&ver)
 
 		nonce, err := uuid.New().MarshalBinary()
@@ -292,7 +269,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerList
-	_, err := c.ContainerList(ctx, *randAccount(usr), prm)
+	_, err := c.ContainerList(ctx, usr.ID, prm)
 	require.NoError(t, err)
 
 	require.Equal(t, 1, collector.methods[stat.MethodContainerList].requests)
@@ -416,7 +393,7 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	estimation := container.SizeEstimation{}
-	estimation.SetContainer(*randContainerID())
+	estimation.SetContainer(cidtest.ID())
 	estimation.SetValue(mathRand.Uint64())
 	estimation.SetEpoch(mathRand.Uint64())
 
@@ -461,7 +438,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
-	cont := prepareContainer(*randAccount(usr))
+	cont := prepareContainer(usr.ID)
 
 	err := SyncContainerWithNetwork(ctx, &cont, c)
 	require.NoError(t, err)
@@ -588,8 +565,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
-	account := randAccount(usr)
+	containerID := cidtest.ID()
 
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
@@ -601,7 +577,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	tokenSession.BindContainer(containerID)
 	tokenSession.ForVerb(session2.VerbObjectPut)
 	tokenSession.SetAuthKey(usr.Public())
-	tokenSession.SetIssuer(*account)
+	tokenSession.SetIssuer(usr.ID)
 
 	err := tokenSession.Sign(usr)
 	require.NoError(t, err)
@@ -610,7 +586,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	prm.WithinSession(tokenSession)
 
 	var hdr object.Object
-	hdr.SetOwnerID(account)
+	hdr.SetOwnerID(&usr.ID)
 	hdr.SetContainerID(containerID)
 
 	writer, err := c.ObjectPutInit(ctx, hdr, usr, prm)
@@ -655,7 +631,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
+	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
 	collector := newCollector()
@@ -684,7 +660,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
+	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
 	collector := newCollector()
@@ -725,7 +701,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
+	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
 	collector := newCollector()
@@ -754,7 +730,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
+	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
 	collector := newCollector()
@@ -796,7 +772,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
+	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
 	collector := newCollector()
@@ -826,7 +802,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 		return &resp, nil
 	}
 
-	containerID := *randContainerID()
+	containerID := cidtest.ID()
 
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect

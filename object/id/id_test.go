@@ -1,4 +1,4 @@
-package oid
+package oid_test
 
 import (
 	"crypto/rand"
@@ -8,17 +8,12 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
 
 const emptyID = "11111111111111111111111111111111"
-
-func randID(t *testing.T) ID {
-	var id ID
-	id.SetSHA256(randSHA256Checksum(t))
-
-	return id
-}
 
 func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
 	_, err := rand.Read(cs[:])
@@ -28,7 +23,7 @@ func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
 }
 
 func TestIDV2(t *testing.T) {
-	var id ID
+	var id oid.ID
 
 	checksum := [sha256.Size]byte{}
 
@@ -46,13 +41,13 @@ func TestIDV2(t *testing.T) {
 func TestID_Equal(t *testing.T) {
 	cs := randSHA256Checksum(t)
 
-	var id1 ID
+	var id1 oid.ID
 	id1.SetSHA256(cs)
 
-	var id2 ID
+	var id2 oid.ID
 	id2.SetSHA256(cs)
 
-	var id3 ID
+	var id3 oid.ID
 	id3.SetSHA256(randSHA256Checksum(t))
 
 	require.True(t, id1.Equals(id2))
@@ -65,7 +60,7 @@ func TestID_Parse(t *testing.T) {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				cs := randSHA256Checksum(t)
 				str := base58.Encode(cs[:])
-				var oid ID
+				var oid oid.ID
 
 				require.NoError(t, oid.DecodeString(str))
 
@@ -83,7 +78,7 @@ func TestID_Parse(t *testing.T) {
 			t.Run(strconv.Itoa(j), func(t *testing.T) {
 				cs := []byte{1, 2, 3, 4, 5, byte(j)}
 				str := base58.Encode(cs)
-				var oid ID
+				var oid oid.ID
 
 				require.Error(t, oid.DecodeString(str))
 			})
@@ -93,7 +88,7 @@ func TestID_Parse(t *testing.T) {
 
 func TestID_String(t *testing.T) {
 	t.Run("zero", func(t *testing.T) {
-		var id ID
+		var id oid.ID
 		require.Equal(t, emptyID, id.EncodeToString())
 	})
 
@@ -102,7 +97,7 @@ func TestID_String(t *testing.T) {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				cs := randSHA256Checksum(t)
 				str := base58.Encode(cs[:])
-				var oid ID
+				var oid oid.ID
 
 				require.NoError(t, oid.DecodeString(str))
 				require.Equal(t, str, oid.EncodeToString())
@@ -112,13 +107,13 @@ func TestID_String(t *testing.T) {
 }
 
 func TestObjectIDEncoding(t *testing.T) {
-	id := randID(t)
+	id := oidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
 		data, err := id.Marshal()
 		require.NoError(t, err)
 
-		var id2 ID
+		var id2 oid.ID
 		require.NoError(t, id2.Unmarshal(data))
 
 		require.Equal(t, id, id2)
@@ -128,7 +123,7 @@ func TestObjectIDEncoding(t *testing.T) {
 		data, err := id.MarshalJSON()
 		require.NoError(t, err)
 
-		var id2 ID
+		var id2 oid.ID
 		require.NoError(t, id2.UnmarshalJSON(data))
 
 		require.Equal(t, id, id2)
@@ -138,7 +133,7 @@ func TestObjectIDEncoding(t *testing.T) {
 func TestNewIDFromV2(t *testing.T) {
 	t.Run("from zero", func(t *testing.T) {
 		var (
-			x  ID
+			x  oid.ID
 			v2 refs.ObjectID
 		)
 
@@ -149,7 +144,7 @@ func TestNewIDFromV2(t *testing.T) {
 func TestID_ToV2(t *testing.T) {
 	t.Run("zero to v2", func(t *testing.T) {
 		var (
-			x  ID
+			x  oid.ID
 			v2 refs.ObjectID
 		)
 
@@ -161,7 +156,7 @@ func TestID_ToV2(t *testing.T) {
 }
 
 func TestID_Encode(t *testing.T) {
-	var id ID
+	var id oid.ID
 
 	t.Run("panic", func(t *testing.T) {
 		dst := make([]byte, sha256.Size-1)
@@ -183,7 +178,7 @@ func TestID_Encode(t *testing.T) {
 
 func TestID_Unmarshal(t *testing.T) {
 	t.Run("invalid value length", func(t *testing.T) {
-		var id ID
+		var id oid.ID
 		var m refs.ObjectID
 		for _, tc := range []struct {
 			err string
@@ -202,7 +197,7 @@ func TestID_Unmarshal(t *testing.T) {
 }
 
 func TestIDDecodingFailures(t *testing.T) {
-	var id ID
+	var id oid.ID
 	var m refs.ObjectID
 	for _, tc := range []struct {
 		err     string

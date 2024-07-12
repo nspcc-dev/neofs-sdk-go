@@ -2,30 +2,13 @@ package session
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/sha256"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
-
-func generateRandomOids(size int) []oid.ID {
-	checksum := [sha256.Size]byte{}
-
-	result := make([]oid.ID, size)
-	for i := 0; i < size; i++ {
-		_, _ = rand.Read(checksum[:])
-
-		var id oid.ID
-		id.SetSHA256(checksum)
-		result[i] = id
-	}
-
-	return result
-}
 
 func TestObject_CopyTo(t *testing.T) {
 	var container Object
@@ -34,7 +17,7 @@ func TestObject_CopyTo(t *testing.T) {
 
 	container.ForVerb(VerbObjectDelete)
 	container.BindContainer(containerID)
-	container.LimitByObjects(generateRandomOids(2)...)
+	container.LimitByObjects(oidtest.IDs(2)...)
 
 	t.Run("copy", func(t *testing.T) {
 		var dst Object

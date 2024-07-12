@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	objectSDK "github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 	storagegrouptest "github.com/nspcc-dev/neofs-sdk-go/storagegroup/test"
@@ -37,7 +36,7 @@ func TestStorageGroup(t *testing.T) {
 	sg.SetExpirationEpoch(exp)
 	require.Equal(t, exp, sg.ExpirationEpoch())
 
-	members := []oid.ID{oidtest.ID(), oidtest.ID()}
+	members := oidtest.IDs(2)
 	sg.SetMembers(members)
 	require.Equal(t, members, sg.Members())
 }
@@ -185,7 +184,7 @@ func generateOIDList() []refs.ObjectID {
 func TestStorageGroup_SetMembers_DoubleSetting(t *testing.T) {
 	var sg storagegroup.StorageGroup
 
-	mm := []oid.ID{oidtest.ID(), oidtest.ID(), oidtest.ID()} // cap is 3 at least
+	mm := oidtest.IDs(3) // cap is 3 at least
 	require.NotPanics(t, func() {
 		sg.SetMembers(mm)
 	})
