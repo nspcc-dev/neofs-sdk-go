@@ -26,27 +26,25 @@ type ID struct {
 	w []byte
 }
 
+func (x *ID) decodeBytes(b []byte) error {
+	switch {
+	case len(b) != IDSize:
+		return fmt.Errorf("invalid length %d, expected %d", len(b), IDSize)
+	case b[0] != address.NEO3Prefix:
+		return fmt.Errorf("invalid prefix byte 0x%X, expected 0x%X", b[0], address.NEO3Prefix)
+	case !bytes.Equal(b[21:], hash.Checksum(b[:21])):
+		return errors.New("checksum mismatch")
+	}
+	x.w = b
+	return nil
+}
+
 // ReadFromV2 reads ID from the refs.OwnerID message. Returns an error if
 // the message is malformed according to the NeoFS API V2 protocol.
 //
 // See also WriteToV2.
 func (x *ID) ReadFromV2(m refs.OwnerID) error {
-	w := m.GetValue()
-	if len(w) != IDSize {
-		return fmt.Errorf("invalid length %d, expected %d", len(w), IDSize)
-	}
-
-	if w[0] != address.NEO3Prefix {
-		return fmt.Errorf("invalid prefix byte 0x%X, expected 0x%X", w[0], address.NEO3Prefix)
-	}
-
-	if !bytes.Equal(w[21:], hash.Checksum(w[:21])) {
-		return errors.New("checksum mismatch")
-	}
-
-	x.w = w
-
-	return nil
+	return x.decodeBytes(m.GetValue())
 }
 
 // WriteToV2 writes ID to the refs.OwnerID message.
@@ -94,14 +92,12 @@ func (x ID) EncodeToString() string {
 //
 // See also EncodeToString.
 func (x *ID) DecodeString(s string) error {
-	var err error
-
-	x.w, err = base58.Decode(s)
+	b, err := base58.Decode(s)
 	if err != nil {
 		return fmt.Errorf("decode base58: %w", err)
 	}
 
-	return nil
+	return x.decodeBytes(b)
 }
 
 // String implements fmt.Stringer.
