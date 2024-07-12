@@ -1,143 +1,129 @@
 package oid_test
 
 import (
-	"crypto/rand"
+	"bytes"
 	"crypto/sha256"
-	"strconv"
+	"fmt"
+	"math/rand"
 	"testing"
 
-	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
-const emptyID = "11111111111111111111111111111111"
+var validIDBytes = [oid.Size]byte{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 60, 89, 33, 95, 46, 103,
+	217, 57, 164, 87, 82, 204, 251, 226, 1, 100, 32, 72, 251, 0, 7, 172}
 
-func randSHA256Checksum(t *testing.T) (cs [sha256.Size]byte) {
-	_, err := rand.Read(cs[:])
-	require.NoError(t, err)
+var validIDProtoBytes = append([]byte{10, 32}, validIDBytes[:]...)
 
-	return
+// corresponds to validIDBytes.
+const validIDString = "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF"
+
+// corresponds to validIDBytes.
+var validIDJSON = `{"value":"5715B62G/qU/ujxZIV8uZ9k5pFdSzPviAWQgSPsAB6w="}`
+
+var invalidValueTestcases = []struct {
+	name string
+	err  string
+	val  []byte
+}{
+	{name: "nil value", err: "invalid length 0", val: nil},
+	{name: "empty value", err: "invalid length 0", val: []byte{}},
+	{name: "undersized value", err: "invalid length 31", val: make([]byte, 31)},
+	{name: "oversized value", err: "invalid length 33", val: make([]byte, 33)},
 }
 
-func TestIDV2(t *testing.T) {
+func toProtoBytes(b []byte) []byte { return protowire.AppendBytes([]byte{10}, b) }
+
+func toProtoJSON(b []byte) []byte {
+	var m refs.ObjectID
+	m.SetValue(b)
+	b, err := m.MarshalJSON()
+	if err != nil {
+		panic(fmt.Sprintf("unexpected MarshalJSON error: %v", err))
+	}
+	return b
+}
+
+func TestID_ReadFromV2(t *testing.T) {
+	var m refs.ObjectID
+	m.SetValue(validIDBytes[:])
 	var id oid.ID
+	require.NoError(t, id.ReadFromV2(m))
+	require.EqualValues(t, validIDBytes, id)
 
-	_, err := rand.Read(id[:])
-	require.NoError(t, err)
-
-	var idV2 refs.ObjectID
-	id.WriteToV2(&idV2)
-
-	require.Equal(t, id[:], idV2.GetValue())
-}
-
-func TestID_Equal(t *testing.T) {
-	id1 := oidtest.ID()
-	id2 := id1
-	id3 := oidtest.OtherID(id1)
-
-	require.True(t, id1.Equals(id2))
-	require.False(t, id1.Equals(id3))
-}
-
-func TestID_Parse(t *testing.T) {
-	t.Run("should parse successful", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				cs := randSHA256Checksum(t)
-				str := base58.Encode(cs[:])
-				var oid oid.ID
-
-				require.NoError(t, oid.DecodeString(str))
-
-				var oidV2 refs.ObjectID
-				oid.WriteToV2(&oidV2)
-
-				require.Equal(t, cs[:], oidV2.GetValue())
-			})
-		}
-	})
-
-	t.Run("should failure on parse", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			j := i
-			t.Run(strconv.Itoa(j), func(t *testing.T) {
-				cs := []byte{1, 2, 3, 4, 5, byte(j)}
-				str := base58.Encode(cs)
-				var oid oid.ID
-
-				require.Error(t, oid.DecodeString(str))
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range invalidValueTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				var m refs.ObjectID
+				m.SetValue(tc.val)
+				require.EqualError(t, new(oid.ID).ReadFromV2(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestID_String(t *testing.T) {
-	t.Run("zero", func(t *testing.T) {
-		var id oid.ID
-		require.Equal(t, emptyID, id.EncodeToString())
-	})
+func TestID_Decode(t *testing.T) {
+	var id oid.ID
+	require.NoError(t, id.Decode(validIDBytes[:]))
+	require.EqualValues(t, validIDBytes, id)
 
-	t.Run("should be equal", func(t *testing.T) {
-		for i := 0; i < 10; i++ {
-			t.Run(strconv.Itoa(i), func(t *testing.T) {
-				cs := randSHA256Checksum(t)
-				str := base58.Encode(cs[:])
-				var oid oid.ID
-
-				require.NoError(t, oid.DecodeString(str))
-				require.Equal(t, str, oid.EncodeToString())
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range invalidValueTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := oid.DecodeBytes(tc.val)
+				require.EqualError(t, err, tc.err)
+				require.EqualError(t, new(oid.ID).Decode(tc.val), tc.err)
 			})
 		}
 	})
 }
 
-func TestObjectIDEncoding(t *testing.T) {
+func TestID_WriteToV2(t *testing.T) {
 	id := oidtest.ID()
-
-	t.Run("binary", func(t *testing.T) {
-		var id2 oid.ID
-		require.NoError(t, id2.Unmarshal(id.Marshal()))
-
-		require.Equal(t, id, id2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := id.MarshalJSON()
-		require.NoError(t, err)
-
-		var id2 oid.ID
-		require.NoError(t, id2.UnmarshalJSON(data))
-
-		require.Equal(t, id, id2)
-	})
+	var m refs.ObjectID
+	id.WriteToV2(&m)
+	require.Equal(t, id[:], m.GetValue())
 }
 
-func TestNewIDFromV2(t *testing.T) {
-	t.Run("from zero", func(t *testing.T) {
-		var (
-			x  oid.ID
-			v2 refs.ObjectID
-		)
-
-		require.Error(t, x.ReadFromV2(v2))
-	})
+func TestID_EncodeToString(t *testing.T) {
+	require.Equal(t, validIDString, oid.ID(validIDBytes).EncodeToString())
 }
 
-func TestID_ToV2(t *testing.T) {
-	t.Run("zero to v2", func(t *testing.T) {
-		var (
-			x  oid.ID
-			v2 refs.ObjectID
-		)
+func TestID_DecodeString(t *testing.T) {
+	var id oid.ID
+	require.NoError(t, id.DecodeString(validIDString))
+	require.EqualValues(t, validIDBytes, id)
 
-		x.WriteToV2(&v2)
-
-		require.Equal(t, oid.Size, len(v2.GetValue()))
-		require.Equal(t, emptyID, base58.Encode(v2.GetValue()))
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			str      string
+			contains bool
+			err      string
+		}{
+			{name: "base58", str: "64sexUVdHg9dnqxHTB3uGsHfhPTnuegrupF4bJGXSbZ_", contains: true, err: "decode base58"},
+			{name: "undersize", str: "tjkeRJWKpNa7Xjh3sZymJWZG5UGTGoZtEimGUjQesV", err: "invalid length 31"},
+			{name: "oversize", str: "2Jwe3Yy4t5hgV2VeXxPkxYV5GNwPJEBjD3oZFDUiHneQ7J", err: "invalid length 33"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				err := new(oid.ID).DecodeString(tc.str)
+				_, err2 := oid.DecodeString(tc.str)
+				if tc.contains {
+					require.ErrorContains(t, err, tc.err)
+					require.ErrorContains(t, err2, tc.err)
+				} else {
+					require.EqualError(t, err, tc.err)
+					require.EqualError(t, err2, tc.err)
+				}
+			})
+		}
 	})
 }
 
@@ -158,57 +144,59 @@ func TestID_Encode(t *testing.T) {
 		require.NotPanics(t, func() {
 			id.Encode(dst)
 		})
-		require.Equal(t, emptyID, id.EncodeToString())
+		require.Equal(t, "11111111111111111111111111111111", id.EncodeToString())
 	})
 }
 
+func TestID_Marshal(t *testing.T) {
+	require.Equal(t, validIDProtoBytes, oid.ID(validIDBytes).Marshal())
+}
+
 func TestID_Unmarshal(t *testing.T) {
-	t.Run("invalid value length", func(t *testing.T) {
-		var id oid.ID
-		var m refs.ObjectID
-		for _, tc := range []struct {
-			err string
-			val []byte
-		}{
-			{"invalid length 0", nil},
-			{"invalid length 0", []byte{}},
-			{"invalid length 31", make([]byte, 31)},
-			{"invalid length 33", make([]byte, 33)},
-		} {
-			m.SetValue(tc.val)
-			b := m.StableMarshal(nil)
-			require.EqualError(t, id.Unmarshal(b), tc.err)
+	t.Run("invalid protobuf", func(t *testing.T) {
+		err := new(oid.ID).Unmarshal([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "cannot parse invalid wire-format data")
+	})
+
+	var id oid.ID
+	require.NoError(t, id.Unmarshal(validIDProtoBytes))
+	require.EqualValues(t, validIDBytes, id)
+
+	t.Run("protocol violation", func(t *testing.T) {
+		for _, tc := range invalidValueTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.EqualError(t, new(oid.ID).Unmarshal(toProtoBytes(tc.val)), tc.err)
+			})
 		}
 	})
 }
 
-func TestIDDecodingFailures(t *testing.T) {
+func TestID_MarshalJSON(t *testing.T) {
+	id := oid.ID(validIDBytes)
+	b, err := id.MarshalJSON()
+	require.NoError(t, err)
+	require.Equal(t, validIDJSON, string(b))
+}
+
+func TestID_UnmarshalJSON(t *testing.T) {
+	t.Run("invalid JSON", func(t *testing.T) {
+		err := new(oid.ID).UnmarshalJSON([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "syntax error")
+	})
+
 	var id oid.ID
-	var m refs.ObjectID
-	for _, tc := range []struct {
-		err     string
-		corrupt func(*refs.ObjectID)
-	}{
-		{"invalid length 0", func(m *refs.ObjectID) { m.SetValue(nil) }},
-		{"invalid length 0", func(m *refs.ObjectID) { m.SetValue([]byte{}) }},
-		{"invalid length 31", func(m *refs.ObjectID) { m.SetValue(make([]byte, 31)) }},
-		{"invalid length 33", func(m *refs.ObjectID) { m.SetValue(make([]byte, 33)) }},
-	} {
-		id.WriteToV2(&m)
-		tc.corrupt(&m)
-		t.Run(tc.err+"/api", func(t *testing.T) {
-			require.EqualError(t, id.ReadFromV2(m), tc.err)
-		})
-		t.Run(tc.err+"/binary", func(t *testing.T) {
-			b := m.StableMarshal(nil)
-			require.EqualError(t, id.Unmarshal(b), tc.err)
-		})
-		t.Run(tc.err+"/json", func(t *testing.T) {
-			b, err := m.MarshalJSON()
-			require.NoError(t, err, tc.err)
-			require.EqualError(t, id.UnmarshalJSON(b), tc.err)
-		})
-	}
+	require.NoError(t, id.UnmarshalJSON([]byte(validIDJSON)))
+	require.EqualValues(t, validIDBytes, id)
+
+	t.Run("protocol violation", func(t *testing.T) {
+		for _, tc := range invalidValueTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.EqualError(t, new(oid.ID).UnmarshalJSON(toProtoJSON(tc.val)), tc.err)
+			})
+		}
+	})
 }
 
 func TestIDComparable(t *testing.T) {
@@ -219,4 +207,54 @@ func TestIDComparable(t *testing.T) {
 	y = oidtest.OtherID(x)
 	require.False(t, x == y)
 	require.True(t, x != y)
+	require.True(t, x.Equals(x))
+	require.False(t, x.Equals(y))
+}
+
+func TestNewFromObjectHeaderBinary(t *testing.T) {
+	// use any binary just for the test
+	hdr := make([]byte, 512)
+	//nolint:staticcheck
+	rand.Read(hdr)
+	id := oid.NewFromObjectHeaderBinary(hdr)
+	require.EqualValues(t, sha256.Sum256(hdr), id)
+	require.Equal(t, id, oid.NewFromObjectHeaderBinary(hdr))
+	for i := range hdr {
+		hdrCp := bytes.Clone(hdr)
+		hdrCp[i]++
+		require.NotEqual(t, id, oid.NewFromObjectHeaderBinary(hdrCp))
+	}
+
+	var id2 oid.ID
+	id2.SetSHA256(sha256.Sum256(hdr))
+	require.Equal(t, id, id2)
+}
+
+func TestID_String(t *testing.T) {
+	id := oidtest.ID()
+	require.NotEmpty(t, id.String())
+	require.Equal(t, id.String(), id.String())
+	require.NotEqual(t, id.String(), oidtest.OtherID(id).String())
+}
+
+func TestID_CalculateIDSignature(t *testing.T) {
+	usr := usertest.User()
+	id := oidtest.ID()
+
+	_, err := id.CalculateIDSignature(neofscryptotest.FailSigner(usr))
+	require.Error(t, err)
+
+	for _, s := range []neofscrypto.Signer{
+		usr,
+		usr.RFC6979,
+		usr.WalletConnect,
+	} {
+		sig, err := id.CalculateIDSignature(s)
+		require.NoError(t, err)
+		require.Equal(t, s.Scheme(), sig.Scheme())
+		require.Equal(t, s.Public(), sig.PublicKey())
+		require.Equal(t, usr.PublicKeyBytes, sig.PublicKeyBytes())
+		require.True(t, sig.Verify(id.Marshal()))
+		require.True(t, s.Public().Verify(id.Marshal(), sig.Value()))
+	}
 }
