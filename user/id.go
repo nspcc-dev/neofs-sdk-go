@@ -12,6 +12,9 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
+// IDSize is the size of an [ID] in bytes.
+const IDSize = 25
+
 // ID identifies users of the NeoFS system.
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.OwnerID
@@ -29,8 +32,8 @@ type ID struct {
 // See also WriteToV2.
 func (x *ID) ReadFromV2(m refs.OwnerID) error {
 	w := m.GetValue()
-	if len(w) != 25 {
-		return fmt.Errorf("invalid length %d, expected 25", len(w))
+	if len(w) != IDSize {
+		return fmt.Errorf("invalid length %d, expected %d", len(w), IDSize)
 	}
 
 	if w[0] != address.NEO3Prefix {
@@ -56,10 +59,10 @@ func (x ID) WriteToV2(m *refs.OwnerID) {
 
 // SetScriptHash forms user ID from wallet address scripthash.
 func (x *ID) SetScriptHash(scriptHash util.Uint160) {
-	if cap(x.w) < 25 {
-		x.w = make([]byte, 25)
-	} else if len(x.w) < 25 {
-		x.w = x.w[:25]
+	if cap(x.w) < IDSize {
+		x.w = make([]byte, IDSize)
+	} else if len(x.w) < IDSize {
+		x.w = x.w[:IDSize]
 	}
 
 	x.w[0] = address.Prefix

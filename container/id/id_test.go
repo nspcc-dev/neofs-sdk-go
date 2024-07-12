@@ -1,7 +1,6 @@
 package cid_test
 
 import (
-	"crypto/sha256"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -82,7 +81,7 @@ func TestID_Encode(t *testing.T) {
 	var id cid.ID
 
 	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, sha256.Size-1)
+		dst := make([]byte, cid.Size-1)
 
 		require.Panics(t, func() {
 			id.Encode(dst)
@@ -90,7 +89,7 @@ func TestID_Encode(t *testing.T) {
 	})
 
 	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, sha256.Size)
+		dst := make([]byte, cid.Size)
 
 		require.NotPanics(t, func() {
 			id.Encode(dst)

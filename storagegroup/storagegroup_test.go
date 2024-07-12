@@ -1,7 +1,6 @@
 package storagegroup_test
 
 import (
-	"crypto/sha256"
 	"strconv"
 	"testing"
 
@@ -12,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	objectSDK "github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 	storagegrouptest "github.com/nspcc-dev/neofs-sdk-go/storagegroup/test"
@@ -172,7 +172,7 @@ func generateOIDList() []refs.ObjectID {
 
 	mmV2 := make([]refs.ObjectID, size)
 	for i := 0; i < size; i++ {
-		oidV2 := make([]byte, sha256.Size)
+		oidV2 := make([]byte, oid.Size)
 		oidV2[i] = byte(i)
 
 		mmV2[i].SetValue(oidV2)

@@ -8,6 +8,9 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
+// Size is the size of an [ID] in bytes.
+const Size = sha256.Size
+
 // ID represents NeoFS container identifier.
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ContainerID
@@ -18,7 +21,7 @@ import (
 // Note that direct typecast is not safe and may result in loss of compatibility:
 //
 //	_ = ID([32]byte) // not recommended
-type ID [sha256.Size]byte
+type ID [Size]byte
 
 // ReadFromV2 reads ID from the refs.ContainerID message.
 // Returns an error if the message is malformed according
@@ -37,15 +40,15 @@ func (id ID) WriteToV2(m *refs.ContainerID) {
 	m.SetValue(id[:])
 }
 
-// Encode encodes ID into 32 bytes of dst. Panics if
-// dst length is less than 32.
+// Encode encodes ID into [Size] bytes of dst. Panics if
+// dst length is less than [Size].
 //
 // Zero ID is all zeros.
 //
 // See also Decode.
 func (id ID) Encode(dst []byte) {
-	if l := len(dst); l < sha256.Size {
-		panic(fmt.Sprintf("destination length is less than %d bytes: %d", sha256.Size, l))
+	if l := len(dst); l < Size {
+		panic(fmt.Sprintf("destination length is less than %d bytes: %d", Size, l))
 	}
 
 	copy(dst, id[:])
@@ -53,7 +56,7 @@ func (id ID) Encode(dst []byte) {
 
 // Decode decodes src bytes into ID.
 //
-// Decode expects that src has 32 bytes length. If the input is malformed,
+// Decode expects that src has [Size] bytes length. If the input is malformed,
 // Decode returns an error describing format violation. In this case ID
 // remains unchanged.
 //
@@ -61,7 +64,7 @@ func (id ID) Encode(dst []byte) {
 //
 // See also Encode.
 func (id *ID) Decode(src []byte) error {
-	if len(src) != sha256.Size {
+	if len(src) != Size {
 		return fmt.Errorf("invalid length %d", len(src))
 	}
 
@@ -85,7 +88,7 @@ func (id ID) Equals(id2 ID) bool {
 
 // EncodeToString encodes ID into NeoFS API protocol string.
 //
-// Zero ID is base58 encoding of 32 zeros.
+// Zero ID is base58 encoding of [Size] zeros.
 //
 // See also DecodeString.
 func (id ID) EncodeToString() string {

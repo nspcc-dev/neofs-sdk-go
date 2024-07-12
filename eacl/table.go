@@ -1,7 +1,6 @@
 package eacl
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -199,7 +198,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 			t.cid = new(cid.ID)
 		}
 
-		var h [sha256.Size]byte
+		var h [cid.Size]byte
 
 		copy(h[:], id.GetValue())
 		t.cid.SetSHA256(h)

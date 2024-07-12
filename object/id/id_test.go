@@ -150,7 +150,7 @@ func TestID_ToV2(t *testing.T) {
 
 		x.WriteToV2(&v2)
 
-		require.Equal(t, sha256.Size, len(v2.GetValue()))
+		require.Equal(t, oid.Size, len(v2.GetValue()))
 		require.Equal(t, emptyID, base58.Encode(v2.GetValue()))
 	})
 }
@@ -159,7 +159,7 @@ func TestID_Encode(t *testing.T) {
 	var id oid.ID
 
 	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, sha256.Size-1)
+		dst := make([]byte, oid.Size-1)
 
 		require.Panics(t, func() {
 			id.Encode(dst)
@@ -167,7 +167,7 @@ func TestID_Encode(t *testing.T) {
 	})
 
 	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, sha256.Size)
+		dst := make([]byte, oid.Size)
 
 		require.NotPanics(t, func() {
 			id.Encode(dst)
