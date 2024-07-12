@@ -18,9 +18,24 @@ const Size = sha256.Size
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ObjectID
 // message. See ReadFromV2 / WriteToV2 methods.
-//
-// Instances can be created using built-in var declaration.
 type ID [Size]byte
+
+// NewFromObjectHeaderBinary returns new ID calculated from the given NeoFS
+// object header encoded into Protocol Buffers V3 with ascending order of fields
+// by number. It's callers responsibility to ensure the format of b.
+func NewFromObjectHeaderBinary(b []byte) ID { return sha256.Sum256(b) }
+
+// DecodeBytes creates new ID and makes [ID.Decode].
+func DecodeBytes(b []byte) (ID, error) {
+	var id ID
+	return id, id.Decode(b)
+}
+
+// DecodeString creates new ID and makes [ID.DecodeString].
+func DecodeString(s string) (ID, error) {
+	var id ID
+	return id, id.DecodeString(s)
+}
 
 // ReadFromV2 reads ID from the refs.ObjectID message. Returns an error if
 // the message is malformed according to the NeoFS API V2 protocol.
@@ -53,7 +68,8 @@ func (id ID) Encode(dst []byte) {
 	copy(dst, id[:])
 }
 
-// Decode decodes src bytes into ID.
+// Decode decodes src bytes into ID. Use [DecodeBytes] to decode src into a new
+// ID.
 //
 // Decode expects that src has [IDSize] bytes length. If the input is malformed,
 // Decode returns an error describing format violation. In this case ID
@@ -95,7 +111,7 @@ func (id ID) EncodeToString() string {
 }
 
 // DecodeString decodes string into ID according to NeoFS API protocol. Returns
-// an error if s is malformed.
+// an error if s is malformed. Use [DecodeString] to decode s into a new ID.
 //
 // See also DecodeString.
 func (id *ID) DecodeString(s string) error {

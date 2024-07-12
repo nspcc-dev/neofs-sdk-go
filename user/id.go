@@ -2,11 +2,13 @@ package user
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
 	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -22,9 +24,30 @@ const IDSize = 25
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.OwnerID
 // message. See ReadFromV2 / WriteToV2 methods.
 //
-// Instances can be created using built-in var declaration. Zero ID is not valid,
-// so it MUST be initialized using some modifying function (e.g. SetScriptHash, etc.).
+// Zero ID is not valid.
 type ID [IDSize]byte
+
+// NewFromScriptHash creates new ID and makes [ID.SetScriptHash].
+func NewFromScriptHash(scriptHash util.Uint160) ID {
+	var x ID
+	x[0] = address.Prefix
+	copy(x[1:], scriptHash.BytesBE())
+	copy(x[21:], hash.Checksum(x[:21]))
+	return x
+}
+
+// NewFromECDSAPublicKey creates new ID corresponding to Neo3 verification
+// script hash of the given ECDSA public key. The point must be on the
+// [elliptic.P256] curve.
+func NewFromECDSAPublicKey(pub ecdsa.PublicKey) ID {
+	return NewFromScriptHash((*keys.PublicKey)(&pub).GetScriptHash())
+}
+
+// DecodeString creates new ID and makes [ID.DecodeString].
+func DecodeString(s string) (ID, error) {
+	var id ID
+	return id, id.DecodeString(s)
+}
 
 func (x *ID) decodeBytes(b []byte) error {
 	switch {
@@ -56,11 +79,8 @@ func (x ID) WriteToV2(m *refs.OwnerID) {
 }
 
 // SetScriptHash forms user ID from wallet address scripthash.
-func (x *ID) SetScriptHash(scriptHash util.Uint160) {
-	x[0] = address.Prefix
-	copy(x[1:], scriptHash.BytesBE())
-	copy(x[21:], hash.Checksum(x[:21]))
-}
+// Deprecated: use [NewFromScriptHash] instead.
+func (x *ID) SetScriptHash(scriptHash util.Uint160) { *x = NewFromScriptHash(scriptHash) }
 
 // WalletBytes returns NeoFS user ID as Neo3 wallet address in a binary format.
 //
@@ -81,7 +101,7 @@ func (x ID) EncodeToString() string {
 }
 
 // DecodeString decodes NeoFS API V2 protocol string. Returns an error
-// if s is malformed.
+// if s is malformed. Use [DecodeString] to decode s into a new ID.
 //
 // DecodeString always changes the ID.
 //

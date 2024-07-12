@@ -58,6 +58,7 @@ func NewAutoIDSignerRFC6979(key ecdsa.PrivateKey) Signer {
 }
 
 // ResolveFromECDSAPublicKey resolves [ID] from the given [ecdsa.PublicKey].
+// Deprecated: use [NewFromECDSAPublicKey].
 func ResolveFromECDSAPublicKey(pk ecdsa.PublicKey) ID {
 	var id ID
 	id.SetScriptHash((*keys.PublicKey)(&pk).GetScriptHash())

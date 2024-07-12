@@ -2,6 +2,9 @@ package user_test
 
 import (
 	"bytes"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"math/big"
 	"math/rand"
 	"testing"
 
@@ -119,10 +122,13 @@ func TestID_DecodeString(t *testing.T) {
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				err := new(user.ID).DecodeString(tc.str)
+				_, err2 := user.DecodeString(tc.str)
 				if tc.contains {
 					require.ErrorContains(t, err, tc.err, tc)
+					require.ErrorContains(t, err2, tc.err, tc)
 				} else {
 					require.EqualError(t, err, tc.err, tc)
+					require.EqualError(t, err2, tc.err, tc)
 				}
 			})
 		}
@@ -148,4 +154,57 @@ func TestIDComparable(t *testing.T) {
 	y = usertest.OtherID(x)
 	require.False(t, x == y)
 	require.True(t, x != y)
+}
+
+func TestNewFromScriptHash(t *testing.T) {
+	scriptHash := util.Uint160{11, 169, 152, 95, 44, 8, 18, 164, 109, 197, 177, 25, 236, 41, 179, 46, 235, 84, 113, 97}
+	id := user.NewFromScriptHash(scriptHash)
+	require.EqualValues(t, 0x35, id[0])
+	require.Equal(t, scriptHash[:], id[1:21])
+	require.Equal(t, []byte{78, 31, 235, 139}, id[21:])
+}
+
+func TestNewFromECDSAPublicKey(t *testing.T) {
+	x := []byte{41, 129, 156, 121, 170, 4, 67, 132, 75, 159, 26, 118, 120, 134, 213, 180, 46, 250, 210, 31, 218, 99, 126, 71, 153, 132, 123, 219, 142, 18, 121, 135}
+	y := []byte{128, 105, 166, 6, 88, 228, 216, 235, 151, 24, 251, 57, 219, 196, 207, 189, 209, 250, 68, 113, 26, 197, 77, 31, 193, 247, 157, 253, 162, 127, 59, 43}
+	expected := [user.IDSize]byte{53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92}
+	pub := ecdsa.PublicKey{
+		Curve: elliptic.P256(),
+		X:     new(big.Int).SetBytes(x),
+		Y:     new(big.Int).SetBytes(y),
+	}
+	id := user.NewFromECDSAPublicKey(pub)
+	require.EqualValues(t, expected, id)
+}
+
+func TestDecodeString(t *testing.T) {
+	const s = "NfPCfAR4inFKGZqrjnpMX6yQ5hZCtVpXUx"
+	b := [user.IDSize]byte{53, 213, 144, 221, 254, 189, 129, 167, 41, 216, 106, 91, 19, 100, 248, 81, 99, 172, 115, 203, 120, 154, 192, 43, 69}
+	id, err := user.DecodeString(s)
+	require.NoError(t, err)
+	require.EqualValues(t, b, id)
+
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			str      string
+			contains bool
+			err      string
+		}{
+			{name: "base58", str: "NfPCfAR4inFKGZqrjnpMX6yQ5hZCtVpXU_", contains: true, err: "decode base58"},
+			{name: "undersize", str: "5qatkFMhsW6ff9SG6ZYFy1qr6nFN2NBvM", err: "invalid length 24, expected 25"},
+			{name: "oversize", str: "2er5Dy738K5sXP1QgDNrP3GwRJRKqgizR4Nc", err: "invalid length 26, expected 25"},
+			{name: "prefix", str: "TtsRYkmYiw6aVsQCw4HR6wKheRqSJLFsLQ", err: "invalid prefix byte 0x42, expected 0x35"},
+			{name: "checksum", str: "NXsxvBYg6bbDFe2WmitnJ9eZPxDCKmwWVJ", err: "checksum mismatch"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := user.DecodeString(tc.str)
+				if tc.contains {
+					require.ErrorContains(t, err, tc.err, tc)
+				} else {
+					require.EqualError(t, err, tc.err, tc)
+				}
+			})
+		}
+	})
 }
