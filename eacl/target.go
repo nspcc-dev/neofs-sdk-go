@@ -143,8 +143,8 @@ func NewTargetFromV2(target *v2acl.Target) *Target {
 }
 
 // Marshal marshals Target into a protobuf binary form.
-func (t *Target) Marshal() ([]byte, error) {
-	return t.ToV2().StableMarshal(nil), nil
+func (t *Target) Marshal() []byte {
+	return t.ToV2().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Target.

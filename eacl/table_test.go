@@ -68,11 +68,8 @@ func TestTableEncoding(t *testing.T) {
 	tab := eacltest.Table()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := tab.Marshal()
-		require.NoError(t, err)
-
 		tab2 := eacl.NewTable()
-		require.NoError(t, tab2.Unmarshal(data))
+		require.NoError(t, tab2.Unmarshal(tab.Marshal()))
 
 		// FIXME: we compare v2 messages because
 		//  Filter contains fmt.Stringer interface

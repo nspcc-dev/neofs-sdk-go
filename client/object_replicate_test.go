@@ -82,8 +82,8 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 		return &resp, nil
 	}
 
-	bObjSent, _ := x.clientObj.Marshal()
-	bObjRecv, _ := obj.Marshal()
+	bObjSent := x.clientObj.Marshal()
+	bObjRecv := obj.Marshal()
 
 	if !bytes.Equal(bObjSent, bObjRecv) {
 		st.Code = 1024 // internal error
@@ -156,7 +156,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 	obj := objecttest.Object()
 	id := oidtest.ID()
 	obj.SetID(id)
-	bObj, _ := obj.Marshal()
+	bObj := obj.Marshal()
 
 	t.Run("OK", func(t *testing.T) {
 		srv, cli := serveObjectReplication(t, signer, obj)

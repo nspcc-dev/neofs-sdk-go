@@ -134,22 +134,16 @@ func (id ID) String() string {
 
 // CalculateIDSignature signs object id with provided key.
 func (id ID) CalculateIDSignature(signer neofscrypto.Signer) (neofscrypto.Signature, error) {
-	data, err := id.Marshal()
-	if err != nil {
-		return neofscrypto.Signature{}, fmt.Errorf("marshal ID: %w", err)
-	}
-
 	var sig neofscrypto.Signature
-
-	return sig, sig.Calculate(signer, data)
+	return sig, sig.Calculate(signer, id.Marshal())
 }
 
 // Marshal marshals ID into a protobuf binary form.
-func (id ID) Marshal() ([]byte, error) {
+func (id ID) Marshal() []byte {
 	var v2 refs.ObjectID
 	v2.SetValue(id[:])
 
-	return v2.StableMarshal(nil), nil
+	return v2.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of ID.

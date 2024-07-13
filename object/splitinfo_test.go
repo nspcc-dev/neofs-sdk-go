@@ -44,12 +44,9 @@ func TestSplitInfoMarshal(t *testing.T) {
 		require.Equal(t, s, newS)
 	}
 	testMarshal := func(t *testing.T, s *object.SplitInfo) {
-		data, err := s.Marshal()
-		require.NoError(t, err)
-
 		newS := object.NewSplitInfo()
 
-		err = newS.Unmarshal(data)
+		err := newS.Unmarshal(s.Marshal())
 		require.NoError(t, err)
 		require.Equal(t, s, newS)
 	}
@@ -84,9 +81,7 @@ func TestSplitInfoMarshal(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
 
-		data, err := s.Marshal()
-		require.NoError(t, err)
-		require.Error(t, object.NewSplitInfo().Unmarshal(data))
+		require.Error(t, object.NewSplitInfo().Unmarshal(s.Marshal()))
 	})
 }
 

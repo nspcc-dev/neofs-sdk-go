@@ -72,8 +72,8 @@ func (a *Attribute) ToV2() *object.Attribute {
 // Marshal marshals [Attribute] into a protobuf binary form.
 //
 // See also [Attribute.Unmarshal].
-func (a *Attribute) Marshal() ([]byte, error) {
-	return (*object.Attribute)(a).StableMarshal(nil), nil
+func (a *Attribute) Marshal() []byte {
+	return (*object.Attribute)(a).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [Attribute].

@@ -104,11 +104,8 @@ func TestRecordEncoding(t *testing.T) {
 	AddFormedTarget(r, RoleSystem, *randomPublicKey(t))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := r.Marshal()
-		require.NoError(t, err)
-
 		r2 := NewRecord()
-		require.NoError(t, r2.Unmarshal(data))
+		require.NoError(t, r2.Unmarshal(r.Marshal()))
 
 		require.Equal(t, r, r2)
 	})
@@ -272,14 +269,8 @@ func TestRecord_CopyTo(t *testing.T) {
 		var dst Record
 		record.CopyTo(&dst)
 
-		bts, err := record.Marshal()
-		require.NoError(t, err)
-
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
-
 		require.Equal(t, record, dst)
-		require.True(t, bytes.Equal(bts, bts2))
+		require.True(t, bytes.Equal(record.Marshal(), dst.Marshal()))
 	})
 
 	t.Run("change filters", func(t *testing.T) {

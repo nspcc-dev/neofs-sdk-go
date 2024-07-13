@@ -278,8 +278,8 @@ func NewRecordFromV2(record *v2acl.Record) *Record {
 }
 
 // Marshal marshals Record into a protobuf binary form.
-func (r *Record) Marshal() ([]byte, error) {
-	return r.ToV2().StableMarshal(nil), nil
+func (r *Record) Marshal() []byte {
+	return r.ToV2().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Record.

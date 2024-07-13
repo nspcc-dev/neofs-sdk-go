@@ -32,14 +32,8 @@ func TestTable_CopyTo(t *testing.T) {
 		var dst Table
 		table.CopyTo(&dst)
 
-		bts, err := table.Marshal()
-		require.NoError(t, err)
-
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
-
 		require.Equal(t, table, dst)
-		require.True(t, bytes.Equal(bts, bts2))
+		require.True(t, bytes.Equal(table.Marshal(), dst.Marshal()))
 	})
 
 	t.Run("change version", func(t *testing.T) {

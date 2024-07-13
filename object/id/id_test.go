@@ -99,11 +99,8 @@ func TestObjectIDEncoding(t *testing.T) {
 	id := oidtest.ID()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := id.Marshal()
-		require.NoError(t, err)
-
 		var id2 oid.ID
-		require.NoError(t, id2.Unmarshal(data))
+		require.NoError(t, id2.Unmarshal(id.Marshal()))
 
 		require.Equal(t, id, id2)
 	})

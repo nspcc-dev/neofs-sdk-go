@@ -613,14 +613,9 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 
 	header.SetID(id)
 
-	bID, err := id.Marshal()
-	if err != nil {
-		return id, fmt.Errorf("marshal object ID: %w", err)
-	}
-
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(signer, bID)
+	err = sig.Calculate(signer, id.Marshal())
 	if err != nil {
 		return id, fmt.Errorf("sign object ID: %w", err)
 	}

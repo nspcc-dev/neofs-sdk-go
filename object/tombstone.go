@@ -122,8 +122,8 @@ func (t *Tombstone) SetMembers(v []oid.ID) {
 // Marshal marshals [Tombstone] into a protobuf binary form.
 //
 // See also [Tombstone.Unmarshal].
-func (t *Tombstone) Marshal() ([]byte, error) {
-	return (*tombstone.Tombstone)(t).StableMarshal(nil), nil
+func (t *Tombstone) Marshal() []byte {
+	return (*tombstone.Tombstone)(t).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [Tombstone].

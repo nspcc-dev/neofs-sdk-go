@@ -115,9 +115,7 @@ func (o *Object) Sign(signer neofscrypto.Signer) error {
 // See also [Object.Sign].
 func (o *Object) SignedData() []byte {
 	oID, _ := o.ID()
-	bts, _ := oID.Marshal()
-
-	return bts
+	return oID.Marshal()
 }
 
 // VerifySignature verifies object ID signature.

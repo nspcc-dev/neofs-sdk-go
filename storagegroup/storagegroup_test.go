@@ -90,11 +90,8 @@ func TestStorageGroupEncoding(t *testing.T) {
 	sg := storagegrouptest.StorageGroup()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := sg.Marshal()
-		require.NoError(t, err)
-
 		var sg2 storagegroup.StorageGroup
-		require.NoError(t, sg2.Unmarshal(data))
+		require.NoError(t, sg2.Unmarshal(sg.Marshal()))
 
 		require.Equal(t, sg, sg2)
 	})
@@ -206,10 +203,7 @@ func TestStorageGroupFromObject(t *testing.T) {
 	expAttr.SetKey(objectV2.SysAttributeExpEpoch)
 	expAttr.SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
 
-	sgRaw, err := sg.Marshal()
-	require.NoError(t, err)
-
-	o.SetPayload(sgRaw)
+	o.SetPayload(sg.Marshal())
 	o.SetType(objectSDK.TypeStorageGroup)
 
 	t.Run("correct object", func(t *testing.T) {
@@ -240,8 +234,7 @@ func TestStorageGroupFromObject(t *testing.T) {
 func TestStorageGroupToObject(t *testing.T) {
 	sg := storagegrouptest.StorageGroup()
 
-	sgRaw, err := sg.Marshal()
-	require.NoError(t, err)
+	sgRaw := sg.Marshal()
 
 	t.Run("empty object", func(t *testing.T) {
 		var o objectSDK.Object

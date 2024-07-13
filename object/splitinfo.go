@@ -141,8 +141,8 @@ func (s *SplitInfo) SetFirstPart(v oid.ID) {
 // Marshal marshals [SplitInfo] into a protobuf binary form.
 //
 // See also [SplitInfo.Unmarshal].
-func (s *SplitInfo) Marshal() ([]byte, error) {
-	return (*object.SplitInfo)(s).StableMarshal(nil), nil
+func (s *SplitInfo) Marshal() []byte {
+	return (*object.SplitInfo)(s).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [SplitInfo].
