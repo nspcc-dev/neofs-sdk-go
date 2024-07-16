@@ -1,3 +1,8 @@
+[![codecov](https://codecov.io/gh/nspcc-dev/neofs-sdk-go/branch/master/graph/badge.svg)](https://codecov.io/gh/nspcc-dev/neo-sdk-go)
+[![Report](https://goreportcard.com/badge/github.com/nspcc-dev/neofs-sdk-go)](https://goreportcard.com/report/github.com/nspcc-dev/neofs-sdk-go)
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/nspcc-dev/neofs-sdk-go?sort=semver)
+![License](https://img.shields.io/github/license/nspcc-dev/neofs-sdk-go.svg?style=popout)
+
 # neofs-sdk-go
 Go implementation of NeoFS SDK. It contains high-level version-independent wrappers
 for structures from [neofs-api-go](https://github.com/nspcc-dev/neofs-api-go) as well as
