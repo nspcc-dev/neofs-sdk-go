@@ -286,7 +286,7 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 
 	err := sg.Unmarshal(o.Payload())
 	if err != nil {
-		return fmt.Errorf("could not unmarshal object: %w", err)
+		return fmt.Errorf("could not unmarshal storage group from object payload: %w", err)
 	}
 
 	var expObj uint64
