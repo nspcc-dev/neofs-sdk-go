@@ -29,8 +29,8 @@ func Current() (v Version) {
 }
 
 // Major returns major number of the revision.
-func (v *Version) Major() uint32 {
-	return (*refs.Version)(v).GetMajor()
+func (v Version) Major() uint32 {
+	return (*refs.Version)(&v).GetMajor()
 }
 
 // SetMajor sets major number of the revision.
@@ -39,8 +39,8 @@ func (v *Version) SetMajor(val uint32) {
 }
 
 // Minor returns minor number of the revision.
-func (v *Version) Minor() uint32 {
-	return (*refs.Version)(v).GetMinor()
+func (v Version) Minor() uint32 {
+	return (*refs.Version)(&v).GetMinor()
 }
 
 // SetMinor sets minor number of the revision.
