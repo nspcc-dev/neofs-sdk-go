@@ -136,8 +136,8 @@ func (sg StorageGroup) ValidationDataSize() uint64 {
 // of objects in the storage group.
 //
 // See also ValidationDataSize.
-func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
-	sg.sz = epoch
+func (sg *StorageGroup) SetValidationDataSize(sz uint64) {
+	sg.sz = sz
 }
 
 // ValidationDataHash returns homomorphic hash from the
