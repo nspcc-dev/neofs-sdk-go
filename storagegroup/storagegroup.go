@@ -161,6 +161,8 @@ func (sg *StorageGroup) SetValidationDataHash(hash checksum.Checksum) {
 // Zero StorageGroup has 0 expiration epoch.
 //
 // See also SetExpirationEpoch.
+// Deprecated: use expiration attribute in header of the object carrying
+// StorageGroup.
 func (sg StorageGroup) ExpirationEpoch() uint64 {
 	v2 := (storagegroup.StorageGroup)(sg)
 	// nolint:staticcheck
@@ -171,6 +173,8 @@ func (sg StorageGroup) ExpirationEpoch() uint64 {
 // of the storage group lifetime.
 //
 // See also ExpirationEpoch.
+// Deprecated: use expiration attribute in header of the object carrying
+// StorageGroup.
 func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
 	// nolint:staticcheck
 	(*storagegroup.StorageGroup)(sg).SetExpirationEpoch(epoch)
