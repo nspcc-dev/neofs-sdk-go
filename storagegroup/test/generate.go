@@ -10,7 +10,8 @@ import (
 
 // StorageGroup returns random storagegroup.StorageGroup.
 func StorageGroup() storagegroup.StorageGroup {
-	x := storagegroup.New(322, checksumtest.Checksum(), oidtest.IDs(2))
+	n := 1 + rand.Intn(10)
+	x := storagegroup.New(rand.Uint64(), checksumtest.Checksum(), oidtest.IDs(n))
 	x.SetExpirationEpoch(rand.Uint64())
 
 	return x
