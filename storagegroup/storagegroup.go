@@ -304,7 +304,7 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 
 	// Supporting deprecated functionality.
 	// See https://github.com/nspcc-dev/neofs-api/pull/205.
-	if expSG := sg.ExpirationEpoch(); expObj != expSG {
+	if expSG := sg.ExpirationEpoch(); expSG > 0 && expObj != expSG {
 		return fmt.Errorf(
 			"expiration does not match: from object: %d, from payload: %d",
 			expObj, expSG)
