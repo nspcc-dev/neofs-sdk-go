@@ -72,7 +72,7 @@ func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresen
 		for i := range members {
 			err = member.ReadFromV2(members[i])
 			if err != nil {
-				return fmt.Errorf("invalid member: %w", err)
+				return fmt.Errorf("invalid member #%d: %w", i, err)
 			}
 
 			_, exits = mMembers[member]
