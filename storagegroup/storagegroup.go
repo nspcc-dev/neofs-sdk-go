@@ -18,12 +18,35 @@ import (
 // StorageGroup is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/storagegroup.StorageGroup
 // message. See ReadFromMessageV2 / WriteToMessageV2 methods.
 //
-// Instances can be created using built-in var declaration.
+// Instances should be created using one of the constructors.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
 //
 //	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
 type StorageGroup storagegroup.StorageGroup
+
+// New constructs new StorageGroup from given members and total size/checksum
+// calculated for them. Member set must not be empty.
+func New(size uint64, cs checksum.Checksum, members []oid.ID) StorageGroup {
+	var res StorageGroup
+	res.SetValidationDataSize(size)
+	res.SetValidationDataHash(cs)
+	res.SetMembers(members)
+	return res
+}
+
+// Unmarshal creates new StorageGroup and makes [StorageGroup.Unmarshal].
+func Unmarshal(b []byte) (StorageGroup, error) {
+	var res StorageGroup
+	return res, res.Unmarshal(b)
+}
+
+// UnmarshalJSON creates new StorageGroup and makes
+// [StorageGroup.UnmarshalJSON].
+func UnmarshalJSON(b []byte) (StorageGroup, error) {
+	var res StorageGroup
+	return res, res.UnmarshalJSON(b)
+}
 
 // reads StorageGroup from the storagegroup.StorageGroup message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
