@@ -82,6 +82,9 @@ func MarshalToBytes[T Bytes](b []byte, num protowire.Number, v T) int {
 	}
 	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
 	off += binary.PutUvarint(b[off:], uint64(len(v)))
+	if len(b[off:]) < len(v) {
+		panic("too short buffer")
+	}
 	return off + copy(b[off:], v)
 }
 
@@ -243,6 +246,9 @@ func MarshalToRepeatedBytes[T Bytes](b []byte, num protowire.Number, v []T) int 
 	for i := range v {
 		off += binary.PutUvarint(b[off:], tag)
 		off += binary.PutUvarint(b[off:], uint64(len(v[i])))
+		if len(b[off:]) < len(v[i]) {
+			panic("too short buffer")
+		}
 		off += copy(b[off:], v[i])
 	}
 	return off

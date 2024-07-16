@@ -163,6 +163,9 @@ func testEncoding[T anySupportedType](
 	msg := fmt.Sprintf("num=%d,val=%v", fieldNum, v)
 
 	sz := sizeFunc(fieldNum, v)
+	if sz > 0 {
+		require.Panics(t, func() { marshalFunc(make([]byte, sz-1), fieldNum, v) }, msg)
+	}
 	b := make([]byte, sz)
 	require.EqualValues(t, sz, marshalFunc(b, fieldNum, v), msg)
 
@@ -193,6 +196,9 @@ func testPackedRepeated[T proto.Bytes](t testing.TB,
 	msg := fmt.Sprintf("num=%d,val=%v", fieldNum, v)
 
 	sz := sizeFunc(fieldNum, v)
+	if sz > 0 {
+		require.Panics(t, func() { marshalFunc(make([]byte, sz-1), fieldNum, v) }, msg)
+	}
 	b := make([]byte, sz)
 	require.EqualValues(t, sz, marshalFunc(b, fieldNum, v), msg)
 
@@ -297,7 +303,11 @@ func TestFloat(t *testing.T) {
 	testEncoding(t, protowire.Fixed32Type, proto.SizeFloat, proto.MarshalToFloat, func(b []byte) (float32, int) {
 		v, ln := protowire.ConsumeFixed32(b)
 		return math.Float32frombits(v), ln
-	}, func() float32 { return math.Float32frombits(rand.Uint32()) })
+	}, func() float32 {
+		v := -math.MaxFloat32 + rand.Float32()*math.MaxFloat32*2
+		require.False(t, math.IsNaN(float64(v)))
+		return v
+	})
 }
 
 func BenchmarkMarshalFloat(b *testing.B) {
@@ -308,7 +318,11 @@ func TestDouble(t *testing.T) {
 	testEncoding(t, protowire.Fixed64Type, proto.SizeDouble, proto.MarshalToDouble, func(b []byte) (float64, int) {
 		v, ln := protowire.ConsumeFixed64(b)
 		return math.Float64frombits(v), ln
-	}, func() float64 { return math.Float64frombits(rand.Uint64()) })
+	}, func() float64 {
+		v := rand.NormFloat64()
+		require.False(t, math.IsNaN(v))
+		return v
+	})
 }
 
 func BenchmarkDouble(b *testing.B) {
