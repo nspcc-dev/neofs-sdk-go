@@ -5,7 +5,7 @@ if [ "$#" -ne 1 ]; then
 	exit 1
 fi
 
-SDK_PROTO_PATH=api
+SDK_PROTO_PATH=proto
 API_PATH=$1
 
 # collect and copy protobuf files where the generated ones will be placed
