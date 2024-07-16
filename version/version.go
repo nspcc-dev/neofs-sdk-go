@@ -11,21 +11,33 @@ import (
 // Version is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Version
 // message. See ReadFromV2 / WriteToV2 methods.
 //
-// Instances can be created using built-in var declaration.
+// Instances should be created using one of the constructors.
 //
 // Note that direct typecast is not safe and may result in loss of compatibility:
 //
 //	_ = Version(refs.Version{}) // not recommended
 type Version refs.Version
 
+// New constructs new Version instance.
+func New(mjr, mnr uint32) Version {
+	var res Version
+	res.SetMajor(mjr)
+	res.SetMinor(mnr)
+	return res
+}
+
+// UnmarshalJSON creates new Version and makes [Version.UnmarshalJSON].
+func UnmarshalJSON(b []byte) (Version, error) {
+	var res Version
+	return res, res.UnmarshalJSON(b)
+}
+
 const sdkMjr, sdkMnr = 2, 16
 
 // Current returns Version instance that initialized to the
 // latest supported NeoFS API revision number in SDK.
 func Current() (v Version) {
-	v.SetMajor(sdkMjr)
-	v.SetMinor(sdkMnr)
-	return v
+	return New(sdkMjr, sdkMnr)
 }
 
 // Major returns major number of the revision.
@@ -98,6 +110,7 @@ func (v Version) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Version
 // (Protocol Buffers JSON). Returns an error describing a format violation.
+// Use [UnmarshalJSON] to decode data into a new Version.
 //
 // See also MarshalJSON.
 func (v *Version) UnmarshalJSON(data []byte) error {
