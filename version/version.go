@@ -14,11 +14,7 @@ import (
 // message. See ReadFromV2 / WriteToV2 methods.
 //
 // Instances should be created using one of the constructors.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = Version(refs.Version{}) // not recommended
-type Version refs.Version
+type Version struct{ mjr, mnr uint32 }
 
 // New constructs new Version instance.
 func New(mjr, mnr uint32) Version {
@@ -44,22 +40,22 @@ func Current() (v Version) {
 
 // Major returns major number of the revision.
 func (v Version) Major() uint32 {
-	return (*refs.Version)(&v).GetMajor()
+	return v.mjr
 }
 
 // SetMajor sets major number of the revision.
 func (v *Version) SetMajor(val uint32) {
-	(*refs.Version)(v).SetMajor(val)
+	v.mjr = val
 }
 
 // Minor returns minor number of the revision.
 func (v Version) Minor() uint32 {
-	return (*refs.Version)(&v).GetMinor()
+	return v.mnr
 }
 
 // SetMinor sets minor number of the revision.
 func (v *Version) SetMinor(val uint32) {
-	(*refs.Version)(v).SetMinor(val)
+	v.mnr = val
 }
 
 // WriteToV2 writes Version to the refs.Version message.
@@ -67,7 +63,8 @@ func (v *Version) SetMinor(val uint32) {
 //
 // See also ReadFromV2.
 func (v Version) WriteToV2(m *refs.Version) {
-	*m = (refs.Version)(v)
+	m.SetMajor(v.mjr)
+	m.SetMinor(v.mnr)
 }
 
 // ReadFromV2 reads Version from the refs.Version message. Checks if the message
@@ -75,7 +72,8 @@ func (v Version) WriteToV2(m *refs.Version) {
 //
 // See also WriteToV2.
 func (v *Version) ReadFromV2(m refs.Version) error {
-	*v = Version(m)
+	v.mjr = m.GetMajor()
+	v.mnr = m.GetMinor()
 	return nil
 }
 
