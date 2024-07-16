@@ -8,6 +8,8 @@ import (
 
 // Version represents revision number in SemVer scheme.
 //
+// ID implements built-in comparable interface.
+//
 // Version is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Version
 // message. See ReadFromV2 / WriteToV2 methods.
 //
@@ -92,6 +94,7 @@ func EncodeToString(v Version) string {
 }
 
 // Equal returns true if versions are identical.
+// Deprecated: Version is comparable.
 func (v Version) Equal(v2 Version) bool {
 	return v.Major() == v2.Major() &&
 		v.Minor() == v2.Minor()

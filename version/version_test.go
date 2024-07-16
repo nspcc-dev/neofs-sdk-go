@@ -76,11 +76,15 @@ func TestVersion_SetMinor(t *testing.T) {
 	testVersionField(t, version.Version.Minor, (*version.Version).SetMinor, (*refs.Version).GetMinor)
 }
 
-func TestVersion_Equal(t *testing.T) {
+func TestVersionComparable(t *testing.T) {
 	x := versiontest.Version()
 	y := x
+	require.True(t, x == y)
+	require.False(t, x != y)
 	require.True(t, x.Equal(y))
 	y = versiontest.Version()
+	require.False(t, x == y)
+	require.True(t, x != y)
 	require.False(t, x.Equal(y))
 }
 
