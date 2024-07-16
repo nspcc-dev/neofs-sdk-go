@@ -8,44 +8,54 @@ import (
 
 // Version represents revision number in SemVer scheme.
 //
+// ID implements built-in comparable interface.
+//
 // Version is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Version
 // message. See ReadFromV2 / WriteToV2 methods.
 //
-// Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = Version(refs.Version{}) // not recommended
-type Version refs.Version
+// Instances should be created using one of the constructors.
+type Version struct{ mjr, mnr uint32 }
+
+// New constructs new Version instance.
+func New(mjr, mnr uint32) Version {
+	var res Version
+	res.SetMajor(mjr)
+	res.SetMinor(mnr)
+	return res
+}
+
+// UnmarshalJSON creates new Version and makes [Version.UnmarshalJSON].
+func UnmarshalJSON(b []byte) (Version, error) {
+	var res Version
+	return res, res.UnmarshalJSON(b)
+}
 
 const sdkMjr, sdkMnr = 2, 16
 
 // Current returns Version instance that initialized to the
 // latest supported NeoFS API revision number in SDK.
 func Current() (v Version) {
-	v.SetMajor(sdkMjr)
-	v.SetMinor(sdkMnr)
-	return v
+	return New(sdkMjr, sdkMnr)
 }
 
 // Major returns major number of the revision.
-func (v *Version) Major() uint32 {
-	return (*refs.Version)(v).GetMajor()
+func (v Version) Major() uint32 {
+	return v.mjr
 }
 
 // SetMajor sets major number of the revision.
 func (v *Version) SetMajor(val uint32) {
-	(*refs.Version)(v).SetMajor(val)
+	v.mjr = val
 }
 
 // Minor returns minor number of the revision.
-func (v *Version) Minor() uint32 {
-	return (*refs.Version)(v).GetMinor()
+func (v Version) Minor() uint32 {
+	return v.mnr
 }
 
 // SetMinor sets minor number of the revision.
 func (v *Version) SetMinor(val uint32) {
-	(*refs.Version)(v).SetMinor(val)
+	v.mnr = val
 }
 
 // WriteToV2 writes Version to the refs.Version message.
@@ -53,7 +63,8 @@ func (v *Version) SetMinor(val uint32) {
 //
 // See also ReadFromV2.
 func (v Version) WriteToV2(m *refs.Version) {
-	*m = (refs.Version)(v)
+	m.SetMajor(v.mjr)
+	m.SetMinor(v.mnr)
 }
 
 // ReadFromV2 reads Version from the refs.Version message. Checks if the message
@@ -61,7 +72,8 @@ func (v Version) WriteToV2(m *refs.Version) {
 //
 // See also WriteToV2.
 func (v *Version) ReadFromV2(m refs.Version) error {
-	*v = Version(m)
+	v.mjr = m.GetMajor()
+	v.mnr = m.GetMinor()
 	return nil
 }
 
@@ -80,6 +92,7 @@ func EncodeToString(v Version) string {
 }
 
 // Equal returns true if versions are identical.
+// Deprecated: Version is comparable.
 func (v Version) Equal(v2 Version) bool {
 	return v.Major() == v2.Major() &&
 		v.Minor() == v2.Minor()
@@ -98,6 +111,7 @@ func (v Version) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Version
 // (Protocol Buffers JSON). Returns an error describing a format violation.
+// Use [UnmarshalJSON] to decode data into a new Version.
 //
 // See also MarshalJSON.
 func (v *Version) UnmarshalJSON(data []byte) error {
