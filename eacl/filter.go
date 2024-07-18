@@ -115,8 +115,8 @@ func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 }
 
 // Marshal marshals Filter into a protobuf binary form.
-func (f *Filter) Marshal() ([]byte, error) {
-	return f.ToV2().StableMarshal(nil), nil
+func (f *Filter) Marshal() []byte {
+	return f.ToV2().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Filter.

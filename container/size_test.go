@@ -1,7 +1,6 @@
 package container_test
 
 import (
-	"crypto/sha256"
 	"testing"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
@@ -36,7 +35,7 @@ func TestSizeEstimation_Container(t *testing.T) {
 	cnr := cidtest.ID()
 
 	val.SetContainer(cnr)
-	require.True(t, val.Container().Equals(cnr))
+	require.True(t, val.Container() == cnr)
 
 	var msg v2container.UsedSpaceAnnouncement
 	val.WriteToV2(&msg)
@@ -78,7 +77,7 @@ func TestSizeEstimation_ReadFromV2(t *testing.T) {
 
 	require.Error(t, val.ReadFromV2(msg))
 
-	cnrMsg.SetValue(make([]byte, sha256.Size))
+	cnrMsg.SetValue(make([]byte, cid.Size))
 
 	var cnr cid.ID
 	require.NoError(t, cnr.ReadFromV2(cnrMsg))

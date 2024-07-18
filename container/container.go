@@ -538,8 +538,9 @@ func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
 // CalculateID encodes the given Container and passes the result into FromBinary.
 //
 // See also Container.Marshal, AssertID.
+// Deprecated: use cid.NewFromMarshalledContainer(x.Marshal()) instead.
 func (x Container) CalculateID(dst *cid.ID) {
-	dst.FromBinary(x.Marshal())
+	*dst = cid.NewFromMarshalledContainer(x.Marshal())
 }
 
 // AssertID checks if the given Container matches its identifier in CAS of the
@@ -550,7 +551,7 @@ func (x Container) AssertID(id cid.ID) bool {
 	var id2 cid.ID
 	x.CalculateID(&id2)
 
-	return id2.Equals(id)
+	return id2 == id
 }
 
 // Version returns the NeoFS API version this container was created with.

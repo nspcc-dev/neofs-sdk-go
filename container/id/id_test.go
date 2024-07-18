@@ -1,88 +1,115 @@
 package cid_test
 
 import (
+	"bytes"
 	"crypto/sha256"
+	"math/rand"
 	"testing"
 
-	"github.com/mr-tron/base58"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/stretchr/testify/require"
 )
 
-const emptyID = "11111111111111111111111111111111"
+var validBytes = [cid.Size]byte{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 60, 89, 33, 95, 46, 103,
+	217, 57, 164, 87, 82, 204, 251, 226, 1, 100, 32, 72, 251, 0, 7, 172}
 
-func TestID_ToV2(t *testing.T) {
-	t.Run("non-zero", func(t *testing.T) {
-		id := cidtest.ID()
+// corresponds to validBytes.
+const validString = "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF"
 
-		var idV2 refs.ContainerID
-		id.WriteToV2(&idV2)
+var invalidValueTestcases = []struct {
+	name string
+	err  string
+	val  []byte
+}{
+	{name: "nil value", err: "invalid length 0", val: nil},
+	{name: "empty value", err: "invalid length 0", val: []byte{}},
+	{name: "undersized value", err: "invalid length 31", val: make([]byte, 31)},
+	{name: "oversized value", err: "invalid length 33", val: make([]byte, 33)},
+}
 
-		var newID cid.ID
-		require.NoError(t, newID.ReadFromV2(idV2))
+func TestID_ReadFromV2(t *testing.T) {
+	var m refs.ContainerID
+	m.SetValue(validBytes[:])
+	var id cid.ID
+	require.NoError(t, id.ReadFromV2(m))
+	require.EqualValues(t, validBytes, id)
 
-		require.Equal(t, id, newID)
-		require.Equal(t, id[:], idV2.GetValue())
-	})
-
-	t.Run("zero", func(t *testing.T) {
-		var (
-			x  cid.ID
-			v2 refs.ContainerID
-		)
-
-		x.WriteToV2(&v2)
-		require.Equal(t, emptyID, base58.Encode(v2.GetValue()))
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range invalidValueTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				var m refs.ContainerID
+				m.SetValue(tc.val)
+				require.EqualError(t, new(cid.ID).ReadFromV2(m), tc.err)
+			})
+		}
 	})
 }
 
-func TestID_Equal(t *testing.T) {
-	id1 := cidtest.ID()
-	require.True(t, id1.Equals(id1))
-	id2 := id1
-	require.True(t, id1.Equals(id2))
-	require.True(t, id2.Equals(id1))
-	id3 := cidtest.OtherID(id1)
-	require.False(t, id1.Equals(id3))
-	require.False(t, id3.Equals(id1))
-	require.False(t, id2.Equals(id3))
-	require.False(t, id3.Equals(id2))
-}
+func TestID_Decode(t *testing.T) {
+	var id cid.ID
+	require.NoError(t, id.Decode(validBytes[:]))
+	require.EqualValues(t, validBytes, id)
 
-func TestID_String(t *testing.T) {
-	t.Run("DecodeString/EncodeToString", func(t *testing.T) {
-		id := cidtest.ID()
-		var id2 cid.ID
-
-		require.NoError(t, id2.DecodeString(id.EncodeToString()))
-		require.Equal(t, id, id2)
-	})
-
-	t.Run("zero", func(t *testing.T) {
-		var id cid.ID
-
-		require.Equal(t, emptyID, id.EncodeToString())
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range invalidValueTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				_, err := cid.DecodeBytes(tc.val)
+				require.EqualError(t, err, tc.err)
+				require.EqualError(t, new(cid.ID).Decode(tc.val), tc.err)
+			})
+		}
 	})
 }
 
-func TestNewFromV2(t *testing.T) {
-	t.Run("from zero", func(t *testing.T) {
-		var (
-			x  cid.ID
-			v2 refs.ContainerID
-		)
+func TestID_EncodeToString(t *testing.T) {
+	require.Equal(t, validString, cid.ID(validBytes).EncodeToString())
+}
 
-		require.Error(t, x.ReadFromV2(v2))
+func TestID_DecodeString(t *testing.T) {
+	var id cid.ID
+	require.NoError(t, id.DecodeString(validString))
+	require.EqualValues(t, validBytes, id)
+
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			str      string
+			contains bool
+			err      string
+		}{
+			{name: "base58", str: "Dsa5sCDorTWsL7dYa1pnVPEuHg9bDN39XxdxXxghrwS_", contains: true, err: "decode base58"},
+			{name: "undersize", str: "3RArVxBNPE4rZ9f5oHwxTFi7LTSY1fQ3BzNJZat2ZoV", err: "invalid length 31"},
+			{name: "oversize", str: "CJ1rzsceKvtmKtZcuEJssiLVqDgBc6rPp5dwxhNxChbap", err: "invalid length 33"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				err := new(cid.ID).DecodeString(tc.str)
+				_, err2 := cid.DecodeString(tc.str)
+				if tc.contains {
+					require.ErrorContains(t, err, tc.err)
+					require.ErrorContains(t, err2, tc.err)
+				} else {
+					require.EqualError(t, err, tc.err)
+					require.EqualError(t, err2, tc.err)
+				}
+			})
+		}
 	})
+}
+
+func TestID_WriteToV2(t *testing.T) {
+	id := cidtest.ID()
+	var m refs.ContainerID
+	id.WriteToV2(&m)
+	require.Equal(t, id[:], m.GetValue())
 }
 
 func TestID_Encode(t *testing.T) {
 	var id cid.ID
 
 	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, sha256.Size-1)
+		dst := make([]byte, cid.Size-1)
 
 		require.Panics(t, func() {
 			id.Encode(dst)
@@ -90,11 +117,52 @@ func TestID_Encode(t *testing.T) {
 	})
 
 	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, sha256.Size)
+		dst := make([]byte, cid.Size)
 
 		require.NotPanics(t, func() {
 			id.Encode(dst)
 		})
-		require.Equal(t, emptyID, id.EncodeToString())
+		require.Equal(t, "11111111111111111111111111111111", id.EncodeToString())
 	})
+}
+
+func TestIDComparable(t *testing.T) {
+	x := cidtest.ID()
+	y := x
+	require.True(t, x == y)
+	require.False(t, x != y)
+	y = cidtest.OtherID(x)
+	require.False(t, x == y)
+	require.True(t, x != y)
+	require.True(t, x.Equals(x))
+	require.False(t, x.Equals(y))
+}
+
+func TestNewFromContainerBinary(t *testing.T) {
+	// use any binary just for the test
+	cnr := make([]byte, 512)
+	//nolint:staticcheck
+	rand.Read(cnr)
+	id := cid.NewFromMarshalledContainer(cnr)
+	require.EqualValues(t, sha256.Sum256(cnr), id)
+	require.Equal(t, id, cid.NewFromMarshalledContainer(cnr))
+	for i := range cnr {
+		cnrCp := bytes.Clone(cnr)
+		cnrCp[i]++
+		require.NotEqual(t, id, cid.NewFromMarshalledContainer(cnrCp))
+	}
+
+	var id2 cid.ID
+	id2.FromBinary(cnr)
+	require.Equal(t, id, id2)
+	var id3 cid.ID
+	id3.SetSHA256(sha256.Sum256(cnr))
+	require.Equal(t, id, id3)
+}
+
+func TestID_String(t *testing.T) {
+	id := cidtest.ID()
+	require.NotEmpty(t, id.String())
+	require.Equal(t, id.String(), id.String())
+	require.NotEqual(t, id.String(), cidtest.OtherID(id).String())
 }

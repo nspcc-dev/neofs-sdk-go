@@ -12,14 +12,23 @@ import (
 // Address represents global object identifier in NeoFS network. Each object
 // belongs to exactly one container and is uniquely addressed within the container.
 //
+// ID implements built-in comparable interface.
+//
 // Address is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Address
 // message. See ReadFromV2 / WriteToV2 methods.
-//
-// Instances can be created using built-in var declaration.
 type Address struct {
 	cnr cid.ID
 
 	obj ID
+}
+
+// NewAddress constructs new Address.
+func NewAddress(cnr cid.ID, obj ID) Address { return Address{cnr, obj} }
+
+// DecodeAddressString creates new Address and makes [Address.DecodeString].
+func DecodeAddressString(s string) (Address, error) {
+	var id Address
+	return id, id.DecodeString(s)
 }
 
 // ReadFromV2 reads Address from the refs.Address message. Returns an error if
@@ -138,8 +147,9 @@ func (x Address) EncodeToString() string {
 	return x.cnr.EncodeToString() + "/" + x.obj.EncodeToString()
 }
 
-// DecodeString decodes string into Address according to NeoFS API protocol. Returns
-// an error if s is malformed.
+// DecodeString decodes string into Address according to NeoFS API protocol.
+// Returns an error if s is malformed. Use [DecodeAddressString] to decode s
+// into a new ID.
 //
 // See also DecodeString.
 func (x *Address) DecodeString(s string) error {

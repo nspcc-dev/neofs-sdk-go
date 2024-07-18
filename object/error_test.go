@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,8 +27,8 @@ func TestNewSplitInfoError(t *testing.T) {
 func generateSplitInfo() *object.SplitInfo {
 	si := object.NewSplitInfo()
 	si.SetSplitID(object.NewSplitID())
-	si.SetLastPart(generateID())
-	si.SetLink(generateID())
+	si.SetLastPart(oidtest.ID())
+	si.SetLink(oidtest.ID())
 
 	return si
 }

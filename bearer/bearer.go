@@ -241,7 +241,7 @@ func (b Token) AssertContainer(cnr cid.ID) bool {
 	}
 
 	cnrTable, set := b.eaclTable.CID()
-	return !set || cnrTable.Equals(cnr)
+	return !set || cnrTable == cnr
 }
 
 // ForUser specifies ID of the user who can use the Token for the operations
@@ -261,7 +261,7 @@ func (b *Token) ForUser(id user.ID) {
 //
 // See also ForUser.
 func (b Token) AssertUser(id user.ID) bool {
-	return !b.targetUserSet || b.targetUser.Equals(id)
+	return !b.targetUserSet || b.targetUser == id
 }
 
 // Sign calculates and writes signature of the [Token] data along with issuer ID

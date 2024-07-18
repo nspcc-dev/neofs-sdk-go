@@ -239,7 +239,7 @@ func (x *Object) BindContainer(cnr cid.ID) {
 //
 // See also BindContainer.
 func (x Object) AssertContainer(cnr cid.ID) bool {
-	return x.cnr.Equals(cnr)
+	return x.cnr == cnr
 }
 
 // LimitByObjects limits session scope to the given objects from the container
@@ -263,7 +263,7 @@ func (x Object) AssertObject(obj oid.ID) bool {
 	}
 
 	for i := range x.objs {
-		if x.objs[i].Equals(obj) {
+		if x.objs[i] == obj {
 			return true
 		}
 	}

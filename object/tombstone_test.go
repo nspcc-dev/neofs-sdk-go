@@ -1,30 +1,12 @@
 package object
 
 import (
-	"crypto/sha256"
-	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/tombstone"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
-
-func generateIDList(sz int) []oid.ID {
-	res := make([]oid.ID, sz)
-	cs := [sha256.Size]byte{}
-
-	for i := 0; i < sz; i++ {
-		var oID oid.ID
-
-		res[i] = oID
-		//nolint:staticcheck
-		rand.Read(cs[:])
-		res[i].SetSHA256(cs)
-	}
-
-	return res
-}
 
 func TestTombstone(t *testing.T) {
 	ts := NewTombstone()
@@ -37,7 +19,7 @@ func TestTombstone(t *testing.T) {
 	ts.SetSplitID(splitID)
 	require.Equal(t, splitID, ts.SplitID())
 
-	members := generateIDList(3)
+	members := oidtest.IDs(3)
 	ts.SetMembers(members)
 	require.Equal(t, members, ts.Members())
 }
@@ -46,14 +28,11 @@ func TestTombstoneEncoding(t *testing.T) {
 	ts := NewTombstone()
 	ts.SetExpirationEpoch(13)
 	ts.SetSplitID(NewSplitID())
-	ts.SetMembers(generateIDList(5))
+	ts.SetMembers(oidtest.IDs(5))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := ts.Marshal()
-		require.NoError(t, err)
-
 		ts2 := NewTombstone()
-		require.NoError(t, ts2.Unmarshal(data))
+		require.NoError(t, ts2.Unmarshal(ts.Marshal()))
 
 		require.Equal(t, ts, ts2)
 	})

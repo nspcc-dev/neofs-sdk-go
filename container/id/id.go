@@ -8,17 +8,34 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
+// Size is the size of an [ID] in bytes.
+const Size = sha256.Size
+
 // ID represents NeoFS container identifier.
+//
+// ID implements built-in comparable interface.
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ContainerID
 // message. See ReadFromV2 / WriteToV2 methods.
-//
-// Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = ID([32]byte) // not recommended
-type ID [sha256.Size]byte
+type ID [Size]byte
+
+// NewFromMarshalledContainer returns new ID calculated from the given NeoFS
+// container encoded into Protocol Buffers V3 with ascending order of fields by
+// number. It's callers responsibility to ensure the format of b. See
+// [container.Container.Marshal].
+func NewFromMarshalledContainer(b []byte) ID { return sha256.Sum256(b) }
+
+// DecodeBytes creates new ID and makes [ID.Decode].
+func DecodeBytes(b []byte) (ID, error) {
+	var id ID
+	return id, id.Decode(b)
+}
+
+// DecodeString creates new ID and makes [ID.DecodeString].
+func DecodeString(s string) (ID, error) {
+	var id ID
+	return id, id.DecodeString(s)
+}
 
 // ReadFromV2 reads ID from the refs.ContainerID message.
 // Returns an error if the message is malformed according
@@ -37,31 +54,31 @@ func (id ID) WriteToV2(m *refs.ContainerID) {
 	m.SetValue(id[:])
 }
 
-// Encode encodes ID into 32 bytes of dst. Panics if
-// dst length is less than 32.
+// Encode encodes ID into [Size] bytes of dst. Panics if
+// dst length is less than [Size].
 //
 // Zero ID is all zeros.
 //
 // See also Decode.
+// Deprecated: use id[:] instead.
 func (id ID) Encode(dst []byte) {
-	if l := len(dst); l < sha256.Size {
-		panic(fmt.Sprintf("destination length is less than %d bytes: %d", sha256.Size, l))
+	if l := len(dst); l < Size {
+		panic(fmt.Sprintf("destination length is less than %d bytes: %d", Size, l))
 	}
 
 	copy(dst, id[:])
 }
 
-// Decode decodes src bytes into ID.
+// Decode decodes src bytes into ID. Use [DecodeBytes] to decode src into a new
+// ID.
 //
-// Decode expects that src has 32 bytes length. If the input is malformed,
+// Decode expects that src has [Size] bytes length. If the input is malformed,
 // Decode returns an error describing format violation. In this case ID
 // remains unchanged.
 //
 // Decode doesn't mutate src.
-//
-// See also Encode.
 func (id *ID) Decode(src []byte) error {
-	if len(src) != sha256.Size {
+	if len(src) != Size {
 		return fmt.Errorf("invalid length %d", len(src))
 	}
 
@@ -71,6 +88,7 @@ func (id *ID) Decode(src []byte) error {
 }
 
 // SetSHA256 sets container identifier value to SHA256 checksum of container structure.
+// Deprecated: use direct assignment instead.
 func (id *ID) SetSHA256(v [sha256.Size]byte) {
 	*id = v
 }
@@ -79,13 +97,14 @@ func (id *ID) SetSHA256(v [sha256.Size]byte) {
 //
 // Note that comparison using '==' operator is not recommended since it MAY result
 // in loss of compatibility.
+// Deprecated: ID is comparable.
 func (id ID) Equals(id2 ID) bool {
 	return id == id2
 }
 
 // EncodeToString encodes ID into NeoFS API protocol string.
 //
-// Zero ID is base58 encoding of 32 zeros.
+// Zero ID is base58 encoding of [Size] zeros.
 //
 // See also DecodeString.
 func (id ID) EncodeToString() string {
@@ -93,7 +112,7 @@ func (id ID) EncodeToString() string {
 }
 
 // DecodeString decodes string into ID according to NeoFS API protocol. Returns
-// an error if s is malformed.
+// an error if s is malformed. Use [DecodeString] to decode s into a new ID.
 //
 // See also DecodeString.
 func (id *ID) DecodeString(s string) error {
@@ -118,6 +137,5 @@ func (id ID) String() string {
 // in CAS of the NeoFS containers and writes it into id.
 //
 // See also [container.Container.CalculateID], [container.Container.AssertID].
-func (id *ID) FromBinary(cnr []byte) {
-	id.SetSHA256(sha256.Sum256(cnr))
-}
+// Deprecated: use [NewFromContainerBinary].
+func (id *ID) FromBinary(cnr []byte) { *id = NewFromMarshalledContainer(cnr) }

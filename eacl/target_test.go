@@ -43,11 +43,8 @@ func TestTargetEncoding(t *testing.T) {
 	SetTargetECDSAKeys(tar, randomPublicKey(t))
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := tar.Marshal()
-		require.NoError(t, err)
-
 		tar2 := NewTarget()
-		require.NoError(t, tar2.Unmarshal(data))
+		require.NoError(t, tar2.Unmarshal(tar.Marshal()))
 
 		require.Equal(t, tar, tar2)
 	})
@@ -96,14 +93,8 @@ func TestTarget_CopyTo(t *testing.T) {
 		var dst Target
 		target.CopyTo(&dst)
 
-		bts, err := target.Marshal()
-		require.NoError(t, err)
-
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
-
 		require.Equal(t, target, dst)
-		require.True(t, bytes.Equal(bts, bts2))
+		require.True(t, bytes.Equal(target.Marshal(), dst.Marshal()))
 	})
 
 	t.Run("change", func(t *testing.T) {

@@ -96,12 +96,12 @@ func Test_commonData_copyTo(t *testing.T) {
 		data.copyTo(&dst)
 
 		require.Equal(t, data.issuerSet, dst.issuerSet)
-		require.True(t, data.issuer.Equals(dst.issuer))
+		require.True(t, data.issuer == dst.issuer)
 
 		dst.SetIssuer(usertest.OtherID(usr.ID))
 
 		require.Equal(t, data.issuerSet, dst.issuerSet)
-		require.False(t, data.issuer.Equals(dst.issuer))
+		require.False(t, data.issuer == dst.issuer)
 	})
 
 	t.Run("overwrite issuer", func(t *testing.T) {
@@ -122,13 +122,13 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
 		require.Equal(t, local.issuerSet, dst.issuerSet)
-		require.True(t, local.issuer.Equals(dst.issuer))
+		require.True(t, local.issuer == dst.issuer)
 
 		dst.SetIssuer(usertest.OtherID(usr.ID))
 		require.False(t, local.issuerSet)
 		require.True(t, dst.issuerSet)
 
-		require.False(t, local.issuer.Equals(dst.issuer))
+		require.False(t, local.issuer == dst.issuer)
 	})
 
 	t.Run("change lifetime", func(t *testing.T) {

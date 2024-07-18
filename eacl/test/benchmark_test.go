@@ -13,15 +13,13 @@ import (
 
 func baseBenchmarkTableBinaryComparison(b *testing.B, factor int) {
 	t := TableN(factor)
-	exp, err := t.Marshal()
-	require.NoError(b, err)
+	exp := t.Marshal()
 
 	b.StopTimer()
 	b.ResetTimer()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		got, _ := t.Marshal()
-		if !bytes.Equal(exp, got) {
+		if !bytes.Equal(exp, t.Marshal()) {
 			b.Fail()
 		}
 	}
@@ -29,10 +27,8 @@ func baseBenchmarkTableBinaryComparison(b *testing.B, factor int) {
 
 func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	t := TableN(factor)
-	data, err := t.Marshal()
-	require.NoError(b, err)
 	t2 := eacl.NewTable()
-	err = t2.Unmarshal(data)
+	err := t2.Unmarshal(t.Marshal())
 	require.NoError(b, err)
 
 	b.StopTimer()

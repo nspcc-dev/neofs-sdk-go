@@ -1,22 +1,21 @@
 package object_test
 
 import (
-	"crypto/rand"
 	"encoding/json"
 	"testing"
 
 	objv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSplitInfo(t *testing.T) {
 	s := object.NewSplitInfo()
 	splitID := object.NewSplitID()
-	lastPart := generateID()
-	link := generateID()
-	firstPart := generateID()
+	lastPart := oidtest.ID()
+	link := oidtest.ID()
+	firstPart := oidtest.ID()
 
 	s.SetSplitID(splitID)
 	require.Equal(t, splitID, s.SplitID())
@@ -45,12 +44,9 @@ func TestSplitInfoMarshal(t *testing.T) {
 		require.Equal(t, s, newS)
 	}
 	testMarshal := func(t *testing.T, s *object.SplitInfo) {
-		data, err := s.Marshal()
-		require.NoError(t, err)
-
 		newS := object.NewSplitInfo()
 
-		err = newS.Unmarshal(data)
+		err := newS.Unmarshal(s.Marshal())
 		require.NoError(t, err)
 		require.Equal(t, s, newS)
 	}
@@ -58,9 +54,9 @@ func TestSplitInfoMarshal(t *testing.T) {
 	t.Run("good, all fields are set", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
-		s.SetLink(generateID())
-		s.SetLastPart(generateID())
-		s.SetFirstPart(generateID())
+		s.SetLink(oidtest.ID())
+		s.SetLastPart(oidtest.ID())
+		s.SetFirstPart(oidtest.ID())
 
 		testToV2(t, s)
 		testMarshal(t, s)
@@ -68,7 +64,7 @@ func TestSplitInfoMarshal(t *testing.T) {
 	t.Run("good, only link is set", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
-		s.SetLink(generateID())
+		s.SetLink(oidtest.ID())
 
 		testToV2(t, s)
 		testMarshal(t, s)
@@ -76,7 +72,7 @@ func TestSplitInfoMarshal(t *testing.T) {
 	t.Run("good, only last part is set", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
-		s.SetLastPart(generateID())
+		s.SetLastPart(oidtest.ID())
 
 		testToV2(t, s)
 		testMarshal(t, s)
@@ -85,20 +81,8 @@ func TestSplitInfoMarshal(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
 
-		data, err := s.Marshal()
-		require.NoError(t, err)
-		require.Error(t, object.NewSplitInfo().Unmarshal(data))
+		require.Error(t, object.NewSplitInfo().Unmarshal(s.Marshal()))
 	})
-}
-
-func generateID() oid.ID {
-	var buf [32]byte
-	_, _ = rand.Read(buf[:])
-
-	var id oid.ID
-	id.SetSHA256(buf)
-
-	return id
 }
 
 func TestNewSplitInfoFromV2(t *testing.T) {
@@ -144,9 +128,9 @@ func TestSplitInfoMarshalJSON(t *testing.T) {
 	t.Run("good", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
-		s.SetLastPart(generateID())
-		s.SetLink(generateID())
-		s.SetFirstPart(generateID())
+		s.SetLastPart(oidtest.ID())
+		s.SetLink(oidtest.ID())
+		s.SetFirstPart(oidtest.ID())
 
 		data, err := s.MarshalJSON()
 		require.NoError(t, err)

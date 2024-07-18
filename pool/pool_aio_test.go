@@ -347,7 +347,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NotNil(t, hdr.OwnerID())
-		require.True(t, hdr.OwnerID().Equals(account))
+		require.True(t, *hdr.OwnerID() == account)
 
 		downloadedPayload := make([]byte, len(payload))
 
@@ -504,7 +504,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NotNil(t, hdr.OwnerID())
-		require.True(t, hdr.OwnerID().Equals(account))
+		require.True(t, *hdr.OwnerID() == account)
 
 		downloadedPayload := make([]byte, len(payload))
 
@@ -660,7 +660,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NotNil(t, hdr.OwnerID())
-		require.True(t, hdr.OwnerID().Equals(account))
+		require.True(t, *hdr.OwnerID() == account)
 
 		downloadedPayload := make([]byte, len(payload))
 
@@ -815,10 +815,7 @@ func isBucketDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
 }
 
 func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTable eacl.Table) error {
-	oldBinary, err := oldTable.Marshal()
-	if err != nil {
-		return fmt.Errorf("oldTable.Marshal %w", err)
-	}
+	oldBinary := oldTable.Marshal()
 
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
@@ -837,12 +834,7 @@ func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTab
 				return fmt.Errorf("ContainerEACL %w", err)
 			}
 
-			newBinary, err := table.Marshal()
-			if err != nil {
-				return fmt.Errorf("table.Marshal %w", err)
-			}
-
-			if bytes.Equal(oldBinary, newBinary) {
+			if bytes.Equal(oldBinary, table.Marshal()) {
 				return nil
 			}
 		case <-ctx.Done():

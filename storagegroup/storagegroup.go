@@ -208,8 +208,8 @@ func (sg *StorageGroup) SetMembers(members []oid.ID) {
 // Marshal marshals StorageGroup into a protobuf binary form.
 //
 // See also Unmarshal.
-func (sg StorageGroup) Marshal() ([]byte, error) {
-	return (*storagegroup.StorageGroup)(&sg).StableMarshal(nil), nil
+func (sg StorageGroup) Marshal() []byte {
+	return (*storagegroup.StorageGroup)(&sg).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of StorageGroup.
@@ -296,14 +296,7 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 //   - object type (TypeStorageGroup);
 //   - raw payload.
 func WriteToObject(sg StorageGroup, o *objectSDK.Object) {
-	sgRaw, err := sg.Marshal()
-	if err != nil {
-		// Marshal() does not return errors
-		// in the next API release
-		panic(fmt.Errorf("could not marshal storage group: %w", err))
-	}
-
-	o.SetPayload(sgRaw)
+	o.SetPayload(sg.Marshal())
 	o.SetType(objectSDK.TypeStorageGroup)
 
 	attrs := o.Attributes()

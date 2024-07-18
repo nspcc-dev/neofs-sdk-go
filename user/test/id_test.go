@@ -44,7 +44,7 @@ func TestUser(t *testing.T) {
 	require.NotEqual(t, s, usertest.User())
 
 	require.Equal(t, s.ID, s.UserID())
-	require.Equal(t, s.ID, user.ResolveFromECDSAPublicKey(s.ECDSAPrivateKey.PublicKey))
+	require.Equal(t, s.ID, user.NewFromECDSAPublicKey(s.ECDSAPrivateKey.PublicKey))
 
 	var pub neofsecdsa.PublicKey
 	require.NoError(t, pub.Decode(s.PublicKeyBytes))

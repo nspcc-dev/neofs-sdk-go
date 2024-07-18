@@ -1,7 +1,6 @@
 package netmap
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	"github.com/nspcc-dev/hrw/v2"
@@ -149,7 +148,8 @@ func flattenNodes(ns []nodes) nodes {
 // object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
-	pivot := make([]byte, sha256.Size)
+	pivot := make([]byte, oid.Size)
+	copy(pivot, objectID[:])
 	objectID.Encode(pivot)
 
 	h := hrw.WrapBytes(pivot)
@@ -180,8 +180,8 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 	c := newContext(m)
 	c.setCBF(p.backupFactor)
 
-	pivot := make([]byte, sha256.Size)
-	containerID.Encode(pivot)
+	pivot := make([]byte, cid.Size)
+	copy(pivot, containerID[:])
 	c.setPivot(pivot)
 
 	if err := c.processFilters(p); err != nil {

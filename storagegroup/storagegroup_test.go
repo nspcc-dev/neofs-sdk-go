@@ -1,7 +1,6 @@
 package storagegroup_test
 
 import (
-	"crypto/sha256"
 	"strconv"
 	"testing"
 
@@ -37,7 +36,7 @@ func TestStorageGroup(t *testing.T) {
 	sg.SetExpirationEpoch(exp)
 	require.Equal(t, exp, sg.ExpirationEpoch())
 
-	members := []oid.ID{oidtest.ID(), oidtest.ID()}
+	members := oidtest.IDs(2)
 	sg.SetMembers(members)
 	require.Equal(t, members, sg.Members())
 }
@@ -91,11 +90,8 @@ func TestStorageGroupEncoding(t *testing.T) {
 	sg := storagegrouptest.StorageGroup()
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := sg.Marshal()
-		require.NoError(t, err)
-
 		var sg2 storagegroup.StorageGroup
-		require.NoError(t, sg2.Unmarshal(data))
+		require.NoError(t, sg2.Unmarshal(sg.Marshal()))
 
 		require.Equal(t, sg, sg2)
 	})
@@ -173,7 +169,7 @@ func generateOIDList() []refs.ObjectID {
 
 	mmV2 := make([]refs.ObjectID, size)
 	for i := 0; i < size; i++ {
-		oidV2 := make([]byte, sha256.Size)
+		oidV2 := make([]byte, oid.Size)
 		oidV2[i] = byte(i)
 
 		mmV2[i].SetValue(oidV2)
@@ -185,7 +181,7 @@ func generateOIDList() []refs.ObjectID {
 func TestStorageGroup_SetMembers_DoubleSetting(t *testing.T) {
 	var sg storagegroup.StorageGroup
 
-	mm := []oid.ID{oidtest.ID(), oidtest.ID(), oidtest.ID()} // cap is 3 at least
+	mm := oidtest.IDs(3) // cap is 3 at least
 	require.NotPanics(t, func() {
 		sg.SetMembers(mm)
 	})
@@ -207,10 +203,7 @@ func TestStorageGroupFromObject(t *testing.T) {
 	expAttr.SetKey(objectV2.SysAttributeExpEpoch)
 	expAttr.SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
 
-	sgRaw, err := sg.Marshal()
-	require.NoError(t, err)
-
-	o.SetPayload(sgRaw)
+	o.SetPayload(sg.Marshal())
 	o.SetType(objectSDK.TypeStorageGroup)
 
 	t.Run("correct object", func(t *testing.T) {
@@ -241,8 +234,7 @@ func TestStorageGroupFromObject(t *testing.T) {
 func TestStorageGroupToObject(t *testing.T) {
 	sg := storagegrouptest.StorageGroup()
 
-	sgRaw, err := sg.Marshal()
-	require.NoError(t, err)
+	sgRaw := sg.Marshal()
 
 	t.Run("empty object", func(t *testing.T) {
 		var o objectSDK.Object

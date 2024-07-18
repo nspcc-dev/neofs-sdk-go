@@ -40,11 +40,8 @@ func TestFilterEncoding(t *testing.T) {
 	f := newObjectFilter(MatchStringEqual, "key", "value")
 
 	t.Run("binary", func(t *testing.T) {
-		data, err := f.Marshal()
-		require.NoError(t, err)
-
 		f2 := NewFilter()
-		require.NoError(t, f2.Unmarshal(data))
+		require.NoError(t, f2.Unmarshal(f.Marshal()))
 
 		require.Equal(t, f, f2)
 	})
@@ -97,14 +94,8 @@ func TestFilter_CopyTo(t *testing.T) {
 	t.Run("copy", func(t *testing.T) {
 		filter.CopyTo(&dst)
 
-		bts, err := filter.Marshal()
-		require.NoError(t, err)
-
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
-
 		require.Equal(t, filter, dst)
-		require.True(t, bytes.Equal(bts, bts2))
+		require.True(t, bytes.Equal(filter.Marshal(), dst.Marshal()))
 	})
 
 	t.Run("change", func(t *testing.T) {

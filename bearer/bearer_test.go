@@ -20,17 +20,7 @@ import (
 
 // compares binary representations of two eacl.Table instances.
 func isEqualEACLTables(t1, t2 eacl.Table) bool {
-	d1, err := t1.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	d2, err := t2.Marshal()
-	if err != nil {
-		panic(err)
-	}
-
-	return bytes.Equal(d1, d2)
+	return bytes.Equal(t1.Marshal(), t2.Marshal())
 }
 
 func TestToken_SetEACLTable(t *testing.T) {
@@ -429,8 +419,8 @@ func TestToken_Issuer(t *testing.T) {
 
 	token.SetIssuer(usr)
 
-	require.True(t, usr.Equals(token.Issuer()))
-	require.True(t, usr.Equals(token.ResolveIssuer()))
+	require.True(t, usr == token.Issuer())
+	require.True(t, usr == token.ResolveIssuer())
 
 	token.WriteToV2(&msg)
 	require.Equal(t, usrV2, *msg.GetBody().GetIssuer())

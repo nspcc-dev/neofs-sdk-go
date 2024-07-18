@@ -203,7 +203,7 @@ func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 //
 // See also ApplyOnlyTo.
 func (x Container) AppliedTo(cnr cid.ID) bool {
-	return !x.cnrSet || x.cnr.Equals(cnr)
+	return !x.cnrSet || x.cnr == cnr
 }
 
 // ContainerVerb enumerates container operations.
@@ -238,7 +238,7 @@ func (x Container) AssertVerb(verb ContainerVerb) bool {
 //
 // See also Container.Issuer.
 func IssuedBy(cnr Container, id user.ID) bool {
-	return cnr.Issuer().Equals(id)
+	return cnr.Issuer() == id
 }
 
 // VerifySessionDataSignature verifies signature of the session data. In practice,

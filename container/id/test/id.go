@@ -42,8 +42,5 @@ loop:
 // with specified checksum.
 // Deprecated: use [ID], [OtherID] or manual creation instead.
 func IDWithChecksum(cs [sha256.Size]byte) cid.ID {
-	var id cid.ID
-	id.SetSHA256(cs)
-
-	return id
+	return cs
 }

@@ -1,7 +1,6 @@
 package eacl
 
 import (
-	"crypto/sha256"
 	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -199,10 +198,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 			t.cid = new(cid.ID)
 		}
 
-		var h [sha256.Size]byte
-
-		copy(h[:], id.GetValue())
-		t.cid.SetSHA256(h)
+		copy(t.cid[:], id.GetValue())
 	}
 
 	// set eacl records
@@ -217,16 +213,15 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 }
 
 // Marshal marshals Table into a protobuf binary form.
-func (t *Table) Marshal() ([]byte, error) {
-	return t.ToV2().StableMarshal(nil), nil
+func (t *Table) Marshal() []byte {
+	return t.ToV2().StableMarshal(nil)
 }
 
 // SignedData returns actual payload to sign.
 //
 // See also [client.Client.ContainerSetEACL].
 func (t Table) SignedData() []byte {
-	data, _ := t.Marshal()
-	return data
+	return t.Marshal()
 }
 
 // Unmarshal unmarshals protobuf binary representation of Table.

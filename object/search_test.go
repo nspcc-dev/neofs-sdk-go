@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -134,19 +133,8 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 	})
 }
 
-func testOID() oid.ID {
-	cs := [sha256.Size]byte{}
-	//nolint:staticcheck
-	rand.Read(cs[:])
-
-	var id oid.ID
-	id.SetSHA256(cs)
-
-	return id
-}
-
 func TestSearchFilters_AddParentIDFilter(t *testing.T) {
-	par := testOID()
+	par := oidtest.ID()
 
 	fs := object.SearchFilters{}
 	fs.AddParentIDFilter(object.MatchStringEqual, par)
@@ -171,7 +159,7 @@ func TestSearchFilters_AddParentIDFilter(t *testing.T) {
 }
 
 func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
-	id := testOID()
+	id := oidtest.ID()
 
 	fs := new(object.SearchFilters)
 	fs.AddObjectIDFilter(object.MatchStringEqual, id)
@@ -219,7 +207,7 @@ func TestSearchFilters_AddSplitIDFilter(t *testing.T) {
 }
 
 func TestSearchFilters_AddFirstIDFilter(t *testing.T) {
-	id := testOID()
+	id := oidtest.ID()
 
 	fs := new(object.SearchFilters)
 	fs.AddFirstSplitObjectFilter(object.MatchStringEqual, id)

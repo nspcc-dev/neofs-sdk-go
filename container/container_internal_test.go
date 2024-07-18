@@ -63,24 +63,24 @@ func TestContainer_CopyTo(t *testing.T) {
 		var dst Container
 		container.CopyTo(&dst)
 
-		require.True(t, container.Owner().Equals(dst.Owner()))
+		require.True(t, container.Owner() == dst.Owner())
 
 		newOwner := usertest.ID()
-		dst.v2.GetOwnerID().SetValue(newOwner.WalletBytes())
+		dst.v2.GetOwnerID().SetValue(newOwner[:])
 
-		require.False(t, container.Owner().Equals(dst.Owner()))
+		require.False(t, container.Owner() == dst.Owner())
 	})
 
 	t.Run("replace owner", func(t *testing.T) {
 		var dst Container
 		container.CopyTo(&dst)
 
-		require.True(t, container.Owner().Equals(dst.Owner()))
+		require.True(t, container.Owner() == dst.Owner())
 
 		newOwner := usertest.ID()
 		dst.SetOwner(newOwner)
 
-		require.False(t, container.Owner().Equals(dst.Owner()))
+		require.False(t, container.Owner() == dst.Owner())
 	})
 
 	t.Run("change nonce", func(t *testing.T) {

@@ -32,14 +32,8 @@ func TestTable_CopyTo(t *testing.T) {
 		var dst Table
 		table.CopyTo(&dst)
 
-		bts, err := table.Marshal()
-		require.NoError(t, err)
-
-		bts2, err := dst.Marshal()
-		require.NoError(t, err)
-
 		require.Equal(t, table, dst)
-		require.True(t, bytes.Equal(bts, bts2))
+		require.True(t, bytes.Equal(table.Marshal(), dst.Marshal()))
 	})
 
 	t.Run("change version", func(t *testing.T) {
@@ -67,7 +61,7 @@ func TestTable_CopyTo(t *testing.T) {
 		cid2, isSet2 := dst.CID()
 		require.True(t, isSet2)
 
-		require.True(t, cid1.Equals(cid2))
+		require.True(t, cid1 == cid2)
 
 		dst.SetCID(cidtest.OtherID(id))
 
@@ -77,7 +71,7 @@ func TestTable_CopyTo(t *testing.T) {
 		cid2, isSet2 = dst.CID()
 		require.True(t, isSet2)
 
-		require.False(t, cid1.Equals(cid2))
+		require.False(t, cid1 == cid2)
 	})
 
 	t.Run("change record", func(t *testing.T) {

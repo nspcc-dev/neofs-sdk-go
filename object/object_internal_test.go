@@ -344,12 +344,6 @@ func TestObject_CopyTo(t *testing.T) {
 }
 
 func checkObjectEquals(t *testing.T, local, dst Object) {
-	bts, err := local.Marshal()
-	require.NoError(t, err)
-
-	bts2, err := dst.Marshal()
-	require.NoError(t, err)
-
 	require.Equal(t, local, dst)
-	require.True(t, bytes.Equal(bts, bts2))
+	require.True(t, bytes.Equal(local.Marshal(), dst.Marshal()))
 }
