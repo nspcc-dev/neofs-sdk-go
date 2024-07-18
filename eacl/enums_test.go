@@ -62,8 +62,8 @@ func TestAction(t *testing.T) {
 	})
 
 	t.Run("unknown actions", func(t *testing.T) {
-		require.Equal(t, (eacl.ActionDeny + 1).ToV2(), v2acl.ActionUnknown)
-		require.Zero(t, eacl.ActionFromV2(v2acl.ActionDeny+1))
+		require.EqualValues(t, 1000, eacl.Action(1000).ToV2())
+		require.EqualValues(t, 1000, eacl.ActionFromV2(1000))
 	})
 }
 
@@ -77,8 +77,8 @@ func TestOperation(t *testing.T) {
 	})
 
 	t.Run("unknown operations", func(t *testing.T) {
-		require.Equal(t, (eacl.OperationRangeHash + 1).ToV2(), v2acl.OperationUnknown)
-		require.Zero(t, eacl.OperationFromV2(v2acl.OperationRangeHash+1))
+		require.EqualValues(t, 1000, eacl.Operation(1000).ToV2())
+		require.EqualValues(t, 1000, eacl.OperationFromV2(1000))
 	})
 }
 
@@ -91,8 +91,8 @@ func TestRole(t *testing.T) {
 	})
 
 	t.Run("unknown roles", func(t *testing.T) {
-		require.Equal(t, (eacl.RoleOthers + 1).ToV2(), v2acl.RoleUnknown)
-		require.Zero(t, eacl.RoleFromV2(v2acl.RoleOthers+1))
+		require.EqualValues(t, 1000, eacl.Operation(1000).ToV2())
+		require.EqualValues(t, 1000, eacl.RoleFromV2(1000))
 	})
 }
 
@@ -106,8 +106,8 @@ func TestMatch(t *testing.T) {
 	})
 
 	t.Run("unknown matches", func(t *testing.T) {
-		require.Equal(t, (eacl.MatchNumLE + 1).ToV2(), v2acl.MatchTypeUnknown)
-		require.Zero(t, eacl.MatchFromV2(v2acl.MatchTypeNumLE+1))
+		require.EqualValues(t, 1000, eacl.Match(1000).ToV2())
+		require.EqualValues(t, 1000, eacl.MatchFromV2(1000))
 	})
 }
 
@@ -121,8 +121,8 @@ func TestFilterHeaderType(t *testing.T) {
 	})
 
 	t.Run("unknown header types", func(t *testing.T) {
-		require.Equal(t, (eacl.HeaderFromService + 1).ToV2(), v2acl.HeaderTypeUnknown)
-		require.Zero(t, eacl.FilterHeaderTypeFromV2(v2acl.HeaderTypeService+1))
+		require.EqualValues(t, 1000, eacl.FilterHeaderType(1000).ToV2())
+		require.EqualValues(t, 1000, eacl.FilterHeaderTypeFromV2(1000))
 	})
 }
 

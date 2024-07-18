@@ -1,6 +1,8 @@
 package eacl
 
 import (
+	"strconv"
+
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
@@ -85,30 +87,10 @@ const (
 const HeaderTypeUnknown = HeaderTypeUnspecified
 
 // ToV2 converts Action to v2 Action enum value.
-func (a Action) ToV2() v2acl.Action {
-	switch a {
-	case ActionAllow:
-		return v2acl.ActionAllow
-	case ActionDeny:
-		return v2acl.ActionDeny
-	default:
-		return v2acl.ActionUnknown
-	}
-}
+func (a Action) ToV2() v2acl.Action { return v2acl.Action(a) }
 
 // ActionFromV2 converts v2 Action enum value to Action.
-func ActionFromV2(action v2acl.Action) (a Action) {
-	switch action {
-	case v2acl.ActionAllow:
-		a = ActionAllow
-	case v2acl.ActionDeny:
-		a = ActionDeny
-	default:
-		a = 0
-	}
-
-	return a
-}
+func ActionFromV2(action v2acl.Action) Action { return Action(action) }
 
 const (
 	actionStringZero  = "ACTION_UNSPECIFIED"
@@ -121,7 +103,7 @@ const (
 //   - [ActionAllow]: ALLOW
 //   - [ActionDeny]: DENY
 //
-// All other values are 'ACTION_UNSPECIFIED'.
+// All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
 // please note that this is not a NeoFS protocol format. Use [Action.String] to
@@ -129,6 +111,8 @@ const (
 func ActionToString(a Action) string {
 	switch a {
 	default:
+		return strconv.FormatUint(uint64(a), 10)
+	case 0:
 		return actionStringZero
 	case ActionAllow:
 		return actionStringAllow
@@ -138,10 +122,13 @@ func ActionToString(a Action) string {
 }
 
 // ActionFromString maps strings to Action values in reverse to
-// [ActionToString]. Returns false if s is incorrect or unknown.
+// [ActionToString]. Returns false if s is incorrect.
 func ActionFromString(s string) (Action, bool) {
 	switch s {
 	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Action(n), true
+		}
 		return 0, false
 	case "ACTION_UNSPECIFIED":
 		return 0, true
@@ -185,50 +172,10 @@ func (a *Action) DecodeString(s string) bool {
 }
 
 // ToV2 converts Operation to v2 Operation enum value.
-func (o Operation) ToV2() v2acl.Operation {
-	switch o {
-	case OperationGet:
-		return v2acl.OperationGet
-	case OperationHead:
-		return v2acl.OperationHead
-	case OperationPut:
-		return v2acl.OperationPut
-	case OperationDelete:
-		return v2acl.OperationDelete
-	case OperationSearch:
-		return v2acl.OperationSearch
-	case OperationRange:
-		return v2acl.OperationRange
-	case OperationRangeHash:
-		return v2acl.OperationRangeHash
-	default:
-		return v2acl.OperationUnknown
-	}
-}
+func (o Operation) ToV2() v2acl.Operation { return v2acl.Operation(o) }
 
 // OperationFromV2 converts v2 Operation enum value to Operation.
-func OperationFromV2(operation v2acl.Operation) (o Operation) {
-	switch operation {
-	case v2acl.OperationGet:
-		o = OperationGet
-	case v2acl.OperationHead:
-		o = OperationHead
-	case v2acl.OperationPut:
-		o = OperationPut
-	case v2acl.OperationDelete:
-		o = OperationDelete
-	case v2acl.OperationSearch:
-		o = OperationSearch
-	case v2acl.OperationRange:
-		o = OperationRange
-	case v2acl.OperationRangeHash:
-		o = OperationRangeHash
-	default:
-		o = 0
-	}
-
-	return o
-}
+func OperationFromV2(operation v2acl.Operation) Operation { return Operation(operation) }
 
 const (
 	opStringZero      = "OPERATION_UNSPECIFIED"
@@ -251,7 +198,7 @@ const (
 //   - [OperationRange]: GETRANGE
 //   - [OperationRangeHash]: GETRANGEHASH
 //
-// All other values are 'OPERATION_UNSPECIFIED'.
+// All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
 // please note that this is not a NeoFS protocol format. Use [Operation.String] to
@@ -259,6 +206,8 @@ const (
 func OperationToString(op Operation) string {
 	switch op {
 	default:
+		return strconv.FormatUint(uint64(op), 10)
+	case 0:
 		return opStringZero
 	case OperationGet:
 		return opStringGet
@@ -278,10 +227,13 @@ func OperationToString(op Operation) string {
 }
 
 // OperationFromString maps strings to Operation values in reverse to
-// [OperationToString]. Returns false if s is incorrect or unknown.
+// [OperationToString]. Returns false if s is incorrect.
 func OperationFromString(s string) (Operation, bool) {
 	switch s {
 	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Operation(n), true
+		}
 		return 0, false
 	case "OPERATION_UNSPECIFIED":
 		return 0, true
@@ -340,34 +292,10 @@ func (o *Operation) DecodeString(s string) bool {
 }
 
 // ToV2 converts Role to v2 Role enum value.
-func (r Role) ToV2() v2acl.Role {
-	switch r {
-	case RoleUser:
-		return v2acl.RoleUser
-	case RoleSystem:
-		return v2acl.RoleSystem
-	case RoleOthers:
-		return v2acl.RoleOthers
-	default:
-		return v2acl.RoleUnknown
-	}
-}
+func (r Role) ToV2() v2acl.Role { return v2acl.Role(r) }
 
 // RoleFromV2 converts v2 Role enum value to Role.
-func RoleFromV2(role v2acl.Role) (r Role) {
-	switch role {
-	case v2acl.RoleUser:
-		r = RoleUser
-	case v2acl.RoleSystem:
-		r = RoleSystem
-	case v2acl.RoleOthers:
-		r = RoleOthers
-	default:
-		r = 0
-	}
-
-	return r
-}
+func RoleFromV2(role v2acl.Role) Role { return Role(role) }
 
 const (
 	roleStringZero   = "ROLE_UNSPECIFIED"
@@ -382,7 +310,7 @@ const (
 //   - [RoleSystem]: SYSTEM
 //   - [RoleOthers]: OTHERS
 //
-// All other values are 'ROLE_UNSPECIFIED'.
+// All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
 // please note that this is not a NeoFS protocol format. Use [Role.String] to
@@ -390,6 +318,8 @@ const (
 func RoleToString(r Role) string {
 	switch r {
 	default:
+		return strconv.FormatUint(uint64(r), 10)
+	case 0:
 		return roleStringZero
 	case RoleUser:
 		return roleStringUser
@@ -401,10 +331,13 @@ func RoleToString(r Role) string {
 }
 
 // RoleFromString maps strings to Role values in reverse to [RoleToString].
-// Returns false if s is incorrect or unknown.
+// Returns false if s is incorrect.
 func RoleFromString(s string) (Role, bool) {
 	switch s {
 	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Role(n), true
+		}
 		return 0, false
 	case "ROLE_UNSPECIFIED":
 		return 0, true
@@ -450,38 +383,10 @@ func (r *Role) DecodeString(s string) bool {
 }
 
 // ToV2 converts Match to v2 MatchType enum value.
-func (m Match) ToV2() v2acl.MatchType {
-	switch m {
-	case
-		MatchStringEqual,
-		MatchStringNotEqual,
-		MatchNotPresent,
-		MatchNumGT,
-		MatchNumGE,
-		MatchNumLT,
-		MatchNumLE:
-		return v2acl.MatchType(m)
-	default:
-		return v2acl.MatchTypeUnknown
-	}
-}
+func (m Match) ToV2() v2acl.MatchType { return v2acl.MatchType(m) }
 
 // MatchFromV2 converts v2 MatchType enum value to Match.
-func MatchFromV2(match v2acl.MatchType) Match {
-	switch match {
-	case
-		v2acl.MatchTypeStringEqual,
-		v2acl.MatchTypeStringNotEqual,
-		v2acl.MatchTypeNotPresent,
-		v2acl.MatchTypeNumGT,
-		v2acl.MatchTypeNumGE,
-		v2acl.MatchTypeNumLT,
-		v2acl.MatchTypeNumLE:
-		return Match(match)
-	default:
-		return 0
-	}
-}
+func MatchFromV2(match v2acl.MatchType) Match { return Match(match) }
 
 const (
 	matcherStringZero       = "MATCH_TYPE_UNSPECIFIED"
@@ -504,7 +409,7 @@ const (
 //   - [MatchNumLT]: NUM_LT
 //   - [MatchNumLE]: NUM_LE
 //
-// All other values are 'MATCH_TYPE_UNSPECIFIED'.
+// All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
 // please note that this is not a NeoFS protocol format. Use [Match.String] to
@@ -512,6 +417,8 @@ const (
 func MatcherToString(m Match) string {
 	switch m {
 	default:
+		return strconv.FormatUint(uint64(m), 10)
+	case 0:
 		return matcherStringZero
 	case MatchStringEqual:
 		return matcherStringEqual
@@ -530,11 +437,14 @@ func MatcherToString(m Match) string {
 	}
 }
 
-// MatcherFromString maps strings to Match values in reverse to [MatcherToString].
-// Returns false if s is incorrect or unknown.
+// MatcherFromString maps strings to Match values in reverse to
+// [MatcherToString]. Returns false if s is incorrect.
 func MatcherFromString(s string) (Match, bool) {
 	switch s {
 	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Match(n), true
+		}
 		return 0, false
 	case "MATCH_TYPE_UNSPECIFIED":
 		return 0, true
@@ -593,33 +503,11 @@ func (m *Match) DecodeString(s string) bool {
 }
 
 // ToV2 converts FilterHeaderType to v2 HeaderType enum value.
-func (h FilterHeaderType) ToV2() v2acl.HeaderType {
-	switch h {
-	case HeaderFromRequest:
-		return v2acl.HeaderTypeRequest
-	case HeaderFromObject:
-		return v2acl.HeaderTypeObject
-	case HeaderFromService:
-		return v2acl.HeaderTypeService
-	default:
-		return v2acl.HeaderTypeUnknown
-	}
-}
+func (h FilterHeaderType) ToV2() v2acl.HeaderType { return v2acl.HeaderType(h) }
 
 // FilterHeaderTypeFromV2 converts v2 HeaderType enum value to FilterHeaderType.
-func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
-	switch header {
-	case v2acl.HeaderTypeRequest:
-		h = HeaderFromRequest
-	case v2acl.HeaderTypeObject:
-		h = HeaderFromObject
-	case v2acl.HeaderTypeService:
-		h = HeaderFromService
-	default:
-		h = 0
-	}
-
-	return h
+func FilterHeaderTypeFromV2(header v2acl.HeaderType) FilterHeaderType {
+	return FilterHeaderType(header)
 }
 
 const (
@@ -635,7 +523,7 @@ const (
 //   - [HeaderFromObject]: OBJECT
 //   - [HeaderFromService]: SERVICE
 //
-// All other values are 'HEADER_UNSPECIFIED'.
+// All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
 // please note that this is not a NeoFS protocol format. Use
@@ -643,6 +531,8 @@ const (
 func HeaderTypeToString(h FilterHeaderType) string {
 	switch h {
 	default:
+		return strconv.FormatUint(uint64(h), 10)
+	case 0:
 		return headerTypeStringZero
 	case HeaderFromRequest:
 		return headerTypeStringRequest
@@ -653,11 +543,14 @@ func HeaderTypeToString(h FilterHeaderType) string {
 	}
 }
 
-// HeaderTypeFromString maps strings to FilterHeaderType values in reverse to [MatcherToString].
-// Returns false if s is incorrect or unknown.
+// HeaderTypeFromString maps strings to FilterHeaderType values in reverse to
+// [MatcherToString]. Returns false if s is incorrect.
 func HeaderTypeFromString(s string) (FilterHeaderType, bool) {
 	switch s {
 	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return FilterHeaderType(n), true
+		}
 		return 0, false
 	case "HEADER_UNSPECIFIED":
 		return 0, true
