@@ -55,7 +55,6 @@ func TestAddFormedTarget(t *testing.T) {
 		keys []ecdsa.PublicKey
 	}{
 		{
-			role: RoleUnknown,
 			keys: []ecdsa.PublicKey{*randomPublicKey(t)},
 		},
 		{
@@ -132,8 +131,8 @@ func TestRecord_ToV2(t *testing.T) {
 		record := NewRecord()
 
 		// check initial values
-		require.Equal(t, OperationUnknown, record.Operation())
-		require.Equal(t, ActionUnknown, record.Action())
+		require.Zero(t, record.Operation())
+		require.Zero(t, record.Action())
 		require.Nil(t, record.Targets())
 		require.Nil(t, record.Filters())
 

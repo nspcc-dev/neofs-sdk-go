@@ -70,8 +70,8 @@ func TestFilter_ToV2(t *testing.T) {
 		// check initial values
 		require.Empty(t, filter.Key())
 		require.Empty(t, filter.Value())
-		require.Equal(t, HeaderTypeUnknown, filter.From())
-		require.Equal(t, MatchUnknown, filter.Matcher())
+		require.Zero(t, filter.From())
+		require.Zero(t, filter.Matcher())
 
 		// convert to v2 message
 		filterV2 := filter.ToV2()

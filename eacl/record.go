@@ -231,8 +231,8 @@ func (r *Record) ToV2() *v2acl.Record {
 // NewRecord creates and returns blank Record instance.
 //
 // Defaults:
-//   - action: ActionUnknown;
-//   - operation: OperationUnknown;
+//   - action: ActionUnspecified;
+//   - operation: OperationUnspecified;
 //   - targets: nil,
 //   - filters: nil.
 func NewRecord() *Record {

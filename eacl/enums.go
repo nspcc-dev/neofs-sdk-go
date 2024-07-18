@@ -9,8 +9,8 @@ import (
 type Action uint32
 
 const (
-	// ActionUnknown is an Action value used to mark action as undefined.
-	ActionUnknown Action = iota
+	// ActionUnspecified is an Action value used to mark action as undefined.
+	ActionUnspecified Action = iota
 
 	// ActionAllow is an Action value that allows access to the operation from context.
 	ActionAllow
@@ -19,13 +19,17 @@ const (
 	ActionDeny
 )
 
+// ActionUnknown is an Action value used to mark action as undefined.
+// Deprecated: use ActionUnspecified instead.
+const ActionUnknown = ActionUnspecified
+
 // Operation is a object service method to match request.
 // Operation is compatible with v2 acl.Operation enum.
 type Operation uint32
 
 const (
-	// OperationUnknown is an Operation value used to mark operation as undefined.
-	OperationUnknown Operation = iota
+	// OperationUnspecified is an Operation value used to mark operation as undefined.
+	OperationUnspecified Operation = iota
 
 	// OperationGet is an object get Operation.
 	OperationGet
@@ -49,13 +53,17 @@ const (
 	OperationRangeHash
 )
 
+// OperationUnknown is an Operation value used to mark operation as undefined.
+// Deprecated: use OperationUnspecified instead.
+const OperationUnknown = OperationUnspecified
+
 // Role is a group of request senders to match request.
 // Role is compatible with v2 acl.Role enum.
 type Role uint32
 
 const (
-	// RoleUnknown is a Role value used to mark role as undefined.
-	RoleUnknown Role = iota
+	// RoleUnspecified is a Role value used to mark role as undefined.
+	RoleUnspecified Role = iota
 
 	// RoleUser is a group of senders that contains only key of container owner.
 	RoleUser
@@ -68,13 +76,17 @@ const (
 	RoleOthers
 )
 
+// RoleUnknown is a Role value used to mark role as undefined.
+// Deprecated: use RoleUnspecified instead.
+const RoleUnknown = RoleUnspecified
+
 // Match is binary operation on filer name and value to check if request is matched.
 // Match is compatible with v2 acl.MatchType enum.
 type Match uint32
 
 const (
-	// MatchUnknown is a Match value used to mark matcher as undefined.
-	MatchUnknown Match = iota
+	// MatchUnspecified is a Match value used to mark matcher as undefined.
+	MatchUnspecified Match = iota
 
 	// MatchStringEqual is a Match of string equality.
 	MatchStringEqual
@@ -98,13 +110,17 @@ const (
 	MatchNumLE
 )
 
+// MatchUnknown is a Match value used to mark matcher as undefined.
+// Deprecated: use MatchUnspecified instead.
+const MatchUnknown = MatchUnspecified
+
 // FilterHeaderType indicates source of headers to make matches.
 // FilterHeaderType is compatible with v2 acl.HeaderType enum.
 type FilterHeaderType uint32
 
 const (
-	// HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
-	HeaderTypeUnknown FilterHeaderType = iota
+	// HeaderTypeUnspecified is a FilterHeaderType value used to mark header type as undefined.
+	HeaderTypeUnspecified FilterHeaderType = iota
 
 	// HeaderFromRequest is a FilterHeaderType for request X-Header.
 	HeaderFromRequest
@@ -115,6 +131,10 @@ const (
 	// HeaderFromService is a FilterHeaderType for service header.
 	HeaderFromService
 )
+
+// HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
+// Deprecated: use HeaderTypeUnspecified instead.
+const HeaderTypeUnknown = HeaderTypeUnspecified
 
 // ToV2 converts Action to v2 Action enum value.
 func (a Action) ToV2() v2acl.Action {
@@ -136,7 +156,7 @@ func ActionFromV2(action v2acl.Action) (a Action) {
 	case v2acl.ActionDeny:
 		a = ActionDeny
 	default:
-		a = ActionUnknown
+		a = ActionUnspecified
 	}
 
 	return a
@@ -147,7 +167,7 @@ func ActionFromV2(action v2acl.Action) (a Action) {
 // String mapping:
 //   - ActionAllow: ALLOW;
 //   - ActionDeny: DENY;
-//   - ActionUnknown, default: ACTION_UNSPECIFIED.
+//   - ActionUnspecified, default: ACTION_UNSPECIFIED.
 func (a Action) EncodeToString() string {
 	return a.ToV2().String()
 }
@@ -217,7 +237,7 @@ func OperationFromV2(operation v2acl.Operation) (o Operation) {
 	case v2acl.OperationRangeHash:
 		o = OperationRangeHash
 	default:
-		o = OperationUnknown
+		o = OperationUnspecified
 	}
 
 	return o
@@ -233,7 +253,7 @@ func OperationFromV2(operation v2acl.Operation) (o Operation) {
 //   - OperationSearch: SEARCH;
 //   - OperationRange: GETRANGE;
 //   - OperationRangeHash: GETRANGEHASH;
-//   - OperationUnknown, default: OPERATION_UNSPECIFIED.
+//   - OperationUnspecified, default: OPERATION_UNSPECIFIED.
 func (o Operation) EncodeToString() string {
 	return o.ToV2().String()
 }
@@ -287,7 +307,7 @@ func RoleFromV2(role v2acl.Role) (r Role) {
 	case v2acl.RoleOthers:
 		r = RoleOthers
 	default:
-		r = RoleUnknown
+		r = RoleUnspecified
 	}
 
 	return r
@@ -299,7 +319,7 @@ func RoleFromV2(role v2acl.Role) (r Role) {
 //   - RoleUser: USER;
 //   - RoleSystem: SYSTEM;
 //   - RoleOthers: OTHERS;
-//   - RoleUnknown, default: ROLE_UNKNOWN.
+//   - RoleUnspecified, default: ROLE_UNKNOWN.
 func (r Role) EncodeToString() string {
 	return r.ToV2().String()
 }
@@ -359,7 +379,7 @@ func MatchFromV2(match v2acl.MatchType) Match {
 		v2acl.MatchTypeNumLE:
 		return Match(match)
 	default:
-		return MatchUnknown
+		return MatchUnspecified
 	}
 }
 
@@ -373,7 +393,7 @@ func MatchFromV2(match v2acl.MatchType) Match {
 //   - MatchNumGE: NUM_GE;
 //   - MatchNumLT: NUM_LT;
 //   - MatchNumLE: NUM_LE;
-//   - MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
+//   - MatchUnspecified, default: MATCH_TYPE_UNSPECIFIED.
 func (m Match) EncodeToString() string {
 	return m.ToV2().String()
 }
@@ -427,7 +447,7 @@ func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
 	case v2acl.HeaderTypeService:
 		h = HeaderFromService
 	default:
-		h = HeaderTypeUnknown
+		h = HeaderTypeUnspecified
 	}
 
 	return h
@@ -438,7 +458,7 @@ func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
 // String mapping:
 //   - HeaderFromRequest: REQUEST;
 //   - HeaderFromObject: OBJECT;
-//   - HeaderTypeUnknown, default: HEADER_UNSPECIFIED.
+//   - HeaderTypeUnspecified, default: HEADER_UNSPECIFIED.
 func (h FilterHeaderType) EncodeToString() string {
 	return h.ToV2().String()
 }

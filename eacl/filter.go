@@ -90,8 +90,8 @@ func (f *Filter) ToV2() *v2acl.HeaderFilter {
 // NewFilter creates, initializes and returns blank Filter instance.
 //
 // Defaults:
-//   - header type: HeaderTypeUnknown;
-//   - matcher: MatchUnknown;
+//   - header type: HeaderTypeUnspecified;
+//   - matcher: MatchUnspecified;
 //   - key: "";
 //   - value: "".
 func NewFilter() *Filter {
