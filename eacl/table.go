@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -236,23 +237,5 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 }
 
 // EqualTables compares Table with each other.
-func EqualTables(t1, t2 Table) bool {
-	if t1.GetCID() != t2.GetCID() ||
-		!t1.Version().Equal(t2.Version()) {
-		return false
-	}
-
-	rs1, rs2 := t1.Records(), t2.Records()
-
-	if len(rs1) != len(rs2) {
-		return false
-	}
-
-	for i := 0; i < len(rs1); i++ {
-		if !equalRecords(rs1[i], rs2[i]) {
-			return false
-		}
-	}
-
-	return true
-}
+// Deprecated: compare [Table.Marshal] instead.
+func EqualTables(t1, t2 Table) bool { return bytes.Equal(t1.Marshal(), t2.Marshal()) }
