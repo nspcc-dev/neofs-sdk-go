@@ -73,18 +73,29 @@ func (f Filter) From() FilterHeaderType {
 // ToV2 converts Filter to v2 acl.EACLRecord.Filter message.
 //
 // Nil Filter converts to nil.
+// Deprecated: do not use it.
 func (f *Filter) ToV2() *v2acl.HeaderFilter {
-	if f == nil {
-		return nil
+	if f != nil {
+		return f.toProtoMessage()
 	}
+	return nil
+}
 
+func (f Filter) toProtoMessage() *v2acl.HeaderFilter {
 	filter := new(v2acl.HeaderFilter)
 	filter.SetValue(f.value.EncodeToString())
 	filter.SetKey(f.key)
-	filter.SetMatchType(f.matcher.ToV2())
-	filter.SetHeaderType(f.from.ToV2())
-
+	filter.SetMatchType(v2acl.MatchType(f.matcher))
+	filter.SetHeaderType(v2acl.HeaderType(f.from))
 	return filter
+}
+
+func (f *Filter) fromProtoMessage(m *v2acl.HeaderFilter) error {
+	f.from = FilterHeaderType(m.GetHeaderType())
+	f.matcher = Match(m.GetMatchType())
+	f.key = m.GetKey()
+	f.value = staticStringer(m.GetValue())
+	return nil
 }
 
 // NewFilter creates, initializes and returns blank Filter instance.
@@ -95,10 +106,11 @@ func (f *Filter) ToV2() *v2acl.HeaderFilter {
 //   - key: "";
 //   - value: "".
 func NewFilter() *Filter {
-	return NewFilterFromV2(new(v2acl.HeaderFilter))
+	return &Filter{value: staticStringer("")}
 }
 
 // NewFilterFromV2 converts v2 acl.EACLRecord.Filter message to Filter.
+// Deprecated: do not use it.
 func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 	f := new(Filter)
 
@@ -106,52 +118,34 @@ func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 		return f
 	}
 
-	f.from = FilterHeaderTypeFromV2(filter.GetHeaderType())
-	f.matcher = MatchFromV2(filter.GetMatchType())
-	f.key = filter.GetKey()
-	f.value = staticStringer(filter.GetValue())
-
+	_ = f.fromProtoMessage(filter)
 	return f
 }
 
 // Marshal marshals Filter into a protobuf binary form.
 func (f *Filter) Marshal() []byte {
-	return f.ToV2().StableMarshal(nil)
+	return f.toProtoMessage().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Filter.
 func (f *Filter) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.Unmarshal(data); err != nil {
+	m := new(v2acl.HeaderFilter)
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
+	return f.fromProtoMessage(m)
 }
 
 // MarshalJSON encodes Filter to protobuf JSON format.
 func (f *Filter) MarshalJSON() ([]byte, error) {
-	return f.ToV2().MarshalJSON()
+	return f.toProtoMessage().MarshalJSON()
 }
 
 // UnmarshalJSON decodes Filter from protobuf JSON format.
 func (f *Filter) UnmarshalJSON(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.UnmarshalJSON(data); err != nil {
+	m := new(v2acl.HeaderFilter)
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
-}
-
-// equalFilters compares Filter with each other.
-func equalFilters(f1, f2 Filter) bool {
-	return f1.From() == f2.From() &&
-		f1.Matcher() == f2.Matcher() &&
-		f1.Key() == f2.Key() &&
-		f1.Value() == f2.Value()
+	return f.fromProtoMessage(m)
 }

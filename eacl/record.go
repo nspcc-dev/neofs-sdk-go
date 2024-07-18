@@ -2,6 +2,7 @@ package eacl
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -197,17 +198,21 @@ func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
 // ToV2 converts Record to v2 acl.EACLRecord message.
 //
 // Nil Record converts to nil.
+// Deprecated: do not use it.
 func (r *Record) ToV2() *v2acl.Record {
-	if r == nil {
-		return nil
+	if r != nil {
+		return r.toProtoMessage()
 	}
+	return nil
+}
 
+func (r Record) toProtoMessage() *v2acl.Record {
 	v2 := new(v2acl.Record)
 
 	if r.targets != nil {
 		targets := make([]v2acl.Target, len(r.targets))
 		for i := range r.targets {
-			targets[i] = *r.targets[i].ToV2()
+			targets[i] = *r.targets[i].toProtoMessage()
 		}
 
 		v2.SetTargets(targets)
@@ -216,16 +221,39 @@ func (r *Record) ToV2() *v2acl.Record {
 	if r.filters != nil {
 		filters := make([]v2acl.HeaderFilter, len(r.filters))
 		for i := range r.filters {
-			filters[i] = *r.filters[i].ToV2()
+			filters[i] = *r.filters[i].toProtoMessage()
 		}
 
 		v2.SetFilters(filters)
 	}
 
-	v2.SetAction(r.action.ToV2())
-	v2.SetOperation(r.operation.ToV2())
+	v2.SetAction(v2acl.Action(r.action))
+	v2.SetOperation(v2acl.Operation(r.operation))
 
 	return v2
+}
+
+func (r *Record) fromProtoMessage(m *v2acl.Record) error {
+	mt := m.GetTargets()
+	r.targets = make([]Target, len(mt))
+	for i := range mt {
+		if err := r.targets[i].fromProtoMessage(&mt[i]); err != nil {
+			return fmt.Errorf("invalid subject descriptor #%d: %w", i, err)
+		}
+	}
+
+	mf := m.GetFilters()
+	r.filters = make([]Filter, len(mf))
+	for i := range mf {
+		if err := r.filters[i].fromProtoMessage(&mf[i]); err != nil {
+			return fmt.Errorf("invalid filter #%d: %w", i, err)
+		}
+	}
+
+	r.action = Action(m.GetAction())
+	r.operation = Operation(m.GetOperation())
+
+	return nil
 }
 
 // NewRecord creates and returns blank Record instance.
@@ -251,6 +279,7 @@ func CreateRecord(action Action, operation Operation) *Record {
 }
 
 // NewRecordFromV2 converts v2 acl.EACLRecord message to Record.
+// Deprecated: do not use it.
 func NewRecordFromV2(record *v2acl.Record) *Record {
 	r := NewRecord()
 
@@ -258,85 +287,34 @@ func NewRecordFromV2(record *v2acl.Record) *Record {
 		return r
 	}
 
-	r.action = ActionFromV2(record.GetAction())
-	r.operation = OperationFromV2(record.GetOperation())
-
-	v2targets := record.GetTargets()
-	v2filters := record.GetFilters()
-
-	r.targets = make([]Target, len(v2targets))
-	for i := range v2targets {
-		r.targets[i] = *NewTargetFromV2(&v2targets[i])
-	}
-
-	r.filters = make([]Filter, len(v2filters))
-	for i := range v2filters {
-		r.filters[i] = *NewFilterFromV2(&v2filters[i])
-	}
-
+	_ = r.fromProtoMessage(record)
 	return r
 }
 
 // Marshal marshals Record into a protobuf binary form.
 func (r *Record) Marshal() []byte {
-	return r.ToV2().StableMarshal(nil)
+	return r.toProtoMessage().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Record.
 func (r *Record) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Record)
-	if err := fV2.Unmarshal(data); err != nil {
+	m := new(v2acl.Record)
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	*r = *NewRecordFromV2(fV2)
-
-	return nil
+	return r.fromProtoMessage(m)
 }
 
 // MarshalJSON encodes Record to protobuf JSON format.
 func (r *Record) MarshalJSON() ([]byte, error) {
-	return r.ToV2().MarshalJSON()
+	return r.toProtoMessage().MarshalJSON()
 }
 
 // UnmarshalJSON decodes Record from protobuf JSON format.
 func (r *Record) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Record)
-	if err := tV2.UnmarshalJSON(data); err != nil {
+	m := new(v2acl.Record)
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	*r = *NewRecordFromV2(tV2)
-
-	return nil
-}
-
-// equalRecords compares Record with each other.
-func equalRecords(r1, r2 Record) bool {
-	if r1.Operation() != r2.Operation() ||
-		r1.Action() != r2.Action() {
-		return false
-	}
-
-	fs1, fs2 := r1.Filters(), r2.Filters()
-	ts1, ts2 := r1.Targets(), r2.Targets()
-
-	if len(fs1) != len(fs2) ||
-		len(ts1) != len(ts2) {
-		return false
-	}
-
-	for i := 0; i < len(fs1); i++ {
-		if !equalFilters(fs1[i], fs2[i]) {
-			return false
-		}
-	}
-
-	for i := 0; i < len(ts1); i++ {
-		if !equalTargets(ts1[i], ts2[i]) {
-			return false
-		}
-	}
-
-	return true
+	return r.fromProtoMessage(m)
 }

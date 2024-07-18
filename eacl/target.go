@@ -167,16 +167,26 @@ func (t Target) Role() Role {
 // ToV2 converts Target to v2 acl.EACLRecord.Target message.
 //
 // Nil Target converts to nil.
+// Deprecated: do not use it.
 func (t *Target) ToV2() *v2acl.Target {
-	if t == nil {
-		return nil
+	if t != nil {
+		return t.toProtoMessage()
 	}
+	return nil
+}
 
+func (t Target) toProtoMessage() *v2acl.Target {
 	target := new(v2acl.Target)
-	target.SetRole(t.role.ToV2())
+	target.SetRole(v2acl.Role(t.role))
 	target.SetKeys(t.keys)
 
 	return target
+}
+
+func (t *Target) fromProtoMessage(m *v2acl.Target) error {
+	t.role = Role(m.GetRole())
+	t.keys = m.GetKeys()
+	return nil
 }
 
 // NewTarget creates, initializes and returns blank Target instance.
@@ -184,73 +194,40 @@ func (t *Target) ToV2() *v2acl.Target {
 // Defaults:
 //   - role: RoleUnspecified;
 //   - keys: nil.
-func NewTarget() *Target {
-	return NewTargetFromV2(new(v2acl.Target))
-}
+func NewTarget() *Target { return new(Target) }
 
 // NewTargetFromV2 converts v2 acl.EACLRecord.Target message to Target.
+// Deprecated: do not use it.
 func NewTargetFromV2(target *v2acl.Target) *Target {
-	if target == nil {
-		return new(Target)
-	}
-
-	return &Target{
-		role: RoleFromV2(target.GetRole()),
-		keys: target.GetKeys(),
-	}
+	t := new(Target)
+	_ = t.fromProtoMessage(target)
+	return t
 }
 
 // Marshal marshals Target into a protobuf binary form.
 func (t *Target) Marshal() []byte {
-	return t.ToV2().StableMarshal(nil)
+	return t.toProtoMessage().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Target.
 func (t *Target) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Target)
-	if err := fV2.Unmarshal(data); err != nil {
+	m := new(v2acl.Target)
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	*t = *NewTargetFromV2(fV2)
-
-	return nil
+	return t.fromProtoMessage(m)
 }
 
 // MarshalJSON encodes Target to protobuf JSON format.
 func (t *Target) MarshalJSON() ([]byte, error) {
-	return t.ToV2().MarshalJSON()
+	return t.toProtoMessage().MarshalJSON()
 }
 
 // UnmarshalJSON decodes Target from protobuf JSON format.
 func (t *Target) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Target)
-	if err := tV2.UnmarshalJSON(data); err != nil {
+	m := new(v2acl.Target)
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	*t = *NewTargetFromV2(tV2)
-
-	return nil
-}
-
-// equalTargets compares Target with each other.
-func equalTargets(t1, t2 Target) bool {
-	if t1.Role() != t2.Role() {
-		return false
-	}
-
-	keys1, keys2 := t1.BinaryKeys(), t2.BinaryKeys()
-
-	if len(keys1) != len(keys2) {
-		return false
-	}
-
-	for i := 0; i < len(keys1); i++ {
-		if !bytes.Equal(keys1[i], keys2[i]) {
-			return false
-		}
-	}
-
-	return true
+	return t.fromProtoMessage(m)
 }

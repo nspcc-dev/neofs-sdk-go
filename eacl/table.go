@@ -102,7 +102,9 @@ func (t *Table) ReadFromV2(m v2acl.Table) error {
 	t.records = make([]Record, len(v2records))
 
 	for i := range v2records {
-		t.records[i] = *NewRecordFromV2(&v2records[i])
+		if err := t.records[i].fromProtoMessage(&v2records[i]); err != nil {
+			return fmt.Errorf("invalid record #%d: %w", i, err)
+		}
 	}
 
 	return nil
@@ -129,7 +131,7 @@ func (t *Table) ToV2() *v2acl.Table {
 	if t.records != nil {
 		records := make([]v2acl.Record, len(t.records))
 		for i := range t.records {
-			records[i] = *t.records[i].ToV2()
+			records[i] = *t.records[i].toProtoMessage()
 		}
 
 		v2.SetRecords(records)
@@ -195,7 +197,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 	t.records = make([]Record, len(v2records))
 
 	for i := range v2records {
-		t.records[i] = *NewRecordFromV2(&v2records[i])
+		_ = t.records[i].fromProtoMessage(&v2records[i])
 	}
 
 	return t

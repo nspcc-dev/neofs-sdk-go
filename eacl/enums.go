@@ -87,9 +87,11 @@ const (
 const HeaderTypeUnknown = HeaderTypeUnspecified
 
 // ToV2 converts Action to v2 Action enum value.
+// Deprecated: do not use it.
 func (a Action) ToV2() v2acl.Action { return v2acl.Action(a) }
 
 // ActionFromV2 converts v2 Action enum value to Action.
+// Deprecated: do not use it.
 func ActionFromV2(action v2acl.Action) Action { return Action(action) }
 
 const (
@@ -172,9 +174,11 @@ func (a *Action) DecodeString(s string) bool {
 }
 
 // ToV2 converts Operation to v2 Operation enum value.
+// Deprecated: do not use it.
 func (o Operation) ToV2() v2acl.Operation { return v2acl.Operation(o) }
 
 // OperationFromV2 converts v2 Operation enum value to Operation.
+// Deprecated: do not use it.
 func OperationFromV2(operation v2acl.Operation) Operation { return Operation(operation) }
 
 const (
@@ -292,9 +296,11 @@ func (o *Operation) DecodeString(s string) bool {
 }
 
 // ToV2 converts Role to v2 Role enum value.
+// Deprecated: do not use it.
 func (r Role) ToV2() v2acl.Role { return v2acl.Role(r) }
 
 // RoleFromV2 converts v2 Role enum value to Role.
+// Deprecated: do not use it.
 func RoleFromV2(role v2acl.Role) Role { return Role(role) }
 
 const (
@@ -383,9 +389,11 @@ func (r *Role) DecodeString(s string) bool {
 }
 
 // ToV2 converts Match to v2 MatchType enum value.
+// Deprecated: do not use it.
 func (m Match) ToV2() v2acl.MatchType { return v2acl.MatchType(m) }
 
 // MatchFromV2 converts v2 MatchType enum value to Match.
+// Deprecated: do not use it.
 func MatchFromV2(match v2acl.MatchType) Match { return Match(match) }
 
 const (
@@ -503,9 +511,11 @@ func (m *Match) DecodeString(s string) bool {
 }
 
 // ToV2 converts FilterHeaderType to v2 HeaderType enum value.
+// Deprecated: do not use it.
 func (h FilterHeaderType) ToV2() v2acl.HeaderType { return v2acl.HeaderType(h) }
 
 // FilterHeaderTypeFromV2 converts v2 HeaderType enum value to FilterHeaderType.
+// Deprecated: do not use it.
 func FilterHeaderTypeFromV2(header v2acl.HeaderType) FilterHeaderType {
 	return FilterHeaderType(header)
 }
