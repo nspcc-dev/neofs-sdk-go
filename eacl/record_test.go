@@ -131,8 +131,8 @@ func TestRecord_ToV2(t *testing.T) {
 		record := NewRecord()
 
 		// check initial values
-		require.Zero(t, record.Operation())
-		require.Zero(t, record.Action())
+		require.Equal(t, OperationUnknown, record.Operation())
+		require.Equal(t, ActionUnknown, record.Action())
 		require.Nil(t, record.Targets())
 		require.Nil(t, record.Filters())
 

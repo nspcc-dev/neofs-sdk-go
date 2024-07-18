@@ -4,132 +4,80 @@ import (
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
-// Action taken if ContainerEACL record matched request.
-// Action is compatible with v2 acl.Action enum.
+// Action enumerates actions that may be applied within NeoFS access management.
+// What and how specific Action affects depends on the specific context.
 type Action uint32
 
 const (
-	// ActionUnspecified is an Action value used to mark action as undefined.
-	ActionUnspecified Action = iota
-
-	// ActionAllow is an Action value that allows access to the operation from context.
-	ActionAllow
-
-	// ActionDeny is an Action value that denies access to the operation from context.
-	ActionDeny
+	ActionUnspecified Action = iota // undefined (zero)
+	ActionAllow                     // allow the op
+	ActionDeny                      // deny the op
 )
 
 // ActionUnknown is an Action value used to mark action as undefined.
 // Deprecated: use ActionUnspecified instead.
 const ActionUnknown = ActionUnspecified
 
-// Operation is a object service method to match request.
-// Operation is compatible with v2 acl.Operation enum.
+// Operation enumerates operations on NeoFS resources under access control.
 type Operation uint32
 
 const (
-	// OperationUnspecified is an Operation value used to mark operation as undefined.
-	OperationUnspecified Operation = iota
-
-	// OperationGet is an object get Operation.
-	OperationGet
-
-	// OperationHead is an Operation of getting the object header.
-	OperationHead
-
-	// OperationPut is an object put Operation.
-	OperationPut
-
-	// OperationDelete is an object delete Operation.
-	OperationDelete
-
-	// OperationSearch is an object search Operation.
-	OperationSearch
-
-	// OperationRange is an object payload range retrieval Operation.
-	OperationRange
-
-	// OperationRangeHash is an object payload range hashing Operation.
-	OperationRangeHash
+	OperationUnspecified Operation = iota // undefined (zero)
+	OperationGet                          // ObjectService.Get RPC
+	OperationHead                         // ObjectService.Head RPC
+	OperationPut                          // ObjectService.Put RPC
+	OperationDelete                       // ObjectService.Delete RPC
+	OperationSearch                       // ObjectService.Search RPC
+	OperationRange                        // ObjectService.GetRange RPC
+	OperationRangeHash                    // ObjectService.GetRangeHash RPC
 )
 
 // OperationUnknown is an Operation value used to mark operation as undefined.
 // Deprecated: use OperationUnspecified instead.
 const OperationUnknown = OperationUnspecified
 
-// Role is a group of request senders to match request.
-// Role is compatible with v2 acl.Role enum.
+// Role enumerates groups of subjects requesting access to NeoFS resources.
 type Role uint32
 
 const (
-	// RoleUnspecified is a Role value used to mark role as undefined.
-	RoleUnspecified Role = iota
-
-	// RoleUser is a group of senders that contains only key of container owner.
-	RoleUser
-
-	// RoleSystem is a group of senders that contains keys of container nodes and
-	// inner ring nodes.
-	RoleSystem
-
-	// RoleOthers is a group of senders that contains none of above keys.
-	RoleOthers
+	RoleUnspecified Role = iota // undefined (zero)
+	RoleUser                    // owner of the container requesting its objects
+	RoleSystem                  // Deprecated: NeoFS storage and Inner Ring nodes
+	RoleOthers                  // any other party
 )
 
 // RoleUnknown is a Role value used to mark role as undefined.
 // Deprecated: use RoleUnspecified instead.
 const RoleUnknown = RoleUnspecified
 
-// Match is binary operation on filer name and value to check if request is matched.
-// Match is compatible with v2 acl.MatchType enum.
+// Match enumerates operators to check attribute value compliance. What and how
+// specific Match affects depends on the specific context.
 type Match uint32
 
 const (
-	// MatchUnspecified is a Match value used to mark matcher as undefined.
-	MatchUnspecified Match = iota
-
-	// MatchStringEqual is a Match of string equality.
-	MatchStringEqual
-
-	// MatchStringNotEqual is a Match of string inequality.
-	MatchStringNotEqual
-
-	// MatchNotPresent is an operator for attribute absence.
-	MatchNotPresent
-
-	// MatchNumGT is a numeric "greater than" operator.
-	MatchNumGT
-
-	// MatchNumGE is a numeric "greater or equal than" operator.
-	MatchNumGE
-
-	// MatchNumLT is a numeric "less than" operator.
-	MatchNumLT
-
-	// MatchNumLE is a numeric "less or equal than" operator.
-	MatchNumLE
+	MatchUnspecified    Match = iota // undefined (zero)
+	MatchStringEqual                 // string equality
+	MatchStringNotEqual              // string inequality
+	MatchNotPresent                  // attribute absence
+	MatchNumGT                       // numeric "greater than" operator
+	MatchNumGE                       // numeric "greater or equal than" operator
+	MatchNumLT                       // is a numeric "less than" operator
+	MatchNumLE                       // is a numeric "less or equal than" operator
 )
 
 // MatchUnknown is a Match value used to mark matcher as undefined.
 // Deprecated: use MatchUnspecified instead.
 const MatchUnknown = MatchUnspecified
 
-// FilterHeaderType indicates source of headers to make matches.
-// FilterHeaderType is compatible with v2 acl.HeaderType enum.
+// FilterHeaderType enumerates the classes of resource attributes processed
+// within NeoFS access management.
 type FilterHeaderType uint32
 
 const (
-	// HeaderTypeUnspecified is a FilterHeaderType value used to mark header type as undefined.
-	HeaderTypeUnspecified FilterHeaderType = iota
-
-	// HeaderFromRequest is a FilterHeaderType for request X-Header.
-	HeaderFromRequest
-
-	// HeaderFromObject is a FilterHeaderType for object header.
-	HeaderFromObject
-
-	// HeaderFromService is a FilterHeaderType for service header.
-	HeaderFromService
+	HeaderTypeUnspecified FilterHeaderType = iota // undefined (zero)
+	HeaderFromRequest                             // protocol request X-Header
+	HeaderFromObject                              // object attribute
+	HeaderFromService                             // custom application-level attribute
 )
 
 // HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
@@ -156,7 +104,7 @@ func ActionFromV2(action v2acl.Action) (a Action) {
 	case v2acl.ActionDeny:
 		a = ActionDeny
 	default:
-		a = ActionUnspecified
+		a = 0
 	}
 
 	return a
@@ -237,7 +185,7 @@ func OperationFromV2(operation v2acl.Operation) (o Operation) {
 	case v2acl.OperationRangeHash:
 		o = OperationRangeHash
 	default:
-		o = OperationUnspecified
+		o = 0
 	}
 
 	return o
@@ -307,7 +255,7 @@ func RoleFromV2(role v2acl.Role) (r Role) {
 	case v2acl.RoleOthers:
 		r = RoleOthers
 	default:
-		r = RoleUnspecified
+		r = 0
 	}
 
 	return r
@@ -379,7 +327,7 @@ func MatchFromV2(match v2acl.MatchType) Match {
 		v2acl.MatchTypeNumLE:
 		return Match(match)
 	default:
-		return MatchUnspecified
+		return 0
 	}
 }
 
@@ -447,7 +395,7 @@ func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
 	case v2acl.HeaderTypeService:
 		h = HeaderFromService
 	default:
-		h = HeaderTypeUnspecified
+		h = 0
 	}
 
 	return h

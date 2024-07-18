@@ -63,7 +63,7 @@ func TestAction(t *testing.T) {
 
 	t.Run("unknown actions", func(t *testing.T) {
 		require.Equal(t, (eacl.ActionDeny + 1).ToV2(), v2acl.ActionUnknown)
-		require.Equal(t, eacl.ActionFromV2(v2acl.ActionDeny+1), eacl.ActionUnspecified)
+		require.Zero(t, eacl.ActionFromV2(v2acl.ActionDeny+1))
 	})
 }
 
@@ -92,7 +92,7 @@ func TestRole(t *testing.T) {
 
 	t.Run("unknown roles", func(t *testing.T) {
 		require.Equal(t, (eacl.RoleOthers + 1).ToV2(), v2acl.RoleUnknown)
-		require.Equal(t, eacl.RoleFromV2(v2acl.RoleOthers+1), eacl.RoleUnknown)
+		require.Zero(t, eacl.RoleFromV2(v2acl.RoleOthers+1))
 	})
 }
 

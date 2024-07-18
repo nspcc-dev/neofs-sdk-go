@@ -124,7 +124,7 @@ func TestTarget_ToV2(t *testing.T) {
 		target := NewTarget()
 
 		// check initial values
-		require.Equal(t, RoleUnspecified, target.Role())
+		require.Zero(t, target.Role())
 		require.Nil(t, target.BinaryKeys())
 
 		// convert to v2 message
