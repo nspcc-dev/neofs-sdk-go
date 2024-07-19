@@ -163,3 +163,23 @@ func TestSetRecords(t *testing.T) {
 	tbl.SetRecords(anyRecords)
 	require.Equal(t, anyRecords, tbl.Records())
 }
+
+func TestConstructTable(t *testing.T) {
+	tbl := eacl.ConstructTable(anyRecords)
+	require.Equal(t, anyRecords, tbl.Records())
+	_, ok := tbl.CID()
+	require.False(t, ok)
+	require.EqualValues(t, 2, tbl.Version().Major())
+	require.EqualValues(t, 16, tbl.Version().Minor())
+}
+
+func TestNewTableForContainer(t *testing.T) {
+	cnr := cidtest.ID()
+	tbl := eacl.NewTableForContainer(cnr, anyRecords)
+	require.Equal(t, anyRecords, tbl.Records())
+	cnr2, ok := tbl.CID()
+	require.True(t, ok)
+	require.Equal(t, cnr, cnr2)
+	require.EqualValues(t, 2, tbl.Version().Major())
+	require.EqualValues(t, 16, tbl.Version().Minor())
+}

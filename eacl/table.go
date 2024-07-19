@@ -13,10 +13,39 @@ import (
 // Table is a group of ContainerEACL records for single container.
 //
 // Table is compatible with v2 acl.EACLTable message.
+//
+// Table should be created using one of the constructors.
 type Table struct {
 	version version.Version
 	cid     cid.ID
 	records []Record
+}
+
+// ConstructTable constructs new Table with given records. Use
+// [NewTableForContainer] to limit the NeoFS container. The rs must not be
+// empty.
+func ConstructTable(rs []Record) Table {
+	return Table{version: version.Current(), records: rs}
+}
+
+// NewTableForContainer constructs new Table with given records which apply only
+// to the specified NeoFS container. The rs must not be empty.
+func NewTableForContainer(cnr cid.ID, rs []Record) Table {
+	t := ConstructTable(rs)
+	t.SetCID(cnr)
+	return t
+}
+
+// Unmarshal creates new Table and makes [Table.Unmarshal].
+func Unmarshal(b []byte) (Table, error) {
+	var t Table
+	return t, t.Unmarshal(b)
+}
+
+// UnmarshalJSON creates new Table and makes [Table.UnmarshalJSON].
+func UnmarshalJSON(b []byte) (Table, error) {
+	var t Table
+	return t, t.UnmarshalJSON(b)
 }
 
 // CopyTo writes deep copy of the [Table] to dst.
@@ -161,19 +190,18 @@ func (t *Table) ToV2() *v2acl.Table {
 //   - records: nil;
 //   - session token: nil;
 //   - signature: nil.
+//
+// Deprecated: use [ConstructTable] instead.
 func NewTable() *Table {
-	t := new(Table)
-	t.SetVersion(version.Current())
-
-	return t
+	t := ConstructTable(nil)
+	return &t
 }
 
 // CreateTable creates, initializes with parameters and returns Table instance.
+// Deprecated: use [NewTableForContainer] instead.
 func CreateTable(cid cid.ID) *Table {
-	t := NewTable()
-	t.SetCID(cid)
-
-	return t
+	t := NewTableForContainer(cid, nil)
+	return &t
 }
 
 // NewTableFromV2 converts v2 acl.EACLTable message to Table.
@@ -224,7 +252,8 @@ func (t Table) SignedData() []byte {
 	return t.Marshal()
 }
 
-// Unmarshal unmarshals protobuf binary representation of Table.
+// Unmarshal unmarshals protobuf binary representation of Table. Use [Unmarshal]
+// to decode data into a new Table.
 func (t *Table) Unmarshal(data []byte) error {
 	var m v2acl.Table
 	if err := m.Unmarshal(data); err != nil {
@@ -238,7 +267,8 @@ func (t *Table) MarshalJSON() ([]byte, error) {
 	return t.ToV2().MarshalJSON()
 }
 
-// UnmarshalJSON decodes Table from protobuf JSON format.
+// UnmarshalJSON decodes Table from protobuf JSON format. Use [UnmarshalJSON] to
+// decode data into a new Table.
 func (t *Table) UnmarshalJSON(data []byte) error {
 	var m v2acl.Table
 	if err := m.UnmarshalJSON(data); err != nil {

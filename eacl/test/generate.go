@@ -6,7 +6,6 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
-	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
 // Target returns random eacl.Target.
@@ -26,14 +25,5 @@ func Record() eacl.Record {
 }
 
 func Table() eacl.Table {
-	x := eacl.NewTable()
-
-	x.SetCID(cidtest.ID())
-	r1 := Record()
-	x.AddRecord(&r1)
-	r2 := Record()
-	x.AddRecord(&r2)
-	x.SetVersion(versiontest.Version())
-
-	return *x
+	return eacl.NewTableForContainer(cidtest.ID(), []eacl.Record{Record(), Record()})
 }
