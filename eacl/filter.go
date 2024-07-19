@@ -6,10 +6,9 @@ import (
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
-// Filter defines check conditions if request header is matched or not. Matched
-// header means that request should be processed according to ContainerEACL action.
-//
-// Filter is compatible with v2 acl.EACLRecord.Filter message.
+// Filter describes a binary property of an access-controlled NeoFS resource
+// according to meta information about it. The meta information is represented
+// by a set of key-value attributes of various types.
 //
 // Filter should be created using one of the constructors.
 type Filter struct {
@@ -73,22 +72,22 @@ func (f Filter) CopyTo(dst *Filter) {
 	dst.value = f.value
 }
 
-// Value returns filtered string value.
+// Value returns value of the access-controlled resource's attribute to match.
 func (f Filter) Value() string {
 	return f.value.EncodeToString()
 }
 
-// Matcher returns filter Match type.
+// Matcher returns operator to match the attribute.
 func (f Filter) Matcher() Match {
 	return f.matcher
 }
 
-// Key returns key to the filtered header.
+// Key returns key to the access-controlled resource's attribute to match.
 func (f Filter) Key() string {
 	return f.key
 }
 
-// From returns FilterHeaderType that defined which header will be filtered.
+// From returns type of access-controlled resource's attribute to match.
 func (f Filter) From() FilterHeaderType {
 	return f.from
 }
