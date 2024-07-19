@@ -45,15 +45,15 @@ type u64Stringer uint64
 
 // Various keys to object filters.
 const (
-	FilterObjectVersion                    = v2acl.FilterObjectVersion
-	FilterObjectID                         = v2acl.FilterObjectID
-	FilterObjectContainerID                = v2acl.FilterObjectContainerID
-	FilterObjectOwnerID                    = v2acl.FilterObjectOwnerID
-	FilterObjectCreationEpoch              = v2acl.FilterObjectCreationEpoch
-	FilterObjectPayloadSize                = v2acl.FilterObjectPayloadLength
-	FilterObjectPayloadChecksum            = v2acl.FilterObjectPayloadHash
-	FilterObjectType                       = v2acl.FilterObjectType
-	FilterObjectPayloadHomomorphicChecksum = v2acl.FilterObjectHomomorphicHash
+	FilterObjectVersion                    = "$Object:version"
+	FilterObjectID                         = "$Object:objectID"
+	FilterObjectContainerID                = "$Object:containerID"
+	FilterObjectOwnerID                    = "$Object:ownerID"
+	FilterObjectCreationEpoch              = "$Object:creationEpoch"
+	FilterObjectPayloadSize                = "$Object:payloadLength"
+	FilterObjectPayloadChecksum            = "$Object:payloadHash"
+	FilterObjectType                       = "$Object:objectType"
+	FilterObjectPayloadHomomorphicChecksum = "$Object:homomorphicHash"
 )
 
 func (s staticStringer) EncodeToString() string {
