@@ -112,14 +112,8 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 	var table eacl.Table
 	table.SetCID(containerID)
 
-	r := eacl.NewRecord()
-	r.SetOperation(eacl.OperationPut)
-	r.SetAction(eacl.ActionAllow)
-
-	var target eacl.Target
-	target.SetRole(eacl.RoleOthers)
-	r.SetTargets(target)
-	table.AddRecord(r)
+	r := eacl.ConstructRecord(eacl.ActionAllow, eacl.OperationPut, []eacl.Target{eacl.NewTargetByRole(eacl.RoleOthers)})
+	table.AddRecord(&r)
 
 	return table
 }

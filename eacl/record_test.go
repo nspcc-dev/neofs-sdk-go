@@ -319,3 +319,24 @@ func TestRecord_SetFilters(t *testing.T) {
 	r.SetFilters(fs)
 	require.Equal(t, fs, r.Filters())
 }
+
+func TestConstructRecord(t *testing.T) {
+	a := Action(rand.Uint32())
+	op := Operation(rand.Uint32())
+	ts := []Target{
+		NewTargetByRole(Role(rand.Uint32())),
+		NewTargetByAccounts(usertest.IDs(5)),
+	}
+	fs := []Filter{
+		ConstructFilter(FilterHeaderType(rand.Uint32()), "key1", Match(rand.Uint32()), "val1"),
+		ConstructFilter(FilterHeaderType(rand.Uint32()), "key2", Match(rand.Uint32()), "val2"),
+	}
+
+	r := ConstructRecord(a, op, ts)
+	require.Equal(t, a, r.Action())
+	require.Equal(t, op, r.Operation())
+	require.Equal(t, ts, r.Targets())
+	require.Zero(t, r.Filters())
+	r = ConstructRecord(a, op, ts, fs...)
+	require.Equal(t, fs, r.Filters())
+}

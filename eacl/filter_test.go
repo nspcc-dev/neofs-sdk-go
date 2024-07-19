@@ -7,6 +7,9 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
@@ -160,4 +163,54 @@ func TestNewCustomServiceFilter(t *testing.T) {
 	require.Equal(t, k, f.Key())
 	require.Equal(t, m, f.Matcher())
 	require.Equal(t, v, f.Value())
+}
+
+func TestFilterSingleObject(t *testing.T) {
+	obj := oid.ID{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 60, 89, 33, 95, 46, 103,
+		217, 57, 164, 87, 82, 204, 251, 226, 1, 100, 32, 72, 251, 0, 7, 172}
+	f := NewFilterObjectWithID(obj)
+	require.Equal(t, HeaderFromObject, f.From())
+	require.Equal(t, "$Object:objectID", f.Key())
+	require.Equal(t, MatchStringEqual, f.Matcher())
+	require.Equal(t, "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF", f.Value())
+}
+
+func TestFilterObjectsFromContainer(t *testing.T) {
+	cnr := cid.ID{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 60, 89, 33, 95, 46, 103,
+		217, 57, 164, 87, 82, 204, 251, 226, 1, 100, 32, 72, 251, 0, 7, 172}
+	f := NewFilterObjectsFromContainer(cnr)
+	require.Equal(t, HeaderFromObject, f.From())
+	require.Equal(t, "$Object:containerID", f.Key())
+	require.Equal(t, MatchStringEqual, f.Matcher())
+	require.Equal(t, "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF", f.Value())
+}
+
+func TestFilterObjectOwnerEquals(t *testing.T) {
+	owner := user.ID{53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57,
+		160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92}
+	f := NewFilterObjectOwnerEquals(owner)
+	require.Equal(t, HeaderFromObject, f.From())
+	require.Equal(t, "$Object:ownerID", f.Key())
+	require.Equal(t, MatchStringEqual, f.Matcher())
+	require.Equal(t, "NQZkR7mG74rJsGAHnpkiFeU9c4f5VLN54f", f.Value())
+}
+
+func TestFilterObjectCreationEpochIs(t *testing.T) {
+	const epoch = 657984300249
+	m := Match(rand.Uint32())
+	f := NewFilterObjectCreationEpochIs(m, epoch)
+	require.Equal(t, HeaderFromObject, f.From())
+	require.Equal(t, "$Object:creationEpoch", f.Key())
+	require.Equal(t, m, f.Matcher())
+	require.Equal(t, "657984300249", f.Value())
+}
+
+func TestFilterObjectPayloadSizeIs(t *testing.T) {
+	const sz = 4326750843582
+	m := Match(rand.Uint32())
+	f := NewFilterObjectPayloadSizeIs(m, sz)
+	require.Equal(t, HeaderFromObject, f.From())
+	require.Equal(t, "$Object:payloadLength", f.Key())
+	require.Equal(t, m, f.Matcher())
+	require.Equal(t, "4326750843582", f.Value())
 }

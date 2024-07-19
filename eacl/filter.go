@@ -4,6 +4,9 @@ import (
 	"strconv"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Filter describes a binary property of an access-controlled NeoFS resource
@@ -18,6 +21,8 @@ type Filter struct {
 	value   stringEncoder
 }
 
+func uint64Value(e uint64) string { return strconv.FormatUint(e, 10) }
+
 // ConstructFilter constructs new Filter instance.
 func ConstructFilter(h FilterHeaderType, k string, m Match, v string) Filter {
 	return Filter{from: h, matcher: m, key: k, value: staticStringer(v)}
@@ -26,6 +31,36 @@ func ConstructFilter(h FilterHeaderType, k string, m Match, v string) Filter {
 // NewObjectPropertyFilter constructs new Filter for the object property.
 func NewObjectPropertyFilter(k string, m Match, v string) Filter {
 	return ConstructFilter(HeaderFromObject, k, m, v)
+}
+
+// NewFilterObjectWithID constructs Filter that limits the access rule to the
+// referenced object only.
+func NewFilterObjectWithID(obj oid.ID) Filter {
+	return NewObjectPropertyFilter(FilterObjectID, MatchStringEqual, obj.EncodeToString())
+}
+
+// NewFilterObjectsFromContainer constructs Filter that limits the access rule to
+// objects from the referenced container only.
+func NewFilterObjectsFromContainer(cnr cid.ID) Filter {
+	return NewObjectPropertyFilter(FilterObjectContainerID, MatchStringEqual, cnr.EncodeToString())
+}
+
+// NewFilterObjectOwnerEquals constructs Filter that limits the access rule to
+// objects owner by the given user only.
+func NewFilterObjectOwnerEquals(usr user.ID) Filter {
+	return NewObjectPropertyFilter(FilterObjectOwnerID, MatchStringEqual, usr.EncodeToString())
+}
+
+// NewFilterObjectCreationEpochIs constructs Filter that limits the access rule to
+// objects with matching creation epoch only.
+func NewFilterObjectCreationEpochIs(m Match, e uint64) Filter {
+	return NewObjectPropertyFilter(FilterObjectCreationEpoch, m, uint64Value(e))
+}
+
+// NewFilterObjectPayloadSizeIs constructs Filter that limits the access rule to
+// objects with matching payload size only.
+func NewFilterObjectPayloadSizeIs(m Match, e uint64) Filter {
+	return NewObjectPropertyFilter(FilterObjectPayloadSize, m, uint64Value(e))
 }
 
 // NewRequestHeaderFilter constructs new Filter for the request X-header.
@@ -40,8 +75,6 @@ func NewCustomServiceFilter(k string, m Match, v string) Filter {
 }
 
 type staticStringer string
-
-type u64Stringer uint64
 
 // Various keys to object filters.
 const (
@@ -58,10 +91,6 @@ const (
 
 func (s staticStringer) EncodeToString() string {
 	return string(s)
-}
-
-func (u u64Stringer) EncodeToString() string {
-	return strconv.FormatUint(uint64(u), 10)
 }
 
 // CopyTo writes deep copy of the [Filter] to dst.

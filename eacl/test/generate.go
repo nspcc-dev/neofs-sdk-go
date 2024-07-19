@@ -19,16 +19,10 @@ func Target() eacl.Target {
 
 // Record returns random eacl.Record.
 func Record() eacl.Record {
-	x := eacl.NewRecord()
-
-	x.SetAction(eacl.ActionAllow)
-	x.SetOperation(eacl.OperationRangeHash)
-	x.SetTargets(Target(), Target())
-	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	usr := usertest.ID()
-	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, &usr)
-
-	return *x
+	return eacl.ConstructRecord(eacl.ActionAllow, eacl.OperationRangeHash, []eacl.Target{Target(), Target()},
+		eacl.NewFilterObjectsFromContainer(cidtest.ID()),
+		eacl.NewFilterObjectOwnerEquals(usertest.ID()),
+	)
 }
 
 func Table() eacl.Table {
