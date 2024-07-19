@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
@@ -306,4 +307,15 @@ func TestRecord_CopyTo(t *testing.T) {
 			require.False(t, bytes.Equal(key, record.targets[0].keys[i]))
 		}
 	})
+}
+
+func TestRecord_SetFilters(t *testing.T) {
+	fs := []Filter{
+		ConstructFilter(FilterHeaderType(rand.Uint32()), "key1", Match(rand.Uint32()), "val1"),
+		ConstructFilter(FilterHeaderType(rand.Uint32()), "key2", Match(rand.Uint32()), "val2"),
+	}
+	var r Record
+	require.Zero(t, r.Filters())
+	r.SetFilters(fs)
+	require.Equal(t, fs, r.Filters())
 }

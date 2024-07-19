@@ -54,12 +54,20 @@ func (r *Record) SetTargets(targets ...Target) {
 	r.targets = targets
 }
 
-// Filters returns list of filters to match and see if rule is applicable.
+// Filters returns list of filters to match the requested resource to this
+// access rule. Absence of filters means that Record is applicable to any
+// resource.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 func (r Record) Filters() []Filter {
 	return r.filters
+}
+
+// SetFilters returns list of filters to match the requested resource to this
+// access rule. Empty list applies the Record to all resources.
+func (r *Record) SetFilters(fs []Filter) {
+	r.filters = fs
 }
 
 // Operation returns NeoFS request verb to match.
