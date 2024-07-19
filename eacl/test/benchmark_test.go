@@ -67,7 +67,7 @@ func BenchmarkTableEqualsComparison100(b *testing.B) {
 
 // Target returns random eacl.Target.
 func TargetN(n int) *eacl.Target {
-	x := eacl.NewTarget()
+	var x eacl.Target
 
 	x.SetRole(eacl.RoleSystem)
 	keys := make([][]byte, n)
@@ -80,7 +80,7 @@ func TargetN(n int) *eacl.Target {
 
 	x.SetBinaryKeys(keys)
 
-	return x
+	return &x
 }
 
 // Record returns random eacl.Record.

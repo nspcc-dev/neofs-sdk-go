@@ -14,9 +14,35 @@ import (
 // and set of public keys.
 //
 // Target is compatible with v2 acl.EACLRecord.Target message.
+//
+// Target should be created using one of the constructors.
 type Target struct {
 	role Role
 	keys [][]byte
+}
+
+// NewTargetByRole returns Target for specified role. Use NewTargetByRole in [Record]
+// to direct it to subjects with the given role in NeoFS.
+func NewTargetByRole(role Role) Target { return Target{role: role} }
+
+// NewTargetByAccounts returns Target for specified set of NeoFS accounts. Use
+// NewTargetByAccounts in [Record] to direct access rule to the given subjects in
+// NeoFS.
+func NewTargetByAccounts(accs []user.ID) Target {
+	var res Target
+	res.SetAccounts(accs)
+	return res
+}
+
+// NewTargetByScriptHashes is an alternative to [NewTargetByAccounts] which
+// allows to pass accounts as their script hashes.
+func NewTargetByScriptHashes(hs []util.Uint160) Target {
+	b := make([][]byte, len(hs))
+	for i := range hs {
+		h := user.NewFromScriptHash(hs[i])
+		b[i] = h[:]
+	}
+	return Target{keys: b}
 }
 
 func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
@@ -104,8 +130,10 @@ func (t *Target) SetAccounts(accounts []user.ID) {
 	}
 }
 
-// SetTargetECDSAKeys converts ECDSA public keys to a binary
-// format and stores them in Target.
+// SetTargetECDSAKeys converts ECDSA public keys to a binary format and stores
+// them in Target.
+// Deprecated: use [NewTargetByAccounts] or [Target.SetAccounts] along with
+// [user.NewFromECDSAPublicKey] instead.
 func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 	binKeys := t.BinaryKeys()
 	ln := len(pubs)
@@ -124,6 +152,7 @@ func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 }
 
 // SetTargetAccounts sets accounts in Target.
+// Deprecated: use [NewTargetByScriptHashes] instead.
 func SetTargetAccounts(t *Target, accs ...util.Uint160) {
 	account := make([]user.ID, len(accs))
 	ln := len(accs)
@@ -138,6 +167,7 @@ func SetTargetAccounts(t *Target, accs ...util.Uint160) {
 // TargetECDSAKeys interprets binary public keys of Target
 // as ECDSA public keys. If any key has a different format,
 // the corresponding element will be nil.
+// Deprecated: use [Target.RawSubjects] with [keys.PublicKey.DecodeBytes] instead.
 func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
 	binKeys := t.BinaryKeys()
 	ln := len(binKeys)
@@ -194,6 +224,8 @@ func (t *Target) fromProtoMessage(m *v2acl.Target) error {
 // Defaults:
 //   - role: RoleUnspecified;
 //   - keys: nil.
+//
+// Deprecated: use [NewTargetByRole] or [TargetByPublicKeys] instead.
 func NewTarget() *Target { return new(Target) }
 
 // NewTargetFromV2 converts v2 acl.EACLRecord.Target message to Target.

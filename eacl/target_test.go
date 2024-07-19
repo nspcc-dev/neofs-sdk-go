@@ -3,8 +3,10 @@ package eacl
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -163,4 +165,34 @@ func TestTarget_CopyTo(t *testing.T) {
 		dst.keys[0][0] = 5
 		require.False(t, bytes.Equal(target.keys[0], dst.keys[0]))
 	})
+}
+
+func TestTargetByRole(t *testing.T) {
+	r := Role(rand.Uint32())
+	tgt := NewTargetByRole(r)
+	require.Equal(t, r, tgt.Role())
+	require.Zero(t, tgt.Accounts())
+}
+
+func TestNewTargetByAccounts(t *testing.T) {
+	accs := usertest.IDs(5)
+	tgt := NewTargetByAccounts(accs)
+	require.Equal(t, accs, tgt.Accounts())
+	require.Zero(t, tgt.Role())
+}
+
+func TestNewTargetByScriptHashes(t *testing.T) {
+	hs := make([]util.Uint160, 5)
+	for i := range hs {
+		//nolint:staticcheck
+		rand.Read(hs[i][:])
+	}
+	tgt := NewTargetByScriptHashes(hs)
+	accs := tgt.Accounts()
+	require.Len(t, accs, len(hs))
+	for i := range accs {
+		require.EqualValues(t, 0x35, accs[i][0])
+		require.Equal(t, hs[i][:], accs[i][1:21])
+		require.Equal(t, hash.Checksum(accs[i][:21])[:4], accs[i][21:])
+	}
 }

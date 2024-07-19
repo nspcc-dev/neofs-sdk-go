@@ -1,6 +1,8 @@
 package eacltest
 
 import (
+	"math/rand"
+
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -9,15 +11,10 @@ import (
 
 // Target returns random eacl.Target.
 func Target() eacl.Target {
-	x := eacl.NewTarget()
-
-	x.SetRole(eacl.RoleSystem)
-	x.SetBinaryKeys([][]byte{
-		{1, 2, 3},
-		{4, 5, 6},
-	})
-
-	return *x
+	if rand.Int()%2 == 0 {
+		return eacl.NewTargetByRole(eacl.Role(rand.Uint32()))
+	}
+	return eacl.NewTargetByAccounts(usertest.IDs(1 + rand.Intn(10)))
 }
 
 // Record returns random eacl.Record.
