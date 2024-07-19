@@ -10,10 +10,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-// Target is a group of request senders to match ContainerEACL. Defined by role enum
-// and set of public keys.
-//
-// Target is compatible with v2 acl.EACLRecord.Target message.
+// Target describes the NeoFS parties that are subject to a specific access
+// rule.
 //
 // Target should be created using one of the constructors.
 type Target struct {
