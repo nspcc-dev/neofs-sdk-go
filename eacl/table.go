@@ -63,7 +63,16 @@ func (t Table) Records() []Record {
 	return t.records
 }
 
+// SetRecords sets list of extended ACL rules.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+func (t *Table) SetRecords(rs []Record) {
+	t.records = rs
+}
+
 // AddRecord adds single eACL rule.
+// Deprecated: use [Table.SetRecords] instead.
 func (t *Table) AddRecord(r *Record) {
 	if r != nil {
 		t.records = append(t.records, *r)

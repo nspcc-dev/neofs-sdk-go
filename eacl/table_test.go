@@ -1,12 +1,14 @@
 package eacl_test
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
@@ -135,4 +137,29 @@ func TestTable_SetCID(t *testing.T) {
 	var tbl eacl.Table
 	tbl.SetCID(cnr)
 	require.Equal(t, cnr, tbl.GetCID())
+}
+
+var anyRecords = []eacl.Record{
+	eacl.ConstructRecord(eacl.Action(rand.Uint32()), eacl.Operation(rand.Uint32()), []eacl.Target{
+		eacl.NewTargetByRole(eacl.Role(rand.Uint32())),
+		eacl.NewTargetByAccounts(usertest.IDs(2)),
+	},
+		eacl.ConstructFilter(eacl.FilterHeaderType(rand.Uint32()), "key1", eacl.Match(rand.Uint32()), "val1"),
+		eacl.ConstructFilter(eacl.FilterHeaderType(rand.Uint32()), "key2", eacl.Match(rand.Uint32()), "val2"),
+	),
+	eacl.ConstructRecord(eacl.Action(rand.Uint32()), eacl.Operation(rand.Uint32()), []eacl.Target{
+		eacl.NewTargetByRole(eacl.Role(rand.Uint32())),
+		eacl.NewTargetByAccounts(usertest.IDs(2)),
+	},
+		eacl.ConstructFilter(eacl.FilterHeaderType(rand.Uint32()), "key1", eacl.Match(rand.Uint32()), "val1"),
+		eacl.ConstructFilter(eacl.FilterHeaderType(rand.Uint32()), "key2", eacl.Match(rand.Uint32()), "val2"),
+		eacl.ConstructFilter(eacl.FilterHeaderType(rand.Uint32()), "key3", eacl.Match(rand.Uint32()), "val3"),
+	),
+}
+
+func TestSetRecords(t *testing.T) {
+	var tbl eacl.Table
+	require.Zero(t, tbl.Records())
+	tbl.SetRecords(anyRecords)
+	require.Equal(t, anyRecords, tbl.Records())
 }
