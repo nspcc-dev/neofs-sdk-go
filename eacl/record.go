@@ -13,8 +13,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Record of the ContainerEACL rule, that defines ContainerEACL action, targets for this action,
-// object service operation and filters for request headers.
+// Record represents an access rule operating in NeoFS access management. The
+// rule is applied when some party requests access to a certain NeoFS resource.
 //
 // Record should be created using one of the constructors.
 type Record struct {
@@ -49,7 +49,7 @@ func (r Record) CopyTo(dst *Record) {
 	}
 }
 
-// Targets returns list of target subjects to apply ACL rule to.
+// Targets returns list of target subjects to which this access rule matches.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -57,7 +57,7 @@ func (r Record) Targets() []Target {
 	return r.targets
 }
 
-// SetTargets sets list of target subjects to apply ACL rule to.
+// SetTargets sets list of target subjects to which this access rule matches.
 func (r *Record) SetTargets(targets ...Target) {
 	r.targets = targets
 }
@@ -78,22 +78,22 @@ func (r *Record) SetFilters(fs []Filter) {
 	r.filters = fs
 }
 
-// Operation returns NeoFS request verb to match.
+// Operation returns operation executed by the subject to match.
 func (r Record) Operation() Operation {
 	return r.operation
 }
 
-// SetOperation sets NeoFS request verb to match.
+// SetOperation sets operation executed by the subject to match.
 func (r *Record) SetOperation(operation Operation) {
 	r.operation = operation
 }
 
-// Action returns rule execution result.
+// Action returns action on the target subject when the access rule matches.
 func (r Record) Action() Action {
 	return r.action
 }
 
-// SetAction sets rule execution result.
+// SetAction sets action on the target subject when the access rule matches.
 func (r *Record) SetAction(action Action) {
 	r.action = action
 }
