@@ -10,11 +10,34 @@ import (
 // header means that request should be processed according to ContainerEACL action.
 //
 // Filter is compatible with v2 acl.EACLRecord.Filter message.
+//
+// Filter should be created using one of the constructors.
 type Filter struct {
 	from    FilterHeaderType
 	matcher Match
 	key     string
 	value   stringEncoder
+}
+
+// ConstructFilter constructs new Filter instance.
+func ConstructFilter(h FilterHeaderType, k string, m Match, v string) Filter {
+	return Filter{from: h, matcher: m, key: k, value: staticStringer(v)}
+}
+
+// NewObjectPropertyFilter constructs new Filter for the object property.
+func NewObjectPropertyFilter(k string, m Match, v string) Filter {
+	return ConstructFilter(HeaderFromObject, k, m, v)
+}
+
+// NewRequestHeaderFilter constructs new Filter for the request X-header.
+func NewRequestHeaderFilter(k string, m Match, v string) Filter {
+	return ConstructFilter(HeaderFromRequest, k, m, v)
+}
+
+// NewCustomServiceFilter constructs new Filter for the custom app-level
+// property.
+func NewCustomServiceFilter(k string, m Match, v string) Filter {
+	return ConstructFilter(HeaderFromService, k, m, v)
 }
 
 type staticStringer string
@@ -105,8 +128,11 @@ func (f *Filter) fromProtoMessage(m *v2acl.HeaderFilter) error {
 //   - matcher: MatchUnspecified;
 //   - key: "";
 //   - value: "".
+//
+// Deprecated: use [ConstructFilter] instead.
 func NewFilter() *Filter {
-	return &Filter{value: staticStringer("")}
+	f := ConstructFilter(0, "", 0, "")
+	return &f
 }
 
 // NewFilterFromV2 converts v2 acl.EACLRecord.Filter message to Filter.

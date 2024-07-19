@@ -2,6 +2,7 @@ package eacl
 
 import (
 	"bytes"
+	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -114,4 +115,49 @@ func TestFilter_CopyTo(t *testing.T) {
 		require.NotEqual(t, filter.matcher, dst.matcher)
 		require.NotEqual(t, filter.key, dst.key)
 	})
+}
+
+func TestConstructFilter(t *testing.T) {
+	h := FilterHeaderType(rand.Uint32())
+	k := "Hello"
+	m := Match(rand.Uint32())
+	v := "World"
+	f := ConstructFilter(h, k, m, v)
+	require.Equal(t, h, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, m, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestNewObjectPropertyFilter(t *testing.T) {
+	k := "Hello"
+	m := Match(rand.Uint32())
+	v := "World"
+	f := NewObjectPropertyFilter(k, m, v)
+	require.Equal(t, HeaderFromObject, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, m, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestNewRequestHeaderFilter(t *testing.T) {
+	k := "Hello"
+	m := Match(rand.Uint32())
+	v := "World"
+	f := NewRequestHeaderFilter(k, m, v)
+	require.Equal(t, HeaderFromRequest, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, m, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestNewCustomServiceFilter(t *testing.T) {
+	k := "Hello"
+	m := Match(rand.Uint32())
+	v := "World"
+	f := NewCustomServiceFilter(k, m, v)
+	require.Equal(t, HeaderFromService, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, m, f.Matcher())
+	require.Equal(t, v, f.Value())
 }
