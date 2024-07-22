@@ -1,7 +1,6 @@
-package eacl
+package eacl_test
 
 import (
-	"bytes"
 	"crypto/ecdsa"
 	"math/rand"
 	"testing"
@@ -11,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -22,9 +22,9 @@ func TestTarget(t *testing.T) {
 		randomPublicKey(t),
 	}
 
-	target := NewTarget()
-	target.SetRole(RoleSystem)
-	SetTargetECDSAKeys(target, pubs...)
+	target := eacl.NewTarget()
+	target.SetRole(eacl.RoleSystem)
+	eacl.SetTargetECDSAKeys(target, pubs...)
 
 	v2 := target.ToV2()
 	require.NotNil(t, v2)
@@ -34,11 +34,11 @@ func TestTarget(t *testing.T) {
 		require.Equal(t, key, (*keys.PublicKey)(pubs[i]).Bytes())
 	}
 
-	newTarget := NewTargetFromV2(v2)
+	newTarget := eacl.NewTargetFromV2(v2)
 	require.Equal(t, target, newTarget)
 
 	t.Run("from nil v2 target", func(t *testing.T) {
-		require.Equal(t, new(Target), NewTargetFromV2(nil))
+		require.Equal(t, new(eacl.Target), eacl.NewTargetFromV2(nil))
 	})
 }
 
@@ -48,9 +48,9 @@ func TestTargetAccounts(t *testing.T) {
 		(*keys.PublicKey)(randomPublicKey(t)).GetScriptHash(),
 	}
 
-	target := NewTarget()
-	target.SetRole(RoleSystem)
-	SetTargetAccounts(target, accs...)
+	target := eacl.NewTarget()
+	target.SetRole(eacl.RoleSystem)
+	eacl.SetTargetAccounts(target, accs...)
 
 	v2 := target.ToV2()
 	require.NotNil(t, v2)
@@ -61,19 +61,19 @@ func TestTargetAccounts(t *testing.T) {
 		require.Equal(t, key, u[:])
 	}
 
-	newTarget := NewTargetFromV2(v2)
+	newTarget := eacl.NewTargetFromV2(v2)
 	require.Equal(t, target, newTarget)
 
 	t.Run("from nil v2 target", func(t *testing.T) {
-		require.Equal(t, new(Target), NewTargetFromV2(nil))
+		require.Equal(t, new(eacl.Target), eacl.NewTargetFromV2(nil))
 	})
 }
 
 func TestTargetUsers(t *testing.T) {
 	accs := usertest.IDs(2)
 
-	target := NewTarget()
-	target.SetRole(RoleSystem)
+	target := eacl.NewTarget()
+	target.SetRole(eacl.RoleSystem)
 	target.SetAccounts(accs)
 
 	v2 := target.ToV2()
@@ -84,21 +84,21 @@ func TestTargetUsers(t *testing.T) {
 		require.Equal(t, key, accs[i][:])
 	}
 
-	newTarget := NewTargetFromV2(v2)
+	newTarget := eacl.NewTargetFromV2(v2)
 	require.Equal(t, target, newTarget)
 
 	t.Run("from nil v2 target", func(t *testing.T) {
-		require.Equal(t, new(Target), NewTargetFromV2(nil))
+		require.Equal(t, new(eacl.Target), eacl.NewTargetFromV2(nil))
 	})
 }
 
 func TestTargetEncoding(t *testing.T) {
-	tar := NewTarget()
-	tar.SetRole(RoleSystem)
-	SetTargetECDSAKeys(tar, randomPublicKey(t))
+	tar := eacl.NewTarget()
+	tar.SetRole(eacl.RoleSystem)
+	eacl.SetTargetECDSAKeys(tar, randomPublicKey(t))
 
 	t.Run("binary", func(t *testing.T) {
-		tar2 := NewTarget()
+		tar2 := eacl.NewTarget()
 		require.NoError(t, tar2.Unmarshal(tar.Marshal()))
 
 		require.Equal(t, tar, tar2)
@@ -108,7 +108,7 @@ func TestTargetEncoding(t *testing.T) {
 		data, err := tar.MarshalJSON()
 		require.NoError(t, err)
 
-		tar2 := NewTarget()
+		tar2 := eacl.NewTarget()
 		require.NoError(t, tar2.UnmarshalJSON(data))
 
 		require.Equal(t, tar, tar2)
@@ -117,13 +117,13 @@ func TestTargetEncoding(t *testing.T) {
 
 func TestTarget_ToV2(t *testing.T) {
 	t.Run("nil", func(t *testing.T) {
-		var x *Target
+		var x *eacl.Target
 
 		require.Nil(t, x.ToV2())
 	})
 
 	t.Run("default values", func(t *testing.T) {
-		target := NewTarget()
+		target := eacl.NewTarget()
 
 		// check initial values
 		require.Zero(t, target.Role())
@@ -137,46 +137,16 @@ func TestTarget_ToV2(t *testing.T) {
 	})
 }
 
-func TestTarget_CopyTo(t *testing.T) {
-	var target Target
-	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
-		{1, 2, 3},
-	})
-
-	t.Run("copy", func(t *testing.T) {
-		var dst Target
-		target.CopyTo(&dst)
-
-		require.Equal(t, target, dst)
-		require.True(t, bytes.Equal(target.Marshal(), dst.Marshal()))
-	})
-
-	t.Run("change", func(t *testing.T) {
-		var dst Target
-		target.CopyTo(&dst)
-
-		require.Equal(t, target.role, dst.role)
-		dst.SetRole(2)
-		require.NotEqual(t, target.role, dst.role)
-
-		require.True(t, bytes.Equal(target.keys[0], dst.keys[0]))
-		// change some key data
-		dst.keys[0][0] = 5
-		require.False(t, bytes.Equal(target.keys[0], dst.keys[0]))
-	})
-}
-
 func TestTargetByRole(t *testing.T) {
-	r := Role(rand.Uint32())
-	tgt := NewTargetByRole(r)
+	r := eacl.Role(rand.Uint32())
+	tgt := eacl.NewTargetByRole(r)
 	require.Equal(t, r, tgt.Role())
 	require.Zero(t, tgt.Accounts())
 }
 
 func TestNewTargetByAccounts(t *testing.T) {
 	accs := usertest.IDs(5)
-	tgt := NewTargetByAccounts(accs)
+	tgt := eacl.NewTargetByAccounts(accs)
 	require.Equal(t, accs, tgt.Accounts())
 	require.Zero(t, tgt.Role())
 }
@@ -187,7 +157,7 @@ func TestNewTargetByScriptHashes(t *testing.T) {
 		//nolint:staticcheck
 		rand.Read(hs[i][:])
 	}
-	tgt := NewTargetByScriptHashes(hs)
+	tgt := eacl.NewTargetByScriptHashes(hs)
 	accs := tgt.Accounts()
 	require.Len(t, accs, len(hs))
 	for i := range accs {
