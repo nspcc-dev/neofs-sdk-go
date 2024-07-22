@@ -235,7 +235,7 @@ func NewTargetFromV2(target *v2acl.Target) *Target {
 }
 
 // Marshal marshals Target into a protobuf binary form.
-func (t *Target) Marshal() []byte {
+func (t Target) Marshal() []byte {
 	return t.toProtoMessage().StableMarshal(nil)
 }
 
@@ -249,7 +249,7 @@ func (t *Target) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Target to protobuf JSON format.
-func (t *Target) MarshalJSON() ([]byte, error) {
+func (t Target) MarshalJSON() ([]byte, error) {
 	return t.toProtoMessage().MarshalJSON()
 }
 

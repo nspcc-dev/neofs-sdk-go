@@ -177,7 +177,7 @@ func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 }
 
 // Marshal marshals Filter into a protobuf binary form.
-func (f *Filter) Marshal() []byte {
+func (f Filter) Marshal() []byte {
 	return f.toProtoMessage().StableMarshal(nil)
 }
 
@@ -191,7 +191,7 @@ func (f *Filter) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Filter to protobuf JSON format.
-func (f *Filter) MarshalJSON() ([]byte, error) {
+func (f Filter) MarshalJSON() ([]byte, error) {
 	return f.toProtoMessage().MarshalJSON()
 }
 

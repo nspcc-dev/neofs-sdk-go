@@ -314,7 +314,7 @@ func NewRecordFromV2(record *v2acl.Record) *Record {
 }
 
 // Marshal marshals Record into a protobuf binary form.
-func (r *Record) Marshal() []byte {
+func (r Record) Marshal() []byte {
 	return r.toProtoMessage().StableMarshal(nil)
 }
 
@@ -328,7 +328,7 @@ func (r *Record) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Record to protobuf JSON format.
-func (r *Record) MarshalJSON() ([]byte, error) {
+func (r Record) MarshalJSON() ([]byte, error) {
 	return r.toProtoMessage().MarshalJSON()
 }
 

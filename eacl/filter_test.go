@@ -13,12 +13,6 @@ import (
 )
 
 func TestFilter_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *eacl.Filter
-
-		require.Nil(t, x.ToV2())
-	})
-
 	t.Run("default values", func(t *testing.T) {
 		filter := eacl.NewFilter()
 

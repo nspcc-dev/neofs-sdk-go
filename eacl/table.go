@@ -153,11 +153,7 @@ func (t *Table) ReadFromV2(m v2acl.Table) error {
 // Nil Table converts to nil.
 //
 // See also [Table.ReadFromV2].
-func (t *Table) ToV2() *v2acl.Table {
-	if t == nil {
-		return nil
-	}
-
+func (t Table) ToV2() *v2acl.Table {
 	v2 := new(v2acl.Table)
 	var cidV2 refs.ContainerID
 
@@ -241,7 +237,7 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 }
 
 // Marshal marshals Table into a protobuf binary form.
-func (t *Table) Marshal() []byte {
+func (t Table) Marshal() []byte {
 	return t.ToV2().StableMarshal(nil)
 }
 
@@ -263,7 +259,7 @@ func (t *Table) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Table to protobuf JSON format.
-func (t *Table) MarshalJSON() ([]byte, error) {
+func (t Table) MarshalJSON() ([]byte, error) {
 	return t.ToV2().MarshalJSON()
 }
 

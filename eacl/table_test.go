@@ -88,12 +88,6 @@ func TestTableEncoding(t *testing.T) {
 }
 
 func TestTable_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *eacl.Table
-
-		require.Nil(t, x.ToV2())
-	})
-
 	t.Run("default values", func(t *testing.T) {
 		table := eacl.NewTable()
 

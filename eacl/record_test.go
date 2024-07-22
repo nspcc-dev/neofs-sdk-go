@@ -109,12 +109,6 @@ func TestRecordEncoding(t *testing.T) {
 }
 
 func TestRecord_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *eacl.Record
-
-		require.Nil(t, x.ToV2())
-	})
-
 	t.Run("default values", func(t *testing.T) {
 		record := eacl.NewRecord()
 

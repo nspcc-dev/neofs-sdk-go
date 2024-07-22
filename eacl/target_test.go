@@ -116,12 +116,6 @@ func TestTargetEncoding(t *testing.T) {
 }
 
 func TestTarget_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *eacl.Target
-
-		require.Nil(t, x.ToV2())
-	})
-
 	t.Run("default values", func(t *testing.T) {
 		target := eacl.NewTarget()
 
