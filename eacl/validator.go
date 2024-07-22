@@ -143,24 +143,40 @@ nextFilter:
 // returns true if one of ExtendedACLTarget has
 // suitable target OR suitable public key.
 func targetMatches(unit *ValidationUnit, record *Record) bool {
+	var checkRole bool
+
 	for _, target := range record.Targets() {
 		if target.Role() == RoleSystem {
 			// system role access modifications have been deprecated
 			continue
 		}
 
+		checkRole = true
+
 		// check public key match
 		if pubs := target.BinaryKeys(); len(pubs) != 0 {
+			checkRole = false
+
 			for _, key := range pubs {
 				if bytes.Equal(key, unit.key) {
 					return true
 				}
 			}
-			continue
+		}
+
+		// check accounts key match
+		if accounts := target.Accounts(); len(accounts) != 0 {
+			checkRole = false
+
+			for _, account := range accounts {
+				if bytes.Equal(account[:], unit.account) {
+					return true
+				}
+			}
 		}
 
 		// check target group match
-		if unit.role == target.Role() {
+		if checkRole && unit.role == target.Role() {
 			return true
 		}
 	}

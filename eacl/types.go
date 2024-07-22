@@ -2,6 +2,7 @@ package eacl
 
 import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Header is an interface of string key-value header.
@@ -32,6 +33,8 @@ type ValidationUnit struct {
 	hdrSrc TypedHeaderSource
 
 	key []byte
+
+	account []byte
 
 	table *Table
 }
@@ -88,6 +91,15 @@ func (u *ValidationUnit) WithSenderKey(v []byte) *ValidationUnit {
 func (u *ValidationUnit) WithEACLTable(table *Table) *ValidationUnit {
 	if u != nil {
 		u.table = table
+	}
+
+	return u
+}
+
+// WithAccount configures ValidationUnit to use as sender's [user.ID].
+func (u *ValidationUnit) WithAccount(v user.ID) *ValidationUnit {
+	if u != nil {
+		u.account = v[:]
 	}
 
 	return u
