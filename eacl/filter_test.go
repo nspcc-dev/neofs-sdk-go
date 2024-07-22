@@ -1,10 +1,12 @@
 package eacl_test
 
 import (
+	"encoding/json"
 	"math/rand"
+	"strconv"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
+	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -13,6 +15,16 @@ import (
 )
 
 func TestFilter_ToV2(t *testing.T) {
+	require.Nil(t, (*eacl.Filter)(nil).ToV2())
+	key := "key_" + strconv.Itoa(rand.Int())
+	val := "val_" + strconv.Itoa(rand.Int())
+	r := eacl.ConstructFilter(anyValidHeaderType, key, anyValidMatcher, val)
+	m := r.ToV2()
+	require.EqualValues(t, anyValidHeaderType, m.GetHeaderType())
+	require.Equal(t, key, m.GetKey())
+	require.EqualValues(t, anyValidMatcher, m.GetMatchType())
+	require.Equal(t, val, m.GetValue())
+
 	t.Run("default values", func(t *testing.T) {
 		filter := eacl.NewFilter()
 
@@ -27,53 +39,122 @@ func TestFilter_ToV2(t *testing.T) {
 
 		require.Empty(t, filterV2.GetKey())
 		require.Empty(t, filterV2.GetValue())
-		require.Equal(t, acl.HeaderTypeUnknown, filterV2.GetHeaderType())
-		require.Equal(t, acl.MatchTypeUnknown, filterV2.GetMatchType())
+		require.Zero(t, filterV2.GetHeaderType())
+		require.Zero(t, filterV2.GetMatchType())
 	})
 }
 
+func TestNewFilterFromV2(t *testing.T) {
+	typ := protoacl.HeaderType(rand.Uint32())
+	key := "key_" + strconv.Itoa(rand.Int())
+	op := protoacl.MatchType(rand.Uint32())
+	val := "val_" + strconv.Itoa(rand.Int())
+	var m protoacl.HeaderFilter
+	m.SetHeaderType(typ)
+	m.SetKey(key)
+	m.SetMatchType(op)
+	m.SetValue(val)
+
+	f := eacl.NewFilterFromV2(&m)
+	require.EqualValues(t, typ, f.From())
+	require.Equal(t, key, f.Key())
+	require.EqualValues(t, op, f.Matcher())
+	require.Equal(t, val, f.Value())
+
+	t.Run("nil", func(t *testing.T) {
+		require.Equal(t, new(eacl.Filter), eacl.NewFilterFromV2(nil))
+	})
+}
+
+func TestFilter_Marshal(t *testing.T) {
+	for i := range anyValidFilters {
+		require.Equal(t, anyValidBinFilters[i], anyValidFilters[i].Marshal(), i)
+	}
+}
+
+func TestFilter_Unmarshal(t *testing.T) {
+	t.Run("invalid protobuf", func(t *testing.T) {
+		err := new(eacl.Filter).Unmarshal([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "cannot parse invalid wire-format data")
+	})
+
+	var f eacl.Filter
+	for i := range anyValidBinFilters {
+		require.NoError(t, f.Unmarshal(anyValidBinFilters[i]), i)
+		require.EqualValues(t, anyValidFilters[i], f, i)
+	}
+}
+
+func TestFilter_MarshalJSON(t *testing.T) {
+	t.Run("invalid JSON", func(t *testing.T) {
+		err := new(eacl.Filter).UnmarshalJSON([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "syntax error")
+	})
+
+	var f1, f2 eacl.Filter
+	for i := range anyValidFilters {
+		b, err := anyValidFilters[i].MarshalJSON()
+		require.NoError(t, err, i)
+		require.NoError(t, f1.UnmarshalJSON(b), i)
+		require.Equal(t, anyValidFilters[i], f1, i)
+
+		b, err = json.Marshal(anyValidFilters[i])
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(b, &f2), i)
+		require.Equal(t, anyValidFilters[i], f2, i)
+	}
+}
+
+func TestFilter_UnmarshalJSON(t *testing.T) {
+	var f1, f2 eacl.Filter
+	for i := range anyValidJSONFilters {
+		require.NoError(t, f1.UnmarshalJSON([]byte(anyValidJSONFilters[i])), i)
+		require.Equal(t, anyValidFilters[i], f1, i)
+
+		require.NoError(t, json.Unmarshal([]byte(anyValidJSONFilters[i]), &f2), i)
+		require.Equal(t, anyValidFilters[i], f2, i)
+	}
+}
+
 func TestConstructFilter(t *testing.T) {
-	h := eacl.FilterHeaderType(rand.Uint32())
 	k := "Hello"
-	m := eacl.Match(rand.Uint32())
 	v := "World"
-	f := eacl.ConstructFilter(h, k, m, v)
-	require.Equal(t, h, f.From())
+	f := eacl.ConstructFilter(anyValidHeaderType, k, anyValidMatcher, v)
+	require.Equal(t, anyValidHeaderType, f.From())
 	require.Equal(t, k, f.Key())
-	require.Equal(t, m, f.Matcher())
+	require.Equal(t, anyValidMatcher, f.Matcher())
 	require.Equal(t, v, f.Value())
 }
 
 func TestNewObjectPropertyFilter(t *testing.T) {
 	k := "Hello"
-	m := eacl.Match(rand.Uint32())
 	v := "World"
-	f := eacl.NewObjectPropertyFilter(k, m, v)
+	f := eacl.NewObjectPropertyFilter(k, anyValidMatcher, v)
 	require.Equal(t, eacl.HeaderFromObject, f.From())
 	require.Equal(t, k, f.Key())
-	require.Equal(t, m, f.Matcher())
+	require.Equal(t, anyValidMatcher, f.Matcher())
 	require.Equal(t, v, f.Value())
 }
 
 func TestNewRequestHeaderFilter(t *testing.T) {
 	k := "Hello"
-	m := eacl.Match(rand.Uint32())
 	v := "World"
-	f := eacl.NewRequestHeaderFilter(k, m, v)
+	f := eacl.NewRequestHeaderFilter(k, anyValidMatcher, v)
 	require.Equal(t, eacl.HeaderFromRequest, f.From())
 	require.Equal(t, k, f.Key())
-	require.Equal(t, m, f.Matcher())
+	require.Equal(t, anyValidMatcher, f.Matcher())
 	require.Equal(t, v, f.Value())
 }
 
 func TestNewCustomServiceFilter(t *testing.T) {
 	k := "Hello"
-	m := eacl.Match(rand.Uint32())
 	v := "World"
-	f := eacl.NewCustomServiceFilter(k, m, v)
+	f := eacl.NewCustomServiceFilter(k, anyValidMatcher, v)
 	require.Equal(t, eacl.HeaderFromService, f.From())
 	require.Equal(t, k, f.Key())
-	require.Equal(t, m, f.Matcher())
+	require.Equal(t, anyValidMatcher, f.Matcher())
 	require.Equal(t, v, f.Value())
 }
 
@@ -109,20 +190,18 @@ func TestFilterObjectOwnerEquals(t *testing.T) {
 
 func TestFilterObjectCreationEpochIs(t *testing.T) {
 	const epoch = 657984300249
-	m := eacl.Match(rand.Uint32())
-	f := eacl.NewFilterObjectCreationEpochIs(m, epoch)
+	f := eacl.NewFilterObjectCreationEpochIs(anyValidMatcher, epoch)
 	require.Equal(t, eacl.HeaderFromObject, f.From())
 	require.Equal(t, "$Object:creationEpoch", f.Key())
-	require.Equal(t, m, f.Matcher())
+	require.Equal(t, anyValidMatcher, f.Matcher())
 	require.Equal(t, "657984300249", f.Value())
 }
 
 func TestFilterObjectPayloadSizeIs(t *testing.T) {
 	const sz = 4326750843582
-	m := eacl.Match(rand.Uint32())
-	f := eacl.NewFilterObjectPayloadSizeIs(m, sz)
+	f := eacl.NewFilterObjectPayloadSizeIs(anyValidMatcher, sz)
 	require.Equal(t, eacl.HeaderFromObject, f.From())
 	require.Equal(t, "$Object:payloadLength", f.Key())
-	require.Equal(t, m, f.Matcher())
+	require.Equal(t, anyValidMatcher, f.Matcher())
 	require.Equal(t, "4326750843582", f.Value())
 }

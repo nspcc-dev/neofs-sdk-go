@@ -50,6 +50,49 @@ var (
 		eacl.HeaderFromObject:      v2acl.HeaderTypeObject,
 		eacl.HeaderFromService:     v2acl.HeaderTypeService,
 	}
+
+	actionStrings = map[eacl.Action]string{
+		0:                "ACTION_UNSPECIFIED",
+		eacl.ActionAllow: "ALLOW",
+		eacl.ActionDeny:  "DENY",
+		3:                "3",
+	}
+	roleStrings = map[eacl.Role]string{
+		0:               "ROLE_UNSPECIFIED",
+		eacl.RoleUser:   "USER",
+		eacl.RoleSystem: "SYSTEM",
+		eacl.RoleOthers: "OTHERS",
+		4:               "4",
+	}
+	opStrings = map[eacl.Operation]string{
+		0:                       "OPERATION_UNSPECIFIED",
+		eacl.OperationGet:       "GET",
+		eacl.OperationHead:      "HEAD",
+		eacl.OperationPut:       "PUT",
+		eacl.OperationDelete:    "DELETE",
+		eacl.OperationSearch:    "SEARCH",
+		eacl.OperationRange:     "GETRANGE",
+		eacl.OperationRangeHash: "GETRANGEHASH",
+		8:                       "8",
+	}
+	matcherStrings = map[eacl.Match]string{
+		0:                        "MATCH_TYPE_UNSPECIFIED",
+		eacl.MatchStringEqual:    "STRING_EQUAL",
+		eacl.MatchStringNotEqual: "STRING_NOT_EQUAL",
+		eacl.MatchNotPresent:     "NOT_PRESENT",
+		eacl.MatchNumGT:          "NUM_GT",
+		eacl.MatchNumGE:          "NUM_GE",
+		eacl.MatchNumLT:          "NUM_LT",
+		eacl.MatchNumLE:          "NUM_LE",
+		8:                        "8",
+	}
+	headerTypeStrings = map[eacl.FilterHeaderType]string{
+		0:                      "HEADER_UNSPECIFIED",
+		eacl.HeaderFromRequest: "REQUEST",
+		eacl.HeaderFromObject:  "OBJECT",
+		eacl.HeaderFromService: "SERVICE",
+		4:                      "4",
+	}
 )
 
 func TestAction(t *testing.T) {
@@ -156,7 +199,21 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 	}
 }
 
+func TestActionProto(t *testing.T) {
+	for x, y := range map[v2acl.Action]eacl.Action{
+		v2acl.ActionUnknown: eacl.ActionUnspecified,
+		v2acl.ActionAllow:   eacl.ActionAllow,
+		v2acl.ActionDeny:    eacl.ActionDeny,
+	} {
+		require.EqualValues(t, x, y)
+	}
+}
+
 func TestAction_String(t *testing.T) {
+	for a, s := range actionStrings {
+		require.Equal(t, s, a.String())
+	}
+
 	toPtr := func(v eacl.Action) *eacl.Action {
 		return &v
 	}
@@ -168,7 +225,52 @@ func TestAction_String(t *testing.T) {
 	})
 }
 
+type enum interface{ ~uint32 }
+
+func testEnumToString[T enum](t testing.TB, m map[T]string, f func(T) string) {
+	for n, s := range m {
+		require.Equal(t, s, f(n))
+	}
+}
+
+func testEnumFromString[T enum](t *testing.T, m map[T]string, f func(string) (T, bool)) {
+	t.Run("invalid", func(t *testing.T) {
+		for _, s := range []string{"", "foo", "1.2"} {
+			_, ok := f(s)
+			require.False(t, ok)
+		}
+	})
+	for n, s := range m {
+		v, ok := f(s)
+		require.True(t, ok)
+		require.Equal(t, n, v)
+	}
+}
+
+func TestActionToString(t *testing.T) {
+	testEnumToString(t, actionStrings, eacl.ActionToString)
+}
+
+func TestActionFromString(t *testing.T) {
+	testEnumFromString(t, actionStrings, eacl.ActionFromString)
+}
+
+func TestRoleProto(t *testing.T) {
+	for x, y := range map[v2acl.Role]eacl.Role{
+		v2acl.RoleUnknown: eacl.RoleUnspecified,
+		v2acl.RoleUser:    eacl.RoleUser,
+		v2acl.RoleSystem:  eacl.RoleSystem,
+		v2acl.RoleOthers:  eacl.RoleOthers,
+	} {
+		require.EqualValues(t, x, y)
+	}
+}
+
 func TestRole_String(t *testing.T) {
+	for r, s := range roleStrings {
+		require.Equal(t, s, r.String())
+	}
+
 	toPtr := func(v eacl.Role) *eacl.Role {
 		return &v
 	}
@@ -181,7 +283,34 @@ func TestRole_String(t *testing.T) {
 	})
 }
 
+func TestRoleToString(t *testing.T) {
+	testEnumToString(t, roleStrings, eacl.RoleToString)
+}
+
+func TestRoleFromString(t *testing.T) {
+	testEnumFromString(t, roleStrings, eacl.RoleFromString)
+}
+
+func TestOperationProto(t *testing.T) {
+	for x, y := range map[v2acl.Operation]eacl.Operation{
+		v2acl.OperationUnknown:   eacl.OperationUnspecified,
+		v2acl.OperationGet:       eacl.OperationGet,
+		v2acl.OperationHead:      eacl.OperationHead,
+		v2acl.OperationPut:       eacl.OperationPut,
+		v2acl.OperationDelete:    eacl.OperationDelete,
+		v2acl.OperationSearch:    eacl.OperationSearch,
+		v2acl.OperationRange:     eacl.OperationRange,
+		v2acl.OperationRangeHash: eacl.OperationRangeHash,
+	} {
+		require.EqualValues(t, x, y)
+	}
+}
+
 func TestOperation_String(t *testing.T) {
+	for op, s := range opStrings {
+		require.Equal(t, s, op.String())
+	}
+
 	toPtr := func(v eacl.Operation) *eacl.Operation {
 		return &v
 	}
@@ -198,7 +327,34 @@ func TestOperation_String(t *testing.T) {
 	})
 }
 
+func TestOperationToString(t *testing.T) {
+	testEnumToString(t, opStrings, eacl.OperationToString)
+}
+
+func TestOperationFromString(t *testing.T) {
+	testEnumFromString(t, opStrings, eacl.OperationFromString)
+}
+
+func TestMatchProto(t *testing.T) {
+	for x, y := range map[v2acl.MatchType]eacl.Match{
+		v2acl.MatchTypeUnknown:        eacl.MatchUnspecified,
+		v2acl.MatchTypeStringEqual:    eacl.MatchStringEqual,
+		v2acl.MatchTypeStringNotEqual: eacl.MatchStringNotEqual,
+		v2acl.MatchTypeNotPresent:     eacl.MatchNotPresent,
+		v2acl.MatchTypeNumGT:          eacl.MatchNumGT,
+		v2acl.MatchTypeNumGE:          eacl.MatchNumGE,
+		v2acl.MatchTypeNumLT:          eacl.MatchNumLT,
+		v2acl.MatchTypeNumLE:          eacl.MatchNumLE,
+	} {
+		require.EqualValues(t, x, y)
+	}
+}
+
 func TestMatch_String(t *testing.T) {
+	for m, s := range matcherStrings {
+		require.Equal(t, s, m.String())
+	}
+
 	toPtr := func(v eacl.Match) *eacl.Match {
 		return &v
 	}
@@ -215,7 +371,30 @@ func TestMatch_String(t *testing.T) {
 	})
 }
 
+func TestMatcherToString(t *testing.T) {
+	testEnumToString(t, matcherStrings, eacl.MatcherToString)
+}
+
+func TestMatcherFromString(t *testing.T) {
+	testEnumFromString(t, matcherStrings, eacl.MatcherFromString)
+}
+
+func TestFilterHeaderTypeProto(t *testing.T) {
+	for x, y := range map[v2acl.HeaderType]eacl.FilterHeaderType{
+		v2acl.HeaderTypeUnknown: eacl.FilterHeaderType(0),
+		v2acl.HeaderTypeRequest: eacl.HeaderFromRequest,
+		v2acl.HeaderTypeObject:  eacl.HeaderFromObject,
+		v2acl.HeaderTypeService: eacl.HeaderFromService,
+	} {
+		require.EqualValues(t, x, y)
+	}
+}
+
 func TestFilterHeaderType_String(t *testing.T) {
+	for h, s := range headerTypeStrings {
+		require.Equal(t, s, h.String())
+	}
+
 	toPtr := func(v eacl.FilterHeaderType) *eacl.FilterHeaderType {
 		return &v
 	}
@@ -223,6 +402,15 @@ func TestFilterHeaderType_String(t *testing.T) {
 	testEnumStrings(t, new(eacl.FilterHeaderType), []enumStringItem{
 		{val: toPtr(eacl.HeaderFromRequest), str: "REQUEST"},
 		{val: toPtr(eacl.HeaderFromObject), str: "OBJECT"},
+		{val: toPtr(eacl.HeaderFromService), str: "SERVICE"},
 		{val: toPtr(eacl.HeaderTypeUnspecified), str: "HEADER_UNSPECIFIED"},
 	})
+}
+
+func TestHeaderTypeToString(t *testing.T) {
+	testEnumToString(t, headerTypeStrings, eacl.HeaderTypeToString)
+}
+
+func TestHeaderTypeFromString(t *testing.T) {
+	testEnumFromString(t, headerTypeStrings, eacl.HeaderTypeFromString)
 }
