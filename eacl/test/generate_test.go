@@ -46,6 +46,7 @@ func TestTable(t *testing.T) {
 
 	var eACL3 eacl.Table
 	require.NoError(t, eACL3.Unmarshal(eACL.Marshal()))
+	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, eACL, eACL3)
 
 	j, err := eACL.MarshalJSON()

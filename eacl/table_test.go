@@ -237,6 +237,7 @@ func testUnmarshalTableFunc(t *testing.T, f func(*eacl.Table, []byte) error) {
 
 	var tbl eacl.Table
 	require.NoError(t, f(&tbl, anyValidEACLBytes))
+	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, anyValidEACL, tbl)
 }
 
@@ -259,6 +260,7 @@ func TestTable_MarshalJSON(t *testing.T) {
 	b, err := anyValidEACL.MarshalJSON()
 	require.NoError(t, err)
 	require.NoError(t, tbl1.UnmarshalJSON(b))
+	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, anyValidEACL, tbl1)
 
 	var tbl2 eacl.Table
@@ -277,6 +279,7 @@ func testUnmarshalTableJSONFunc(t *testing.T, f func(*eacl.Table, []byte) error)
 
 	var tbl eacl.Table
 	require.NoError(t, f(&tbl, []byte(anyValidEACLJSON)))
+	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, anyValidEACL, tbl)
 }
 

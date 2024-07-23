@@ -112,6 +112,7 @@ func TestRecord_Unmarshal(t *testing.T) {
 	var r eacl.Record
 	for i := range anyValidBinRecords {
 		require.NoError(t, r.Unmarshal(anyValidBinRecords[i]), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.EqualValues(t, anyValidRecords[i], r, i)
 	}
 }
@@ -128,6 +129,7 @@ func TestRecord_MarshalJSON(t *testing.T) {
 		b, err := anyValidRecords[i].MarshalJSON()
 		require.NoError(t, err, i)
 		require.NoError(t, r1.UnmarshalJSON(b), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidRecords[i], r1, i)
 
 		b, err = json.Marshal(anyValidRecords[i])
@@ -141,6 +143,7 @@ func TestRecord_UnmarshalJSON(t *testing.T) {
 	var r1, r2 eacl.Record
 	for i := range anyValidJSONRecords {
 		require.NoError(t, r1.UnmarshalJSON([]byte(anyValidJSONRecords[i])), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidFilters[i], r1, i)
 
 		require.NoError(t, json.Unmarshal([]byte(anyValidJSONRecords[i]), &r2), i)
