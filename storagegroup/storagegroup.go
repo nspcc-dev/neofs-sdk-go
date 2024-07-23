@@ -18,12 +18,37 @@ import (
 // StorageGroup is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/storagegroup.StorageGroup
 // message. See ReadFromMessageV2 / WriteToMessageV2 methods.
 //
-// Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = StorageGroup(storagegroup.StorageGroup) // not recommended
-type StorageGroup storagegroup.StorageGroup
+// Instances should be created using one of the constructors.
+type StorageGroup struct {
+	sz      uint64
+	exp     uint64
+	members []oid.ID
+	csSet   bool
+	cs      checksum.Checksum
+}
+
+// New constructs new StorageGroup from given members and total size/checksum
+// calculated for them. Member set must not be empty.
+func New(size uint64, cs checksum.Checksum, members []oid.ID) StorageGroup {
+	var res StorageGroup
+	res.SetValidationDataSize(size)
+	res.SetValidationDataHash(cs)
+	res.SetMembers(members)
+	return res
+}
+
+// Unmarshal creates new StorageGroup and makes [StorageGroup.Unmarshal].
+func Unmarshal(b []byte) (StorageGroup, error) {
+	var res StorageGroup
+	return res, res.Unmarshal(b)
+}
+
+// UnmarshalJSON creates new StorageGroup and makes
+// [StorageGroup.UnmarshalJSON].
+func UnmarshalJSON(b []byte) (StorageGroup, error) {
+	var res StorageGroup
+	return res, res.UnmarshalJSON(b)
+}
 
 // reads StorageGroup from the storagegroup.StorageGroup message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
@@ -31,8 +56,8 @@ func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresen
 	var err error
 
 	h := m.GetValidationHash()
-	if h != nil {
-		err = new(checksum.Checksum).ReadFromV2(*h)
+	if sg.csSet = h != nil; sg.csSet {
+		err = sg.cs.ReadFromV2(*h)
 		if err != nil {
 			return fmt.Errorf("invalid hash: %w", err)
 		}
@@ -42,28 +67,26 @@ func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresen
 
 	members := m.GetMembers()
 	if len(members) > 0 {
-		var member oid.ID
-		mMembers := make(map[oid.ID]struct{}, len(members))
-		var exits bool
-
+		sg.members = make([]oid.ID, len(members))
 		for i := range members {
-			err = member.ReadFromV2(members[i])
+			err = sg.members[i].ReadFromV2(members[i])
 			if err != nil {
-				return fmt.Errorf("invalid member: %w", err)
+				return fmt.Errorf("invalid member #%d: %w", i, err)
 			}
 
-			_, exits = mMembers[member]
-			if exits {
-				return fmt.Errorf("duplicated member %s", member)
+			for j := 0; j < i; j++ {
+				if sg.members[j] == sg.members[i] {
+					return fmt.Errorf("duplicated member %s", sg.members[i])
+				}
 			}
-
-			mMembers[member] = struct{}{}
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing members")
 	}
 
-	*sg = StorageGroup(m)
+	sg.sz = m.GetValidationDataSize()
+	//nolint:staticcheck
+	sg.exp = m.GetExpirationEpoch()
 
 	return nil
 }
@@ -81,7 +104,22 @@ func (sg *StorageGroup) ReadFromV2(m storagegroup.StorageGroup) error {
 //
 // See also ReadFromV2.
 func (sg StorageGroup) WriteToV2(m *storagegroup.StorageGroup) {
-	*m = (storagegroup.StorageGroup)(sg)
+	if sg.csSet {
+		var cs refs.Checksum
+		sg.cs.WriteToV2(&cs)
+		m.SetValidationHash(&cs)
+	}
+	var members []refs.ObjectID
+	if len(sg.members) > 0 {
+		members = make([]refs.ObjectID, len(sg.members))
+		for i := range sg.members {
+			sg.members[i].WriteToV2(&members[i])
+		}
+	}
+	m.SetMembers(members)
+	m.SetValidationDataSize(sg.sz)
+	//nolint:staticcheck
+	m.SetExpirationEpoch(sg.exp)
 }
 
 // ValidationDataSize returns total size of the payloads
@@ -91,16 +129,15 @@ func (sg StorageGroup) WriteToV2(m *storagegroup.StorageGroup) {
 //
 // See also SetValidationDataSize.
 func (sg StorageGroup) ValidationDataSize() uint64 {
-	v2 := (storagegroup.StorageGroup)(sg)
-	return v2.GetValidationDataSize()
+	return sg.sz
 }
 
 // SetValidationDataSize sets total size of the payloads
 // of objects in the storage group.
 //
 // See also ValidationDataSize.
-func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
-	(*storagegroup.StorageGroup)(sg).SetValidationDataSize(epoch)
+func (sg *StorageGroup) SetValidationDataSize(sz uint64) {
+	sg.sz = sz
 }
 
 // ValidationDataHash returns homomorphic hash from the
@@ -111,14 +148,8 @@ func (sg *StorageGroup) SetValidationDataSize(epoch uint64) {
 // Zero StorageGroup does not have validation data checksum.
 //
 // See also SetValidationDataHash.
-func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum, isSet bool) {
-	v2 := (storagegroup.StorageGroup)(sg)
-	if checksumV2 := v2.GetValidationHash(); checksumV2 != nil {
-		err := v.ReadFromV2(*checksumV2)
-		isSet = (err == nil)
-	}
-
-	return
+func (sg StorageGroup) ValidationDataHash() (checksum.Checksum, bool) {
+	return sg.cs, sg.csSet
 }
 
 // SetValidationDataHash sets homomorphic hash from the
@@ -126,10 +157,7 @@ func (sg StorageGroup) ValidationDataHash() (v checksum.Checksum, isSet bool) {
 //
 // See also ValidationDataHash.
 func (sg *StorageGroup) SetValidationDataHash(hash checksum.Checksum) {
-	var v2 refs.Checksum
-	hash.WriteToV2(&v2)
-
-	(*storagegroup.StorageGroup)(sg).SetValidationHash(&v2)
+	sg.cs, sg.csSet = hash, true
 }
 
 // ExpirationEpoch returns last NeoFS epoch number
@@ -138,19 +166,20 @@ func (sg *StorageGroup) SetValidationDataHash(hash checksum.Checksum) {
 // Zero StorageGroup has 0 expiration epoch.
 //
 // See also SetExpirationEpoch.
+// Deprecated: use expiration attribute in header of the object carrying
+// StorageGroup.
 func (sg StorageGroup) ExpirationEpoch() uint64 {
-	v2 := (storagegroup.StorageGroup)(sg)
-	// nolint:staticcheck
-	return v2.GetExpirationEpoch()
+	return sg.exp
 }
 
 // SetExpirationEpoch sets last NeoFS epoch number
 // of the storage group lifetime.
 //
 // See also ExpirationEpoch.
+// Deprecated: use expiration attribute in header of the object carrying
+// StorageGroup.
 func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
-	// nolint:staticcheck
-	(*storagegroup.StorageGroup)(sg).SetExpirationEpoch(epoch)
+	sg.exp = epoch
 }
 
 // Members returns strictly ordered list of
@@ -160,20 +189,7 @@ func (sg *StorageGroup) SetExpirationEpoch(epoch uint64) {
 //
 // See also SetMembers.
 func (sg StorageGroup) Members() []oid.ID {
-	v2 := (storagegroup.StorageGroup)(sg)
-	mV2 := v2.GetMembers()
-
-	if mV2 == nil {
-		return nil
-	}
-
-	m := make([]oid.ID, len(mV2))
-
-	for i := range mV2 {
-		_ = m[i].ReadFromV2(mV2[i])
-	}
-
-	return m
+	return sg.members
 }
 
 // SetMembers sets strictly ordered list of
@@ -181,69 +197,49 @@ func (sg StorageGroup) Members() []oid.ID {
 //
 // See also Members.
 func (sg *StorageGroup) SetMembers(members []oid.ID) {
-	mV2 := (*storagegroup.StorageGroup)(sg).GetMembers()
-
-	if members == nil {
-		mV2 = nil
-	} else {
-		ln := len(members)
-
-		if cap(mV2) >= ln {
-			mV2 = mV2[:0]
-		} else {
-			mV2 = make([]refs.ObjectID, 0, ln)
-		}
-
-		var oidV2 refs.ObjectID
-
-		for i := 0; i < ln; i++ {
-			members[i].WriteToV2(&oidV2)
-			mV2 = append(mV2, oidV2)
-		}
-	}
-
-	(*storagegroup.StorageGroup)(sg).SetMembers(mV2)
+	sg.members = members
 }
 
 // Marshal marshals StorageGroup into a protobuf binary form.
 //
 // See also Unmarshal.
 func (sg StorageGroup) Marshal() []byte {
-	return (*storagegroup.StorageGroup)(&sg).StableMarshal(nil)
+	var m storagegroup.StorageGroup
+	sg.WriteToV2(&m)
+	return m.StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of StorageGroup.
 //
 // See also Marshal.
 func (sg *StorageGroup) Unmarshal(data []byte) error {
-	v2 := (*storagegroup.StorageGroup)(sg)
-	err := v2.Unmarshal(data)
-	if err != nil {
+	var m storagegroup.StorageGroup
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
 
-	return sg.readFromV2(*v2, false)
+	return sg.readFromV2(m, false)
 }
 
 // MarshalJSON encodes StorageGroup to protobuf JSON format.
 //
 // See also UnmarshalJSON.
 func (sg StorageGroup) MarshalJSON() ([]byte, error) {
-	v2 := (storagegroup.StorageGroup)(sg)
-	return v2.MarshalJSON()
+	var m storagegroup.StorageGroup
+	sg.WriteToV2(&m)
+	return m.MarshalJSON()
 }
 
 // UnmarshalJSON decodes StorageGroup from protobuf JSON format.
 //
 // See also MarshalJSON.
 func (sg *StorageGroup) UnmarshalJSON(data []byte) error {
-	v2 := (*storagegroup.StorageGroup)(sg)
-	err := v2.UnmarshalJSON(data)
-	if err != nil {
+	var m storagegroup.StorageGroup
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
 
-	return sg.readFromV2(*v2, false)
+	return sg.readFromV2(m, false)
 }
 
 // ReadFromObject assemble StorageGroup from a regular
@@ -259,7 +255,7 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 
 	err := sg.Unmarshal(o.Payload())
 	if err != nil {
-		return fmt.Errorf("could not unmarshal object: %w", err)
+		return fmt.Errorf("could not unmarshal storage group from object payload: %w", err)
 	}
 
 	var expObj uint64
@@ -277,7 +273,7 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 
 	// Supporting deprecated functionality.
 	// See https://github.com/nspcc-dev/neofs-api/pull/205.
-	if expSG := sg.ExpirationEpoch(); expObj != expSG {
+	if expSG := sg.ExpirationEpoch(); expSG > 0 && expObj != expSG {
 		return fmt.Errorf(
 			"expiration does not match: from object: %d, from payload: %d",
 			expObj, expSG)

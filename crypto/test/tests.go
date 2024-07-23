@@ -52,7 +52,7 @@ func FailSigner(s neofscrypto.Signer) neofscrypto.Signer {
 
 // Signature returns random neofscrypto.Signature.
 func Signature() neofscrypto.Signature {
-	sig := make([]byte, rand.Int()%128)
+	sig := make([]byte, 1+rand.Intn(128))
 	//nolint:staticcheck // cryptorandom is not required for testing
 	rand.Read(sig)
 	return neofscrypto.NewSignature(neofscrypto.Scheme(rand.Uint32()%3), Signer().Public(), sig)
