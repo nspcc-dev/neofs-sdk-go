@@ -20,11 +20,9 @@ import (
 //
 // Instances can be created using built-in var declaration.
 type Token struct {
-	targetUserSet bool
-	targetUser    user.ID
+	targetUser user.ID
 
-	issuerSet bool
-	issuer    user.ID
+	issuer user.ID
 
 	eaclTableSet bool
 	eaclTable    eacl.Table
@@ -56,19 +54,23 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 	}
 
 	targetUser := body.GetOwnerID()
-	if b.targetUserSet = targetUser != nil; b.targetUserSet {
+	if targetUser != nil {
 		err = b.targetUser.ReadFromV2(*targetUser)
 		if err != nil {
 			return fmt.Errorf("invalid target user: %w", err)
 		}
+	} else {
+		b.targetUser = user.ID{}
 	}
 
 	issuer := body.GetIssuer()
-	if b.issuerSet = issuer != nil; b.issuerSet {
+	if issuer != nil {
 		err = b.issuer.ReadFromV2(*issuer)
 		if err != nil {
 			return fmt.Errorf("invalid issuer: %w", err)
 		}
+	} else {
+		b.issuer = user.ID{}
 	}
 
 	lifetime := body.GetLifetime()
@@ -98,7 +100,7 @@ func (b *Token) ReadFromV2(m acl.BearerToken) error {
 }
 
 func (b Token) fillBody() *acl.BearerTokenBody {
-	if !b.eaclTableSet && !b.targetUserSet && !b.lifetimeSet && !b.issuerSet {
+	if !b.eaclTableSet && b.targetUser.IsZero() && !b.lifetimeSet && b.issuer.IsZero() {
 		return nil
 	}
 
@@ -108,14 +110,14 @@ func (b Token) fillBody() *acl.BearerTokenBody {
 		body.SetEACL(b.eaclTable.ToV2())
 	}
 
-	if b.targetUserSet {
+	if !b.targetUser.IsZero() {
 		var targetUser refs.OwnerID
 		b.targetUser.WriteToV2(&targetUser)
 
 		body.SetOwnerID(&targetUser)
 	}
 
-	if b.issuerSet {
+	if !b.issuer.IsZero() {
 		var issuer refs.OwnerID
 		b.issuer.WriteToV2(&issuer)
 
@@ -240,8 +242,8 @@ func (b Token) AssertContainer(cnr cid.ID) bool {
 		return true
 	}
 
-	cnrTable, set := b.eaclTable.CID()
-	return !set || cnrTable == cnr
+	cnrTable := b.eaclTable.GetCID()
+	return cnrTable.IsZero() || cnrTable == cnr
 }
 
 // ForUser specifies ID of the user who can use the Token for the operations
@@ -252,7 +254,6 @@ func (b Token) AssertContainer(cnr cid.ID) bool {
 // See also AssertUser.
 func (b *Token) ForUser(id user.ID) {
 	b.targetUser = id
-	b.targetUserSet = true
 }
 
 // AssertUser checks if the Token is issued to the given user.
@@ -261,7 +262,7 @@ func (b *Token) ForUser(id user.ID) {
 //
 // See also ForUser.
 func (b Token) AssertUser(id user.ID) bool {
-	return !b.targetUserSet || b.targetUser == id
+	return b.targetUser.IsZero() || b.targetUser == id
 }
 
 // Sign calculates and writes signature of the [Token] data along with issuer ID
@@ -403,7 +404,6 @@ func (b Token) SigningKeyBytes() []byte {
 //
 // See also [Token.Issuer], [Token.Sign].
 func (b *Token) SetIssuer(usr user.ID) {
-	b.issuerSet = true
 	b.issuer = usr
 }
 
@@ -413,10 +413,7 @@ func (b *Token) SetIssuer(usr user.ID) {
 //
 // See also [Token.SetIssuer], [Token.Sign].
 func (b Token) Issuer() user.ID {
-	if b.issuerSet {
-		return b.issuer
-	}
-	return user.ID{}
+	return b.issuer
 }
 
 // ResolveIssuer works like [Token.Issuer] with fallback to the public key
@@ -425,7 +422,7 @@ func (b Token) Issuer() user.ID {
 //
 // See also [Token.SigningKeyBytes], [Token.Sign].
 func (b Token) ResolveIssuer() user.ID {
-	if b.issuerSet {
+	if !b.issuer.IsZero() {
 		return b.issuer
 	}
 

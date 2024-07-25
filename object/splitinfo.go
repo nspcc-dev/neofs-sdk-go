@@ -40,7 +40,7 @@ func (s *SplitInfo) ToV2() *object.SplitInfo {
 }
 
 // SplitID returns [SplitID] if it has been set. New objects may miss it,
-// use [SplitInfo.FirstPart] as a split chain identifier.
+// use [SplitInfo.GetFirstPart] as a split chain identifier.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -65,21 +65,28 @@ func (s *SplitInfo) SetSplitID(v *SplitID) {
 // The second return value is a flag, indicating if the last part is present.
 //
 // See also [SplitInfo.SetLastPart].
-func (s SplitInfo) LastPart() (v oid.ID, isSet bool) {
-	v2 := (object.SplitInfo)(s)
+// Deprecated: use [SplitInfo.GetLastPart] instead.
+func (s SplitInfo) LastPart() (oid.ID, bool) {
+	id := s.GetLastPart()
+	return id, !id.IsZero()
+}
 
-	lpV2 := v2.GetLastPart()
-	if lpV2 != nil {
-		_ = v.ReadFromV2(*lpV2)
-		isSet = true
+// GetLastPart returns last object ID, can be used to retrieve original object.
+// Zero return means unset ID.
+//
+// See also [SplitInfo.SetLastPart].
+func (s SplitInfo) GetLastPart() oid.ID {
+	var id oid.ID
+	m := (*object.SplitInfo)(&s).GetLastPart()
+	if m != nil {
+		_ = id.ReadFromV2(*m)
 	}
-
-	return
+	return id
 }
 
 // SetLastPart sets the last object ID.
 //
-// See also [SplitInfo.LastPart].
+// See also [SplitInfo.GetLastPart].
 func (s *SplitInfo) SetLastPart(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)
@@ -91,21 +98,26 @@ func (s *SplitInfo) SetLastPart(v oid.ID) {
 // The second return value is a flag, indicating if the last part is present.
 //
 // See also [SplitInfo.SetLink].
-func (s SplitInfo) Link() (v oid.ID, isSet bool) {
-	v2 := (object.SplitInfo)(s)
+// Deprecated: use [SplitInfo.GetLink] instead.
+func (s SplitInfo) Link() (oid.ID, bool) {
+	id := s.GetLink()
+	return id, !id.IsZero()
+}
 
-	linkV2 := v2.GetLink()
-	if linkV2 != nil {
-		_ = v.ReadFromV2(*linkV2)
-		isSet = true
+// GetLink returns a linker object ID. Zero return means unset ID.
+//
+// See also [SplitInfo.SetLink].
+func (s SplitInfo) GetLink() oid.ID {
+	var id oid.ID
+	if m := (*object.SplitInfo)(&s).GetLink(); m != nil {
+		_ = id.ReadFromV2(*m)
 	}
-
-	return
+	return id
 }
 
 // SetLink sets linker object ID.
 //
-// See also [SplitInfo.Link].
+// See also [SplitInfo.GetLink].
 func (s *SplitInfo) SetLink(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)
@@ -116,21 +128,26 @@ func (s *SplitInfo) SetLink(v oid.ID) {
 // FirstPart returns the first part of the split chain.
 //
 // See also [SplitInfo.SetFirstPart].
-func (s SplitInfo) FirstPart() (v oid.ID, isSet bool) {
-	v2 := (object.SplitInfo)(s)
+// Deprecated: use [SplitInfo.GetFirstPart] instead.
+func (s SplitInfo) FirstPart() (oid.ID, bool) {
+	id := s.GetFirstPart()
+	return id, !id.IsZero()
+}
 
-	firstV2 := v2.GetFirstPart()
-	if firstV2 != nil {
-		_ = v.ReadFromV2(*firstV2)
-		isSet = true
+// GetFirstPart returns the first part of the split chain. Zero means unset ID.
+//
+// See also [SplitInfo.SetFirstPart].
+func (s SplitInfo) GetFirstPart() oid.ID {
+	var id oid.ID
+	if m := (*object.SplitInfo)(&s).GetFirstPart(); m != nil {
+		_ = id.ReadFromV2(*m)
 	}
-
-	return
+	return id
 }
 
 // SetFirstPart sets the first part of the split chain.
 //
-// See also [SplitInfo.FirstPart].
+// See also [SplitInfo.GetFirstPart].
 func (s *SplitInfo) SetFirstPart(v oid.ID) {
 	var idV2 refs.ObjectID
 	v.WriteToV2(&idV2)

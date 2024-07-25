@@ -79,9 +79,9 @@ func (o *Object) VerifyID() error {
 		return err
 	}
 
-	oID, set := o.ID()
-	if !set {
-		return errOIDNotSet
+	oID := o.GetID()
+	if oID.IsZero() {
+		return oid.ErrZero
 	}
 
 	if id != oID {
@@ -95,9 +95,9 @@ func (o *Object) VerifyID() error {
 //
 // See also [oid.ID.CalculateIDSignature].
 func (o *Object) Sign(signer neofscrypto.Signer) error {
-	oID, set := o.ID()
-	if !set {
-		return errOIDNotSet
+	oID := o.GetID()
+	if oID.IsZero() {
+		return oid.ErrZero
 	}
 
 	sig, err := oID.CalculateIDSignature(signer)
@@ -114,8 +114,7 @@ func (o *Object) Sign(signer neofscrypto.Signer) error {
 //
 // See also [Object.Sign].
 func (o *Object) SignedData() []byte {
-	oID, _ := o.ID()
-	return oID.Marshal()
+	return o.GetID().Marshal()
 }
 
 // VerifySignature verifies object ID signature.

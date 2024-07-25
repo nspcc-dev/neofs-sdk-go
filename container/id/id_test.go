@@ -18,11 +18,13 @@ var validBytes = [cid.Size]byte{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 6
 // corresponds to validBytes.
 const validString = "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF"
 
-var invalidValueTestcases = []struct {
+type invalidValueTestCase struct {
 	name string
 	err  string
 	val  []byte
-}{
+}
+
+var invalidValueTestcases = []invalidValueTestCase{
 	{name: "nil value", err: "invalid length 0", val: nil},
 	{name: "empty value", err: "invalid length 0", val: []byte{}},
 	{name: "undersized value", err: "invalid length 31", val: make([]byte, 31)},
@@ -37,7 +39,9 @@ func TestID_ReadFromV2(t *testing.T) {
 	require.EqualValues(t, validBytes, id)
 
 	t.Run("invalid", func(t *testing.T) {
-		for _, tc := range invalidValueTestcases {
+		for _, tc := range append(invalidValueTestcases, invalidValueTestCase{
+			name: "zero value", err: "zero container ID", val: make([]byte, cid.Size),
+		}) {
 			t.Run(tc.name, func(t *testing.T) {
 				var m refs.ContainerID
 				m.SetValue(tc.val)
@@ -165,4 +169,14 @@ func TestID_String(t *testing.T) {
 	require.NotEmpty(t, id.String())
 	require.Equal(t, id.String(), id.String())
 	require.NotEqual(t, id.String(), cidtest.OtherID(id).String())
+}
+
+func TestID_IsZero(t *testing.T) {
+	var id cid.ID
+	require.True(t, id.IsZero())
+	for i := 0; i < cid.Size; i++ {
+		var id2 cid.ID
+		id2[i]++
+		require.False(t, id2.IsZero())
+	}
 }

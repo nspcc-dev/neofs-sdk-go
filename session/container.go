@@ -26,8 +26,7 @@ type Container struct {
 
 	verb ContainerVerb
 
-	cnrSet bool
-	cnr    cid.ID
+	cnr cid.ID
 }
 
 // CopyTo writes deep copy of the [Container] to dst.
@@ -35,10 +34,7 @@ func (x Container) CopyTo(dst *Container) {
 	x.commonData.copyTo(&dst.commonData)
 
 	dst.verb = x.verb
-
-	dst.cnrSet = x.cnrSet
-	contID := x.cnr
-	dst.cnr = contID
+	dst.cnr = x.cnr
 }
 
 // readContext is a contextReader needed for commonData methods.
@@ -48,10 +44,10 @@ func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool)
 		return fmt.Errorf("invalid context %T", c)
 	}
 
-	x.cnrSet = !cCnr.Wildcard()
+	wildcard := cCnr.Wildcard()
 	cnr := cCnr.ContainerID()
 
-	if x.cnrSet {
+	if !wildcard {
 		if cnr != nil {
 			err := x.cnr.ReadFromV2(*cnr)
 			if err != nil {
@@ -59,6 +55,8 @@ func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool)
 			}
 		} else if checkFieldPresence {
 			return errors.New("missing container or wildcard flag")
+		} else {
+			x.cnr = cid.ID{}
 		}
 	} else if cnr != nil {
 		return errors.New("container conflicts with wildcard flag")
@@ -82,11 +80,12 @@ func (x *Container) ReadFromV2(m session.Token) error {
 }
 
 func (x Container) writeContext() session.TokenContext {
+	wildcard := x.cnr.IsZero()
 	var c session.ContainerSessionContext
-	c.SetWildcard(!x.cnrSet)
+	c.SetWildcard(wildcard)
 	c.SetVerb(session.ContainerSessionVerb(x.verb))
 
-	if x.cnrSet {
+	if !wildcard {
 		var cnr refs.ContainerID
 		x.cnr.WriteToV2(&cnr)
 
@@ -148,7 +147,9 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 // See also [Container.VerifySignature], [Container.SignedData].
 func (x *Container) Sign(signer user.Signer) error {
 	x.issuer = signer.UserID()
-	x.issuerSet = true
+	if x.issuer.IsZero() {
+		return user.ErrZeroID
+	}
 	return x.SetSignature(signer)
 }
 
@@ -194,7 +195,6 @@ func (x Container) VerifySignature() bool {
 // See also AppliedTo.
 func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 	x.cnr = cnr
-	x.cnrSet = true
 }
 
 // AppliedTo checks if the session is propagated to the given container.
@@ -203,7 +203,7 @@ func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 //
 // See also ApplyOnlyTo.
 func (x Container) AppliedTo(cnr cid.ID) bool {
-	return !x.cnrSet || x.cnr == cnr
+	return x.cnr.IsZero() || x.cnr == cnr
 }
 
 // ContainerVerb enumerates container operations.

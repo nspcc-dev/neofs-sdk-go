@@ -37,9 +37,9 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer user
 		return nil, err
 	}
 
-	cnr, isSet := hdr.ContainerID()
-	if !isSet {
-		return nil, errContainerRequired
+	cnr := hdr.GetContainerID()
+	if cnr.IsZero() {
+		return nil, cid.ErrZero
 	}
 
 	if err = p.withinContainerSession(

@@ -158,7 +158,7 @@ type PrmContainerGet struct {
 	prmCommonMeta
 }
 
-// ContainerGet reads NeoFS container by ID.
+// ContainerGet reads NeoFS container by ID. The ID must not be zero.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
@@ -509,8 +509,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		return ErrMissingSigner
 	}
 
-	_, isCIDSet := table.CID()
-	if !isCIDSet {
+	if table.GetCID().IsZero() {
 		err = ErrMissingEACLContainer
 		return err
 	}

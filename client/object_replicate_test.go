@@ -106,8 +106,8 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 		return &resp, nil
 	}
 
-	id, ok := obj.ID()
-	if !ok {
+	id := obj.GetID()
+	if id.IsZero() {
 		st.Code = 1024 // internal error
 		st.Message = "missing object ID"
 		resp.Status = &st

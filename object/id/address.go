@@ -11,6 +11,7 @@ import (
 
 // Address represents global object identifier in NeoFS network. Each object
 // belongs to exactly one container and is uniquely addressed within the container.
+// Zero Address is usually prohibited, see docs for details.
 //
 // ID implements built-in comparable interface.
 //
@@ -21,6 +22,9 @@ type Address struct {
 
 	obj ID
 }
+
+// ErrZeroAddress is an error returned on zero [Address] encounter.
+var ErrZeroAddress = errors.New("zero object address")
 
 // NewAddress constructs new Address.
 func NewAddress(cnr cid.ID, obj ID) Address { return Address{cnr, obj} }

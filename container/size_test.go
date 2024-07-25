@@ -6,7 +6,6 @@ import (
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/stretchr/testify/require"
 )
@@ -77,10 +76,8 @@ func TestSizeEstimation_ReadFromV2(t *testing.T) {
 
 	require.Error(t, val.ReadFromV2(msg))
 
-	cnrMsg.SetValue(make([]byte, cid.Size))
-
-	var cnr cid.ID
-	require.NoError(t, cnr.ReadFromV2(cnrMsg))
+	cnr := cidtest.ID()
+	cnrMsg.SetValue(cnr[:])
 
 	msg.SetEpoch(epoch)
 	msg.SetUsedSpace(value)

@@ -16,8 +16,7 @@ type commonData struct {
 	idSet bool
 	id    uuid.UUID
 
-	issuerSet bool
-	issuer    user.ID
+	issuer user.ID
 
 	lifetimeSet   bool
 	iat, nbf, exp uint64
@@ -34,9 +33,7 @@ func (x commonData) copyTo(dst *commonData) {
 	dst.idSet = x.idSet
 	dst.id = x.id
 
-	dst.issuerSet = x.issuerSet
-	iss := x.issuer
-	dst.issuer = iss
+	dst.issuer = x.issuer
 
 	dst.lifetimeSet = x.lifetimeSet
 	dst.iat = x.iat
@@ -74,13 +71,15 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 	}
 
 	issuer := body.GetOwnerID()
-	if x.issuerSet = issuer != nil; x.issuerSet {
+	if issuer != nil {
 		err = x.issuer.ReadFromV2(*issuer)
 		if err != nil {
 			return fmt.Errorf("invalid session issuer: %w", err)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing session issuer")
+	} else {
+		x.issuer = user.ID{}
 	}
 
 	lifetime := body.GetLifetime()
@@ -131,7 +130,7 @@ func (x commonData) fillBody(w contextWriter) *session.TokenBody {
 		body.SetID(binID)
 	}
 
-	if x.issuerSet {
+	if !x.issuer.IsZero() {
 		var issuer refs.OwnerID
 		x.issuer.WriteToV2(&issuer)
 
@@ -325,7 +324,6 @@ func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
 // When using it please ensure that the token is signed with the same signer as the issuer passed here.
 func (x *commonData) SetIssuer(id user.ID) {
 	x.issuer = id
-	x.issuerSet = true
 }
 
 // AssertAuthKey asserts public key bound to the session.
@@ -344,11 +342,7 @@ func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
 //
 // See also Sign.
 func (x commonData) Issuer() user.ID {
-	if x.issuerSet {
-		return x.issuer
-	}
-
-	return user.ID{}
+	return x.issuer
 }
 
 // IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.

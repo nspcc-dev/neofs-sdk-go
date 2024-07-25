@@ -231,8 +231,8 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 
 // headerData extract required fields from header, otherwise throw the error.
 func headerData(header object.Object) (cid.ID, user.ID, error) {
-	containerID, isSet := header.ContainerID()
-	if !isSet {
+	containerID := header.GetContainerID()
+	if containerID.IsZero() {
 		return cid.ID{}, user.ID{}, fmt.Errorf("container-id: %w", ErrIncompleteHeader)
 	}
 
@@ -627,13 +627,12 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 
 func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payloadBuffers [][]byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
 	var (
-		id    oid.ID
-		err   error
-		isSet bool
+		id  oid.ID
+		err error
 	)
 
-	id, isSet = header.ID()
-	if !isSet || header.Signature() == nil {
+	id = header.GetID()
+	if id.IsZero() || header.Signature() == nil {
 		id, err = flushObjectMetadata(signer, meta, &header)
 
 		if err != nil {

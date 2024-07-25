@@ -37,6 +37,7 @@ type ValidationUnit struct {
 }
 
 // WithContainerID configures ValidationUnit to use v as request's container ID.
+// ID value must not be zero.
 func (u *ValidationUnit) WithContainerID(v *cid.ID) *ValidationUnit {
 	if u != nil {
 		u.cid = v

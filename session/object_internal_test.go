@@ -36,14 +36,14 @@ func TestObject_CopyTo(t *testing.T) {
 		container.CopyTo(&dst)
 
 		require.Equal(t, container.verb, dst.verb)
-		require.True(t, container.cnrSet)
-		require.True(t, dst.cnrSet)
+		require.NotZero(t, container.cnr)
+		require.NotZero(t, dst.cnr)
 
 		container.ForVerb(VerbObjectHead)
 
 		require.NotEqual(t, container.verb, dst.verb)
-		require.True(t, container.cnrSet)
-		require.True(t, dst.cnrSet)
+		require.NotZero(t, container.cnr)
+		require.NotZero(t, dst.cnr)
 	})
 
 	t.Run("change ids", func(t *testing.T) {
@@ -66,11 +66,11 @@ func TestObject_CopyTo(t *testing.T) {
 
 	t.Run("overwrite container id", func(t *testing.T) {
 		var local Object
-		require.False(t, local.cnrSet)
+		require.Zero(t, local.cnr)
 
 		var dst Object
 		dst.BindContainer(containerID)
-		require.True(t, dst.cnrSet)
+		require.NotZero(t, dst.cnr)
 
 		local.CopyTo(&dst)
 		emptyWriter := func() session.TokenContext {
@@ -80,11 +80,11 @@ func TestObject_CopyTo(t *testing.T) {
 		require.Equal(t, local, dst)
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
-		require.False(t, local.cnrSet)
-		require.False(t, dst.cnrSet)
+		require.Zero(t, local.cnr)
+		require.Zero(t, dst.cnr)
 
 		dst.BindContainer(containerID)
-		require.True(t, dst.cnrSet)
-		require.False(t, local.cnrSet)
+		require.NotZero(t, dst.cnr)
+		require.Zero(t, local.cnr)
 	})
 }

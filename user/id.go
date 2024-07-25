@@ -18,6 +18,7 @@ import (
 const IDSize = 25
 
 // ID identifies users of the NeoFS system and represents Neo3 account address.
+// Zero ID is usually prohibited, see docs for details.
 //
 // ID implements built-in comparable interface.
 //
@@ -26,6 +27,9 @@ const IDSize = 25
 //
 // Zero ID is not valid.
 type ID [IDSize]byte
+
+// ErrZeroID is an error returned on zero [ID] encounter.
+var ErrZeroID = errors.New("zero user ID")
 
 // NewFromScriptHash creates new ID and makes [ID.SetScriptHash].
 func NewFromScriptHash(scriptHash util.Uint160) ID {
@@ -67,7 +71,11 @@ func (x *ID) decodeBytes(b []byte) error {
 //
 // See also WriteToV2.
 func (x *ID) ReadFromV2(m refs.OwnerID) error {
-	return x.decodeBytes(m.GetValue())
+	err := x.decodeBytes(m.GetValue())
+	if err == nil && x.IsZero() {
+		err = ErrZeroID
+	}
+	return err
 }
 
 // WriteToV2 writes ID to the refs.OwnerID message.
@@ -128,4 +136,14 @@ func (x ID) String() string {
 // Deprecated: ID is comparable.
 func (x ID) Equals(x2 ID) bool {
 	return x == x2
+}
+
+// IsZero checks whether ID is zero.
+func (x ID) IsZero() bool {
+	for i := range x {
+		if x[i] != 0 {
+			return false
+		}
+	}
+	return true
 }

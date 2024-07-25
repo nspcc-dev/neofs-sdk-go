@@ -2,6 +2,7 @@ package oid
 
 import (
 	"crypto/sha256"
+	"errors"
 	"fmt"
 
 	"github.com/mr-tron/base58"
@@ -12,13 +13,17 @@ import (
 // Size is the size of an [ID] in bytes.
 const Size = sha256.Size
 
-// ID represents NeoFS object identifier in a container.
+// ID represents NeoFS object identifier in a container. Zero ID is usually
+// prohibited, see docs for details.
 //
 // ID implements built-in comparable interface.
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ObjectID
 // message. See ReadFromV2 / WriteToV2 methods.
 type ID [Size]byte
+
+// ErrZero is an error returned on zero [ID] encounter.
+var ErrZero = errors.New("zero object ID")
 
 // NewFromObjectHeaderBinary returns new ID calculated from the given NeoFS
 // object header encoded into Protocol Buffers V3 with ascending order of fields
@@ -42,7 +47,11 @@ func DecodeString(s string) (ID, error) {
 //
 // See also WriteToV2.
 func (id *ID) ReadFromV2(m refs.ObjectID) error {
-	return id.Decode(m.GetValue())
+	err := id.Decode(m.GetValue())
+	if err == nil && id.IsZero() {
+		err = ErrZero
+	}
+	return err
 }
 
 // WriteToV2 writes ID to the refs.ObjectID message.
@@ -172,4 +181,14 @@ func (id *ID) UnmarshalJSON(data []byte) error {
 	}
 
 	return id.ReadFromV2(v2)
+}
+
+// IsZero checks whether ID is zero.
+func (id ID) IsZero() bool {
+	for i := range id {
+		if id[i] != 0 {
+			return false
+		}
+	}
+	return true
 }

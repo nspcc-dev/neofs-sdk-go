@@ -60,7 +60,7 @@ func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectI
 
 	// collect split chain by the descending ease of operations (ease is evaluated heuristically).
 	// If any approach fails, we don't try the next since we assume that it will fail too.
-	if _, ok := splitInfo.Link(); !ok {
+	if splitInfo.GetLink().IsZero() {
 		// the list is expected to contain last part and (probably) split info
 		list, err := findSiblingByParentID(ctx, executor, containerID, rootObjectID, tokens, signer)
 		if err != nil {
@@ -75,17 +75,17 @@ func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectI
 				}
 				return nil, nil, fmt.Errorf("split info: %w", err)
 			}
-			if link, ok := split.Link(); ok {
+			if link := split.GetLink(); !link.IsZero() {
 				splitInfo.SetLink(link)
 				break
 			}
-			if last, ok := split.LastPart(); ok {
+			if last := split.GetLastPart(); !last.IsZero() {
 				splitInfo.SetLastPart(last)
 			}
 		}
 	}
 
-	if idLinking, ok := splitInfo.Link(); ok {
+	if idLinking := splitInfo.GetLink(); !idLinking.IsZero() {
 		children, err := listChildrenByLinker(ctx, executor, containerID, idLinking, tokens, signer)
 		if err != nil {
 			return nil, nil, fmt.Errorf("linking object's header: %w", err)
@@ -94,8 +94,8 @@ func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectI
 		return children, &idLinking, nil
 	}
 
-	idMember, ok := splitInfo.LastPart()
-	if !ok {
+	idMember := splitInfo.GetLastPart()
+	if idMember.IsZero() {
 		return nil, nil, errors.New("missing any data in received object split information")
 	}
 
@@ -111,7 +111,7 @@ func Get(ctx context.Context, executor Executor, containerID cid.ID, rootObjectI
 			return nil, nil, fmt.Errorf("split chain member's header: %w", err)
 		}
 
-		if _, ok = chainSet[idMember]; ok {
+		if _, ok := chainSet[idMember]; ok {
 			return nil, nil, fmt.Errorf("duplicated member in the split chain %s", idMember)
 		}
 
@@ -223,8 +223,8 @@ func getLeftSibling(ctx context.Context, header HeadExecutor, cnrID cid.ID, objI
 		return oid.ID{}, fmt.Errorf("split chain member's header: %w", err)
 	}
 
-	idMember, ok := hdr.PreviousID()
-	if !ok {
+	idMember := hdr.GetPreviousID()
+	if idMember.IsZero() {
 		return oid.ID{}, ErrNoLeftSibling
 	}
 

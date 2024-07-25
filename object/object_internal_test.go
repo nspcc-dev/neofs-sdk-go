@@ -92,29 +92,22 @@ func TestObject_CopyTo(t *testing.T) {
 
 	t.Run("overwrite id", func(t *testing.T) {
 		var local Object
-		_, isSet := local.ID()
-		require.False(t, isSet)
+		require.True(t, local.GetID().IsZero())
 
 		var dst Object
 		require.NoError(t, dst.CalculateAndSetID())
-		_, isSet = dst.ID()
-		require.True(t, isSet)
+		require.False(t, dst.GetID().IsZero())
 
 		local.CopyTo(&dst)
 
-		_, isSet = local.ID()
-		require.False(t, isSet)
-		_, isSet = dst.ID()
-		require.False(t, isSet)
+		require.True(t, local.GetID().IsZero())
+		require.True(t, dst.GetID().IsZero())
 
 		checkObjectEquals(t, local, dst)
 
 		require.NoError(t, dst.CalculateAndSetID())
-		_, isSet = dst.ID()
-		require.True(t, isSet)
-
-		_, isSet = local.ID()
-		require.False(t, isSet)
+		require.False(t, dst.GetID().IsZero())
+		require.True(t, local.GetID().IsZero())
 	})
 
 	t.Run("change payload", func(t *testing.T) {

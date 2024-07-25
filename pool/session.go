@@ -14,10 +14,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-var (
-	errContainerRequired = errors.New("container required")
-)
-
 func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer user.Signer) (session.Object, error) {
 	tok := c.nodeSession.GetNodeSession(signer.Public())
 	if tok != nil {

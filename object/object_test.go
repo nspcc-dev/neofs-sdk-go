@@ -20,8 +20,7 @@ func TestInitCreation(t *testing.T) {
 		Owner:     own,
 	})
 
-	cID, set := o.ContainerID()
-	require.True(t, set)
+	cID := o.GetContainerID()
 	require.Equal(t, cnr, cID)
 	require.Equal(t, &own, o.OwnerID())
 }
