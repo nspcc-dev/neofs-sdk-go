@@ -109,19 +109,28 @@ func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
 // ID returns object identifier.
 //
 // See also [Object.SetID].
-func (o *Object) ID() (v oid.ID, isSet bool) {
-	v2 := (*object.Object)(o)
-	if id := v2.GetObjectID(); id != nil {
-		err := v.ReadFromV2(*v2.GetObjectID())
-		isSet = (err == nil)
+// Deprecated: use [Object.GetID] instead.
+func (o *Object) ID() (oid.ID, bool) {
+	id := o.GetID()
+	return id, !id.IsZero()
+}
+
+// GetID returns identifier of the object. Zero return means unset ID.
+//
+// See also [Object.SetID].
+func (o *Object) GetID() oid.ID {
+	var res oid.ID
+	m := (*object.Object)(o)
+	if id := m.GetObjectID(); id != nil {
+		_ = res.ReadFromV2(*m.GetObjectID())
 	}
 
-	return
+	return res
 }
 
 // SetID sets object identifier.
 //
-// See also [Object.ID].
+// See also [Object.GetID].
 func (o *Object) SetID(v oid.ID) {
 	var v2 refs.ObjectID
 	v.WriteToV2(&v2)
@@ -233,21 +242,15 @@ func (o *Object) SetPayloadSize(v uint64) {
 // ContainerID returns identifier of the related container.
 //
 // See also [Object.SetContainerID].
+// Deprecated: use [Object.GetContainerID] instead.
 func (o *Object) ContainerID() (v cid.ID, isSet bool) {
-	v2 := (*object.Object)(o)
-
-	cidV2 := v2.GetHeader().GetContainerID()
-	if cidV2 != nil {
-		err := v.ReadFromV2(*cidV2)
-		isSet = (err == nil)
-	}
-
-	return
+	cnr := o.GetContainerID()
+	return cnr, !cnr.IsZero()
 }
 
 // SetContainerID sets identifier of the related container.
 //
-// See also [Object.ContainerID].
+// See also [Object.GetContainerID].
 func (o *Object) SetContainerID(v cid.ID) {
 	var cidV2 refs.ContainerID
 	v.WriteToV2(&cidV2)
@@ -255,6 +258,18 @@ func (o *Object) SetContainerID(v cid.ID) {
 	o.setHeaderField(func(h *object.Header) {
 		h.SetContainerID(&cidV2)
 	})
+}
+
+// GetContainerID returns identifier of the related container. Zero means unset
+// binding.
+//
+// See also [Object.SetContainerID].
+func (o *Object) GetContainerID() cid.ID {
+	var cnr cid.ID
+	if m := (*object.Object)(o).GetHeader().GetContainerID(); m != nil {
+		_ = cnr.ReadFromV2(*m)
+	}
+	return cnr
 }
 
 // OwnerID returns identifier of the object owner.
@@ -419,21 +434,27 @@ func (o *Object) SetAttributes(v ...Attribute) {
 // PreviousID returns identifier of the previous sibling object.
 //
 // See also [Object.SetPreviousID].
-func (o *Object) PreviousID() (v oid.ID, isSet bool) {
-	v2 := (*object.Object)(o)
+// Deprecated: use [Object.GetPreviousID] instead.
+func (o *Object) PreviousID() (oid.ID, bool) {
+	id := o.GetPreviousID()
+	return id, !id.IsZero()
+}
 
-	v2Prev := v2.GetHeader().GetSplit().GetPrevious()
-	if v2Prev != nil {
-		err := v.ReadFromV2(*v2Prev)
-		isSet = (err == nil)
+// GetPreviousID returns identifier of the previous sibling object. Zero return
+// means unset ID.
+//
+// See also [Object.SetPreviousID].
+func (o *Object) GetPreviousID() oid.ID {
+	var id oid.ID
+	if m := (*object.Object)(o).GetHeader().GetSplit().GetPrevious(); m != nil {
+		_ = id.ReadFromV2(*m)
 	}
-
-	return
+	return id
 }
 
 // ResetPreviousID resets identifier of the previous sibling object.
 //
-// See also [Object.SetPreviousID], [Object.PreviousID].
+// See also [Object.SetPreviousID], [Object.GetPreviousID].
 func (o *Object) ResetPreviousID() {
 	o.setSplitFields(func(split *object.SplitHeader) {
 		split.SetPrevious(nil)
@@ -442,7 +463,7 @@ func (o *Object) ResetPreviousID() {
 
 // SetPreviousID sets identifier of the previous sibling object.
 //
-// See also [Object.PreviousID].
+// See also [Object.GetPreviousID].
 func (o *Object) SetPreviousID(v oid.ID) {
 	var v2 refs.ObjectID
 	v.WriteToV2(&v2)
@@ -494,7 +515,7 @@ func (o *Object) SetChildren(v ...oid.ID) {
 // SetFirstID sets the first part's ID of the object's
 // split chain.
 //
-// See also [Object.FirstID].
+// See also [Object.GetFirstID].
 func (o *Object) SetFirstID(id oid.ID) {
 	var v2 refs.ObjectID
 	id.WriteToV2(&v2)
@@ -507,16 +528,20 @@ func (o *Object) SetFirstID(id oid.ID) {
 // FirstID returns the first part of the object's split chain.
 //
 // See also [Object.SetFirstID].
-func (o *Object) FirstID() (v oid.ID, isSet bool) {
-	v2 := (*object.Object)(o)
+func (o *Object) FirstID() (oid.ID, bool) {
+	id := o.GetFirstID()
+	return id, !id.IsZero()
+}
 
-	v2First := v2.GetHeader().GetSplit().GetFirst()
-	if v2First != nil {
-		err := v.ReadFromV2(*v2First)
-		isSet = (err == nil)
+// GetFirstID returns the first part of the object's split chain. Zero return means unset ID.
+//
+// See also [Object.SetFirstID].
+func (o *Object) GetFirstID() oid.ID {
+	var id oid.ID
+	if m := (*object.Object)(o).GetHeader().GetSplit().GetFirst(); m != nil {
+		_ = id.ReadFromV2(*m)
 	}
-
-	return
+	return id
 }
 
 // SplitID return split identity of split object. If object is not split returns nil.
@@ -543,21 +568,27 @@ func (o *Object) SetSplitID(id *SplitID) {
 // ParentID returns identifier of the parent object.
 //
 // See also [Object.SetParentID].
-func (o *Object) ParentID() (v oid.ID, isSet bool) {
-	v2 := (*object.Object)(o)
+// Deprecated: use [Object.GetParentID] instead.
+func (o *Object) ParentID() (oid.ID, bool) {
+	id := o.GetParentID()
+	return id, !id.IsZero()
+}
 
-	v2Par := v2.GetHeader().GetSplit().GetParent()
-	if v2Par != nil {
-		err := v.ReadFromV2(*v2Par)
-		isSet = (err == nil)
+// GetParentID returns identifier of the parent object. Zero return means unset
+// ID.
+//
+// See also [Object.SetParentID].
+func (o *Object) GetParentID() oid.ID {
+	var id oid.ID
+	if m := (*object.Object)(o).GetHeader().GetSplit().GetParent(); m != nil {
+		_ = id.ReadFromV2(*m)
 	}
-
-	return
+	return id
 }
 
 // SetParentID sets identifier of the parent object.
 //
-// See also [Object.ParentID].
+// See also [Object.GetParentID].
 func (o *Object) SetParentID(v oid.ID) {
 	var v2 refs.ObjectID
 	v.WriteToV2(&v2)
@@ -741,7 +772,6 @@ func (o *Object) UnmarshalJSON(data []byte) error {
 	return formatCheck((*object.Object)(o))
 }
 
-var errOIDNotSet = errors.New("object ID is not set")
 var errCIDNotSet = errors.New("container ID is not set")
 
 func formatCheck(v2 *object.Object) error {
@@ -752,7 +782,7 @@ func formatCheck(v2 *object.Object) error {
 
 	oidV2 := v2.GetObjectID()
 	if oidV2 == nil {
-		return errOIDNotSet
+		return oid.ErrZero
 	}
 
 	err := oID.ReadFromV2(*oidV2)

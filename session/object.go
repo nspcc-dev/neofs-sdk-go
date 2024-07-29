@@ -27,8 +27,7 @@ type Object struct {
 
 	verb ObjectVerb
 
-	cnrSet bool
-	cnr    cid.ID
+	cnr cid.ID
 
 	objs []oid.ID
 }
@@ -38,10 +37,7 @@ func (x Object) CopyTo(dst *Object) {
 	x.commonData.copyTo(&dst.commonData)
 
 	dst.verb = x.verb
-
-	dst.cnrSet = x.cnrSet
-	contID := x.cnr
-	dst.cnr = contID
+	dst.cnr = x.cnr
 
 	if objs := x.objs; objs != nil {
 		dst.objs = make([]oid.ID, len(x.objs))
@@ -60,13 +56,15 @@ func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) er
 	var err error
 
 	cnr := cObj.GetContainer()
-	if x.cnrSet = cnr != nil; x.cnrSet {
+	if cnr != nil {
 		err := x.cnr.ReadFromV2(*cnr)
 		if err != nil {
 			return fmt.Errorf("invalid container ID: %w", err)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing target container")
+	} else {
+		x.cnr = cid.ID{}
 	}
 
 	objs := cObj.GetObjects()
@@ -104,10 +102,10 @@ func (x Object) writeContext() session.TokenContext {
 	var c session.ObjectSessionContext
 	c.SetVerb(session.ObjectSessionVerb(x.verb))
 
-	if x.cnrSet || len(x.objs) > 0 {
+	if !x.cnr.IsZero() || len(x.objs) > 0 {
 		var cnr *refs.ContainerID
 
-		if x.cnrSet {
+		if !x.cnr.IsZero() {
 			cnr = new(refs.ContainerID)
 			x.cnr.WriteToV2(cnr)
 		}
@@ -183,7 +181,9 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 // See also [Object.VerifySignature], [Object.SignedData].
 func (x *Object) Sign(signer user.Signer) error {
 	x.issuer = signer.UserID()
-	x.issuerSet = true
+	if x.issuer.IsZero() {
+		return user.ErrZeroID
+	}
 	return x.SetSignature(signer)
 }
 
@@ -229,7 +229,6 @@ func (x Object) VerifySignature() bool {
 // See also AssertContainer.
 func (x *Object) BindContainer(cnr cid.ID) {
 	x.cnr = cnr
-	x.cnrSet = true
 }
 
 // AssertContainer checks if Object session bound to a given container.

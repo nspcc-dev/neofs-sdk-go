@@ -48,6 +48,7 @@ func TestID_ReadFromV2(t *testing.T) {
 			{name: "empty value", err: "invalid length 0, expected 25", val: []byte{}},
 			{name: "undersized value", err: "invalid length 24, expected 25", val: validBytes[:24]},
 			{name: "oversized value", err: "invalid length 26, expected 25", val: append(validBytes[:], 1)},
+			{name: "zero value", err: "invalid prefix byte 0x0, expected 0x35", val: make([]byte, user.IDSize)},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				var m refs.OwnerID
@@ -149,4 +150,14 @@ func TestID_String(t *testing.T) {
 	require.NotEmpty(t, id.String())
 	require.Equal(t, id.String(), id.String())
 	require.NotEqual(t, id.String(), usertest.OtherID(id).String())
+}
+
+func TestID_IsZero(t *testing.T) {
+	var id user.ID
+	require.True(t, id.IsZero())
+	for i := 0; i < user.IDSize; i++ {
+		var id2 user.ID
+		id2[i]++
+		require.False(t, id2.IsZero())
+	}
 }

@@ -362,7 +362,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 	c.prm.statisticCallback = collector.Collect
 
 	var prm PrmContainerSetEACL
-	table := testEaclTable(cid.ID{})
+	table := testEaclTable(cidtest.ID())
 	err := c.ContainerSetEACL(ctx, table, usr, prm)
 	require.NoError(t, err)
 

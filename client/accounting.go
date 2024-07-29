@@ -21,15 +21,13 @@ var (
 type PrmBalanceGet struct {
 	prmCommonMeta
 
-	accountSet bool
-	account    user.ID
+	account user.ID
 }
 
 // SetAccount sets identifier of the NeoFS account for which the balance is requested.
 // Required parameter.
 func (x *PrmBalanceGet) SetAccount(id user.ID) {
 	x.account = id
-	x.accountSet = true
 }
 
 // BalanceGet requests current balance of the NeoFS account.
@@ -48,7 +46,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 	}()
 
 	switch {
-	case !prm.accountSet:
+	case prm.account.IsZero():
 		err = ErrMissingAccount
 		return accounting.Decimal{}, err
 	}

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -28,11 +29,13 @@ const validIDString = "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF"
 // corresponds to validIDBytes.
 var validIDJSON = `{"value":"5715B62G/qU/ujxZIV8uZ9k5pFdSzPviAWQgSPsAB6w="}`
 
-var invalidValueTestcases = []struct {
+type invalidValueTestCase struct {
 	name string
 	err  string
 	val  []byte
-}{
+}
+
+var invalidValueTestcases = []invalidValueTestCase{
 	{name: "nil value", err: "invalid length 0", val: nil},
 	{name: "empty value", err: "invalid length 0", val: []byte{}},
 	{name: "undersized value", err: "invalid length 31", val: make([]byte, 31)},
@@ -59,7 +62,9 @@ func TestID_ReadFromV2(t *testing.T) {
 	require.EqualValues(t, validIDBytes, id)
 
 	t.Run("invalid", func(t *testing.T) {
-		for _, tc := range invalidValueTestcases {
+		for _, tc := range append(invalidValueTestcases, invalidValueTestCase{
+			name: "zero value", err: "zero object ID", val: make([]byte, cid.Size),
+		}) {
 			t.Run(tc.name, func(t *testing.T) {
 				var m refs.ObjectID
 				m.SetValue(tc.val)
@@ -256,5 +261,15 @@ func TestID_CalculateIDSignature(t *testing.T) {
 		require.Equal(t, usr.PublicKeyBytes, sig.PublicKeyBytes())
 		require.True(t, sig.Verify(id.Marshal()))
 		require.True(t, s.Public().Verify(id.Marshal(), sig.Value()))
+	}
+}
+
+func TestID_IsZero(t *testing.T) {
+	var id oid.ID
+	require.True(t, id.IsZero())
+	for i := 0; i < oid.Size; i++ {
+		var id2 oid.ID
+		id2[i]++
+		require.False(t, id2.IsZero())
 	}
 }

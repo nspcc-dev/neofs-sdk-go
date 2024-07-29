@@ -43,9 +43,7 @@ func TestTable(t *testing.T) {
 		id := cidtest.ID()
 
 		table := eacl.CreateTable(id)
-		cID, set := table.CID()
-		require.True(t, set)
-		require.Equal(t, id, cID)
+		require.Equal(t, id, table.GetCID())
 		require.Equal(t, version.Current(), table.Version())
 	})
 }
@@ -100,8 +98,7 @@ func TestTable_ToV2(t *testing.T) {
 		// check initial values
 		require.Equal(t, version.Current(), table.Version())
 		require.Nil(t, table.Records())
-		_, set := table.CID()
-		require.False(t, set)
+		require.Zero(t, table.GetCID())
 
 		// convert to v2 message
 		tableV2 := table.ToV2()
@@ -112,4 +109,30 @@ func TestTable_ToV2(t *testing.T) {
 		require.Nil(t, tableV2.GetRecords())
 		require.Nil(t, tableV2.GetContainerID())
 	})
+}
+
+func TestTable_LimitToContainer(t *testing.T) {
+	cnr := cidtest.ID()
+	var tbl eacl.Table
+	require.Zero(t, tbl.GetCID())
+	tbl.SetCID(cnr)
+	require.Equal(t, cnr, tbl.GetCID())
+}
+
+func TestTable_CID(t *testing.T) {
+	cnr := cidtest.ID()
+	var tbl eacl.Table
+	_, ok := tbl.CID()
+	require.False(t, ok)
+	tbl.SetCID(cnr)
+	res, ok := tbl.CID()
+	require.True(t, ok)
+	require.Equal(t, cnr, res)
+}
+
+func TestTable_SetCID(t *testing.T) {
+	cnr := cidtest.ID()
+	var tbl eacl.Table
+	tbl.SetCID(cnr)
+	require.Equal(t, cnr, tbl.GetCID())
 }

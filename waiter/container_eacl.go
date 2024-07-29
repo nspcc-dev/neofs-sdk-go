@@ -45,8 +45,8 @@ func (w ContainerSetEACLWaiter) ContainerSetEACL(ctx context.Context, table eacl
 		return fmt.Errorf("container setEacl: %w", err)
 	}
 
-	contID, ok := table.CID()
-	if !ok {
+	contID := table.GetCID()
+	if contID.IsZero() {
 		return client.ErrMissingEACLContainer
 	}
 

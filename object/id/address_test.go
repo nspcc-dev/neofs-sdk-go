@@ -100,14 +100,9 @@ func testAddressIDField[T ~[32]byte](
 
 	t.Run("encoding", func(t *testing.T) {
 		t.Run("api", func(t *testing.T) {
-			var src, dst oid.Address
+			src := oidtest.Address()
+			var dst oid.Address
 			var msg refs.Address
-
-			set(&dst, val)
-			src.WriteToV2(&msg)
-			require.Equal(t, make([]byte, len(val)), getAPI(&msg))
-			require.NoError(t, dst.ReadFromV2(msg))
-			require.Zero(t, get(dst))
 
 			set(&src, val)
 			src.WriteToV2(&msg)
@@ -116,16 +111,11 @@ func testAddressIDField[T ~[32]byte](
 			require.Equal(t, val, get(dst))
 		})
 		t.Run("json", func(t *testing.T) {
-			var src, dst oid.Address
-
-			set(&dst, val)
-			b, err := src.MarshalJSON()
-			require.NoError(t, err)
-			require.NoError(t, dst.UnmarshalJSON(b))
-			require.Zero(t, get(dst))
+			src := oidtest.Address()
+			var dst oid.Address
 
 			set(&src, val)
-			b, err = src.MarshalJSON()
+			b, err := src.MarshalJSON()
 			require.NoError(t, err)
 			require.NoError(t, dst.UnmarshalJSON(b))
 			require.Equal(t, val, get(dst))

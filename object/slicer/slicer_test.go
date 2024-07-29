@@ -563,8 +563,8 @@ func newChainCollector(tb testing.TB) *chainCollector {
 }
 
 func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
-	cnr, ok := header.ContainerID()
-	require.True(tb, ok, "all objects must be bound to some container")
+	cnr := header.GetContainerID()
+	require.False(tb, cnr.IsZero(), "all objects must be bound to some container")
 	require.True(tb, cnr == in.container, "the container must be set to the configured one")
 
 	owner := header.OwnerID()
@@ -587,7 +587,7 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 
 	require.NoError(tb, header.CheckHeaderVerificationFields(), "verification fields must be correctly set in header")
 
-	_, ok = header.PayloadHomomorphicHash()
+	_, ok := header.PayloadHomomorphicHash()
 	require.Equal(tb, in.withHomo, ok)
 }
 
@@ -598,15 +598,15 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 	var header object.Object
 	headerOriginal.CopyTo(&header)
 
-	id, ok := header.ID()
-	require.True(x.tb, ok, "all objects must have an ID")
+	id := header.GetID()
+	require.False(x.tb, id.IsZero(), "all objects must have an ID")
 
 	idCalc, err := header.CalculateID()
 	require.NoError(x.tb, err)
 
 	require.True(x.tb, idCalc == id)
 
-	_, ok = x.mProcessed[id]
+	_, ok := x.mProcessed[id]
 	require.False(x.tb, ok, "object must be written exactly once")
 
 	x.mProcessed[id] = struct{}{}
@@ -620,8 +620,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 		if x.shortParentHeader == nil {
 			// parent in the first part
 
-			_, set := parent.ID()
-			require.False(x.tb, set, "first object's parent cannot have ID")
+			require.True(x.tb, parent.GetID().IsZero(), "first object's parent cannot have ID")
 
 			require.Nil(x.tb, parent.Signature(), "first object's parent cannot have signature")
 
@@ -634,7 +633,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 
 			var parentNoPayloadInfo object.Object
 
-			cID, _ := x.parentHeader.ContainerID()
+			cID := x.parentHeader.GetContainerID()
 			parentNoPayloadInfo.SetVersion(x.parentHeader.Version())
 			parentNoPayloadInfo.SetContainerID(cID)
 			parentNoPayloadInfo.SetCreationEpoch(x.parentHeader.CreationEpoch())
@@ -647,8 +646,8 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 		}
 	}
 
-	prev, ok := header.PreviousID()
-	if ok {
+	prev := header.GetPreviousID()
+	if !prev.IsZero() {
 		_, ok := x.mNext[prev]
 		require.False(x.tb, ok, "split-chain must not be forked")
 
@@ -773,8 +772,8 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 		require.Equal(x.tb, x.children, restoredChain)
 	}
 
-	id, ok := rootObj.ID()
-	require.True(x.tb, ok, "root object must have an ID")
+	id := rootObj.GetID()
+	require.False(x.tb, id.IsZero(), "root object must have an ID")
 	require.True(x.tb, id == rootID, "root ID in root object must be returned in the result")
 
 	checkStaticMetadata(x.tb, rootObj, in)
@@ -802,8 +801,8 @@ func (w *memoryWriter) ObjectPutInit(_ context.Context, hdr object.Object, _ use
 	w.headers = append(w.headers, objectCopy)
 
 	if w.firstObject == nil {
-		first, set := hdr.FirstID()
-		if set {
+		first := hdr.GetFirstID()
+		if !first.IsZero() {
 			w.firstObject = &first
 		}
 	}
@@ -868,12 +867,12 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
 		for i, h := range writer.headers {
-			first, set := h.FirstID()
+			first := h.GetFirstID()
 
 			if i == 0 {
-				require.False(t, set)
+				require.True(t, first.IsZero())
 			} else {
-				require.True(t, set)
+				require.False(t, first.IsZero())
 				require.Equal(t, *writer.firstObject, first)
 			}
 
@@ -907,12 +906,12 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.Equal(t, overheadAmount+1, uint64(len(writer.headers)))
 
 		for i, h := range writer.headers {
-			first, set := h.FirstID()
+			first := h.GetFirstID()
 
 			if i == 0 {
-				require.False(t, set)
+				require.True(t, first.IsZero())
 			} else {
-				require.True(t, set)
+				require.False(t, first.IsZero())
 				require.Equal(t, *writer.firstObject, first)
 			}
 

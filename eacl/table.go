@@ -14,7 +14,7 @@ import (
 // Table is compatible with v2 acl.EACLTable message.
 type Table struct {
 	version version.Version
-	cid     *cid.ID
+	cid     cid.ID
 	records []Record
 }
 
@@ -22,13 +22,7 @@ type Table struct {
 func (t Table) CopyTo(dst *Table) {
 	ver := t.version
 	dst.version = ver
-
-	if t.cid != nil {
-		id := *t.cid
-		dst.cid = &id
-	} else {
-		dst.cid = nil
-	}
+	dst.cid = t.cid
 
 	dst.records = make([]Record, len(t.records))
 	for i := range t.records {
@@ -37,18 +31,17 @@ func (t Table) CopyTo(dst *Table) {
 }
 
 // CID returns identifier of the container that should use given access control rules.
-func (t Table) CID() (cID cid.ID, isSet bool) {
-	if t.cid != nil {
-		cID = *t.cid
-		isSet = true
-	}
+// Deprecated: use [Table.GetCID] instead.
+func (t Table) CID() (cid.ID, bool) { return t.cid, !t.cid.IsZero() }
 
-	return
-}
+// GetCID returns identifier of the NeoFS container to which the eACL scope is
+// limited. Zero return means the eACL may be applied to any container.
+func (t Table) GetCID() cid.ID { return t.cid }
 
-// SetCID sets identifier of the container that should use given access control rules.
+// SetCID limits scope of the eACL to a referenced container. By default, if ID
+// is zero, the eACL is applicable to any container.
 func (t *Table) SetCID(cid cid.ID) {
-	t.cid = &cid
+	t.cid = cid
 }
 
 // Version returns version of eACL format.
@@ -87,12 +80,11 @@ func (t *Table) AddRecord(r *Record) {
 func (t *Table) ReadFromV2(m v2acl.Table) error {
 	// set container id
 	if id := m.GetContainerID(); id != nil {
-		if t.cid == nil {
-			t.cid = new(cid.ID)
-		}
 		if err := t.cid.ReadFromV2(*id); err != nil {
 			return fmt.Errorf("invalid container ID: %w", err)
 		}
+	} else {
+		t.cid = cid.ID{}
 	}
 
 	// set version
@@ -128,7 +120,7 @@ func (t *Table) ToV2() *v2acl.Table {
 	v2 := new(v2acl.Table)
 	var cidV2 refs.ContainerID
 
-	if t.cid != nil {
+	if !t.cid.IsZero() {
 		t.cid.WriteToV2(&cidV2)
 		v2.SetContainerID(&cidV2)
 	}
@@ -194,10 +186,6 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 
 	// set container id
 	if id := table.GetContainerID(); id != nil {
-		if t.cid == nil {
-			t.cid = new(cid.ID)
-		}
-
 		copy(t.cid[:], id.GetValue())
 	}
 
@@ -249,10 +237,7 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 
 // EqualTables compares Table with each other.
 func EqualTables(t1, t2 Table) bool {
-	cID1, set1 := t1.CID()
-	cID2, set2 := t2.CID()
-
-	if set1 != set2 || cID1 != cID2 ||
+	if t1.GetCID() != t2.GetCID() ||
 		!t1.Version().Equal(t2.Version()) {
 		return false
 	}

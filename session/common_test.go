@@ -23,7 +23,6 @@ func Test_commonData_copyTo(t *testing.T) {
 	data := commonData{
 		idSet:       true,
 		id:          uuid.New(),
-		issuerSet:   true,
 		issuer:      usr.UserID(),
 		lifetimeSet: true,
 		iat:         1,
@@ -45,8 +44,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.Equal(t, data, dst)
 		require.True(t, bytes.Equal(data.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
-		require.Equal(t, data.issuerSet, dst.issuerSet)
-		require.Equal(t, data.issuer.String(), dst.issuer.String())
+		require.Equal(t, data.issuer, dst.issuer)
 	})
 
 	t.Run("change id", func(t *testing.T) {
@@ -95,38 +93,35 @@ func Test_commonData_copyTo(t *testing.T) {
 		var dst commonData
 		data.copyTo(&dst)
 
-		require.Equal(t, data.issuerSet, dst.issuerSet)
 		require.True(t, data.issuer == dst.issuer)
 
 		dst.SetIssuer(usertest.OtherID(usr.ID))
 
-		require.Equal(t, data.issuerSet, dst.issuerSet)
 		require.False(t, data.issuer == dst.issuer)
 	})
 
 	t.Run("overwrite issuer", func(t *testing.T) {
 		var local commonData
-		require.False(t, local.issuerSet)
+		require.Zero(t, local.issuer)
 
 		var dst commonData
 		dst.SetIssuer(usertest.OtherID(usr.ID))
-		require.True(t, dst.issuerSet)
+		require.NotZero(t, dst.issuer)
 
 		local.copyTo(&dst)
-		require.False(t, local.issuerSet)
-		require.False(t, dst.issuerSet)
+		require.Zero(t, local.issuer)
+		require.Zero(t, dst.issuer)
 
 		emptyWriter := func() session.TokenContext {
 			return &session.ContainerSessionContext{}
 		}
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
-		require.Equal(t, local.issuerSet, dst.issuerSet)
 		require.True(t, local.issuer == dst.issuer)
 
 		dst.SetIssuer(usertest.OtherID(usr.ID))
-		require.False(t, local.issuerSet)
-		require.True(t, dst.issuerSet)
+		require.Zero(t, local.issuer)
+		require.NotZero(t, dst.issuer)
 
 		require.False(t, local.issuer == dst.issuer)
 	})
@@ -203,7 +198,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		dst.sig.SetScheme(100)
 		dst.sig.SetSign([]byte{10, 11, 12})
 
-		require.Equal(t, data.issuerSet, dst.issuerSet)
+		require.Equal(t, data.issuer, dst.issuer)
 		require.NotEqual(t, data.sig.GetScheme(), dst.sig.GetScheme())
 		require.False(t, bytes.Equal(data.sig.GetKey(), dst.sig.GetKey()))
 		require.False(t, bytes.Equal(data.sig.GetSign(), dst.sig.GetSign()))
