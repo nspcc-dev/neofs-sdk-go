@@ -28,9 +28,9 @@ func Container() session.Container {
 	tok.ApplyOnlyTo(cidtest.ID())
 	tok.SetID(uuid.New())
 	tok.SetAuthKey((*neofsecdsa.PublicKey)(&priv.PublicKey))
-	tok.SetExp(11)
+	tok.SetIat(11)
 	tok.SetNbf(22)
-	tok.SetIat(33)
+	tok.SetExp(33)
 
 	return tok
 }
@@ -65,9 +65,9 @@ func Object() session.Object {
 	tok.LimitByObjects(oidtest.ID(), oidtest.ID())
 	tok.SetID(uuid.New())
 	tok.SetAuthKey((*neofsecdsa.PublicKey)(&priv.PublicKey))
-	tok.SetExp(11)
+	tok.SetIat(11)
 	tok.SetNbf(22)
-	tok.SetIat(33)
+	tok.SetExp(33)
 
 	return tok
 }
