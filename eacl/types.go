@@ -87,7 +87,7 @@ func (u *ValidationUnit) WithSenderKey(v []byte) *ValidationUnit {
 	return u
 }
 
-// WithBearerToken configures ValidationUnit to use v as request's bearer token.
+// WithEACLTable configures ValidationUnit to use v as request's bearer token.
 func (u *ValidationUnit) WithEACLTable(table *Table) *ValidationUnit {
 	if u != nil {
 		u.table = table
