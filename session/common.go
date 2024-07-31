@@ -18,7 +18,6 @@ type commonData struct {
 
 	issuer user.ID
 
-	lifetimeSet   bool
 	iat, nbf, exp uint64
 
 	authKey []byte
@@ -35,7 +34,6 @@ func (x commonData) copyTo(dst *commonData) {
 
 	dst.issuer = x.issuer
 
-	dst.lifetimeSet = x.lifetimeSet
 	dst.iat = x.iat
 	dst.nbf = x.nbf
 	dst.exp = x.exp
@@ -83,11 +81,7 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 	}
 
 	lifetime := body.GetLifetime()
-	if x.lifetimeSet = lifetime != nil; x.lifetimeSet {
-		x.iat = lifetime.GetIat()
-		x.nbf = lifetime.GetNbf()
-		x.exp = lifetime.GetExp()
-	} else if checkFieldPresence {
+	if checkFieldPresence && lifetime == nil {
 		return errors.New("missing token lifetime")
 	}
 
@@ -113,6 +107,10 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 		return errors.New("missing body signature")
 	}
 
+	x.iat = lifetime.GetIat()
+	x.nbf = lifetime.GetNbf()
+	x.exp = lifetime.GetExp()
+
 	return nil
 }
 
@@ -137,7 +135,7 @@ func (x commonData) fillBody(w contextWriter) *session.TokenBody {
 		body.SetOwnerID(&issuer)
 	}
 
-	if x.lifetimeSet {
+	if x.iat != 0 || x.nbf != 0 || x.exp != 0 {
 		var lifetime session.TokenLifetime
 		lifetime.SetIat(x.iat)
 		lifetime.SetNbf(x.nbf)
@@ -243,7 +241,6 @@ func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
 // See also ExpiredAt.
 func (x *commonData) SetExp(exp uint64) {
 	x.exp = exp
-	x.lifetimeSet = true
 }
 
 // SetNbf sets "nbf" (not before) claim which identifies the time (in NeoFS
@@ -256,7 +253,6 @@ func (x *commonData) SetExp(exp uint64) {
 // See also InvalidAt.
 func (x *commonData) SetNbf(nbf uint64) {
 	x.nbf = nbf
-	x.lifetimeSet = true
 }
 
 // SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
@@ -268,11 +264,10 @@ func (x *commonData) SetNbf(nbf uint64) {
 // See also InvalidAt.
 func (x *commonData) SetIat(iat uint64) {
 	x.iat = iat
-	x.lifetimeSet = true
 }
 
 func (x commonData) expiredAt(epoch uint64) bool {
-	return !x.lifetimeSet || x.exp < epoch
+	return x.exp < epoch
 }
 
 // InvalidAt asserts "exp", "nbf" and "iat" claims.
