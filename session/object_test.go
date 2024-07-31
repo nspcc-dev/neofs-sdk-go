@@ -488,6 +488,7 @@ func TestObject_AssertObject(t *testing.T) {
 
 func TestObject_InvalidAt(t *testing.T) {
 	var x session.Object
+	require.False(t, x.InvalidAt(0))
 
 	nbf := rand.Uint64()
 	if nbf == math.MaxUint64 {

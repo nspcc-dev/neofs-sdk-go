@@ -21,16 +21,15 @@ func Test_commonData_copyTo(t *testing.T) {
 	usr := usertest.User()
 
 	data := commonData{
-		idSet:       true,
-		id:          uuid.New(),
-		issuer:      usr.UserID(),
-		lifetimeSet: true,
-		iat:         1,
-		nbf:         2,
-		exp:         3,
-		authKey:     []byte{1, 2, 3, 4},
-		sigSet:      true,
-		sig:         sig,
+		idSet:   true,
+		id:      uuid.New(),
+		issuer:  usr.UserID(),
+		iat:     1,
+		nbf:     2,
+		exp:     3,
+		authKey: []byte{1, 2, 3, 4},
+		sigSet:  true,
+		sig:     sig,
 	}
 
 	t.Run("copy", func(t *testing.T) {
@@ -130,7 +129,6 @@ func Test_commonData_copyTo(t *testing.T) {
 		var dst commonData
 		data.copyTo(&dst)
 
-		require.Equal(t, data.lifetimeSet, dst.lifetimeSet)
 		require.Equal(t, data.iat, dst.iat)
 		require.Equal(t, data.nbf, dst.nbf)
 		require.Equal(t, data.exp, dst.exp)
@@ -139,7 +137,6 @@ func Test_commonData_copyTo(t *testing.T) {
 		dst.SetIat(200)
 		dst.SetNbf(300)
 
-		require.Equal(t, data.lifetimeSet, dst.lifetimeSet)
 		require.NotEqual(t, data.iat, dst.iat)
 		require.NotEqual(t, data.nbf, dst.nbf)
 		require.NotEqual(t, data.exp, dst.exp)
@@ -148,18 +145,14 @@ func Test_commonData_copyTo(t *testing.T) {
 	t.Run("overwrite lifetime", func(t *testing.T) {
 		// lifetime is not set
 		local := commonData{}
-		require.False(t, local.lifetimeSet)
 
 		// lifetime is set
 		var dst commonData
 		dst.SetExp(100)
 		dst.SetIat(200)
 		dst.SetNbf(300)
-		require.True(t, dst.lifetimeSet)
 
 		local.copyTo(&dst)
-		require.False(t, local.lifetimeSet)
-		require.False(t, dst.lifetimeSet)
 
 		emptyWriter := func() session.TokenContext {
 			return &session.ContainerSessionContext{}
@@ -167,7 +160,6 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
 		// check both are equal
-		require.Equal(t, local.lifetimeSet, dst.lifetimeSet)
 		require.Equal(t, local.iat, dst.iat)
 		require.Equal(t, local.nbf, dst.nbf)
 		require.Equal(t, local.exp, dst.exp)
@@ -178,8 +170,6 @@ func Test_commonData_copyTo(t *testing.T) {
 		dst.SetNbf(300)
 
 		// check that affects only dst
-		require.False(t, local.lifetimeSet)
-		require.True(t, dst.lifetimeSet)
 		require.NotEqual(t, local.iat, dst.iat)
 		require.NotEqual(t, local.nbf, dst.nbf)
 		require.NotEqual(t, local.exp, dst.exp)

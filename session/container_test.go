@@ -395,6 +395,7 @@ func TestContainer_AppliedTo(t *testing.T) {
 
 func TestContainer_InvalidAt(t *testing.T) {
 	var x session.Container
+	require.False(t, x.InvalidAt(0))
 
 	nbf := rand.Uint64()
 	if nbf == math.MaxUint64 {
