@@ -3,8 +3,6 @@ package session_test
 import (
 	"bytes"
 	"fmt"
-	"math"
-	"math/rand"
 	"testing"
 
 	"github.com/google/uuid"
@@ -157,10 +155,9 @@ func TestObjectProtocolV2(t *testing.T) {
 			},
 			restore: restoreLifetime,
 			assert: func(val session.Object) {
-				require.True(t, val.InvalidAt(1))
-				require.False(t, val.InvalidAt(2))
-				require.False(t, val.InvalidAt(3))
-				require.True(t, val.InvalidAt(4))
+				require.EqualValues(t, 1, val.Iat())
+				require.EqualValues(t, 2, val.Nbf())
+				require.EqualValues(t, 3, val.Exp())
 			},
 			breakSign: func(m *v2session.Token) {
 				lt := m.GetBody().GetLifetime()
@@ -486,29 +483,6 @@ func TestObject_AssertObject(t *testing.T) {
 	require.False(t, x.AssertObject(objOther))
 }
 
-func TestObject_InvalidAt(t *testing.T) {
-	var x session.Object
-	require.False(t, x.InvalidAt(0))
-
-	nbf := rand.Uint64()
-	if nbf == math.MaxUint64 {
-		nbf--
-	}
-
-	iat := nbf
-	exp := iat + 1
-
-	x.SetNbf(nbf)
-	x.SetIat(iat)
-	x.SetExp(exp)
-
-	require.True(t, x.InvalidAt(nbf-1))
-	require.True(t, x.InvalidAt(iat-1))
-	require.False(t, x.InvalidAt(iat))
-	require.False(t, x.InvalidAt(exp))
-	require.True(t, x.InvalidAt(exp+1))
-}
-
 func TestObject_ID(t *testing.T) {
 	var x session.Object
 
@@ -680,4 +654,16 @@ func TestObject_SignedData(t *testing.T) {
 	require.Equal(t, m.GetSignature().GetSign(), sign)
 
 	usertest.TestSignedData(t, issuer, &tokenSession)
+}
+
+func TestObject_SetExp(t *testing.T) {
+	testLifetimeClaim(t, session.Object.Exp, (*session.Object).SetExp)
+}
+
+func TestObject_SetIat(t *testing.T) {
+	testLifetimeClaim(t, session.Object.Iat, (*session.Object).SetIat)
+}
+
+func TestObject_SetNbf(t *testing.T) {
+	testLifetimeClaim(t, session.Object.Nbf, (*session.Object).SetNbf)
 }

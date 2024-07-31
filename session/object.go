@@ -313,6 +313,5 @@ func (x Object) AssertVerb(verbs ...ObjectVerb) bool {
 // Zero Object is expired in any epoch.
 //
 // See also SetExp.
-func (x Object) ExpiredAt(epoch uint64) bool {
-	return x.expiredAt(epoch)
-}
+// Deprecated: use [ExpiredAt] instead.
+func (x Object) ExpiredAt(epoch uint64) bool { return ExpiredAt(x, epoch) }

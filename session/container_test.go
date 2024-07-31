@@ -3,7 +3,6 @@ package session_test
 import (
 	"bytes"
 	"fmt"
-	"math"
 	"math/rand"
 	"testing"
 
@@ -152,10 +151,9 @@ func TestContainerProtocolV2(t *testing.T) {
 			},
 			restore: restoreLifetime,
 			assert: func(val session.Container) {
-				require.True(t, val.InvalidAt(1))
-				require.False(t, val.InvalidAt(2))
-				require.False(t, val.InvalidAt(3))
-				require.True(t, val.InvalidAt(4))
+				require.EqualValues(t, 1, val.Iat())
+				require.EqualValues(t, 2, val.Nbf())
+				require.EqualValues(t, 3, val.Exp())
 			},
 			breakSign: func(m *v2session.Token) {
 				lt := m.GetBody().GetLifetime()
@@ -393,29 +391,6 @@ func TestContainer_AppliedTo(t *testing.T) {
 	require.False(t, x.AppliedTo(cnr2))
 }
 
-func TestContainer_InvalidAt(t *testing.T) {
-	var x session.Container
-	require.False(t, x.InvalidAt(0))
-
-	nbf := rand.Uint64()
-	if nbf == math.MaxUint64 {
-		nbf--
-	}
-
-	iat := nbf
-	exp := iat + 1
-
-	x.SetNbf(nbf)
-	x.SetIat(iat)
-	x.SetExp(exp)
-
-	require.True(t, x.InvalidAt(nbf-1))
-	require.True(t, x.InvalidAt(iat-1))
-	require.False(t, x.InvalidAt(iat))
-	require.False(t, x.InvalidAt(exp))
-	require.True(t, x.InvalidAt(exp+1))
-}
-
 func TestContainer_ID(t *testing.T) {
 	var x session.Container
 
@@ -623,4 +598,16 @@ func TestContainer_VerifyDataSignature(t *testing.T) {
 	require.True(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
 	require.False(t, tok.VerifySessionDataSignature(append(data, 1), sigV2.GetSign()))
 	require.False(t, tok.VerifySessionDataSignature(data, append(sigV2.GetSign(), 1)))
+}
+
+func TestContainer_SetExp(t *testing.T) {
+	testLifetimeClaim(t, session.Container.Exp, (*session.Container).SetExp)
+}
+
+func TestContainer_SetIat(t *testing.T) {
+	testLifetimeClaim(t, session.Container.Iat, (*session.Container).SetIat)
+}
+
+func TestContainer_SetNbf(t *testing.T) {
+	testLifetimeClaim(t, session.Container.Nbf, (*session.Container).SetNbf)
 }

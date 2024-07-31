@@ -70,7 +70,7 @@ func (c *sessionCache) updateEpoch(newEpoch uint64) {
 
 func (c *sessionCache) expired(val *cacheValue) bool {
 	epoch := atomic.LoadUint64(&c.currentEpoch)
-	return val.token.ExpiredAt(epoch + 1)
+	return session.ExpiredAt(val.token, epoch+1)
 }
 
 // Purge removes all session keys.

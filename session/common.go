@@ -238,9 +238,14 @@ func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
 //
-// See also ExpiredAt.
+// See also [InvalidAt], [ExpiredAt].
 func (x *commonData) SetExp(exp uint64) {
 	x.exp = exp
+}
+
+// Exp returns "exp" (expiration time) claim.
+func (x commonData) Exp() uint64 {
+	return x.exp
 }
 
 // SetNbf sets "nbf" (not before) claim which identifies the time (in NeoFS
@@ -250,9 +255,14 @@ func (x *commonData) SetExp(exp uint64) {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
 //
-// See also InvalidAt.
+// See also [InvalidAt].
 func (x *commonData) SetNbf(nbf uint64) {
 	x.nbf = nbf
+}
+
+// Nbf returns "nbf" (not before) claim.
+func (x commonData) Nbf() uint64 {
+	return x.nbf
 }
 
 // SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
@@ -261,13 +271,36 @@ func (x *commonData) SetNbf(nbf uint64) {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
 //
-// See also InvalidAt.
+// See also [InvalidAt].
 func (x *commonData) SetIat(iat uint64) {
 	x.iat = iat
 }
 
-func (x commonData) expiredAt(epoch uint64) bool {
-	return x.exp < epoch
+// Iat returns "iat" (issued at) claim
+func (x commonData) Iat() uint64 {
+	return x.iat
+}
+
+type expiring interface {
+	Exp() uint64
+}
+
+type lifetime interface {
+	expiring
+	Nbf() uint64
+	Iat() uint64
+}
+
+// InvalidAt checks all lifetime claims of the [Container] or [Object] token
+// against given epoch.
+func InvalidAt(token lifetime, epoch uint64) bool {
+	return token.Exp() < epoch || token.Nbf() > epoch || token.Iat() > epoch
+}
+
+// ExpiredAt checks expiration claims of the [Container] or [Object] token
+// against given epoch.
+func ExpiredAt(token expiring, epoch uint64) bool {
+	return token.Exp() < epoch
 }
 
 // InvalidAt asserts "exp", "nbf" and "iat" claims.
@@ -275,9 +308,8 @@ func (x commonData) expiredAt(epoch uint64) bool {
 // Zero session is invalid in any epoch.
 //
 // See also SetExp, SetNbf, SetIat.
-func (x commonData) InvalidAt(epoch uint64) bool {
-	return x.expiredAt(epoch) || x.nbf > epoch || x.iat > epoch
-}
+// Deprecated: use [InvalidAt] func instead.
+func (x commonData) InvalidAt(epoch uint64) bool { return InvalidAt(x, epoch) }
 
 // SetID sets a unique identifier for the session. The identifier value MUST be
 // assigned in a manner that ensures that there is a negligible probability
