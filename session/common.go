@@ -339,12 +339,41 @@ func (x commonData) ID() uuid.UUID {
 	return uuid.Nil
 }
 
+// SetAuthPublicKey sets binary-encoded public key corresponding to the private
+// key bound to the session. Trusted parties are authenticated by signing via
+// this private key.
+func (x *commonData) SetAuthPublicKey(b []byte) {
+	x.authKey = b
+}
+
+// AuthPublicKey returns binary-encoded public key corresponding to the private
+// key bound to the session. Trusted parties are authenticated by signing via
+// this private key.
+func (x commonData) AuthPublicKey() []byte {
+	return x.authKey
+}
+
+// SetAuthPublicKey encodes given public key and specifies it in the [Container]
+// or [Object] session.
+func SetAuthPublicKey(t interface{ SetAuthPublicKey([]byte) }, pub neofscrypto.PublicKey) {
+	t.SetAuthPublicKey(neofscrypto.PublicKeyBytes(pub))
+}
+
+type authPublicKeyGetter interface {
+	AuthPublicKey() []byte
+}
+
+// AssertAuthPublicKey checks whether given public key is specified in the
+// [Container] or [Object] session.
+func AssertAuthPublicKey(t authPublicKeyGetter, pub neofscrypto.PublicKey) bool {
+	return bytes.Equal(t.AuthPublicKey(), neofscrypto.PublicKeyBytes(pub))
+}
+
 // SetAuthKey public key corresponding to the private key bound to the session.
 //
 // See also AssertAuthKey.
-func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
-	x.authKey = neofscrypto.PublicKeyBytes(key)
-}
+// Deprecated: use [SetAuthPublicKey] instead.
+func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) { SetAuthPublicKey(x, key) }
 
 // SetIssuer allows to set issuer before Sign call.
 // Using this method is not required when Sign is used (issuer will be derived from the signer automatically).
@@ -358,9 +387,8 @@ func (x *commonData) SetIssuer(id user.ID) {
 // Zero session fails the check.
 //
 // See also SetAuthKey.
-func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
-	return bytes.Equal(neofscrypto.PublicKeyBytes(key), x.authKey)
-}
+// Deprecated: use [AssertAuthPublicKey] instead.
+func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool { return AssertAuthPublicKey(x, key) }
 
 // Issuer returns user ID of the session issuer.
 //

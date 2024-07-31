@@ -24,7 +24,7 @@ func ExampleContainer() {
 
 	var tok session.Object
 	tok.ForVerb(session.VerbObjectPut)
-	tok.SetAuthKey(trustedPubKey)
+	session.SetAuthPublicKey(&tok, trustedPubKey)
 	tok.BindContainer(cnr)
 	// ...
 

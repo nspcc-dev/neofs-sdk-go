@@ -8,6 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -243,13 +244,19 @@ func IssuedBy(cnr Container, id user.ID) bool {
 
 // VerifySessionDataSignature verifies signature of the session data. In practice,
 // the method is used to authenticate an operation with session data.
+// Deprecated: use [VerifyContainerSessionDataSignatureRFC6979] instead.
 func (x Container) VerifySessionDataSignature(data, signature []byte) bool {
-	var sigV2 refs.Signature
-	sigV2.SetKey(x.authKey)
-	sigV2.SetScheme(refs.ECDSA_RFC6979_SHA256)
-	sigV2.SetSign(signature)
+	return VerifyContainerSessionDataSignatureRFC6979(x, data, signature)
+}
 
-	var sig neofscrypto.Signature
-
-	return sig.ReadFromV2(sigV2) == nil && sig.Verify(data)
+// VerifyContainerSessionDataSignatureRFC6979 verifies RFC 6979 signature of the
+// container session data. In practice, the method is used to
+// authorize an operation performed by trusted party on behalf of the session
+// issuer. Data depends on the session context.
+func VerifyContainerSessionDataSignatureRFC6979(t Container, data, sig []byte) bool {
+	var pub neofsecdsa.PublicKeyRFC6979
+	if err := pub.Decode(t.AuthPublicKey()); err != nil {
+		return false
+	}
+	return neofscrypto.NewSignature(neofscrypto.ECDSA_DETERMINISTIC_SHA256, &pub, sig).Verify(data)
 }

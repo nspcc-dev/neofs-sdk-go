@@ -576,7 +576,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	tokenSession.SetExp(1)
 	tokenSession.BindContainer(containerID)
 	tokenSession.ForVerb(session2.VerbObjectPut)
-	tokenSession.SetAuthKey(usr.Public())
+	tokenSession.SetAuthPublicKey(usr.PublicKeyBytes)
 	tokenSession.SetIssuer(usr.ID)
 
 	err := tokenSession.Sign(usr)

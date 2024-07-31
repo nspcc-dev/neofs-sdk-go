@@ -279,7 +279,7 @@ func TestSessionCache(t *testing.T) {
 	t.Run("no session token after pool creation", func(t *testing.T) {
 		st, ok := pool.cache.Get(cacheKey)
 		require.False(t, ok)
-		require.False(t, st.AssertAuthKey(usr.Public()))
+		require.False(t, session.AssertAuthPublicKey(st, usr.Public()))
 	})
 
 	t.Run("session token was created after request", func(t *testing.T) {
@@ -288,7 +288,7 @@ func TestSessionCache(t *testing.T) {
 
 		st, ok := pool.cache.Get(cacheKey)
 		require.True(t, ok)
-		require.True(t, st.AssertAuthKey(usr.Public()))
+		require.True(t, session.AssertAuthPublicKey(st, usr.Public()))
 	})
 
 	t.Run("session is not removed", func(t *testing.T) {
@@ -411,7 +411,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.NoError(t, err)
 
 	st, _ := pool.cache.Get(cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectDelete, cid.ID{}))
-	require.True(t, st.AssertAuthKey(anonSigner.Public()))
+	require.True(t, session.AssertAuthPublicKey(st, anonSigner.Public()))
 }
 
 func TestSessionTokenOwner(t *testing.T) {
@@ -449,7 +449,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	cacheKey := cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectGet, containerID)
 	st, ok := p.cache.Get(cacheKey)
 	require.True(t, ok)
-	require.True(t, st.AssertAuthKey(anonSigner.Public()))
+	require.True(t, session.AssertAuthPublicKey(st, anonSigner.Public()))
 
 	require.True(t, st.VerifySignature())
 	require.True(t, st.Issuer() == anonSigner.UserID())

@@ -3,7 +3,6 @@ package session_test
 import (
 	"bytes"
 	"fmt"
-	"math/rand"
 	"testing"
 
 	"github.com/google/uuid"
@@ -55,10 +54,9 @@ func TestContainerProtocolV2(t *testing.T) {
 
 	// Session key
 	usr := usertest.User()
-	authKey := usr.Public()
-	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
+	authKey := usr.PublicKeyBytes
 	restoreAuthKey := func() {
-		body.SetSessionKey(binAuthKey)
+		body.SetSessionKey(authKey)
 	}
 	restoreAuthKey()
 
@@ -172,7 +170,7 @@ func TestContainerProtocolV2(t *testing.T) {
 			},
 			restore: restoreAuthKey,
 			assert: func(val session.Container) {
-				require.True(t, val.AssertAuthKey(authKey))
+				require.Equal(t, authKey, val.AuthPublicKey())
 			},
 			breakSign: func(m *v2session.Token) {
 				body := m.GetBody()
@@ -577,27 +575,35 @@ func TestContainer_SignedData(t *testing.T) {
 	usertest.TestSignedData(t, signer, &val)
 }
 
-func TestContainer_VerifyDataSignature(t *testing.T) {
-	signer := neofscryptotest.Signer().RFC6979
+func TestVerifyContainerSessionDataSignatureRFC6979(t *testing.T) {
+	usr := neofscryptotest.Signer()
+	data := []byte("Hello, world!")
+	validSig, err := usr.RFC6979.Sign(data)
+	require.NoError(t, err)
 
 	var tok session.Container
+	require.False(t, session.VerifyContainerSessionDataSignatureRFC6979(tok, data, validSig))
 
-	data := make([]byte, 100)
-	//nolint:staticcheck
-	rand.Read(data)
+	tok.SetAuthPublicKey(usr.PublicKeyBytes)
+	require.True(t, session.VerifyContainerSessionDataSignatureRFC6979(tok, data, validSig))
 
-	var sig neofscrypto.Signature
-	require.NoError(t, sig.Calculate(signer, data))
-
-	var sigV2 refs.Signature
-	sig.WriteToV2(&sigV2)
-
-	require.False(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
-
-	tok.SetAuthKey(signer.Public())
-	require.True(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
-	require.False(t, tok.VerifySessionDataSignature(append(data, 1), sigV2.GetSign()))
-	require.False(t, tok.VerifySessionDataSignature(data, append(sigV2.GetSign(), 1)))
+	for i := range usr.PublicKeyBytes {
+		otherPub := bytes.Clone(usr.PublicKeyBytes)
+		otherPub[i]++
+		tok := tok
+		tok.SetAuthPublicKey(otherPub)
+		require.False(t, session.VerifyContainerSessionDataSignatureRFC6979(tok, data, validSig))
+	}
+	for i := range data {
+		otherData := bytes.Clone(data)
+		otherData[i]++
+		require.False(t, session.VerifyContainerSessionDataSignatureRFC6979(tok, otherData, validSig))
+	}
+	for i := range validSig {
+		otherSig := bytes.Clone(validSig)
+		otherSig[i]++
+		require.False(t, session.VerifyContainerSessionDataSignatureRFC6979(tok, data, otherSig))
+	}
 }
 
 func TestContainer_SetExp(t *testing.T) {
@@ -610,4 +616,8 @@ func TestContainer_SetIat(t *testing.T) {
 
 func TestContainer_SetNbf(t *testing.T) {
 	testLifetimeClaim(t, session.Container.Nbf, (*session.Container).SetNbf)
+}
+
+func TestContainer_SetAuthPublicKey(t *testing.T) {
+	testAuthPublicKeyField(t, session.Container.AuthPublicKey, (*session.Container).SetAuthPublicKey)
 }

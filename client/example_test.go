@@ -13,7 +13,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -136,14 +135,11 @@ func ExampleClient_SessionCreate() {
 	var id uuid.UUID
 	_ = id.UnmarshalBinary(res.ID())
 
-	// Public key for separate private key, which was created inside node for this session.
-	var key neofsecdsa.PublicKey
-	_ = key.Decode(res.PublicKey())
-
 	// Fill session parameters
 	var sessionObject session.Object
 	sessionObject.SetID(id)
-	sessionObject.SetAuthKey(&key)
+	// Public key for separate private key, which was created inside node for this session.
+	sessionObject.SetAuthPublicKey(res.PublicKey())
 	sessionObject.SetExp(exp)
 
 	// Attach verb and container. Session allows to do just one action by time. In this example it is a VerbObjectPut.

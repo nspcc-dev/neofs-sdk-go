@@ -50,12 +50,13 @@ func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer us
 	}
 
 	var key neofsecdsa.PublicKey
-	if err = key.Decode(res.PublicKey()); err != nil {
+	bPub := res.PublicKey()
+	if err = key.Decode(bPub); err != nil {
 		return dst, fmt.Errorf("invalid public session key: %w", err)
 	}
 
 	dst.SetID(id)
-	dst.SetAuthKey(&key)
+	dst.SetAuthPublicKey(bPub)
 	dst.SetExp(exp)
 
 	c.nodeSession.SetNodeSession(&dst, signer.Public())

@@ -54,10 +54,9 @@ func TestObjectProtocolV2(t *testing.T) {
 
 	// Session key
 	usr := usertest.User()
-	authKey := usr.Public()
-	binAuthKey := neofscrypto.PublicKeyBytes(authKey)
+	authKey := usr.PublicKeyBytes
 	restoreAuthKey := func() {
-		body.SetSessionKey(binAuthKey)
+		body.SetSessionKey(authKey)
 	}
 	restoreAuthKey()
 
@@ -176,7 +175,7 @@ func TestObjectProtocolV2(t *testing.T) {
 			},
 			restore: restoreAuthKey,
 			assert: func(val session.Object) {
-				require.True(t, val.AssertAuthKey(authKey))
+				require.Equal(t, authKey, val.AuthPublicKey())
 			},
 			breakSign: func(m *v2session.Token) {
 				body := m.GetBody()
@@ -634,7 +633,7 @@ func TestObject_SignedData(t *testing.T) {
 	tokenSession.SetExp(100500)
 	tokenSession.BindContainer(cidtest.ID())
 	tokenSession.ForVerb(session.VerbObjectPut)
-	tokenSession.SetAuthKey(neofscryptotest.Signer().Public())
+	tokenSession.SetAuthPublicKey(usertest.User().PublicKeyBytes)
 	tokenSession.SetIssuer(issuerID)
 
 	signedData := tokenSession.SignedData()
@@ -666,4 +665,8 @@ func TestObject_SetIat(t *testing.T) {
 
 func TestObject_SetNbf(t *testing.T) {
 	testLifetimeClaim(t, session.Object.Nbf, (*session.Object).SetNbf)
+}
+
+func TestObject_SetAuthPublicKey(t *testing.T) {
+	testAuthPublicKeyField(t, session.Object.AuthPublicKey, (*session.Object).SetAuthPublicKey)
 }

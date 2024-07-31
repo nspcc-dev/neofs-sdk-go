@@ -21,7 +21,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -605,14 +604,10 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		err = id.UnmarshalBinary(res.ID())
 		require.NoError(t, err)
 
-		var key neofsecdsa.PublicKey
-		err = key.Decode(res.PublicKey())
-		require.NoError(t, err)
-
 		var sess session.Object
 
 		sess.SetID(id)
-		sess.SetAuthKey(&key)
+		sess.SetAuthPublicKey(res.PublicKey())
 		sess.SetExp(math.MaxUint64)
 		sess.ForVerb(session.VerbObjectPut)
 		sess.BindContainer(containerID)
