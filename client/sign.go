@@ -197,10 +197,18 @@ func signServiceMessage(signer neofscrypto.Signer, msg any, buf []byte) error {
 }
 
 func signServiceMessagePart(signer neofscrypto.Signer, part stableMarshaler, sigWrite func(*refs.Signature), buf []byte) error {
-	var sig neofscrypto.Signature
 	var sigv2 refs.Signature
 
-	if err := sig.CalculateMarshalled(signer, part, buf); err != nil {
+	var b []byte
+	if part != nil {
+		if len(buf) >= part.StableSize() {
+			b = part.StableMarshal(buf[0:part.StableSize()])
+		} else {
+			b = part.StableMarshal(nil)
+		}
+	}
+	sig, err := neofscrypto.CalculateDataSignature(signer, b)
+	if err != nil {
 		return fmt.Errorf("calculate %w", err)
 	}
 

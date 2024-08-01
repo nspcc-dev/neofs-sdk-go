@@ -31,7 +31,7 @@ type Token struct {
 	iat, nbf, exp uint64
 
 	sigSet bool
-	sig    refs.Signature
+	sig    neofscrypto.Signature
 }
 
 // reads Token from the acl.BearerToken message. If checkFieldPresence is set,
@@ -84,7 +84,9 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 
 	sig := m.GetSignature()
 	if b.sigSet = sig != nil; sig != nil {
-		b.sig = *sig
+		if err = b.sig.ReadFromV2(*sig); err != nil {
+			return fmt.Errorf("invalid body signature; %w", err)
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing body signature")
 	}
@@ -150,7 +152,8 @@ func (b Token) WriteToV2(m *acl.BearerToken) {
 	var sig *refs.Signature
 
 	if b.sigSet {
-		sig = &b.sig
+		sig = new(refs.Signature)
+		b.sig.WriteToV2(sig)
 	}
 
 	m.SetSignature(sig)
@@ -275,25 +278,12 @@ func (b Token) AssertUser(id user.ID) bool {
 // expected to be calculated as a final stage of Token formation.
 //
 // See also [Token.VerifySignature], [Token.Issuer], [Token.SignedData].
-func (b *Token) Sign(signer user.Signer) error {
-	b.SetIssuer(signer.UserID())
-
-	var sig neofscrypto.Signature
-
-	err := sig.Calculate(signer, b.signedData())
-	if err != nil {
-		return err
-	}
-
-	sig.WriteToV2(&b.sig)
-	b.sigSet = true
-
-	return nil
-}
+// Deprecated: use [Issue] instead.
+func (b *Token) Sign(signer user.Signer) error { return Issue(b, signer) }
 
 // SignedData returns actual payload to sign.
 //
-// See also [Token.Sign], [Token.UnmarshalSignedData].
+// See also [Token.AttachSignature], [Token.UnmarshalSignedData].
 func (b *Token) SignedData() []byte {
 	return b.signedData()
 }
@@ -311,21 +301,30 @@ func (b *Token) UnmarshalSignedData(data []byte) error {
 	return b.readFromV2(tok, false)
 }
 
+// AttachSignature attaches given signature to the Token. Use [Token.SignedData]
+// and [neofscrypto.CalculateDataSignature] for calculation.
+func (b *Token) AttachSignature(sig neofscrypto.Signature) {
+	b.sig, b.sigSet = sig, true
+}
+
+// Signature returns Token signature. If the signature is missing, result with
+// negative scheme is returned. Use [Token.SignedData] and
+// [neofscrypto.IsValidDataSignature] for verification.
+func (b Token) Signature() neofscrypto.Signature {
+	sig := b.sig
+	if !b.sigSet {
+		sig.SetScheme(-1)
+	}
+	return sig
+}
+
 // VerifySignature checks if Token signature is presented and valid.
 //
 // Zero Token fails the check.
 //
 // See also Sign.
-func (b Token) VerifySignature() bool {
-	if !b.sigSet {
-		return false
-	}
-
-	var sig neofscrypto.Signature
-
-	// TODO: (#233) check owner<->key relation
-	return sig.ReadFromV2(b.sig) == nil && sig.Verify(b.signedData())
-}
+// Deprecated: use [HasValidSignature] instead.
+func (b Token) VerifySignature() bool { return HasValidSignature(b) }
 
 // Marshal encodes Token into a binary format of the NeoFS API protocol
 // (Protocol Buffers V3 with direct field order).
@@ -392,11 +391,11 @@ func (b *Token) UnmarshalJSON(data []byte) error {
 // Make a copy if you need to change it.
 //
 // See also [Token.ResolveIssuer].
+// Deprecated: use [Token.Signature] instead.
 func (b Token) SigningKeyBytes() []byte {
-	if b.sigSet {
-		return b.sig.GetKey()
+	if sig := b.Signature(); sig.Scheme() >= 0 {
+		return sig.PublicKeyBytes()
 	}
-
 	return nil
 }
 
@@ -427,10 +426,8 @@ func (b Token) ResolveIssuer() user.ID {
 	}
 
 	var usr user.ID
-	binKey := b.SigningKeyBytes()
-
-	if len(binKey) != 0 {
-		if err := idFromKey(&usr, binKey); err != nil {
+	if b.sigSet {
+		if err := idFromKey(&usr, b.sig.PublicKeyBytes()); err != nil {
 			usr = user.ID{}
 		}
 	}
@@ -446,4 +443,28 @@ func idFromKey(id *user.ID, key []byte) error {
 
 	id.SetScriptHash(pk.GetScriptHash())
 	return nil
+}
+
+// Sign calculates signature of the given Token according to the NeoFS protocol
+// and attaches the result into it. Use [HasValidSignature] for verification.
+// Use [Issue] if issuer has not been set yet.
+func Sign(token *Token, signer neofscrypto.Signer) error {
+	sig, err := neofscrypto.CalculateDataSignature(signer, token.SignedData())
+	if err == nil {
+		token.AttachSignature(sig)
+	}
+	return err
+}
+
+// HasValidSignature checks whether given Token has correct signature according
+// to the NeoFS protocol. Use [Sign] for calculation.
+func HasValidSignature(token Token) bool {
+	sig := token.Signature()
+	return sig.Scheme() >= 0 && neofscrypto.IsValidDataSignature(sig, token.SignedData())
+}
+
+// Issue sets given user as a Token issuer and makes [Sign].
+func Issue(token *Token, signer user.Signer) error {
+	token.SetIssuer(signer.UserID())
+	return Sign(token, signer)
 }

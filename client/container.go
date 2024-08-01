@@ -82,8 +82,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	var cnr v2container.Container
 	cont.WriteToV2(&cnr)
 
-	var sig neofscrypto.Signature
-	err = cont.CalculateSignature(&sig, signer)
+	sig, err := container.CalculateSignature(cont, signer)
 	if err != nil {
 		err = fmt.Errorf("calculate container signature: %w", err)
 		return cid.ID{}, err
@@ -339,8 +338,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	// don't get confused with stable marshaled protobuf container.ID structure
 	data := cidV2.GetValue()
 
-	var sig neofscrypto.Signature
-	err = sig.Calculate(signer, data)
+	sig, err := neofscrypto.CalculateDataSignature(signer, data)
 	if err != nil {
 		err = fmt.Errorf("calculate signature: %w", err)
 		return err
@@ -463,6 +461,9 @@ type PrmContainerSetEACL struct {
 
 	sessionSet bool
 	session    session.Container
+
+	sigSet bool
+	sig    neofscrypto.Signature
 }
 
 // WithinSession specifies session within which extended ACL of the container
@@ -481,6 +482,13 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.sessionSet = true
 }
 
+// AttachSignature allows to attach pre-calculated eACL signature and free
+// [Client.ContainerSetEACL] from the calculation. The sig must have
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
+func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
+}
+
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -493,6 +501,8 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
 // Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// If signature already exists, use [PrmContainerSetEACL.AttachSignature]:
+// then signer will not be used.
 //
 // Return errors:
 //   - [ErrMissingEACLContainer]
@@ -515,22 +525,20 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	}
 
 	// sign the eACL table
-	eaclV2 := table.ToV2()
-
-	var sig neofscrypto.Signature
-	err = sig.CalculateMarshalled(signer, eaclV2, nil)
-	if err != nil {
-		err = fmt.Errorf("calculate signature: %w", err)
-		return err
+	if !prm.sigSet {
+		if prm.sig, err = neofscrypto.CalculateDataSignature(signer, table.SignedData()); err != nil {
+			err = fmt.Errorf("calculate signature: %w", err)
+			return err
+		}
 	}
 
 	var sigv2 refs.Signature
 
-	sig.WriteToV2(&sigv2)
+	prm.sig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.SetExtendedACLRequestBody)
-	reqBody.SetEACL(eaclV2)
+	reqBody.SetEACL(table.ToV2())
 	reqBody.SetSignature(&sigv2)
 
 	// form meta header

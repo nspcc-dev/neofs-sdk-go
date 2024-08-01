@@ -28,7 +28,7 @@ func ExampleContainer() {
 	tok.BindContainer(cnr)
 	// ...
 
-	_ = tok.Sign(principalSigner)
+	_ = session.Issue(&tok, principalSigner)
 
 	// transfer the token to a trusted party
 }

@@ -259,7 +259,7 @@ func TestID_CalculateIDSignature(t *testing.T) {
 		require.Equal(t, s.Scheme(), sig.Scheme())
 		require.Equal(t, s.Public(), sig.PublicKey())
 		require.Equal(t, usr.PublicKeyBytes, sig.PublicKeyBytes())
-		require.True(t, sig.Verify(id.Marshal()))
+		require.True(t, neofscrypto.IsValidDataSignature(sig, id.Marshal()))
 		require.True(t, s.Public().Verify(id.Marshal(), sig.Value()))
 	}
 }

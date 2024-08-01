@@ -170,6 +170,25 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
 
+// AttachSignature attaches given signature to the token. Use
+// [Object.SignedData] and [neofscrypto.CalculateDataSignature] for calculation.
+// See also [Sign] and [Issue].
+func (x *Object) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
+}
+
+// Signature returns token signature. If the signature is missing, result with
+// negative scheme is returned. Use [Object.SignedData] and
+// [neofscrypto.IsValidDataSignature] for verification. See also
+// [HasValidSignature].
+func (x Object) Signature() neofscrypto.Signature {
+	sig := x.sig
+	if !x.sigSet {
+		sig.SetScheme(-1)
+	}
+	return sig
+}
+
 // Sign calculates and writes signature of the [Object] data along with issuer
 // ID using signer. Returns signature calculation errors.
 //
@@ -179,24 +198,18 @@ func (x *Object) UnmarshalJSON(data []byte) error {
 // expected to be calculated as a final stage of [Object] formation.
 //
 // See also [Object.VerifySignature], [Object.SignedData].
-func (x *Object) Sign(signer user.Signer) error {
-	x.issuer = signer.UserID()
-	if x.issuer.IsZero() {
-		return user.ErrZeroID
-	}
-	return x.SetSignature(signer)
-}
+// Deprecated: use [Issue] instead.
+func (x *Object) Sign(signer user.Signer) error { return Issue(x, signer) }
 
 // SetSignature allows to sign Object like [Object.Sign] but without issuer
 // setting.
-func (x *Object) SetSignature(signer neofscrypto.Signer) error {
-	return x.sign(signer, x.writeContext)
-}
+// Deprecated: use [Sign] instead.
+func (x *Object) SetSignature(signer neofscrypto.Signer) error { return Sign(x, signer) }
 
 // SignedData returns actual payload to sign.
 //
-// See also [Object.Sign], [Object.UnmarshalSignedData].
-func (x *Object) SignedData() []byte {
+// See also [Sign], [Object.UnmarshalSignedData].
+func (x Object) SignedData() []byte {
 	return x.signedData(x.writeContext)
 }
 
@@ -218,10 +231,8 @@ func (x *Object) UnmarshalSignedData(data []byte) error {
 // Zero Object fails the check.
 //
 // See also Sign.
-func (x Object) VerifySignature() bool {
-	// TODO: (#233) check owner<->key relation
-	return x.verifySignature(x.writeContext)
-}
+// Deprecated: use [HasValidSignature] instead.
+func (x Object) VerifySignature() bool { return HasValidSignature(x) }
 
 // BindContainer binds the Object session to a given container. Each session
 // MUST be bound to exactly one container.

@@ -14,7 +14,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	target := sessiontest.Object()
 
 	check := func(t *testing.T, tok session.Object, extra string) {
-		require.False(t, tok.VerifySignature(), extra)
+		require.False(t, session.HasValidSignature(tok), extra)
 	}
 
 	cache, err := newCache(defaultSessionCacheSize)
@@ -25,7 +25,7 @@ func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	require.True(t, ok)
 	check(t, value, "before sign")
 
-	err = value.Sign(usertest.User())
+	err = session.Issue(&value, usertest.User())
 	require.NoError(t, err)
 
 	value, ok = cache.Get(key)

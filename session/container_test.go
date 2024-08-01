@@ -223,20 +223,20 @@ func TestContainerProtocolV2(t *testing.T) {
 			}
 
 			if testcase.breakSign != nil {
-				require.NoError(t, val.Sign(usr), testcase.name)
-				require.True(t, val.VerifySignature(), testcase.name)
+				require.NoError(t, session.Issue(&val, usr), testcase.name)
+				require.True(t, session.HasValidSignature(val), testcase.name)
 
 				var signedV2 v2session.Token
 				val.WriteToV2(&signedV2)
 
 				var restored session.Container
 				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
-				require.True(t, restored.VerifySignature(), testcase.name)
+				require.True(t, session.HasValidSignature(restored), testcase.name)
 
 				testcase.breakSign(&signedV2)
 
 				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
-				require.False(t, restored.VerifySignature(), testcase.name)
+				require.False(t, session.HasValidSignature(restored), testcase.name)
 			}
 		}
 	}
@@ -265,7 +265,7 @@ func TestContainer_WriteToV2(t *testing.T) {
 	// Owner/Signature
 	usr := usertest.User()
 
-	require.NoError(t, val.Sign(usr))
+	require.NoError(t, session.Issue(&val, usr))
 
 	usrID := usr.UserID()
 
@@ -494,7 +494,7 @@ func TestIssuedBy(t *testing.T) {
 
 	require.False(t, session.IssuedBy(token, issuer))
 
-	require.NoError(t, token.Sign(signer))
+	require.NoError(t, session.Issue(&token, signer))
 	require.True(t, session.IssuedBy(token, issuer))
 }
 
@@ -505,7 +505,7 @@ func TestContainer_Issuer(t *testing.T) {
 		usr := usertest.User()
 
 		require.Zero(t, token.Issuer())
-		require.NoError(t, token.Sign(usr))
+		require.NoError(t, session.Issue(&token, usr))
 
 		issuer := usr.UserID()
 		require.True(t, token.Issuer() == issuer)
@@ -526,7 +526,7 @@ func TestContainer_Issuer(t *testing.T) {
 		usr := usertest.User()
 
 		require.Nil(t, token.IssuerPublicKeyBytes())
-		require.NoError(t, token.Sign(usr))
+		require.NoError(t, session.Issue(&token, usr))
 
 		require.Equal(t, neofscrypto.PublicKeyBytes(usr.Public()), token.IssuerPublicKeyBytes())
 	})

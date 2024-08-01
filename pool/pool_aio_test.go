@@ -612,7 +612,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		sess.ForVerb(session.VerbObjectPut)
 		sess.BindContainer(containerID)
 
-		err = sess.Sign(signer)
+		err = session.Issue(&sess, signer)
 		require.NoError(t, err)
 
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)

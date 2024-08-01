@@ -367,9 +367,7 @@ func (x GlobalTrust) Trust() (res Trust) {
 //
 // See also [GlobalTrust.VerifySignature], [GlobalTrust.SignedData].
 func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
-	var sig neofscrypto.Signature
-
-	err := sig.CalculateMarshalled(signer, x.m.GetBody(), nil)
+	sig, err := neofscrypto.CalculateDataSignature(signer, x.SignedData())
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}
@@ -402,7 +400,7 @@ func (x GlobalTrust) VerifySignature() bool {
 
 	var sig neofscrypto.Signature
 
-	return sig.ReadFromV2(*sigV2) == nil && sig.Verify(x.m.GetBody().StableMarshal(nil))
+	return sig.ReadFromV2(*sigV2) == nil && neofscrypto.IsValidDataSignature(sig, x.m.GetBody().StableMarshal(nil))
 }
 
 // Marshal encodes GlobalTrust into a binary format of the NeoFS API protocol

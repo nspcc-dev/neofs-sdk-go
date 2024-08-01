@@ -579,7 +579,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	tokenSession.SetAuthPublicKey(usr.PublicKeyBytes)
 	tokenSession.SetIssuer(usr.ID)
 
-	err := tokenSession.Sign(usr)
+	err := session2.Issue(&tokenSession, usr)
 	require.NoError(t, err)
 
 	var prm PrmObjectPutInit

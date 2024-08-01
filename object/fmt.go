@@ -91,6 +91,19 @@ func (o *Object) VerifyID() error {
 	return nil
 }
 
+// CalculateIDSignature calculates signature of the object ID according to the
+// NeoFS protocol. Use [IsValidSignature] for verification.
+func CalculateIDSignature(id oid.ID, signer neofscrypto.Signer) (neofscrypto.Signature, error) {
+	return neofscrypto.CalculateDataSignature(signer, id.Marshal())
+}
+
+// IsValidIDSignature checks whether sig is a correct signature of the given
+// object ID according to the NeoFS protocol. Use [CalculateIDSignature] for
+// calculation.
+func IsValidIDSignature(id oid.ID, sig neofscrypto.Signature) bool {
+	return neofscrypto.IsValidDataSignature(sig, id.Marshal())
+}
+
 // Sign signs object id with provided key and sets that signature to the object.
 //
 // See also [oid.ID.CalculateIDSignature].
@@ -100,7 +113,7 @@ func (o *Object) Sign(signer neofscrypto.Signer) error {
 		return oid.ErrZero
 	}
 
-	sig, err := oID.CalculateIDSignature(signer)
+	sig, err := CalculateIDSignature(oID, signer)
 	if err != nil {
 		return err
 	}
@@ -126,14 +139,9 @@ func (o *Object) VerifySignature() bool {
 		return false
 	}
 
-	idV2 := m.GetObjectID()
-	if idV2 == nil {
-		return false
-	}
-
 	var sig neofscrypto.Signature
 
-	return sig.ReadFromV2(*sigV2) == nil && sig.Verify(idV2.StableMarshal(nil))
+	return sig.ReadFromV2(*sigV2) == nil && IsValidIDSignature(o.GetID(), sig)
 }
 
 // SetIDWithSignature sets object identifier and signature.

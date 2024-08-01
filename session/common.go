@@ -23,7 +23,7 @@ type commonData struct {
 	authKey []byte
 
 	sigSet bool
-	sig    refs.Signature
+	sig    neofscrypto.Signature
 }
 
 type contextReader func(session.TokenContext, bool) error
@@ -39,9 +39,7 @@ func (x commonData) copyTo(dst *commonData) {
 	dst.exp = x.exp
 	dst.authKey = bytes.Clone(x.authKey)
 	dst.sigSet = x.sigSet
-	dst.sig.SetKey(bytes.Clone(x.sig.GetKey()))
-	dst.sig.SetScheme(x.sig.GetScheme())
-	dst.sig.SetSign(bytes.Clone(x.sig.GetSign()))
+	dst.sig = neofscrypto.NewSignatureFromRawKey(x.sig.Scheme(), bytes.Clone(x.sig.PublicKeyBytes()), bytes.Clone(x.sig.Value()))
 }
 
 // reads commonData and custom context from the session.Token message.
@@ -106,7 +104,9 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 
 	sig := m.GetSignature()
 	if x.sigSet = sig != nil; sig != nil {
-		x.sig = *sig
+		if err = x.sig.ReadFromV2(*sig); err != nil {
+			return fmt.Errorf("invalid body signature: %w", err)
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing body signature")
 	}
@@ -159,7 +159,8 @@ func (x commonData) writeToV2(m *session.Token, w contextWriter) {
 	var sig *refs.Signature
 
 	if x.sigSet {
-		sig = &x.sig
+		sig = new(refs.Signature)
+		x.sig.WriteToV2(sig)
 	}
 
 	m.SetSignature(sig)
@@ -167,31 +168,6 @@ func (x commonData) writeToV2(m *session.Token, w contextWriter) {
 
 func (x commonData) signedData(w contextWriter) []byte {
 	return x.fillBody(w).StableMarshal(nil)
-}
-
-func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
-	var sig neofscrypto.Signature
-
-	err := sig.Calculate(signer, x.signedData(w))
-	if err != nil {
-		return err
-	}
-
-	sig.WriteToV2(&x.sig)
-	x.sigSet = true
-
-	return nil
-}
-
-func (x commonData) verifySignature(w contextWriter) bool {
-	if !x.sigSet {
-		return false
-	}
-
-	var sig neofscrypto.Signature
-
-	// TODO: (#233) check owner<->key relation
-	return sig.ReadFromV2(x.sig) == nil && sig.Verify(x.signedData(w))
 }
 
 func (x commonData) marshal(w contextWriter) []byte {
@@ -403,10 +379,66 @@ func (x commonData) Issuer() user.ID {
 // IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
 //
 // IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
-func (x *commonData) IssuerPublicKeyBytes() []byte {
-	if x.sigSet {
-		return x.sig.GetKey()
+// Deprecated: use [Container.Signature] instead.
+func (x Container) IssuerPublicKeyBytes() []byte {
+	if sig := x.Signature(); sig.Scheme() >= 0 {
+		return sig.PublicKeyBytes()
 	}
-
 	return nil
+}
+
+// IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
+//
+// IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
+// Deprecated: use [Object.Signature] instead.
+func (x Object) IssuerPublicKeyBytes() []byte {
+	if sig := x.Signature(); sig.Scheme() >= 0 {
+		return sig.PublicKeyBytes()
+	}
+	return nil
+}
+
+type signedToken interface {
+	*Container | *Object
+	SignedData() []byte
+	AttachSignature(neofscrypto.Signature)
+}
+
+// Sign calculates signature of the given [Container] or [Object] session token
+// according to the NeoFS protocol and attaches the result into it. Use
+// [HasValidSignature] for verification. Use [Issue] if issuer has not been set
+// yet.
+func Sign[T signedToken](token T, signer neofscrypto.Signer) error {
+	sig, err := neofscrypto.CalculateDataSignature(signer, token.SignedData())
+	if err == nil {
+		token.AttachSignature(sig)
+	}
+	return err
+}
+
+// HasValidSignature checks whether given [Container] or [Object] session token
+// has correct signature according to the NeoFS protocol. Use [Sign] for
+// calculation.
+func HasValidSignature[T interface {
+	Container | Object
+	SignedData() []byte
+	Signature() neofscrypto.Signature
+}](token T) bool {
+	// TODO: (#233) check owner<->key relation
+	sig := token.Signature()
+	return sig.Scheme() >= 0 && neofscrypto.IsValidDataSignature(sig, token.SignedData())
+}
+
+// Issue sets given user as an issuer of given [Container] or [Object] session
+// and makes [Sign].
+func Issue[T interface {
+	signedToken
+	SetIssuer(user.ID)
+}](token T, signer user.Signer) error {
+	iss := signer.UserID()
+	if iss.IsZero() {
+		return user.ErrZeroID
+	}
+	token.SetIssuer(iss)
+	return Sign(token, signer)
 }

@@ -233,20 +233,20 @@ func TestObjectProtocolV2(t *testing.T) {
 			}
 
 			if testcase.breakSign != nil {
-				require.NoError(t, val.Sign(usr), testcase.name)
-				require.True(t, val.VerifySignature(), testcase.name)
+				require.NoError(t, session.Issue(&val, usr), testcase.name)
+				require.True(t, session.HasValidSignature(val), testcase.name)
 
 				var signedV2 v2session.Token
 				val.WriteToV2(&signedV2)
 
 				var restored session.Object
 				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
-				require.True(t, restored.VerifySignature(), testcase.name)
+				require.True(t, session.HasValidSignature(restored), testcase.name)
 
 				testcase.breakSign(&signedV2)
 
 				require.NoError(t, restored.ReadFromV2(signedV2), testcase.name)
-				require.False(t, restored.VerifySignature(), testcase.name)
+				require.False(t, session.HasValidSignature(restored), testcase.name)
 			}
 		}
 	}
@@ -275,7 +275,7 @@ func TestObject_WriteToV2(t *testing.T) {
 	// Owner/Signature
 	usr := usertest.User()
 
-	require.NoError(t, val.Sign(usr))
+	require.NoError(t, session.Issue(&val, usr))
 
 	usrID := usr.UserID()
 
@@ -588,7 +588,7 @@ func TestObject_Issuer(t *testing.T) {
 	require.Zero(t, token.Issuer())
 	require.Nil(t, token.IssuerPublicKeyBytes())
 
-	require.NoError(t, token.Sign(usr))
+	require.NoError(t, session.Issue(&token, usr))
 
 	issuer := usr.UserID()
 
@@ -644,8 +644,8 @@ func TestObject_SignedData(t *testing.T) {
 	sign, err := issuer.RFC6979.Sign(signedData)
 	require.NoError(t, err)
 
-	require.NoError(t, tokenSession.Sign(issuer.RFC6979))
-	require.True(t, tokenSession.VerifySignature())
+	require.NoError(t, session.Issue(&tokenSession, issuer.RFC6979))
+	require.True(t, session.HasValidSignature(tokenSession))
 
 	var m v2session.Token
 	tokenSession.WriteToV2(&m)

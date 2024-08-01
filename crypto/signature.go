@@ -1,13 +1,14 @@
 package neofscrypto
 
 import (
-	"errors"
 	"fmt"
+	"math"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 )
 
 // StablyMarshallable describes structs which can be marshalled transparently.
+// Deprecated: avoid using it.
 type StablyMarshallable interface {
 	StableMarshal([]byte) []byte
 	StableSize() int
@@ -19,16 +20,41 @@ type StablyMarshallable interface {
 // Signature is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Signature
 // message. See ReadFromV2 / WriteToV2 methods.
 //
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = Signature(refs.Signature{}) // not recommended
-type Signature refs.Signature
+// Instances should be constructed using one of the constructors.
+type Signature struct {
+	scheme Scheme
+	pub    []byte
+	val    []byte
+}
+
+// NewSignatureFromRawKey constructs new Signature instance.
+func NewSignatureFromRawKey(scheme Scheme, pub []byte, value []byte) Signature {
+	return Signature{scheme: scheme, pub: pub, val: value}
+}
 
 // NewSignature is a Signature instance constructor.
 func NewSignature(scheme Scheme, publicKey PublicKey, value []byte) Signature {
-	var s Signature
-	s.setFields(scheme, publicKey, value)
-	return s
+	return NewSignatureFromRawKey(scheme, PublicKeyBytes(publicKey), value)
+}
+
+// CalculateDataSignature calculates signature of the given data. Use
+// [IsValidDataSignature] for verification.
+func CalculateDataSignature(signer Signer, data []byte) (Signature, error) {
+	sig, err := signer.Sign(data)
+	if err != nil {
+		return Signature{}, fmt.Errorf("signer %T failure: %w", signer, err)
+	}
+	return NewSignature(signer.Scheme(), signer.Public(), sig), nil
+}
+
+// IsValidDataSignature checks whether sig is a correct signature of the given
+// data. IsValidDataSignature returns false if scheme is unsupported. Use
+// [CalculateDataSignature] for calculation.
+func IsValidDataSignature(sig Signature, data []byte) bool {
+	if pub, err := DecodePublicKey(sig.scheme, sig.PublicKeyBytes()); err == nil {
+		return pub.Verify(data, sig.Value())
+	}
+	return false
 }
 
 // ReadFromV2 reads Signature from the refs.Signature message. Checks if the
@@ -36,23 +62,13 @@ func NewSignature(scheme Scheme, publicKey PublicKey, value []byte) Signature {
 //
 // See also WriteToV2.
 func (x *Signature) ReadFromV2(m refs.Signature) error {
-	bPubKey := m.GetKey()
-	if len(bPubKey) == 0 {
-		return errors.New("missing public key")
+	scheme := m.GetScheme()
+	if scheme > math.MaxInt32 { // max value of Scheme type
+		return fmt.Errorf("scheme %d overflows int32", scheme)
 	}
-
-	sig := m.GetSign()
-	if len(sig) == 0 {
-		return errors.New("missing signature")
-	}
-
-	_, err := decodePublicKey(m)
-	if err != nil {
-		return err
-	}
-
-	*x = Signature(m)
-
+	x.scheme = Scheme(scheme)
+	x.pub = m.GetKey()
+	x.val = m.GetSign()
 	return nil
 }
 
@@ -61,7 +77,9 @@ func (x *Signature) ReadFromV2(m refs.Signature) error {
 //
 // See also ReadFromV2.
 func (x Signature) WriteToV2(m *refs.Signature) {
-	*m = refs.Signature(x)
+	m.SetScheme(refs.SignatureScheme(x.scheme))
+	m.SetKey(x.pub)
+	m.SetSign(x.val)
 }
 
 // Calculate signs data using Signer and encodes public key for subsequent
@@ -70,15 +88,13 @@ func (x Signature) WriteToV2(m *refs.Signature) {
 // Signer MUST NOT be nil.
 //
 // See also Verify.
+// Deprecated: use [CalculateDataSignature] instead.
 func (x *Signature) Calculate(signer Signer, data []byte) error {
-	signature, err := signer.Sign(data)
-	if err != nil {
-		return fmt.Errorf("signer %T failure: %w", signer, err)
+	s, err := CalculateDataSignature(signer, data)
+	if err == nil {
+		*x = s
 	}
-
-	x.fillSignature(signer, signature)
-
-	return nil
+	return err
 }
 
 // CalculateMarshalled signs data using Signer and encodes public key for subsequent verification.
@@ -90,9 +106,10 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 // Signer MUST NOT be nil.
 //
 // See also Verify.
+// Deprecated: encode manually and use [CalculateDataSignature] instead.
 func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable, buf []byte) error {
 	if static, ok := signer.(*StaticSigner); ok {
-		x.fillSignature(signer, static.sig)
+		*x = NewSignature(signer.Scheme(), signer.Public(), static.sig)
 		return nil
 	}
 
@@ -114,31 +131,17 @@ func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable, b
 // Verify fails if signature scheme is not supported (see RegisterScheme).
 //
 // See also Calculate.
-func (x Signature) Verify(data []byte) bool {
-	m := refs.Signature(x)
+// Deprecated: use [IsValidDataSignature] instead.
+func (x Signature) Verify(data []byte) bool { return IsValidDataSignature(x, data) }
 
-	key, err := decodePublicKey(m)
-
-	return err == nil && key.Verify(data, m.GetSign())
-}
-
-func (x *Signature) fillSignature(signer Signer, signature []byte) {
-	x.setFields(signer.Scheme(), signer.Public(), signature)
-}
-
-func (x *Signature) setFields(scheme Scheme, publicKey PublicKey, value []byte) {
-	m := (*refs.Signature)(x)
-	m.SetScheme(refs.SignatureScheme(scheme))
-	m.SetSign(value)
-	m.SetKey(PublicKeyBytes(publicKey))
+// SetScheme sets signature scheme used by signer to calculate the signature.
+func (x *Signature) SetScheme(s Scheme) {
+	x.scheme = s
 }
 
 // Scheme returns signature scheme used by signer to calculate the signature.
-//
-// Scheme MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
-// [Signature.Calculate] methods.
 func (x Signature) Scheme() Scheme {
-	return Scheme((*refs.Signature)(&x).GetScheme())
+	return x.scheme
 }
 
 // PublicKey returns public key of the signer which calculated the signature.
@@ -147,39 +150,43 @@ func (x Signature) Scheme() Scheme {
 // [Signature.Calculate] methods.
 //
 // See also [Signature.PublicKeyBytes].
+// Deprecated: use [DecodePublicKey] instead.
 func (x Signature) PublicKey() PublicKey {
-	key, _ := decodePublicKey(refs.Signature(x))
+	key, _ := DecodePublicKey(x.scheme, x.pub)
 	return key
+}
+
+// SetPublicKeyBytes returns binary-encoded public key of the signer which
+// calculated the signature.
+func (x *Signature) SetPublicKeyBytes(pub []byte) {
+	x.pub = pub
 }
 
 // PublicKeyBytes returns binary-encoded public key of the signer which
 // calculated the signature.
 //
-// PublicKeyBytes MUST NOT be called before [NewSignature],
-// [Signature.ReadFromV2] or [Signature.Calculate] methods.
-//
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
-//
-// See also [Signature.PublicKey].
 func (x Signature) PublicKeyBytes() []byte {
-	return (*refs.Signature)(&x).GetKey()
+	return x.pub
+}
+
+// SetValue sets calculated digital signature.
+func (x *Signature) SetValue(v []byte) {
+	x.val = v
 }
 
 // Value returns calculated digital signature.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
-//
-// Value MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
-// [Signature.Calculate] methods.
 func (x Signature) Value() []byte {
-	return (*refs.Signature)(&x).GetSign()
+	return x.val
 }
 
-func decodePublicKey(m refs.Signature) (PublicKey, error) {
-	scheme := Scheme(m.GetScheme())
-
+// DecodePublicKey attempts to decode b into PublicKey according to the given
+// scheme. Use [RegisterScheme] to support custom encoding scheme.
+func DecodePublicKey(scheme Scheme, b []byte) (PublicKey, error) {
 	newPubKey, ok := publicKeys[scheme]
 	if !ok {
 		return nil, fmt.Errorf("unsupported scheme %d", scheme)
@@ -187,7 +194,7 @@ func decodePublicKey(m refs.Signature) (PublicKey, error) {
 
 	pubKey := newPubKey()
 
-	err := pubKey.Decode(m.GetKey())
+	err := pubKey.Decode(b)
 	if err != nil {
 		return nil, fmt.Errorf("decode public key from binary: %w", err)
 	}

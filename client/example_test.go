@@ -150,7 +150,7 @@ func ExampleClient_SessionCreate() {
 
 	// Finally, token must be signed by container owner or someone who allowed to do the Verb action. In our example
 	// it is VerbObjectPut.
-	_ = sessionObject.Sign(signer)
+	_ = session.Issue(&sessionObject, signer)
 
 	// ...
 

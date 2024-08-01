@@ -108,6 +108,7 @@ type PublicKey interface {
 // serialized signature and doesn't need a private key. Use it when you already
 // have an appropriate signature (calculated elsewhere, not by SDK code), but
 // want to attach it to some structure/request.
+// Deprecated: construct [Signature] instead.
 type StaticSigner struct {
 	scheme Scheme
 	sig    []byte
@@ -115,6 +116,7 @@ type StaticSigner struct {
 }
 
 // NewStaticSigner creates new StaticSigner.
+// Deprecated: use [NewSignature] instead.
 func NewStaticSigner(scheme Scheme, sig []byte, pubKey PublicKey) *StaticSigner {
 	return &StaticSigner{
 		scheme: scheme,

@@ -33,7 +33,7 @@ func Example() {
 	var signer user.Signer
 	// signer initialization, bearerToken initialization, other steps ...
 
-	_ = bearerToken.Sign(signer)
+	_ = bearer.Issue(&bearerToken, signer)
 }
 
 // Provide signed token in JSON or binary format to the request sender. Request

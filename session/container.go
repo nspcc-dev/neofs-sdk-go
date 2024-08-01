@@ -137,6 +137,25 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
 
+// AttachSignature attaches given signature to the token. Use
+// [Container.SignedData] and [neofscrypto.CalculateDataSignature] for
+// calculation. See also [Sign] and [Issue].
+func (x *Container) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
+}
+
+// Signature returns token signature. If the signature is missing, result with
+// negative scheme is returned. Use [Container.SignedData] and
+// [neofscrypto.IsValidDataSignature] for verification. See also
+// [HasValidSignature].
+func (x Container) Signature() neofscrypto.Signature {
+	sig := x.sig
+	if !x.sigSet {
+		sig.SetScheme(-1)
+	}
+	return sig
+}
+
 // Sign calculates and writes signature of the [Container] data along with
 // issuer ID using signer. Returns signature calculation errors.
 //
@@ -146,26 +165,20 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 // expected to be calculated as a final stage of [Container] formation.
 //
 // See also [Container.VerifySignature], [Container.SignedData].
-func (x *Container) Sign(signer user.Signer) error {
-	x.issuer = signer.UserID()
-	if x.issuer.IsZero() {
-		return user.ErrZeroID
-	}
-	return x.SetSignature(signer)
-}
+// Deprecated: use [Issue] instead.
+func (x *Container) Sign(signer user.Signer) error { return Issue(x, signer) }
 
 // SetSignature allows to sign Container like [Container.Sign] but without
 // issuer setting.
-func (x *Container) SetSignature(signer neofscrypto.Signer) error {
-	return x.sign(signer, x.writeContext)
-}
+// Deprecated: use [Sign] instead.
+func (x *Container) SetSignature(signer neofscrypto.Signer) error { return Sign(x, signer) }
 
 // SignedData returns actual payload to sign.
 //
 // Using this method require to set issuer via [Container.SetIssuer] before SignedData call.
 //
-// See also [Container.Sign], [Container.UnmarshalSignedData].
-func (x *Container) SignedData() []byte {
+// See also [Sign], [Container.UnmarshalSignedData].
+func (x Container) SignedData() []byte {
 	return x.signedData(x.writeContext)
 }
 
@@ -187,9 +200,8 @@ func (x *Container) UnmarshalSignedData(data []byte) error {
 // Zero Container fails the check.
 //
 // See also Sign.
-func (x Container) VerifySignature() bool {
-	return x.verifySignature(x.writeContext)
-}
+// Deprecated: use [HasValidSignature] instead.
+func (x Container) VerifySignature() bool { return HasValidSignature(x) }
 
 // ApplyOnlyTo limits session scope to a given author container.
 //
@@ -258,5 +270,5 @@ func VerifyContainerSessionDataSignatureRFC6979(t Container, data, sig []byte) b
 	if err := pub.Decode(t.AuthPublicKey()); err != nil {
 		return false
 	}
-	return neofscrypto.NewSignature(neofscrypto.ECDSA_DETERMINISTIC_SHA256, &pub, sig).Verify(data)
+	return neofscrypto.IsValidDataSignature(neofscrypto.NewSignature(neofscrypto.ECDSA_DETERMINISTIC_SHA256, &pub, sig), data)
 }

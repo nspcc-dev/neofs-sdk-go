@@ -522,18 +522,20 @@ func (x Container) ReadDomain() (res Domain) {
 //
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
+//
+// Deprecated: use [CalculateSignature] instead.
 func (x Container) CalculateSignature(dst *neofscrypto.Signature, signer neofscrypto.Signer) error {
-	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+	sig, err := CalculateSignature(x, signer)
+	if err == nil {
+		*dst = sig
 	}
-	return dst.Calculate(signer, x.Marshal())
+	return err
 }
 
 // VerifySignature verifies Container signature calculated using CalculateSignature.
 // Result means signature correctness.
-func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
-	return sig.Verify(x.Marshal())
-}
+// Deprecated: use [IsValidSignature] instead.
+func (x Container) VerifySignature(sig neofscrypto.Signature) bool { return IsValidSignature(x, sig) }
 
 // CalculateID encodes the given Container and passes the result into FromBinary.
 //
@@ -559,4 +561,24 @@ func (x Container) Version() version.Version {
 	var v version.Version
 	_ = v.ReadFromV2(*x.v2.GetVersion()) // No, this can't fail for x.
 	return v
+}
+
+// CalculateSignature calculates signature of the given container according to
+// the NeoFS protocol. The signer's scheme must be
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] (consider
+// [neofsecdsa.SignerRFC6979]). Use [IsValidSignature] for verification.
+// [IsValidSignature] for verification.
+func CalculateSignature(cnr Container, signer neofscrypto.Signer) (neofscrypto.Signature, error) {
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return neofscrypto.Signature{}, fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+	}
+	return neofscrypto.CalculateDataSignature(signer, cnr.Marshal())
+}
+
+// IsValidSignature checks whether sig is a correct signature of the given
+// container according to the NeoFS protocol. Use [CalculateSignature] for
+// calculation.
+func IsValidSignature(cnr Container, sig neofscrypto.Signature) bool {
+	return sig.Scheme() == neofscrypto.ECDSA_DETERMINISTIC_SHA256 &&
+		neofscrypto.IsValidDataSignature(sig, cnr.Marshal())
 }

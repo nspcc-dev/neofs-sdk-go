@@ -242,18 +242,18 @@ func TestToken_AssertUser(t *testing.T) {
 	require.True(t, val.AssertUser(usr))
 }
 
-func TestToken_Sign(t *testing.T) {
+func TestIssue(t *testing.T) {
 	var val bearer.Token
 
-	require.False(t, val.VerifySignature())
+	require.False(t, bearer.HasValidSignature(val))
 
 	usr := usertest.User()
 
 	val = bearertest.Token()
 
-	require.NoError(t, val.Sign(usr))
+	require.NoError(t, bearer.Issue(&val, usr))
 
-	require.True(t, val.VerifySignature())
+	require.True(t, bearer.HasValidSignature(val))
 
 	var m acl.BearerToken
 	val.WriteToV2(&m)
@@ -264,20 +264,20 @@ func TestToken_Sign(t *testing.T) {
 	val2 := bearertest.Token()
 
 	require.NoError(t, val2.Unmarshal(val.Marshal()))
-	require.True(t, val2.VerifySignature())
+	require.True(t, bearer.HasValidSignature(val2))
 
 	jd, err := val.MarshalJSON()
 	require.NoError(t, err)
 
 	val2 = bearertest.Token()
 	require.NoError(t, val2.UnmarshalJSON(jd))
-	require.True(t, val2.VerifySignature())
+	require.True(t, bearer.HasValidSignature(val2))
 }
 
 func TestToken_SignedData(t *testing.T) {
 	var val bearer.Token
 
-	require.False(t, val.VerifySignature())
+	require.False(t, bearer.HasValidSignature(val))
 
 	signedData := val.SignedData()
 	var dec bearer.Token
@@ -350,15 +350,13 @@ func TestToken_ReadFromV2(t *testing.T) {
 	require.True(t, val.AssertUser(usr))
 	require.False(t, val.AssertUser(usr2))
 
-	var s neofscrypto.Signature
-
-	require.NoError(t, s.CalculateMarshalled(neofscryptotest.Signer(), &body, nil))
+	s, err := neofscrypto.CalculateDataSignature(neofscryptotest.Signer(), body.StableMarshal(nil))
+	require.NoError(t, err)
 
 	s.WriteToV2(&sig)
 
 	require.NoError(t, val.ReadFromV2(m))
-	require.True(t, val.VerifySignature())
-	require.Equal(t, sig.GetKey(), val.SigningKeyBytes())
+	require.Equal(t, s, val.Signature())
 }
 
 func TestResolveIssuer(t *testing.T) {
@@ -379,7 +377,7 @@ func TestResolveIssuer(t *testing.T) {
 
 	require.Zero(t, val.ResolveIssuer())
 
-	require.NoError(t, val.Sign(usr))
+	require.NoError(t, bearer.Issue(&val, usr))
 
 	usrID := usr.UserID()
 

@@ -142,9 +142,10 @@ func (id ID) String() string {
 }
 
 // CalculateIDSignature signs object id with provided key.
+// Deprecated: use [neofscrypto.CalculateDataSignature] with [ID.Marshal]
+// instead.
 func (id ID) CalculateIDSignature(signer neofscrypto.Signer) (neofscrypto.Signature, error) {
-	var sig neofscrypto.Signature
-	return sig, sig.Calculate(signer, id.Marshal())
+	return neofscrypto.CalculateDataSignature(signer, id.Marshal())
 }
 
 // Marshal marshals ID into a protobuf binary form.

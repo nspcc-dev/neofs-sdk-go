@@ -91,7 +91,7 @@ func (p *Pool) withinContainerSession(
 		tok.BindContainer(containerID)
 
 		// sign the token
-		if err = tok.Sign(signer); err != nil {
+		if err = session.Issue(&tok, signer); err != nil {
 			return fmt.Errorf("sign token: %w", err)
 		}
 

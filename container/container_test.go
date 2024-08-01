@@ -14,7 +14,6 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -341,18 +340,10 @@ func TestCalculateID(t *testing.T) {
 
 func TestCalculateSignature(t *testing.T) {
 	val := containertest.Container()
-
-	var sig neofscrypto.Signature
-
 	signer := neofscryptotest.Signer()
-	require.Error(t, val.CalculateSignature(&sig, signer))
-	require.NoError(t, val.CalculateSignature(&sig, signer.RFC6979))
-
-	var msg refs.Signature
-	sig.WriteToV2(&msg)
-
-	var sig2 neofscrypto.Signature
-	require.NoError(t, sig2.ReadFromV2(msg))
-
-	require.True(t, val.VerifySignature(sig2))
+	sig, err := container.CalculateSignature(val, signer)
+	require.Error(t, err)
+	sig, err = container.CalculateSignature(val, signer.RFC6979)
+	require.NoError(t, err)
+	require.True(t, container.IsValidSignature(val, sig))
 }

@@ -19,7 +19,6 @@ func TestSignature(t *testing.T) {
 	k, err := keys.NewPrivateKey()
 	require.NoError(t, err)
 
-	var s neofscrypto.Signature
 	var m refs.Signature
 
 	for _, f := range []func() neofscrypto.Signer{
@@ -35,14 +34,14 @@ func TestSignature(t *testing.T) {
 	} {
 		signer := f()
 
-		err := s.Calculate(signer, data)
+		s, err := neofscrypto.CalculateDataSignature(signer, data)
 		require.NoError(t, err)
 
 		s.WriteToV2(&m)
 
 		require.NoError(t, s.ReadFromV2(m))
 
-		valid := s.Verify(data)
+		valid := neofscrypto.IsValidDataSignature(s, data)
 		require.True(t, valid, "type %T", signer)
 	}
 }

@@ -31,7 +31,7 @@ func Container() session.Container {
 func ContainerSigned(signer user.Signer) session.Container {
 	tok := Container()
 
-	err := tok.Sign(signer)
+	err := session.Issue(&tok, signer)
 	if err != nil {
 		panic(err)
 	}
@@ -62,7 +62,7 @@ func Object() session.Object {
 func ObjectSigned(signer user.Signer) session.Object {
 	tok := Object()
 
-	err := tok.Sign(signer)
+	err := session.Issue(&tok, signer)
 	if err != nil {
 		panic(err)
 	}
