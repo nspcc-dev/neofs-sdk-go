@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -62,7 +63,11 @@ func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool)
 		return errors.New("container conflicts with wildcard flag")
 	}
 
-	x.verb = ContainerVerb(cCnr.Verb())
+	verb := cCnr.Verb()
+	if verb > math.MaxInt32 {
+		return fmt.Errorf("verb %d overflows int32", verb)
+	}
+	x.verb = ContainerVerb(verb)
 
 	return nil
 }
@@ -207,7 +212,7 @@ func (x Container) AppliedTo(cnr cid.ID) bool {
 }
 
 // ContainerVerb enumerates container operations.
-type ContainerVerb int8
+type ContainerVerb int32
 
 const (
 	_ ContainerVerb = iota
