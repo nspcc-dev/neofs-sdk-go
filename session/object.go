@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -81,7 +82,11 @@ func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) er
 		x.objs = nil
 	}
 
-	x.verb = ObjectVerb(cObj.GetVerb())
+	verb := cObj.GetVerb()
+	if verb > math.MaxInt32 {
+		return fmt.Errorf("verb %d overflows int32", verb)
+	}
+	x.verb = ObjectVerb(verb)
 
 	return nil
 }
@@ -282,7 +287,7 @@ func (x Object) AssertObject(obj oid.ID) bool {
 }
 
 // ObjectVerb enumerates object operations.
-type ObjectVerb int8
+type ObjectVerb int32
 
 const (
 	_ ObjectVerb = iota
