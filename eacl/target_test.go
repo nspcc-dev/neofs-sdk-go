@@ -6,8 +6,11 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,6 +30,56 @@ func TestTarget(t *testing.T) {
 	require.Len(t, v2.GetKeys(), len(pubs))
 	for i, key := range v2.GetKeys() {
 		require.Equal(t, key, (*keys.PublicKey)(pubs[i]).Bytes())
+	}
+
+	newTarget := NewTargetFromV2(v2)
+	require.Equal(t, target, newTarget)
+
+	t.Run("from nil v2 target", func(t *testing.T) {
+		require.Equal(t, new(Target), NewTargetFromV2(nil))
+	})
+}
+
+func TestTargetAccounts(t *testing.T) {
+	accs := []util.Uint160{
+		(*keys.PublicKey)(randomPublicKey(t)).GetScriptHash(),
+		(*keys.PublicKey)(randomPublicKey(t)).GetScriptHash(),
+	}
+
+	target := NewTarget()
+	target.SetRole(RoleSystem)
+	SetTargetAccounts(target, accs...)
+
+	v2 := target.ToV2()
+	require.NotNil(t, v2)
+	require.Equal(t, v2acl.RoleSystem, v2.GetRole())
+	require.Len(t, v2.GetKeys(), len(accs))
+	for i, key := range v2.GetKeys() {
+		var u = user.NewFromScriptHash(accs[i])
+		require.Equal(t, key, u[:])
+	}
+
+	newTarget := NewTargetFromV2(v2)
+	require.Equal(t, target, newTarget)
+
+	t.Run("from nil v2 target", func(t *testing.T) {
+		require.Equal(t, new(Target), NewTargetFromV2(nil))
+	})
+}
+
+func TestTargetUsers(t *testing.T) {
+	accs := usertest.IDs(2)
+
+	target := NewTarget()
+	target.SetRole(RoleSystem)
+	target.SetAccounts(accs)
+
+	v2 := target.ToV2()
+	require.NotNil(t, v2)
+	require.Equal(t, v2acl.RoleSystem, v2.GetRole())
+	require.Len(t, v2.GetKeys(), len(accs))
+	for i, key := range v2.GetKeys() {
+		require.Equal(t, key, accs[i][:])
 	}
 
 	newTarget := NewTargetFromV2(v2)

@@ -5,7 +5,9 @@ import (
 	"crypto/ecdsa"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Target is a group of request senders to match ContainerEACL. Defined by role enum
@@ -45,7 +47,26 @@ func (t Target) CopyTo(dst *Target) {
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
+// Deprecated: use [Target.Accounts] instead.
 func (t *Target) BinaryKeys() [][]byte {
+	var r [][]byte
+
+	for _, key := range t.keys {
+		if len(key) == 33 {
+			r = append(r, key)
+		}
+	}
+
+	return r
+}
+
+// RawSubjects returns list of public keys or [user.ID] to identify target subject in a binary format.
+//
+// If element length is 33, it is a serialized compressed public key. See [elliptic.MarshalCompressed], [keys.PublicKey.GetScriptHash].
+// If element length is 25, it is a [user.ID]. Use `id := user.ID(element)`.
+//
+// Using this method is your responsibility.
+func (t Target) RawSubjects() [][]byte {
 	return t.keys
 }
 
@@ -54,8 +75,33 @@ func (t *Target) BinaryKeys() [][]byte {
 //
 // Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
 // See [elliptic.MarshalCompressed].
+// Deprecated: use [Target.SetAccounts] instead.
 func (t *Target) SetBinaryKeys(keys [][]byte) {
 	t.keys = keys
+}
+
+// Accounts returns list of accounts to identify target subject.
+//
+// Use `user := user.ID(slice)` to decode it into a type-specific structure.
+func (t Target) Accounts() []user.ID {
+	var r []user.ID
+
+	for _, key := range t.keys {
+		if len(key) == user.IDSize {
+			r = append(r, user.ID(key))
+		}
+	}
+
+	return r
+}
+
+// SetAccounts sets list of accounts to identify target subject.
+func (t *Target) SetAccounts(accounts []user.ID) {
+	t.keys = make([][]byte, len(accounts))
+
+	for i, acc := range accounts {
+		t.keys[i] = bytes.Clone(acc[:])
+	}
 }
 
 // SetTargetECDSAKeys converts ECDSA public keys to a binary
@@ -75,6 +121,18 @@ func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 	}
 
 	t.SetBinaryKeys(binKeys)
+}
+
+// SetTargetAccounts sets accounts in Target.
+func SetTargetAccounts(t *Target, accs ...util.Uint160) {
+	account := make([]user.ID, len(accs))
+	ln := len(accs)
+
+	for i := 0; i < ln; i++ {
+		account[i] = user.NewFromScriptHash(accs[i])
+	}
+
+	t.SetAccounts(account)
 }
 
 // TargetECDSAKeys interprets binary public keys of Target

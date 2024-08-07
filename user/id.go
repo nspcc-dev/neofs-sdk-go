@@ -90,6 +90,11 @@ func (x ID) WriteToV2(m *refs.OwnerID) {
 // Deprecated: use [NewFromScriptHash] instead.
 func (x *ID) SetScriptHash(scriptHash util.Uint160) { *x = NewFromScriptHash(scriptHash) }
 
+// ScriptHash gets scripthash from user ID.
+func (x ID) ScriptHash() util.Uint160 {
+	return util.Uint160(x[1:21])
+}
+
 // WalletBytes returns NeoFS user ID as Neo3 wallet address in a binary format.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.

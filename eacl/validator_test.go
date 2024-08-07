@@ -1,9 +1,12 @@
 package eacl
 
 import (
+	"bytes"
 	"math/rand"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -170,31 +173,112 @@ func TestOperationMatch(t *testing.T) {
 
 func TestTargetMatches(t *testing.T) {
 	pubs := makeKeys(t, 3)
+	accs := usertest.IDs(3)
 
-	tgt1 := NewTarget()
-	tgt1.SetBinaryKeys(pubs[0:2])
-	tgt1.SetRole(RoleUser)
+	t.Run("keys", func(t *testing.T) {
+		tgt1 := NewTarget()
+		tgt1.SetBinaryKeys(pubs[0:2])
+		tgt1.SetRole(RoleUser)
 
-	tgt2 := NewTarget()
-	tgt2.SetRole(RoleOthers)
+		tgt2 := NewTarget()
+		tgt2.SetRole(RoleOthers)
 
-	r := NewRecord()
-	r.SetTargets(*tgt1, *tgt2)
+		r := NewRecord()
+		r.SetTargets(*tgt1, *tgt2)
 
-	u := newValidationUnit(RoleUser, pubs[0], nil)
-	require.True(t, targetMatches(u, r))
+		u := newValidationUnit(RoleUser, pubs[0], nil)
+		require.True(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleUser, pubs[2], nil)
-	require.False(t, targetMatches(u, r))
+		u = newValidationUnit(RoleUser, pubs[2], nil)
+		require.False(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleUnknown, pubs[1], nil)
-	require.True(t, targetMatches(u, r))
+		u = newValidationUnit(RoleUnknown, pubs[1], nil)
+		require.True(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleOthers, pubs[2], nil)
-	require.True(t, targetMatches(u, r))
+		u = newValidationUnit(RoleOthers, pubs[2], nil)
+		require.True(t, targetMatches(u, r))
 
-	u = newValidationUnit(RoleSystem, pubs[2], nil)
-	require.False(t, targetMatches(u, r))
+		u = newValidationUnit(RoleSystem, pubs[2], nil)
+		require.False(t, targetMatches(u, r))
+	})
+
+	t.Run("accounts", func(t *testing.T) {
+		tgt1 := NewTarget()
+		tgt1.SetAccounts(accs[0:2])
+		tgt1.SetRole(RoleUser)
+
+		tgt2 := NewTarget()
+		tgt2.SetRole(RoleOthers)
+
+		r := NewRecord()
+		r.SetTargets(*tgt1, *tgt2)
+
+		u := newValidationUnitWithScriptHash(RoleUser, accs[0], nil)
+		require.True(t, targetMatches(u, r))
+
+		u = newValidationUnitWithScriptHash(RoleUser, accs[2], nil)
+		require.False(t, targetMatches(u, r))
+
+		u = newValidationUnitWithScriptHash(RoleUnknown, accs[1], nil)
+		require.True(t, targetMatches(u, r))
+
+		u = newValidationUnitWithScriptHash(RoleOthers, accs[2], nil)
+		require.True(t, targetMatches(u, r))
+
+		u = newValidationUnitWithScriptHash(RoleSystem, accs[2], nil)
+		require.False(t, targetMatches(u, r))
+	})
+
+	t.Run("mix", func(t *testing.T) {
+		tgt1 := NewTarget()
+		accList := make([][]byte, 0, len(accs))
+		for _, acc := range accs {
+			accList = append(accList, bytes.Clone(acc[:]))
+		}
+
+		tgt1.SetBinaryKeys(append(pubs[0:2], accList[0:2]...))
+		tgt1.SetRole(RoleUser)
+
+		tgt2 := NewTarget()
+		tgt2.SetRole(RoleOthers)
+
+		r := NewRecord()
+		r.SetTargets(*tgt1, *tgt2)
+
+		t.Run("user role", func(t *testing.T) {
+			u := newValidationUnitWithScriptHash(RoleUser, accs[0], nil)
+			require.True(t, targetMatches(u, r))
+
+			u = newValidationUnitWithScriptHash(RoleUser, accs[2], nil)
+			require.False(t, targetMatches(u, r))
+
+			u = newValidationUnit(RoleUser, pubs[0], nil)
+			require.True(t, targetMatches(u, r))
+
+			u = newValidationUnit(RoleUser, pubs[2], nil)
+			require.False(t, targetMatches(u, r))
+		})
+
+		t.Run("others role", func(t *testing.T) {
+			u := newValidationUnitWithScriptHash(RoleUnknown, accs[1], nil)
+			require.True(t, targetMatches(u, r))
+
+			u = newValidationUnitWithScriptHash(RoleOthers, accs[2], nil)
+			require.True(t, targetMatches(u, r))
+
+			u = newValidationUnitWithScriptHash(RoleSystem, accs[2], nil)
+			require.False(t, targetMatches(u, r))
+
+			u = newValidationUnit(RoleUnknown, pubs[1], nil)
+			require.True(t, targetMatches(u, r))
+
+			u = newValidationUnit(RoleOthers, pubs[2], nil)
+			require.True(t, targetMatches(u, r))
+
+			u = newValidationUnit(RoleSystem, pubs[2], nil)
+			require.False(t, targetMatches(u, r))
+		})
+	})
 }
 
 func TestSystemRoleModificationIgnored(t *testing.T) {
@@ -281,6 +365,13 @@ func newValidationUnit(role Role, key []byte, table *Table) *ValidationUnit {
 	return new(ValidationUnit).
 		WithRole(role).
 		WithSenderKey(key).
+		WithEACLTable(table)
+}
+
+func newValidationUnitWithScriptHash(role Role, account user.ID, table *Table) *ValidationUnit {
+	return new(ValidationUnit).
+		WithRole(role).
+		WithAccount(account).
 		WithEACLTable(table)
 }
 
