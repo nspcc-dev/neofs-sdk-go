@@ -160,3 +160,36 @@ func TestNewTargetByScriptHashes(t *testing.T) {
 		require.Equal(t, hash.Checksum(accs[i][:21])[:4], accs[i][21:])
 	}
 }
+
+func TestTarget_SetRawSubjects(t *testing.T) {
+	var tgt eacl.Target
+	require.Zero(t, tgt.RawSubjects())
+	require.Zero(t, tgt.Accounts())
+	require.Zero(t, tgt.BinaryKeys())
+
+	garbageSubjs := [][]byte{[]byte("foo"), []byte("bar")}
+	tgt.SetRawSubjects(garbageSubjs)
+	require.Equal(t, garbageSubjs, tgt.RawSubjects())
+	require.Zero(t, tgt.Accounts())
+	require.Zero(t, tgt.BinaryKeys())
+
+	subjs := [][]byte{
+		garbageSubjs[0],
+		make([]byte, 33),
+		nil,
+		garbageSubjs[1],
+		nil,
+		make([]byte, 33),
+	}
+	//nolint:staticcheck
+	rand.Read(subjs[1])
+	rand.Read(subjs[5])
+	usrs := usertest.IDs(2)
+	subjs[2] = usrs[0][:]
+	subjs[4] = usrs[1][:]
+
+	tgt.SetRawSubjects(subjs)
+	require.Equal(t, subjs, tgt.RawSubjects())
+	require.Equal(t, usrs, tgt.Accounts())
+	require.Equal(t, [][]byte{subjs[1], subjs[5]}, tgt.BinaryKeys())
+}

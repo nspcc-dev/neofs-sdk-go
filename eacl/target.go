@@ -15,8 +15,8 @@ import (
 //
 // Target should be created using one of the constructors.
 type Target struct {
-	role Role
-	keys [][]byte
+	role  Role
+	subjs [][]byte
 }
 
 // NewTargetByRole returns Target for specified role. Use NewTargetByRole in [Record]
@@ -40,7 +40,7 @@ func NewTargetByScriptHashes(hs []util.Uint160) Target {
 		h := user.NewFromScriptHash(hs[i])
 		b[i] = h[:]
 	}
-	return Target{keys: b}
+	return Target{subjs: b}
 }
 
 func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
@@ -57,9 +57,9 @@ func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
 func (t Target) CopyTo(dst *Target) {
 	dst.role = t.role
 
-	dst.keys = make([][]byte, len(t.keys))
-	for i := range t.keys {
-		dst.keys[i] = bytes.Clone(t.keys[i])
+	dst.subjs = make([][]byte, len(t.subjs))
+	for i := range t.subjs {
+		dst.subjs[i] = bytes.Clone(t.subjs[i])
 	}
 }
 
@@ -75,13 +75,22 @@ func (t Target) CopyTo(dst *Target) {
 func (t *Target) BinaryKeys() [][]byte {
 	var r [][]byte
 
-	for _, key := range t.keys {
+	for _, key := range t.subjs {
 		if len(key) == 33 {
 			r = append(r, key)
 		}
 	}
 
 	return r
+}
+
+// SetRawSubjects sets target subjects in a binary format. Each element must be
+// either 25-byte NeoFS user ID (see [user.ID]) or 33-byte compressed ECDSA
+// public key. Use constructors to work with particular types. SetRawSubjects
+// should only be used if you do not want to decode the data and take
+// responsibility for its correctness.
+func (t *Target) SetRawSubjects(subjs [][]byte) {
+	t.subjs = subjs
 }
 
 // RawSubjects returns list of public keys or [user.ID] to identify target subject in a binary format.
@@ -91,7 +100,7 @@ func (t *Target) BinaryKeys() [][]byte {
 //
 // Using this method is your responsibility.
 func (t Target) RawSubjects() [][]byte {
-	return t.keys
+	return t.subjs
 }
 
 // SetBinaryKeys sets list of binary public keys to identify
@@ -100,9 +109,7 @@ func (t Target) RawSubjects() [][]byte {
 // Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
 // See [elliptic.MarshalCompressed].
 // Deprecated: use [Target.SetAccounts] instead.
-func (t *Target) SetBinaryKeys(keys [][]byte) {
-	t.keys = keys
-}
+func (t *Target) SetBinaryKeys(keys [][]byte) { t.SetRawSubjects(keys) }
 
 // Accounts returns list of accounts to identify target subject.
 //
@@ -110,7 +117,7 @@ func (t *Target) SetBinaryKeys(keys [][]byte) {
 func (t Target) Accounts() []user.ID {
 	var r []user.ID
 
-	for _, key := range t.keys {
+	for _, key := range t.subjs {
 		if len(key) == user.IDSize {
 			r = append(r, user.ID(key))
 		}
@@ -121,11 +128,12 @@ func (t Target) Accounts() []user.ID {
 
 // SetAccounts sets list of accounts to identify target subject.
 func (t *Target) SetAccounts(accounts []user.ID) {
-	t.keys = make([][]byte, len(accounts))
+	subjs := make([][]byte, len(accounts))
 
 	for i, acc := range accounts {
-		t.keys[i] = bytes.Clone(acc[:])
+		subjs[i] = bytes.Clone(acc[:])
 	}
+	t.SetRawSubjects(subjs)
 }
 
 // SetTargetECDSAKeys converts ECDSA public keys to a binary format and stores
@@ -206,14 +214,14 @@ func (t *Target) ToV2() *v2acl.Target {
 func (t Target) toProtoMessage() *v2acl.Target {
 	target := new(v2acl.Target)
 	target.SetRole(v2acl.Role(t.role))
-	target.SetKeys(t.keys)
+	target.SetKeys(t.subjs)
 
 	return target
 }
 
 func (t *Target) fromProtoMessage(m *v2acl.Target) error {
 	t.role = Role(m.GetRole())
-	t.keys = m.GetKeys()
+	t.subjs = m.GetKeys()
 	return nil
 }
 

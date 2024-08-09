@@ -30,9 +30,9 @@ func TestTarget_CopyTo(t *testing.T) {
 		dst.SetRole(2)
 		require.NotEqual(t, target.role, dst.role)
 
-		require.True(t, bytes.Equal(target.keys[0], dst.keys[0]))
+		require.True(t, bytes.Equal(target.subjs[0], dst.subjs[0]))
 		// change some key data
-		dst.keys[0][0] = 5
-		require.False(t, bytes.Equal(target.keys[0], dst.keys[0]))
+		dst.subjs[0][0] = 5
+		require.False(t, bytes.Equal(target.subjs[0], dst.subjs[0]))
 	})
 }

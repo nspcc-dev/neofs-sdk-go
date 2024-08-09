@@ -58,10 +58,10 @@ func TestRecord_CopyTo(t *testing.T) {
 		dst.targets[0].role = 12345
 		require.NotEqual(t, record.targets[0].role, dst.targets[0].role)
 
-		for i, key := range dst.targets[0].keys {
-			require.True(t, bytes.Equal(key, record.targets[0].keys[i]))
+		for i, key := range dst.targets[0].subjs {
+			require.True(t, bytes.Equal(key, record.targets[0].subjs[i]))
 			key[0] = 10
-			require.False(t, bytes.Equal(key, record.targets[0].keys[i]))
+			require.False(t, bytes.Equal(key, record.targets[0].subjs[i]))
 		}
 	})
 }
