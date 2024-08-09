@@ -2,6 +2,7 @@ package eacl
 
 import (
 	"crypto/ecdsa"
+	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -12,15 +13,23 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// Record of the ContainerEACL rule, that defines ContainerEACL action, targets for this action,
-// object service operation and filters for request headers.
+// Record represents an access rule operating in NeoFS access management. The
+// rule is applied when some party requests access to a certain NeoFS resource.
 //
-// Record is compatible with v2 acl.EACLRecord message.
+// Record should be created using one of the constructors.
 type Record struct {
 	action    Action
 	operation Operation
 	filters   []Filter
 	targets   []Target
+}
+
+// ConstructRecord constructs new Record representing access rule regulating
+// action in relation to specified target subjects when they perform the given
+// operation. Optional filters allow to limit the effect of a rule on specific
+// resources.
+func ConstructRecord(a Action, op Operation, ts []Target, fs ...Filter) Record {
+	return Record{action: a, operation: op, filters: fs, targets: ts}
 }
 
 // CopyTo writes deep copy of the [Record] to dst.
@@ -40,7 +49,7 @@ func (r Record) CopyTo(dst *Record) {
 	}
 }
 
-// Targets returns list of target subjects to apply ACL rule to.
+// Targets returns list of target subjects to which this access rule matches.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -48,12 +57,14 @@ func (r Record) Targets() []Target {
 	return r.targets
 }
 
-// SetTargets sets list of target subjects to apply ACL rule to.
+// SetTargets sets list of target subjects to which this access rule matches.
 func (r *Record) SetTargets(targets ...Target) {
 	r.targets = targets
 }
 
-// Filters returns list of filters to match and see if rule is applicable.
+// Filters returns list of filters to match the requested resource to this
+// access rule. Absence of filters means that Record is applicable to any
+// resource.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -61,33 +72,43 @@ func (r Record) Filters() []Filter {
 	return r.filters
 }
 
-// Operation returns NeoFS request verb to match.
+// SetFilters returns list of filters to match the requested resource to this
+// access rule. Empty list applies the Record to all resources.
+func (r *Record) SetFilters(fs []Filter) {
+	r.filters = fs
+}
+
+// Operation returns operation executed by the subject to match.
 func (r Record) Operation() Operation {
 	return r.operation
 }
 
-// SetOperation sets NeoFS request verb to match.
+// SetOperation sets operation executed by the subject to match.
 func (r *Record) SetOperation(operation Operation) {
 	r.operation = operation
 }
 
-// Action returns rule execution result.
+// Action returns action on the target subject when the access rule matches.
 func (r Record) Action() Action {
 	return r.action
 }
 
-// SetAction sets rule execution result.
+// SetAction sets action on the target subject when the access rule matches.
 func (r *Record) SetAction(action Action) {
 	r.action = action
 }
 
 // AddRecordTarget adds single Target to the Record.
+// Deprecated: use [Record.SetTargets] instead.
 func AddRecordTarget(r *Record, t *Target) {
 	r.SetTargets(append(r.Targets(), *t)...)
 }
 
 // AddFormedTarget forms Target with specified Role and list of
 // ECDSA public keys and adds it to the Record.
+// Deprecated: use [Record.SetTargets] with [TargetByRole] or
+// [TargetByPublicKeys] instead. Note that role and public keys are mutually
+// exclusive.
 func AddFormedTarget(r *Record, role Role, keys ...ecdsa.PublicKey) {
 	t := NewTarget()
 	t.SetRole(role)
@@ -100,114 +121,117 @@ type stringEncoder interface {
 	EncodeToString() string
 }
 
-func (r *Record) addFilter(from FilterHeaderType, m Match, key string, val stringEncoder) {
-	filter := Filter{
-		from:    from,
-		key:     key,
-		matcher: m,
-		value:   val,
-	}
-
-	r.filters = append(r.filters, filter)
-}
-
-func (r *Record) addObjectFilter(m Match, key string, val stringEncoder) {
-	r.addFilter(HeaderFromObject, m, key, val)
-}
-
 // AddFilter adds generic filter.
 //
 // If matcher is [MatchNotPresent], the value must be empty. If matcher is
 // numeric (e.g. [MatchNumGT]), value must be a base-10 integer.
+// Deprecated: use [ConstructRecord] with [ConstructFilter] instead.
 func (r *Record) AddFilter(from FilterHeaderType, matcher Match, name, value string) {
-	r.addFilter(from, matcher, name, staticStringer(value))
+	r.SetFilters(append(r.Filters(), ConstructFilter(from, name, matcher, value)))
 }
 
 // AddObjectAttributeFilter adds filter by object attribute.
 //
 // If m is [MatchNotPresent], the value must be empty. If matcher is numeric
 // (e.g. [MatchNumGT]), value must be a base-10 integer.
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
 func (r *Record) AddObjectAttributeFilter(m Match, key, value string) {
-	r.addObjectFilter(m, key, staticStringer(value))
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(key, m, value)))
 }
 
 // AddObjectVersionFilter adds filter by object version.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
 func (r *Record) AddObjectVersionFilter(m Match, v *version.Version) {
-	r.addObjectFilter(m, FilterObjectVersion, staticStringer(version.EncodeToString(*v)))
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectVersion, m, version.EncodeToString(*v))))
 }
 
 // AddObjectIDFilter adds filter by object ID.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] or
+// [NewFilterObjectWithID] instead.
 func (r *Record) AddObjectIDFilter(m Match, id oid.ID) {
-	r.addObjectFilter(m, FilterObjectID, id)
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectID, m, id.EncodeToString())))
 }
 
 // AddObjectContainerIDFilter adds filter by object container ID.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] or
+// [NewFilterObjectsFromContainer] instead.
 func (r *Record) AddObjectContainerIDFilter(m Match, id cid.ID) {
-	r.addObjectFilter(m, FilterObjectContainerID, id)
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectContainerID, m, id.EncodeToString())))
 }
 
 // AddObjectOwnerIDFilter adds filter by object owner ID.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] or
+// [NewFilterObjectOwnerEquals] instead.
 func (r *Record) AddObjectOwnerIDFilter(m Match, id *user.ID) {
-	r.addObjectFilter(m, FilterObjectOwnerID, id)
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectOwnerID, m, id.EncodeToString())))
 }
 
 // AddObjectCreationEpoch adds filter by object creation epoch.
 //
 // The m must not be [MatchNotPresent].
+// Deprecated: use [ConstructRecord] with [NewFilterObjectCreationEpochIs] instead.
 func (r *Record) AddObjectCreationEpoch(m Match, epoch uint64) {
-	r.addObjectFilter(m, FilterObjectCreationEpoch, u64Stringer(epoch))
+	r.SetFilters(append(r.Filters(), NewFilterObjectCreationEpochIs(m, epoch)))
 }
 
 // AddObjectPayloadLengthFilter adds filter by object payload length.
 //
 // The m must not be [MatchNotPresent].
+// Deprecated: use [ConstructRecord] with [NewFilterObjectPayloadSizeIs] instead.
 func (r *Record) AddObjectPayloadLengthFilter(m Match, size uint64) {
-	r.addObjectFilter(m, FilterObjectPayloadSize, u64Stringer(size))
+	r.SetFilters(append(r.Filters(), NewFilterObjectPayloadSizeIs(m, size)))
 }
 
 // AddObjectPayloadHashFilter adds filter by object payload hash value.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
 func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
-	r.addObjectFilter(m, FilterObjectPayloadChecksum, staticStringer(h.String()))
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectPayloadChecksum, m, h.String())))
 }
 
 // AddObjectTypeFilter adds filter by object type.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
 func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
-	r.addObjectFilter(m, FilterObjectType, staticStringer(t.EncodeToString()))
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectType, m, t.EncodeToString())))
 }
 
 // AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.
 //
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
+// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
 func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
-	r.addObjectFilter(m, FilterObjectPayloadHomomorphicChecksum, staticStringer(h.String()))
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectPayloadHomomorphicChecksum, m, h.String())))
 }
 
 // ToV2 converts Record to v2 acl.EACLRecord message.
 //
 // Nil Record converts to nil.
+// Deprecated: do not use it.
 func (r *Record) ToV2() *v2acl.Record {
-	if r == nil {
-		return nil
+	if r != nil {
+		return r.toProtoMessage()
 	}
+	return nil
+}
 
+func (r Record) toProtoMessage() *v2acl.Record {
 	v2 := new(v2acl.Record)
 
 	if r.targets != nil {
 		targets := make([]v2acl.Target, len(r.targets))
 		for i := range r.targets {
-			targets[i] = *r.targets[i].ToV2()
+			targets[i] = *r.targets[i].toProtoMessage()
 		}
 
 		v2.SetTargets(targets)
@@ -216,30 +240,56 @@ func (r *Record) ToV2() *v2acl.Record {
 	if r.filters != nil {
 		filters := make([]v2acl.HeaderFilter, len(r.filters))
 		for i := range r.filters {
-			filters[i] = *r.filters[i].ToV2()
+			filters[i] = *r.filters[i].toProtoMessage()
 		}
 
 		v2.SetFilters(filters)
 	}
 
-	v2.SetAction(r.action.ToV2())
-	v2.SetOperation(r.operation.ToV2())
+	v2.SetAction(v2acl.Action(r.action))
+	v2.SetOperation(v2acl.Operation(r.operation))
 
 	return v2
+}
+
+func (r *Record) fromProtoMessage(m *v2acl.Record) error {
+	mt := m.GetTargets()
+	r.targets = make([]Target, len(mt))
+	for i := range mt {
+		if err := r.targets[i].fromProtoMessage(&mt[i]); err != nil {
+			return fmt.Errorf("invalid subject descriptor #%d: %w", i, err)
+		}
+	}
+
+	mf := m.GetFilters()
+	r.filters = make([]Filter, len(mf))
+	for i := range mf {
+		if err := r.filters[i].fromProtoMessage(&mf[i]); err != nil {
+			return fmt.Errorf("invalid filter #%d: %w", i, err)
+		}
+	}
+
+	r.action = Action(m.GetAction())
+	r.operation = Operation(m.GetOperation())
+
+	return nil
 }
 
 // NewRecord creates and returns blank Record instance.
 //
 // Defaults:
-//   - action: ActionUnknown;
-//   - operation: OperationUnknown;
+//   - action: ActionUnspecified;
+//   - operation: OperationUnspecified;
 //   - targets: nil,
 //   - filters: nil.
+//
+// Deprecated: use [ConstructRecord] instead.
 func NewRecord() *Record {
 	return new(Record)
 }
 
 // CreateRecord creates, initializes with parameters and returns Record instance.
+// Deprecated: use [ConstructRecord] instead.
 func CreateRecord(action Action, operation Operation) *Record {
 	r := NewRecord()
 	r.action = action
@@ -251,6 +301,7 @@ func CreateRecord(action Action, operation Operation) *Record {
 }
 
 // NewRecordFromV2 converts v2 acl.EACLRecord message to Record.
+// Deprecated: do not use it.
 func NewRecordFromV2(record *v2acl.Record) *Record {
 	r := NewRecord()
 
@@ -258,85 +309,34 @@ func NewRecordFromV2(record *v2acl.Record) *Record {
 		return r
 	}
 
-	r.action = ActionFromV2(record.GetAction())
-	r.operation = OperationFromV2(record.GetOperation())
-
-	v2targets := record.GetTargets()
-	v2filters := record.GetFilters()
-
-	r.targets = make([]Target, len(v2targets))
-	for i := range v2targets {
-		r.targets[i] = *NewTargetFromV2(&v2targets[i])
-	}
-
-	r.filters = make([]Filter, len(v2filters))
-	for i := range v2filters {
-		r.filters[i] = *NewFilterFromV2(&v2filters[i])
-	}
-
+	_ = r.fromProtoMessage(record)
 	return r
 }
 
 // Marshal marshals Record into a protobuf binary form.
-func (r *Record) Marshal() []byte {
-	return r.ToV2().StableMarshal(nil)
+func (r Record) Marshal() []byte {
+	return r.toProtoMessage().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Record.
 func (r *Record) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Record)
-	if err := fV2.Unmarshal(data); err != nil {
+	m := new(v2acl.Record)
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	*r = *NewRecordFromV2(fV2)
-
-	return nil
+	return r.fromProtoMessage(m)
 }
 
 // MarshalJSON encodes Record to protobuf JSON format.
-func (r *Record) MarshalJSON() ([]byte, error) {
-	return r.ToV2().MarshalJSON()
+func (r Record) MarshalJSON() ([]byte, error) {
+	return r.toProtoMessage().MarshalJSON()
 }
 
 // UnmarshalJSON decodes Record from protobuf JSON format.
 func (r *Record) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Record)
-	if err := tV2.UnmarshalJSON(data); err != nil {
+	m := new(v2acl.Record)
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	*r = *NewRecordFromV2(tV2)
-
-	return nil
-}
-
-// equalRecords compares Record with each other.
-func equalRecords(r1, r2 Record) bool {
-	if r1.Operation() != r2.Operation() ||
-		r1.Action() != r2.Action() {
-		return false
-	}
-
-	fs1, fs2 := r1.Filters(), r2.Filters()
-	ts1, ts2 := r1.Targets(), r2.Targets()
-
-	if len(fs1) != len(fs2) ||
-		len(ts1) != len(ts2) {
-		return false
-	}
-
-	for i := 0; i < len(fs1); i++ {
-		if !equalFilters(fs1[i], fs2[i]) {
-			return false
-		}
-	}
-
-	for i := 0; i < len(ts1); i++ {
-		if !equalTargets(ts1[i], ts2[i]) {
-			return false
-		}
-	}
-
-	return true
+	return r.fromProtoMessage(m)
 }

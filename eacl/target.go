@@ -10,13 +10,37 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-// Target is a group of request senders to match ContainerEACL. Defined by role enum
-// and set of public keys.
+// Target describes the NeoFS parties that are subject to a specific access
+// rule.
 //
-// Target is compatible with v2 acl.EACLRecord.Target message.
+// Target should be created using one of the constructors.
 type Target struct {
-	role Role
-	keys [][]byte
+	role  Role
+	subjs [][]byte
+}
+
+// NewTargetByRole returns Target for specified role. Use NewTargetByRole in [Record]
+// to direct it to subjects with the given role in NeoFS.
+func NewTargetByRole(role Role) Target { return Target{role: role} }
+
+// NewTargetByAccounts returns Target for specified set of NeoFS accounts. Use
+// NewTargetByAccounts in [Record] to direct access rule to the given subjects in
+// NeoFS.
+func NewTargetByAccounts(accs []user.ID) Target {
+	var res Target
+	res.SetAccounts(accs)
+	return res
+}
+
+// NewTargetByScriptHashes is an alternative to [NewTargetByAccounts] which
+// allows to pass accounts as their script hashes.
+func NewTargetByScriptHashes(hs []util.Uint160) Target {
+	b := make([][]byte, len(hs))
+	for i := range hs {
+		h := user.NewFromScriptHash(hs[i])
+		b[i] = h[:]
+	}
+	return Target{subjs: b}
 }
 
 func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
@@ -33,9 +57,9 @@ func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
 func (t Target) CopyTo(dst *Target) {
 	dst.role = t.role
 
-	dst.keys = make([][]byte, len(t.keys))
-	for i := range t.keys {
-		dst.keys[i] = bytes.Clone(t.keys[i])
+	dst.subjs = make([][]byte, len(t.subjs))
+	for i := range t.subjs {
+		dst.subjs[i] = bytes.Clone(t.subjs[i])
 	}
 }
 
@@ -51,13 +75,22 @@ func (t Target) CopyTo(dst *Target) {
 func (t *Target) BinaryKeys() [][]byte {
 	var r [][]byte
 
-	for _, key := range t.keys {
+	for _, key := range t.subjs {
 		if len(key) == 33 {
 			r = append(r, key)
 		}
 	}
 
 	return r
+}
+
+// SetRawSubjects sets target subjects in a binary format. Each element must be
+// either 25-byte NeoFS user ID (see [user.ID]) or 33-byte compressed ECDSA
+// public key. Use constructors to work with particular types. SetRawSubjects
+// should only be used if you do not want to decode the data and take
+// responsibility for its correctness.
+func (t *Target) SetRawSubjects(subjs [][]byte) {
+	t.subjs = subjs
 }
 
 // RawSubjects returns list of public keys or [user.ID] to identify target subject in a binary format.
@@ -67,7 +100,7 @@ func (t *Target) BinaryKeys() [][]byte {
 //
 // Using this method is your responsibility.
 func (t Target) RawSubjects() [][]byte {
-	return t.keys
+	return t.subjs
 }
 
 // SetBinaryKeys sets list of binary public keys to identify
@@ -76,9 +109,7 @@ func (t Target) RawSubjects() [][]byte {
 // Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
 // See [elliptic.MarshalCompressed].
 // Deprecated: use [Target.SetAccounts] instead.
-func (t *Target) SetBinaryKeys(keys [][]byte) {
-	t.keys = keys
-}
+func (t *Target) SetBinaryKeys(keys [][]byte) { t.SetRawSubjects(keys) }
 
 // Accounts returns list of accounts to identify target subject.
 //
@@ -86,7 +117,7 @@ func (t *Target) SetBinaryKeys(keys [][]byte) {
 func (t Target) Accounts() []user.ID {
 	var r []user.ID
 
-	for _, key := range t.keys {
+	for _, key := range t.subjs {
 		if len(key) == user.IDSize {
 			r = append(r, user.ID(key))
 		}
@@ -97,15 +128,18 @@ func (t Target) Accounts() []user.ID {
 
 // SetAccounts sets list of accounts to identify target subject.
 func (t *Target) SetAccounts(accounts []user.ID) {
-	t.keys = make([][]byte, len(accounts))
+	subjs := make([][]byte, len(accounts))
 
 	for i, acc := range accounts {
-		t.keys[i] = bytes.Clone(acc[:])
+		subjs[i] = bytes.Clone(acc[:])
 	}
+	t.SetRawSubjects(subjs)
 }
 
-// SetTargetECDSAKeys converts ECDSA public keys to a binary
-// format and stores them in Target.
+// SetTargetECDSAKeys converts ECDSA public keys to a binary format and stores
+// them in Target.
+// Deprecated: use [NewTargetByAccounts] or [Target.SetAccounts] along with
+// [user.NewFromECDSAPublicKey] instead.
 func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 	binKeys := t.BinaryKeys()
 	ln := len(pubs)
@@ -124,6 +158,7 @@ func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 }
 
 // SetTargetAccounts sets accounts in Target.
+// Deprecated: use [NewTargetByScriptHashes] instead.
 func SetTargetAccounts(t *Target, accs ...util.Uint160) {
 	account := make([]user.ID, len(accs))
 	ln := len(accs)
@@ -138,6 +173,7 @@ func SetTargetAccounts(t *Target, accs ...util.Uint160) {
 // TargetECDSAKeys interprets binary public keys of Target
 // as ECDSA public keys. If any key has a different format,
 // the corresponding element will be nil.
+// Deprecated: use [Target.RawSubjects] with [keys.PublicKey.DecodeBytes] instead.
 func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
 	binKeys := t.BinaryKeys()
 	ln := len(binKeys)
@@ -167,90 +203,69 @@ func (t Target) Role() Role {
 // ToV2 converts Target to v2 acl.EACLRecord.Target message.
 //
 // Nil Target converts to nil.
+// Deprecated: do not use it.
 func (t *Target) ToV2() *v2acl.Target {
-	if t == nil {
-		return nil
+	if t != nil {
+		return t.toProtoMessage()
 	}
+	return nil
+}
 
+func (t Target) toProtoMessage() *v2acl.Target {
 	target := new(v2acl.Target)
-	target.SetRole(t.role.ToV2())
-	target.SetKeys(t.keys)
+	target.SetRole(v2acl.Role(t.role))
+	target.SetKeys(t.subjs)
 
 	return target
+}
+
+func (t *Target) fromProtoMessage(m *v2acl.Target) error {
+	t.role = Role(m.GetRole())
+	t.subjs = m.GetKeys()
+	return nil
 }
 
 // NewTarget creates, initializes and returns blank Target instance.
 //
 // Defaults:
-//   - role: RoleUnknown;
+//   - role: RoleUnspecified;
 //   - keys: nil.
-func NewTarget() *Target {
-	return NewTargetFromV2(new(v2acl.Target))
-}
+//
+// Deprecated: use [NewTargetByRole] or [TargetByPublicKeys] instead.
+func NewTarget() *Target { return new(Target) }
 
 // NewTargetFromV2 converts v2 acl.EACLRecord.Target message to Target.
+// Deprecated: do not use it.
 func NewTargetFromV2(target *v2acl.Target) *Target {
-	if target == nil {
-		return new(Target)
-	}
-
-	return &Target{
-		role: RoleFromV2(target.GetRole()),
-		keys: target.GetKeys(),
-	}
+	t := new(Target)
+	_ = t.fromProtoMessage(target)
+	return t
 }
 
 // Marshal marshals Target into a protobuf binary form.
-func (t *Target) Marshal() []byte {
-	return t.ToV2().StableMarshal(nil)
+func (t Target) Marshal() []byte {
+	return t.toProtoMessage().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Target.
 func (t *Target) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.Target)
-	if err := fV2.Unmarshal(data); err != nil {
+	m := new(v2acl.Target)
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	*t = *NewTargetFromV2(fV2)
-
-	return nil
+	return t.fromProtoMessage(m)
 }
 
 // MarshalJSON encodes Target to protobuf JSON format.
-func (t *Target) MarshalJSON() ([]byte, error) {
-	return t.ToV2().MarshalJSON()
+func (t Target) MarshalJSON() ([]byte, error) {
+	return t.toProtoMessage().MarshalJSON()
 }
 
 // UnmarshalJSON decodes Target from protobuf JSON format.
 func (t *Target) UnmarshalJSON(data []byte) error {
-	tV2 := new(v2acl.Target)
-	if err := tV2.UnmarshalJSON(data); err != nil {
+	m := new(v2acl.Target)
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	*t = *NewTargetFromV2(tV2)
-
-	return nil
-}
-
-// equalTargets compares Target with each other.
-func equalTargets(t1, t2 Target) bool {
-	if t1.Role() != t2.Role() {
-		return false
-	}
-
-	keys1, keys2 := t1.BinaryKeys(), t2.BinaryKeys()
-
-	if len(keys1) != len(keys2) {
-		return false
-	}
-
-	for i := 0; i < len(keys1); i++ {
-		if !bytes.Equal(keys1[i], keys2[i]) {
-			return false
-		}
-	}
-
-	return true
+	return t.fromProtoMessage(m)
 }

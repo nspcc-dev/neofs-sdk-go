@@ -1,145 +1,144 @@
 package eacl
 
 import (
+	"strconv"
+
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
-// Action taken if ContainerEACL record matched request.
-// Action is compatible with v2 acl.Action enum.
+// Action enumerates actions that may be applied within NeoFS access management.
+// What and how specific Action affects depends on the specific context.
 type Action uint32
 
 const (
-	// ActionUnknown is an Action value used to mark action as undefined.
-	ActionUnknown Action = iota
-
-	// ActionAllow is an Action value that allows access to the operation from context.
-	ActionAllow
-
-	// ActionDeny is an Action value that denies access to the operation from context.
-	ActionDeny
+	ActionUnspecified Action = iota // undefined (zero)
+	ActionAllow                     // allow the op
+	ActionDeny                      // deny the op
 )
 
-// Operation is a object service method to match request.
-// Operation is compatible with v2 acl.Operation enum.
+// ActionUnknown is an Action value used to mark action as undefined.
+// Deprecated: use ActionUnspecified instead.
+const ActionUnknown = ActionUnspecified
+
+// Operation enumerates operations on NeoFS resources under access control.
 type Operation uint32
 
 const (
-	// OperationUnknown is an Operation value used to mark operation as undefined.
-	OperationUnknown Operation = iota
-
-	// OperationGet is an object get Operation.
-	OperationGet
-
-	// OperationHead is an Operation of getting the object header.
-	OperationHead
-
-	// OperationPut is an object put Operation.
-	OperationPut
-
-	// OperationDelete is an object delete Operation.
-	OperationDelete
-
-	// OperationSearch is an object search Operation.
-	OperationSearch
-
-	// OperationRange is an object payload range retrieval Operation.
-	OperationRange
-
-	// OperationRangeHash is an object payload range hashing Operation.
-	OperationRangeHash
+	OperationUnspecified Operation = iota // undefined (zero)
+	OperationGet                          // ObjectService.Get RPC
+	OperationHead                         // ObjectService.Head RPC
+	OperationPut                          // ObjectService.Put RPC
+	OperationDelete                       // ObjectService.Delete RPC
+	OperationSearch                       // ObjectService.Search RPC
+	OperationRange                        // ObjectService.GetRange RPC
+	OperationRangeHash                    // ObjectService.GetRangeHash RPC
 )
 
-// Role is a group of request senders to match request.
-// Role is compatible with v2 acl.Role enum.
+// OperationUnknown is an Operation value used to mark operation as undefined.
+// Deprecated: use OperationUnspecified instead.
+const OperationUnknown = OperationUnspecified
+
+// Role enumerates groups of subjects requesting access to NeoFS resources.
 type Role uint32
 
 const (
-	// RoleUnknown is a Role value used to mark role as undefined.
-	RoleUnknown Role = iota
-
-	// RoleUser is a group of senders that contains only key of container owner.
-	RoleUser
-
-	// RoleSystem is a group of senders that contains keys of container nodes and
-	// inner ring nodes.
-	RoleSystem
-
-	// RoleOthers is a group of senders that contains none of above keys.
-	RoleOthers
+	RoleUnspecified Role = iota // undefined (zero)
+	RoleUser                    // owner of the container requesting its objects
+	RoleSystem                  // Deprecated: NeoFS storage and Inner Ring nodes
+	RoleOthers                  // any other party
 )
 
-// Match is binary operation on filer name and value to check if request is matched.
-// Match is compatible with v2 acl.MatchType enum.
+// RoleUnknown is a Role value used to mark role as undefined.
+// Deprecated: use RoleUnspecified instead.
+const RoleUnknown = RoleUnspecified
+
+// Match enumerates operators to check attribute value compliance. What and how
+// specific Match affects depends on the specific context.
 type Match uint32
 
 const (
-	// MatchUnknown is a Match value used to mark matcher as undefined.
-	MatchUnknown Match = iota
-
-	// MatchStringEqual is a Match of string equality.
-	MatchStringEqual
-
-	// MatchStringNotEqual is a Match of string inequality.
-	MatchStringNotEqual
-
-	// MatchNotPresent is an operator for attribute absence.
-	MatchNotPresent
-
-	// MatchNumGT is a numeric "greater than" operator.
-	MatchNumGT
-
-	// MatchNumGE is a numeric "greater or equal than" operator.
-	MatchNumGE
-
-	// MatchNumLT is a numeric "less than" operator.
-	MatchNumLT
-
-	// MatchNumLE is a numeric "less or equal than" operator.
-	MatchNumLE
+	MatchUnspecified    Match = iota // undefined (zero)
+	MatchStringEqual                 // string equality
+	MatchStringNotEqual              // string inequality
+	MatchNotPresent                  // attribute absence
+	MatchNumGT                       // numeric "greater than" operator
+	MatchNumGE                       // numeric "greater or equal than" operator
+	MatchNumLT                       // is a numeric "less than" operator
+	MatchNumLE                       // is a numeric "less or equal than" operator
 )
 
-// FilterHeaderType indicates source of headers to make matches.
-// FilterHeaderType is compatible with v2 acl.HeaderType enum.
+// MatchUnknown is a Match value used to mark matcher as undefined.
+// Deprecated: use MatchUnspecified instead.
+const MatchUnknown = MatchUnspecified
+
+// FilterHeaderType enumerates the classes of resource attributes processed
+// within NeoFS access management.
 type FilterHeaderType uint32
 
 const (
-	// HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
-	HeaderTypeUnknown FilterHeaderType = iota
-
-	// HeaderFromRequest is a FilterHeaderType for request X-Header.
-	HeaderFromRequest
-
-	// HeaderFromObject is a FilterHeaderType for object header.
-	HeaderFromObject
-
-	// HeaderFromService is a FilterHeaderType for service header.
-	HeaderFromService
+	HeaderTypeUnspecified FilterHeaderType = iota // undefined (zero)
+	HeaderFromRequest                             // protocol request X-Header
+	HeaderFromObject                              // object attribute
+	HeaderFromService                             // custom application-level attribute
 )
 
+// HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
+// Deprecated: use HeaderTypeUnspecified instead.
+const HeaderTypeUnknown = HeaderTypeUnspecified
+
 // ToV2 converts Action to v2 Action enum value.
-func (a Action) ToV2() v2acl.Action {
+// Deprecated: do not use it.
+func (a Action) ToV2() v2acl.Action { return v2acl.Action(a) }
+
+// ActionFromV2 converts v2 Action enum value to Action.
+// Deprecated: do not use it.
+func ActionFromV2(action v2acl.Action) Action { return Action(action) }
+
+const (
+	actionStringZero  = "ACTION_UNSPECIFIED"
+	actionStringAllow = "ALLOW"
+	actionStringDeny  = "DENY"
+)
+
+// ActionToString maps Action values to strings:
+//   - 0: ACTION_UNSPECIFIED
+//   - [ActionAllow]: ALLOW
+//   - [ActionDeny]: DENY
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use [Action.String] to
+// get any human-readable text for printing.
+func ActionToString(a Action) string {
 	switch a {
-	case ActionAllow:
-		return v2acl.ActionAllow
-	case ActionDeny:
-		return v2acl.ActionDeny
 	default:
-		return v2acl.ActionUnknown
+		return strconv.FormatUint(uint64(a), 10)
+	case 0:
+		return actionStringZero
+	case ActionAllow:
+		return actionStringAllow
+	case ActionDeny:
+		return actionStringDeny
 	}
 }
 
-// ActionFromV2 converts v2 Action enum value to Action.
-func ActionFromV2(action v2acl.Action) (a Action) {
-	switch action {
-	case v2acl.ActionAllow:
-		a = ActionAllow
-	case v2acl.ActionDeny:
-		a = ActionDeny
+// ActionFromString maps strings to Action values in reverse to
+// [ActionToString]. Returns false if s is incorrect.
+func ActionFromString(s string) (Action, bool) {
+	switch s {
 	default:
-		a = ActionUnknown
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Action(n), true
+		}
+		return 0, false
+	case "ACTION_UNSPECIFIED":
+		return 0, true
+	case "ALLOW":
+		return ActionAllow, true
+	case "DENY":
+		return ActionDeny, true
 	}
-
-	return a
 }
 
 // EncodeToString returns string representation of Action.
@@ -147,80 +146,116 @@ func ActionFromV2(action v2acl.Action) (a Action) {
 // String mapping:
 //   - ActionAllow: ALLOW;
 //   - ActionDeny: DENY;
-//   - ActionUnknown, default: ACTION_UNSPECIFIED.
-func (a Action) EncodeToString() string {
-	return a.ToV2().String()
-}
+//   - ActionUnspecified, default: ACTION_UNSPECIFIED.
+//
+// Deprecated: use [ActionToString] instead.
+func (a Action) EncodeToString() string { return ActionToString(a) }
 
 // String implements fmt.Stringer.
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [ActionToString] and [ActionFromString] for consistent
+// mapping.
 func (a Action) String() string {
-	return a.EncodeToString()
+	return ActionToString(a)
 }
 
 // DecodeString parses Action from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [ActionFromString] instead.
 func (a *Action) DecodeString(s string) bool {
-	var g v2acl.Action
-
-	ok := g.FromString(s)
-
-	if ok {
-		*a = ActionFromV2(g)
+	if v, ok := ActionFromString(s); ok {
+		*a = v
+		return true
 	}
-
-	return ok
+	return false
 }
 
 // ToV2 converts Operation to v2 Operation enum value.
-func (o Operation) ToV2() v2acl.Operation {
-	switch o {
-	case OperationGet:
-		return v2acl.OperationGet
-	case OperationHead:
-		return v2acl.OperationHead
-	case OperationPut:
-		return v2acl.OperationPut
-	case OperationDelete:
-		return v2acl.OperationDelete
-	case OperationSearch:
-		return v2acl.OperationSearch
-	case OperationRange:
-		return v2acl.OperationRange
-	case OperationRangeHash:
-		return v2acl.OperationRangeHash
+// Deprecated: do not use it.
+func (o Operation) ToV2() v2acl.Operation { return v2acl.Operation(o) }
+
+// OperationFromV2 converts v2 Operation enum value to Operation.
+// Deprecated: do not use it.
+func OperationFromV2(operation v2acl.Operation) Operation { return Operation(operation) }
+
+const (
+	opStringZero      = "OPERATION_UNSPECIFIED"
+	opStringGet       = "GET"
+	opStringHead      = "HEAD"
+	opStringPut       = "PUT"
+	opStringDelete    = "DELETE"
+	opStringSearch    = "SEARCH"
+	opStringRange     = "GETRANGE"
+	opStringRangeHash = "GETRANGEHASH"
+)
+
+// OperationToString maps Operation values to strings:
+//   - 0: OPERATION_UNSPECIFIED
+//   - [OperationGet]: GET
+//   - [OperationHead]: HEAD
+//   - [OperationPut]: PUT
+//   - [OperationDelete]: DELETE
+//   - [OperationSearch]: SEARCH
+//   - [OperationRange]: GETRANGE
+//   - [OperationRangeHash]: GETRANGEHASH
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use [Operation.String] to
+// get any human-readable text for printing.
+func OperationToString(op Operation) string {
+	switch op {
 	default:
-		return v2acl.OperationUnknown
+		return strconv.FormatUint(uint64(op), 10)
+	case 0:
+		return opStringZero
+	case OperationGet:
+		return opStringGet
+	case OperationHead:
+		return opStringHead
+	case OperationPut:
+		return opStringPut
+	case OperationDelete:
+		return opStringDelete
+	case OperationSearch:
+		return opStringSearch
+	case OperationRange:
+		return opStringRange
+	case OperationRangeHash:
+		return opStringRangeHash
 	}
 }
 
-// OperationFromV2 converts v2 Operation enum value to Operation.
-func OperationFromV2(operation v2acl.Operation) (o Operation) {
-	switch operation {
-	case v2acl.OperationGet:
-		o = OperationGet
-	case v2acl.OperationHead:
-		o = OperationHead
-	case v2acl.OperationPut:
-		o = OperationPut
-	case v2acl.OperationDelete:
-		o = OperationDelete
-	case v2acl.OperationSearch:
-		o = OperationSearch
-	case v2acl.OperationRange:
-		o = OperationRange
-	case v2acl.OperationRangeHash:
-		o = OperationRangeHash
+// OperationFromString maps strings to Operation values in reverse to
+// [OperationToString]. Returns false if s is incorrect.
+func OperationFromString(s string) (Operation, bool) {
+	switch s {
 	default:
-		o = OperationUnknown
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Operation(n), true
+		}
+		return 0, false
+	case "OPERATION_UNSPECIFIED":
+		return 0, true
+	case opStringGet:
+		return OperationGet, true
+	case opStringHead:
+		return OperationHead, true
+	case opStringPut:
+		return OperationPut, true
+	case opStringDelete:
+		return OperationDelete, true
+	case opStringSearch:
+		return OperationSearch, true
+	case opStringRange:
+		return OperationRange, true
+	case opStringRangeHash:
+		return OperationRangeHash, true
 	}
-
-	return o
 }
 
 // EncodeToString returns string representation of Operation.
@@ -233,64 +268,92 @@ func OperationFromV2(operation v2acl.Operation) (o Operation) {
 //   - OperationSearch: SEARCH;
 //   - OperationRange: GETRANGE;
 //   - OperationRangeHash: GETRANGEHASH;
-//   - OperationUnknown, default: OPERATION_UNSPECIFIED.
-func (o Operation) EncodeToString() string {
-	return o.ToV2().String()
-}
+//   - OperationUnspecified, default: OPERATION_UNSPECIFIED.
+//
+// Deprecated: use [OperationToString] instead.
+func (o Operation) EncodeToString() string { return OperationToString(o) }
 
 // String implements fmt.Stringer.
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [OperationToString] and [OperationFromString] for
+// consistent mapping.
 func (o Operation) String() string {
-	return o.EncodeToString()
+	return OperationToString(o)
 }
 
 // DecodeString parses Operation from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [OperationFromString] instead.
 func (o *Operation) DecodeString(s string) bool {
-	var g v2acl.Operation
-
-	ok := g.FromString(s)
-
-	if ok {
-		*o = OperationFromV2(g)
+	if v, ok := OperationFromString(s); ok {
+		*o = v
+		return true
 	}
-
-	return ok
+	return false
 }
 
 // ToV2 converts Role to v2 Role enum value.
-func (r Role) ToV2() v2acl.Role {
+// Deprecated: do not use it.
+func (r Role) ToV2() v2acl.Role { return v2acl.Role(r) }
+
+// RoleFromV2 converts v2 Role enum value to Role.
+// Deprecated: do not use it.
+func RoleFromV2(role v2acl.Role) Role { return Role(role) }
+
+const (
+	roleStringZero   = "ROLE_UNSPECIFIED"
+	roleStringUser   = "USER"
+	roleStringSystem = "SYSTEM"
+	roleStringOthers = "OTHERS"
+)
+
+// RoleToString maps Role values to strings:
+//   - 0: ROLE_UNSPECIFIED
+//   - [RoleUser]: USER
+//   - [RoleSystem]: SYSTEM
+//   - [RoleOthers]: OTHERS
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use [Role.String] to
+// get any human-readable text for printing.
+func RoleToString(r Role) string {
 	switch r {
-	case RoleUser:
-		return v2acl.RoleUser
-	case RoleSystem:
-		return v2acl.RoleSystem
-	case RoleOthers:
-		return v2acl.RoleOthers
 	default:
-		return v2acl.RoleUnknown
+		return strconv.FormatUint(uint64(r), 10)
+	case 0:
+		return roleStringZero
+	case RoleUser:
+		return roleStringUser
+	case RoleSystem:
+		return roleStringSystem
+	case RoleOthers:
+		return roleStringOthers
 	}
 }
 
-// RoleFromV2 converts v2 Role enum value to Role.
-func RoleFromV2(role v2acl.Role) (r Role) {
-	switch role {
-	case v2acl.RoleUser:
-		r = RoleUser
-	case v2acl.RoleSystem:
-		r = RoleSystem
-	case v2acl.RoleOthers:
-		r = RoleOthers
+// RoleFromString maps strings to Role values in reverse to [RoleToString].
+// Returns false if s is incorrect.
+func RoleFromString(s string) (Role, bool) {
+	switch s {
 	default:
-		r = RoleUnknown
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Role(n), true
+		}
+		return 0, false
+	case "ROLE_UNSPECIFIED":
+		return 0, true
+	case roleStringUser:
+		return RoleUser, true
+	case roleStringSystem:
+		return RoleSystem, true
+	case roleStringOthers:
+		return RoleOthers, true
 	}
-
-	return r
 }
 
 // EncodeToString returns string representation of Role.
@@ -299,67 +362,114 @@ func RoleFromV2(role v2acl.Role) (r Role) {
 //   - RoleUser: USER;
 //   - RoleSystem: SYSTEM;
 //   - RoleOthers: OTHERS;
-//   - RoleUnknown, default: ROLE_UNKNOWN.
-func (r Role) EncodeToString() string {
-	return r.ToV2().String()
-}
+//   - RoleUnspecified, default: ROLE_UNKNOWN.
+//
+// Deprecated: use [RoleToString] instead.
+func (r Role) EncodeToString() string { return RoleToString(r) }
 
 // String implements fmt.Stringer.
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [RoleToString] and [RoleFromString] for consistent mapping.
 func (r Role) String() string {
-	return r.EncodeToString()
+	return RoleToString(r)
 }
 
 // DecodeString parses Role from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [RoleFromString] instead.
 func (r *Role) DecodeString(s string) bool {
-	var g v2acl.Role
-
-	ok := g.FromString(s)
-
-	if ok {
-		*r = RoleFromV2(g)
+	if v, ok := RoleFromString(s); ok {
+		*r = v
+		return true
 	}
-
-	return ok
+	return false
 }
 
 // ToV2 converts Match to v2 MatchType enum value.
-func (m Match) ToV2() v2acl.MatchType {
+// Deprecated: do not use it.
+func (m Match) ToV2() v2acl.MatchType { return v2acl.MatchType(m) }
+
+// MatchFromV2 converts v2 MatchType enum value to Match.
+// Deprecated: do not use it.
+func MatchFromV2(match v2acl.MatchType) Match { return Match(match) }
+
+const (
+	matcherStringZero       = "MATCH_TYPE_UNSPECIFIED"
+	matcherStringEqual      = "STRING_EQUAL"
+	matcherStringNotEqual   = "STRING_NOT_EQUAL"
+	matcherStringNotPresent = "NOT_PRESENT"
+	matcherStringNumGT      = "NUM_GT"
+	matcherStringNumGE      = "NUM_GE"
+	matcherStringNumLT      = "NUM_LT"
+	matcherStringNumLE      = "NUM_LE"
+)
+
+// MatcherToString maps Match values to strings:
+//   - 0: MATCH_TYPE_UNSPECIFIED
+//   - [MatchStringEqual]: STRING_EQUAL
+//   - [MatchStringNotEqual]: STRING_NOT_EQUAL
+//   - [MatchNotPresent]: NOT_PRESENT
+//   - [MatchNumGT]: NUM_GT
+//   - [MatchNumGE]: NUM_GE
+//   - [MatchNumLT]: NUM_LT
+//   - [MatchNumLE]: NUM_LE
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use [Match.String] to
+// get any human-readable text for printing.
+func MatcherToString(m Match) string {
 	switch m {
-	case
-		MatchStringEqual,
-		MatchStringNotEqual,
-		MatchNotPresent,
-		MatchNumGT,
-		MatchNumGE,
-		MatchNumLT,
-		MatchNumLE:
-		return v2acl.MatchType(m)
 	default:
-		return v2acl.MatchTypeUnknown
+		return strconv.FormatUint(uint64(m), 10)
+	case 0:
+		return matcherStringZero
+	case MatchStringEqual:
+		return matcherStringEqual
+	case MatchStringNotEqual:
+		return matcherStringNotEqual
+	case MatchNotPresent:
+		return matcherStringNotPresent
+	case MatchNumGT:
+		return matcherStringNumGT
+	case MatchNumGE:
+		return matcherStringNumGE
+	case MatchNumLT:
+		return matcherStringNumLT
+	case MatchNumLE:
+		return matcherStringNumLE
 	}
 }
 
-// MatchFromV2 converts v2 MatchType enum value to Match.
-func MatchFromV2(match v2acl.MatchType) Match {
-	switch match {
-	case
-		v2acl.MatchTypeStringEqual,
-		v2acl.MatchTypeStringNotEqual,
-		v2acl.MatchTypeNotPresent,
-		v2acl.MatchTypeNumGT,
-		v2acl.MatchTypeNumGE,
-		v2acl.MatchTypeNumLT,
-		v2acl.MatchTypeNumLE:
-		return Match(match)
+// MatcherFromString maps strings to Match values in reverse to
+// [MatcherToString]. Returns false if s is incorrect.
+func MatcherFromString(s string) (Match, bool) {
+	switch s {
 	default:
-		return MatchUnknown
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Match(n), true
+		}
+		return 0, false
+	case "MATCH_TYPE_UNSPECIFIED":
+		return 0, true
+	case matcherStringEqual:
+		return MatchStringEqual, true
+	case matcherStringNotEqual:
+		return MatchStringNotEqual, true
+	case matcherStringNotPresent:
+		return MatchNotPresent, true
+	case matcherStringNumGT:
+		return MatchNumGT, true
+	case matcherStringNumGE:
+		return MatchNumGE, true
+	case matcherStringNumLT:
+		return MatchNumLT, true
+	case matcherStringNumLE:
+		return MatchNumLE, true
 	}
 }
 
@@ -373,64 +483,94 @@ func MatchFromV2(match v2acl.MatchType) Match {
 //   - MatchNumGE: NUM_GE;
 //   - MatchNumLT: NUM_LT;
 //   - MatchNumLE: NUM_LE;
-//   - MatchUnknown, default: MATCH_TYPE_UNSPECIFIED.
-func (m Match) EncodeToString() string {
-	return m.ToV2().String()
-}
+//   - MatchUnspecified, default: MATCH_TYPE_UNSPECIFIED.
+//
+// Deprecated: use [MatcherToString] instead.
+func (m Match) EncodeToString() string { return MatcherToString(m) }
 
 // String implements fmt.Stringer.
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [MatcherToString] and [MatcherFromString] for consistent
+// mapping.
 func (m Match) String() string {
-	return m.EncodeToString()
+	return MatcherToString(m)
 }
 
 // DecodeString parses Match from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [MatcherFromString] instead.
 func (m *Match) DecodeString(s string) bool {
-	var g v2acl.MatchType
-
-	ok := g.FromString(s)
-
-	if ok {
-		*m = MatchFromV2(g)
+	if v, ok := MatcherFromString(s); ok {
+		*m = v
+		return true
 	}
-
-	return ok
+	return false
 }
 
 // ToV2 converts FilterHeaderType to v2 HeaderType enum value.
-func (h FilterHeaderType) ToV2() v2acl.HeaderType {
+// Deprecated: do not use it.
+func (h FilterHeaderType) ToV2() v2acl.HeaderType { return v2acl.HeaderType(h) }
+
+// FilterHeaderTypeFromV2 converts v2 HeaderType enum value to FilterHeaderType.
+// Deprecated: do not use it.
+func FilterHeaderTypeFromV2(header v2acl.HeaderType) FilterHeaderType {
+	return FilterHeaderType(header)
+}
+
+const (
+	headerTypeStringZero    = "HEADER_UNSPECIFIED"
+	headerTypeStringRequest = "REQUEST"
+	headerTypeStringObject  = "OBJECT"
+	headerTypeStringService = "SERVICE"
+)
+
+// HeaderTypeToString maps FilterHeaderType values to strings:
+//   - 0: HEADER_UNSPECIFIED
+//   - [HeaderFromRequest]: REQUEST
+//   - [HeaderFromObject]: OBJECT
+//   - [HeaderFromService]: SERVICE
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use
+// [FilterHeaderType.String] to get any human-readable text for printing.
+func HeaderTypeToString(h FilterHeaderType) string {
 	switch h {
-	case HeaderFromRequest:
-		return v2acl.HeaderTypeRequest
-	case HeaderFromObject:
-		return v2acl.HeaderTypeObject
-	case HeaderFromService:
-		return v2acl.HeaderTypeService
 	default:
-		return v2acl.HeaderTypeUnknown
+		return strconv.FormatUint(uint64(h), 10)
+	case 0:
+		return headerTypeStringZero
+	case HeaderFromRequest:
+		return headerTypeStringRequest
+	case HeaderFromObject:
+		return headerTypeStringObject
+	case HeaderFromService:
+		return headerTypeStringService
 	}
 }
 
-// FilterHeaderTypeFromV2 converts v2 HeaderType enum value to FilterHeaderType.
-func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
-	switch header {
-	case v2acl.HeaderTypeRequest:
-		h = HeaderFromRequest
-	case v2acl.HeaderTypeObject:
-		h = HeaderFromObject
-	case v2acl.HeaderTypeService:
-		h = HeaderFromService
+// HeaderTypeFromString maps strings to FilterHeaderType values in reverse to
+// [MatcherToString]. Returns false if s is incorrect.
+func HeaderTypeFromString(s string) (FilterHeaderType, bool) {
+	switch s {
 	default:
-		h = HeaderTypeUnknown
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return FilterHeaderType(n), true
+		}
+		return 0, false
+	case "HEADER_UNSPECIFIED":
+		return 0, true
+	case headerTypeStringRequest:
+		return HeaderFromRequest, true
+	case headerTypeStringObject:
+		return HeaderFromObject, true
+	case headerTypeStringService:
+		return HeaderFromService, true
 	}
-
-	return h
 }
 
 // EncodeToString returns string representation of FilterHeaderType.
@@ -438,32 +578,29 @@ func FilterHeaderTypeFromV2(header v2acl.HeaderType) (h FilterHeaderType) {
 // String mapping:
 //   - HeaderFromRequest: REQUEST;
 //   - HeaderFromObject: OBJECT;
-//   - HeaderTypeUnknown, default: HEADER_UNSPECIFIED.
-func (h FilterHeaderType) EncodeToString() string {
-	return h.ToV2().String()
-}
+//   - HeaderTypeUnspecified, default: HEADER_UNSPECIFIED.
+//
+// Deprecated: use [HeaderTypeToString] instead.
+func (h FilterHeaderType) EncodeToString() string { return HeaderTypeToString(h) }
 
 // String implements fmt.Stringer.
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [HeaderTypeToString] and [HeaderTypeFromString] for
+// consistent mapping.
 func (h FilterHeaderType) String() string {
-	return h.EncodeToString()
+	return HeaderTypeToString(h)
 }
 
 // DecodeString parses FilterHeaderType from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [HeaderTypeFromString] instead.
 func (h *FilterHeaderType) DecodeString(s string) bool {
-	var g v2acl.HeaderType
-
-	ok := g.FromString(s)
-
-	if ok {
-		*h = FilterHeaderTypeFromV2(g)
+	if v, ok := HeaderTypeFromString(s); ok {
+		*h = v
+		return true
 	}
-
-	return ok
+	return false
 }

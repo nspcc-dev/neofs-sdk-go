@@ -763,7 +763,7 @@ func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table ea
 
 	newTable, err := setter.ContainerEACL(ctx, containerID, prm)
 	require.NoError(t, err)
-	require.True(t, eacl.EqualTables(table, newTable))
+	require.Equal(t, table.Marshal(), newTable.Marshal())
 }
 
 func isBucketCreated(ctx context.Context, c containerGetter, id cid.ID) error {

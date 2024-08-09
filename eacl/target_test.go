@@ -1,166 +1,246 @@
-package eacl
+package eacl_test
 
 import (
-	"bytes"
-	"crypto/ecdsa"
+	"encoding/json"
+	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
-func TestTarget(t *testing.T) {
-	pubs := []*ecdsa.PublicKey{
-		randomPublicKey(t),
-		randomPublicKey(t),
-	}
-
-	target := NewTarget()
-	target.SetRole(RoleSystem)
-	SetTargetECDSAKeys(target, pubs...)
-
-	v2 := target.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, v2acl.RoleSystem, v2.GetRole())
-	require.Len(t, v2.GetKeys(), len(pubs))
-	for i, key := range v2.GetKeys() {
-		require.Equal(t, key, (*keys.PublicKey)(pubs[i]).Bytes())
-	}
-
-	newTarget := NewTargetFromV2(v2)
-	require.Equal(t, target, newTarget)
-
-	t.Run("from nil v2 target", func(t *testing.T) {
-		require.Equal(t, new(Target), NewTargetFromV2(nil))
-	})
-}
-
-func TestTargetAccounts(t *testing.T) {
-	accs := []util.Uint160{
-		(*keys.PublicKey)(randomPublicKey(t)).GetScriptHash(),
-		(*keys.PublicKey)(randomPublicKey(t)).GetScriptHash(),
-	}
-
-	target := NewTarget()
-	target.SetRole(RoleSystem)
-	SetTargetAccounts(target, accs...)
-
-	v2 := target.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, v2acl.RoleSystem, v2.GetRole())
-	require.Len(t, v2.GetKeys(), len(accs))
-	for i, key := range v2.GetKeys() {
-		var u = user.NewFromScriptHash(accs[i])
-		require.Equal(t, key, u[:])
-	}
-
-	newTarget := NewTargetFromV2(v2)
-	require.Equal(t, target, newTarget)
-
-	t.Run("from nil v2 target", func(t *testing.T) {
-		require.Equal(t, new(Target), NewTargetFromV2(nil))
-	})
-}
-
-func TestTargetUsers(t *testing.T) {
-	accs := usertest.IDs(2)
-
-	target := NewTarget()
-	target.SetRole(RoleSystem)
-	target.SetAccounts(accs)
-
-	v2 := target.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, v2acl.RoleSystem, v2.GetRole())
-	require.Len(t, v2.GetKeys(), len(accs))
-	for i, key := range v2.GetKeys() {
-		require.Equal(t, key, accs[i][:])
-	}
-
-	newTarget := NewTargetFromV2(v2)
-	require.Equal(t, target, newTarget)
-
-	t.Run("from nil v2 target", func(t *testing.T) {
-		require.Equal(t, new(Target), NewTargetFromV2(nil))
-	})
-}
-
-func TestTargetEncoding(t *testing.T) {
-	tar := NewTarget()
-	tar.SetRole(RoleSystem)
-	SetTargetECDSAKeys(tar, randomPublicKey(t))
-
-	t.Run("binary", func(t *testing.T) {
-		tar2 := NewTarget()
-		require.NoError(t, tar2.Unmarshal(tar.Marshal()))
-
-		require.Equal(t, tar, tar2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := tar.MarshalJSON()
-		require.NoError(t, err)
-
-		tar2 := NewTarget()
-		require.NoError(t, tar2.UnmarshalJSON(data))
-
-		require.Equal(t, tar, tar2)
-	})
-}
-
 func TestTarget_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Target
-
-		require.Nil(t, x.ToV2())
-	})
+	r := eacl.NewTargetByRole(anyValidRole)
+	subjs := [][]byte{
+		anyValidECDSABinPublicKeys[0],
+		anyUserSet[0][:],
+		anyValidECDSABinPublicKeys[1],
+		anyUserSet[1][:],
+		anyUserSet[2][:],
+	}
+	r.SetRawSubjects(subjs)
+	m := r.ToV2()
+	require.EqualValues(t, anyValidRole, m.GetRole())
+	require.Equal(t, subjs, m.GetKeys())
 
 	t.Run("default values", func(t *testing.T) {
-		target := NewTarget()
+		target := eacl.NewTarget()
 
 		// check initial values
-		require.Equal(t, RoleUnknown, target.Role())
+		require.Zero(t, target.Role())
 		require.Nil(t, target.BinaryKeys())
 
 		// convert to v2 message
 		targetV2 := target.ToV2()
 
-		require.Equal(t, acl.RoleUnknown, targetV2.GetRole())
+		require.Equal(t, protoacl.RoleUnknown, targetV2.GetRole())
 		require.Nil(t, targetV2.GetKeys())
 	})
 }
 
-func TestTarget_CopyTo(t *testing.T) {
-	var target Target
-	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
-		{1, 2, 3},
+func TestNewTargetFromV2(t *testing.T) {
+	role := protoacl.Role(rand.Uint32())
+	var m protoacl.Target
+	m.SetRole(role)
+	m.SetKeys(anyValidBinPublicKeys)
+
+	r := eacl.NewTargetFromV2(&m)
+	require.EqualValues(t, role, r.Role())
+	require.Equal(t, anyValidBinPublicKeys, m.GetKeys())
+
+	t.Run("nil", func(t *testing.T) {
+		require.Equal(t, new(eacl.Target), eacl.NewTargetFromV2(nil))
+	})
+}
+
+func TestTarget_Marshal(t *testing.T) {
+	for i := range anyValidTargets {
+		require.Equal(t, anyValidBinTargets[i], anyValidTargets[i].Marshal())
+	}
+}
+
+func TestTarget_Unmarshal(t *testing.T) {
+	t.Run("invalid protobuf", func(t *testing.T) {
+		err := new(eacl.Target).Unmarshal([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 	})
 
-	t.Run("copy", func(t *testing.T) {
-		var dst Target
-		target.CopyTo(&dst)
+	var tgt eacl.Target
+	for i := range anyValidBinTargets {
+		err := tgt.Unmarshal(anyValidBinTargets[i])
+		require.NoError(t, err)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+		require.Equal(t, anyValidTargets[i], tgt)
+	}
+}
 
-		require.Equal(t, target, dst)
-		require.True(t, bytes.Equal(target.Marshal(), dst.Marshal()))
+func TestTarget_MarshalJSON(t *testing.T) {
+	t.Run("invalid JSON", func(t *testing.T) {
+		err := new(eacl.Target).UnmarshalJSON([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "syntax error")
 	})
 
-	t.Run("change", func(t *testing.T) {
-		var dst Target
-		target.CopyTo(&dst)
+	var tgt1, tgt2 eacl.Target
+	for i := range anyValidTargets {
+		b, err := anyValidTargets[i].MarshalJSON()
+		require.NoError(t, err, i)
+		require.NoError(t, tgt1.UnmarshalJSON(b), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+		require.Equal(t, anyValidTargets[i], tgt1, i)
 
-		require.Equal(t, target.role, dst.role)
-		dst.SetRole(2)
-		require.NotEqual(t, target.role, dst.role)
+		b, err = json.Marshal(anyValidTargets[i])
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(b, &tgt2), i)
+		require.Equal(t, anyValidTargets[i], tgt2, i)
+	}
+}
 
-		require.True(t, bytes.Equal(target.keys[0], dst.keys[0]))
-		// change some key data
-		dst.keys[0][0] = 5
-		require.False(t, bytes.Equal(target.keys[0], dst.keys[0]))
-	})
+func TestTarget_UnmarshalJSON(t *testing.T) {
+	var tgt1, tgt2 eacl.Target
+	for i := range anyValidJSONTargets {
+		require.NoError(t, tgt1.UnmarshalJSON([]byte(anyValidJSONTargets[i])), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+		require.Equal(t, anyValidTargets[i], tgt1, i)
+
+		require.NoError(t, json.Unmarshal([]byte(anyValidJSONTargets[i]), &tgt2), i)
+		require.Equal(t, anyValidTargets[i], tgt2, i)
+	}
+}
+
+func TestTarget_SetRole(t *testing.T) {
+	var tgt eacl.Target
+	require.Zero(t, tgt.Role())
+
+	tgt.SetRole(anyValidRole)
+	require.Equal(t, anyValidRole, tgt.Role())
+
+	otherRole := anyValidRole + 1
+	tgt.SetRole(otherRole)
+	require.Equal(t, otherRole, tgt.Role())
+}
+
+func TestTarget_SetBinaryKeys(t *testing.T) {
+	var tgt eacl.Target
+	require.Zero(t, tgt.BinaryKeys())
+
+	ks := make([][]byte, 3)
+	for i := range ks {
+		ks[i] = make([]byte, 33)
+		//nolint:staticcheck
+		rand.Read(ks[i])
+	}
+	tgt.SetBinaryKeys(ks)
+	require.Equal(t, ks, tgt.BinaryKeys())
+
+	otherKeys := make([][]byte, 3)
+	for i := range otherKeys {
+		otherKeys[i] = make([]byte, 33)
+		//nolint:staticcheck
+		rand.Read(otherKeys[i])
+	}
+	tgt.SetBinaryKeys(otherKeys)
+	require.Equal(t, otherKeys, tgt.BinaryKeys())
+}
+
+func TestTargetByRole(t *testing.T) {
+	tgt := eacl.NewTargetByRole(anyValidRole)
+	require.Equal(t, anyValidRole, tgt.Role())
+	require.Zero(t, tgt.Accounts())
+}
+
+func TestNewTargetByAccounts(t *testing.T) {
+	accs := usertest.IDs(5)
+	tgt := eacl.NewTargetByAccounts(accs)
+	require.Equal(t, accs, tgt.Accounts())
+	require.Zero(t, tgt.Role())
+}
+
+func randomScriptHashes(n int) []util.Uint160 {
+	hs := make([]util.Uint160, n)
+	for i := range hs {
+		//nolint:staticcheck
+		rand.Read(hs[i][:])
+	}
+	return hs
+}
+
+func assertUsersMatchScriptHashes(t testing.TB, usrs []user.ID, hs []util.Uint160) {
+	require.Len(t, usrs, len(hs))
+	for i := range usrs {
+		require.EqualValues(t, 0x35, usrs[i][0])
+		require.Equal(t, hs[i][:], usrs[i][1:21])
+		require.Equal(t, hash.Checksum(usrs[i][:21])[:4], usrs[i][21:])
+	}
+}
+
+func TestNewTargetByScriptHashes(t *testing.T) {
+	hs := randomScriptHashes(3)
+	tgt := eacl.NewTargetByScriptHashes(hs)
+	assertUsersMatchScriptHashes(t, tgt.Accounts(), hs)
+}
+
+func TestSetTargetAccounts(t *testing.T) {
+	hs := randomScriptHashes(3)
+	var tgt eacl.Target
+	eacl.SetTargetAccounts(&tgt, hs...)
+	assertUsersMatchScriptHashes(t, tgt.Accounts(), hs)
+}
+
+func TestSetTargetECDSAKeys(t *testing.T) {
+	var tgt eacl.Target
+	require.Zero(t, tgt.BinaryKeys())
+	eacl.SetTargetECDSAKeys(&tgt)
+	require.Zero(t, tgt.BinaryKeys())
+
+	eacl.SetTargetECDSAKeys(&tgt, anyECDSAPublicKeysPtr...)
+	require.Equal(t, anyValidECDSABinPublicKeys, tgt.BinaryKeys())
+}
+
+func TestTargetECDSAKeys(t *testing.T) {
+	var tgt eacl.Target
+	require.Empty(t, eacl.TargetECDSAKeys(&tgt))
+
+	tgt.SetBinaryKeys(anyValidECDSABinPublicKeys)
+	require.Equal(t, anyECDSAPublicKeysPtr, eacl.TargetECDSAKeys(&tgt))
+}
+
+func TestTarget_SetRawSubjects(t *testing.T) {
+	var tgt eacl.Target
+	require.Zero(t, tgt.RawSubjects())
+	require.Zero(t, tgt.Accounts())
+	require.Zero(t, tgt.BinaryKeys())
+
+	garbageSubjs := [][]byte{[]byte("foo"), []byte("bar")}
+	tgt.SetRawSubjects(garbageSubjs)
+	require.Equal(t, garbageSubjs, tgt.RawSubjects())
+	require.Zero(t, tgt.Accounts())
+	require.Zero(t, tgt.BinaryKeys())
+
+	subjs := [][]byte{
+		garbageSubjs[0],
+		make([]byte, 33),
+		nil,
+		garbageSubjs[1],
+		nil,
+		make([]byte, 33),
+	}
+	//nolint:staticcheck
+	rand.Read(subjs[1])
+	//nolint:staticcheck
+	rand.Read(subjs[5])
+	usrs := usertest.IDs(2)
+	subjs[2] = usrs[0][:]
+	subjs[4] = usrs[1][:]
+
+	tgt.SetRawSubjects(subjs)
+	require.Equal(t, subjs, tgt.RawSubjects())
+	require.Equal(t, usrs, tgt.Accounts())
+	require.Equal(t, [][]byte{subjs[1], subjs[5]}, tgt.BinaryKeys())
 }

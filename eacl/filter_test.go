@@ -1,117 +1,210 @@
-package eacl
+package eacl_test
 
 import (
-	"bytes"
+	"encoding/json"
+	"math/rand"
+	"strconv"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
-func newObjectFilter(match Match, key, val string) *Filter {
-	return &Filter{
-		from:    HeaderFromObject,
-		key:     key,
-		matcher: match,
-		value:   staticStringer(val),
-	}
-}
-
-func TestFilter(t *testing.T) {
-	filter := newObjectFilter(MatchStringEqual, "some name", "200")
-
-	v2 := filter.ToV2()
-	require.NotNil(t, v2)
-	require.Equal(t, v2acl.HeaderTypeObject, v2.GetHeaderType())
-	require.EqualValues(t, v2acl.MatchTypeStringEqual, v2.GetMatchType())
-	require.Equal(t, filter.Key(), v2.GetKey())
-	require.Equal(t, filter.Value(), v2.GetValue())
-
-	newFilter := NewFilterFromV2(v2)
-	require.Equal(t, filter, newFilter)
-
-	t.Run("from nil v2 filter", func(t *testing.T) {
-		require.Equal(t, new(Filter), NewFilterFromV2(nil))
-	})
-}
-
-func TestFilterEncoding(t *testing.T) {
-	f := newObjectFilter(MatchStringEqual, "key", "value")
-
-	t.Run("binary", func(t *testing.T) {
-		f2 := NewFilter()
-		require.NoError(t, f2.Unmarshal(f.Marshal()))
-
-		require.Equal(t, f, f2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := f.MarshalJSON()
-		require.NoError(t, err)
-
-		d2 := NewFilter()
-		require.NoError(t, d2.UnmarshalJSON(data))
-
-		require.Equal(t, f, d2)
-	})
-}
-
 func TestFilter_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Filter
-
-		require.Nil(t, x.ToV2())
-	})
+	require.Nil(t, (*eacl.Filter)(nil).ToV2())
+	key := "key_" + strconv.Itoa(rand.Int())
+	val := "val_" + strconv.Itoa(rand.Int())
+	r := eacl.ConstructFilter(anyValidHeaderType, key, anyValidMatcher, val)
+	m := r.ToV2()
+	require.EqualValues(t, anyValidHeaderType, m.GetHeaderType())
+	require.Equal(t, key, m.GetKey())
+	require.EqualValues(t, anyValidMatcher, m.GetMatchType())
+	require.Equal(t, val, m.GetValue())
 
 	t.Run("default values", func(t *testing.T) {
-		filter := NewFilter()
+		filter := eacl.NewFilter()
 
 		// check initial values
 		require.Empty(t, filter.Key())
 		require.Empty(t, filter.Value())
-		require.Equal(t, HeaderTypeUnknown, filter.From())
-		require.Equal(t, MatchUnknown, filter.Matcher())
+		require.Zero(t, filter.From())
+		require.Zero(t, filter.Matcher())
 
 		// convert to v2 message
 		filterV2 := filter.ToV2()
 
 		require.Empty(t, filterV2.GetKey())
 		require.Empty(t, filterV2.GetValue())
-		require.Equal(t, acl.HeaderTypeUnknown, filterV2.GetHeaderType())
-		require.Equal(t, acl.MatchTypeUnknown, filterV2.GetMatchType())
+		require.Zero(t, filterV2.GetHeaderType())
+		require.Zero(t, filterV2.GetMatchType())
 	})
 }
 
-func TestFilter_CopyTo(t *testing.T) {
-	var filter Filter
-	filter.value = staticStringer("value")
-	filter.from = 1
-	filter.matcher = 1
-	filter.key = "1"
+func TestNewFilterFromV2(t *testing.T) {
+	typ := protoacl.HeaderType(rand.Uint32())
+	key := "key_" + strconv.Itoa(rand.Int())
+	op := protoacl.MatchType(rand.Uint32())
+	val := "val_" + strconv.Itoa(rand.Int())
+	var m protoacl.HeaderFilter
+	m.SetHeaderType(typ)
+	m.SetKey(key)
+	m.SetMatchType(op)
+	m.SetValue(val)
 
-	var dst Filter
-	t.Run("copy", func(t *testing.T) {
-		filter.CopyTo(&dst)
+	f := eacl.NewFilterFromV2(&m)
+	require.EqualValues(t, typ, f.From())
+	require.Equal(t, key, f.Key())
+	require.EqualValues(t, op, f.Matcher())
+	require.Equal(t, val, f.Value())
 
-		require.Equal(t, filter, dst)
-		require.True(t, bytes.Equal(filter.Marshal(), dst.Marshal()))
+	t.Run("nil", func(t *testing.T) {
+		require.Equal(t, new(eacl.Filter), eacl.NewFilterFromV2(nil))
+	})
+}
+
+func TestFilter_Marshal(t *testing.T) {
+	for i := range anyValidFilters {
+		require.Equal(t, anyValidBinFilters[i], anyValidFilters[i].Marshal(), i)
+	}
+}
+
+func TestFilter_Unmarshal(t *testing.T) {
+	t.Run("invalid protobuf", func(t *testing.T) {
+		err := new(eacl.Filter).Unmarshal([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 	})
 
-	t.Run("change", func(t *testing.T) {
-		require.Equal(t, filter.value, dst.value)
-		require.Equal(t, filter.from, dst.from)
-		require.Equal(t, filter.matcher, dst.matcher)
-		require.Equal(t, filter.key, dst.key)
+	var f eacl.Filter
+	for i := range anyValidBinFilters {
+		require.NoError(t, f.Unmarshal(anyValidBinFilters[i]), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+		require.EqualValues(t, anyValidFilters[i], f, i)
+	}
+}
 
-		dst.value = staticStringer("value2")
-		dst.from = 2
-		dst.matcher = 2
-		dst.key = "2"
-
-		require.NotEqual(t, filter.value, dst.value)
-		require.NotEqual(t, filter.from, dst.from)
-		require.NotEqual(t, filter.matcher, dst.matcher)
-		require.NotEqual(t, filter.key, dst.key)
+func TestFilter_MarshalJSON(t *testing.T) {
+	t.Run("invalid JSON", func(t *testing.T) {
+		err := new(eacl.Filter).UnmarshalJSON([]byte("Hello, world!"))
+		require.ErrorContains(t, err, "proto")
+		require.ErrorContains(t, err, "syntax error")
 	})
+
+	var f1, f2 eacl.Filter
+	for i := range anyValidFilters {
+		b, err := anyValidFilters[i].MarshalJSON()
+		require.NoError(t, err, i)
+		require.NoError(t, f1.UnmarshalJSON(b), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+		require.Equal(t, anyValidFilters[i], f1, i)
+
+		b, err = json.Marshal(anyValidFilters[i])
+		require.NoError(t, err)
+		require.NoError(t, json.Unmarshal(b, &f2), i)
+		require.Equal(t, anyValidFilters[i], f2, i)
+	}
+}
+
+func TestFilter_UnmarshalJSON(t *testing.T) {
+	var f1, f2 eacl.Filter
+	for i := range anyValidJSONFilters {
+		require.NoError(t, f1.UnmarshalJSON([]byte(anyValidJSONFilters[i])), i)
+		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+		require.Equal(t, anyValidFilters[i], f1, i)
+
+		require.NoError(t, json.Unmarshal([]byte(anyValidJSONFilters[i]), &f2), i)
+		require.Equal(t, anyValidFilters[i], f2, i)
+	}
+}
+
+func TestConstructFilter(t *testing.T) {
+	k := "Hello"
+	v := "World"
+	f := eacl.ConstructFilter(anyValidHeaderType, k, anyValidMatcher, v)
+	require.Equal(t, anyValidHeaderType, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, anyValidMatcher, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestNewObjectPropertyFilter(t *testing.T) {
+	k := "Hello"
+	v := "World"
+	f := eacl.NewObjectPropertyFilter(k, anyValidMatcher, v)
+	require.Equal(t, eacl.HeaderFromObject, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, anyValidMatcher, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestNewRequestHeaderFilter(t *testing.T) {
+	k := "Hello"
+	v := "World"
+	f := eacl.NewRequestHeaderFilter(k, anyValidMatcher, v)
+	require.Equal(t, eacl.HeaderFromRequest, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, anyValidMatcher, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestNewCustomServiceFilter(t *testing.T) {
+	k := "Hello"
+	v := "World"
+	f := eacl.NewCustomServiceFilter(k, anyValidMatcher, v)
+	require.Equal(t, eacl.HeaderFromService, f.From())
+	require.Equal(t, k, f.Key())
+	require.Equal(t, anyValidMatcher, f.Matcher())
+	require.Equal(t, v, f.Value())
+}
+
+func TestFilterSingleObject(t *testing.T) {
+	obj := oid.ID{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 60, 89, 33, 95, 46, 103,
+		217, 57, 164, 87, 82, 204, 251, 226, 1, 100, 32, 72, 251, 0, 7, 172}
+	f := eacl.NewFilterObjectWithID(obj)
+	require.Equal(t, eacl.HeaderFromObject, f.From())
+	require.Equal(t, "$Object:objectID", f.Key())
+	require.Equal(t, eacl.MatchStringEqual, f.Matcher())
+	require.Equal(t, "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF", f.Value())
+}
+
+func TestFilterObjectsFromContainer(t *testing.T) {
+	cnr := cid.ID{231, 189, 121, 7, 173, 134, 254, 165, 63, 186, 60, 89, 33, 95, 46, 103,
+		217, 57, 164, 87, 82, 204, 251, 226, 1, 100, 32, 72, 251, 0, 7, 172}
+	f := eacl.NewFilterObjectsFromContainer(cnr)
+	require.Equal(t, eacl.HeaderFromObject, f.From())
+	require.Equal(t, "$Object:containerID", f.Key())
+	require.Equal(t, eacl.MatchStringEqual, f.Matcher())
+	require.Equal(t, "GbckSBPEdM2P41Gkb9cVapFYb5HmRPDTZZp9JExGnsCF", f.Value())
+}
+
+func TestFilterObjectOwnerEquals(t *testing.T) {
+	owner := user.ID{53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57,
+		160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92}
+	f := eacl.NewFilterObjectOwnerEquals(owner)
+	require.Equal(t, eacl.HeaderFromObject, f.From())
+	require.Equal(t, "$Object:ownerID", f.Key())
+	require.Equal(t, eacl.MatchStringEqual, f.Matcher())
+	require.Equal(t, "NQZkR7mG74rJsGAHnpkiFeU9c4f5VLN54f", f.Value())
+}
+
+func TestFilterObjectCreationEpochIs(t *testing.T) {
+	const epoch = 657984300249
+	f := eacl.NewFilterObjectCreationEpochIs(anyValidMatcher, epoch)
+	require.Equal(t, eacl.HeaderFromObject, f.From())
+	require.Equal(t, "$Object:creationEpoch", f.Key())
+	require.Equal(t, anyValidMatcher, f.Matcher())
+	require.Equal(t, "657984300249", f.Value())
+}
+
+func TestFilterObjectPayloadSizeIs(t *testing.T) {
+	const sz = 4326750843582
+	f := eacl.NewFilterObjectPayloadSizeIs(anyValidMatcher, sz)
+	require.Equal(t, eacl.HeaderFromObject, f.From())
+	require.Equal(t, "$Object:payloadLength", f.Key())
+	require.Equal(t, anyValidMatcher, f.Matcher())
+	require.Equal(t, "4326750843582", f.Value())
 }

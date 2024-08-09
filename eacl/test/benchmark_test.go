@@ -7,7 +7,6 @@ import (
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
 )
 
@@ -27,7 +26,7 @@ func baseBenchmarkTableBinaryComparison(b *testing.B, factor int) {
 
 func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	t := TableN(factor)
-	t2 := eacl.NewTable()
+	var t2 eacl.Table
 	err := t2.Unmarshal(t.Marshal())
 	require.NoError(b, err)
 
@@ -35,7 +34,7 @@ func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	b.ResetTimer()
 	b.StartTimer()
 	for i := 0; i < b.N; i++ {
-		if !eacl.EqualTables(*t, *t2) {
+		if !eacl.EqualTables(*t, t2) {
 			b.Fail()
 		}
 	}
@@ -67,7 +66,7 @@ func BenchmarkTableEqualsComparison100(b *testing.B) {
 
 // Target returns random eacl.Target.
 func TargetN(n int) *eacl.Target {
-	x := eacl.NewTarget()
+	var x eacl.Target
 
 	x.SetRole(eacl.RoleSystem)
 	keys := make([][]byte, n)
@@ -80,34 +79,25 @@ func TargetN(n int) *eacl.Target {
 
 	x.SetBinaryKeys(keys)
 
-	return x
+	return &x
 }
 
 // Record returns random eacl.Record.
 func RecordN(n int) *eacl.Record {
-	x := eacl.NewRecord()
-
-	x.SetAction(eacl.ActionAllow)
-	x.SetOperation(eacl.OperationRangeHash)
-	x.SetTargets(*TargetN(n))
-
+	fs := make([]eacl.Filter, n)
 	for i := 0; i < n; i++ {
-		x.AddFilter(eacl.HeaderFromObject, eacl.MatchStringEqual, "", cidtest.ID().EncodeToString())
+		fs[i] = eacl.ConstructFilter(eacl.HeaderFromObject, "", eacl.MatchStringEqual, cidtest.ID().EncodeToString())
 	}
 
-	return x
+	x := eacl.ConstructRecord(eacl.ActionAllow, eacl.OperationRangeHash, []eacl.Target{*TargetN(n)}, fs...)
+	return &x
 }
 
 func TableN(n int) *eacl.Table {
-	x := eacl.NewTable()
-
-	x.SetCID(cidtest.ID())
-
+	rs := make([]eacl.Record, n)
 	for i := 0; i < n; i++ {
-		x.AddRecord(RecordN(n))
+		rs[i] = *RecordN(n)
 	}
-
-	x.SetVersion(versiontest.Version())
-
-	return x
+	x := eacl.NewTableForContainer(cidtest.ID(), rs)
+	return &x
 }

@@ -1,6 +1,7 @@
 package eacl
 
 import (
+	"bytes"
 	"fmt"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -12,10 +13,39 @@ import (
 // Table is a group of ContainerEACL records for single container.
 //
 // Table is compatible with v2 acl.EACLTable message.
+//
+// Table should be created using one of the constructors.
 type Table struct {
 	version version.Version
 	cid     cid.ID
 	records []Record
+}
+
+// ConstructTable constructs new Table with given records. Use
+// [NewTableForContainer] to limit the NeoFS container. The rs must not be
+// empty.
+func ConstructTable(rs []Record) Table {
+	return Table{version: version.Current(), records: rs}
+}
+
+// NewTableForContainer constructs new Table with given records which apply only
+// to the specified NeoFS container. The rs must not be empty.
+func NewTableForContainer(cnr cid.ID, rs []Record) Table {
+	t := ConstructTable(rs)
+	t.SetCID(cnr)
+	return t
+}
+
+// Unmarshal creates new Table and makes [Table.Unmarshal].
+func Unmarshal(b []byte) (Table, error) {
+	var t Table
+	return t, t.Unmarshal(b)
+}
+
+// UnmarshalJSON creates new Table and makes [Table.UnmarshalJSON].
+func UnmarshalJSON(b []byte) (Table, error) {
+	var t Table
+	return t, t.UnmarshalJSON(b)
 }
 
 // CopyTo writes deep copy of the [Table] to dst.
@@ -62,7 +92,16 @@ func (t Table) Records() []Record {
 	return t.records
 }
 
+// SetRecords sets list of extended ACL rules.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+func (t *Table) SetRecords(rs []Record) {
+	t.records = rs
+}
+
 // AddRecord adds single eACL rule.
+// Deprecated: use [Table.SetRecords] instead.
 func (t *Table) AddRecord(r *Record) {
 	if r != nil {
 		t.records = append(t.records, *r)
@@ -101,7 +140,9 @@ func (t *Table) ReadFromV2(m v2acl.Table) error {
 	t.records = make([]Record, len(v2records))
 
 	for i := range v2records {
-		t.records[i] = *NewRecordFromV2(&v2records[i])
+		if err := t.records[i].fromProtoMessage(&v2records[i]); err != nil {
+			return fmt.Errorf("invalid record #%d: %w", i, err)
+		}
 	}
 
 	return nil
@@ -112,11 +153,7 @@ func (t *Table) ReadFromV2(m v2acl.Table) error {
 // Nil Table converts to nil.
 //
 // See also [Table.ReadFromV2].
-func (t *Table) ToV2() *v2acl.Table {
-	if t == nil {
-		return nil
-	}
-
+func (t Table) ToV2() *v2acl.Table {
 	v2 := new(v2acl.Table)
 	var cidV2 refs.ContainerID
 
@@ -128,7 +165,7 @@ func (t *Table) ToV2() *v2acl.Table {
 	if t.records != nil {
 		records := make([]v2acl.Record, len(t.records))
 		for i := range t.records {
-			records[i] = *t.records[i].ToV2()
+			records[i] = *t.records[i].toProtoMessage()
 		}
 
 		v2.SetRecords(records)
@@ -149,19 +186,18 @@ func (t *Table) ToV2() *v2acl.Table {
 //   - records: nil;
 //   - session token: nil;
 //   - signature: nil.
+//
+// Deprecated: use [ConstructTable] instead.
 func NewTable() *Table {
-	t := new(Table)
-	t.SetVersion(version.Current())
-
-	return t
+	t := ConstructTable(nil)
+	return &t
 }
 
 // CreateTable creates, initializes with parameters and returns Table instance.
+// Deprecated: use [NewTableForContainer] instead.
 func CreateTable(cid cid.ID) *Table {
-	t := NewTable()
-	t.SetCID(cid)
-
-	return t
+	t := NewTableForContainer(cid, nil)
+	return &t
 }
 
 // NewTableFromV2 converts v2 acl.EACLTable message to Table.
@@ -194,14 +230,14 @@ func NewTableFromV2(table *v2acl.Table) *Table {
 	t.records = make([]Record, len(v2records))
 
 	for i := range v2records {
-		t.records[i] = *NewRecordFromV2(&v2records[i])
+		_ = t.records[i].fromProtoMessage(&v2records[i])
 	}
 
 	return t
 }
 
 // Marshal marshals Table into a protobuf binary form.
-func (t *Table) Marshal() []byte {
+func (t Table) Marshal() []byte {
 	return t.ToV2().StableMarshal(nil)
 }
 
@@ -212,7 +248,8 @@ func (t Table) SignedData() []byte {
 	return t.Marshal()
 }
 
-// Unmarshal unmarshals protobuf binary representation of Table.
+// Unmarshal unmarshals protobuf binary representation of Table. Use [Unmarshal]
+// to decode data into a new Table.
 func (t *Table) Unmarshal(data []byte) error {
 	var m v2acl.Table
 	if err := m.Unmarshal(data); err != nil {
@@ -222,11 +259,12 @@ func (t *Table) Unmarshal(data []byte) error {
 }
 
 // MarshalJSON encodes Table to protobuf JSON format.
-func (t *Table) MarshalJSON() ([]byte, error) {
+func (t Table) MarshalJSON() ([]byte, error) {
 	return t.ToV2().MarshalJSON()
 }
 
-// UnmarshalJSON decodes Table from protobuf JSON format.
+// UnmarshalJSON decodes Table from protobuf JSON format. Use [UnmarshalJSON] to
+// decode data into a new Table.
 func (t *Table) UnmarshalJSON(data []byte) error {
 	var m v2acl.Table
 	if err := m.UnmarshalJSON(data); err != nil {
@@ -236,23 +274,5 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 }
 
 // EqualTables compares Table with each other.
-func EqualTables(t1, t2 Table) bool {
-	if t1.GetCID() != t2.GetCID() ||
-		!t1.Version().Equal(t2.Version()) {
-		return false
-	}
-
-	rs1, rs2 := t1.Records(), t2.Records()
-
-	if len(rs1) != len(rs2) {
-		return false
-	}
-
-	for i := 0; i < len(rs1); i++ {
-		if !equalRecords(rs1[i], rs2[i]) {
-			return false
-		}
-	}
-
-	return true
-}
+// Deprecated: compare [Table.Marshal] instead.
+func EqualTables(t1, t2 Table) bool { return bytes.Equal(t1.Marshal(), t2.Marshal()) }

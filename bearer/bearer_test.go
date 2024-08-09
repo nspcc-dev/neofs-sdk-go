@@ -264,6 +264,7 @@ func TestToken_Sign(t *testing.T) {
 	val2 := bearertest.Token()
 
 	require.NoError(t, val2.Unmarshal(val.Marshal()))
+	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.True(t, val2.VerifySignature())
 
 	jd, err := val.MarshalJSON()

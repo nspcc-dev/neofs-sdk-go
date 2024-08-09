@@ -4,12 +4,16 @@ import (
 	"strconv"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-// Filter defines check conditions if request header is matched or not. Matched
-// header means that request should be processed according to ContainerEACL action.
+// Filter describes a binary property of an access-controlled NeoFS resource
+// according to meta information about it. The meta information is represented
+// by a set of key-value attributes of various types.
 //
-// Filter is compatible with v2 acl.EACLRecord.Filter message.
+// Filter should be created using one of the constructors.
 type Filter struct {
 	from    FilterHeaderType
 	matcher Match
@@ -17,29 +21,76 @@ type Filter struct {
 	value   stringEncoder
 }
 
-type staticStringer string
+func uint64Value(e uint64) string { return strconv.FormatUint(e, 10) }
 
-type u64Stringer uint64
+// ConstructFilter constructs new Filter instance.
+func ConstructFilter(h FilterHeaderType, k string, m Match, v string) Filter {
+	return Filter{from: h, matcher: m, key: k, value: staticStringer(v)}
+}
+
+// NewObjectPropertyFilter constructs new Filter for the object property.
+func NewObjectPropertyFilter(k string, m Match, v string) Filter {
+	return ConstructFilter(HeaderFromObject, k, m, v)
+}
+
+// NewFilterObjectWithID constructs Filter that limits the access rule to the
+// referenced object only.
+func NewFilterObjectWithID(obj oid.ID) Filter {
+	return NewObjectPropertyFilter(FilterObjectID, MatchStringEqual, obj.EncodeToString())
+}
+
+// NewFilterObjectsFromContainer constructs Filter that limits the access rule to
+// objects from the referenced container only.
+func NewFilterObjectsFromContainer(cnr cid.ID) Filter {
+	return NewObjectPropertyFilter(FilterObjectContainerID, MatchStringEqual, cnr.EncodeToString())
+}
+
+// NewFilterObjectOwnerEquals constructs Filter that limits the access rule to
+// objects owner by the given user only.
+func NewFilterObjectOwnerEquals(usr user.ID) Filter {
+	return NewObjectPropertyFilter(FilterObjectOwnerID, MatchStringEqual, usr.EncodeToString())
+}
+
+// NewFilterObjectCreationEpochIs constructs Filter that limits the access rule to
+// objects with matching creation epoch only.
+func NewFilterObjectCreationEpochIs(m Match, e uint64) Filter {
+	return NewObjectPropertyFilter(FilterObjectCreationEpoch, m, uint64Value(e))
+}
+
+// NewFilterObjectPayloadSizeIs constructs Filter that limits the access rule to
+// objects with matching payload size only.
+func NewFilterObjectPayloadSizeIs(m Match, e uint64) Filter {
+	return NewObjectPropertyFilter(FilterObjectPayloadSize, m, uint64Value(e))
+}
+
+// NewRequestHeaderFilter constructs new Filter for the request X-header.
+func NewRequestHeaderFilter(k string, m Match, v string) Filter {
+	return ConstructFilter(HeaderFromRequest, k, m, v)
+}
+
+// NewCustomServiceFilter constructs new Filter for the custom app-level
+// property.
+func NewCustomServiceFilter(k string, m Match, v string) Filter {
+	return ConstructFilter(HeaderFromService, k, m, v)
+}
+
+type staticStringer string
 
 // Various keys to object filters.
 const (
-	FilterObjectVersion                    = v2acl.FilterObjectVersion
-	FilterObjectID                         = v2acl.FilterObjectID
-	FilterObjectContainerID                = v2acl.FilterObjectContainerID
-	FilterObjectOwnerID                    = v2acl.FilterObjectOwnerID
-	FilterObjectCreationEpoch              = v2acl.FilterObjectCreationEpoch
-	FilterObjectPayloadSize                = v2acl.FilterObjectPayloadLength
-	FilterObjectPayloadChecksum            = v2acl.FilterObjectPayloadHash
-	FilterObjectType                       = v2acl.FilterObjectType
-	FilterObjectPayloadHomomorphicChecksum = v2acl.FilterObjectHomomorphicHash
+	FilterObjectVersion                    = "$Object:version"
+	FilterObjectID                         = "$Object:objectID"
+	FilterObjectContainerID                = "$Object:containerID"
+	FilterObjectOwnerID                    = "$Object:ownerID"
+	FilterObjectCreationEpoch              = "$Object:creationEpoch"
+	FilterObjectPayloadSize                = "$Object:payloadLength"
+	FilterObjectPayloadChecksum            = "$Object:payloadHash"
+	FilterObjectType                       = "$Object:objectType"
+	FilterObjectPayloadHomomorphicChecksum = "$Object:homomorphicHash"
 )
 
 func (s staticStringer) EncodeToString() string {
 	return string(s)
-}
-
-func (u u64Stringer) EncodeToString() string {
-	return strconv.FormatUint(uint64(u), 10)
 }
 
 // CopyTo writes deep copy of the [Filter] to dst.
@@ -50,22 +101,22 @@ func (f Filter) CopyTo(dst *Filter) {
 	dst.value = f.value
 }
 
-// Value returns filtered string value.
+// Value returns value of the access-controlled resource's attribute to match.
 func (f Filter) Value() string {
 	return f.value.EncodeToString()
 }
 
-// Matcher returns filter Match type.
+// Matcher returns operator to match the attribute.
 func (f Filter) Matcher() Match {
 	return f.matcher
 }
 
-// Key returns key to the filtered header.
+// Key returns key to the access-controlled resource's attribute to match.
 func (f Filter) Key() string {
 	return f.key
 }
 
-// From returns FilterHeaderType that defined which header will be filtered.
+// From returns type of access-controlled resource's attribute to match.
 func (f Filter) From() FilterHeaderType {
 	return f.from
 }
@@ -73,32 +124,47 @@ func (f Filter) From() FilterHeaderType {
 // ToV2 converts Filter to v2 acl.EACLRecord.Filter message.
 //
 // Nil Filter converts to nil.
+// Deprecated: do not use it.
 func (f *Filter) ToV2() *v2acl.HeaderFilter {
-	if f == nil {
-		return nil
+	if f != nil {
+		return f.toProtoMessage()
 	}
+	return nil
+}
 
+func (f Filter) toProtoMessage() *v2acl.HeaderFilter {
 	filter := new(v2acl.HeaderFilter)
 	filter.SetValue(f.value.EncodeToString())
 	filter.SetKey(f.key)
-	filter.SetMatchType(f.matcher.ToV2())
-	filter.SetHeaderType(f.from.ToV2())
-
+	filter.SetMatchType(v2acl.MatchType(f.matcher))
+	filter.SetHeaderType(v2acl.HeaderType(f.from))
 	return filter
+}
+
+func (f *Filter) fromProtoMessage(m *v2acl.HeaderFilter) error {
+	f.from = FilterHeaderType(m.GetHeaderType())
+	f.matcher = Match(m.GetMatchType())
+	f.key = m.GetKey()
+	f.value = staticStringer(m.GetValue())
+	return nil
 }
 
 // NewFilter creates, initializes and returns blank Filter instance.
 //
 // Defaults:
-//   - header type: HeaderTypeUnknown;
-//   - matcher: MatchUnknown;
+//   - header type: HeaderTypeUnspecified;
+//   - matcher: MatchUnspecified;
 //   - key: "";
 //   - value: "".
+//
+// Deprecated: use [ConstructFilter] instead.
 func NewFilter() *Filter {
-	return NewFilterFromV2(new(v2acl.HeaderFilter))
+	f := ConstructFilter(0, "", 0, "")
+	return &f
 }
 
 // NewFilterFromV2 converts v2 acl.EACLRecord.Filter message to Filter.
+// Deprecated: do not use it.
 func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 	f := new(Filter)
 
@@ -106,52 +172,34 @@ func NewFilterFromV2(filter *v2acl.HeaderFilter) *Filter {
 		return f
 	}
 
-	f.from = FilterHeaderTypeFromV2(filter.GetHeaderType())
-	f.matcher = MatchFromV2(filter.GetMatchType())
-	f.key = filter.GetKey()
-	f.value = staticStringer(filter.GetValue())
-
+	_ = f.fromProtoMessage(filter)
 	return f
 }
 
 // Marshal marshals Filter into a protobuf binary form.
-func (f *Filter) Marshal() []byte {
-	return f.ToV2().StableMarshal(nil)
+func (f Filter) Marshal() []byte {
+	return f.toProtoMessage().StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of Filter.
 func (f *Filter) Unmarshal(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.Unmarshal(data); err != nil {
+	m := new(v2acl.HeaderFilter)
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
+	return f.fromProtoMessage(m)
 }
 
 // MarshalJSON encodes Filter to protobuf JSON format.
-func (f *Filter) MarshalJSON() ([]byte, error) {
-	return f.ToV2().MarshalJSON()
+func (f Filter) MarshalJSON() ([]byte, error) {
+	return f.toProtoMessage().MarshalJSON()
 }
 
 // UnmarshalJSON decodes Filter from protobuf JSON format.
 func (f *Filter) UnmarshalJSON(data []byte) error {
-	fV2 := new(v2acl.HeaderFilter)
-	if err := fV2.UnmarshalJSON(data); err != nil {
+	m := new(v2acl.HeaderFilter)
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	*f = *NewFilterFromV2(fV2)
-
-	return nil
-}
-
-// equalFilters compares Filter with each other.
-func equalFilters(f1, f2 Filter) bool {
-	return f1.From() == f2.From() &&
-		f1.Matcher() == f2.Matcher() &&
-		f1.Key() == f2.Key() &&
-		f1.Value() == f2.Value()
+	return f.fromProtoMessage(m)
 }

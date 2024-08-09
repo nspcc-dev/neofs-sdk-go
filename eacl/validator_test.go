@@ -35,15 +35,15 @@ func TestFilterMatch(t *testing.T) {
 	t.Run("simple header match", func(t *testing.T) {
 		tb := NewTable()
 
-		r := newRecord(ActionDeny, OperationUnknown, tgt)
+		r := newRecord(ActionDeny, OperationUnspecified, tgt)
 		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
 		tb.AddRecord(r)
 
-		r = newRecord(ActionDeny, OperationUnknown, tgt)
+		r = newRecord(ActionDeny, OperationUnspecified, tgt)
 		r.AddFilter(HeaderFromRequest, MatchStringNotEqual, "b", "yyy")
 		tb.AddRecord(r)
 
-		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
+		tb.AddRecord(newRecord(ActionAllow, OperationUnspecified, tgt))
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -68,11 +68,11 @@ func TestFilterMatch(t *testing.T) {
 
 	t.Run("all filters must match", func(t *testing.T) {
 		tb := NewTable()
-		r := newRecord(ActionDeny, OperationUnknown, tgt)
+		r := newRecord(ActionDeny, OperationUnspecified, tgt)
 		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
 		r.AddFilter(HeaderFromRequest, MatchStringEqual, "b", "yyy")
 		tb.AddRecord(r)
-		tb.AddRecord(newRecord(ActionAllow, OperationUnknown, tgt))
+		tb.AddRecord(newRecord(ActionAllow, OperationUnspecified, tgt))
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -91,15 +91,15 @@ func TestFilterMatch(t *testing.T) {
 
 	t.Run("filters with unknown type are skipped", func(t *testing.T) {
 		tb := NewTable()
-		r := newRecord(ActionDeny, OperationUnknown, tgt)
-		r.AddFilter(HeaderTypeUnknown, MatchStringEqual, "a", "xxx")
+		r := newRecord(ActionDeny, OperationUnspecified, tgt)
+		r.AddFilter(HeaderTypeUnspecified, MatchStringEqual, "a", "xxx")
 		tb.AddRecord(r)
 
-		r = newRecord(ActionDeny, OperationUnknown, tgt)
+		r = newRecord(ActionDeny, OperationUnspecified, tgt)
 		r.AddFilter(0xFF, MatchStringEqual, "b", "yyy")
 		tb.AddRecord(r)
 
-		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+		tb.AddRecord(newRecord(ActionDeny, OperationUnspecified, tgt))
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -118,10 +118,10 @@ func TestFilterMatch(t *testing.T) {
 
 	t.Run("filters with match function are skipped", func(t *testing.T) {
 		tb := NewTable()
-		r := newRecord(ActionAllow, OperationUnknown, tgt)
+		r := newRecord(ActionAllow, OperationUnspecified, tgt)
 		r.AddFilter(HeaderFromObject, 0xFF, "a", "xxx")
 		tb.AddRecord(r)
-		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+		tb.AddRecord(newRecord(ActionDeny, OperationUnspecified, tgt))
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -156,7 +156,7 @@ func TestOperationMatch(t *testing.T) {
 
 	t.Run("unknown operation", func(t *testing.T) {
 		tb := NewTable()
-		tb.AddRecord(newRecord(ActionDeny, OperationUnknown, tgt))
+		tb.AddRecord(newRecord(ActionDeny, OperationUnspecified, tgt))
 		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
 
 		v := NewValidator()
@@ -192,7 +192,7 @@ func TestTargetMatches(t *testing.T) {
 		u = newValidationUnit(RoleUser, pubs[2], nil)
 		require.False(t, targetMatches(u, r))
 
-		u = newValidationUnit(RoleUnknown, pubs[1], nil)
+		u = newValidationUnit(RoleUnspecified, pubs[1], nil)
 		require.True(t, targetMatches(u, r))
 
 		u = newValidationUnit(RoleOthers, pubs[2], nil)

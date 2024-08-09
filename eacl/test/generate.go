@@ -1,48 +1,64 @@
 package eacltest
 
 import (
+	"math/rand"
+	"strconv"
+
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
-	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 )
 
 // Target returns random eacl.Target.
 func Target() eacl.Target {
-	x := eacl.NewTarget()
+	if rand.Int()%2 == 0 {
+		return eacl.NewTargetByRole(eacl.Role(rand.Uint32()))
+	}
+	return eacl.NewTargetByAccounts(usertest.IDs(1 + rand.Intn(10)))
+}
 
-	x.SetRole(eacl.RoleSystem)
-	x.SetBinaryKeys([][]byte{
-		{1, 2, 3},
-		{4, 5, 6},
-	})
+// Targets returns n random eacl.Target instances.
+func Targets(n int) []eacl.Target {
+	res := make([]eacl.Target, n)
+	for i := range res {
+		res[i] = Target()
+	}
+	return res
+}
 
-	return *x
+// Filter returns random eacl.Filter.
+func Filter() eacl.Filter {
+	si := strconv.Itoa(rand.Int())
+	return eacl.ConstructFilter(eacl.FilterHeaderType(rand.Uint32()), "key_"+si, eacl.Match(rand.Uint32()), "val_"+si)
+}
+
+// Filters returns n random eacl.Filter instances.
+func Filters(n int) []eacl.Filter {
+	res := make([]eacl.Filter, n)
+	for i := range res {
+		res[i] = Filter()
+	}
+	return res
 }
 
 // Record returns random eacl.Record.
 func Record() eacl.Record {
-	x := eacl.NewRecord()
-
-	x.SetAction(eacl.ActionAllow)
-	x.SetOperation(eacl.OperationRangeHash)
-	x.SetTargets(Target(), Target())
-	x.AddObjectContainerIDFilter(eacl.MatchStringEqual, cidtest.ID())
-	usr := usertest.ID()
-	x.AddObjectOwnerIDFilter(eacl.MatchStringNotEqual, &usr)
-
-	return *x
+	tn := 1 + rand.Intn(10)
+	fn := 1 + rand.Intn(10)
+	return eacl.ConstructRecord(eacl.Action(rand.Uint32()), eacl.Operation(rand.Uint32()), Targets(tn), Filters(fn)...)
 }
 
+// Records returns n random eacl.Record instances.
+func Records(n int) []eacl.Record {
+	res := make([]eacl.Record, n)
+	for i := range res {
+		res[i] = Record()
+	}
+	return res
+}
+
+// Table returns random eacl.Table.
 func Table() eacl.Table {
-	x := eacl.NewTable()
-
-	x.SetCID(cidtest.ID())
-	r1 := Record()
-	x.AddRecord(&r1)
-	r2 := Record()
-	x.AddRecord(&r2)
-	x.SetVersion(versiontest.Version())
-
-	return *x
+	n := 1 + rand.Intn(10)
+	return eacl.NewTableForContainer(cidtest.ID(), Records(n))
 }
