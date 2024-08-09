@@ -39,12 +39,15 @@ type context struct {
 
 // Various validation errors.
 var (
+	// ErrNotEnoughNodes is returned when a placement policy cannot be satisfied
+	// due to low numbers of nodes in selected network map.
+	ErrNotEnoughNodes = errors.New("not enough nodes to SELECT from")
+
 	errInvalidFilterName = errors.New("filter name is invalid")
 	errInvalidNumber     = errors.New("invalid number")
 	errInvalidFilterOp   = errors.New("invalid filter operation")
 	errFilterNotFound    = errors.New("filter not found")
 	errNonEmptyFilters   = errors.New("simple filter contains sub-filters")
-	errNotEnoughNodes    = errors.New("not enough nodes to SELECT from")
 	errUnnamedTopFilter  = errors.New("unnamed top-level filter")
 )
 

@@ -176,6 +176,9 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
+//
+// Returns ErrNotEnoughNodes if placement policy cannot be satisfied in the
+// current network map because of a lack of container nodes.
 func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeInfo, error) {
 	c := newContext(m)
 	c.setCBF(p.backupFactor)

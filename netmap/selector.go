@@ -61,7 +61,7 @@ func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, e
 	buckets := c.getSelectionBase(s)
 
 	if len(buckets) < bucketCount {
-		return nil, fmt.Errorf("%w: '%s'", errNotEnoughNodes, s.GetName())
+		return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.GetName())
 	}
 
 	// We need deterministic output in case there is no pivot.
@@ -97,7 +97,7 @@ func (c *context) getSelection(_ PlacementPolicy, s netmap.Selector) ([]nodes, e
 		// Fallback to using minimum allowed backup factor (1).
 		res = append(res, fallback...)
 		if len(res) < bucketCount {
-			return nil, fmt.Errorf("%w: '%s'", errNotEnoughNodes, s.GetName())
+			return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.GetName())
 		}
 	}
 
