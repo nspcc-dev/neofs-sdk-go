@@ -3,6 +3,7 @@ package eacl
 import (
 	"crypto/ecdsa"
 	"fmt"
+	"slices"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -36,9 +37,7 @@ func ConstructRecord(a Action, op Operation, ts []Target, fs ...Filter) Record {
 func (r Record) CopyTo(dst *Record) {
 	dst.action = r.action
 	dst.operation = r.operation
-
-	dst.filters = make([]Filter, len(r.filters))
-	copy(dst.filters, r.filters)
+	dst.filters = slices.Clone(r.filters)
 
 	dst.targets = make([]Target, len(r.targets))
 	for i, t := range r.targets {

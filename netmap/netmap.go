@@ -2,6 +2,7 @@ package netmap
 
 import (
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/hrw/v2"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
@@ -148,8 +149,7 @@ func flattenNodes(ns []nodes) nodes {
 // object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
-	pivot := make([]byte, oid.Size)
-	copy(pivot, objectID[:])
+	pivot := slices.Clone(objectID[:])
 	objectID.Encode(pivot)
 
 	h := hrw.WrapBytes(pivot)
@@ -157,8 +157,7 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 	result := make([][]NodeInfo, len(vectors))
 
 	for i := range vectors {
-		result[i] = make([]NodeInfo, len(vectors[i]))
-		copy(result[i], vectors[i])
+		result[i] = slices.Clone(vectors[i])
 		hrw.SortWeighted(result[i], nodes(result[i]).weights(wf), h)
 	}
 
@@ -183,8 +182,7 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 	c := newContext(m)
 	c.setCBF(p.backupFactor)
 
-	pivot := make([]byte, cid.Size)
-	copy(pivot, containerID[:])
+	pivot := slices.Clone(containerID[:])
 	c.setPivot(pivot)
 
 	if err := c.processFilters(p); err != nil {

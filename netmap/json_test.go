@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -69,8 +70,7 @@ func TestPlacementPolicy_Interopability(t *testing.T) {
 		var tc TestCase
 		require.NoError(t, json.Unmarshal(bs, &tc), "cannot unmarshal %s", ds[i].Name())
 
-		srcNodes := make([]NodeInfo, len(tc.Nodes))
-		copy(srcNodes, tc.Nodes)
+		srcNodes := slices.Clone(tc.Nodes)
 
 		t.Run(tc.Name, func(t *testing.T) {
 			var nm NetMap

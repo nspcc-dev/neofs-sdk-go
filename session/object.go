@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -38,13 +39,7 @@ func (x Object) CopyTo(dst *Object) {
 
 	dst.verb = x.verb
 	dst.cnr = x.cnr
-
-	if objs := x.objs; objs != nil {
-		dst.objs = make([]oid.ID, len(x.objs))
-		copy(dst.objs, x.objs)
-	} else {
-		dst.objs = nil
-	}
+	dst.objs = slices.Clone(x.objs)
 }
 
 func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) error {
