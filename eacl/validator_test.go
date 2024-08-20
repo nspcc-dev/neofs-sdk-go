@@ -3,6 +3,7 @@ package eacl
 import (
 	"bytes"
 	"math/rand"
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -236,7 +237,7 @@ func TestTargetMatches(t *testing.T) {
 			accList = append(accList, bytes.Clone(acc[:]))
 		}
 
-		tgt1.SetBinaryKeys(append(pubs[0:2], accList[0:2]...))
+		tgt1.SetBinaryKeys(slices.Concat(pubs[0:2], accList[0:2]))
 		tgt1.SetRole(RoleUser)
 
 		tgt2 := NewTarget()
