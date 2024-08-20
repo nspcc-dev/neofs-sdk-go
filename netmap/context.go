@@ -80,15 +80,15 @@ func (c *context) setCBF(cbf uint32) {
 }
 
 func defaultWeightFunc(ns nodes) weightFunc {
-	mean := newMeanAgg()
-	min := newMinAgg()
+	meanA := newMeanAgg()
+	minA := newMinAgg()
 
 	for i := range ns {
-		mean.Add(float64(ns[i].capacity()))
-		min.Add(float64(ns[i].Price()))
+		meanA.Add(float64(ns[i].capacity()))
+		minA.Add(float64(ns[i].Price()))
 	}
 
 	return newWeightFunc(
-		newSigmoidNorm(mean.Compute()),
-		newReverseMinNorm(min.Compute()))
+		newSigmoidNorm(meanA.Compute()),
+		newReverseMinNorm(minA.Compute()))
 }
