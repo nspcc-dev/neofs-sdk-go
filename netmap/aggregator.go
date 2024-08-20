@@ -1,7 +1,7 @@
 package netmap
 
 import (
-	"sort"
+	"slices"
 )
 
 type (
@@ -125,7 +125,7 @@ func (a *meanIQRAgg) Compute() float64 {
 		return 0
 	}
 
-	sort.Slice(a.arr, func(i, j int) bool { return a.arr[i] < a.arr[j] })
+	slices.Sort(a.arr)
 
 	var minV, maxV float64
 
