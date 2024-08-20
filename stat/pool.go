@@ -39,7 +39,7 @@ func (s *PoolStat) OperationCallback(nodeKey []byte, endpoint string, method Met
 	mon, ok := s.monitors[k]
 	if !ok {
 		methods := make([]*methodStatus, MethodLast)
-		for i := MethodBalanceGet; i < MethodLast; i++ {
+		for i := range MethodLast {
 			methods[i] = &methodStatus{name: i.String()}
 		}
 
