@@ -1,7 +1,7 @@
 package eacltest_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"

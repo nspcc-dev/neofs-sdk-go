@@ -2,7 +2,7 @@ package stat
 
 import (
 	"errors"
-	"math/rand"
+	"math/rand/v2"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -48,12 +48,12 @@ func TestStatisticConcurrency(t *testing.T) {
 
 			for i := 0; i < n; i++ {
 				var err error
-				if rand.Int63n(2) > 0 {
+				if rand.N(2) > 0 {
 					err = errors.New("some err")
 					c.errors.Add(1)
 				}
 
-				duration := time.Duration(rand.Int63n(200)+1) * time.Millisecond
+				duration := time.Duration(rand.N(200)+1) * time.Millisecond
 
 				ps.OperationCallback(c.modeKey, c.addr, c.method, duration, err)
 			}

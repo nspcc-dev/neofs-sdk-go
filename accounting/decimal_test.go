@@ -1,7 +1,7 @@
 package accounting_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	apiaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"

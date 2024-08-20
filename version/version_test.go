@@ -1,7 +1,7 @@
 package version_test
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"

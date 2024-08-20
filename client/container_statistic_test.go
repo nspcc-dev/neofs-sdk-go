@@ -4,7 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	mathRand "math/rand"
+	mathRand "math/rand/v2"
 	"strconv"
 	"testing"
 	"time"
