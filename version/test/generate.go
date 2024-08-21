@@ -1,7 +1,7 @@
 package versiontest
 
 import (
-	"math/rand"
+	"math/rand/v2"
 
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )

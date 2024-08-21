@@ -349,7 +349,7 @@ func (x *Container) SetAttribute(key, value string) {
 	attrs := x.v2.GetAttributes()
 	ln := len(attrs)
 
-	for i := 0; i < ln; i++ {
+	for i := range ln {
 		if attrs[i].GetKey() == key {
 			attrs[i].SetValue(value)
 			return

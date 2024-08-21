@@ -2,7 +2,7 @@ package container
 
 import (
 	"bytes"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"

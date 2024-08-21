@@ -2,6 +2,7 @@ package object
 
 import (
 	"bytes"
+	"slices"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -85,16 +86,7 @@ func copySplitHeader(spl *object.SplitHeader) *object.SplitHeader {
 	newSpl.SetFirst(copyObjectID(spl.GetFirst()))
 	newSpl.SetParentSignature(copySignature(spl.GetParentSignature()))
 	newSpl.SetParentHeader(copyHeader(spl.GetParentHeader()))
-
-	if children := spl.GetChildren(); children != nil {
-		newChildren := make([]refs.ObjectID, len(children))
-		copy(newChildren, children)
-
-		newSpl.SetChildren(newChildren)
-	} else {
-		newSpl.SetChildren(nil)
-	}
-
+	newSpl.SetChildren(slices.Clone(spl.GetChildren()))
 	newSpl.SetSplitID(bytes.Clone(spl.GetSplitID()))
 
 	return &newSpl
@@ -157,16 +149,7 @@ func copyHeader(header *object.Header) *object.Header {
 	}
 
 	newHeader.SetSessionToken(copySession(header.GetSessionToken()))
-
-	if attrs := header.GetAttributes(); attrs != nil {
-		newAttributes := make([]object.Attribute, len(attrs))
-		copy(newAttributes, attrs)
-
-		newHeader.SetAttributes(newAttributes)
-	} else {
-		newHeader.SetAttributes(nil)
-	}
-
+	newHeader.SetAttributes(slices.Clone(header.GetAttributes()))
 	newHeader.SetSplit(copySplitHeader(header.GetSplit()))
 
 	return &newHeader

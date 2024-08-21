@@ -150,7 +150,7 @@ func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
 		binKeys = make([][]byte, 0, ln)
 	}
 
-	for i := 0; i < ln; i++ {
+	for i := range ln {
 		binKeys = append(binKeys, (*keys.PublicKey)(pubs[i]).Bytes())
 	}
 
@@ -163,7 +163,7 @@ func SetTargetAccounts(t *Target, accs ...util.Uint160) {
 	account := make([]user.ID, len(accs))
 	ln := len(accs)
 
-	for i := 0; i < ln; i++ {
+	for i := range ln {
 		account[i] = user.NewFromScriptHash(accs[i])
 	}
 
@@ -180,7 +180,7 @@ func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
 
 	pubs := make([]*ecdsa.PublicKey, ln)
 
-	for i := 0; i < ln; i++ {
+	for i := range ln {
 		p := new(keys.PublicKey)
 		if p.DecodeBytes(binKeys[i]) == nil {
 			pubs[i] = (*ecdsa.PublicKey)(p)

@@ -3,7 +3,7 @@ package storagegroup_test
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"math/rand"
+	"math/rand/v2"
 	"strconv"
 	"testing"
 

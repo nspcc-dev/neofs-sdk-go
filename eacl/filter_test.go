@@ -2,7 +2,7 @@ package eacl_test
 
 import (
 	"encoding/json"
-	"math/rand"
+	"math/rand/v2"
 	"strconv"
 	"testing"
 

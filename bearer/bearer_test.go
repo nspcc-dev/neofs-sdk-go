@@ -2,7 +2,7 @@ package bearer_test
 
 import (
 	"bytes"
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"

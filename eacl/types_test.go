@@ -1,7 +1,7 @@
 package eacl
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"testing"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"

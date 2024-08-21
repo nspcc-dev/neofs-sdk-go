@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -103,12 +104,10 @@ func (p PlacementPolicy) CopyTo(dst *PlacementPolicy) {
 	}
 
 	// netmap.Selector is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
-	dst.selectors = make([]netmap.Selector, len(p.selectors))
-	copy(dst.selectors, p.selectors)
+	dst.selectors = slices.Clone(p.selectors)
 
 	// netmap.Replica is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
-	dst.replicas = make([]netmap.Replica, len(p.replicas))
-	copy(dst.replicas, p.replicas)
+	dst.replicas = slices.Clone(p.replicas)
 }
 
 func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresence bool) error {

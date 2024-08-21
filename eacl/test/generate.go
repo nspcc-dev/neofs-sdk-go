@@ -1,7 +1,7 @@
 package eacltest
 
 import (
-	"math/rand"
+	"math/rand/v2"
 	"strconv"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -14,7 +14,7 @@ func Target() eacl.Target {
 	if rand.Int()%2 == 0 {
 		return eacl.NewTargetByRole(eacl.Role(rand.Uint32()))
 	}
-	return eacl.NewTargetByAccounts(usertest.IDs(1 + rand.Intn(10)))
+	return eacl.NewTargetByAccounts(usertest.IDs(1 + rand.N(10)))
 }
 
 // Targets returns n random eacl.Target instances.
@@ -43,8 +43,8 @@ func Filters(n int) []eacl.Filter {
 
 // Record returns random eacl.Record.
 func Record() eacl.Record {
-	tn := 1 + rand.Intn(10)
-	fn := 1 + rand.Intn(10)
+	tn := 1 + rand.N(10)
+	fn := 1 + rand.N(10)
 	return eacl.ConstructRecord(eacl.Action(rand.Uint32()), eacl.Operation(rand.Uint32()), Targets(tn), Filters(fn)...)
 }
 
@@ -59,6 +59,6 @@ func Records(n int) []eacl.Record {
 
 // Table returns random eacl.Table.
 func Table() eacl.Table {
-	n := 1 + rand.Intn(10)
+	n := 1 + rand.N(10)
 	return eacl.NewTableForContainer(cidtest.ID(), Records(n))
 }
