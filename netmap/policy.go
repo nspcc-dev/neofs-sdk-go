@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/antlr4-go/antlr/v4"
 	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap/parser"
 )

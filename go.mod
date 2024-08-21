@@ -3,7 +3,7 @@ module github.com/nspcc-dev/neofs-sdk-go
 go 1.22
 
 require (
-	github.com/antlr/antlr4/runtime/Go/antlr/v4 v4.0.0-20221202181307-76fa05c21b12
+	github.com/antlr4-go/antlr/v4 v4.13.1
 	github.com/google/go-cmp v0.6.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7

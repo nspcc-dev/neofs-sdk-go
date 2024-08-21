@@ -1,4 +1,4 @@
-// Code generated from java-escape by ANTLR 4.11.1. DO NOT EDIT.
+// Code generated from Query.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package parser // Query
 
@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/antlr/antlr4/runtime/Go/antlr/v4"
+	"github.com/antlr4-go/antlr/v4"
 )
 
 // Suppress unused import errors
@@ -19,35 +19,35 @@ type Query struct {
 	*antlr.BaseParser
 }
 
-var queryParserStaticData struct {
+var QueryParserStaticData struct {
 	once                   sync.Once
 	serializedATN          []int32
-	literalNames           []string
-	symbolicNames          []string
-	ruleNames              []string
-	predictionContextCache *antlr.PredictionContextCache
+	LiteralNames           []string
+	SymbolicNames          []string
+	RuleNames              []string
+	PredictionContextCache *antlr.PredictionContextCache
 	atn                    *antlr.ATN
 	decisionToDFA          []*antlr.DFA
 }
 
 func queryParserInit() {
-	staticData := &queryParserStaticData
-	staticData.literalNames = []string{
+	staticData := &QueryParserStaticData
+	staticData.LiteralNames = []string{
 		"", "'AND'", "'OR'", "", "'REP'", "'IN'", "'AS'", "'CBF'", "'SELECT'",
 		"'FROM'", "'FILTER'", "'*'", "'SAME'", "'DISTINCT'", "'('", "')'", "'@'",
 		"", "", "'0'",
 	}
-	staticData.symbolicNames = []string{
+	staticData.SymbolicNames = []string{
 		"", "AND_OP", "OR_OP", "SIMPLE_OP", "REP", "IN", "AS", "CBF", "SELECT",
 		"FROM", "FILTER", "WILDCARD", "CLAUSE_SAME", "CLAUSE_DISTINCT", "L_PAREN",
 		"R_PAREN", "AT", "IDENT", "NUMBER1", "ZERO", "STRING", "WS",
 	}
-	staticData.ruleNames = []string{
+	staticData.RuleNames = []string{
 		"policy", "repStmt", "cbfStmt", "selectStmt", "clause", "filterExpr",
 		"filterStmt", "expr", "filterKey", "filterValue", "number", "keyword",
 		"ident", "identWC",
 	}
-	staticData.predictionContextCache = antlr.NewPredictionContextCache()
+	staticData.PredictionContextCache = antlr.NewPredictionContextCache()
 	staticData.serializedATN = []int32{
 		4, 1, 21, 130, 2, 0, 7, 0, 2, 1, 7, 1, 2, 2, 7, 2, 2, 3, 7, 3, 2, 4, 7,
 		4, 2, 5, 7, 5, 2, 6, 7, 6, 2, 7, 7, 7, 2, 8, 7, 8, 2, 9, 7, 9, 2, 10, 7,
@@ -119,7 +119,7 @@ func queryParserInit() {
 // NewQuery(). You can call this function if you wish to initialize the static state ahead
 // of time.
 func QueryInit() {
-	staticData := &queryParserStaticData
+	staticData := &QueryParserStaticData
 	staticData.once.Do(queryParserInit)
 }
 
@@ -128,12 +128,12 @@ func NewQuery(input antlr.TokenStream) *Query {
 	QueryInit()
 	this := new(Query)
 	this.BaseParser = antlr.NewBaseParser(input)
-	staticData := &queryParserStaticData
-	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.predictionContextCache)
-	this.RuleNames = staticData.ruleNames
-	this.LiteralNames = staticData.literalNames
-	this.SymbolicNames = staticData.symbolicNames
-	this.GrammarFileName = "java-escape"
+	staticData := &QueryParserStaticData
+	this.Interpreter = antlr.NewParserATNSimulator(this, staticData.atn, staticData.decisionToDFA, staticData.PredictionContextCache)
+	this.RuleNames = staticData.RuleNames
+	this.LiteralNames = staticData.LiteralNames
+	this.SymbolicNames = staticData.SymbolicNames
+	this.GrammarFileName = "Query.g4"
 
 	return this
 }
@@ -189,20 +189,35 @@ type IPolicyContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	EOF() antlr.TerminalNode
+	AllRepStmt() []IRepStmtContext
+	RepStmt(i int) IRepStmtContext
+	CbfStmt() ICbfStmtContext
+	AllSelectStmt() []ISelectStmtContext
+	SelectStmt(i int) ISelectStmtContext
+	AllFilterStmt() []IFilterStmtContext
+	FilterStmt(i int) IFilterStmtContext
+
 	// IsPolicyContext differentiates from other interfaces.
 	IsPolicyContext()
 }
 
 type PolicyContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyPolicyContext() *PolicyContext {
 	var p = new(PolicyContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_policy
 	return p
+}
+
+func InitEmptyPolicyContext(p *PolicyContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_policy
 }
 
 func (*PolicyContext) IsPolicyContext() {}
@@ -210,7 +225,7 @@ func (*PolicyContext) IsPolicyContext() {}
 func NewPolicyContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *PolicyContext {
 	var p = new(PolicyContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_policy
@@ -383,7 +398,7 @@ func (s *PolicyContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *PolicyContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *PolicyContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitPolicy(s)
@@ -394,32 +409,16 @@ func (s *PolicyContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) Policy() (localctx IPolicyContext) {
-	this := p
-	_ = this
-
 	localctx = NewPolicyContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 0, QueryRULE_policy)
 	var _la int
 
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(29)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for ok := true; ok; ok = _la == QueryREP {
@@ -430,10 +429,16 @@ func (p *Query) Policy() (localctx IPolicyContext) {
 
 		p.SetState(31)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	p.SetState(34)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryCBF {
@@ -445,6 +450,9 @@ func (p *Query) Policy() (localctx IPolicyContext) {
 	}
 	p.SetState(39)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == QuerySELECT {
@@ -455,10 +463,16 @@ func (p *Query) Policy() (localctx IPolicyContext) {
 
 		p.SetState(41)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	p.SetState(45)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	for _la == QueryFILTER {
@@ -469,14 +483,31 @@ func (p *Query) Policy() (localctx IPolicyContext) {
 
 		p.SetState(47)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 	}
 	{
 		p.SetState(48)
 		p.Match(QueryEOF)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IRepStmtContext is an interface to support dynamic dispatch.
@@ -498,12 +529,18 @@ type IRepStmtContext interface {
 	// SetSelector sets the Selector rule contexts.
 	SetSelector(IIdentContext)
 
+	// Getter signatures
+	REP() antlr.TerminalNode
+	NUMBER1() antlr.TerminalNode
+	IN() antlr.TerminalNode
+	Ident() IIdentContext
+
 	// IsRepStmtContext differentiates from other interfaces.
 	IsRepStmtContext()
 }
 
 type RepStmtContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser   antlr.Parser
 	Count    antlr.Token
 	Selector IIdentContext
@@ -511,9 +548,14 @@ type RepStmtContext struct {
 
 func NewEmptyRepStmtContext() *RepStmtContext {
 	var p = new(RepStmtContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_repStmt
 	return p
+}
+
+func InitEmptyRepStmtContext(p *RepStmtContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_repStmt
 }
 
 func (*RepStmtContext) IsRepStmtContext() {}
@@ -521,7 +563,7 @@ func (*RepStmtContext) IsRepStmtContext() {}
 func NewRepStmtContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *RepStmtContext {
 	var p = new(RepStmtContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_repStmt
@@ -587,7 +629,7 @@ func (s *RepStmtContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *RepStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *RepStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitRepStmt(s)
@@ -598,33 +640,18 @@ func (s *RepStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) RepStmt() (localctx IRepStmtContext) {
-	this := p
-	_ = this
-
 	localctx = NewRepStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 2, QueryRULE_repStmt)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(50)
 		p.Match(QueryREP)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(51)
@@ -632,15 +659,26 @@ func (p *Query) RepStmt() (localctx IRepStmtContext) {
 		var _m = p.Match(QueryNUMBER1)
 
 		localctx.(*RepStmtContext).Count = _m
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(54)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryIN {
 		{
 			p.SetState(52)
 			p.Match(QueryIN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(53)
@@ -652,7 +690,17 @@ func (p *Query) RepStmt() (localctx IRepStmtContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ICbfStmtContext is an interface to support dynamic dispatch.
@@ -668,21 +716,30 @@ type ICbfStmtContext interface {
 	// SetBackupFactor sets the BackupFactor token.
 	SetBackupFactor(antlr.Token)
 
+	// Getter signatures
+	CBF() antlr.TerminalNode
+	NUMBER1() antlr.TerminalNode
+
 	// IsCbfStmtContext differentiates from other interfaces.
 	IsCbfStmtContext()
 }
 
 type CbfStmtContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser       antlr.Parser
 	BackupFactor antlr.Token
 }
 
 func NewEmptyCbfStmtContext() *CbfStmtContext {
 	var p = new(CbfStmtContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_cbfStmt
 	return p
+}
+
+func InitEmptyCbfStmtContext(p *CbfStmtContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_cbfStmt
 }
 
 func (*CbfStmtContext) IsCbfStmtContext() {}
@@ -690,7 +747,7 @@ func (*CbfStmtContext) IsCbfStmtContext() {}
 func NewCbfStmtContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *CbfStmtContext {
 	var p = new(CbfStmtContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_cbfStmt
@@ -732,7 +789,7 @@ func (s *CbfStmtContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *CbfStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *CbfStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitCbfStmt(s)
@@ -743,32 +800,16 @@ func (s *CbfStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) CbfStmt() (localctx ICbfStmtContext) {
-	this := p
-	_ = this
-
 	localctx = NewCbfStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 4, QueryRULE_cbfStmt)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(56)
 		p.Match(QueryCBF)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(57)
@@ -776,9 +817,23 @@ func (p *Query) CbfStmt() (localctx ICbfStmtContext) {
 		var _m = p.Match(QueryNUMBER1)
 
 		localctx.(*CbfStmtContext).BackupFactor = _m
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // ISelectStmtContext is an interface to support dynamic dispatch.
@@ -812,12 +867,23 @@ type ISelectStmtContext interface {
 	// SetName sets the Name rule contexts.
 	SetName(IIdentContext)
 
+	// Getter signatures
+	SELECT() antlr.TerminalNode
+	FROM() antlr.TerminalNode
+	NUMBER1() antlr.TerminalNode
+	IdentWC() IIdentWCContext
+	IN() antlr.TerminalNode
+	AS() antlr.TerminalNode
+	AllIdent() []IIdentContext
+	Ident(i int) IIdentContext
+	Clause() IClauseContext
+
 	// IsSelectStmtContext differentiates from other interfaces.
 	IsSelectStmtContext()
 }
 
 type SelectStmtContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 	Count  antlr.Token
 	Bucket IIdentContext
@@ -827,9 +893,14 @@ type SelectStmtContext struct {
 
 func NewEmptySelectStmtContext() *SelectStmtContext {
 	var p = new(SelectStmtContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_selectStmt
 	return p
+}
+
+func InitEmptySelectStmtContext(p *SelectStmtContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_selectStmt
 }
 
 func (*SelectStmtContext) IsSelectStmtContext() {}
@@ -837,7 +908,7 @@ func (*SelectStmtContext) IsSelectStmtContext() {}
 func NewSelectStmtContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *SelectStmtContext {
 	var p = new(SelectStmtContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_selectStmt
@@ -976,7 +1047,7 @@ func (s *SelectStmtContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *SelectStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *SelectStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitSelectStmt(s)
@@ -987,33 +1058,18 @@ func (s *SelectStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
-	this := p
-	_ = this
-
 	localctx = NewSelectStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 6, QueryRULE_selectStmt)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(59)
 		p.Match(QuerySELECT)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(60)
@@ -1021,18 +1077,32 @@ func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
 		var _m = p.Match(QueryNUMBER1)
 
 		localctx.(*SelectStmtContext).Count = _m
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	p.SetState(66)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryIN {
 		{
 			p.SetState(61)
 			p.Match(QueryIN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		p.SetState(63)
 		p.GetErrorHandler().Sync(p)
+		if p.HasError() {
+			goto errorExit
+		}
 		_la = p.GetTokenStream().LA(1)
 
 		if _la == QueryCLAUSE_SAME || _la == QueryCLAUSE_DISTINCT {
@@ -1054,6 +1124,10 @@ func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
 	{
 		p.SetState(68)
 		p.Match(QueryFROM)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(69)
@@ -1064,12 +1138,19 @@ func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
 	}
 	p.SetState(72)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 	_la = p.GetTokenStream().LA(1)
 
 	if _la == QueryAS {
 		{
 			p.SetState(70)
 			p.Match(QueryAS)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(71)
@@ -1081,7 +1162,17 @@ func (p *Query) SelectStmt() (localctx ISelectStmtContext) {
 
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IClauseContext is an interface to support dynamic dispatch.
@@ -1091,20 +1182,29 @@ type IClauseContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	CLAUSE_SAME() antlr.TerminalNode
+	CLAUSE_DISTINCT() antlr.TerminalNode
+
 	// IsClauseContext differentiates from other interfaces.
 	IsClauseContext()
 }
 
 type ClauseContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyClauseContext() *ClauseContext {
 	var p = new(ClauseContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_clause
 	return p
+}
+
+func InitEmptyClauseContext(p *ClauseContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_clause
 }
 
 func (*ClauseContext) IsClauseContext() {}
@@ -1112,7 +1212,7 @@ func (*ClauseContext) IsClauseContext() {}
 func NewClauseContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ClauseContext {
 	var p = new(ClauseContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_clause
@@ -1150,7 +1250,7 @@ func (s *ClauseContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ClauseContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *ClauseContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitClause(s)
@@ -1161,28 +1261,9 @@ func (s *ClauseContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) Clause() (localctx IClauseContext) {
-	this := p
-	_ = this
-
 	localctx = NewClauseContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 8, QueryRULE_clause)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -1197,7 +1278,17 @@ func (p *Query) Clause() (localctx IClauseContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFilterExprContext is an interface to support dynamic dispatch.
@@ -1231,12 +1322,21 @@ type IFilterExprContext interface {
 	// SetF2 sets the F2 rule contexts.
 	SetF2(IFilterExprContext)
 
+	// Getter signatures
+	L_PAREN() antlr.TerminalNode
+	R_PAREN() antlr.TerminalNode
+	AllFilterExpr() []IFilterExprContext
+	FilterExpr(i int) IFilterExprContext
+	Expr() IExprContext
+	AND_OP() antlr.TerminalNode
+	OR_OP() antlr.TerminalNode
+
 	// IsFilterExprContext differentiates from other interfaces.
 	IsFilterExprContext()
 }
 
 type FilterExprContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 	F1     IFilterExprContext
 	Inner  IFilterExprContext
@@ -1246,9 +1346,14 @@ type FilterExprContext struct {
 
 func NewEmptyFilterExprContext() *FilterExprContext {
 	var p = new(FilterExprContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_filterExpr
 	return p
+}
+
+func InitEmptyFilterExprContext(p *FilterExprContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_filterExpr
 }
 
 func (*FilterExprContext) IsFilterExprContext() {}
@@ -1256,7 +1361,7 @@ func (*FilterExprContext) IsFilterExprContext() {}
 func NewFilterExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FilterExprContext {
 	var p = new(FilterExprContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_filterExpr
@@ -1375,7 +1480,7 @@ func (s *FilterExprContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FilterExprContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *FilterExprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitFilterExpr(s)
@@ -1390,44 +1495,32 @@ func (p *Query) FilterExpr() (localctx IFilterExprContext) {
 }
 
 func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
-	this := p
-	_ = this
-
 	var _parentctx antlr.ParserRuleContext = p.GetParserRuleContext()
+
 	_parentState := p.GetState()
 	localctx = NewFilterExprContext(p, p.GetParserRuleContext(), _parentState)
 	var _prevctx IFilterExprContext = localctx
 	var _ antlr.ParserRuleContext = _prevctx // TODO: To prevent unused variable warning.
 	_startState := 10
 	p.EnterRecursionRule(localctx, 10, QueryRULE_filterExpr, _p)
-
-	defer func() {
-		p.UnrollRecursionContexts(_parentctx)
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	var _alt int
 
 	p.EnterOuterAlt(localctx, 1)
 	p.SetState(82)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryL_PAREN:
 		{
 			p.SetState(77)
 			p.Match(QueryL_PAREN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(78)
@@ -1439,6 +1532,10 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 		{
 			p.SetState(79)
 			p.Match(QueryR_PAREN)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryAT, QueryIDENT, QuerySTRING:
@@ -1448,13 +1545,19 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 	p.GetParserRuleContext().SetStop(p.GetTokenStream().LT(-1))
 	p.SetState(92)
 	p.GetErrorHandler().Sync(p)
-	_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 10, p.GetParserRuleContext())
-
+	if p.HasError() {
+		goto errorExit
+	}
+	_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 10, p.GetParserRuleContext())
+	if p.HasError() {
+		goto errorExit
+	}
 	for _alt != 2 && _alt != antlr.ATNInvalidAltNumber {
 		if _alt == 1 {
 			if p.GetParseListeners() != nil {
@@ -1463,7 +1566,11 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 			_prevctx = localctx
 			p.SetState(90)
 			p.GetErrorHandler().Sync(p)
-			switch p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 9, p.GetParserRuleContext()) {
+			if p.HasError() {
+				goto errorExit
+			}
+
+			switch p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 9, p.GetParserRuleContext()) {
 			case 1:
 				localctx = NewFilterExprContext(p, _parentctx, _parentState)
 				localctx.(*FilterExprContext).F1 = _prevctx
@@ -1471,7 +1578,8 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 				p.SetState(84)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 4)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 4)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(85)
@@ -1479,6 +1587,10 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 					var _m = p.Match(QueryAND_OP)
 
 					localctx.(*FilterExprContext).Op = _m
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 				{
 					p.SetState(86)
@@ -1495,7 +1607,8 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 				p.SetState(87)
 
 				if !(p.Precpred(p.GetParserRuleContext(), 3)) {
-					panic(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
+					p.SetError(antlr.NewFailedPredicateException(p, "p.Precpred(p.GetParserRuleContext(), 3)", ""))
+					goto errorExit
 				}
 				{
 					p.SetState(88)
@@ -1503,6 +1616,10 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 					var _m = p.Match(QueryOR_OP)
 
 					localctx.(*FilterExprContext).Op = _m
+					if p.HasError() {
+						// Recognition error - abort rule
+						goto errorExit
+					}
 				}
 				{
 					p.SetState(89)
@@ -1512,15 +1629,33 @@ func (p *Query) filterExpr(_p int) (localctx IFilterExprContext) {
 					localctx.(*FilterExprContext).F2 = _x
 				}
 
+			case antlr.ATNInvalidAltNumber:
+				goto errorExit
 			}
 
 		}
 		p.SetState(94)
 		p.GetErrorHandler().Sync(p)
-		_alt = p.GetInterpreter().AdaptivePredict(p.GetTokenStream(), 10, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
+		_alt = p.GetInterpreter().AdaptivePredict(p.BaseParser, p.GetTokenStream(), 10, p.GetParserRuleContext())
+		if p.HasError() {
+			goto errorExit
+		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.UnrollRecursionContexts(_parentctx)
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFilterStmtContext is an interface to support dynamic dispatch.
@@ -1542,12 +1677,18 @@ type IFilterStmtContext interface {
 	// SetName sets the Name rule contexts.
 	SetName(IIdentContext)
 
+	// Getter signatures
+	FILTER() antlr.TerminalNode
+	AS() antlr.TerminalNode
+	FilterExpr() IFilterExprContext
+	Ident() IIdentContext
+
 	// IsFilterStmtContext differentiates from other interfaces.
 	IsFilterStmtContext()
 }
 
 type FilterStmtContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 	Expr   IFilterExprContext
 	Name   IIdentContext
@@ -1555,9 +1696,14 @@ type FilterStmtContext struct {
 
 func NewEmptyFilterStmtContext() *FilterStmtContext {
 	var p = new(FilterStmtContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_filterStmt
 	return p
+}
+
+func InitEmptyFilterStmtContext(p *FilterStmtContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_filterStmt
 }
 
 func (*FilterStmtContext) IsFilterStmtContext() {}
@@ -1565,7 +1711,7 @@ func (*FilterStmtContext) IsFilterStmtContext() {}
 func NewFilterStmtContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FilterStmtContext {
 	var p = new(FilterStmtContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_filterStmt
@@ -1643,7 +1789,7 @@ func (s *FilterStmtContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FilterStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *FilterStmtContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitFilterStmt(s)
@@ -1654,32 +1800,16 @@ func (s *FilterStmtContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) FilterStmt() (localctx IFilterStmtContext) {
-	this := p
-	_ = this
-
 	localctx = NewFilterStmtContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 12, QueryRULE_filterStmt)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.EnterOuterAlt(localctx, 1)
 	{
 		p.SetState(95)
 		p.Match(QueryFILTER)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(96)
@@ -1691,6 +1821,10 @@ func (p *Query) FilterStmt() (localctx IFilterStmtContext) {
 	{
 		p.SetState(97)
 		p.Match(QueryAS)
+		if p.HasError() {
+			// Recognition error - abort rule
+			goto errorExit
+		}
 	}
 	{
 		p.SetState(98)
@@ -1700,7 +1834,17 @@ func (p *Query) FilterStmt() (localctx IFilterStmtContext) {
 		localctx.(*FilterStmtContext).Name = _x
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IExprContext is an interface to support dynamic dispatch.
@@ -1728,12 +1872,19 @@ type IExprContext interface {
 	// SetValue sets the Value rule contexts.
 	SetValue(IFilterValueContext)
 
+	// Getter signatures
+	AT() antlr.TerminalNode
+	Ident() IIdentContext
+	SIMPLE_OP() antlr.TerminalNode
+	FilterKey() IFilterKeyContext
+	FilterValue() IFilterValueContext
+
 	// IsExprContext differentiates from other interfaces.
 	IsExprContext()
 }
 
 type ExprContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 	Filter IIdentContext
 	Key    IFilterKeyContext
@@ -1742,9 +1893,14 @@ type ExprContext struct {
 
 func NewEmptyExprContext() *ExprContext {
 	var p = new(ExprContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_expr
 	return p
+}
+
+func InitEmptyExprContext(p *ExprContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_expr
 }
 
 func (*ExprContext) IsExprContext() {}
@@ -1752,7 +1908,7 @@ func (*ExprContext) IsExprContext() {}
 func NewExprContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *ExprContext {
 	var p = new(ExprContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_expr
@@ -1850,7 +2006,7 @@ func (s *ExprContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitExpr(s)
@@ -1861,30 +2017,13 @@ func (s *ExprContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) Expr() (localctx IExprContext) {
-	this := p
-	_ = this
-
 	localctx = NewExprContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 14, QueryRULE_expr)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(106)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryAT:
@@ -1892,6 +2031,10 @@ func (p *Query) Expr() (localctx IExprContext) {
 		{
 			p.SetState(100)
 			p.Match(QueryAT)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(101)
@@ -1913,6 +2056,10 @@ func (p *Query) Expr() (localctx IExprContext) {
 		{
 			p.SetState(103)
 			p.Match(QuerySIMPLE_OP)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 		{
 			p.SetState(104)
@@ -1923,10 +2070,21 @@ func (p *Query) Expr() (localctx IExprContext) {
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFilterKeyContext is an interface to support dynamic dispatch.
@@ -1936,20 +2094,29 @@ type IFilterKeyContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	Ident() IIdentContext
+	STRING() antlr.TerminalNode
+
 	// IsFilterKeyContext differentiates from other interfaces.
 	IsFilterKeyContext()
 }
 
 type FilterKeyContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyFilterKeyContext() *FilterKeyContext {
 	var p = new(FilterKeyContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_filterKey
 	return p
+}
+
+func InitEmptyFilterKeyContext(p *FilterKeyContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_filterKey
 }
 
 func (*FilterKeyContext) IsFilterKeyContext() {}
@@ -1957,7 +2124,7 @@ func (*FilterKeyContext) IsFilterKeyContext() {}
 func NewFilterKeyContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FilterKeyContext {
 	var p = new(FilterKeyContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_filterKey
@@ -2007,7 +2174,7 @@ func (s *FilterKeyContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FilterKeyContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *FilterKeyContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitFilterKey(s)
@@ -2018,30 +2185,13 @@ func (s *FilterKeyContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) FilterKey() (localctx IFilterKeyContext) {
-	this := p
-	_ = this
-
 	localctx = NewFilterKeyContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 16, QueryRULE_filterKey)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(110)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT:
@@ -2056,13 +2206,28 @@ func (p *Query) FilterKey() (localctx IFilterKeyContext) {
 		{
 			p.SetState(109)
 			p.Match(QuerySTRING)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IFilterValueContext is an interface to support dynamic dispatch.
@@ -2072,20 +2237,30 @@ type IFilterValueContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	Ident() IIdentContext
+	Number() INumberContext
+	STRING() antlr.TerminalNode
+
 	// IsFilterValueContext differentiates from other interfaces.
 	IsFilterValueContext()
 }
 
 type FilterValueContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyFilterValueContext() *FilterValueContext {
 	var p = new(FilterValueContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_filterValue
 	return p
+}
+
+func InitEmptyFilterValueContext(p *FilterValueContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_filterValue
 }
 
 func (*FilterValueContext) IsFilterValueContext() {}
@@ -2093,7 +2268,7 @@ func (*FilterValueContext) IsFilterValueContext() {}
 func NewFilterValueContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *FilterValueContext {
 	var p = new(FilterValueContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_filterValue
@@ -2159,7 +2334,7 @@ func (s *FilterValueContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *FilterValueContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *FilterValueContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitFilterValue(s)
@@ -2170,30 +2345,13 @@ func (s *FilterValueContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) FilterValue() (localctx IFilterValueContext) {
-	this := p
-	_ = this
-
 	localctx = NewFilterValueContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 18, QueryRULE_filterValue)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(115)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT:
@@ -2215,13 +2373,28 @@ func (p *Query) FilterValue() (localctx IFilterValueContext) {
 		{
 			p.SetState(114)
 			p.Match(QuerySTRING)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // INumberContext is an interface to support dynamic dispatch.
@@ -2231,20 +2404,29 @@ type INumberContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	ZERO() antlr.TerminalNode
+	NUMBER1() antlr.TerminalNode
+
 	// IsNumberContext differentiates from other interfaces.
 	IsNumberContext()
 }
 
 type NumberContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyNumberContext() *NumberContext {
 	var p = new(NumberContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_number
 	return p
+}
+
+func InitEmptyNumberContext(p *NumberContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_number
 }
 
 func (*NumberContext) IsNumberContext() {}
@@ -2252,7 +2434,7 @@ func (*NumberContext) IsNumberContext() {}
 func NewNumberContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *NumberContext {
 	var p = new(NumberContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_number
@@ -2290,7 +2472,7 @@ func (s *NumberContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *NumberContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *NumberContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitNumber(s)
@@ -2301,28 +2483,9 @@ func (s *NumberContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) Number() (localctx INumberContext) {
-	this := p
-	_ = this
-
 	localctx = NewNumberContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 20, QueryRULE_number)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -2337,7 +2500,17 @@ func (p *Query) Number() (localctx INumberContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IKeywordContext is an interface to support dynamic dispatch.
@@ -2347,20 +2520,33 @@ type IKeywordContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	REP() antlr.TerminalNode
+	IN() antlr.TerminalNode
+	AS() antlr.TerminalNode
+	SELECT() antlr.TerminalNode
+	FROM() antlr.TerminalNode
+	FILTER() antlr.TerminalNode
+
 	// IsKeywordContext differentiates from other interfaces.
 	IsKeywordContext()
 }
 
 type KeywordContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyKeywordContext() *KeywordContext {
 	var p = new(KeywordContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_keyword
 	return p
+}
+
+func InitEmptyKeywordContext(p *KeywordContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_keyword
 }
 
 func (*KeywordContext) IsKeywordContext() {}
@@ -2368,7 +2554,7 @@ func (*KeywordContext) IsKeywordContext() {}
 func NewKeywordContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *KeywordContext {
 	var p = new(KeywordContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_keyword
@@ -2422,7 +2608,7 @@ func (s *KeywordContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *KeywordContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *KeywordContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitKeyword(s)
@@ -2433,28 +2619,9 @@ func (s *KeywordContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) Keyword() (localctx IKeywordContext) {
-	this := p
-	_ = this
-
 	localctx = NewKeywordContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 22, QueryRULE_keyword)
 	var _la int
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
 
 	p.EnterOuterAlt(localctx, 1)
 	{
@@ -2469,7 +2636,17 @@ func (p *Query) Keyword() (localctx IKeywordContext) {
 		}
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IIdentContext is an interface to support dynamic dispatch.
@@ -2479,20 +2656,29 @@ type IIdentContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	Keyword() IKeywordContext
+	IDENT() antlr.TerminalNode
+
 	// IsIdentContext differentiates from other interfaces.
 	IsIdentContext()
 }
 
 type IdentContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyIdentContext() *IdentContext {
 	var p = new(IdentContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_ident
 	return p
+}
+
+func InitEmptyIdentContext(p *IdentContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_ident
 }
 
 func (*IdentContext) IsIdentContext() {}
@@ -2500,7 +2686,7 @@ func (*IdentContext) IsIdentContext() {}
 func NewIdentContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *IdentContext {
 	var p = new(IdentContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_ident
@@ -2550,7 +2736,7 @@ func (s *IdentContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *IdentContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *IdentContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitIdent(s)
@@ -2561,30 +2747,13 @@ func (s *IdentContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) Ident() (localctx IIdentContext) {
-	this := p
-	_ = this
-
 	localctx = NewIdentContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 24, QueryRULE_ident)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(123)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER:
@@ -2599,13 +2768,28 @@ func (p *Query) Ident() (localctx IIdentContext) {
 		{
 			p.SetState(122)
 			p.Match(QueryIDENT)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 // IIdentWCContext is an interface to support dynamic dispatch.
@@ -2615,20 +2799,29 @@ type IIdentWCContext interface {
 	// GetParser returns the parser.
 	GetParser() antlr.Parser
 
+	// Getter signatures
+	Ident() IIdentContext
+	WILDCARD() antlr.TerminalNode
+
 	// IsIdentWCContext differentiates from other interfaces.
 	IsIdentWCContext()
 }
 
 type IdentWCContext struct {
-	*antlr.BaseParserRuleContext
+	antlr.BaseParserRuleContext
 	parser antlr.Parser
 }
 
 func NewEmptyIdentWCContext() *IdentWCContext {
 	var p = new(IdentWCContext)
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(nil, -1)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
 	p.RuleIndex = QueryRULE_identWC
 	return p
+}
+
+func InitEmptyIdentWCContext(p *IdentWCContext) {
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, nil, -1)
+	p.RuleIndex = QueryRULE_identWC
 }
 
 func (*IdentWCContext) IsIdentWCContext() {}
@@ -2636,7 +2829,7 @@ func (*IdentWCContext) IsIdentWCContext() {}
 func NewIdentWCContext(parser antlr.Parser, parent antlr.ParserRuleContext, invokingState int) *IdentWCContext {
 	var p = new(IdentWCContext)
 
-	p.BaseParserRuleContext = antlr.NewBaseParserRuleContext(parent, invokingState)
+	antlr.InitBaseParserRuleContext(&p.BaseParserRuleContext, parent, invokingState)
 
 	p.parser = parser
 	p.RuleIndex = QueryRULE_identWC
@@ -2686,7 +2879,7 @@ func (s *IdentWCContext) ExitRule(listener antlr.ParseTreeListener) {
 	}
 }
 
-func (s *IdentWCContext) Accept(visitor antlr.ParseTreeVisitor) any {
+func (s *IdentWCContext) Accept(visitor antlr.ParseTreeVisitor) interface{} {
 	switch t := visitor.(type) {
 	case QueryVisitor:
 		return t.VisitIdentWC(s)
@@ -2697,30 +2890,13 @@ func (s *IdentWCContext) Accept(visitor antlr.ParseTreeVisitor) any {
 }
 
 func (p *Query) IdentWC() (localctx IIdentWCContext) {
-	this := p
-	_ = this
-
 	localctx = NewIdentWCContext(p, p.GetParserRuleContext(), p.GetState())
 	p.EnterRule(localctx, 26, QueryRULE_identWC)
-
-	defer func() {
-		p.ExitRule()
-	}()
-
-	defer func() {
-		if err := recover(); err != nil {
-			if v, ok := err.(antlr.RecognitionException); ok {
-				localctx.SetException(v)
-				p.GetErrorHandler().ReportError(p, v)
-				p.GetErrorHandler().Recover(p, v)
-			} else {
-				panic(err)
-			}
-		}
-	}()
-
 	p.SetState(127)
 	p.GetErrorHandler().Sync(p)
+	if p.HasError() {
+		goto errorExit
+	}
 
 	switch p.GetTokenStream().LA(1) {
 	case QueryREP, QueryIN, QueryAS, QuerySELECT, QueryFROM, QueryFILTER, QueryIDENT:
@@ -2735,13 +2911,28 @@ func (p *Query) IdentWC() (localctx IIdentWCContext) {
 		{
 			p.SetState(126)
 			p.Match(QueryWILDCARD)
+			if p.HasError() {
+				// Recognition error - abort rule
+				goto errorExit
+			}
 		}
 
 	default:
-		panic(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		p.SetError(antlr.NewNoViableAltException(p, nil, nil, nil, nil, nil))
+		goto errorExit
 	}
 
+errorExit:
+	if p.HasError() {
+		v := p.GetError()
+		localctx.SetException(v)
+		p.GetErrorHandler().ReportError(p, v)
+		p.GetErrorHandler().Recover(p, v)
+		p.SetError(nil)
+	}
+	p.ExitRule()
 	return localctx
+	goto errorExit // Trick to prevent compiler error if the label is not used
 }
 
 func (p *Query) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int) bool {
@@ -2759,9 +2950,6 @@ func (p *Query) Sempred(localctx antlr.RuleContext, ruleIndex, predIndex int) bo
 }
 
 func (p *Query) FilterExpr_Sempred(localctx antlr.RuleContext, predIndex int) bool {
-	this := p
-	_ = this
-
 	switch predIndex {
 	case 0:
 		return p.Precpred(p.GetParserRuleContext(), 4)
