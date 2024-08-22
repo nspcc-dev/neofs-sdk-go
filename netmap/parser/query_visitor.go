@@ -1,52 +1,52 @@
-// Code generated from java-escape by ANTLR 4.11.1. DO NOT EDIT.
+// Code generated from Query.g4 by ANTLR 4.13.2. DO NOT EDIT.
 
 package parser // Query
 
-import "github.com/antlr/antlr4/runtime/Go/antlr/v4"
+import "github.com/antlr4-go/antlr/v4"
 
 // A complete Visitor for a parse tree produced by Query.
 type QueryVisitor interface {
 	antlr.ParseTreeVisitor
 
 	// Visit a parse tree produced by Query#policy.
-	VisitPolicy(ctx *PolicyContext) any
+	VisitPolicy(ctx *PolicyContext) interface{}
 
 	// Visit a parse tree produced by Query#repStmt.
-	VisitRepStmt(ctx *RepStmtContext) any
+	VisitRepStmt(ctx *RepStmtContext) interface{}
 
 	// Visit a parse tree produced by Query#cbfStmt.
-	VisitCbfStmt(ctx *CbfStmtContext) any
+	VisitCbfStmt(ctx *CbfStmtContext) interface{}
 
 	// Visit a parse tree produced by Query#selectStmt.
-	VisitSelectStmt(ctx *SelectStmtContext) any
+	VisitSelectStmt(ctx *SelectStmtContext) interface{}
 
 	// Visit a parse tree produced by Query#clause.
-	VisitClause(ctx *ClauseContext) any
+	VisitClause(ctx *ClauseContext) interface{}
 
 	// Visit a parse tree produced by Query#filterExpr.
-	VisitFilterExpr(ctx *FilterExprContext) any
+	VisitFilterExpr(ctx *FilterExprContext) interface{}
 
 	// Visit a parse tree produced by Query#filterStmt.
-	VisitFilterStmt(ctx *FilterStmtContext) any
+	VisitFilterStmt(ctx *FilterStmtContext) interface{}
 
 	// Visit a parse tree produced by Query#expr.
-	VisitExpr(ctx *ExprContext) any
+	VisitExpr(ctx *ExprContext) interface{}
 
 	// Visit a parse tree produced by Query#filterKey.
-	VisitFilterKey(ctx *FilterKeyContext) any
+	VisitFilterKey(ctx *FilterKeyContext) interface{}
 
 	// Visit a parse tree produced by Query#filterValue.
-	VisitFilterValue(ctx *FilterValueContext) any
+	VisitFilterValue(ctx *FilterValueContext) interface{}
 
 	// Visit a parse tree produced by Query#number.
-	VisitNumber(ctx *NumberContext) any
+	VisitNumber(ctx *NumberContext) interface{}
 
 	// Visit a parse tree produced by Query#keyword.
-	VisitKeyword(ctx *KeywordContext) any
+	VisitKeyword(ctx *KeywordContext) interface{}
 
 	// Visit a parse tree produced by Query#ident.
-	VisitIdent(ctx *IdentContext) any
+	VisitIdent(ctx *IdentContext) interface{}
 
 	// Visit a parse tree produced by Query#identWC.
-	VisitIdentWC(ctx *IdentWCContext) any
+	VisitIdentWC(ctx *IdentWCContext) interface{}
 }

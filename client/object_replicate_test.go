@@ -133,7 +133,7 @@ func serveObjectReplication(tb testing.TB, clientSigner neofscrypto.Signer, clie
 	gSrv := grpc.NewServer()
 	objectgrpc.RegisterObjectServiceServer(gSrv, &replicationSrv)
 
-	gConn, err := grpc.Dial("", grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) {
+	gConn, err := grpc.Dial("", grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) { //nolint:staticcheck //SA1019: grpc.Dial is deprecated: use NewClient instead.  Will be supported throughout 1.x.
 		return lis.Dial()
 	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(tb, err)
