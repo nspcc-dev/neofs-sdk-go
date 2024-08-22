@@ -64,7 +64,7 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 	}
 
 	sigMsg := req.GetSignature()
-	if objMsg == nil {
+	if sigMsg == nil {
 		st.Code = 1024 // internal error
 		st.Message = "missing signature field"
 		resp.Status = &st
