@@ -370,7 +370,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	})
 
 	times := int(opts.sessionExpirationDuration * 3)
-	for i := 0; i < times; i++ {
+	for range times {
 		epoch, err := tickNewEpoch(ctx, pool)
 		require.NoError(t, err)
 
