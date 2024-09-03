@@ -184,7 +184,7 @@ func (p *PlacementPolicy) ReadFromV2(m netmap.PlacementPolicy) error {
 	return p.readFromV2(m, true)
 }
 
-// WriteToV2 writes PlacementPolicy to the session.Token message.
+// WriteToV2 writes PlacementPolicy to the netmap.PlacementPolicy message.
 // The message must not be nil.
 //
 // See also ReadFromV2.
