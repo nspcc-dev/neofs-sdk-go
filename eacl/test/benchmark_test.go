@@ -17,7 +17,7 @@ func baseBenchmarkTableBinaryComparison(b *testing.B, factor int) {
 	b.StopTimer()
 	b.ResetTimer()
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !bytes.Equal(exp, t.Marshal()) {
 			b.Fail()
 		}
@@ -33,7 +33,7 @@ func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	b.StopTimer()
 	b.ResetTimer()
 	b.StartTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		if !eacl.EqualTables(*t, t2) {
 			b.Fail()
 		}
@@ -71,7 +71,7 @@ func TargetN(n int) *eacl.Target {
 	x.SetRole(eacl.RoleSystem)
 	keys := make([][]byte, n)
 
-	for i := 0; i < n; i++ {
+	for i := range n {
 		keys[i] = make([]byte, 32)
 		//nolint:staticcheck
 		rand.Read(keys[i])
@@ -85,7 +85,7 @@ func TargetN(n int) *eacl.Target {
 // Record returns random eacl.Record.
 func RecordN(n int) *eacl.Record {
 	fs := make([]eacl.Filter, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		fs[i] = eacl.ConstructFilter(eacl.HeaderFromObject, "", eacl.MatchStringEqual, cidtest.ID().EncodeToString())
 	}
 
@@ -95,7 +95,7 @@ func RecordN(n int) *eacl.Record {
 
 func TableN(n int) *eacl.Table {
 	rs := make([]eacl.Record, n)
-	for i := 0; i < n; i++ {
+	for i := range n {
 		rs[i] = *RecordN(n)
 	}
 	x := eacl.NewTableForContainer(cidtest.ID(), rs)

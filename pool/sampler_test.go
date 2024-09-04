@@ -34,7 +34,7 @@ func TestSamplerStability(t *testing.T) {
 	for _, tc := range cases {
 		sampler := newSampler(tc.probabilities, rand.NewSource(0))
 		res := make([]int, len(tc.probabilities))
-		for i := 0; i < COUNT; i++ {
+		for range COUNT {
 			res[sampler.Next()]++
 		}
 

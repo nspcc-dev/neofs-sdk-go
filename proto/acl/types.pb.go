@@ -673,7 +673,8 @@ type EACLRecord_Target struct {
 
 	// Target subject's role class
 	Role Role `protobuf:"varint,1,opt,name=role,proto3,enum=neo.fs.v2.acl.Role" json:"role,omitempty"`
-	// List of public keys to identify target subject
+	// List of 25-byte accounts to identify target subjects.
+	// 33-byte public keys are also supported, however, they are deprecated and script hashes should be derived from them.
 	Keys [][]byte `protobuf:"bytes,2,rep,name=keys,proto3" json:"keys,omitempty"`
 }
 

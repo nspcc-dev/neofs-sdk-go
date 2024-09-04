@@ -46,7 +46,7 @@ func TestStatisticConcurrency(t *testing.T) {
 		go func(c *config) {
 			defer wg.Done()
 
-			for i := 0; i < n; i++ {
+			for range n {
 				var err error
 				if rand.N(2) > 0 {
 					err = errors.New("some err")

@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	status "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -37,10 +38,12 @@ func BenchmarkPrepareReplicationMessage(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		_, err = prepareReplicateMessage(id, bytes.NewReader(bObj), signer)
+		_, err = prepareReplicateMessage(id, bytes.NewReader(bObj), signer, true)
 		require.NoError(b, err)
 	}
 }
+
+var testDataToSign = []byte("requested data to sign")
 
 type testReplicationServer struct {
 	objectgrpc.UnimplementedObjectServiceServer
@@ -64,7 +67,7 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 	}
 
 	sigMsg := req.GetSignature()
-	if objMsg == nil {
+	if sigMsg == nil {
 		st.Code = 1024 // internal error
 		st.Message = "missing signature field"
 		resp.Status = &st
@@ -121,6 +124,23 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 		return &resp, nil
 	}
 
+	if req.GetSignObject() {
+		var sig neofscrypto.Signature
+		err = sig.Calculate(x.clientSigner, testDataToSign)
+		if err != nil {
+			st.Code = 1024
+			st.Message = fmt.Sprintf("signing object information: %s", err)
+			resp.Status = &st
+
+			return &resp, nil
+		}
+
+		var sigV2 refs.Signature
+		sig.WriteToV2(&sigV2)
+
+		resp.ObjectSignature = sigV2.StableMarshal(nil)
+	}
+
 	resp.Status = &status.Status{Code: x.respStatusCode}
 	return &resp, nil
 }
@@ -162,7 +182,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 		srv, cli := serveObjectReplication(t, signer, obj)
 		srv.respStatusCode = 0
 
-		err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer)
+		_, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, false)
 		require.NoError(t, err)
 	})
 
@@ -170,7 +190,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 		bObj := []byte("Hello, world!") // definitely incorrect binary object
 		_, cli := serveObjectReplication(t, signer, obj)
 
-		err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer)
+		_, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, false)
 		require.Error(t, err)
 	})
 
@@ -187,16 +207,25 @@ func TestClient_ReplicateObject(t *testing.T) {
 			srv, cli := serveObjectReplication(t, signer, obj)
 			srv.respStatusCode = tc.code
 
-			err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer)
+			_, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, false)
 			require.ErrorIs(t, err, tc.expErr, tc.desc)
 		}
+	})
+
+	t.Run("sign object data", func(t *testing.T) {
+		srv, cli := serveObjectReplication(t, signer, obj)
+		srv.respStatusCode = 0
+
+		sig, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, true)
+		require.NoError(t, err)
+		require.True(t, sig.Verify(testDataToSign))
 	})
 
 	t.Run("demux", func(t *testing.T) {
 		demuxObj := DemuxReplicatedObject(bytes.NewReader(bObj))
 		_, cli := serveObjectReplication(t, signer, obj)
 
-		err := cli.ReplicateObject(ctx, id, demuxObj, signer)
+		_, err := cli.ReplicateObject(ctx, id, demuxObj, signer, false)
 		require.NoError(t, err)
 
 		msgCp := bytes.Clone(demuxObj.(*demuxReplicationMessage).msg)
@@ -208,7 +237,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 			go func() {
 				defer wg.Done()
 
-				err := cli.ReplicateObject(ctx, id, demuxObj, signer)
+				_, err := cli.ReplicateObject(ctx, id, demuxObj, signer, false)
 				fmt.Println(err)
 				require.NoError(t, err)
 			}()

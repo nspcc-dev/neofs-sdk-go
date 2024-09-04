@@ -205,7 +205,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 
 	time.Sleep(2 * time.Second)
 
-	for i := 0; i < 5; i++ {
+	for range 5 {
 		cp, err := pool.connection()
 		require.NoError(t, err)
 		require.True(t, assertAuthKeyForAny(cp.address(), nodes))
@@ -460,7 +460,7 @@ func TestStatusMonitor(t *testing.T) {
 	monitor.errorThreshold = 3
 
 	count := 10
-	for i := 0; i < count; i++ {
+	for range count {
 		monitor.incErrorRate()
 	}
 
