@@ -65,26 +65,11 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer user
 //
 // See details in [client.Client.ObjectGetInit].
 func (p *Pool) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
-	var hdr object.Object
 	c, err := p.sdkClient()
 	if err != nil {
-		return hdr, nil, err
+		return object.Object{}, nil, err
 	}
-	if err = p.withinContainerSession(
-		ctx,
-		c,
-		containerID,
-		p.actualSigner(signer),
-		session.VerbObjectGet,
-		&prm,
-	); err != nil {
-		return hdr, nil, fmt.Errorf("session: %w", err)
-	}
-
-	hdr, payloadReader, err := c.ObjectGetInit(ctx, containerID, objectID, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
-
-	return hdr, payloadReader, err
+	return c.ObjectGetInit(ctx, containerID, objectID, signer, prm)
 }
 
 // ObjectHead reads object header through a remote server using NeoFS API protocol.
@@ -97,21 +82,7 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 	if err != nil {
 		return nil, err
 	}
-	if err = p.withinContainerSession(
-		ctx,
-		c,
-		containerID,
-		p.actualSigner(signer),
-		session.VerbObjectHead,
-		&prm,
-	); err != nil {
-		return nil, fmt.Errorf("session: %w", err)
-	}
-
-	hdr, err := c.ObjectHead(ctx, containerID, objectID, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
-
-	return hdr, err
+	return c.ObjectHead(ctx, containerID, objectID, signer, prm)
 }
 
 // ObjectRangeInit initiates reading an object's payload range through a remote
@@ -124,21 +95,7 @@ func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID
 	if err != nil {
 		return nil, err
 	}
-	if err = p.withinContainerSession(
-		ctx,
-		c,
-		containerID,
-		p.actualSigner(signer),
-		session.VerbObjectRange,
-		&prm,
-	); err != nil {
-		return nil, fmt.Errorf("session: %w", err)
-	}
-
-	reader, err := c.ObjectRangeInit(ctx, containerID, objectID, offset, length, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
-
-	return reader, err
+	return c.ObjectRangeInit(ctx, containerID, objectID, offset, length, signer, prm)
 }
 
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
@@ -178,21 +135,7 @@ func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.
 	if err != nil {
 		return [][]byte{}, err
 	}
-	if err = p.withinContainerSession(
-		ctx,
-		c,
-		containerID,
-		p.actualSigner(signer),
-		session.VerbObjectRangeHash,
-		&prm,
-	); err != nil {
-		return [][]byte{}, fmt.Errorf("session: %w", err)
-	}
-
-	data, err := c.ObjectHash(ctx, containerID, objectID, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
-
-	return data, err
+	return c.ObjectHash(ctx, containerID, objectID, signer, prm)
 }
 
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
@@ -205,19 +148,5 @@ func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer 
 	if err != nil {
 		return nil, err
 	}
-	if err = p.withinContainerSession(
-		ctx,
-		c,
-		containerID,
-		p.actualSigner(signer),
-		session.VerbObjectSearch,
-		&prm,
-	); err != nil {
-		return nil, fmt.Errorf("session: %w", err)
-	}
-
-	reader, err := c.ObjectSearchInit(ctx, containerID, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
-
-	return reader, err
+	return c.ObjectSearchInit(ctx, containerID, signer, prm)
 }
