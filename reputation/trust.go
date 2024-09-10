@@ -194,7 +194,7 @@ func (x *PeerToPeerTrust) SetTrust(t Trust) {
 
 // Trust returns trust set using SetTrust.
 //
-// Zero PeerToPeerTrust returns zero Trust which is incorect according to the
+// Zero PeerToPeerTrust returns zero Trust which is incorrect according to the
 // NeoFS API protocol.
 func (x PeerToPeerTrust) Trust() (res Trust) {
 	m := x.m.GetTrust()
