@@ -46,7 +46,7 @@ func ExampleClient_ContainerPut() {
 	prmDial.SetStreamTimeout(15 * time.Second)
 
 	if err = c.Dial(prmDial); err != nil {
-		panic(fmt.Errorf("dial %v", err))
+		panic(fmt.Errorf("dial %w", err))
 	}
 
 	// describe new container

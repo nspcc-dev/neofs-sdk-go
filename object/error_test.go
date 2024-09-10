@@ -18,10 +18,7 @@ func TestNewSplitInfoError(t *testing.T) {
 	)
 
 	require.True(t, errors.As(err, &expectedErr))
-
-	siErr, ok := err.(*object.SplitInfoError)
-	require.True(t, ok)
-	require.Equal(t, si, siErr.SplitInfo())
+	require.Equal(t, si, expectedErr.SplitInfo())
 }
 
 func generateSplitInfo() *object.SplitInfo {
