@@ -25,7 +25,7 @@ func newSampler(probabilities []float64, source rand.Source) *sampler {
 	sampler.alias = make([]int, n)
 	// Compute scaled probabilities.
 	p := make([]float64, n)
-	for i := 0; i < n; i++ {
+	for i := range p {
 		p[i] = probabilities[i] * float64(n)
 	}
 	for i, pi := range p {

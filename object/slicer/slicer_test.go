@@ -214,7 +214,7 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 	attrNum := rand.Int() % 5
 	attrs := make([]object.Attribute, attrNum)
 
-	for i := 0; i < attrNum; i++ {
+	for range attrNum {
 		var attr object.Attribute
 		attr.SetKey(base64.StdEncoding.EncodeToString(randomData(32)))
 		attr.SetValue(base64.StdEncoding.EncodeToString(randomData(32)))
@@ -892,7 +892,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		payloadWriter, err := sl.InitPut(ctx, nil)
 		require.NoError(t, err)
 
-		for i := uint64(0); i < overheadAmount; i++ {
+		for range overheadAmount {
 			payload := make([]byte, maxObjectSize)
 			//nolint:staticcheck
 			_, err = rand.Read(payload)

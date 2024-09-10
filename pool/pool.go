@@ -984,7 +984,7 @@ func (p *innerPool) connection() (internalClient, error) {
 		return nil, errors.New("no healthy client")
 	}
 	attempts := 3 * len(p.clients)
-	for k := 0; k < attempts; k++ {
+	for range attempts {
 		i := p.sampler.Next()
 		if cp := p.clients[i]; cp.isHealthy() {
 			return cp, nil
