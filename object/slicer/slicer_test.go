@@ -853,7 +853,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		writer := &memoryWriter{
 			opts: opts,
 		}
-		sl, err := slicer.New(context.Background(), writer, usr, containerID, usrID, nil)
+		sl, err := slicer.New(ctx, writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize*overheadAmount)
@@ -886,7 +886,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		writer := &memoryWriter{
 			opts: opts,
 		}
-		sl, err := slicer.New(context.Background(), writer, usr, containerID, usrID, nil)
+		sl, err := slicer.New(ctx, writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
 		payloadWriter, err := sl.InitPut(ctx, nil)
@@ -925,7 +925,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		writer := &memoryWriter{
 			opts: opts,
 		}
-		sl, err := slicer.New(context.Background(), writer, usr, containerID, usrID, nil)
+		sl, err := slicer.New(ctx, writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
 		payload := make([]byte, maxObjectSize-1)
