@@ -17,8 +17,11 @@ dep:
 	@CGO_ENABLED=0 \
 	go mod tidy -v && echo OK
 
+.golangci.yml:
+	wget -O $@ https://github.com/nspcc-dev/.github/raw/master/.golangci.yml
+
 # Run linters
-lint:
+lint: .golangci.yml
 	@golangci-lint --timeout=5m run
 
 # Run tests with race detection and produce coverage output
