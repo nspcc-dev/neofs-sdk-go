@@ -232,7 +232,7 @@ func TestClient_ReplicateObject(t *testing.T) {
 		initBufPtr := &demuxObj.(*demuxReplicationMessage).msg[0]
 
 		var wg sync.WaitGroup
-		for i := 0; i < 5; i++ {
+		for range 5 {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()

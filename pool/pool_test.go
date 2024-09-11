@@ -581,7 +581,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.NoError(t, err)
 	t.Cleanup(pool.Close)
 
-	for i := 0; i < errorThreshold; i++ {
+	for range errorThreshold {
 		conn, err := pool.connection()
 		require.NoError(t, err)
 		require.Equal(t, nodes[0].address, conn.address())

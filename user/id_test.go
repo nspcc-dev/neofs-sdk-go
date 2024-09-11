@@ -155,7 +155,7 @@ func TestID_String(t *testing.T) {
 func TestID_IsZero(t *testing.T) {
 	var id user.ID
 	require.True(t, id.IsZero())
-	for i := 0; i < user.IDSize; i++ {
+	for i := range user.IDSize {
 		var id2 user.ID
 		id2[i]++
 		require.False(t, id2.IsZero())

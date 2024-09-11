@@ -317,7 +317,7 @@ func decodeConfigValueBool(val []byte) (bool, error) {
 
 	res, err := arr.TryBool()
 	if err != nil {
-		return false, fmt.Errorf("invalid bool parameter contract format %s", err)
+		return false, fmt.Errorf("invalid bool parameter contract format %w", err)
 	}
 
 	return res, nil

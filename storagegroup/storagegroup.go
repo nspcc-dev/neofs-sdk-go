@@ -74,7 +74,7 @@ func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresen
 				return fmt.Errorf("invalid member #%d: %w", i, err)
 			}
 
-			for j := 0; j < i; j++ {
+			for j := range i {
 				if sg.members[j] == sg.members[i] {
 					return fmt.Errorf("duplicated member %s", sg.members[i])
 				}

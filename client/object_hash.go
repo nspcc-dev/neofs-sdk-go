@@ -58,7 +58,7 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 
 	rs := make([]v2object.Range, ln/2)
 
-	for i := 0; i < ln/2; i++ {
+	for i := range ln / 2 {
 		rs[i].SetOffset(r[2*i])
 		rs[i].SetLength(r[2*i+1])
 	}

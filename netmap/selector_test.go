@@ -158,7 +158,7 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 	}
 
 	a, b := getIndices(t)
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		x, y := getIndices(t)
 		require.Equal(t, a, x)
 		require.Equal(t, b, y)

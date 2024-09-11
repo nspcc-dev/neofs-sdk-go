@@ -53,15 +53,7 @@ jobs:
         run: go test -race ./...
 
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out code
-        uses: actions/checkout@v4
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
-        with:
-          version: latest
+    uses: nspcc-dev/.github/.github/workflows/go-linter.yml@master
 
   cover:
     name: Coverage

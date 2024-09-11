@@ -192,7 +192,7 @@ func TestContainer_IterateUserAttributes(t *testing.T) {
 	mSys := make(map[string]string)
 	mUsr := make(map[string]string)
 
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		si := strconv.Itoa(i)
 
 		keyUsr := "key" + si

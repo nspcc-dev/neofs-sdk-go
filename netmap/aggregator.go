@@ -81,8 +81,8 @@ func newMeanIQRAgg() aggregator {
 
 // newReverseMinNorm returns a normalizer which
 // normalize values in range of 0.0 to 1.0 to a minimum value.
-func newReverseMinNorm(min float64) normalizer {
-	return &reverseMinNorm{min: min}
+func newReverseMinNorm(minVal float64) normalizer {
+	return &reverseMinNorm{min: minVal}
 }
 
 // newSigmoidNorm returns a normalizer which

@@ -267,7 +267,7 @@ func TestID_CalculateIDSignature(t *testing.T) {
 func TestID_IsZero(t *testing.T) {
 	var id oid.ID
 	require.True(t, id.IsZero())
-	for i := 0; i < oid.Size; i++ {
+	for i := range oid.Size {
 		var id2 oid.ID
 		id2[i]++
 		require.False(t, id2.IsZero())
