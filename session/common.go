@@ -243,6 +243,11 @@ func (x *commonData) SetExp(exp uint64) {
 	x.exp = exp
 }
 
+// Exp returns "exp" (expiration time) claim.
+func (x commonData) Exp() uint64 {
+	return x.exp
+}
+
 // SetNbf sets "nbf" (not before) claim which identifies the time (in NeoFS
 // epochs) before which the session MUST NOT be accepted for processing.
 // The processing of the "nbf" claim requires that the current date/time MUST be
@@ -253,6 +258,11 @@ func (x *commonData) SetExp(exp uint64) {
 // See also InvalidAt.
 func (x *commonData) SetNbf(nbf uint64) {
 	x.nbf = nbf
+}
+
+// Nbf returns "nbf" (not before) claim.
+func (x commonData) Nbf() uint64 {
+	return x.nbf
 }
 
 // SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
@@ -266,8 +276,13 @@ func (x *commonData) SetIat(iat uint64) {
 	x.iat = iat
 }
 
+// Iat returns "iat" (issued at) claim.
+func (x commonData) Iat() uint64 {
+	return x.iat
+}
+
 func (x commonData) expiredAt(epoch uint64) bool {
-	return x.exp < epoch
+	return x.Exp() < epoch
 }
 
 // InvalidAt asserts "exp", "nbf" and "iat" claims.
@@ -276,7 +291,7 @@ func (x commonData) expiredAt(epoch uint64) bool {
 //
 // See also SetExp, SetNbf, SetIat.
 func (x commonData) InvalidAt(epoch uint64) bool {
-	return x.expiredAt(epoch) || x.nbf > epoch || x.iat > epoch
+	return x.expiredAt(epoch) || x.Nbf() > epoch || x.Iat() > epoch
 }
 
 // SetID sets a unique identifier for the session. The identifier value MUST be

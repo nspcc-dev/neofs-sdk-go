@@ -157,10 +157,9 @@ func TestObjectProtocolV2(t *testing.T) {
 			},
 			restore: restoreLifetime,
 			assert: func(val session.Object) {
-				require.True(t, val.InvalidAt(1))
-				require.False(t, val.InvalidAt(2))
-				require.False(t, val.InvalidAt(3))
-				require.True(t, val.InvalidAt(4))
+				require.EqualValues(t, 1, val.Iat())
+				require.EqualValues(t, 2, val.Nbf())
+				require.EqualValues(t, 3, val.Exp())
 			},
 			breakSign: func(m *v2session.Token) {
 				lt := m.GetBody().GetLifetime()
@@ -680,4 +679,16 @@ func TestObject_SignedData(t *testing.T) {
 	require.Equal(t, m.GetSignature().GetSign(), sign)
 
 	usertest.TestSignedData(t, issuer, &tokenSession)
+}
+
+func TestObject_SetExp(t *testing.T) {
+	testLifetimeClaim(t, session.Object.Exp, (*session.Object).SetExp)
+}
+
+func TestObject_SetIat(t *testing.T) {
+	testLifetimeClaim(t, session.Object.Iat, (*session.Object).SetIat)
+}
+
+func TestObject_SetNbf(t *testing.T) {
+	testLifetimeClaim(t, session.Object.Nbf, (*session.Object).SetNbf)
 }

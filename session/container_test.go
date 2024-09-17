@@ -152,10 +152,9 @@ func TestContainerProtocolV2(t *testing.T) {
 			},
 			restore: restoreLifetime,
 			assert: func(val session.Container) {
-				require.True(t, val.InvalidAt(1))
-				require.False(t, val.InvalidAt(2))
-				require.False(t, val.InvalidAt(3))
-				require.True(t, val.InvalidAt(4))
+				require.EqualValues(t, 1, val.Iat())
+				require.EqualValues(t, 2, val.Nbf())
+				require.EqualValues(t, 3, val.Exp())
 			},
 			breakSign: func(m *v2session.Token) {
 				lt := m.GetBody().GetLifetime()
@@ -623,4 +622,16 @@ func TestContainer_VerifyDataSignature(t *testing.T) {
 	require.True(t, tok.VerifySessionDataSignature(data, sigV2.GetSign()))
 	require.False(t, tok.VerifySessionDataSignature(append(data, 1), sigV2.GetSign()))
 	require.False(t, tok.VerifySessionDataSignature(data, append(sigV2.GetSign(), 1)))
+}
+
+func TestContainer_SetExp(t *testing.T) {
+	testLifetimeClaim(t, session.Container.Exp, (*session.Container).SetExp)
+}
+
+func TestContainer_SetIat(t *testing.T) {
+	testLifetimeClaim(t, session.Container.Iat, (*session.Container).SetIat)
+}
+
+func TestContainer_SetNbf(t *testing.T) {
+	testLifetimeClaim(t, session.Container.Nbf, (*session.Container).SetNbf)
 }
