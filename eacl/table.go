@@ -183,9 +183,7 @@ func (t Table) ToV2() *v2acl.Table {
 // Defaults:
 //   - version: version.Current();
 //   - container ID: nil;
-//   - records: nil;
-//   - session token: nil;
-//   - signature: nil.
+//   - records: nil.
 //
 // Deprecated: use [ConstructTable] instead.
 func NewTable() *Table {

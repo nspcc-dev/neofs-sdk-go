@@ -10,8 +10,10 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -273,8 +275,11 @@ func TestSessionCache(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 
-	var containerID cid.ID
-	cacheKey := cacheKeyForSession(cp.address(), pool.signer, session.VerbObjectGet, containerID)
+	containerID := cidtest.ID()
+	cacheKey := cacheKeyForSession(cp.address(), pool.signer, session.VerbObjectPut, containerID)
+
+	hdr := objecttest.Object()
+	hdr.SetContainerID(containerID)
 
 	t.Run("no session token after pool creation", func(t *testing.T) {
 		st, ok := pool.cache.Get(cacheKey)
@@ -283,7 +288,7 @@ func TestSessionCache(t *testing.T) {
 	})
 
 	t.Run("session token was created after request", func(t *testing.T) {
-		_, _, err = pool.ObjectGetInit(ctx, containerID, oid.ID{}, usr, client.PrmObjectGet{})
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
 		require.NoError(t, err)
 
 		st, ok := pool.cache.Get(cacheKey)
@@ -293,9 +298,9 @@ func TestSessionCache(t *testing.T) {
 
 	t.Run("session is not removed", func(t *testing.T) {
 		// error on the next request to the node
-		mockCli.statusOnGetObject(errors.New("some error"))
+		mockCli.statusOnPutObject(errors.New("some error"))
 
-		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, usr, client.PrmObjectGet{})
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
 		require.Error(t, err)
 
 		_, ok := pool.cache.Get(cacheKey)
@@ -304,10 +309,10 @@ func TestSessionCache(t *testing.T) {
 
 	t.Run("session is removed, because of the special error", func(t *testing.T) {
 		// error on the next request to the node
-		mockCli.statusOnGetObject(apistatus.SessionTokenNotFound{})
+		mockCli.statusOnPutObject(apistatus.SessionTokenNotFound{})
 
 		// make request,
-		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, usr, client.PrmObjectGet{})
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
 		require.Error(t, err)
 
 		// cache must not contain session token
@@ -318,9 +323,9 @@ func TestSessionCache(t *testing.T) {
 	})
 
 	t.Run("session created again", func(t *testing.T) {
-		mockCli.statusOnGetObject(nil)
+		mockCli.statusOnPutObject(nil)
 
-		_, _, err = pool.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, usr, client.PrmObjectGet{})
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
 		require.NoError(t, err)
 
 		_, ok := pool.cache.Get(cacheKey)
@@ -441,12 +446,14 @@ func TestSessionTokenOwner(t *testing.T) {
 
 	anonSigner := usertest.User()
 
-	var containerID cid.ID
+	containerID := cidtest.ID()
+	hdr := objecttest.Object()
+	hdr.SetContainerID(containerID)
 
-	_, _, err = p.ObjectGetInit(ctx, containerID, oid.ID{}, anonSigner, client.PrmObjectGet{})
+	_, err = p.ObjectPutInit(ctx, hdr, anonSigner, client.PrmObjectPutInit{})
 	require.NoError(t, err)
 
-	cacheKey := cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectGet, containerID)
+	cacheKey := cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectPut, containerID)
 	st, ok := p.cache.Get(cacheKey)
 	require.True(t, ok)
 	require.True(t, st.AssertAuthKey(anonSigner.Public()))

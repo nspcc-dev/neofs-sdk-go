@@ -37,6 +37,7 @@ type mockClient struct {
 	errorOnEndpointInfo  bool
 	errorOnNetworkInfo   bool
 	errOnGetObject       error
+	errOnPutObject       error
 }
 
 func (m *mockClient) Dial(_ client.PrmDial) error {
@@ -116,8 +117,7 @@ func (m *mockClient) NetMapSnapshot(_ context.Context, _ client.PrmNetMapSnapsho
 }
 
 func (m *mockClient) ObjectPutInit(_ context.Context, _ object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
-	// TODO implement me
-	panic("implement me")
+	return nil, m.errOnPutObject
 }
 
 func (m *mockClient) ObjectGetInit(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectGet) (object.Object, *client.PayloadReader, error) {
@@ -212,6 +212,10 @@ func (m *mockClient) errOnDial() {
 
 func (m *mockClient) statusOnGetObject(err error) {
 	m.errOnGetObject = err
+}
+
+func (m *mockClient) statusOnPutObject(err error) {
+	m.errOnPutObject = err
 }
 
 func (m *mockClient) dial(context.Context) error {
