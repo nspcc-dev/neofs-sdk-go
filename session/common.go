@@ -23,7 +23,7 @@ type commonData struct {
 	authKey []byte
 
 	sigSet bool
-	sig    refs.Signature
+	sig    neofscrypto.Signature
 }
 
 type contextReader func(session.TokenContext, bool) error
@@ -39,9 +39,7 @@ func (x commonData) copyTo(dst *commonData) {
 	dst.exp = x.exp
 	dst.authKey = bytes.Clone(x.authKey)
 	dst.sigSet = x.sigSet
-	dst.sig.SetKey(bytes.Clone(x.sig.GetKey()))
-	dst.sig.SetScheme(x.sig.GetScheme())
-	dst.sig.SetSign(bytes.Clone(x.sig.GetSign()))
+	dst.sig = neofscrypto.NewSignatureFromRawKey(x.sig.Scheme(), bytes.Clone(x.sig.PublicKeyBytes()), bytes.Clone(x.sig.Value()))
 }
 
 // reads commonData and custom context from the session.Token message.
@@ -102,7 +100,9 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 
 	sig := m.GetSignature()
 	if x.sigSet = sig != nil; sig != nil {
-		x.sig = *sig
+		if err = x.sig.ReadFromV2(*sig); err != nil {
+			return fmt.Errorf("invalid body signature: %w", err)
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing body signature")
 	}
@@ -159,7 +159,8 @@ func (x commonData) writeToV2(m *session.Token, w contextWriter) {
 	var sig *refs.Signature
 
 	if x.sigSet {
-		sig = &x.sig
+		sig = new(refs.Signature)
+		x.sig.WriteToV2(sig)
 	}
 
 	m.SetSignature(sig)
@@ -170,28 +171,16 @@ func (x commonData) signedData(w contextWriter) []byte {
 }
 
 func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
-	var sig neofscrypto.Signature
-
-	err := sig.Calculate(signer, x.signedData(w))
-	if err != nil {
-		return err
+	err := x.sig.Calculate(signer, x.signedData(w))
+	if err == nil {
+		x.sigSet = true
 	}
-
-	sig.WriteToV2(&x.sig)
-	x.sigSet = true
-
-	return nil
+	return err
 }
 
 func (x commonData) verifySignature(w contextWriter) bool {
-	if !x.sigSet {
-		return false
-	}
-
-	var sig neofscrypto.Signature
-
 	// TODO: (#233) check owner<->key relation
-	return sig.ReadFromV2(x.sig) == nil && sig.Verify(x.signedData(w))
+	return x.sigSet && x.sig.Verify(x.signedData(w))
 }
 
 func (x commonData) marshal(w contextWriter) []byte {
@@ -358,10 +347,23 @@ func (x commonData) Issuer() user.ID {
 // IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
 //
 // IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
+// Deprecated: use Signature method.
 func (x *commonData) IssuerPublicKeyBytes() []byte {
-	if x.sigSet {
-		return x.sig.GetKey()
+	if sig, ok := x.Signature(); ok {
+		return sig.PublicKeyBytes()
 	}
-
 	return nil
+}
+
+// AttachSignature attaches given signature to the token. Use SignedData method
+// for calculation. If signature instance itself is not needed, use Sign method.
+func (x *commonData) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
+}
+
+// Signature returns token signature. If the signature is missing, false is
+// returned. Use SignedData method for verification. If signature instance
+// itself is not needed, use VerifySignature method.
+func (x commonData) Signature() (neofscrypto.Signature, bool) {
+	return x.sig, x.sigSet
 }

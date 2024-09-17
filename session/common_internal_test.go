@@ -5,18 +5,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
 func Test_commonData_copyTo(t *testing.T) {
-	var sig refs.Signature
-
-	sig.SetKey([]byte("key"))
-	sig.SetSign([]byte("sign"))
-	sig.SetScheme(refs.ECDSA_SHA512)
+	sig := neofscrypto.NewSignatureFromRawKey(neofscrypto.ECDSA_SHA512, []byte("key"), []byte("sign"))
 
 	usr := usertest.User()
 
@@ -180,39 +176,35 @@ func Test_commonData_copyTo(t *testing.T) {
 		data.copyTo(&dst)
 
 		require.Equal(t, data.sigSet, dst.sigSet)
-		require.Equal(t, data.sig.GetScheme(), dst.sig.GetScheme())
-		require.True(t, bytes.Equal(data.sig.GetKey(), dst.sig.GetKey()))
-		require.True(t, bytes.Equal(data.sig.GetSign(), dst.sig.GetSign()))
+		require.Equal(t, data.sig.Scheme(), dst.sig.Scheme())
+		require.True(t, bytes.Equal(data.sig.PublicKeyBytes(), dst.sig.PublicKeyBytes()))
+		require.True(t, bytes.Equal(data.sig.Value(), dst.sig.Value()))
 
-		dst.sig.SetKey([]byte{1, 2, 3})
+		dst.sig.SetPublicKeyBytes([]byte{1, 2, 3})
 		dst.sig.SetScheme(100)
-		dst.sig.SetSign([]byte{10, 11, 12})
+		dst.sig.SetValue([]byte{10, 11, 12})
 
 		require.Equal(t, data.issuer, dst.issuer)
-		require.NotEqual(t, data.sig.GetScheme(), dst.sig.GetScheme())
-		require.False(t, bytes.Equal(data.sig.GetKey(), dst.sig.GetKey()))
-		require.False(t, bytes.Equal(data.sig.GetSign(), dst.sig.GetSign()))
+		require.NotEqual(t, data.sig.Scheme(), dst.sig.Scheme())
+		require.False(t, bytes.Equal(data.sig.PublicKeyBytes(), dst.sig.PublicKeyBytes()))
+		require.False(t, bytes.Equal(data.sig.Value(), dst.sig.Value()))
 	})
 
 	t.Run("overwrite sig", func(t *testing.T) {
-		local := commonData{}
+		var local Container
 		require.False(t, local.sigSet)
 
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
-		}
-
-		var dst commonData
-		require.NoError(t, dst.sign(usr, emptyWriter))
+		var dst Container
+		require.NoError(t, dst.Sign(usr))
 		require.True(t, dst.sigSet)
 
-		local.copyTo(&dst)
+		local.CopyTo(&dst)
 		require.False(t, local.sigSet)
 		require.False(t, dst.sigSet)
 
-		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
+		require.True(t, bytes.Equal(local.Marshal(), dst.Marshal()))
 
-		require.NoError(t, dst.sign(usr, emptyWriter))
+		require.NoError(t, dst.Sign(usr))
 		require.False(t, local.sigSet)
 		require.True(t, dst.sigSet)
 	})

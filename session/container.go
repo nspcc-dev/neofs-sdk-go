@@ -244,12 +244,6 @@ func IssuedBy(cnr Container, id user.ID) bool {
 // VerifySessionDataSignature verifies signature of the session data. In practice,
 // the method is used to authenticate an operation with session data.
 func (x Container) VerifySessionDataSignature(data, signature []byte) bool {
-	var sigV2 refs.Signature
-	sigV2.SetKey(x.authKey)
-	sigV2.SetScheme(refs.ECDSA_RFC6979_SHA256)
-	sigV2.SetSign(signature)
-
-	var sig neofscrypto.Signature
-
-	return sig.ReadFromV2(sigV2) == nil && sig.Verify(data)
+	sig := neofscrypto.NewSignatureFromRawKey(neofscrypto.ECDSA_DETERMINISTIC_SHA256, x.authKey, signature)
+	return sig.Verify(data)
 }

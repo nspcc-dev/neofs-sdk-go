@@ -359,7 +359,10 @@ func TestToken_ReadFromV2(t *testing.T) {
 
 	require.NoError(t, val.ReadFromV2(m))
 	require.True(t, val.VerifySignature())
-	require.Equal(t, sig.GetKey(), val.SigningKeyBytes())
+	s, ok := val.Signature()
+	require.True(t, ok)
+	require.True(t, s.Verify(body.StableMarshal(nil)))
+	require.Equal(t, sig.GetKey(), s.PublicKeyBytes())
 }
 
 func TestResolveIssuer(t *testing.T) {

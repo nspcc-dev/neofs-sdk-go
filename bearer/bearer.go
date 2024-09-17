@@ -31,7 +31,7 @@ type Token struct {
 	iat, nbf, exp uint64
 
 	sigSet bool
-	sig    refs.Signature
+	sig    neofscrypto.Signature
 }
 
 // reads Token from the acl.BearerToken message. If checkFieldPresence is set,
@@ -84,7 +84,9 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 
 	sig := m.GetSignature()
 	if b.sigSet = sig != nil; sig != nil {
-		b.sig = *sig
+		if err = b.sig.ReadFromV2(*sig); err != nil {
+			return fmt.Errorf("invalid body signature: %w", err)
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing body signature")
 	}
@@ -150,7 +152,8 @@ func (b Token) WriteToV2(m *acl.BearerToken) {
 	var sig *refs.Signature
 
 	if b.sigSet {
-		sig = &b.sig
+		sig = new(refs.Signature)
+		b.sig.WriteToV2(sig)
 	}
 
 	m.SetSignature(sig)
@@ -278,17 +281,11 @@ func (b Token) AssertUser(id user.ID) bool {
 func (b *Token) Sign(signer user.Signer) error {
 	b.SetIssuer(signer.UserID())
 
-	var sig neofscrypto.Signature
-
-	err := sig.Calculate(signer, b.signedData())
-	if err != nil {
-		return err
+	err := b.sig.Calculate(signer, b.signedData())
+	if err == nil {
+		b.sigSet = true
 	}
-
-	sig.WriteToV2(&b.sig)
-	b.sigSet = true
-
-	return nil
+	return err
 }
 
 // SignedData returns actual payload to sign.
@@ -311,20 +308,28 @@ func (b *Token) UnmarshalSignedData(data []byte) error {
 	return b.readFromV2(tok, false)
 }
 
+// AttachSignature attaches given signature to the Token. Use [Token.SignedData]
+// for calculation. If signature instance itself is not needed, use
+// [Token.Sign].
+func (b *Token) AttachSignature(sig neofscrypto.Signature) {
+	b.sig, b.sigSet = sig, true
+}
+
+// Signature returns Token signature. If the signature is missing, false is
+// returned. Use [Token.SignedData] for verification. If signature instance
+// itself is not needed, use [Token.VerifySignature].
+func (b Token) Signature() (neofscrypto.Signature, bool) {
+	return b.sig, b.sigSet
+}
+
 // VerifySignature checks if Token signature is presented and valid.
 //
 // Zero Token fails the check.
 //
 // See also Sign.
 func (b Token) VerifySignature() bool {
-	if !b.sigSet {
-		return false
-	}
-
-	var sig neofscrypto.Signature
-
 	// TODO: (#233) check owner<->key relation
-	return sig.ReadFromV2(b.sig) == nil && sig.Verify(b.signedData())
+	return b.sigSet && b.sig.Verify(b.signedData())
 }
 
 // Marshal encodes Token into a binary format of the NeoFS API protocol
@@ -392,11 +397,11 @@ func (b *Token) UnmarshalJSON(data []byte) error {
 // Make a copy if you need to change it.
 //
 // See also [Token.ResolveIssuer].
+// Deprecated: use [Token.Signature] instead.
 func (b Token) SigningKeyBytes() []byte {
-	if b.sigSet {
-		return b.sig.GetKey()
+	if sig, ok := b.Signature(); ok {
+		return sig.PublicKeyBytes()
 	}
-
 	return nil
 }
 
@@ -427,10 +432,8 @@ func (b Token) ResolveIssuer() user.ID {
 	}
 
 	var usr user.ID
-	binKey := b.SigningKeyBytes()
-
-	if len(binKey) != 0 {
-		if err := idFromKey(&usr, binKey); err != nil {
+	if b.sigSet {
+		if err := idFromKey(&usr, b.sig.PublicKeyBytes()); err != nil {
 			usr = user.ID{}
 		}
 	}

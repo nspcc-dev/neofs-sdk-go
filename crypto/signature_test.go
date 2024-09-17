@@ -1,6 +1,7 @@
 package neofscrypto_test
 
 import (
+	"math"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
@@ -9,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const anyUnsupportedScheme = neofscrypto.ECDSA_WALLETCONNECT + 1
+const anyUnsupportedScheme = math.MaxInt32 + 1
 
 func TestSignatureLifecycle(t *testing.T) {
 	data := []byte("Hello, world!")
@@ -52,12 +53,6 @@ func TestSignatureLifecycle(t *testing.T) {
 	// break the message in different ways
 	for i, breakSig := range []func(*refs.Signature){
 		func(sigV2 *refs.Signature) { sigV2.SetScheme(refs.SignatureScheme(anyUnsupportedScheme)) },
-		func(sigV2 *refs.Signature) {
-			key := sigV2.GetKey()
-			sigV2.SetKey(key[:len(key)-1])
-		},
-		func(sigV2 *refs.Signature) { sigV2.SetKey(append(sigV2.GetKey(), 1)) },
-		func(sigV2 *refs.Signature) { sigV2.SetSign(nil) },
 	} {
 		sigV2Cp := sigV2
 		breakSig(&sigV2Cp)
