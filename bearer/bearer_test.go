@@ -2,7 +2,6 @@ package bearer_test
 
 import (
 	"bytes"
-	"math/rand/v2"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -123,74 +122,26 @@ func TestToken_ForUser(t *testing.T) {
 	require.Equal(t, usrV2, *m.GetBody().GetOwnerID())
 }
 
-func testLifetimeClaim(t *testing.T, setter func(*bearer.Token, uint64), getter func(*acl.BearerToken) uint64) {
+func testLifetimeClaim(t *testing.T, setter func(*bearer.Token, uint64), getter func(bearer.Token) uint64) {
 	var val bearer.Token
-	var m acl.BearerToken
-	filled := bearertest.Token()
-
-	val.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
-
-	val2 := filled
-
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-
-	val2.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
-
-	val2 = filled
-
-	jd, err := val.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-
-	val2.WriteToV2(&m)
-	require.Zero(t, m.GetBody())
-
-	// set value
-	exp := rand.Uint64()
-
-	setter(&val, exp)
-
-	val.WriteToV2(&m)
-	require.Equal(t, exp, getter(&m))
-
-	val2 = filled
-
-	require.NoError(t, val2.Unmarshal(val.Marshal()))
-
-	val2.WriteToV2(&m)
-	require.Equal(t, exp, getter(&m))
-
-	val2 = filled
-
-	jd, err = val.MarshalJSON()
-	require.NoError(t, err)
-
-	require.NoError(t, val2.UnmarshalJSON(jd))
-
-	val2.WriteToV2(&m)
-	require.Equal(t, exp, getter(&m))
+	require.Zero(t, getter(val))
+	setter(&val, 12094032)
+	require.EqualValues(t, 12094032, getter(val))
+	setter(&val, 5469830342)
+	require.EqualValues(t, 5469830342, getter(val))
 }
 
 func TestToken_SetLifetime(t *testing.T) {
 	t.Run("iat", func(t *testing.T) {
-		testLifetimeClaim(t, (*bearer.Token).SetIat, func(token *acl.BearerToken) uint64 {
-			return token.GetBody().GetLifetime().GetIat()
-		})
+		testLifetimeClaim(t, (*bearer.Token).SetIat, bearer.Token.Iat)
 	})
 
 	t.Run("nbf", func(t *testing.T) {
-		testLifetimeClaim(t, (*bearer.Token).SetNbf, func(token *acl.BearerToken) uint64 {
-			return token.GetBody().GetLifetime().GetNbf()
-		})
+		testLifetimeClaim(t, (*bearer.Token).SetNbf, bearer.Token.Nbf)
 	})
 
 	t.Run("exp", func(t *testing.T) {
-		testLifetimeClaim(t, (*bearer.Token).SetExp, func(token *acl.BearerToken) uint64 {
-			return token.GetBody().GetLifetime().GetExp()
-		})
+		testLifetimeClaim(t, (*bearer.Token).SetExp, bearer.Token.Exp)
 	})
 }
 

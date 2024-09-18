@@ -172,6 +172,11 @@ func (b *Token) SetExp(exp uint64) {
 	b.exp = exp
 }
 
+// Exp returns "exp" (expiration time) claim.
+func (b Token) Exp() uint64 {
+	return b.exp
+}
+
 // SetNbf sets "nbf" (not before) claim which identifies the time (in
 // NeoFS epochs) before which the Token MUST NOT be accepted for processing. The
 // processing of the "nbf" claim requires that the current epoch MUST be
@@ -182,6 +187,11 @@ func (b *Token) SetExp(exp uint64) {
 // See also InvalidAt.
 func (b *Token) SetNbf(nbf uint64) {
 	b.nbf = nbf
+}
+
+// Nbf returns "nbf" (not before) claim.
+func (b Token) Nbf() uint64 {
+	return b.nbf
 }
 
 // SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
@@ -195,13 +205,18 @@ func (b *Token) SetIat(iat uint64) {
 	b.iat = iat
 }
 
+// Iat returns "iat" (issued at) claim.
+func (b Token) Iat() uint64 {
+	return b.iat
+}
+
 // InvalidAt asserts "exp", "nbf" and "iat" claims for the given epoch.
 //
 // Zero Container is invalid in any epoch.
 //
 // See also SetExp, SetNbf, SetIat.
 func (b Token) InvalidAt(epoch uint64) bool {
-	return b.nbf > epoch || b.iat > epoch || b.exp < epoch
+	return b.Nbf() > epoch || b.Iat() > epoch || b.Exp() < epoch
 }
 
 // SetEACLTable sets eacl.Table that replaces the one from the issuer's
