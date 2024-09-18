@@ -197,7 +197,7 @@ func TestToken_SetLifetime(t *testing.T) {
 func TestToken_InvalidAt(t *testing.T) {
 	var val bearer.Token
 
-	require.True(t, val.InvalidAt(0))
+	require.False(t, val.InvalidAt(0))
 	require.True(t, val.InvalidAt(1))
 
 	val.SetIat(1)

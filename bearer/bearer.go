@@ -27,7 +27,6 @@ type Token struct {
 	eaclTableSet bool
 	eaclTable    eacl.Table
 
-	lifetimeSet   bool
 	iat, nbf, exp uint64
 
 	sigSet bool
@@ -74,11 +73,7 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 	}
 
 	lifetime := body.GetLifetime()
-	if b.lifetimeSet = lifetime != nil; b.lifetimeSet {
-		b.iat = lifetime.GetIat()
-		b.nbf = lifetime.GetNbf()
-		b.exp = lifetime.GetExp()
-	} else if checkFieldPresence {
+	if checkFieldPresence && lifetime == nil {
 		return errors.New("missing token lifetime")
 	}
 
@@ -91,6 +86,10 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 		return errors.New("missing body signature")
 	}
 
+	b.iat = lifetime.GetIat()
+	b.nbf = lifetime.GetNbf()
+	b.exp = lifetime.GetExp()
+
 	return nil
 }
 
@@ -102,7 +101,8 @@ func (b *Token) ReadFromV2(m acl.BearerToken) error {
 }
 
 func (b Token) fillBody() *acl.BearerTokenBody {
-	if !b.eaclTableSet && b.targetUser.IsZero() && !b.lifetimeSet && b.issuer.IsZero() {
+	lifetimeSet := b.iat != 0 || b.nbf != 0 || b.exp != 0
+	if !b.eaclTableSet && b.targetUser.IsZero() && !lifetimeSet && b.issuer.IsZero() {
 		return nil
 	}
 
@@ -126,7 +126,7 @@ func (b Token) fillBody() *acl.BearerTokenBody {
 		body.SetIssuer(&issuer)
 	}
 
-	if b.lifetimeSet {
+	if lifetimeSet {
 		var lifetime acl.TokenLifetime
 		lifetime.SetIat(b.iat)
 		lifetime.SetNbf(b.nbf)
@@ -170,7 +170,6 @@ func (b Token) WriteToV2(m *acl.BearerToken) {
 // See also InvalidAt.
 func (b *Token) SetExp(exp uint64) {
 	b.exp = exp
-	b.lifetimeSet = true
 }
 
 // SetNbf sets "nbf" (not before) claim which identifies the time (in
@@ -183,7 +182,6 @@ func (b *Token) SetExp(exp uint64) {
 // See also InvalidAt.
 func (b *Token) SetNbf(nbf uint64) {
 	b.nbf = nbf
-	b.lifetimeSet = true
 }
 
 // SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
@@ -195,7 +193,6 @@ func (b *Token) SetNbf(nbf uint64) {
 // See also InvalidAt.
 func (b *Token) SetIat(iat uint64) {
 	b.iat = iat
-	b.lifetimeSet = true
 }
 
 // InvalidAt asserts "exp", "nbf" and "iat" claims for the given epoch.
@@ -204,7 +201,7 @@ func (b *Token) SetIat(iat uint64) {
 //
 // See also SetExp, SetNbf, SetIat.
 func (b Token) InvalidAt(epoch uint64) bool {
-	return !b.lifetimeSet || b.nbf > epoch || b.iat > epoch || b.exp < epoch
+	return b.nbf > epoch || b.iat > epoch || b.exp < epoch
 }
 
 // SetEACLTable sets eacl.Table that replaces the one from the issuer's
