@@ -233,9 +233,18 @@ func (b *Token) SetEACLTable(table eacl.Table) {
 	b.eaclTableSet = true
 }
 
+// GetEACLTable returns extended ACL carried by the Token. Returns false if the
+// eACL is unset.
+func (b Token) GetEACLTable() (eacl.Table, bool) {
+	return b.eaclTable, b.eaclTableSet
+}
+
 // EACLTable returns extended ACL table set by SetEACLTable.
 //
 // Zero Token has zero eacl.Table.
+//
+// Deprecated: zero property of [eacl.Table] is unrecognizable, use
+// [Token.GetEACLTable] instead.
 func (b Token) EACLTable() eacl.Table {
 	if b.eaclTableSet {
 		return b.eaclTable
