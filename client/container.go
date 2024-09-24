@@ -36,6 +36,9 @@ type PrmContainerPut struct {
 
 	sessionSet bool
 	session    session.Container
+
+	sigSet bool
+	sig    neofscrypto.Signature
 }
 
 // WithinSession specifies session within which container should be saved.
@@ -49,6 +52,13 @@ type PrmContainerPut struct {
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
+}
+
+// AttachSignature allows to attach pre-calculated container signature and free
+// [Client.ContainerPut] from the calculation. The sig must have
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
+func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
 }
 
 // ContainerPut sends request to save container in NeoFS.
@@ -66,6 +76,8 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
 // Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// If signature already exists, use [PrmContainerPut.AttachSignature]:
+// then signer will not be used.
 //
 // Return errors:
 //   - [ErrMissingSigner]
@@ -82,16 +94,16 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	var cnr v2container.Container
 	cont.WriteToV2(&cnr)
 
-	var sig neofscrypto.Signature
-	err = cont.CalculateSignature(&sig, signer)
-	if err != nil {
-		err = fmt.Errorf("calculate container signature: %w", err)
-		return cid.ID{}, err
+	if !prm.sigSet {
+		if err = cont.CalculateSignature(&prm.sig, signer); err != nil {
+			err = fmt.Errorf("calculate container signature: %w", err)
+			return cid.ID{}, err
+		}
 	}
 
 	var sigv2 refs.Signature
 
-	sig.WriteToV2(&sigv2)
+	prm.sig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.PutRequestBody)
@@ -290,6 +302,9 @@ type PrmContainerDelete struct {
 
 	tokSet bool
 	tok    session.Container
+
+	sigSet bool
+	sig    neofscrypto.Signature
 }
 
 // WithinSession specifies session within which container should be removed.
@@ -301,6 +316,13 @@ type PrmContainerDelete struct {
 func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 	x.tok = tok
 	x.tokSet = true
+}
+
+// AttachSignature allows to attach pre-calculated container ID signature and
+// free [Client.ContainerDelete] from the calculation. The sig must have
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
+func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
 }
 
 // ContainerDelete sends request to remove the NeoFS container.
@@ -317,6 +339,8 @@ func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
 // Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// If signature already exists, use [PrmContainerDelete.AttachSignature]:
+// then signer will not be used.
 //
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 // Return errors:
@@ -339,16 +363,16 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	// don't get confused with stable marshaled protobuf container.ID structure
 	data := cidV2.GetValue()
 
-	var sig neofscrypto.Signature
-	err = sig.Calculate(signer, data)
-	if err != nil {
-		err = fmt.Errorf("calculate signature: %w", err)
-		return err
+	if !prm.sigSet {
+		if err = prm.sig.Calculate(signer, data); err != nil {
+			err = fmt.Errorf("calculate signature: %w", err)
+			return err
+		}
 	}
 
 	var sigv2 refs.Signature
 
-	sig.WriteToV2(&sigv2)
+	prm.sig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.DeleteRequestBody)
@@ -463,6 +487,9 @@ type PrmContainerSetEACL struct {
 
 	sessionSet bool
 	session    session.Container
+
+	sigSet bool
+	sig    neofscrypto.Signature
 }
 
 // WithinSession specifies session within which extended ACL of the container
@@ -481,6 +508,13 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.sessionSet = true
 }
 
+// AttachSignature allows to attach pre-calculated eACL signature and free
+// [Client.ContainerSetEACL] from the calculation. The sig must have
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
+func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
+}
+
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -493,6 +527,8 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
 // Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// If signature already exists, use [PrmContainerSetEACL.AttachSignature]:
+// then signer will not be used.
 //
 // Return errors:
 //   - [ErrMissingEACLContainer]
@@ -516,17 +552,16 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 
 	// sign the eACL table
 	eaclV2 := table.ToV2()
-
-	var sig neofscrypto.Signature
-	err = sig.CalculateMarshalled(signer, eaclV2, nil)
-	if err != nil {
-		err = fmt.Errorf("calculate signature: %w", err)
-		return err
+	if !prm.sigSet {
+		if err = prm.sig.CalculateMarshalled(signer, eaclV2, nil); err != nil {
+			err = fmt.Errorf("calculate signature: %w", err)
+			return err
+		}
 	}
 
 	var sigv2 refs.Signature
 
-	sig.WriteToV2(&sigv2)
+	prm.sig.WriteToV2(&sigv2)
 
 	// form request body
 	reqBody := new(v2container.SetExtendedACLRequestBody)

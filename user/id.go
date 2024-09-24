@@ -24,8 +24,6 @@ const IDSize = 25
 //
 // ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.OwnerID
 // message. See ReadFromV2 / WriteToV2 methods.
-//
-// Zero ID is not valid.
 type ID [IDSize]byte
 
 // ErrZeroID is an error returned on zero [ID] encounter.

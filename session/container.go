@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"math"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -62,7 +63,11 @@ func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool)
 		return errors.New("container conflicts with wildcard flag")
 	}
 
-	x.verb = ContainerVerb(cCnr.Verb())
+	verb := cCnr.Verb()
+	if verb > math.MaxInt32 {
+		return fmt.Errorf("verb %d overflows int32", verb)
+	}
+	x.verb = ContainerVerb(verb)
 
 	return nil
 }
@@ -207,7 +212,7 @@ func (x Container) AppliedTo(cnr cid.ID) bool {
 }
 
 // ContainerVerb enumerates container operations.
-type ContainerVerb int8
+type ContainerVerb int32
 
 const (
 	_ ContainerVerb = iota
@@ -244,12 +249,6 @@ func IssuedBy(cnr Container, id user.ID) bool {
 // VerifySessionDataSignature verifies signature of the session data. In practice,
 // the method is used to authenticate an operation with session data.
 func (x Container) VerifySessionDataSignature(data, signature []byte) bool {
-	var sigV2 refs.Signature
-	sigV2.SetKey(x.authKey)
-	sigV2.SetScheme(refs.ECDSA_RFC6979_SHA256)
-	sigV2.SetSign(signature)
-
-	var sig neofscrypto.Signature
-
-	return sig.ReadFromV2(sigV2) == nil && sig.Verify(data)
+	sig := neofscrypto.NewSignatureFromRawKey(neofscrypto.ECDSA_DETERMINISTIC_SHA256, x.authKey, signature)
+	return sig.Verify(data)
 }

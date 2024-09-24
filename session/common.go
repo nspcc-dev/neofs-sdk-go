@@ -18,13 +18,12 @@ type commonData struct {
 
 	issuer user.ID
 
-	lifetimeSet   bool
 	iat, nbf, exp uint64
 
 	authKey []byte
 
 	sigSet bool
-	sig    refs.Signature
+	sig    neofscrypto.Signature
 }
 
 type contextReader func(session.TokenContext, bool) error
@@ -35,15 +34,12 @@ func (x commonData) copyTo(dst *commonData) {
 
 	dst.issuer = x.issuer
 
-	dst.lifetimeSet = x.lifetimeSet
 	dst.iat = x.iat
 	dst.nbf = x.nbf
 	dst.exp = x.exp
 	dst.authKey = bytes.Clone(x.authKey)
 	dst.sigSet = x.sigSet
-	dst.sig.SetKey(bytes.Clone(x.sig.GetKey()))
-	dst.sig.SetScheme(x.sig.GetScheme())
-	dst.sig.SetSign(bytes.Clone(x.sig.GetSign()))
+	dst.sig = neofscrypto.NewSignatureFromRawKey(x.sig.Scheme(), bytes.Clone(x.sig.PublicKeyBytes()), bytes.Clone(x.sig.Value()))
 }
 
 // reads commonData and custom context from the session.Token message.
@@ -83,11 +79,7 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 	}
 
 	lifetime := body.GetLifetime()
-	if x.lifetimeSet = lifetime != nil; x.lifetimeSet {
-		x.iat = lifetime.GetIat()
-		x.nbf = lifetime.GetNbf()
-		x.exp = lifetime.GetExp()
-	} else if checkFieldPresence {
+	if checkFieldPresence && lifetime == nil {
 		return errors.New("missing token lifetime")
 	}
 
@@ -108,10 +100,16 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 
 	sig := m.GetSignature()
 	if x.sigSet = sig != nil; sig != nil {
-		x.sig = *sig
+		if err = x.sig.ReadFromV2(*sig); err != nil {
+			return fmt.Errorf("invalid body signature: %w", err)
+		}
 	} else if checkFieldPresence {
 		return errors.New("missing body signature")
 	}
+
+	x.iat = lifetime.GetIat()
+	x.nbf = lifetime.GetNbf()
+	x.exp = lifetime.GetExp()
 
 	return nil
 }
@@ -137,7 +135,7 @@ func (x commonData) fillBody(w contextWriter) *session.TokenBody {
 		body.SetOwnerID(&issuer)
 	}
 
-	if x.lifetimeSet {
+	if x.iat != 0 || x.nbf != 0 || x.exp != 0 {
 		var lifetime session.TokenLifetime
 		lifetime.SetIat(x.iat)
 		lifetime.SetNbf(x.nbf)
@@ -161,7 +159,8 @@ func (x commonData) writeToV2(m *session.Token, w contextWriter) {
 	var sig *refs.Signature
 
 	if x.sigSet {
-		sig = &x.sig
+		sig = new(refs.Signature)
+		x.sig.WriteToV2(sig)
 	}
 
 	m.SetSignature(sig)
@@ -172,28 +171,16 @@ func (x commonData) signedData(w contextWriter) []byte {
 }
 
 func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
-	var sig neofscrypto.Signature
-
-	err := sig.Calculate(signer, x.signedData(w))
-	if err != nil {
-		return err
+	err := x.sig.Calculate(signer, x.signedData(w))
+	if err == nil {
+		x.sigSet = true
 	}
-
-	sig.WriteToV2(&x.sig)
-	x.sigSet = true
-
-	return nil
+	return err
 }
 
 func (x commonData) verifySignature(w contextWriter) bool {
-	if !x.sigSet {
-		return false
-	}
-
-	var sig neofscrypto.Signature
-
 	// TODO: (#233) check owner<->key relation
-	return sig.ReadFromV2(x.sig) == nil && sig.Verify(x.signedData(w))
+	return x.sigSet && x.sig.Verify(x.signedData(w))
 }
 
 func (x commonData) marshal(w contextWriter) []byte {
@@ -243,7 +230,11 @@ func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
 // See also ExpiredAt.
 func (x *commonData) SetExp(exp uint64) {
 	x.exp = exp
-	x.lifetimeSet = true
+}
+
+// Exp returns "exp" (expiration time) claim.
+func (x commonData) Exp() uint64 {
+	return x.exp
 }
 
 // SetNbf sets "nbf" (not before) claim which identifies the time (in NeoFS
@@ -256,7 +247,11 @@ func (x *commonData) SetExp(exp uint64) {
 // See also InvalidAt.
 func (x *commonData) SetNbf(nbf uint64) {
 	x.nbf = nbf
-	x.lifetimeSet = true
+}
+
+// Nbf returns "nbf" (not before) claim.
+func (x commonData) Nbf() uint64 {
+	return x.nbf
 }
 
 // SetIat sets "iat" (issued at) claim which identifies the time (in NeoFS
@@ -268,11 +263,15 @@ func (x *commonData) SetNbf(nbf uint64) {
 // See also InvalidAt.
 func (x *commonData) SetIat(iat uint64) {
 	x.iat = iat
-	x.lifetimeSet = true
+}
+
+// Iat returns "iat" (issued at) claim.
+func (x commonData) Iat() uint64 {
+	return x.iat
 }
 
 func (x commonData) expiredAt(epoch uint64) bool {
-	return !x.lifetimeSet || x.exp < epoch
+	return x.Exp() < epoch
 }
 
 // InvalidAt asserts "exp", "nbf" and "iat" claims.
@@ -281,7 +280,7 @@ func (x commonData) expiredAt(epoch uint64) bool {
 //
 // See also SetExp, SetNbf, SetIat.
 func (x commonData) InvalidAt(epoch uint64) bool {
-	return x.expiredAt(epoch) || x.nbf > epoch || x.iat > epoch
+	return x.expiredAt(epoch) || x.Nbf() > epoch || x.Iat() > epoch
 }
 
 // SetID sets a unique identifier for the session. The identifier value MUST be
@@ -348,10 +347,23 @@ func (x commonData) Issuer() user.ID {
 // IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
 //
 // IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
+// Deprecated: use Signature method.
 func (x *commonData) IssuerPublicKeyBytes() []byte {
-	if x.sigSet {
-		return x.sig.GetKey()
+	if sig, ok := x.Signature(); ok {
+		return sig.PublicKeyBytes()
 	}
-
 	return nil
+}
+
+// AttachSignature attaches given signature to the token. Use SignedData method
+// for calculation. If signature instance itself is not needed, use Sign method.
+func (x *commonData) AttachSignature(sig neofscrypto.Signature) {
+	x.sig, x.sigSet = sig, true
+}
+
+// Signature returns token signature. If the signature is missing, false is
+// returned. Use SignedData method for verification. If signature instance
+// itself is not needed, use VerifySignature method.
+func (x commonData) Signature() (neofscrypto.Signature, bool) {
+	return x.sig, x.sigSet
 }
