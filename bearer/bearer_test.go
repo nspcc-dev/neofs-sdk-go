@@ -396,7 +396,7 @@ func TestToken_Sign(t *testing.T) {
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
 
-	/* determenistic schemes */
+	/* deterministic schemes */
 	sig = assertECDSACommon(neofsecdsa.SignerRFC6979(ecdsaPriv))
 	require.Equal(t, []byte{
 		30, 35, 64, 192, 126, 242, 239, 239, 137, 114, 85, 153, 28, 107, 99, 254, 173, 189, 12, 215, 27, 179, 145, 49, 48,
