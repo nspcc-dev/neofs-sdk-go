@@ -358,7 +358,7 @@ func testSetSignatureECDSA[T interface {
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
 
-	/* determenistic schemes */
+	/* deterministic schemes */
 	sig = assertECDSACommon(user.NewAutoIDSignerRFC6979(ecdsaPriv))
 	require.Equal(t, rfc6979Sig, sig)
 	h256 = sha256.Sum256(signed)
@@ -442,7 +442,7 @@ func testSignCDSA[T interface {
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
 
-	/* determenistic schemes */
+	/* deterministic schemes */
 	sig = assertECDSACommon(neofsecdsa.SignerRFC6979(ecdsaPriv))
 	require.Equal(t, rfc6979Sig, sig)
 	h256 = sha256.Sum256(signed)
