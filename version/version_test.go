@@ -98,12 +98,7 @@ func TestVersion_String(t *testing.T) {
 func TestVersion_MarshalJSON(t *testing.T) {
 	b, err := validVersion.MarshalJSON()
 	require.NoError(t, err)
-	if string(b) != validJSON {
-		// protojson is inconsistent https://github.com/golang/protobuf/issues/1121
-		var v version.Version
-		require.NoError(t, v.UnmarshalJSON(b))
-		require.Equal(t, validVersion, v)
-	}
+	require.JSONEq(t, validJSON, string(b))
 }
 
 func TestVersion_UnmarshalJSON(t *testing.T) {
