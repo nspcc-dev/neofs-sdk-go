@@ -817,15 +817,11 @@ func TestToken_Unmarshal(t *testing.T) {
 }
 
 func TestToken_MarshalJSON(t *testing.T) {
+	//nolint:staticcheck
 	b, err := json.MarshalIndent(validBearerToken, "", " ")
 	require.NoError(t, err)
-	if string(b) != validJSONBearerToken {
-		// protojson is inconsistent https://github.com/golang/protobuf/issues/1121
-		var val bearer.Token
-		require.NoError(t, val.UnmarshalJSON(b))
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
-		require.Equal(t, validBearerToken, val)
-	}
+	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
+	require.JSONEq(t, validJSONBearerToken, string(b))
 }
 
 func TestToken_UnmarshalJSON(t *testing.T) {
