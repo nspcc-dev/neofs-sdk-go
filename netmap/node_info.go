@@ -68,6 +68,8 @@ func (x *NodeInfo) readFromV2(m netmap.NodeInfo, checkFieldPresence bool) error 
 				return fmt.Errorf("empty value of the attribute %s", key)
 			}
 		}
+
+		mAttr[key] = struct{}{}
 	}
 
 	x.m = m
