@@ -259,21 +259,29 @@ func TestToken_SetExp(t *testing.T) {
 	testLifetimeClaim(t, (*bearer.Token).SetExp, bearer.Token.Exp)
 }
 
-func TestToken_InvalidAt(t *testing.T) {
+func TestToken_ValidAt(t *testing.T) {
 	var val bearer.Token
 
+	require.True(t, val.ValidAt(0))
 	require.False(t, val.InvalidAt(0))
+	require.False(t, val.ValidAt(1))
 	require.True(t, val.InvalidAt(1))
 
 	val.SetIat(1)
 	val.SetNbf(2)
 	val.SetExp(4)
 
+	require.False(t, val.ValidAt(0))
 	require.True(t, val.InvalidAt(0))
+	require.False(t, val.ValidAt(1))
 	require.True(t, val.InvalidAt(1))
+	require.True(t, val.ValidAt(2))
 	require.False(t, val.InvalidAt(2))
+	require.True(t, val.ValidAt(3))
 	require.False(t, val.InvalidAt(3))
+	require.True(t, val.ValidAt(4))
 	require.False(t, val.InvalidAt(4))
+	require.False(t, val.ValidAt(5))
 	require.True(t, val.InvalidAt(5))
 }
 

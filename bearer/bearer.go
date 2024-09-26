@@ -167,7 +167,7 @@ func (b Token) WriteToV2(m *acl.BearerToken) {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
 //
-// See also InvalidAt.
+// See also [Token.ValidAt].
 func (b *Token) SetExp(exp uint64) {
 	b.exp = exp
 }
@@ -184,7 +184,7 @@ func (b Token) Exp() uint64 {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
 //
-// See also InvalidAt.
+// See also [Token.ValidAt].
 func (b *Token) SetNbf(nbf uint64) {
 	b.nbf = nbf
 }
@@ -200,7 +200,7 @@ func (b Token) Nbf() uint64 {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
 //
-// See also InvalidAt.
+// See also [Token.ValidAt].
 func (b *Token) SetIat(iat uint64) {
 	b.iat = iat
 }
@@ -210,14 +210,19 @@ func (b Token) Iat() uint64 {
 	return b.iat
 }
 
+// ValidAt checks whether the Token is still valid at the given epoch according
+// to its lifetime claims.
+func (b Token) ValidAt(epoch uint64) bool {
+	return b.Nbf() <= epoch && b.Iat() <= epoch && b.Exp() >= epoch
+}
+
 // InvalidAt asserts "exp", "nbf" and "iat" claims for the given epoch.
 //
 // Zero Container is invalid in any epoch.
 //
 // See also SetExp, SetNbf, SetIat.
-func (b Token) InvalidAt(epoch uint64) bool {
-	return b.Nbf() > epoch || b.Iat() > epoch || b.Exp() < epoch
-}
+// Deprecated: use inverse [Token.ValidAt] instead.
+func (b Token) InvalidAt(epoch uint64) bool { return !b.ValidAt(epoch) }
 
 // SetEACLTable sets eacl.Table that replaces the one from the issuer's
 // container. If table has specified container, bearer token can be used only

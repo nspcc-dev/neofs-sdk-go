@@ -529,7 +529,7 @@ func TestObject_LimitByObjects(t *testing.T) {
 }
 
 func TestObject_InvalidAt(t *testing.T) {
-	testInvalidAt(t, new(session.Object))
+	testValidAt(t, new(session.Object))
 }
 
 func TestObject_ID(t *testing.T) {

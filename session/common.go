@@ -244,7 +244,7 @@ func (x commonData) Exp() uint64 {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
 //
-// See also InvalidAt.
+// See also ValidAt.
 func (x *commonData) SetNbf(nbf uint64) {
 	x.nbf = nbf
 }
@@ -260,7 +260,7 @@ func (x commonData) Nbf() uint64 {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
 //
-// See also InvalidAt.
+// See also ValidAt.
 func (x *commonData) SetIat(iat uint64) {
 	x.iat = iat
 }
@@ -274,14 +274,19 @@ func (x commonData) expiredAt(epoch uint64) bool {
 	return x.Exp() < epoch
 }
 
+// ValidAt checks whether the token is still valid at the given epoch according
+// to its lifetime claims.
+func (x commonData) ValidAt(epoch uint64) bool {
+	return x.Nbf() <= epoch && x.Iat() <= epoch && x.Exp() >= epoch
+}
+
 // InvalidAt asserts "exp", "nbf" and "iat" claims.
 //
 // Zero session is invalid in any epoch.
 //
 // See also SetExp, SetNbf, SetIat.
-func (x commonData) InvalidAt(epoch uint64) bool {
-	return x.expiredAt(epoch) || x.Nbf() > epoch || x.Iat() > epoch
-}
+// Deprecated: use inverse [Token.ValidAt] instead.
+func (x commonData) InvalidAt(epoch uint64) bool { return !x.ValidAt(epoch) }
 
 // SetID sets a unique identifier for the session. The identifier value MUST be
 // assigned in a manner that ensures that there is a negligible probability

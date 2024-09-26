@@ -472,7 +472,7 @@ func TestContainer_ApplyOnlyTo(t *testing.T) {
 }
 
 func TestContainer_InvalidAt(t *testing.T) {
-	testInvalidAt(t, new(session.Container))
+	testValidAt(t, new(session.Container))
 }
 
 func TestContainer_ID(t *testing.T) {
