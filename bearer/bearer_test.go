@@ -7,13 +7,13 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"math"
 	"math/big"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -309,36 +309,6 @@ func TestToken_AssertContainer(t *testing.T) {
 	require.True(t, val.AssertContainer(cnr2))
 }
 
-// copy-paste from crypto/ecdsa package.
-func getVarIntSize(value int) int {
-	var size uintptr
-
-	if value < 0xFD {
-		size = 1 // unit8
-	} else if value <= 0xFFFF {
-		size = 3 // byte + uint16
-	} else {
-		size = 5 // byte + uint32
-	}
-	return int(size)
-}
-
-func putVarUint(data []byte, val uint64) int {
-	if val < 0xfd {
-		data[0] = byte(val)
-		return 1
-	}
-	if val <= 0xFFFF {
-		data[0] = byte(0xfd)
-		binary.LittleEndian.PutUint16(data[1:], uint16(val))
-		return 3
-	}
-
-	data[0] = byte(0xfe)
-	binary.LittleEndian.PutUint32(data[1:], uint32(val))
-	return 5
-}
-
 func TestToken_Sign(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		require.Error(t, new(bearer.Token).Sign(usertest.FailSigner(usertest.User())))
@@ -386,9 +356,9 @@ func TestToken_Sign(t *testing.T) {
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(validSignedBearerToken)))
 	base64.StdEncoding.Encode(b64, validSignedBearerToken)
 	payloadLen := 2*16 + len(b64)
-	b := make([]byte, 4+getVarIntSize(payloadLen)+payloadLen+2)
+	b := make([]byte, 4+io.GetVarSize(payloadLen)+payloadLen+2)
 	n := copy(b, []byte{0x01, 0x00, 0x01, 0xf0})
-	n += putVarUint(b[n:], uint64(payloadLen))
+	n += io.PutVarUint(b[n:], uint64(payloadLen))
 	n += hex.Encode(b[n:], sig[64:])
 	n += copy(b[n:], b64)
 	copy(b[n:], []byte{0x00, 0x00})
