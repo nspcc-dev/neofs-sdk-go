@@ -226,13 +226,15 @@ func testLifetimeClaim[T session.Container | session.Object](t testing.TB, get f
 	require.EqualValues(t, 5469830342, get(x))
 }
 
-func testInvalidAt[T interface {
+func testValidAt[T interface {
 	*session.Container | *session.Object
 	SetExp(uint64)
 	SetIat(uint64)
 	SetNbf(uint64)
+	ValidAt(uint64) bool
 	InvalidAt(uint64) bool
 }](t testing.TB, x T) {
+	require.True(t, x.ValidAt(0))
 	require.False(t, x.InvalidAt(0))
 
 	const iat = 13
@@ -243,16 +245,21 @@ func testInvalidAt[T interface {
 	x.SetNbf(nbf)
 	x.SetExp(exp)
 
+	require.False(t, x.ValidAt(iat-1))
 	require.True(t, x.InvalidAt(iat-1))
+	require.False(t, x.ValidAt(iat))
 	require.True(t, x.InvalidAt(iat))
+	require.True(t, x.ValidAt(nbf))
 	require.False(t, x.InvalidAt(nbf))
+	require.True(t, x.ValidAt(exp))
 	require.False(t, x.InvalidAt(exp))
+	require.False(t, x.ValidAt(exp+1))
 	require.True(t, x.InvalidAt(exp+1))
 }
 
 func TestInvalidAt(t *testing.T) {
-	testInvalidAt(t, new(session.Container))
-	testInvalidAt(t, new(session.Object))
+	testValidAt(t, new(session.Container))
+	testValidAt(t, new(session.Object))
 }
 
 func testSetAuthKey[T session.Container | session.Object](t testing.TB, set func(*T, neofscrypto.PublicKey), assert func(T, neofscrypto.PublicKey) bool) {
