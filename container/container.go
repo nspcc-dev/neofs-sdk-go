@@ -235,7 +235,11 @@ func (x Container) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *Container) UnmarshalJSON(data []byte) error {
-	return x.v2.UnmarshalJSON(data)
+	var m container.Container
+	if err := m.UnmarshalJSON(data); err != nil {
+		return err
+	}
+	return x.readFromV2(m, false)
 }
 
 // Init initializes all internal data of the Container required by NeoFS API
