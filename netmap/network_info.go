@@ -60,7 +60,7 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 
 			num, err = decodeConfigValueUint64(prm.GetValue())
 			if err == nil {
-				if alpha := math.Float64frombits(num); alpha < 0 && alpha > 1 {
+				if alpha := math.Float64frombits(num); alpha < 0 || alpha > 1 {
 					err = fmt.Errorf("EigenTrust alpha value %0.2f is out of range [0, 1]", alpha)
 				}
 			}
