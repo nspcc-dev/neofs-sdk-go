@@ -1,6 +1,8 @@
 package object
 
 import (
+	"fmt"
+
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -41,7 +43,9 @@ func (x Lock) ReadMembers(buf []oid.ID) {
 	var i int
 
 	(*v2object.Lock)(&x).IterateMembers(func(idV2 refs.ObjectID) {
-		_ = buf[i].ReadFromV2(idV2)
+		if err := buf[i].ReadFromV2(idV2); err != nil {
+			panic(fmt.Errorf("invalid member #%d: %w", i, err))
+		}
 		i++
 	})
 }
@@ -74,5 +78,21 @@ func (x Lock) Marshal() []byte {
 //
 // See also [Lock.Marshal].
 func (x *Lock) Unmarshal(data []byte) error {
-	return (*v2object.Lock)(x).Unmarshal(data)
+	m := (*v2object.Lock)(x)
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	var id oid.ID
+	var i int
+	m.IterateMembers(func(mid refs.ObjectID) {
+		if err == nil {
+			if err = id.ReadFromV2(mid); err != nil {
+				err = fmt.Errorf("invalid member #%d: %w", i, err)
+			}
+		}
+		i++
+	})
+	return err
 }
