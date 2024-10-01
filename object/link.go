@@ -1,6 +1,8 @@
 package object
 
 import (
+	"fmt"
+
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -41,7 +43,23 @@ func (l *Link) Marshal() []byte {
 //
 // See also [Link.Marshal].
 func (l *Link) Unmarshal(data []byte) error {
-	return (*v2object.Link)(l).Unmarshal(data)
+	m := (*v2object.Link)(l)
+	err := m.Unmarshal(data)
+	if err != nil {
+		return err
+	}
+
+	var id oid.ID
+	var i int
+	m.IterateChildren(func(mo v2object.MeasuredObject) {
+		if err == nil {
+			if err = id.ReadFromV2(mo.ID); err != nil {
+				err = fmt.Errorf("invalid member #%d: %w", i, err)
+			}
+		}
+		i++
+	})
+	return err
 }
 
 // MeasuredObject groups object ID and its size length. It is compatible with
@@ -63,7 +81,11 @@ func (m *MeasuredObject) SetObjectID(id oid.ID) {
 // See also [MeasuredObject.SetObjectID].
 func (m *MeasuredObject) ObjectID() oid.ID {
 	var id oid.ID
-	_ = id.ReadFromV2(m.ID)
+	if m.ID.GetValue() != nil {
+		if err := id.ReadFromV2(m.ID); err != nil {
+			panic(fmt.Errorf("invalid ID: %w", err))
+		}
+	}
 
 	return id
 }
@@ -88,8 +110,11 @@ func (m *MeasuredObject) ObjectSize() uint32 {
 func (l *Link) Objects() []MeasuredObject {
 	res := make([]MeasuredObject, (*v2object.Link)(l).NumberOfChildren())
 	var i int
-
+	var id oid.ID
 	(*v2object.Link)(l).IterateChildren(func(object v2object.MeasuredObject) {
+		if err := id.ReadFromV2(object.ID); err != nil {
+			panic(fmt.Errorf("invalid member #%d: %w", i, err))
+		}
 		res[i] = MeasuredObject(object)
 		i++
 	})
