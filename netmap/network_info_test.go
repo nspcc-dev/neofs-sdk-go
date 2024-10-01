@@ -1,263 +1,505 @@
 package netmap_test
 
 import (
-	"encoding/binary"
-	"math"
 	"testing"
 
-	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
-	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	anyValidCurrentEpoch           = uint64(10200868596141730080)
+	anyValidMagicNumber            = uint64(4418809875917597199)
+	anyValidMSPerBlock             = int64(6618240263362299360)
+	anyValidAuditFee               = uint64(439242513058661347)
+	anyValidStoragePrice           = uint64(17664525256563393128)
+	anyValidNamedContainerFee      = uint64(8341161107066979354)
+	anyValidContainerFee           = uint64(6947563960217184460)
+	anyValidEigenTrustAlpha        = 0.0508058412675794
+	anyValidEigenTrustIterations   = uint64(13357133751475762684)
+	anyValidEpochDuration          = uint64(15624600918358785057)
+	anyValidHomoHashDisabled       = true
+	anyValidIRCandidateFee         = uint64(10380497368037027314)
+	anyValidMaintenanceModeAllowed = true
+	anyValidMaxObjectSize          = uint64(1434410563277613155)
+	anyValidWithdrawalFee          = uint64(4895019021563966975)
+)
+
+var (
+	anyValidBinAuditFee               = []byte{227, 131, 28, 9, 189, 128, 24, 6}
+	anyValidBinStoragePrice           = []byte{104, 130, 96, 83, 33, 0, 37, 245}
+	anyValidBinNamedContainerFee      = []byte{26, 4, 8, 97, 213, 193, 193, 115}
+	anyValidBinContainerFee           = []byte{204, 40, 13, 175, 156, 180, 106, 96}
+	anyValidBinEigenTrustAlpha        = []byte{101, 74, 97, 37, 57, 3, 170, 63}
+	anyValidBinEigenTrustIterations   = []byte{252, 245, 23, 186, 96, 18, 94, 185}
+	anyValidBinEpochDuration          = []byte{33, 124, 4, 168, 192, 187, 213, 216}
+	anyValidBinHomoHashDisabled       = []byte{1}
+	anyValidBinIRCandidateFee         = []byte{242, 109, 185, 165, 91, 239, 14, 144}
+	anyValidBinMaintenanceModeAllowed = []byte{1}
+	anyValidBinMaxObjectSize          = []byte{99, 232, 58, 182, 206, 12, 232, 19}
+	anyValidBinWithdrawalFee          = []byte{255, 181, 25, 125, 221, 153, 238, 67}
+)
+
+// set by init.
+var validNetworkInfo netmap.NetworkInfo
+
+func init() {
+	validNetworkInfo.SetCurrentEpoch(anyValidCurrentEpoch)
+	validNetworkInfo.SetMagicNumber(anyValidMagicNumber)
+	validNetworkInfo.SetMsPerBlock(anyValidMSPerBlock)
+	validNetworkInfo.SetRawNetworkParameter("k1", []byte("v1"))
+	validNetworkInfo.SetRawNetworkParameter("k2", []byte("v2"))
+	validNetworkInfo.SetAuditFee(anyValidAuditFee)
+	validNetworkInfo.SetStoragePrice(anyValidStoragePrice)
+	validNetworkInfo.SetNamedContainerFee(anyValidNamedContainerFee)
+	validNetworkInfo.SetContainerFee(anyValidContainerFee)
+	validNetworkInfo.SetEigenTrustAlpha(anyValidEigenTrustAlpha)
+	validNetworkInfo.SetNumberOfEigenTrustIterations(anyValidEigenTrustIterations)
+	validNetworkInfo.SetEpochDuration(anyValidEpochDuration)
+	validNetworkInfo.DisableHomomorphicHashing()
+	validNetworkInfo.SetIRCandidateFee(anyValidIRCandidateFee)
+	validNetworkInfo.AllowMaintenanceMode()
+	validNetworkInfo.SetMaxObjectSize(anyValidMaxObjectSize)
+	validNetworkInfo.SetWithdrawalFee(anyValidWithdrawalFee)
+}
+
+var validBinNetworkInfo = []byte{
+	8, 160, 210, 220, 139, 145, 254, 176, 200, 141, 1, 16, 143, 212, 185, 192, 185, 133, 177, 169, 61, 24, 224, 139, 151, 255,
+	197, 206, 173, 236, 91, 34, 239, 2, 10, 8, 10, 2, 107, 49, 18, 2, 118, 49, 10, 8, 10, 2, 107, 50, 18, 2, 118, 50, 10, 20,
+	10, 8, 65, 117, 100, 105, 116, 70, 101, 101, 18, 8, 227, 131, 28, 9, 189, 128, 24, 6, 10, 27, 10, 15, 66, 97, 115, 105, 99, 73,
+	110, 99, 111, 109, 101, 82, 97, 116, 101, 18, 8, 104, 130, 96, 83, 33, 0, 37, 245, 10, 29, 10, 17, 67, 111, 110, 116, 97, 105, 110,
+	101, 114, 65, 108, 105, 97, 115, 70, 101, 101, 18, 8, 26, 4, 8, 97, 213, 193, 193, 115, 10, 24, 10, 12, 67, 111, 110, 116, 97, 105,
+	110, 101, 114, 70, 101, 101, 18, 8, 204, 40, 13, 175, 156, 180, 106, 96, 10, 27, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115,
+	116, 65, 108, 112, 104, 97, 18, 8, 101, 74, 97, 37, 57, 3, 170, 63, 10, 32, 10, 20, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116,
+	73, 116, 101, 114, 97, 116, 105, 111, 110, 115, 18, 8, 252, 245, 23, 186, 96, 18, 94, 185, 10, 25, 10, 13, 69, 112, 111, 99, 104,
+	68, 117, 114, 97, 116, 105, 111, 110, 18, 8, 33, 124, 4, 168, 192, 187, 213, 216, 10, 31, 10, 26, 72, 111, 109, 111, 109, 111, 114,
+	112, 104, 105, 99, 72, 97, 115, 104, 105, 110, 103, 68, 105, 115, 97, 98, 108, 101, 100, 18, 1, 1, 10, 33, 10, 21, 73, 110, 110,
+	101, 114, 82, 105, 110, 103, 67, 97, 110, 100, 105, 100, 97, 116, 101, 70, 101, 101, 18, 8, 242, 109, 185, 165, 91, 239, 14, 144,
+	10, 27, 10, 22, 77, 97, 105, 110, 116, 101, 110, 97, 110, 99, 101, 77, 111, 100, 101, 65, 108, 108, 111, 119, 101, 100, 18, 1, 1, 10,
+	25, 10, 13, 77, 97, 120, 79, 98, 106, 101, 99, 116, 83, 105, 122, 101, 18, 8, 99, 232, 58, 182, 206, 12, 232, 19, 10, 23,
+	10, 11, 87, 105, 116, 104, 100, 114, 97, 119, 70, 101, 101, 18, 8, 255, 181, 25, 125, 221, 153, 238, 67,
+}
+
 func TestNetworkInfo_CurrentEpoch(t *testing.T) {
 	var x netmap.NetworkInfo
-
 	require.Zero(t, x.CurrentEpoch())
 
 	const e = 13
-
 	x.SetCurrentEpoch(e)
-
 	require.EqualValues(t, e, x.CurrentEpoch())
 
-	var m netmapv2.NetworkInfo
-	x.WriteToV2(&m)
-
-	require.EqualValues(t, e, m.GetCurrentEpoch())
+	const e2 = e + 1
+	x.SetCurrentEpoch(e2)
+	require.EqualValues(t, e2, x.CurrentEpoch())
 }
 
 func TestNetworkInfo_MagicNumber(t *testing.T) {
 	var x netmap.NetworkInfo
-
 	require.Zero(t, x.MagicNumber())
 
 	const magic = 321
-
 	x.SetMagicNumber(magic)
-
 	require.EqualValues(t, magic, x.MagicNumber())
 
-	var m netmapv2.NetworkInfo
-	x.WriteToV2(&m)
-
-	require.EqualValues(t, magic, m.GetMagicNumber())
+	const magic2 = magic + 1
+	x.SetMagicNumber(magic2)
+	require.EqualValues(t, magic2, x.MagicNumber())
 }
 
 func TestNetworkInfo_MsPerBlock(t *testing.T) {
 	var x netmap.NetworkInfo
-
 	require.Zero(t, x.MsPerBlock())
 
 	const ms = 789
-
 	x.SetMsPerBlock(ms)
-
 	require.EqualValues(t, ms, x.MsPerBlock())
 
-	var m netmapv2.NetworkInfo
-	x.WriteToV2(&m)
-
-	require.EqualValues(t, ms, m.GetMsPerBlock())
+	const ms2 = ms + 1
+	x.SetMsPerBlock(ms2)
+	require.EqualValues(t, ms2, x.MsPerBlock())
 }
 
-func testConfigValue(t *testing.T,
-	getter func(x netmap.NetworkInfo) any,
-	setter func(x *netmap.NetworkInfo, val any),
-	val1, val2 any,
-	v2Key string, v2Val func(val any) []byte,
-) {
+func TestNetworkInfo_SetRawNetworkParameter(t *testing.T) {
 	var x netmap.NetworkInfo
+	const k1, v1 = "k1", "v1"
+	const k2, v2 = "k2", "v2"
 
+	require.Zero(t, x.RawNetworkParameter(k1))
+	require.Zero(t, x.RawNetworkParameter(k2))
+	x.IterateRawNetworkParameters(func(string, []byte) {
+		t.Fatal("handler must not be called")
+	})
+
+	x.SetRawNetworkParameter(k1, []byte(v1))
+	x.SetRawNetworkParameter(k2, []byte(v2))
+
+	require.EqualValues(t, v1, x.RawNetworkParameter(k1))
+	require.EqualValues(t, v2, x.RawNetworkParameter(k2))
+	var collected [][2]string
+	x.IterateRawNetworkParameters(func(name string, value []byte) {
+		collected = append(collected, [2]string{name, string(value)})
+	})
+	require.ElementsMatch(t, [][2]string{{k1, v1}, {k2, v2}}, collected)
+}
+
+func testConfigValue[T comparable](t testing.TB,
+	getter func(netmap.NetworkInfo) T,
+	setter func(*netmap.NetworkInfo, T),
+	val1, val2 T,
+) {
+	require.NotEqual(t, val1, val2)
+	var x netmap.NetworkInfo
 	require.Zero(t, getter(x))
-
-	checkVal := func(exp any) {
-		require.EqualValues(t, exp, getter(x))
-
-		var m netmapv2.NetworkInfo
-		x.WriteToV2(&m)
-
-		require.EqualValues(t, 1, m.GetNetworkConfig().NumberOfParameters())
-		found := false
-		m.GetNetworkConfig().IterateParameters(func(prm *netmapv2.NetworkParameter) bool {
-			require.False(t, found)
-			require.Equal(t, []byte(v2Key), prm.GetKey())
-			require.Equal(t, v2Val(exp), prm.GetValue())
-			found = true
-			return false
-		})
-		require.True(t, found)
-	}
-
 	setter(&x, val1)
-	checkVal(val1)
-
+	require.Equal(t, val1, getter(x))
 	setter(&x, val2)
-	checkVal(val2)
+	require.Equal(t, val2, getter(x))
 }
 
-func TestNetworkInfo_AuditFee(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.AuditFee() },
-		func(info *netmap.NetworkInfo, val any) { info.SetAuditFee(val.(uint64)) },
-		uint64(1), uint64(2),
-		"AuditFee", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetAuditFee(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.AuditFee, (*netmap.NetworkInfo).SetAuditFee, 1, 2)
 }
 
-func TestNetworkInfo_StoragePrice(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.StoragePrice() },
-		func(info *netmap.NetworkInfo, val any) { info.SetStoragePrice(val.(uint64)) },
-		uint64(1), uint64(2),
-		"BasicIncomeRate", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetStoragePrice(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.StoragePrice, (*netmap.NetworkInfo).SetStoragePrice, 1, 2)
 }
 
-func TestNetworkInfo_ContainerFee(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.ContainerFee() },
-		func(info *netmap.NetworkInfo, val any) { info.SetContainerFee(val.(uint64)) },
-		uint64(1), uint64(2),
-		"ContainerFee", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetContainerFee(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.ContainerFee, (*netmap.NetworkInfo).SetContainerFee, 1, 2)
 }
 
-func TestNetworkInfo_NamedContainerFee(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.NamedContainerFee() },
-		func(info *netmap.NetworkInfo, val any) { info.SetNamedContainerFee(val.(uint64)) },
-		uint64(1), uint64(2),
-		"ContainerAliasFee", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetNamedContainerFee(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.NamedContainerFee, (*netmap.NetworkInfo).SetNamedContainerFee, 1, 2)
 }
 
-func TestNetworkInfo_EigenTrustAlpha(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.EigenTrustAlpha() },
-		func(info *netmap.NetworkInfo, val any) { info.SetEigenTrustAlpha(val.(float64)) },
-		0.1, 0.2,
-		"EigenTrustAlpha", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, math.Float64bits(val.(float64)))
-			return data
-		},
-	)
+func TestNetworkInfo_SetEigenTrustAlpha(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.EigenTrustAlpha, (*netmap.NetworkInfo).SetEigenTrustAlpha, 0.1, 0.2)
+	require.Panics(t, func() { new(netmap.NetworkInfo).SetEigenTrustAlpha(-0.5) })
+	require.Panics(t, func() { new(netmap.NetworkInfo).SetEigenTrustAlpha(1.5) })
 }
 
-func TestNetworkInfo_NumberOfEigenTrustIterations(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.NumberOfEigenTrustIterations() },
-		func(info *netmap.NetworkInfo, val any) { info.SetNumberOfEigenTrustIterations(val.(uint64)) },
-		uint64(1), uint64(2),
-		"EigenTrustIterations", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetNumberOfEigenTrustIterations(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.NumberOfEigenTrustIterations, (*netmap.NetworkInfo).SetNumberOfEigenTrustIterations, 1, 2)
 }
 
-func TestNetworkInfo_IRCandidateFee(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.IRCandidateFee() },
-		func(info *netmap.NetworkInfo, val any) { info.SetIRCandidateFee(val.(uint64)) },
-		uint64(1), uint64(2),
-		"InnerRingCandidateFee", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetEpochDuration(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.EpochDuration, (*netmap.NetworkInfo).SetEpochDuration, 1, 2)
 }
 
-func TestNetworkInfo_MaxObjectSize(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.MaxObjectSize() },
-		func(info *netmap.NetworkInfo, val any) { info.SetMaxObjectSize(val.(uint64)) },
-		uint64(1), uint64(2),
-		"MaxObjectSize", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetIRCandidateFee(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.IRCandidateFee, (*netmap.NetworkInfo).SetIRCandidateFee, 1, 2)
 }
 
-func TestNetworkInfo_WithdrawalFee(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.WithdrawalFee() },
-		func(info *netmap.NetworkInfo, val any) { info.SetWithdrawalFee(val.(uint64)) },
-		uint64(1), uint64(2),
-		"WithdrawFee", func(val any) []byte {
-			data := make([]byte, 8)
-			binary.LittleEndian.PutUint64(data, val.(uint64))
-			return data
-		},
-	)
+func TestNetworkInfo_SetMaxObjectSize(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.IRCandidateFee, (*netmap.NetworkInfo).SetIRCandidateFee, 1, 2)
 }
 
-func TestNetworkInfo_HomomorphicHashingDisabled(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.HomomorphicHashingDisabled() },
-		func(info *netmap.NetworkInfo, val any) {
-			if val.(bool) {
-				info.DisableHomomorphicHashing()
-			}
-		},
-		true, true, // it is impossible to enable hashing
-		"HomomorphicHashingDisabled", func(val any) []byte {
-			data := make([]byte, 1)
-
-			if val.(bool) {
-				data[0] = 1
-			}
-
-			return data
-		},
-	)
+func TestNetworkInfo_SetWithdrawalFee(t *testing.T) {
+	testConfigValue(t, netmap.NetworkInfo.WithdrawalFee, (*netmap.NetworkInfo).SetWithdrawalFee, 1, 2)
 }
 
-func TestNetworkInfo_MaintenanceModeAllowed(t *testing.T) {
-	testConfigValue(t,
-		func(x netmap.NetworkInfo) any { return x.MaintenanceModeAllowed() },
-		func(info *netmap.NetworkInfo, val any) {
-			if val.(bool) {
-				info.AllowMaintenanceMode()
-			}
-		},
-		true, true,
-		"MaintenanceModeAllowed", func(val any) []byte {
-			if val.(bool) {
-				return []byte{1}
-			}
-			return []byte{0}
-		},
-	)
+func TestNetworkInfo_DisableHomomorphicHashing(t *testing.T) {
+	var x netmap.NetworkInfo
+	require.False(t, x.HomomorphicHashingDisabled())
+	x.DisableHomomorphicHashing()
+	require.True(t, x.HomomorphicHashingDisabled())
+}
+
+func TestNetworkInfo_AllowMaintenanceMode(t *testing.T) {
+	var x netmap.NetworkInfo
+	require.False(t, x.MaintenanceModeAllowed())
+	x.AllowMaintenanceMode()
+	require.True(t, x.MaintenanceModeAllowed())
+}
+
+func setNetworkPrms[T string | []byte](ni *apinetmap.NetworkInfo, els ...T) {
+	if len(els)%2 != 0 {
+		panic("must be even")
+	}
+	mps := make([]apinetmap.NetworkParameter, len(els)/2)
+	for i := range len(els) / 2 {
+		mps[i].SetKey([]byte(els[2*i]))
+		mps[i].SetValue([]byte(els[2*i+1]))
+	}
+	var mc apinetmap.NetworkConfig
+	mc.SetParameters(mps...)
+	ni.SetNetworkConfig(&mc)
+}
+
+func TestNetworkInfo_ReadFromV2(t *testing.T) {
+	var mps []apinetmap.NetworkParameter
+	addP := func(k string, v []byte) {
+		var m apinetmap.NetworkParameter
+		m.SetKey([]byte(k))
+		m.SetValue(v)
+		mps = append(mps, m)
+	}
+	addP("k1", []byte("v1"))
+	addP("k2", []byte("v2"))
+	addP("AuditFee", anyValidBinAuditFee)
+	addP("BasicIncomeRate", anyValidBinStoragePrice)
+	addP("ContainerAliasFee", anyValidBinNamedContainerFee)
+	addP("ContainerFee", anyValidBinContainerFee)
+	addP("EigenTrustAlpha", anyValidBinEigenTrustAlpha)
+	addP("EigenTrustIterations", anyValidBinEigenTrustIterations)
+	addP("EpochDuration", anyValidBinEpochDuration)
+	addP("HomomorphicHashingDisabled", anyValidBinHomoHashDisabled)
+	addP("InnerRingCandidateFee", anyValidBinIRCandidateFee)
+	addP("MaintenanceModeAllowed", anyValidBinMaintenanceModeAllowed)
+	addP("MaxObjectSize", anyValidBinMaxObjectSize)
+	addP("WithdrawFee", anyValidBinWithdrawalFee)
+	var mc apinetmap.NetworkConfig
+	mc.SetParameters(mps...)
+	var m apinetmap.NetworkInfo
+	m.SetCurrentEpoch(anyValidCurrentEpoch)
+	m.SetMagicNumber(anyValidMagicNumber)
+	m.SetMsPerBlock(anyValidMSPerBlock)
+	m.SetNetworkConfig(&mc)
+
+	var val netmap.NetworkInfo
+	require.NoError(t, val.ReadFromV2(m))
+	require.EqualValues(t, "v1", val.RawNetworkParameter("k1"))
+	require.EqualValues(t, "v2", val.RawNetworkParameter("k2"))
+	require.Equal(t, anyValidCurrentEpoch, val.CurrentEpoch())
+	require.Equal(t, anyValidMagicNumber, val.MagicNumber())
+	require.Equal(t, anyValidMSPerBlock, val.MsPerBlock())
+	require.Equal(t, anyValidAuditFee, val.AuditFee())
+	require.Equal(t, anyValidStoragePrice, val.StoragePrice())
+	require.Equal(t, anyValidNamedContainerFee, val.NamedContainerFee())
+	require.Equal(t, anyValidContainerFee, val.ContainerFee())
+	require.Equal(t, anyValidEigenTrustAlpha, val.EigenTrustAlpha())
+	require.Equal(t, anyValidEigenTrustIterations, val.NumberOfEigenTrustIterations())
+	require.Equal(t, anyValidEpochDuration, val.EpochDuration())
+	require.Equal(t, anyValidHomoHashDisabled, val.HomomorphicHashingDisabled())
+	require.Equal(t, anyValidIRCandidateFee, val.IRCandidateFee())
+	require.Equal(t, anyValidMaintenanceModeAllowed, val.MaintenanceModeAllowed())
+	require.Equal(t, anyValidMaxObjectSize, val.MaxObjectSize())
+	require.Equal(t, anyValidWithdrawalFee, val.WithdrawalFee())
+
+	// reset optional fields
+	mc.SetParameters(mps[0])
+	m.SetCurrentEpoch(0)
+	m.SetMagicNumber(0)
+	m.SetMsPerBlock(0)
+	val2 := val
+	require.NoError(t, val2.ReadFromV2(m))
+	require.EqualValues(t, "v1", val.RawNetworkParameter("k1"))
+	require.Zero(t, val2.RawNetworkParameter("k2"))
+	require.Zero(t, val2.CurrentEpoch())
+	require.Zero(t, val2.MagicNumber())
+	require.Zero(t, val2.CurrentEpoch())
+	require.Zero(t, val2.AuditFee())
+	require.Zero(t, val2.StoragePrice())
+	require.Zero(t, val2.NamedContainerFee())
+	require.Zero(t, val2.ContainerFee())
+	require.Zero(t, val2.EigenTrustAlpha())
+	require.Zero(t, val2.NumberOfEigenTrustIterations())
+	require.Zero(t, val2.EpochDuration())
+	require.Zero(t, val2.HomomorphicHashingDisabled())
+	require.Zero(t, val2.IRCandidateFee())
+	require.Zero(t, val2.MaintenanceModeAllowed())
+	require.Zero(t, val2.MaxObjectSize())
+	require.Zero(t, val2.WithdrawalFee())
+
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range []struct {
+			name, err string
+			corrupt   func(*apinetmap.NetworkInfo)
+		}{
+			{name: "netconfig/missing", err: "missing network config",
+				corrupt: func(m *apinetmap.NetworkInfo) { m.SetNetworkConfig(nil) }},
+			{name: "netconfig/prms/missing", err: "missing network parameters",
+				corrupt: func(m *apinetmap.NetworkInfo) { m.SetNetworkConfig(new(apinetmap.NetworkConfig)) }},
+			{name: "netconfig/prms/no value", err: "empty attribute value k1",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "k1", "") }},
+			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
+			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "EigenTrustAlpha", "123456789") }},
+			{name: "netconfig/prms/eigen trust alpha/negative", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value -0.50 is out of range [0, 1]",
+				corrupt: func(m *apinetmap.NetworkInfo) {
+					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte{0, 0, 0, 0, 0, 0, 224, 191})
+				}},
+			{name: "netconfig/prms/eigen trust alpha/too big", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 1.50 is out of range [0, 1]",
+				corrupt: func(m *apinetmap.NetworkInfo) {
+					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte{0, 0, 0, 0, 0, 0, 248, 63})
+				}},
+			{name: "netconfig/prms/homo hash disabled/overflow", err: "invalid HomomorphicHashingDisabled parameter: invalid bool parameter contract format too big: integer",
+				corrupt: func(m *apinetmap.NetworkInfo) {
+					setNetworkPrms(m, []byte("HomomorphicHashingDisabled"), make([]byte, 33))
+				}},
+			{name: "netconfig/prms/maintenance allowed/overflow", err: "invalid MaintenanceModeAllowed parameter: invalid bool parameter contract format too big: integer",
+				corrupt: func(m *apinetmap.NetworkInfo) {
+					setNetworkPrms(m, []byte("MaintenanceModeAllowed"), make([]byte, 33))
+				}},
+			{name: "netconfig/prms/audit fee/overflow", err: "invalid AuditFee parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("AuditFee"), make([]byte, 9)) }},
+			{name: "netconfig/prms/storage price/overflow", err: "invalid BasicIncomeRate parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("BasicIncomeRate"), make([]byte, 9)) }},
+			{name: "netconfig/prms/container fee/overflow", err: "invalid ContainerFee parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("ContainerFee"), make([]byte, 9)) }},
+			{name: "netconfig/prms/named container fee/overflow", err: "invalid ContainerAliasFee parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("ContainerAliasFee"), make([]byte, 9)) }},
+			{name: "netconfig/prms/eigen trust iterations/overflow", err: "invalid EigenTrustIterations parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("EigenTrustIterations"), make([]byte, 9)) }},
+			{name: "netconfig/prms/epoch duration/overflow", err: "invalid EpochDuration parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("EpochDuration"), make([]byte, 9)) }},
+			{name: "netconfig/prms/ir candidate fee/overflow", err: "invalid InnerRingCandidateFee parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("InnerRingCandidateFee"), make([]byte, 9)) }},
+			{name: "netconfig/prms/max object size/overflow", err: "invalid MaxObjectSize parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("MaxObjectSize"), make([]byte, 9)) }},
+			{name: "netconfig/prms/withdrawal fee/overflow", err: "invalid WithdrawFee parameter: invalid uint64 parameter length 9",
+				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("WithdrawFee"), make([]byte, 9)) }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				st := val
+				var m apinetmap.NetworkInfo
+				st.WriteToV2(&m)
+				tc.corrupt(&m)
+				require.EqualError(t, new(netmap.NetworkInfo).ReadFromV2(m), tc.err)
+			})
+		}
+	})
+}
+
+func TestNetworkInfo_WriteToV2(t *testing.T) {
+	var val netmap.NetworkInfo
+	var m apinetmap.NetworkInfo
+
+	// zero
+	val.WriteToV2(&m)
+	require.Zero(t, m.GetCurrentEpoch())
+	require.Zero(t, m.GetMagicNumber())
+	require.Zero(t, m.GetMsPerBlock())
+	require.Zero(t, m.GetNetworkConfig())
+
+	// filled
+	validNetworkInfo.WriteToV2(&m)
+	require.Equal(t, anyValidCurrentEpoch, m.GetCurrentEpoch())
+	require.Equal(t, anyValidMagicNumber, m.GetMagicNumber())
+	require.Equal(t, anyValidMSPerBlock, m.GetMsPerBlock())
+	mc := m.GetNetworkConfig()
+	require.NotNil(t, mc)
+	require.EqualValues(t, 14, mc.NumberOfParameters())
+	var collected [][2][]byte
+	mc.IterateParameters(func(p *apinetmap.NetworkParameter) bool {
+		collected = append(collected, [2][]byte{p.GetKey(), p.GetValue()})
+		return false
+	})
+	require.Len(t, collected, 14)
+	for i, pair := range [][2]any{
+		{"k1", "v1"},
+		{"k2", "v2"},
+		{"AuditFee", anyValidBinAuditFee},
+		{"BasicIncomeRate", anyValidBinStoragePrice},
+		{"ContainerAliasFee", anyValidBinNamedContainerFee},
+		{"ContainerFee", anyValidBinContainerFee},
+		{"EigenTrustAlpha", anyValidBinEigenTrustAlpha},
+		{"EigenTrustIterations", anyValidBinEigenTrustIterations},
+		{"EpochDuration", anyValidBinEpochDuration},
+		{"HomomorphicHashingDisabled", anyValidBinHomoHashDisabled},
+		{"InnerRingCandidateFee", anyValidBinIRCandidateFee},
+		{"MaintenanceModeAllowed", anyValidBinMaintenanceModeAllowed},
+		{"MaxObjectSize", anyValidBinMaxObjectSize},
+		{"WithdrawFee", anyValidBinWithdrawalFee},
+	} {
+		require.EqualValues(t, pair[0], collected[i][0])
+		require.EqualValues(t, pair[1], collected[i][1])
+	}
 }
 
 func TestNetworkInfo_Marshal(t *testing.T) {
-	v := netmaptest.NetworkInfo()
+	require.Equal(t, validBinNetworkInfo, validNetworkInfo.Marshal())
+}
 
-	var v2 netmap.NetworkInfo
-	require.NoError(t, v2.Unmarshal(v.Marshal()))
+func TestNetworkInfo_Unmarshal(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
+		t.Run("protobuf", func(t *testing.T) {
+			err := new(netmap.NetworkInfo).Unmarshal([]byte("Hello, world!"))
+			require.ErrorContains(t, err, "proto")
+			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
+		})
+		for _, tc := range []struct {
+			name string
+			err  string
+			b    []byte
+		}{
+			{name: "netconfig/prms/no value", err: "empty attribute value k1",
+				b: []byte{34, 6, 10, 4, 10, 2, 107, 49}},
+			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
+				b: []byte{34, 30, 10, 8, 10, 2, 107, 49, 18, 2, 118, 49, 10, 8, 10, 2, 107, 50, 18, 2, 118, 50, 10, 8, 10, 2, 107,
+					49, 18, 2, 118, 51}},
+			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 30, 10, 28, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 9, 49, 50,
+					51, 52, 53, 54, 55, 56, 57}},
+			{name: "netconfig/prms/eigen trust alpha/negative", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value -0.50 is out of range [0, 1]",
+				b: []byte{34, 29, 10, 27, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 8, 0, 0,
+					0, 0, 0, 0, 224, 191}},
+			{name: "netconfig/prms/eigen trust alpha/too big", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 1.50 is out of range [0, 1]",
+				b: []byte{34, 29, 10, 27, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 8, 0, 0,
+					0, 0, 0, 0, 248, 63}},
+			{name: "netconfig/prms/homo hash disabled/overflow", err: "invalid HomomorphicHashingDisabled parameter: invalid bool parameter contract format too big: integer",
+				b: []byte{34, 65, 10, 63, 10, 26, 72, 111, 109, 111, 109, 111, 114, 112, 104, 105, 99, 72, 97, 115, 104, 105, 110, 103,
+					68, 105, 115, 97, 98, 108, 101, 100, 18, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/maintenance allowed/overflow", err: "invalid MaintenanceModeAllowed parameter: invalid bool parameter contract format too big: integer",
+				b: []byte{34, 61, 10, 59, 10, 22, 77, 97, 105, 110, 116, 101, 110, 97, 110, 99, 101, 77, 111, 100, 101, 65, 108, 108, 111,
+					119, 101, 100, 18, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+					0, 0, 0, 0}},
+			{name: "netconfig/prms/audit fee/overflow", err: "invalid AuditFee parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 23, 10, 21, 10, 8, 65, 117, 100, 105, 116, 70, 101, 101, 18, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/storage price/overflow", err: "invalid BasicIncomeRate parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 30, 10, 28, 10, 15, 66, 97, 115, 105, 99, 73, 110, 99, 111, 109, 101, 82, 97, 116, 101, 18, 9, 0, 0, 0, 0,
+					0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/container fee/overflow", err: "invalid ContainerFee parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 27, 10, 25, 10, 12, 67, 111, 110, 116, 97, 105, 110, 101, 114, 70, 101, 101, 18, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/named container fee/overflow", err: "invalid ContainerAliasFee parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 32, 10, 30, 10, 17, 67, 111, 110, 116, 97, 105, 110, 101, 114, 65, 108, 105, 97, 115, 70, 101, 101, 18, 9, 0,
+					0, 0, 0, 0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/eigen trust iterations/overflow", err: "invalid EigenTrustIterations parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 35, 10, 33, 10, 20, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 73, 116, 101, 114, 97, 116, 105, 111, 110,
+					115, 18, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/epoch duration/overflow", err: "invalid EpochDuration parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 28, 10, 26, 10, 13, 69, 112, 111, 99, 104, 68, 117, 114, 97, 116, 105, 111, 110, 18, 9, 0, 0, 0, 0, 0, 0,
+					0, 0, 0}},
+			{name: "netconfig/prms/ir candidate fee/overflow", err: "invalid InnerRingCandidateFee parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 36, 10, 34, 10, 21, 73, 110, 110, 101, 114, 82, 105, 110, 103, 67, 97, 110, 100, 105, 100, 97, 116, 101,
+					70, 101, 101, 18, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+			{name: "netconfig/prms/max object size/overflow", err: "invalid MaxObjectSize parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 28, 10, 26, 10, 13, 77, 97, 120, 79, 98, 106, 101, 99, 116, 83, 105, 122, 101, 18, 9, 0, 0, 0, 0, 0,
+					0, 0, 0, 0}},
+			{name: "netconfig/prms/withdrawal fee/overflow", err: "invalid WithdrawFee parameter: invalid uint64 parameter length 9",
+				b: []byte{34, 26, 10, 24, 10, 11, 87, 105, 116, 104, 100, 114, 97, 119, 70, 101, 101, 18, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.EqualError(t, new(netmap.NetworkInfo).Unmarshal(tc.b), tc.err)
+			})
+		}
+	})
 
-	require.Equal(t, v, v2)
+	var val netmap.NetworkInfo
+	// zero
+	require.NoError(t, val.Unmarshal(nil))
+	require.Zero(t, val.RawNetworkParameter("k1"))
+	require.Zero(t, val.RawNetworkParameter("k2"))
+	require.Zero(t, val.CurrentEpoch())
+	require.Zero(t, val.MagicNumber())
+	require.Zero(t, val.CurrentEpoch())
+	require.Zero(t, val.AuditFee())
+	require.Zero(t, val.StoragePrice())
+	require.Zero(t, val.NamedContainerFee())
+	require.Zero(t, val.ContainerFee())
+	require.Zero(t, val.EigenTrustAlpha())
+	require.Zero(t, val.NumberOfEigenTrustIterations())
+	require.Zero(t, val.EpochDuration())
+	require.Zero(t, val.HomomorphicHashingDisabled())
+	require.Zero(t, val.IRCandidateFee())
+	require.Zero(t, val.MaintenanceModeAllowed())
+	require.Zero(t, val.MaxObjectSize())
+	require.Zero(t, val.WithdrawalFee())
+
+	// filled
+	require.NoError(t, val.Unmarshal(validBinNetworkInfo))
+	require.Equal(t, validNetworkInfo, val)
 }
