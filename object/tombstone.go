@@ -1,6 +1,9 @@
 package object
 
 import (
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/tombstone"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -12,6 +15,8 @@ type Tombstone tombstone.Tombstone
 // NewTombstoneFromV2 wraps v2 [tombstone.Tombstone] message to [Tombstone].
 //
 // Nil [tombstone.Tombstone] converts to nil.
+// Deprecated: BUG: members' ID length is not checked. Use
+// [Tombstone.ReadFromV2] instead.
 func NewTombstoneFromV2(tV2 *tombstone.Tombstone) *Tombstone {
 	return (*Tombstone)(tV2)
 }
@@ -23,7 +28,32 @@ func NewTombstoneFromV2(tV2 *tombstone.Tombstone) *Tombstone {
 //   - splitID: nil;
 //   - members: nil.
 func NewTombstone() *Tombstone {
-	return NewTombstoneFromV2(new(tombstone.Tombstone))
+	return new(Tombstone)
+}
+
+// ReadFromV2 reads Tombstone from the [tombstone.Tombstone] message. Returns an
+// error if the message is malformed according to the NeoFS API V2 protocol.
+//
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+func (t *Tombstone) ReadFromV2(m tombstone.Tombstone) error {
+	var id oid.ID
+	ms := m.GetMembers()
+	for i := range ms {
+		if err := id.ReadFromV2(ms[i]); err != nil {
+			return fmt.Errorf("invalid member #%d: %w", i, err)
+		}
+	}
+	if b := m.GetSplitID(); len(b) > 0 {
+		var uid uuid.UUID
+		if err := uid.UnmarshalBinary(b); err != nil {
+			return fmt.Errorf("invalid split ID: %w", err)
+		} else if v := uid.Version(); v != 4 {
+			return fmt.Errorf("invalid split UUID version %d", v)
+		}
+	}
+	*t = Tombstone(m)
+	return nil
 }
 
 // ToV2 converts [Tombstone] to v2 [tombstone.Tombstone] message.
@@ -79,17 +109,14 @@ func (t *Tombstone) Members() []oid.ID {
 		return nil
 	}
 
-	var (
-		ms = make([]oid.ID, len(msV2))
-		id oid.ID
-	)
-
+	res := make([]oid.ID, len(msV2))
 	for i := range msV2 {
-		_ = id.ReadFromV2(msV2[i])
-		ms[i] = id
+		if err := res[i].ReadFromV2(msV2[i]); err != nil {
+			panic(fmt.Errorf("invalid member #%d: %w", i, err))
+		}
 	}
 
-	return ms
+	return res
 }
 
 // SetMembers sets list of objects to be deleted.
@@ -130,7 +157,11 @@ func (t *Tombstone) Marshal() []byte {
 //
 // See also [Tombstone.Marshal].
 func (t *Tombstone) Unmarshal(data []byte) error {
-	return (*tombstone.Tombstone)(t).Unmarshal(data)
+	var m tombstone.Tombstone
+	if err := m.Unmarshal(data); err != nil {
+		return err
+	}
+	return t.ReadFromV2(m)
 }
 
 // MarshalJSON encodes [Tombstone] to protobuf JSON format.
@@ -144,5 +175,9 @@ func (t *Tombstone) MarshalJSON() ([]byte, error) {
 //
 // See also [Tombstone.MarshalJSON].
 func (t *Tombstone) UnmarshalJSON(data []byte) error {
-	return (*tombstone.Tombstone)(t).UnmarshalJSON(data)
+	var m tombstone.Tombstone
+	if err := m.UnmarshalJSON(data); err != nil {
+		return err
+	}
+	return t.ReadFromV2(m)
 }
