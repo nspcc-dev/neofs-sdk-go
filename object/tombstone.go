@@ -62,15 +62,15 @@ func (t *Tombstone) ReadFromV2(m tombstone.Tombstone) error {
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
-func (t *Tombstone) ToV2() *tombstone.Tombstone {
-	return (*tombstone.Tombstone)(t)
+func (t Tombstone) ToV2() *tombstone.Tombstone {
+	return (*tombstone.Tombstone)(&t)
 }
 
 // ExpirationEpoch returns the last NeoFS epoch number of the tombstone lifetime.
 //
 // See also [Tombstone.SetExpirationEpoch].
-func (t *Tombstone) ExpirationEpoch() uint64 {
-	return (*tombstone.Tombstone)(t).GetExpirationEpoch()
+func (t Tombstone) ExpirationEpoch() uint64 {
+	return (*tombstone.Tombstone)(&t).GetExpirationEpoch()
 }
 
 // SetExpirationEpoch sets the last NeoFS epoch number of the tombstone lifetime.
@@ -86,9 +86,9 @@ func (t *Tombstone) SetExpirationEpoch(v uint64) {
 // Make a copy if you need to change it.
 //
 // See also [Tombstone.SetSplitID].
-func (t *Tombstone) SplitID() *SplitID {
+func (t Tombstone) SplitID() *SplitID {
 	return NewSplitIDFromV2(
-		(*tombstone.Tombstone)(t).GetSplitID())
+		(*tombstone.Tombstone)(&t).GetSplitID())
 }
 
 // SetSplitID sets identifier of object split hierarchy.
@@ -101,9 +101,8 @@ func (t *Tombstone) SetSplitID(v *SplitID) {
 // Members returns list of objects to be deleted.
 //
 // See also [Tombstone.SetMembers].
-func (t *Tombstone) Members() []oid.ID {
-	v2 := (*tombstone.Tombstone)(t)
-	msV2 := v2.GetMembers()
+func (t Tombstone) Members() []oid.ID {
+	msV2 := (*tombstone.Tombstone)(&t).GetMembers()
 
 	if msV2 == nil {
 		return nil
@@ -149,8 +148,8 @@ func (t *Tombstone) SetMembers(v []oid.ID) {
 // Marshal marshals [Tombstone] into a protobuf binary form.
 //
 // See also [Tombstone.Unmarshal].
-func (t *Tombstone) Marshal() []byte {
-	return (*tombstone.Tombstone)(t).StableMarshal(nil)
+func (t Tombstone) Marshal() []byte {
+	return (*tombstone.Tombstone)(&t).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [Tombstone].
@@ -167,8 +166,8 @@ func (t *Tombstone) Unmarshal(data []byte) error {
 // MarshalJSON encodes [Tombstone] to protobuf JSON format.
 //
 // See also [Tombstone.UnmarshalJSON].
-func (t *Tombstone) MarshalJSON() ([]byte, error) {
-	return (*tombstone.Tombstone)(t).MarshalJSON()
+func (t Tombstone) MarshalJSON() ([]byte, error) {
+	return (*tombstone.Tombstone)(&t).MarshalJSON()
 }
 
 // UnmarshalJSON decodes [Tombstone] from protobuf JSON format.
