@@ -48,7 +48,7 @@ func (x *NodeInfo) readFromV2(m netmap.NodeInfo, checkFieldPresence bool) error 
 		if key == "" {
 			return fmt.Errorf("empty key of the attribute #%d", i)
 		} else if _, ok := mAttr[key]; ok {
-			return fmt.Errorf("duplicated attbiuted %s", key)
+			return fmt.Errorf("duplicated attribute %s", key)
 		}
 
 		switch {
