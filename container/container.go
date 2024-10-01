@@ -235,7 +235,11 @@ func (x Container) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *Container) UnmarshalJSON(data []byte) error {
-	return x.v2.UnmarshalJSON(data)
+	var m container.Container
+	if err := m.UnmarshalJSON(data); err != nil {
+		return err
+	}
+	return x.readFromV2(m, false)
 }
 
 // Init initializes all internal data of the Container required by NeoFS API
@@ -557,6 +561,8 @@ func (x Container) AssertID(id cid.ID) bool {
 // Version returns the NeoFS API version this container was created with.
 func (x Container) Version() version.Version {
 	var v version.Version
-	_ = v.ReadFromV2(*x.v2.GetVersion()) // No, this can't fail for x.
+	if m := x.v2.GetVersion(); m != nil {
+		_ = v.ReadFromV2(*m)
+	}
 	return v
 }
