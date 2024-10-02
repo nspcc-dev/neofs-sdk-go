@@ -6,13 +6,13 @@ import (
 	"crypto/sha256"
 	"crypto/sha512"
 	"encoding/base64"
-	"encoding/binary"
 	"encoding/hex"
 	"math"
 	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -226,13 +226,15 @@ func testLifetimeClaim[T session.Container | session.Object](t testing.TB, get f
 	require.EqualValues(t, 5469830342, get(x))
 }
 
-func testInvalidAt[T interface {
+func testValidAt[T interface {
 	*session.Container | *session.Object
 	SetExp(uint64)
 	SetIat(uint64)
 	SetNbf(uint64)
+	ValidAt(uint64) bool
 	InvalidAt(uint64) bool
 }](t testing.TB, x T) {
+	require.True(t, x.ValidAt(0))
 	require.False(t, x.InvalidAt(0))
 
 	const iat = 13
@@ -243,16 +245,21 @@ func testInvalidAt[T interface {
 	x.SetNbf(nbf)
 	x.SetExp(exp)
 
+	require.False(t, x.ValidAt(iat-1))
 	require.True(t, x.InvalidAt(iat-1))
+	require.False(t, x.ValidAt(iat))
 	require.True(t, x.InvalidAt(iat))
+	require.True(t, x.ValidAt(nbf))
 	require.False(t, x.InvalidAt(nbf))
+	require.True(t, x.ValidAt(exp))
 	require.False(t, x.InvalidAt(exp))
+	require.False(t, x.ValidAt(exp+1))
 	require.True(t, x.InvalidAt(exp+1))
 }
 
 func TestInvalidAt(t *testing.T) {
-	testInvalidAt(t, new(session.Container))
-	testInvalidAt(t, new(session.Object))
+	testValidAt(t, new(session.Container))
+	testValidAt(t, new(session.Object))
 }
 
 func testSetAuthKey[T session.Container | session.Object](t testing.TB, set func(*T, neofscrypto.PublicKey), assert func(T, neofscrypto.PublicKey) bool) {
@@ -341,9 +348,9 @@ func testSetSignatureECDSA[T interface {
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(signed)))
 	base64.StdEncoding.Encode(b64, signed)
 	payloadLen := 2*16 + len(b64)
-	b := make([]byte, 4+getVarIntSize(payloadLen)+payloadLen+2)
+	b := make([]byte, 4+io.GetVarSize(payloadLen)+payloadLen+2)
 	n := copy(b, []byte{0x01, 0x00, 0x01, 0xf0})
-	n += putVarUint(b[n:], uint64(payloadLen))
+	n += io.PutVarUint(b[n:], uint64(payloadLen))
 	n += hex.Encode(b[n:], sig[64:])
 	n += copy(b[n:], b64)
 	copy(b[n:], []byte{0x00, 0x00})
@@ -351,42 +358,12 @@ func testSetSignatureECDSA[T interface {
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
 
-	/* determenistic schemes */
+	/* deterministic schemes */
 	sig = assertECDSACommon(user.NewAutoIDSignerRFC6979(ecdsaPriv))
 	require.Equal(t, rfc6979Sig, sig)
 	h256 = sha256.Sum256(signed)
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
-}
-
-// copy-paste from crypto/ecdsa package.
-func getVarIntSize(value int) int {
-	var size uintptr
-
-	if value < 0xFD {
-		size = 1 // unit8
-	} else if value <= 0xFFFF {
-		size = 3 // byte + uint16
-	} else {
-		size = 5 // byte + uint32
-	}
-	return int(size)
-}
-
-func putVarUint(data []byte, val uint64) int {
-	if val < 0xfd {
-		data[0] = byte(val)
-		return 1
-	}
-	if val <= 0xFFFF {
-		data[0] = byte(0xfd)
-		binary.LittleEndian.PutUint16(data[1:], uint16(val))
-		return 3
-	}
-
-	data[0] = byte(0xfe)
-	binary.LittleEndian.PutUint32(data[1:], uint32(val))
-	return 5
 }
 
 func testSignCDSA[T interface {
@@ -425,9 +402,9 @@ func testSignCDSA[T interface {
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(signed)))
 	base64.StdEncoding.Encode(b64, signed)
 	payloadLen := 2*16 + len(b64)
-	b := make([]byte, 4+getVarIntSize(payloadLen)+payloadLen+2)
+	b := make([]byte, 4+io.GetVarSize(payloadLen)+payloadLen+2)
 	n := copy(b, []byte{0x01, 0x00, 0x01, 0xf0})
-	n += putVarUint(b[n:], uint64(payloadLen))
+	n += io.PutVarUint(b[n:], uint64(payloadLen))
 	n += hex.Encode(b[n:], sig[64:])
 	n += copy(b[n:], b64)
 	copy(b[n:], []byte{0x00, 0x00})
@@ -435,7 +412,7 @@ func testSignCDSA[T interface {
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
 
-	/* determenistic schemes */
+	/* deterministic schemes */
 	sig = assertECDSACommon(neofsecdsa.SignerRFC6979(ecdsaPriv))
 	require.Equal(t, rfc6979Sig, sig)
 	h256 = sha256.Sum256(signed)
