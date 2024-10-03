@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -15,6 +16,8 @@ type SplitInfo object.SplitInfo
 // NewSplitInfoFromV2 wraps v2 [object.SplitInfo] message to [SplitInfo].
 //
 // Nil object.SplitInfo converts to nil.
+// Deprecated: BUG: format of fields is not checked. Use [SplitInfo.ReadFromV2]
+// instead.
 func NewSplitInfoFromV2(v2 *object.SplitInfo) *SplitInfo {
 	return (*SplitInfo)(v2)
 }
@@ -26,7 +29,7 @@ func NewSplitInfoFromV2(v2 *object.SplitInfo) *SplitInfo {
 //   - lastPart nil;
 //   - link: nil.
 func NewSplitInfo() *SplitInfo {
-	return NewSplitInfoFromV2(new(object.SplitInfo))
+	return new(SplitInfo)
 }
 
 // ToV2 converts [SplitInfo] to v2 [object.SplitInfo] message.
@@ -166,12 +169,11 @@ func (s *SplitInfo) Marshal() []byte {
 //
 // See also [SplitInfo.Marshal].
 func (s *SplitInfo) Unmarshal(data []byte) error {
-	err := (*object.SplitInfo)(s).Unmarshal(data)
-	if err != nil {
+	var m object.SplitInfo
+	if err := m.Unmarshal(data); err != nil {
 		return err
 	}
-
-	return formatCheckSI((*object.SplitInfo)(s))
+	return s.ReadFromV2(m)
 }
 
 // MarshalJSON implements json.Marshaler.
@@ -185,19 +187,32 @@ func (s *SplitInfo) MarshalJSON() ([]byte, error) {
 //
 // See also [SplitInfo.MarshalJSON].
 func (s *SplitInfo) UnmarshalJSON(data []byte) error {
-	err := (*object.SplitInfo)(s).UnmarshalJSON(data)
-	if err != nil {
+	var m object.SplitInfo
+	if err := m.UnmarshalJSON(data); err != nil {
 		return err
 	}
-
-	return formatCheckSI((*object.SplitInfo)(s))
+	return s.ReadFromV2(m)
 }
 
 var errSplitInfoMissingFields = errors.New("neither link object ID nor last part object ID is set")
 
-func formatCheckSI(v2 *object.SplitInfo) error {
-	link := v2.GetLink()
-	lastPart := v2.GetLastPart()
+// ReadFromV2 reads SplitInfo from the [object.SplitInfo] message. Returns an
+// error if the message is malformed according to the NeoFS API V2 protocol.
+//
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+func (s *SplitInfo) ReadFromV2(m object.SplitInfo) error {
+	if b := m.GetSplitID(); len(b) > 0 {
+		var uid uuid.UUID
+		if err := uid.UnmarshalBinary(b); err != nil {
+			return fmt.Errorf("invalid split ID: %w", err)
+		} else if v := uid.Version(); v != 4 {
+			return fmt.Errorf("invalid split UUID version %d", v)
+		}
+	}
+
+	link := m.GetLink()
+	lastPart := m.GetLastPart()
 	if link == nil && lastPart == nil {
 		return errSplitInfoMissingFields
 	}
@@ -218,7 +233,7 @@ func formatCheckSI(v2 *object.SplitInfo) error {
 		}
 	}
 
-	firstPart := v2.GetFirstPart()
+	firstPart := m.GetFirstPart()
 	if firstPart != nil { // can be missing for old objects
 		err := oID.ReadFromV2(*firstPart)
 		if err != nil {
@@ -226,5 +241,6 @@ func formatCheckSI(v2 *object.SplitInfo) error {
 		}
 	}
 
+	*s = SplitInfo(m)
 	return nil
 }
