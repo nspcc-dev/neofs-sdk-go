@@ -274,3 +274,9 @@ func (t *Table) UnmarshalJSON(data []byte) error {
 // EqualTables compares Table with each other.
 // Deprecated: compare [Table.Marshal] instead.
 func EqualTables(t1, t2 Table) bool { return bytes.Equal(t1.Marshal(), t2.Marshal()) }
+
+// IsZero checks whether all fields of the table are zero/empty. The property
+// can be used as a marker of unset eACL.
+func (t Table) IsZero() bool {
+	return t.cid.IsZero() && len(t.records) == 0 && t.version == version.Version{}
+}
