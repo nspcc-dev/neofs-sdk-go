@@ -38,8 +38,8 @@ func NewSplitInfo() *SplitInfo {
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
-func (s *SplitInfo) ToV2() *object.SplitInfo {
-	return (*object.SplitInfo)(s)
+func (s SplitInfo) ToV2() *object.SplitInfo {
+	return (*object.SplitInfo)(&s)
 }
 
 // SplitID returns [SplitID] if it has been set. New objects may miss it,
@@ -49,9 +49,9 @@ func (s *SplitInfo) ToV2() *object.SplitInfo {
 // Make a copy if you need to change it.
 //
 // See also [SplitInfo.SetSplitID].
-func (s *SplitInfo) SplitID() *SplitID {
+func (s SplitInfo) SplitID() *SplitID {
 	return NewSplitIDFromV2(
-		(*object.SplitInfo)(s).GetSplitID())
+		(*object.SplitInfo)(&s).GetSplitID())
 }
 
 // SetSplitID sets split ID in object ID. It resets split ID if nil passed.
@@ -161,8 +161,8 @@ func (s *SplitInfo) SetFirstPart(v oid.ID) {
 // Marshal marshals [SplitInfo] into a protobuf binary form.
 //
 // See also [SplitInfo.Unmarshal].
-func (s *SplitInfo) Marshal() []byte {
-	return (*object.SplitInfo)(s).StableMarshal(nil)
+func (s SplitInfo) Marshal() []byte {
+	return (*object.SplitInfo)(&s).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [SplitInfo].
@@ -179,8 +179,8 @@ func (s *SplitInfo) Unmarshal(data []byte) error {
 // MarshalJSON implements json.Marshaler.
 //
 // See also [SplitInfo.UnmarshalJSON].
-func (s *SplitInfo) MarshalJSON() ([]byte, error) {
-	return (*object.SplitInfo)(s).MarshalJSON()
+func (s SplitInfo) MarshalJSON() ([]byte, error) {
+	return (*object.SplitInfo)(&s).MarshalJSON()
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
