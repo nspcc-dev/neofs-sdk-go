@@ -35,11 +35,13 @@ const (
 )
 
 // ToV2 converts [SearchMatchType] to v2 [v2object.MatchType] enum value.
+// Deprecated: cast instead.
 func (m SearchMatchType) ToV2() v2object.MatchType {
 	return v2object.MatchType(m)
 }
 
 // SearchMatchFromV2 converts v2 [v2object.MatchType] to [SearchMatchType] enum value.
+// Deprecated: cast instead.
 func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
 	return SearchMatchType(t)
 }
@@ -59,7 +61,7 @@ func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
 //
 // All other values are base-10 integers.
 func (m SearchMatchType) EncodeToString() string {
-	return m.ToV2().String()
+	return v2object.MatchType(m).String()
 }
 
 // String implements [fmt.Stringer].
@@ -81,7 +83,7 @@ func (m *SearchMatchType) DecodeString(s string) bool {
 	ok := g.FromString(s)
 
 	if ok {
-		*m = SearchMatchFromV2(g)
+		*m = SearchMatchType(g)
 	}
 
 	return ok
@@ -171,7 +173,7 @@ func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
 		filters.AddFilter(
 			v2[i].GetKey(),
 			v2[i].GetValue(),
-			SearchMatchFromV2(v2[i].GetMatchType()),
+			SearchMatchType(v2[i].GetMatchType()),
 		)
 	}
 
@@ -232,7 +234,7 @@ func (f SearchFilters) ToV2() []v2object.SearchFilter {
 	for i := range f {
 		result[i].SetKey(f[i].header)
 		result[i].SetValue(f[i].value.EncodeToString())
-		result[i].SetMatchType(f[i].op.ToV2())
+		result[i].SetMatchType(v2object.MatchType(f[i].op))
 	}
 
 	return result
