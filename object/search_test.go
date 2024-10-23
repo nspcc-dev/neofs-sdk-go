@@ -41,25 +41,8 @@ func TestMatch(t *testing.T) {
 	})
 
 	t.Run("unknown matches", func(t *testing.T) {
-		var unknownMatchType object.SearchMatchType
-
-		for matchType := range eqV2Matches {
-			unknownMatchType += matchType
-		}
-
-		unknownMatchType++
-
-		require.Equal(t, unknownMatchType.ToV2(), v2object.MatchUnknown)
-
-		var unknownMatchTypeV2 v2object.MatchType
-
-		for _, matchTypeV2 := range eqV2Matches {
-			unknownMatchTypeV2 += matchTypeV2
-		}
-
-		unknownMatchTypeV2++
-
-		require.Equal(t, object.SearchMatchFromV2(unknownMatchTypeV2), object.MatchUnknown)
+		require.EqualValues(t, 1000, object.SearchMatchType(1000).ToV2())
+		require.EqualValues(t, 1000, object.SearchMatchFromV2(1000))
 	})
 }
 
