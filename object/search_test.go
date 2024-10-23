@@ -21,7 +21,7 @@ import (
 )
 
 var eqV2Matches = map[object.SearchMatchType]v2object.MatchType{
-	object.MatchUnknown:        v2object.MatchUnknown,
+	object.MatchUnspecified:    v2object.MatchUnknown,
 	object.MatchStringEqual:    v2object.MatchStringEqual,
 	object.MatchStringNotEqual: v2object.MatchStringNotEqual,
 	object.MatchNotPresent:     v2object.MatchNotPresent,
@@ -33,6 +33,7 @@ var eqV2Matches = map[object.SearchMatchType]v2object.MatchType{
 }
 
 func TestMatch(t *testing.T) {
+	require.EqualValues(t, object.MatchUnspecified, v2object.MatchUnknown)
 	t.Run("known matches", func(t *testing.T) {
 		for matchType, matchTypeV2 := range eqV2Matches {
 			require.Equal(t, matchTypeV2, matchType.ToV2())
@@ -77,7 +78,7 @@ func TestSearchFilters_AddRootFilter(t *testing.T) {
 
 	f := (*fs)[0]
 
-	require.Equal(t, object.MatchUnknown, f.Operation())
+	require.Equal(t, object.MatchUnspecified, f.Operation())
 	require.Equal(t, object.FilterRoot, f.Header())
 	require.Equal(t, "", f.Value())
 
@@ -101,7 +102,7 @@ func TestSearchFilters_AddPhyFilter(t *testing.T) {
 
 	f := (*fs)[0]
 
-	require.Equal(t, object.MatchUnknown, f.Operation())
+	require.Equal(t, object.MatchUnspecified, f.Operation())
 	require.Equal(t, object.FilterPhysical, f.Header())
 	require.Equal(t, "", f.Value())
 
@@ -262,7 +263,7 @@ func TestSearchMatchType_String(t *testing.T) {
 		{val: toPtr(object.MatchStringEqual), str: "STRING_EQUAL"},
 		{val: toPtr(object.MatchStringNotEqual), str: "STRING_NOT_EQUAL"},
 		{val: toPtr(object.MatchNotPresent), str: "NOT_PRESENT"},
-		{val: toPtr(object.MatchUnknown), str: "MATCH_TYPE_UNSPECIFIED"},
+		{val: toPtr(object.MatchUnspecified), str: "MATCH_TYPE_UNSPECIFIED"},
 		{val: toPtr(object.MatchNumGT), str: "NUM_GT"},
 		{val: toPtr(object.MatchNumGE), str: "NUM_GE"},
 		{val: toPtr(object.MatchNumLT), str: "NUM_LT"},

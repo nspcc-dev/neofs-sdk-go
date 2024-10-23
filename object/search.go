@@ -18,8 +18,12 @@ import (
 // SearchMatchType indicates match operation on specified header.
 type SearchMatchType uint32
 
+// MatchUnknown is an SearchMatchType value used to mark operator as undefined.
+// Deprecated: use MatchUnspecified instead.
+const MatchUnknown = MatchUnspecified
+
 const (
-	MatchUnknown SearchMatchType = iota
+	MatchUnspecified SearchMatchType = iota
 	MatchStringEqual
 	MatchStringNotEqual
 	MatchNotPresent
@@ -197,7 +201,7 @@ func (f *SearchFilters) AddFilter(key, value string, op SearchMatchType) {
 // specific match type or value. They processed by NeoFS nodes by the fact
 // of presence in search query. E.g.: FilterRoot, FilterPhysical.
 func (f *SearchFilters) addFlagFilter(key string) {
-	f.addFilter(MatchUnknown, key, staticStringer(""))
+	f.addFilter(MatchUnspecified, key, staticStringer(""))
 }
 
 // AddObjectVersionFilter adds a filter by version.
