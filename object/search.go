@@ -32,38 +32,12 @@ const (
 
 // ToV2 converts [SearchMatchType] to v2 [v2object.MatchType] enum value.
 func (m SearchMatchType) ToV2() v2object.MatchType {
-	switch m {
-	case
-		MatchStringEqual,
-		MatchStringNotEqual,
-		MatchNotPresent,
-		MatchCommonPrefix,
-		MatchNumGT,
-		MatchNumGE,
-		MatchNumLT,
-		MatchNumLE:
-		return v2object.MatchType(m)
-	default:
-		return v2object.MatchUnknown
-	}
+	return v2object.MatchType(m)
 }
 
 // SearchMatchFromV2 converts v2 [v2object.MatchType] to [SearchMatchType] enum value.
 func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
-	switch t {
-	case
-		v2object.MatchStringEqual,
-		v2object.MatchStringNotEqual,
-		v2object.MatchNotPresent,
-		v2object.MatchCommonPrefix,
-		v2object.MatchNumGT,
-		v2object.MatchNumGE,
-		v2object.MatchNumLT,
-		v2object.MatchNumLE:
-		return SearchMatchType(t)
-	default:
-		return MatchUnknown
-	}
+	return SearchMatchType(t)
 }
 
 // EncodeToString returns string representation of [SearchMatchType].
@@ -77,7 +51,9 @@ func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
 //   - [MatchNumGE], default: NUM_GE;
 //   - [MatchNumLT], default: NUM_LT;
 //   - [MatchNumLE], default: NUM_LE;
-//   - [MatchUnknown], default: MATCH_TYPE_UNSPECIFIED.
+//   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED.
+//
+// All other values are base-10 integers.
 func (m SearchMatchType) EncodeToString() string {
 	return m.ToV2().String()
 }
