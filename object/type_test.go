@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var typeStrings = map[object.Type]string{
+	object.TypeRegular:      "REGULAR",
+	object.TypeTombstone:    "TOMBSTONE",
+	object.TypeStorageGroup: "STORAGE_GROUP",
+	object.TypeLock:         "LOCK",
+	object.TypeLink:         "LINK",
+	5:                       "5",
+}
+
 func TestType_ToV2(t *testing.T) {
 	typs := []struct {
 		t  object.Type
