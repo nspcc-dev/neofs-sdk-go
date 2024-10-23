@@ -46,6 +46,89 @@ func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
 	return SearchMatchType(t)
 }
 
+const (
+	matcherStringZero         = "MATCH_TYPE_UNSPECIFIED"
+	matcherStringEqual        = "STRING_EQUAL"
+	matcherStringNotEqual     = "STRING_NOT_EQUAL"
+	matcherStringNotPresent   = "NOT_PRESENT"
+	matcherStringCommonPrefix = "COMMON_PREFIX"
+	matcherStringNumGT        = "NUM_GT"
+	matcherStringNumGE        = "NUM_GE"
+	matcherStringNumLT        = "NUM_LT"
+	matcherStringNumLE        = "NUM_LE"
+)
+
+// SearchMatchTypeToString maps SearchMatchType values to strings:
+//   - 0: MATCH_TYPE_UNSPECIFIED
+//   - [MatchStringEqual]: STRING_EQUAL
+//   - [MatchStringNotEqual]: STRING_NOT_EQUAL
+//   - [MatchNotPresent]: NOT_PRESENT
+//   - [MatchCommonPrefix]: COMMON_PREFIX
+//   - [MatchNumGT]: NUM_GT
+//   - [MatchNumGE]: NUM_GE
+//   - [MatchNumLT]: NUM_LT
+//   - [MatchNumLE]: NUM_LE
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use
+// [SearchMatchType.String] to get any human-readable text for printing.
+func SearchMatchTypeToString(m SearchMatchType) string {
+	switch m {
+	default:
+		return strconv.FormatUint(uint64(m), 10)
+	case 0:
+		return matcherStringZero
+	case MatchStringEqual:
+		return matcherStringEqual
+	case MatchStringNotEqual:
+		return matcherStringNotEqual
+	case MatchNotPresent:
+		return matcherStringNotPresent
+	case MatchCommonPrefix:
+		return matcherStringCommonPrefix
+	case MatchNumGT:
+		return matcherStringNumGT
+	case MatchNumGE:
+		return matcherStringNumGE
+	case MatchNumLT:
+		return matcherStringNumLT
+	case MatchNumLE:
+		return matcherStringNumLE
+	}
+}
+
+// SearchMatchTypeFromString maps strings to SearchMatchType values in reverse
+// to [SearchMatchTypeToString]. Returns false if s is incorrect.
+func SearchMatchTypeFromString(s string) (SearchMatchType, bool) {
+	switch s {
+	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return SearchMatchType(n), true
+		}
+		return 0, false
+	case matcherStringZero:
+		return 0, true
+	case matcherStringEqual:
+		return MatchStringEqual, true
+	case matcherStringNotEqual:
+		return MatchStringNotEqual, true
+	case matcherStringNotPresent:
+		return MatchNotPresent, true
+	case matcherStringCommonPrefix:
+		return MatchCommonPrefix, true
+	case matcherStringNumGT:
+		return MatchNumGT, true
+	case matcherStringNumGE:
+		return MatchNumGE, true
+	case matcherStringNumLT:
+		return MatchNumLT, true
+	case matcherStringNumLE:
+		return MatchNumLE, true
+	}
+}
+
 // EncodeToString returns string representation of [SearchMatchType].
 //
 // String mapping:
@@ -60,33 +143,29 @@ func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
 //   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED.
 //
 // All other values are base-10 integers.
-func (m SearchMatchType) EncodeToString() string {
-	return v2object.MatchType(m).String()
-}
+// Deprecated: use [SearchMatchTypeToString] instead.
+func (m SearchMatchType) EncodeToString() string { return SearchMatchTypeToString(m) }
 
 // String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as [EncodeToString]. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [SearchMatchTypeToString] and [SearchMatchTypeFromString]
+// for consistent mapping.
 func (m SearchMatchType) String() string {
-	return m.EncodeToString()
+	return SearchMatchTypeToString(m)
 }
 
 // DecodeString parses [SearchMatchType] from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [SearchMatchTypeFromString] instead.
 func (m *SearchMatchType) DecodeString(s string) bool {
-	var g v2object.MatchType
-
-	ok := g.FromString(s)
-
-	if ok {
-		*m = SearchMatchType(g)
+	if v, ok := SearchMatchTypeFromString(s); ok {
+		*m = v
+		return true
 	}
-
-	return ok
+	return false
 }
 
 type stringEncoder interface {
