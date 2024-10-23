@@ -158,17 +158,17 @@ func (s staticStringer) EncodeToString() string {
 }
 
 // Header returns filter header value.
-func (f *SearchFilter) Header() string {
+func (f SearchFilter) Header() string {
 	return f.header
 }
 
 // Value returns filter value.
-func (f *SearchFilter) Value() string {
+func (f SearchFilter) Value() string {
 	return f.value.EncodeToString()
 }
 
 // Operation returns filter operation value.
-func (f *SearchFilter) Operation() SearchMatchType {
+func (f SearchFilter) Operation() SearchMatchType {
 	return f.op
 }
 
@@ -314,7 +314,7 @@ func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
 // MarshalJSON encodes [SearchFilters] to protobuf JSON format.
 //
 // See also [SearchFilters.UnmarshalJSON].
-func (f *SearchFilters) MarshalJSON() ([]byte, error) {
+func (f SearchFilters) MarshalJSON() ([]byte, error) {
 	return json.Marshal(f.ToV2())
 }
 
