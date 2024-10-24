@@ -309,22 +309,14 @@ func (f SearchFilters) ToV2() []v2object.SearchFilter {
 	return result
 }
 
-func (f *SearchFilters) addRootFilter() {
-	f.addFlagFilter(FilterRoot)
-}
-
 // AddRootFilter adds filter by objects that have been created by a user explicitly.
 func (f *SearchFilters) AddRootFilter() {
-	f.addRootFilter()
-}
-
-func (f *SearchFilters) addPhyFilter() {
-	f.addFlagFilter(FilterPhysical)
+	f.addFlagFilter(FilterRoot)
 }
 
 // AddPhyFilter adds filter by objects that are physically stored in the system.
 func (f *SearchFilters) AddPhyFilter() {
-	f.addPhyFilter()
+	f.addFlagFilter(FilterPhysical)
 }
 
 // AddParentIDFilter adds filter by parent identifier.
