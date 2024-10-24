@@ -1,6 +1,8 @@
 package object
 
 import (
+	"strconv"
+
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
@@ -27,6 +29,65 @@ func TypeFromV2(t object.Type) Type {
 	return Type(t)
 }
 
+const (
+	typeStringRegular      = "REGULAR"
+	typeStringTombstone    = "TOMBSTONE"
+	typeStringStorageGroup = "STORAGE_GROUP"
+	typeStringLock         = "LOCK"
+	typeStringLink         = "LINK"
+)
+
+// TypeToString maps Type values to strings:
+//   - [TypeRegular]: REGULAR
+//   - [TypeTombstone]: TOMBSTONE
+//   - [TypeStorageGroup]: STORAGE_GROUP
+//   - [TypeLock]: LOCK
+//   - [TypeLink]: LINK
+//
+// All other values are base-10 integers.
+//
+// The mapping is consistent and resilient to lib updates. At the same time,
+// please note that this is not a NeoFS protocol format. Use [Type.String] to
+// get any human-readable text for printing.
+func TypeToString(t Type) string {
+	switch t {
+	default:
+		return strconv.FormatUint(uint64(t), 10)
+	case TypeRegular:
+		return typeStringRegular
+	case TypeTombstone:
+		return typeStringTombstone
+	case TypeStorageGroup:
+		return typeStringStorageGroup
+	case TypeLock:
+		return typeStringLock
+	case TypeLink:
+		return typeStringLink
+	}
+}
+
+// TypeFromString maps strings to Type values in reverse to [TypeToString].
+// Returns false if s is incorrect.
+func TypeFromString(s string) (Type, bool) {
+	switch s {
+	default:
+		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+			return Type(n), true
+		}
+		return 0, false
+	case typeStringRegular:
+		return TypeRegular, true
+	case typeStringTombstone:
+		return TypeTombstone, true
+	case typeStringStorageGroup:
+		return TypeStorageGroup, true
+	case typeStringLock:
+		return TypeLock, true
+	case typeStringLink:
+		return TypeLink, true
+	}
+}
+
 // EncodeToString returns string representation of [Type].
 //
 // String mapping:
@@ -35,31 +96,27 @@ func TypeFromV2(t object.Type) Type {
 //   - [TypeLock]: LOCK;
 //   - [TypeRegular], default: REGULAR.
 //   - [TypeLink], default: LINK.
-func (t Type) EncodeToString() string {
-	return object.Type(t).String()
-}
+//
+// Deprecated: use [TypeToString] instead.
+func (t Type) EncodeToString() string { return TypeToString(t) }
 
 // String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as [Type.EncodeToString]. String MUST NOT
-// be used to encode ID into NeoFS protocol string.
+// SDK versions. Use [TypeToString] and [TypeFromString] for consistent mapping.
 func (t Type) String() string {
-	return t.EncodeToString()
+	return TypeToString(t)
 }
 
 // DecodeString parses [Type] from a string representation.
 // It is a reverse action to EncodeToString().
 //
 // Returns true if s was parsed successfully.
+// Deprecated: use [TypeFromString] instead.
 func (t *Type) DecodeString(s string) bool {
-	var g object.Type
-
-	ok := g.FromString(s)
-
-	if ok {
-		*t = Type(g)
+	if v, ok := TypeFromString(s); ok {
+		*t = v
+		return true
 	}
-
-	return ok
+	return false
 }
