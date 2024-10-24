@@ -689,11 +689,9 @@ func (o *Object) SetSessionToken(v *session.Object) {
 //
 // See also [Object.SetType].
 func (o *Object) Type() Type {
-	return TypeFromV2(
-		(*object.Object)(o).
-			GetHeader().
-			GetObjectType(),
-	)
+	return Type((*object.Object)(o).
+		GetHeader().
+		GetObjectType())
 }
 
 // SetType sets type of the object.
@@ -701,7 +699,7 @@ func (o *Object) Type() Type {
 // See also [Object.Type].
 func (o *Object) SetType(v Type) {
 	o.setHeaderField(func(h *object.Header) {
-		h.SetObjectType(v.ToV2())
+		h.SetObjectType(object.Type(v))
 	})
 }
 

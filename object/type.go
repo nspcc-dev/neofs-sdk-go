@@ -16,11 +16,13 @@ const (
 )
 
 // ToV2 converts [Type] to v2 [object.Type].
+// Deprecated: cast instead.
 func (t Type) ToV2() object.Type {
 	return object.Type(t)
 }
 
 // TypeFromV2 converts v2 [object.Type] to [Type].
+// Deprecated: cast instead.
 func TypeFromV2(t object.Type) Type {
 	return Type(t)
 }
@@ -34,7 +36,7 @@ func TypeFromV2(t object.Type) Type {
 //   - [TypeRegular], default: REGULAR.
 //   - [TypeLink], default: LINK.
 func (t Type) EncodeToString() string {
-	return t.ToV2().String()
+	return object.Type(t).String()
 }
 
 // String implements [fmt.Stringer].
@@ -56,7 +58,7 @@ func (t *Type) DecodeString(s string) bool {
 	ok := g.FromString(s)
 
 	if ok {
-		*t = TypeFromV2(g)
+		*t = Type(g)
 	}
 
 	return ok
