@@ -1,14 +1,137 @@
 package object_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
-	objv2 "github.com/nspcc-dev/neofs-api-go/v2/object"
+	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/stretchr/testify/require"
 )
+
+var validSplitInfo object.SplitInfo // set by init.
+
+// with required fields only.
+var validMinSplitInfos []object.SplitInfo // set by init.
+
+func init() {
+	validSplitInfo.SetSplitID(anyValidSplitID)
+	validSplitInfo.SetLastPart(anyValidIDs[0])
+	validSplitInfo.SetLink(anyValidIDs[1])
+	validSplitInfo.SetFirstPart(anyValidIDs[2])
+
+	validMinSplitInfos = make([]object.SplitInfo, 2)
+	validMinSplitInfos[0].SetLastPart(anyValidIDs[0])
+	validMinSplitInfos[1].SetLink(anyValidIDs[1])
+}
+
+// corresponds to validSplitInfo.
+var validBinSplitInfo = []byte{
+	10, 16, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 41, 18, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110,
+	125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 26, 34, 10,
+	32, 229, 77, 63, 235, 2, 9, 165, 123, 116, 123, 47, 65, 22, 34, 214, 76, 45, 225, 21, 46, 135, 32, 116, 172, 67, 213, 243,
+	57, 253, 127, 179, 235, 34, 34, 10, 32, 206, 228, 247, 217, 41, 247, 159, 215, 79, 226, 53, 153, 133, 16, 102, 104, 2, 234,
+	35, 220, 236, 112, 101, 24, 235, 126, 173, 229, 161, 202, 197, 242,
+}
+
+// corresponds to validMinSplitInfos.
+var validBinMinSplitInfos = [][]byte{{
+	18, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70,
+	246, 8, 139, 247, 174, 53, 60,
+}, {
+	26, 34, 10, 32, 229, 77, 63, 235, 2, 9, 165, 123, 116, 123, 47, 65, 22, 34, 214, 76, 45, 225, 21, 46, 135, 32, 116, 172, 67,
+	213, 243, 57, 253, 127, 179, 235,
+}}
+
+// corresponds to validSplitInfo.
+var validJSONSplitInfo = `
+{
+ "splitId": "4IQDUCAsRbi5IOLJzsSTKQ==",
+ "lastPart": {
+  "value": "sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="
+ },
+ "link": {
+  "value": "5U0/6wIJpXt0ey9BFiLWTC3hFS6HIHSsQ9XzOf1/s+s="
+ },
+ "firstPart": {
+  "value": "zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="
+ }
+}
+`
+
+// corresponds to validMinSplitInfos.
+var validJSONMinSplitInfos = []string{`
+{
+ "splitId": "",
+ "lastPart": {
+  "value": "sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="
+ },
+ "link": null,
+ "firstPart": null
+}
+`, `
+{
+ "splitId": "",
+ "lastPart": null,
+ "link": {
+  "value": "5U0/6wIJpXt0ey9BFiLWTC3hFS6HIHSsQ9XzOf1/s+s="
+ },
+ "firstPart": null
+}
+`}
+
+func TestSplitInfo_SetSplitID(t *testing.T) {
+	var s object.SplitInfo
+	require.Zero(t, s.SplitID())
+
+	s.SetSplitID(anyValidSplitID)
+	require.Equal(t, anyValidSplitID, s.SplitID())
+
+	b := bytes.Clone(anyValidSplitIDBytes)
+	b[0]++
+	otherSplitID := object.NewSplitIDFromV2(b)
+	s.SetSplitID(otherSplitID)
+	require.Equal(t, otherSplitID, s.SplitID())
+}
+
+func testSplitInfoIDField(
+	t testing.TB,
+	get func(info object.SplitInfo) oid.ID,
+	getFlag func(info object.SplitInfo) (oid.ID, bool),
+	set func(*object.SplitInfo, oid.ID),
+) {
+	var s object.SplitInfo
+	require.True(t, get(s).IsZero())
+	_, ok := getFlag(s)
+	require.False(t, ok)
+
+	set(&s, anyValidIDs[0])
+	require.Equal(t, anyValidIDs[0], get(s))
+	res, ok := getFlag(s)
+	require.True(t, ok)
+	require.Equal(t, anyValidIDs[0], res)
+
+	set(&s, anyValidIDs[1])
+	require.Equal(t, anyValidIDs[1], get(s))
+	res, ok = getFlag(s)
+	require.True(t, ok)
+	require.Equal(t, anyValidIDs[1], res)
+}
+
+func TestSplitInfo_SetLastPart(t *testing.T) {
+	testSplitInfoIDField(t, object.SplitInfo.GetLastPart, object.SplitInfo.LastPart, (*object.SplitInfo).SetLastPart)
+}
+
+func TestSplitInfo_SetLink(t *testing.T) {
+	testSplitInfoIDField(t, object.SplitInfo.GetLink, object.SplitInfo.Link, (*object.SplitInfo).SetLink)
+}
+
+func TestSplitInfo_SetFirstPart(t *testing.T) {
+	testSplitInfoIDField(t, object.SplitInfo.GetFirstPart, object.SplitInfo.FirstPart, (*object.SplitInfo).SetFirstPart)
+}
 
 func TestSplitInfo(t *testing.T) {
 	s := object.NewSplitInfo()
@@ -81,18 +204,213 @@ func TestSplitInfoMarshal(t *testing.T) {
 
 func TestNewSplitInfoFromV2(t *testing.T) {
 	t.Run("from nil", func(t *testing.T) {
-		var x *objv2.SplitInfo
+		var x *apiobject.SplitInfo
 
 		require.Nil(t, object.NewSplitInfoFromV2(x))
 	})
 }
 
-func TestSplitInfo_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *object.SplitInfo
+func TestSplitInfo_ReadFromV2(t *testing.T) {
+	var m apiobject.SplitInfo
+	m.SetSplitID(anyValidSplitIDBytes)
+	m.SetLastPart(protoIDFromBytes(anyValidIDs[0][:]))
+	m.SetLink(protoIDFromBytes(anyValidIDs[1][:]))
+	m.SetFirstPart(protoIDFromBytes(anyValidIDs[2][:]))
 
-		require.Nil(t, x.ToV2())
+	var s object.SplitInfo
+	require.NoError(t, s.ReadFromV2(m))
+	require.Equal(t, anyValidSplitID, s.SplitID())
+	require.Equal(t, anyValidIDs[0], s.GetLastPart())
+	id, ok := s.LastPart()
+	require.True(t, ok)
+	require.Equal(t, anyValidIDs[0], id)
+	require.Equal(t, anyValidIDs[1], s.GetLink())
+	id, ok = s.Link()
+	require.True(t, ok)
+	require.Equal(t, anyValidIDs[1], id)
+	require.Equal(t, anyValidIDs[2], s.GetFirstPart())
+	id, ok = s.FirstPart()
+	require.True(t, ok)
+	require.Equal(t, anyValidIDs[2], id)
+
+	// reset optional fields
+	m.SetSplitID(nil)
+	m.SetFirstPart(nil)
+	m.SetLink(nil)
+	s2 := s
+	require.NoError(t, s2.ReadFromV2(m))
+
+	require.Zero(t, s2.SplitID())
+	require.True(t, s2.GetFirstPart().IsZero())
+	_, ok = s2.FirstPart()
+	require.False(t, ok)
+	require.Equal(t, anyValidIDs[0], s2.GetLastPart())
+	require.True(t, s2.GetFirstPart().IsZero())
+	_, ok = s2.Link()
+	require.True(t, s2.GetLink().IsZero())
+	require.False(t, ok)
+	_, ok = s2.Link()
+	require.False(t, ok)
+
+	// either linking or last part must be set, so lets swap
+	m.SetLink(protoIDFromBytes(anyValidIDs[1][:]))
+	m.SetLastPart(nil)
+	require.NoError(t, s2.ReadFromV2(m))
+
+	require.Equal(t, anyValidIDs[1], s2.GetLink())
+	require.True(t, s2.GetLastPart().IsZero())
+	_, ok = s2.LastPart()
+	require.False(t, ok)
+
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range []struct {
+			name, err string
+			corrupt   func(*apiobject.SplitInfo)
+		}{
+			{name: "split ID/undersize", err: "invalid split ID: invalid UUID (got 15 bytes)",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetSplitID(anyValidSplitIDBytes[:15]) }},
+			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetSplitID(append(anyValidSplitIDBytes[:], 1)) }},
+			{name: "split ID/wrong version", err: "invalid split UUID version 3",
+				corrupt: func(m *apiobject.SplitInfo) {
+					b := bytes.Clone(anyValidSplitIDBytes[:])
+					b[6] = 3 << 4
+					m.SetSplitID(b)
+				}},
+			{name: "last part/nil value", err: "could not convert last part object ID: invalid length 0",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes(nil)) }},
+			{name: "last part/empty value", err: "could not convert last part object ID: invalid length 0",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes([]byte{})) }},
+			{name: "last part/undersize", err: "could not convert last part object ID: invalid length 31",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes(make([]byte, 31))) }},
+			{name: "last part/oversize", err: "could not convert last part object ID: invalid length 33",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes(make([]byte, 33))) }},
+			{name: "link/nil value", err: "could not convert link object ID: invalid length 0",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes(nil)) }},
+			{name: "link/empty value", err: "could not convert link object ID: invalid length 0",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes([]byte{})) }},
+			{name: "link/undersize", err: "could not convert link object ID: invalid length 31",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes(make([]byte, 31))) }},
+			{name: "link/oversize", err: "could not convert link object ID: invalid length 33",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes(make([]byte, 33))) }},
+			{name: "first part/nil value", err: "could not convert first part object ID: invalid length 0",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes(nil)) }},
+			{name: "first part/empty value", err: "could not convert first part object ID: invalid length 0",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes([]byte{})) }},
+			{name: "first part/undersize", err: "could not convert first part object ID: invalid length 31",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes(make([]byte, 31))) }},
+			{name: "first part/oversize", err: "could not convert first part object ID: invalid length 33",
+				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes(make([]byte, 33))) }},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				s2 := s
+				m := s2.ToV2()
+				tc.corrupt(m)
+				require.EqualError(t, new(object.SplitInfo).ReadFromV2(*m), tc.err)
+			})
+		}
 	})
+}
+
+func TestSplitInfo_ToV2(t *testing.T) {
+	var s object.SplitInfo
+
+	// zero
+	m := s.ToV2()
+	require.Zero(t, m.GetSplitID())
+	require.Zero(t, m.GetFirstPart())
+	require.Zero(t, m.GetLink())
+	require.Zero(t, m.GetFirstPart())
+
+	// filled
+	m = validSplitInfo.ToV2()
+	require.EqualValues(t, anyValidSplitIDBytes, m.GetSplitID())
+	require.Equal(t, anyValidIDs[0][:], m.GetLastPart().GetValue())
+	require.Equal(t, anyValidIDs[1][:], m.GetLink().GetValue())
+	require.Equal(t, anyValidIDs[2][:], m.GetFirstPart().GetValue())
+}
+
+func TestSplitInfo_Marshal(t *testing.T) {
+	require.Equal(t, validBinSplitInfo, validSplitInfo.Marshal())
+	for i := range validMinSplitInfos {
+		require.Equal(t, validBinMinSplitInfos[i], validMinSplitInfos[i].Marshal())
+	}
+}
+
+func TestSplitInfo_Unmarshal(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
+		t.Run("protobuf", func(t *testing.T) {
+			err := new(object.SplitInfo).Unmarshal([]byte("Hello, world!"))
+			require.ErrorContains(t, err, "proto")
+			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
+		})
+		for _, tc := range []struct {
+			name, err string
+			b         []byte
+		}{
+			{name: "empty", err: "neither link object ID nor last part object ID is set",
+				b: []byte{}},
+			{name: "split ID/undersize", err: "invalid split ID: invalid UUID (got 15 bytes)",
+				b: []byte{10, 15, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 18, 34, 10, 32, 178, 74,
+					58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70, 246,
+					8, 139, 247, 174, 53, 60}},
+			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
+				b: []byte{10, 17, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 41, 1, 18, 34, 10, 32,
+					178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173,
+					70, 246, 8, 139, 247, 174, 53, 60}},
+			{name: "split ID/wrong version", err: "invalid split UUID version 3",
+				b: []byte{10, 16, 224, 132, 3, 80, 32, 44, 48, 184, 185, 32, 226, 201, 206, 196, 147, 41, 18, 34, 10, 32, 178,
+					74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70,
+					246, 8, 139, 247, 174, 53, 60}},
+			{name: "last part/empty value", err: "could not convert last part object ID: invalid length 0",
+				b: []byte{18, 0}},
+			{name: "last part/undersize", err: "could not convert last part object ID: invalid length 31",
+				b: []byte{18, 33, 10, 31, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44,
+					18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53}},
+			{name: "last part/oversize", err: "could not convert last part object ID: invalid length 33",
+				b: []byte{18, 35, 10, 33, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44,
+					18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 1}},
+			{name: "link/empty value", err: "could not convert link object ID: invalid length 0",
+				b: []byte{26, 0}},
+			{name: "link/undersize", err: "could not convert link object ID: invalid length 31",
+				b: []byte{26, 33, 10, 31, 229, 77, 63, 235, 2, 9, 165, 123, 116, 123, 47, 65, 22, 34, 214, 76, 45, 225, 21, 46,
+					135, 32, 116, 172, 67, 213, 243, 57, 253, 127, 179}},
+			{name: "link/oversize", err: "could not convert link object ID: invalid length 33",
+				b: []byte{26, 35, 10, 33, 229, 77, 63, 235, 2, 9, 165, 123, 116, 123, 47, 65, 22, 34, 214, 76, 45, 225, 21, 46,
+					135, 32, 116, 172, 67, 213, 243, 57, 253, 127, 179, 235, 1}},
+			{name: "first part/empty value", err: "could not convert first part object ID: invalid length 0",
+				b: []byte{18, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44,
+					18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 34, 0}},
+			{name: "first part/undersize", err: "could not convert first part object ID: invalid length 31",
+				b: []byte{18, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44,
+					18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 34, 33, 10, 31, 206, 228, 247, 217, 41, 247, 159, 215, 79,
+					226, 53, 153, 133, 16, 102, 104, 2, 234, 35, 220, 236, 112, 101, 24, 235, 126, 173, 229, 161, 202, 197}},
+			{name: "first part/oversize", err: "could not convert first part object ID: invalid length 33",
+				b: []byte{18, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44,
+					18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 34, 35, 10, 33, 206, 228, 247, 217, 41, 247, 159, 215,
+					79, 226, 53, 153, 133, 16, 102, 104, 2, 234, 35, 220, 236, 112, 101, 24, 235, 126, 173, 229, 161, 202, 197,
+					242, 1}},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.EqualError(t, new(object.SplitInfo).Unmarshal(tc.b), tc.err)
+			})
+		}
+	})
+
+	var si object.SplitInfo
+	// min
+	require.NoError(t, si.Unmarshal(validBinMinSplitInfos[0]))
+	require.Zero(t, si.SplitID())
+	require.True(t, si.GetLink().IsZero())
+	require.True(t, si.GetFirstPart().IsZero())
+	require.NoError(t, si.Unmarshal(validBinMinSplitInfos[1]))
+	require.Zero(t, si.SplitID())
+	require.True(t, si.GetLastPart().IsZero())
+	require.True(t, si.GetFirstPart().IsZero())
+
+	// filled
+	require.NoError(t, si.Unmarshal(validBinSplitInfo))
+	require.Equal(t, validSplitInfo, si)
 }
 
 func TestNewSplitInfo(t *testing.T) {
@@ -115,31 +433,71 @@ func TestNewSplitInfo(t *testing.T) {
 	})
 }
 
-func TestSplitInfoMarshalJSON(t *testing.T) {
-	t.Run("good", func(t *testing.T) {
-		s := object.NewSplitInfo()
-		s.SetSplitID(object.NewSplitID())
-		s.SetLastPart(oidtest.ID())
-		s.SetLink(oidtest.ID())
-		s.SetFirstPart(oidtest.ID())
+func TestSplitInfo_MarshalJSON(t *testing.T) {
+	b, err := json.MarshalIndent(validSplitInfo, "", " ")
+	require.NoError(t, err)
+	require.JSONEq(t, validJSONSplitInfo, string(b))
 
-		data, err := s.MarshalJSON()
+	for i := range validMinSplitInfos {
+		b, err = json.MarshalIndent(validMinSplitInfos[i], "", " ")
 		require.NoError(t, err)
+		require.JSONEq(t, validJSONMinSplitInfos[i], string(b))
+	}
+}
 
-		actual := object.NewSplitInfo()
-		require.NoError(t, json.Unmarshal(data, actual))
-		require.Equal(t, s, actual)
+func TestSplitInfo_UnmarshalJSON(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
+		t.Run("JSON", func(t *testing.T) {
+			err := new(object.SplitInfo).UnmarshalJSON([]byte("Hello, world!"))
+			require.ErrorContains(t, err, "proto")
+			require.ErrorContains(t, err, "syntax error")
+		})
+		for _, tc := range []struct{ name, err, j string }{
+			{name: "empty", err: "neither link object ID nor last part object ID is set",
+				j: `{}`},
+			{name: "split ID/undersize", err: "invalid split ID: invalid UUID (got 15 bytes)",
+				j: `{"splitId":"4IQDUCAsRbi5IOLJzsST"}`},
+			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
+				j: `{"splitId":"4IQDUCAsRbi5IOLJzsSTKQE="}`},
+			{name: "split ID/wrong version", err: "invalid split UUID version 3",
+				j: `{"splitId":"4IQDUCAsMLi5IOLJzsSTKQ=="}`},
+			{name: "last part/empty value", err: "could not convert last part object ID: invalid length 0",
+				j: `{"lastPart":{"value":""}}`},
+			{name: "last part/undersize", err: "could not convert last part object ID: invalid length 31",
+				j: `{"lastPart":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNQ=="}}`},
+			{name: "last part/oversize", err: "could not convert last part object ID: invalid length 33",
+				j: `{"lastPart":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTwB"}}`},
+			{name: "link/empty value", err: "could not convert link object ID: invalid length 0",
+				j: `{"link":{"value":""}}`},
+			{name: "link/undersize", err: "could not convert link object ID: invalid length 31",
+				j: `{"link":{"value":"5U0/6wIJpXt0ey9BFiLWTC3hFS6HIHSsQ9XzOf1/sw=="}}`},
+			{name: "link/oversize", err: "could not convert link object ID: invalid length 33",
+				j: `{"link":{"value":"5U0/6wIJpXt0ey9BFiLWTC3hFS6HIHSsQ9XzOf1/s+sB"}}`},
+			{name: "first part/empty value", err: "could not convert first part object ID: invalid length 0",
+				j: `{"lastPart":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="}, "firstPart":{"value":""}}`},
+			{name: "first part/undersize", err: "could not convert first part object ID: invalid length 31",
+				j: `{"lastPart":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="},"firstPart":{"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxQ=="}}`},
+			{name: "first part/oversize", err: "could not convert first part object ID: invalid length 33",
+				j: `{"lastPart":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="},"firstPart":{"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfIB"}}`},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.EqualError(t, new(object.SplitInfo).UnmarshalJSON([]byte(tc.j)), tc.err)
+			})
+		}
 	})
-	t.Run("bad link", func(t *testing.T) {
-		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","lastPart":{"value":"Y7baWE0UdUOBr1ELKX3Q5v1LKRubQUbI81Q5UxCVeow="},"link":{"value":"bad"}}`
-		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
-	})
-	t.Run("bad last part", func(t *testing.T) {
-		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","lastPart":{"value":"bad"},"link":{"value":"eRyPNCNNxHfxPcjijlv05HEcdoep/b7eHNLRSmDlnts="}}`
-		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
-	})
-	t.Run("bad first part", func(t *testing.T) {
-		data := `{"splitId":"Sn707289RrqDyJOrZMbMoQ==","firstPart":{"value":"bad"},"link":{"value":"eRyPNCNNxHfxPcjijlv05HEcdoep/b7eHNLRSmDlnts="}}`
-		require.Error(t, json.Unmarshal([]byte(data), object.NewSplitInfo()))
-	})
+
+	var si object.SplitInfo
+	// min
+	require.NoError(t, si.UnmarshalJSON([]byte(validJSONMinSplitInfos[0])))
+	require.Zero(t, si.SplitID())
+	require.True(t, si.GetLink().IsZero())
+	require.True(t, si.GetFirstPart().IsZero())
+	require.NoError(t, si.UnmarshalJSON([]byte(validJSONMinSplitInfos[1])))
+	require.Zero(t, si.SplitID())
+	require.True(t, si.GetLastPart().IsZero())
+	require.True(t, si.GetFirstPart().IsZero())
+
+	// filled
+	require.NoError(t, si.UnmarshalJSON([]byte(validJSONSplitInfo)))
+	require.Equal(t, validSplitInfo, si)
 }
