@@ -168,18 +168,12 @@ func (m *SearchMatchType) DecodeString(s string) bool {
 	return false
 }
 
-type stringEncoder interface {
-	EncodeToString() string
-}
-
 // SearchFilter describes a single filter record.
 type SearchFilter struct {
 	header string
-	value  stringEncoder
+	value  string
 	op     SearchMatchType
 }
-
-type staticStringer string
 
 // SearchFilters is type to describe a group of filters.
 type SearchFilters []SearchFilter
@@ -214,10 +208,6 @@ const (
 	FilterPhysical = v2object.FilterPropertyPhy
 )
 
-func (s staticStringer) EncodeToString() string {
-	return string(s)
-}
-
 // Header returns filter header value.
 func (f SearchFilter) Header() string {
 	return f.header
@@ -225,7 +215,7 @@ func (f SearchFilter) Header() string {
 
 // Value returns filter value.
 func (f SearchFilter) Value() string {
-	return f.value.EncodeToString()
+	return f.value
 }
 
 // Operation returns filter operation value.
@@ -259,7 +249,7 @@ func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
 	return filters
 }
 
-func (f *SearchFilters) addFilter(op SearchMatchType, key string, val stringEncoder) {
+func (f *SearchFilters) addFilter(op SearchMatchType, key string, val string) {
 	if *f == nil {
 		*f = make(SearchFilters, 0, 1)
 	}
@@ -275,35 +265,35 @@ func (f *SearchFilters) addFilter(op SearchMatchType, key string, val stringEnco
 //
 // If op is numeric (like [MatchNumGT]), value must be a base-10 integer.
 func (f *SearchFilters) AddFilter(key, value string, op SearchMatchType) {
-	f.addFilter(op, key, staticStringer(value))
+	f.addFilter(op, key, value)
 }
 
 // addFlagFilters adds filters that works like flags: they don't need to have
 // specific match type or value. They processed by NeoFS nodes by the fact
 // of presence in search query. E.g.: FilterRoot, FilterPhysical.
 func (f *SearchFilters) addFlagFilter(key string) {
-	f.addFilter(MatchUnspecified, key, staticStringer(""))
+	f.addFilter(MatchUnspecified, key, "")
 }
 
 // AddObjectVersionFilter adds a filter by version.
 //
 // The op must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v version.Version) {
-	f.addFilter(op, FilterVersion, staticStringer(version.EncodeToString(v)))
+	f.addFilter(op, FilterVersion, version.EncodeToString(v))
 }
 
 // AddObjectContainerIDFilter adds a filter by container id.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
-	f.addFilter(m, FilterContainerID, id)
+	f.addFilter(m, FilterContainerID, id.EncodeToString())
 }
 
 // AddObjectOwnerIDFilter adds a filter by object owner id.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
-	f.addFilter(m, FilterOwnerID, id)
+	f.addFilter(m, FilterOwnerID, id.EncodeToString())
 }
 
 // ToV2 converts [SearchFilters] to [v2object.SearchFilter] slice.
@@ -312,7 +302,7 @@ func (f SearchFilters) ToV2() []v2object.SearchFilter {
 
 	for i := range f {
 		result[i].SetKey(f[i].header)
-		result[i].SetValue(f[i].value.EncodeToString())
+		result[i].SetValue(f[i].value)
 		result[i].SetMatchType(v2object.MatchType(f[i].op))
 	}
 
@@ -341,35 +331,35 @@ func (f *SearchFilters) AddPhyFilter() {
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id oid.ID) {
-	f.addFilter(m, FilterParentID, id)
+	f.addFilter(m, FilterParentID, id.EncodeToString())
 }
 
 // AddObjectIDFilter adds filter by object identifier.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
-	f.addFilter(m, FilterID, id)
+	f.addFilter(m, FilterID, id.EncodeToString())
 }
 
 // AddSplitIDFilter adds filter by split ID.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddSplitIDFilter(m SearchMatchType, id SplitID) {
-	f.addFilter(m, FilterSplitID, staticStringer(id.String()))
+	f.addFilter(m, FilterSplitID, id.String())
 }
 
 // AddFirstSplitObjectFilter adds filter by first object ID.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddFirstSplitObjectFilter(m SearchMatchType, id oid.ID) {
-	f.addFilter(m, FilterFirstSplitObject, staticStringer(id.String()))
+	f.addFilter(m, FilterFirstSplitObject, id.String())
 }
 
 // AddTypeFilter adds filter by object type.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
-	f.addFilter(m, FilterType, staticStringer(typ.EncodeToString()))
+	f.addFilter(m, FilterType, typ.EncodeToString())
 }
 
 // MarshalJSON encodes [SearchFilters] to protobuf JSON format.
@@ -398,22 +388,22 @@ func (f *SearchFilters) UnmarshalJSON(data []byte) error {
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size]byte) {
-	f.addFilter(m, FilterPayloadChecksum, staticStringer(hex.EncodeToString(sum[:])))
+	f.addFilter(m, FilterPayloadChecksum, hex.EncodeToString(sum[:]))
 }
 
 // AddHomomorphicHashFilter adds filter by homomorphic hash.
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
-	f.addFilter(m, FilterPayloadHomomorphicHash, staticStringer(hex.EncodeToString(sum[:])))
+	f.addFilter(m, FilterPayloadHomomorphicHash, hex.EncodeToString(sum[:]))
 }
 
 // AddCreationEpochFilter adds filter by creation epoch.
 func (f *SearchFilters) AddCreationEpochFilter(m SearchMatchType, epoch uint64) {
-	f.addFilter(m, FilterCreationEpoch, staticStringer(strconv.FormatUint(epoch, 10)))
+	f.addFilter(m, FilterCreationEpoch, strconv.FormatUint(epoch, 10))
 }
 
 // AddPayloadSizeFilter adds filter by payload size.
 func (f *SearchFilters) AddPayloadSizeFilter(m SearchMatchType, size uint64) {
-	f.addFilter(m, FilterPayloadSize, staticStringer(strconv.FormatUint(size, 10)))
+	f.addFilter(m, FilterPayloadSize, strconv.FormatUint(size, 10))
 }
