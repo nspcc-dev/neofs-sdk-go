@@ -124,9 +124,8 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 
 	x.remainingPayloadLen = int(objv2.GetHeader().GetPayloadLength())
 
-	*dst = *object.NewFromV2(&objv2) // need smth better
-
-	return true
+	x.err = dst.ReadFromV2(objv2)
+	return x.err == nil
 }
 
 func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
@@ -404,10 +403,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		objv2.SetHeader(v.GetHeader())
 		objv2.SetSignature(v.GetSignature())
 
-		obj := object.NewFromV2(&objv2)
-		obj.SetID(objectID)
-
-		return obj, nil
+		var obj object.Object
+		if err = obj.ReadFromV2(objv2); err != nil {
+			return nil, fmt.Errorf("invalid header response: %w", err)
+		}
+		return &obj, nil
 	}
 }
 

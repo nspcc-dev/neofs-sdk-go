@@ -2,10 +2,11 @@ package object
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -24,7 +25,7 @@ import (
 // Instance can be created depending on scenario:
 //   - [Object.InitCreation] (an object to be placed in container);
 //   - New (blank instance, usually needed for decoding);
-//   - NewFromV2 (when working under NeoFS API V2 protocol).
+//   - [Object.ReadFromV2] (when working under NeoFS API V2 protocol).
 type Object object.Object
 
 // RequiredFields contains the minimum set of object data that must be set
@@ -44,15 +45,166 @@ func (o *Object) InitCreation(rf RequiredFields) {
 }
 
 // NewFromV2 wraps v2 [object.Object] message to [Object].
+//
+// Deprecated: BUG: fields' format is not checked. Use [Object.ReadFromV2]
+// instead.
 func NewFromV2(oV2 *object.Object) *Object {
 	return (*Object)(oV2)
 }
 
 // New creates and initializes blank [Object].
-//
-// Works similar as NewFromV2(new(Object)).
 func New() *Object {
-	return NewFromV2(new(object.Object))
+	return new(Object)
+}
+
+func verifySplitHeaderV2(m object.SplitHeader) error {
+	// parent ID
+	if mID := m.GetParent(); mID != nil {
+		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+			return fmt.Errorf("invalid parent split member ID: %w", err)
+		}
+	}
+	// previous
+	if mID := m.GetPrevious(); mID != nil {
+		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+			return fmt.Errorf("invalid previous split member ID: %w", err)
+		}
+	}
+	// first
+	if mID := m.GetFirst(); mID != nil {
+		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+			return fmt.Errorf("invalid first split member ID: %w", err)
+		}
+	}
+	// split ID
+	if b := m.GetSplitID(); len(b) > 0 {
+		var uid uuid.UUID
+		if err := uid.UnmarshalBinary(b); err != nil {
+			return fmt.Errorf("invalid split UUID: %w", err)
+		} else if ver := uid.Version(); ver != 4 {
+			return fmt.Errorf("invalid split UUID version %d", ver)
+		}
+	}
+	// children
+	if mc := m.GetChildren(); len(mc) > 0 {
+		for i := range mc {
+			if err := new(oid.ID).ReadFromV2(mc[i]); err != nil {
+				return fmt.Errorf("invalid child split member ID #%d: %w", i, err)
+			}
+		}
+	}
+	// parent signature
+	if ms := m.GetParentSignature(); ms != nil {
+		if err := new(neofscrypto.Signature).ReadFromV2(*ms); err != nil {
+			return fmt.Errorf("invalid parent signature: %w", err)
+		}
+	}
+	// parent header
+	if mh := m.GetParentHeader(); mh != nil {
+		if err := verifyHeaderV2(*mh); err != nil {
+			return fmt.Errorf("invalid parent header: %w", err)
+		}
+	}
+	return nil
+}
+
+func verifyHeaderV2(m object.Header) error {
+	// version
+	if mv := m.GetVersion(); mv != nil {
+		if err := new(version.Version).ReadFromV2(*mv); err != nil {
+			return fmt.Errorf("invalid version: %w", err)
+		}
+	}
+	// owner
+	if mu := m.GetOwnerID(); mu != nil {
+		if err := new(user.ID).ReadFromV2(*mu); err != nil {
+			return fmt.Errorf("invalid owner: %w", err)
+		}
+	}
+	// container
+	if mc := m.GetContainerID(); mc != nil {
+		if err := new(cid.ID).ReadFromV2(*mc); err != nil {
+			return fmt.Errorf("invalid container: %w", err)
+		}
+	}
+	// payload checksum
+	if mc := m.GetPayloadHash(); mc != nil {
+		if err := new(checksum.Checksum).ReadFromV2(*mc); err != nil {
+			return fmt.Errorf("invalid payload checksum: %w", err)
+		}
+	}
+	// payload homomorphic checksum
+	if mc := m.GetHomomorphicHash(); mc != nil {
+		if err := new(checksum.Checksum).ReadFromV2(*mc); err != nil {
+			return fmt.Errorf("invalid payload homomorphic checksum: %w", err)
+		}
+	}
+	// session token
+	if ms := m.GetSessionToken(); ms != nil {
+		if err := new(session.Object).ReadFromV2(*ms); err != nil {
+			return fmt.Errorf("invalid session token: %w", err)
+		}
+	}
+	// split header
+	if ms := m.GetSplit(); ms != nil {
+		if err := verifySplitHeaderV2(*ms); err != nil {
+			return fmt.Errorf("invalid split header: %w", err)
+		}
+	}
+	// attributes
+	if ma := m.GetAttributes(); len(ma) > 0 {
+		done := make(map[string]struct{}, len(ma))
+		for i := range ma {
+			key := ma[i].GetKey()
+			if key == "" {
+				return fmt.Errorf("empty key of the attribute #%d", i)
+			}
+			if _, ok := done[key]; ok {
+				return fmt.Errorf("duplicated attribute %s", key)
+			}
+			val := ma[i].GetValue()
+			if val == "" {
+				return fmt.Errorf("empty value of the attribute #%d (%s)", i, key)
+			}
+			switch key {
+			case AttributeExpirationEpoch:
+				if _, err := strconv.ParseUint(val, 10, 64); err != nil {
+					return fmt.Errorf("invalid expiration attribute (must be a uint): %w", err)
+				}
+			}
+			done[key] = struct{}{}
+		}
+	}
+	return nil
+}
+
+// ReadFromV2 reads Object from the [object.Object] message. Returns an error if
+// the message is malformed according to the NeoFS API V2 protocol. The message
+// must not be nil.
+//
+// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
+// implementation only and is not expected to be directly used by applications.
+func (o *Object) ReadFromV2(m object.Object) error {
+	// ID
+	if mID := m.GetObjectID(); mID != nil {
+		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+			return fmt.Errorf("invalid ID: %w", err)
+		}
+	}
+	// signature
+	if ms := m.GetSignature(); ms != nil {
+		if err := new(neofscrypto.Signature).ReadFromV2(*ms); err != nil {
+			return fmt.Errorf("invalid signature: %w", err)
+		}
+	}
+	// header
+	if mh := m.GetHeader(); mh != nil {
+		if err := verifyHeaderV2(*mh); err != nil {
+			return fmt.Errorf("invalid header: %w", err)
+		}
+	}
+	*o = Object(m)
+	return nil
 }
 
 // ToV2 converts [Object] to v2 [object.Object] message.
@@ -122,7 +274,9 @@ func (o *Object) GetID() oid.ID {
 	var res oid.ID
 	m := (*object.Object)(o)
 	if id := m.GetObjectID(); id != nil {
-		_ = res.ReadFromV2(*m.GetObjectID())
+		if err := res.ReadFromV2(*id); err != nil {
+			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
+		}
 	}
 
 	return res
@@ -267,7 +421,9 @@ func (o *Object) SetContainerID(v cid.ID) {
 func (o *Object) GetContainerID() cid.ID {
 	var cnr cid.ID
 	if m := (*object.Object)(o).GetHeader().GetContainerID(); m != nil {
-		_ = cnr.ReadFromV2(*m)
+		if err := cnr.ReadFromV2(*m); err != nil {
+			panic(fmt.Errorf("unexpected container ID decoding failure: %w", err))
+		}
 	}
 	return cnr
 }
@@ -280,7 +436,15 @@ func (o *Object) OwnerID() *user.ID {
 
 	m := (*object.Object)(o).GetHeader().GetOwnerID()
 	if m != nil {
-		_ = id.ReadFromV2(*m)
+		// unlike other IDs, user.ID.ReadFromV2 also expects correct prefix and checksum
+		// suffix. So, we cannot call it and panic on error here because nothing
+		// prevents user from setting incorrect owner ID (Object.SetOwnerID accepts it).
+		// At the same time, we always expect correct length.
+		b := m.GetValue()
+		if len(b) != user.IDSize {
+			panic(fmt.Errorf("unexpected user ID decoding failure: invalid length %d, expected %d", len(b), user.IDSize))
+		}
+		copy(id[:], b)
 	}
 
 	return &id
@@ -447,7 +611,9 @@ func (o *Object) PreviousID() (oid.ID, bool) {
 func (o *Object) GetPreviousID() oid.ID {
 	var id oid.ID
 	if m := (*object.Object)(o).GetHeader().GetSplit().GetPrevious(); m != nil {
-		_ = id.ReadFromV2(*m)
+		if err := id.ReadFromV2(*m); err != nil {
+			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
+		}
 	}
 	return id
 }
@@ -486,7 +652,9 @@ func (o *Object) Children() []oid.ID {
 	)
 
 	for i := range ids {
-		_ = id.ReadFromV2(ids[i])
+		if err := id.ReadFromV2(ids[i]); err != nil {
+			panic(fmt.Errorf("unexpected child#%d decoding failure: %w", i, err))
+		}
 		res[i] = id
 	}
 
@@ -539,7 +707,9 @@ func (o *Object) FirstID() (oid.ID, bool) {
 func (o *Object) GetFirstID() oid.ID {
 	var id oid.ID
 	if m := (*object.Object)(o).GetHeader().GetSplit().GetFirst(); m != nil {
-		_ = id.ReadFromV2(*m)
+		if err := id.ReadFromV2(*m); err != nil {
+			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
+		}
 	}
 	return id
 }
@@ -581,7 +751,9 @@ func (o *Object) ParentID() (oid.ID, bool) {
 func (o *Object) GetParentID() oid.ID {
 	var id oid.ID
 	if m := (*object.Object)(o).GetHeader().GetSplit().GetParent(); m != nil {
-		_ = id.ReadFromV2(*m)
+		if err := id.ReadFromV2(*m); err != nil {
+			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
+		}
 	}
 	return id
 }
@@ -743,12 +915,13 @@ func (o *Object) Marshal() []byte {
 //
 // See also [Object.Marshal].
 func (o *Object) Unmarshal(data []byte) error {
-	err := (*object.Object)(o).Unmarshal(data)
+	var m object.Object
+	err := m.Unmarshal(data)
 	if err != nil {
 		return err
 	}
 
-	return formatCheck((*object.Object)(o))
+	return o.ReadFromV2(m)
 }
 
 // MarshalJSON encodes object to protobuf JSON format.
@@ -762,57 +935,13 @@ func (o *Object) MarshalJSON() ([]byte, error) {
 //
 // See also [Object.MarshalJSON].
 func (o *Object) UnmarshalJSON(data []byte) error {
-	err := (*object.Object)(o).UnmarshalJSON(data)
+	var m object.Object
+	err := m.UnmarshalJSON(data)
 	if err != nil {
 		return err
 	}
 
-	return formatCheck((*object.Object)(o))
-}
-
-var errCIDNotSet = errors.New("container ID is not set")
-
-func formatCheck(v2 *object.Object) error {
-	var (
-		oID oid.ID
-		cID cid.ID
-	)
-
-	oidV2 := v2.GetObjectID()
-	if oidV2 == nil {
-		return oid.ErrZero
-	}
-
-	err := oID.ReadFromV2(*oidV2)
-	if err != nil {
-		return fmt.Errorf("could not convert V2 object ID: %w", err)
-	}
-
-	cidV2 := v2.GetHeader().GetContainerID()
-	if cidV2 == nil {
-		return errCIDNotSet
-	}
-
-	err = cID.ReadFromV2(*cidV2)
-	if err != nil {
-		return fmt.Errorf("could not convert V2 container ID: %w", err)
-	}
-
-	if prev := v2.GetHeader().GetSplit().GetPrevious(); prev != nil {
-		err = oID.ReadFromV2(*prev)
-		if err != nil {
-			return fmt.Errorf("could not convert previous object ID: %w", err)
-		}
-	}
-
-	if parent := v2.GetHeader().GetSplit().GetParent(); parent != nil {
-		err = oID.ReadFromV2(*parent)
-		if err != nil {
-			return fmt.Errorf("could not convert parent object ID: %w", err)
-		}
-	}
-
-	return nil
+	return o.ReadFromV2(m)
 }
 
 // HeaderLen returns length of the binary header.
