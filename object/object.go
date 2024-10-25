@@ -211,8 +211,8 @@ func (o *Object) ReadFromV2(m object.Object) error {
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
-func (o *Object) ToV2() *object.Object {
-	return (*object.Object)(o)
+func (o Object) ToV2() *object.Object {
+	return (*object.Object)(&o)
 }
 
 // CopyTo writes deep copy of the [Object] to dst.
@@ -230,8 +230,8 @@ func (o Object) CopyTo(dst *Object) {
 }
 
 // MarshalHeaderJSON marshals object's header into JSON format.
-func (o *Object) MarshalHeaderJSON() ([]byte, error) {
-	return (*object.Object)(o).GetHeader().MarshalJSON()
+func (o Object) MarshalHeaderJSON() ([]byte, error) {
+	return (*object.Object)(&o).GetHeader().MarshalJSON()
 }
 
 func (o *Object) setHeaderField(setter func(*object.Header)) {
@@ -270,9 +270,9 @@ func (o *Object) ID() (oid.ID, bool) {
 // GetID returns identifier of the object. Zero return means unset ID.
 //
 // See also [Object.SetID].
-func (o *Object) GetID() oid.ID {
+func (o Object) GetID() oid.ID {
 	var res oid.ID
-	m := (*object.Object)(o)
+	m := (*object.Object)(&o)
 	if id := m.GetObjectID(); id != nil {
 		if err := res.ReadFromV2(*id); err != nil {
 			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
@@ -304,8 +304,8 @@ func (o *Object) ResetID() {
 // Signature returns signature of the object identifier.
 //
 // See also [Object.SetSignature].
-func (o *Object) Signature() *neofscrypto.Signature {
-	sigv2 := (*object.Object)(o).GetSignature()
+func (o Object) Signature() *neofscrypto.Signature {
+	sigv2 := (*object.Object)(&o).GetSignature()
 	if sigv2 == nil {
 		return nil
 	}
@@ -339,8 +339,8 @@ func (o *Object) SetSignature(v *neofscrypto.Signature) {
 // Make a copy if you need to change it.
 //
 // See also [Object.SetPayload].
-func (o *Object) Payload() []byte {
-	return (*object.Object)(o).GetPayload()
+func (o Object) Payload() []byte {
+	return (*object.Object)(&o).GetPayload()
 }
 
 // SetPayload sets payload bytes.
@@ -353,9 +353,9 @@ func (o *Object) SetPayload(v []byte) {
 // Version returns version of the object.
 //
 // See also [Object.SetVersion].
-func (o *Object) Version() *version.Version {
+func (o Object) Version() *version.Version {
 	var ver version.Version
-	if verV2 := (*object.Object)(o).GetHeader().GetVersion(); verV2 != nil {
+	if verV2 := (*object.Object)(&o).GetHeader().GetVersion(); verV2 != nil {
 		if err := ver.ReadFromV2(*verV2); err != nil {
 			return nil
 		}
@@ -378,8 +378,8 @@ func (o *Object) SetVersion(v *version.Version) {
 // PayloadSize returns payload length of the object.
 //
 // See also [Object.SetPayloadSize].
-func (o *Object) PayloadSize() uint64 {
-	return (*object.Object)(o).
+func (o Object) PayloadSize() uint64 {
+	return (*object.Object)(&o).
 		GetHeader().
 		GetPayloadLength()
 }
@@ -418,9 +418,9 @@ func (o *Object) SetContainerID(v cid.ID) {
 // binding.
 //
 // See also [Object.SetContainerID].
-func (o *Object) GetContainerID() cid.ID {
+func (o Object) GetContainerID() cid.ID {
 	var cnr cid.ID
-	if m := (*object.Object)(o).GetHeader().GetContainerID(); m != nil {
+	if m := (*object.Object)(&o).GetHeader().GetContainerID(); m != nil {
 		if err := cnr.ReadFromV2(*m); err != nil {
 			panic(fmt.Errorf("unexpected container ID decoding failure: %w", err))
 		}
@@ -465,8 +465,8 @@ func (o *Object) SetOwnerID(v *user.ID) {
 // CreationEpoch returns epoch number in which object was created.
 //
 // See also [Object.SetCreationEpoch].
-func (o *Object) CreationEpoch() uint64 {
-	return (*object.Object)(o).
+func (o Object) CreationEpoch() uint64 {
+	return (*object.Object)(&o).
 		GetHeader().
 		GetCreationEpoch()
 }
@@ -486,9 +486,9 @@ func (o *Object) SetCreationEpoch(v uint64) {
 // Zero [Object] does not have payload checksum.
 //
 // See also [Object.SetPayloadChecksum].
-func (o *Object) PayloadChecksum() (checksum.Checksum, bool) {
+func (o Object) PayloadChecksum() (checksum.Checksum, bool) {
 	var v checksum.Checksum
-	v2 := (*object.Object)(o)
+	v2 := (*object.Object)(&o)
 
 	if hash := v2.GetHeader().GetPayloadHash(); hash != nil {
 		err := v.ReadFromV2(*hash)
@@ -516,9 +516,9 @@ func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 // Zero [Object] does not have payload homomorphic checksum.
 //
 // See also [Object.SetPayloadHomomorphicHash].
-func (o *Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
+func (o Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 	var v checksum.Checksum
-	v2 := (*object.Object)(o)
+	v2 := (*object.Object)(&o)
 
 	if hash := v2.GetHeader().GetHomomorphicHash(); hash != nil {
 		err := v.ReadFromV2(*hash)
@@ -546,8 +546,8 @@ func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 // Make a copy if you need to change it.
 //
 // See also [Object.SetAttributes], [Object.UserAttributes].
-func (o *Object) Attributes() []Attribute {
-	attrs := (*object.Object)(o).
+func (o Object) Attributes() []Attribute {
+	attrs := (*object.Object)(&o).
 		GetHeader().
 		GetAttributes()
 
@@ -566,8 +566,8 @@ func (o *Object) Attributes() []Attribute {
 // Make a copy if you need to change it.
 //
 // See also [Object.SetAttributes], [Object.Attributes].
-func (o *Object) UserAttributes() []Attribute {
-	attrs := (*object.Object)(o).
+func (o Object) UserAttributes() []Attribute {
+	attrs := (*object.Object)(&o).
 		GetHeader().
 		GetAttributes()
 
@@ -608,9 +608,9 @@ func (o *Object) PreviousID() (oid.ID, bool) {
 // means unset ID.
 //
 // See also [Object.SetPreviousID].
-func (o *Object) GetPreviousID() oid.ID {
+func (o Object) GetPreviousID() oid.ID {
 	var id oid.ID
-	if m := (*object.Object)(o).GetHeader().GetSplit().GetPrevious(); m != nil {
+	if m := (*object.Object)(&o).GetHeader().GetSplit().GetPrevious(); m != nil {
 		if err := id.ReadFromV2(*m); err != nil {
 			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
 		}
@@ -642,8 +642,8 @@ func (o *Object) SetPreviousID(v oid.ID) {
 // Children return list of the identifiers of the child objects.
 //
 // See also [Object.SetChildren].
-func (o *Object) Children() []oid.ID {
-	v2 := (*object.Object)(o)
+func (o Object) Children() []oid.ID {
+	v2 := (*object.Object)(&o)
 	ids := v2.GetHeader().GetSplit().GetChildren()
 
 	var (
@@ -696,7 +696,7 @@ func (o *Object) SetFirstID(id oid.ID) {
 // FirstID returns the first part of the object's split chain.
 //
 // See also [Object.SetFirstID].
-func (o *Object) FirstID() (oid.ID, bool) {
+func (o Object) FirstID() (oid.ID, bool) {
 	id := o.GetFirstID()
 	return id, !id.IsZero()
 }
@@ -704,9 +704,9 @@ func (o *Object) FirstID() (oid.ID, bool) {
 // GetFirstID returns the first part of the object's split chain. Zero return means unset ID.
 //
 // See also [Object.SetFirstID].
-func (o *Object) GetFirstID() oid.ID {
+func (o Object) GetFirstID() oid.ID {
 	var id oid.ID
-	if m := (*object.Object)(o).GetHeader().GetSplit().GetFirst(); m != nil {
+	if m := (*object.Object)(&o).GetHeader().GetSplit().GetFirst(); m != nil {
 		if err := id.ReadFromV2(*m); err != nil {
 			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
 		}
@@ -717,9 +717,9 @@ func (o *Object) GetFirstID() oid.ID {
 // SplitID return split identity of split object. If object is not split returns nil.
 //
 // See also [Object.SetSplitID].
-func (o *Object) SplitID() *SplitID {
+func (o Object) SplitID() *SplitID {
 	return NewSplitIDFromV2(
-		(*object.Object)(o).
+		(*object.Object)(&o).
 			GetHeader().
 			GetSplit().
 			GetSplitID(),
@@ -748,9 +748,9 @@ func (o *Object) ParentID() (oid.ID, bool) {
 // ID.
 //
 // See also [Object.SetParentID].
-func (o *Object) GetParentID() oid.ID {
+func (o Object) GetParentID() oid.ID {
 	var id oid.ID
-	if m := (*object.Object)(o).GetHeader().GetSplit().GetParent(); m != nil {
+	if m := (*object.Object)(&o).GetHeader().GetSplit().GetParent(); m != nil {
 		if err := id.ReadFromV2(*m); err != nil {
 			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
 		}
@@ -782,8 +782,8 @@ func (o *Object) ResetParentID() {
 // Parent returns parent object w/o payload.
 //
 // See also [Object.SetParent].
-func (o *Object) Parent() *Object {
-	h := (*object.Object)(o).
+func (o Object) Parent() *Object {
+	h := (*object.Object)(&o).
 		GetHeader().
 		GetSplit()
 
@@ -828,8 +828,8 @@ func (o *Object) resetRelations() {
 // SessionToken returns token of the session within which object was created.
 //
 // See also [Object.SetSessionToken].
-func (o *Object) SessionToken() *session.Object {
-	tokv2 := (*object.Object)(o).GetHeader().GetSessionToken()
+func (o Object) SessionToken() *session.Object {
+	tokv2 := (*object.Object)(&o).GetHeader().GetSessionToken()
 	if tokv2 == nil {
 		return nil
 	}
@@ -860,8 +860,8 @@ func (o *Object) SetSessionToken(v *session.Object) {
 // Type returns type of the object.
 //
 // See also [Object.SetType].
-func (o *Object) Type() Type {
-	return Type((*object.Object)(o).
+func (o Object) Type() Type {
+	return Type((*object.Object)(&o).
 		GetHeader().
 		GetObjectType())
 }
@@ -888,8 +888,8 @@ func (o *Object) CutPayload() *Object {
 }
 
 // HasParent checks if parent (split ID) is present.
-func (o *Object) HasParent() bool {
-	return (*object.Object)(o).
+func (o Object) HasParent() bool {
+	return (*object.Object)(&o).
 		GetHeader().
 		GetSplit() != nil
 }
@@ -907,8 +907,8 @@ func (o *Object) InitRelations() {
 // Marshal marshals object into a protobuf binary form.
 //
 // See also [Object.Unmarshal].
-func (o *Object) Marshal() []byte {
-	return (*object.Object)(o).StableMarshal(nil)
+func (o Object) Marshal() []byte {
+	return (*object.Object)(&o).StableMarshal(nil)
 }
 
 // Unmarshal unmarshals protobuf binary representation of object.
@@ -927,8 +927,8 @@ func (o *Object) Unmarshal(data []byte) error {
 // MarshalJSON encodes object to protobuf JSON format.
 //
 // See also [Object.UnmarshalJSON].
-func (o *Object) MarshalJSON() ([]byte, error) {
-	return (*object.Object)(o).MarshalJSON()
+func (o Object) MarshalJSON() ([]byte, error) {
+	return (*object.Object)(&o).MarshalJSON()
 }
 
 // UnmarshalJSON decodes object from protobuf JSON format.
@@ -945,6 +945,6 @@ func (o *Object) UnmarshalJSON(data []byte) error {
 }
 
 // HeaderLen returns length of the binary header.
-func (o *Object) HeaderLen() int {
-	return (*object.Object)(o).GetHeader().StableSize()
+func (o Object) HeaderLen() int {
+	return (*object.Object)(&o).GetHeader().StableSize()
 }

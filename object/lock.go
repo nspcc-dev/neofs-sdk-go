@@ -27,7 +27,7 @@ func (o *Object) WriteLock(l Lock) {
 // if object has [TypeLock] type.
 //
 // See also [Object.WriteLock].
-func (o *Object) ReadLock(l *Lock) error {
+func (o Object) ReadLock(l *Lock) error {
 	return l.Unmarshal(o.Payload())
 }
 

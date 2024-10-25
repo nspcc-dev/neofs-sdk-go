@@ -181,31 +181,30 @@ func TestObject_CopyTo(t *testing.T) {
 	})
 
 	t.Run("header, change container id", func(t *testing.T) {
-		var localContID refs.ContainerID
-		localContID.SetValue([]byte{1})
+		c := cidtest.ID()
+		b := c[:]
+		var mc refs.ContainerID
+		mc.SetValue(b)
+		var mh object.Header
+		mh.SetContainerID(&mc)
+		var mo object.Object
+		mo.SetHeader(&mh)
 
-		var localHeader object.Header
-		localHeader.SetContainerID(&localContID)
+		var local, dst Object
+		require.NoError(t, local.ReadFromV2(mo))
+		require.NoError(t, dst.ReadFromV2(mo))
+		require.Equal(t, local.GetContainerID(), dst.GetContainerID())
 
-		var local Object
-		local.ToV2().SetHeader(&localHeader)
+		b[0]++
+		require.Equal(t, c, local.GetContainerID())
+		require.Equal(t, local.GetContainerID(), dst.GetContainerID())
 
-		var dstContID refs.ContainerID
-		dstContID.SetValue([]byte{2})
-
-		var dstHeader object.Header
-		dstHeader.SetContainerID(&dstContID)
-
-		var dst Object
-		dst.ToV2().SetHeader(&dstHeader)
-
-		require.NotEqual(t, local.ToV2().GetHeader().GetContainerID(), dst.ToV2().GetHeader().GetContainerID())
-
+		cp := c
 		local.CopyTo(&dst)
-		checkObjectEquals(t, local, dst)
-
-		local.ToV2().GetHeader().GetContainerID().SetValue([]byte{3})
-		require.NotEqual(t, local.ToV2().GetHeader().GetContainerID(), dst.ToV2().GetHeader().GetContainerID())
+		b[0]++
+		require.NotEqual(t, local.GetContainerID(), dst.GetContainerID())
+		require.Equal(t, c, local.GetContainerID())
+		require.Equal(t, cp, dst.GetContainerID())
 	})
 
 	t.Run("header, rewrite payload hash", func(t *testing.T) {

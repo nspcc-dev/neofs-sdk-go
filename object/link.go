@@ -28,7 +28,7 @@ func (o *Object) WriteLink(l Link) {
 // if the object has [TypeLink] type.
 //
 // See also [Object.WriteLink].
-func (o *Object) ReadLink(l *Link) error {
+func (o Object) ReadLink(l *Link) error {
 	return l.Unmarshal(o.Payload())
 }
 
