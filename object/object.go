@@ -350,15 +350,17 @@ func (o *Object) SetPayload(v []byte) {
 	(*object.Object)(o).SetPayload(v)
 }
 
-// Version returns version of the object.
+// Version returns version of the object. Returns nil if the version is unset.
 //
 // See also [Object.SetVersion].
 func (o Object) Version() *version.Version {
+	verV2 := (*object.Object)(&o).GetHeader().GetVersion()
+	if verV2 == nil {
+		return nil
+	}
 	var ver version.Version
-	if verV2 := (*object.Object)(&o).GetHeader().GetVersion(); verV2 != nil {
-		if err := ver.ReadFromV2(*verV2); err != nil {
-			return nil
-		}
+	if err := ver.ReadFromV2(*verV2); err != nil {
+		return nil
 	}
 	return &ver
 }
