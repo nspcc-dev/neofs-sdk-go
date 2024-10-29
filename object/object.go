@@ -827,18 +827,6 @@ func (o *Object) SetParent(v *Object) {
 	})
 }
 
-func (o *Object) initRelations() {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetSplit(new(object.SplitHeader))
-	})
-}
-
-func (o *Object) resetRelations() {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetSplit(nil)
-	})
-}
-
 // SessionToken returns token of the session within which object was created.
 //
 // See also [Object.SetSessionToken].
@@ -910,12 +898,16 @@ func (o Object) HasParent() bool {
 
 // ResetRelations removes all fields of links with other objects.
 func (o *Object) ResetRelations() {
-	o.resetRelations()
+	o.setHeaderField(func(h *object.Header) {
+		h.SetSplit(nil)
+	})
 }
 
 // InitRelations initializes relation field.
 func (o *Object) InitRelations() {
-	o.initRelations()
+	o.setHeaderField(func(h *object.Header) {
+		h.SetSplit(new(object.SplitHeader))
+	})
 }
 
 // Marshal marshals object into a protobuf binary form.
