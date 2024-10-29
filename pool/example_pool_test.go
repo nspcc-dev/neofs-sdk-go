@@ -64,7 +64,7 @@ func ExamplePool_ObjectGetInit_explicitAutoSessionDisabling() {
 	var ownerID user.ID
 	var hdr object.Object
 	hdr.SetContainerID(cid.ID{})
-	hdr.SetOwnerID(&ownerID)
+	hdr.SetOwner(ownerID)
 
 	var containerID cid.ID
 	// fill containerID
@@ -108,7 +108,7 @@ func ExamplePool_ObjectPutInit_autoSessionDisabling() {
 	var ownerID user.ID
 	var hdr object.Object
 	hdr.SetContainerID(cid.ID{})
-	hdr.SetOwnerID(&ownerID)
+	hdr.SetOwner(ownerID)
 
 	// In case of a session wasn't provided with prm.WithinSession, the signer must be for account which is a container
 	// owner, otherwise there will be an error.

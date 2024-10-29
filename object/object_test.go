@@ -22,7 +22,7 @@ func TestInitCreation(t *testing.T) {
 
 	cID := o.GetContainerID()
 	require.Equal(t, cnr, cID)
-	require.Equal(t, &own, o.OwnerID())
+	require.Equal(t, own, o.Owner())
 }
 
 func TestObject_UserAttributes(t *testing.T) {

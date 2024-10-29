@@ -41,7 +41,7 @@ type RequiredFields struct {
 // InitCreation initializes the object instance with minimum set of required fields.
 func (o *Object) InitCreation(rf RequiredFields) {
 	o.SetContainerID(rf.Container)
-	o.SetOwnerID(&rf.Owner)
+	o.SetOwner(rf.Owner)
 }
 
 // NewFromV2 wraps v2 [object.Object] message to [Object].
@@ -431,10 +431,16 @@ func (o Object) GetContainerID() cid.ID {
 // OwnerID returns identifier of the object owner.
 //
 // See also [Object.SetOwnerID].
-func (o *Object) OwnerID() *user.ID {
+// Deprecated: use [Object.Owner] instead.
+func (o Object) OwnerID() *user.ID { res := o.Owner(); return &res }
+
+// Owner returns user ID of the object owner. Zero return means unset ID.
+//
+// See also [Object.SetOwner].
+func (o Object) Owner() user.ID {
 	var id user.ID
 
-	m := (*object.Object)(o).GetHeader().GetOwnerID()
+	m := (*object.Object)(&o).GetHeader().GetOwnerID()
 	if m != nil {
 		// unlike other IDs, user.ID.ReadFromV2 also expects correct prefix and checksum
 		// suffix. So, we cannot call it and panic on error here because nothing
@@ -447,13 +453,19 @@ func (o *Object) OwnerID() *user.ID {
 		copy(id[:], b)
 	}
 
-	return &id
+	return id
 }
 
 // SetOwnerID sets identifier of the object owner.
 //
 // See also [Object.OwnerID].
-func (o *Object) SetOwnerID(v *user.ID) {
+// Deprecated: use [Object.SetOwner] accepting value instead.
+func (o *Object) SetOwnerID(v *user.ID) { o.SetOwner(*v) }
+
+// SetOwner sets identifier of the object owner.
+//
+// See also [Object.GetOwner].
+func (o *Object) SetOwner(v user.ID) {
 	o.setHeaderField(func(h *object.Header) {
 		var m refs.OwnerID
 		v.WriteToV2(&m)

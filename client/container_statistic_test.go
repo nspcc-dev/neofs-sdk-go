@@ -580,7 +580,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	prm.WithinSession(tokenSession)
 
 	var hdr object.Object
-	hdr.SetOwnerID(&usr.ID)
+	hdr.SetOwner(usr.ID)
 	hdr.SetContainerID(containerID)
 
 	writer, err := c.ObjectPutInit(ctx, hdr, usr, prm)

@@ -334,7 +334,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		var hdr object.Object
 		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
-		hdr.SetOwnerID(&in.owner)
+		hdr.SetOwner(in.owner)
 		hdr.SetAttributes(in.attributes...)
 
 		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, bytes.NewReader(in.payload), opts)
@@ -381,7 +381,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		var hdr object.Object
 		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
-		hdr.SetOwnerID(&in.owner)
+		hdr.SetOwner(in.owner)
 		hdr.SetAttributes(in.attributes...)
 
 		// check writer with random written chunk's size
@@ -417,7 +417,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		var hdr object.Object
 		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
-		hdr.SetOwnerID(&in.owner)
+		hdr.SetOwner(in.owner)
 		hdr.SetAttributes(in.attributes...)
 
 		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, &eofOnLastChunkReader{payload: in.payload, isZeroNilShowed: true}, opts)
@@ -431,7 +431,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		var hdr object.Object
 		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
-		hdr.SetOwnerID(&in.owner)
+		hdr.SetOwner(in.owner)
 		hdr.SetAttributes(in.attributes...)
 
 		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, &eofOnLastChunkReader{payload: in.payload}, opts)
@@ -445,7 +445,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		var hdr object.Object
 		hdr.SetSessionToken(opts.Session())
 		hdr.SetContainerID(in.container)
-		hdr.SetOwnerID(&in.owner)
+		hdr.SetOwner(in.owner)
 		hdr.SetAttributes(in.attributes...)
 
 		rootID, err := slicer.Put(ctx, checker, hdr, checker.input.signer, &eofOnLastChunkReader{payload: in.payload, isZeroOnEOF: true, isZeroNilShowed: true}, opts)
@@ -567,12 +567,11 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.False(tb, cnr.IsZero(), "all objects must be bound to some container")
 	require.True(tb, cnr == in.container, "the container must be set to the configured one")
 
-	owner := header.OwnerID()
-	require.NotNil(tb, owner, "any object must be owned by somebody")
+	owner := header.Owner()
 	if in.sessionToken != nil {
-		require.True(tb, in.sessionToken.Issuer() == *owner, "owner must be set to the session issuer")
+		require.True(tb, in.sessionToken.Issuer() == owner, "owner must be set to the session issuer")
 	} else {
-		require.True(tb, *owner == in.owner, "owner must be set to the particular user")
+		require.True(tb, owner == in.owner, "owner must be set to the particular user")
 	}
 
 	ver := header.Version()
@@ -638,7 +637,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 			parentNoPayloadInfo.SetContainerID(cID)
 			parentNoPayloadInfo.SetCreationEpoch(x.parentHeader.CreationEpoch())
 			parentNoPayloadInfo.SetType(x.parentHeader.Type())
-			parentNoPayloadInfo.SetOwnerID(x.parentHeader.OwnerID())
+			parentNoPayloadInfo.SetOwner(x.parentHeader.Owner())
 			parentNoPayloadInfo.SetSessionToken(x.parentHeader.SessionToken())
 			parentNoPayloadInfo.SetAttributes(x.parentHeader.Attributes()...)
 
