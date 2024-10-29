@@ -18,7 +18,7 @@ var validTombstone object.Tombstone // set by init.
 func init() {
 	validTombstone.SetExpirationEpoch(anyValidExpirationEpoch)
 	validTombstone.SetSplitID(anyValidSplitID)
-	validTombstone.SetMembers(anyValidIDs)
+	validTombstone.SetMembers(anyValidIDs[:3])
 }
 
 // corresponds to validTombstone.
@@ -138,7 +138,7 @@ func TestTombstone_WriteToV2(t *testing.T) {
 	require.EqualValues(t, anyValidExpirationEpoch, m.GetExpirationEpoch())
 	require.EqualValues(t, anyValidSplitIDBytes, m.GetSplitID())
 	ms := m.GetMembers()
-	require.Len(t, ms, len(anyValidIDs))
+	require.Len(t, ms, 3)
 	for i := range ms {
 		require.Equal(t, anyValidIDs[i][:], ms[i].GetValue())
 	}
