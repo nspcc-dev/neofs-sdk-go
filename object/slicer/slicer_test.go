@@ -233,14 +233,13 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 	}
 	in.payload = randomData(size)
 	in.attributes = attrs
+	in.owner = usertest.ID()
 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
 		tok := sessiontest.ObjectSigned(usertest.User())
 		in.sessionToken = &tok
 		opts.SetSession(*in.sessionToken)
-	} else {
-		in.owner = usertest.ID()
 	}
 
 	in.withHomo = rand.Int()%2 == 0
