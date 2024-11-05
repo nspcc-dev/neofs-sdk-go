@@ -20,13 +20,11 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-2022, macos-12, macos-14]
+        os: [ubuntu-latest, windows-2022, macos-14]
         go: [ '1.22', '1.23' ]
         exclude:
           # Only latest Go version for Windows and MacOS.
           - os: windows-2022
-            go: '1.22'
-          - os: macos-12
             go: '1.22'
           - os: macos-14
             go: '1.22'
