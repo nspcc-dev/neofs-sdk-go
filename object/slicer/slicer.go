@@ -478,13 +478,9 @@ func (x *PayloadWriter) Close() error {
 	}
 
 	if x.withSplit {
-		return x.writeLastChild(x.ctx, x.childMeta, payloadBuffers, x.setID)
+		return x.writeLastChild(x.ctx, x.childMeta, payloadBuffers)
 	}
-	return x.writeLastChild(x.ctx, x.rootMeta, payloadBuffers, x.setID)
-}
-
-func (x *PayloadWriter) setID(id oid.ID) {
-	x.rootID = id
+	return x.writeLastChild(x.ctx, x.rootMeta, payloadBuffers)
 }
 
 // ID returns unique identifier of the stored object representing its reference
@@ -498,17 +494,17 @@ func (x *PayloadWriter) ID() oid.ID {
 // writeIntermediateChild writes intermediate split-chain element with specified
 // dynamicObjectMetadata to the configured ObjectWriter.
 func (x *PayloadWriter) writeIntermediateChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte) error {
-	return x._writeChild(ctx, meta, payloadBuffers, false, nil)
+	return x._writeChild(ctx, meta, payloadBuffers, false)
 }
 
 // writeIntermediateChild writes last split-chain element with specified
 // dynamicObjectMetadata to the configured ObjectWriter. If rootIDHandler is
 // specified, ID of the resulting root object is passed into it.
-func (x *PayloadWriter) writeLastChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte, rootIDHandler func(id oid.ID)) error {
-	return x._writeChild(ctx, meta, payloadBuffers, true, rootIDHandler)
+func (x *PayloadWriter) writeLastChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte) error {
+	return x._writeChild(ctx, meta, payloadBuffers, true)
 }
 
-func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte, last bool, rootIDHandler func(id oid.ID)) error {
+func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetadata, payloadBuffers [][]byte, last bool) error {
 	obj := *x.stubObject
 	obj.SetSplitID(nil)
 	obj.ResetPreviousID()
@@ -538,9 +534,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 			return fmt.Errorf("form root object: %w", err)
 		}
 
-		if rootIDHandler != nil {
-			rootIDHandler(rootID)
-		}
+		x.rootID = rootID
 
 		if x.withSplit {
 			obj.SetParentID(rootID)
