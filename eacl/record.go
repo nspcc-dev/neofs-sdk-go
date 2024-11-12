@@ -202,7 +202,7 @@ func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
 // The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
 // Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
 func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectType, m, object.TypeToString(t))))
+	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectType, m, t.String())))
 }
 
 // AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.

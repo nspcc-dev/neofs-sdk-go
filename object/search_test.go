@@ -396,20 +396,19 @@ func TestSearchMatchType_String(t *testing.T) {
 
 func TestSearchMatchTypeToString(t *testing.T) {
 	for n, s := range searchMatchTypeStrings {
-		require.Equal(t, s, object.SearchMatchTypeToString(n))
+		require.Equal(t, s, n.String())
 	}
 }
 
 func TestSearchMatchTypeFromString(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, s := range []string{"", "foo", "1.2"} {
-			_, ok := object.SearchMatchTypeFromString(s)
-			require.False(t, ok, s)
+			require.False(t, new(object.SearchMatchType).DecodeString(s))
 		}
 	})
+	var v object.SearchMatchType
 	for n, s := range searchMatchTypeStrings {
-		v, ok := object.SearchMatchTypeFromString(s)
-		require.True(t, ok)
+		require.True(t, v.DecodeString(s))
 		require.Equal(t, n, v)
 	}
 }

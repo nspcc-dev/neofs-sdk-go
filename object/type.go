@@ -37,7 +37,19 @@ const (
 	typeStringLink         = "LINK"
 )
 
-// TypeToString maps Type values to strings:
+// EncodeToString returns string representation of [Type].
+//
+// String mapping:
+//   - [TypeTombstone]: TOMBSTONE;
+//   - [TypeStorageGroup]: STORAGE_GROUP;
+//   - [TypeLock]: LOCK;
+//   - [TypeRegular], default: REGULAR.
+//   - [TypeLink], default: LINK.
+//
+// Deprecated: use [TypeToString] instead.
+func (t Type) EncodeToString() string { return t.String() }
+
+// String implements [fmt.Stringer] with the following string mapping:
 //   - [TypeRegular]: REGULAR
 //   - [TypeTombstone]: TOMBSTONE
 //   - [TypeStorageGroup]: STORAGE_GROUP
@@ -47,9 +59,10 @@ const (
 // All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
-// please note that this is not a NeoFS protocol format. Use [Type.String] to
-// get any human-readable text for printing.
-func TypeToString(t Type) string {
+// please note that this is not a NeoFS protocol format.
+//
+// String is reverse to [Type.DecodeString].
+func (t Type) String() string {
 	switch t {
 	default:
 		return strconv.FormatUint(uint64(t), 10)
@@ -66,57 +79,28 @@ func TypeToString(t Type) string {
 	}
 }
 
-// TypeFromString maps strings to Type values in reverse to [TypeToString].
-// Returns false if s is incorrect.
-func TypeFromString(s string) (Type, bool) {
-	switch s {
-	default:
-		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
-			return Type(n), true
-		}
-		return 0, false
-	case typeStringRegular:
-		return TypeRegular, true
-	case typeStringTombstone:
-		return TypeTombstone, true
-	case typeStringStorageGroup:
-		return TypeStorageGroup, true
-	case typeStringLock:
-		return TypeLock, true
-	case typeStringLink:
-		return TypeLink, true
-	}
-}
-
-// EncodeToString returns string representation of [Type].
-//
-// String mapping:
-//   - [TypeTombstone]: TOMBSTONE;
-//   - [TypeStorageGroup]: STORAGE_GROUP;
-//   - [TypeLock]: LOCK;
-//   - [TypeRegular], default: REGULAR.
-//   - [TypeLink], default: LINK.
-//
-// Deprecated: use [TypeToString] instead.
-func (t Type) EncodeToString() string { return TypeToString(t) }
-
-// String implements [fmt.Stringer].
-//
-// String is designed to be human-readable, and its format MAY differ between
-// SDK versions. Use [TypeToString] and [TypeFromString] for consistent mapping.
-func (t Type) String() string {
-	return TypeToString(t)
-}
-
-// DecodeString parses [Type] from a string representation.
-// It is a reverse action to EncodeToString().
+// DecodeString parses Type from a string representation. It is a reverse action
+// to [Type.String].
 //
 // Returns true if s was parsed successfully.
-// Deprecated: use [TypeFromString] instead.
 func (t *Type) DecodeString(s string) bool {
-	if v, ok := TypeFromString(s); ok {
-		*t = v
-		return true
+	switch s {
+	default:
+		n, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return false
+		}
+		*t = Type(n)
+	case typeStringRegular:
+		*t = TypeRegular
+	case typeStringTombstone:
+		*t = TypeTombstone
+	case typeStringStorageGroup:
+		*t = TypeStorageGroup
+	case typeStringLock:
+		*t = TypeLock
+	case typeStringLink:
+		*t = TypeLink
 	}
-	return false
+	return true
 }

@@ -115,20 +115,19 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 
 func TestTypeToString(t *testing.T) {
 	for n, s := range typeStrings {
-		require.Equal(t, s, object.TypeToString(n))
+		require.Equal(t, s, n.String())
 	}
 }
 
 func TestTypeFromString(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, s := range []string{"", "foo", "1.2"} {
-			_, ok := object.TypeFromString(s)
-			require.False(t, ok, s)
+			require.False(t, new(object.Type).DecodeString(s))
 		}
 	})
+	var v object.Type
 	for n, s := range typeStrings {
-		v, ok := object.TypeFromString(s)
-		require.True(t, ok)
+		require.True(t, v.DecodeString(s))
 		require.Equal(t, n, v)
 	}
 }

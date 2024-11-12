@@ -58,8 +58,24 @@ const (
 	matcherStringNumLE        = "NUM_LE"
 )
 
-// SearchMatchTypeToString maps SearchMatchType values to strings:
-//   - 0: MATCH_TYPE_UNSPECIFIED
+// EncodeToString returns string representation of [SearchMatchType].
+//
+// String mapping:
+//   - [MatchStringEqual]: STRING_EQUAL;
+//   - [MatchStringNotEqual]: STRING_NOT_EQUAL;
+//   - [MatchNotPresent]: NOT_PRESENT;
+//   - [MatchCommonPrefix]: COMMON_PREFIX;
+//   - [MatchNumGT], default: NUM_GT;
+//   - [MatchNumGE], default: NUM_GE;
+//   - [MatchNumLT], default: NUM_LT;
+//   - [MatchNumLE], default: NUM_LE;
+//   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED.
+//
+// All other values are base-10 integers.
+// Deprecated: use [SearchMatchType.String] instead.
+func (m SearchMatchType) EncodeToString() string { return m.String() }
+
+// String implements [fmt.Stringer] with the following string mapping:
 //   - [MatchStringEqual]: STRING_EQUAL
 //   - [MatchStringNotEqual]: STRING_NOT_EQUAL
 //   - [MatchNotPresent]: NOT_PRESENT
@@ -68,13 +84,15 @@ const (
 //   - [MatchNumGE]: NUM_GE
 //   - [MatchNumLT]: NUM_LT
 //   - [MatchNumLE]: NUM_LE
+//   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED
 //
 // All other values are base-10 integers.
 //
 // The mapping is consistent and resilient to lib updates. At the same time,
-// please note that this is not a NeoFS protocol format. Use
-// [SearchMatchType.String] to get any human-readable text for printing.
-func SearchMatchTypeToString(m SearchMatchType) string {
+// please note that this is not a NeoFS protocol format.
+//
+// String is reverse to [SearchMatchType.DecodeString].
+func (m SearchMatchType) String() string {
 	switch m {
 	default:
 		return strconv.FormatUint(uint64(m), 10)
@@ -99,73 +117,38 @@ func SearchMatchTypeToString(m SearchMatchType) string {
 	}
 }
 
-// SearchMatchTypeFromString maps strings to SearchMatchType values in reverse
-// to [SearchMatchTypeToString]. Returns false if s is incorrect.
-func SearchMatchTypeFromString(s string) (SearchMatchType, bool) {
-	switch s {
-	default:
-		if n, err := strconv.ParseUint(s, 10, 32); err == nil {
-			return SearchMatchType(n), true
-		}
-		return 0, false
-	case matcherStringZero:
-		return 0, true
-	case matcherStringEqual:
-		return MatchStringEqual, true
-	case matcherStringNotEqual:
-		return MatchStringNotEqual, true
-	case matcherStringNotPresent:
-		return MatchNotPresent, true
-	case matcherStringCommonPrefix:
-		return MatchCommonPrefix, true
-	case matcherStringNumGT:
-		return MatchNumGT, true
-	case matcherStringNumGE:
-		return MatchNumGE, true
-	case matcherStringNumLT:
-		return MatchNumLT, true
-	case matcherStringNumLE:
-		return MatchNumLE, true
-	}
-}
-
-// EncodeToString returns string representation of [SearchMatchType].
-//
-// String mapping:
-//   - [MatchStringEqual]: STRING_EQUAL;
-//   - [MatchStringNotEqual]: STRING_NOT_EQUAL;
-//   - [MatchNotPresent]: NOT_PRESENT;
-//   - [MatchCommonPrefix]: COMMON_PREFIX;
-//   - [MatchNumGT], default: NUM_GT;
-//   - [MatchNumGE], default: NUM_GE;
-//   - [MatchNumLT], default: NUM_LT;
-//   - [MatchNumLE], default: NUM_LE;
-//   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED.
-//
-// All other values are base-10 integers.
-// Deprecated: use [SearchMatchTypeToString] instead.
-func (m SearchMatchType) EncodeToString() string { return SearchMatchTypeToString(m) }
-
-// String implements [fmt.Stringer].
-//
-// String is designed to be human-readable, and its format MAY differ between
-// SDK versions. Use [SearchMatchTypeToString] and [SearchMatchTypeFromString]
-// for consistent mapping.
-func (m SearchMatchType) String() string {
-	return SearchMatchTypeToString(m)
-}
-
-// DecodeString parses [SearchMatchType] from a string representation.
-// It is a reverse action to EncodeToString().
+// DecodeString parses SearchMatchType from a string representation. It is a
+// reverse action to [SearchMatchType.String].
 //
 // Returns true if s was parsed successfully.
-// Deprecated: use [SearchMatchTypeFromString] instead.
 func (m *SearchMatchType) DecodeString(s string) bool {
-	if v, ok := SearchMatchTypeFromString(s); ok {
-		*m = v
-		return true
+	switch s {
+	default:
+		n, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return false
+		}
+		*m = SearchMatchType(n)
+	case matcherStringZero:
+		*m = 0
+	case matcherStringEqual:
+		*m = MatchStringEqual
+	case matcherStringNotEqual:
+		*m = MatchStringNotEqual
+	case matcherStringNotPresent:
+		*m = MatchNotPresent
+	case matcherStringCommonPrefix:
+		*m = MatchCommonPrefix
+	case matcherStringNumGT:
+		*m = MatchNumGT
+	case matcherStringNumGE:
+		*m = MatchNumGE
+	case matcherStringNumLT:
+		*m = MatchNumLT
+	case matcherStringNumLE:
+		*m = MatchNumLE
 	}
-	return false
+	return true
 }
 
 // SearchFilter describes a single filter record.
