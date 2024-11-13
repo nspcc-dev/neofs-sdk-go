@@ -8,6 +8,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var typeStrings = map[object.Type]string{
+	object.TypeRegular:      "REGULAR",
+	object.TypeTombstone:    "TOMBSTONE",
+	object.TypeStorageGroup: "STORAGE_GROUP",
+	object.TypeLock:         "LOCK",
+	object.TypeLink:         "LINK",
+	5:                       "5",
+}
+
 func TestType_ToV2(t *testing.T) {
 	typs := []struct {
 		t  object.Type
@@ -44,7 +53,23 @@ func TestType_ToV2(t *testing.T) {
 	}
 }
 
+func TestTypeProto(t *testing.T) {
+	for x, y := range map[v2object.Type]object.Type{
+		v2object.TypeRegular:      object.TypeRegular,
+		v2object.TypeTombstone:    object.TypeTombstone,
+		v2object.TypeStorageGroup: object.TypeStorageGroup,
+		v2object.TypeLock:         object.TypeLock,
+		v2object.TypeLink:         object.TypeLink,
+	} {
+		require.EqualValues(t, x, y)
+	}
+}
+
 func TestType_String(t *testing.T) {
+	for r, s := range typeStrings {
+		require.Equal(t, s, r.String())
+	}
+
 	toPtr := func(v object.Type) *object.Type {
 		return &v
 	}
@@ -85,5 +110,24 @@ func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 		"undefined",
 	} {
 		require.False(t, e.DecodeString(str))
+	}
+}
+
+func TestTypeToString(t *testing.T) {
+	for n, s := range typeStrings {
+		require.Equal(t, s, n.String())
+	}
+}
+
+func TestTypeFromString(t *testing.T) {
+	t.Run("invalid", func(t *testing.T) {
+		for _, s := range []string{"", "foo", "1.2"} {
+			require.False(t, new(object.Type).DecodeString(s))
+		}
+	})
+	var v object.Type
+	for n, s := range typeStrings {
+		require.True(t, v.DecodeString(s))
+		require.Equal(t, n, v)
 	}
 }

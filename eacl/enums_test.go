@@ -1,6 +1,7 @@
 package eacl_test
 
 import (
+	"fmt"
 	"testing"
 
 	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
@@ -225,34 +226,37 @@ func TestAction_String(t *testing.T) {
 	})
 }
 
-type enum interface{ ~uint32 }
+type enum interface {
+	~uint32
+	fmt.Stringer
+}
 
-func testEnumToString[T enum](t testing.TB, m map[T]string, f func(T) string) {
+func testEnumToString[T enum](t testing.TB, m map[T]string) {
 	for n, s := range m {
-		require.Equal(t, s, f(n))
+		require.Equal(t, s, n.String())
 	}
 }
 
-func testEnumFromString[T enum](t *testing.T, m map[T]string, f func(string) (T, bool)) {
+func testEnumDecodeString[T enum](t *testing.T, m map[T]string, f func(*T, string) bool) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, s := range []string{"", "foo", "1.2"} {
-			_, ok := f(s)
-			require.False(t, ok)
+			require.False(t, f(new(T), s))
 		}
 	})
 	for n, s := range m {
-		v, ok := f(s)
+		var res T
+		ok := f(&res, s)
 		require.True(t, ok)
-		require.Equal(t, n, v)
+		require.Equal(t, n, res)
 	}
 }
 
 func TestActionToString(t *testing.T) {
-	testEnumToString(t, actionStrings, eacl.ActionToString)
+	testEnumToString(t, actionStrings)
 }
 
 func TestActionFromString(t *testing.T) {
-	testEnumFromString(t, actionStrings, eacl.ActionFromString)
+	testEnumDecodeString(t, actionStrings, (*eacl.Action).DecodeString)
 }
 
 func TestRoleProto(t *testing.T) {
@@ -284,11 +288,11 @@ func TestRole_String(t *testing.T) {
 }
 
 func TestRoleToString(t *testing.T) {
-	testEnumToString(t, roleStrings, eacl.RoleToString)
+	testEnumToString(t, roleStrings)
 }
 
 func TestRoleFromString(t *testing.T) {
-	testEnumFromString(t, roleStrings, eacl.RoleFromString)
+	testEnumDecodeString(t, roleStrings, (*eacl.Role).DecodeString)
 }
 
 func TestOperationProto(t *testing.T) {
@@ -328,11 +332,11 @@ func TestOperation_String(t *testing.T) {
 }
 
 func TestOperationToString(t *testing.T) {
-	testEnumToString(t, opStrings, eacl.OperationToString)
+	testEnumToString(t, opStrings)
 }
 
 func TestOperationFromString(t *testing.T) {
-	testEnumFromString(t, opStrings, eacl.OperationFromString)
+	testEnumDecodeString(t, opStrings, (*eacl.Operation).DecodeString)
 }
 
 func TestMatchProto(t *testing.T) {
@@ -372,11 +376,11 @@ func TestMatch_String(t *testing.T) {
 }
 
 func TestMatcherToString(t *testing.T) {
-	testEnumToString(t, matcherStrings, eacl.MatcherToString)
+	testEnumToString(t, matcherStrings)
 }
 
 func TestMatcherFromString(t *testing.T) {
-	testEnumFromString(t, matcherStrings, eacl.MatcherFromString)
+	testEnumDecodeString(t, matcherStrings, (*eacl.Match).DecodeString)
 }
 
 func TestFilterHeaderTypeProto(t *testing.T) {
@@ -408,9 +412,9 @@ func TestFilterHeaderType_String(t *testing.T) {
 }
 
 func TestHeaderTypeToString(t *testing.T) {
-	testEnumToString(t, headerTypeStrings, eacl.HeaderTypeToString)
+	testEnumToString(t, headerTypeStrings)
 }
 
 func TestHeaderTypeFromString(t *testing.T) {
-	testEnumFromString(t, headerTypeStrings, eacl.HeaderTypeFromString)
+	testEnumDecodeString(t, headerTypeStrings, (*eacl.FilterHeaderType).DecodeString)
 }

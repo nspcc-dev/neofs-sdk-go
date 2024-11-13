@@ -276,7 +276,7 @@ func testSlicerWithKnownSize(t *testing.T, size, sizeLimit uint64, known bool) {
 	for i := object.TypeRegular; i <= object.TypeLink; i++ {
 		in.objectType = i
 
-		t.Run(fmt.Sprintf("slicer with %s,known_size=%t,size=%d,limit=%d", i.EncodeToString(), known, size, sizeLimit), func(t *testing.T) {
+		t.Run(fmt.Sprintf("slicer with %s,known_size=%t,size=%d,limit=%d", i.String(), known, size, sizeLimit), func(t *testing.T) {
 			testSlicerByHeaderType(t, checker, in, opts)
 		})
 	}
