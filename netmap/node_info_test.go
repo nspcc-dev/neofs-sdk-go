@@ -294,6 +294,74 @@ func TestNodeInfo_SetContinentName(t *testing.T) {
 	require.Equal(t, anyValidContinentName, n.ContinentName())
 }
 
+func TestNodeInfo_SetAttributes(t *testing.T) {
+	var n netmap.NodeInfo
+	require.Zero(t, n.NumberOfAttributes())
+	n.IterateAttributes(func(string, string) {
+		t.Fatal("handler must not be called")
+	})
+
+	const k1, v1 = "k1", "v1"
+	const k2, v2 = "k2", "v2"
+	const empty = ""
+
+	attr1 := [2]string{empty, v1}
+	attr2 := [2]string{k2, empty}
+
+	require.Panics(t, func() {
+		n.SetAttributes([][2]string{attr1})
+	})
+
+	require.Panics(t, func() {
+		n.SetAttributes([][2]string{attr2})
+	})
+
+	attr1 = [2]string{k1, v1}
+	n.SetAttributes([][2]string{attr1})
+	require.Equal(t, attr1[1], n.Attribute(k1))
+	require.Equal(t, empty, n.Attribute(k2))
+	require.Equal(t, 1, n.NumberOfAttributes())
+
+	attr2 = [2]string{k2, v2}
+	n.SetAttributes([][2]string{attr2})
+	require.Equal(t, attr2[1], n.Attribute(k2))
+	require.Equal(t, empty, n.Attribute(k1))
+	require.Equal(t, 1, n.NumberOfAttributes())
+
+	n.SetAttributes([][2]string{attr1, attr2})
+	require.Equal(t, attr1[1], n.Attribute(k1))
+	require.Equal(t, attr2[1], n.Attribute(k2))
+	require.Equal(t, 2, n.NumberOfAttributes())
+
+	n.SetAttributes([][2]string{})
+	require.Zero(t, n.NumberOfAttributes())
+}
+
+func TestNodeInfo_GetAttributes(t *testing.T) {
+	var n netmap.NodeInfo
+	require.Zero(t, n.NumberOfAttributes())
+	n.IterateAttributes(func(string, string) {
+		t.Fatal("handler must not be called")
+	})
+
+	const k1, v1 = "k1", "v1"
+	const k2, v2 = "k2", "v2"
+
+	attr1 := [2]string{k1, v1}
+	attr2 := [2]string{k2, v2}
+
+	n.SetAttributes([][2]string{attr1})
+	attrs := n.GetAttributes()
+	require.Len(t, attrs, 1)
+	require.Equal(t, attr1, attrs[0])
+
+	n.SetAttributes([][2]string{attr1, attr2})
+	attrs = n.GetAttributes()
+	require.Len(t, attrs, 2)
+	require.Equal(t, attr1, attrs[0])
+	require.Equal(t, attr2, attrs[1])
+}
+
 func TestNodeInfo_SetAttribute(t *testing.T) {
 	var n netmap.NodeInfo
 	require.Zero(t, n.NumberOfAttributes())

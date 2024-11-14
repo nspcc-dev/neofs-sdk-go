@@ -460,6 +460,41 @@ func (x NodeInfo) IterateAttributes(f func(key, value string)) {
 	}
 }
 
+// GetAttributes returns all the node attributes.
+// Each attribute is a [2]string slice: {"key", "value"}.
+//
+// See also Attribute, IterateAttributes.
+func (x NodeInfo) GetAttributes() [][2]string {
+	attrs := make([][2]string, len(x.m.GetAttributes()))
+	for i, attr := range x.m.GetAttributes() {
+		attrs[i] = [2]string{attr.GetKey(), attr.GetValue()}
+	}
+	return attrs
+}
+
+// SetAttributes sets list of node attributes.
+// Each attribute is a [2]string slice: {"key", "value"}.
+// Both key and value of attributes MUST NOT be empty.
+//
+// See also SetAttribute.
+func (x *NodeInfo) SetAttributes(attrs [][2]string) {
+	netmapAttrs := make([]netmap.Attribute, 0, len(attrs))
+	for _, attr := range attrs {
+		if attr[0] == "" {
+			panic("empty key in SetAttributes")
+		}
+		if attr[1] == "" {
+			panic(fmt.Errorf("empty value in SetAttributes for key: %s", attr[0]))
+		}
+
+		netmapAttrs = append(netmapAttrs, netmap.Attribute{})
+		netmapAttrs[len(netmapAttrs)-1].SetKey(attr[0])
+		netmapAttrs[len(netmapAttrs)-1].SetValue(attr[1])
+	}
+
+	x.m.SetAttributes(netmapAttrs)
+}
+
 // SetAttribute sets value of the node attribute value by the given key.
 // Both key and value MUST NOT be empty.
 func (x *NodeInfo) SetAttribute(key, value string) {
