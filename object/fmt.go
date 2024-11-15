@@ -38,7 +38,7 @@ func (o *Object) CalculateAndSetPayloadChecksum() {
 
 // VerifyPayloadChecksum checks if payload checksum in the object
 // corresponds to its payload.
-func (o *Object) VerifyPayloadChecksum() error {
+func (o Object) VerifyPayloadChecksum() error {
 	actual := CalculatePayloadChecksum(o.Payload())
 
 	cs, set := o.PayloadChecksum()
@@ -54,7 +54,7 @@ func (o *Object) VerifyPayloadChecksum() error {
 }
 
 // CalculateID calculates identifier for the object.
-func (o *Object) CalculateID() (oid.ID, error) {
+func (o Object) CalculateID() (oid.ID, error) {
 	return sha256.Sum256(o.ToV2().GetHeader().StableMarshal(nil)), nil
 }
 
@@ -73,7 +73,7 @@ func (o *Object) CalculateAndSetID() error {
 
 // VerifyID checks if identifier in the object corresponds to
 // its structure.
-func (o *Object) VerifyID() error {
+func (o Object) VerifyID() error {
 	id, err := o.CalculateID()
 	if err != nil {
 		return err
@@ -113,13 +113,13 @@ func (o *Object) Sign(signer neofscrypto.Signer) error {
 // SignedData returns actual payload to sign.
 //
 // See also [Object.Sign].
-func (o *Object) SignedData() []byte {
+func (o Object) SignedData() []byte {
 	return o.GetID().Marshal()
 }
 
 // VerifySignature verifies object ID signature.
-func (o *Object) VerifySignature() bool {
-	m := (*object.Object)(o)
+func (o Object) VerifySignature() bool {
+	m := (*object.Object)(&o)
 
 	sigV2 := m.GetSignature()
 	if sigV2 == nil {
@@ -157,7 +157,7 @@ func (o *Object) SetVerificationFields(signer neofscrypto.Signer) error {
 }
 
 // CheckVerificationFields checks all verification fields of the object.
-func (o *Object) CheckVerificationFields() error {
+func (o Object) CheckVerificationFields() error {
 	if err := o.CheckHeaderVerificationFields(); err != nil {
 		return fmt.Errorf("invalid header structure: %w", err)
 	}
@@ -172,7 +172,7 @@ func (o *Object) CheckVerificationFields() error {
 var errInvalidSignature = errors.New("invalid signature")
 
 // CheckHeaderVerificationFields checks all verification fields except payload.
-func (o *Object) CheckHeaderVerificationFields() error {
+func (o Object) CheckHeaderVerificationFields() error {
 	if !o.VerifySignature() {
 		return errInvalidSignature
 	}

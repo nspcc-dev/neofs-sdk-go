@@ -101,7 +101,7 @@ func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID
 	var hdr object.Object
 	hdr.SetContainerID(cnr)
 	hdr.SetType(object.TypeRegular)
-	hdr.SetOwnerID(&owner)
+	hdr.SetOwner(owner)
 	hdr.SetCreationEpoch(ni.CurrentEpoch())
 	hdr.SetSessionToken(sessionToken)
 	return &Slicer{
@@ -236,12 +236,12 @@ func headerData(header object.Object) (cid.ID, user.ID, error) {
 		return cid.ID{}, user.ID{}, fmt.Errorf("container-id: %w", ErrIncompleteHeader)
 	}
 
-	owner := header.OwnerID()
-	if owner == nil {
+	owner := header.Owner()
+	if owner.IsZero() {
 		return cid.ID{}, user.ID{}, fmt.Errorf("owner: %w", ErrIncompleteHeader)
 	}
 
-	return containerID, *owner, nil
+	return containerID, owner, nil
 }
 
 func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
@@ -259,13 +259,13 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		// session issuer is a container owner.
 		issuer := opts.sessionToken.Issuer()
 		owner = issuer
-		header.SetOwnerID(&owner)
+		header.SetOwner(owner)
 	} else if opts.bearerToken != nil {
 		prm.WithBearerToken(*opts.bearerToken)
 		// token issuer is a container owner.
 		issuer := opts.bearerToken.Issuer()
 		owner = issuer
-		header.SetOwnerID(&owner)
+		header.SetOwner(owner)
 	}
 
 	header.SetCreationEpoch(opts.currentNeoFSEpoch)
@@ -277,7 +277,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	stubObject.SetContainerID(containerID)
 	stubObject.SetCreationEpoch(opts.currentNeoFSEpoch)
 	stubObject.SetType(object.TypeRegular)
-	stubObject.SetOwnerID(&owner)
+	stubObject.SetOwner(owner)
 	stubObject.SetSessionToken(opts.sessionToken)
 
 	res := &PayloadWriter{

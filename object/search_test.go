@@ -56,10 +56,10 @@ func init() {
 	validSearchFilters.AddFilter("k6", "v6", object.MatchNumGE)
 	validSearchFilters.AddFilter("k7", "v7", object.MatchNumLT)
 	validSearchFilters.AddFilter("k8", "v8", object.MatchNumLE)
-	validSearchFilters.AddObjectVersionFilter(100, anyValidVersion)
+	validSearchFilters.AddObjectVersionFilter(100, anyValidVersions[0])
 	validSearchFilters.AddObjectIDFilter(101, anyValidIDs[0])
-	validSearchFilters.AddObjectContainerIDFilter(102, anyValidContainer)
-	validSearchFilters.AddObjectOwnerIDFilter(103, anyValidUser)
+	validSearchFilters.AddObjectContainerIDFilter(102, anyValidContainers[0])
+	validSearchFilters.AddObjectOwnerIDFilter(103, anyValidUsers[0])
 	validSearchFilters.AddCreationEpochFilter(104, anyValidCreationEpoch)
 	validSearchFilters.AddPayloadSizeFilter(105, anyValidPayloadSize)
 	validSearchFilters.AddPayloadHashFilter(106, anySHA256Hash)
@@ -278,14 +278,14 @@ func TestSearchFilters_AddFilter(t *testing.T) {
 
 func TestSearchFilters_AddObjectVersionFilter(t *testing.T) {
 	var fs object.SearchFilters
-	fs.AddObjectVersionFilter(anyValidSearchMatcher, anyValidVersion)
+	fs.AddObjectVersionFilter(anyValidSearchMatcher, anyValidVersions[0])
 	require.Len(t, fs, 1)
 	assertSearchFilter(t, fs, 0, object.FilterVersion, anyValidSearchMatcher, "v88789927.2018985309", true)
 }
 
 func TestSearchFilters_AddObjectContainerIDFilter(t *testing.T) {
 	var fs object.SearchFilters
-	fs.AddObjectContainerIDFilter(anyValidSearchMatcher, anyValidContainer)
+	fs.AddObjectContainerIDFilter(anyValidSearchMatcher, anyValidContainers[0])
 	require.Len(t, fs, 1)
 	assertSearchFilter(t, fs, 0, object.FilterContainerID, anyValidSearchMatcher,
 		"HWpbBkyxCi7nhDnn4W3v5rYt2mDfH2wedknQzRkTwquj", true)
@@ -293,7 +293,7 @@ func TestSearchFilters_AddObjectContainerIDFilter(t *testing.T) {
 
 func TestSearchFilters_AddObjectOwnerIDFilter(t *testing.T) {
 	var fs object.SearchFilters
-	fs.AddObjectOwnerIDFilter(anyValidSearchMatcher, anyValidUser)
+	fs.AddObjectOwnerIDFilter(anyValidSearchMatcher, anyValidUsers[0])
 	require.Len(t, fs, 1)
 	assertSearchFilter(t, fs, 0, object.FilterOwnerID, anyValidSearchMatcher,
 		"NRJF3hqhZAe4NeWpABW6Q3ajkfhFUkY2ek", true)

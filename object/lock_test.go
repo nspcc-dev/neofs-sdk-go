@@ -11,7 +11,7 @@ import (
 var validLock object.Lock // set by init.
 
 func init() {
-	validLock.WriteMembers(anyValidIDs)
+	validLock.WriteMembers(anyValidIDs[:3])
 }
 
 var validBinLock = []byte{

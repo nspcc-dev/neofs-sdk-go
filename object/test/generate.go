@@ -1,6 +1,9 @@
 package objecttest
 
 import (
+	"math/rand"
+	"strconv"
+
 	"github.com/google/uuid"
 	objecttest "github.com/nspcc-dev/neofs-api-go/v2/object/test"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
@@ -44,11 +47,10 @@ func generate(withParent bool) object.Object {
 	ver := version.Current()
 
 	x.SetID(oidtest.ID())
-	tok := sessiontest.Object()
+	tok := sessiontest.ObjectSigned(usertest.User())
 	x.SetSessionToken(&tok)
 	x.SetPayload([]byte{1, 2, 3})
-	owner := usertest.ID()
-	x.SetOwnerID(&owner)
+	x.SetOwner(usertest.ID())
 	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
 	x.SetVersion(&ver)
@@ -57,7 +59,13 @@ func generate(withParent bool) object.Object {
 	x.SetPreviousID(oidtest.ID())
 	x.SetParentID(oidtest.ID())
 	x.SetChildren(oidtest.ID(), oidtest.ID())
-	x.SetAttributes(Attribute(), Attribute())
+	as := make([]object.Attribute, 1+rand.Int()%4)
+	for i := range as {
+		si := strconv.Itoa(i)
+		as[i].SetKey("key_" + si)
+		as[i].SetValue("val_" + si)
+	}
+	x.SetAttributes(as...)
 	splitID := SplitID()
 	x.SetSplitID(&splitID)
 	x.SetPayloadChecksum(checksumtest.Checksum())
