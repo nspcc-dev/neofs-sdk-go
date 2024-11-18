@@ -47,15 +47,18 @@ func TestClient_Dial(t *testing.T) {
 				}},
 				{name: "contains control char", s: "grpc://st1.storage.fs.neo.org:8080" + string(rune(0x7f)), assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, "net/url: invalid control character in URL")
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "missing port", s: "grpc://st1.storage.fs.neo.org", assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, "dial tcp: address st1.storage.fs.neo.org: missing port in address")
 				}},
 				{name: "invalid port", s: "grpc://st1.storage.fs.neo.org:foo", assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, `invalid port ":foo" after host`)
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "unsupported scheme", s: "unknown://st1.storage.fs.neo.org:8080", assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, "unsupported scheme: unknown")
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "multiaddr", s: "/ip4/st1.storage.fs.neo.org/tcp/8080", assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, "invalid endpoint options")
