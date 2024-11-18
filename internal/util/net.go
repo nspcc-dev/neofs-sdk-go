@@ -7,7 +7,7 @@ import (
 )
 
 // ParseURI parses URI and returns a host and a flag indicating that TLS is
-// enabled. If multi-address is provided the argument is returned unchanged.
+// enabled.
 func ParseURI(s string) (string, bool, error) {
 	uri, err := url.ParseRequestURI(s)
 	if err != nil {
