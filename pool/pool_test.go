@@ -3,6 +3,7 @@ package pool
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"testing"
 	"time"
@@ -19,6 +20,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
 )
+
+func anyValidPeerAddress(ind uint) string { return fmt.Sprintf("peer%d:8080", ind) }
 
 func TestBuildPoolClientFailed(t *testing.T) {
 	mockClientBuilder1 := func(_ string) (internalClient, error) {
@@ -37,7 +40,7 @@ func TestBuildPoolClientFailed(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			opts := InitParameters{
 				signer:     usertest.User().RFC6979,
-				nodeParams: []NodeParam{{1, "peer0", 1}},
+				nodeParams: []NodeParam{{1, anyValidPeerAddress(0), 1}},
 			}
 			opts.setClientBuilder(b)
 
@@ -51,8 +54,8 @@ func TestBuildPoolClientFailed(t *testing.T) {
 
 func TestBuildPoolOneNodeFailed(t *testing.T) {
 	nodes := []NodeParam{
-		{1, "peer0", 1},
-		{2, "peer1", 1},
+		{1, anyValidPeerAddress(0), 1},
+		{2, anyValidPeerAddress(1), 1},
 	}
 
 	mockClientBuilder := func(addr string) (internalClient, error) {
@@ -123,7 +126,7 @@ func TestOneNode(t *testing.T) {
 
 	opts := InitParameters{
 		signer:     usertest.User().RFC6979,
-		nodeParams: []NodeParam{{1, "peer0", 1}},
+		nodeParams: []NodeParam{{1, anyValidPeerAddress(0), 1}},
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
@@ -146,8 +149,8 @@ func TestTwoNodes(t *testing.T) {
 	opts := InitParameters{
 		signer: usertest.User().RFC6979,
 		nodeParams: []NodeParam{
-			{1, "peer0", 1},
-			{1, "peer1", 1},
+			{1, anyValidPeerAddress(0), 1},
+			{1, anyValidPeerAddress(1), 1},
 		},
 	}
 	opts.setClientBuilder(mockClientBuilder)
@@ -174,8 +177,8 @@ func assertAuthKeyForAny(addr string, nodes []NodeParam) bool {
 
 func TestOneOfTwoFailed(t *testing.T) {
 	nodes := []NodeParam{
-		{1, "peer0", 1},
-		{9, "peer1", 1},
+		{1, anyValidPeerAddress(0), 1},
+		{9, anyValidPeerAddress(1), 1},
 	}
 
 	mockClientBuilder := func(addr string) (internalClient, error) {
@@ -224,8 +227,8 @@ func TestTwoFailed(t *testing.T) {
 	opts := InitParameters{
 		signer: usertest.User().RFC6979,
 		nodeParams: []NodeParam{
-			{1, "peer0", 1},
-			{1, "peer1", 1},
+			{1, anyValidPeerAddress(0), 1},
+			{1, anyValidPeerAddress(1), 1},
 		},
 		clientRebalanceInterval: 200 * time.Millisecond,
 	}
@@ -257,7 +260,7 @@ func TestSessionCache(t *testing.T) {
 	opts := InitParameters{
 		signer: usr.RFC6979,
 		nodeParams: []NodeParam{
-			{1, "peer0", 1},
+			{1, anyValidPeerAddress(0), 1},
 		},
 		clientRebalanceInterval: 30 * time.Second,
 	}
@@ -335,8 +338,8 @@ func TestSessionCache(t *testing.T) {
 
 func TestPriority(t *testing.T) {
 	nodes := []NodeParam{
-		{1, "peer0", 1},
-		{2, "peer1", 100},
+		{1, anyValidPeerAddress(0), 1},
+		{2, anyValidPeerAddress(1), 100},
 	}
 
 	mockClientBuilder := func(addr string) (internalClient, error) {
@@ -392,7 +395,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	opts := InitParameters{
 		signer: usertest.User().RFC6979,
 		nodeParams: []NodeParam{
-			{1, "peer0", 1},
+			{1, anyValidPeerAddress(0), 1},
 		},
 		clientRebalanceInterval: 30 * time.Second,
 	}
@@ -427,7 +430,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	opts := InitParameters{
 		signer: usertest.User().RFC6979,
 		nodeParams: []NodeParam{
-			{1, "peer0", 1},
+			{1, anyValidPeerAddress(0), 1},
 		},
 	}
 	opts.setClientBuilder(mockClientBuilder)
@@ -552,8 +555,8 @@ func TestHandleError(t *testing.T) {
 
 func TestSwitchAfterErrorThreshold(t *testing.T) {
 	nodes := []NodeParam{
-		{1, "peer0", 1},
-		{2, "peer1", 100},
+		{1, anyValidPeerAddress(0), 1},
+		{2, anyValidPeerAddress(1), 100},
 	}
 
 	errorThreshold := 5
