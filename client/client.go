@@ -11,6 +11,7 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/uriutil"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
 
@@ -133,7 +134,7 @@ func (c *Client) Dial(prm PrmDial) error {
 		prm.streamTimeout = 10 * time.Second
 	}
 
-	addr, withTLS, err := client.ParseURI(prm.endpoint)
+	addr, withTLS, err := uriutil.Parse(prm.endpoint)
 	if err != nil {
 		return fmt.Errorf("invalid server URI: %w", err)
 	}
