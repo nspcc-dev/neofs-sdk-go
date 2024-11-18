@@ -1,9 +1,11 @@
 package uriutil
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
+	"strings"
 )
 
 // Parse parses URI and returns a host and a flag indicating that TLS is
@@ -11,7 +13,11 @@ import (
 func Parse(s string) (string, bool, error) {
 	uri, err := url.ParseRequestURI(s)
 	if err != nil {
-		return s, false, nil
+		if !strings.Contains(s, "/") {
+			_, _, err := net.SplitHostPort(s)
+			return s, false, err
+		}
+		return s, false, err
 	}
 
 	const (
@@ -35,6 +41,10 @@ func Parse(s string) (string, bool, error) {
 	case grpcTLSScheme, grpcScheme:
 	default:
 		return "", false, fmt.Errorf("unsupported scheme: %s", uri.Scheme)
+	}
+
+	if uri.Port() == "" {
+		return "", false, errors.New("missing port in address")
 	}
 
 	return uri.Host, uri.Scheme == grpcTLSScheme, nil

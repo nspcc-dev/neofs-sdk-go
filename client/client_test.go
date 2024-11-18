@@ -50,7 +50,8 @@ func TestClient_Dial(t *testing.T) {
 					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "missing port", s: "grpc://st1.storage.fs.neo.org", assert: func(t testing.TB, err error) {
-					require.ErrorContains(t, err, "dial tcp: address st1.storage.fs.neo.org: missing port in address")
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "invalid port", s: "grpc://st1.storage.fs.neo.org:foo", assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, `invalid port ":foo" after host`)
@@ -61,13 +62,16 @@ func TestClient_Dial(t *testing.T) {
 					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "multiaddr", s: "/ip4/st1.storage.fs.neo.org/tcp/8080", assert: func(t testing.TB, err error) {
-					require.ErrorContains(t, err, "invalid endpoint options")
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "host only", s: "st1.storage.fs.neo.org", assert: func(t testing.TB, err error) {
-					require.ErrorContains(t, err, "dial tcp: address st1.storage.fs.neo.org: missing port in address")
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "invalid port without scheme", s: "st1.storage.fs.neo.org:foo", assert: func(t testing.TB, err error) {
-					require.ErrorContains(t, err, `invalid port ":foo" after host`)
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
 				}},
 			} {
 				t.Run(tc.name, func(t *testing.T) {

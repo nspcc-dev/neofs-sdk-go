@@ -13,20 +13,9 @@ func TestParseURI(t *testing.T) {
 		host    string
 		withTLS bool
 	}{
-		{s: "not a URI", host: "not a URI", withTLS: false},
-		{s: "8080", host: "8080", withTLS: false},
-		{s: "127.0.0.1", host: "127.0.0.1", withTLS: false},
-		{s: "st1.storage.fs.neo.org", host: "st1.storage.fs.neo.org", withTLS: false},
-		// multiaddr
-		{s: "/ip4/127.0.0.1/tcp/8080", host: "", withTLS: false},
 		// no scheme (TCP)
 		{s: "127.0.0.1:8080", host: "127.0.0.1:8080", withTLS: false},
 		{s: "st1.storage.fs.neo.org:8080", host: "st1.storage.fs.neo.org:8080", withTLS: false},
-		// with scheme, no port
-		{s: "grpc://127.0.0.1", host: "127.0.0.1", withTLS: false},
-		{s: "grpc://st1.storage.fs.neo.org", host: "st1.storage.fs.neo.org", withTLS: false},
-		{s: "grpcs://127.0.0.1", host: "127.0.0.1", withTLS: true},
-		{s: "grpcs://st1.storage.fs.neo.org", host: "st1.storage.fs.neo.org", withTLS: true},
 		// with scheme and port
 		{s: "grpc://127.0.0.1:8080", host: "127.0.0.1:8080", withTLS: false},
 		{s: "grpc://st1.storage.fs.neo.org:8080", host: "st1.storage.fs.neo.org:8080", withTLS: false},
@@ -44,6 +33,13 @@ func TestParseURI(t *testing.T) {
 			name, s, err string
 		}{
 			{name: "unsupported scheme", s: "unknown://st1.storage.fs.neo.org:8082", err: "unsupported scheme: unknown"},
+			{name: "garbage URI", s: "not a URI", err: "address not a URI: missing port in address"},
+			{name: "port only", s: "8080", err: "address 8080: missing port in address"},
+			{name: "ip only", s: "127.0.0.1", err: "address 127.0.0.1: missing port in address"},
+			{name: "host only", s: "st1.storage.fs.neo.org", err: "address st1.storage.fs.neo.org: missing port in address"},
+			{name: "multiaddr", s: "/ip4/127.0.0.1/tcp/8080", err: "missing port in address"},
+			{name: "ip with scheme without port", s: "grpc://127.0.0.1", err: "missing port in address"},
+			{name: "host with scheme without port", s: "grpc://st1.storage.fs.neo.org", err: "missing port in address"},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				_, _, err := uriutil.Parse(tc.s)
