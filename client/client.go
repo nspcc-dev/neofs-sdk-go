@@ -133,11 +133,24 @@ func (c *Client) Dial(prm PrmDial) error {
 		prm.streamTimeout = 10 * time.Second
 	}
 
-	c.c = *client.New(append(
-		client.WithNetworkURIAddress(prm.endpoint, prm.tlsConfig),
+	addr, withTLS, err := client.ParseURI(prm.endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid server URI: %w", err)
+	}
+
+	var tlsCfg *tls.Config
+	if withTLS {
+		if tlsCfg = prm.tlsConfig; tlsCfg == nil {
+			tlsCfg = new(tls.Config)
+		}
+	}
+
+	c.c = *client.New(
+		client.WithNetworkAddress(addr),
+		client.WithTLSCfg(tlsCfg),
 		client.WithDialTimeout(prm.timeoutDial),
 		client.WithRWTimeout(prm.streamTimeout),
-	)...)
+	)
 
 	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
