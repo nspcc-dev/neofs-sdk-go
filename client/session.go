@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -113,7 +112,7 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.createSession(&c.c, &req, client.WithContext(ctx))
+		return c.server.createSession(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2session.CreateResponse)
