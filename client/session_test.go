@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
@@ -17,7 +18,7 @@ type sessionAPIServer struct {
 }
 
 func (m sessionAPIServer) netMapSnapshot(context.Context, v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	return nil, nil
+	return nil, errors.New("unimplemented")
 }
 
 func (m sessionAPIServer) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
