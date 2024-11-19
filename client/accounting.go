@@ -5,16 +5,9 @@ import (
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variable for test purposes, to overwrite real RPC calls.
-	rpcAPIBalance = rpcapi.Balance
 )
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
@@ -74,7 +67,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIBalance(&c.c, &req, client.WithContext(ctx))
+		return c.server.getBalance(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)

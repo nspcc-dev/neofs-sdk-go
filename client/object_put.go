@@ -8,8 +8,6 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -23,16 +21,9 @@ var (
 	ErrNoSessionExplicitly = errors.New("session was removed explicitly")
 )
 
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIPutObject = func(cli *client.Client, r *v2object.PutResponse, o ...client.CallOption) (objectWriter, error) {
-		return rpcapi.PutObject(cli, r, o...)
-	}
-)
-
 type objectWriter interface {
 	Write(*v2object.PutRequest) error
-	Close() error
+	Close() (*v2object.PutResponse, error)
 }
 
 // shortStatisticCallback is a shorter version of [stat.OperationCallback] which is calling from [client.Client].
@@ -86,7 +77,6 @@ type DefaultObjectWriter struct {
 
 	chunkCalled bool
 
-	respV2    v2object.PutResponse
 	req       v2object.PutRequest
 	partInit  v2object.PutObjectPartInit
 	partChunk v2object.PutObjectPartChunk
@@ -183,8 +173,8 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		x.err = x.stream.Write(&x.req)
 		if x.err != nil {
 			if errors.Is(x.err, io.EOF) {
-				_ = x.stream.Close()
-				x.err = x.client.processResponse(&x.respV2)
+				resp, _ := x.stream.Close()
+				x.err = x.client.processResponse(resp)
 				x.streamClosed = true
 				x.cancelCtxStream()
 			}
@@ -239,17 +229,19 @@ func (x *DefaultObjectWriter) Close() error {
 		return x.err
 	}
 
-	if x.err = x.stream.Close(); x.err != nil {
+	var resp *v2object.PutResponse
+	resp, x.err = x.stream.Close()
+	if x.err != nil {
 		return x.err
 	}
 
-	if x.err = x.client.processResponse(&x.respV2); x.err != nil {
+	if x.err = x.client.processResponse(resp); x.err != nil {
 		return x.err
 	}
 
 	const fieldID = "ID"
 
-	idV2 := x.respV2.GetBody().GetObjectID()
+	idV2 := resp.GetBody().GetObjectID()
 	if idV2 == nil {
 		x.err = newErrMissingResponseField(fieldID)
 		return x.err
@@ -297,7 +289,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	stream, err := rpcAPIPutObject(&c.c, &w.respV2, client.WithContext(ctx))
+	stream, err := c.server.putObject(ctx)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)

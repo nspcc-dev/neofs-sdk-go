@@ -4,16 +4,8 @@ import (
 	"context"
 
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-)
-
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPIAnnounceIntermediateResult = rpcapi.AnnounceIntermediateResult
-	rpcAPIAnnounceLocalTrust         = rpcapi.AnnounceLocalTrust
 )
 
 // PrmAnnounceLocalTrust groups optional parameters of AnnounceLocalTrust operation.
@@ -77,7 +69,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
+		return c.server.announceLocalTrust(ctx, req)
 	}
 
 	// process call
@@ -149,7 +141,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
+		return c.server.announceIntermediateReputation(ctx, req)
 	}
 
 	// process call

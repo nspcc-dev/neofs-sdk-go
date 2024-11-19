@@ -6,27 +6,36 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
-type sessionAPIServer struct {
+type testCreateSessionServer struct {
 	unimplementedNeoFSAPIServer
 	signer neofscrypto.Signer
 
-	id  []byte
-	key []byte
+	unsetID  bool
+	unsetKey bool
 }
 
-func (m sessionAPIServer) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
+func (m testCreateSessionServer) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
 	var body session.CreateResponseBody
-	body.SetID(m.id)
-	body.SetSessionKey(m.key)
+	if !m.unsetID {
+		body.SetID([]byte{1})
+	}
+	if !m.unsetKey {
+		body.SetSessionKey([]byte{2})
+	}
 
 	var resp session.CreateResponse
 	resp.SetBody(&body)
 
-	if err := signServiceMessage(m.signer, &resp, nil); err != nil {
+	signer := m.signer
+	if signer == nil {
+		signer = neofscryptotest.Signer()
+	}
+	if err := signServiceMessage(signer, &resp, nil); err != nil {
 		return nil, err
 	}
 
@@ -43,7 +52,7 @@ func TestClient_SessionCreate(t *testing.T) {
 	prmSessionCreate.SetExp(1)
 
 	t.Run("missing session id", func(t *testing.T) {
-		c.setNeoFSAPIServer(&sessionAPIServer{signer: usr, key: []byte{1}})
+		c.setNeoFSAPIServer(&testCreateSessionServer{signer: usr, unsetID: true})
 
 		result, err := c.SessionCreate(ctx, usr, prmSessionCreate)
 		require.Nil(t, result)
@@ -52,7 +61,7 @@ func TestClient_SessionCreate(t *testing.T) {
 	})
 
 	t.Run("missing session key", func(t *testing.T) {
-		c.setNeoFSAPIServer(&sessionAPIServer{signer: usr, id: []byte{1}})
+		c.setNeoFSAPIServer(&testCreateSessionServer{signer: usr, unsetKey: true})
 
 		result, err := c.SessionCreate(ctx, usr, prmSessionCreate)
 		require.Nil(t, result)

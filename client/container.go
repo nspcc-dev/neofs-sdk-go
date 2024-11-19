@@ -7,8 +7,6 @@ import (
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -17,17 +15,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variables for test purposes, to overwrite real RPC calls.
-	rpcAPIPutContainer      = rpcapi.PutContainer
-	rpcAPIGetContainer      = rpcapi.GetContainer
-	rpcAPIListContainers    = rpcapi.ListContainers
-	rpcAPIDeleteContainer   = rpcapi.DeleteContainer
-	rpcAPIGetEACL           = rpcapi.GetEACL
-	rpcAPISetEACL           = rpcapi.SetEACL
-	rpcAPIAnnounceUsedSpace = rpcapi.AnnounceUsedSpace
 )
 
 // PrmContainerPut groups optional parameters of ContainerPut operation.
@@ -137,7 +124,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIPutContainer(&c.c, &req, client.WithContext(ctx))
+		return c.server.putContainer(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
@@ -205,7 +192,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIGetContainer(&c.c, &req, client.WithContext(ctx))
+		return c.server.getContainer(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetResponse)
@@ -271,7 +258,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIListContainers(&c.c, &req, client.WithContext(ctx))
+		return c.server.listContainers(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
@@ -405,7 +392,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIDeleteContainer(&c.c, &req, client.WithContext(ctx))
+		return c.server.deleteContainer(ctx, req)
 	}
 
 	// process call
@@ -457,7 +444,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIGetEACL(&c.c, &req, client.WithContext(ctx))
+		return c.server.getEACL(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
@@ -594,7 +581,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPISetEACL(&c.c, &req, client.WithContext(ctx))
+		return c.server.setEACL(ctx, req)
 	}
 
 	// process call
@@ -663,7 +650,7 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
+		return c.server.announceContainerSpace(ctx, req)
 	}
 
 	// process call

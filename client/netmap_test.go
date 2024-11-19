@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -15,22 +16,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type serverNetMap struct {
+type testNetmapSnapshotServer struct {
 	unimplementedNeoFSAPIServer
 
 	errTransport error
 
-	signResponse bool
+	unsignedResponse bool
 
-	statusOK bool
+	statusFail bool
 
-	setNetMap bool
-	netMap    v2netmap.NetMap
+	unsetNetMap bool
+	netMap      v2netmap.NetMap
 
 	signer neofscrypto.Signer
 }
 
-func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
+func (x *testNetmapSnapshotServer) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
 	err := verifyServiceMessage(&req)
 	if err != nil {
 		return nil, err
@@ -42,13 +43,13 @@ func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRe
 
 	var body v2netmap.SnapshotResponseBody
 
-	if x.setNetMap {
+	if !x.unsetNetMap {
 		body.SetNetMap(&x.netMap)
 	}
 
 	var meta session.ResponseMetaHeader
 
-	if !x.statusOK {
+	if x.statusFail {
 		meta.SetStatus(statusErr.ErrorToV2())
 	}
 
@@ -56,11 +57,59 @@ func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRe
 	resp.SetBody(&body)
 	resp.SetMetaHeader(&meta)
 
-	if x.signResponse {
-		err = signServiceMessage(x.signer, &resp, nil)
+	signer := x.signer
+	if signer == nil {
+		signer = neofscryptotest.Signer()
+	}
+	if !x.unsignedResponse {
+		err = signServiceMessage(signer, &resp, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
+	}
+
+	return &resp, nil
+}
+
+type testGetNetworkInfoServer struct {
+	unimplementedNeoFSAPIServer
+}
+
+func (x testGetNetworkInfoServer) getNetworkInfo(context.Context, v2netmap.NetworkInfoRequest) (*v2netmap.NetworkInfoResponse, error) {
+	var netPrm v2netmap.NetworkParameter
+	netPrm.SetValue([]byte("any"))
+	var netCfg v2netmap.NetworkConfig
+	netCfg.SetParameters(netPrm)
+	var netInfo v2netmap.NetworkInfo
+	netInfo.SetNetworkConfig(&netCfg)
+	var body v2netmap.NetworkInfoResponseBody
+	body.SetNetworkInfo(&netInfo)
+	var resp v2netmap.NetworkInfoResponse
+	resp.SetBody(&body)
+
+	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+		return nil, fmt.Errorf("sign response message: %w", err)
+	}
+
+	return &resp, nil
+}
+
+type testGetNodeInfoServer struct {
+	unimplementedNeoFSAPIServer
+}
+
+func (x testGetNodeInfoServer) getNodeInfo(context.Context, v2netmap.LocalNodeInfoRequest) (*v2netmap.LocalNodeInfoResponse, error) {
+	var nodeInfo v2netmap.NodeInfo
+	nodeInfo.SetPublicKey([]byte("any"))
+	nodeInfo.SetAddresses("any")
+	var body v2netmap.LocalNodeInfoResponseBody
+	body.SetVersion(new(refs.Version))
+	body.SetNodeInfo(&nodeInfo)
+	var resp v2netmap.LocalNodeInfoResponse
+	resp.SetBody(&body)
+
+	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
 	return &resp, nil
@@ -70,7 +119,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	var err error
 	var prm PrmNetMapSnapshot
 	var res netmap.NetMap
-	var srv serverNetMap
+	var srv testNetmapSnapshotServer
 
 	signer := neofscryptotest.Signer()
 
@@ -88,23 +137,25 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	srv.errTransport = nil
 
 	// unsigned response
+	srv.unsignedResponse = true
 	_, err = c.NetMapSnapshot(ctx, prm)
 	require.Error(t, err)
-
-	srv.signResponse = true
+	srv.unsignedResponse = false
 
 	// failure error
+	srv.statusFail = true
 	_, err = c.NetMapSnapshot(ctx, prm)
 	require.Error(t, err)
 	require.ErrorIs(t, err, apistatus.ErrServerInternal)
 
-	srv.statusOK = true
+	srv.statusFail = false
 
 	// missing netmap field
+	srv.unsetNetMap = true
 	_, err = c.NetMapSnapshot(ctx, prm)
 	require.Error(t, err)
 
-	srv.setNetMap = true
+	srv.unsetNetMap = false
 
 	// invalid network map
 	var netMap netmap.NetMap

@@ -9,19 +9,12 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPISearchObjects = rpcapi.SearchObjects
 )
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.
@@ -68,10 +61,8 @@ type ObjectListReader struct {
 	client          *Client
 	cancelCtxStream context.CancelFunc
 	err             error
-	stream          interface {
-		Read(resp *v2object.SearchResponse) error
-	}
-	tail []v2refs.ObjectID
+	stream          searchObjectsResponseStream
+	tail            []v2refs.ObjectID
 
 	statisticCallback shortStatisticCallback
 }
@@ -228,7 +219,7 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	var r ObjectListReader
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
-	r.stream, err = rpcAPISearchObjects(&c.c, &req, client.WithContext(ctx))
+	r.stream, err = c.server.searchObjects(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("open stream: %w", err)
 		return nil, err
