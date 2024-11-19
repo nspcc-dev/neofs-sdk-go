@@ -266,6 +266,7 @@ func testSetAuthKey[T session.Container | session.Object](t testing.TB, set func
 	k1 := neofscryptotest.Signer().Public()
 	k2 := neofscryptotest.Signer().Public()
 	var x T
+	require.False(t, assert(x, nil))
 	require.False(t, assert(x, k1))
 	require.False(t, assert(x, k2))
 
