@@ -7,18 +7,11 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIHashObjectRange = rpcapi.HashObjectRange
 )
 
 // PrmObjectHash groups parameters of ObjectHash operation.
@@ -153,7 +146,7 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	resp, err := rpcAPIHashObjectRange(&c.c, &req, client.WithContext(ctx))
+	resp, err := c.server.hashObjectPayloadRanges(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("write request: %w", err)
 		return nil, err

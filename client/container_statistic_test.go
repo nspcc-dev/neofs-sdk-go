@@ -3,28 +3,17 @@ package client
 import (
 	"context"
 	"crypto/rand"
-	"fmt"
+	"io"
 	mathRand "math/rand/v2"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/accounting"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -82,12 +71,6 @@ func randBytes(l int) []byte {
 	return r
 }
 
-func randRefsContainerID() *refs.ContainerID {
-	var id refs.ContainerID
-	cidtest.ID().WriteToV2(&id)
-	return &id
-}
-
 func prepareContainer(accountID user.ID) container.Container {
 	cont := container.Container{}
 	cont.Init()
@@ -121,27 +104,8 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 func TestClientStatistic_AccountBalance(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIBalance = func(_ *client.Client, _ *accounting.BalanceRequest, _ ...client.CallOption) (*accounting.BalanceResponse, error) {
-		var resp accounting.BalanceResponse
-		var meta session.ResponseMetaHeader
-		var balance accounting.Decimal
-		var body accounting.BalanceResponseBody
-
-		body.SetBalance(&balance)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		err := signServiceMessage(usr, &resp, nil)
-		if err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testGetBalanceServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -156,26 +120,8 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 func TestClientStatistic_ContainerPut(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIPutContainer = func(_ *client.Client, _ *v2container.PutRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
-		var resp v2container.PutResponse
-		var meta session.ResponseMetaHeader
-		var body v2container.PutResponseBody
-
-		body.SetContainerID(randRefsContainerID())
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		err := signServiceMessage(usr.RFC6979, &resp, nil)
-		if err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testPutContainerServer
+	c := newClient(t, &srv)
 	cont := prepareContainer(usr.ID)
 
 	collector := newCollector()
@@ -189,46 +135,8 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerGet(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIGetContainer = func(_ *client.Client, _ *v2container.GetRequest, _ ...client.CallOption) (*v2container.GetResponse, error) {
-		var cont v2container.Container
-		var ver refs.Version
-		var placementPolicyV2 netmapv2.PlacementPolicy
-		var replicas []netmapv2.Replica
-		var resp v2container.GetResponse
-		var meta session.ResponseMetaHeader
-		var owner refs.OwnerID
-
-		usr.ID.WriteToV2(&owner)
-		cont.SetOwnerID(&owner)
-		cont.SetVersion(&ver)
-
-		nonce, err := uuid.New().MarshalBinary()
-		require.NoError(t, err)
-		cont.SetNonce(nonce)
-
-		replica := netmapv2.Replica{}
-		replica.SetCount(1)
-		replicas = append(replicas, replica)
-		placementPolicyV2.SetReplicas(replicas)
-		cont.SetPlacementPolicy(&placementPolicyV2)
-
-		body := v2container.GetResponseBody{}
-		body.SetContainer(&cont)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err = signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	c := newClient(t, new(testGetContainerServer))
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -242,23 +150,8 @@ func TestClientStatistic_ContainerGet(t *testing.T) {
 func TestClientStatistic_ContainerList(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIListContainers = func(_ *client.Client, _ *v2container.ListRequest, _ ...client.CallOption) (*v2container.ListResponse, error) {
-		var resp v2container.ListResponse
-		var meta session.ResponseMetaHeader
-		var body v2container.ListResponseBody
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testListContainersServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -272,23 +165,8 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 func TestClientStatistic_ContainerDelete(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIDeleteContainer = func(_ *client.Client, _ *v2container.DeleteRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
-		var resp v2container.PutResponse
-		var meta session.ResponseMetaHeader
-		var body v2container.PutResponseBody
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testDeleteContainerServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -300,28 +178,9 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerEacl(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIGetEACL = func(_ *client.Client, _ *v2container.GetExtendedACLRequest, _ ...client.CallOption) (*v2container.GetExtendedACLResponse, error) {
-		var resp v2container.GetExtendedACLResponse
-		var meta session.ResponseMetaHeader
-		var aclTable v2acl.Table
-		var body v2container.GetExtendedACLResponseBody
-
-		body.SetEACL(&aclTable)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testGetEACLServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -335,23 +194,8 @@ func TestClientStatistic_ContainerEacl(t *testing.T) {
 func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPISetEACL = func(_ *client.Client, _ *v2container.SetExtendedACLRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
-		var resp v2container.PutResponse
-		var meta session.ResponseMetaHeader
-		var body v2container.PutResponseBody
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testSetEACLServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -364,25 +208,9 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIAnnounceUsedSpace = func(_ *client.Client, _ *v2container.AnnounceUsedSpaceRequest, _ ...client.CallOption) (*v2container.PutResponse, error) {
-		var resp v2container.PutResponse
-		var meta session.ResponseMetaHeader
-		var body v2container.PutResponseBody
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testAnnounceContainerSpaceServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -401,34 +229,8 @@ func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPINetworkInfo = func(_ *client.Client, _ *netmapv2.NetworkInfoRequest, _ ...client.CallOption) (*netmapv2.NetworkInfoResponse, error) {
-		var resp netmapv2.NetworkInfoResponse
-		var meta session.ResponseMetaHeader
-		var netInfo netmapv2.NetworkInfo
-		var netConfig netmapv2.NetworkConfig
-		var p1 netmapv2.NetworkParameter
-
-		p1.SetKey(randBytes(10))
-		p1.SetValue(randBytes(10))
-
-		netConfig.SetParameters(p1)
-		netInfo.SetNetworkConfig(&netConfig)
-
-		body := netmapv2.NetworkInfoResponseBody{}
-		body.SetNetworkInfo(&netInfo)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testGetNetworkInfoServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -441,33 +243,9 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPILocalNodeInfo = func(_ *client.Client, _ *netmapv2.LocalNodeInfoRequest, _ ...client.CallOption) (*netmapv2.LocalNodeInfoResponse, error) {
-		var resp netmapv2.LocalNodeInfoResponse
-		var meta session.ResponseMetaHeader
-		var ver refs.Version
-		var nodeInfo netmapv2.NodeInfo
-
-		nodeInfo.SetPublicKey(neofscrypto.PublicKeyBytes(usr.Public()))
-		nodeInfo.SetAddresses("https://some-endpont.com")
-
-		body := netmapv2.LocalNodeInfoResponseBody{}
-		body.SetVersion(&ver)
-		body.SetNodeInfo(&nodeInfo)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testGetNodeInfoServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -478,14 +256,8 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 }
 
 func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	srv := serverNetMap{
-		signResponse: true,
-		statusOK:     true,
-		setNetMap:    true,
-		signer:       usr,
-	}
+	var srv testNetmapSnapshotServer
 	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
@@ -499,11 +271,7 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 func TestClientStatistic_CreateSession(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	srv := sessionAPIServer{
-		signer: usr,
-		id:     randBytes(10),
-		key:    neofscrypto.PublicKeyBytes(usr.Public()),
-	}
+	var srv testCreateSessionServer
 	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
@@ -517,23 +285,14 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectPut(t *testing.T) {
-	t.Skip("need changes to api-go, to set `wc client.MessageWriterCloser` in rpcapi.PutRequestWriter")
-
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIPutObject = func(_ *client.Client, _ *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
-		var resp rpcapi.PutRequestWriter
-
-		return &resp, nil
-	}
-
+	var srv testPutObjectServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
-	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
 	var tokenSession session2.Object
 	tokenSession.SetID(uuid.New())
@@ -562,39 +321,15 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	err = writer.Close()
 	require.NoError(t, err)
 
-	require.Equal(t, 2, collector.methods[stat.MethodObjectPut].requests)
+	require.Equal(t, 1, collector.methods[stat.MethodObjectPut].requests)
+	require.Equal(t, 1, collector.methods[stat.MethodObjectPutStream].requests)
 }
 
 func TestClientStatistic_ObjectDelete(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIDeleteObject = func(_ *client.Client, _ *v2object.DeleteRequest, _ ...client.CallOption) (*v2object.DeleteResponse, error) {
-		var resp v2object.DeleteResponse
-		var meta session.ResponseMetaHeader
-		var body v2object.DeleteResponseBody
-		var addr refs.Address
-		var objID refs.ObjectID
-		var contID = randRefsContainerID()
-
-		objID.SetValue(randBytes(32))
-
-		addr.SetContainerID(contID)
-		addr.SetObjectID(&objID)
-
-		body.SetTombstone(&addr)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testDeleteObjectServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -610,20 +345,10 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectGet(t *testing.T) {
-	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.GetResponseReader")
-
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIGetObject = func(_ *client.Client, _ *v2object.GetRequest, _ ...client.CallOption) (*rpcapi.GetResponseReader, error) {
-		var resp rpcapi.GetResponseReader
-
-		// todo: fill
-
-		return &resp, nil
-	}
-
+	var srv testGetObjectServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -634,37 +359,17 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 
 	_, reader, err := c.ObjectGetInit(ctx, containerID, objectID, usr, prm)
 	require.NoError(t, err)
-
-	buff := make([]byte, 32)
-	_, err = reader.Read(buff)
+	_, err = io.Copy(io.Discard, reader)
 	require.NoError(t, err)
 
-	require.Equal(t, 2, collector.methods[stat.MethodObjectGet].requests)
+	require.Equal(t, 1, collector.methods[stat.MethodObjectGet].requests)
 }
 
 func TestClientStatistic_ObjectHead(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIHeadObject = func(_ *client.Client, _ *v2object.HeadRequest, _ ...client.CallOption) (*v2object.HeadResponse, error) {
-		var resp v2object.HeadResponse
-		var meta session.ResponseMetaHeader
-		var body v2object.HeadResponseBody
-		var headerPart v2object.HeaderWithSignature
-
-		body.SetHeaderPart(&headerPart)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testHeadObjectServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -680,20 +385,10 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectRange(t *testing.T) {
-	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.ObjectRangeResponseReader")
-
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIGetObjectRange = func(_ *client.Client, _ *v2object.GetRangeRequest, _ ...client.CallOption) (*rpcapi.ObjectRangeResponseReader, error) {
-		var resp rpcapi.ObjectRangeResponseReader
-
-		// todo: fill
-
-		return &resp, nil
-	}
-
+	var srv testGetObjectPayloadRangeServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -704,38 +399,17 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 
 	reader, err := c.ObjectRangeInit(ctx, containerID, objectID, 0, 1, usr, prm)
 	require.NoError(t, err)
-
-	buff := make([]byte, 32)
-	_, err = reader.Read(buff)
+	_, err = io.Copy(io.Discard, reader)
 	require.NoError(t, err)
 
-	require.Equal(t, 2, collector.methods[stat.MethodObjectRange].requests)
+	require.Equal(t, 1, collector.methods[stat.MethodObjectRange].requests)
 }
 
 func TestClientStatistic_ObjectHash(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIHashObjectRange = func(_ *client.Client, _ *v2object.GetRangeHashRequest, _ ...client.CallOption) (*v2object.GetRangeHashResponse, error) {
-		var resp v2object.GetRangeHashResponse
-		var meta session.ResponseMetaHeader
-		var body v2object.GetRangeHashResponseBody
-
-		body.SetHashList([][]byte{
-			randBytes(4),
-		})
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testHashObjectPayloadRangesServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -752,20 +426,10 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 }
 
 func TestClientStatistic_ObjectSearch(t *testing.T) {
-	t.Skip("need changes to api-go, to set `r client.MessageReader` in rpcapi.SearchResponseReader")
-
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPISearchObjects = func(_ *client.Client, _ *v2object.SearchRequest, _ ...client.CallOption) (*rpcapi.SearchResponseReader, error) {
-		var resp rpcapi.SearchResponseReader
-
-		// todo: fill
-
-		return &resp, nil
-	}
-
+	var srv testSearchObjectsServer
+	c := newClient(t, &srv)
 	containerID := cidtest.ID()
 
 	collector := newCollector()
@@ -783,29 +447,13 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 	err = reader.Iterate(iterator)
 	require.NoError(t, err)
 
-	require.Equal(t, 2, collector.methods[stat.MethodObjectSearch].requests)
+	require.Equal(t, 1, collector.methods[stat.MethodObjectSearch].requests)
 }
 
 func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIAnnounceIntermediateResult = func(_ *client.Client, _ *reputation.AnnounceIntermediateResultRequest, _ ...client.CallOption) (*reputation.AnnounceIntermediateResultResponse, error) {
-		var resp reputation.AnnounceIntermediateResultResponse
-		var meta session.ResponseMetaHeader
-		var body reputation.AnnounceIntermediateResultResponseBody
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testAnnounceIntermediateReputationServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -819,25 +467,9 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 }
 
 func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
-	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPIAnnounceLocalTrust = func(_ *client.Client, _ *reputation.AnnounceLocalTrustRequest, _ ...client.CallOption) (*reputation.AnnounceLocalTrustResponse, error) {
-		var resp reputation.AnnounceLocalTrustResponse
-		var meta session.ResponseMetaHeader
-		var body reputation.AnnounceLocalTrustResponseBody
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
-	}
-
+	var srv testAnnounceLocalTrustServer
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 

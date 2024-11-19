@@ -8,8 +8,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -18,9 +16,6 @@ import (
 )
 
 var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIDeleteObject = rpcapi.DeleteObject
-
 	// ErrNoSession indicates that session wasn't set in some Prm* structure.
 	ErrNoSession = errors.New("session is not set")
 )
@@ -108,7 +103,7 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	resp, err := rpcAPIDeleteObject(&c.c, &req, client.WithContext(ctx))
+	resp, err := c.server.deleteObject(ctx, req)
 	if err != nil {
 		return oid.ID{}, err
 	}

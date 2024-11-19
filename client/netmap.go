@@ -5,18 +5,10 @@ import (
 	"fmt"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-)
-
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPINetworkInfo   = rpcapi.NetworkInfo
-	rpcAPILocalNodeInfo = rpcapi.LocalNodeInfo
 )
 
 // NetworkInfoExecutor describes methods to get network information.
@@ -85,7 +77,7 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPILocalNodeInfo(&c.c, &req, client.WithContext(ctx))
+		return c.server.getNodeInfo(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.LocalNodeInfoResponse)
@@ -163,7 +155,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPINetworkInfo(&c.c, &req, client.WithContext(ctx))
+		return c.server.getNetworkInfo(ctx, req)
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.NetworkInfoResponse)

@@ -3,28 +3,26 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
-type testPutStreamAccessDenied struct {
-	resp   *v2object.PutResponse
-	signer user.Signer
-	t      *testing.T
+type testPutObjectStream struct {
+	denyAccess bool
 }
 
-func (t *testPutStreamAccessDenied) Write(req *v2object.PutRequest) error {
+func (t *testPutObjectStream) Write(req *v2object.PutRequest) error {
 	switch req.GetBody().GetObjectPart().(type) {
 	case *v2object.PutObjectPartInit:
 		return nil
@@ -35,29 +33,45 @@ func (t *testPutStreamAccessDenied) Write(req *v2object.PutRequest) error {
 	}
 }
 
-func (t *testPutStreamAccessDenied) Close() error {
+func (t *testPutObjectStream) Close() (*v2object.PutResponse, error) {
 	m := new(v2session.ResponseMetaHeader)
 
 	var v refs.Version
 	version.Current().WriteToV2(&v)
 
 	m.SetVersion(&v)
-	m.SetStatus(apistatus.ErrObjectAccessDenied.ErrorToV2())
+	if t.denyAccess {
+		m.SetStatus(apistatus.ErrObjectAccessDenied.ErrorToV2())
+	}
 
-	t.resp.SetMetaHeader(m)
-	require.NoError(t.t, signServiceMessage(t.signer, t.resp, nil))
+	var resp v2object.PutResponse
+	resp.SetMetaHeader(m)
+	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+		return nil, fmt.Errorf("sign response message: %w", err)
+	}
 
-	return nil
+	return &resp, nil
+}
+
+type testPutObjectServer struct {
+	unimplementedNeoFSAPIServer
+
+	stream testPutObjectStream
+}
+
+func (x *testPutObjectServer) putObject(context.Context) (objectWriter, error) {
+	return &x.stream, nil
 }
 
 func TestClient_ObjectPutInit(t *testing.T) {
 	t.Run("EOF-on-status-return", func(t *testing.T) {
-		c := newClient(t, nil)
-		usr := usertest.User()
-
-		rpcAPIPutObject = func(_ *client.Client, r *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
-			return &testPutStreamAccessDenied{resp: r, signer: usr, t: t}, nil
+		srv := testPutObjectServer{
+			stream: testPutObjectStream{
+				denyAccess: true,
+			},
 		}
+		c := newClient(t, &srv)
+		usr := usertest.User()
 
 		w, err := c.ObjectPutInit(context.Background(), object.Object{}, usr, PrmObjectPutInit{})
 		require.NoError(t, err)

@@ -9,21 +9,12 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPIGetObject      = rpcapi.GetObject
-	rpcAPIHeadObject     = rpcapi.HeadObject
-	rpcAPIGetObjectRange = rpcapi.GetObjectRange
 )
 
 // shared parameters of GET/HEAD/RANGE.
@@ -76,9 +67,7 @@ type PayloadReader struct {
 	cancelCtxStream context.CancelFunc
 
 	client *Client
-	stream interface {
-		Read(resp *v2object.GetResponse) error
-	}
+	stream getObjectResponseStream
 
 	err error
 
@@ -291,7 +280,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := rpcAPIGetObject(&c.c, &req, client.WithContext(ctx))
+	stream, err := c.server.getObject(ctx, req)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -377,7 +366,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	resp, err := rpcAPIHeadObject(&c.c, &req, client.WithContext(ctx))
+	resp, err := c.server.headObject(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("write request: %w", err)
 		return nil, err
@@ -428,9 +417,7 @@ type ObjectRangeReader struct {
 
 	err error
 
-	stream interface {
-		Read(resp *v2object.GetRangeResponse) error
-	}
+	stream getObjectPayloadRangeResponseStream
 
 	tailPayload []byte
 
@@ -628,7 +615,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := rpcAPIGetObjectRange(&c.c, &req, client.WithContext(ctx))
+	stream, err := c.server.getObjectPayloadRange(ctx, req)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
