@@ -16,6 +16,8 @@ import (
 )
 
 type serverNetMap struct {
+	unimplementedNeoFSAPIServer
+
 	errTransport error
 
 	signResponse bool
@@ -26,10 +28,6 @@ type serverNetMap struct {
 	netMap    v2netmap.NetMap
 
 	signer neofscrypto.Signer
-}
-
-func (x *serverNetMap) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
-	return nil, errors.New("unimplemented")
 }
 
 func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {

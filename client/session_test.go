@@ -2,10 +2,8 @@ package client
 
 import (
 	"context"
-	"errors"
 	"testing"
 
-	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -13,17 +11,17 @@ import (
 )
 
 type sessionAPIServer struct {
-	signer  neofscrypto.Signer
-	setBody func(body *session.CreateResponseBody)
-}
+	unimplementedNeoFSAPIServer
+	signer neofscrypto.Signer
 
-func (m sessionAPIServer) netMapSnapshot(context.Context, v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	return nil, errors.New("unimplemented")
+	id  []byte
+	key []byte
 }
 
 func (m sessionAPIServer) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
 	var body session.CreateResponseBody
-	m.setBody(&body)
+	body.SetID(m.id)
+	body.SetSessionKey(m.key)
 
 	var resp session.CreateResponse
 	resp.SetBody(&body)
@@ -45,9 +43,7 @@ func TestClient_SessionCreate(t *testing.T) {
 	prmSessionCreate.SetExp(1)
 
 	t.Run("missing session id", func(t *testing.T) {
-		c.setNeoFSAPIServer(&sessionAPIServer{signer: usr, setBody: func(body *session.CreateResponseBody) {
-			body.SetSessionKey([]byte{1})
-		}})
+		c.setNeoFSAPIServer(&sessionAPIServer{signer: usr, key: []byte{1}})
 
 		result, err := c.SessionCreate(ctx, usr, prmSessionCreate)
 		require.Nil(t, result)
@@ -56,9 +52,7 @@ func TestClient_SessionCreate(t *testing.T) {
 	})
 
 	t.Run("missing session key", func(t *testing.T) {
-		c.setNeoFSAPIServer(&sessionAPIServer{signer: usr, setBody: func(body *session.CreateResponseBody) {
-			body.SetID([]byte{1})
-		}})
+		c.setNeoFSAPIServer(&sessionAPIServer{signer: usr, id: []byte{1}})
 
 		result, err := c.SessionCreate(ctx, usr, prmSessionCreate)
 		require.Nil(t, result)
