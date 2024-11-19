@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -21,7 +20,7 @@ func (m sessionAPIServer) netMapSnapshot(context.Context, v2netmap.SnapshotReque
 	return nil, nil
 }
 
-func (m sessionAPIServer) createSession(*client.Client, *session.CreateRequest, ...client.CallOption) (*session.CreateResponse, error) {
+func (m sessionAPIServer) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
 	var body session.CreateResponseBody
 	m.setBody(&body)
 

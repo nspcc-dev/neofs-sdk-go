@@ -18,7 +18,7 @@ var (
 
 // interface of NeoFS API server. Exists for test purposes only.
 type neoFSAPIServer interface {
-	createSession(cli *client.Client, req *session.CreateRequest, opts ...client.CallOption) (*session.CreateResponse, error)
+	createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error)
 
 	netMapSnapshot(context.Context, v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error)
 }
@@ -43,8 +43,10 @@ func (x *coreServer) netMapSnapshot(ctx context.Context, req v2netmap.SnapshotRe
 	return resp, nil
 }
 
-func (x *coreServer) createSession(cli *client.Client, req *session.CreateRequest, opts ...client.CallOption) (*session.CreateResponse, error) {
-	resp, err := rpcAPICreateSession(cli, req, opts...)
+// executes SessionService.Create RPC declared in NeoFS API protocol
+// using underlying client.Client.
+func (x *coreServer) createSession(ctx context.Context, req session.CreateRequest) (*session.CreateResponse, error) {
+	resp, err := rpcAPICreateSession((*client.Client)(x), &req, client.WithContext(ctx))
 	if err != nil {
 		return nil, rpcErr(err)
 	}

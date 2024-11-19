@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -29,7 +28,7 @@ type serverNetMap struct {
 	signer neofscrypto.Signer
 }
 
-func (x *serverNetMap) createSession(*client.Client, *session.CreateRequest, ...client.CallOption) (*session.CreateResponse, error) {
+func (x *serverNetMap) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
 	return nil, nil
 }
 
