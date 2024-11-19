@@ -10,12 +10,6 @@ import (
 	"github.com/nspcc-dev/neofs-api-go/v2/session"
 )
 
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPINetMapSnapshot = rpcapi.NetMapSnapshot
-	rpcAPICreateSession  = rpcapi.CreateSession
-)
-
 // interface of NeoFS API server. Exists for test purposes only.
 type neoFSAPIServer interface {
 	createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error)
@@ -35,7 +29,7 @@ func rpcErr(e error) error {
 // executes NetmapService.NetmapSnapshot RPC declared in NeoFS API protocol
 // using underlying client.Client.
 func (x *coreServer) netMapSnapshot(ctx context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	resp, err := rpcAPINetMapSnapshot((*client.Client)(x), &req, client.WithContext(ctx))
+	resp, err := rpcapi.NetMapSnapshot((*client.Client)(x), &req, client.WithContext(ctx))
 	if err != nil {
 		return nil, rpcErr(err)
 	}
@@ -46,7 +40,7 @@ func (x *coreServer) netMapSnapshot(ctx context.Context, req v2netmap.SnapshotRe
 // executes SessionService.Create RPC declared in NeoFS API protocol
 // using underlying client.Client.
 func (x *coreServer) createSession(ctx context.Context, req session.CreateRequest) (*session.CreateResponse, error) {
-	resp, err := rpcAPICreateSession((*client.Client)(x), &req, client.WithContext(ctx))
+	resp, err := rpcapi.CreateSession((*client.Client)(x), &req, client.WithContext(ctx))
 	if err != nil {
 		return nil, rpcErr(err)
 	}

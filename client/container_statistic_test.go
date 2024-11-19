@@ -480,29 +480,15 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPINetMapSnapshot = func(_ *client.Client, _ *netmapv2.SnapshotRequest, _ ...client.CallOption) (*netmapv2.SnapshotResponse, error) {
-		var resp netmapv2.SnapshotResponse
-		var meta session.ResponseMetaHeader
-		var netMap netmapv2.NetMap
-
-		body := netmapv2.SnapshotResponseBody{}
-		body.SetNetMap(&netMap)
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
+	srv := serverNetMap{
+		signResponse: true,
+		statusOK:     true,
+		setNetMap:    true,
+		signer:       usr,
 	}
-
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
-	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
 	_, err := c.NetMapSnapshot(ctx, PrmNetMapSnapshot{})
 	require.NoError(t, err)
@@ -513,30 +499,14 @@ func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 func TestClientStatistic_CreateSession(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	c := newClient(t, nil)
-
-	rpcAPICreateSession = func(_ *client.Client, _ *session.CreateRequest, _ ...client.CallOption) (*session.CreateResponse, error) {
-		var resp session.CreateResponse
-		var meta session.ResponseMetaHeader
-
-		body := session.CreateResponseBody{}
-		body.SetID(randBytes(10))
-
-		body.SetSessionKey(neofscrypto.PublicKeyBytes(usr.Public()))
-
-		resp.SetBody(&body)
-		resp.SetMetaHeader(&meta)
-
-		if err := signServiceMessage(usr, &resp, nil); err != nil {
-			panic(fmt.Sprintf("sign response: %v", err))
-		}
-
-		return &resp, nil
+	srv := sessionAPIServer{
+		signer: usr,
+		id:     randBytes(10),
+		key:    neofscrypto.PublicKeyBytes(usr.Public()),
 	}
-
+	c := newClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
-	c.setNeoFSAPIServer((*coreServer)(&c.c))
 
 	var prm PrmSessionCreate
 
