@@ -29,7 +29,7 @@ type serverNetMap struct {
 }
 
 func (x *serverNetMap) createSession(context.Context, session.CreateRequest) (*session.CreateResponse, error) {
-	return nil, nil
+	return nil, errors.New("unimplemented")
 }
 
 func (x *serverNetMap) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
