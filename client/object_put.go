@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -21,9 +23,16 @@ var (
 	ErrNoSessionExplicitly = errors.New("session was removed explicitly")
 )
 
-type objectWriter interface {
-	Write(*v2object.PutRequest) error
-	Close() (*v2object.PutResponse, error)
+// used part of [protoobject.ObjectService_PutClient] simplifying test
+// implementations.
+type putObjectStream interface {
+	// Send writes next message with the object part to the stream. No error does
+	// not guarantee delivery to the server. Send returns [io.EOF] after the server
+	// sent the response and gracefully finished the stream: the result can be
+	// accessed via CloseAndRecv. Any other error means stream abort.
+	Send(*protoobject.PutRequest) error
+	// CloseAndRecv finishes the stream and reads response from the server.
+	CloseAndRecv() (*protoobject.PutResponse, error)
 }
 
 // shortStatisticCallback is a shorter version of [stat.OperationCallback] which is calling from [client.Client].
@@ -67,9 +76,10 @@ type ObjectWriter interface {
 type DefaultObjectWriter struct {
 	cancelCtxStream context.CancelFunc
 
-	client       *Client
-	stream       objectWriter
-	streamClosed bool
+	client           *Client
+	stream           putObjectStream
+	singleMsgTimeout time.Duration
+	streamClosed     bool
 
 	signer neofscrypto.Signer
 	res    ResObjectPut
@@ -126,7 +136,9 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		return x.err
 	}
 
-	x.err = x.stream.Write(&x.req)
+	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		return x.stream.Send(x.req.ToGRPCMessage().(*protoobject.PutRequest))
+	})
 	return x.err
 }
 
@@ -170,11 +182,25 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			return writtenBytes, x.err
 		}
 
-		x.err = x.stream.Write(&x.req)
+		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+			return x.stream.Send(x.req.ToGRPCMessage().(*protoobject.PutRequest))
+		})
 		if x.err != nil {
 			if errors.Is(x.err, io.EOF) {
-				resp, _ := x.stream.Close()
-				x.err = x.client.processResponse(resp)
+				var resp *protoobject.PutResponse
+				x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+					var err error
+					resp, err = x.stream.CloseAndRecv()
+					return err
+				})
+				if x.err != nil {
+					return writtenBytes, x.err
+				}
+				var respV2 v2object.PutResponse
+				if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+					return writtenBytes, x.err
+				}
+				x.err = x.client.processResponse(&respV2)
 				x.streamClosed = true
 				x.cancelCtxStream()
 			}
@@ -229,19 +255,26 @@ func (x *DefaultObjectWriter) Close() error {
 		return x.err
 	}
 
-	var resp *v2object.PutResponse
-	resp, x.err = x.stream.Close()
-	if x.err != nil {
+	var resp *protoobject.PutResponse
+	if x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		var err error
+		resp, err = x.stream.CloseAndRecv()
+		return err
+	}); x.err != nil {
+		return x.err
+	}
+	var respV2 v2object.PutResponse
+	if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
 		return x.err
 	}
 
-	if x.err = x.client.processResponse(resp); x.err != nil {
+	if x.err = x.client.processResponse(&respV2); x.err != nil {
 		return x.err
 	}
 
 	const fieldID = "ID"
 
-	idV2 := resp.GetBody().GetObjectID()
+	idV2 := respV2.GetBody().GetObjectID()
 	if idV2 == nil {
 		x.err = newErrMissingResponseField(fieldID)
 		return x.err
@@ -289,7 +322,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	stream, err := c.server.putObject(ctx)
+	stream, err := c.object.Put(ctx)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -306,6 +339,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	w.cancelCtxStream = cancel
 	w.client = c
 	w.stream = stream
+	w.singleMsgTimeout = c.streamTimeout
 	w.partInit.SetCopiesNumber(prm.copyNum)
 	w.req.SetBody(new(v2object.PutRequestBody))
 	c.prepareRequest(&w.req, &prm.meta)

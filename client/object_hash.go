@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -146,14 +147,17 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	resp, err := c.server.hashObjectPayloadRanges(ctx, req)
+	resp, err := c.object.GetRangeHash(ctx, req.ToGRPCMessage().(*protoobject.GetRangeHashRequest))
 	if err != nil {
-		err = fmt.Errorf("write request: %w", err)
+		return nil, rpcErr(err)
+	}
+	var respV2 v2object.GetRangeHashResponse
+	if err = respV2.FromGRPCMessage(resp); err != nil {
 		return nil, err
 	}
 
 	var res [][]byte
-	if err = c.processResponse(resp); err != nil {
+	if err = c.processResponse(&respV2); err != nil {
 		return nil, err
 	}
 

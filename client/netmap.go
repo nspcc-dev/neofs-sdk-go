@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -77,7 +78,15 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.getNodeInfo(ctx, req)
+		resp, err := c.netmap.LocalNodeInfo(ctx, req.ToGRPCMessage().(*protonetmap.LocalNodeInfoRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2netmap.LocalNodeInfoResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.LocalNodeInfoResponse)
@@ -155,7 +164,15 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.getNetworkInfo(ctx, req)
+		resp, err := c.netmap.NetworkInfo(ctx, req.ToGRPCMessage().(*protonetmap.NetworkInfoRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2netmap.NetworkInfoResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2netmap.NetworkInfoResponse)
@@ -221,21 +238,23 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 		return netmap.NetMap{}, err
 	}
 
-	var resp *v2netmap.SnapshotResponse
-
-	resp, err = c.server.netMapSnapshot(ctx, req)
+	resp, err := c.netmap.NetmapSnapshot(ctx, req.ToGRPCMessage().(*protonetmap.NetmapSnapshotRequest))
 	if err != nil {
+		return netmap.NetMap{}, rpcErr(err)
+	}
+	var respV2 v2netmap.SnapshotResponse
+	if err = respV2.FromGRPCMessage(resp); err != nil {
 		return netmap.NetMap{}, err
 	}
 
 	var res netmap.NetMap
-	if err = c.processResponse(resp); err != nil {
+	if err = c.processResponse(&respV2); err != nil {
 		return netmap.NetMap{}, err
 	}
 
 	const fieldNetMap = "network map"
 
-	netMapV2 := resp.GetBody().NetMap()
+	netMapV2 := respV2.GetBody().NetMap()
 	if netMapV2 == nil {
 		err = newErrMissingResponseField(fieldNetMap)
 		return netmap.NetMap{}, err

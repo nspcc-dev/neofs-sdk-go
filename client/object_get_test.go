@@ -3,10 +3,10 @@ package client
 import (
 	"context"
 	"fmt"
-	"io"
 	"testing"
 
 	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
@@ -14,94 +14,86 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type testGetObjectResponseStream struct {
-	sent bool
+type testGetObjectServer struct {
+	protoobject.UnimplementedObjectServiceServer
 }
 
-func (x *testGetObjectResponseStream) Read(resp *apiobject.GetResponse) error {
-	if x.sent {
-		return io.EOF
+func (x *testGetObjectServer) Get(_ *protoobject.GetRequest, stream protoobject.ObjectService_GetServer) error {
+	resp := protoobject.GetResponse{
+		Body: &protoobject.GetResponse_Body{
+			ObjectPart: &protoobject.GetResponse_Body_Init_{
+				Init: new(protoobject.GetResponse_Body_Init),
+			},
+		},
 	}
 
-	var body apiobject.GetResponseBody
-	body.SetObjectPart(new(apiobject.GetObjectPartInit))
-	resp.SetBody(&body)
-
-	if err := signServiceMessage(neofscryptotest.Signer(), resp, nil); err != nil {
+	var respV2 apiobject.GetResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return fmt.Errorf("sign response message: %w", err)
 	}
 
-	x.sent = true
-	return nil
-}
-
-type testGetObjectServer struct {
-	unimplementedNeoFSAPIServer
-
-	stream testGetObjectResponseStream
-}
-
-func (x *testGetObjectServer) getObject(context.Context, apiobject.GetRequest) (getObjectResponseStream, error) {
-	x.stream.sent = false
-	return &x.stream, nil
+	return stream.SendMsg(respV2.ToGRPCMessage().(*protoobject.GetResponse))
 }
 
 type testGetObjectPayloadRangeServer struct {
-	unimplementedNeoFSAPIServer
-
-	stream testGetObjectPayloadRangeResponseStream
+	protoobject.UnimplementedObjectServiceServer
 }
 
-func (x *testGetObjectPayloadRangeServer) getObjectPayloadRange(_ context.Context, req apiobject.GetRangeRequest) (getObjectPayloadRangeResponseStream, error) {
-	x.stream.sent = false
-	x.stream.ln = req.GetBody().GetRange().GetLength()
-	return &x.stream, nil
-}
-
-type testGetObjectPayloadRangeResponseStream struct {
-	ln   uint64
-	sent bool
-}
-
-func (x *testGetObjectPayloadRangeResponseStream) Read(resp *apiobject.GetRangeResponse) error {
-	if x.sent {
-		return io.EOF
+func (x *testGetObjectPayloadRangeServer) GetRange(req *protoobject.GetRangeRequest, stream protoobject.ObjectService_GetRangeServer) error {
+	ln := req.GetBody().GetRange().GetLength()
+	if ln == 0 {
+		return nil
 	}
 
-	var rngPart apiobject.GetRangePartChunk
-	rngPart.SetChunk(make([]byte, x.ln))
-	var body apiobject.GetRangeResponseBody
-	body.SetRangePart(&rngPart)
-	resp.SetBody(&body)
+	resp := protoobject.GetRangeResponse{
+		Body: &protoobject.GetRangeResponse_Body{
+			RangePart: &protoobject.GetRangeResponse_Body_Chunk{
+				Chunk: make([]byte, ln),
+			},
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), resp, nil); err != nil {
+	var respV2 apiobject.GetRangeResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return fmt.Errorf("sign response message: %w", err)
 	}
 
-	x.sent = true
-	return nil
+	return stream.SendMsg(respV2.ToGRPCMessage().(*protoobject.GetRangeResponse))
 }
 
 type testHeadObjectServer struct {
-	unimplementedNeoFSAPIServer
+	protoobject.UnimplementedObjectServiceServer
 }
 
-func (x *testHeadObjectServer) headObject(context.Context, apiobject.HeadRequest) (*apiobject.HeadResponse, error) {
-	var body apiobject.HeadResponseBody
-	body.SetHeaderPart(new(apiobject.HeaderWithSignature))
-	var resp apiobject.HeadResponse
-	resp.SetBody(&body)
+func (x *testHeadObjectServer) Head(context.Context, *protoobject.HeadRequest) (*protoobject.HeadResponse, error) {
+	resp := protoobject.HeadResponse{
+		Body: &protoobject.HeadResponse_Body{
+			Head: &protoobject.HeadResponse_Body_Header{
+				Header: new(protoobject.HeaderWithSignature),
+			},
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apiobject.HeadResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protoobject.HeadResponse), nil
 }
 
 func TestClient_Get(t *testing.T) {
 	t.Run("missing signer", func(t *testing.T) {
-		c := newClient(t, nil)
+		c := newClient(t)
 		ctx := context.Background()
 
 		var nonilAddr v2refs.Address

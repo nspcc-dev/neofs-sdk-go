@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
+	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 )
@@ -69,7 +70,15 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.announceLocalTrust(ctx, req)
+		resp, err := c.reputation.AnnounceLocalTrust(ctx, req.ToGRPCMessage().(*protoreputation.AnnounceLocalTrustRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2reputation.AnnounceLocalTrustResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call
@@ -141,7 +150,15 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.announceIntermediateReputation(ctx, req)
+		resp, err := c.reputation.AnnounceIntermediateResult(ctx, req.ToGRPCMessage().(*protoreputation.AnnounceIntermediateResultRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2reputation.AnnounceIntermediateResultResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call

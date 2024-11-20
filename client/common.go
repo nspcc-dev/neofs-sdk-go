@@ -1,7 +1,9 @@
 package client
 
 import (
+	"context"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
@@ -9,6 +11,8 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"google.golang.org/grpc/encoding"
+	"google.golang.org/grpc/encoding/proto"
 )
 
 // Various field numbers in from NeoFS API definitions.
@@ -316,6 +320,51 @@ func (c *Client) initCallContext(ctx *contextCall) {
 //
 // See also Dial and Close.
 // See also github.com/nspcc-dev/neofs-api-go/v2/rpc/client package docs.
+// Deprecated: use [Client.Conn] instead.
 func (c *Client) ExecRaw(f func(client *client.Client) error) error {
-	return f(&c.c)
+	return f(client.New(client.WithGRPCConn(c.conn), client.WithRWTimeout(c.streamTimeout)))
+}
+
+type onlyBinarySendingCodec struct{}
+
+func (x onlyBinarySendingCodec) Name() string {
+	// may be any non-empty, conflicts are unlikely to arise
+	return "neofs_binary_sender"
+}
+
+func (x onlyBinarySendingCodec) Marshal(msg any) ([]byte, error) {
+	bMsg, ok := msg.([]byte)
+	if ok {
+		return bMsg, nil
+	}
+
+	return nil, fmt.Errorf("message is not of type %T", bMsg)
+}
+
+func (x onlyBinarySendingCodec) Unmarshal(raw []byte, msg any) error {
+	return encoding.GetCodec(proto.Name).Unmarshal(raw, msg)
+}
+
+// Tries to make an action within given timeout canceling the context at
+// expiration.
+//
+// Copy-pasted from https://github.com/nspcc-dev/neofs-api-go/blob/4d4eaa29436e2b1ce9bcdddd6551133c388a1cdb/rpc/grpc/init.go#L53.
+// TODO: https://github.com/nspcc-dev/neofs-sdk-go/issues/640.
+func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func() error) error {
+	ch := make(chan error, 1)
+	go func() {
+		ch <- action()
+		close(ch)
+	}()
+
+	tt := time.NewTimer(timeout)
+
+	select {
+	case err := <-ch:
+		tt.Stop()
+		return err
+	case <-tt.C:
+		cancel()
+		return context.DeadlineExceeded
+	}
 }

@@ -7,6 +7,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -103,19 +104,23 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	resp, err := c.server.deleteObject(ctx, req)
+	resp, err := c.object.Delete(ctx, req.ToGRPCMessage().(*protoobject.DeleteRequest))
 	if err != nil {
+		return oid.ID{}, rpcErr(err)
+	}
+	var respV2 v2object.DeleteResponse
+	if err = respV2.FromGRPCMessage(resp); err != nil {
 		return oid.ID{}, err
 	}
 
 	var res oid.ID
-	if err = c.processResponse(resp); err != nil {
+	if err = c.processResponse(&respV2); err != nil {
 		return oid.ID{}, err
 	}
 
 	const fieldTombstone = "tombstone"
 
-	idTombV2 := resp.GetBody().GetTombstone().GetObjectID()
+	idTombV2 := respV2.GetBody().GetTombstone().GetObjectID()
 	if idTombV2 == nil {
 		err = newErrMissingResponseField(fieldTombstone)
 		return oid.ID{}, err
