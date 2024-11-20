@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
+	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -124,7 +125,15 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.putContainer(ctx, req)
+		resp, err := c.container.Put(ctx, req.ToGRPCMessage().(*protocontainer.PutRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.PutResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
@@ -192,7 +201,15 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.getContainer(ctx, req)
+		resp, err := c.container.Get(ctx, req.ToGRPCMessage().(*protocontainer.GetRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.GetResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetResponse)
@@ -258,7 +275,15 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.listContainers(ctx, req)
+		resp, err := c.container.List(ctx, req.ToGRPCMessage().(*protocontainer.ListRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.ListResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
@@ -392,7 +417,15 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.deleteContainer(ctx, req)
+		resp, err := c.container.Delete(ctx, req.ToGRPCMessage().(*protocontainer.DeleteRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.DeleteResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call
@@ -444,7 +477,15 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.getEACL(ctx, req)
+		resp, err := c.container.GetExtendedACL(ctx, req.ToGRPCMessage().(*protocontainer.GetExtendedACLRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.GetExtendedACLResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
@@ -581,7 +622,15 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.setEACL(ctx, req)
+		resp, err := c.container.SetExtendedACL(ctx, req.ToGRPCMessage().(*protocontainer.SetExtendedACLRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.SetExtendedACLResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call
@@ -650,7 +699,15 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.announceContainerSpace(ctx, req)
+		resp, err := c.container.AnnounceUsedSpace(ctx, req.ToGRPCMessage().(*protocontainer.AnnounceUsedSpaceRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.AnnounceUsedSpaceResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call

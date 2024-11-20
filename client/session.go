@@ -5,6 +5,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -112,7 +113,15 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.createSession(ctx, req)
+		resp, err := c.session.Create(ctx, req.ToGRPCMessage().(*protosession.CreateRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2session.CreateResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2session.CreateResponse)

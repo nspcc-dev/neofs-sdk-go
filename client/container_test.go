@@ -5,9 +5,10 @@ import (
 	"fmt"
 	"testing"
 
-	apiacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl/grpc"
 	apicontainer "github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -17,121 +18,155 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type testPutContainerServer struct {
-	unimplementedNeoFSAPIServer
+// returns Client of Container service provided by given server.
+func newTestContainerClient(t testing.TB, srv protocontainer.ContainerServiceServer) *Client {
+	return newClient(t, testService{desc: &protocontainer.ContainerService_ServiceDesc, impl: srv})
 }
 
-func (x testPutContainerServer) putContainer(context.Context, apicontainer.PutRequest) (*apicontainer.PutResponse, error) {
-	id := cidtest.ID()
-	var idV2 refs.ContainerID
-	id.WriteToV2(&idV2)
-	var body apicontainer.PutResponseBody
-	body.SetContainerID(&idV2)
-	var resp apicontainer.PutResponse
-	resp.SetBody(&body)
+type testPutContainerServer struct {
+	protocontainer.UnimplementedContainerServiceServer
+}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+func (x *testPutContainerServer) Put(context.Context, *protocontainer.PutRequest) (*protocontainer.PutResponse, error) {
+	id := cidtest.ID()
+	resp := protocontainer.PutResponse{
+		Body: &protocontainer.PutResponse_Body{
+			ContainerId: &protorefs.ContainerID{Value: id[:]},
+		},
+	}
+
+	var respV2 apicontainer.PutResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.PutResponse), nil
 }
 
 type testGetContainerServer struct {
-	unimplementedNeoFSAPIServer
+	protocontainer.UnimplementedContainerServiceServer
 }
 
-func (x testGetContainerServer) getContainer(context.Context, apicontainer.GetRequest) (*apicontainer.GetResponse, error) {
+func (x *testGetContainerServer) Get(context.Context, *protocontainer.GetRequest) (*protocontainer.GetResponse, error) {
 	cnr := containertest.Container()
 	var cnrV2 apicontainer.Container
 	cnr.WriteToV2(&cnrV2)
-	var body apicontainer.GetResponseBody
-	body.SetContainer(&cnrV2)
-	var resp apicontainer.GetResponse
-	resp.SetBody(&body)
+	resp := protocontainer.GetResponse{
+		Body: &protocontainer.GetResponse_Body{
+			Container: cnrV2.ToGRPCMessage().(*protocontainer.Container),
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apicontainer.GetResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.GetResponse), nil
 }
 
 type testListContainersServer struct {
-	unimplementedNeoFSAPIServer
+	protocontainer.UnimplementedContainerServiceServer
 }
 
-func (x testListContainersServer) listContainers(context.Context, apicontainer.ListRequest) (*apicontainer.ListResponse, error) {
-	var resp apicontainer.ListResponse
+func (x *testListContainersServer) List(context.Context, *protocontainer.ListRequest) (*protocontainer.ListResponse, error) {
+	var resp protocontainer.ListResponse
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apicontainer.ListResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.ListResponse), nil
 }
 
 type testDeleteContainerServer struct {
-	unimplementedNeoFSAPIServer
+	protocontainer.UnimplementedContainerServiceServer
 }
 
-func (x testDeleteContainerServer) deleteContainer(context.Context, apicontainer.DeleteRequest) (*apicontainer.DeleteResponse, error) {
-	var resp apicontainer.DeleteResponse
+func (x *testDeleteContainerServer) Delete(context.Context, *protocontainer.DeleteRequest) (*protocontainer.DeleteResponse, error) {
+	var resp protocontainer.DeleteResponse
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apicontainer.DeleteResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.DeleteResponse), nil
 }
 
 type testGetEACLServer struct {
-	unimplementedNeoFSAPIServer
+	protocontainer.UnimplementedContainerServiceServer
 }
 
-func (x testGetEACLServer) getEACL(context.Context, apicontainer.GetExtendedACLRequest) (*apicontainer.GetExtendedACLResponse, error) {
-	var body apicontainer.GetExtendedACLResponseBody
-	body.SetEACL(new(apiacl.Table))
-	var resp apicontainer.GetExtendedACLResponse
-	resp.SetBody(&body)
+func (x *testGetEACLServer) GetExtendedACL(context.Context, *protocontainer.GetExtendedACLRequest) (*protocontainer.GetExtendedACLResponse, error) {
+	resp := protocontainer.GetExtendedACLResponse{
+		Body: &protocontainer.GetExtendedACLResponse_Body{
+			Eacl: new(protoacl.EACLTable),
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apicontainer.GetExtendedACLResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.GetExtendedACLResponse), nil
 }
 
 type testSetEACLServer struct {
-	unimplementedNeoFSAPIServer
+	protocontainer.UnimplementedContainerServiceServer
 }
 
-func (x testSetEACLServer) setEACL(context.Context, apicontainer.SetExtendedACLRequest) (*apicontainer.SetExtendedACLResponse, error) {
-	var resp apicontainer.SetExtendedACLResponse
+func (x *testSetEACLServer) SetExtendedACL(context.Context, *protocontainer.SetExtendedACLRequest) (*protocontainer.SetExtendedACLResponse, error) {
+	var resp protocontainer.SetExtendedACLResponse
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apicontainer.SetExtendedACLResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.SetExtendedACLResponse), nil
 }
 
 type testAnnounceContainerSpaceServer struct {
-	unimplementedNeoFSAPIServer
+	protocontainer.UnimplementedContainerServiceServer
 }
 
-func (x testAnnounceContainerSpaceServer) announceContainerSpace(context.Context, apicontainer.AnnounceUsedSpaceRequest) (*apicontainer.AnnounceUsedSpaceResponse, error) {
-	var resp apicontainer.AnnounceUsedSpaceResponse
+func (x *testAnnounceContainerSpaceServer) AnnounceUsedSpace(context.Context, *protocontainer.AnnounceUsedSpaceRequest) (*protocontainer.AnnounceUsedSpaceResponse, error) {
+	var resp protocontainer.AnnounceUsedSpaceResponse
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apicontainer.AnnounceUsedSpaceResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protocontainer.AnnounceUsedSpaceResponse), nil
 }
 
 func TestClient_Container(t *testing.T) {
-	c := newClient(t, nil)
+	c := newClient(t)
 	ctx := context.Background()
 
 	t.Run("missing signer", func(t *testing.T) {

@@ -5,13 +5,11 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	"net"
 	"sync"
 	"testing"
 
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	status "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -20,9 +18,6 @@ import (
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -145,31 +140,6 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 	return &resp, nil
 }
 
-func serveObjectReplication(tb testing.TB, clientSigner neofscrypto.Signer, clientObj object.Object) (*testReplicationServer, *Client) {
-	lis := bufconn.Listen(1 << 10)
-
-	var replicationSrv testReplicationServer
-
-	gSrv := grpc.NewServer()
-	objectgrpc.RegisterObjectServiceServer(gSrv, &replicationSrv)
-
-	gConn, err := grpc.Dial("", grpc.WithContextDialer(func(_ context.Context, _ string) (net.Conn, error) { //nolint:staticcheck //SA1019: grpc.Dial is deprecated: use NewClient instead.  Will be supported throughout 1.x.
-		return lis.Dial()
-	}), grpc.WithTransportCredentials(insecure.NewCredentials()))
-	require.NoError(tb, err)
-
-	tb.Cleanup(gSrv.Stop)
-
-	go func() { _ = gSrv.Serve(lis) }()
-
-	replicationSrv.clientObj = clientObj
-	replicationSrv.clientSigner = clientSigner
-
-	return &replicationSrv, &Client{
-		c: *client.New(client.WithGRPCConn(gConn)),
-	}
-}
-
 func TestClient_ReplicateObject(t *testing.T) {
 	ctx := context.Background()
 	signer := neofscryptotest.Signer()
@@ -179,8 +149,11 @@ func TestClient_ReplicateObject(t *testing.T) {
 	bObj := obj.Marshal()
 
 	t.Run("OK", func(t *testing.T) {
-		srv, cli := serveObjectReplication(t, signer, obj)
-		srv.respStatusCode = 0
+		srv := testReplicationServer{
+			clientSigner: signer,
+			clientObj:    obj,
+		}
+		cli := newTestObjectClient(t, &srv)
 
 		_, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, false)
 		require.NoError(t, err)
@@ -188,13 +161,18 @@ func TestClient_ReplicateObject(t *testing.T) {
 
 	t.Run("invalid binary object", func(t *testing.T) {
 		bObj := []byte("Hello, world!") // definitely incorrect binary object
-		_, cli := serveObjectReplication(t, signer, obj)
+		cli := newClient(t)
 
 		_, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, false)
 		require.Error(t, err)
 	})
 
 	t.Run("statuses", func(t *testing.T) {
+		srv := testReplicationServer{
+			clientSigner: signer,
+			clientObj:    obj,
+		}
+		cli := newTestObjectClient(t, &srv)
 		for _, tc := range []struct {
 			code   uint32
 			expErr error
@@ -204,7 +182,6 @@ func TestClient_ReplicateObject(t *testing.T) {
 			{code: 2048, expErr: apistatus.ErrObjectAccessDenied, desc: "forbidden"},
 			{code: 3072, expErr: apistatus.ErrContainerNotFound, desc: "container not found"},
 		} {
-			srv, cli := serveObjectReplication(t, signer, obj)
 			srv.respStatusCode = tc.code
 
 			_, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, false)
@@ -213,8 +190,11 @@ func TestClient_ReplicateObject(t *testing.T) {
 	})
 
 	t.Run("sign object data", func(t *testing.T) {
-		srv, cli := serveObjectReplication(t, signer, obj)
-		srv.respStatusCode = 0
+		srv := testReplicationServer{
+			clientSigner: signer,
+			clientObj:    obj,
+		}
+		cli := newTestObjectClient(t, &srv)
 
 		sig, err := cli.ReplicateObject(ctx, id, bytes.NewReader(bObj), signer, true)
 		require.NoError(t, err)
@@ -223,7 +203,11 @@ func TestClient_ReplicateObject(t *testing.T) {
 
 	t.Run("demux", func(t *testing.T) {
 		demuxObj := DemuxReplicatedObject(bytes.NewReader(bObj))
-		_, cli := serveObjectReplication(t, signer, obj)
+		srv := testReplicationServer{
+			clientSigner: signer,
+			clientObj:    obj,
+		}
+		cli := newTestObjectClient(t, &srv)
 
 		_, err := cli.ReplicateObject(ctx, id, demuxObj, signer, false)
 		require.NoError(t, err)

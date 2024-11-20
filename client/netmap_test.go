@@ -7,17 +7,26 @@ import (
 	"testing"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
+	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
+// returns Client of Netmap service provided by given server.
+func newTestNetmapClient(t testing.TB, srv protonetmap.NetmapServiceServer) *Client {
+	return newClient(t, testService{desc: &protonetmap.NetmapService_ServiceDesc, impl: srv})
+}
+
 type testNetmapSnapshotServer struct {
-	unimplementedNeoFSAPIServer
+	protonetmap.UnimplementedNetmapServiceServer
 
 	errTransport error
 
@@ -26,13 +35,18 @@ type testNetmapSnapshotServer struct {
 	statusFail bool
 
 	unsetNetMap bool
-	netMap      v2netmap.NetMap
+	netMap      *protonetmap.Netmap
 
 	signer neofscrypto.Signer
 }
 
-func (x *testNetmapSnapshotServer) netMapSnapshot(_ context.Context, req v2netmap.SnapshotRequest) (*v2netmap.SnapshotResponse, error) {
-	err := verifyServiceMessage(&req)
+func (x *testNetmapSnapshotServer) NetmapSnapshot(_ context.Context, req *protonetmap.NetmapSnapshotRequest) (*protonetmap.NetmapSnapshotResponse, error) {
+	var reqV2 v2netmap.SnapshotRequest
+	if err := reqV2.FromGRPCMessage(req); err != nil {
+		panic(err)
+	}
+
+	err := verifyServiceMessage(&reqV2)
 	if err != nil {
 		return nil, err
 	}
@@ -41,78 +55,95 @@ func (x *testNetmapSnapshotServer) netMapSnapshot(_ context.Context, req v2netma
 		return nil, x.errTransport
 	}
 
-	var body v2netmap.SnapshotResponseBody
-
+	var nm *protonetmap.Netmap
 	if !x.unsetNetMap {
-		body.SetNetMap(&x.netMap)
+		if x.netMap != nil {
+			nm = x.netMap
+		} else {
+			nm = new(protonetmap.Netmap)
+		}
 	}
-
-	var meta session.ResponseMetaHeader
-
+	resp := protonetmap.NetmapSnapshotResponse{
+		Body: &protonetmap.NetmapSnapshotResponse_Body{
+			Netmap: nm,
+		},
+	}
 	if x.statusFail {
-		meta.SetStatus(statusErr.ErrorToV2())
+		resp.MetaHeader = &protosession.ResponseMetaHeader{
+			Status: statusErr.ErrorToV2().ToGRPCMessage().(*protostatus.Status),
+		}
 	}
 
-	var resp v2netmap.SnapshotResponse
-	resp.SetBody(&body)
-	resp.SetMetaHeader(&meta)
-
+	var respV2 v2netmap.SnapshotResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
 	signer := x.signer
 	if signer == nil {
 		signer = neofscryptotest.Signer()
 	}
 	if !x.unsignedResponse {
-		err = signServiceMessage(signer, &resp, nil)
+		err = signServiceMessage(signer, &respV2, nil)
 		if err != nil {
 			panic(fmt.Sprintf("sign response: %v", err))
 		}
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protonetmap.NetmapSnapshotResponse), nil
 }
 
 type testGetNetworkInfoServer struct {
-	unimplementedNeoFSAPIServer
+	protonetmap.UnimplementedNetmapServiceServer
 }
 
-func (x testGetNetworkInfoServer) getNetworkInfo(context.Context, v2netmap.NetworkInfoRequest) (*v2netmap.NetworkInfoResponse, error) {
-	var netPrm v2netmap.NetworkParameter
-	netPrm.SetValue([]byte("any"))
-	var netCfg v2netmap.NetworkConfig
-	netCfg.SetParameters(netPrm)
-	var netInfo v2netmap.NetworkInfo
-	netInfo.SetNetworkConfig(&netCfg)
-	var body v2netmap.NetworkInfoResponseBody
-	body.SetNetworkInfo(&netInfo)
-	var resp v2netmap.NetworkInfoResponse
-	resp.SetBody(&body)
+func (x *testGetNetworkInfoServer) NetworkInfo(context.Context, *protonetmap.NetworkInfoRequest) (*protonetmap.NetworkInfoResponse, error) {
+	resp := protonetmap.NetworkInfoResponse{
+		Body: &protonetmap.NetworkInfoResponse_Body{
+			NetworkInfo: &protonetmap.NetworkInfo{
+				NetworkConfig: &protonetmap.NetworkConfig{
+					Parameters: []*protonetmap.NetworkConfig_Parameter{
+						{Value: []byte("any")},
+					},
+				},
+			},
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 v2netmap.NetworkInfoResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protonetmap.NetworkInfoResponse), nil
 }
 
 type testGetNodeInfoServer struct {
-	unimplementedNeoFSAPIServer
+	protonetmap.UnimplementedNetmapServiceServer
 }
 
-func (x testGetNodeInfoServer) getNodeInfo(context.Context, v2netmap.LocalNodeInfoRequest) (*v2netmap.LocalNodeInfoResponse, error) {
-	var nodeInfo v2netmap.NodeInfo
-	nodeInfo.SetPublicKey([]byte("any"))
-	nodeInfo.SetAddresses("any")
-	var body v2netmap.LocalNodeInfoResponseBody
-	body.SetVersion(new(refs.Version))
-	body.SetNodeInfo(&nodeInfo)
-	var resp v2netmap.LocalNodeInfoResponse
-	resp.SetBody(&body)
+func (x *testGetNodeInfoServer) LocalNodeInfo(context.Context, *protonetmap.LocalNodeInfoRequest) (*protonetmap.LocalNodeInfoResponse, error) {
+	resp := protonetmap.LocalNodeInfoResponse{
+		Body: &protonetmap.LocalNodeInfoResponse_Body{
+			Version: new(protorefs.Version),
+			NodeInfo: &protonetmap.NodeInfo{
+				PublicKey: []byte("any"),
+				Addresses: []string{"any"},
+			},
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 v2netmap.LocalNodeInfoResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protonetmap.LocalNodeInfoResponse), nil
 }
 
 func TestClient_NetMapSnapshot(t *testing.T) {
@@ -125,14 +156,17 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 
 	srv.signer = signer
 
-	c := newClient(t, &srv)
+	c := newTestNetmapClient(t, &srv)
 	ctx := context.Background()
 
-	// request signature
+	// transport error
 	srv.errTransport = errors.New("any error")
 
 	_, err = c.NetMapSnapshot(ctx, prm)
-	require.ErrorIs(t, err, srv.errTransport)
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	require.Equal(t, codes.Unknown, st.Code())
+	require.Contains(t, st.Message(), srv.errTransport.Error())
 
 	srv.errTransport = nil
 
@@ -158,34 +192,31 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	srv.unsetNetMap = false
 
 	// invalid network map
-	var netMap netmap.NetMap
-
-	var node netmap.NodeInfo
-	// TODO: #260 use instance corrupter
-
-	var nodeV2 v2netmap.NodeInfo
-
-	node.WriteToV2(&nodeV2)
-	require.Error(t, new(netmap.NodeInfo).ReadFromV2(nodeV2))
-
-	netMap.SetNodes([]netmap.NodeInfo{node})
-	netMap.WriteToV2(&srv.netMap)
+	srv.netMap = &protonetmap.Netmap{
+		Nodes: []*protonetmap.NodeInfo{new(protonetmap.NodeInfo)},
+	}
 
 	_, err = c.NetMapSnapshot(ctx, prm)
 	require.Error(t, err)
 
 	// correct network map
 	// TODO: #260 use instance normalizer
-	node.SetPublicKey([]byte{1, 2, 3})
-	node.SetNetworkEndpoints("1", "2", "3")
-
-	node.WriteToV2(&nodeV2)
-	require.NoError(t, new(netmap.NodeInfo).ReadFromV2(nodeV2))
-
-	netMap.SetNodes([]netmap.NodeInfo{node})
-	netMap.WriteToV2(&srv.netMap)
+	srv.netMap.Nodes[0].PublicKey = []byte{1, 2, 3}
+	srv.netMap.Nodes[0].Addresses = []string{"1", "2", "3"}
 
 	res, err = c.NetMapSnapshot(ctx, prm)
 	require.NoError(t, err)
-	require.Equal(t, netMap, res)
+
+	require.Zero(t, res.Epoch())
+	ns := res.Nodes()
+	require.Len(t, ns, 1)
+	node := ns[0]
+	require.False(t, node.IsOnline())
+	require.False(t, node.IsOffline())
+	require.False(t, node.IsMaintenance())
+	require.Zero(t, node.NumberOfAttributes())
+	require.Equal(t, srv.netMap.Nodes[0].PublicKey, node.PublicKey())
+	var es []string
+	netmap.IterateNetworkEndpoints(node, func(e string) { es = append(es, e) })
+	require.Equal(t, srv.netMap.Nodes[0].Addresses, es)
 }

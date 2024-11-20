@@ -3,35 +3,52 @@ package client
 import (
 	"context"
 	"fmt"
+	"testing"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
+	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 )
 
-type testAnnounceIntermediateReputationServer struct {
-	unimplementedNeoFSAPIServer
+// returns Client of Reputation service provided by given server.
+func newTestReputationClient(t testing.TB, srv protoreputation.ReputationServiceServer) *Client {
+	return newClient(t, testService{desc: &protoreputation.ReputationService_ServiceDesc, impl: srv})
 }
 
-func (x testAnnounceIntermediateReputationServer) announceIntermediateReputation(context.Context, reputation.AnnounceIntermediateResultRequest) (*reputation.AnnounceIntermediateResultResponse, error) {
-	var resp reputation.AnnounceIntermediateResultResponse
+type testAnnounceIntermediateReputationServer struct {
+	protoreputation.UnimplementedReputationServiceServer
+}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+func (x *testAnnounceIntermediateReputationServer) AnnounceIntermediateResult(context.Context, *protoreputation.AnnounceIntermediateResultRequest,
+) (*protoreputation.AnnounceIntermediateResultResponse, error) {
+	var resp protoreputation.AnnounceIntermediateResultResponse
+
+	var respV2 reputation.AnnounceIntermediateResultResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protoreputation.AnnounceIntermediateResultResponse), nil
 }
 
 type testAnnounceLocalTrustServer struct {
-	unimplementedNeoFSAPIServer
+	protoreputation.UnimplementedReputationServiceServer
 }
 
-func (x testAnnounceLocalTrustServer) announceLocalTrust(context.Context, reputation.AnnounceLocalTrustRequest) (*reputation.AnnounceLocalTrustResponse, error) {
-	var resp reputation.AnnounceLocalTrustResponse
+func (x *testAnnounceLocalTrustServer) AnnounceLocalTrust(context.Context, *protoreputation.AnnounceLocalTrustRequest,
+) (*protoreputation.AnnounceLocalTrustResponse, error) {
+	var resp protoreputation.AnnounceLocalTrustResponse
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 reputation.AnnounceLocalTrustResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protoreputation.AnnounceLocalTrustResponse), nil
 }

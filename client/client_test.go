@@ -2,11 +2,16 @@ package client
 
 import (
 	"context"
+	"net"
 	"testing"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 /*
@@ -19,12 +24,41 @@ func init() {
 	statusErr.SetMessage("test status error")
 }
 
-func newClient(t *testing.T, server neoFSAPIServer) *Client {
+// pairs service spec and implementation to-be-registered in some [grpc.Server].
+type testService struct {
+	desc *grpc.ServiceDesc
+	impl any
+}
+
+// returns ready-to-go [Client] of provided optional services. By default, any
+// other service is unsupported.
+//
+// If caller registers stat callback (like [PrmInit.SetStatisticCallback] does)
+// processing nodeKey, it must include NetmapService with implemented
+// LocalNodeInfo method.
+func newClient(t testing.TB, svcs ...testService) *Client {
 	var prm PrmInit
 
 	c, err := New(prm)
 	require.NoError(t, err)
-	c.setNeoFSAPIServer(server)
+
+	srv := grpc.NewServer()
+	for _, svc := range svcs {
+		srv.RegisterService(svc.desc, svc.impl)
+	}
+
+	lis := bufconn.Listen(10 << 10)
+	go func() { _ = srv.Serve(lis) }()
+
+	var dialPrm PrmDial
+	dialPrm.SetServerURI("grpc://localhost:8080") // any valid
+	dialPrm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
+	err = c.Dial(dialPrm)
+	if err != nil {
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		require.Equal(t, codes.Unimplemented, st.Code())
+	}
 
 	return c
 }

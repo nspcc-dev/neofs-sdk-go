@@ -105,7 +105,7 @@ func TestClientStatistic_AccountBalance(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testGetBalanceServer
-	c := newClient(t, &srv)
+	c := newTestAccountingClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -121,7 +121,7 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testPutContainerServer
-	c := newClient(t, &srv)
+	c := newTestContainerClient(t, &srv)
 	cont := prepareContainer(usr.ID)
 
 	collector := newCollector()
@@ -136,7 +136,8 @@ func TestClientStatistic_ContainerPut(t *testing.T) {
 
 func TestClientStatistic_ContainerGet(t *testing.T) {
 	ctx := context.Background()
-	c := newClient(t, new(testGetContainerServer))
+	var srv testGetContainerServer
+	c := newTestContainerClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -151,7 +152,7 @@ func TestClientStatistic_ContainerList(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testListContainersServer
-	c := newClient(t, &srv)
+	c := newTestContainerClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -166,7 +167,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testDeleteContainerServer
-	c := newClient(t, &srv)
+	c := newTestContainerClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -180,7 +181,7 @@ func TestClientStatistic_ContainerDelete(t *testing.T) {
 func TestClientStatistic_ContainerEacl(t *testing.T) {
 	ctx := context.Background()
 	var srv testGetEACLServer
-	c := newClient(t, &srv)
+	c := newTestContainerClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -195,7 +196,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testSetEACLServer
-	c := newClient(t, &srv)
+	c := newTestContainerClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -210,7 +211,7 @@ func TestClientStatistic_ContainerSetEacl(t *testing.T) {
 func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
 	ctx := context.Background()
 	var srv testAnnounceContainerSpaceServer
-	c := newClient(t, &srv)
+	c := newTestContainerClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -230,7 +231,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testGetNetworkInfoServer
-	c := newClient(t, &srv)
+	c := newTestNetmapClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -245,7 +246,7 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 	ctx := context.Background()
 	var srv testGetNodeInfoServer
-	c := newClient(t, &srv)
+	c := newTestNetmapClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -258,7 +259,7 @@ func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 func TestClientStatistic_ContainerNetMapSnapshot(t *testing.T) {
 	ctx := context.Background()
 	var srv testNetmapSnapshotServer
-	c := newClient(t, &srv)
+	c := newTestNetmapClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -272,7 +273,7 @@ func TestClientStatistic_CreateSession(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testCreateSessionServer
-	c := newClient(t, &srv)
+	c := newTestSessionClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -288,7 +289,7 @@ func TestClientStatistic_ObjectPut(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testPutObjectServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 
 	collector := newCollector()
@@ -329,7 +330,7 @@ func TestClientStatistic_ObjectDelete(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testDeleteObjectServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -348,7 +349,7 @@ func TestClientStatistic_ObjectGet(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testGetObjectServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -369,7 +370,7 @@ func TestClientStatistic_ObjectHead(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testHeadObjectServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -388,7 +389,7 @@ func TestClientStatistic_ObjectRange(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testGetObjectPayloadRangeServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -409,7 +410,7 @@ func TestClientStatistic_ObjectHash(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testHashObjectPayloadRangesServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 	objectID := oid.ID{}
 
@@ -429,7 +430,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
 	var srv testSearchObjectsServer
-	c := newClient(t, &srv)
+	c := newTestObjectClient(t, &srv)
 	containerID := cidtest.ID()
 
 	collector := newCollector()
@@ -453,7 +454,7 @@ func TestClientStatistic_ObjectSearch(t *testing.T) {
 func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 	ctx := context.Background()
 	var srv testAnnounceIntermediateReputationServer
-	c := newClient(t, &srv)
+	c := newTestReputationClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -469,7 +470,7 @@ func TestClientStatistic_AnnounceIntermediateTrust(t *testing.T) {
 func TestClientStatistic_MethodAnnounceLocalTrust(t *testing.T) {
 	ctx := context.Background()
 	var srv testAnnounceLocalTrustServer
-	c := newClient(t, &srv)
+	c := newTestReputationClient(t, &srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 

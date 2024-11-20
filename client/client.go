@@ -4,15 +4,24 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
+	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
+	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
+	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/uriutil"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 const (
@@ -52,14 +61,21 @@ const (
 type Client struct {
 	prm PrmInit
 
-	c client.Client
-
-	server neoFSAPIServer
+	conn *grpc.ClientConn
+	// based on conn
+	accounting protoaccounting.AccountingServiceClient
+	container  protocontainer.ContainerServiceClient
+	netmap     protonetmap.NetmapServiceClient
+	object     protoobject.ObjectServiceClient
+	reputation protoreputation.ReputationServiceClient
+	session    protosession.SessionServiceClient
 
 	endpoint string
 	nodeKey  []byte
 
 	buffers *sync.Pool
+
+	streamTimeout time.Duration
 }
 
 // New creates an instance of Client initialized with the given parameters.
@@ -130,8 +146,9 @@ func (c *Client) Dial(prm PrmDial) error {
 		if prm.streamTimeout <= 0 {
 			return ErrNonPositiveTimeout
 		}
+		c.streamTimeout = prm.streamTimeout
 	} else {
-		prm.streamTimeout = 10 * time.Second
+		c.streamTimeout = 10 * time.Second
 	}
 
 	addr, withTLS, err := uriutil.Parse(prm.endpoint)
@@ -139,25 +156,39 @@ func (c *Client) Dial(prm PrmDial) error {
 		return fmt.Errorf("invalid server URI: %w", err)
 	}
 
-	var tlsCfg *tls.Config
-	if withTLS {
-		if tlsCfg = prm.tlsConfig; tlsCfg == nil {
-			tlsCfg = new(tls.Config)
-		}
-	}
-
-	c.c = *client.New(
-		client.WithNetworkAddress(addr),
-		client.WithTLSCfg(tlsCfg),
-		client.WithDialTimeout(prm.timeoutDial),
-		client.WithRWTimeout(prm.streamTimeout),
-	)
-
-	c.setNeoFSAPIServer((*coreServer)(&c.c))
-
 	if prm.parentCtx == nil {
 		prm.parentCtx = context.Background()
 	}
+
+	ctx, cancel := context.WithTimeout(prm.parentCtx, prm.timeoutDial)
+	defer cancel()
+
+	var creds credentials.TransportCredentials
+	if withTLS {
+		creds = credentials.NewTLS(prm.tlsConfig)
+	} else {
+		creds = insecure.NewCredentials()
+	}
+
+	// TODO: copy-pasted from neofs-api-go. Replace deprecated func with
+	//  grpc.NewClient. This was not done because some options are no longer
+	//  supported. Review carefully and make a proper transition.
+	//nolint:staticcheck
+	if c.conn, err = grpc.DialContext(ctx, addr,
+		grpc.WithTransportCredentials(creds),
+		grpc.WithReturnConnectionError(),
+		grpc.FailOnNonTempDialError(true),
+		grpc.WithContextDialer(prm.customConnFunc),
+	); err != nil {
+		return fmt.Errorf("gRPC dial: %w", err)
+	}
+
+	c.accounting = protoaccounting.NewAccountingServiceClient(c.conn)
+	c.container = protocontainer.NewContainerServiceClient(c.conn)
+	c.netmap = protonetmap.NewNetmapServiceClient(c.conn)
+	c.object = protoobject.NewObjectServiceClient(c.conn)
+	c.reputation = protoreputation.NewReputationServiceClient(c.conn)
+	c.session = protosession.NewSessionServiceClient(c.conn)
 
 	endpointInfo, err := c.EndpointInfo(prm.parentCtx, PrmEndpointInfo{})
 	if err != nil {
@@ -169,13 +200,10 @@ func (c *Client) Dial(prm PrmDial) error {
 	return nil
 }
 
-// sets underlying provider of neoFSAPIServer. The method is used for testing as an approach
-// to skip Dial stage and override NeoFS API server. MUST NOT be used outside test code.
-// In real applications wrapper over github.com/nspcc-dev/neofs-api-go/v2/rpc/client
-// is statically used.
-func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
-	c.server = server
-}
+// Conn returns underlying gRPC connection to the configured endpoint. Must not
+// be called before successful [Client.Dial]. Conn is not intended for normal
+// use, but may be required to use services not supported by the Client.
+func (c *Client) Conn() *grpc.ClientConn { return c.conn }
 
 // Close closes underlying connection to the NeoFS server. Implements io.Closer.
 // MUST NOT be called before successful Dial. Can be called concurrently
@@ -187,7 +215,7 @@ func (c *Client) setNeoFSAPIServer(server neoFSAPIServer) {
 //
 // See also [Client.Dial].
 func (c *Client) Close() error {
-	return c.c.Conn().Close()
+	return c.Conn().Close()
 }
 
 func (c *Client) sendStatistic(m stat.Method, err error) func() {
@@ -239,6 +267,8 @@ func (x *PrmInit) SetStatisticCallback(statisticCallback stat.OperationCallback)
 	x.statisticCallback = statisticCallback
 }
 
+type connFunc = func(ctx context.Context, addr string) (net.Conn, error)
+
 // PrmDial groups connection parameters for the Client.
 //
 // See also Dial.
@@ -254,6 +284,8 @@ type PrmDial struct {
 	streamTimeout    time.Duration
 
 	parentCtx context.Context
+
+	customConnFunc connFunc
 }
 
 // SetServerURI sets server URI in the NeoFS network.
@@ -301,4 +333,12 @@ func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
 // Context SHOULD NOT be nil.
 func (x *PrmDial) SetContext(ctx context.Context) {
 	x.parentCtx = ctx
+}
+
+// allows to override default gRPC dialer for testing. The func must not be nil.
+func (x *PrmDial) setDialFunc(connFunc connFunc) {
+	if connFunc == nil {
+		panic("nil func does not override the default")
+	}
+	x.customConnFunc = connFunc
 }

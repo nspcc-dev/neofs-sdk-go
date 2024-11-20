@@ -7,9 +7,12 @@ import (
 	"io"
 	"testing"
 
-	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -114,13 +117,13 @@ func TestObjectIterate(t *testing.T) {
 			actual = append(actual, id)
 			return false
 		})
-		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
+		require.ErrorIs(t, err, apistatus.ErrServerInternal)
 		require.Equal(t, ids[:2], actual)
 	})
 }
 
 func TestClient_ObjectSearch(t *testing.T) {
-	c := newClient(t, nil)
+	c := newClient(t)
 
 	t.Run("missing signer", func(t *testing.T) {
 		_, err := c.ObjectSearchInit(context.Background(), cid.ID{}, nil, PrmObjectSearch{})
@@ -131,13 +134,11 @@ func TestClient_ObjectSearch(t *testing.T) {
 func newTestSearchObjectsStreamWithEndErr(t *testing.T, endError error, idList ...[]oid.ID) *ObjectListReader {
 	usr := usertest.User()
 	srv := testSearchObjectsServer{
-		stream: testSearchObjectsResponseStream{
-			signer:   usr,
-			endError: endError,
-			idList:   idList,
-		},
+		signer:    usr,
+		endStatus: apistatus.ErrorToV2(endError).ToGRPCMessage().(*protostatus.Status),
+		idList:    idList,
 	}
-	stream, err := newClient(t, &srv).ObjectSearchInit(context.Background(), cidtest.ID(), usr, PrmObjectSearch{})
+	stream, err := newTestObjectClient(t, &srv).ObjectSearchInit(context.Background(), cidtest.ID(), usr, PrmObjectSearch{})
 	require.NoError(t, err)
 	return stream
 }
@@ -146,52 +147,61 @@ func newTestSearchObjectsStream(t *testing.T, idList ...[]oid.ID) *ObjectListRea
 	return newTestSearchObjectsStreamWithEndErr(t, nil, idList...)
 }
 
-type testSearchObjectsResponseStream struct {
-	signer   neofscrypto.Signer
-	n        int
-	endError error
-	idList   [][]oid.ID
+type testSearchObjectsServer struct {
+	protoobject.UnimplementedObjectServiceServer
+
+	signer    neofscrypto.Signer
+	endStatus *protostatus.Status
+	idList    [][]oid.ID
 }
 
-func (s *testSearchObjectsResponseStream) Read(resp *v2object.SearchResponse) error {
-	if len(s.idList) == 0 || s.n == len(s.idList) {
-		if s.endError != nil {
-			return s.endError
-		}
-		return io.EOF
-	}
-
-	var body v2object.SearchResponseBody
-
-	if s.idList[s.n] != nil {
-		ids := make([]refs.ObjectID, len(s.idList[s.n]))
-		for i := range s.idList[s.n] {
-			s.idList[s.n][i].WriteToV2(&ids[i])
-		}
-		body.SetIDList(ids)
-	}
-	resp.SetBody(&body)
-
-	signer := s.signer
+func (x *testSearchObjectsServer) Search(_ *protoobject.SearchRequest, stream protoobject.ObjectService_SearchServer) error {
+	signer := x.signer
 	if signer == nil {
 		signer = neofscryptotest.Signer()
 	}
-	err := signServiceMessage(s.signer, resp, nil)
-	if err != nil {
-		return fmt.Errorf("sign response message: %w", err)
+	for i := range x.idList {
+		resp := protoobject.SearchResponse{
+			Body: &protoobject.SearchResponse_Body{
+				IdList: make([]*protorefs.ObjectID, len(x.idList[i])),
+			},
+		}
+		for j := range x.idList[i] {
+			resp.Body.IdList[j] = &protorefs.ObjectID{Value: x.idList[i][j][:]}
+		}
+
+		var respV2 v2object.SearchResponse
+		if err := respV2.FromGRPCMessage(&resp); err != nil {
+			panic(err)
+		}
+		if err := signServiceMessage(signer, &respV2, nil); err != nil {
+			return fmt.Errorf("sign response message: %w", err)
+		}
+		if err := stream.Send(respV2.ToGRPCMessage().(*protoobject.SearchResponse)); err != nil {
+			return err
+		}
 	}
 
-	s.n++
-	return nil
-}
+	if x.endStatus == nil {
+		return nil
+	}
 
-type testSearchObjectsServer struct {
-	unimplementedNeoFSAPIServer
+	resp := protoobject.SearchResponse{
+		MetaHeader: &protosession.ResponseMetaHeader{
+			Status: x.endStatus,
+		},
+	}
 
-	stream testSearchObjectsResponseStream
-}
+	var respV2 v2object.SearchResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(signer, &respV2, nil); err != nil {
+		return fmt.Errorf("sign response message: %w", err)
+	}
+	if err := stream.Send(respV2.ToGRPCMessage().(*protoobject.SearchResponse)); err != nil {
+		return err
+	}
 
-func (x *testSearchObjectsServer) searchObjects(context.Context, apiobject.SearchRequest) (searchObjectsResponseStream, error) {
-	x.stream.n = 0
-	return &x.stream, nil
+	return stream.Send(respV2.ToGRPCMessage().(*protoobject.SearchResponse))
 }

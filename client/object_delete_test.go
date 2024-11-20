@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -15,30 +16,33 @@ import (
 )
 
 type testDeleteObjectServer struct {
-	unimplementedNeoFSAPIServer
+	protoobject.UnimplementedObjectServiceServer
 }
 
-func (x testDeleteObjectServer) deleteObject(context.Context, apiobject.DeleteRequest) (*apiobject.DeleteResponse, error) {
+func (x *testDeleteObjectServer) Delete(context.Context, *protoobject.DeleteRequest) (*protoobject.DeleteResponse, error) {
 	id := oidtest.ID()
-	var idV2 refs.ObjectID
-	id.WriteToV2(&idV2)
-	var addr refs.Address
-	addr.SetObjectID(&idV2)
-	var body apiobject.DeleteResponseBody
-	body.SetTombstone(&addr)
-	var resp apiobject.DeleteResponse
-	resp.SetBody(&body)
+	resp := protoobject.DeleteResponse{
+		Body: &protoobject.DeleteResponse_Body{
+			Tombstone: &protorefs.Address{
+				ObjectId: &protorefs.ObjectID{Value: id[:]},
+			},
+		},
+	}
 
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
+	var respV2 apiobject.DeleteResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 
-	return &resp, nil
+	return respV2.ToGRPCMessage().(*protoobject.DeleteResponse), nil
 }
 
 func TestClient_ObjectDelete(t *testing.T) {
 	t.Run("missing signer", func(t *testing.T) {
-		c := newClient(t, nil)
+		c := newClient(t)
 
 		_, err := c.ObjectDelete(context.Background(), cid.ID{}, oid.ID{}, nil, PrmObjectDelete{})
 		require.ErrorIs(t, err, ErrMissingSigner)

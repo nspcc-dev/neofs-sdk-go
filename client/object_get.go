@@ -5,9 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -58,6 +60,15 @@ type PrmObjectGet struct {
 	prmObjectRead
 }
 
+// used part of [protoobject.ObjectService_GetClient] simplifying test
+// implementations.
+type getObjectResponseStream interface {
+	// Recv reads next message with the object part from the stream. Recv returns
+	// [io.EOF] after the server sent the last message and gracefully finished the
+	// stream. Any other error means stream abort.
+	Recv() (*protoobject.GetResponse, error)
+}
+
 // PayloadReader is a data stream of the particular NeoFS object. Implements
 // [io.ReadCloser].
 //
@@ -66,8 +77,9 @@ type PrmObjectGet struct {
 type PayloadReader struct {
 	cancelCtxStream context.CancelFunc
 
-	client *Client
-	stream getObjectResponseStream
+	client           *Client
+	stream           getObjectResponseStream
+	singleMsgTimeout time.Duration
 
 	err error
 
@@ -81,20 +93,28 @@ type PayloadReader struct {
 // readHeader reads header of the object. Result means success.
 // Failure reason can be received via Close.
 func (x *PayloadReader) readHeader(dst *object.Object) bool {
-	var resp v2object.GetResponse
-	x.err = x.stream.Read(&resp)
+	var resp *protoobject.GetResponse
+	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		var err error
+		resp, err = x.stream.Recv()
+		return err
+	})
 	if x.err != nil {
 		return false
 	}
+	var respV2 v2object.GetResponse
+	if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+		return false
+	}
 
-	x.err = x.client.processResponse(&resp)
+	x.err = x.client.processResponse(&respV2)
 	if x.err != nil {
 		return false
 	}
 
 	var partInit *v2object.GetObjectPartInit
 
-	switch v := resp.GetBody().GetObjectPart().(type) {
+	switch v := respV2.GetBody().GetObjectPart().(type) {
 	default:
 		x.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
 		return false
@@ -133,18 +153,26 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 	var lastRead int
 
 	for {
-		var resp v2object.GetResponse
-		x.err = x.stream.Read(&resp)
+		var resp *protoobject.GetResponse
+		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+			var err error
+			resp, err = x.stream.Recv()
+			return err
+		})
+		if x.err != nil {
+			return read, false
+		}
+		var respV2 v2object.GetResponse
+		if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+			return read, false
+		}
+
+		x.err = x.client.processResponse(&respV2)
 		if x.err != nil {
 			return read, false
 		}
 
-		x.err = x.client.processResponse(&resp)
-		if x.err != nil {
-			return read, false
-		}
-
-		part := resp.GetBody().GetObjectPart()
+		part := respV2.GetBody().GetObjectPart()
 		partChunk, ok := part.(*v2object.GetObjectPartChunk)
 		if !ok {
 			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
@@ -280,7 +308,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.server.getObject(ctx, req)
+	stream, err := c.object.Get(ctx, req.ToGRPCMessage().(*protoobject.GetRequest))
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -290,6 +318,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	var r PayloadReader
 	r.cancelCtxStream = cancel
 	r.stream = stream
+	r.singleMsgTimeout = c.streamTimeout
 	r.client = c
 	r.statisticCallback = func(err error) {
 		c.sendStatistic(stat.MethodObjectGetStream, err)
@@ -366,17 +395,20 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	resp, err := c.server.headObject(ctx, req)
+	resp, err := c.object.Head(ctx, req.ToGRPCMessage().(*protoobject.HeadRequest))
 	if err != nil {
-		err = fmt.Errorf("write request: %w", err)
+		return nil, rpcErr(err)
+	}
+	var respV2 v2object.HeadResponse
+	if err = respV2.FromGRPCMessage(resp); err != nil {
 		return nil, err
 	}
 
-	if err = c.processResponse(resp); err != nil {
+	if err = c.processResponse(&respV2); err != nil {
 		return nil, err
 	}
 
-	switch v := resp.GetBody().GetHeaderPart().(type) {
+	switch v := respV2.GetBody().GetHeaderPart().(type) {
 	default:
 		err = fmt.Errorf("unexpected header type %T", v)
 		return nil, err
@@ -405,6 +437,15 @@ type PrmObjectRange struct {
 	prmObjectRead
 }
 
+// used part of [protoobject.ObjectService_GetRangeClient] simplifying test
+// implementations.
+type getObjectPayloadRangeResponseStream interface {
+	// Recv reads next message with the object payload part from the stream. Recv
+	// returns [io.EOF] after the server sent the last message and gracefully
+	// finished the stream. Any other error means stream abort.
+	Recv() (*protoobject.GetRangeResponse, error)
+}
+
 // ObjectRangeReader is designed to read payload range of one object
 // from NeoFS system. Implements [io.ReadCloser].
 //
@@ -417,7 +458,8 @@ type ObjectRangeReader struct {
 
 	err error
 
-	stream getObjectPayloadRangeResponseStream
+	stream           getObjectPayloadRangeResponseStream
+	singleMsgTimeout time.Duration
 
 	tailPayload []byte
 
@@ -443,19 +485,27 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 	var lastRead int
 
 	for {
-		var resp v2object.GetRangeResponse
-		x.err = x.stream.Read(&resp)
+		var resp *protoobject.GetRangeResponse
+		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+			var err error
+			resp, err = x.stream.Recv()
+			return err
+		})
 		if x.err != nil {
 			return read, false
 		}
+		var respV2 v2object.GetRangeResponse
+		if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+			return read, false
+		}
 
-		x.err = x.client.processResponse(&resp)
+		x.err = x.client.processResponse(&respV2)
 		if x.err != nil {
 			return read, false
 		}
 
 		// get chunk message
-		switch v := resp.GetBody().GetRangePart().(type) {
+		switch v := respV2.GetBody().GetRangePart().(type) {
 		default:
 			x.err = fmt.Errorf("unexpected message received: %T", v)
 			return read, false
@@ -615,7 +665,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.server.getObjectPayloadRange(ctx, req)
+	stream, err := c.object.GetRange(ctx, req.ToGRPCMessage().(*protoobject.GetRangeRequest))
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -626,6 +676,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	r.remainingPayloadLen = int(length)
 	r.cancelCtxStream = cancel
 	r.stream = stream
+	r.singleMsgTimeout = c.streamTimeout
 	r.client = c
 	r.statisticCallback = func(err error) {
 		c.sendStatistic(stat.MethodObjectRangeStream, err)()

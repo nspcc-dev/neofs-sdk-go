@@ -4,6 +4,7 @@ import (
 	"context"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
+	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -67,7 +68,15 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.getBalance(ctx, req)
+		resp, err := c.accounting.Balance(ctx, req.ToGRPCMessage().(*protoaccounting.BalanceRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2accounting.BalanceResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)

@@ -8,79 +8,79 @@ import (
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
-type testPutObjectStream struct {
+type testPutObjectServer struct {
+	protoobject.UnimplementedObjectServiceServer
+
 	denyAccess bool
 }
 
-func (t *testPutObjectStream) Write(req *v2object.PutRequest) error {
-	switch req.GetBody().GetObjectPart().(type) {
-	case *v2object.PutObjectPartInit:
-		return nil
-	case *v2object.PutObjectPartChunk:
-		return io.EOF
-	default:
-		return errors.New("excuse me?")
+func (x *testPutObjectServer) Put(stream protoobject.ObjectService_PutServer) error {
+	for {
+		req, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		switch req.GetBody().GetObjectPart().(type) {
+		case *protoobject.PutRequest_Body_Init_,
+			*protoobject.PutRequest_Body_Chunk:
+		default:
+			return errors.New("excuse me?")
+		}
 	}
-}
-
-func (t *testPutObjectStream) Close() (*v2object.PutResponse, error) {
-	m := new(v2session.ResponseMetaHeader)
 
 	var v refs.Version
 	version.Current().WriteToV2(&v)
-
-	m.SetVersion(&v)
-	if t.denyAccess {
-		m.SetStatus(apistatus.ErrObjectAccessDenied.ErrorToV2())
+	id := oidtest.ID()
+	resp := protoobject.PutResponse{
+		Body: &protoobject.PutResponse_Body{
+			ObjectId: &protorefs.ObjectID{Value: id[:]},
+		},
+		MetaHeader: &protosession.ResponseMetaHeader{
+			Version: v.ToGRPCMessage().(*protorefs.Version),
+		},
 	}
 
-	var resp v2object.PutResponse
-	resp.SetMetaHeader(m)
-	if err := signServiceMessage(neofscryptotest.Signer(), &resp, nil); err != nil {
-		return nil, fmt.Errorf("sign response message: %w", err)
+	if x.denyAccess {
+		resp.MetaHeader.Status = apistatus.ErrObjectAccessDenied.ErrorToV2().ToGRPCMessage().(*protostatus.Status)
 	}
 
-	return &resp, nil
-}
+	var respV2 v2object.PutResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
+		return fmt.Errorf("sign response message: %w", err)
+	}
 
-type testPutObjectServer struct {
-	unimplementedNeoFSAPIServer
-
-	stream testPutObjectStream
-}
-
-func (x *testPutObjectServer) putObject(context.Context) (objectWriter, error) {
-	return &x.stream, nil
+	return stream.SendAndClose(respV2.ToGRPCMessage().(*protoobject.PutResponse))
 }
 
 func TestClient_ObjectPutInit(t *testing.T) {
 	t.Run("EOF-on-status-return", func(t *testing.T) {
 		srv := testPutObjectServer{
-			stream: testPutObjectStream{
-				denyAccess: true,
-			},
+			denyAccess: true,
 		}
-		c := newClient(t, &srv)
+		c := newTestObjectClient(t, &srv)
 		usr := usertest.User()
 
 		w, err := c.ObjectPutInit(context.Background(), object.Object{}, usr, PrmObjectPutInit{})
 		require.NoError(t, err)
 
-		n, err := w.Write([]byte{1})
-		require.Zero(t, n)
-		require.ErrorIs(t, err, new(apistatus.ObjectAccessDenied))
-
 		err = w.Close()
-		require.NoError(t, err)
+		require.ErrorIs(t, err, apistatus.ErrObjectAccessDenied)
 	})
 }
