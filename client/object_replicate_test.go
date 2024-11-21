@@ -222,7 +222,6 @@ func TestClient_ReplicateObject(t *testing.T) {
 				defer wg.Done()
 
 				_, err := cli.ReplicateObject(ctx, id, demuxObj, signer, false)
-				fmt.Println(err)
 				require.NoError(t, err)
 			}()
 		}
