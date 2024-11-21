@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"net"
 	"testing"
 
@@ -24,20 +25,40 @@ func init() {
 	statusErr.SetMessage("test status error")
 }
 
+func newInvalidRequestErr(cause error) error {
+	return fmt.Errorf("invalid request: %w", cause)
+}
+
+func newInvalidRequestMetaHeaderErr(cause error) error {
+	return newInvalidRequestErr(fmt.Errorf("invalid meta header: %w", cause))
+}
+
+func newInvalidRequestVerificationHeaderErr(cause error) error {
+	return newInvalidRequestErr(fmt.Errorf("invalid verification header: %w", cause))
+}
+
+func newInvalidRequestBodyErr(cause error) error {
+	return newInvalidRequestErr(fmt.Errorf("invalid body: %w", cause))
+}
+
+func newErrMissingRequestBodyField(name string) error {
+	return newInvalidRequestBodyErr(fmt.Errorf("missing %s field", name))
+}
+
+func newErrInvalidRequestField(name string, err error) error {
+	return newInvalidRequestBodyErr(fmt.Errorf("invalid %s field: %w", name, err))
+}
+
 // pairs service spec and implementation to-be-registered in some [grpc.Server].
 type testService struct {
 	desc *grpc.ServiceDesc
 	impl any
 }
 
-// returns ready-to-go [Client] of provided optional services. By default, any
-// other service is unsupported.
-//
-// If caller registers stat callback (like [PrmInit.SetStatisticCallback] does)
-// processing nodeKey, it must include NetmapService with implemented
-// LocalNodeInfo method.
-func newClient(t testing.TB, svcs ...testService) *Client {
+// extends newClient with response meta info callback.
+func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error, svcs ...testService) *Client {
 	var prm PrmInit
+	prm.SetResponseInfoCallback(cb)
 
 	c, err := New(prm)
 	require.NoError(t, err)
@@ -61,6 +82,16 @@ func newClient(t testing.TB, svcs ...testService) *Client {
 	}
 
 	return c
+}
+
+// returns ready-to-go [Client] of provided optional services. By default, any
+// other service is unsupported.
+//
+// If caller registers stat callback (like [PrmInit.SetStatisticCallback] does)
+// processing nodeKey, it must include NetmapService with implemented
+// LocalNodeInfo method.
+func newClient(t testing.TB, svcs ...testService) *Client {
+	return newClientWithResponseCallback(t, nil, svcs...)
 }
 
 func TestClient_Dial(t *testing.T) {

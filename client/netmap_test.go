@@ -20,9 +20,13 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+func newDefaultNetmapServiceDesc(srv protonetmap.NetmapServiceServer) testService {
+	return testService{desc: &protonetmap.NetmapService_ServiceDesc, impl: srv}
+}
+
 // returns Client of Netmap service provided by given server.
 func newTestNetmapClient(t testing.TB, srv protonetmap.NetmapServiceServer) *Client {
-	return newClient(t, testService{desc: &protonetmap.NetmapService_ServiceDesc, impl: srv})
+	return newClient(t, newDefaultNetmapServiceDesc(srv))
 }
 
 type testNetmapSnapshotServer struct {
@@ -122,6 +126,26 @@ func (x *testGetNetworkInfoServer) NetworkInfo(context.Context, *protonetmap.Net
 
 type testGetNodeInfoServer struct {
 	protonetmap.UnimplementedNetmapServiceServer
+
+	respSigner neofscrypto.Signer
+	respMeta   *protosession.ResponseMetaHeader
+}
+
+// returns [protonetmap.NetmapServiceServer] supporting LocalNodeInfo method
+// only. Default implementation performs common verification of any request, and
+// responds with any valid message. Some methods allow to tune the behavior.
+func newTestGetNodeInfoServer() *testGetNodeInfoServer { return new(testGetNodeInfoServer) }
+
+// makes the server to always sign responses using given signer. By default,
+// random signer is used.
+func (x *testGetNodeInfoServer) signResponsesBy(signer neofscrypto.Signer) {
+	x.respSigner = signer
+}
+
+// makes the server to always respond with the given meta header. By default,
+// empty header is returned.
+func (x *testGetNodeInfoServer) respondWithMeta(meta *protosession.ResponseMetaHeader) {
+	x.respMeta = meta
 }
 
 func (x *testGetNodeInfoServer) LocalNodeInfo(context.Context, *protonetmap.LocalNodeInfoRequest) (*protonetmap.LocalNodeInfoResponse, error) {
@@ -133,13 +157,18 @@ func (x *testGetNodeInfoServer) LocalNodeInfo(context.Context, *protonetmap.Loca
 				Addresses: []string{"any"},
 			},
 		},
+		MetaHeader: x.respMeta,
 	}
 
 	var respV2 v2netmap.LocalNodeInfoResponse
 	if err := respV2.FromGRPCMessage(&resp); err != nil {
 		panic(err)
 	}
-	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
+	signer := x.respSigner
+	if signer == nil {
+		signer = neofscryptotest.Signer()
+	}
+	if err := signServiceMessage(signer, &respV2, nil); err != nil {
 		return nil, fmt.Errorf("sign response message: %w", err)
 	}
 

@@ -104,8 +104,8 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 func TestClientStatistic_AccountBalance(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()
-	var srv testGetBalanceServer
-	c := newTestAccountingClient(t, &srv)
+	srv := newTestGetBalanceServer()
+	c := newTestAccountingClient(t, srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
@@ -245,8 +245,8 @@ func TestClientStatistic_ContainerSyncContainerWithNetwork(t *testing.T) {
 
 func TestClientStatistic_ContainerEndpointInfo(t *testing.T) {
 	ctx := context.Background()
-	var srv testGetNodeInfoServer
-	c := newTestNetmapClient(t, &srv)
+	srv := newTestGetNodeInfoServer()
+	c := newTestNetmapClient(t, srv)
 	collector := newCollector()
 	c.prm.statisticCallback = collector.Collect
 
