@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math/rand"
 	"testing"
+	"time"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
@@ -16,6 +17,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -43,6 +45,7 @@ type testGetBalanceServer struct {
 
 	handlerErr error
 
+	respSleep    time.Duration
 	respUnsigned bool
 	respSigner   neofscrypto.Signer
 	respMeta     *protosession.ResponseMetaHeader
@@ -69,18 +72,18 @@ func (x *testGetBalanceServer) checkRequestAccount(acc user.ID) {
 	x.reqAcc = acc[:]
 }
 
-// makes the server to always respond with the unsigned message. By default, any
+// tells the server whether to sign all the responses or not. By default, any
 // response is signed.
 //
-// Overrides signResponsesBy.
-func (x *testGetBalanceServer) respondWithoutSigning() {
-	x.respUnsigned = true
+// Calling with false overrides signResponsesBy.
+func (x *testGetBalanceServer) setEnabledResponseSigning(sign bool) {
+	x.respUnsigned = !sign
 }
 
 // makes the server to always sign responses using given signer. By default,
 // random signer is used.
 //
-// Has no effect with respondWithoutSigning.
+// Has no effect with signing is disabled using setEnabledResponseSigning.
 func (x *testGetBalanceServer) signResponsesBy(signer neofscrypto.Signer) {
 	x.respSigner = signer
 }
@@ -123,6 +126,12 @@ func (x *testGetBalanceServer) respondWithStatus(st *protostatus.Status) {
 // response message is returned.
 func (x *testGetBalanceServer) setHandlerError(err error) {
 	x.handlerErr = err
+}
+
+// makes the server to sleep specified time before any request processing. By
+// default, and if dur is non-positive, request is handled instantly.
+func (x *testGetBalanceServer) setSleepDuration(dur time.Duration) {
+	x.respSleep = dur
 }
 
 func (x *testGetBalanceServer) verifyBalanceRequest(req *protoaccounting.BalanceRequest) error {
@@ -186,6 +195,8 @@ func (x *testGetBalanceServer) verifyBalanceRequest(req *protoaccounting.Balance
 }
 
 func (x *testGetBalanceServer) Balance(_ context.Context, req *protoaccounting.BalanceRequest) (*protoaccounting.BalanceResponse, error) {
+	time.Sleep(x.respSleep)
+
 	if err := x.verifyBalanceRequest(req); err != nil {
 		return nil, err
 	}
@@ -236,7 +247,7 @@ func TestClient_BalanceGet(t *testing.T) {
 
 	t.Run("invalid user input", func(t *testing.T) {
 		t.Run("missing account", func(t *testing.T) {
-			_, err := c.BalanceGet(ctx, PrmBalanceGet{})
+			_, err := c.BalanceGet(context.Background(), PrmBalanceGet{})
 			require.ErrorIs(t, err, ErrMissingAccount)
 		})
 	})
@@ -377,7 +388,7 @@ func TestClient_BalanceGet(t *testing.T) {
 		st, ok := status.FromError(err)
 		require.True(t, ok)
 		require.Equal(t, codes.Unknown, st.Code())
-		require.Equal(t, err.Error(), st.Message())
+		require.Contains(t, st.Message(), transportErr.Error())
 	})
 	t.Run("response message decoding failure", func(t *testing.T) {
 		svc := testService{
@@ -400,7 +411,7 @@ func TestClient_BalanceGet(t *testing.T) {
 	})
 	t.Run("invalid response verification header", func(t *testing.T) {
 		srv := newTestGetBalanceServer()
-		srv.respondWithoutSigning()
+		srv.setEnabledResponseSigning(false)
 		// TODO: add cases with less radical corruption such as replacing one byte or
 		//  dropping only one of the signatures
 		c := newTestAccountingClient(t, srv)
@@ -437,17 +448,17 @@ func TestClient_BalanceGet(t *testing.T) {
 	t.Run("response callback", func(t *testing.T) {
 		// NetmapService.LocalNodeInfo is called on dial, so it should also be
 		// initialized. The handler is called for it too.
-		netmapSrvSigner := neofscryptotest.Signer()
-		netmapSrvEpoch := rand.Uint64()
-		netmapSrv := newTestGetNodeInfoServer()
-		netmapSrv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: netmapSrvEpoch})
-		netmapSrv.signResponsesBy(netmapSrvSigner)
+		nodeInfoSrvSigner := neofscryptotest.Signer()
+		nodeInfoSrvEpoch := rand.Uint64()
+		nodeInfoSrv := newTestGetNodeInfoServer()
+		nodeInfoSrv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: nodeInfoSrvEpoch})
+		nodeInfoSrv.signResponsesBy(nodeInfoSrvSigner)
 
-		accountingSrvSigner := neofscryptotest.Signer()
-		accountingSrvEpoch := netmapSrvEpoch + 1
-		accountingSrv := newTestGetBalanceServer()
-		accountingSrv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: accountingSrvEpoch})
-		accountingSrv.signResponsesBy(accountingSrvSigner)
+		balanceSrvSigner := neofscryptotest.Signer()
+		balanceSrvEpoch := nodeInfoSrvEpoch + 1
+		balanceSrv := newTestGetBalanceServer()
+		balanceSrv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: balanceSrvEpoch})
+		balanceSrv.signResponsesBy(balanceSrvSigner)
 
 		var collected []ResponseMetaInfo
 		var cbErr error
@@ -455,15 +466,15 @@ func TestClient_BalanceGet(t *testing.T) {
 			collected = append(collected, meta)
 			return cbErr
 		},
-			newDefaultAccountingService(accountingSrv),
-			newDefaultNetmapServiceDesc(netmapSrv),
+			newDefaultNetmapServiceDesc(nodeInfoSrv),
+			newDefaultAccountingService(balanceSrv),
 		)
 
 		_, err := c.BalanceGet(ctx, anyValidPrm)
 		require.NoError(t, err)
 		require.Equal(t, []ResponseMetaInfo{
-			{key: netmapSrvSigner.PublicKeyBytes, epoch: netmapSrvEpoch},
-			{key: accountingSrvSigner.PublicKeyBytes, epoch: accountingSrvEpoch},
+			{key: nodeInfoSrvSigner.PublicKeyBytes, epoch: nodeInfoSrvEpoch},
+			{key: balanceSrvSigner.PublicKeyBytes, epoch: balanceSrvEpoch},
 		}, collected)
 
 		cbErr = errors.New("any response meta handler failure")
@@ -472,5 +483,59 @@ func TestClient_BalanceGet(t *testing.T) {
 		require.ErrorContains(t, err, err.Error())
 		require.Len(t, collected, 3)
 		require.Equal(t, collected[2], collected[1])
+	})
+	t.Run("exec statistics", func(t *testing.T) {
+		// NetmapService.LocalNodeInfo is called on dial, so it should also be
+		// initialized. Statistics are tracked for it too.
+		nodeEndpoint := "grpc://localhost:8082" // any valid
+		nodePub := []byte("any public key")
+
+		nodeInfoSrv := newTestGetNodeInfoServer()
+		nodeInfoSrv.respondWithNodePublicKey(nodePub)
+
+		balanceSrv := newTestGetBalanceServer()
+
+		type statItem struct {
+			mtd stat.Method
+			dur time.Duration
+			err error
+		}
+		var lastItem *statItem
+		cb := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
+			if lastItem == nil {
+				require.Nil(t, pub)
+			} else {
+				require.Equal(t, nodePub, pub)
+			}
+			require.Equal(t, nodeEndpoint, endpoint)
+			require.Positive(t, dur)
+			lastItem = &statItem{mtd, dur, err}
+		}
+
+		c := newCustomClient(t, nodeEndpoint, func(prm *PrmInit) { prm.SetStatisticCallback(cb) },
+			newDefaultNetmapServiceDesc(nodeInfoSrv),
+			newDefaultAccountingService(balanceSrv),
+		)
+		// dial
+		require.NotNil(t, lastItem)
+		require.Equal(t, stat.MethodEndpointInfo, lastItem.mtd)
+		require.Positive(t, lastItem.dur)
+		require.NoError(t, lastItem.err)
+
+		// failure
+		_, callErr := c.BalanceGet(ctx, PrmBalanceGet{})
+		require.Error(t, callErr)
+		require.Equal(t, stat.MethodBalanceGet, lastItem.mtd)
+		require.Positive(t, lastItem.dur)
+		require.Equal(t, callErr, lastItem.err)
+
+		// OK
+		sleepDur := 100 * time.Millisecond
+		// duration is pretty short overall, but most likely larger than the exec time w/o sleep
+		balanceSrv.setSleepDuration(sleepDur)
+		_, _ = c.BalanceGet(ctx, anyValidPrm)
+		require.Equal(t, stat.MethodBalanceGet, lastItem.mtd)
+		require.Greater(t, lastItem.dur, sleepDur)
+		require.NoError(t, lastItem.err)
 	})
 }
