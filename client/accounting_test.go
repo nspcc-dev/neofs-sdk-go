@@ -234,8 +234,8 @@ func TestClient_BalanceGet(t *testing.T) {
 	var anyValidPrm PrmBalanceGet
 	anyValidPrm.SetAccount(anyUsr)
 
-	t.Run("missing", func(t *testing.T) {
-		t.Run("account", func(t *testing.T) {
+	t.Run("invalid user input", func(t *testing.T) {
+		t.Run("missing account", func(t *testing.T) {
 			_, err := c.BalanceGet(ctx, PrmBalanceGet{})
 			require.ErrorIs(t, err, ErrMissingAccount)
 		})
