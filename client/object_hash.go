@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -109,9 +110,12 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectHash, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectHash, time.Since(startTime), err)
+		}()
+	}
 
 	if len(prm.body.GetRanges()) == 0 {
 		err = ErrMissingRanges

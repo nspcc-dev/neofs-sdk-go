@@ -77,6 +77,7 @@ type ObjectListReader struct {
 	tail             []v2refs.ObjectID
 
 	statisticCallback shortStatisticCallback
+	startTime         time.Time // if statisticCallback is set only
 }
 
 // Read reads another list of the object identifiers. Works similar to
@@ -178,7 +179,7 @@ func (x *ObjectListReader) Close() error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
-			x.statisticCallback(err)
+			x.statisticCallback(time.Since(x.startTime), err)
 		}()
 	}
 
@@ -207,9 +208,12 @@ func (x *ObjectListReader) Close() error {
 //   - [ErrMissingSigner]
 func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (*ObjectListReader, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodObjectSearch, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectSearch, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return nil, ErrMissingSigner
@@ -246,8 +250,11 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	}
 	r.singleMsgTimeout = c.streamTimeout
 	r.client = c
-	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectSearchStream, err)()
+	if c.prm.statisticCallback != nil {
+		r.startTime = time.Now()
+		r.statisticCallback = func(dur time.Duration, err error) {
+			c.sendStatistic(stat.MethodObjectSearchStream, dur, err)
+		}
 	}
 
 	return &r, nil

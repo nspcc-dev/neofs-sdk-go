@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
@@ -78,9 +79,12 @@ func (x ResSessionCreate) PublicKey() []byte {
 //   - [ErrMissingSigner]
 func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodSessionCreate, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodSessionCreate, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return nil, ErrMissingSigner

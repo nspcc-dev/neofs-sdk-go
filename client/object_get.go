@@ -88,6 +88,7 @@ type PayloadReader struct {
 	remainingPayloadLen int
 
 	statisticCallback shortStatisticCallback
+	startTime         time.Time // if statisticCallback is set only
 }
 
 // readHeader reads header of the object. Result means success.
@@ -219,7 +220,7 @@ func (x *PayloadReader) Close() error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
-			x.statisticCallback(err)
+			x.statisticCallback(time.Since(x.startTime), err)
 		}()
 	}
 	err = x.close(true)
@@ -276,9 +277,12 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectGet, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectGet, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return hdr, nil, ErrMissingSigner
@@ -320,8 +324,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
 	r.client = c
-	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectGetStream, err)
+	if c.prm.statisticCallback != nil {
+		r.startTime = time.Now()
+		r.statisticCallback = func(dur time.Duration, err error) {
+			c.sendStatistic(stat.MethodObjectGetStream, dur, err)
+		}
 	}
 
 	if !r.readHeader(&hdr) {
@@ -366,9 +373,12 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectHead, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectHead, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return nil, ErrMissingSigner
@@ -466,6 +476,7 @@ type ObjectRangeReader struct {
 	remainingPayloadLen int
 
 	statisticCallback shortStatisticCallback
+	startTime         time.Time // if statisticCallback is set only
 }
 
 func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
@@ -569,7 +580,7 @@ func (x *ObjectRangeReader) Close() error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
-			x.statisticCallback(err)
+			x.statisticCallback(time.Since(x.startTime), err)
 		}()
 	}
 	err = x.close(true)
@@ -622,9 +633,12 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectRange, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectRange, time.Since(startTime), err)
+		}()
+	}
 
 	if length == 0 {
 		err = ErrZeroRangeLength
@@ -678,8 +692,11 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
 	r.client = c
-	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectRangeStream, err)()
+	if c.prm.statisticCallback != nil {
+		r.startTime = time.Now()
+		r.statisticCallback = func(dur time.Duration, err error) {
+			c.sendStatistic(stat.MethodObjectRangeStream, dur, err)
+		}
 	}
 
 	return &r, nil
