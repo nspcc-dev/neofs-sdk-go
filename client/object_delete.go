@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
@@ -74,9 +75,12 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectDelete, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectDelete, time.Since(startTime), err)
+		}()
+	}
 
 	containerID.WriteToV2(&cidV2)
 	addr.SetContainerID(&cidV2)

@@ -38,7 +38,7 @@ type putObjectStream interface {
 // shortStatisticCallback is a shorter version of [stat.OperationCallback] which is calling from [client.Client].
 // The difference is the client already know some info about itself. Despite it the client doesn't know
 // duration and error from writer/reader.
-type shortStatisticCallback func(err error)
+type shortStatisticCallback func(dur time.Duration, err error)
 
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
 type PrmObjectPutInit struct {
@@ -92,6 +92,7 @@ type DefaultObjectWriter struct {
 	partChunk v2object.PutObjectPartChunk
 
 	statisticCallback shortStatisticCallback
+	startTime         time.Time // if statisticCallback is set only
 
 	buf              []byte
 	bufCleanCallback func()
@@ -234,7 +235,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 func (x *DefaultObjectWriter) Close() error {
 	if x.statisticCallback != nil {
 		defer func() {
-			x.statisticCallback(x.err)
+			x.statisticCallback(time.Since(x.startTime), x.err)
 		}()
 	}
 
@@ -309,12 +310,18 @@ func (x *DefaultObjectWriter) GetResult() ResObjectPut {
 //   - [ErrMissingSigner]
 func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer user.Signer, prm PrmObjectPutInit) (ObjectWriter, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodObjectPut, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectPut, time.Since(startTime), err)
+		}()
+	}
 	var w DefaultObjectWriter
-	w.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectPutStream, err)()
+	if c.prm.statisticCallback != nil {
+		w.startTime = time.Now()
+		w.statisticCallback = func(dur time.Duration, err error) {
+			c.sendStatistic(stat.MethodObjectPutStream, dur, err)
+		}
 	}
 
 	if signer == nil {

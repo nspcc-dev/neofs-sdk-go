@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
@@ -35,9 +36,12 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 //   - [ErrMissingAccount]
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodBalanceGet, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodBalanceGet, time.Since(startTime), err)
+		}()
+	}
 
 	switch {
 	case prm.account.IsZero():

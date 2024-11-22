@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
 	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
@@ -71,9 +72,12 @@ func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
 //   - [ErrMissingSigner]
 func (c *Client) ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerPut, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerPut, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return cid.ID{}, ErrMissingSigner
@@ -174,9 +178,12 @@ type PrmContainerGet struct {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerGet, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerGet, time.Since(startTime), err)
+		}()
+	}
 
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -248,9 +255,12 @@ type PrmContainerList struct {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerList, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerList, time.Since(startTime), err)
+		}()
+	}
 
 	// form request body
 	var ownerV2 refs.OwnerID
@@ -359,9 +369,12 @@ func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
 //   - [ErrMissingSigner]
 func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerDelete, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerDelete, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return ErrMissingSigner
@@ -450,9 +463,12 @@ type PrmContainerEACL struct {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerEACL, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerEACL, time.Since(startTime), err)
+		}()
+	}
 
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -565,9 +581,12 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerSetEACL, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerSetEACL, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return ErrMissingSigner
@@ -665,9 +684,12 @@ type PrmAnnounceSpace struct {
 //   - [ErrMissingAnnouncements]
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerAnnounceUsedSpace, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerAnnounceUsedSpace, time.Since(startTime), err)
+		}()
+	}
 
 	if len(announcements) == 0 {
 		err = ErrMissingAnnouncements

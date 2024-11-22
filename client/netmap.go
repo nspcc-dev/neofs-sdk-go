@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
 
 	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
@@ -60,9 +61,12 @@ func (x ResEndpointInfo) NodeInfo() netmap.NodeInfo {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEndpointInfo, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodEndpointInfo, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodEndpointInfo, time.Since(startTime), err)
+		}()
+	}
 
 	// form request
 	var req v2netmap.LocalNodeInfoRequest
@@ -146,9 +150,12 @@ type PrmNetworkInfo struct {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodNetworkInfo, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodNetworkInfo, time.Since(startTime), err)
+		}()
+	}
 
 	// form request
 	var req v2netmap.NetworkInfoRequest
@@ -215,9 +222,12 @@ type PrmNetMapSnapshot struct {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netmap.NetMap, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodNetMapSnapshot, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodNetMapSnapshot, time.Since(startTime), err)
+		}()
+	}
 
 	// form request body
 	var body v2netmap.SnapshotRequestBody

@@ -219,15 +219,8 @@ func (c *Client) Close() error {
 	return c.Conn().Close()
 }
 
-func (c *Client) sendStatistic(m stat.Method, err error) func() {
-	if c.prm.statisticCallback == nil {
-		return func() {}
-	}
-
-	ts := time.Now()
-	return func() {
-		c.prm.statisticCallback(c.nodeKey, c.endpoint, m, time.Since(ts), err)
-	}
+func (c *Client) sendStatistic(m stat.Method, dur time.Duration, err error) {
+	c.prm.statisticCallback(c.nodeKey, c.endpoint, m, dur, err)
 }
 
 // PrmInit groups initialization parameters of Client instances.

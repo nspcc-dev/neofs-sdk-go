@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"time"
 
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
@@ -29,9 +30,12 @@ type PrmAnnounceLocalTrust struct {
 // Parameter trusts must not be empty.
 func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []reputation.Trust, prm PrmAnnounceLocalTrust) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodAnnounceLocalTrust, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodAnnounceLocalTrust, time.Since(startTime), err)
+		}()
+	}
 
 	// check parameters
 	switch {
@@ -117,9 +121,12 @@ func (x *PrmAnnounceIntermediateTrust) SetIteration(iter uint32) {
 // Parameter epoch must not be zero.
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, trust reputation.PeerToPeerTrust, prm PrmAnnounceIntermediateTrust) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodAnnounceIntermediateTrust, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodAnnounceIntermediateTrust, time.Since(startTime), err)
+		}()
+	}
 
 	if epoch == 0 {
 		err = ErrZeroEpoch
