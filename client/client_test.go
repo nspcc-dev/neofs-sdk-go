@@ -55,10 +55,13 @@ type testService struct {
 	impl any
 }
 
-// extends newClient with response meta info callback.
-func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error, svcs ...testService) *Client {
+// the most generic alternative of newClient. Both endpoint and parameter setter
+// are optional.
+func newCustomClient(t testing.TB, endpoint string, setPrm func(*PrmInit), svcs ...testService) *Client {
 	var prm PrmInit
-	prm.SetResponseInfoCallback(cb)
+	if setPrm != nil {
+		setPrm(&prm)
+	}
 
 	c, err := New(prm)
 	require.NoError(t, err)
@@ -72,7 +75,10 @@ func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error
 	go func() { _ = srv.Serve(lis) }()
 
 	var dialPrm PrmDial
-	dialPrm.SetServerURI("grpc://localhost:8080") // any valid
+	if endpoint == "" {
+		endpoint = "grpc://localhost:8080"
+	}
+	dialPrm.SetServerURI(endpoint) // any valid
 	dialPrm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
 	err = c.Dial(dialPrm)
 	if err != nil {
@@ -84,6 +90,11 @@ func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error
 	return c
 }
 
+// extends newClient with response meta info callback.
+func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error, svcs ...testService) *Client {
+	return newCustomClient(t, "", func(prm *PrmInit) { prm.SetResponseInfoCallback(cb) }, svcs...)
+}
+
 // returns ready-to-go [Client] of provided optional services. By default, any
 // other service is unsupported.
 //
@@ -91,7 +102,7 @@ func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error
 // processing nodeKey, it must include NetmapService with implemented
 // LocalNodeInfo method.
 func newClient(t testing.TB, svcs ...testService) *Client {
-	return newClientWithResponseCallback(t, nil, svcs...)
+	return newCustomClient(t, "", nil, svcs...)
 }
 
 func TestClient_Dial(t *testing.T) {

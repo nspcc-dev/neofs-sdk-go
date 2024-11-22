@@ -101,22 +101,6 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 	return table
 }
 
-func TestClientStatistic_AccountBalance(t *testing.T) {
-	usr := usertest.User()
-	ctx := context.Background()
-	srv := newTestGetBalanceServer()
-	c := newTestAccountingClient(t, srv)
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmBalanceGet
-	prm.SetAccount(usr.ID)
-	_, err := c.BalanceGet(ctx, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodBalanceGet].requests)
-}
-
 func TestClientStatistic_ContainerPut(t *testing.T) {
 	usr := usertest.User()
 	ctx := context.Background()

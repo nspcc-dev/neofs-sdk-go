@@ -127,8 +127,9 @@ func (x *testGetNetworkInfoServer) NetworkInfo(context.Context, *protonetmap.Net
 type testGetNodeInfoServer struct {
 	protonetmap.UnimplementedNetmapServiceServer
 
-	respSigner neofscrypto.Signer
-	respMeta   *protosession.ResponseMetaHeader
+	respSigner  neofscrypto.Signer
+	respMeta    *protosession.ResponseMetaHeader
+	respNodePub []byte
 }
 
 // returns [protonetmap.NetmapServiceServer] supporting LocalNodeInfo method
@@ -148,16 +149,26 @@ func (x *testGetNodeInfoServer) respondWithMeta(meta *protosession.ResponseMetaH
 	x.respMeta = meta
 }
 
+// makes the server to always respond with the given node public key. By default,
+// any key is returned.
+func (x *testGetNodeInfoServer) respondWithNodePublicKey(pub []byte) {
+	x.respNodePub = pub
+}
+
 func (x *testGetNodeInfoServer) LocalNodeInfo(context.Context, *protonetmap.LocalNodeInfoRequest) (*protonetmap.LocalNodeInfoResponse, error) {
 	resp := protonetmap.LocalNodeInfoResponse{
 		Body: &protonetmap.LocalNodeInfoResponse_Body{
 			Version: new(protorefs.Version),
 			NodeInfo: &protonetmap.NodeInfo{
-				PublicKey: []byte("any"),
 				Addresses: []string{"any"},
 			},
 		},
 		MetaHeader: x.respMeta,
+	}
+	if x.respNodePub != nil {
+		resp.Body.NodeInfo.PublicKey = x.respNodePub
+	} else {
+		resp.Body.NodeInfo.PublicKey = []byte("any")
 	}
 
 	var respV2 v2netmap.LocalNodeInfoResponse
