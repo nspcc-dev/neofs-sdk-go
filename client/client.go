@@ -128,6 +128,7 @@ func New(prm PrmInit) (*Client, error) {
 //   - [ErrNonPositiveTimeout]
 //
 // See also [Client.Close].
+// nolint:contextcheck
 func (c *Client) Dial(prm PrmDial) error {
 	if prm.endpoint == "" {
 		return ErrMissingServer
