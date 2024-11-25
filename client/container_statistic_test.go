@@ -12,9 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -89,107 +87,6 @@ func prepareContainer(accountID user.ID) container.Container {
 	cont.SetPlacementPolicy(pp)
 
 	return cont
-}
-
-func testEaclTable(containerID cid.ID) eacl.Table {
-	var table eacl.Table
-	table.SetCID(containerID)
-
-	r := eacl.ConstructRecord(eacl.ActionAllow, eacl.OperationPut, []eacl.Target{eacl.NewTargetByRole(eacl.RoleOthers)})
-	table.AddRecord(&r)
-
-	return table
-}
-
-func TestClientStatistic_ContainerPut(t *testing.T) {
-	usr := usertest.User()
-	ctx := context.Background()
-	var srv testPutContainerServer
-	c := newTestContainerClient(t, &srv)
-	cont := prepareContainer(usr.ID)
-
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmContainerPut
-	_, err := c.ContainerPut(ctx, cont, usr.RFC6979, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodContainerPut].requests)
-}
-
-func TestClientStatistic_ContainerGet(t *testing.T) {
-	ctx := context.Background()
-	var srv testGetContainerServer
-	c := newTestContainerClient(t, &srv)
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmContainerGet
-	_, err := c.ContainerGet(ctx, cid.ID{}, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodContainerGet].requests)
-}
-
-func TestClientStatistic_ContainerList(t *testing.T) {
-	usr := usertest.User()
-	ctx := context.Background()
-	var srv testListContainersServer
-	c := newTestContainerClient(t, &srv)
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmContainerList
-	_, err := c.ContainerList(ctx, usr.ID, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodContainerList].requests)
-}
-
-func TestClientStatistic_ContainerDelete(t *testing.T) {
-	usr := usertest.User()
-	ctx := context.Background()
-	var srv testDeleteContainerServer
-	c := newTestContainerClient(t, &srv)
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmContainerDelete
-	err := c.ContainerDelete(ctx, cid.ID{}, usr, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodContainerDelete].requests)
-}
-
-func TestClientStatistic_ContainerEacl(t *testing.T) {
-	ctx := context.Background()
-	var srv testGetEACLServer
-	c := newTestContainerClient(t, &srv)
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmContainerEACL
-	_, err := c.ContainerEACL(ctx, cid.ID{}, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodContainerEACL].requests)
-}
-
-func TestClientStatistic_ContainerSetEacl(t *testing.T) {
-	usr := usertest.User()
-	ctx := context.Background()
-	var srv testSetEACLServer
-	c := newTestContainerClient(t, &srv)
-	collector := newCollector()
-	c.prm.statisticCallback = collector.Collect
-
-	var prm PrmContainerSetEACL
-	table := testEaclTable(cidtest.ID())
-	err := c.ContainerSetEACL(ctx, table, usr, prm)
-	require.NoError(t, err)
-
-	require.Equal(t, 1, collector.methods[stat.MethodContainerSetEACL].requests)
 }
 
 func TestClientStatistic_ContainerAnnounceUsedSpace(t *testing.T) {
