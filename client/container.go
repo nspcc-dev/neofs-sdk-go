@@ -4,11 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
+	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -17,17 +17,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variables for test purposes, to overwrite real RPC calls.
-	rpcAPIPutContainer      = rpcapi.PutContainer
-	rpcAPIGetContainer      = rpcapi.GetContainer
-	rpcAPIListContainers    = rpcapi.ListContainers
-	rpcAPIDeleteContainer   = rpcapi.DeleteContainer
-	rpcAPIGetEACL           = rpcapi.GetEACL
-	rpcAPISetEACL           = rpcapi.SetEACL
-	rpcAPIAnnounceUsedSpace = rpcapi.AnnounceUsedSpace
 )
 
 // PrmContainerPut groups optional parameters of ContainerPut operation.
@@ -83,9 +72,12 @@ func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
 //   - [ErrMissingSigner]
 func (c *Client) ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerPut, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerPut, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return cid.ID{}, ErrMissingSigner
@@ -137,7 +129,15 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIPutContainer(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.Put(ctx, req.ToGRPCMessage().(*protocontainer.PutRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.PutResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.PutResponse)
@@ -178,9 +178,12 @@ type PrmContainerGet struct {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGet) (container.Container, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerGet, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerGet, time.Since(startTime), err)
+		}()
+	}
 
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -205,7 +208,15 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIGetContainer(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.Get(ctx, req.ToGRPCMessage().(*protocontainer.GetRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.GetResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetResponse)
@@ -244,9 +255,12 @@ type PrmContainerList struct {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmContainerList) ([]cid.ID, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerList, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerList, time.Since(startTime), err)
+		}()
+	}
 
 	// form request body
 	var ownerV2 refs.OwnerID
@@ -271,7 +285,15 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIListContainers(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.List(ctx, req.ToGRPCMessage().(*protocontainer.ListRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.ListResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.ListResponse)
@@ -347,9 +369,12 @@ func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
 //   - [ErrMissingSigner]
 func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerDelete, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerDelete, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return ErrMissingSigner
@@ -405,7 +430,15 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIDeleteContainer(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.Delete(ctx, req.ToGRPCMessage().(*protocontainer.DeleteRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.DeleteResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call
@@ -430,9 +463,12 @@ type PrmContainerEACL struct {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerEACL) (eacl.Table, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerEACL, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerEACL, time.Since(startTime), err)
+		}()
+	}
 
 	var cidV2 refs.ContainerID
 	id.WriteToV2(&cidV2)
@@ -457,7 +493,15 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIGetEACL(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.GetExtendedACL(ctx, req.ToGRPCMessage().(*protocontainer.GetExtendedACLRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.GetExtendedACLResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2container.GetExtendedACLResponse)
@@ -537,9 +581,12 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerSetEACL, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerSetEACL, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return ErrMissingSigner
@@ -594,7 +641,15 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	c.initCallContext(&cc)
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPISetEACL(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.SetExtendedACL(ctx, req.ToGRPCMessage().(*protocontainer.SetExtendedACLRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.SetExtendedACLResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call
@@ -629,9 +684,12 @@ type PrmAnnounceSpace struct {
 //   - [ErrMissingAnnouncements]
 func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements []container.SizeEstimation, prm PrmAnnounceSpace) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodContainerAnnounceUsedSpace, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerAnnounceUsedSpace, time.Since(startTime), err)
+		}()
+	}
 
 	if len(announcements) == 0 {
 		err = ErrMissingAnnouncements
@@ -663,7 +721,15 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceUsedSpace(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.container.AnnounceUsedSpace(ctx, req.ToGRPCMessage().(*protocontainer.AnnounceUsedSpaceRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2container.AnnounceUsedSpaceResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call

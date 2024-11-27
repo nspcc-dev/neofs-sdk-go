@@ -2,10 +2,11 @@ package client
 
 import (
 	"context"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -78,9 +79,12 @@ func (x ResSessionCreate) PublicKey() []byte {
 //   - [ErrMissingSigner]
 func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmSessionCreate) (*ResSessionCreate, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodSessionCreate, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodSessionCreate, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return nil, ErrMissingSigner
@@ -113,7 +117,15 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return c.server.createSession(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.session.Create(ctx, req.ToGRPCMessage().(*protosession.CreateRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2session.CreateResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2session.CreateResponse)

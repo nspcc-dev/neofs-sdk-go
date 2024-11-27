@@ -3,22 +3,17 @@ package client
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIHashObjectRange = rpcapi.HashObjectRange
 )
 
 // PrmObjectHash groups parameters of ObjectHash operation.
@@ -115,9 +110,12 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectHash, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectHash, time.Since(startTime), err)
+		}()
+	}
 
 	if len(prm.body.GetRanges()) == 0 {
 		err = ErrMissingRanges
@@ -153,14 +151,17 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	resp, err := rpcAPIHashObjectRange(&c.c, &req, client.WithContext(ctx))
+	resp, err := c.object.GetRangeHash(ctx, req.ToGRPCMessage().(*protoobject.GetRangeHashRequest))
 	if err != nil {
-		err = fmt.Errorf("write request: %w", err)
+		return nil, rpcErr(err)
+	}
+	var respV2 v2object.GetRangeHashResponse
+	if err = respV2.FromGRPCMessage(resp); err != nil {
 		return nil, err
 	}
 
 	var res [][]byte
-	if err = c.processResponse(resp); err != nil {
+	if err = c.processResponse(&respV2); err != nil {
 		return nil, err
 	}
 

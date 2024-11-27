@@ -3,70 +3,84 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
+	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
-type testPutStreamAccessDenied struct {
-	resp   *v2object.PutResponse
-	signer user.Signer
-	t      *testing.T
+type testPutObjectServer struct {
+	protoobject.UnimplementedObjectServiceServer
+
+	denyAccess bool
 }
 
-func (t *testPutStreamAccessDenied) Write(req *v2object.PutRequest) error {
-	switch req.GetBody().GetObjectPart().(type) {
-	case *v2object.PutObjectPartInit:
-		return nil
-	case *v2object.PutObjectPartChunk:
-		return io.EOF
-	default:
-		return errors.New("excuse me?")
+func (x *testPutObjectServer) Put(stream protoobject.ObjectService_PutServer) error {
+	for {
+		req, err := stream.Recv()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		switch req.GetBody().GetObjectPart().(type) {
+		case *protoobject.PutRequest_Body_Init_,
+			*protoobject.PutRequest_Body_Chunk:
+		default:
+			return errors.New("excuse me?")
+		}
 	}
-}
-
-func (t *testPutStreamAccessDenied) Close() error {
-	m := new(v2session.ResponseMetaHeader)
 
 	var v refs.Version
 	version.Current().WriteToV2(&v)
+	id := oidtest.ID()
+	resp := protoobject.PutResponse{
+		Body: &protoobject.PutResponse_Body{
+			ObjectId: &protorefs.ObjectID{Value: id[:]},
+		},
+		MetaHeader: &protosession.ResponseMetaHeader{
+			Version: v.ToGRPCMessage().(*protorefs.Version),
+		},
+	}
 
-	m.SetVersion(&v)
-	m.SetStatus(apistatus.ErrObjectAccessDenied.ErrorToV2())
+	if x.denyAccess {
+		resp.MetaHeader.Status = apistatus.ErrObjectAccessDenied.ErrorToV2().ToGRPCMessage().(*protostatus.Status)
+	}
 
-	t.resp.SetMetaHeader(m)
-	require.NoError(t.t, signServiceMessage(t.signer, t.resp, nil))
+	var respV2 v2object.PutResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(neofscryptotest.Signer(), &respV2, nil); err != nil {
+		return fmt.Errorf("sign response message: %w", err)
+	}
 
-	return nil
+	return stream.SendAndClose(respV2.ToGRPCMessage().(*protoobject.PutResponse))
 }
 
 func TestClient_ObjectPutInit(t *testing.T) {
 	t.Run("EOF-on-status-return", func(t *testing.T) {
-		c := newClient(t, nil)
-		usr := usertest.User()
-
-		rpcAPIPutObject = func(_ *client.Client, r *v2object.PutResponse, _ ...client.CallOption) (objectWriter, error) {
-			return &testPutStreamAccessDenied{resp: r, signer: usr, t: t}, nil
+		srv := testPutObjectServer{
+			denyAccess: true,
 		}
+		c := newTestObjectClient(t, &srv)
+		usr := usertest.User()
 
 		w, err := c.ObjectPutInit(context.Background(), object.Object{}, usr, PrmObjectPutInit{})
 		require.NoError(t, err)
 
-		n, err := w.Write([]byte{1})
-		require.Zero(t, n)
-		require.ErrorIs(t, err, new(apistatus.ObjectAccessDenied))
-
 		err = w.Close()
-		require.NoError(t, err)
+		require.ErrorIs(t, err, apistatus.ErrObjectAccessDenied)
 	})
 }
