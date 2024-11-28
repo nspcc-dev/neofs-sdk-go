@@ -2,18 +2,12 @@ package client
 
 import (
 	"context"
+	"time"
 
 	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
+	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-)
-
-var (
-	// special variables for test purposes only, to overwrite real RPC calls.
-	rpcAPIAnnounceIntermediateResult = rpcapi.AnnounceIntermediateResult
-	rpcAPIAnnounceLocalTrust         = rpcapi.AnnounceLocalTrust
 )
 
 // PrmAnnounceLocalTrust groups optional parameters of AnnounceLocalTrust operation.
@@ -36,9 +30,12 @@ type PrmAnnounceLocalTrust struct {
 // Parameter trusts must not be empty.
 func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []reputation.Trust, prm PrmAnnounceLocalTrust) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodAnnounceLocalTrust, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodAnnounceLocalTrust, time.Since(startTime), err)
+		}()
+	}
 
 	// check parameters
 	switch {
@@ -77,7 +74,15 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceLocalTrust(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.reputation.AnnounceLocalTrust(ctx, req.ToGRPCMessage().(*protoreputation.AnnounceLocalTrustRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2reputation.AnnounceLocalTrustResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call
@@ -116,9 +121,12 @@ func (x *PrmAnnounceIntermediateTrust) SetIteration(iter uint32) {
 // Parameter epoch must not be zero.
 func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, trust reputation.PeerToPeerTrust, prm PrmAnnounceIntermediateTrust) error {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodAnnounceIntermediateTrust, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodAnnounceIntermediateTrust, time.Since(startTime), err)
+		}()
+	}
 
 	if epoch == 0 {
 		err = ErrZeroEpoch
@@ -149,7 +157,15 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIAnnounceIntermediateResult(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.reputation.AnnounceIntermediateResult(ctx, req.ToGRPCMessage().(*protoreputation.AnnounceIntermediateResultRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2reputation.AnnounceIntermediateResultResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 
 	// process call

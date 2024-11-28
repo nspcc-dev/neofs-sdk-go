@@ -11,14 +11,11 @@ import (
 
 	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/common"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/grpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/message"
 	"github.com/nspcc-dev/neofs-api-go/v2/status"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -54,37 +51,49 @@ import (
 //   - [apistatus.ErrContainerNotFound]: the container to which the replicated
 //     object is associated was not found.
 func (c *Client) ReplicateObject(ctx context.Context, id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer, signedReplication bool) (*neofscrypto.Signature, error) {
-	const svcName = "neo.fs.v2.object.ObjectService"
-	const opName = "Replicate"
-	stream, err := c.c.Init(common.CallMethodInfoUnary(svcName, opName),
-		client.WithContext(ctx), client.AllowBinarySendingOnly())
-	if err != nil {
-		return nil, fmt.Errorf("init service=%s/op=%s RPC: %w", svcName, opName, err)
-	}
-
 	msg, err := prepareReplicateMessage(id, src, signer, signedReplication)
 	if err != nil {
 		return nil, err
 	}
 
-	err = stream.WriteMessage(client.BinaryMessage(msg))
-	if err != nil && !errors.Is(err, io.EOF) { // io.EOF means the server closed the stream on its side
-		return nil, fmt.Errorf("send request: %w", err)
-	}
-
-	resp := replicateResponse{_sigRequested: signedReplication}
-	err = stream.ReadMessage(&resp)
+	var resp objectgrpc.ReplicateResponse
+	err = c.conn.Invoke(ctx, objectgrpc.ObjectService_Replicate_FullMethodName, msg, &resp, grpc.ForceCodec(onlyBinarySendingCodec{}))
 	if err != nil {
-		if errors.Is(err, io.EOF) {
-			err = io.ErrUnexpectedEOF
-		}
-
-		return nil, fmt.Errorf("recv response: %w", err)
+		return nil, fmt.Errorf("send request over gRPC: %w", err)
 	}
 
-	_ = stream.Close()
+	var st *status.Status
+	if mst := resp.GetStatus(); mst != nil {
+		st = new(status.Status)
+		err := st.FromGRPCMessage(mst)
+		if err != nil {
+			return nil, fmt.Errorf("decode response status: %w", err)
+		}
+	}
+	if err = apistatus.ErrorFromV2(st); err != nil {
+		return nil, err
+	}
 
-	return resp.objSig, resp.err
+	if !signedReplication {
+		return nil, nil
+	}
+
+	sigBin := resp.GetObjectSignature()
+	if len(sigBin) == 0 {
+		return nil, errors.New("requested but missing signature")
+	}
+
+	var sigV2 refs.Signature
+	if err := sigV2.Unmarshal(sigBin); err != nil {
+		return nil, fmt.Errorf("decoding signature from proto message: %w", err)
+	}
+
+	var sig neofscrypto.Signature
+	if err = sig.ReadFromV2(sigV2); err != nil {
+		return nil, fmt.Errorf("invalid signature: %w", err)
+	}
+
+	return &sig, nil
 }
 
 // DemuxReplicatedObject allows to share same argument between multiple
@@ -209,59 +218,4 @@ func newReplicateMessage(id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer
 	msg = protowire.AppendVarint(msg, protowire.EncodeBool(requireObjectSignature))
 
 	return msg, nil
-}
-
-type replicateResponse struct {
-	_sigRequested bool
-
-	objSig *neofscrypto.Signature
-	err    error
-}
-
-func (x replicateResponse) ToGRPCMessage() grpc.Message {
-	return new(objectgrpc.ReplicateResponse)
-}
-
-func (x *replicateResponse) FromGRPCMessage(gm grpc.Message) error {
-	m, ok := gm.(*objectgrpc.ReplicateResponse)
-	if !ok {
-		return message.NewUnexpectedMessageType(gm, m)
-	}
-
-	var st *status.Status
-	if mst := m.GetStatus(); mst != nil {
-		st = new(status.Status)
-		err := st.FromGRPCMessage(mst)
-		if err != nil {
-			return fmt.Errorf("decode response status: %w", err)
-		}
-	}
-
-	x.err = apistatus.ErrorFromV2(st)
-	if x.err != nil {
-		return nil
-	}
-
-	if !x._sigRequested {
-		return nil
-	}
-
-	sig := m.GetObjectSignature()
-	if sig == nil {
-		return errors.New("requested but missing signature")
-	}
-
-	sigV2 := new(refs.Signature)
-	err := sigV2.Unmarshal(sig)
-	if err != nil {
-		return fmt.Errorf("decoding signature from proto message: %w", err)
-	}
-
-	x.objSig = new(neofscrypto.Signature)
-	err = x.objSig.ReadFromV2(*sigV2)
-	if err != nil {
-		return fmt.Errorf("invalid signature: %w", err)
-	}
-
-	return nil
 }

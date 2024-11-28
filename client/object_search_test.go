@@ -3,27 +3,32 @@ package client
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
+	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
+	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
 func TestObjectSearch(t *testing.T) {
 	ids := oidtest.IDs(20)
 
-	p, resp := testListReaderResponse()
-
 	buf := make([]oid.ID, 2)
-	checkRead := func(t *testing.T, expected []oid.ID, expectedErr error) {
-		n, err := resp.Read(buf)
+	checkRead := func(t *testing.T, r *ObjectListReader, expected []oid.ID, expectedErr error) {
+		n, err := r.Read(buf)
 		if expectedErr == nil {
 			require.NoError(t, err)
 			require.True(t, len(expected) == len(buf), "expected the same length")
@@ -36,100 +41,89 @@ func TestObjectSearch(t *testing.T) {
 		require.Equal(t, expected, buf[:len(expected)])
 	}
 
-	// nil panic
-	require.Panics(t, func() {
-		_, _ = resp.Read(nil)
-	})
-
 	// no data
-	resp.stream = newSearchStream(p, io.EOF, []oid.ID{})
-	checkRead(t, []oid.ID{}, io.EOF)
+	stream := newTestSearchObjectsStream(t, []oid.ID{})
+	checkRead(t, stream, []oid.ID{}, io.EOF)
+
+	stream = newTestSearchObjectsStream(t, ids[:3], ids[3:6], ids[6:7], nil, ids[7:8])
 
 	// both ID fetched
-	resp.stream = newSearchStream(p, nil, ids[:3])
-	checkRead(t, ids[:2], nil)
+	checkRead(t, stream, ids[:2], nil)
 
 	// one ID cached, second fetched
-	resp.stream = newSearchStream(p, nil, ids[3:6])
-	checkRead(t, ids[2:4], nil)
+	checkRead(t, stream, ids[2:4], nil)
 
 	// both ID cached
-	resp.stream = nil // shouldn't be called, panic if so
-	checkRead(t, ids[4:6], nil)
+	streamCp := stream.stream
+	stream.stream = nil // shouldn't be called, panic if so
+	checkRead(t, stream, ids[4:6], nil)
+	stream.stream = streamCp
 
 	// both ID fetched in 2 requests, with empty one in the middle
-	resp.stream = newSearchStream(p, nil, ids[6:7], nil, ids[7:8])
-	checkRead(t, ids[6:8], nil)
+	checkRead(t, stream, ids[6:8], nil)
 
 	// read from tail multiple times
-	resp.stream = newSearchStream(p, nil, ids[8:11])
+	stream = newTestSearchObjectsStream(t, ids[8:11])
 	buf = buf[:1]
-	checkRead(t, ids[8:9], nil)
-	checkRead(t, ids[9:10], nil)
-	checkRead(t, ids[10:11], nil)
+	checkRead(t, stream, ids[8:9], nil)
+	checkRead(t, stream, ids[9:10], nil)
+	checkRead(t, stream, ids[10:11], nil)
 
 	// handle EOF
 	buf = buf[:2]
-	resp.stream = newSearchStream(p, io.EOF, ids[11:12])
-	checkRead(t, ids[11:12], io.EOF)
+	stream = newTestSearchObjectsStream(t, ids[11:12])
+	checkRead(t, stream, ids[11:12], io.EOF)
 }
 
 func TestObjectIterate(t *testing.T) {
 	ids := oidtest.IDs(3)
 
 	t.Run("no objects", func(t *testing.T) {
-		p, resp := testListReaderResponse()
-
-		resp.stream = newSearchStream(p, io.EOF, []oid.ID{})
+		stream := newTestSearchObjectsStream(t)
 
 		var actual []oid.ID
-		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
+		require.NoError(t, stream.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return false
 		}))
 		require.Len(t, actual, 0)
 	})
 	t.Run("iterate all sequence", func(t *testing.T) {
-		p, resp := testListReaderResponse()
-
-		resp.stream = newSearchStream(p, io.EOF, ids[0:2], nil, ids[2:3])
+		stream := newTestSearchObjectsStream(t, ids[0:2], nil, ids[2:3])
 
 		var actual []oid.ID
-		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
+		require.NoError(t, stream.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return false
 		}))
 		require.Equal(t, ids[:3], actual)
 	})
 	t.Run("stop by return value", func(t *testing.T) {
-		p, resp := testListReaderResponse()
-
+		stream := newTestSearchObjectsStream(t, ids)
 		var actual []oid.ID
-		resp.stream = &singleStreamResponder{signer: p, idList: [][]oid.ID{ids}}
-		require.NoError(t, resp.Iterate(func(id oid.ID) bool {
+		require.NoError(t, stream.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return len(actual) == 2
 		}))
 		require.Equal(t, ids[:2], actual)
 	})
 	t.Run("stop after error", func(t *testing.T) {
-		p, resp := testListReaderResponse()
 		expectedErr := errors.New("test error")
 
-		resp.stream = newSearchStream(p, expectedErr, ids[:2])
+		stream := newTestSearchObjectsStreamWithEndErr(t, expectedErr, ids[:2])
 
 		var actual []oid.ID
-		err := resp.Iterate(func(id oid.ID) bool {
+		err := stream.Iterate(func(id oid.ID) bool {
 			actual = append(actual, id)
 			return false
 		})
-		require.True(t, errors.Is(err, expectedErr), "got: %v", err)
+		require.ErrorIs(t, err, apistatus.ErrServerInternal)
 		require.Equal(t, ids[:2], actual)
 	})
 }
 
 func TestClient_ObjectSearch(t *testing.T) {
-	c := newClient(t, nil)
+	c := newClient(t)
 
 	t.Run("missing signer", func(t *testing.T) {
 		_, err := c.ObjectSearchInit(context.Background(), cid.ID{}, nil, PrmObjectSearch{})
@@ -137,53 +131,77 @@ func TestClient_ObjectSearch(t *testing.T) {
 	})
 }
 
-func testListReaderResponse() (neofscrypto.Signer, *ObjectListReader) {
-	return neofscryptotest.Signer(), &ObjectListReader{
-		cancelCtxStream: func() {},
-		client:          &Client{},
-		tail:            nil,
+func newTestSearchObjectsStreamWithEndErr(t *testing.T, endError error, idList ...[]oid.ID) *ObjectListReader {
+	usr := usertest.User()
+	srv := testSearchObjectsServer{
+		signer:    usr,
+		endStatus: apistatus.ErrorToV2(endError).ToGRPCMessage().(*protostatus.Status),
+		idList:    idList,
 	}
+	stream, err := newTestObjectClient(t, &srv).ObjectSearchInit(context.Background(), cidtest.ID(), usr, PrmObjectSearch{})
+	require.NoError(t, err)
+	return stream
 }
 
-func newSearchStream(signer neofscrypto.Signer, endError error, idList ...[]oid.ID) *singleStreamResponder {
-	return &singleStreamResponder{
-		signer:   signer,
-		endError: endError,
-		idList:   idList,
+func newTestSearchObjectsStream(t *testing.T, idList ...[]oid.ID) *ObjectListReader {
+	return newTestSearchObjectsStreamWithEndErr(t, nil, idList...)
+}
+
+type testSearchObjectsServer struct {
+	protoobject.UnimplementedObjectServiceServer
+
+	signer    neofscrypto.Signer
+	endStatus *protostatus.Status
+	idList    [][]oid.ID
+}
+
+func (x *testSearchObjectsServer) Search(_ *protoobject.SearchRequest, stream protoobject.ObjectService_SearchServer) error {
+	signer := x.signer
+	if signer == nil {
+		signer = neofscryptotest.Signer()
 	}
-}
-
-type singleStreamResponder struct {
-	signer   neofscrypto.Signer
-	n        int
-	endError error
-	idList   [][]oid.ID
-}
-
-func (s *singleStreamResponder) Read(resp *v2object.SearchResponse) error {
-	if s.n >= len(s.idList) {
-		if s.endError != nil {
-			return s.endError
+	for i := range x.idList {
+		resp := protoobject.SearchResponse{
+			Body: &protoobject.SearchResponse_Body{
+				IdList: make([]*protorefs.ObjectID, len(x.idList[i])),
+			},
 		}
-		return ErrUnexpectedReadCall
-	}
-
-	var body v2object.SearchResponseBody
-
-	if s.idList[s.n] != nil {
-		ids := make([]refs.ObjectID, len(s.idList[s.n]))
-		for i := range s.idList[s.n] {
-			s.idList[s.n][i].WriteToV2(&ids[i])
+		for j := range x.idList[i] {
+			resp.Body.IdList[j] = &protorefs.ObjectID{Value: x.idList[i][j][:]}
 		}
-		body.SetIDList(ids)
-	}
-	resp.SetBody(&body)
 
-	err := signServiceMessage(s.signer, resp, nil)
-	if err != nil {
+		var respV2 v2object.SearchResponse
+		if err := respV2.FromGRPCMessage(&resp); err != nil {
+			panic(err)
+		}
+		if err := signServiceMessage(signer, &respV2, nil); err != nil {
+			return fmt.Errorf("sign response message: %w", err)
+		}
+		if err := stream.Send(respV2.ToGRPCMessage().(*protoobject.SearchResponse)); err != nil {
+			return err
+		}
+	}
+
+	if x.endStatus == nil {
+		return nil
+	}
+
+	resp := protoobject.SearchResponse{
+		MetaHeader: &protosession.ResponseMetaHeader{
+			Status: x.endStatus,
+		},
+	}
+
+	var respV2 v2object.SearchResponse
+	if err := respV2.FromGRPCMessage(&resp); err != nil {
+		panic(err)
+	}
+	if err := signServiceMessage(signer, &respV2, nil); err != nil {
+		return fmt.Errorf("sign response message: %w", err)
+	}
+	if err := stream.Send(respV2.ToGRPCMessage().(*protoobject.SearchResponse)); err != nil {
 		return err
 	}
 
-	s.n++
-	return nil
+	return stream.Send(respV2.ToGRPCMessage().(*protoobject.SearchResponse))
 }

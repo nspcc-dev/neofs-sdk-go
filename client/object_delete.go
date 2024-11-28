@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -18,9 +18,6 @@ import (
 )
 
 var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPIDeleteObject = rpcapi.DeleteObject
-
 	// ErrNoSession indicates that session wasn't set in some Prm* structure.
 	ErrNoSession = errors.New("session is not set")
 )
@@ -78,9 +75,12 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		err   error
 	)
 
-	defer func() {
-		c.sendStatistic(stat.MethodObjectDelete, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectDelete, time.Since(startTime), err)
+		}()
+	}
 
 	containerID.WriteToV2(&cidV2)
 	addr.SetContainerID(&cidV2)
@@ -108,19 +108,23 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	resp, err := rpcAPIDeleteObject(&c.c, &req, client.WithContext(ctx))
+	resp, err := c.object.Delete(ctx, req.ToGRPCMessage().(*protoobject.DeleteRequest))
 	if err != nil {
+		return oid.ID{}, rpcErr(err)
+	}
+	var respV2 v2object.DeleteResponse
+	if err = respV2.FromGRPCMessage(resp); err != nil {
 		return oid.ID{}, err
 	}
 
 	var res oid.ID
-	if err = c.processResponse(resp); err != nil {
+	if err = c.processResponse(&respV2); err != nil {
 		return oid.ID{}, err
 	}
 
 	const fieldTombstone = "tombstone"
 
-	idTombV2 := resp.GetBody().GetTombstone().GetObjectID()
+	idTombV2 := respV2.GetBody().GetTombstone().GetObjectID()
 	if idTombV2 == nil {
 		err = newErrMissingResponseField(fieldTombstone)
 		return oid.ID{}, err

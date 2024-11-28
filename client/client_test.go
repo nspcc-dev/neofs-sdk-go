@@ -2,11 +2,17 @@ package client
 
 import (
 	"context"
+	"fmt"
+	"net"
 	"testing"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/grpc/test/bufconn"
 )
 
 /*
@@ -19,45 +25,177 @@ func init() {
 	statusErr.SetMessage("test status error")
 }
 
-func newClient(t *testing.T, server neoFSAPIServer) *Client {
+func newInvalidRequestErr(cause error) error {
+	return fmt.Errorf("invalid request: %w", cause)
+}
+
+func newInvalidRequestMetaHeaderErr(cause error) error {
+	return newInvalidRequestErr(fmt.Errorf("invalid meta header: %w", cause))
+}
+
+func newInvalidRequestVerificationHeaderErr(cause error) error {
+	return newInvalidRequestErr(fmt.Errorf("invalid verification header: %w", cause))
+}
+
+func newInvalidRequestBodyErr(cause error) error {
+	return newInvalidRequestErr(fmt.Errorf("invalid body: %w", cause))
+}
+
+func newErrMissingRequestBodyField(name string) error {
+	return newInvalidRequestBodyErr(fmt.Errorf("missing %s field", name))
+}
+
+func newErrInvalidRequestField(name string, err error) error {
+	return newInvalidRequestBodyErr(fmt.Errorf("invalid %s field: %w", name, err))
+}
+
+// pairs service spec and implementation to-be-registered in some [grpc.Server].
+type testService struct {
+	desc *grpc.ServiceDesc
+	impl any
+}
+
+// the most generic alternative of newClient. Both endpoint and parameter setter
+// are optional.
+func newCustomClient(t testing.TB, endpoint string, setPrm func(*PrmInit), svcs ...testService) *Client {
 	var prm PrmInit
+	if setPrm != nil {
+		setPrm(&prm)
+	}
 
 	c, err := New(prm)
 	require.NoError(t, err)
-	c.setNeoFSAPIServer(server)
+
+	srv := grpc.NewServer()
+	for _, svc := range svcs {
+		srv.RegisterService(svc.desc, svc.impl)
+	}
+
+	lis := bufconn.Listen(10 << 10)
+	go func() { _ = srv.Serve(lis) }()
+
+	var dialPrm PrmDial
+	if endpoint == "" {
+		endpoint = "grpc://localhost:8080"
+	}
+	dialPrm.SetServerURI(endpoint) // any valid
+	dialPrm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
+	err = c.Dial(dialPrm)
+	if err != nil {
+		st, ok := status.FromError(err)
+		require.True(t, ok)
+		require.Equal(t, codes.Unimplemented, st.Code())
+	}
 
 	return c
 }
 
-func TestClient_DialContext(t *testing.T) {
+// extends newClient with response meta info callback.
+func newClientWithResponseCallback(t testing.TB, cb func(ResponseMetaInfo) error, svcs ...testService) *Client {
+	return newCustomClient(t, "", func(prm *PrmInit) { prm.SetResponseInfoCallback(cb) }, svcs...)
+}
+
+// returns ready-to-go [Client] of provided optional services. By default, any
+// other service is unsupported.
+//
+// If caller registers stat callback (like [PrmInit.SetStatisticCallback] does)
+// processing nodeKey, it must include NetmapService with implemented
+// LocalNodeInfo method.
+func newClient(t testing.TB, svcs ...testService) *Client {
+	return newCustomClient(t, "", nil, svcs...)
+}
+
+func TestClient_Dial(t *testing.T) {
 	var prmInit PrmInit
 
 	c, err := New(prmInit)
 	require.NoError(t, err)
 
-	// try to connect to any host
-	var prm PrmDial
-	prm.SetServerURI("localhost:8080")
+	t.Run("failure", func(t *testing.T) {
+		t.Run("endpoint", func(t *testing.T) {
+			for _, tc := range []struct {
+				name   string
+				s      string
+				assert func(t testing.TB, err error)
+			}{
+				{name: "missing", s: "", assert: func(t testing.TB, err error) {
+					require.ErrorIs(t, c.Dial(PrmDial{}), ErrMissingServer)
+				}},
+				{name: "contains control char", s: "grpc://st1.storage.fs.neo.org:8080" + string(rune(0x7f)), assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, "net/url: invalid control character in URL")
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+				{name: "missing port", s: "grpc://st1.storage.fs.neo.org", assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+				{name: "invalid port", s: "grpc://st1.storage.fs.neo.org:foo", assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, `invalid port ":foo" after host`)
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+				{name: "unsupported scheme", s: "unknown://st1.storage.fs.neo.org:8080", assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, "unsupported scheme: unknown")
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+				{name: "multiaddr", s: "/ip4/st1.storage.fs.neo.org/tcp/8080", assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+				{name: "host only", s: "st1.storage.fs.neo.org", assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+				{name: "invalid port without scheme", s: "st1.storage.fs.neo.org:foo", assert: func(t testing.TB, err error) {
+					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "invalid server URI")
+				}},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					var p PrmDial
+					p.SetServerURI(tc.s)
+					tc.assert(t, c.Dial(p))
+				})
+			}
+		})
+		t.Run("dial timeout", func(t *testing.T) {
+			var p PrmDial
+			p.SetServerURI("grpc://localhost:8080")
+			p.SetTimeout(0)
+			require.ErrorIs(t, c.Dial(p), ErrNonPositiveTimeout)
+			p.SetTimeout(-1)
+			require.ErrorIs(t, c.Dial(p), ErrNonPositiveTimeout)
+		})
+		t.Run("stream timeout", func(t *testing.T) {
+			var p PrmDial
+			p.SetServerURI("grpc://localhost:8080")
+			p.SetStreamTimeout(0)
+			require.ErrorIs(t, c.Dial(p), ErrNonPositiveTimeout)
+			p.SetStreamTimeout(-1)
+			require.ErrorIs(t, c.Dial(p), ErrNonPositiveTimeout)
+		})
+		t.Run("context", func(t *testing.T) {
+			var anyValidPrm PrmDial
+			anyValidPrm.SetServerURI("localhost:8080")
+			t.Run("cancelled", func(t *testing.T) {
+				ctx, cancel := context.WithCancel(context.Background())
+				cancel()
 
-	assert := func(ctx context.Context, errExpected error) {
-		// use the particular context
-		prm.SetContext(ctx)
+				p := anyValidPrm
+				p.SetContext(ctx)
+				err := c.Dial(p)
+				require.ErrorIs(t, err, context.Canceled)
+			})
+			t.Run("deadline", func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(context.Background(), 0)
+				cancel()
 
-		// expect particular context error according to Dial docs
-		require.ErrorIs(t, c.Dial(prm), errExpected)
-	}
-
-	// create pre-abandoned context
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
-
-	assert(ctx, context.Canceled)
-
-	// create "pre-deadlined" context
-	ctx, cancel = context.WithTimeout(context.Background(), 0)
-	defer cancel()
-
-	assert(ctx, context.DeadlineExceeded)
+				p := anyValidPrm
+				p.SetContext(ctx)
+				err := c.Dial(p)
+				require.ErrorIs(t, err, context.DeadlineExceeded)
+			})
+		})
+	})
 }
 
 type nopPublicKey struct{}

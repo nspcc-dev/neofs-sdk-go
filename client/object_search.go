@@ -5,23 +5,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/nspcc-dev/neofs-api-go/v2/acl"
 	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
+	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variable for test purposes only, to overwrite real RPC calls.
-	rpcAPISearchObjects = rpcapi.SearchObjects
 )
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.
@@ -61,19 +56,28 @@ func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 	x.filters = filters
 }
 
+// used part of [protoobject.ObjectService_SearchClient] simplifying test
+// implementations.
+type searchObjectsResponseStream interface {
+	// Recv reads next message with found object IDs from the stream. Recv returns
+	// [io.EOF] after the server sent the last message and gracefully finished the
+	// stream. Any other error means stream abort.
+	Recv() (*protoobject.SearchResponse, error)
+}
+
 // ObjectListReader is designed to read list of object identifiers from NeoFS system.
 //
 // Must be initialized using Client.ObjectSearch, any other usage is unsafe.
 type ObjectListReader struct {
-	client          *Client
-	cancelCtxStream context.CancelFunc
-	err             error
-	stream          interface {
-		Read(resp *v2object.SearchResponse) error
-	}
-	tail []v2refs.ObjectID
+	client           *Client
+	cancelCtxStream  context.CancelFunc
+	err              error
+	stream           searchObjectsResponseStream
+	singleMsgTimeout time.Duration
+	tail             []v2refs.ObjectID
 
 	statisticCallback shortStatisticCallback
+	startTime         time.Time // if statisticCallback is set only
 }
 
 // Read reads another list of the object identifiers. Works similar to
@@ -95,19 +99,27 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 	}
 
 	for {
-		var resp v2object.SearchResponse
-		x.err = x.stream.Read(&resp)
+		var resp *protoobject.SearchResponse
+		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+			var err error
+			resp, err = x.stream.Recv()
+			return err
+		})
 		if x.err != nil {
 			return read, x.err
 		}
+		var respV2 v2object.SearchResponse
+		if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+			return read, x.err
+		}
 
-		x.err = x.client.processResponse(&resp)
+		x.err = x.client.processResponse(&respV2)
 		if x.err != nil {
 			return read, x.err
 		}
 
 		// read new chunk of objects
-		ids := resp.GetBody().GetIDList()
+		ids := respV2.GetBody().GetIDList()
 		if len(ids) == 0 {
 			// just skip empty lists since they are not prohibited by protocol
 			continue
@@ -167,7 +179,7 @@ func (x *ObjectListReader) Close() error {
 	var err error
 	if x.statisticCallback != nil {
 		defer func() {
-			x.statisticCallback(err)
+			x.statisticCallback(time.Since(x.startTime), err)
 		}()
 	}
 
@@ -196,9 +208,12 @@ func (x *ObjectListReader) Close() error {
 //   - [ErrMissingSigner]
 func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm PrmObjectSearch) (*ObjectListReader, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodObjectSearch, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodObjectSearch, time.Since(startTime), err)
+		}()
+	}
 
 	if signer == nil {
 		return nil, ErrMissingSigner
@@ -228,14 +243,18 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	var r ObjectListReader
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
-	r.stream, err = rpcAPISearchObjects(&c.c, &req, client.WithContext(ctx))
+	r.stream, err = c.object.Search(ctx, req.ToGRPCMessage().(*protoobject.SearchRequest))
 	if err != nil {
 		err = fmt.Errorf("open stream: %w", err)
 		return nil, err
 	}
+	r.singleMsgTimeout = c.streamTimeout
 	r.client = c
-	r.statisticCallback = func(err error) {
-		c.sendStatistic(stat.MethodObjectSearchStream, err)()
+	if c.prm.statisticCallback != nil {
+		r.startTime = time.Now()
+		r.statisticCallback = func(dur time.Duration, err error) {
+			c.sendStatistic(stat.MethodObjectSearchStream, dur, err)
+		}
 	}
 
 	return &r, nil

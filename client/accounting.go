@@ -2,19 +2,14 @@ package client
 
 import (
 	"context"
+	"time"
 
 	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
+	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
 	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	rpcapi "github.com/nspcc-dev/neofs-api-go/v2/rpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-)
-
-var (
-	// special variable for test purposes, to overwrite real RPC calls.
-	rpcAPIBalance = rpcapi.Balance
 )
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
@@ -41,9 +36,12 @@ func (x *PrmBalanceGet) SetAccount(id user.ID) {
 //   - [ErrMissingAccount]
 func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.Decimal, error) {
 	var err error
-	defer func() {
-		c.sendStatistic(stat.MethodBalanceGet, err)()
-	}()
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodBalanceGet, time.Since(startTime), err)
+		}()
+	}
 
 	switch {
 	case prm.account.IsZero():
@@ -74,7 +72,15 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 	cc.meta = prm.prmCommonMeta
 	cc.req = &req
 	cc.call = func() (responseV2, error) {
-		return rpcAPIBalance(&c.c, &req, client.WithContext(ctx))
+		resp, err := c.accounting.Balance(ctx, req.ToGRPCMessage().(*protoaccounting.BalanceRequest))
+		if err != nil {
+			return nil, rpcErr(err)
+		}
+		var respV2 v2accounting.BalanceResponse
+		if err = respV2.FromGRPCMessage(resp); err != nil {
+			return nil, err
+		}
+		return &respV2, nil
 	}
 	cc.result = func(r responseV2) {
 		resp := r.(*v2accounting.BalanceResponse)
