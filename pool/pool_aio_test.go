@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -29,6 +28,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
@@ -109,17 +109,8 @@ func nodeAddress(nodeEndpoint string) string {
 	return "grpc://" + nodeEndpoint
 }
 
-func getSigner() user.Signer {
-	key, err := keys.NEP2Decrypt("6PYM8VdX2BSm7BSXKzV4Fz6S3R9cDLLWNrD9nMjxW352jEv3fsC8N3wNLY", "one", keys.NEP2ScryptParams())
-	if err != nil {
-		panic(err)
-	}
-
-	return user.NewAutoIDSignerRFC6979(key.PrivateKey)
-}
-
 func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
-	signer := getSigner()
+	signer := usertest.User().RFC6979
 	account := signer.UserID()
 
 	containerName := strconv.FormatInt(time.Now().UnixNano(), 16)
