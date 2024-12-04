@@ -244,12 +244,6 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
-	var objectList []oid.ID
-
-	payload := make([]byte, 8)
-	_, err = rand.Read(payload)
-	require.NoError(t, err)
-
 	t.Run("balance ok", func(t *testing.T) {
 		var cmd client.PrmBalanceGet
 		cmd.SetAccount(account)
@@ -311,6 +305,10 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	})
 
 	// upload object
+	payload := make([]byte, 8)
+	_, err = rand.Read(payload)
+	require.NoError(t, err)
+
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
 	defer cancel()
 
@@ -348,6 +346,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID, signer))
 
 	times := int(opts.sessionExpirationDuration * 3)
+	var objectList []oid.ID
 	for range times {
 		_, err := tickNewEpoch(ctx, pool)
 		require.NoError(t, err)
@@ -395,10 +394,6 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
-	payload := make([]byte, 8)
-	_, err = rand.Read(payload)
-	require.NoError(t, err)
-
 	defaultPoolingTimeout := 1 * time.Second
 	wait := waiter.NewWaiter(pool, defaultPoolingTimeout)
 
@@ -440,6 +435,9 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 	w, err := pool.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 	require.NoError(t, err)
 
+	payload := make([]byte, 8)
+	_, err = rand.Read(payload)
+	require.NoError(t, err)
 	_, err = w.Write(payload)
 	require.NoError(t, err)
 
@@ -486,7 +484,6 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	ctx := context.Background()
 
 	account, signer, cont := testData(t)
-	var eaclTable eacl.Table
 
 	var prmInit client.PrmInit
 
@@ -505,10 +502,6 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		panic(fmt.Errorf("dial %v", err))
 	}
 
-	payload := make([]byte, 8)
-	_, err = rand.Read(payload)
-	require.NoError(t, err)
-
 	defaultPoolingTimeout := 1 * time.Second
 	wait := waiter.NewWaiter(cl, defaultPoolingTimeout)
 
@@ -517,7 +510,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	defer cancel()
 
 	containerID := testCreateContainer(ctxTimeout, t, signer, cont, wait)
-	eaclTable = testEaclTable(containerID)
+	eaclTable := testEaclTable(containerID)
 
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
 	defer cancel()
@@ -575,6 +568,9 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	w, err := cl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 	require.NoError(t, err)
 
+	payload := make([]byte, 8)
+	_, err = rand.Read(payload)
+	require.NoError(t, err)
 	_, err = w.Write(payload)
 	require.NoError(t, err)
 
