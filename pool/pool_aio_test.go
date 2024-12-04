@@ -105,10 +105,6 @@ type (
 	}
 )
 
-func nodeAddress(nodeEndpoint string) string {
-	return "grpc://" + nodeEndpoint
-}
-
 func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
 	signer := usertest.User().RFC6979
 	account := signer.UserID()
@@ -165,7 +161,7 @@ func TestPoolAio(t *testing.T) {
 }
 
 func runTests(_ context.Context, t *testing.T, nodeEndpoint string) {
-	nodeAddr := nodeAddress(nodeEndpoint)
+	nodeAddr := "grpc://" + nodeEndpoint
 
 	t.Run("PoolInterfaceWithAIO", func(t *testing.T) {
 		testPoolInterfaceWithAIO(t, nodeAddr)
