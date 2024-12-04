@@ -306,7 +306,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		cl, err := pool.sdkClient()
 
 		require.NoError(t, err)
-		require.NoError(t, isBucketCreated(ctxTimeout, cl, containerID))
+		require.NoError(t, isContainerCreated(ctxTimeout, cl, containerID))
 
 		t.Run("set eacl", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
@@ -399,7 +399,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			cl, err := pool.sdkClient()
 
 			require.NoError(t, err)
-			require.NoError(t, isBucketDeleted(ctxTimeout, cl, containerID))
+			require.NoError(t, isContainerDeleted(ctxTimeout, cl, containerID))
 		})
 	})
 }
@@ -710,7 +710,7 @@ func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table ea
 	require.Equal(t, table.Marshal(), newTable.Marshal())
 }
 
-func isBucketCreated(ctx context.Context, c containerGetter, id cid.ID) error {
+func isContainerCreated(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
@@ -735,7 +735,7 @@ func isBucketCreated(ctx context.Context, c containerGetter, id cid.ID) error {
 	}
 }
 
-func isBucketDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
+func isContainerDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
 	defer t.Stop()
 
