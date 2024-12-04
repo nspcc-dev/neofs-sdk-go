@@ -36,7 +36,7 @@ func TestSamplerStability(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		sampler := newSampler(tc.probabilities, rand.NewSource(0))
+		sampler := newSampler(tc.probabilities, rand.New(rand.NewSource(0)))
 		res := make([]int, len(tc.probabilities))
 		for range COUNT {
 			res[sampler.next()]++
@@ -62,7 +62,7 @@ func TestHealthyReweight(t *testing.T) {
 	client2 := newMockClient(names[1], neofscryptotest.Signer())
 
 	inner := &innerPool{
-		sampler: newSampler(weights, rand.NewSource(0)),
+		sampler: newSampler(weights, rand.New(rand.NewSource(0))),
 		clients: []internalClient{client1, client2},
 	}
 	p := &Pool{
@@ -91,7 +91,7 @@ func TestHealthyReweight(t *testing.T) {
 	inner.lock.Unlock()
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
-	inner.sampler = newSampler(weights, rand.NewSource(0))
+	inner.sampler = newSampler(weights, rand.New(rand.NewSource(0)))
 
 	connection0, err = p.connection()
 	require.NoError(t, err)
@@ -106,7 +106,7 @@ func TestHealthyNoReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	sampl := newSampler(weights, rand.NewSource(0))
+	sampl := newSampler(weights, rand.New(rand.NewSource(0)))
 	inner := &innerPool{
 		sampler: sampl,
 		clients: []internalClient{
@@ -134,7 +134,7 @@ func TestSamplerSafety(t *testing.T) {
 		cause any
 		stack []byte
 	}
-	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, rand.NewSource(0))
+	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, safeRand{})
 	var pr atomic.Value // panicInfo
 	var wg sync.WaitGroup
 	for range 1000 {
@@ -163,7 +163,7 @@ func TestSamplerSafety(t *testing.T) {
 }
 
 func BenchmarkSampler(b *testing.B) {
-	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, rand.NewSource(0))
+	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, safeRand{})
 	for range b.N {
 		s.next()
 	}

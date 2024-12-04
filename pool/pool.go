@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"math/rand"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -769,8 +768,7 @@ func (p *Pool) Dial(ctx context.Context) error {
 
 			atLeastOneHealthy = true
 		}
-		source := rand.NewSource(time.Now().UnixNano())
-		sampl := newSampler(params.weights, source)
+		sampl := newSampler(params.weights, safeRand{})
 
 		inner[i] = &innerPool{
 			sampler: sampl,
@@ -940,9 +938,8 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 
 	if healthyChanged.Load() {
 		probabilities := adjustWeights(bufferWeights)
-		source := rand.NewSource(time.Now().UnixNano())
 		pool.lock.Lock()
-		pool.sampler = newSampler(probabilities, source)
+		pool.sampler = newSampler(probabilities, safeRand{})
 		pool.lock.Unlock()
 	}
 }

@@ -2,10 +2,22 @@ package pool
 
 import "math/rand"
 
+// [rand.Rand] interface.
+type rander interface {
+	Intn(n int) int
+	Float64() float64
+}
+
+// replacement of [rand.Rand] safe for concurrent use.
+type safeRand struct{}
+
+func (safeRand) Intn(n int) int   { return rand.Intn(n) }
+func (safeRand) Float64() float64 { return rand.Float64() }
+
 // sampler implements weighted random number generation using Vose's Alias
 // Method (https://www.keithschwarz.com/darts-dice-coins/).
 type sampler struct {
-	randomGenerator *rand.Rand
+	randomGenerator rander
 	probabilities   []float64
 	alias           []int
 }
@@ -13,14 +25,14 @@ type sampler struct {
 // newSampler creates new sampler with a given set of probabilities using
 // given source of randomness. Created sampler will produce numbers from
 // 0 to len(probabilities).
-func newSampler(probabilities []float64, source rand.Source) *sampler {
+func newSampler(probabilities []float64, r rander) *sampler {
 	sampler := &sampler{}
 	var (
 		small workList
 		large workList
 	)
 	n := len(probabilities)
-	sampler.randomGenerator = rand.New(source)
+	sampler.randomGenerator = r
 	sampler.probabilities = make([]float64, n)
 	sampler.alias = make([]int, n)
 	// Compute scaled probabilities.
