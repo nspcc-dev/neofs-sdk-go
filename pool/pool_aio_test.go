@@ -394,8 +394,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 	require.NoError(t, err)
 	require.NoError(t, pool.Dial(ctx))
 
-	defaultPoolingTimeout := 1 * time.Second
-	wait := waiter.NewWaiter(pool, defaultPoolingTimeout)
+	wait := waiter.NewWaiter(pool, time.Second)
 
 	// create container
 	ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
@@ -502,8 +501,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		panic(fmt.Errorf("dial %v", err))
 	}
 
-	defaultPoolingTimeout := 1 * time.Second
-	wait := waiter.NewWaiter(cl, defaultPoolingTimeout)
+	wait := waiter.NewWaiter(cl, time.Second)
 
 	// create container
 	ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
