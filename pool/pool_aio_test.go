@@ -283,7 +283,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 	// create container
 	ctxTimeout, cancel := context.WithTimeout(context.Background(), defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	containerID := testCreateContainer(ctxTimeout, t, signer, cont, pool)
 	cl, err := pool.sdkClient()
@@ -293,7 +293,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 	t.Run("set eacl", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
+		t.Cleanup(cancel)
 
 		// note that eACL setting and its potential failure does not affect other ops
 		// tested in the superior test
@@ -310,13 +310,13 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	require.NoError(t, err)
 
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	objectID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
 
 	// download object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var cmd client.PrmObjectGet
 
@@ -337,7 +337,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 	// delete object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
 	cl, err = pool.sdkClient()
@@ -352,7 +352,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		require.NoError(t, err)
 
 		ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
-		defer cancel()
+		t.Cleanup(cancel)
 
 		payload = append(payload, 0x01) // Make it different from the one above, otherwise OID will be the same and we can get "status: code = 2052 message = object already removed"
 		objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
@@ -364,7 +364,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		require.NoError(t, err)
 
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
-		defer cancel()
+		t.Cleanup(cancel)
 
 		testDeleteObject(ctxTimeout, t, signer, containerID, objID, pool)
 
@@ -376,7 +376,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 	// delete container
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testDeleteContainer(ctxTimeout, t, signer, containerID, pool)
 	cl, err = pool.sdkClient()
@@ -398,27 +398,27 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	// create container
 	ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	containerID := testCreateContainer(ctxTimeout, t, signer, cont, wait)
 	eaclTable := testEaclTable(containerID)
 
 	// set eacl
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testSetEacl(ctxTimeout, t, signer, eaclTable, wait)
 
 	t.Run("get eacl", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
+		t.Cleanup(cancel)
 
 		testGetEacl(ctxTimeout, t, containerID, eaclTable, pool)
 	})
 
 	// upload object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	rf := object.RequiredFields{
 		Container: containerID,
@@ -447,7 +447,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	// download object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var cmd client.PrmObjectGet
 
@@ -468,13 +468,13 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	// delete object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
 
 	// container delete"
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
 }
@@ -505,19 +505,19 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	// create container
 	ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	containerID := testCreateContainer(ctxTimeout, t, signer, cont, wait)
 	eaclTable := testEaclTable(containerID)
 
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testSetEacl(ctxTimeout, t, signer, eaclTable, wait)
 
 	t.Run("get eacl", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
+		t.Cleanup(cancel)
 
 		testGetEacl(ctxTimeout, t, containerID, eaclTable, cl)
 	})
@@ -549,7 +549,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	require.NoError(t, err)
 
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	rf := object.RequiredFields{
 		Container: containerID,
@@ -579,7 +579,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	// download object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	var cmd client.PrmObjectGet
 
@@ -600,13 +600,13 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	// delete object
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testDeleteObject(ctxTimeout, t, signer, containerID, objectID, cl)
 
 	// container delete
 	ctxTimeout, cancel = context.WithTimeout(ctx, defaultTimeOut)
-	defer cancel()
+	t.Cleanup(cancel)
 
 	testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
 }
