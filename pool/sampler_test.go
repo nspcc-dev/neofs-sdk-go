@@ -2,7 +2,11 @@ package pool
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
+	"runtime/debug"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
@@ -120,4 +124,40 @@ func TestHealthyNoReweight(t *testing.T) {
 	inner.lock.RLock()
 	defer inner.lock.RUnlock()
 	require.Equal(t, inner.sampler, sampl)
+}
+
+func TestSamplerSafety(t *testing.T) {
+	// https://github.com/nspcc-dev/neofs-sdk-go/issues/631
+	// Note that this test is not 100% consistent so it may PASS, but it FAILs more
+	// often when bugs.
+	type panicInfo = struct {
+		cause any
+		stack []byte
+	}
+	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, rand.NewSource(0))
+	var pr atomic.Value // panicInfo
+	var wg sync.WaitGroup
+	for range 1000 {
+		const rn = 1000
+		wg.Add(rn)
+		for range rn {
+			go func() {
+				defer func() {
+					wg.Done()
+					// [require.NotPanics] should be called in a test func routine, so we simulate it
+					if r := recover(); r != nil {
+						// in theory, various causes may happen. With this, only the "last" one is
+						// caught. In practice, we are chasing the exact one.
+						pr.Store(panicInfo{r, debug.Stack()})
+					}
+				}()
+				s.next()
+			}()
+		}
+		wg.Wait()
+		if v := pr.Load(); v != nil {
+			p := v.(panicInfo)
+			require.Fail(t, fmt.Sprintf("should not panic\n\tPanic value:\t%v\n\tPanic stack:\t%s", p.cause, p.stack))
+		}
+	}
 }
