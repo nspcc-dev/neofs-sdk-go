@@ -341,11 +341,9 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		var cmd client.PrmObjectGet
 
 		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-		defer func() {
-			_ = read.Close()
-		}()
-
 		require.NoError(t, err)
+		t.Cleanup(func() { _ = read.Close() })
+
 		require.False(t, hdr.Owner().IsZero())
 		require.True(t, hdr.Owner() == account)
 
@@ -410,15 +408,6 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 		require.NoError(t, err)
 		require.NoError(t, isBucketDeleted(ctxTimeout, cl, containerID))
-	})
-
-	t.Run("container really deleted", func(t *testing.T) {
-		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
-
-		var prm client.PrmContainerGet
-		_, err = pool.ContainerGet(ctxTimeout, containerID, prm)
-		require.ErrorIs(t, err, apistatus.ErrContainerNotFound)
 	})
 }
 
@@ -498,11 +487,9 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 		var cmd client.PrmObjectGet
 
 		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-		defer func() {
-			_ = read.Close()
-		}()
-
 		require.NoError(t, err)
+		t.Cleanup(func() { _ = read.Close() })
+
 		require.False(t, hdr.Owner().IsZero())
 		require.True(t, hdr.Owner() == account)
 
@@ -527,15 +514,6 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 		defer cancel()
 
 		testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
-	})
-
-	t.Run("container really deleted", func(t *testing.T) {
-		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
-
-		var prm client.PrmContainerGet
-		_, err = pool.ContainerGet(ctxTimeout, containerID, prm)
-		require.ErrorIs(t, err, apistatus.ErrContainerNotFound)
 	})
 }
 
@@ -654,11 +632,9 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		var cmd client.PrmObjectGet
 
 		hdr, read, err := cl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-		defer func() {
-			_ = read.Close()
-		}()
-
 		require.NoError(t, err)
+		t.Cleanup(func() { _ = read.Close() })
+
 		require.False(t, hdr.Owner().IsZero())
 		require.True(t, hdr.Owner() == account)
 
@@ -683,15 +659,6 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		defer cancel()
 
 		testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
-	})
-
-	t.Run("container really deleted", func(t *testing.T) {
-		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
-
-		var prm client.PrmContainerGet
-		_, err = cl.ContainerGet(ctxTimeout, containerID, prm)
-		require.ErrorIs(t, err, apistatus.ErrContainerNotFound)
 	})
 }
 
