@@ -35,7 +35,7 @@ func TestSamplerStability(t *testing.T) {
 		sampler := newSampler(tc.probabilities, rand.NewSource(0))
 		res := make([]int, len(tc.probabilities))
 		for range COUNT {
-			res[sampler.Next()]++
+			res[sampler.next()]++
 		}
 
 		require.Equal(t, tc.expected, res, "probabilities: %v", tc.probabilities)

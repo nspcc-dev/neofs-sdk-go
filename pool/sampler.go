@@ -57,8 +57,8 @@ func newSampler(probabilities []float64, source rand.Source) *sampler {
 	return sampler
 }
 
-// Next returns the next (not so) random number from sampler.
-func (g *sampler) Next() int {
+// returns the next (not so) random number from sampler.
+func (g *sampler) next() int {
 	n := len(g.alias)
 	i := g.randomGenerator.Intn(n)
 	if g.randomGenerator.Float64() < g.probabilities[i] {
