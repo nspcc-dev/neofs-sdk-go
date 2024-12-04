@@ -283,7 +283,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 	t.Run("container", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(context.Background(), defaultTimeOut)
-		defer cancel()
+		t.Cleanup(cancel)
 
 		containerID := testCreateContainer(ctxTimeout, t, signer, cont, pool)
 		cl, err := pool.sdkClient()
@@ -293,7 +293,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 		t.Run("set eacl", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			containerID := testCreateContainer(ctxTimeout, t, signer, cont, pool)
 
@@ -309,13 +309,13 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			require.NoError(t, err)
 
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			objectID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
 
 			t.Run("download", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				var cmd client.PrmObjectGet
 
@@ -336,7 +336,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			})
 			t.Run("delete", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
 				cl, err := pool.sdkClient()
@@ -353,7 +353,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 					t.Run(fmt.Sprintf("upload at epoch#%d", epoch), func(t *testing.T) {
 						ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
-						defer cancel()
+						t.Cleanup(cancel)
 
 						payload = append(payload, 0x01) // Make it different from the one above, otherwise OID will be the same and we can get "status: code = 2052 message = object already removed"
 						objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
@@ -366,7 +366,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 					t.Run(fmt.Sprintf("delete at epoch#%d", epoch), func(t *testing.T) {
 						ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
-						defer cancel()
+						t.Cleanup(cancel)
 
 						testDeleteObject(ctxTimeout, t, signer, containerID, objID, pool)
 
@@ -380,7 +380,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		})
 		t.Run("delete", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			testDeleteContainer(ctxTimeout, t, signer, containerID, pool)
 			cl, err := pool.sdkClient()
@@ -404,26 +404,26 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	t.Run("container", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
+		t.Cleanup(cancel)
 
 		containerID := testCreateContainer(ctxTimeout, t, signer, cont, wait)
 
 		t.Run("eacl", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), wait)
 
 			t.Run("get", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				testGetEacl(ctxTimeout, t, containerID, eaclTable, pool)
 			})
 		})
 		t.Run("object", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			rf := object.RequiredFields{
 				Container: containerID,
@@ -451,7 +451,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 			t.Run("download", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				var cmd client.PrmObjectGet
 
@@ -472,14 +472,14 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 			})
 			t.Run("delete", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
 			})
 		})
 		t.Run("delete", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
 		})
@@ -512,19 +512,19 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	t.Run("create container", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-		defer cancel()
+		t.Cleanup(cancel)
 
 		containerID := testCreateContainer(ctxTimeout, t, signer, cont, wait)
 
 		t.Run("eacl", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), wait)
 
 			t.Run("get eacl", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				testGetEacl(ctxTimeout, t, containerID, eaclTable, cl)
 			})
@@ -556,7 +556,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 			require.NoError(t, err)
 
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			rf := object.RequiredFields{
 				Container: containerID,
@@ -586,7 +586,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 			t.Run("download", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				var cmd client.PrmObjectGet
 
@@ -607,14 +607,14 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 			})
 			t.Run("delete", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				defer cancel()
+				t.Cleanup(cancel)
 
 				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, cl)
 			})
 		})
 		t.Run("delete", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			defer cancel()
+			t.Cleanup(cancel)
 
 			testDeleteContainer(ctxTimeout, t, signer, containerID, wait)
 		})
