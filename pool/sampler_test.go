@@ -2,7 +2,11 @@ package pool
 
 import (
 	"context"
+	"fmt"
 	"math/rand"
+	"runtime/debug"
+	"sync"
+	"sync/atomic"
 	"testing"
 
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
@@ -32,10 +36,10 @@ func TestSamplerStability(t *testing.T) {
 	}
 
 	for _, tc := range cases {
-		sampler := newSampler(tc.probabilities, rand.NewSource(0))
+		sampler := newSampler(tc.probabilities, rand.New(rand.NewSource(0)))
 		res := make([]int, len(tc.probabilities))
 		for range COUNT {
-			res[sampler.Next()]++
+			res[sampler.next()]++
 		}
 
 		require.Equal(t, tc.expected, res, "probabilities: %v", tc.probabilities)
@@ -58,7 +62,7 @@ func TestHealthyReweight(t *testing.T) {
 	client2 := newMockClient(names[1], neofscryptotest.Signer())
 
 	inner := &innerPool{
-		sampler: newSampler(weights, rand.NewSource(0)),
+		sampler: newSampler(weights, rand.New(rand.NewSource(0))),
 		clients: []internalClient{client1, client2},
 	}
 	p := &Pool{
@@ -87,7 +91,7 @@ func TestHealthyReweight(t *testing.T) {
 	inner.lock.Unlock()
 
 	p.updateInnerNodesHealth(context.TODO(), 0, buffer)
-	inner.sampler = newSampler(weights, rand.NewSource(0))
+	inner.sampler = newSampler(weights, rand.New(rand.NewSource(0)))
 
 	connection0, err = p.connection()
 	require.NoError(t, err)
@@ -102,7 +106,7 @@ func TestHealthyNoReweight(t *testing.T) {
 		buffer  = make([]float64, len(weights))
 	)
 
-	sampl := newSampler(weights, rand.NewSource(0))
+	sampl := newSampler(weights, rand.New(rand.NewSource(0)))
 	inner := &innerPool{
 		sampler: sampl,
 		clients: []internalClient{
@@ -120,4 +124,47 @@ func TestHealthyNoReweight(t *testing.T) {
 	inner.lock.RLock()
 	defer inner.lock.RUnlock()
 	require.Equal(t, inner.sampler, sampl)
+}
+
+func TestSamplerSafety(t *testing.T) {
+	// https://github.com/nspcc-dev/neofs-sdk-go/issues/631
+	// Note that this test is not 100% consistent so it may PASS, but it FAILs more
+	// often when bugs.
+	type panicInfo = struct {
+		cause any
+		stack []byte
+	}
+	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, safeRand{})
+	var pr atomic.Value // panicInfo
+	var wg sync.WaitGroup
+	for range 1000 {
+		const rn = 1000
+		wg.Add(rn)
+		for range rn {
+			go func() {
+				defer func() {
+					wg.Done()
+					// [require.NotPanics] should be called in a test func routine, so we simulate it
+					if r := recover(); r != nil {
+						// in theory, various causes may happen. With this, only the "last" one is
+						// caught. In practice, we are chasing the exact one.
+						pr.Store(panicInfo{r, debug.Stack()})
+					}
+				}()
+				s.next()
+			}()
+		}
+		wg.Wait()
+		if v := pr.Load(); v != nil {
+			p := v.(panicInfo)
+			require.Fail(t, fmt.Sprintf("should not panic\n\tPanic value:\t%v\n\tPanic stack:\t%s", p.cause, p.stack))
+		}
+	}
+}
+
+func BenchmarkSampler(b *testing.B) {
+	s := newSampler([]float64{0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1}, safeRand{})
+	for range b.N {
+		s.next()
+	}
 }
