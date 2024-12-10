@@ -250,7 +250,8 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	resp, err := c.netmap.NetmapSnapshot(ctx, req.ToGRPCMessage().(*protonetmap.NetmapSnapshotRequest))
 	if err != nil {
-		return netmap.NetMap{}, rpcErr(err)
+		err = rpcErr(err)
+		return netmap.NetMap{}, err
 	}
 	var respV2 v2netmap.SnapshotResponse
 	if err = respV2.FromGRPCMessage(resp); err != nil {
