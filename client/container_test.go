@@ -1403,7 +1403,7 @@ func TestClient_ContainerDelete(t *testing.T) {
 		})
 		t.Run("signer failure", func(t *testing.T) {
 			err := c.ContainerDelete(ctx, anyID, neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
-			require.ErrorContains(t, err, "calculate signature")
+			require.ErrorContains(t, err, "calculate container ID signature")
 		})
 	})
 	t.Run("context", func(t *testing.T) {
@@ -1735,7 +1735,7 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 		})
 		t.Run("signer failure", func(t *testing.T) {
 			err := c.ContainerSetEACL(ctx, anyValidEACL, usertest.FailSigner(anyValidSigner), anyValidOpts)
-			require.ErrorContains(t, err, "calculate signature")
+			require.ErrorContains(t, err, "calculate eACL signature")
 		})
 	})
 	t.Run("context", func(t *testing.T) {
