@@ -341,11 +341,9 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		var cmd client.PrmObjectGet
 
 		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-		defer func() {
-			_ = read.Close()
-		}()
-
 		require.NoError(t, err)
+		t.Cleanup(func() { _ = read.Close() })
+
 		require.False(t, hdr.Owner().IsZero())
 		require.True(t, hdr.Owner() == account)
 
@@ -489,11 +487,9 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 		var cmd client.PrmObjectGet
 
 		hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-		defer func() {
-			_ = read.Close()
-		}()
-
 		require.NoError(t, err)
+		t.Cleanup(func() { _ = read.Close() })
+
 		require.False(t, hdr.Owner().IsZero())
 		require.True(t, hdr.Owner() == account)
 
@@ -636,11 +632,9 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 		var cmd client.PrmObjectGet
 
 		hdr, read, err := cl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-		defer func() {
-			_ = read.Close()
-		}()
-
 		require.NoError(t, err)
+		t.Cleanup(func() { _ = read.Close() })
+
 		require.False(t, hdr.Owner().IsZero())
 		require.True(t, hdr.Owner() == account)
 
