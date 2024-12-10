@@ -19,6 +19,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
+var errInvalidSplitInfo = errors.New("invalid split info")
+
 // shared parameters of GET/HEAD/RANGE.
 type prmObjectRead struct {
 	sessionContainer
@@ -120,7 +122,16 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		x.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
 		return false
 	case *v2object.SplitInfo:
-		x.err = object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+		if v == nil {
+			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+			return false
+		}
+		var si object.SplitInfo
+		if x.err = si.ReadFromV2(*v); x.err != nil {
+			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
+			return false
+		}
+		x.err = object.NewSplitInfoError(&si)
 		return false
 	case *v2object.GetObjectPartInit:
 		partInit = v
@@ -424,7 +435,16 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		err = fmt.Errorf("unexpected header type %T", v)
 		return nil, err
 	case *v2object.SplitInfo:
-		err = object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+		if v == nil {
+			err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+			return nil, err
+		}
+		var si object.SplitInfo
+		if err = si.ReadFromV2(*v); err != nil {
+			err = fmt.Errorf("%w: %w", errInvalidSplitInfo, err)
+			return nil, err
+		}
+		err = object.NewSplitInfoError(&si)
 		return nil, err
 	case *v2object.HeaderWithSignature:
 		if v == nil {
@@ -522,7 +542,16 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 			x.err = fmt.Errorf("unexpected message received: %T", v)
 			return read, false
 		case *v2object.SplitInfo:
-			x.err = object.NewSplitInfoError(object.NewSplitInfoFromV2(v))
+			if v == nil {
+				x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+				return read, false
+			}
+			var si object.SplitInfo
+			if x.err = si.ReadFromV2(*v); x.err != nil {
+				x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
+				return read, false
+			}
+			x.err = object.NewSplitInfoError(&si)
 			return read, false
 		case *v2object.GetRangePartChunk:
 			partChunk = v
