@@ -379,6 +379,9 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	if signer == nil {
 		return ErrMissingSigner
 	}
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+	}
 
 	// sign container ID
 	var cidV2 refs.ContainerID
@@ -390,7 +393,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 
 	if !prm.sigSet {
 		if err = prm.sig.Calculate(signer, data); err != nil {
-			err = fmt.Errorf("calculate signature: %w", err)
+			err = fmt.Errorf("calculate container ID signature: %w", err)
 			return err
 		}
 	}
@@ -596,12 +599,15 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		err = ErrMissingEACLContainer
 		return err
 	}
+	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
+		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+	}
 
 	// sign the eACL table
 	eaclV2 := table.ToV2()
 	if !prm.sigSet {
 		if err = prm.sig.CalculateMarshalled(signer, eaclV2, nil); err != nil {
-			err = fmt.Errorf("calculate signature: %w", err)
+			err = fmt.Errorf("calculate eACL signature: %w", err)
 			return err
 		}
 	}

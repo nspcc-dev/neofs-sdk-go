@@ -153,7 +153,8 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 
 	resp, err := c.object.GetRangeHash(ctx, req.ToGRPCMessage().(*protoobject.GetRangeHashRequest))
 	if err != nil {
-		return nil, rpcErr(err)
+		err = rpcErr(err)
+		return nil, err
 	}
 	var respV2 v2object.GetRangeHashResponse
 	if err = respV2.FromGRPCMessage(resp); err != nil {

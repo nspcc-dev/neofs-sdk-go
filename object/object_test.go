@@ -944,7 +944,7 @@ func TestObject_ReadFromV2(t *testing.T) {
 					h.SetSessionToken(&mt)
 					m.SetHeader(&h)
 				}},
-			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session UUID version 3",
+			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session ID: wrong UUID version 3, expected 4",
 				corrupt: func(m *apiobject.Object) {
 					h := *m.GetHeader()
 					mt := *h.GetSessionToken()
@@ -1256,7 +1256,7 @@ func TestObject_ReadFromV2(t *testing.T) {
 					h.SetSplit(&sh)
 					m.SetHeader(&h)
 				}},
-			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split UUID: invalid UUID (got 15 bytes)",
+			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 15 bytes)",
 				corrupt: func(m *apiobject.Object) {
 					h := *m.GetHeader()
 					sh := *h.GetSplit()
@@ -1264,7 +1264,7 @@ func TestObject_ReadFromV2(t *testing.T) {
 					h.SetSplit(&sh)
 					m.SetHeader(&h)
 				}},
-			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split UUID: invalid UUID (got 17 bytes)",
+			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 17 bytes)",
 				corrupt: func(m *apiobject.Object) {
 					h := *m.GetHeader()
 					sh := *h.GetSplit()
@@ -1272,7 +1272,7 @@ func TestObject_ReadFromV2(t *testing.T) {
 					h.SetSplit(&sh)
 					m.SetHeader(&h)
 				}},
-			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split UUID version 3",
+			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split ID: wrong UUID version 3, expected 4",
 				corrupt: func(m *apiobject.Object) {
 					h := *m.GetHeader()
 					sh := *h.GetSplit()
@@ -1648,7 +1648,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					233, 102, 232, 136, 68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11,
 					54, 207, 56, 98, 99, 136, 207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101,
 					114, 18, 17, 115, 101, 115, 115, 105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session UUID version 3",
+			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session ID: wrong UUID version 3, expected 4",
 				b: []byte{26, 155, 2, 74, 152, 2, 10, 234, 1, 10, 16, 118, 23, 219, 249, 117, 70, 48, 33, 157, 229, 102, 253, 142,
 					52, 17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229, 62, 150, 151,
 					159, 221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222, 183, 128, 228, 1, 16,
@@ -1864,11 +1864,11 @@ func TestObject_Unmarshal(t *testing.T) {
 			{name: "header/split/first/zero", err: "invalid header: invalid split header: invalid first split member ID: zero object ID",
 				b: []byte{26, 38, 90, 36, 58, 34, 10, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0, 0}},
-			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split UUID: invalid UUID (got 15 bytes)",
+			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 15 bytes)",
 				b: []byte{26, 19, 90, 17, 50, 15, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147}},
-			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split UUID: invalid UUID (got 17 bytes)",
+			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 17 bytes)",
 				b: []byte{26, 21, 90, 19, 50, 17, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 41, 1}},
-			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split UUID version 3",
+			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split ID: wrong UUID version 3, expected 4",
 				b: []byte{26, 20, 90, 18, 50, 16, 224, 132, 3, 80, 32, 44, 48, 184, 185, 32, 226, 201, 206, 196, 147, 41}},
 			{name: "header/split/children/empty value", err: "invalid header: invalid split header: invalid child split member ID #1: invalid length 0",
 				b: []byte{26, 40, 90, 38, 42, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193,
@@ -1944,7 +1944,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					25, 48, 11, 54, 207, 56, 98, 99, 136, 207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103,
 					110, 101, 114, 18, 17, 115, 101, 115, 115, 105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137,
 					252, 156, 4}},
-			{name: "header/split/parent/session/body/ID/wrong UUID version", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid session UUID version 3",
+			{name: "header/split/parent/session/body/ID/wrong UUID version", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid session ID: wrong UUID version 3, expected 4",
 				b: []byte{26, 161, 2, 90, 158, 2, 34, 155, 2, 74, 152, 2, 10, 234, 1, 10, 16, 118, 23, 219, 249, 117, 70, 48, 33,
 					157, 229, 102, 253, 142, 52, 17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15,
 					219, 229, 62, 150, 151, 159, 221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222,
@@ -2154,11 +2154,11 @@ func TestObject_Unmarshal(t *testing.T) {
 			{name: "header/split/parent/split/first/zero", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid first split member ID: zero object ID",
 				b: []byte{26, 42, 90, 40, 34, 38, 90, 36, 58, 34, 10, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-			{name: "header/split/parent/split/ID/undersize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split UUID: invalid UUID (got 15 bytes)",
+			{name: "header/split/parent/split/ID/undersize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split ID: invalid UUID (got 15 bytes)",
 				b: []byte{26, 23, 90, 21, 34, 19, 90, 17, 50, 15, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147}},
-			{name: "header/split/parent/split/ID/oversize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split UUID: invalid UUID (got 17 bytes)",
+			{name: "header/split/parent/split/ID/oversize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split ID: invalid UUID (got 17 bytes)",
 				b: []byte{26, 25, 90, 23, 34, 21, 90, 19, 50, 17, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 41, 1}},
-			{name: "header/split/parent/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split UUID version 3",
+			{name: "header/split/parent/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split ID: wrong UUID version 3, expected 4",
 				b: []byte{26, 24, 90, 22, 34, 20, 90, 18, 50, 16, 224, 132, 3, 80, 32, 44, 48, 184, 185, 32, 226, 201, 206, 196, 147, 41}},
 			{name: "header/split/parent/split/children/empty value", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid child split member ID #1: invalid length 0",
 				b: []byte{26, 80, 90, 78, 34, 76, 90, 74, 42, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27,
@@ -2253,7 +2253,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQR"}}}}`},
 			{name: "header/session/body/ID/oversize", err: "invalid header: invalid session token: invalid session ID: invalid UUID (got 17 bytes)",
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQRkAE="}}}}`},
-			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session UUID version 3",
+			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session ID: wrong UUID version 3, expected 4",
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGMCGd5Wb9jjQRkA=="}}}}`},
 			{name: "header/session/body/issuer/value/empty", err: "invalid header: invalid session token: invalid session issuer: invalid length 0, expected 25",
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQRkA==", "ownerID":{}}}}}`},
@@ -2541,11 +2541,11 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header": {"split":{"first":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTwB"}}}}`},
 			{name: "header/split/first/zero", err: "invalid header: invalid split header: invalid first split member ID: zero object ID",
 				j: `{"header": {"split":{"first":{"value":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}}}`},
-			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split UUID: invalid UUID (got 15 bytes)",
+			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 15 bytes)",
 				j: `{"header": {"split":{"splitID":"4IQDUCAsRbi5IOLJzsST"}}}`},
-			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split UUID: invalid UUID (got 17 bytes)",
+			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 17 bytes)",
 				j: `{"header": {"split":{"splitID":"4IQDUCAsRbi5IOLJzsSTKQE="}}}`},
-			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split UUID version 3",
+			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split ID: wrong UUID version 3, expected 4",
 				j: `{"header": {"split":{"splitID":"4IQDUCAsMLi5IOLJzsSTKQ=="}}}`},
 			{name: "header/split/children/empty value", err: "invalid header: invalid split header: invalid child split member ID #1: invalid length 0",
 				j: `{"header": {"split":{"children":[{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="}, {}, {"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="}]}}}`},
@@ -2603,11 +2603,11 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header": {"split": {"parentHeader": {"split":{"first":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTwB"}}}}}}`},
 			{name: "header/split/parent/split/first/zero", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid first split member ID: zero object ID",
 				j: `{"header": {"split": {"parentHeader": {"split":{"first":{"value":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}}}}}`},
-			{name: "header/split/parent/split/ID/undersize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split UUID: invalid UUID (got 15 bytes)",
+			{name: "header/split/parent/split/ID/undersize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split ID: invalid UUID (got 15 bytes)",
 				j: `{"header": {"split": {"parentHeader": {"split":{"splitID":"4IQDUCAsRbi5IOLJzsST"}}}}}`},
-			{name: "header/split/parent/split/ID/oversize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split UUID: invalid UUID (got 17 bytes)",
+			{name: "header/split/parent/split/ID/oversize", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split ID: invalid UUID (got 17 bytes)",
 				j: `{"header": {"split": {"parentHeader": {"split":{"splitID":"4IQDUCAsRbi5IOLJzsSTKQE="}}}}}`},
-			{name: "header/split/parent/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split UUID version 3",
+			{name: "header/split/parent/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid split ID: wrong UUID version 3, expected 4",
 				j: `{"header": {"split": {"parentHeader": {"split":{"splitID":"4IQDUCAsMLi5IOLJzsSTKQ=="}}}}}`},
 			{name: "header/split/parent/split/children/empty value", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid child split member ID #1: invalid length 0",
 				j: `{"header": {"split": {"parentHeader": {"split":{"children":[{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="},{},{"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="}]}}}}}`},

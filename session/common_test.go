@@ -84,7 +84,7 @@ var invalidProtoTokenCommonTestcases = []invalidProtoTokenTestcase{
 	{name: "body/ID/undersize", err: "invalid session ID: invalid UUID (got 15 bytes)", corrupt: func(st *apisession.Token) {
 		st.GetBody().SetID(make([]byte, 15))
 	}},
-	{name: "body/ID/wrong UUID version", err: "invalid session UUID version 3", corrupt: func(st *apisession.Token) {
+	{name: "body/ID/wrong UUID version", err: "invalid session ID: wrong UUID version 3, expected 4", corrupt: func(st *apisession.Token) {
 		st.GetBody().GetID()[6] = 3 << 4
 	}},
 	{name: "body/ID/oversize", err: "invalid session ID: invalid UUID (got 17 bytes)", corrupt: func(st *apisession.Token) {
@@ -139,7 +139,7 @@ var invalidBinTokenCommonTestcases = []invalidBinTokenTestcase{
 		b: []byte{10, 17, 10, 15, 188, 255, 42, 107, 236, 249, 78, 152, 169, 7, 2, 87, 36, 139, 31}},
 	{name: "body/ID/oversize", err: "invalid session ID: invalid UUID (got 17 bytes)",
 		b: []byte{10, 19, 10, 17, 109, 141, 40, 16, 21, 245, 76, 128, 150, 236, 154, 53, 157, 172, 12, 195, 1}},
-	{name: "body/ID/wrong UUID version", err: "invalid session UUID version 3",
+	{name: "body/ID/wrong UUID version", err: "invalid session ID: wrong UUID version 3, expected 4",
 		b: []byte{10, 18, 10, 16, 97, 47, 243, 131, 222, 201, 48, 64, 135, 195, 177, 240, 107, 12, 2, 42}},
 	{name: "body/issuer/value/empty", err: "invalid session issuer: invalid length 0, expected 25",
 		b: []byte{10, 2, 18, 0}},
@@ -164,7 +164,7 @@ var invalidSignedTokenCommonTestcases = []invalidBinTokenTestcase{
 		b: []byte{10, 15, 188, 255, 42, 107, 236, 249, 78, 152, 169, 7, 2, 87, 36, 139, 31}},
 	{name: "ID/oversize", err: "invalid session ID: invalid UUID (got 17 bytes)",
 		b: []byte{10, 17, 109, 141, 40, 16, 21, 245, 76, 128, 150, 236, 154, 53, 157, 172, 12, 195, 1}},
-	{name: "ID/wrong UUID version", err: "invalid session UUID version 3",
+	{name: "ID/wrong UUID version", err: "invalid session ID: wrong UUID version 3, expected 4",
 		b: []byte{10, 16, 97, 47, 243, 131, 222, 201, 48, 64, 135, 195, 177, 240, 107, 12, 2, 42}},
 	{name: "issuer/value/empty", err: "invalid session issuer: invalid length 0, expected 25",
 		b: []byte{18, 0}},
@@ -194,7 +194,7 @@ var invalidJSONTokenCommonTestcases = []invalidJSONTokenTestcase{
 	{name: "body/ID/oversize", err: "invalid session ID: invalid UUID (got 17 bytes)", j: `
 {"body":{"id":"YxhvRhasSBSLu69iCv/nvAE="}}
 `},
-	{name: "body/ID/wrong UUID version", err: "invalid session UUID version 3", j: `
+	{name: "body/ID/wrong UUID version", err: "invalid session ID: wrong UUID version 3, expected 4", j: `
 {"body":{"id":"YxhvRhasMBSLu69iCv/nvA=="}}
 `},
 	{name: "body/issuer/value/empty", err: "invalid session issuer: invalid length 0, expected 25", j: `

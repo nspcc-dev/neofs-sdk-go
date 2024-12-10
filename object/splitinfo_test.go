@@ -271,7 +271,7 @@ func TestSplitInfo_ReadFromV2(t *testing.T) {
 				corrupt: func(m *apiobject.SplitInfo) { m.SetSplitID(anyValidSplitIDBytes[:15]) }},
 			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
 				corrupt: func(m *apiobject.SplitInfo) { m.SetSplitID(append(anyValidSplitIDBytes[:], 1)) }},
-			{name: "split ID/wrong version", err: "invalid split UUID version 3",
+			{name: "split ID/wrong version", err: "invalid split ID: wrong UUID version 3, expected 4",
 				corrupt: func(m *apiobject.SplitInfo) {
 					b := bytes.Clone(anyValidSplitIDBytes[:])
 					b[6] = 3 << 4
@@ -358,7 +358,7 @@ func TestSplitInfo_Unmarshal(t *testing.T) {
 				b: []byte{10, 17, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 41, 1, 18, 34, 10, 32,
 					178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173,
 					70, 246, 8, 139, 247, 174, 53, 60}},
-			{name: "split ID/wrong version", err: "invalid split UUID version 3",
+			{name: "split ID/wrong version", err: "invalid split ID: wrong UUID version 3, expected 4",
 				b: []byte{10, 16, 224, 132, 3, 80, 32, 44, 48, 184, 185, 32, 226, 201, 206, 196, 147, 41, 18, 34, 10, 32, 178,
 					74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70,
 					246, 8, 139, 247, 174, 53, 60}},
@@ -459,7 +459,7 @@ func TestSplitInfo_UnmarshalJSON(t *testing.T) {
 				j: `{"splitId":"4IQDUCAsRbi5IOLJzsST"}`},
 			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
 				j: `{"splitId":"4IQDUCAsRbi5IOLJzsSTKQE="}`},
-			{name: "split ID/wrong version", err: "invalid split UUID version 3",
+			{name: "split ID/wrong version", err: "invalid split ID: wrong UUID version 3, expected 4",
 				j: `{"splitId":"4IQDUCAsMLi5IOLJzsSTKQ=="}`},
 			{name: "last part/empty value", err: "could not convert last part object ID: invalid length 0",
 				j: `{"lastPart":{"value":""}}`},
