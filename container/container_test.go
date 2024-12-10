@@ -528,7 +528,7 @@ func TestContainer_ReadFromV2(t *testing.T) {
 				corrupt: func(m *v2container.Container) { m.SetNonce(anyValidNonce[:15]) }},
 			{name: "nonce/oversize", err: "invalid nonce: invalid UUID (got 17 bytes)",
 				corrupt: func(m *v2container.Container) { m.SetNonce(append(anyValidNonce[:], 1)) }},
-			{name: "nonce/wrong version", err: "invalid nonce UUID version 3",
+			{name: "nonce/wrong version", err: "invalid nonce: wrong UUID version 3, expected 4",
 				corrupt: func(m *v2container.Container) {
 					b := bytes.Clone(anyValidNonce[:])
 					b[6] = 3 << 4
@@ -715,7 +715,7 @@ func TestContainer_Unmarshal(t *testing.T) {
 				b: []byte{26, 15, 229, 22, 237, 42, 123, 159, 78, 139, 136, 206, 237, 126, 224, 125, 147}},
 			{name: "nonce/oversize", err: "invalid nonce: invalid UUID (got 17 bytes)",
 				b: []byte{26, 17, 229, 22, 237, 42, 123, 159, 78, 139, 136, 206, 237, 126, 224, 125, 147, 223, 1}},
-			{name: "nonce/wrong version", err: "invalid nonce UUID version 3",
+			{name: "nonce/wrong version", err: "invalid nonce: wrong UUID version 3, expected 4",
 				b: []byte{26, 16, 229, 22, 237, 42, 123, 159, 48, 139, 136, 206, 237, 126, 224, 125, 147, 223}},
 			{name: "policy/replicas/missing", err: "invalid placement policy: missing replicas",
 				b: []byte{50, 0}},
@@ -773,7 +773,7 @@ func TestContainer_UnmarshalJSON(t *testing.T) {
 				j: `{"nonce":"5RbtKnufTouIzu1+4H2T"}`},
 			{name: "nonce/oversize", err: "invalid nonce: invalid UUID (got 17 bytes)",
 				j: `{"nonce":"5RbtKnufTouIzu1+4H2T3wE="}`},
-			{name: "nonce/wrong version", err: "invalid nonce UUID version 3",
+			{name: "nonce/wrong version", err: "invalid nonce: wrong UUID version 3, expected 4",
 				j: `{"nonce":"5RbtKnufMIuIzu1+4H2T3w=="}`},
 			{name: "policy/replicas/missing", err: "invalid placement policy: missing replicas",
 				j: `{"placementPolicy":{}}`},

@@ -60,7 +60,7 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 		if err != nil {
 			return fmt.Errorf("invalid session ID: %w", err)
 		} else if ver := x.id.Version(); ver != 4 {
-			return fmt.Errorf("invalid session UUID version %d", ver)
+			return fmt.Errorf("invalid session ID: wrong UUID version %d, expected 4", ver)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing session ID")
