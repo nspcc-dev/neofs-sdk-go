@@ -494,9 +494,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	var prmInit client.PrmInit
 
 	cl, err := client.New(prmInit)
-	if err != nil {
-		panic(fmt.Errorf("new client: %w", err))
-	}
+	require.NoError(t, err)
 
 	// connect to NeoFS gateway
 	var prmDial client.PrmDial
@@ -504,9 +502,8 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 	prmDial.SetTimeout(15 * time.Second)
 	prmDial.SetStreamTimeout(15 * time.Second)
 
-	if err = cl.Dial(prmDial); err != nil {
-		panic(fmt.Errorf("dial %v", err))
-	}
+	err = cl.Dial(prmDial)
+	require.NoError(t, err)
 
 	wait := waiter.NewWaiter(cl, time.Second)
 
