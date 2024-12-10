@@ -155,7 +155,7 @@ func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) e
 
 		val = attrs[i].GetValue()
 		if val == "" {
-			return fmt.Errorf("empty attribute value %s", key)
+			return fmt.Errorf("empty value of the attribute %s", key)
 		}
 
 		switch key {
