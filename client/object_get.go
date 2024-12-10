@@ -363,7 +363,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	if !r.readHeader(&hdr) {
-		err = fmt.Errorf("header: %w", r.Close())
+		err = fmt.Errorf("read header: %w", r.Close())
 		return hdr, nil, err
 	}
 

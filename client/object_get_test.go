@@ -1067,7 +1067,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 								srv.respondWithBody(0, b)
 								_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-								require.EqualError(t, err, "header: invalid split info: "+tc.msg)
+								require.EqualError(t, err, "read header: invalid split info: "+tc.msg)
 							})
 						}
 					})
@@ -1137,7 +1137,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 								srv.respondWithBody(0, b)
 								_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-								require.EqualError(t, err, "header: "+tc.msg)
+								require.EqualError(t, err, "read header: "+tc.msg)
 							})
 						}
 					})
@@ -1233,7 +1233,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			_, ok := status.FromError(err)
 			require.False(t, ok)
-			require.EqualError(t, err, "header: %!w(<nil>)")
+			require.EqualError(t, err, "read header: %!w(<nil>)")
 		})
 		t.Run("chunk message first", func(t *testing.T) {
 			srv := newTestGetObjectServer()
@@ -1241,7 +1241,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 			srv.respondWithBody(0, proto.Clone(validFullChunkObjectGetResponseBody).(*protoobject.GetResponse_Body))
 			_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-			require.EqualError(t, err, "header: unexpected message instead of heading part: *object.GetObjectPartChunk")
+			require.EqualError(t, err, "read header: unexpected message instead of heading part: *object.GetObjectPartChunk")
 		})
 		t.Run("repeated heading message", func(t *testing.T) {
 			srv := newTestGetObjectServer()
