@@ -134,16 +134,36 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		x.err = object.NewSplitInfoError(&si)
 		return false
 	case *v2object.GetObjectPartInit:
+		if v == nil {
+			x.err = newErrMissingResponseField("init")
+			return false
+		}
 		partInit = v
+	}
+
+	id := partInit.GetObjectID()
+	if id == nil {
+		x.err = newErrMissingResponseField("object ID")
+		return false
+	}
+	sig := partInit.GetSignature()
+	if sig == nil {
+		x.err = newErrMissingResponseField("signature")
+		return false
+	}
+	hdr := partInit.GetHeader()
+	if hdr == nil {
+		x.err = newErrMissingResponseField("header")
+		return false
 	}
 
 	var objv2 v2object.Object
 
-	objv2.SetObjectID(partInit.GetObjectID())
-	objv2.SetHeader(partInit.GetHeader())
-	objv2.SetSignature(partInit.GetSignature())
+	objv2.SetObjectID(id)
+	objv2.SetHeader(hdr)
+	objv2.SetSignature(sig)
 
-	x.remainingPayloadLen = int(objv2.GetHeader().GetPayloadLength())
+	x.remainingPayloadLen = int(hdr.GetPayloadLength())
 
 	x.err = dst.ReadFromV2(objv2)
 	return x.err == nil
@@ -450,10 +470,20 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		if v == nil {
 			return nil, errors.New("empty header")
 		}
+		sig := v.GetSignature()
+		if sig == nil {
+			err = newErrMissingResponseField("signature")
+			return nil, err
+		}
+		hdr := v.GetHeader()
+		if hdr == nil {
+			err = newErrMissingResponseField("header")
+			return nil, err
+		}
 
 		var objv2 v2object.Object
-		objv2.SetHeader(v.GetHeader())
-		objv2.SetSignature(v.GetSignature())
+		objv2.SetHeader(hdr)
+		objv2.SetSignature(sig)
 
 		var obj object.Object
 		if err = obj.ReadFromV2(objv2); err != nil {
