@@ -1398,8 +1398,8 @@ func TestClient_ContainerDelete(t *testing.T) {
 		c := newTestContainerClient(t, newTestDeleteContainerServer())
 		t.Run("wrong scheme", func(t *testing.T) {
 			err := c.ContainerDelete(ctx, anyID, neofsecdsa.Signer(neofscryptotest.ECDSAPrivateKey()), anyValidOpts)
-			require.EqualError(t, err, "write request: rpc failure: rpc error: code = Unknown desc = invalid request: "+
-				"invalid body: invalid container ID signature field: invalid signature length 65, should be 64")
+			require.EqualError(t, err, "incorrect signer: expected ECDSA_DETERMINISTIC_SHA256 scheme")
+			require.ErrorIs(t, err, neofscrypto.ErrIncorrectSigner)
 		})
 		t.Run("signer failure", func(t *testing.T) {
 			err := c.ContainerDelete(ctx, anyID, neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
@@ -1730,8 +1730,8 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 		c := newTestContainerClient(t, newTestSetEACLServer())
 		t.Run("wrong scheme", func(t *testing.T) {
 			err := c.ContainerSetEACL(ctx, anyValidEACL, user.NewAutoIDSigner(neofscryptotest.ECDSAPrivateKey()), anyValidOpts)
-			require.EqualError(t, err, "write request: rpc failure: rpc error: code = Unknown desc = invalid request: "+
-				"invalid body: invalid eACL signature field: invalid signature length 65, should be 64")
+			require.EqualError(t, err, "incorrect signer: expected ECDSA_DETERMINISTIC_SHA256 scheme")
+			require.ErrorIs(t, err, neofscrypto.ErrIncorrectSigner)
 		})
 		t.Run("signer failure", func(t *testing.T) {
 			err := c.ContainerSetEACL(ctx, anyValidEACL, usertest.FailSigner(anyValidSigner), anyValidOpts)
