@@ -37,7 +37,7 @@ var (
 				{Key: "k1", Value: "v1"}, {Key: "", Value: "v2"}, {Key: "k3", Value: "v3"},
 			}
 		}},
-		{name: "attributes/no value", msg: "empty value of the attribute k2", corrupt: func(valid *protonetmap.NodeInfo) {
+		{name: "attributes/no value", msg: `empty "k2" attribute value`, corrupt: func(valid *protonetmap.NodeInfo) {
 			valid.Attributes = []*protonetmap.NodeInfo_Attribute{
 				{Key: "k1", Value: "v1"}, {Key: "k2", Value: ""}, {Key: "k3", Value: "v3"},
 			}
@@ -65,7 +65,7 @@ var (
 			corrupt: func(valid *protonetmap.NetworkInfo) { valid.NetworkConfig = nil }},
 		{name: "netconfig/prms/missing", msg: "missing network parameters",
 			corrupt: func(valid *protonetmap.NetworkInfo) { valid.NetworkConfig = new(protonetmap.NetworkConfig) }},
-		{name: "netconfig/prms/no value", msg: "empty attribute value k2",
+		{name: "netconfig/prms/no value", msg: `empty "k2" parameter value`,
 			corrupt: func(valid *protonetmap.NetworkInfo) {
 				valid.NetworkConfig.Parameters = []*protonetmap.NetworkConfig_Parameter{
 					{Key: []byte("k1"), Value: []byte("v1")}, {Key: []byte("k2"), Value: nil}, {Key: []byte("k3"), Value: []byte("v3")},

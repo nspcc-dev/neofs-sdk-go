@@ -311,7 +311,7 @@ func TestNetworkInfo_ReadFromV2(t *testing.T) {
 				corrupt: func(m *apinetmap.NetworkInfo) { m.SetNetworkConfig(nil) }},
 			{name: "netconfig/prms/missing", err: "missing network parameters",
 				corrupt: func(m *apinetmap.NetworkInfo) { m.SetNetworkConfig(new(apinetmap.NetworkConfig)) }},
-			{name: "netconfig/prms/no value", err: "empty attribute value k1",
+			{name: "netconfig/prms/no value", err: `empty "k1" parameter value`,
 				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "k1", "") }},
 			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
 				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
@@ -425,7 +425,7 @@ func TestNetworkInfo_Unmarshal(t *testing.T) {
 			err  string
 			b    []byte
 		}{
-			{name: "netconfig/prms/no value", err: "empty attribute value k1",
+			{name: "netconfig/prms/no value", err: `empty "k1" parameter value`,
 				b: []byte{34, 6, 10, 4, 10, 2, 107, 49}},
 			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
 				b: []byte{34, 30, 10, 8, 10, 2, 107, 49, 18, 2, 118, 49, 10, 8, 10, 2, 107, 50, 18, 2, 118, 50, 10, 8, 10, 2, 107,

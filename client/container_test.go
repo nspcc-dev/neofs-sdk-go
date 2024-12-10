@@ -1039,7 +1039,7 @@ func TestClient_ContainerGet(t *testing.T) {
 					}{
 						{name: "attributes/empty key", msg: "empty attribute key",
 							attrs: []string{"k1", "v1", "", "v2", "k3", "v3"}},
-						{name: "attributes/empty value", msg: "empty attribute value k2",
+						{name: "attributes/empty value", msg: `empty "k2" attribute value`,
 							attrs: []string{"k1", "v1", "k2", "", "k3", "v3"}},
 						{name: "attributes/duplicated", msg: "duplicated attribute k1",
 							attrs: []string{"k1", "v1", "k2", "v2", "k1", "v3"}},
