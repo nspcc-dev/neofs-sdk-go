@@ -110,7 +110,8 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 
 	resp, err := c.object.Delete(ctx, req.ToGRPCMessage().(*protoobject.DeleteRequest))
 	if err != nil {
-		return oid.ID{}, rpcErr(err)
+		err = rpcErr(err)
+		return oid.ID{}, err
 	}
 	var respV2 v2object.DeleteResponse
 	if err = respV2.FromGRPCMessage(resp); err != nil {
