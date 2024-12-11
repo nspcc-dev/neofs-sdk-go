@@ -4,19 +4,21 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"strings"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/nspcc-dev/tzhash/tz"
 )
 
 // SearchMatchType indicates match operation on specified header.
-type SearchMatchType uint32
+type SearchMatchType int32
 
 // MatchUnknown is an SearchMatchType value used to mark operator as undefined.
 // Deprecated: use MatchUnspecified instead.
@@ -33,18 +35,6 @@ const (
 	MatchNumLT
 	MatchNumLE
 )
-
-// ToV2 converts [SearchMatchType] to v2 [v2object.MatchType] enum value.
-// Deprecated: cast instead.
-func (m SearchMatchType) ToV2() v2object.MatchType {
-	return v2object.MatchType(m)
-}
-
-// SearchMatchFromV2 converts v2 [v2object.MatchType] to [SearchMatchType] enum value.
-// Deprecated: cast instead.
-func SearchMatchFromV2(t v2object.MatchType) SearchMatchType {
-	return SearchMatchType(t)
-}
 
 const (
 	matcherStringZero         = "MATCH_TYPE_UNSPECIFIED"
@@ -95,7 +85,7 @@ func (m SearchMatchType) EncodeToString() string { return m.String() }
 func (m SearchMatchType) String() string {
 	switch m {
 	default:
-		return strconv.FormatUint(uint64(m), 10)
+		return strconv.FormatInt(int64(m), 10)
 	case 0:
 		return matcherStringZero
 	case MatchStringEqual:
@@ -124,7 +114,7 @@ func (m SearchMatchType) String() string {
 func (m *SearchMatchType) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}
@@ -163,18 +153,19 @@ type SearchFilters []SearchFilter
 
 // Various header filters.
 const (
-	FilterVersion                = v2object.FilterHeaderVersion
-	FilterID                     = v2object.FilterHeaderObjectID
-	FilterContainerID            = v2object.FilterHeaderContainerID
-	FilterOwnerID                = v2object.FilterHeaderOwnerID
-	FilterPayloadChecksum        = v2object.FilterHeaderPayloadHash
-	FilterType                   = v2object.FilterHeaderObjectType
-	FilterPayloadHomomorphicHash = v2object.FilterHeaderHomomorphicHash
-	FilterParentID               = v2object.FilterHeaderParent
-	FilterSplitID                = v2object.FilterHeaderSplitID
-	FilterFirstSplitObject       = v2object.ReservedFilterPrefix + "split.first"
-	FilterCreationEpoch          = v2object.FilterHeaderCreationEpoch
-	FilterPayloadSize            = v2object.FilterHeaderPayloadLength
+	reservedFilterPrefix         = "$Object:"
+	FilterVersion                = reservedFilterPrefix + "version"
+	FilterID                     = reservedFilterPrefix + "objectID"
+	FilterContainerID            = reservedFilterPrefix + "containerID"
+	FilterOwnerID                = reservedFilterPrefix + "ownerID"
+	FilterPayloadChecksum        = reservedFilterPrefix + "payloadHash"
+	FilterType                   = reservedFilterPrefix + "objectType"
+	FilterPayloadHomomorphicHash = reservedFilterPrefix + "homomorphicHash"
+	FilterParentID               = reservedFilterPrefix + "split.parent"
+	FilterSplitID                = reservedFilterPrefix + "split.splitID"
+	FilterFirstSplitObject       = reservedFilterPrefix + "split.first"
+	FilterCreationEpoch          = reservedFilterPrefix + "creationEpoch"
+	FilterPayloadSize            = reservedFilterPrefix + "payloadLength"
 )
 
 // Various filters to match certain object properties.
@@ -183,13 +174,21 @@ const (
 	// with user data that are not system-specific. In addition to such objects, the
 	// system may contain service objects that do not fall under this property
 	// (like split leaves, tombstones, storage groups, etc.).
-	FilterRoot = v2object.FilterPropertyRoot
+	FilterRoot = reservedFilterPrefix + "ROOT"
 	// FilterPhysical filters indivisible objects that are intended to be stored
 	// on the physical devices of the system. In addition to such objects, the
 	// system may contain so-called "virtual" objects that exist in the system in
 	// disassembled form (like "huge" user object sliced into smaller ones).
-	FilterPhysical = v2object.FilterPropertyPhy
+	FilterPhysical = reservedFilterPrefix + "PHY"
 )
+
+func (f SearchFilter) protoMessage() *protoobject.SearchRequest_Body_Filter {
+	return &protoobject.SearchRequest_Body_Filter{
+		MatchType: protoobject.MatchType(f.Operation()),
+		Key:       f.Header(),
+		Value:     f.Value(),
+	}
+}
 
 // Header returns filter header value.
 func (f SearchFilter) Header() string {
@@ -209,27 +208,12 @@ func (f SearchFilter) Operation() SearchMatchType {
 // IsNonAttribute checks if SearchFilter is non-attribute: such filter is
 // related to the particular property of the object instead of its attribute.
 func (f SearchFilter) IsNonAttribute() bool {
-	return strings.HasPrefix(f.header, v2object.ReservedFilterPrefix)
+	return strings.HasPrefix(f.header, reservedFilterPrefix)
 }
 
 // NewSearchFilters constructs empty filter group.
 func NewSearchFilters() SearchFilters {
 	return SearchFilters{}
-}
-
-// NewSearchFiltersFromV2 converts slice of [v2object.SearchFilter] to [SearchFilters].
-func NewSearchFiltersFromV2(v2 []v2object.SearchFilter) SearchFilters {
-	filters := make(SearchFilters, 0, len(v2))
-
-	for i := range v2 {
-		filters.AddFilter(
-			v2[i].GetKey(),
-			v2[i].GetValue(),
-			SearchMatchType(v2[i].GetMatchType()),
-		)
-	}
-
-	return filters
 }
 
 func (f *SearchFilters) addFilter(op SearchMatchType, key string, val string) {
@@ -279,17 +263,42 @@ func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
 	f.addFilter(m, FilterOwnerID, id.EncodeToString())
 }
 
-// ToV2 converts [SearchFilters] to [v2object.SearchFilter] slice.
-func (f SearchFilters) ToV2() []v2object.SearchFilter {
-	result := make([]v2object.SearchFilter, len(f))
-
-	for i := range f {
-		result[i].SetKey(f[i].header)
-		result[i].SetValue(f[i].value)
-		result[i].SetMatchType(v2object.MatchType(f[i].op))
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// f from it.
+//
+// See also [SearchFilters.ProtoMessage].
+func (f *SearchFilters) FromProtoMessage(ms []*protoobject.SearchRequest_Body_Filter) error {
+	fs := make(SearchFilters, len(ms))
+	for i, m := range ms {
+		if m == nil {
+			return fmt.Errorf("nil filter #%d", i)
+		}
+		if m.MatchType < 0 {
+			return fmt.Errorf("invalid filter #%d: negative match type %d", i, m.MatchType)
+		}
+		if m.Key == "" {
+			return fmt.Errorf("invalid filter #%d: missing key", i)
+		}
+		fs[i] = SearchFilter{
+			header: m.Key,
+			value:  m.Value,
+			op:     SearchMatchType(m.MatchType),
+		}
 	}
+	*f = fs
+	return nil
+}
 
-	return result
+// ProtoMessage converts f into message to transmit using the NeoFS API
+// protocol.
+//
+// See also [SearchFilters.FromProtoMessage].
+func (f SearchFilters) ProtoMessage() []*protoobject.SearchRequest_Body_Filter {
+	m := make([]*protoobject.SearchRequest_Body_Filter, len(f))
+	for i := range f {
+		m[i] = f[i].protoMessage()
+	}
+	return m
 }
 
 // AddRootFilter adds filter by objects that have been created by a user explicitly.
@@ -337,26 +346,43 @@ func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
 	f.addFilter(m, FilterType, typ.EncodeToString())
 }
 
+type fj protoobject.SearchRequest_Body_Filter
+
+func (x *fj) MarshalJSON() ([]byte, error) {
+	return neofsproto.MarshalMessageJSON((*protoobject.SearchRequest_Body_Filter)(x))
+}
+
 // MarshalJSON encodes [SearchFilters] to protobuf JSON format.
 //
 // See also [SearchFilters.UnmarshalJSON].
 func (f SearchFilters) MarshalJSON() ([]byte, error) {
-	return json.Marshal(f.ToV2())
+	fjs := make([]*fj, len(f))
+	for i := range f {
+		fjs[i] = (*fj)(f[i].protoMessage())
+	}
+	return json.Marshal(fjs)
+}
+
+func (x *fj) UnmarshalJSON(b []byte) error {
+	return neofsproto.UnmarshalMessageJSON(b, (*protoobject.SearchRequest_Body_Filter)(x))
 }
 
 // UnmarshalJSON decodes [SearchFilters] from protobuf JSON format.
 //
 // See also [SearchFilters.MarshalJSON].
 func (f *SearchFilters) UnmarshalJSON(data []byte) error {
-	var fsV2 []v2object.SearchFilter
+	var j []*fj
 
-	if err := json.Unmarshal(data, &fsV2); err != nil {
+	if err := json.Unmarshal(data, &j); err != nil {
 		return err
 	}
 
-	*f = NewSearchFiltersFromV2(fsV2)
+	m := make([]*protoobject.SearchRequest_Body_Filter, len(j))
+	for i := range j {
+		m[i] = (*protoobject.SearchRequest_Body_Filter)(j[i])
+	}
 
-	return nil
+	return f.FromProtoMessage(m)
 }
 
 // AddPayloadHashFilter adds filter by payload hash.

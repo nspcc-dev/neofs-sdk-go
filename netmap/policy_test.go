@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -254,54 +254,33 @@ func TestPlacementPolicy_SetFilters(t *testing.T) {
 	require.Equal(t, anyValidFilters, p.Filters())
 }
 
-func TestPlacementPolicy_ReadFromV2(t *testing.T) {
-	var m apinetmap.PlacementPolicy
-	m.SetContainerBackupFactor(anyValidBackupFactor)
-	mrs := make([]apinetmap.Replica, 2)
-	mrs[0].SetSelector("selector_0")
-	mrs[0].SetCount(2583748530)
-	mrs[1].SetSelector("selector_1")
-	mrs[1].SetCount(358755354)
-	m.SetReplicas(mrs)
-	mss := make([]apinetmap.Selector, 2)
-	mss[0].SetName("selector_0")
-	mss[0].SetCount(1814781076)
-	mss[0].SetClause(apinetmap.Same)
-	mss[0].SetFilter("filter_0")
-	mss[0].SetAttribute("attribute_0")
-	mss[1].SetName("selector_1")
-	mss[1].SetCount(1814781076)
-	mss[1].SetClause(apinetmap.Distinct)
-	mss[1].SetFilter("filter_1")
-	mss[1].SetAttribute("attribute_1")
-	m.SetSelectors(mss)
-	msubs := make([]apinetmap.Filter, 0, 2)
-	addSub := func(name, key string, op apinetmap.Operation, val string) {
-		var f apinetmap.Filter
-		f.SetName(name)
-		f.SetKey(key)
-		f.SetOp(op)
-		f.SetValue(val)
-		msubs = append(msubs, f)
+func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
+	m := &protonetmap.PlacementPolicy{
+		Replicas: []*protonetmap.Replica{
+			{Count: 2583748530, Selector: "selector_0"},
+			{Count: 358755354, Selector: "selector_1"},
+		},
+		ContainerBackupFactor: anyValidBackupFactor,
+		Selectors: []*protonetmap.Selector{
+			{Name: "selector_0", Count: 1814781076, Clause: protonetmap.Clause_SAME, Attribute: "attribute_0", Filter: "filter_0"},
+			{Name: "selector_1", Count: 1814781076, Clause: protonetmap.Clause_DISTINCT, Attribute: "attribute_1", Filter: "filter_1"},
+		},
+		Filters: []*protonetmap.Filter{
+			{Name: "filter_0", Op: protonetmap.Operation_AND, Filters: []*protonetmap.Filter{
+				{Name: "filter_0_0", Key: "key_0_0", Op: protonetmap.Operation_EQ, Value: "val_0_0"},
+				{Name: "filter_0_1", Key: "key_0_1", Op: protonetmap.Operation_NE, Value: "val_0_1"},
+			}},
+			{Name: "filter_1", Key: "", Op: protonetmap.Operation_OR, Value: "", Filters: []*protonetmap.Filter{
+				{Name: "filter_1_0", Key: "key_1_0", Op: protonetmap.Operation_GT, Value: "1889407708985023116"},
+				{Name: "filter_1_1", Key: "key_1_1", Op: protonetmap.Operation_GE, Value: "1429243097315344888"},
+				{Name: "filter_1_2", Key: "key_1_2", Op: protonetmap.Operation_LT, Value: "3722656060317482335"},
+				{Name: "filter_1_3", Key: "key_1_3", Op: protonetmap.Operation_LE, Value: "1950504987705284805"},
+			}},
+		},
 	}
-	addSub("filter_0_0", "key_0_0", apinetmap.EQ, "val_0_0")
-	addSub("filter_0_1", "key_0_1", apinetmap.NE, "val_0_1")
-	mfs := make([]apinetmap.Filter, 2)
-	mfs[0].SetName("filter_0")
-	mfs[0].SetOp(apinetmap.AND)
-	mfs[0].SetFilters(msubs)
-	msubs = make([]apinetmap.Filter, 0, 4)
-	addSub("filter_1_0", "key_1_0", apinetmap.GT, "1889407708985023116")
-	addSub("filter_1_1", "key_1_1", apinetmap.GE, "1429243097315344888")
-	addSub("filter_1_2", "key_1_2", apinetmap.LT, "3722656060317482335")
-	addSub("filter_1_3", "key_1_3", apinetmap.LE, "1950504987705284805")
-	mfs[1].SetName("filter_1")
-	mfs[1].SetOp(apinetmap.OR)
-	mfs[1].SetFilters(msubs)
-	m.SetFilters(mfs)
 
 	var val netmap.PlacementPolicy
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	require.EqualValues(t, anyValidBackupFactor, val.ContainerBackupFactor())
 	rs := val.Replicas()
 	require.Len(t, rs, 2)
@@ -365,48 +344,56 @@ func TestPlacementPolicy_ReadFromV2(t *testing.T) {
 	require.Empty(t, subs[3].SubFilters())
 
 	// reset optional fields
-	m.SetSelectors(nil)
-	m.SetFilters(nil)
+	m.Selectors = nil
+	m.Filters = nil
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.Empty(t, val2.Selectors())
 	require.Empty(t, val2.Filters())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*apinetmap.PlacementPolicy)
+			corrupt   func(*protonetmap.PlacementPolicy)
 		}{
 			{name: "replicas/nil", err: "missing replicas",
-				corrupt: func(m *apinetmap.PlacementPolicy) { m.SetReplicas(nil) }},
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas = nil }},
+			{name: "replicas/nil element", err: "nil replica #1",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas[1] = nil }},
 			{name: "replicas/empty", err: "missing replicas",
-				corrupt: func(m *apinetmap.PlacementPolicy) { m.SetReplicas([]apinetmap.Replica{}) }},
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas = []*protonetmap.Replica{} }},
+			{name: "selectors/nil element", err: "nil selector #1",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Selectors[1] = nil }},
+			{name: "selectors/negative clause", err: "invalid selector #1: negative clause -1",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Selectors[1].Clause = -1 }},
+			{name: "filters/nil element", err: "nil filter #1",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Filters[1] = nil }},
+			{name: "filters/negative op", err: "invalid filter #1: negative op -1",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Filters[1].Op = -1 }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m apinetmap.PlacementPolicy
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(netmap.PlacementPolicy).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(netmap.PlacementPolicy).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestPlacementPolicy_WriteToV2(t *testing.T) {
+func TestPlacementPolicy_ProtoMessage(t *testing.T) {
 	var val netmap.PlacementPolicy
-	var m apinetmap.PlacementPolicy
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetContainerBackupFactor())
 	require.Zero(t, m.GetReplicas())
 	require.Zero(t, m.GetSelectors())
 	require.Zero(t, m.GetFilters())
-	require.Zero(t, m.GetSubnetID())
+	require.Zero(t, m.GetSubnetId()) //nolint: staticcheck // must be supported still
 
 	// filled
-	validPlacementPolicy.WriteToV2(&m)
+	m = validPlacementPolicy.ProtoMessage()
 	require.EqualValues(t, anyValidBackupFactor, m.GetContainerBackupFactor())
 
 	mrs := m.GetReplicas()
@@ -420,12 +407,12 @@ func TestPlacementPolicy_WriteToV2(t *testing.T) {
 	require.Len(t, mss, 2)
 	require.Equal(t, "selector_0", mss[0].GetName())
 	require.EqualValues(t, 1814781076, mss[0].GetCount())
-	require.Equal(t, apinetmap.Same, mss[0].GetClause())
+	require.Equal(t, protonetmap.Clause_SAME, mss[0].GetClause())
 	require.Equal(t, "filter_0", mss[0].GetFilter())
 	require.Equal(t, "attribute_0", mss[0].GetAttribute())
 	require.Equal(t, "selector_1", mss[1].GetName())
 	require.EqualValues(t, 1505136737, mss[1].GetCount())
-	require.Equal(t, apinetmap.Distinct, mss[1].GetClause())
+	require.Equal(t, protonetmap.Clause_DISTINCT, mss[1].GetClause())
 	require.Equal(t, "filter_1", mss[1].GetFilter())
 	require.Equal(t, "attribute_1", mss[1].GetAttribute())
 
@@ -434,51 +421,51 @@ func TestPlacementPolicy_WriteToV2(t *testing.T) {
 	// filter#0
 	require.Equal(t, "filter_0", mfs[0].GetName())
 	require.Zero(t, mfs[0].GetKey())
-	require.Equal(t, apinetmap.AND, mfs[0].GetOp())
+	require.Equal(t, protonetmap.Operation_AND, mfs[0].GetOp())
 	require.Zero(t, mfs[0].GetValue())
 	msubs := mfs[0].GetFilters()
 	require.Len(t, msubs, 2)
 	// sub#0
 	require.Equal(t, "filter_0_0", msubs[0].GetName())
 	require.Equal(t, "key_0_0", msubs[0].GetKey())
-	require.Equal(t, apinetmap.EQ, msubs[0].GetOp())
+	require.Equal(t, protonetmap.Operation_EQ, msubs[0].GetOp())
 	require.Equal(t, "val_0_0", msubs[0].GetValue())
 	require.Zero(t, msubs[0].GetFilters())
 	// sub#1
 	require.Equal(t, "filter_0_1", msubs[1].GetName())
 	require.Equal(t, "key_0_1", msubs[1].GetKey())
-	require.Equal(t, apinetmap.NE, msubs[1].GetOp())
+	require.Equal(t, protonetmap.Operation_NE, msubs[1].GetOp())
 	require.Equal(t, "val_0_1", msubs[1].GetValue())
 	require.Zero(t, msubs[1].GetFilters())
 	// filter#1
 	require.Equal(t, "filter_1", mfs[1].GetName())
 	require.Zero(t, mfs[1].GetKey())
-	require.Equal(t, apinetmap.OR, mfs[1].GetOp())
+	require.Equal(t, protonetmap.Operation_OR, mfs[1].GetOp())
 	require.Zero(t, mfs[1].GetValue())
 	msubs = mfs[1].GetFilters()
 	require.Len(t, msubs, 4)
 	// sub#0
 	require.Equal(t, "filter_1_0", msubs[0].GetName())
 	require.Equal(t, "key_1_0", msubs[0].GetKey())
-	require.Equal(t, apinetmap.GT, msubs[0].GetOp())
+	require.Equal(t, protonetmap.Operation_GT, msubs[0].GetOp())
 	require.Equal(t, "1889407708985023116", msubs[0].GetValue())
 	require.Zero(t, msubs[0].GetFilters())
 	// sub#1
 	require.Equal(t, "filter_1_1", msubs[1].GetName())
 	require.Equal(t, "key_1_1", msubs[1].GetKey())
-	require.Equal(t, apinetmap.GE, msubs[1].GetOp())
+	require.Equal(t, protonetmap.Operation_GE, msubs[1].GetOp())
 	require.Equal(t, "1429243097315344888", msubs[1].GetValue())
 	require.Zero(t, msubs[1].GetFilters())
 	// sub#2
 	require.Equal(t, "filter_1_2", msubs[2].GetName())
 	require.Equal(t, "key_1_2", msubs[2].GetKey())
-	require.Equal(t, apinetmap.LT, msubs[2].GetOp())
+	require.Equal(t, protonetmap.Operation_LT, msubs[2].GetOp())
 	require.Equal(t, "3722656060317482335", msubs[2].GetValue())
 	require.Zero(t, msubs[2].GetFilters())
 	// sub#3
 	require.Equal(t, "filter_1_3", msubs[3].GetName())
 	require.Equal(t, "key_1_3", msubs[3].GetKey())
-	require.Equal(t, apinetmap.LE, msubs[3].GetOp())
+	require.Equal(t, protonetmap.Operation_LE, msubs[3].GetOp())
 	require.Equal(t, "1950504987705284805", msubs[3].GetValue())
 	require.Zero(t, msubs[3].GetFilters())
 }

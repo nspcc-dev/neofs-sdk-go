@@ -1,50 +1,63 @@
 package netmap
 
 import (
-	"bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
 // NetworkInfo groups information about the NeoFS network state. Mainly used to
 // describe the current state of the network.
 //
-// NetworkInfo is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.NetworkInfo
-// message. See ReadFromV2 / WriteToV2 methods.
+// NetworkInfo is mutually compatible with [protonetmap.NetworkInfo]
+// message. See [NetworkInfo.FromProtoMessage] / [NetworkInfo.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type NetworkInfo struct {
-	m netmap.NetworkInfo
+	curEpoch   uint64
+	netMagic   uint64
+	msPerBlock int64
+	prms       [][2][]byte
 }
 
 // reads NetworkInfo from netmap.NetworkInfo message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field. Verifies format of any
 // presented field according to NeoFS API V2 protocol.
-func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) error {
+func (x *NetworkInfo) fromProtoMessage(m *protonetmap.NetworkInfo, checkFieldPresence bool) error {
 	c := m.GetNetworkConfig()
 	if checkFieldPresence && c == nil {
 		return errors.New("missing network config")
 	}
 
-	if checkFieldPresence && c.NumberOfParameters() <= 0 {
+	if checkFieldPresence && len(c.Parameters) == 0 {
 		return errors.New("missing network parameters")
 	}
 
-	var err error
-	mNames := make(map[string]struct{}, c.NumberOfParameters())
+	if c == nil {
+		x.curEpoch = m.CurrentEpoch
+		x.netMagic = m.MagicNumber
+		x.msPerBlock = m.MsPerBlock
+		return nil
+	}
 
-	c.IterateParameters(func(prm *netmap.NetworkParameter) bool {
+	var err error
+	mNames := make(map[string]struct{}, len(c.Parameters))
+	prms := make([][2][]byte, len(c.Parameters))
+
+	for i, prm := range c.Parameters {
+		if prm == nil {
+			return fmt.Errorf("nil parameter #%d", i)
+		}
 		name := string(prm.GetKey())
 
 		_, was := mNames[name]
 		if was {
-			err = fmt.Errorf("duplicated parameter name: %s", name)
-			return true
+			return fmt.Errorf("duplicated parameter name: %s", name)
 		}
 
 		mNames[name] = struct{}{}
@@ -52,8 +65,7 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 		switch name {
 		default:
 			if len(prm.GetValue()) == 0 {
-				err = fmt.Errorf("empty %q parameter value", name)
-				return true
+				return fmt.Errorf("empty %q parameter value", name)
 			}
 		case configEigenTrustAlpha:
 			var num uint64
@@ -81,35 +93,47 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 		}
 
 		if err != nil {
-			err = fmt.Errorf("invalid %s parameter: %w", name, err)
+			return fmt.Errorf("invalid %s parameter: %w", name, err)
 		}
 
-		return err != nil
-	})
-
-	if err != nil {
-		return err
+		prms[i] = [2][]byte{prm.Key, prm.Value}
 	}
 
-	x.m = m
+	x.curEpoch = m.CurrentEpoch
+	x.netMagic = m.MagicNumber
+	x.msPerBlock = m.MsPerBlock
+	x.prms = prms
 
 	return nil
 }
 
-// ReadFromV2 reads NetworkInfo from the netmap.NetworkInfo message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *NetworkInfo) ReadFromV2(m netmap.NetworkInfo) error {
-	return x.readFromV2(m, true)
+// See also [NetworkInfo.ProtoMessage].
+func (x *NetworkInfo) FromProtoMessage(m *protonetmap.NetworkInfo) error {
+	return x.fromProtoMessage(m, true)
 }
 
-// WriteToV2 writes NetworkInfo to the netmap.NetworkInfo message. The message
-// MUST NOT be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x NetworkInfo) WriteToV2(m *netmap.NetworkInfo) {
-	*m = x.m
+// See also [NetworkInfo.FromProtoMessage].
+func (x NetworkInfo) ProtoMessage() *protonetmap.NetworkInfo {
+	m := &protonetmap.NetworkInfo{
+		CurrentEpoch: x.curEpoch,
+		MagicNumber:  x.netMagic,
+		MsPerBlock:   x.msPerBlock,
+	}
+	if len(x.prms) > 0 {
+		m.NetworkConfig = &protonetmap.NetworkConfig{
+			Parameters: make([]*protonetmap.NetworkConfig_Parameter, len(x.prms)),
+		}
+		for i := range x.prms {
+			m.NetworkConfig.Parameters[i] = &protonetmap.NetworkConfig_Parameter{Key: x.prms[i][0], Value: x.prms[i][1]}
+		}
+	}
+	return m
 }
 
 // Marshal encodes NetworkInfo into a binary format of the NeoFS API protocol
@@ -117,10 +141,7 @@ func (x NetworkInfo) WriteToV2(m *netmap.NetworkInfo) {
 //
 // See also Unmarshal.
 func (x NetworkInfo) Marshal() []byte {
-	var m netmap.NetworkInfo
-	x.WriteToV2(&m)
-
-	return m.StableMarshal(nil)
+	return neofsproto.Marshal(x)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the NetworkInfo
@@ -129,105 +150,65 @@ func (x NetworkInfo) Marshal() []byte {
 //
 // See also Marshal.
 func (x *NetworkInfo) Unmarshal(data []byte) error {
-	var m netmap.NetworkInfo
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return x.readFromV2(m, false)
+	return neofsproto.UnmarshalOptional(data, x, (*NetworkInfo).fromProtoMessage)
 }
 
 // CurrentEpoch returns epoch set using SetCurrentEpoch.
 //
 // Zero NetworkInfo has zero current epoch.
 func (x NetworkInfo) CurrentEpoch() uint64 {
-	return x.m.GetCurrentEpoch()
+	return x.curEpoch
 }
 
 // SetCurrentEpoch sets current epoch of the NeoFS network.
 func (x *NetworkInfo) SetCurrentEpoch(epoch uint64) {
-	x.m.SetCurrentEpoch(epoch)
+	x.curEpoch = epoch
 }
 
 // MagicNumber returns magic number set using SetMagicNumber.
 //
 // Zero NetworkInfo has zero magic.
 func (x NetworkInfo) MagicNumber() uint64 {
-	return x.m.GetMagicNumber()
+	return x.netMagic
 }
 
 // SetMagicNumber sets magic number of the NeoFS Sidechain.
 //
 // See also MagicNumber.
 func (x *NetworkInfo) SetMagicNumber(epoch uint64) {
-	x.m.SetMagicNumber(epoch)
+	x.netMagic = epoch
 }
 
 // MsPerBlock returns network parameter set using SetMsPerBlock.
 func (x NetworkInfo) MsPerBlock() int64 {
-	return x.m.GetMsPerBlock()
+	return x.msPerBlock
 }
 
 // SetMsPerBlock sets MillisecondsPerBlock network parameter of the NeoFS Sidechain.
 //
 // See also MsPerBlock.
 func (x *NetworkInfo) SetMsPerBlock(v int64) {
-	x.m.SetMsPerBlock(v)
+	x.msPerBlock = v
 }
 
 func (x *NetworkInfo) setConfig(name string, val []byte) {
-	c := x.m.GetNetworkConfig()
-	if c == nil {
-		c = new(netmap.NetworkConfig)
-
-		var prm netmap.NetworkParameter
-		prm.SetKey([]byte(name))
-		prm.SetValue(val)
-
-		c.SetParameters(prm)
-
-		x.m.SetNetworkConfig(c)
-
-		return
-	}
-
-	found := false
-	prms := make([]netmap.NetworkParameter, 0, c.NumberOfParameters())
-
-	c.IterateParameters(func(prm *netmap.NetworkParameter) bool {
-		found = bytes.Equal(prm.GetKey(), []byte(name))
-		if found {
-			prm.SetValue(val)
-		} else {
-			prms = append(prms, *prm)
+	for i := range x.prms {
+		if string(x.prms[i][0]) == name {
+			x.prms[i][1] = val
+			return
 		}
-
-		return found
-	})
-
-	if !found {
-		prms = append(prms, netmap.NetworkParameter{})
-		prms[len(prms)-1].SetKey([]byte(name))
-		prms[len(prms)-1].SetValue(val)
-
-		c.SetParameters(prms...)
 	}
+
+	x.prms = append(x.prms, [2][]byte{[]byte(name), val})
 }
 
-func (x NetworkInfo) configValue(name string) (res []byte) {
-	x.m.GetNetworkConfig().IterateParameters(func(prm *netmap.NetworkParameter) bool {
-		if string(prm.GetKey()) == name {
-			res = prm.GetValue()
-
-			return true
+func (x NetworkInfo) configValue(name string) []byte {
+	for i := range x.prms {
+		if string(x.prms[i][0]) == name {
+			return x.prms[i][1]
 		}
-
-		return false
-	})
-
-	return
+	}
+	return nil
 }
 
 // SetRawNetworkParameter sets named NeoFS network parameter whose value is
@@ -258,13 +239,11 @@ func (x *NetworkInfo) RawNetworkParameter(name string) []byte {
 //
 // Zero NetworkInfo has no network parameters.
 func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []byte)) {
-	c := x.m.GetNetworkConfig()
-
-	c.IterateParameters(func(prm *netmap.NetworkParameter) bool {
-		name := string(prm.GetKey())
+	for i := range x.prms {
+		name := string(x.prms[i][0])
 		switch name {
 		default:
-			f(name, prm.GetValue())
+			f(name, x.prms[i][1])
 		case
 			configEigenTrustAlpha,
 			configAuditFee,
@@ -279,9 +258,7 @@ func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []by
 			configHomomorphicHashingDisabled,
 			configMaintenanceModeAllowed:
 		}
-
-		return false
-	})
+	}
 }
 
 func (x *NetworkInfo) setConfigUint64(name string, num uint64) {
@@ -332,7 +309,7 @@ func (x NetworkInfo) configUint64(name string) uint64 {
 	res, err := decodeConfigValueUint64(val)
 	if err != nil {
 		// potential panic is OK since value MUST be correct since it is
-		// verified in ReadFromV2 or set by provided method.
+		// verified in FromProtoMessage or set by provided method.
 		panic(err)
 	}
 
@@ -348,7 +325,7 @@ func (x NetworkInfo) configBool(name string) bool {
 	res, err := decodeConfigValueBool(val)
 	if err != nil {
 		// potential panic is OK since value MUST be correct since it is
-		// verified in ReadFromV2 or set by provided method.
+		// verified in FromProtoMessage or set by provided method.
 		panic(err)
 	}
 

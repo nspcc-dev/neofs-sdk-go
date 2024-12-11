@@ -9,13 +9,10 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
-	"math"
 	"math/big"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -23,6 +20,8 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -153,7 +152,8 @@ var validJSONBearerToken = `
      ],
      "targets": [
       {
-       "role": 690857412
+       "role": 690857412,
+       "keys": []
       }
      ]
     },
@@ -176,9 +176,11 @@ var validJSONBearerToken = `
      ],
      "targets": [
       {
-       "role": 690857412
+       "role": 690857412,
+       "keys": []
       },
       {
+       "role": "ROLE_UNSPECIFIED",
        "keys": [
         "NcBrPK1/A0Xs7yVrraePoRRxhceWi7aruA==",
         "NQ5A3Rf5uoVdi2KDo26GBwakxoh8IMpYaw==",
@@ -512,7 +514,6 @@ func TestToken_UnmarshalSignedData(t *testing.T) {
 	err := val.UnmarshalSignedData(validSignedBearerToken)
 	require.NoError(t, err)
 	val.AttachSignature(anyValidSignature)
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validBearerToken, val)
 }
 
@@ -526,33 +527,19 @@ func TestToken_AttachSignature(t *testing.T) {
 	require.Equal(t, anyValidSignature, sig)
 }
 
-func TestToken_ReadFromV2(t *testing.T) {
-	var lt acl.TokenLifetime
-	lt.SetExp(anyValidExp)
-	lt.SetIat(anyValidIat)
-	lt.SetNbf(anyValidNbf)
-
-	var ms refs.OwnerID
-	ms.SetValue(anyValidSubject[:])
-
-	var mi refs.OwnerID
-	mi.SetValue(anyValidIssuer[:])
-
-	var mb acl.BearerTokenBody
-	mb.SetEACL(anyValidEACL.ToV2())
-	mb.SetOwnerID(&ms)
-	mb.SetIssuer(&mi)
-	mb.SetLifetime(&lt)
-
-	var msig refs.Signature
-	anyValidSignature.WriteToV2(&msig)
-
-	var m acl.BearerToken
-	m.SetBody(&mb)
-	m.SetSignature(&msig)
+func TestToken_FromProtoMessage(t *testing.T) {
+	m := &protoacl.BearerToken{
+		Body: &protoacl.BearerToken_Body{
+			EaclTable: anyValidEACL.ProtoMessage(),
+			OwnerId:   &refs.OwnerID{Value: anyValidSubject[:]},
+			Lifetime:  &protoacl.BearerToken_Body_TokenLifetime{Exp: anyValidExp, Nbf: anyValidNbf, Iat: anyValidIat},
+			Issuer:    &refs.OwnerID{Value: anyValidIssuer[:]},
+		},
+		Signature: anyValidSignature.ProtoMessage(),
+	}
 
 	var val bearer.Token
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 
 	require.Equal(t, anyValidEACL, val.EACLTable())
 	require.Equal(t, anyValidIssuer, val.Issuer())
@@ -567,93 +554,79 @@ func TestToken_ReadFromV2(t *testing.T) {
 	require.Equal(t, anyValidSignature, sig)
 
 	// reset optional fields
-	mb.SetIssuer(nil)
-	mb.SetOwnerID(nil)
+	m.Body.Issuer = nil
+	m.Body.OwnerId = nil
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.Issuer())
 	require.True(t, val2.AssertUser(usertest.ID()))
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*acl.BearerToken)
+			corrupt   func(*protoacl.BearerToken)
 		}{
 			{name: "body/missing", err: "missing token body",
-				corrupt: func(m *acl.BearerToken) { m.SetBody(nil) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body = nil }},
 			{name: "body/eacl/missing", err: "missing eACL table",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().SetEACL(nil) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.EaclTable = nil }},
 			{name: "body/eacl/invalid container/nil value", err: "invalid eACL: invalid container ID: invalid length 0",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetEACL().SetContainerID(new(refs.ContainerID)) }},
-			{name: "body/eacl/invalid container/empty value", err: "invalid eACL: invalid container ID: invalid length 0", corrupt: func(m *acl.BearerToken) {
-				var mc refs.ContainerID
-				mc.SetValue([]byte{})
-				m.GetBody().GetEACL().SetContainerID(&mc)
+				corrupt: func(m *protoacl.BearerToken) { m.Body.EaclTable.ContainerId = new(refs.ContainerID) }},
+			{name: "body/eacl/invalid container/empty value", err: "invalid eACL: invalid container ID: invalid length 0", corrupt: func(m *protoacl.BearerToken) {
+				m.Body.EaclTable.ContainerId.Value = []byte{}
 			}},
-			{name: "body/eacl/invalid container/undersized value", err: "invalid eACL: invalid container ID: invalid length 31", corrupt: func(m *acl.BearerToken) {
-				var mc refs.ContainerID
-				mc.SetValue(make([]byte, 31))
-				m.GetBody().GetEACL().SetContainerID(&mc)
+			{name: "body/eacl/invalid container/undersized value", err: "invalid eACL: invalid container ID: invalid length 31", corrupt: func(m *protoacl.BearerToken) {
+				m.Body.EaclTable.ContainerId.Value = make([]byte, 31)
 			}},
-			{name: "body/eacl/invalid container/oversized value", err: "invalid eACL: invalid container ID: invalid length 33", corrupt: func(m *acl.BearerToken) {
-				var mc refs.ContainerID
-				mc.SetValue(make([]byte, 33))
-				m.GetBody().GetEACL().SetContainerID(&mc)
+			{name: "body/eacl/invalid container/oversized value", err: "invalid eACL: invalid container ID: invalid length 33", corrupt: func(m *protoacl.BearerToken) {
+				m.Body.EaclTable.ContainerId.Value = make([]byte, 33)
 			}},
 			{name: "body/subject/value/nil", err: "invalid target user: invalid length 0, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetOwnerID().SetValue(nil) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.OwnerId.Value = nil }},
 			{name: "body/subject/value/empty", err: "invalid target user: invalid length 0, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetOwnerID().SetValue([]byte{}) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.OwnerId.Value = []byte{} }},
 			{name: "body/subject/value/undersize", err: "invalid target user: invalid length 24, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetOwnerID().SetValue(make([]byte, 24)) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.OwnerId.Value = make([]byte, 24) }},
 			{name: "body/subject/value/oversize", err: "invalid target user: invalid length 26, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetOwnerID().SetValue(make([]byte, 26)) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.OwnerId.Value = make([]byte, 26) }},
 			{name: "body/subject/value/wrong prefix", err: "invalid target user: invalid prefix byte 0x42, expected 0x35",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetOwnerID().GetValue()[0] = 0x42 }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.OwnerId.Value[0] = 0x42 }},
 			{name: "body/subject/value/checksum mismatch", err: "invalid target user: checksum mismatch",
-				corrupt: func(m *acl.BearerToken) {
-					v := m.GetBody().GetOwnerID().GetValue()
-					v[len(v)-1]++
-				}},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.OwnerId.Value[24]++ }},
 			{name: "body/lifetime/missing", err: "missing token lifetime",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().SetLifetime(nil) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Lifetime = nil }},
 			{name: "body/issuer/value/nil", err: "invalid issuer: invalid length 0, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetIssuer().SetValue(nil) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Issuer.Value = (nil) }},
 			{name: "body/issuer/value/empty", err: "invalid issuer: invalid length 0, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetIssuer().SetValue([]byte{}) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Issuer.Value = ([]byte{}) }},
 			{name: "body/issuer/value/undersize", err: "invalid issuer: invalid length 24, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetIssuer().SetValue(make([]byte, 24)) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Issuer.Value = (make([]byte, 24)) }},
 			{name: "body/issuer/value/oversize", err: "invalid issuer: invalid length 26, expected 25",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetIssuer().SetValue(make([]byte, 26)) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Issuer.Value = (make([]byte, 26)) }},
 			{name: "body/issuer/value/wrong prefix", err: "invalid issuer: invalid prefix byte 0x42, expected 0x35",
-				corrupt: func(m *acl.BearerToken) { m.GetBody().GetIssuer().GetValue()[0] = 0x42 }},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Issuer.Value[0] = 0x42 }},
 			{name: "body/issuer/value/checksum mismatch", err: "invalid issuer: checksum mismatch",
-				corrupt: func(m *acl.BearerToken) {
-					v := m.GetBody().GetIssuer().GetValue()
-					v[len(v)-1]++
-				}},
+				corrupt: func(m *protoacl.BearerToken) { m.Body.Issuer.Value[24]++ }},
 			{name: "signature/missing", err: "missing body signature",
-				corrupt: func(m *acl.BearerToken) { m.SetSignature(nil) }},
-			{name: "signature/invalid scheme", err: "invalid body signature: scheme 2147483648 overflows int32",
-				corrupt: func(m *acl.BearerToken) { m.GetSignature().SetScheme(math.MaxInt32 + 1) }},
+				corrupt: func(m *protoacl.BearerToken) { m.Signature = nil }},
+			{name: "signature/scheme/negative", err: "invalid body signature: negative scheme -1",
+				corrupt: func(m *protoacl.BearerToken) { m.Signature.Scheme = -1 }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m acl.BearerToken
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(bearer.Token).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(bearer.Token).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestToken_WriteToV2(t *testing.T) {
+func TestToken_ProtoMessage(t *testing.T) {
 	var val bearer.Token
-	var m acl.BearerToken
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetBody())
 	require.Zero(t, m.GetSignature())
 
@@ -666,11 +639,11 @@ func TestToken_WriteToV2(t *testing.T) {
 	val.SetNbf(anyValidNbf)
 	val.AttachSignature(anyValidSignature)
 
-	val.WriteToV2(&m)
+	m = val.ProtoMessage()
 
 	body := m.GetBody()
 	require.NotNil(t, body)
-	require.Equal(t, anyValidSubject[:], body.GetOwnerID().GetValue())
+	require.Equal(t, anyValidSubject[:], body.GetOwnerId().GetValue())
 	require.Equal(t, anyValidIssuer[:], body.GetIssuer().GetValue())
 
 	lt := body.GetLifetime()
@@ -684,11 +657,11 @@ func TestToken_WriteToV2(t *testing.T) {
 	require.Equal(t, anyValidIssuerPublicKeyBytes, sig.GetKey())
 	require.Equal(t, anyValidSignatureBytes, sig.GetSign())
 
-	e := m.GetBody().GetEACL()
+	e := m.GetBody().GetEaclTable()
 	require.NotNil(t, e)
 	require.EqualValues(t, 2, e.GetVersion().GetMajor())
 	require.EqualValues(t, 16, e.GetVersion().GetMinor())
-	require.Equal(t, anyValidContainerID[:], e.GetContainerID().GetValue())
+	require.Equal(t, anyValidContainerID[:], e.GetContainerId().GetValue())
 
 	rs := e.GetRecords()
 	require.Len(t, rs, 2)
@@ -786,7 +759,7 @@ func TestToken_Unmarshal(t *testing.T) {
 			{name: "body/issuer/value/checksum mismatch", err: "invalid issuer: checksum mismatch",
 				b: []byte{10, 29, 34, 27, 10, 25, 53, 147, 14, 186, 66, 195, 247, 51, 14, 249, 145, 102, 233, 115, 142, 143,
 					145, 26, 229, 252, 61, 36, 160, 242, 244}},
-			{name: "signature/invalid scheme", err: "invalid body signature: scheme 2147483648 overflows int32",
+			{name: "signature/invalid scheme", err: "invalid body signature: negative scheme -2147483648",
 				b: []byte{18, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -812,7 +785,6 @@ func TestToken_Unmarshal(t *testing.T) {
 	// filled
 	err := val.Unmarshal(validBinBearerToken)
 	require.NoError(t, err)
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validBearerToken, val)
 }
 
@@ -820,7 +792,6 @@ func TestToken_MarshalJSON(t *testing.T) {
 	//nolint:staticcheck
 	b, err := json.MarshalIndent(validBearerToken, "", " ")
 	require.NoError(t, err)
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.JSONEq(t, validJSONBearerToken, string(b))
 }
 
@@ -858,7 +829,7 @@ func TestToken_UnmarshalJSON(t *testing.T) {
 				j: `{"body":{"issuer":{"value":"QjMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}}}`},
 			{name: "body/issuer/value/checksum mismatch", err: "invalid issuer: checksum mismatch",
 				j: `{"body":{"issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXQ=="}}}`},
-			{name: "signature/invalid scheme", err: "invalid body signature: scheme 2147483648 overflows int32",
+			{name: "signature/invalid scheme", err: "invalid body signature: negative scheme -2147483648",
 				j: `{"signature":{"scheme":-2147483648}}`},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -882,7 +853,6 @@ func TestToken_UnmarshalJSON(t *testing.T) {
 
 	// filled
 	require.NoError(t, val.UnmarshalJSON([]byte(validJSONBearerToken)))
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validBearerToken, val)
 }
 

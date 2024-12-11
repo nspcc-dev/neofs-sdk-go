@@ -15,17 +15,12 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	apigrpc "github.com/nspcc-dev/neofs-api-go/v2/rpc/grpc"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
 var p256Curve = elliptic.P256()
-
-type signedMessageV2 interface {
-	FromGRPCMessage(apigrpc.Message) error
-	StableMarshal([]byte) []byte
-}
 
 // represents tested NeoFS authentication credentials.
 type authCredentials struct {
@@ -59,15 +54,8 @@ func checkAuthCredendials(exp, act authCredentials) error {
 	return nil
 }
 
-func signMessage[MESSAGE apigrpc.Message, MESSAGEV2 any, MESSAGEV2PTR interface {
-	*MESSAGEV2
-	signedMessageV2
-}](key ecdsa.PrivateKey, m MESSAGE, _ MESSAGEV2PTR) (*protorefs.Signature, error) {
-	mV2 := MESSAGEV2PTR(new(MESSAGEV2))
-	if err := mV2.FromGRPCMessage(m); err != nil {
-		panic(err)
-	}
-	b := mV2.StableMarshal(nil)
+func signMessage[MESSAGE neofsproto.Message](key ecdsa.PrivateKey, m MESSAGE) (*protorefs.Signature, error) {
+	b := neofsproto.MarshalMessage(m)
 	h := sha512.Sum512(b)
 	r, s, err := ecdsa.Sign(rand.Reader, &key, h[:])
 	if err != nil {
@@ -78,17 +66,6 @@ func signMessage[MESSAGE apigrpc.Message, MESSAGEV2 any, MESSAGEV2PTR interface 
 	r.FillBytes(sig[1:33])
 	s.FillBytes(sig[33:])
 	return &protorefs.Signature{Key: elliptic.MarshalCompressed(p256Curve, key.X, key.Y), Sign: sig}, nil
-}
-
-func verifyMessageSignature[MESSAGE apigrpc.Message, MESSAGEV2 any, MESSAGEV2PTR interface {
-	*MESSAGEV2
-	signedMessageV2
-}](m MESSAGE, s *protorefs.Signature, expectedCreds *authCredentials) error {
-	mV2 := MESSAGEV2PTR(new(MESSAGEV2))
-	if err := mV2.FromGRPCMessage(m); err != nil {
-		panic(err)
-	}
-	return verifyDataSignature(mV2.StableMarshal(nil), s, expectedCreds)
 }
 
 func verifyDataSignature(data []byte, s *protorefs.Signature, expectedCreds *authCredentials) error {

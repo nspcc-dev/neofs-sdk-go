@@ -7,12 +7,13 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
@@ -45,20 +46,17 @@ var invalidValueTestcases = []invalidValueTestCase{
 func toProtoBytes(b []byte) []byte { return protowire.AppendBytes([]byte{10}, b) }
 
 func toProtoJSON(b []byte) []byte {
-	var m refs.ObjectID
-	m.SetValue(b)
-	b, err := m.MarshalJSON()
+	b, err := neofsproto.MarshalMessageJSON(&refs.ObjectID{Value: b})
 	if err != nil {
 		panic(fmt.Sprintf("unexpected MarshalJSON error: %v", err))
 	}
 	return b
 }
 
-func TestID_ReadFromV2(t *testing.T) {
-	var m refs.ObjectID
-	m.SetValue(validIDBytes[:])
+func TestID_FromProtoMessage(t *testing.T) {
+	m := &refs.ObjectID{Value: validIDBytes[:]}
 	var id oid.ID
-	require.NoError(t, id.ReadFromV2(m))
+	require.NoError(t, id.FromProtoMessage(m))
 	require.EqualValues(t, validIDBytes, id)
 
 	t.Run("invalid", func(t *testing.T) {
@@ -66,9 +64,8 @@ func TestID_ReadFromV2(t *testing.T) {
 			name: "zero value", err: "zero object ID", val: make([]byte, cid.Size),
 		}) {
 			t.Run(tc.name, func(t *testing.T) {
-				var m refs.ObjectID
-				m.SetValue(tc.val)
-				require.EqualError(t, new(oid.ID).ReadFromV2(m), tc.err)
+				m := &refs.ObjectID{Value: tc.val}
+				require.EqualError(t, new(oid.ID).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
@@ -90,10 +87,9 @@ func TestID_Decode(t *testing.T) {
 	})
 }
 
-func TestID_WriteToV2(t *testing.T) {
+func TestID_ProtoMessage(t *testing.T) {
 	id := oidtest.ID()
-	var m refs.ObjectID
-	id.WriteToV2(&m)
+	m := id.ProtoMessage()
 	require.Equal(t, id[:], m.GetValue())
 }
 

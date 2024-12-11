@@ -109,6 +109,36 @@ func (x *GlobalTrust_Body) MarshalStable(b []byte) {
 
 const (
 	_ = iota
+	fieldGlobalTrustVersion
+	fieldGlobalTrustBody
+	fieldGlobalTrustSignature
+)
+
+// MarshaledSize returns size of the GlobalTrust in Protocol Buffers V3 format
+// in bytes. MarshaledSize is NPE-safe.
+func (x *GlobalTrust) MarshaledSize() int {
+	var sz int
+	if x != nil {
+		sz = proto.SizeEmbedded(fieldGlobalTrustVersion, x.Version) +
+			proto.SizeEmbedded(fieldGlobalTrustBody, x.Body) +
+			proto.SizeEmbedded(fieldGlobalTrustSignature, x.Signature)
+	}
+	return sz
+}
+
+// MarshalStable writes the GlobalTrust in Protocol Buffers V3 format with
+// ascending order of fields by number into b. MarshalStable uses exactly
+// [GlobalTrust.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
+func (x *GlobalTrust) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToEmbedded(b, fieldGlobalTrustVersion, x.Version)
+		off += proto.MarshalToEmbedded(b[off:], fieldGlobalTrustBody, x.Body)
+		proto.MarshalToEmbedded(b[off:], fieldGlobalTrustSignature, x.Signature)
+	}
+}
+
+const (
+	_ = iota
 	fieldAnnounceLocalReqEpoch
 	fieldAnnounceLocalReqTrusts
 )

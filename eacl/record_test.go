@@ -3,10 +3,8 @@ package eacl_test
 import (
 	"encoding/json"
 	"math/rand/v2"
-	"strconv"
 	"testing"
 
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +18,7 @@ func TestAddFormedTarget(t *testing.T) {
 	require.Zero(t, r.Targets()[0].Role())
 	require.Equal(t, anyValidECDSABinPublicKeys, r.Targets()[0].BinaryKeys())
 
-	role := eacl.Role(rand.Uint32())
+	role := eacl.Role(rand.Int32())
 	eacl.AddFormedTarget(&r, role)
 	require.Len(t, r.Targets(), 2)
 	require.Equal(t, role, r.Targets()[1].Role())
@@ -34,66 +32,6 @@ func TestRecord_AddFilter(t *testing.T) {
 	}
 
 	require.Equal(t, anyValidFilters, r.Filters())
-}
-
-func TestRecord_ToV2(t *testing.T) {
-	require.Nil(t, (*eacl.Record)(nil).ToV2())
-	r := eacl.ConstructRecord(anyValidAction, anyValidOp, anyValidTargets, anyValidFilters...)
-	m := r.ToV2()
-	require.EqualValues(t, anyValidAction, m.GetAction())
-	require.EqualValues(t, anyValidOp, m.GetOperation())
-	assertProtoTargetsEqual(t, anyValidTargets, m.GetTargets())
-	assertProtoFiltersEqual(t, anyValidFilters, m.GetFilters())
-
-	t.Run("default values", func(t *testing.T) {
-		record := eacl.NewRecord()
-
-		// check initial values
-		require.Zero(t, record.Operation())
-		require.Zero(t, record.Action())
-		require.Nil(t, record.Targets())
-		require.Nil(t, record.Filters())
-
-		// convert to v2 message
-		recordV2 := record.ToV2()
-
-		require.Zero(t, recordV2.GetOperation())
-		require.Zero(t, recordV2.GetAction())
-		require.Nil(t, recordV2.GetTargets())
-		require.Nil(t, recordV2.GetFilters())
-	})
-}
-
-func TestNewRecordFromV2(t *testing.T) {
-	a := protoacl.Action(rand.Uint32())
-	op := protoacl.Operation(rand.Uint32())
-	ts := make([]protoacl.Target, 2)
-	for i := range ts {
-		ts[i].SetRole(protoacl.Role(rand.Uint32()))
-		ts[i].SetKeys(anyValidBinPublicKeys)
-	}
-	fs := make([]protoacl.HeaderFilter, 2)
-	for i := range fs {
-		fs[i].SetHeaderType(protoacl.HeaderType(rand.Uint32()))
-		fs[i].SetKey("key_" + strconv.Itoa(rand.Int()))
-		fs[i].SetMatchType(protoacl.MatchType(rand.Uint32()))
-		fs[i].SetValue("val_" + strconv.Itoa(rand.Int()))
-	}
-	var m protoacl.Record
-	m.SetAction(a)
-	m.SetOperation(op)
-	m.SetTargets(ts)
-	m.SetFilters(fs)
-
-	r := eacl.NewRecordFromV2(&m)
-	require.EqualValues(t, a, r.Action())
-	require.EqualValues(t, op, r.Operation())
-	assertProtoTargetsEqual(t, r.Targets(), ts)
-	assertProtoFiltersEqual(t, r.Filters(), fs)
-
-	t.Run("nil", func(t *testing.T) {
-		require.Equal(t, new(eacl.Record), eacl.NewRecordFromV2(nil))
-	})
 }
 
 func TestRecord_Marshal(t *testing.T) {
@@ -112,7 +50,6 @@ func TestRecord_Unmarshal(t *testing.T) {
 	var r eacl.Record
 	for i := range anyValidBinRecords {
 		require.NoError(t, r.Unmarshal(anyValidBinRecords[i]), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.EqualValues(t, anyValidRecords[i], r, i)
 	}
 }
@@ -129,7 +66,6 @@ func TestRecord_MarshalJSON(t *testing.T) {
 		b, err := anyValidRecords[i].MarshalJSON()
 		require.NoError(t, err, i)
 		require.NoError(t, r1.UnmarshalJSON(b), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidRecords[i], r1, i)
 
 		b, err = json.Marshal(anyValidRecords[i])
@@ -143,11 +79,10 @@ func TestRecord_UnmarshalJSON(t *testing.T) {
 	var r1, r2 eacl.Record
 	for i := range anyValidJSONRecords {
 		require.NoError(t, r1.UnmarshalJSON([]byte(anyValidJSONRecords[i])), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
-		require.Equal(t, anyValidFilters[i], r1, i)
+		require.Equal(t, anyValidRecords[i], r1, i)
 
 		require.NoError(t, json.Unmarshal([]byte(anyValidJSONRecords[i]), &r2), i)
-		require.Equal(t, anyValidJSONRecords[i], r2, i)
+		require.Equal(t, r1, r2, i)
 	}
 }
 

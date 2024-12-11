@@ -3,7 +3,6 @@ package apistatus_test
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/stretchr/testify/require"
 )
@@ -13,17 +12,13 @@ func TestServerInternal_Message(t *testing.T) {
 
 	var st apistatus.ServerInternal
 
-	res := st.Message()
-	resv2 := apistatus.ErrorToV2(st).Message()
-	require.Empty(t, res)
-	require.Empty(t, resv2)
+	require.Empty(t, st.Message())
+	require.Empty(t, apistatus.FromError(st).Message)
 
 	st.SetMessage(msg)
 
-	res = st.Message()
-	resv2 = apistatus.ErrorToV2(st).Message()
-	require.Equal(t, msg, res)
-	require.Equal(t, msg, resv2)
+	require.Equal(t, msg, st.Message())
+	require.Equal(t, msg, apistatus.FromError(st).Message)
 }
 
 func TestWrongMagicNumber_CorrectMagic(t *testing.T) {
@@ -42,10 +37,9 @@ func TestWrongMagicNumber_CorrectMagic(t *testing.T) {
 	require.EqualValues(t, 1, ok)
 
 	// corrupt the value
-	apistatus.ErrorToV2(st).IterateDetails(func(d *status.Detail) bool {
-		d.SetValue([]byte{1, 2, 3}) // any slice with len != 8
-		return true
-	})
+	m := apistatus.FromError(st)
+	require.Len(t, m.Details, 1)
+	m.Details[0].Value = []byte{1, 2, 3} // any slice with len != 8
 
 	_, ok = st.CorrectMagic()
 	require.EqualValues(t, -1, ok)
@@ -64,29 +58,26 @@ func TestSignatureVerification(t *testing.T) {
 
 		st.SetMessage(msg)
 
-		stV2 := st.ErrorToV2()
+		m := apistatus.FromError(st)
 
 		require.Equal(t, msg, st.Message())
-		require.Equal(t, msg, stV2.Message())
+		require.Equal(t, msg, m.Message)
 	})
 
-	t.Run("empty to V2", func(t *testing.T) {
+	t.Run("proto", func(t *testing.T) {
 		var st apistatus.SignatureVerification
 
-		stV2 := st.ErrorToV2()
+		m := apistatus.FromError(st)
 
-		require.Equal(t, "signature verification failed", stV2.Message())
-	})
+		require.Equal(t, "signature verification failed", m.Message)
 
-	t.Run("non-empty to V2", func(t *testing.T) {
-		var st apistatus.SignatureVerification
 		msg := "some other msg"
 
 		st.SetMessage(msg)
 
-		stV2 := st.ErrorToV2()
+		m = apistatus.FromError(st)
 
-		require.Equal(t, msg, stV2.Message())
+		require.Equal(t, msg, m.Message)
 	})
 }
 
@@ -103,28 +94,25 @@ func TestNodeUnderMaintenance(t *testing.T) {
 
 		st.SetMessage(msg)
 
-		stV2 := st.ErrorToV2()
+		m := apistatus.FromError(st)
 
 		require.Equal(t, msg, st.Message())
-		require.Equal(t, msg, stV2.Message())
+		require.Equal(t, msg, m.Message)
 	})
 
-	t.Run("empty to V2", func(t *testing.T) {
+	t.Run("proto", func(t *testing.T) {
 		var st apistatus.NodeUnderMaintenance
 
-		stV2 := st.ErrorToV2()
+		m := apistatus.FromError(st)
 
-		require.Empty(t, "", stV2.Message())
-	})
+		require.Equal(t, "node is under maintenance", m.Message)
 
-	t.Run("non-empty to V2", func(t *testing.T) {
-		var st apistatus.NodeUnderMaintenance
 		msg := "some other msg"
 
 		st.SetMessage(msg)
 
-		stV2 := st.ErrorToV2()
+		m = apistatus.FromError(st)
 
-		require.Equal(t, msg, stV2.Message())
+		require.Equal(t, msg, m.Message)
 	})
 }

@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -54,8 +53,7 @@ var (
 					{Key: "k1", Value: "v1"}, {Key: "Price", Value: "foo"}, {Key: "k3", Value: "v3"},
 				}
 			}},
-		// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-		// {name: "state/negative", msg: "negative state -1", corrupt: func(valid *protonetmap.NodeInfo) { valid.State = -1 }},
+		{name: "state/negative", msg: "negative state -1", corrupt: func(valid *protonetmap.NodeInfo) { valid.State = -1 }},
 	}
 	invalidNetInfoProtoTestcases = []struct {
 		name, msg string
@@ -183,17 +181,9 @@ type testNetmapSnapshotServer struct {
 	protonetmap.UnimplementedNetmapServiceServer
 	testCommonUnaryServerSettings[
 		*protonetmap.NetmapSnapshotRequest_Body,
-		v2netmap.SnapshotRequestBody,
-		*v2netmap.SnapshotRequestBody,
 		*protonetmap.NetmapSnapshotRequest,
-		v2netmap.SnapshotRequest,
-		*v2netmap.SnapshotRequest,
 		*protonetmap.NetmapSnapshotResponse_Body,
-		v2netmap.SnapshotResponseBody,
-		*v2netmap.SnapshotResponseBody,
 		*protonetmap.NetmapSnapshotResponse,
-		v2netmap.SnapshotResponse,
-		*v2netmap.SnapshotResponse,
 	]
 }
 
@@ -253,17 +243,9 @@ type testGetNetworkInfoServer struct {
 	protonetmap.UnimplementedNetmapServiceServer
 	testCommonUnaryServerSettings[
 		*protonetmap.NetworkInfoRequest_Body,
-		v2netmap.NetworkInfoRequestBody,
-		*v2netmap.NetworkInfoRequestBody,
 		*protonetmap.NetworkInfoRequest,
-		v2netmap.NetworkInfoRequest,
-		*v2netmap.NetworkInfoRequest,
 		*protonetmap.NetworkInfoResponse_Body,
-		v2netmap.NetworkInfoResponseBody,
-		*v2netmap.NetworkInfoResponseBody,
 		*protonetmap.NetworkInfoResponse,
-		v2netmap.NetworkInfoResponse,
-		*v2netmap.NetworkInfoResponse,
 	]
 }
 
@@ -317,17 +299,9 @@ type testGetNodeInfoServer struct {
 	protonetmap.UnimplementedNetmapServiceServer
 	testCommonUnaryServerSettings[
 		*protonetmap.LocalNodeInfoRequest_Body,
-		v2netmap.LocalNodeInfoRequestBody,
-		*v2netmap.LocalNodeInfoRequestBody,
 		*protonetmap.LocalNodeInfoRequest,
-		v2netmap.LocalNodeInfoRequest,
-		*v2netmap.LocalNodeInfoRequest,
 		*protonetmap.LocalNodeInfoResponse_Body,
-		v2netmap.LocalNodeInfoResponseBody,
-		*v2netmap.LocalNodeInfoResponseBody,
 		*protonetmap.LocalNodeInfoResponse,
-		v2netmap.LocalNodeInfoResponse,
-		*v2netmap.LocalNodeInfoResponse,
 	]
 }
 

@@ -7,12 +7,12 @@ import (
 	"math/big"
 	"testing"
 
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/nspcc-dev/tzhash/tz"
@@ -211,8 +211,8 @@ var (
 	// corresponds to anyValidRecords.
 	anyValidJSONRecords = []string{`
 {
- "operation": 5692342,
- "action": 12943052,
+ "action": 5692342,
+ "operation": 12943052,
  "filters": [
   {
    "headerType": 4509681,
@@ -230,8 +230,8 @@ var (
 }
 `, `
 {
- "operation": 43658603,
- "action": 12943052,
+ "action": 43658603,
+ "operation": 12943052,
  "filters": [
   {
    "headerType": 4509681,
@@ -275,8 +275,8 @@ var (
  },
  "records": [
   {
-   "operation": 5692342,
-   "action": 12943052,
+   "action": 5692342,
+   "operation": 12943052,
    "filters": [
     {
      "headerType": 4509681,
@@ -293,11 +293,11 @@ var (
    ]
   },
   {
-   "operation": 43658603,
-   "action": 12943052,
+   "action": 43658603,
+   "operation": 12943052,
    "filters": [
     {
-     "headerType": 43658603,
+     "headerType": 4509681,
      "matchType": 949385,
      "key": "key_54093643",
      "value": "val_34811040"
@@ -337,7 +337,7 @@ func init() {
 	}
 }
 
-func assertProtoTargetsEqual(t testing.TB, ts []eacl.Target, ms []protoacl.Target) {
+func assertProtoTargetsEqual(t testing.TB, ts []eacl.Target, ms []*protoacl.EACLRecord_Target) {
 	require.Len(t, ms, len(ts))
 	for i := range ts {
 		require.EqualValues(t, ts[i].Role(), ms[i].GetRole(), i)
@@ -345,7 +345,7 @@ func assertProtoTargetsEqual(t testing.TB, ts []eacl.Target, ms []protoacl.Targe
 	}
 }
 
-func assertProtoFiltersEqual(t testing.TB, fs []eacl.Filter, ms []protoacl.HeaderFilter) {
+func assertProtoFiltersEqual(t testing.TB, fs []eacl.Filter, ms []*protoacl.EACLRecord_Filter) {
 	require.Len(t, ms, len(fs))
 	for i := range fs {
 		require.EqualValues(t, fs[i].From(), ms[i].GetHeaderType(), i)
@@ -355,7 +355,7 @@ func assertProtoFiltersEqual(t testing.TB, fs []eacl.Filter, ms []protoacl.Heade
 	}
 }
 
-func assertProtoRecordsEqual(t testing.TB, rs []eacl.Record, ms []protoacl.Record) {
+func assertProtoRecordsEqual(t testing.TB, rs []eacl.Record, ms []*protoacl.EACLRecord) {
 	require.Len(t, ms, len(rs))
 	for i := range rs {
 		require.EqualValues(t, rs[i].Action(), ms[i].GetAction(), i)

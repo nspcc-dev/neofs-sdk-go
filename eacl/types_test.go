@@ -15,13 +15,13 @@ func TestValidationUnit_WithContainerID(t *testing.T) {
 }
 
 func TestValidationUnit_WithRole(t *testing.T) {
-	role := Role(rand.Uint32())
+	role := Role(rand.Int32())
 	u := new(ValidationUnit).WithRole(role)
 	require.Equal(t, role, u.role)
 }
 
 func TestValidationUnit_WithOperation(t *testing.T) {
-	op := Operation(rand.Uint32())
+	op := Operation(rand.Int32())
 	u := new(ValidationUnit).WithOperation(op)
 	require.Equal(t, op, u.op)
 }
@@ -40,8 +40,8 @@ func TestValidationUnit_WithSenderKey(t *testing.T) {
 
 func TestValidationUnit_WithEACLTable(t *testing.T) {
 	eACL := NewTableForContainer(cidtest.ID(), []Record{
-		ConstructRecord(Action(rand.Uint32()), Operation(rand.Uint32()), []Target{
-			NewTargetByRole(Role(rand.Uint32())),
+		ConstructRecord(Action(rand.Int32()), Operation(rand.Int32()), []Target{
+			NewTargetByRole(Role(rand.Int32())),
 		}),
 	})
 	u := new(ValidationUnit).WithEACLTable(&eACL)

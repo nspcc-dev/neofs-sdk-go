@@ -5,11 +5,11 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -81,11 +81,11 @@ func TestObject_CopyTo(t *testing.T) {
 		var dst Object
 		obj.CopyTo(&dst)
 
-		dstHeader := dst.ToV2().GetHeader()
+		dstHeader := dst.ProtoMessage().GetHeader()
 		require.NotNil(t, dstHeader)
-		dstHeader.SetObjectType(object.TypeTombstone)
+		dstHeader.ObjectType = protoobject.ObjectType_TOMBSTONE
 
-		objHeader := obj.ToV2().GetHeader()
+		objHeader := obj.ProtoMessage().GetHeader()
 
 		require.NotEqual(t, dstHeader.GetObjectType(), objHeader.GetObjectType())
 	})
@@ -145,36 +145,36 @@ func TestObject_CopyTo(t *testing.T) {
 
 	t.Run("overwrite header", func(t *testing.T) {
 		var local Object
-		require.Nil(t, local.ToV2().GetHeader())
+		require.Nil(t, local.ProtoMessage().GetHeader())
 
 		var dst Object
 		dst.SetAttributes(attr)
-		require.NotNil(t, dst.ToV2().GetHeader())
+		require.NotNil(t, dst.ProtoMessage().GetHeader())
 
 		local.CopyTo(&dst)
 		checkObjectEquals(t, local, dst)
 
-		require.Nil(t, local.ToV2().GetHeader())
-		require.Nil(t, dst.ToV2().GetHeader())
+		require.Nil(t, local.ProtoMessage().GetHeader())
+		require.Nil(t, dst.ProtoMessage().GetHeader())
 
 		dst.SetAttributes(attr)
-		require.NotNil(t, dst.ToV2().GetHeader())
-		require.Nil(t, local.ToV2().GetHeader())
+		require.NotNil(t, dst.ProtoMessage().GetHeader())
+		require.Nil(t, local.ProtoMessage().GetHeader())
 	})
 
 	t.Run("header, rewrite container id to nil", func(t *testing.T) {
 		var local Object
-		var localHeader object.Header
-		local.ToV2().SetHeader(&localHeader)
+		var localHeader protoobject.Header
+		local.ProtoMessage().Header = &localHeader
 
 		var dstContID refs.ContainerID
-		dstContID.SetValue([]byte{1})
+		dstContID.Value = []byte{1}
 
-		var dstHeader object.Header
-		dstHeader.SetContainerID(&dstContID)
+		var dstHeader protoobject.Header
+		dstHeader.ContainerId = &dstContID
 
 		var dst Object
-		dst.ToV2().SetHeader(&dstHeader)
+		dst.ProtoMessage().Header = &dstHeader
 
 		local.CopyTo(&dst)
 		checkObjectEquals(t, local, dst)
@@ -182,41 +182,28 @@ func TestObject_CopyTo(t *testing.T) {
 
 	t.Run("header, change container id", func(t *testing.T) {
 		c := cidtest.ID()
-		b := c[:]
-		var mc refs.ContainerID
-		mc.SetValue(b)
-		var mh object.Header
-		mh.SetContainerID(&mc)
-		var mo object.Object
-		mo.SetHeader(&mh)
 
 		var local, dst Object
-		require.NoError(t, local.ReadFromV2(mo))
-		require.NoError(t, dst.ReadFromV2(mo))
+		local.header.cnr = c
+		dst.header.cnr = c
 		require.Equal(t, local.GetContainerID(), dst.GetContainerID())
 
-		b[0]++
-		require.Equal(t, c, local.GetContainerID())
-		require.Equal(t, local.GetContainerID(), dst.GetContainerID())
-
-		cp := c
 		local.CopyTo(&dst)
-		b[0]++
+		local.header.cnr[0]++
 		require.NotEqual(t, local.GetContainerID(), dst.GetContainerID())
-		require.Equal(t, c, local.GetContainerID())
-		require.Equal(t, cp, dst.GetContainerID())
+		require.Equal(t, c, dst.GetContainerID())
 	})
 
 	t.Run("header, rewrite payload hash", func(t *testing.T) {
-		var cs refs.Checksum
-		cs.SetType(refs.TillichZemor)
-		cs.SetSum([]byte{1})
-
-		var localHeader object.Header
-		localHeader.SetPayloadHash(&cs)
+		localHeader := protoobject.Header{
+			PayloadHash: &refs.Checksum{
+				Type: refs.ChecksumType_TZ,
+				Sum:  []byte{1},
+			},
+		}
 
 		var local Object
-		local.ToV2().SetHeader(&localHeader)
+		local.ProtoMessage().Header = &localHeader
 
 		var dst Object
 		local.CopyTo(&dst)
@@ -225,15 +212,15 @@ func TestObject_CopyTo(t *testing.T) {
 	})
 
 	t.Run("header, rewrite homo hash", func(t *testing.T) {
-		var cs refs.Checksum
-		cs.SetType(refs.TillichZemor)
-		cs.SetSum([]byte{1})
-
-		var localHeader object.Header
-		localHeader.SetHomomorphicHash(&cs)
+		localHeader := protoobject.Header{
+			HomomorphicHash: &refs.Checksum{
+				Type: refs.ChecksumType_TZ,
+				Sum:  []byte{1},
+			},
+		}
 
 		var local Object
-		local.ToV2().SetHeader(&localHeader)
+		local.ProtoMessage().Header = &localHeader
 
 		var dst Object
 		local.CopyTo(&dst)
@@ -242,13 +229,10 @@ func TestObject_CopyTo(t *testing.T) {
 	})
 
 	t.Run("header, rewrite split header", func(t *testing.T) {
-		var spl object.SplitHeader
-
-		var localHeader object.Header
-		localHeader.SetSplit(&spl)
+		localHeader := protoobject.Header{Split: new(protoobject.Header_Split)}
 
 		var local Object
-		local.ToV2().SetHeader(&localHeader)
+		local.ProtoMessage().Header = &localHeader
 
 		var dst Object
 		dst.SetChildren(oidtest.ID(), oidtest.ID())
@@ -267,8 +251,8 @@ func TestObject_CopyTo(t *testing.T) {
 		var dst Object
 
 		require.NotEqual(t,
-			local.ToV2().GetHeader().GetSessionToken().GetBody().GetOwnerID(),
-			dst.ToV2().GetHeader().GetSessionToken().GetBody().GetOwnerID(),
+			local.ProtoMessage().GetHeader().GetSessionToken().GetBody().GetOwnerId(),
+			dst.ProtoMessage().GetHeader().GetSessionToken().GetBody().GetOwnerId(),
 		)
 
 		local.CopyTo(&dst)
@@ -286,8 +270,8 @@ func TestObject_CopyTo(t *testing.T) {
 		dst.SetSessionToken(sess)
 
 		require.NotEqual(t,
-			local.ToV2().GetHeader().GetSessionToken().GetBody().GetOwnerID(),
-			dst.ToV2().GetHeader().GetSessionToken().GetBody().GetOwnerID(),
+			local.ProtoMessage().GetHeader().GetSessionToken().GetBody().GetOwnerId(),
+			dst.ProtoMessage().GetHeader().GetSessionToken().GetBody().GetOwnerId(),
 		)
 
 		local.CopyTo(&dst)
@@ -304,8 +288,8 @@ func TestObject_CopyTo(t *testing.T) {
 		var dst Object
 
 		require.NotEqual(t,
-			local.ToV2().GetHeader().GetSessionToken().GetBody().GetLifetime(),
-			dst.ToV2().GetHeader().GetSessionToken().GetBody().GetLifetime(),
+			local.ProtoMessage().GetHeader().GetSessionToken().GetBody().GetLifetime(),
+			dst.ProtoMessage().GetHeader().GetSessionToken().GetBody().GetLifetime(),
 		)
 
 		local.CopyTo(&dst)
@@ -317,7 +301,7 @@ func TestObject_CopyTo(t *testing.T) {
 		sessLocal := sessionToken(cnr)
 		local.SetSessionToken(sessLocal)
 
-		local.ToV2().GetHeader().GetSessionToken().SetBody(nil)
+		local.ProtoMessage().GetHeader().GetSessionToken().Body = nil
 
 		sessDst := sessionToken(cnr)
 		sessDst.SetID(uuid.New())
@@ -326,8 +310,8 @@ func TestObject_CopyTo(t *testing.T) {
 		dst.SetSessionToken(sessDst)
 
 		require.NotEqual(t,
-			local.ToV2().GetHeader().GetSessionToken().GetBody(),
-			dst.ToV2().GetHeader().GetSessionToken().GetBody(),
+			local.ProtoMessage().GetHeader().GetSessionToken().GetBody(),
+			dst.ProtoMessage().GetHeader().GetSessionToken().GetBody(),
 		)
 
 		local.CopyTo(&dst)

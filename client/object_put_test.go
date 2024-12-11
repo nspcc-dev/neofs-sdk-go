@@ -10,13 +10,12 @@ import (
 	"testing"
 	"time"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -50,17 +49,9 @@ type testPutObjectServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonClientStreamServerSettings[
 		*protoobject.PutRequest_Body,
-		v2object.PutRequestBody,
-		*v2object.PutRequestBody,
 		*protoobject.PutRequest,
-		v2object.PutRequest,
-		*v2object.PutRequest,
 		*protoobject.PutResponse_Body,
-		v2object.PutResponseBody,
-		*v2object.PutResponseBody,
 		*protoobject.PutResponse,
-		v2object.PutResponse,
-		*v2object.PutResponse,
 	]
 	testObjectSessionServerSettings
 	testBearerTokenServerSettings
@@ -364,7 +355,6 @@ func TestClient_ObjectPut(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)

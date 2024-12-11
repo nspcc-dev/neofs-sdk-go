@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,8 +23,8 @@ func TestObject_CopyTo(t *testing.T) {
 		var dst Object
 		container.CopyTo(&dst)
 
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
+		emptyWriter := func(body *protosession.SessionToken_Body) {
+			body.Context = &protosession.SessionToken_Body_Container{}
 		}
 
 		require.Equal(t, container, dst)
@@ -73,8 +73,8 @@ func TestObject_CopyTo(t *testing.T) {
 		require.NotZero(t, dst.cnr)
 
 		local.CopyTo(&dst)
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
+		emptyWriter := func(body *protosession.SessionToken_Body) {
+			body.Context = &protosession.SessionToken_Body_Container{}
 		}
 
 		require.Equal(t, local, dst)

@@ -11,16 +11,6 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl/grpc"
-	apicontainer "github.com/nspcc-dev/neofs-api-go/v2/container"
-	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
-	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -33,6 +23,14 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -150,30 +148,29 @@ var (
 			{},
 			{Operation: 1, Action: 1},
 			{Operation: 2, Action: 2},
-			// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-			// {Operation: 3, Action: 3},
-			// {Operation: 4, Action: math.MaxInt32},
+			{Operation: 3, Action: 3},
+			{Operation: 4, Action: math.MaxInt32},
 			{Operation: 5},
 			{Operation: 6},
 			{Operation: 7},
-			// {Operation: math.MaxInt32},
+			{Operation: math.MaxInt32},
 			{Filters: []*protoacl.EACLRecord_Filter{
 				{HeaderType: 0, MatchType: 0, Key: "key1", Value: "val1"},
 				{HeaderType: 1, MatchType: 1},
 				{HeaderType: 2, MatchType: 2},
 				{HeaderType: 3, MatchType: 3},
-				// {HeaderType: math.MaxInt32, MatchType: 4},
+				{HeaderType: math.MaxInt32, MatchType: 4},
 				{MatchType: 5},
 				{MatchType: 6},
 				{MatchType: 7},
-				// {MatchType: math.MaxInt32},
+				{MatchType: math.MaxInt32},
 			}},
 			{Targets: []*protoacl.EACLRecord_Target{
 				{Role: 0, Keys: [][]byte{[]byte("key1"), []byte("key2")}},
 				{Role: 1},
 				{Role: 2},
 				{Role: 3},
-				// {Role: math.MaxInt32},
+				{Role: math.MaxInt32},
 			}},
 		},
 	}
@@ -342,8 +339,7 @@ var (
 					4, 124, 162, 237, 187, 141, 28, 109, 121, 22, 77, 77},
 				Context: &protosession.SessionToken_Body_Object{
 					Object: &protosession.ObjectSessionContext{
-						// TODO: must work with big verb (e.g. 1849442930) after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-						Verb: 3,
+						Verb: 1849442930,
 						Target: &protosession.ObjectSessionContext_Target{
 							Container: &protorefs.ContainerID{Value: []byte{43, 155, 220, 2, 70, 86, 249, 4, 211, 12, 14, 152, 15, 165,
 								141, 240, 15, 199, 82, 245, 32, 86, 49, 60, 3, 15, 235, 107, 227, 21, 201, 226}},
@@ -954,9 +950,7 @@ func checkStoragePolicyTransport(p netmap.PlacementPolicy, m *protonetmap.Placem
 		actClause := ms.GetClause()
 		switch {
 		default:
-			var pV2 apinetmap.PlacementPolicy
-			p.WriteToV2(&pV2)
-			expClause = pV2.ToGRPCMessage().(*protonetmap.PlacementPolicy).Selectors[i].Clause
+			expClause = p.ProtoMessage().Selectors[i].Clause
 		case cs.IsSame():
 			expClause = protonetmap.Clause_SAME
 		case cs.IsDistinct():
@@ -998,9 +992,8 @@ func checkContainerTransport(c container.Container, m *protocontainer.Container)
 	}
 	// 3. nonce
 	// TODO(https://github.com/nspcc-dev/neofs-sdk-go/issues/664): access nonce from c directly
-	var cV2 apicontainer.Container
-	c.WriteToV2(&cV2)
-	if v1, v2 := cV2.GetNonce(), m.GetNonce(); !bytes.Equal(v1, v2) {
+	mc := c.ProtoMessage()
+	if v1, v2 := mc.GetNonce(), m.GetNonce(); !bytes.Equal(v1, v2) {
 		return fmt.Errorf("nonce field (client: %x, message: %x)", v1, v2)
 	}
 	// 4. basic ACL
@@ -1303,9 +1296,7 @@ func checkNodeInfoTransport(n netmap.NodeInfo, m *protonetmap.NodeInfo) error {
 	var expState protonetmap.NodeInfo_State
 	switch {
 	default:
-		var pV2 apinetmap.NodeInfo
-		n.WriteToV2(&pV2)
-		expState = pV2.ToGRPCMessage().(*protonetmap.NodeInfo).State
+		expState = n.ProtoMessage().State
 	case n.IsOnline():
 		expState = protonetmap.NodeInfo_ONLINE
 	case n.IsOffline():

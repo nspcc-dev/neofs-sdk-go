@@ -8,8 +8,7 @@ import (
 	"testing"
 	"time"
 
-	apireputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	reputationtest "github.com/nspcc-dev/neofs-sdk-go/reputation/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -36,17 +35,9 @@ type testAnnounceIntermediateReputationServer struct {
 	protoreputation.UnimplementedReputationServiceServer
 	testCommonUnaryServerSettings[
 		*protoreputation.AnnounceIntermediateResultRequest_Body,
-		apireputation.AnnounceIntermediateResultRequestBody,
-		*apireputation.AnnounceIntermediateResultRequestBody,
 		*protoreputation.AnnounceIntermediateResultRequest,
-		apireputation.AnnounceIntermediateResultRequest,
-		*apireputation.AnnounceIntermediateResultRequest,
 		*protoreputation.AnnounceIntermediateResultResponse_Body,
-		apireputation.AnnounceIntermediateResultResponseBody,
-		*apireputation.AnnounceIntermediateResultResponseBody,
 		*protoreputation.AnnounceIntermediateResultResponse,
-		apireputation.AnnounceIntermediateResultResponse,
-		*apireputation.AnnounceIntermediateResultResponse,
 	]
 	reqEpoch *uint64
 	reqIter  uint32
@@ -151,17 +142,9 @@ type testAnnounceLocalTrustServer struct {
 	protoreputation.UnimplementedReputationServiceServer
 	testCommonUnaryServerSettings[
 		*protoreputation.AnnounceLocalTrustRequest_Body,
-		apireputation.AnnounceLocalTrustRequestBody,
-		*apireputation.AnnounceLocalTrustRequestBody,
 		*protoreputation.AnnounceLocalTrustRequest,
-		apireputation.AnnounceLocalTrustRequest,
-		*apireputation.AnnounceLocalTrustRequest,
 		*protoreputation.AnnounceLocalTrustResponse_Body,
-		apireputation.AnnounceLocalTrustResponseBody,
-		*apireputation.AnnounceLocalTrustResponseBody,
 		*protoreputation.AnnounceLocalTrustResponse,
-		apireputation.AnnounceLocalTrustResponse,
-		*apireputation.AnnounceLocalTrustResponse,
 	]
 	reqEpoch  *uint64
 	reqTrusts []reputation.Trust

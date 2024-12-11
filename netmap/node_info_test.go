@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -488,48 +488,41 @@ func TestNodeInfo_SetVerifiedNodesDomain(t *testing.T) {
 	require.Equal(t, anyValidVerifiedNodesDomain, n.VerifiedNodesDomain())
 }
 
-func setNodeAttributes(ni *apinetmap.NodeInfo, els ...string) {
+func setNodeAttributes(ni *protonetmap.NodeInfo, els ...string) {
 	if len(els)%2 != 0 {
 		panic("must be even")
 	}
-	mas := make([]apinetmap.Attribute, len(els)/2)
+	ni.Attributes = make([]*protonetmap.NodeInfo_Attribute, len(els)/2)
 	for i := range len(els) / 2 {
-		mas[i].SetKey(els[2*i])
-		mas[i].SetValue(els[2*i+1])
+		ni.Attributes[i] = &protonetmap.NodeInfo_Attribute{Key: els[2*i], Value: els[2*i+1]}
 	}
-	ni.SetAttributes(mas)
 }
 
-func TestNodeInfo_ReadFromV2(t *testing.T) {
-	var mas []apinetmap.Attribute
-	addAttr := func(k, v string) {
-		var a apinetmap.Attribute
-		a.SetKey(k)
-		a.SetValue(v)
-		mas = append(mas, a)
+func TestNodeInfo_FromProtoMessage(t *testing.T) {
+	m := &protonetmap.NodeInfo{
+		PublicKey: anyValidPublicKey,
+		Addresses: anyValidNetworkEndpoints,
+		Attributes: []*protonetmap.NodeInfo_Attribute{
+			{Key: "k1", Value: "v1"},
+			{Key: "k2", Value: "v2"},
+			{Key: "Capacity", Value: "9010937245406684209"},
+			{Key: "Price", Value: "10993309018040354285"},
+			{Key: "UN-LOCODE", Value: anyValidLOCODE},
+			{Key: "CountryCode", Value: anyValidCountryCode},
+			{Key: "Country", Value: anyValidCountryName},
+			{Key: "Location", Value: anyValidLocationName},
+			{Key: "SubDivCode", Value: anyValidSubdivCode},
+			{Key: "SubDiv", Value: anyValidSubdivName},
+			{Key: "SubDivName", Value: anyValidSubdivName},
+			{Key: "Continent", Value: anyValidContinentName},
+			{Key: "ExternalAddr", Value: strings.Join(anyValidExternalNetworkEndpoints, ",")},
+			{Key: "Version", Value: anyValidNodeVersion},
+			{Key: "VerifiedNodesDomain", Value: anyValidVerifiedNodesDomain},
+		},
 	}
-	addAttr("k1", "v1")
-	addAttr("k2", "v2")
-	addAttr("Capacity", "9010937245406684209")
-	addAttr("Price", "10993309018040354285")
-	addAttr("UN-LOCODE", anyValidLOCODE)
-	addAttr("CountryCode", anyValidCountryCode)
-	addAttr("Country", anyValidCountryName)
-	addAttr("Location", anyValidLocationName)
-	addAttr("SubDivCode", anyValidSubdivCode)
-	addAttr("SubDiv", anyValidSubdivName)
-	addAttr("SubDivName", anyValidSubdivName)
-	addAttr("Continent", anyValidContinentName)
-	addAttr("ExternalAddr", strings.Join(anyValidExternalNetworkEndpoints, ","))
-	addAttr("Version", anyValidNodeVersion)
-	addAttr("VerifiedNodesDomain", anyValidVerifiedNodesDomain)
-	var m apinetmap.NodeInfo
-	m.SetPublicKey(anyValidPublicKey)
-	m.SetAddresses(anyValidNetworkEndpoints...)
-	m.SetAttributes(mas)
 
 	var val netmap.NodeInfo
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	require.Equal(t, anyValidPublicKey, val.PublicKey())
 	var i int
 	val.IterateNetworkEndpoints(func(el string) bool {
@@ -562,23 +555,23 @@ func TestNodeInfo_ReadFromV2(t *testing.T) {
 	require.Equal(t, anyValidVerifiedNodesDomain, val.VerifiedNodesDomain())
 
 	for _, tc := range []struct {
-		st    apinetmap.NodeState
+		st    protonetmap.NodeInfo_State
 		check func(netmap.NodeInfo) bool
 	}{
-		{st: apinetmap.Online, check: netmap.NodeInfo.IsOnline},
-		{st: apinetmap.Offline, check: netmap.NodeInfo.IsOffline},
-		{st: apinetmap.Maintenance, check: netmap.NodeInfo.IsMaintenance},
+		{st: protonetmap.NodeInfo_ONLINE, check: netmap.NodeInfo.IsOnline},
+		{st: protonetmap.NodeInfo_OFFLINE, check: netmap.NodeInfo.IsOffline},
+		{st: protonetmap.NodeInfo_MAINTENANCE, check: netmap.NodeInfo.IsMaintenance},
 	} {
-		m.SetState(tc.st)
-		require.NoError(t, val.ReadFromV2(m), tc.st)
+		m.State = tc.st
+		require.NoError(t, val.FromProtoMessage(m), tc.st)
 		require.True(t, tc.check(val))
 	}
 
 	// reset optional fields
-	m.SetAttributes(nil)
-	m.SetState(0)
+	m.Attributes = nil
+	m.State = 0
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.NumberOfAttributes())
 	val2.IterateAttributes(func(string, string) {
 		t.Fatal("handler must not be called")
@@ -594,57 +587,56 @@ func TestNodeInfo_ReadFromV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(info *apinetmap.NodeInfo)
+			corrupt   func(info *protonetmap.NodeInfo)
 		}{
 			{name: "public key/nil", err: "missing public key",
-				corrupt: func(m *apinetmap.NodeInfo) { m.SetPublicKey(nil) }},
+				corrupt: func(m *protonetmap.NodeInfo) { m.PublicKey = nil }},
 			{name: "public key/empty", err: "missing public key",
-				corrupt: func(m *apinetmap.NodeInfo) { m.SetPublicKey([]byte{}) }},
+				corrupt: func(m *protonetmap.NodeInfo) { m.PublicKey = []byte{} }},
+			{name: "endpoints/nil", err: "missing network endpoints",
+				corrupt: func(m *protonetmap.NodeInfo) { m.Addresses = nil }},
 			{name: "endpoints/empty", err: "missing network endpoints",
-				corrupt: func(m *apinetmap.NodeInfo) { m.SetAddresses() }},
+				corrupt: func(m *protonetmap.NodeInfo) { m.Addresses = []string{} }},
+			{name: "attributes/nil", err: "nil attribute #1",
+				corrupt: func(m *protonetmap.NodeInfo) { m.Attributes[1] = nil }},
 			{name: "attributes/no key", err: "empty key of the attribute #1",
-				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "", "v2") }},
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "", "v2") }},
 			{name: "attributes/no value", err: `empty "k2" attribute value`,
-				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "") }},
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "") }},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
-				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "attributes/capacity", err: "invalid Capacity attribute: strconv.ParseUint: parsing \"foo\": invalid syntax",
-				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "Capacity", "foo") }},
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "Capacity", "foo") }},
 			{name: "attributes/price", err: "invalid Price attribute: strconv.ParseUint: parsing \"foo\": invalid syntax",
-				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "Price", "foo") }},
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "Price", "foo") }},
+			{name: "state/negative", err: "negative state -1",
+				corrupt: func(m *protonetmap.NodeInfo) { m.State = -1 }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m apinetmap.NodeInfo
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(netmap.NodeInfo).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(netmap.NodeInfo).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestNodeInfo_WriteToV2(t *testing.T) {
+func TestNodeInfo_ProtoMessage(t *testing.T) {
 	var val netmap.NodeInfo
-	var m apinetmap.NodeInfo
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetPublicKey())
-	require.Zero(t, m.NumberOfAddresses())
-	m.IterateAddresses(func(string) bool { t.Fatal("handler must not be called"); return false })
+	require.Zero(t, m.GetAddresses())
 	require.Zero(t, m.GetAttributes())
 	require.Zero(t, m.GetState())
 
 	// filled
-	validNodeInfo.WriteToV2(&m)
+	m = validNodeInfo.ProtoMessage()
 	require.Equal(t, anyValidPublicKey, m.GetPublicKey())
-	require.EqualValues(t, 3, m.NumberOfAddresses())
-	var collected []string
-	m.IterateAddresses(func(el string) bool {
-		collected = append(collected, el)
-		return false
-	})
+	require.Equal(t, anyValidNetworkEndpoints, m.GetAddresses())
+
 	mas := m.GetAttributes()
 	require.Len(t, mas, 14)
 	for i, pair := range [][2]string{
@@ -670,15 +662,15 @@ func TestNodeInfo_WriteToV2(t *testing.T) {
 
 	for _, tc := range []struct {
 		setState func(*netmap.NodeInfo)
-		exp      apinetmap.NodeState
+		exp      protonetmap.NodeInfo_State
 	}{
-		{setState: (*netmap.NodeInfo).SetOnline, exp: apinetmap.Online},
-		{setState: (*netmap.NodeInfo).SetOffline, exp: apinetmap.Offline},
-		{setState: (*netmap.NodeInfo).SetMaintenance, exp: apinetmap.Maintenance},
+		{setState: (*netmap.NodeInfo).SetOnline, exp: protonetmap.NodeInfo_ONLINE},
+		{setState: (*netmap.NodeInfo).SetOffline, exp: protonetmap.NodeInfo_OFFLINE},
+		{setState: (*netmap.NodeInfo).SetMaintenance, exp: protonetmap.NodeInfo_MAINTENANCE},
 	} {
 		val2 := validNodeInfo
 		tc.setState(&val2)
-		val2.WriteToV2(&m)
+		m := val2.ProtoMessage()
 		require.Equal(t, tc.exp, m.GetState(), tc.exp)
 	}
 }

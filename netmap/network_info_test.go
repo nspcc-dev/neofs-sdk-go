@@ -3,8 +3,8 @@ package netmap_test
 import (
 	"testing"
 
-	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -213,52 +213,46 @@ func TestNetworkInfo_AllowMaintenanceMode(t *testing.T) {
 	require.True(t, x.MaintenanceModeAllowed())
 }
 
-func setNetworkPrms[T string | []byte](ni *apinetmap.NetworkInfo, els ...T) {
+func setNetworkPrms[T string | []byte](ni *protonetmap.NetworkInfo, els ...T) {
 	if len(els)%2 != 0 {
 		panic("must be even")
 	}
-	mps := make([]apinetmap.NetworkParameter, len(els)/2)
+	ni.NetworkConfig.Parameters = make([]*protonetmap.NetworkConfig_Parameter, len(els)/2)
 	for i := range len(els) / 2 {
-		mps[i].SetKey([]byte(els[2*i]))
-		mps[i].SetValue([]byte(els[2*i+1]))
+		ni.NetworkConfig.Parameters[i] = &protonetmap.NetworkConfig_Parameter{
+			Key:   []byte(els[2*i]),
+			Value: []byte(els[2*i+1]),
+		}
 	}
-	var mc apinetmap.NetworkConfig
-	mc.SetParameters(mps...)
-	ni.SetNetworkConfig(&mc)
 }
 
-func TestNetworkInfo_ReadFromV2(t *testing.T) {
-	var mps []apinetmap.NetworkParameter
-	addP := func(k string, v []byte) {
-		var m apinetmap.NetworkParameter
-		m.SetKey([]byte(k))
-		m.SetValue(v)
-		mps = append(mps, m)
+func TestNetworkInfo_FromProtoMessage(t *testing.T) {
+	m := &protonetmap.NetworkInfo{
+		CurrentEpoch: anyValidCurrentEpoch,
+		MagicNumber:  anyValidMagicNumber,
+		MsPerBlock:   anyValidMSPerBlock,
+		NetworkConfig: &protonetmap.NetworkConfig{
+			Parameters: []*protonetmap.NetworkConfig_Parameter{
+				{Key: []byte("k1"), Value: []byte("v1")},
+				{Key: []byte("k2"), Value: []byte("v2")},
+				{Key: []byte("AuditFee"), Value: anyValidBinAuditFee},
+				{Key: []byte("BasicIncomeRate"), Value: anyValidBinStoragePrice},
+				{Key: []byte("ContainerAliasFee"), Value: anyValidBinNamedContainerFee},
+				{Key: []byte("ContainerFee"), Value: anyValidBinContainerFee},
+				{Key: []byte("EigenTrustAlpha"), Value: anyValidBinEigenTrustAlpha},
+				{Key: []byte("EigenTrustIterations"), Value: anyValidBinEigenTrustIterations},
+				{Key: []byte("EpochDuration"), Value: anyValidBinEpochDuration},
+				{Key: []byte("HomomorphicHashingDisabled"), Value: anyValidBinHomoHashDisabled},
+				{Key: []byte("InnerRingCandidateFee"), Value: anyValidBinIRCandidateFee},
+				{Key: []byte("MaintenanceModeAllowed"), Value: anyValidBinMaintenanceModeAllowed},
+				{Key: []byte("MaxObjectSize"), Value: anyValidBinMaxObjectSize},
+				{Key: []byte("WithdrawFee"), Value: anyValidBinWithdrawalFee},
+			},
+		},
 	}
-	addP("k1", []byte("v1"))
-	addP("k2", []byte("v2"))
-	addP("AuditFee", anyValidBinAuditFee)
-	addP("BasicIncomeRate", anyValidBinStoragePrice)
-	addP("ContainerAliasFee", anyValidBinNamedContainerFee)
-	addP("ContainerFee", anyValidBinContainerFee)
-	addP("EigenTrustAlpha", anyValidBinEigenTrustAlpha)
-	addP("EigenTrustIterations", anyValidBinEigenTrustIterations)
-	addP("EpochDuration", anyValidBinEpochDuration)
-	addP("HomomorphicHashingDisabled", anyValidBinHomoHashDisabled)
-	addP("InnerRingCandidateFee", anyValidBinIRCandidateFee)
-	addP("MaintenanceModeAllowed", anyValidBinMaintenanceModeAllowed)
-	addP("MaxObjectSize", anyValidBinMaxObjectSize)
-	addP("WithdrawFee", anyValidBinWithdrawalFee)
-	var mc apinetmap.NetworkConfig
-	mc.SetParameters(mps...)
-	var m apinetmap.NetworkInfo
-	m.SetCurrentEpoch(anyValidCurrentEpoch)
-	m.SetMagicNumber(anyValidMagicNumber)
-	m.SetMsPerBlock(anyValidMSPerBlock)
-	m.SetNetworkConfig(&mc)
 
 	var val netmap.NetworkInfo
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	require.EqualValues(t, "v1", val.RawNetworkParameter("k1"))
 	require.EqualValues(t, "v2", val.RawNetworkParameter("k2"))
 	require.Equal(t, anyValidCurrentEpoch, val.CurrentEpoch())
@@ -278,12 +272,12 @@ func TestNetworkInfo_ReadFromV2(t *testing.T) {
 	require.Equal(t, anyValidWithdrawalFee, val.WithdrawalFee())
 
 	// reset optional fields
-	mc.SetParameters(mps[0])
-	m.SetCurrentEpoch(0)
-	m.SetMagicNumber(0)
-	m.SetMsPerBlock(0)
+	m.NetworkConfig.Parameters = m.NetworkConfig.Parameters[:1]
+	m.CurrentEpoch = 0
+	m.MagicNumber = 0
+	m.MsPerBlock = 0
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.EqualValues(t, "v1", val.RawNetworkParameter("k1"))
 	require.Zero(t, val2.RawNetworkParameter("k2"))
 	require.Zero(t, val2.CurrentEpoch())
@@ -305,89 +299,85 @@ func TestNetworkInfo_ReadFromV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*apinetmap.NetworkInfo)
+			corrupt   func(*protonetmap.NetworkInfo)
 		}{
 			{name: "netconfig/missing", err: "missing network config",
-				corrupt: func(m *apinetmap.NetworkInfo) { m.SetNetworkConfig(nil) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { m.NetworkConfig = nil }},
 			{name: "netconfig/prms/missing", err: "missing network parameters",
-				corrupt: func(m *apinetmap.NetworkInfo) { m.SetNetworkConfig(new(apinetmap.NetworkConfig)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { m.NetworkConfig = new(protonetmap.NetworkConfig) }},
+			{name: "netconfig/prms/nil", err: "nil parameter #1",
+				corrupt: func(m *protonetmap.NetworkInfo) {
+					m.NetworkConfig.Parameters[1] = nil
+				}},
 			{name: "netconfig/prms/no value", err: `empty "k1" parameter value`,
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "k1", "") }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k1", "") }},
 			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, "EigenTrustAlpha", "123456789") }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "EigenTrustAlpha", "123456789") }},
 			{name: "netconfig/prms/eigen trust alpha/negative", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value -0.50 is out of range [0, 1]",
-				corrupt: func(m *apinetmap.NetworkInfo) {
+				corrupt: func(m *protonetmap.NetworkInfo) {
 					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte{0, 0, 0, 0, 0, 0, 224, 191})
 				}},
 			{name: "netconfig/prms/eigen trust alpha/too big", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 1.50 is out of range [0, 1]",
-				corrupt: func(m *apinetmap.NetworkInfo) {
+				corrupt: func(m *protonetmap.NetworkInfo) {
 					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte{0, 0, 0, 0, 0, 0, 248, 63})
 				}},
 			{name: "netconfig/prms/homo hash disabled/overflow", err: "invalid HomomorphicHashingDisabled parameter: invalid bool parameter contract format too big: integer",
-				corrupt: func(m *apinetmap.NetworkInfo) {
+				corrupt: func(m *protonetmap.NetworkInfo) {
 					setNetworkPrms(m, []byte("HomomorphicHashingDisabled"), make([]byte, 33))
 				}},
 			{name: "netconfig/prms/maintenance allowed/overflow", err: "invalid MaintenanceModeAllowed parameter: invalid bool parameter contract format too big: integer",
-				corrupt: func(m *apinetmap.NetworkInfo) {
+				corrupt: func(m *protonetmap.NetworkInfo) {
 					setNetworkPrms(m, []byte("MaintenanceModeAllowed"), make([]byte, 33))
 				}},
 			{name: "netconfig/prms/audit fee/overflow", err: "invalid AuditFee parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("AuditFee"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("AuditFee"), make([]byte, 9)) }},
 			{name: "netconfig/prms/storage price/overflow", err: "invalid BasicIncomeRate parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("BasicIncomeRate"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("BasicIncomeRate"), make([]byte, 9)) }},
 			{name: "netconfig/prms/container fee/overflow", err: "invalid ContainerFee parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("ContainerFee"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("ContainerFee"), make([]byte, 9)) }},
 			{name: "netconfig/prms/named container fee/overflow", err: "invalid ContainerAliasFee parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("ContainerAliasFee"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("ContainerAliasFee"), make([]byte, 9)) }},
 			{name: "netconfig/prms/eigen trust iterations/overflow", err: "invalid EigenTrustIterations parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("EigenTrustIterations"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("EigenTrustIterations"), make([]byte, 9)) }},
 			{name: "netconfig/prms/epoch duration/overflow", err: "invalid EpochDuration parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("EpochDuration"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("EpochDuration"), make([]byte, 9)) }},
 			{name: "netconfig/prms/ir candidate fee/overflow", err: "invalid InnerRingCandidateFee parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("InnerRingCandidateFee"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("InnerRingCandidateFee"), make([]byte, 9)) }},
 			{name: "netconfig/prms/max object size/overflow", err: "invalid MaxObjectSize parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("MaxObjectSize"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("MaxObjectSize"), make([]byte, 9)) }},
 			{name: "netconfig/prms/withdrawal fee/overflow", err: "invalid WithdrawFee parameter: invalid uint64 parameter length 9",
-				corrupt: func(m *apinetmap.NetworkInfo) { setNetworkPrms(m, []byte("WithdrawFee"), make([]byte, 9)) }},
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, []byte("WithdrawFee"), make([]byte, 9)) }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m apinetmap.NetworkInfo
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(netmap.NetworkInfo).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(netmap.NetworkInfo).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestNetworkInfo_WriteToV2(t *testing.T) {
+func TestNetworkInfo_ProtoMessage(t *testing.T) {
 	var val netmap.NetworkInfo
-	var m apinetmap.NetworkInfo
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetCurrentEpoch())
 	require.Zero(t, m.GetMagicNumber())
 	require.Zero(t, m.GetMsPerBlock())
 	require.Zero(t, m.GetNetworkConfig())
 
 	// filled
-	validNetworkInfo.WriteToV2(&m)
+	m = validNetworkInfo.ProtoMessage()
 	require.Equal(t, anyValidCurrentEpoch, m.GetCurrentEpoch())
 	require.Equal(t, anyValidMagicNumber, m.GetMagicNumber())
 	require.Equal(t, anyValidMSPerBlock, m.GetMsPerBlock())
 	mc := m.GetNetworkConfig()
 	require.NotNil(t, mc)
-	require.EqualValues(t, 14, mc.NumberOfParameters())
-	var collected [][2][]byte
-	mc.IterateParameters(func(p *apinetmap.NetworkParameter) bool {
-		collected = append(collected, [2][]byte{p.GetKey(), p.GetValue()})
-		return false
-	})
-	require.Len(t, collected, 14)
+	require.Len(t, mc.Parameters, 14)
 	for i, pair := range [][2]any{
 		{"k1", "v1"},
 		{"k2", "v2"},
@@ -404,8 +394,8 @@ func TestNetworkInfo_WriteToV2(t *testing.T) {
 		{"MaxObjectSize", anyValidBinMaxObjectSize},
 		{"WithdrawFee", anyValidBinWithdrawalFee},
 	} {
-		require.EqualValues(t, pair[0], collected[i][0])
-		require.EqualValues(t, pair[1], collected[i][1])
+		require.EqualValues(t, pair[0], mc.Parameters[i].Key)
+		require.EqualValues(t, pair[1], mc.Parameters[i].Value)
 	}
 }
 

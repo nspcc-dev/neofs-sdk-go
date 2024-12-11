@@ -7,33 +7,29 @@ import (
 	"io"
 	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 var errInvalidSplitInfo = errors.New("invalid split info")
 
 // shared parameters of GET/HEAD/RANGE.
 type prmObjectRead struct {
+	prmCommonMeta
 	sessionContainer
+	bearerToken *bearer.Token
+	local       bool
 
 	raw bool
-}
-
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
-//
-// Slice must not be mutated until the operation completes.
-func (x *prmObjectRead) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
 }
 
 // MarkRaw marks an intent to read physically stored object.
@@ -43,7 +39,7 @@ func (x *prmObjectRead) MarkRaw() {
 
 // MarkLocal tells the server to execute the operation locally.
 func (x *prmObjectRead) MarkLocal() {
-	x.meta.SetTTL(1)
+	x.local = true
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -52,9 +48,7 @@ func (x *prmObjectRead) MarkLocal() {
 //
 // Must be signed.
 func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
+	x.bearerToken = &t
 }
 
 // PrmObjectGet groups optional parameters of ObjectGetInit operation.
@@ -79,7 +73,6 @@ type getObjectResponseStream interface {
 type PayloadReader struct {
 	cancelCtxStream context.CancelFunc
 
-	client           *Client
 	stream           getObjectResponseStream
 	singleMsgTimeout time.Duration
 
@@ -105,67 +98,62 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	if x.err != nil {
 		return false
 	}
-	var respV2 v2object.GetResponse
-	if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+
+	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
+		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 		return false
 	}
 
-	x.err = x.client.processResponse(&respV2)
-	if x.err != nil {
+	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 		return false
 	}
 
-	var partInit *v2object.GetObjectPartInit
+	var partInit *protoobject.GetResponse_Body_Init
 
-	switch v := respV2.GetBody().GetObjectPart().(type) {
+	switch v := resp.GetBody().GetObjectPart().(type) {
 	default:
 		x.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
 		return false
-	case *v2object.SplitInfo:
-		if v == nil {
+	case *protoobject.GetResponse_Body_SplitInfo:
+		if v == nil || v.SplitInfo == nil {
 			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
 			return false
 		}
 		var si object.SplitInfo
-		if x.err = si.ReadFromV2(*v); x.err != nil {
+		if x.err = si.FromProtoMessage(v.SplitInfo); x.err != nil {
 			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
 			return false
 		}
 		x.err = object.NewSplitInfoError(&si)
 		return false
-	case *v2object.GetObjectPartInit:
-		if v == nil {
-			x.err = newErrMissingResponseField("init")
+	case *protoobject.GetResponse_Body_Init_:
+		if v == nil || v.Init == nil {
+			x.err = errors.New("nil header oneof field")
 			return false
 		}
-		partInit = v
+		partInit = v.Init
 	}
 
-	id := partInit.GetObjectID()
-	if id == nil {
+	if partInit.ObjectId == nil {
 		x.err = newErrMissingResponseField("object ID")
 		return false
 	}
-	sig := partInit.GetSignature()
-	if sig == nil {
+	if partInit.Signature == nil {
 		x.err = newErrMissingResponseField("signature")
 		return false
 	}
-	hdr := partInit.GetHeader()
-	if hdr == nil {
+	if partInit.Header == nil {
 		x.err = newErrMissingResponseField("header")
 		return false
 	}
 
-	var objv2 v2object.Object
+	x.remainingPayloadLen = int(partInit.Header.GetPayloadLength())
 
-	objv2.SetObjectID(id)
-	objv2.SetHeader(hdr)
-	objv2.SetSignature(sig)
-
-	x.remainingPayloadLen = int(hdr.GetPayloadLength())
-
-	x.err = dst.ReadFromV2(objv2)
+	x.err = dst.FromProtoMessage(&protoobject.Object{
+		ObjectId:  partInit.ObjectId,
+		Signature: partInit.Signature,
+		Header:    partInit.Header,
+	})
 	return x.err == nil
 }
 
@@ -194,25 +182,29 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 		if x.err != nil {
 			return read, false
 		}
-		var respV2 v2object.GetResponse
-		if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+
+		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
+			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 			return read, false
 		}
 
-		x.err = x.client.processResponse(&respV2)
-		if x.err != nil {
+		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, false
 		}
 
-		part := respV2.GetBody().GetObjectPart()
-		partChunk, ok := part.(*v2object.GetObjectPartChunk)
+		part := resp.GetBody().GetObjectPart()
+		partChunk, ok := part.(*protoobject.GetResponse_Body_Chunk)
 		if !ok {
 			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
 			return read, false
 		}
+		if partChunk == nil {
+			x.err = errors.New("nil chunk oneof field")
+			return read, false
+		}
 
 		// read new chunk
-		chunk = partChunk.GetChunk()
+		chunk = partChunk.Chunk
 		if len(chunk) == 0 {
 			// just skip empty chunks since they are not prohibited by protocol
 			continue
@@ -300,12 +292,8 @@ func (x *PayloadReader) Read(p []byte) (int, error) {
 //   - [apistatus.ErrSessionTokenExpired]
 func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectGet) (object.Object, *PayloadReader, error) {
 	var (
-		addr  v2refs.Address
-		cidV2 v2refs.ContainerID
-		oidV2 v2refs.ObjectID
-		body  v2object.GetRequestBody
-		hdr   object.Object
-		err   error
+		hdr object.Object
+		err error
 	)
 
 	if c.prm.statisticCallback != nil {
@@ -319,31 +307,40 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		return hdr, nil, ErrMissingSigner
 	}
 
-	containerID.WriteToV2(&cidV2)
-	addr.SetContainerID(&cidV2)
+	req := &protoobject.GetRequest{
+		Body: &protoobject.GetRequest_Body{
+			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Raw:     prm.raw,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
+	if prm.local {
+		req.MetaHeader.Ttl = localRequestTTL
+	} else {
+		req.MetaHeader.Ttl = defaultRequestTTL
+	}
+	if prm.session != nil {
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.bearerToken != nil {
+		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
+	}
 
-	objectID.WriteToV2(&oidV2)
-	addr.SetObjectID(&oidV2)
-
-	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
-
-	// form request
-	var req v2object.GetRequest
-
-	req.SetBody(&body)
-	c.prepareRequest(&req, &prm.meta)
 	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](signer, req, *buf)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return hdr, nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.object.Get(ctx, req.ToGRPCMessage().(*protoobject.GetRequest))
+	stream, err := c.object.Get(ctx, req)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -354,7 +351,6 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
-	r.client = c
 	if c.prm.statisticCallback != nil {
 		r.startTime = time.Now()
 		r.statisticCallback = func(dur time.Duration, err error) {
@@ -396,13 +392,7 @@ type PrmObjectHead struct {
 //   - [apistatus.ErrObjectAlreadyRemoved]
 //   - [apistatus.ErrSessionTokenExpired]
 func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHead) (*object.Object, error) {
-	var (
-		addr  v2refs.Address
-		cidV2 v2refs.ContainerID
-		oidV2 v2refs.ObjectID
-		body  v2object.HeadRequestBody
-		err   error
-	)
+	var err error
 
 	if c.prm.statisticCallback != nil {
 		startTime := time.Now()
@@ -415,78 +405,86 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, ErrMissingSigner
 	}
 
-	containerID.WriteToV2(&cidV2)
-	addr.SetContainerID(&cidV2)
-
-	objectID.WriteToV2(&oidV2)
-	addr.SetObjectID(&oidV2)
-
-	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
-
-	var req v2object.HeadRequest
-	req.SetBody(&body)
-	c.prepareRequest(&req, &prm.meta)
+	req := &protoobject.HeadRequest{
+		Body: &protoobject.HeadRequest_Body{
+			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Raw:     prm.raw,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
+	if prm.local {
+		req.MetaHeader.Ttl = localRequestTTL
+	} else {
+		req.MetaHeader.Ttl = defaultRequestTTL
+	}
+	if prm.session != nil {
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.bearerToken != nil {
+		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
+	}
 
 	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.HeadRequest_Body](signer, req, *buf)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
 	}
 
-	resp, err := c.object.Head(ctx, req.ToGRPCMessage().(*protoobject.HeadRequest))
+	resp, err := c.object.Head(ctx, req)
 	if err != nil {
 		err = rpcErr(err)
 		return nil, err
 	}
-	var respV2 v2object.HeadResponse
-	if err = respV2.FromGRPCMessage(resp); err != nil {
+
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.HeadResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return nil, err
 	}
 
-	if err = c.processResponse(&respV2); err != nil {
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
 	}
 
-	switch v := respV2.GetBody().GetHeaderPart().(type) {
+	switch v := resp.GetBody().GetHead().(type) {
 	default:
 		err = fmt.Errorf("unexpected header type %T", v)
 		return nil, err
-	case *v2object.SplitInfo:
-		if v == nil {
+	case *protoobject.HeadResponse_Body_SplitInfo:
+		if v == nil || v.SplitInfo == nil {
 			err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
 			return nil, err
 		}
 		var si object.SplitInfo
-		if err = si.ReadFromV2(*v); err != nil {
+		if err = si.FromProtoMessage(v.SplitInfo); err != nil {
 			err = fmt.Errorf("%w: %w", errInvalidSplitInfo, err)
 			return nil, err
 		}
 		err = object.NewSplitInfoError(&si)
 		return nil, err
-	case *v2object.HeaderWithSignature:
+	case *protoobject.HeadResponse_Body_Header:
 		if v == nil {
 			return nil, errors.New("empty header")
 		}
-		sig := v.GetSignature()
-		if sig == nil {
+		if v.Header.Signature == nil {
 			err = newErrMissingResponseField("signature")
 			return nil, err
 		}
-		hdr := v.GetHeader()
-		if hdr == nil {
+		if v.Header.Header == nil {
 			err = newErrMissingResponseField("header")
 			return nil, err
 		}
 
-		var objv2 v2object.Object
-		objv2.SetHeader(hdr)
-		objv2.SetSignature(sig)
-
 		var obj object.Object
-		if err = obj.ReadFromV2(objv2); err != nil {
+		if err = obj.FromProtoMessage(&protoobject.Object{
+			Signature: v.Header.Signature,
+			Header:    v.Header.Header,
+		}); err != nil {
 			return nil, fmt.Errorf("invalid header response: %w", err)
 		}
 		return &obj, nil
@@ -515,8 +513,6 @@ type getObjectPayloadRangeResponseStream interface {
 type ObjectRangeReader struct {
 	cancelCtxStream context.CancelFunc
 
-	client *Client
-
 	err error
 
 	stream           getObjectPayloadRangeResponseStream
@@ -542,7 +538,6 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 		return read, true
 	}
 
-	var partChunk *v2object.GetRangePartChunk
 	var chunk []byte
 	var lastRead int
 
@@ -556,38 +551,41 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 		if x.err != nil {
 			return read, false
 		}
-		var respV2 v2object.GetRangeResponse
-		if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+
+		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeResponse_Body](resp, nil); x.err != nil {
+			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 			return read, false
 		}
 
-		x.err = x.client.processResponse(&respV2)
-		if x.err != nil {
+		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, false
 		}
 
 		// get chunk message
-		switch v := respV2.GetBody().GetRangePart().(type) {
+		switch v := resp.GetBody().GetRangePart().(type) {
 		default:
 			x.err = fmt.Errorf("unexpected message received: %T", v)
 			return read, false
-		case *v2object.SplitInfo:
-			if v == nil {
+		case *protoobject.GetRangeResponse_Body_SplitInfo:
+			if v == nil || v.SplitInfo == nil {
 				x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
 				return read, false
 			}
 			var si object.SplitInfo
-			if x.err = si.ReadFromV2(*v); x.err != nil {
+			if x.err = si.FromProtoMessage(v.SplitInfo); x.err != nil {
 				x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
 				return read, false
 			}
 			x.err = object.NewSplitInfoError(&si)
 			return read, false
-		case *v2object.GetRangePartChunk:
-			partChunk = v
+		case *protoobject.GetRangeResponse_Body_Chunk:
+			if v == nil {
+				x.err = errors.New("nil header oneof field")
+				return read, false
+			}
+			chunk = v.Chunk
 		}
 
-		chunk = partChunk.GetChunk()
 		if len(chunk) == 0 {
 			// just skip empty chunks since they are not prohibited by protocol
 			continue
@@ -684,14 +682,7 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 //   - [ErrZeroRangeLength]
 //   - [ErrMissingSigner]
 func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm PrmObjectRange) (*ObjectRangeReader, error) {
-	var (
-		addr  v2refs.Address
-		cidV2 v2refs.ContainerID
-		oidV2 v2refs.ObjectID
-		rngV2 v2object.Range
-		body  v2object.GetRangeRequestBody
-		err   error
-	)
+	var err error
 
 	if c.prm.statisticCallback != nil {
 		startTime := time.Now()
@@ -709,37 +700,41 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		return nil, ErrMissingSigner
 	}
 
-	containerID.WriteToV2(&cidV2)
-	addr.SetContainerID(&cidV2)
-
-	objectID.WriteToV2(&oidV2)
-	addr.SetObjectID(&oidV2)
-
-	rngV2.SetOffset(offset)
-	rngV2.SetLength(length)
-
-	// form request body
-	body.SetRaw(prm.raw)
-	body.SetAddress(&addr)
-	body.SetRange(&rngV2)
-
-	// form request
-	var req v2object.GetRangeRequest
-
-	req.SetBody(&body)
-	c.prepareRequest(&req, &prm.meta)
+	req := &protoobject.GetRangeRequest{
+		Body: &protoobject.GetRangeRequest_Body{
+			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Range:   &protoobject.Range{Offset: offset, Length: length},
+			Raw:     prm.raw,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
+	if prm.local {
+		req.MetaHeader.Ttl = localRequestTTL
+	} else {
+		req.MetaHeader.Ttl = defaultRequestTTL
+	}
+	if prm.session != nil {
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.bearerToken != nil {
+		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
+	}
 
 	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, *buf)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.object.GetRange(ctx, req.ToGRPCMessage().(*protoobject.GetRangeRequest))
+	stream, err := c.object.GetRange(ctx, req)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -751,7 +746,6 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
-	r.client = c
 	if c.prm.statisticCallback != nil {
 		r.startTime = time.Now()
 		r.statisticCallback = func(dur time.Duration, err error) {

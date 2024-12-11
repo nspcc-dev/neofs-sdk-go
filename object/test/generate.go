@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	"github.com/google/uuid"
-	objecttest "github.com/nspcc-dev/neofs-api-go/v2/object/test"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -134,5 +133,12 @@ func Lock() *object.Lock {
 
 // Link returns random object.Link.
 func Link() *object.Link {
-	return (*object.Link)(objecttest.GenerateLink(false))
+	ms := make([]object.MeasuredObject, rand.Int()%10)
+	for i := range ms {
+		ms[i].SetObjectID(oidtest.ID())
+		ms[i].SetObjectSize(rand.Uint32())
+	}
+	var l object.Link
+	l.SetObjects(ms)
+	return &l
 }

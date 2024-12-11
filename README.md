@@ -5,7 +5,7 @@
 
 # neofs-sdk-go
 Go implementation of NeoFS SDK. It contains high-level version-independent wrappers
-for structures from [neofs-api-go](https://github.com/nspcc-dev/neofs-api-go) as well as
+for structures from [proto](https://github.com/nspcc-dev/neofs-sdk-go/proto) packages as well as
 helper functions for simplifying node/dApp implementations.
 
 ## Repository structure

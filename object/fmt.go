@@ -6,9 +6,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
@@ -55,7 +55,7 @@ func (o Object) VerifyPayloadChecksum() error {
 
 // CalculateID calculates identifier for the object.
 func (o Object) CalculateID() (oid.ID, error) {
-	return sha256.Sum256(o.ToV2().GetHeader().StableMarshal(nil)), nil
+	return sha256.Sum256(neofsproto.MarshalMessage(o.header.protoMessage())), nil
 }
 
 // CalculateAndSetID calculates identifier for the object
@@ -119,21 +119,15 @@ func (o Object) SignedData() []byte {
 
 // VerifySignature verifies object ID signature.
 func (o Object) VerifySignature() bool {
-	m := (*object.Object)(&o)
-
-	sigV2 := m.GetSignature()
-	if sigV2 == nil {
+	if o.sig == nil {
 		return false
 	}
 
-	idV2 := m.GetObjectID()
-	if idV2 == nil {
+	if o.id.IsZero() {
 		return false
 	}
 
-	var sig neofscrypto.Signature
-
-	return sig.ReadFromV2(*sigV2) == nil && sig.Verify(idV2.StableMarshal(nil))
+	return o.sig.Verify(neofsproto.Marshal(o.id))
 }
 
 // SetIDWithSignature sets object identifier and signature.

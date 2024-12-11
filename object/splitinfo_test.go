@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"testing"
 
-	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/stretchr/testify/require"
 )
 
@@ -154,14 +154,14 @@ func TestSplitInfo(t *testing.T) {
 }
 
 func TestSplitInfoMarshal(t *testing.T) {
-	testToV2 := func(t *testing.T, s *object.SplitInfo) {
-		v2 := s.ToV2()
-		newS := object.NewSplitInfoFromV2(v2)
+	testMessage := func(t *testing.T, s object.SplitInfo) {
+		var newS object.SplitInfo
+		require.NoError(t, newS.FromProtoMessage(s.ProtoMessage()))
 
 		require.Equal(t, s, newS)
 	}
-	testMarshal := func(t *testing.T, s *object.SplitInfo) {
-		newS := object.NewSplitInfo()
+	testMarshal := func(t *testing.T, s object.SplitInfo) {
+		var newS object.SplitInfo
 
 		err := newS.Unmarshal(s.Marshal())
 		require.NoError(t, err)
@@ -175,24 +175,24 @@ func TestSplitInfoMarshal(t *testing.T) {
 		s.SetLastPart(oidtest.ID())
 		s.SetFirstPart(oidtest.ID())
 
-		testToV2(t, s)
-		testMarshal(t, s)
+		testMessage(t, *s)
+		testMarshal(t, *s)
 	})
 	t.Run("good, only link is set", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
 		s.SetLink(oidtest.ID())
 
-		testToV2(t, s)
-		testMarshal(t, s)
+		testMessage(t, *s)
+		testMarshal(t, *s)
 	})
 	t.Run("good, only last part is set", func(t *testing.T) {
 		s := object.NewSplitInfo()
 		s.SetSplitID(object.NewSplitID())
 		s.SetLastPart(oidtest.ID())
 
-		testToV2(t, s)
-		testMarshal(t, s)
+		testMessage(t, *s)
+		testMarshal(t, *s)
 	})
 	t.Run("bad, no fields are set", func(t *testing.T) {
 		s := object.NewSplitInfo()
@@ -202,23 +202,16 @@ func TestSplitInfoMarshal(t *testing.T) {
 	})
 }
 
-func TestNewSplitInfoFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *apiobject.SplitInfo
-
-		require.Nil(t, object.NewSplitInfoFromV2(x))
-	})
-}
-
-func TestSplitInfo_ReadFromV2(t *testing.T) {
-	var m apiobject.SplitInfo
-	m.SetSplitID(anyValidSplitIDBytes)
-	m.SetLastPart(protoIDFromBytes(anyValidIDs[0][:]))
-	m.SetLink(protoIDFromBytes(anyValidIDs[1][:]))
-	m.SetFirstPart(protoIDFromBytes(anyValidIDs[2][:]))
+func TestSplitInfo_FromProtoMessage(t *testing.T) {
+	m := &protoobject.SplitInfo{
+		SplitId:   anyValidSplitIDBytes,
+		LastPart:  protoIDFromBytes(anyValidIDs[0][:]),
+		Link:      protoIDFromBytes(anyValidIDs[1][:]),
+		FirstPart: protoIDFromBytes(anyValidIDs[2][:]),
+	}
 
 	var s object.SplitInfo
-	require.NoError(t, s.ReadFromV2(m))
+	require.NoError(t, s.FromProtoMessage(m))
 	require.Equal(t, anyValidSplitID, s.SplitID())
 	require.Equal(t, anyValidIDs[0], s.GetLastPart())
 	id, ok := s.LastPart()
@@ -234,11 +227,11 @@ func TestSplitInfo_ReadFromV2(t *testing.T) {
 	require.Equal(t, anyValidIDs[2], id)
 
 	// reset optional fields
-	m.SetSplitID(nil)
-	m.SetFirstPart(nil)
-	m.SetLink(nil)
+	m.SplitId = nil
+	m.FirstPart = nil
+	m.Link = nil
 	s2 := s
-	require.NoError(t, s2.ReadFromV2(m))
+	require.NoError(t, s2.FromProtoMessage(m))
 
 	require.Zero(t, s2.SplitID())
 	require.True(t, s2.GetFirstPart().IsZero())
@@ -253,9 +246,9 @@ func TestSplitInfo_ReadFromV2(t *testing.T) {
 	require.False(t, ok)
 
 	// either linking or last part must be set, so lets swap
-	m.SetLink(protoIDFromBytes(anyValidIDs[1][:]))
-	m.SetLastPart(nil)
-	require.NoError(t, s2.ReadFromV2(m))
+	m.Link = protoIDFromBytes(anyValidIDs[1][:])
+	m.LastPart = nil
+	require.NoError(t, s2.FromProtoMessage(m))
 
 	require.Equal(t, anyValidIDs[1], s2.GetLink())
 	require.True(t, s2.GetLastPart().IsZero())
@@ -265,66 +258,65 @@ func TestSplitInfo_ReadFromV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*apiobject.SplitInfo)
+			corrupt   func(*protoobject.SplitInfo)
 		}{
 			{name: "split ID/undersize", err: "invalid split ID: invalid UUID (got 15 bytes)",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetSplitID(anyValidSplitIDBytes[:15]) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.SplitId = anyValidSplitIDBytes[:15] }},
 			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetSplitID(append(anyValidSplitIDBytes[:], 1)) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.SplitId = append(anyValidSplitIDBytes[:], 1) }},
 			{name: "split ID/wrong version", err: "invalid split ID: wrong UUID version 3, expected 4",
-				corrupt: func(m *apiobject.SplitInfo) {
-					b := bytes.Clone(anyValidSplitIDBytes[:])
-					b[6] = 3 << 4
-					m.SetSplitID(b)
+				corrupt: func(m *protoobject.SplitInfo) {
+					m.SplitId = bytes.Clone(anyValidSplitIDBytes[:])
+					m.SplitId[6] = 3 << 4
 				}},
 			{name: "last part/nil value", err: "could not convert last part object ID: invalid length 0",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes(nil)) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.LastPart = protoIDFromBytes(nil) }},
 			{name: "last part/empty value", err: "could not convert last part object ID: invalid length 0",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes([]byte{})) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.LastPart = protoIDFromBytes([]byte{}) }},
 			{name: "last part/undersize", err: "could not convert last part object ID: invalid length 31",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes(make([]byte, 31))) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.LastPart = protoIDFromBytes(make([]byte, 31)) }},
 			{name: "last part/oversize", err: "could not convert last part object ID: invalid length 33",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLastPart(protoIDFromBytes(make([]byte, 33))) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.LastPart = protoIDFromBytes(make([]byte, 33)) }},
 			{name: "link/nil value", err: "could not convert link object ID: invalid length 0",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes(nil)) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.Link = protoIDFromBytes(nil) }},
 			{name: "link/empty value", err: "could not convert link object ID: invalid length 0",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes([]byte{})) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.Link = protoIDFromBytes([]byte{}) }},
 			{name: "link/undersize", err: "could not convert link object ID: invalid length 31",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes(make([]byte, 31))) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.Link = protoIDFromBytes(make([]byte, 31)) }},
 			{name: "link/oversize", err: "could not convert link object ID: invalid length 33",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetLink(protoIDFromBytes(make([]byte, 33))) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.Link = protoIDFromBytes(make([]byte, 33)) }},
 			{name: "first part/nil value", err: "could not convert first part object ID: invalid length 0",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes(nil)) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.FirstPart = protoIDFromBytes(nil) }},
 			{name: "first part/empty value", err: "could not convert first part object ID: invalid length 0",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes([]byte{})) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.FirstPart = protoIDFromBytes([]byte{}) }},
 			{name: "first part/undersize", err: "could not convert first part object ID: invalid length 31",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes(make([]byte, 31))) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.FirstPart = protoIDFromBytes(make([]byte, 31)) }},
 			{name: "first part/oversize", err: "could not convert first part object ID: invalid length 33",
-				corrupt: func(m *apiobject.SplitInfo) { m.SetFirstPart(protoIDFromBytes(make([]byte, 33))) }},
+				corrupt: func(m *protoobject.SplitInfo) { m.FirstPart = protoIDFromBytes(make([]byte, 33)) }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				s2 := s
-				m := s2.ToV2()
+				m := s2.ProtoMessage()
 				tc.corrupt(m)
-				require.EqualError(t, new(object.SplitInfo).ReadFromV2(*m), tc.err)
+				require.EqualError(t, new(object.SplitInfo).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestSplitInfo_ToV2(t *testing.T) {
+func TestSplitInfo_ProtoMessage(t *testing.T) {
 	var s object.SplitInfo
 
 	// zero
-	m := s.ToV2()
-	require.Zero(t, m.GetSplitID())
+	m := s.ProtoMessage()
+	require.Zero(t, m.GetSplitId())
 	require.Zero(t, m.GetFirstPart())
 	require.Zero(t, m.GetLink())
 	require.Zero(t, m.GetFirstPart())
 
 	// filled
-	m = validSplitInfo.ToV2()
-	require.EqualValues(t, anyValidSplitIDBytes, m.GetSplitID())
+	m = validSplitInfo.ProtoMessage()
+	require.EqualValues(t, anyValidSplitIDBytes, m.GetSplitId())
 	require.Equal(t, anyValidIDs[0][:], m.GetLastPart().GetValue())
 	require.Equal(t, anyValidIDs[1][:], m.GetLink().GetValue())
 	require.Equal(t, anyValidIDs[2][:], m.GetFirstPart().GetValue())
@@ -424,12 +416,12 @@ func TestNewSplitInfo(t *testing.T) {
 		require.True(t, si.GetFirstPart().IsZero())
 
 		// convert to v2 message
-		siV2 := si.ToV2()
+		m := si.ProtoMessage()
 
-		require.Nil(t, siV2.GetSplitID())
-		require.Nil(t, siV2.GetLastPart())
-		require.Nil(t, siV2.GetLink())
-		require.Nil(t, siV2.GetFirstPart())
+		require.Nil(t, m.GetSplitId())
+		require.Nil(t, m.GetLastPart())
+		require.Nil(t, m.GetLink())
+		require.Nil(t, m.GetFirstPart())
 	})
 }
 

@@ -6,41 +6,37 @@ import (
 	"fmt"
 
 	"github.com/mr-tron/base58"
-	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 )
 
 // PeerID represents unique identifier of the peer participating in the NeoFS
 // reputation system.
 //
-// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/reputation.PeerID
-// message. See ReadFromV2 / WriteToV2 methods.
+// ID is mutually compatible with [protoreputation.PeerID] message. See
+// [PeerID.FromProtoMessage] / [PeerID.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type PeerID struct {
-	m reputation.PeerID
+	key []byte
 }
 
-// ReadFromV2 reads PeerID from the reputation.PeerID message. Returns an
-// error if the message is malformed according to the NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *PeerID) ReadFromV2(m reputation.PeerID) error {
-	val := m.GetPublicKey()
-	if len(val) == 0 {
+// See also [PeerID.ProtoMessage].
+func (x *PeerID) FromProtoMessage(m *protoreputation.PeerID) error {
+	if x.key = m.PublicKey; len(m.PublicKey) == 0 {
 		return errors.New("missing ID bytes")
 	}
-
-	x.m = m
-
 	return nil
 }
 
-// WriteToV2 writes PeerID to the reputation.PeerID message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x PeerID) WriteToV2(m *reputation.PeerID) {
-	*m = x.m
+// See also [PeerID.FromProtoMessage].
+func (x PeerID) ProtoMessage() *protoreputation.PeerID {
+	return &protoreputation.PeerID{PublicKey: x.key}
 }
 
 // SetPublicKey sets [PeerID] as a binary-encoded public key which authenticates
@@ -52,7 +48,7 @@ func (x PeerID) WriteToV2(m *reputation.PeerID) {
 //
 // See also [ComparePeerKey].
 func (x *PeerID) SetPublicKey(key []byte) {
-	x.m.SetPublicKey(key)
+	x.key = key
 }
 
 // PublicKey return public key set using [PeerID.SetPublicKey].
@@ -66,7 +62,7 @@ func (x *PeerID) SetPublicKey(key []byte) {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 func (x PeerID) PublicKey() []byte {
-	return x.m.GetPublicKey()
+	return x.key
 }
 
 // ComparePeerKey checks if the given PeerID corresponds to the party
@@ -83,7 +79,7 @@ func ComparePeerKey(peer PeerID, key []byte) bool {
 //
 // See also DecodeString.
 func (x PeerID) EncodeToString() string {
-	return base58.Encode(x.m.GetPublicKey())
+	return base58.Encode(x.key)
 }
 
 // DecodeString decodes string into PeerID according to NeoFS API protocol.
@@ -96,7 +92,7 @@ func (x *PeerID) DecodeString(s string) error {
 		return fmt.Errorf("decode base58: %w", err)
 	}
 
-	x.m.SetPublicKey(data)
+	x.key = data
 
 	return nil
 }

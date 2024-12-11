@@ -6,9 +6,9 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -26,7 +26,7 @@ type commonData struct {
 	sig    neofscrypto.Signature
 }
 
-type contextReader func(session.TokenContext, bool) error
+type contextReader func(any, bool) error
 
 func (x commonData) copyTo(dst *commonData) {
 	dst.idSet = x.idSet
@@ -46,7 +46,7 @@ func (x commonData) copyTo(dst *commonData) {
 // If checkFieldPresence is set, returns an error on absence of any protocol-required
 // field. Verifies format of any presented field according to NeoFS API V2 protocol.
 // Calls contextReader if session context is set. Passes checkFieldPresence into contextReader.
-func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r contextReader) error {
+func (x *commonData) fromProtoMessage(m *protosession.SessionToken, checkFieldPresence bool, r contextReader) error {
 	var err error
 
 	body := m.GetBody()
@@ -54,7 +54,7 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 		return errors.New("missing token body")
 	}
 
-	binID := body.GetID()
+	binID := body.GetId()
 	if x.idSet = len(binID) > 0; x.idSet {
 		err = x.id.UnmarshalBinary(binID)
 		if err != nil {
@@ -64,11 +64,13 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing session ID")
+	} else {
+		x.id = uuid.Nil
 	}
 
-	issuer := body.GetOwnerID()
+	issuer := body.GetOwnerId()
 	if issuer != nil {
-		err = x.issuer.ReadFromV2(*issuer)
+		err = x.issuer.FromProtoMessage(issuer)
 		if err != nil {
 			return fmt.Errorf("invalid session issuer: %w", err)
 		}
@@ -98,9 +100,8 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 		return errors.New("missing session context")
 	}
 
-	sig := m.GetSignature()
-	if x.sigSet = sig != nil; sig != nil {
-		if err = x.sig.ReadFromV2(*sig); err != nil {
+	if x.sigSet = m.Signature != nil; x.sigSet {
+		if err = x.sig.FromProtoMessage(m.Signature); err != nil {
 			return fmt.Errorf("invalid body signature: %w", err)
 		}
 	} else if checkFieldPresence {
@@ -114,68 +115,53 @@ func (x *commonData) readFromV2(m session.Token, checkFieldPresence bool, r cont
 	return nil
 }
 
-type contextWriter func() session.TokenContext
+type contextWriter func(body *protosession.SessionToken_Body)
 
-func (x commonData) fillBody(w contextWriter) *session.TokenBody {
-	var body session.TokenBody
+func (x commonData) fillBody(w contextWriter) *protosession.SessionToken_Body {
+	var body protosession.SessionToken_Body
 
-	if x.idSet {
-		binID, err := x.id.MarshalBinary()
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from UUID.MarshalBinary: %v", err))
-		}
-
-		body.SetID(binID)
+	if x.id != uuid.Nil {
+		body.Id = x.id[:]
 	}
 
 	if !x.issuer.IsZero() {
-		var issuer refs.OwnerID
-		x.issuer.WriteToV2(&issuer)
-
-		body.SetOwnerID(&issuer)
+		body.OwnerId = x.issuer.ProtoMessage()
 	}
 
 	if x.iat != 0 || x.nbf != 0 || x.exp != 0 {
-		var lifetime session.TokenLifetime
-		lifetime.SetIat(x.iat)
-		lifetime.SetNbf(x.nbf)
-		lifetime.SetExp(x.exp)
-
-		body.SetLifetime(&lifetime)
+		body.Lifetime = &protosession.SessionToken_Body_TokenLifetime{
+			Exp: x.exp,
+			Nbf: x.nbf,
+			Iat: x.iat,
+		}
 	}
 
-	body.SetSessionKey(x.authKey)
+	body.SessionKey = x.authKey
 
-	body.SetContext(w())
+	w(&body)
 
 	return &body
 }
 
-func (x commonData) writeToV2(m *session.Token, w contextWriter) {
-	body := x.fillBody(w)
-
-	m.SetBody(body)
-
-	var sig *refs.Signature
-
-	if x.sigSet {
-		sig = new(refs.Signature)
-		x.sig.WriteToV2(sig)
+func (x commonData) protoMessage(w contextWriter) *protosession.SessionToken {
+	m := &protosession.SessionToken{
+		Body: x.fillBody(w),
 	}
 
-	m.SetSignature(sig)
+	if x.sigSet {
+		m.Signature = x.sig.ProtoMessage()
+	}
+
+	return m
 }
 
 func (x commonData) signedData(w contextWriter) []byte {
-	return x.fillBody(w).StableMarshal(nil)
+	return neofsproto.MarshalMessage(x.fillBody(w))
 }
 
 func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
-	err := x.sig.Calculate(signer, x.signedData(w))
-	if err == nil {
-		x.sigSet = true
-	}
-	return err
+	x.sigSet = true
+	return x.sig.Calculate(signer, x.signedData(w))
 }
 
 func (x commonData) verifySignature(w contextWriter) bool {
@@ -184,39 +170,33 @@ func (x commonData) verifySignature(w contextWriter) bool {
 }
 
 func (x commonData) marshal(w contextWriter) []byte {
-	var m session.Token
-	x.writeToV2(&m, w)
-
-	return m.StableMarshal(nil)
+	return neofsproto.MarshalMessage(x.protoMessage(w))
 }
 
 func (x *commonData) unmarshal(data []byte, r contextReader) error {
-	var m session.Token
+	var m protosession.SessionToken
 
-	err := m.Unmarshal(data)
+	err := neofsproto.UnmarshalMessage(data, &m)
 	if err != nil {
 		return err
 	}
 
-	return x.readFromV2(m, false, r)
+	return x.fromProtoMessage(&m, false, r)
 }
 
 func (x commonData) marshalJSON(w contextWriter) ([]byte, error) {
-	var m session.Token
-	x.writeToV2(&m, w)
-
-	return m.MarshalJSON()
+	return neofsproto.MarshalMessageJSON(x.protoMessage(w))
 }
 
 func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
-	var m session.Token
+	var m protosession.SessionToken
 
-	err := m.UnmarshalJSON(data)
+	err := neofsproto.UnmarshalMessageJSON(data, &m)
 	if err != nil {
 		return err
 	}
 
-	return x.readFromV2(m, false, r)
+	return x.fromProtoMessage(&m, false, r)
 }
 
 // SetExp sets "exp" (expiration time) claim which identifies the expiration
@@ -298,8 +278,7 @@ func (x commonData) InvalidAt(epoch uint64) bool { return !x.ValidAt(epoch) }
 //
 // See also ID.
 func (x *commonData) SetID(id uuid.UUID) {
-	x.id = id
-	x.idSet = true
+	x.id, x.idSet = id, true
 }
 
 // ID returns a unique identifier for the session.
@@ -309,11 +288,7 @@ func (x *commonData) SetID(id uuid.UUID) {
 //
 // See also SetID.
 func (x commonData) ID() uuid.UUID {
-	if x.idSet {
-		return x.id
-	}
-
-	return uuid.Nil
+	return x.id
 }
 
 // SetAuthKey public key corresponding to the private key bound to the session.
@@ -351,7 +326,7 @@ func (x commonData) Issuer() user.ID {
 
 // IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
 //
-// IssuerPublicKeyBytes MUST NOT be called before ReadFromV2 or Sign methods.
+// IssuerPublicKeyBytes MUST NOT be called before ProtoMessage or Sign methods.
 // Deprecated: use Signature method.
 func (x *commonData) IssuerPublicKeyBytes() []byte {
 	if sig, ok := x.Signature(); ok {

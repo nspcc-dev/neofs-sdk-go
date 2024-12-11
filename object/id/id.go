@@ -6,8 +6,9 @@ import (
 	"fmt"
 
 	"github.com/mr-tron/base58"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
 // Size is the size of an [ID] in bytes.
@@ -18,8 +19,8 @@ const Size = sha256.Size
 //
 // ID implements built-in comparable interface.
 //
-// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.ObjectID
-// message. See ReadFromV2 / WriteToV2 methods.
+// ID is mutually compatible with [refs.ObjectID] message. See
+// [ID.FromProtoMessage] / [ID.ProtoMessage] methods.
 type ID [Size]byte
 
 // ErrZero is an error returned on zero [ID] encounter.
@@ -42,24 +43,24 @@ func DecodeString(s string) (ID, error) {
 	return id, id.DecodeString(s)
 }
 
-// ReadFromV2 reads ID from the refs.ObjectID message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// id from it.
 //
-// See also WriteToV2.
-func (id *ID) ReadFromV2(m refs.ObjectID) error {
-	err := id.Decode(m.GetValue())
+// See also [ID.ProtoMessage].
+func (id *ID) FromProtoMessage(m *refs.ObjectID) error {
+	err := id.Decode(m.Value)
 	if err == nil && id.IsZero() {
 		err = ErrZero
 	}
 	return err
 }
 
-// WriteToV2 writes ID to the refs.ObjectID message.
-// The message must not be nil.
+// ProtoMessage converts id into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (id ID) WriteToV2(m *refs.ObjectID) {
-	m.SetValue(id[:])
+// See also [ID.FromProtoMessage].
+func (id ID) ProtoMessage() *refs.ObjectID {
+	return &refs.ObjectID{Value: id[:]}
 }
 
 // Encode encodes ID into [Size] bytes of dst. Panics if
@@ -149,38 +150,22 @@ func (id ID) CalculateIDSignature(signer neofscrypto.Signer) (neofscrypto.Signat
 
 // Marshal marshals ID into a protobuf binary form.
 func (id ID) Marshal() []byte {
-	var v2 refs.ObjectID
-	v2.SetValue(id[:])
-
-	return v2.StableMarshal(nil)
+	return neofsproto.Marshal(id)
 }
 
 // Unmarshal unmarshals protobuf binary representation of ID.
 func (id *ID) Unmarshal(data []byte) error {
-	var v2 refs.ObjectID
-	if err := v2.Unmarshal(data); err != nil {
-		return err
-	}
-
-	return id.ReadFromV2(v2)
+	return neofsproto.Unmarshal(data, id)
 }
 
 // MarshalJSON encodes ID to protobuf JSON format.
 func (id ID) MarshalJSON() ([]byte, error) {
-	var v2 refs.ObjectID
-	v2.SetValue(id[:])
-
-	return v2.MarshalJSON()
+	return neofsproto.MarshalJSON(id)
 }
 
 // UnmarshalJSON decodes ID from protobuf JSON format.
 func (id *ID) UnmarshalJSON(data []byte) error {
-	var v2 refs.ObjectID
-	if err := v2.UnmarshalJSON(data); err != nil {
-		return err
-	}
-
-	return id.ReadFromV2(v2)
+	return neofsproto.UnmarshalJSON(data, id)
 }
 
 // IsZero checks whether ID is zero.

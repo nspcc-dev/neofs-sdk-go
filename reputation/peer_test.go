@@ -3,7 +3,6 @@ package reputation_test
 import (
 	"testing"
 
-	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	reputationtest "github.com/nspcc-dev/neofs-sdk-go/reputation/test"
 	"github.com/stretchr/testify/require"
@@ -18,13 +17,12 @@ func TestPeerID_PublicKey(t *testing.T) {
 
 	val.SetPublicKey(key)
 
-	var m v2reputation.PeerID
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 
 	require.Equal(t, key, m.GetPublicKey())
 
 	var val2 reputation.PeerID
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.Equal(t, key, val.PublicKey())
 

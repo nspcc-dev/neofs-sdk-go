@@ -5,29 +5,34 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmObjectHash groups parameters of ObjectHash operation.
 type PrmObjectHash struct {
+	prmCommonMeta
 	sessionContainer
+	bearerToken *bearer.Token
+	local       bool
 
-	body v2object.GetRangeHashRequestBody
-
-	csAlgo v2refs.ChecksumType
+	tz   bool
+	rs   []uint64
+	salt []byte
 }
 
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectHash) MarkLocal() {
-	x.meta.SetTTL(1)
+	x.local = true
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -36,9 +41,7 @@ func (x *PrmObjectHash) MarkLocal() {
 //
 // Must be signed.
 func (x *PrmObjectHash) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
+	x.bearerToken = &t
 }
 
 // SetRangeList sets list of ranges in (offset, length) pair format.
@@ -51,14 +54,7 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 		panic("odd number of range parameters")
 	}
 
-	rs := make([]v2object.Range, ln/2)
-
-	for i := range ln / 2 {
-		rs[i].SetOffset(r[2*i])
-		rs[i].SetLength(r[2*i+1])
-	}
-
-	x.body.SetRanges(rs)
+	x.rs = r
 }
 
 // TillichZemorAlgo changes the hash function to Tillich-Zemor
@@ -66,22 +62,14 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 //
 // By default, SHA256 hash function is used.
 func (x *PrmObjectHash) TillichZemorAlgo() {
-	x.csAlgo = v2refs.TillichZemor
+	x.tz = true
 }
 
 // UseSalt sets the salt to XOR the data range before hashing.
 //
 // Must not be mutated before the operation completes.
 func (x *PrmObjectHash) UseSalt(salt []byte) {
-	x.body.SetSalt(salt)
-}
-
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
-//
-// Slice must not be mutated until the operation completes.
-func (x *PrmObjectHash) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
+	x.salt = salt
 }
 
 // ObjectHash requests checksum of the range list of the object payload using
@@ -103,12 +91,7 @@ func (x *PrmObjectHash) WithXHeaders(hs ...string) {
 //   - [ErrMissingRanges]
 //   - [ErrMissingSigner]
 func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectHash) ([][]byte, error) {
-	var (
-		addr  v2refs.Address
-		cidV2 v2refs.ContainerID
-		oidV2 v2refs.ObjectID
-		err   error
-	)
+	var err error
 
 	if c.prm.statisticCallback != nil {
 		startTime := time.Now()
@@ -117,56 +100,74 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		}()
 	}
 
-	if len(prm.body.GetRanges()) == 0 {
+	if len(prm.rs) == 0 {
 		err = ErrMissingRanges
 		return nil, err
 	}
-
-	containerID.WriteToV2(&cidV2)
-	addr.SetContainerID(&cidV2)
-
-	objectID.WriteToV2(&oidV2)
-	addr.SetObjectID(&oidV2)
 
 	if signer == nil {
 		return nil, ErrMissingSigner
 	}
 
-	prm.body.SetAddress(&addr)
-	if prm.csAlgo == v2refs.UnknownChecksum {
-		prm.body.SetType(v2refs.SHA256)
+	req := &protoobject.GetRangeHashRequest{
+		Body: &protoobject.GetRangeHashRequest_Body{
+			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Ranges:  make([]*protoobject.Range, len(prm.rs)/2),
+			Salt:    prm.salt,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+		},
+	}
+	if prm.tz {
+		req.Body.Type = refs.ChecksumType_TZ
 	} else {
-		prm.body.SetType(prm.csAlgo)
+		req.Body.Type = refs.ChecksumType_SHA256
+	}
+	for i := range len(prm.rs) / 2 {
+		req.Body.Ranges[i] = &protoobject.Range{
+			Offset: prm.rs[2*i],
+			Length: prm.rs[2*i+1],
+		}
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
+	if prm.local {
+		req.MetaHeader.Ttl = localRequestTTL
+	} else {
+		req.MetaHeader.Ttl = defaultRequestTTL
+	}
+	if prm.session != nil {
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.bearerToken != nil {
+		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	var req v2object.GetRangeHashRequest
-	c.prepareRequest(&req, &prm.meta)
-	req.SetBody(&prm.body)
-
 	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeHashRequest_Body](signer, req, *buf)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
 	}
 
-	resp, err := c.object.GetRangeHash(ctx, req.ToGRPCMessage().(*protoobject.GetRangeHashRequest))
+	resp, err := c.object.GetRangeHash(ctx, req)
 	if err != nil {
 		err = rpcErr(err)
 		return nil, err
 	}
-	var respV2 v2object.GetRangeHashResponse
-	if err = respV2.FromGRPCMessage(resp); err != nil {
+
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeHashResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return nil, err
 	}
 
-	var res [][]byte
-	if err = c.processResponse(&respV2); err != nil {
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
 	}
 
-	res = resp.GetBody().GetHashList()
+	res := resp.GetBody().GetHashList()
 	if len(res) == 0 {
 		err = newErrMissingResponseField("hash list")
 		return nil, err

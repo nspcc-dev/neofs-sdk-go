@@ -6,17 +6,19 @@ import (
 	"fmt"
 	"time"
 
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmContainerPut groups optional parameters of ContainerPut operation.
@@ -83,9 +85,6 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		return cid.ID{}, ErrMissingSigner
 	}
 
-	var cnr v2container.Container
-	cont.WriteToV2(&cnr)
-
 	if !prm.sigSet {
 		if err = cont.CalculateSignature(&prm.sig, signer); err != nil {
 			err = fmt.Errorf("calculate container signature: %w", err)
@@ -93,73 +92,73 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		}
 	}
 
-	var sigv2 refs.Signature
-
-	prm.sig.WriteToV2(&sigv2)
-
-	// form request body
-	reqBody := new(v2container.PutRequestBody)
-	reqBody.SetContainer(&cnr)
-	reqBody.SetSignature(&sigv2)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
+	req := &protocontainer.PutRequest{
+		Body: &protocontainer.PutRequest_Body{
+			Container: cont.ProtoMessage(),
+			Signature: &refs.SignatureRFC6979{
+				Key:  prm.sig.PublicKeyBytes(),
+				Sign: prm.sig.Value(),
+			},
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.sessionSet {
-		var tokv2 v2session.Token
-		prm.session.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
 
-	// form request
-	var req v2container.PutRequest
+	var res cid.ID
 
-	req.SetBody(reqBody)
-	req.SetMetaHeader(&meta)
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	// init call context
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.PutRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return res, err
+	}
 
-	var (
-		cc  contextCall
-		res cid.ID
-	)
+	resp, err := c.container.Put(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return res, err
+	}
 
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.Put(ctx, req.ToGRPCMessage().(*protocontainer.PutRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2container.PutResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.PutResponse)
-
-		const fieldCnrID = "container ID"
-
-		cidV2 := resp.GetBody().GetContainerID()
-		if cidV2 == nil {
-			cc.err = newErrMissingResponseField(fieldCnrID)
-			return
-		}
-
-		cc.err = res.ReadFromV2(*cidV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldCnrID, cc.err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cid.ID{}, cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.PutResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return res, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	const fieldCnrID = "container ID"
+
+	mCID := resp.GetBody().GetContainerId()
+	if mCID == nil {
+		err = newErrMissingResponseField(fieldCnrID)
+		return res, err
+	}
+
+	err = res.FromProtoMessage(mCID)
+	if err != nil {
+		err = newErrInvalidResponseField(fieldCnrID, err)
+		return res, err
 	}
 
 	return res, nil
@@ -185,58 +184,63 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 		}()
 	}
 
-	var cidV2 refs.ContainerID
-	id.WriteToV2(&cidV2)
+	req := &protocontainer.GetRequest{
+		Body: &protocontainer.GetRequest_Body{
+			ContainerId: id.ProtoMessage(),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     2,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	// form request body
-	reqBody := new(v2container.GetRequestBody)
-	reqBody.SetContainerID(&cidV2)
+	var res container.Container
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	// form request
-	var req v2container.GetRequest
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return res, err
+	}
 
-	req.SetBody(reqBody)
+	resp, err := c.container.Get(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return res, err
+	}
 
-	// init call context
-
-	var (
-		cc  contextCall
-		res container.Container
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.Get(ctx, req.ToGRPCMessage().(*protocontainer.GetRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2container.GetResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.GetResponse)
-
-		cnrV2 := resp.GetBody().GetContainer()
-		if cnrV2 == nil {
-			cc.err = errors.New("missing container in response")
-			return
-		}
-
-		cc.err = res.ReadFromV2(*cnrV2)
-		if cc.err != nil {
-			cc.err = fmt.Errorf("invalid container in response: %w", cc.err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return container.Container{}, cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.GetResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return res, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	mc := resp.GetBody().GetContainer()
+	if mc == nil {
+		err = errors.New("missing container in response")
+		return res, err
+	}
+
+	err = res.FromProtoMessage(mc)
+	if err != nil {
+		err = fmt.Errorf("invalid container in response: %w", err)
+		return res, err
 	}
 
 	return res, nil
@@ -262,57 +266,63 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 		}()
 	}
 
-	// form request body
-	var ownerV2 refs.OwnerID
-	ownerID.WriteToV2(&ownerV2)
+	req := &protocontainer.ListRequest{
+		Body: &protocontainer.ListRequest_Body{
+			OwnerId: ownerID.ProtoMessage(),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	reqBody := new(v2container.ListRequestBody)
-	reqBody.SetOwnerID(&ownerV2)
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	// form request
-	var req v2container.ListRequest
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.ListRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return nil, err
+	}
 
-	req.SetBody(reqBody)
+	resp, err := c.container.List(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return nil, err
+	}
 
-	// init call context
-
-	var (
-		cc  contextCall
-		res []cid.ID
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.List(ctx, req.ToGRPCMessage().(*protocontainer.ListRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2container.ListResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return nil, err
 		}
-		return &respV2, nil
 	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.ListResponse)
 
-		res = make([]cid.ID, len(resp.GetBody().GetContainerIDs()))
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.ListResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return nil, err
+	}
 
-		for i, cidV2 := range resp.GetBody().GetContainerIDs() {
-			cc.err = res[i].ReadFromV2(cidV2)
-			if cc.err != nil {
-				cc.err = fmt.Errorf("invalid ID in the response: %w", cc.err)
-				return
-			}
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return nil, err
+	}
+
+	ms := resp.GetBody().GetContainerIds()
+	res := make([]cid.ID, len(ms))
+	for i := range ms {
+		if ms[i] == nil {
+			err = newErrInvalidResponseField("ID list", fmt.Errorf("nil element #%d", i))
+			return nil, err
 		}
-	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return nil, cc.err
+		if err = res[i].FromProtoMessage(ms[i]); err != nil {
+			err = fmt.Errorf("invalid ID in the response: %w", err)
+			return nil, err
+		}
 	}
 
 	return res, nil
@@ -383,74 +393,66 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
 	}
 
-	// sign container ID
-	var cidV2 refs.ContainerID
-	id.WriteToV2(&cidV2)
-
-	// container contract expects signature of container ID value
-	// don't get confused with stable marshaled protobuf container.ID structure
-	data := cidV2.GetValue()
-
 	if !prm.sigSet {
-		if err = prm.sig.Calculate(signer, data); err != nil {
+		// container contract expects signature of container ID value
+		// don't get confused with stable marshaled protobuf container.ID structure
+		if err = prm.sig.Calculate(signer, id[:]); err != nil {
 			err = fmt.Errorf("calculate container ID signature: %w", err)
 			return err
 		}
 	}
 
-	var sigv2 refs.Signature
-
-	prm.sig.WriteToV2(&sigv2)
-
-	// form request body
-	reqBody := new(v2container.DeleteRequestBody)
-	reqBody.SetContainerID(&cidV2)
-	reqBody.SetSignature(&sigv2)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
+	req := &protocontainer.DeleteRequest{
+		Body: &protocontainer.DeleteRequest_Body{
+			ContainerId: id.ProtoMessage(),
+			Signature: &refs.SignatureRFC6979{
+				Key:  prm.sig.PublicKeyBytes(),
+				Sign: prm.sig.Value(),
+			},
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, req.MetaHeader)
 	if prm.tokSet {
-		var tokv2 v2session.Token
-		prm.tok.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
+		req.MetaHeader.SessionToken = prm.tok.ProtoMessage()
 	}
 
-	// form request
-	var req v2container.DeleteRequest
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	req.SetBody(reqBody)
-	req.SetMetaHeader(&meta)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.DeleteRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
+	}
 
-	// init call context
+	resp, err := c.container.Delete(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
 
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.Delete(ctx, req.ToGRPCMessage().(*protocontainer.DeleteRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return err
 		}
-		var respV2 v2container.DeleteResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.DeleteResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
 	}
 
-	return nil
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
 }
 
 // PrmContainerEACL groups optional parameters of ContainerEACL operation.
@@ -473,56 +475,63 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 		}()
 	}
 
-	var cidV2 refs.ContainerID
-	id.WriteToV2(&cidV2)
+	req := &protocontainer.GetExtendedACLRequest{
+		Body: &protocontainer.GetExtendedACLRequest_Body{
+			ContainerId: id.ProtoMessage(),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	// form request body
-	reqBody := new(v2container.GetExtendedACLRequestBody)
-	reqBody.SetContainerID(&cidV2)
+	var res eacl.Table
 
-	// form request
-	var req v2container.GetExtendedACLRequest
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	req.SetBody(reqBody)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return res, err
+	}
 
-	// init call context
+	resp, err := c.container.GetExtendedACL(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return res, err
+	}
 
-	var (
-		cc  contextCall
-		res eacl.Table
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.GetExtendedACL(ctx, req.ToGRPCMessage().(*protocontainer.GetExtendedACLRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2container.GetExtendedACLResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2container.GetExtendedACLResponse)
-		const fieldEACL = "eACL"
-		eACL := resp.GetBody().GetEACL()
-		if eACL == nil {
-			cc.err = newErrMissingResponseField(fieldEACL)
-			return
-		}
-		if cc.err = res.ReadFromV2(*eACL); cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldEACL, cc.err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return eacl.Table{}, cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.GetExtendedACLResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return res, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	const fieldEACL = "eACL"
+	eACL := resp.GetBody().GetEacl()
+	if eACL == nil {
+		err = newErrMissingResponseField(fieldEACL)
+		return res, err
+	}
+	if err = res.FromProtoMessage(eACL); err != nil {
+		err = newErrInvalidResponseField(fieldEACL, err)
+		return res, err
 	}
 
 	return res, nil
@@ -604,67 +613,65 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	}
 
 	// sign the eACL table
-	eaclV2 := table.ToV2()
+	mEACL := table.ProtoMessage()
 	if !prm.sigSet {
-		if err = prm.sig.CalculateMarshalled(signer, eaclV2, nil); err != nil {
+		if err = prm.sig.Calculate(signer, neofsproto.MarshalMessage(mEACL)); err != nil {
 			err = fmt.Errorf("calculate eACL signature: %w", err)
 			return err
 		}
 	}
 
-	var sigv2 refs.Signature
-
-	prm.sig.WriteToV2(&sigv2)
-
-	// form request body
-	reqBody := new(v2container.SetExtendedACLRequestBody)
-	reqBody.SetEACL(eaclV2)
-	reqBody.SetSignature(&sigv2)
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, &meta)
-
+	req := &protocontainer.SetExtendedACLRequest{
+		Body: &protocontainer.SetExtendedACLRequest_Body{
+			Eacl: mEACL,
+			Signature: &refs.SignatureRFC6979{
+				Key:  prm.sig.PublicKeyBytes(),
+				Sign: prm.sig.Value(),
+			},
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, req.MetaHeader)
 	if prm.sessionSet {
-		var tokv2 v2session.Token
-		prm.session.WriteToV2(&tokv2)
-
-		meta.SetSessionToken(&tokv2)
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
 
-	// form request
-	var req v2container.SetExtendedACLRequest
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	req.SetBody(reqBody)
-	req.SetMetaHeader(&meta)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetExtendedACLRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
+	}
 
-	// init call context
+	resp, err := c.container.SetExtendedACL(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
 
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.SetExtendedACL(ctx, req.ToGRPCMessage().(*protocontainer.SetExtendedACLRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return err
 		}
-		var respV2 v2container.SetExtendedACLResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.SetExtendedACLResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
 	}
 
-	return nil
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
 }
 
 // PrmAnnounceSpace groups optional parameters of ContainerAnnounceUsedSpace operation.
@@ -702,49 +709,53 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 		return err
 	}
 
-	// convert list of SDK announcement structures into NeoFS-API v2 list
-	v2announce := make([]v2container.UsedSpaceAnnouncement, len(announcements))
+	req := &protocontainer.AnnounceUsedSpaceRequest{
+		Body: &protocontainer.AnnounceUsedSpaceRequest_Body{
+			Announcements: make([]*protocontainer.AnnounceUsedSpaceRequest_Body_Announcement, len(announcements)),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
 	for i := range announcements {
-		announcements[i].WriteToV2(&v2announce[i])
+		req.Body.Announcements[i] = announcements[i].ProtoMessage()
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
+
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.AnnounceUsedSpaceRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
 	}
 
-	// prepare body of the NeoFS-API v2 request and request itself
-	reqBody := new(v2container.AnnounceUsedSpaceRequestBody)
-	reqBody.SetAnnouncements(v2announce)
+	resp, err := c.container.AnnounceUsedSpace(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
 
-	// form request
-	var req v2container.AnnounceUsedSpaceRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.container.AnnounceUsedSpace(ctx, req.ToGRPCMessage().(*protocontainer.AnnounceUsedSpaceRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return err
 		}
-		var respV2 v2container.AnnounceUsedSpaceResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.AnnounceUsedSpaceResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
 	}
 
-	return nil
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
 }
 
 // SyncContainerWithNetwork requests network configuration using passed [NetworkInfoExecutor]

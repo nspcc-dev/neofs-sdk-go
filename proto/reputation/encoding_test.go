@@ -1,10 +1,12 @@
 package reputation_test
 
 import (
+	"math/rand"
 	"testing"
 
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	"github.com/stretchr/testify/require"
 )
@@ -57,6 +59,19 @@ func TestGlobalTrust_Body_MarshalStable(t *testing.T) {
 		{
 			Manager: randPeerID(),
 			Trust:   randTrust(),
+		},
+	})
+}
+
+func TestGlobalTrust_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*reputation.GlobalTrust{
+		{
+			Version: &refs.Version{Major: rand.Uint32(), Minor: rand.Uint32()},
+			Body: &reputation.GlobalTrust_Body{
+				Manager: randPeerID(),
+				Trust:   randTrust(),
+			},
+			Signature: &refs.Signature{Key: []byte("any_pub"), Sign: []byte("any_sig"), Scheme: refs.SignatureScheme(rand.Int31())},
 		},
 	})
 }

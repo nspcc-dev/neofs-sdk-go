@@ -6,7 +6,6 @@ import (
 	"errors"
 	"time"
 
-	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -91,20 +90,7 @@ func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (ne
 		return ni, err
 	}
 
-	var v2 netmapv2.NetworkInfo
-	var netConfig netmapv2.NetworkConfig
-	var p1 netmapv2.NetworkParameter
-
-	p1.SetKey(randomBytes(16))
-	p1.SetValue(randomBytes(16))
-
-	netConfig.SetParameters(p1)
-	v2.SetNetworkConfig(&netConfig)
-
-	if err := ni.ReadFromV2(v2); err != nil {
-		return ni, err
-	}
-
+	ni.SetRawNetworkParameter(string(randomBytes(16)), randomBytes(16))
 	ni.SetCurrentEpoch(uint64(time.Now().Unix()))
 	ni.SetMaxObjectSize(1024)
 

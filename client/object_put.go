@@ -7,15 +7,16 @@ import (
 	"io"
 	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 var (
@@ -42,7 +43,10 @@ type shortStatisticCallback func(dur time.Duration, err error)
 
 // PrmObjectPutInit groups parameters of ObjectPutInit operation.
 type PrmObjectPutInit struct {
+	prmCommonMeta
 	sessionContainer
+	bearerToken *bearer.Token
+	local       bool
 
 	copyNum uint32
 }
@@ -76,7 +80,6 @@ type ObjectWriter interface {
 type DefaultObjectWriter struct {
 	cancelCtxStream context.CancelFunc
 
-	client           *Client
 	stream           putObjectStream
 	singleMsgTimeout time.Duration
 	streamClosed     bool
@@ -87,9 +90,7 @@ type DefaultObjectWriter struct {
 
 	chunkCalled bool
 
-	req       v2object.PutRequest
-	partInit  v2object.PutObjectPartInit
-	partChunk v2object.PutObjectPartChunk
+	opts PrmObjectPutInit
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
@@ -101,44 +102,54 @@ type DefaultObjectWriter struct {
 // WithBearerToken attaches bearer token to be used for the operation.
 // Should be called once before any writing steps.
 func (x *PrmObjectPutInit) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
+	x.bearerToken = &t
 }
 
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectPutInit) MarkLocal() {
-	x.meta.SetTTL(1)
-}
-
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
-//
-// Slice must not be mutated until the operation completes.
-func (x *PrmObjectPutInit) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
+	x.local = true
 }
 
 // writeHeader writes header of the object. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
-func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
-	v2Hdr := hdr.ToV2()
+func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) error {
+	mh := hdr.ProtoMessage()
+	req := &protoobject.PutRequest{
+		Body: &protoobject.PutRequest_Body{
+			ObjectPart: &protoobject.PutRequest_Body_Init_{
+				Init: &protoobject.PutRequest_Body_Init{
+					ObjectId:     mh.ObjectId,
+					Signature:    mh.Signature,
+					Header:       mh.Header,
+					CopiesNumber: copyNum,
+				},
+			},
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+		},
+	}
+	writeXHeadersToMeta(x.opts.xHeaders, req.MetaHeader)
+	if x.opts.local {
+		req.MetaHeader.Ttl = localRequestTTL
+	} else {
+		req.MetaHeader.Ttl = defaultRequestTTL
+	}
+	if x.opts.session != nil {
+		req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
+	}
+	if x.opts.bearerToken != nil {
+		req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
+	}
 
-	x.partInit.SetObjectID(v2Hdr.GetObjectID())
-	x.partInit.SetHeader(v2Hdr.GetHeader())
-	x.partInit.SetSignature(v2Hdr.GetSignature())
-
-	x.req.GetBody().SetObjectPart(&x.partInit)
-	x.req.SetVerificationHeader(nil)
-
-	x.err = signServiceMessage(x.signer, &x.req, x.buf)
+	req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
 	if x.err != nil {
 		x.err = fmt.Errorf("sign message: %w", x.err)
 		return x.err
 	}
 
 	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-		return x.stream.Send(x.req.ToGRPCMessage().(*protoobject.PutRequest))
+		return x.stream.Send(req)
 	})
 	return x.err
 }
@@ -148,7 +159,6 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 	if !x.chunkCalled {
 		x.chunkCalled = true
-		x.req.GetBody().SetObjectPart(&x.partChunk)
 	}
 
 	var writtenBytes int
@@ -174,17 +184,37 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		// the allocated buffer is filled, or when the last chunk is received.
 		// It is mentally assumed that allocating and filling the buffer is better than
 		// synchronous sending, but this needs to be tested.
-		x.partChunk.SetChunk(chunk[:ln])
-		x.req.SetVerificationHeader(nil)
+		req := &protoobject.PutRequest{
+			Body: &protoobject.PutRequest_Body{
+				ObjectPart: &protoobject.PutRequest_Body_Chunk{
+					Chunk: chunk[:ln],
+				},
+			},
+			MetaHeader: &protosession.RequestMetaHeader{
+				Version: version.Current().ProtoMessage(),
+			},
+		}
+		writeXHeadersToMeta(x.opts.xHeaders, req.MetaHeader)
+		if x.opts.local {
+			req.MetaHeader.Ttl = localRequestTTL
+		} else {
+			req.MetaHeader.Ttl = defaultRequestTTL
+		}
+		if x.opts.session != nil {
+			req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
+		}
+		if x.opts.bearerToken != nil {
+			req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
+		}
 
-		x.err = signServiceMessage(x.signer, &x.req, x.buf)
+		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
 			return writtenBytes, x.err
 		}
 
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-			return x.stream.Send(x.req.ToGRPCMessage().(*protoobject.PutRequest))
+			return x.stream.Send(req)
 		})
 		if x.err != nil {
 			if errors.Is(x.err, io.EOF) {
@@ -197,11 +227,11 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 				if x.err != nil {
 					return writtenBytes, x.err
 				}
-				var respV2 v2object.PutResponse
-				if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
-					return writtenBytes, x.err
+				if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
+					x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+				} else {
+					x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 				}
-				x.err = x.client.processResponse(&respV2)
 				x.streamClosed = true
 				x.cancelCtxStream()
 			}
@@ -264,24 +294,25 @@ func (x *DefaultObjectWriter) Close() error {
 	}); x.err != nil {
 		return x.err
 	}
-	var respV2 v2object.PutResponse
-	if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+
+	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
+		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 		return x.err
 	}
 
-	if x.err = x.client.processResponse(&respV2); x.err != nil {
+	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 		return x.err
 	}
 
 	const fieldID = "ID"
 
-	idV2 := respV2.GetBody().GetObjectID()
+	idV2 := resp.GetBody().GetObjectId()
 	if idV2 == nil {
 		x.err = newErrMissingResponseField(fieldID)
 		return x.err
 	}
 
-	x.err = x.res.obj.ReadFromV2(*idV2)
+	x.err = x.res.obj.FromProtoMessage(idV2)
 	if x.err != nil {
 		x.err = newErrInvalidResponseField(fieldID, x.err)
 	}
@@ -344,14 +375,10 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 
 	w.signer = signer
 	w.cancelCtxStream = cancel
-	w.client = c
 	w.stream = stream
 	w.singleMsgTimeout = c.streamTimeout
-	w.partInit.SetCopiesNumber(prm.copyNum)
-	w.req.SetBody(new(v2object.PutRequestBody))
-	c.prepareRequest(&w.req, &prm.meta)
-
-	if err = w.writeHeader(hdr); err != nil {
+	w.opts = prm
+	if err = w.writeHeader(hdr, prm.copyNum); err != nil {
 		_ = w.Close()
 		err = fmt.Errorf("header write: %w", err)
 		return nil, err

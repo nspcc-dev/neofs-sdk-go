@@ -4,14 +4,10 @@ import (
 	"bytes"
 	"crypto/elliptic"
 	"encoding/json"
-	"math"
 	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
-	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
@@ -19,6 +15,9 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -96,8 +95,8 @@ func init() {
 }
 
 // corresponds to validObject.
-var validObjectID = oid.ID{104, 79, 12, 22, 52, 73, 44, 178, 246, 55, 17, 33, 163, 133, 252, 128, 121, 232, 127, 223, 91, 227,
-	7, 83, 223, 223, 186, 153, 69, 172, 80, 230}
+var validObjectID = oid.ID{83, 215, 222, 236, 6, 213, 115, 36, 162, 15, 57, 99, 101, 236, 160, 178, 140, 107, 14, 255, 72, 211,
+	192, 154, 76, 214, 209, 36, 116, 247, 105, 172}
 
 // corresponds to validObject.
 var validBinObject = []byte{
@@ -133,12 +132,12 @@ var validBinObject = []byte{
 	109, 95, 50, 82, 30, 10, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 107, 101, 121, 49, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95,
 	118, 97, 108, 49, 82, 49, 10, 25, 95, 95, 78, 69, 79, 70, 83, 95, 95, 69, 88, 80, 73, 82, 65, 84, 73, 79, 78, 95, 69, 80, 79, 67,
 	72, 18, 20, 49, 52, 50, 48, 56, 52, 57, 55, 55, 49, 50, 55, 48, 48, 53, 56, 48, 49, 51, 48, 82, 30, 10, 13, 112, 97, 114, 95, 97,
-	116, 116, 114, 95, 107, 101, 121, 50, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 118, 97, 108, 50, 42, 34, 10, 32, 173, 160, 45,
-	58, 200, 168, 116, 142, 235, 209, 231, 80, 235, 186, 6, 132, 99, 95, 14, 39, 237, 139, 87, 66, 244, 72, 96, 69, 13, 83, 81, 172,
-	42, 34, 10, 32, 238, 167, 85, 68, 91, 254, 165, 81, 182, 145, 16, 91, 35, 224, 17, 46, 164, 138, 86, 50, 196, 148, 215, 210, 247,
-	29, 44, 153, 203, 20, 137, 169, 42, 34, 10, 32, 226, 165, 123, 249, 146, 166, 187, 202, 244, 12, 156, 43, 207, 204, 40, 230,
-	145, 34, 212, 152, 148, 112, 44, 21, 195, 207, 249, 112, 34, 81, 145, 194, 50, 16, 224, 132, 3, 80, 32, 44, 69, 184, 185, 32,
-	226, 201, 206, 196, 147, 41, 58, 34, 10, 32, 119, 231, 221, 167, 7, 141, 50, 77, 49, 23, 194, 169, 82, 56, 150, 162, 103, 20,
+	116, 116, 114, 95, 107, 101, 121, 50, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 118, 97, 108, 50, 50, 16, 224, 132, 3, 80, 32,
+	44, 69, 184, 185, 32, 226, 201, 206, 196, 147, 41, 42, 34, 10, 32, 173, 160, 45, 58, 200, 168, 116, 142, 235, 209, 231, 80,
+	235, 186, 6, 132, 99, 95, 14, 39, 237, 139, 87, 66, 244, 72, 96, 69, 13, 83, 81, 172, 42, 34, 10, 32, 238, 167, 85, 68, 91, 254,
+	165, 81, 182, 145, 16, 91, 35, 224, 17, 46, 164, 138, 86, 50, 196, 148, 215, 210, 247, 29, 44, 153, 203, 20, 137, 169, 42, 34, 10,
+	32, 226, 165, 123, 249, 146, 166, 187, 202, 244, 12, 156, 43, 207, 204, 40, 230, 145, 34, 212, 152, 148, 112, 44, 21, 195,
+	207, 249, 112, 34, 81, 145, 194, 58, 34, 10, 32, 119, 231, 221, 167, 7, 141, 50, 77, 49, 23, 194, 169, 82, 56, 150, 162, 103, 20,
 	124, 174, 16, 64, 169, 172, 79, 238, 242, 146, 87, 88, 5, 147, 34, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
 }
 
@@ -188,7 +187,7 @@ var validJSONObject = `
     },
     "sessionKey": "ApqQg8XWmqMjXYVrI20D2hQA/xrAIewA8Lf9TLuI16TZ",
     "object": {
-     "verb": "VERB_UNSPECIFIED",
+     "verb": 1047242055,
      "target": {
       "container": {
        "value": "h1mV27nR6Yng041Gwc34/uIecrH1qx1a1A8zVo5lm40="
@@ -691,790 +690,324 @@ func TestObject_ResetRelations(t *testing.T) {
 	assertNoSplitFields(t, obj)
 }
 
-func TestObject_InitRelations(t *testing.T) {
-	var obj object.Object
-	assertNoSplitFields(t, obj)
-	require.False(t, obj.HasParent())
-
-	obj.InitRelations()
-	assertNoSplitFields(t, obj)
-	require.True(t, obj.HasParent())
-}
-
-func TestObject_ReadFromV2(t *testing.T) {
-	var pv refs.Version
-	pv.SetMajor(88789927)
-	pv.SetMinor(2018985309)
-	var pcs refs.Checksum
-	pcs.SetType(1974315742)
-	pcs.SetSum([]byte("checksum_1"))
-	var phcs refs.Checksum
-	phcs.SetType(1922538608)
-	phcs.SetSum([]byte("checksum_2"))
-	pas := make([]apiobject.Attribute, 3)
-	pas[0].SetKey("par_attr_key1")
-	pas[0].SetValue("par_attr_val1")
-	pas[1].SetKey("__NEOFS__EXPIRATION_EPOCH")
-	pas[1].SetValue("14208497712700580130")
-	pas[2].SetKey("par_attr_key2")
-	pas[2].SetValue("par_attr_val2")
-	var ph apiobject.Header
-	ph.SetVersion(&pv)
-	ph.SetContainerID(protoContainerIDFromBytes(anyValidContainers[0][:]))
-	ph.SetOwnerID(protoUserIDFromBytes(anyValidUsers[0][:]))
-	ph.SetCreationEpoch(anyValidCreationEpoch)
-	ph.SetPayloadLength(anyValidPayloadSize)
-	ph.SetPayloadHash(&pcs)
-	ph.SetObjectType(apiobject.Type(anyValidType))
-	ph.SetHomomorphicHash(&phcs)
-	ph.SetAttributes(pas)
-
-	var mtl apisession.TokenLifetime
-	mtl.SetExp(16429376563136800338)
-	mtl.SetIat(7956510363313998522)
-	mtl.SetNbf(17237208928641773338)
-	var mtc apisession.ObjectSessionContext
-	mtc.SetVerb(1047242055)
-	mtc.SetTarget(protoContainerIDFromBytes(anyValidContainers[2][:]),
-		*protoIDFromBytes(anyValidIDs[8][:]), *protoIDFromBytes(anyValidIDs[9][:]))
-	var mtb apisession.TokenBody
-	mtb.SetID(anyValidSessionID[:])
-	mtb.SetOwnerID(protoUserIDFromBytes(anyValidUsers[2][:]))
-	mtb.SetLifetime(&mtl)
-	mtb.SetSessionKey(anySessionIssuerPubKeyBytes)
-	mtb.SetContext(&mtc)
-	var mts refs.Signature
-	mts.SetScheme(1134494890)
-	mts.SetKey([]byte("session_signer"))
-	mts.SetSign([]byte("session_signature"))
-	var mt apisession.Token
-	mt.SetBody(&mtb)
-	mt.SetSignature(&mts)
-
-	var mv refs.Version
-	mv.SetMajor(525747025)
-	mv.SetMinor(171993162)
-	var cs refs.Checksum
-	cs.SetType(126384577)
-	cs.SetSum([]byte("checksum_3"))
-	var hcs refs.Checksum
-	hcs.SetType(1001923429)
-	hcs.SetSum([]byte("checksum_4"))
-	as := make([]apiobject.Attribute, 3)
-	as[0].SetKey("attr_key1")
-	as[0].SetValue("attr_val1")
-	as[1].SetKey("__NEOFS__EXPIRATION_EPOCH")
-	as[1].SetValue("8516691293958955670")
-	as[2].SetKey("attr_key2")
-	as[2].SetValue("attr_val2")
-	var ps refs.Signature
-	ps.SetKey([]byte("pub_1"))
-	ps.SetSign([]byte("sig_1"))
-	ps.SetScheme(1277002296)
-	var sh apiobject.SplitHeader
-	sh.SetParent(protoIDFromBytes(anyValidIDs[1][:]))
-	sh.SetPrevious(protoIDFromBytes(anyValidIDs[2][:]))
-	sh.SetParentSignature(&ps)
-	sh.SetParentHeader(&ph)
-	sh.SetChildren([]refs.ObjectID{
-		*protoIDFromBytes(anyValidIDs[3][:]),
-		*protoIDFromBytes(anyValidIDs[4][:]),
-		*protoIDFromBytes(anyValidIDs[5][:]),
-	})
-	sh.SetSplitID(anyValidSplitIDBytes)
-	sh.SetFirst(protoIDFromBytes(anyValidIDs[6][:]))
-
-	var mh apiobject.Header
-	mh.SetVersion(&mv)
-	mh.SetContainerID(protoContainerIDFromBytes(anyValidContainers[1][:]))
-	mh.SetOwnerID(protoUserIDFromBytes(anyValidUsers[1][:]))
-	mh.SetCreationEpoch(anyValidCreationEpoch + 1)
-	mh.SetPayloadLength(anyValidPayloadSize + 1)
-	mh.SetPayloadHash(&cs)
-	mh.SetObjectType(apiobject.Type(anyValidType) + 1)
-	mh.SetHomomorphicHash(&hcs)
-	mh.SetSessionToken(&mt)
-	mh.SetAttributes(as)
-	mh.SetSplit(&sh)
-
-	var ms refs.Signature
-	ms.SetKey([]byte("pub_2"))
-	ms.SetSign([]byte("sig_2"))
-	ms.SetScheme(1242896683)
-
-	var m apiobject.Object
-	m.SetObjectID(protoIDFromBytes(anyValidIDs[0][:]))
-	m.SetSignature(&ms)
-	m.SetHeader(&mh)
-	m.SetPayload(anyValidRegularPayload)
+func TestObject_FromProtoMessage(t *testing.T) {
+	m := &protoobject.Object{
+		ObjectId:  protoIDFromBytes(anyValidIDs[0][:]),
+		Signature: &refs.Signature{Key: []byte("pub_2"), Sign: []byte("sig_2"), Scheme: 1242896683},
+		Header: &protoobject.Header{
+			Version:         &refs.Version{Major: 525747025, Minor: 171993162},
+			ContainerId:     protoContainerIDFromBytes(anyValidContainers[1][:]),
+			OwnerId:         protoUserIDFromBytes(anyValidUsers[1][:]),
+			CreationEpoch:   anyValidCreationEpoch + 1,
+			PayloadLength:   anyValidPayloadSize + 1,
+			PayloadHash:     &refs.Checksum{Type: 126384577, Sum: []byte("checksum_3")},
+			ObjectType:      protoobject.ObjectType(anyValidType) + 1,
+			HomomorphicHash: &refs.Checksum{Type: 1001923429, Sum: []byte("checksum_4")},
+			SessionToken: &protosession.SessionToken{
+				Body: &protosession.SessionToken_Body{
+					Id:      anyValidSessionID[:],
+					OwnerId: protoUserIDFromBytes(anyValidUsers[2][:]),
+					Lifetime: &protosession.SessionToken_Body_TokenLifetime{
+						Exp: 16429376563136800338,
+						Nbf: 17237208928641773338,
+						Iat: 7956510363313998522,
+					},
+					SessionKey: anySessionIssuerPubKeyBytes,
+					Context: &protosession.SessionToken_Body_Object{Object: &protosession.ObjectSessionContext{
+						Verb: 1047242055,
+						Target: &protosession.ObjectSessionContext_Target{
+							Container: protoContainerIDFromBytes(anyValidContainers[2][:]),
+							Objects:   []*refs.ObjectID{protoIDFromBytes(anyValidIDs[8][:]), protoIDFromBytes(anyValidIDs[9][:])},
+						},
+					}},
+				},
+				Signature: &refs.Signature{Key: []byte("session_signer"), Sign: []byte("session_signature"), Scheme: 1134494890},
+			},
+			Attributes: []*protoobject.Header_Attribute{
+				{Key: "attr_key1", Value: "attr_val1"},
+				{Key: "__NEOFS__EXPIRATION_EPOCH", Value: "8516691293958955670"},
+				{Key: "attr_key2", Value: "attr_val2"},
+			},
+			Split: &protoobject.Header_Split{
+				Parent:          protoIDFromBytes(anyValidIDs[1][:]),
+				Previous:        protoIDFromBytes(anyValidIDs[2][:]),
+				ParentSignature: &refs.Signature{Key: []byte("pub_1"), Sign: []byte("sig_1"), Scheme: 1277002296},
+				ParentHeader: &protoobject.Header{
+					Version:         &refs.Version{Major: 88789927, Minor: 2018985309},
+					ContainerId:     protoContainerIDFromBytes(anyValidContainers[0][:]),
+					OwnerId:         protoUserIDFromBytes(anyValidUsers[0][:]),
+					CreationEpoch:   anyValidCreationEpoch,
+					PayloadLength:   anyValidPayloadSize,
+					PayloadHash:     &refs.Checksum{Type: 1974315742, Sum: []byte("checksum_1")},
+					ObjectType:      protoobject.ObjectType(anyValidType),
+					HomomorphicHash: &refs.Checksum{Type: 1922538608, Sum: []byte("checksum_2")},
+					Attributes: []*protoobject.Header_Attribute{
+						{Key: "par_attr_key1", Value: "par_attr_val1"},
+						{Key: "__NEOFS__EXPIRATION_EPOCH", Value: "14208497712700580130"},
+						{Key: "par_attr_key2", Value: "par_attr_val2"},
+					},
+				},
+				Children: []*refs.ObjectID{
+					protoIDFromBytes(anyValidIDs[3][:]),
+					protoIDFromBytes(anyValidIDs[4][:]),
+					protoIDFromBytes(anyValidIDs[5][:]),
+				},
+				SplitId: anyValidSplitIDBytes,
+				First:   protoIDFromBytes(anyValidIDs[6][:]),
+			},
+		},
+		Payload: anyValidRegularPayload,
+	}
 
 	var obj object.Object
-	require.NoError(t, obj.ReadFromV2(m))
+	require.NoError(t, obj.FromProtoMessage(m))
 	require.Equal(t, validObject, obj)
 
 	// reset optional fields
-	m.SetObjectID(nil)
-	m.SetSignature(nil)
-	m.SetHeader(nil)
-	m.SetPayload(nil)
+	m.ObjectId = nil
+	m.Signature = nil
+	m.Header = nil
+	m.Payload = nil
 	obj2 := obj
-	require.NoError(t, obj2.ReadFromV2(m))
+	require.NoError(t, obj2.FromProtoMessage(m))
 	require.Zero(t, obj2)
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*apiobject.Object)
+			corrupt   func(*protoobject.Object)
 		}{
 			{name: "id/nil value", err: "invalid ID: invalid length 0",
-				corrupt: func(m *apiobject.Object) { m.SetObjectID(protoIDFromBytes(nil)) }},
+				corrupt: func(m *protoobject.Object) { m.ObjectId.Value = nil }},
 			{name: "id/empty value", err: "invalid ID: invalid length 0",
-				corrupt: func(m *apiobject.Object) { m.SetObjectID(protoIDFromBytes([]byte{})) }},
+				corrupt: func(m *protoobject.Object) { m.ObjectId.Value = []byte{} }},
 			{name: "id/undersize", err: "invalid ID: invalid length 31",
-				corrupt: func(m *apiobject.Object) { m.SetObjectID(protoIDFromBytes(anyValidIDs[0][:31])) }},
+				corrupt: func(m *protoobject.Object) { m.ObjectId.Value = anyValidIDs[0][:31] }},
 			{name: "id/oversize", err: "invalid ID: invalid length 33",
-				corrupt: func(m *apiobject.Object) { m.SetObjectID(protoIDFromBytes(append(anyValidIDs[0][:], 1))) }},
+				corrupt: func(m *protoobject.Object) { m.ObjectId.Value = append(anyValidIDs[0][:], 1) }},
 			{name: "id/zero", err: "invalid ID: zero object ID",
-				corrupt: func(m *apiobject.Object) { m.SetObjectID(protoIDFromBytes(make([]byte, 32))) }},
-			{name: "signature/scheme/overflow", err: "invalid signature: scheme 2147483648 overflows int32",
-				corrupt: func(m *apiobject.Object) {
-					var s refs.Signature
-					s.SetScheme(math.MaxInt32 + 1)
-					m.SetSignature(&s)
-				}},
+				corrupt: func(m *protoobject.Object) { m.ObjectId.Value = make([]byte, 32) }},
+			{name: "signature/scheme/negative", err: "invalid signature: negative scheme -1",
+				corrupt: func(m *protoobject.Object) { m.Signature.Scheme = -1 }},
 			{name: "header/owner/value/nil", err: "invalid header: invalid owner: invalid length 0, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetOwnerID(protoUserIDFromBytes(nil))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.OwnerId.Value = nil }},
 			{name: "header/owner/value/empty", err: "invalid header: invalid owner: invalid length 0, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetOwnerID(protoUserIDFromBytes([]byte{}))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.OwnerId.Value = []byte{} }},
 			{name: "header/owner/value/undersize", err: "invalid header: invalid owner: invalid length 24, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetOwnerID(protoUserIDFromBytes(anyValidUsers[0][:24]))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.OwnerId.Value = anyValidUsers[0][:24] }},
 			{name: "header/owner/value/oversize", err: "invalid header: invalid owner: invalid length 26, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetOwnerID(protoUserIDFromBytes(append(anyValidUsers[0][:], 1)))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.OwnerId.Value = append(anyValidUsers[0][:], 1) }},
 			{name: "header/owner/value/wrong prefix", err: "invalid header: invalid owner: invalid prefix byte 0x42, expected 0x35",
-				corrupt: func(m *apiobject.Object) {
-					id := anyValidUsers[0]
-					id[0] = 0x42
-					h := *m.GetHeader()
-					h.SetOwnerID(protoUserIDFromBytes(id[:]))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.OwnerId.Value[0] = 0x42 }},
 			{name: "header/owner/value/checksum mismatch", err: "invalid header: invalid owner: checksum mismatch",
-				corrupt: func(m *apiobject.Object) {
-					id := anyValidUsers[0]
-					id[len(id)-1]++
-					h := *m.GetHeader()
-					h.SetOwnerID(protoUserIDFromBytes(id[:]))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.OwnerId.Value[24]++ }},
 			{name: "header/container/nil value", err: "invalid header: invalid container: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetContainerID(protoContainerIDFromBytes(nil))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.ContainerId.Value = nil }},
 			{name: "header/container/empty value", err: "invalid header: invalid container: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetContainerID(protoContainerIDFromBytes([]byte{}))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.ContainerId.Value = []byte{} }},
 			{name: "header/container/undersize", err: "invalid header: invalid container: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetContainerID(protoContainerIDFromBytes(anyValidContainers[0][:31]))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.ContainerId.Value = anyValidContainers[0][:31] }},
 			{name: "header/container/oversize", err: "invalid header: invalid container: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetContainerID(protoContainerIDFromBytes(append(anyValidContainers[0][:], 1)))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.ContainerId.Value = append(anyValidContainers[0][:], 1) }},
 			{name: "header/container/zero", err: "invalid header: invalid container: zero container ID",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetContainerID(protoContainerIDFromBytes(make([]byte, 32)))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.ContainerId.Value = make([]byte, 32) }},
 			{name: "header/payload checksum/missing value", err: "invalid header: invalid payload checksum: missing value",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetPayloadHash(new(refs.Checksum))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.PayloadHash.Sum = nil }},
+			{name: "header/payload checksum/negative type", err: "invalid header: invalid payload checksum: negative type -1",
+				corrupt: func(m *protoobject.Object) { m.Header.PayloadHash.Type = -1 }},
 			{name: "header/payload homomorphic checksum/missing value", err: "invalid header: invalid payload homomorphic checksum: missing value",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					h.SetHomomorphicHash(new(refs.Checksum))
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.HomomorphicHash.Sum = nil }},
+			{name: "header/payload checksum/negative type", err: "invalid header: invalid payload homomorphic checksum: negative type -1",
+				corrupt: func(m *protoobject.Object) { m.Header.HomomorphicHash.Type = -1 }},
 			{name: "header/session/body/ID/undersize", err: "invalid header: invalid session token: invalid session ID: invalid UUID (got 15 bytes)",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtb.SetID(anyValidSessionID[:15])
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.SessionToken.Body.Id = anyValidSessionID[:15] }},
 			{name: "header/session/body/ID/oversize", err: "invalid header: invalid session token: invalid session ID: invalid UUID (got 17 bytes)",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtb.SetID(append(anyValidSessionID[:], 1))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.SessionToken.Body.Id = append(anyValidSessionID[:], 1) }},
 			{name: "header/session/body/ID/wrong UUID version", err: "invalid header: invalid session token: invalid session ID: wrong UUID version 3, expected 4",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
+				corrupt: func(m *protoobject.Object) {
 					b := bytes.Clone(anyValidSessionID[:])
 					b[6] = 3 << 4
-					mtb.SetID(b)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+					m.Header.SessionToken.Body.Id = b
 				}},
 			{name: "header/session/body/issuer/value/empty", err: "invalid header: invalid session token: invalid session issuer: invalid length 0, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtb.SetOwnerID(protoUserIDFromBytes(nil))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.SessionToken.Body.OwnerId.Value = nil }},
 			{name: "header/session/body/issuer/value/undersize", err: "invalid header: invalid session token: invalid session issuer: invalid length 24, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtb.SetOwnerID(protoUserIDFromBytes(anyValidUsers[0][:24]))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.SessionToken.Body.OwnerId.Value = anyValidUsers[0][:24] }},
 			{name: "header/session/body/issuer/value/oversize", err: "invalid header: invalid session token: invalid session issuer: invalid length 26, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtb.SetOwnerID(protoUserIDFromBytes(append(anyValidUsers[0][:], 1)))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.SessionToken.Body.OwnerId.Value = append(anyValidUsers[0][:], 1) }},
 			{name: "header/session/body/issuer/value/wrong prefix", err: "invalid header: invalid session token: invalid session issuer: invalid prefix byte 0x42, expected 0x35",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
+				corrupt: func(m *protoobject.Object) {
 					b := bytes.Clone(anyValidUsers[0][:])
 					b[0] = 0x42
-					mtb.SetOwnerID(protoUserIDFromBytes(b))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+					m.Header.SessionToken.Body.OwnerId.Value = b
 				}},
 			{name: "header/session/body/issuer/value/checksum mismatch", err: "invalid header: invalid session token: invalid session issuer: checksum mismatch",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
+				corrupt: func(m *protoobject.Object) {
 					b := bytes.Clone(anyValidUsers[0][:])
 					b[len(b)-1]++
-					mtb.SetOwnerID(protoUserIDFromBytes(b))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+					m.Header.SessionToken.Body.OwnerId.Value = b
 				}},
-			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.ContainerSessionContext",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtb.SetContext(new(apisession.ContainerSessionContext))
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context = new(protosession.SessionToken_Body_Container)
 				}},
 			{name: "header/session/body/context/container/empty value", err: "invalid header: invalid session token: invalid context: invalid container ID: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtc := *mtb.GetContext().(*apisession.ObjectSessionContext)
-					mtc.SetTarget(protoContainerIDFromBytes(nil), mtc.GetObjects()...)
-					mtb.SetContext(&mtc)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context.(*protosession.SessionToken_Body_Object).Object.Target.Container.Value = nil
 				}},
 			{name: "header/session/body/context/container/undersize", err: "invalid header: invalid session token: invalid context: invalid container ID: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtc := *mtb.GetContext().(*apisession.ObjectSessionContext)
-					mtc.SetTarget(protoContainerIDFromBytes(anyValidContainers[0][:31]), mtc.GetObjects()...)
-					mtb.SetContext(&mtc)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context.(*protosession.SessionToken_Body_Object).Object.Target.Container.Value = anyValidContainers[0][:31]
 				}},
 			{name: "header/session/body/context/container/oversize", err: "invalid header: invalid session token: invalid context: invalid container ID: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtc := *mtb.GetContext().(*apisession.ObjectSessionContext)
-					mtc.SetTarget(protoContainerIDFromBytes(append(anyValidContainers[0][:], 1)), mtc.GetObjects()...)
-					mtb.SetContext(&mtc)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context.(*protosession.SessionToken_Body_Object).Object.Target.Container.Value =
+						append(anyValidContainers[0][:], 1)
 				}},
 			{name: "header/session/body/context/object/empty value", err: "invalid header: invalid session token: invalid context: invalid target object: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtc := *mtb.GetContext().(*apisession.ObjectSessionContext)
-					objs := make([]refs.ObjectID, 2)
-					anyValidIDs[0].WriteToV2(&objs[0])
-					mtc.SetTarget(protoContainerIDFromBytes(anyValidContainers[0][:]), objs...)
-					mtb.SetContext(&mtc)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context.(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value = nil
 				}},
 			{name: "header/session/body/context/object/undersize", err: "invalid header: invalid session token: invalid context: invalid target object: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtc := *mtb.GetContext().(*apisession.ObjectSessionContext)
-					objs := make([]refs.ObjectID, 2)
-					anyValidIDs[0].WriteToV2(&objs[0])
-					objs[1].SetValue(anyValidIDs[1][:31])
-					mtc.SetTarget(protoContainerIDFromBytes(anyValidContainers[0][:]), objs...)
-					mtb.SetContext(&mtc)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context.(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value = anyValidIDs[1][:31]
 				}},
 			{name: "header/session/body/context/object/oversize", err: "invalid header: invalid session token: invalid context: invalid target object: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mtb := *mt.GetBody()
-					mtc := *mtb.GetContext().(*apisession.ObjectSessionContext)
-					objs := make([]refs.ObjectID, 2)
-					anyValidIDs[0].WriteToV2(&objs[0])
-					objs[1].SetValue(append(anyValidIDs[1][:], 1))
-					mtc.SetTarget(protoContainerIDFromBytes(anyValidContainers[0][:]), objs...)
-					mtb.SetContext(&mtc)
-					mt.SetBody(&mtb)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.SessionToken.Body.Context.(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value =
+						append(anyValidIDs[1][:], 1)
 				}},
-			{name: "header/session/signature/scheme/overflow", err: "invalid header: invalid session token: invalid body signature: scheme 2147483648 overflows int32",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					mt := *h.GetSessionToken()
-					mts := *mt.GetSignature()
-					mts.SetScheme(math.MaxInt32 + 1)
-					mt.SetSignature(&mts)
-					h.SetSessionToken(&mt)
-					m.SetHeader(&h)
+			{name: "header/session/signature/scheme/negative", err: "invalid header: invalid session token: invalid body signature: negative scheme -1",
+				corrupt: func(m *protoobject.Object) { m.Header.SessionToken.Signature.Scheme = -1 }},
+			{name: "attributes/no key", err: "invalid header: invalid attribute #1: missing key",
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Attributes = []*protoobject.Header_Attribute{
+						{Key: "k1", Value: "v1"}, {Key: "", Value: "v2"}, {Key: "k3", Value: "v3"},
+					}
 				}},
-			{name: "attributes/no key", err: "invalid header: empty key of the attribute #1",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					as := make([]apiobject.Attribute, 3)
-					as[0].SetKey("k1")
-					as[0].SetValue("v1")
-					as[1].SetValue("v2")
-					as[2].SetKey("k3")
-					as[2].SetValue("v3")
-					h.SetAttributes(as)
-					m.SetHeader(&h)
-				}},
-			{name: "attributes/no value", err: "invalid header: empty value of the attribute #1 (k2)",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					as := make([]apiobject.Attribute, 3)
-					as[0].SetKey("k1")
-					as[0].SetValue("v1")
-					as[1].SetKey("k2")
-					as[2].SetKey("k3")
-					as[2].SetValue("v3")
-					h.SetAttributes(as)
-					m.SetHeader(&h)
+			{name: "attributes/no value", err: "invalid header: invalid attribute #1: missing value",
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Attributes = []*protoobject.Header_Attribute{
+						{Key: "k1", Value: "v1"}, {Key: "k2", Value: ""}, {Key: "k3", Value: "v3"},
+					}
 				}},
 			{name: "attributes/duplicated", err: "invalid header: duplicated attribute k1",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					as := make([]apiobject.Attribute, 3)
-					as[0].SetKey("k1")
-					as[0].SetValue("v1")
-					as[1].SetKey("k2")
-					as[1].SetValue("v2")
-					as[2].SetKey("k1")
-					as[2].SetValue("v3")
-					h.SetAttributes(as)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Attributes = []*protoobject.Header_Attribute{
+						{Key: "k1", Value: "v1"}, {Key: "k2", Value: "v2"}, {Key: "k1", Value: "v3"},
+					}
 				}},
-			{name: "attributes/expiration", err: "invalid header: invalid expiration attribute (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					as := make([]apiobject.Attribute, 3)
-					as[0].SetKey("k1")
-					as[0].SetValue("v1")
-					as[1].SetKey("__NEOFS__EXPIRATION_EPOCH")
-					as[1].SetValue("foo")
-					as[2].SetKey("k3")
-					as[2].SetValue("v3")
-					h.SetAttributes(as)
-					m.SetHeader(&h)
+			{name: "attributes/expiration", err: "invalid header: invalid attribute #1: invalid expiration epoch (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Attributes = []*protoobject.Header_Attribute{
+						{Key: "k1", Value: "v1"}, {Key: "__NEOFS__EXPIRATION_EPOCH", Value: "foo"}, {Key: "k3", Value: "v3"},
+					}
 				}},
 			{name: "header/split/parent ID/empty value", err: "invalid header: invalid split header: invalid parent split member ID: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetParent(protoIDFromBytes(nil))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Parent.Value = nil }},
 			{name: "header/split/parent ID/undersize", err: "invalid header: invalid split header: invalid parent split member ID: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetParent(protoIDFromBytes(anyValidIDs[0][:31]))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Parent.Value = anyValidIDs[0][:31] }},
 			{name: "header/split/parent ID/oversize", err: "invalid header: invalid split header: invalid parent split member ID: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetParent(protoIDFromBytes(append(anyValidIDs[0][:], 1)))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Parent.Value = append(anyValidIDs[0][:], 1) }},
 			{name: "header/split/parent ID/zero", err: "invalid header: invalid split header: invalid parent split member ID: zero object ID",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetParent(protoIDFromBytes(make([]byte, 32)))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Parent.Value = make([]byte, 32) }},
 			{name: "header/split/previous/empty value", err: "invalid header: invalid split header: invalid previous split member ID: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetPrevious(protoIDFromBytes(nil))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Previous.Value = nil }},
 			{name: "header/split/previous/undersize", err: "invalid header: invalid split header: invalid previous split member ID: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetPrevious(protoIDFromBytes(anyValidIDs[0][:31]))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Previous.Value = anyValidIDs[0][:31] }},
 			{name: "header/split/previous/oversize", err: "invalid header: invalid split header: invalid previous split member ID: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetPrevious(protoIDFromBytes(append(anyValidIDs[0][:], 1)))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Previous.Value = append(anyValidIDs[0][:], 1) }},
 			{name: "header/split/previous/zero", err: "invalid header: invalid split header: invalid previous split member ID: zero object ID",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetPrevious(protoIDFromBytes(make([]byte, 32)))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Previous.Value = make([]byte, 32) }},
 			{name: "header/split/first/empty value", err: "invalid header: invalid split header: invalid first split member ID: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetFirst(protoIDFromBytes(nil))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.First.Value = nil }},
 			{name: "header/split/first/undersize", err: "invalid header: invalid split header: invalid first split member ID: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetFirst(protoIDFromBytes(anyValidIDs[0][:31]))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.First.Value = anyValidIDs[0][:31] }},
 			{name: "header/split/first/oversize", err: "invalid header: invalid split header: invalid first split member ID: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetFirst(protoIDFromBytes(append(anyValidIDs[0][:], 1)))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.First.Value = append(anyValidIDs[0][:], 1) }},
 			{name: "header/split/first/zero", err: "invalid header: invalid split header: invalid first split member ID: zero object ID",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetFirst(protoIDFromBytes(make([]byte, 32)))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.First.Value = make([]byte, 32) }},
 			{name: "header/split/ID/undersize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 15 bytes)",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetSplitID(anyValidSplitIDBytes[:15])
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.SplitId = anyValidSplitIDBytes[:15] }},
 			{name: "header/split/ID/oversize", err: "invalid header: invalid split header: invalid split ID: invalid UUID (got 17 bytes)",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					sh.SetSplitID(append(anyValidSplitIDBytes, 1))
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.SplitId = append(anyValidSplitIDBytes, 1) }},
 			{name: "header/split/ID/wrong UUID version", err: "invalid header: invalid split header: invalid split ID: wrong UUID version 3, expected 4",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
+				corrupt: func(m *protoobject.Object) {
 					b := bytes.Clone(anyValidSplitIDBytes)
 					b[6] = 3 << 4
-					sh.SetSplitID(b)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
+					m.Header.Split.SplitId = b
 				}},
 			{name: "header/split/children/empty value", err: "invalid header: invalid split header: invalid child split member ID #1: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					c := make([]refs.ObjectID, 3)
-					anyValidIDs[0].WriteToV2(&c[0])
-					anyValidIDs[2].WriteToV2(&c[2])
-					sh.SetChildren(c)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Children[1].Value = nil }},
 			{name: "header/split/children/undersize", err: "invalid header: invalid split header: invalid child split member ID #1: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					c := make([]refs.ObjectID, 3)
-					anyValidIDs[0].WriteToV2(&c[0])
-					c[1].SetValue(anyValidIDs[1][:31])
-					anyValidIDs[2].WriteToV2(&c[2])
-					sh.SetChildren(c)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Children[1].Value = anyValidIDs[1][:31] }},
 			{name: "header/split/children/oversize", err: "invalid header: invalid split header: invalid child split member ID #1: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					c := make([]refs.ObjectID, 3)
-					anyValidIDs[0].WriteToV2(&c[0])
-					c[1].SetValue(append(anyValidIDs[1][:], 1))
-					anyValidIDs[2].WriteToV2(&c[2])
-					sh.SetChildren(c)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Children[1].Value = append(anyValidIDs[1][:], 1) }},
 			{name: "header/split/children/zero", err: "invalid header: invalid split header: invalid child split member ID #1: zero object ID",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					c := make([]refs.ObjectID, 3)
-					anyValidIDs[0].WriteToV2(&c[0])
-					c[1].SetValue(make([]byte, 32))
-					anyValidIDs[2].WriteToV2(&c[2])
-					sh.SetChildren(c)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
-			{name: "header/split/parent signature/scheme/overflow", err: "invalid header: invalid split header: invalid parent signature: scheme 2147483648 overflows int32",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					var s refs.Signature
-					anyValidSignatures[0].WriteToV2(&s)
-					s.SetScheme(math.MaxInt32 + 1)
-					sh.SetParentSignature(&s)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.Children[1].Value = make([]byte, 32) }},
+			{name: "header/split/parent signature/scheme/negative", err: "invalid header: invalid split header: invalid parent signature: negative scheme -1",
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentSignature.Scheme = -1 }},
 			{name: "header/split/parent/owner/value/empty", err: "invalid header: invalid split header: invalid parent header: invalid owner: invalid length 0, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetOwnerID(protoUserIDFromBytes(nil))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.OwnerId.Value = nil }},
 			{name: "header/split/parent/owner/value/undersize", err: "invalid header: invalid split header: invalid parent header: invalid owner: invalid length 24, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetOwnerID(protoUserIDFromBytes(anyValidUsers[0][:24]))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.OwnerId.Value = anyValidUsers[0][:24] }},
 			{name: "header/split/parent/owner/value/oversize", err: "invalid header: invalid split header: invalid parent header: invalid owner: invalid length 26, expected 25",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetOwnerID(protoUserIDFromBytes(append(anyValidUsers[0][:], 1)))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Split.ParentHeader.OwnerId.Value = append(anyValidUsers[0][:], 1)
 				}},
 			{name: "header/split/parent/owner/value/wrong prefix", err: "invalid header: invalid split header: invalid parent header: invalid owner: invalid prefix byte 0x42, expected 0x35",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
+				corrupt: func(m *protoobject.Object) {
 					b := bytes.Clone(anyValidUsers[0][:])
 					b[0] = 0x42
-					ph.SetOwnerID(protoUserIDFromBytes(b))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
+					m.Header.Split.ParentHeader.OwnerId.Value = b
 				}},
 			{name: "header/split/parent/owner/value/checksum mismatch", err: "invalid header: invalid split header: invalid parent header: invalid owner: checksum mismatch",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
+				corrupt: func(m *protoobject.Object) {
 					b := bytes.Clone(anyValidUsers[0][:])
 					b[len(b)-1]++
-					ph.SetOwnerID(protoUserIDFromBytes(b))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
+					m.Header.Split.ParentHeader.OwnerId.Value = b
 				}},
 			{name: "header/split/parent/container/empty value", err: "invalid header: invalid split header: invalid parent header: invalid container: invalid length 0",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetContainerID(protoContainerIDFromBytes(nil))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.ContainerId.Value = nil }},
 			{name: "header/split/parent/container/undersize", err: "invalid header: invalid split header: invalid parent header: invalid container: invalid length 31",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetContainerID(protoContainerIDFromBytes(anyValidContainers[0][:31]))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Split.ParentHeader.ContainerId.Value = anyValidContainers[0][:31]
 				}},
 			{name: "header/split/parent/container/oversize", err: "invalid header: invalid split header: invalid parent header: invalid container: invalid length 33",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetContainerID(protoContainerIDFromBytes(append(anyValidContainers[0][:], 1)))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Split.ParentHeader.ContainerId.Value = append(anyValidContainers[0][:], 1)
 				}},
 			{name: "header/split/parent/container/zero", err: "invalid header: invalid split header: invalid parent header: invalid container: zero container ID",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetContainerID(protoContainerIDFromBytes(make([]byte, 32)))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.ContainerId.Value = make([]byte, 32) }},
 			{name: "header/split/parent/payload checksum/missing value", err: "invalid header: invalid split header: invalid parent header: invalid payload checksum: missing value",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetPayloadHash(new(refs.Checksum))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.PayloadHash.Sum = nil }},
+			{name: "header/split/parent/payload checksum/negative type", err: "invalid header: invalid split header: invalid parent header: invalid payload checksum: negative type -1",
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.PayloadHash.Type = -1 }},
 			{name: "header/split/parent/payload homomorphic checksum/missing value", err: "invalid header: invalid split header: invalid parent header: invalid payload homomorphic checksum: missing value",
-				corrupt: func(m *apiobject.Object) {
-					h := *m.GetHeader()
-					sh := *h.GetSplit()
-					ph := *sh.GetParentHeader()
-					ph.SetHomomorphicHash(new(refs.Checksum))
-					sh.SetParentHeader(&ph)
-					h.SetSplit(&sh)
-					m.SetHeader(&h)
-				}},
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.HomomorphicHash.Sum = nil }},
+			{name: "header/split/parent/payload homomorphic checksum/negative type", err: "invalid header: invalid split header: invalid parent header: invalid payload homomorphic checksum: negative type -1",
+				corrupt: func(m *protoobject.Object) { m.Header.Split.ParentHeader.HomomorphicHash.Type = -1 }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				m := obj.ToV2()
+				m := obj.ProtoMessage()
 				tc.corrupt(m)
-				require.EqualError(t, new(object.Object).ReadFromV2(*m), tc.err)
+				require.EqualError(t, new(object.Object).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestObject_ToV2(t *testing.T) {
+func TestObject_ProtoMessage(t *testing.T) {
 	// zero
-	m := object.Object{}.ToV2()
-	require.Zero(t, m.GetObjectID())
+	m := object.Object{}.ProtoMessage()
+	require.Zero(t, m.GetObjectId())
 	require.Zero(t, m.GetSignature())
 	require.Zero(t, m.GetHeader())
 	require.Zero(t, m.GetPayload())
 
 	// filled
-	m = validObject.ToV2()
-	require.Equal(t, anyValidIDs[0][:], m.GetObjectID().GetValue())
+	m = validObject.ProtoMessage()
+	require.Equal(t, anyValidIDs[0][:], m.GetObjectId().GetValue())
 	require.Equal(t, anyValidRegularPayload, m.GetPayload())
 	msig := m.GetSignature()
 	require.Equal(t, anyValidSignatures[1].PublicKeyBytes(), msig.GetKey())
@@ -1484,8 +1017,8 @@ func TestObject_ToV2(t *testing.T) {
 	mh := m.GetHeader()
 	require.EqualValues(t, 525747025, mh.GetVersion().GetMajor())
 	require.EqualValues(t, 171993162, mh.GetVersion().GetMinor())
-	require.Equal(t, anyValidContainers[1][:], mh.GetContainerID().GetValue())
-	require.Equal(t, anyValidUsers[1][:], mh.GetOwnerID().GetValue())
+	require.Equal(t, anyValidContainers[1][:], mh.GetContainerId().GetValue())
+	require.Equal(t, anyValidUsers[1][:], mh.GetOwnerId().GetValue())
 	require.EqualValues(t, anyValidCreationEpoch+1, mh.GetCreationEpoch())
 	require.EqualValues(t, anyValidPayloadSize+1, mh.GetPayloadLength())
 	require.EqualValues(t, 126384577, mh.GetPayloadHash().GetType())
@@ -1496,18 +1029,18 @@ func TestObject_ToV2(t *testing.T) {
 
 	mt := mh.GetSessionToken()
 	mb := mt.GetBody()
-	require.Equal(t, anyValidSessionID[:], mb.GetID())
-	require.Equal(t, anyValidUsers[2][:], mb.GetOwnerID().GetValue())
+	require.Equal(t, anyValidSessionID[:], mb.GetId())
+	require.Equal(t, anyValidUsers[2][:], mb.GetOwnerId().GetValue())
 	require.Equal(t, anySessionIssuerPubKeyBytes, mb.GetSessionKey())
 	require.EqualValues(t, uint64(16429376563136800338), mb.GetLifetime().GetExp())
 	require.EqualValues(t, 7956510363313998522, mb.GetLifetime().GetIat())
 	require.EqualValues(t, uint64(17237208928641773338), mb.GetLifetime().GetNbf())
 	c := mb.GetContext()
-	require.IsType(t, new(apisession.ObjectSessionContext), c)
-	co := c.(*apisession.ObjectSessionContext)
+	require.IsType(t, new(protosession.SessionToken_Body_Object), c)
+	co := c.(*protosession.SessionToken_Body_Object).Object
 	require.EqualValues(t, 1047242055, co.GetVerb())
-	require.Equal(t, anyValidContainers[2][:], co.GetContainer().GetValue())
-	objs := co.GetObjects()
+	require.Equal(t, anyValidContainers[2][:], co.GetTarget().GetContainer().GetValue())
+	objs := co.GetTarget().GetObjects()
 	require.Len(t, objs, 2)
 	require.Equal(t, anyValidIDs[8][:], objs[0].GetValue())
 	require.Equal(t, anyValidIDs[9][:], objs[1].GetValue())
@@ -1528,7 +1061,7 @@ func TestObject_ToV2(t *testing.T) {
 	sh := mh.GetSplit()
 	require.Equal(t, anyValidIDs[1][:], sh.GetParent().GetValue())
 	require.Equal(t, anyValidIDs[2][:], sh.GetPrevious().GetValue())
-	require.Equal(t, anyValidSplitIDBytes, sh.GetSplitID())
+	require.Equal(t, anyValidSplitIDBytes, sh.GetSplitId())
 	require.Equal(t, anyValidIDs[6][:], sh.GetFirst().GetValue())
 	ch := sh.GetChildren()
 	require.Len(t, ch, 3)
@@ -1546,8 +1079,8 @@ func TestObject_ToV2(t *testing.T) {
 	require.Zero(t, ph.GetSplit())
 	require.EqualValues(t, 88789927, ph.GetVersion().GetMajor())
 	require.EqualValues(t, 2018985309, ph.GetVersion().GetMinor())
-	require.Equal(t, anyValidContainers[0][:], ph.GetContainerID().GetValue())
-	require.Equal(t, anyValidUsers[0][:], ph.GetOwnerID().GetValue())
+	require.Equal(t, anyValidContainers[0][:], ph.GetContainerId().GetValue())
+	require.Equal(t, anyValidUsers[0][:], ph.GetOwnerId().GetValue())
 	require.EqualValues(t, anyValidCreationEpoch, ph.GetCreationEpoch())
 	require.EqualValues(t, anyValidPayloadSize, ph.GetPayloadLength())
 	require.EqualValues(t, 1974315742, ph.GetPayloadHash().GetType())
@@ -1592,7 +1125,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 1}},
 			{name: "id/zero", err: "invalid ID: zero object ID",
 				b: []byte{10, 34, 10, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-			{name: "signature/scheme/overflow", err: "invalid signature: scheme 2147483648 overflows int32",
+			{name: "signature/negative scheme", err: "invalid signature: negative scheme -2147483648",
 				b: []byte{18, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
 			{name: "header/owner/value/empty", err: "invalid header: invalid owner: invalid length 0, expected 25",
 				b: []byte{26, 2, 26, 0}},
@@ -1725,7 +1258,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54, 207, 56, 98, 99, 136,
 					207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18, 17, 115, 101, 115, 115,
 					105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.ContainerSessionContext",
+			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
 				b: []byte{26, 166, 1, 74, 163, 1, 10, 118, 10, 16, 118, 23, 219, 249, 117, 70, 64, 33, 157, 229, 102, 253, 142, 52,
 					17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229, 62, 150, 151, 159,
 					221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222, 183, 128, 228, 1, 16, 154,
@@ -1809,7 +1342,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					136, 68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54, 207, 56, 98, 99,
 					136, 207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18, 17, 115, 101, 115,
 					115, 105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/session/signature/scheme/overflow", err: "invalid header: invalid session token: invalid body signature: scheme 2147483648 overflows int32",
+			{name: "header/session/signature/negative scheme", err: "invalid header: invalid session token: invalid body signature: negative scheme -2147483648",
 				b: []byte{26, 253, 1, 74, 250, 1, 10, 234, 1, 10, 16, 118, 23, 219, 249, 117, 70, 64, 33, 157, 229, 102, 253, 142,
 					52, 17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229, 62, 150, 151,
 					159, 221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222, 183, 128, 228, 1, 16,
@@ -1821,14 +1354,14 @@ func TestObject_Unmarshal(t *testing.T) {
 					32, 154, 122, 174, 117, 221, 138, 168, 135, 149, 238, 61, 68, 58, 34, 189, 18, 34, 10, 32, 110, 233, 102, 232,
 					136, 68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54, 207, 56, 98, 99,
 					136, 207, 21, 18, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
-			{name: "attributes/no key", err: "invalid header: empty key of the attribute #1",
+			{name: "attributes/no key", err: "invalid header: invalid attribute #1: missing key",
 				b: []byte{26, 26, 82, 8, 10, 2, 107, 49, 18, 2, 118, 49, 82, 4, 18, 2, 118, 49, 82, 8, 10, 2, 107, 51, 18, 2, 118, 51}},
-			{name: "attributes/no value", err: "invalid header: empty value of the attribute #1 (k2)",
+			{name: "attributes/no value", err: "invalid header: invalid attribute #1: missing value",
 				b: []byte{26, 26, 82, 8, 10, 2, 107, 49, 18, 2, 118, 49, 82, 4, 10, 2, 107, 50, 82, 8, 10, 2, 107, 51, 18, 2, 118, 51}},
 			{name: "attributes/duplicated", err: "invalid header: duplicated attribute k1",
 				b: []byte{26, 30, 82, 8, 10, 2, 107, 49, 18, 2, 118, 49, 82, 8, 10, 2, 107, 50, 18, 2, 118, 50, 82, 8, 10, 2, 107,
 					49, 18, 2, 118, 51}},
-			{name: "attributes/expiration", err: "invalid header: invalid expiration attribute (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
+			{name: "attributes/expiration", err: "invalid header: invalid attribute #1: invalid expiration epoch (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
 				b: []byte{26, 54, 82, 8, 10, 2, 107, 49, 18, 2, 118, 49, 82, 32, 10, 25, 95, 95, 78, 69, 79, 70, 83, 95, 95, 69,
 					88, 80, 73, 82, 65, 84, 73, 79, 78, 95, 69, 80, 79, 67, 72, 18, 3, 102, 111, 111, 82, 8, 10, 2, 107, 51, 18, 2, 118, 51}},
 			{name: "header/split/parent ID/empty value", err: "invalid header: invalid split header: invalid parent split member ID: invalid length 0",
@@ -1887,7 +1420,7 @@ func TestObject_Unmarshal(t *testing.T) {
 				b: []byte{26, 74, 90, 72, 42, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193,
 					190, 224, 77, 44, 18, 56, 117, 173, 70, 246, 8, 139, 247, 174, 53, 60, 42, 34, 10, 32, 0, 0, 0, 0, 0, 0, 0,
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
-			{name: "header/split/parent signature/scheme/overflow", err: "invalid header: invalid split header: invalid parent signature: scheme 2147483648 overflows int32",
+			{name: "header/split/parent signature/negative scheme", err: "invalid header: invalid split header: invalid parent signature: negative scheme -2147483648",
 				b: []byte{26, 15, 90, 13, 26, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
 			{name: "header/split/parent/owner/value/empty", err: "invalid header: invalid split header: invalid parent header: invalid owner: invalid length 0, expected 25",
 				b: []byte{26, 6, 90, 4, 34, 2, 26, 0}},
@@ -2022,7 +1555,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					233, 102, 232, 136, 68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54,
 					207, 56, 98, 99, 136, 207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18,
 					17, 115, 101, 115, 115, 105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/split/parent/session/body/context/wrong oneof", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid context: invalid context *session.ContainerSessionContext",
+			{name: "header/split/parent/session/body/context/wrong oneof", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
 				b: []byte{26, 172, 1, 90, 169, 1, 34, 166, 1, 74, 163, 1, 10, 118, 10, 16, 118, 23, 219, 249, 117, 70, 64, 33, 157, 229,
 					102, 253, 142, 52, 17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229,
 					62, 150, 151, 159, 221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222, 183, 128,
@@ -2107,7 +1640,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70, 246,
 					8, 139, 247, 174, 53, 60, 1, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18, 17,
 					115, 101, 115, 115, 105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/split/parent/session/signature/scheme/overflow", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid body signature: scheme 2147483648 overflows int32",
+			{name: "header/split/parent/session/signature/negative scheme", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid body signature: negative scheme -2147483648",
 				b: []byte{26, 166, 2, 90, 163, 2, 34, 160, 2, 74, 157, 2, 10, 234, 1, 10, 16, 118, 23, 219, 249, 117, 70, 64, 33,
 					157, 229, 102, 253, 142, 52, 17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15,
 					219, 229, 62, 150, 151, 159, 221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222,
@@ -2183,7 +1716,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 42, 34, 10, 32,
 					206, 228, 247, 217, 41, 247, 159, 215, 79, 226, 53, 153, 133, 16, 102, 104, 2, 234, 35, 220, 236, 112, 101,
 					24, 235, 126, 173, 229, 161, 202, 197, 242}},
-			{name: "header/split/parent/split/parent signature/scheme/overflow", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid parent signature: scheme 2147483648 overflows int32",
+			{name: "header/split/parent/split/parent signature/negative scheme", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid parent signature: negative scheme -2147483648",
 				b: []byte{26, 19, 90, 17, 34, 15, 90, 13, 26, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -2199,7 +1732,6 @@ func TestObject_Unmarshal(t *testing.T) {
 
 	// filled
 	require.NoError(t, obj.Unmarshal(validBinObject))
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validObject, obj)
 }
 
@@ -2225,7 +1757,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"objectID":{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTwB"}}`},
 			{name: "id/zero", err: "invalid ID: zero object ID",
 				j: `{"objectID":{"value":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}}`},
-			{name: "signature/scheme/overflow", err: "invalid signature: scheme 2147483648 overflows int32",
+			{name: "signature/negative scheme", err: "invalid signature: negative scheme -2147483648",
 				j: `{"signature":{"scheme":-2147483648}}`},
 			{name: "header/owner/value/empty", err: "invalid header: invalid owner: invalid length 0, expected 25",
 				j: `{"header":{"ownerID":{}}}`},
@@ -2265,7 +1797,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQRkA==", "ownerID":{"value":"QjsPBTSD/8YIYim45e2M1zSB09Zake2JmQ=="}}}}}`},
 			{name: "header/session/body/issuer/value/checksum mismatch", err: "invalid header: invalid session token: invalid session issuer: checksum mismatch",
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQRkA==", "ownerID":{"value":"NTsPBTSD/8YIYim45e2M1zSB09Zake2Jmg=="}}}}}`},
-			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.ContainerSessionContext",
+			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
 				j: `
 {
  "header": {
@@ -2468,7 +2000,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
  }
 }
 `},
-			{name: "header/session/signature/scheme/overflow", err: "invalid header: invalid session token: invalid body signature: scheme 2147483648 overflows int32",
+			{name: "header/session/signature/negative scheme", err: "invalid header: invalid session token: invalid body signature: negative scheme -2147483648",
 				j: `
 {
  "header": {
@@ -2509,13 +2041,13 @@ func TestObject_UnmarshalJSON(t *testing.T) {
  }
 }
 `},
-			{name: "attributes/no key", err: "invalid header: empty key of the attribute #1",
+			{name: "attributes/no key", err: "invalid header: invalid attribute #1: missing key",
 				j: `{"header": {"attributes": [{"key": "k1","value": "v1"},{"value": "v2"},{"key": "k3","value": "v3"}]}}`},
-			{name: "attributes/no value", err: "invalid header: empty value of the attribute #1 (k2)",
+			{name: "attributes/no value", err: "invalid header: invalid attribute #1: missing value",
 				j: `{"header": {"attributes": [{"key": "k1","value": "v1"},{"key": "k2"},{"key": "k3","value": "v3"}]}}`},
 			{name: "attributes/duplicated", err: "invalid header: duplicated attribute k1",
 				j: `{"header": {"attributes": [{"key": "k1","value": "v1"},{"key": "k2", "value": "v2"},{"key": "k1","value": "v3"}]}}`},
-			{name: "attributes/expiration", err: "invalid header: invalid expiration attribute (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
+			{name: "attributes/expiration", err: "invalid header: invalid attribute #1: invalid expiration epoch (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
 				j: `{"header": {"attributes": [{"key": "k1","value": "v1"},{"key": "__NEOFS__EXPIRATION_EPOCH", "value": "foo"}]}}`},
 			{name: "header/split/parent ID/empty value", err: "invalid header: invalid split header: invalid parent split member ID: invalid length 0",
 				j: `{"header": {"split":{"parent":{}}}}`},
@@ -2555,7 +2087,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header": {"split":{"children":[{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="}, {"value":"5U0/6wIJpXt0ey9BFiLWTC3hFS6HIHSsQ9XzOf1/s+sB"}, {"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="}]}}}`},
 			{name: "header/split/children/zero", err: "invalid header: invalid split header: invalid child split member ID #1: zero object ID",
 				j: `{"header": {"split":{"children":[{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="}, {"value":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="}, {"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="}]}}}`},
-			{name: "header/split/parent signature/scheme/overflow", err: "invalid header: invalid split header: invalid parent signature: scheme 2147483648 overflows int32",
+			{name: "header/split/parent signature/negative scheme", err: "invalid header: invalid split header: invalid parent signature: negative scheme -2147483648",
 				j: `{"header": {"split":{"parentSignature":{"key":"cHViXzE=","signature":"c2lnXzE=","scheme":-2147483648}}}}`},
 			{name: "header/split/parent/owner/value/empty", err: "invalid header: invalid split header: invalid parent header: invalid owner: invalid length 0, expected 25",
 				j: `{"header": {"split": {"parentHeader": {"ownerID": {}}}}}`},
@@ -2617,7 +2149,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header": {"split": {"parentHeader": {"split":{"children":[{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="},{"value":"5U0/6wIJpXt0ey9BFiLWTC3hFS6HIHSsQ9XzOf1/s+sB"},{"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="}]}}}}}`},
 			{name: "header/split/parent/split/children/zero", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid child split member ID #1: zero object ID",
 				j: `{"header": {"split": {"parentHeader": {"split":{"children":[{"value":"sko62y4Dbn3cUe4jGwbkwb7gTSwSOHWtRvYIi/euNTw="},{"value":"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="},{"value":"zuT32Sn3n9dP4jWZhRBmaALqI9zscGUY636t5aHKxfI="}]}}}}}`},
-			{name: "header/split/parent/split/parent signature/scheme/overflow", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid parent signature: scheme 2147483648 overflows int32",
+			{name: "header/split/parent/split/parent signature/negative scheme", err: "invalid header: invalid split header: invalid parent header: invalid split header: invalid parent signature: negative scheme -2147483648",
 				j: `{"header": {"split": {"parentHeader": {"split":{"parentSignature":{"key":"cHViXzE=","signature":"c2lnXzE=","scheme":-2147483648}}}}}}`},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
@@ -2633,7 +2165,6 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 
 	// filled
 	require.NoError(t, obj.UnmarshalJSON([]byte(validJSONObject)))
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validObject, obj)
 }
 
