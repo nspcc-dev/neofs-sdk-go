@@ -6,9 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,11 +31,10 @@ var invalidValueTestcases = []invalidValueTestCase{
 	{name: "oversized value", err: "invalid length 33", val: make([]byte, 33)},
 }
 
-func TestID_ReadFromV2(t *testing.T) {
-	var m refs.ContainerID
-	m.SetValue(validBytes[:])
+func TestID_FromProtoMessage(t *testing.T) {
+	m := &refs.ContainerID{Value: validBytes[:]}
 	var id cid.ID
-	require.NoError(t, id.ReadFromV2(m))
+	require.NoError(t, id.FromProtoMessage(m))
 	require.EqualValues(t, validBytes, id)
 
 	t.Run("invalid", func(t *testing.T) {
@@ -43,9 +42,8 @@ func TestID_ReadFromV2(t *testing.T) {
 			name: "zero value", err: "zero container ID", val: make([]byte, cid.Size),
 		}) {
 			t.Run(tc.name, func(t *testing.T) {
-				var m refs.ContainerID
-				m.SetValue(tc.val)
-				require.EqualError(t, new(cid.ID).ReadFromV2(m), tc.err)
+				m := &refs.ContainerID{Value: tc.val}
+				require.EqualError(t, new(cid.ID).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
@@ -102,10 +100,9 @@ func TestID_DecodeString(t *testing.T) {
 	})
 }
 
-func TestID_WriteToV2(t *testing.T) {
+func TestID_ProtoMessage(t *testing.T) {
 	id := cidtest.ID()
-	var m refs.ContainerID
-	id.WriteToV2(&m)
+	m := id.ProtoMessage()
 	require.Equal(t, id[:], m.GetValue())
 }
 

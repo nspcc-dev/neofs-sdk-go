@@ -3,8 +3,8 @@ package netmap_test
 import (
 	"testing"
 
-	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -56,32 +56,33 @@ func init() {
 	validNetmap.SetNodes(anyValidNodes)
 }
 
-func TestNetMap_ReadFromV2(t *testing.T) {
-	mns := make([]apinetmap.NodeInfo, 2)
-	mns[0].SetPublicKey([]byte("public_key_0"))
-	mns[1].SetPublicKey([]byte("public_key_1"))
-	mns[0].SetAddresses("endpoint_0_0", "endpoint_0_1")
-	mns[1].SetAddresses("endpoint_1_0", "endpoint_1_1")
-	mns[0].SetState(apinetmap.Offline)
-	mns[1].SetState(apinetmap.Maintenance)
-
-	addAttr := func(m *apinetmap.NodeInfo, k, v string) {
-		var a apinetmap.Attribute
-		a.SetKey(k)
-		a.SetValue(v)
-		m.SetAttributes(append(m.GetAttributes(), a))
+func TestNetMap_FromProtoMessage(t *testing.T) {
+	m := &protonetmap.Netmap{
+		Epoch: anyValidCurrentEpoch,
+		Nodes: []*protonetmap.NodeInfo{
+			{
+				PublicKey: []byte("public_key_0"),
+				Addresses: []string{"endpoint_0_0", "endpoint_0_1"},
+				Attributes: []*protonetmap.NodeInfo_Attribute{
+					{Key: "k_0_0", Value: "v_0_0"},
+					{Key: "k_0_1", Value: "v_0_1"},
+				},
+				State: protonetmap.NodeInfo_OFFLINE,
+			},
+			{
+				PublicKey: []byte("public_key_1"),
+				Addresses: []string{"endpoint_1_0", "endpoint_1_1"},
+				Attributes: []*protonetmap.NodeInfo_Attribute{
+					{Key: "k_1_0", Value: "v_1_0"},
+					{Key: "k_1_1", Value: "v_1_1"},
+				},
+				State: protonetmap.NodeInfo_MAINTENANCE,
+			},
+		},
 	}
-	addAttr(&mns[0], "k_0_0", "v_0_0")
-	addAttr(&mns[0], "k_0_1", "v_0_1")
-	addAttr(&mns[1], "k_1_0", "v_1_0")
-	addAttr(&mns[1], "k_1_1", "v_1_1")
-
-	var m apinetmap.NetMap
-	m.SetEpoch(anyValidCurrentEpoch)
-	m.SetNodes(mns)
 
 	var val netmap.NetMap
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 
 	require.EqualValues(t, anyValidCurrentEpoch, val.Epoch())
 	ns := val.Nodes()
@@ -123,59 +124,59 @@ func TestNetMap_ReadFromV2(t *testing.T) {
 	}, collectedAttrs)
 
 	// reset optional fields
-	m.SetEpoch(0)
-	m.SetNodes(nil)
+	m.Epoch = 0
+	m.Nodes = nil
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.Epoch())
 	require.Zero(t, val2.Nodes())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(netMap *apinetmap.NetMap)
+			corrupt   func(netMap *protonetmap.Netmap)
 		}{
+			{name: "nodes/nil", err: "nil node info #1",
+				corrupt: func(m *protonetmap.Netmap) { m.Nodes[1] = nil }},
 			{name: "nodes/public key/nil", err: "invalid node info: missing public key",
-				corrupt: func(m *apinetmap.NetMap) { m.Nodes()[1].SetPublicKey(nil) }},
+				corrupt: func(m *protonetmap.Netmap) { m.Nodes[1].PublicKey = nil }},
 			{name: "nodes/public key/empty", err: "invalid node info: missing public key",
-				corrupt: func(m *apinetmap.NetMap) { m.Nodes()[1].SetPublicKey([]byte{}) }},
+				corrupt: func(m *protonetmap.Netmap) { m.Nodes[1].PublicKey = []byte{} }},
 			{name: "nodes/endpoints/empty", err: "invalid node info: missing network endpoints",
-				corrupt: func(m *apinetmap.NetMap) { m.Nodes()[1].SetAddresses() }},
+				corrupt: func(m *protonetmap.Netmap) { m.Nodes[1].Addresses = nil }},
 			{name: "nodes/attributes/no key", err: "invalid node info: empty key of the attribute #1",
-				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "k1", "v1", "", "v2") }},
+				corrupt: func(m *protonetmap.Netmap) { setNodeAttributes(m.Nodes[1], "k1", "v1", "", "v2") }},
 			{name: "nodes/attributes/no value", err: `invalid node info: empty "k2" attribute value`,
-				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "k1", "v1", "k2", "") }},
+				corrupt: func(m *protonetmap.Netmap) { setNodeAttributes(m.Nodes[1], "k1", "v1", "k2", "") }},
 			{name: "nodes/attributes/duplicated", err: "invalid node info: duplicated attribute k1",
-				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "k1", "v1", "k2", "v2", "k1", "v3") }},
+				corrupt: func(m *protonetmap.Netmap) { setNodeAttributes(m.Nodes[1], "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "nodes/attributes/capacity", err: "invalid node info: invalid Capacity attribute: strconv.ParseUint: parsing \"foo\": invalid syntax",
-				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "Capacity", "foo") }},
+				corrupt: func(m *protonetmap.Netmap) { setNodeAttributes(m.Nodes[1], "Capacity", "foo") }},
 			{name: "nodes/attributes/price", err: "invalid node info: invalid Price attribute: strconv.ParseUint: parsing \"foo\": invalid syntax",
-				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "Price", "foo") }},
+				corrupt: func(m *protonetmap.Netmap) { setNodeAttributes(m.Nodes[1], "Price", "foo") }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m apinetmap.NetMap
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(netmap.NetMap).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(netmap.NetMap).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestNetMap_WriteToV2(t *testing.T) {
+func TestNetMap_ProtoMessage(t *testing.T) {
 	var val netmap.NetMap
-	var m apinetmap.NetMap
 
 	// zero
-	val.WriteToV2(&m)
-	require.Zero(t, m.Epoch())
-	require.Zero(t, m.Nodes())
+	m := val.ProtoMessage()
+	require.Zero(t, m.GetEpoch())
+	require.Zero(t, m.GetNodes())
 
 	// filled
-	validNetmap.WriteToV2(&m)
-	require.EqualValues(t, anyValidCurrentEpoch, m.Epoch())
-	ns := m.Nodes()
+	m = validNetmap.ProtoMessage()
+	require.EqualValues(t, anyValidCurrentEpoch, m.GetEpoch())
+	ns := m.GetNodes()
 	require.Len(t, ns, 2)
 	require.EqualValues(t, "public_key_0", ns[0].GetPublicKey())
 	require.EqualValues(t, "public_key_1", ns[1].GetPublicKey())

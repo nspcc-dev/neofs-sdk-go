@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/hrw/v2"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -73,8 +73,8 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 			newSelector("loc1", "Location", 1, "loc1", (*Selector).SelectSame),
 			newSelector("loc2", "Location", 1, "loc2", (*Selector).SelectSame)},
 		[]Filter{
-			newFilter("loc1", "Location", "Shanghai", netmap.EQ),
-			newFilter("loc2", "Location", "Shanghai", netmap.NE),
+			newFilter("loc1", "Location", "Shanghai", FilterOpEQ),
+			newFilter("loc2", "Location", "Shanghai", FilterOpNE),
 		})
 
 	nodes := make([]NodeInfo, netmapSize)
@@ -118,8 +118,8 @@ func TestPlacementPolicy_DeterministicOrder(t *testing.T) {
 			newSelector("loc1", "Location", 1, "loc1", (*Selector).SelectSame),
 			newSelector("loc2", "Location", 1, "loc2", (*Selector).SelectSame)},
 		[]Filter{
-			newFilter("loc1", "Location", "Shanghai", netmap.EQ),
-			newFilter("loc2", "Location", "Shanghai", netmap.NE),
+			newFilter("loc1", "Location", "Shanghai", FilterOpEQ),
+			newFilter("loc2", "Location", "Shanghai", FilterOpNE),
 		})
 
 	nodeList := make([]NodeInfo, netmapSize)
@@ -174,8 +174,8 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 			newSelector("Main", "Country", 3, "*", (*Selector).SelectDistinct),
 		},
 		[]Filter{
-			newFilter("FromRU", "Country", "Russia", netmap.EQ),
-			newFilter("Good", "Rating", "4", netmap.GE),
+			newFilter("FromRU", "Country", "Russia", FilterOpEQ),
+			newFilter("Good", "Rating", "4", FilterOpGE),
 		})
 	nodes := []NodeInfo{
 		nodeInfoFromAttributes("Country", "Russia", "Rating", "1", "City", "SPB"),
@@ -199,13 +199,13 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 	require.NoError(t, c.processSelectors(p))
 
 	for _, s := range p.selectors {
-		sel := c.selections[s.GetName()]
-		s := c.processedSelectors[s.GetName()]
+		sel := c.selections[s.Name()]
+		s := c.processedSelectors[s.Name()]
 		bucketCount, nodesInBucket := calcNodesCount(*s)
 		nodesInBucket *= int(c.cbf)
-		targ := fmt.Sprintf("selector '%s'", s.GetName())
+		targ := fmt.Sprintf("selector '%s'", s.Name())
 		require.Equal(t, bucketCount, len(sel), targ)
-		fName := s.GetFilter()
+		fName := s.FilterName()
 		for _, res := range sel {
 			require.Equal(t, nodesInBucket, len(res), targ)
 			for j := range res {
@@ -219,11 +219,9 @@ func TestSelector_SetName(t *testing.T) {
 	const name = "some name"
 	var s Selector
 
-	require.Zero(t, s.m.GetName())
 	require.Zero(t, s.Name())
 
 	s.SetName(name)
-	require.Equal(t, name, s.m.GetName())
 	require.Equal(t, name, s.Name())
 }
 
@@ -231,29 +229,27 @@ func TestSelector_SetNumberOfNodes(t *testing.T) {
 	const num = 3
 	var s Selector
 
-	require.Zero(t, s.m.GetCount())
 	require.Zero(t, s.NumberOfNodes())
 
 	s.SetNumberOfNodes(num)
 
-	require.EqualValues(t, num, s.m.GetCount())
 	require.EqualValues(t, num, s.NumberOfNodes())
 }
 
 func TestSelectorClauses(t *testing.T) {
 	var s Selector
 
-	require.Equal(t, netmap.UnspecifiedClause, s.m.GetClause())
+	require.Equal(t, protonetmap.Clause_CLAUSE_UNSPECIFIED, s.clause)
 	require.False(t, s.IsSame())
 	require.False(t, s.IsDistinct())
 
 	s.SelectDistinct()
-	require.Equal(t, netmap.Distinct, s.m.GetClause())
+	require.Equal(t, protonetmap.Clause_DISTINCT, s.clause)
 	require.False(t, s.IsSame())
 	require.True(t, s.IsDistinct())
 
 	s.SelectSame()
-	require.Equal(t, netmap.Same, s.m.GetClause())
+	require.Equal(t, protonetmap.Clause_SAME, s.clause)
 	require.True(t, s.IsSame())
 	require.False(t, s.IsDistinct())
 }
@@ -262,18 +258,18 @@ func TestSelector_SelectByBucketAttribute(t *testing.T) {
 	const attr = "some attribute"
 	var s Selector
 
-	require.Zero(t, s.m.GetAttribute())
+	require.Zero(t, s.BucketAttribute())
 
 	s.SelectByBucketAttribute(attr)
-	require.Equal(t, attr, s.m.GetAttribute())
+	require.Equal(t, attr, s.BucketAttribute())
 }
 
 func TestSelector_SetFilterName(t *testing.T) {
 	const fName = "some filter"
 	var s Selector
 
-	require.Zero(t, s.m.GetFilter())
+	require.Zero(t, s.FilterName())
 
 	s.SetFilterName(fName)
-	require.Equal(t, fName, s.m.GetFilter())
+	require.Equal(t, fName, s.FilterName())
 }

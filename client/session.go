@@ -2,13 +2,15 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmSessionCreate groups parameters of SessionCreate operation.
@@ -38,19 +40,11 @@ func NewResSessionCreate(id []byte, sessionKey []byte) ResSessionCreate {
 	}
 }
 
-func (x *ResSessionCreate) setID(id []byte) {
-	x.id = id
-}
-
 // ID returns identifier of the opened session in a binary NeoFS API protocol format.
 //
 // Client doesn't retain value so modification is safe.
 func (x ResSessionCreate) ID() []byte {
 	return x.id
-}
-
-func (x *ResSessionCreate) setSessionKey(key []byte) {
-	x.sessionKey = key
 }
 
 // PublicKey returns public key of the opened session in a binary NeoFS API protocol format.
@@ -90,66 +84,63 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 		return nil, ErrMissingSigner
 	}
 
-	ownerID := signer.UserID()
+	req := &protosession.CreateRequest{
+		Body: &protosession.CreateRequest_Body{
+			OwnerId:    signer.UserID().ProtoMessage(),
+			Expiration: prm.exp,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	var ownerIDV2 refs.OwnerID
-	ownerID.WriteToV2(&ownerIDV2)
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	// form request body
-	reqBody := new(v2session.CreateRequestBody)
-	reqBody.SetOwnerID(&ownerIDV2)
-	reqBody.SetExpiration(prm.exp)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protosession.CreateRequest_Body](signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return nil, err
+	}
 
-	// for request
-	var req v2session.CreateRequest
+	resp, err := c.session.Create(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return nil, err
+	}
 
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc  contextCall
-		res ResSessionCreate
-	)
-
-	c.initCallContext(&cc)
-	cc.signer = signer
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.session.Create(ctx, req.ToGRPCMessage().(*protosession.CreateRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2session.CreateResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return nil, err
 		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2session.CreateResponse)
-
-		body := resp.GetBody()
-
-		if len(body.GetID()) == 0 {
-			cc.err = newErrMissingResponseField("session id")
-			return
-		}
-
-		if len(body.GetSessionKey()) == 0 {
-			cc.err = newErrMissingResponseField("session key")
-			return
-		}
-
-		res.setID(body.GetID())
-		res.setSessionKey(body.GetSessionKey())
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return nil, cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protosession.CreateResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return nil, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return nil, err
+	}
+
+	body := resp.GetBody()
+	var res ResSessionCreate
+	if res.id = body.GetId(); len(res.id) == 0 {
+		err = newErrMissingResponseField("session id")
+		return nil, err
+	}
+
+	if res.sessionKey = body.GetSessionKey(); len(res.sessionKey) == 0 {
+		err = newErrMissingResponseField("session key")
+		return nil, err
 	}
 
 	return &res, nil

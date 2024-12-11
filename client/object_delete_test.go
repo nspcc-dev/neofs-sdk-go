@@ -7,12 +7,11 @@ import (
 	"testing"
 	"time"
 
-	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -24,17 +23,9 @@ type testDeleteObjectServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonUnaryServerSettings[
 		*protoobject.DeleteRequest_Body,
-		apiobject.DeleteRequestBody,
-		*apiobject.DeleteRequestBody,
 		*protoobject.DeleteRequest,
-		apiobject.DeleteRequest,
-		*apiobject.DeleteRequest,
 		*protoobject.DeleteResponse_Body,
-		apiobject.DeleteResponseBody,
-		*apiobject.DeleteResponseBody,
 		*protoobject.DeleteResponse,
-		apiobject.DeleteResponse,
-		*apiobject.DeleteResponse,
 	]
 	testObjectSessionServerSettings
 	testBearerTokenServerSettings
@@ -147,7 +138,6 @@ func TestClient_ObjectDelete(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)

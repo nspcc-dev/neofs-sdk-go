@@ -4,15 +4,17 @@ import (
 	"bytes"
 	"fmt"
 
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
+var zeroVersion version.Version
+
 // Table is a group of ContainerEACL records for single container.
 //
-// Table is compatible with v2 acl.EACLTable message.
+// Table is compatible with v2 [protoacl.EACLTable] message.
 //
 // Table should be created using one of the constructors.
 type Table struct {
@@ -108,18 +110,14 @@ func (t *Table) AddRecord(r *Record) {
 	}
 }
 
-// ReadFromV2 reads Table from the [v2acl.Table] message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol. The message
-// must not be nil.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// t from it.
 //
-// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
-// implementation only and is not expected to be directly used by applications.
-//
-// See also [Table.ToV2].
-func (t *Table) ReadFromV2(m v2acl.Table) error {
+// See also [Table.ProtoMessage].
+func (t *Table) FromProtoMessage(m *protoacl.EACLTable) error {
 	// set container id
-	if id := m.GetContainerID(); id != nil {
-		if err := t.cid.ReadFromV2(*id); err != nil {
+	if m.ContainerId != nil {
+		if err := t.cid.FromProtoMessage(m.ContainerId); err != nil {
 			return fmt.Errorf("invalid container ID: %w", err)
 		}
 	} else {
@@ -127,20 +125,21 @@ func (t *Table) ReadFromV2(m v2acl.Table) error {
 	}
 
 	// set version
-	if v := m.GetVersion(); v != nil {
-		ver := version.Version{}
-		ver.SetMajor(v.GetMajor())
-		ver.SetMinor(v.GetMinor())
-
-		t.SetVersion(ver)
+	if m.Version != nil {
+		if err := t.version.FromProtoMessage(m.Version); err != nil {
+			return fmt.Errorf("invalid version: %w", err)
+		}
 	}
 
 	// set eacl records
-	v2records := m.GetRecords()
-	t.records = make([]Record, len(v2records))
+	rs := m.Records
+	t.records = make([]Record, len(rs))
 
-	for i := range v2records {
-		if err := t.records[i].fromProtoMessage(&v2records[i]); err != nil {
+	for i := range rs {
+		if rs[i] == nil {
+			return fmt.Errorf("nil record #%d", i)
+		}
+		if err := t.records[i].fromProtoMessage(rs[i]); err != nil {
 			return fmt.Errorf("invalid record #%d: %w", i, err)
 		}
 	}
@@ -148,34 +147,26 @@ func (t *Table) ReadFromV2(m v2acl.Table) error {
 	return nil
 }
 
-// ToV2 converts Table to v2 acl.EACLTable message.
+// ProtoMessage converts t into message to transmit using the NeoFS API
+// protocol.
 //
-// Nil Table converts to nil.
-//
-// See also [Table.ReadFromV2].
-func (t Table) ToV2() *v2acl.Table {
-	v2 := new(v2acl.Table)
-	var cidV2 refs.ContainerID
-
+// See also [Table.FromProtoMessage].
+func (t Table) ProtoMessage() *protoacl.EACLTable {
+	m := new(protoacl.EACLTable)
 	if !t.cid.IsZero() {
-		t.cid.WriteToV2(&cidV2)
-		v2.SetContainerID(&cidV2)
+		m.ContainerId = t.cid.ProtoMessage()
 	}
 
 	if t.records != nil {
-		records := make([]v2acl.Record, len(t.records))
+		m.Records = make([]*protoacl.EACLRecord, len(t.records))
 		for i := range t.records {
-			records[i] = *t.records[i].toProtoMessage()
+			m.Records[i] = t.records[i].toProtoMessage()
 		}
-
-		v2.SetRecords(records)
 	}
 
-	var verV2 refs.Version
-	t.version.WriteToV2(&verV2)
-	v2.SetVersion(&verV2)
+	m.Version = t.version.ProtoMessage()
 
-	return v2
+	return m
 }
 
 // NewTable creates, initializes and returns blank Table instance.
@@ -198,45 +189,9 @@ func CreateTable(cid cid.ID) *Table {
 	return &t
 }
 
-// NewTableFromV2 converts v2 acl.EACLTable message to Table.
-//
-// Deprecated: BUG: container ID length is not checked. Use [Table.ReadFromV2]
-// instead.
-func NewTableFromV2(table *v2acl.Table) *Table {
-	t := new(Table)
-
-	if table == nil {
-		return t
-	}
-
-	// set version
-	if v := table.GetVersion(); v != nil {
-		ver := version.Version{}
-		ver.SetMajor(v.GetMajor())
-		ver.SetMinor(v.GetMinor())
-
-		t.SetVersion(ver)
-	}
-
-	// set container id
-	if id := table.GetContainerID(); id != nil {
-		copy(t.cid[:], id.GetValue())
-	}
-
-	// set eacl records
-	v2records := table.GetRecords()
-	t.records = make([]Record, len(v2records))
-
-	for i := range v2records {
-		_ = t.records[i].fromProtoMessage(&v2records[i])
-	}
-
-	return t
-}
-
 // Marshal marshals Table into a protobuf binary form.
 func (t Table) Marshal() []byte {
-	return t.ToV2().StableMarshal(nil)
+	return neofsproto.Marshal(t)
 }
 
 // SignedData returns actual payload to sign.
@@ -249,26 +204,18 @@ func (t Table) SignedData() []byte {
 // Unmarshal unmarshals protobuf binary representation of Table. Use [Unmarshal]
 // to decode data into a new Table.
 func (t *Table) Unmarshal(data []byte) error {
-	var m v2acl.Table
-	if err := m.Unmarshal(data); err != nil {
-		return err
-	}
-	return t.ReadFromV2(m)
+	return neofsproto.Unmarshal(data, t)
 }
 
 // MarshalJSON encodes Table to protobuf JSON format.
 func (t Table) MarshalJSON() ([]byte, error) {
-	return t.ToV2().MarshalJSON()
+	return neofsproto.MarshalJSON(t)
 }
 
 // UnmarshalJSON decodes Table from protobuf JSON format. Use [UnmarshalJSON] to
 // decode data into a new Table.
 func (t *Table) UnmarshalJSON(data []byte) error {
-	var m v2acl.Table
-	if err := m.UnmarshalJSON(data); err != nil {
-		return err
-	}
-	return t.ReadFromV2(m)
+	return neofsproto.UnmarshalJSON(data, t)
 }
 
 // EqualTables compares Table with each other.
@@ -278,5 +225,5 @@ func EqualTables(t1, t2 Table) bool { return bytes.Equal(t1.Marshal(), t2.Marsha
 // IsZero checks whether all fields of the table are zero/empty. The property
 // can be used as a marker of unset eACL.
 func (t Table) IsZero() bool {
-	return t.cid.IsZero() && len(t.records) == 0 && t.version == version.Version{}
+	return t.cid.IsZero() && len(t.records) == 0 && t.version == zeroVersion
 }

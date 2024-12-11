@@ -4,153 +4,66 @@ import (
 	"bytes"
 	"slices"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
-func copyObjectID(id *refs.ObjectID) *refs.ObjectID {
-	if id == nil {
+func cloneSignature(src *neofscrypto.Signature) *neofscrypto.Signature {
+	if src == nil {
 		return nil
 	}
-
-	var newID refs.ObjectID
-	newID.SetValue(bytes.Clone(id.GetValue()))
-
-	return &newID
+	s := neofscrypto.NewSignatureFromRawKey(src.Scheme(), bytes.Clone(src.PublicKeyBytes()), src.Value())
+	return &s
 }
 
-func copySignature(sig *refs.Signature) *refs.Signature {
-	if sig == nil {
+func cloneChecksum(src *checksum.Checksum) *checksum.Checksum {
+	if src == nil {
 		return nil
 	}
-
-	var newSig refs.Signature
-	newSig.SetScheme(sig.GetScheme())
-	newSig.SetKey(bytes.Clone(sig.GetKey()))
-	newSig.SetSign(bytes.Clone(sig.GetSign()))
-
-	return &newSig
+	s := checksum.New(src.Type(), bytes.Clone(src.Value()))
+	return &s
 }
 
-func copySession(session *v2session.Token) *v2session.Token {
-	if session == nil {
-		return nil
-	}
-
-	var newSession v2session.Token
-	if body := session.GetBody(); body != nil {
-		var newBody v2session.TokenBody
-		newBody.SetID(bytes.Clone(body.GetID()))
-
-		if ownerID := body.GetOwnerID(); ownerID != nil {
-			var newOwnerID refs.OwnerID
-			newOwnerID.SetValue(bytes.Clone(ownerID.GetValue()))
-
-			newBody.SetOwnerID(&newOwnerID)
-		} else {
-			newBody.SetOwnerID(nil)
+func (x split) copyTo(dst *split) {
+	dst.parID = x.parID
+	dst.prev = x.prev
+	dst.id = x.id
+	dst.children = slices.Clone(x.children)
+	dst.first = x.first
+	dst.parSig = cloneSignature(x.parSig)
+	if x.parHdr != nil {
+		if dst.parHdr == nil {
+			dst.parHdr = new(header)
 		}
+		x.parHdr.copyTo(dst.parHdr)
+	} else {
+		dst.parHdr = nil
+	}
+}
 
-		if lifetime := body.GetLifetime(); lifetime != nil {
-			newLifetime := *lifetime
-			newBody.SetLifetime(&newLifetime)
-		} else {
-			newBody.SetLifetime(nil)
+func (x header) copyTo(dst *header) {
+	dst.cnr = x.cnr
+	dst.owner = x.owner
+	dst.created = x.created
+	dst.payloadLn = x.payloadLn
+	dst.typ = x.typ
+	dst.attrs = slices.Clone(x.attrs)
+	dst.pldHash = cloneChecksum(x.pldHash)
+	dst.pldHomoHash = cloneChecksum(x.pldHomoHash)
+	x.split.copyTo(&dst.split)
+	if x.version != nil {
+		ver := *x.version
+		dst.version = &ver
+	} else {
+		dst.version = nil
+	}
+	if x.session != nil {
+		if dst.session == nil {
+			dst.session = new(session.Object)
 		}
-
-		newBody.SetSessionKey(bytes.Clone(body.GetSessionKey()))
-
-		// it is an interface. Both implementations do nothing inside implemented functions.
-		newBody.SetContext(body.GetContext())
-
-		newSession.SetBody(&newBody)
+		x.session.CopyTo(dst.session)
 	} else {
-		newSession.SetBody(nil)
+		dst.session = nil
 	}
-
-	newSession.SetSignature(copySignature(session.GetSignature()))
-
-	return &newSession
-}
-
-func copySplitHeader(spl *object.SplitHeader) *object.SplitHeader {
-	if spl == nil {
-		return nil
-	}
-
-	var newSpl object.SplitHeader
-
-	newSpl.SetParent(copyObjectID(spl.GetParent()))
-	newSpl.SetPrevious(copyObjectID(spl.GetPrevious()))
-	newSpl.SetFirst(copyObjectID(spl.GetFirst()))
-	newSpl.SetParentSignature(copySignature(spl.GetParentSignature()))
-	newSpl.SetParentHeader(copyHeader(spl.GetParentHeader()))
-	newSpl.SetChildren(slices.Clone(spl.GetChildren()))
-	newSpl.SetSplitID(bytes.Clone(spl.GetSplitID()))
-
-	return &newSpl
-}
-
-func copyHeader(header *object.Header) *object.Header {
-	if header == nil {
-		return nil
-	}
-
-	var newHeader object.Header
-
-	newHeader.SetCreationEpoch(header.GetCreationEpoch())
-	newHeader.SetPayloadLength(header.GetPayloadLength())
-	newHeader.SetObjectType(header.GetObjectType())
-
-	if ver := header.GetVersion(); ver != nil {
-		newVer := *ver
-		newHeader.SetVersion(&newVer)
-	} else {
-		newHeader.SetVersion(nil)
-	}
-
-	if containerID := header.GetContainerID(); containerID != nil {
-		var newContainerID refs.ContainerID
-		newContainerID.SetValue(bytes.Clone(containerID.GetValue()))
-
-		newHeader.SetContainerID(&newContainerID)
-	} else {
-		newHeader.SetContainerID(nil)
-	}
-
-	if ownerID := header.GetOwnerID(); ownerID != nil {
-		var newOwnerID refs.OwnerID
-		newOwnerID.SetValue(bytes.Clone(ownerID.GetValue()))
-
-		newHeader.SetOwnerID(&newOwnerID)
-	} else {
-		newHeader.SetOwnerID(nil)
-	}
-
-	if payloadHash := header.GetPayloadHash(); payloadHash != nil {
-		var newPayloadHash refs.Checksum
-		newPayloadHash.SetType(payloadHash.GetType())
-		newPayloadHash.SetSum(bytes.Clone(payloadHash.GetSum()))
-
-		newHeader.SetPayloadHash(&newPayloadHash)
-	} else {
-		newHeader.SetPayloadHash(nil)
-	}
-
-	if homoHash := header.GetHomomorphicHash(); homoHash != nil {
-		var newHomoHash refs.Checksum
-		newHomoHash.SetType(homoHash.GetType())
-		newHomoHash.SetSum(bytes.Clone(homoHash.GetSum()))
-
-		newHeader.SetHomomorphicHash(&newHomoHash)
-	} else {
-		newHeader.SetHomomorphicHash(nil)
-	}
-
-	newHeader.SetSessionToken(copySession(header.GetSessionToken()))
-	newHeader.SetAttributes(slices.Clone(header.GetAttributes()))
-	newHeader.SetSplit(copySplitHeader(header.GetSplit()))
-
-	return &newHeader
 }

@@ -2,14 +2,17 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
-	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
@@ -49,60 +52,66 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 		return accounting.Decimal{}, err
 	}
 
-	// form request body
-	var accountV2 refs.OwnerID
-	prm.account.WriteToV2(&accountV2)
+	req := &protoaccounting.BalanceRequest{
+		Body: &protoaccounting.BalanceRequest_Body{
+			OwnerId: prm.account.ProtoMessage(),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	var body v2accounting.BalanceRequestBody
-	body.SetOwnerID(&accountV2)
+	var res accounting.Decimal
 
-	// form request
-	var req v2accounting.BalanceRequest
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	req.SetBody(&body)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return res, err
+	}
 
-	// init call context
+	resp, err := c.accounting.Balance(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return res, err
+	}
 
-	var (
-		cc  contextCall
-		res accounting.Decimal
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.accounting.Balance(ctx, req.ToGRPCMessage().(*protoaccounting.BalanceRequest))
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2accounting.BalanceResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2accounting.BalanceResponse)
-
-		const fieldBalance = "balance"
-
-		bal := resp.GetBody().GetBalance()
-		if bal == nil {
-			cc.err = newErrMissingResponseField(fieldBalance)
-			return
-		}
-
-		cc.err = res.ReadFromV2(*bal)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldBalance, cc.err)
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return accounting.Decimal{}, cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoaccounting.BalanceResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return res, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	const fieldBalance = "balance"
+
+	bal := resp.GetBody().GetBalance()
+	if bal == nil {
+		err = newErrMissingResponseField(fieldBalance)
+		return res, err
+	}
+
+	err = res.FromProtoMessage(bal)
+	if err != nil {
+		err = newErrInvalidResponseField(fieldBalance, err)
+		return res, err
 	}
 
 	return res, nil

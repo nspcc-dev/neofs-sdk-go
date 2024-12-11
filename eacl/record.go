@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"slices"
 
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -213,63 +214,61 @@ func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
 	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectPayloadHomomorphicChecksum, m, h.String())))
 }
 
-// ToV2 converts Record to v2 acl.EACLRecord message.
-//
-// Nil Record converts to nil.
-// Deprecated: do not use it.
-func (r *Record) ToV2() *v2acl.Record {
-	if r != nil {
-		return r.toProtoMessage()
+func (r Record) toProtoMessage() *protoacl.EACLRecord {
+	m := &protoacl.EACLRecord{
+		Operation: protoacl.Operation(r.operation),
+		Action:    protoacl.Action(r.action),
 	}
-	return nil
-}
-
-func (r Record) toProtoMessage() *v2acl.Record {
-	v2 := new(v2acl.Record)
 
 	if r.targets != nil {
-		targets := make([]v2acl.Target, len(r.targets))
+		m.Targets = make([]*protoacl.EACLRecord_Target, len(r.targets))
 		for i := range r.targets {
-			targets[i] = *r.targets[i].toProtoMessage()
+			m.Targets[i] = r.targets[i].protoMessage()
 		}
-
-		v2.SetTargets(targets)
 	}
 
 	if r.filters != nil {
-		filters := make([]v2acl.HeaderFilter, len(r.filters))
+		m.Filters = make([]*protoacl.EACLRecord_Filter, len(r.filters))
 		for i := range r.filters {
-			filters[i] = *r.filters[i].toProtoMessage()
+			m.Filters[i] = r.filters[i].protoMessage()
 		}
-
-		v2.SetFilters(filters)
 	}
 
-	v2.SetAction(v2acl.Action(r.action))
-	v2.SetOperation(v2acl.Operation(r.operation))
-
-	return v2
+	return m
 }
 
-func (r *Record) fromProtoMessage(m *v2acl.Record) error {
-	mt := m.GetTargets()
+func (r *Record) fromProtoMessage(m *protoacl.EACLRecord) error {
+	if m.Action < 0 {
+		return fmt.Errorf("negative action %d", m.Action)
+	}
+	if m.Operation < 0 {
+		return fmt.Errorf("negative op %d", m.Operation)
+	}
+
+	mt := m.Targets
 	r.targets = make([]Target, len(mt))
 	for i := range mt {
-		if err := r.targets[i].fromProtoMessage(&mt[i]); err != nil {
+		if mt[i] == nil {
+			return fmt.Errorf("nil target #%d", i)
+		}
+		if err := r.targets[i].fromProtoMessage(mt[i]); err != nil {
 			return fmt.Errorf("invalid subject descriptor #%d: %w", i, err)
 		}
 	}
 
-	mf := m.GetFilters()
+	mf := m.Filters
 	r.filters = make([]Filter, len(mf))
 	for i := range mf {
-		if err := r.filters[i].fromProtoMessage(&mf[i]); err != nil {
+		if mf[i] == nil {
+			return fmt.Errorf("nil filter #%d", i)
+		}
+		if err := r.filters[i].fromProtoMessage(mf[i]); err != nil {
 			return fmt.Errorf("invalid filter #%d: %w", i, err)
 		}
 	}
 
-	r.action = Action(m.GetAction())
-	r.operation = Operation(m.GetOperation())
+	r.action = Action(m.Action)
+	r.operation = Operation(m.Operation)
 
 	return nil
 }
@@ -299,28 +298,15 @@ func CreateRecord(action Action, operation Operation) *Record {
 	return r
 }
 
-// NewRecordFromV2 converts v2 acl.EACLRecord message to Record.
-// Deprecated: do not use it.
-func NewRecordFromV2(record *v2acl.Record) *Record {
-	r := NewRecord()
-
-	if record == nil {
-		return r
-	}
-
-	_ = r.fromProtoMessage(record)
-	return r
-}
-
 // Marshal marshals Record into a protobuf binary form.
 func (r Record) Marshal() []byte {
-	return r.toProtoMessage().StableMarshal(nil)
+	return neofsproto.MarshalMessage(r.toProtoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of Record.
 func (r *Record) Unmarshal(data []byte) error {
-	m := new(v2acl.Record)
-	if err := m.Unmarshal(data); err != nil {
+	m := new(protoacl.EACLRecord)
+	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
 		return err
 	}
 	return r.fromProtoMessage(m)
@@ -328,13 +314,13 @@ func (r *Record) Unmarshal(data []byte) error {
 
 // MarshalJSON encodes Record to protobuf JSON format.
 func (r Record) MarshalJSON() ([]byte, error) {
-	return r.toProtoMessage().MarshalJSON()
+	return neofsproto.MarshalMessageJSON(r.toProtoMessage())
 }
 
 // UnmarshalJSON decodes Record from protobuf JSON format.
 func (r *Record) UnmarshalJSON(data []byte) error {
-	m := new(v2acl.Record)
-	if err := m.UnmarshalJSON(data); err != nil {
+	m := new(protoacl.EACLRecord)
+	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
 		return err
 	}
 	return r.fromProtoMessage(m)

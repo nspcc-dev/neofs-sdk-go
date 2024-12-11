@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Address represents global object identifier in NeoFS network. Each object
@@ -15,8 +17,8 @@ import (
 //
 // ID implements built-in comparable interface.
 //
-// Address is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Address
-// message. See ReadFromV2 / WriteToV2 methods.
+// Address is mutually compatible with [refs.Address] message. See
+// [Address.FromProtoMessage] / [Address.ProtoMessage] methods.
 type Address struct {
 	cnr cid.ID
 
@@ -35,27 +37,25 @@ func DecodeAddressString(s string) (Address, error) {
 	return id, id.DecodeString(s)
 }
 
-// ReadFromV2 reads Address from the refs.Address message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *Address) ReadFromV2(m refs.Address) error {
-	cnr := m.GetContainerID()
-	if cnr == nil {
+// See also [Address.ProtoMessage].
+func (x *Address) FromProtoMessage(m *refs.Address) error {
+	if m.ContainerId == nil {
 		return errors.New("missing container ID")
 	}
 
-	obj := m.GetObjectID()
-	if obj == nil {
+	if m.ObjectId == nil {
 		return errors.New("missing object ID")
 	}
 
-	err := x.cnr.ReadFromV2(*cnr)
+	err := x.cnr.FromProtoMessage(m.ContainerId)
 	if err != nil {
 		return fmt.Errorf("invalid container ID: %w", err)
 	}
 
-	err = x.obj.ReadFromV2(*obj)
+	err = x.obj.FromProtoMessage(m.ObjectId)
 	if err != nil {
 		return fmt.Errorf("invalid object ID: %w", err)
 	}
@@ -63,19 +63,15 @@ func (x *Address) ReadFromV2(m refs.Address) error {
 	return nil
 }
 
-// WriteToV2 writes Address to the refs.Address message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x Address) WriteToV2(m *refs.Address) {
-	var obj refs.ObjectID
-	x.obj.WriteToV2(&obj)
-
-	var cnr refs.ContainerID
-	x.cnr.WriteToV2(&cnr)
-
-	m.SetObjectID(&obj)
-	m.SetContainerID(&cnr)
+// See also [Address.FromProtoMessage].
+func (x Address) ProtoMessage() *refs.Address {
+	return &refs.Address{
+		ContainerId: x.cnr.ProtoMessage(),
+		ObjectId:    x.obj.ProtoMessage(),
+	}
 }
 
 // MarshalJSON encodes Address into a JSON format of the NeoFS API protocol
@@ -83,10 +79,7 @@ func (x Address) WriteToV2(m *refs.Address) {
 //
 // See also UnmarshalJSON.
 func (x Address) MarshalJSON() ([]byte, error) {
-	var m refs.Address
-	x.WriteToV2(&m)
-
-	return m.MarshalJSON()
+	return neofsproto.MarshalJSON(x)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Address
@@ -96,12 +89,12 @@ func (x Address) MarshalJSON() ([]byte, error) {
 func (x *Address) UnmarshalJSON(data []byte) error {
 	var m refs.Address
 
-	err := m.UnmarshalJSON(data)
+	err := protojson.Unmarshal(data, &m)
 	if err != nil {
 		return err
 	}
 
-	return x.ReadFromV2(m)
+	return x.FromProtoMessage(&m)
 }
 
 // Container returns unique identifier of the NeoFS object container.

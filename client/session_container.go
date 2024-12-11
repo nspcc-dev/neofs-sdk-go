@@ -1,7 +1,6 @@
 package client
 
 import (
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 )
 
@@ -9,7 +8,7 @@ import (
 // All methods make public, because sessionContainer is included in Prm* structs.
 type sessionContainer struct {
 	isSessionIgnored bool
-	meta             v2session.RequestMetaHeader
+	session          *session.Object
 }
 
 // GetSession returns session object.
@@ -22,17 +21,10 @@ func (x *sessionContainer) GetSession() (*session.Object, error) {
 		return nil, ErrNoSessionExplicitly
 	}
 
-	token := x.meta.GetSessionToken()
-	if token == nil {
+	if x.session == nil {
 		return nil, ErrNoSession
 	}
-
-	var sess session.Object
-	if err := sess.ReadFromV2(*token); err != nil {
-		return nil, err
-	}
-
-	return &sess, nil
+	return x.session, nil
 }
 
 // WithinSession specifies session within which the query must be executed.
@@ -44,9 +36,7 @@ func (x *sessionContainer) GetSession() (*session.Object, error) {
 //
 // Must be signed.
 func (x *sessionContainer) WithinSession(t session.Object) {
-	var tokv2 v2session.Token
-	t.WriteToV2(&tokv2)
-	x.meta.SetSessionToken(&tokv2)
+	x.session = &t
 	x.isSessionIgnored = false
 }
 
@@ -55,5 +45,5 @@ func (x *sessionContainer) WithinSession(t session.Object) {
 // See also WithinSession.
 func (x *sessionContainer) IgnoreSession() {
 	x.isSessionIgnored = true
-	x.meta.SetSessionToken(nil)
+	x.session = nil
 }

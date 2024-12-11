@@ -4,24 +4,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 )
 
-// StatusV2 defines a variety of status instances compatible with NeoFS API V2 protocol.
-//
-// Note: it is not recommended to use this type directly, it is intended for documentation of the library functionality.
-type StatusV2 interface {
-	// ErrorToV2 returns the status as github.com/nspcc-dev/neofs-api-go/v2/status.Status message structure.
-	ErrorToV2() *status.Status
-}
-
-// ErrorFromV2 converts [status.Status] message structure to error. Inverse to [ErrorToV2] operation.
-//
-// If result is not nil, it implements [StatusV2]. This fact should be taken into account only when passing
-// the result to the inverse function [ErrorToV2], casts are not compatibility-safe.
+// ToError converts [status.Status] message structure to error. Inverse to [FromError] operation.
 //
 // Below is the mapping of return codes to status instance types (with a description of parsing details).
 // Note: notice if the return type is a pointer.
@@ -30,114 +16,101 @@ type StatusV2 interface {
 //   - [status.OK]: nil (this also includes nil argument).
 //
 // Common failures:
-//   - [status.Internal]: *[ServerInternal];
-//   - [status.SignatureVerificationFail]: *[SignatureVerification].
-//   - [status.WrongMagicNumber]: *[WrongMagicNumber].
-//   - [status.NodeUnderMaintenance]: *[NodeUnderMaintenance].
+//   - [protostatus.InternalServerError]: *[ServerInternal];
+//   - [protostatus.SignatureVerificationFail]: *[SignatureVerification].
+//   - [protostatus.WrongNetMagic]: *[WrongMagicNumber].
+//   - [protostatus.NodeUnderMaintenance]: *[NodeUnderMaintenance].
 //
 // Object failures:
-//   - [object.StatusLocked]: *[ObjectLocked];
-//   - [object.StatusLockNonRegularObject]: *[LockNonRegularObject].
-//   - [object.StatusAccessDenied]: *[ObjectAccessDenied].
-//   - [object.StatusNotFound]: *[ObjectNotFound].
-//   - [object.StatusAlreadyRemoved]: *[ObjectAlreadyRemoved].
-//   - [object.StatusOutOfRange]: *[ObjectOutOfRange].
+//   - [protostatus.ObjectLocked]: *[ObjectLocked];
+//   - [protostatus.LockIrregularObject]: *[LockNonRegularObject].
+//   - [protostatus.ObjectAccessDenied]: *[ObjectAccessDenied].
+//   - [protostatus.ObjectNotFound]: *[ObjectNotFound].
+//   - [protostatus.ObjectAlreadyRemoved]: *[ObjectAlreadyRemoved].
+//   - [protostatus.OutOfRange]: *[ObjectOutOfRange].
 //
 // Container failures:
-//   - [container.StatusNotFound]: *[ContainerNotFound];
-//   - [container.StatusEACLNotFound]: *[EACLNotFound];
+//   - [protostatus.ContainerNotFound]: *[ContainerNotFound];
+//   - [protostatus.EACLNotFound]: *[EACLNotFound];
 //
 // Session failures:
-//   - [session.StatusTokenNotFound]: *[SessionTokenNotFound];
-//   - [session.StatusTokenExpired]: *[SessionTokenExpired];
-func ErrorFromV2(st *status.Status) error {
+//   - [protostatus.SessionTokenNotFound]: *[SessionTokenNotFound];
+//   - [protostatus.SessionTokenExpired]: *[SessionTokenExpired];
+func ToError(st *protostatus.Status) error {
+	for i, d := range st.GetDetails() {
+		if d == nil {
+			return fmt.Errorf("nil detail #%d", i)
+		}
+	}
+
 	var decoder interface {
-		fromStatusV2(*status.Status)
+		fromProtoMessage(*protostatus.Status)
 		Error() string
 	}
 
-	switch code := st.Code(); {
-	case status.IsSuccess(code):
-		//nolint:exhaustive
-		switch status.LocalizeSuccess(&code); code {
-		case status.OK:
-			return nil
-		}
-	case status.IsCommonFail(code):
-		switch status.LocalizeCommonFail(&code); code {
-		case status.Internal:
-			decoder = new(ServerInternal)
-		case status.WrongMagicNumber:
-			decoder = new(WrongMagicNumber)
-		case status.SignatureVerificationFail:
-			decoder = new(SignatureVerification)
-		case status.NodeUnderMaintenance:
-			decoder = new(NodeUnderMaintenance)
-		}
-	case object.LocalizeFailStatus(&code):
-		switch code {
-		case object.StatusLocked:
-			decoder = new(ObjectLocked)
-		case object.StatusLockNonRegularObject:
-			decoder = new(LockNonRegularObject)
-		case object.StatusAccessDenied:
-			decoder = new(ObjectAccessDenied)
-		case object.StatusNotFound:
-			decoder = new(ObjectNotFound)
-		case object.StatusAlreadyRemoved:
-			decoder = new(ObjectAlreadyRemoved)
-		case object.StatusOutOfRange:
-			decoder = new(ObjectOutOfRange)
-		}
-	case container.LocalizeFailStatus(&code):
-		//nolint:exhaustive
-		switch code {
-		case container.StatusNotFound:
-			decoder = new(ContainerNotFound)
-		case container.StatusEACLNotFound:
-			decoder = new(EACLNotFound)
-		}
-	case session.LocalizeFailStatus(&code):
-		//nolint:exhaustive
-		switch code {
-		case session.StatusTokenNotFound:
-			decoder = new(SessionTokenNotFound)
-		case session.StatusTokenExpired:
-			decoder = new(SessionTokenExpired)
-		}
+	switch code := st.GetCode(); code {
+	case protostatus.OK:
+		return nil
+	case protostatus.InternalServerError:
+		decoder = new(ServerInternal)
+	case protostatus.WrongNetMagic:
+		decoder = new(WrongMagicNumber)
+	case protostatus.SignatureVerificationFail:
+		decoder = new(SignatureVerification)
+	case protostatus.NodeUnderMaintenance:
+		decoder = new(NodeUnderMaintenance)
+	case protostatus.ObjectLocked:
+		decoder = new(ObjectLocked)
+	case protostatus.LockIrregularObject:
+		decoder = new(LockNonRegularObject)
+	case protostatus.ObjectAccessDenied:
+		decoder = new(ObjectAccessDenied)
+	case protostatus.ObjectNotFound:
+		decoder = new(ObjectNotFound)
+	case protostatus.ObjectAlreadyRemoved:
+		decoder = new(ObjectAlreadyRemoved)
+	case protostatus.OutOfRange:
+		decoder = new(ObjectOutOfRange)
+	case protostatus.ContainerNotFound:
+		decoder = new(ContainerNotFound)
+	case protostatus.EACLNotFound:
+		decoder = new(EACLNotFound)
+	case protostatus.SessionTokenNotFound:
+		decoder = new(SessionTokenNotFound)
+	case protostatus.SessionTokenExpired:
+		decoder = new(SessionTokenExpired)
 	}
 
 	if decoder == nil {
 		decoder = new(UnrecognizedStatusV2)
 	}
 
-	decoder.fromStatusV2(st)
+	decoder.fromProtoMessage(st)
 
 	return decoder
 }
 
-// ErrorToV2 converts error to status.Status message structure. Inverse to [ErrorFromV2] operation.
+// FromError converts error to status.Status message structure. Inverse to [ToError] operation.
 //
-// If argument is the [StatusV2] instance, it is converted directly.
-// Otherwise, successes are converted with [status.OK] code w/o details and message,
-// failures - with [status.Internal] and error text message w/o details.
-func ErrorToV2(err error) *status.Status {
+// Nil corresponds to [protostatus.OK] code, any unknown error to
+// [protostatus.InternalServerError].
+func FromError(err error) *protostatus.Status {
 	if err == nil {
-		return newStatusV2WithLocalCode(status.OK, status.GlobalizeSuccess)
+		return nil
 	}
 
-	var instance StatusV2
-	if errors.As(err, &instance) {
-		return instance.ErrorToV2()
+	var m interface{ protoMessage() *protostatus.Status }
+	if errors.As(err, &m) {
+		return m.protoMessage()
 	}
 
-	internalErrorStatus := newStatusV2WithLocalCode(status.Internal, status.GlobalizeCommonFail)
-	internalErrorStatus.SetMessage(err.Error())
-
-	return internalErrorStatus
+	return &protostatus.Status{
+		Code:    protostatus.InternalServerError,
+		Message: err.Error(),
+	}
 }
 
-func errMessageStatusV2(code any, msg string) string {
+func errMessageStatus(code any, msg string) string {
 	const (
 		noMsgFmt = "status: code = %v"
 		msgFmt   = noMsgFmt + " message = %s"
@@ -148,17 +121,4 @@ func errMessageStatusV2(code any, msg string) string {
 	}
 
 	return fmt.Sprintf(noMsgFmt, code)
-}
-
-func newStatusV2WithLocalCode(code status.Code, globalizer func(*status.Code)) *status.Status {
-	var st status.Status
-
-	st.SetCode(globalizeCodeV2(code, globalizer))
-
-	return &st
-}
-
-func globalizeCodeV2(code status.Code, globalizer func(*status.Code)) status.Code {
-	globalizer(&code)
-	return code
 }

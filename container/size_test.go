@@ -3,11 +3,11 @@ package container_test
 import (
 	"testing"
 
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -63,79 +63,75 @@ func TestSizeEstimation_Value(t *testing.T) {
 	require.EqualValues(t, anyValidVolume+1, val.Value())
 }
 
-func protoIDFromBytes(b []byte) *refs.ContainerID {
-	var m refs.ContainerID
-	m.SetValue(b)
-	return &m
-}
-
-func TestSizeEstimation_ReadFromV2(t *testing.T) {
-	var m v2container.UsedSpaceAnnouncement
-	m.SetEpoch(anyValidEpoch)
-	m.SetContainerID(protoIDFromBytes(anyValidID[:]))
-	m.SetUsedSpace(anyValidVolume)
+func TestSizeEstimation_FromProtoMessage(t *testing.T) {
+	m := &protocontainer.AnnounceUsedSpaceRequest_Body_Announcement{
+		Epoch:       anyValidEpoch,
+		ContainerId: &refs.ContainerID{Value: anyValidID[:]},
+		UsedSpace:   anyValidVolume,
+	}
 
 	var val container.SizeEstimation
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	require.EqualValues(t, anyValidEpoch, val.Epoch())
 	require.Equal(t, anyValidID, val.Container())
 	require.EqualValues(t, anyValidVolume, val.Value())
 
 	// reset optional fields
-	m.SetEpoch(0)
-	m.SetUsedSpace(0)
+	m.Epoch = 0
+	m.UsedSpace = 0
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.Epoch())
 	require.Zero(t, val2.Value())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(announcement *v2container.UsedSpaceAnnouncement)
+			corrupt   func(announcement *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement)
 		}{
 			{name: "container/missing", err: "missing container",
-				corrupt: func(m *v2container.UsedSpaceAnnouncement) { m.SetContainerID(nil) }},
+				corrupt: func(m *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement) { m.ContainerId = nil }},
 			{name: "container/nil", err: "invalid container: invalid length 0",
-				corrupt: func(m *v2container.UsedSpaceAnnouncement) { m.SetContainerID(protoIDFromBytes(nil)) }},
+				corrupt: func(m *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement) { m.ContainerId.Value = nil }},
 			{name: "container/empty", err: "invalid container: invalid length 0",
-				corrupt: func(m *v2container.UsedSpaceAnnouncement) { m.SetContainerID(protoIDFromBytes([]byte{})) }},
+				corrupt: func(m *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement) { m.ContainerId.Value = []byte{} }},
 			{name: "container/undersize", err: "invalid container: invalid length 31",
-				corrupt: func(m *v2container.UsedSpaceAnnouncement) { m.SetContainerID(protoIDFromBytes(anyValidID[:31])) }},
+				corrupt: func(m *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement) {
+					m.ContainerId.Value = anyValidID[:31]
+				}},
 			{name: "container/oversize", err: "invalid container: invalid length 33",
-				corrupt: func(m *v2container.UsedSpaceAnnouncement) {
-					m.SetContainerID(protoIDFromBytes(append(anyValidID[:], 1)))
+				corrupt: func(m *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement) {
+					m.ContainerId.Value = append(anyValidID[:], 1)
 				}},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				val2 := val
-				var m v2container.UsedSpaceAnnouncement
-				val2.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(container.SizeEstimation).ReadFromV2(m), tc.err)
+				m := val2.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(container.SizeEstimation).FromProtoMessage(m), tc.err)
 			})
 		}
 		t.Run("container/zero", func(t *testing.T) {
-			var m v2container.UsedSpaceAnnouncement
-			m.SetContainerID(protoIDFromBytes(make([]byte, cid.Size)))
-			require.ErrorIs(t, val2.ReadFromV2(m), cid.ErrZero)
+			m := &protocontainer.AnnounceUsedSpaceRequest_Body_Announcement{
+				ContainerId: &refs.ContainerID{Value: make([]byte, cid.Size)},
+			}
+			require.ErrorIs(t, val2.FromProtoMessage(m), cid.ErrZero)
 		})
 	})
 }
 
-func TestSizeEstimation_WriteToV2(t *testing.T) {
+func TestSizeEstimation_ProtoMessage(t *testing.T) {
 	var val container.SizeEstimation
-	var m v2container.UsedSpaceAnnouncement
 
 	// zero
-	val.WriteToV2(&m)
-	require.Zero(t, val.Epoch())
-	require.Zero(t, val.Container())
-	require.Zero(t, val.Value())
+	m := val.ProtoMessage()
+	require.Zero(t, m.GetEpoch())
+	require.Zero(t, m.GetContainerId())
+	require.Zero(t, m.GetUsedSpace())
 
 	// filled
-	validSizeEstimation.WriteToV2(&m)
+	m = validSizeEstimation.ProtoMessage()
 	require.EqualValues(t, anyValidEpoch, m.GetEpoch())
-	require.Equal(t, anyValidID[:], m.GetContainerID().GetValue())
+	require.Equal(t, anyValidID[:], m.GetContainerId().GetValue())
 	require.EqualValues(t, anyValidVolume, m.GetUsedSpace())
 }

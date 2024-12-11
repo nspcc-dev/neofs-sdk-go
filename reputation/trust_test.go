@@ -3,8 +3,6 @@ package reputation_test
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	reputationtest "github.com/nspcc-dev/neofs-sdk-go/reputation/test"
@@ -23,16 +21,12 @@ func TestTrust_Peer(t *testing.T) {
 
 	trust.SetPeer(peer)
 
-	var peerV2 v2reputation.PeerID
-	peer.WriteToV2(&peerV2)
+	mt := trust.ProtoMessage()
 
-	var trustV2 v2reputation.Trust
-	trust.WriteToV2(&trustV2)
-
-	require.Equal(t, &peerV2, trustV2.GetPeer())
+	require.Equal(t, peer.ProtoMessage(), mt.GetPeer())
 
 	var val2 reputation.Trust
-	require.NoError(t, val2.ReadFromV2(trustV2))
+	require.NoError(t, val2.FromProtoMessage(mt))
 
 	require.Equal(t, peer, val2.Peer())
 }
@@ -48,13 +42,12 @@ func TestTrust_Value(t *testing.T) {
 
 	val.SetValue(value)
 
-	var trustV2 v2reputation.Trust
-	val.WriteToV2(&trustV2)
+	m := val.ProtoMessage()
 
-	require.EqualValues(t, value, trustV2.GetValue())
+	require.EqualValues(t, value, m.GetValue())
 
 	var val2 reputation.Trust
-	require.NoError(t, val2.ReadFromV2(trustV2))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.EqualValues(t, value, val2.Value())
 }
@@ -70,16 +63,12 @@ func TestPeerToPeerTrust_TrustingPeer(t *testing.T) {
 
 	val.SetTrustingPeer(peer)
 
-	var peerV2 v2reputation.PeerID
-	peer.WriteToV2(&peerV2)
+	m := val.ProtoMessage()
 
-	var trustV2 v2reputation.PeerToPeerTrust
-	val.WriteToV2(&trustV2)
-
-	require.Equal(t, &peerV2, trustV2.GetTrustingPeer())
+	require.Equal(t, peer.ProtoMessage(), m.GetTrustingPeer())
 
 	var val2 reputation.PeerToPeerTrust
-	require.NoError(t, val2.ReadFromV2(trustV2))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.Equal(t, peer, val2.TrustingPeer())
 }
@@ -95,16 +84,12 @@ func TestPeerToPeerTrust_Trust(t *testing.T) {
 
 	val.SetTrust(trust)
 
-	var trustV2 v2reputation.Trust
-	trust.WriteToV2(&trustV2)
+	m := val.ProtoMessage()
 
-	var valV2 v2reputation.PeerToPeerTrust
-	val.WriteToV2(&valV2)
-
-	require.Equal(t, &trustV2, valV2.GetTrust())
+	require.Equal(t, trust.ProtoMessage(), m.GetTrust())
 
 	var val2 reputation.PeerToPeerTrust
-	require.NoError(t, val2.ReadFromV2(valV2))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.Equal(t, trust, val2.Trust())
 }
@@ -113,13 +98,9 @@ func TestGlobalTrust_Init(t *testing.T) {
 	var val reputation.GlobalTrust
 	val.Init()
 
-	var valV2 v2reputation.GlobalTrust
-	val.WriteToV2(&valV2)
+	m := val.ProtoMessage()
 
-	var verV2 refs.Version
-	version.Current().WriteToV2(&verV2)
-
-	require.Equal(t, &verV2, valV2.GetVersion())
+	require.Equal(t, version.Current().ProtoMessage(), m.GetVersion())
 }
 
 func TestGlobalTrust_Manager(t *testing.T) {
@@ -133,16 +114,12 @@ func TestGlobalTrust_Manager(t *testing.T) {
 
 	val.SetManager(peer)
 
-	var peerV2 v2reputation.PeerID
-	peer.WriteToV2(&peerV2)
+	m := val.ProtoMessage()
 
-	var trustV2 v2reputation.GlobalTrust
-	val.WriteToV2(&trustV2)
-
-	require.Equal(t, &peerV2, trustV2.GetBody().GetManager())
+	require.Equal(t, peer.ProtoMessage(), m.GetBody().GetManager())
 
 	var val2 reputation.GlobalTrust
-	require.NoError(t, val2.ReadFromV2(trustV2))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.Equal(t, peer, val2.Manager())
 }
@@ -158,16 +135,12 @@ func TestGlobalTrust_Trust(t *testing.T) {
 
 	val.SetTrust(trust)
 
-	var trustV2 v2reputation.Trust
-	trust.WriteToV2(&trustV2)
+	m := val.ProtoMessage()
 
-	var valV2 v2reputation.GlobalTrust
-	val.WriteToV2(&valV2)
-
-	require.Equal(t, &trustV2, valV2.GetBody().GetTrust())
+	require.Equal(t, trust.ProtoMessage(), m.GetBody().GetTrust())
 
 	var val2 reputation.GlobalTrust
-	require.NoError(t, val2.ReadFromV2(valV2))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.Equal(t, trust, val2.Trust())
 }
@@ -179,13 +152,12 @@ func TestGlobalTrust_Sign(t *testing.T) {
 
 	require.NoError(t, val.Sign(neofscryptotest.Signer()))
 
-	var valV2 v2reputation.GlobalTrust
-	val.WriteToV2(&valV2)
+	m := val.ProtoMessage()
 
-	require.NotZero(t, valV2.GetSignature())
+	require.NotZero(t, m.GetSignature())
 
 	var val2 reputation.GlobalTrust
-	require.NoError(t, val2.ReadFromV2(valV2))
+	require.NoError(t, val2.FromProtoMessage(m))
 
 	require.True(t, val2.VerifySignature())
 }

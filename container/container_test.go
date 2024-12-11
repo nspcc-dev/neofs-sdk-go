@@ -12,9 +12,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	v2container "github.com/nspcc-dev/neofs-api-go/v2/container"
-	apinetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -23,6 +20,9 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -107,10 +107,9 @@ func init() {
 	validContainer.DisableHomomorphicHashing()
 
 	// init sets random nonce, we need a fixed one. There is no setter for it
-	var m v2container.Container
-	validContainer.WriteToV2(&m)
-	m.SetNonce(anyValidNonce[:])
-	if err := validContainer.ReadFromV2(m); err != nil {
+	m := validContainer.ProtoMessage()
+	m.Nonce = anyValidNonce[:]
+	if err := validContainer.FromProtoMessage(m); err != nil {
 		panic(fmt.Errorf("unexpected encode-decode failure: %w", err))
 	}
 }
@@ -301,8 +300,7 @@ var validJSONContainer = `
 
 // type does not provide getter, this is a helper.
 func extractNonce(t testing.TB, c container.Container) uuid.UUID {
-	var m v2container.Container
-	c.WriteToV2(&m)
+	m := c.ProtoMessage()
 	var nonce uuid.UUID
 	if b := m.GetNonce(); len(b) > 0 {
 		require.NoError(t, nonce.UnmarshalBinary(b))
@@ -310,103 +308,58 @@ func extractNonce(t testing.TB, c container.Container) uuid.UUID {
 	return nonce
 }
 
-func protoUserFromBytes(b []byte) *refs.OwnerID {
-	var m refs.OwnerID
-	m.SetValue(b)
-	return &m
-}
-
-func setContainerAttributes(m *v2container.Container, els ...string) {
+func setContainerAttributes(m *protocontainer.Container, els ...string) {
 	if len(els)%2 != 0 {
 		panic("must be even")
 	}
-	mas := make([]v2container.Attribute, len(els)/2)
+	m.Attributes = make([]*protocontainer.Container_Attribute, len(els)/2)
 	for i := range len(els) / 2 {
-		mas[i].SetKey(els[2*i])
-		mas[i].SetValue(els[2*i+1])
+		m.Attributes[i] = &protocontainer.Container_Attribute{Key: els[2*i], Value: els[2*i+1]}
 	}
-	m.SetAttributes(mas)
 }
 
-func TestContainer_ReadFromV2(t *testing.T) {
-	var mv refs.Version
-	mv.SetMajor(2526956385)
-	mv.SetMinor(95168785)
-
-	var mas []v2container.Attribute
-	newAttr := func(k, v string) v2container.Attribute {
-		var a v2container.Attribute
-		a.SetKey(k)
-		a.SetValue(v)
-		return a
+func TestContainer_FromProtoMessage(t *testing.T) {
+	m := &protocontainer.Container{
+		Version:  &refs.Version{Major: 2526956385, Minor: 95168785},
+		OwnerId:  &refs.OwnerID{Value: anyValidOwner[:]},
+		Nonce:    anyValidNonce[:],
+		BasicAcl: anyValidBasicACL.Bits(),
+		Attributes: []*protocontainer.Container_Attribute{
+			{Key: "k1", Value: "v1"},
+			{Key: "k2", Value: "v2"},
+			{Key: "Name", Value: anyValidName},
+			{Key: "Timestamp", Value: "1727681164"},
+			{Key: "__NEOFS__NAME", Value: anyValidDomainName},
+			{Key: "__NEOFS__ZONE", Value: anyValidDomainZone},
+			{Key: "__NEOFS__DISABLE_HOMOMORPHIC_HASHING", Value: "true"},
+		},
+		PlacementPolicy: &protonetmap.PlacementPolicy{
+			Replicas: []*protonetmap.Replica{
+				{Count: 2583748530, Selector: "selector_0"},
+				{Count: 358755354, Selector: "selector_1"},
+			},
+			ContainerBackupFactor: anyValidBackupFactor,
+			Selectors: []*protonetmap.Selector{
+				{Name: "selector_0", Count: 1814781076, Clause: protonetmap.Clause_SAME, Attribute: "attribute_0", Filter: "filter_0"},
+				{Name: "selector_1", Count: 1814781076, Clause: protonetmap.Clause_DISTINCT, Attribute: "attribute_1", Filter: "filter_1"},
+			},
+			Filters: []*protonetmap.Filter{
+				{Name: "filter_0", Op: protonetmap.Operation_AND, Filters: []*protonetmap.Filter{
+					{Name: "filter_0_0", Key: "key_0_0", Op: protonetmap.Operation_EQ, Value: "val_0_0"},
+					{Name: "filter_0_1", Key: "key_0_1", Op: protonetmap.Operation_NE, Value: "val_0_1"},
+				}},
+				{Name: "filter_1", Op: protonetmap.Operation_OR, Filters: []*protonetmap.Filter{
+					{Name: "filter_1_0", Key: "key_1_0", Op: protonetmap.Operation_GT, Value: "1889407708985023116"},
+					{Name: "filter_1_1", Key: "key_1_1", Op: protonetmap.Operation_GE, Value: "1429243097315344888"},
+					{Name: "filter_1_2", Key: "key_1_2", Op: protonetmap.Operation_LT, Value: "3722656060317482335"},
+					{Name: "filter_1_3", Key: "key_1_3", Op: protonetmap.Operation_LE, Value: "1950504987705284805"},
+				}},
+			},
+		},
 	}
-	addAttr := func(k, v string) { mas = append(mas, newAttr(k, v)) }
-	addAttr("k1", "v1")
-	addAttr("k2", "v2")
-	addAttr("Name", anyValidName)
-	addAttr("Timestamp", "1727681164")
-	addAttr("__NEOFS__NAME", anyValidDomainName)
-	addAttr("__NEOFS__ZONE", anyValidDomainZone)
-	addAttr("__NEOFS__DISABLE_HOMOMORPHIC_HASHING", "true")
-
-	mrs := make([]apinetmap.Replica, 2)
-	mrs[0].SetSelector("selector_0")
-	mrs[0].SetCount(2583748530)
-	mrs[1].SetSelector("selector_1")
-	mrs[1].SetCount(358755354)
-
-	mss := make([]apinetmap.Selector, 2)
-	mss[0].SetName("selector_0")
-	mss[0].SetCount(1814781076)
-	mss[0].SetClause(apinetmap.Same)
-	mss[0].SetFilter("filter_0")
-	mss[0].SetAttribute("attribute_0")
-	mss[1].SetName("selector_1")
-	mss[1].SetCount(1814781076)
-	mss[1].SetClause(apinetmap.Distinct)
-	mss[1].SetFilter("filter_1")
-	mss[1].SetAttribute("attribute_1")
-
-	msubs := make([]apinetmap.Filter, 0, 2)
-	addSub := func(name, key string, op apinetmap.Operation, val string) {
-		var f apinetmap.Filter
-		f.SetName(name)
-		f.SetKey(key)
-		f.SetOp(op)
-		f.SetValue(val)
-		msubs = append(msubs, f)
-	}
-	addSub("filter_0_0", "key_0_0", apinetmap.EQ, "val_0_0")
-	addSub("filter_0_1", "key_0_1", apinetmap.NE, "val_0_1")
-	mfs := make([]apinetmap.Filter, 2)
-	mfs[0].SetName("filter_0")
-	mfs[0].SetOp(apinetmap.AND)
-	mfs[0].SetFilters(msubs)
-	msubs = make([]apinetmap.Filter, 0, 4)
-	addSub("filter_1_0", "key_1_0", apinetmap.GT, "1889407708985023116")
-	addSub("filter_1_1", "key_1_1", apinetmap.GE, "1429243097315344888")
-	addSub("filter_1_2", "key_1_2", apinetmap.LT, "3722656060317482335")
-	addSub("filter_1_3", "key_1_3", apinetmap.LE, "1950504987705284805")
-	mfs[1].SetName("filter_1")
-	mfs[1].SetOp(apinetmap.OR)
-	mfs[1].SetFilters(msubs)
-
-	var mp apinetmap.PlacementPolicy
-	mp.SetContainerBackupFactor(anyValidBackupFactor)
-	mp.SetReplicas(mrs)
-	mp.SetSelectors(mss)
-	mp.SetFilters(mfs)
-
-	var m v2container.Container
-	m.SetVersion(&mv)
-	m.SetOwnerID(protoUserFromBytes(anyValidOwner[:]))
-	m.SetNonce(anyValidNonce[:])
-	m.SetBasicACL(anyValidBasicACL.Bits())
-	m.SetPlacementPolicy(&mp)
-	m.SetAttributes(mas)
 
 	var val container.Container
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	ver := val.Version()
 	require.EqualValues(t, 2526956385, ver.Major())
 	require.EqualValues(t, 95168785, ver.Minor())
@@ -484,108 +437,95 @@ func TestContainer_ReadFromV2(t *testing.T) {
 	require.Empty(t, subs[3].SubFilters())
 
 	// reset optional fields
-	m.SetBasicACL(0)
-	m.SetAttributes([]v2container.Attribute{newAttr("__NEOFS__DISABLE_HOMOMORPHIC_HASHING", "anything not true")})
+	m.BasicAcl = 0
+	m.Attributes = []*protocontainer.Container_Attribute{{Key: "__NEOFS__DISABLE_HOMOMORPHIC_HASHING", Value: "anything not true"}}
 	val2 := val
-	require.NoError(t, val2.ReadFromV2(m))
+	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.BasicACL())
 	require.False(t, val2.IsHomomorphicHashingDisabled())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*v2container.Container)
+			corrupt   func(*protocontainer.Container)
 		}{
 			{name: "version/missing", err: "missing version",
-				corrupt: func(m *v2container.Container) { m.SetVersion(nil) }},
+				corrupt: func(m *protocontainer.Container) { m.Version = nil }},
 			{name: "owner/missing", err: "missing owner",
-				corrupt: func(m *v2container.Container) { m.SetOwnerID(nil) }},
+				corrupt: func(m *protocontainer.Container) { m.OwnerId = nil }},
 			{name: "owner/value/nil", err: "invalid owner: invalid length 0, expected 25",
-				corrupt: func(m *v2container.Container) { m.SetOwnerID(protoUserFromBytes(nil)) }},
+				corrupt: func(m *protocontainer.Container) { m.OwnerId.Value = nil }},
 			{name: "owner/value/empty", err: "invalid owner: invalid length 0, expected 25",
-				corrupt: func(m *v2container.Container) { m.SetOwnerID(protoUserFromBytes([]byte{})) }},
+				corrupt: func(m *protocontainer.Container) { m.OwnerId.Value = []byte{} }},
 			{name: "owner/value/undersize", err: "invalid owner: invalid length 24, expected 25",
-				corrupt: func(m *v2container.Container) { m.SetOwnerID(protoUserFromBytes(make([]byte, 24))) }},
+				corrupt: func(m *protocontainer.Container) { m.OwnerId.Value = make([]byte, 24) }},
 			{name: "owner/value/oversize", err: "invalid owner: invalid length 26, expected 25",
-				corrupt: func(m *v2container.Container) { m.SetOwnerID(protoUserFromBytes(make([]byte, 26))) }},
+				corrupt: func(m *protocontainer.Container) { m.OwnerId.Value = make([]byte, 26) }},
 			{name: "owner/value/wrong prefix", err: "invalid owner: invalid prefix byte 0x42, expected 0x35",
-				corrupt: func(m *v2container.Container) {
-					b := bytes.Clone(anyValidOwner[:])
-					b[0] = 0x42
-					m.SetOwnerID(protoUserFromBytes(b))
+				corrupt: func(m *protocontainer.Container) {
+					m.OwnerId.Value = bytes.Clone(anyValidOwner[:])
+					m.OwnerId.Value[0] = 0x42
 				}},
 			{name: "owner/value/checksum mismatch", err: "invalid owner: checksum mismatch",
-				corrupt: func(m *v2container.Container) {
-					b := bytes.Clone(anyValidOwner[:])
-					b[len(b)-1]++
-					m.SetOwnerID(protoUserFromBytes(b))
+				corrupt: func(m *protocontainer.Container) {
+					m.OwnerId.Value = bytes.Clone(anyValidOwner[:])
+					m.OwnerId.Value[24]++
 				}},
 			{name: "nonce/nil", err: "missing nonce",
-				corrupt: func(m *v2container.Container) { m.SetNonce(nil) }},
+				corrupt: func(m *protocontainer.Container) { m.Nonce = nil }},
 			{name: "nonce/empty", err: "missing nonce",
-				corrupt: func(m *v2container.Container) { m.SetNonce([]byte{}) }},
+				corrupt: func(m *protocontainer.Container) { m.Nonce = []byte{} }},
 			{name: "nonce/undersize", err: "invalid nonce: invalid UUID (got 15 bytes)",
-				corrupt: func(m *v2container.Container) { m.SetNonce(anyValidNonce[:15]) }},
+				corrupt: func(m *protocontainer.Container) { m.Nonce = anyValidNonce[:15] }},
 			{name: "nonce/oversize", err: "invalid nonce: invalid UUID (got 17 bytes)",
-				corrupt: func(m *v2container.Container) { m.SetNonce(append(anyValidNonce[:], 1)) }},
+				corrupt: func(m *protocontainer.Container) { m.Nonce = append(anyValidNonce[:], 1) }},
 			{name: "nonce/wrong version", err: "invalid nonce: wrong UUID version 3, expected 4",
-				corrupt: func(m *v2container.Container) {
-					b := bytes.Clone(anyValidNonce[:])
-					b[6] = 3 << 4
-					m.SetNonce(b)
+				corrupt: func(m *protocontainer.Container) {
+					m.Nonce = bytes.Clone(anyValidNonce[:])
+					m.Nonce[6] = 3 << 4
 				}},
 			{name: "policy/replicas/nil", err: "invalid placement policy: missing replicas",
-				corrupt: func(m *v2container.Container) {
-					var mp apinetmap.PlacementPolicy
-					mp.SetReplicas(nil)
-					m.SetPlacementPolicy(&mp)
-				}},
+				corrupt: func(m *protocontainer.Container) { m.PlacementPolicy.Replicas = nil }},
 			{name: "policy/replicas/empty", err: "invalid placement policy: missing replicas",
-				corrupt: func(m *v2container.Container) {
-					var mp apinetmap.PlacementPolicy
-					mp.SetReplicas([]apinetmap.Replica{})
-					m.SetPlacementPolicy(&mp)
-				}},
+				corrupt: func(m *protocontainer.Container) { m.PlacementPolicy.Replicas = []*protonetmap.Replica{} }},
 			{name: "attributes/no key", err: "empty attribute key",
-				corrupt: func(m *v2container.Container) { setContainerAttributes(m, "k1", "v1", "", "v2") }},
+				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "", "v2") }},
 			{name: "attributes/no value", err: `empty "k2" attribute value`,
-				corrupt: func(m *v2container.Container) { setContainerAttributes(m, "k1", "v1", "k2", "") }},
+				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "k2", "") }},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
-				corrupt: func(m *v2container.Container) { setContainerAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
+				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "attributes/timestamp", err: "invalid attribute value Timestamp: foo (strconv.ParseInt: parsing \"foo\": invalid syntax)",
-				corrupt: func(m *v2container.Container) { setContainerAttributes(m, "Timestamp", "foo") }},
+				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "Timestamp", "foo") }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				val2 := val
-				var m v2container.Container
-				val2.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(container.Container).ReadFromV2(m), tc.err)
+				m := val2.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(container.Container).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestContainer_WriteToV2(t *testing.T) {
+func TestContainer_ProtoMessage(t *testing.T) {
 	var val container.Container
-	var m v2container.Container
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetVersion())
-	require.Zero(t, m.GetOwnerID())
+	require.Zero(t, m.GetOwnerId())
 	require.Zero(t, m.GetNonce())
-	require.Zero(t, m.GetBasicACL())
+	require.Zero(t, m.GetBasicAcl())
 	require.Zero(t, m.GetPlacementPolicy())
 	require.Zero(t, m.GetAttributes())
 
 	// filled
-	validContainer.WriteToV2(&m)
+	m = validContainer.ProtoMessage()
 	require.EqualValues(t, 2, m.GetVersion().GetMajor())
 	require.EqualValues(t, 16, m.GetVersion().GetMinor())
 	require.Len(t, m.GetNonce(), 16)
 	require.EqualValues(t, 4, m.GetNonce()[6]>>4)
-	require.EqualValues(t, 1043832770, m.GetBasicACL())
+	require.EqualValues(t, 1043832770, m.GetBasicAcl())
 	mas := m.GetAttributes()
 	require.Len(t, mas, 7)
 	for i, pair := range [][2]string{
@@ -615,12 +555,12 @@ func TestContainer_WriteToV2(t *testing.T) {
 	require.Len(t, mss, 2)
 	require.Equal(t, "selector_0", mss[0].GetName())
 	require.EqualValues(t, 1814781076, mss[0].GetCount())
-	require.Equal(t, apinetmap.Same, mss[0].GetClause())
+	require.Equal(t, protonetmap.Clause_SAME, mss[0].GetClause())
 	require.Equal(t, "filter_0", mss[0].GetFilter())
 	require.Equal(t, "attribute_0", mss[0].GetAttribute())
 	require.Equal(t, "selector_1", mss[1].GetName())
 	require.EqualValues(t, 1505136737, mss[1].GetCount())
-	require.Equal(t, apinetmap.Distinct, mss[1].GetClause())
+	require.Equal(t, protonetmap.Clause_DISTINCT, mss[1].GetClause())
 	require.Equal(t, "filter_1", mss[1].GetFilter())
 	require.Equal(t, "attribute_1", mss[1].GetAttribute())
 
@@ -629,51 +569,51 @@ func TestContainer_WriteToV2(t *testing.T) {
 	// filter#0
 	require.Equal(t, "filter_0", mfs[0].GetName())
 	require.Zero(t, mfs[0].GetKey())
-	require.Equal(t, apinetmap.AND, mfs[0].GetOp())
+	require.Equal(t, protonetmap.Operation_AND, mfs[0].GetOp())
 	require.Zero(t, mfs[0].GetValue())
 	msubs := mfs[0].GetFilters()
 	require.Len(t, msubs, 2)
 	// sub#0
 	require.Equal(t, "filter_0_0", msubs[0].GetName())
 	require.Equal(t, "key_0_0", msubs[0].GetKey())
-	require.Equal(t, apinetmap.EQ, msubs[0].GetOp())
+	require.Equal(t, protonetmap.Operation_EQ, msubs[0].GetOp())
 	require.Equal(t, "val_0_0", msubs[0].GetValue())
 	require.Zero(t, msubs[0].GetFilters())
 	// sub#1
 	require.Equal(t, "filter_0_1", msubs[1].GetName())
 	require.Equal(t, "key_0_1", msubs[1].GetKey())
-	require.Equal(t, apinetmap.NE, msubs[1].GetOp())
+	require.Equal(t, protonetmap.Operation_NE, msubs[1].GetOp())
 	require.Equal(t, "val_0_1", msubs[1].GetValue())
 	require.Zero(t, msubs[1].GetFilters())
 	// filter#1
 	require.Equal(t, "filter_1", mfs[1].GetName())
 	require.Zero(t, mfs[1].GetKey())
-	require.Equal(t, apinetmap.OR, mfs[1].GetOp())
+	require.Equal(t, protonetmap.Operation_OR, mfs[1].GetOp())
 	require.Zero(t, mfs[1].GetValue())
 	msubs = mfs[1].GetFilters()
 	require.Len(t, msubs, 4)
 	// sub#0
 	require.Equal(t, "filter_1_0", msubs[0].GetName())
 	require.Equal(t, "key_1_0", msubs[0].GetKey())
-	require.Equal(t, apinetmap.GT, msubs[0].GetOp())
+	require.Equal(t, protonetmap.Operation_GT, msubs[0].GetOp())
 	require.Equal(t, "1889407708985023116", msubs[0].GetValue())
 	require.Zero(t, msubs[0].GetFilters())
 	// sub#1
 	require.Equal(t, "filter_1_1", msubs[1].GetName())
 	require.Equal(t, "key_1_1", msubs[1].GetKey())
-	require.Equal(t, apinetmap.GE, msubs[1].GetOp())
+	require.Equal(t, protonetmap.Operation_GE, msubs[1].GetOp())
 	require.Equal(t, "1429243097315344888", msubs[1].GetValue())
 	require.Zero(t, msubs[1].GetFilters())
 	// sub#2
 	require.Equal(t, "filter_1_2", msubs[2].GetName())
 	require.Equal(t, "key_1_2", msubs[2].GetKey())
-	require.Equal(t, apinetmap.LT, msubs[2].GetOp())
+	require.Equal(t, protonetmap.Operation_LT, msubs[2].GetOp())
 	require.Equal(t, "3722656060317482335", msubs[2].GetValue())
 	require.Zero(t, msubs[2].GetFilters())
 	// sub#3
 	require.Equal(t, "filter_1_3", msubs[3].GetName())
 	require.Equal(t, "key_1_3", msubs[3].GetKey())
-	require.Equal(t, apinetmap.LE, msubs[3].GetOp())
+	require.Equal(t, protonetmap.Operation_LE, msubs[3].GetOp())
 	require.Equal(t, "1950504987705284805", msubs[3].GetValue())
 	require.Zero(t, msubs[3].GetFilters())
 }
@@ -956,16 +896,8 @@ func TestCalculateID(t *testing.T) {
 	var id cid.ID
 	val.CalculateID(&id)
 
-	var msg refs.ContainerID
-	id.WriteToV2(&msg)
-
 	h := sha256.Sum256(val.Marshal())
-	require.Equal(t, h[:], msg.GetValue())
-
-	var id2 cid.ID
-	require.NoError(t, id2.ReadFromV2(msg))
-
-	require.True(t, val.AssertID(id2))
+	require.EqualValues(t, h, id)
 }
 
 func TestContainer_CalculateSignature(t *testing.T) {

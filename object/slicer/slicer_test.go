@@ -14,7 +14,6 @@ import (
 	"math/rand"
 	"testing"
 
-	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -136,20 +135,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 
 func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
 	var ni netmap.NetworkInfo
-	var v2 netmapv2.NetworkInfo
-	var netConfig netmapv2.NetworkConfig
-	var p1 netmapv2.NetworkParameter
-
-	p1.SetKey(randomData(10))
-	p1.SetValue(randomData(10))
-
-	netConfig.SetParameters(p1)
-	v2.SetNetworkConfig(&netConfig)
-
-	if err := ni.ReadFromV2(v2); err != nil {
-		return ni, err
-	}
-
+	ni.SetRawNetworkParameter(string(randomData(10)), randomData(10))
 	ni.SetCurrentEpoch(opts.CurrentNeoFSEpoch())
 	ni.SetMaxObjectSize(opts.ObjectPayloadLimit())
 	if !opts.IsHomomorphicChecksumEnabled() {
@@ -843,7 +829,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 
 	checkParentWithoutSplitInfo := func(hdr object.Object) {
 		for o := hdr.Parent(); o != nil; o = o.Parent() {
-			require.Nil(t, o.ToV2().GetHeader().GetSplit())
+			require.Nil(t, o.ProtoMessage().GetHeader().GetSplit())
 		}
 	}
 
