@@ -66,7 +66,7 @@ func TestDecimal_WriteToV2(t *testing.T) {
 	// zero
 	val.WriteToV2(&m)
 	require.Zero(t, m.GetValue())
-	require.Zero(t, m.GetValue())
+	require.Zero(t, m.GetPrecision())
 
 	// filled
 	val.SetValue(anyValidValue)
