@@ -143,7 +143,7 @@ func TestNetMap_ReadFromV2(t *testing.T) {
 				corrupt: func(m *apinetmap.NetMap) { m.Nodes()[1].SetAddresses() }},
 			{name: "nodes/attributes/no key", err: "invalid node info: empty key of the attribute #1",
 				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "k1", "v1", "", "v2") }},
-			{name: "nodes/attributes/no value", err: "invalid node info: empty value of the attribute k2",
+			{name: "nodes/attributes/no value", err: `invalid node info: empty "k2" attribute value`,
 				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "k1", "v1", "k2", "") }},
 			{name: "nodes/attributes/duplicated", err: "invalid node info: duplicated attribute k1",
 				corrupt: func(m *apinetmap.NetMap) { setNodeAttributes(&m.Nodes()[1], "k1", "v1", "k2", "v2", "k1", "v3") }},

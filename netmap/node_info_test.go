@@ -604,7 +604,7 @@ func TestNodeInfo_ReadFromV2(t *testing.T) {
 				corrupt: func(m *apinetmap.NodeInfo) { m.SetAddresses() }},
 			{name: "attributes/no key", err: "empty key of the attribute #1",
 				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "", "v2") }},
-			{name: "attributes/no value", err: "empty value of the attribute k2",
+			{name: "attributes/no value", err: `empty "k2" attribute value`,
 				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "") }},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
 				corrupt: func(m *apinetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
@@ -700,7 +700,7 @@ func TestNodeInfo_Unmarshal(t *testing.T) {
 		}{
 			{name: "attributes/no key", err: "empty key of the attribute #1",
 				b: []byte{26, 8, 10, 2, 107, 49, 18, 2, 118, 49, 26, 4, 18, 2, 118, 50}},
-			{name: "attributes/no value", err: "empty value of the attribute k2",
+			{name: "attributes/no value", err: `empty "k2" attribute value`,
 				b: []byte{26, 8, 10, 2, 107, 49, 18, 2, 118, 49, 26, 4, 10, 2, 107, 50}},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
 				b: []byte{26, 8, 10, 2, 107, 49, 18, 2, 118, 49, 26, 8, 10, 2, 107, 50, 18, 2, 118, 50, 26, 8, 10, 2, 107, 49,
@@ -753,7 +753,7 @@ func TestNodeInfo_UnmarshalJSON(t *testing.T) {
 		for _, tc := range []struct{ name, err, j string }{
 			{name: "attributes/no key", err: "empty key of the attribute #1",
 				j: `{"attributes":[{"key":"k1", "value":"v1"}, {"key":"", "value":"v2"}]}`},
-			{name: "attributes/no value", err: "empty value of the attribute k2",
+			{name: "attributes/no value", err: `empty "k2" attribute value`,
 				j: `{"attributes":[{"key":"k1","value":"v1"},{"key":"k2"}]}`},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
 				j: `{"attributes":[{"key":"k1","value":"v1"},{"key":"k2","value":"v2"},{"key":"k1","value":"v3"}]}`},

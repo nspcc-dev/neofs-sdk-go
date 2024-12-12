@@ -207,7 +207,7 @@ func (s *SplitInfo) ReadFromV2(m object.SplitInfo) error {
 		if err := uid.UnmarshalBinary(b); err != nil {
 			return fmt.Errorf("invalid split ID: %w", err)
 		} else if v := uid.Version(); v != 4 {
-			return fmt.Errorf("invalid split UUID version %d", v)
+			return fmt.Errorf("invalid split ID: wrong UUID version %d, expected 4", v)
 		}
 	}
 

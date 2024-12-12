@@ -65,7 +65,7 @@ func (x *NodeInfo) readFromV2(m netmap.NodeInfo, checkFieldPresence bool) error 
 			}
 		default:
 			if attributes[i].GetValue() == "" {
-				return fmt.Errorf("empty value of the attribute %s", key)
+				return fmt.Errorf("empty %q attribute value", key)
 			}
 		}
 

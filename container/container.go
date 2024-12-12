@@ -114,7 +114,7 @@ func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) e
 		if err != nil {
 			return fmt.Errorf("invalid nonce: %w", err)
 		} else if ver := nonce.Version(); ver != 4 {
-			return fmt.Errorf("invalid nonce UUID version %d", ver)
+			return fmt.Errorf("invalid nonce: wrong UUID version %d, expected 4", ver)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing nonce")
@@ -155,7 +155,7 @@ func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) e
 
 		val = attrs[i].GetValue()
 		if val == "" {
-			return fmt.Errorf("empty attribute value %s", key)
+			return fmt.Errorf("empty %q attribute value", key)
 		}
 
 		switch key {

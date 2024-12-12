@@ -80,9 +80,9 @@ func verifySplitHeaderV2(m object.SplitHeader) error {
 	if b := m.GetSplitID(); len(b) > 0 {
 		var uid uuid.UUID
 		if err := uid.UnmarshalBinary(b); err != nil {
-			return fmt.Errorf("invalid split UUID: %w", err)
+			return fmt.Errorf("invalid split ID: %w", err)
 		} else if ver := uid.Version(); ver != 4 {
-			return fmt.Errorf("invalid split UUID version %d", ver)
+			return fmt.Errorf("invalid split ID: wrong UUID version %d, expected 4", ver)
 		}
 	}
 	// children

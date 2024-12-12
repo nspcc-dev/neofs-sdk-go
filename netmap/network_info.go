@@ -52,7 +52,7 @@ func (x *NetworkInfo) readFromV2(m netmap.NetworkInfo, checkFieldPresence bool) 
 		switch name {
 		default:
 			if len(prm.GetValue()) == 0 {
-				err = fmt.Errorf("empty attribute value %s", name)
+				err = fmt.Errorf("empty %q parameter value", name)
 				return true
 			}
 		case configEigenTrustAlpha:
