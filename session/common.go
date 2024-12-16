@@ -330,13 +330,14 @@ func (x *commonData) SetIssuer(id user.ID) {
 	x.issuer = id
 }
 
-// AssertAuthKey asserts public key bound to the session.
+// AssertAuthKey asserts public key bound to the session. The key should not be
+// nil.
 //
 // Zero session fails the check.
 //
 // See also SetAuthKey.
 func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
-	return bytes.Equal(neofscrypto.PublicKeyBytes(key), x.authKey)
+	return key != nil && bytes.Equal(neofscrypto.PublicKeyBytes(key), x.authKey)
 }
 
 // Issuer returns user ID of the session issuer.
