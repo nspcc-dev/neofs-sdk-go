@@ -3,8 +3,11 @@ package session_test
 import (
 	"testing"
 
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
+	"github.com/stretchr/testify/require"
 )
 
 // returns random session.XHeader with all non-zero fields.
@@ -89,6 +92,20 @@ func randResponseVerificationHeader() *session.ResponseVerificationHeader {
 }
 
 func TestObjectSessionContext_Target_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &session.ObjectSessionContext_Target{
+			Objects: []*refs.ObjectID{nil, {}},
+		}
+
+		var dst session.ObjectSessionContext_Target
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		ids := dst.GetObjects()
+		require.Len(t, ids, 2)
+		require.Equal(t, ids[0], new(refs.ObjectID))
+		require.Equal(t, ids[1], new(refs.ObjectID))
+	})
+
 	prototest.TestMarshalStable(t, []*session.ObjectSessionContext_Target{
 		prototest.RandObjectSessionTarget(),
 	})
@@ -151,12 +168,40 @@ func TestXHeader_MarshalStable(t *testing.T) {
 }
 
 func TestRequestMetaHeader_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &session.RequestMetaHeader{
+			XHeaders: []*session.XHeader{nil, {}},
+		}
+
+		var dst session.RequestMetaHeader
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		hs := dst.GetXHeaders()
+		require.Len(t, hs, 2)
+		require.Equal(t, hs[0], new(session.XHeader))
+		require.Equal(t, hs[1], new(session.XHeader))
+	})
+
 	prototest.TestMarshalStable(t, []*session.RequestMetaHeader{
 		randRequestMetaHeader(),
 	})
 }
 
 func TestResponseMetaHeader_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &session.ResponseMetaHeader{
+			XHeaders: []*session.XHeader{nil, {}},
+		}
+
+		var dst session.ResponseMetaHeader
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		hs := dst.GetXHeaders()
+		require.Len(t, hs, 2)
+		require.Equal(t, hs[0], new(session.XHeader))
+		require.Equal(t, hs[1], new(session.XHeader))
+	})
+
 	prototest.TestMarshalStable(t, []*session.ResponseMetaHeader{
 		randResponseMetaHeader(),
 	})

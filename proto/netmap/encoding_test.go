@@ -3,8 +3,10 @@ package netmap_test
 import (
 	"testing"
 
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	"github.com/stretchr/testify/require"
 )
 
 // returns random netmap.NetworkConfig_Parameter with all non-zero fields.
@@ -87,12 +89,50 @@ func TestSelector_MarshalStable(t *testing.T) {
 }
 
 func TestFilter_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &netmap.Filter{
+			Filters: []*netmap.Filter{nil, {}},
+		}
+
+		var dst netmap.Filter
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		fs := dst.GetFilters()
+		require.Len(t, fs, 2)
+		require.Equal(t, fs[0], new(netmap.Filter))
+		require.Equal(t, fs[1], new(netmap.Filter))
+	})
+
 	prototest.TestMarshalStable(t, []*netmap.Filter{
 		prototest.RandPlacementFilter(),
 	})
 }
 
 func TestPlacement_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &netmap.PlacementPolicy{
+			Replicas:  []*netmap.Replica{nil, {}},
+			Selectors: []*netmap.Selector{nil, {}},
+			Filters:   []*netmap.Filter{nil, {}},
+		}
+
+		var dst netmap.PlacementPolicy
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		rs := dst.GetReplicas()
+		require.Len(t, rs, 2)
+		require.Equal(t, rs[0], new(netmap.Replica))
+		require.Equal(t, rs[1], new(netmap.Replica))
+		ss := dst.GetSelectors()
+		require.Len(t, ss, 2)
+		require.Equal(t, ss[0], new(netmap.Selector))
+		require.Equal(t, ss[1], new(netmap.Selector))
+		fs := dst.GetFilters()
+		require.Len(t, fs, 2)
+		require.Equal(t, fs[0], new(netmap.Filter))
+		require.Equal(t, fs[1], new(netmap.Filter))
+	})
+
 	prototest.TestMarshalStable(t, []*netmap.PlacementPolicy{
 		prototest.RandPlacementPolicy(),
 	})
@@ -105,6 +145,20 @@ func TestNetworkConfig_Parameter_MarshalStable(t *testing.T) {
 }
 
 func TestNetworkConfig_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &netmap.NetworkConfig{
+			Parameters: []*netmap.NetworkConfig_Parameter{nil, {}},
+		}
+
+		var dst netmap.NetworkConfig
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		ps := dst.GetParameters()
+		require.Len(t, ps, 2)
+		require.Equal(t, ps[0], new(netmap.NetworkConfig_Parameter))
+		require.Equal(t, ps[1], new(netmap.NetworkConfig_Parameter))
+	})
+
 	prototest.TestMarshalStable(t, []*netmap.NetworkConfig{
 		randNetworkConfig(),
 	})
@@ -123,12 +177,40 @@ func TestNodeInfo_Attribute_MarshalStable(t *testing.T) {
 }
 
 func TestNodeInfo_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &netmap.NodeInfo{
+			Attributes: []*netmap.NodeInfo_Attribute{nil, {}},
+		}
+
+		var dst netmap.NodeInfo
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		as := dst.GetAttributes()
+		require.Len(t, as, 2)
+		require.Equal(t, as[0], new(netmap.NodeInfo_Attribute))
+		require.Equal(t, as[1], new(netmap.NodeInfo_Attribute))
+	})
+
 	prototest.TestMarshalStable(t, []*netmap.NodeInfo{
 		randNode(),
 	})
 }
 
 func TestNetmap_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &netmap.Netmap{
+			Nodes: []*netmap.NodeInfo{nil, {}},
+		}
+
+		var dst netmap.Netmap
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		ns := dst.GetNodes()
+		require.Len(t, ns, 2)
+		require.Equal(t, ns[0], new(netmap.NodeInfo))
+		require.Equal(t, ns[1], new(netmap.NodeInfo))
+	})
+
 	prototest.TestMarshalStable(t, []*netmap.Netmap{
 		randNetmap(),
 	})
