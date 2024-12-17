@@ -6,6 +6,7 @@ package proto
 import (
 	"encoding/binary"
 	"math"
+	"reflect"
 
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -159,27 +160,20 @@ func MarshalToDouble(b []byte, num protowire.Number, v float64) int {
 // SizeEmbedded returns the encoded size of embedded message being a protobuf
 // field with given number and value.
 func SizeEmbedded(num protowire.Number, v Message) int {
-	if v == nil {
+	if v == nil || reflect.ValueOf(v).IsNil() {
 		return 0
 	}
-	sz := v.MarshaledSize()
-	if sz == 0 {
-		return 0
-	}
-	return protowire.SizeTag(num) + protowire.SizeBytes(sz)
+	return protowire.SizeTag(num) + protowire.SizeBytes(v.MarshaledSize())
 }
 
 // MarshalToEmbedded encodes embedded message being a protobuf field with given
 // number and value into b and returns the number of bytes written. If the
 // buffer is too small, MarshalToEmbedded will panic.
 func MarshalToEmbedded(b []byte, num protowire.Number, v Message) int {
-	if v == nil {
+	if v == nil || reflect.ValueOf(v).IsNil() {
 		return 0
 	}
 	sz := v.MarshaledSize()
-	if sz == 0 {
-		return 0
-	}
 	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
 	off += binary.PutUvarint(b[off:], uint64(sz))
 	v.MarshalStable(b[off:])
