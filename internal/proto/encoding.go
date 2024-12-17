@@ -246,7 +246,7 @@ func MarshalToDouble(b []byte, num protowire.Number, v float64) int {
 // SizeEmbedded returns the encoded size of embedded message being a protobuf
 // field with given number and value.
 func SizeEmbedded(num protowire.Number, v Message) int {
-	if v == nil || reflect.ValueOf(v).IsNil() {
+	if isMessageNil(v) {
 		return 0
 	}
 	return protowire.SizeTag(num) + protowire.SizeBytes(v.MarshaledSize())
@@ -256,7 +256,7 @@ func SizeEmbedded(num protowire.Number, v Message) int {
 // number and value into b and returns the number of bytes written. If the
 // buffer is too small, MarshalToEmbedded will panic.
 func MarshalToEmbedded(b []byte, num protowire.Number, v Message) int {
-	if v == nil || reflect.ValueOf(v).IsNil() {
+	if isMessageNil(v) {
 		return 0
 	}
 	sz := v.MarshaledSize()
@@ -336,10 +336,18 @@ func MarshalToRepeatedBytes[T Bytes](b []byte, num protowire.Number, v []T) int 
 
 // SizeRepeatedMessages returns the encoded size of 'repeated M' protobuf field
 // with given number and values.
-func SizeRepeatedMessages[M Message](num protowire.Number, v []M) int {
+func SizeRepeatedMessages[T any, M interface {
+	*T
+	Message
+}](num protowire.Number, v []M) int {
 	var sz int
+	var zero T
 	for i := range v {
-		sz += SizeEmbedded(num, v[i])
+		if !isMessageNil(v[i]) {
+			sz += SizeEmbedded(num, v[i])
+		} else {
+			sz += SizeEmbedded(num, M(&zero))
+		}
 	}
 	return sz
 }
@@ -347,13 +355,25 @@ func SizeRepeatedMessages[M Message](num protowire.Number, v []M) int {
 // MarshalToRepeatedMessages encodes 'repeated M' protobuf field with given
 // number and values into b and returns the number of bytes written. If the
 // buffer is too small, MarshalToRepeatedMessages will panic.
-func MarshalToRepeatedMessages[M Message](b []byte, num protowire.Number, v []M) int {
+func MarshalToRepeatedMessages[T any, M interface {
+	*T
+	Message
+}](b []byte, num protowire.Number, v []M) int {
 	if len(v) == 0 {
 		return 0
 	}
 	var off int
+	var zero T
 	for i := range v {
-		off += MarshalToEmbedded(b[off:], num, v[i])
+		if !isMessageNil(v[i]) {
+			off += MarshalToEmbedded(b[off:], num, v[i])
+		} else {
+			off += MarshalToEmbedded(b[off:], num, M(&zero))
+		}
 	}
 	return off
+}
+
+func isMessageNil(m Message) bool {
+	return m == nil || reflect.ValueOf(m).IsNil()
 }
