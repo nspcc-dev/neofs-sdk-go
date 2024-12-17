@@ -333,3 +333,27 @@ func MarshalToRepeatedBytes[T Bytes](b []byte, num protowire.Number, v []T) int 
 	}
 	return off
 }
+
+// SizeRepeatedMessages returns the encoded size of 'repeated M' protobuf field
+// with given number and values.
+func SizeRepeatedMessages[M Message](num protowire.Number, v []M) int {
+	var sz int
+	for i := range v {
+		sz += SizeEmbedded(num, v[i])
+	}
+	return sz
+}
+
+// MarshalToRepeatedMessages encodes 'repeated M' protobuf field with given
+// number and values into b and returns the number of bytes written. If the
+// buffer is too small, MarshalToRepeatedMessages will panic.
+func MarshalToRepeatedMessages[M Message](b []byte, num protowire.Number, v []M) int {
+	if len(v) == 0 {
+		return 0
+	}
+	var off int
+	for i := range v {
+		off += MarshalToEmbedded(b[off:], num, v[i])
+	}
+	return off
+}

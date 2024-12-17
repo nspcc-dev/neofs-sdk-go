@@ -43,18 +43,15 @@ const (
 // MarshaledSize returns size of the Container in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Container) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldContainerVersion, x.Version) +
+		return proto.SizeEmbedded(fieldContainerVersion, x.Version) +
 			proto.SizeEmbedded(fieldContainerOwner, x.OwnerId) +
 			proto.SizeBytes(fieldContainerNonce, x.Nonce) +
 			proto.SizeVarint(fieldContainerBasicACL, x.BasicAcl) +
-			proto.SizeEmbedded(fieldContainerPolicy, x.PlacementPolicy)
-		for i := range x.Attributes {
-			sz += proto.SizeEmbedded(fieldContainerAttributes, x.Attributes[i])
-		}
+			proto.SizeEmbedded(fieldContainerPolicy, x.PlacementPolicy) +
+			proto.SizeRepeatedMessages(fieldContainerAttributes, x.Attributes)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Container in Protocol Buffers V3 format with
@@ -66,9 +63,7 @@ func (x *Container) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], fieldContainerOwner, x.OwnerId)
 		off += proto.MarshalToBytes(b[off:], fieldContainerNonce, x.Nonce)
 		off += proto.MarshalToVarint(b[off:], fieldContainerBasicACL, x.BasicAcl)
-		for i := range x.Attributes {
-			off += proto.MarshalToEmbedded(b[off:], fieldContainerAttributes, x.Attributes[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldContainerAttributes, x.Attributes)
 		proto.MarshalToEmbedded(b[off:], fieldContainerPolicy, x.PlacementPolicy)
 	}
 }
@@ -248,13 +243,10 @@ const (
 // MarshaledSize returns size of the ListResponse_Body in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *ListResponse_Body) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		for i := range x.ContainerIds {
-			sz += proto.SizeEmbedded(fieldListRespIDs, x.ContainerIds[i])
-		}
+		return proto.SizeRepeatedMessages(fieldListRespIDs, x.ContainerIds)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the ListResponse_Body in Protocol Buffers V3 format with
@@ -263,10 +255,7 @@ func (x *ListResponse_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *ListResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.ContainerIds {
-			off += proto.MarshalToEmbedded(b[off:], fieldListRespIDs, x.ContainerIds[i])
-		}
+		proto.MarshalToRepeatedMessages(b, fieldListRespIDs, x.ContainerIds)
 	}
 }
 
@@ -404,13 +393,10 @@ const (
 // MarshaledSize returns size of the AnnounceUsedSpaceRequest_Body in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *AnnounceUsedSpaceRequest_Body) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		for i := range x.Announcements {
-			sz += proto.SizeEmbedded(fieldAnnounceReqList, x.Announcements[i])
-		}
+		return proto.SizeRepeatedMessages(fieldAnnounceReqList, x.Announcements)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the AnnounceUsedSpaceRequest_Body in Protocol Buffers V3
@@ -419,10 +405,7 @@ func (x *AnnounceUsedSpaceRequest_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *AnnounceUsedSpaceRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.Announcements {
-			off += proto.MarshalToEmbedded(b[off:], fieldAnnounceReqList, x.Announcements[i])
-		}
+		proto.MarshalToRepeatedMessages(b, fieldAnnounceReqList, x.Announcements)
 	}
 }
 

@@ -116,14 +116,11 @@ const (
 // MarshaledSize returns size of the AnnounceLocalTrustRequest_Body in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *AnnounceLocalTrustRequest_Body) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldAnnounceLocalReqEpoch, x.Epoch)
-		for i := range x.Trusts {
-			sz += proto.SizeEmbedded(fieldAnnounceLocalReqTrusts, x.Trusts[i])
-		}
+		return proto.SizeVarint(fieldAnnounceLocalReqEpoch, x.Epoch) +
+			proto.SizeRepeatedMessages(fieldAnnounceLocalReqTrusts, x.Trusts)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the AnnounceLocalTrustRequest_Body in Protocol Buffers
@@ -133,9 +130,7 @@ func (x *AnnounceLocalTrustRequest_Body) MarshaledSize() int {
 func (x *AnnounceLocalTrustRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldAnnounceLocalReqEpoch, x.Epoch)
-		for i := range x.Trusts {
-			off += proto.MarshalToEmbedded(b[off:], fieldAnnounceLocalReqTrusts, x.Trusts[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldAnnounceLocalReqTrusts, x.Trusts)
 	}
 }
 
