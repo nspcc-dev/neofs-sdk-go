@@ -10,13 +10,10 @@ const (
 // MarshaledSize returns size of the Lock in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Lock) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		for i := range x.Members {
-			sz += proto.SizeEmbedded(fieldLockMembers, x.Members[i])
-		}
+		return proto.SizeRepeatedMessages(fieldLockMembers, x.Members)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Lock in Protocol Buffers V3 format with ascending
@@ -24,9 +21,6 @@ func (x *Lock) MarshaledSize() int {
 // [Lock.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Lock) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.Members {
-			off += proto.MarshalToEmbedded(b[off:], fieldLockMembers, x.Members[i])
-		}
+		proto.MarshalToRepeatedMessages(b, fieldLockMembers, x.Members)
 	}
 }

@@ -5,18 +5,18 @@ import (
 	"fmt"
 	"strconv"
 
-	objectV2 "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	objectSDK "github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protostoragegroup "github.com/nspcc-dev/neofs-sdk-go/proto/storagegroup"
 )
 
 // StorageGroup represents storage group of the NeoFS objects.
 //
-// StorageGroup is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/storagegroup.StorageGroup
-// message. See ReadFromMessageV2 / WriteToMessageV2 methods.
+// StorageGroup is mutually compatible with [protostoragegroup.StorageGroup]
+// message. See [StorageGroup.FromProtoMessage] / [StorageGroup.ProtoMessage] methods.
 //
 // Instances should be created using one of the constructors.
 type StorageGroup struct {
@@ -52,12 +52,11 @@ func UnmarshalJSON(b []byte) (StorageGroup, error) {
 
 // reads StorageGroup from the storagegroup.StorageGroup message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
-func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresence bool) error {
+func (sg *StorageGroup) fromProtoMessage(m *protostoragegroup.StorageGroup, checkFieldPresence bool) error {
 	var err error
 
-	h := m.GetValidationHash()
-	if sg.csSet = h != nil; sg.csSet {
-		err = sg.cs.ReadFromV2(*h)
+	if sg.csSet = m.ValidationHash != nil; sg.csSet {
+		err = sg.cs.FromProtoMessage(m.ValidationHash)
 		if err != nil {
 			return fmt.Errorf("invalid hash: %w", err)
 		}
@@ -65,11 +64,13 @@ func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresen
 		return errors.New("missing hash")
 	}
 
-	members := m.GetMembers()
-	if len(members) > 0 {
-		sg.members = make([]oid.ID, len(members))
-		for i := range members {
-			err = sg.members[i].ReadFromV2(members[i])
+	if len(m.Members) > 0 {
+		sg.members = make([]oid.ID, len(m.Members))
+		for i := range m.Members {
+			if m.Members[i] == nil {
+				return fmt.Errorf("nil member #%d", i)
+			}
+			err = sg.members[i].FromProtoMessage(m.Members[i])
 			if err != nil {
 				return fmt.Errorf("invalid member #%d: %w", i, err)
 			}
@@ -84,42 +85,40 @@ func (sg *StorageGroup) readFromV2(m storagegroup.StorageGroup, checkFieldPresen
 		return errors.New("missing members")
 	}
 
-	sg.sz = m.GetValidationDataSize()
+	sg.sz = m.ValidationDataSize
 	//nolint:staticcheck
-	sg.exp = m.GetExpirationEpoch()
+	sg.exp = m.ExpirationEpoch
 
 	return nil
 }
 
-// ReadFromV2 reads StorageGroup from the storagegroup.StorageGroup message.
-// Checks if the message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// sg from it.
 //
-// See also WriteToV2.
-func (sg *StorageGroup) ReadFromV2(m storagegroup.StorageGroup) error {
-	return sg.readFromV2(m, true)
+// See also [StorageGroup.ProtoMessage].
+func (sg *StorageGroup) FromProtoMessage(m *protostoragegroup.StorageGroup) error {
+	return sg.fromProtoMessage(m, true)
 }
 
-// WriteToV2 writes StorageGroup to the storagegroup.StorageGroup message.
-// The message must not be nil.
+// ProtoMessage converts sg into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (sg StorageGroup) WriteToV2(m *storagegroup.StorageGroup) {
-	if sg.csSet {
-		var cs refs.Checksum
-		sg.cs.WriteToV2(&cs)
-		m.SetValidationHash(&cs)
+// See also [StorageGroup.FromProtoMessage].
+func (sg StorageGroup) ProtoMessage() *protostoragegroup.StorageGroup {
+	m := &protostoragegroup.StorageGroup{
+		ValidationDataSize: sg.sz,
+		ExpirationEpoch:    sg.exp,
 	}
-	var members []refs.ObjectID
+	if sg.csSet {
+		m.ValidationHash = sg.cs.ProtoMessage()
+	}
 	if len(sg.members) > 0 {
-		members = make([]refs.ObjectID, len(sg.members))
+		m.Members = make([]*refs.ObjectID, len(sg.members))
 		for i := range sg.members {
-			sg.members[i].WriteToV2(&members[i])
+			m.Members[i] = sg.members[i].ProtoMessage()
 		}
 	}
-	m.SetMembers(members)
-	m.SetValidationDataSize(sg.sz)
-	//nolint:staticcheck
-	m.SetExpirationEpoch(sg.exp)
+	return m
 }
 
 // ValidationDataSize returns total size of the payloads
@@ -204,42 +203,28 @@ func (sg *StorageGroup) SetMembers(members []oid.ID) {
 //
 // See also Unmarshal.
 func (sg StorageGroup) Marshal() []byte {
-	var m storagegroup.StorageGroup
-	sg.WriteToV2(&m)
-	return m.StableMarshal(nil)
+	return neofsproto.Marshal(sg)
 }
 
 // Unmarshal unmarshals protobuf binary representation of StorageGroup.
 //
 // See also Marshal.
 func (sg *StorageGroup) Unmarshal(data []byte) error {
-	var m storagegroup.StorageGroup
-	if err := m.Unmarshal(data); err != nil {
-		return err
-	}
-
-	return sg.readFromV2(m, false)
+	return neofsproto.UnmarshalOptional(data, sg, (*StorageGroup).fromProtoMessage)
 }
 
 // MarshalJSON encodes StorageGroup to protobuf JSON format.
 //
 // See also UnmarshalJSON.
 func (sg StorageGroup) MarshalJSON() ([]byte, error) {
-	var m storagegroup.StorageGroup
-	sg.WriteToV2(&m)
-	return m.MarshalJSON()
+	return neofsproto.MarshalJSON(sg)
 }
 
 // UnmarshalJSON decodes StorageGroup from protobuf JSON format.
 //
 // See also MarshalJSON.
 func (sg *StorageGroup) UnmarshalJSON(data []byte) error {
-	var m storagegroup.StorageGroup
-	if err := m.UnmarshalJSON(data); err != nil {
-		return err
-	}
-
-	return sg.readFromV2(m, false)
+	return neofsproto.UnmarshalJSONOptional(data, sg, (*StorageGroup).fromProtoMessage)
 }
 
 // ReadFromObject assemble StorageGroup from a regular
@@ -261,7 +246,7 @@ func ReadFromObject(sg *StorageGroup, o objectSDK.Object) error {
 	var expObj uint64
 
 	for _, attr := range o.Attributes() {
-		if attr.Key() == objectV2.SysAttributeExpEpoch {
+		if attr.Key() == objectSDK.AttributeExpirationEpoch {
 			expObj, err = strconv.ParseUint(attr.Value(), 10, 64)
 			if err != nil {
 				return fmt.Errorf("could not get expiration from object: %w", err)
@@ -299,7 +284,7 @@ func WriteToObject(sg StorageGroup, o *objectSDK.Object) {
 	var expAttrFound bool
 
 	for i := range attrs {
-		if attrs[i].Key() == objectV2.SysAttributeExpEpoch {
+		if attrs[i].Key() == objectSDK.AttributeExpirationEpoch {
 			expAttrFound = true
 			attrs[i].SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
 
@@ -310,7 +295,7 @@ func WriteToObject(sg StorageGroup, o *objectSDK.Object) {
 	if !expAttrFound {
 		var attr objectSDK.Attribute
 
-		attr.SetKey(objectV2.SysAttributeExpEpoch)
+		attr.SetKey(objectSDK.AttributeExpirationEpoch)
 		attr.SetValue(strconv.FormatUint(sg.ExpirationEpoch(), 10))
 
 		attrs = append(attrs, attr)

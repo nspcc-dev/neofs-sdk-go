@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	netmapv2 "github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
@@ -62,18 +61,12 @@ func ExampleClient_ContainerPut() {
 
 	// init placement policy
 	var containerID cid.ID
-	var placementPolicyV2 netmapv2.PlacementPolicy
-	var replicas []netmapv2.Replica
 
-	replica := netmapv2.Replica{}
-	replica.SetCount(1)
-	replicas = append(replicas, replica)
-	placementPolicyV2.SetReplicas(replicas)
+	replica := netmap.ReplicaDescriptor{}
+	replica.SetNumberOfObjects(1)
 
 	var placementPolicy netmap.PlacementPolicy
-	if err = placementPolicy.ReadFromV2(placementPolicyV2); err != nil {
-		panic(fmt.Errorf("ReadFromV2 %w", err))
-	}
+	placementPolicy.SetReplicas([]netmap.ReplicaDescriptor{replica})
 
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)

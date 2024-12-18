@@ -1,10 +1,14 @@
 package reputation_test
 
 import (
+	"math/rand"
 	"testing"
 
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
+	"github.com/stretchr/testify/require"
 )
 
 // returns random reputation.PeerID with all non-zero fields.
@@ -59,7 +63,34 @@ func TestGlobalTrust_Body_MarshalStable(t *testing.T) {
 	})
 }
 
+func TestGlobalTrust_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*reputation.GlobalTrust{
+		{
+			Version: &refs.Version{Major: rand.Uint32(), Minor: rand.Uint32()},
+			Body: &reputation.GlobalTrust_Body{
+				Manager: randPeerID(),
+				Trust:   randTrust(),
+			},
+			Signature: &refs.Signature{Key: []byte("any_pub"), Sign: []byte("any_sig"), Scheme: refs.SignatureScheme(rand.Int31())},
+		},
+	})
+}
+
 func TestAnnounceLocalTrustRequest_Body_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &reputation.AnnounceLocalTrustRequest_Body{
+			Trusts: []*reputation.Trust{nil, {}},
+		}
+
+		var dst reputation.AnnounceLocalTrustRequest_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		ts := dst.GetTrusts()
+		require.Len(t, ts, 2)
+		require.Equal(t, ts[0], new(reputation.Trust))
+		require.Equal(t, ts[1], new(reputation.Trust))
+	})
+
 	prototest.TestMarshalStable(t, []*reputation.AnnounceLocalTrustRequest_Body{
 		{
 			Epoch:  prototest.RandUint64(),

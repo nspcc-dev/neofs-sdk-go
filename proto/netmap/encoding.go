@@ -79,17 +79,14 @@ const (
 // MarshaledSize returns size of the Filter in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Filter) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldFilterName, x.Name) +
+		return proto.SizeBytes(fieldFilterName, x.Name) +
 			proto.SizeBytes(fieldFilterKey, x.Key) +
 			proto.SizeVarint(fieldFilterOp, int32(x.Op)) +
-			proto.SizeBytes(fieldFilterVal, x.Value)
-		for i := range x.Filters {
-			sz += proto.SizeEmbedded(fieldFilterSubs, x.Filters[i])
-		}
+			proto.SizeBytes(fieldFilterVal, x.Value) +
+			proto.SizeRepeatedMessages(fieldFilterSubs, x.Filters)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Filter in Protocol Buffers V3 format with ascending
@@ -101,9 +98,7 @@ func (x *Filter) MarshalStable(b []byte) {
 		off += proto.MarshalToBytes(b[off:], fieldFilterKey, x.Key)
 		off += proto.MarshalToVarint(b[off:], fieldFilterOp, int32(x.Op))
 		off += proto.MarshalToBytes(b[off:], fieldFilterVal, x.Value)
-		for i := range x.Filters {
-			off += proto.MarshalToEmbedded(b[off:], fieldFilterSubs, x.Filters[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldFilterSubs, x.Filters)
 	}
 }
 
@@ -119,21 +114,14 @@ const (
 // MarshaledSize returns size of the PlacementPolicy in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *PlacementPolicy) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldPolicyBackupFactor, x.ContainerBackupFactor) +
-			proto.SizeEmbedded(fieldPolicySubnet, x.SubnetId)
-		for i := range x.Replicas {
-			sz += proto.SizeEmbedded(fieldPolicyReplicas, x.Replicas[i])
-		}
-		for i := range x.Selectors {
-			sz += proto.SizeEmbedded(fieldPolicySelectors, x.Selectors[i])
-		}
-		for i := range x.Filters {
-			sz += proto.SizeEmbedded(fieldPolicyFilters, x.Filters[i])
-		}
+		return proto.SizeVarint(fieldPolicyBackupFactor, x.ContainerBackupFactor) +
+			proto.SizeEmbedded(fieldPolicySubnet, x.SubnetId) +
+			proto.SizeRepeatedMessages(fieldPolicyReplicas, x.Replicas) +
+			proto.SizeRepeatedMessages(fieldPolicySelectors, x.Selectors) +
+			proto.SizeRepeatedMessages(fieldPolicyFilters, x.Filters)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the PlacementPolicy in Protocol Buffers V3 format with
@@ -141,17 +129,10 @@ func (x *PlacementPolicy) MarshaledSize() int {
 // [PlacementPolicy.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *PlacementPolicy) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.Replicas {
-			off += proto.MarshalToEmbedded(b[off:], fieldPolicyReplicas, x.Replicas[i])
-		}
+		off := proto.MarshalToRepeatedMessages(b, fieldPolicyReplicas, x.Replicas)
 		off += proto.MarshalToVarint(b[off:], fieldPolicyBackupFactor, x.ContainerBackupFactor)
-		for i := range x.Selectors {
-			off += proto.MarshalToEmbedded(b[off:], fieldPolicySelectors, x.Selectors[i])
-		}
-		for i := range x.Filters {
-			off += proto.MarshalToEmbedded(b[off:], fieldPolicyFilters, x.Filters[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldPolicySelectors, x.Selectors)
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldPolicyFilters, x.Filters)
 		proto.MarshalToEmbedded(b[off:], fieldPolicySubnet, x.SubnetId)
 	}
 }
@@ -192,13 +173,10 @@ const (
 // MarshaledSize returns size of the NetworkConfig in Protocol Buffers V3 format
 // in bytes. MarshaledSize is NPE-safe.
 func (x *NetworkConfig) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		for i := range x.Parameters {
-			sz += proto.SizeEmbedded(fieldNetConfigPrms, x.Parameters[i])
-		}
+		return proto.SizeRepeatedMessages(fieldNetConfigPrms, x.Parameters)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the NetworkConfig in Protocol Buffers V3 format with
@@ -206,10 +184,7 @@ func (x *NetworkConfig) MarshaledSize() int {
 // [NetworkConfig.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *NetworkConfig) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.Parameters {
-			off += proto.MarshalToEmbedded(b[off:], fieldNetConfigPrms, x.Parameters[i])
-		}
+		proto.MarshalToRepeatedMessages(b, fieldNetConfigPrms, x.Parameters)
 	}
 }
 
@@ -288,16 +263,13 @@ const (
 // MarshaledSize returns size of the NodeInfo in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *NodeInfo) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldNodeInfoPubKey, x.PublicKey) +
+		return proto.SizeBytes(fieldNodeInfoPubKey, x.PublicKey) +
 			proto.SizeRepeatedBytes(fieldNodeInfoAddresses, x.Addresses) +
-			proto.SizeVarint(fieldNodeInfoState, int32(x.State))
-		for i := range x.Attributes {
-			sz += proto.SizeEmbedded(fieldNodeInfoAttributes, x.Attributes[i])
-		}
+			proto.SizeVarint(fieldNodeInfoState, int32(x.State)) +
+			proto.SizeRepeatedMessages(fieldNodeInfoAttributes, x.Attributes)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the NodeInfo in Protocol Buffers V3 format with
@@ -307,9 +279,7 @@ func (x *NodeInfo) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToBytes(b, fieldNodeInfoPubKey, x.PublicKey)
 		off += proto.MarshalToRepeatedBytes(b[off:], fieldNodeInfoAddresses, x.Addresses)
-		for i := range x.Attributes {
-			off += proto.MarshalToEmbedded(b[off:], fieldNodeInfoAttributes, x.Attributes[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldNodeInfoAttributes, x.Attributes)
 		proto.MarshalToVarint(b[off:], fieldNodeInfoState, int32(x.State))
 	}
 }
@@ -323,14 +293,11 @@ const (
 // MarshaledSize returns size of the Netmap in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Netmap) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldNetmapEpoch, x.Epoch)
-		for i := range x.Nodes {
-			sz += proto.SizeEmbedded(fieldNetmapNodes, x.Nodes[i])
-		}
+		return proto.SizeVarint(fieldNetmapEpoch, x.Epoch) +
+			proto.SizeRepeatedMessages(fieldNetmapNodes, x.Nodes)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Netmap in Protocol Buffers V3 format with ascending
@@ -339,9 +306,7 @@ func (x *Netmap) MarshaledSize() int {
 func (x *Netmap) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldNetmapEpoch, x.Epoch)
-		for i := range x.Nodes {
-			off += proto.MarshalToEmbedded(b[off:], fieldNetmapNodes, x.Nodes[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldNetmapNodes, x.Nodes)
 	}
 }
 

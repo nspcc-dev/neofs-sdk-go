@@ -23,28 +23,23 @@ const (
 // MarshaledSize returns size of the DataAuditResult in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *DataAuditResult) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldResultVersion, x.Version)
-		sz += proto.SizeFixed64(fieldResultEpoch, x.AuditEpoch)
-		sz += proto.SizeEmbedded(fieldResultContainer, x.ContainerId)
-		sz += proto.SizeBytes(fieldResultPubKey, x.PublicKey)
-		sz += proto.SizeBool(fieldResultCompleted, x.Complete)
-		sz += proto.SizeVarint(fieldResultRequests, x.Requests)
-		sz += proto.SizeVarint(fieldResultRetries, x.Retries)
-		sz += proto.SizeVarint(fieldResultHits, x.Hit)
-		sz += proto.SizeVarint(fieldResultMisses, x.Miss)
-		sz += proto.SizeVarint(fieldResultFailures, x.Fail)
-		sz += proto.SizeRepeatedBytes(fieldResultPassedNodes, x.PassNodes)
-		sz += proto.SizeRepeatedBytes(fieldResultFailedNodes, x.FailNodes)
-		for i := range x.PassSg {
-			sz += proto.SizeEmbedded(fieldResultPassedSG, x.PassSg[i])
-		}
-		for i := range x.FailSg {
-			sz += proto.SizeEmbedded(fieldResultFailedSG, x.FailSg[i])
-		}
+		return proto.SizeEmbedded(fieldResultVersion, x.Version) +
+			proto.SizeFixed64(fieldResultEpoch, x.AuditEpoch) +
+			proto.SizeEmbedded(fieldResultContainer, x.ContainerId) +
+			proto.SizeBytes(fieldResultPubKey, x.PublicKey) +
+			proto.SizeBool(fieldResultCompleted, x.Complete) +
+			proto.SizeVarint(fieldResultRequests, x.Requests) +
+			proto.SizeVarint(fieldResultRetries, x.Retries) +
+			proto.SizeVarint(fieldResultHits, x.Hit) +
+			proto.SizeVarint(fieldResultMisses, x.Miss) +
+			proto.SizeVarint(fieldResultFailures, x.Fail) +
+			proto.SizeRepeatedBytes(fieldResultPassedNodes, x.PassNodes) +
+			proto.SizeRepeatedBytes(fieldResultFailedNodes, x.FailNodes) +
+			proto.SizeRepeatedMessages(fieldResultPassedSG, x.PassSg) +
+			proto.SizeRepeatedMessages(fieldResultFailedSG, x.FailSg)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the DataAuditResult in Protocol Buffers V3 format with
@@ -59,12 +54,8 @@ func (x *DataAuditResult) MarshalStable(b []byte) {
 		off += proto.MarshalToBool(b[off:], fieldResultCompleted, x.Complete)
 		off += proto.MarshalToVarint(b[off:], fieldResultRequests, x.Requests)
 		off += proto.MarshalToVarint(b[off:], fieldResultRetries, x.Retries)
-		for i := range x.PassSg {
-			off += proto.MarshalToEmbedded(b[off:], fieldResultPassedSG, x.PassSg[i])
-		}
-		for i := range x.FailSg {
-			off += proto.MarshalToEmbedded(b[off:], fieldResultFailedSG, x.FailSg[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldResultPassedSG, x.PassSg)
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldResultFailedSG, x.FailSg)
 		off += proto.MarshalToVarint(b[off:], fieldResultHits, x.Hit)
 		off += proto.MarshalToVarint(b[off:], fieldResultMisses, x.Miss)
 		off += proto.MarshalToVarint(b[off:], fieldResultFailures, x.Fail)

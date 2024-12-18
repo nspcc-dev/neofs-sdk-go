@@ -3,14 +3,14 @@ package session
 import (
 	"errors"
 	"fmt"
-	"math"
 	"slices"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -20,8 +20,8 @@ import (
 // limited validity period, and applies to a strictly defined set of operations.
 // See methods for details.
 //
-// Object is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/session.Token
-// message. See ReadFromV2 / WriteToV2 methods.
+// Object is mutually compatible with [protosession.SessionToken] message. See
+// [Object.FromProtoMessage] / [Object.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type Object struct {
@@ -43,17 +43,18 @@ func (x Object) CopyTo(dst *Object) {
 	dst.objs = slices.Clone(x.objs)
 }
 
-func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) error {
-	cObj, ok := c.(*session.ObjectSessionContext)
-	if !ok || cObj == nil {
+func (x *Object) readContext(c any, checkFieldPresence bool) error {
+	cc, ok := c.(*protosession.SessionToken_Body_Object)
+	if !ok || cc == nil {
 		return fmt.Errorf("invalid context %T", c)
 	}
+	cObj := cc.Object
 
 	var err error
 
-	cnr := cObj.GetContainer()
+	cnr := cObj.Target.GetContainer()
 	if cnr != nil {
-		err := x.cnr.ReadFromV2(*cnr)
+		err := x.cnr.FromProtoMessage(cnr)
 		if err != nil {
 			return fmt.Errorf("invalid container ID: %w", err)
 		}
@@ -63,12 +64,15 @@ func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) er
 		x.cnr = cid.ID{}
 	}
 
-	objs := cObj.GetObjects()
+	objs := cObj.Target.GetObjects()
 	if objs != nil {
 		x.objs = make([]oid.ID, len(objs))
 
 		for i := range objs {
-			err = x.objs[i].ReadFromV2(objs[i])
+			if objs[i] == nil {
+				return fmt.Errorf("nil target object #%d", i)
+			}
+			err = x.objs[i].FromProtoMessage(objs[i])
 			if err != nil {
 				return fmt.Errorf("invalid target object: %w", err)
 			}
@@ -78,60 +82,56 @@ func (x *Object) readContext(c session.TokenContext, checkFieldPresence bool) er
 	}
 
 	verb := cObj.GetVerb()
-	if verb > math.MaxInt32 {
-		return fmt.Errorf("verb %d overflows int32", verb)
+	if verb < 0 {
+		return fmt.Errorf("negative verb %d", verb)
 	}
 	x.verb = ObjectVerb(verb)
 
 	return nil
 }
 
-func (x *Object) readFromV2(m session.Token, checkFieldPresence bool) error {
-	return x.commonData.readFromV2(m, checkFieldPresence, x.readContext)
+func (x *Object) fromProtoMessage(m *protosession.SessionToken, checkFieldPresence bool) error {
+	return x.commonData.fromProtoMessage(m, checkFieldPresence, x.readContext)
 }
 
-// ReadFromV2 reads Object from the session.Token message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *Object) ReadFromV2(m session.Token) error {
-	return x.readFromV2(m, true)
+// See also [Object.ProtoMessage].
+func (x *Object) FromProtoMessage(m *protosession.SessionToken) error {
+	return x.fromProtoMessage(m, true)
 }
 
-func (x Object) writeContext() session.TokenContext {
-	var c session.ObjectSessionContext
-	c.SetVerb(session.ObjectSessionVerb(x.verb))
-
-	if !x.cnr.IsZero() || len(x.objs) > 0 {
-		var cnr *refs.ContainerID
-
-		if !x.cnr.IsZero() {
-			cnr = new(refs.ContainerID)
-			x.cnr.WriteToV2(cnr)
-		}
-
-		var objs []refs.ObjectID
-
-		if x.objs != nil {
-			objs = make([]refs.ObjectID, len(x.objs))
-
-			for i := range x.objs {
-				x.objs[i].WriteToV2(&objs[i])
-			}
-		}
-
-		c.SetTarget(cnr, objs...)
+func (x Object) writeContext(m *protosession.SessionToken_Body) {
+	c := &protosession.ObjectSessionContext{
+		Verb: protosession.ObjectSessionContext_Verb(x.verb),
 	}
 
-	return &c
+	if !x.cnr.IsZero() || len(x.objs) > 0 {
+		c.Target = new(protosession.ObjectSessionContext_Target)
+
+		if !x.cnr.IsZero() {
+			c.Target.Container = x.cnr.ProtoMessage()
+		}
+
+		if x.objs != nil {
+			c.Target.Objects = make([]*refs.ObjectID, len(x.objs))
+
+			for i := range x.objs {
+				c.Target.Objects[i] = x.objs[i].ProtoMessage()
+			}
+		}
+	}
+
+	m.Context = &protosession.SessionToken_Body_Object{Object: c}
 }
 
-// WriteToV2 writes Object to the session.Token message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x Object) WriteToV2(m *session.Token) {
-	x.writeToV2(m, x.writeContext)
+// See also [Object.FromProtoMessage].
+func (x Object) ProtoMessage() *protosession.SessionToken {
+	return x.protoMessage(x.writeContext)
 }
 
 // Marshal encodes Object into a binary format of the NeoFS API protocol
@@ -139,9 +139,6 @@ func (x Object) WriteToV2(m *session.Token) {
 //
 // See also Unmarshal.
 func (x Object) Marshal() []byte {
-	var m session.Token
-	x.WriteToV2(&m)
-
 	return x.marshal(x.writeContext)
 }
 
@@ -202,15 +199,13 @@ func (x *Object) SignedData() []byte {
 
 // UnmarshalSignedData is a reverse op to [Object.SignedData].
 func (x *Object) UnmarshalSignedData(data []byte) error {
-	var body session.TokenBody
-	err := body.Unmarshal(data)
+	var body protosession.SessionToken_Body
+	err := neofsproto.UnmarshalMessage(data, &body)
 	if err != nil {
 		return fmt.Errorf("decode body: %w", err)
 	}
 
-	var tok session.Token
-	tok.SetBody(&body)
-	return x.readFromV2(tok, false)
+	return x.fromProtoMessage(&protosession.SessionToken{Body: &body}, false)
 }
 
 // VerifySignature checks if Object signature is presented and valid.

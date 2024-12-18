@@ -13,16 +13,13 @@ const (
 // MarshaledSize returns size of the StorageGroup in Protocol Buffers V3 format
 // in bytes. MarshaledSize is NPE-safe.
 func (x *StorageGroup) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldStorageGroupSize, x.ValidationDataSize)
-		sz += proto.SizeEmbedded(fieldStorageGroupHash, x.ValidationHash)
-		sz += proto.SizeVarint(fieldStorageGroupExp, x.ExpirationEpoch)
-		for i := range x.Members {
-			sz += proto.SizeEmbedded(fieldStorageGroupMembers, x.Members[i])
-		}
+		return proto.SizeVarint(fieldStorageGroupSize, x.ValidationDataSize) +
+			proto.SizeEmbedded(fieldStorageGroupHash, x.ValidationHash) +
+			proto.SizeVarint(fieldStorageGroupExp, x.ExpirationEpoch) +
+			proto.SizeRepeatedMessages(fieldStorageGroupMembers, x.Members)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the StorageGroup in Protocol Buffers V3 format with
@@ -33,8 +30,6 @@ func (x *StorageGroup) MarshalStable(b []byte) {
 		off := proto.MarshalToVarint(b, fieldStorageGroupSize, x.ValidationDataSize)
 		off += proto.MarshalToEmbedded(b[off:], fieldStorageGroupHash, x.ValidationHash)
 		off += proto.MarshalToVarint(b[off:], fieldStorageGroupExp, x.ExpirationEpoch)
-		for i := range x.Members {
-			off += proto.MarshalToEmbedded(b[off:], fieldStorageGroupMembers, x.Members[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldStorageGroupMembers, x.Members)
 	}
 }

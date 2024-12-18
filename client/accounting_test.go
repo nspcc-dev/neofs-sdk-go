@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	v2accounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
-	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -35,17 +34,9 @@ type testGetBalanceServer struct {
 	protoaccounting.UnimplementedAccountingServiceServer
 	testCommonUnaryServerSettings[
 		*protoaccounting.BalanceRequest_Body,
-		v2accounting.BalanceRequestBody,
-		*v2accounting.BalanceRequestBody,
 		*protoaccounting.BalanceRequest,
-		v2accounting.BalanceRequest,
-		*v2accounting.BalanceRequest,
 		*protoaccounting.BalanceResponse_Body,
-		v2accounting.BalanceResponseBody,
-		*v2accounting.BalanceResponseBody,
 		*protoaccounting.BalanceResponse,
-		v2accounting.BalanceResponse,
-		*v2accounting.BalanceResponse,
 	]
 	reqAcc *user.ID
 }

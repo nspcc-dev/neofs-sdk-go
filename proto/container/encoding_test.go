@@ -3,8 +3,11 @@ package container_test
 import (
 	"testing"
 
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/container"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	"github.com/stretchr/testify/require"
 )
 
 // returns random container.Container_Attribute with all non-zero fields.
@@ -54,6 +57,20 @@ func TestContainer_Attribute_MarshalStable(t *testing.T) {
 }
 
 func TestContainer_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &container.Container{
+			Attributes: []*container.Container_Attribute{nil, {}},
+		}
+
+		var dst container.Container
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		as := dst.GetAttributes()
+		require.Len(t, as, 2)
+		require.Equal(t, as[0], new(container.Container_Attribute))
+		require.Equal(t, as[1], new(container.Container_Attribute))
+	})
+
 	prototest.TestMarshalStable(t, []*container.Container{
 		randContainer(),
 	})
@@ -104,6 +121,20 @@ func TestListRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestListResponse_Body_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &container.ListResponse_Body{
+			ContainerIds: []*refs.ContainerID{nil, {}},
+		}
+
+		var dst container.ListResponse_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		cs := dst.GetContainerIds()
+		require.Len(t, cs, 2)
+		require.Equal(t, cs[0], new(refs.ContainerID))
+		require.Equal(t, cs[1], new(refs.ContainerID))
+	})
+
 	prototest.TestMarshalStable(t, []*container.ListResponse_Body{
 		{ContainerIds: prototest.RandContainerIDs()},
 	})
@@ -145,6 +176,20 @@ func TestAnnounceUsedSpaceRequest_Body_Announcement_MarshalStable(t *testing.T) 
 }
 
 func TestAnnounceUsedSpaceRequest_Body_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &container.AnnounceUsedSpaceRequest_Body{
+			Announcements: []*container.AnnounceUsedSpaceRequest_Body_Announcement{nil, {}},
+		}
+
+		var dst container.AnnounceUsedSpaceRequest_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		as := dst.GetAnnouncements()
+		require.Len(t, as, 2)
+		require.Equal(t, as[0], new(container.AnnounceUsedSpaceRequest_Body_Announcement))
+		require.Equal(t, as[1], new(container.AnnounceUsedSpaceRequest_Body_Announcement))
+	})
+
 	prototest.TestMarshalStable(t, []*container.AnnounceUsedSpaceRequest_Body{
 		{Announcements: randAnnouncements()},
 	})

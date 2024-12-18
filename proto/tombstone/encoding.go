@@ -12,15 +12,12 @@ const (
 // MarshaledSize returns size of the Tombstone in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Tombstone) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldTombstoneExp, x.ExpirationEpoch)
-		sz += proto.SizeBytes(fieldTombstoneSplitID, x.SplitId)
-		for i := range x.Members {
-			sz += proto.SizeEmbedded(fieldTombstoneMembers, x.Members[i])
-		}
+		return proto.SizeVarint(fieldTombstoneExp, x.ExpirationEpoch) +
+			proto.SizeBytes(fieldTombstoneSplitID, x.SplitId) +
+			proto.SizeRepeatedMessages(fieldTombstoneMembers, x.Members)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Tombstone in Protocol Buffers V3 format with
@@ -30,8 +27,6 @@ func (x *Tombstone) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldTombstoneExp, x.ExpirationEpoch)
 		off += proto.MarshalToBytes(b[off:], fieldTombstoneSplitID, x.SplitId)
-		for i := range x.Members {
-			off += proto.MarshalToEmbedded(b[off:], fieldTombstoneMembers, x.Members[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldTombstoneMembers, x.Members)
 	}
 }

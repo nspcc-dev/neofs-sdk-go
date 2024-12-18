@@ -5,8 +5,8 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -32,8 +32,8 @@ func Test_commonData_copyTo(t *testing.T) {
 		var dst commonData
 		data.copyTo(&dst)
 
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
+		emptyWriter := func(body *protosession.SessionToken_Body) {
+			body.Context = &protosession.SessionToken_Body_Container{}
 		}
 
 		require.Equal(t, data, dst)
@@ -68,8 +68,8 @@ func Test_commonData_copyTo(t *testing.T) {
 		// overwrite ID data
 		local.copyTo(&dst)
 
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
+		emptyWriter := func(body *protosession.SessionToken_Body) {
+			body.Context = &protosession.SessionToken_Body_Container{}
 		}
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
@@ -107,8 +107,8 @@ func Test_commonData_copyTo(t *testing.T) {
 		require.Zero(t, local.issuer)
 		require.Zero(t, dst.issuer)
 
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
+		emptyWriter := func(body *protosession.SessionToken_Body) {
+			body.Context = &protosession.SessionToken_Body_Container{}
 		}
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
@@ -150,8 +150,8 @@ func Test_commonData_copyTo(t *testing.T) {
 
 		local.copyTo(&dst)
 
-		emptyWriter := func() session.TokenContext {
-			return &session.ContainerSessionContext{}
+		emptyWriter := func(body *protosession.SessionToken_Body) {
+			body.Context = &protosession.SessionToken_Body_Container{}
 		}
 		require.True(t, bytes.Equal(local.marshal(emptyWriter), dst.marshal(emptyWriter)))
 
@@ -175,10 +175,7 @@ func Test_commonData_copyTo(t *testing.T) {
 		var dst commonData
 		data.copyTo(&dst)
 
-		require.Equal(t, data.sigSet, dst.sigSet)
-		require.Equal(t, data.sig.Scheme(), dst.sig.Scheme())
-		require.True(t, bytes.Equal(data.sig.PublicKeyBytes(), dst.sig.PublicKeyBytes()))
-		require.True(t, bytes.Equal(data.sig.Value(), dst.sig.Value()))
+		require.Equal(t, data.sig, dst.sig)
 
 		dst.sig.SetPublicKeyBytes([]byte{1, 2, 3})
 		dst.sig.SetScheme(100)

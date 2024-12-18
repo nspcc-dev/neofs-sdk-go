@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -31,11 +31,10 @@ func TestID_WalletBytes(t *testing.T) {
 	require.Equal(t, id[:], id.WalletBytes())
 }
 
-func TestID_ReadFromV2(t *testing.T) {
-	var m refs.OwnerID
-	m.SetValue(validBytes[:])
+func TestID_FromProtoMessage(t *testing.T) {
+	m := &refs.OwnerID{Value: validBytes[:]}
 	var id user.ID
-	require.NoError(t, id.ReadFromV2(m))
+	require.NoError(t, id.FromProtoMessage(m))
 	require.EqualValues(t, validBytes, id)
 
 	t.Run("invalid", func(t *testing.T) {
@@ -51,18 +50,16 @@ func TestID_ReadFromV2(t *testing.T) {
 			{name: "zero value", err: "invalid prefix byte 0x0, expected 0x35", val: make([]byte, user.IDSize)},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				var m refs.OwnerID
-				m.SetValue(tc.val)
-				require.EqualError(t, new(user.ID).ReadFromV2(m), tc.err)
+				m := &refs.OwnerID{Value: tc.val}
+				require.EqualError(t, new(user.ID).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestID_WriteToV2(t *testing.T) {
+func TestID_ProtoMessage(t *testing.T) {
 	id := usertest.ID()
-	var m refs.OwnerID
-	id.WriteToV2(&m)
+	m := id.ProtoMessage()
 	require.Equal(t, id[:], m.GetValue())
 }
 

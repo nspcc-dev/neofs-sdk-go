@@ -2,12 +2,16 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"time"
 
-	v2reputation "github.com/nspcc-dev/neofs-api-go/v2/reputation"
-	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmAnnounceLocalTrust groups optional parameters of AnnounceLocalTrust operation.
@@ -47,51 +51,54 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 		return err
 	}
 
-	// form request body
-	reqBody := new(v2reputation.AnnounceLocalTrustRequestBody)
-	reqBody.SetEpoch(epoch)
-
-	trustList := make([]v2reputation.Trust, len(trusts))
-
+	req := &protoreputation.AnnounceLocalTrustRequest{
+		Body: &protoreputation.AnnounceLocalTrustRequest_Body{
+			Epoch:  epoch,
+			Trusts: make([]*protoreputation.Trust, len(trusts)),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
 	for i := range trusts {
-		trusts[i].WriteToV2(&trustList[i])
+		req.Body.Trusts[i] = trusts[i].ProtoMessage()
 	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	reqBody.SetTrusts(trustList)
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	// form request
-	var req v2reputation.AnnounceLocalTrustRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.reputation.AnnounceLocalTrust(ctx, req.ToGRPCMessage().(*protoreputation.AnnounceLocalTrustRequest))
-		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2reputation.AnnounceLocalTrustResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
-	}
-
-	// process call
-	if !cc.processCall() {
-		err = cc.err
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
 	}
 
-	return nil
+	resp, err := c.reputation.AnnounceLocalTrust(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
+
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
+		if err != nil {
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return err
+		}
+	}
+
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceLocalTrustResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
+	}
+
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
 }
 
 // PrmAnnounceIntermediateTrust groups optional parameters of AnnounceIntermediateTrust operation.
@@ -133,46 +140,50 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 		return err
 	}
 
-	var v2Trust v2reputation.PeerToPeerTrust
-	trust.WriteToV2(&v2Trust)
-
-	// form request body
-	reqBody := new(v2reputation.AnnounceIntermediateResultRequestBody)
-	reqBody.SetEpoch(epoch)
-	reqBody.SetIteration(prm.iter)
-	reqBody.SetTrust(&v2Trust)
-
-	// form request
-	var req v2reputation.AnnounceIntermediateResultRequest
-
-	req.SetBody(reqBody)
-
-	// init call context
-
-	var (
-		cc contextCall
-	)
-
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.reputation.AnnounceIntermediateResult(ctx, req.ToGRPCMessage().(*protoreputation.AnnounceIntermediateResultRequest))
-		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2reputation.AnnounceIntermediateResultResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
+	req := &protoreputation.AnnounceIntermediateResultRequest{
+		Body: &protoreputation.AnnounceIntermediateResultRequest_Body{
+			Epoch:     epoch,
+			Iteration: prm.iter,
+			Trust:     trust.ProtoMessage(),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
 	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
 	}
 
-	return nil
+	resp, err := c.reputation.AnnounceIntermediateResult(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
+
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
+		if err != nil {
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return err
+		}
+	}
+
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceIntermediateResultResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
+	}
+
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
 }

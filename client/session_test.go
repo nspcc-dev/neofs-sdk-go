@@ -8,8 +8,7 @@ import (
 	"testing"
 	"time"
 
-	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -36,17 +35,9 @@ type testCreateSessionServer struct {
 	protosession.UnimplementedSessionServiceServer
 	testCommonUnaryServerSettings[
 		*protosession.CreateRequest_Body,
-		apisession.CreateRequestBody,
-		*apisession.CreateRequestBody,
 		*protosession.CreateRequest,
-		apisession.CreateRequest,
-		*apisession.CreateRequest,
 		*protosession.CreateResponse_Body,
-		apisession.CreateResponseBody,
-		*apisession.CreateResponseBody,
 		*protosession.CreateResponse,
-		apisession.CreateResponse,
-		*apisession.CreateResponse,
 	]
 	reqUsr *user.ID
 	reqExp uint64

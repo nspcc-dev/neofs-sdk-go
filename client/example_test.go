@@ -8,9 +8,6 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	rpcClient "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/common"
-	"github.com/nspcc-dev/neofs-api-go/v2/rpc/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
@@ -31,83 +28,6 @@ func ExampleClient_createInstance() {
 	prmDial.SetStreamTimeout(15 * time.Second)
 
 	_ = c.Dial(prmDial)
-}
-
-type CustomRPCRequest struct {
-}
-
-type CustomRPCResponse struct {
-}
-
-func (a *CustomRPCRequest) ToGRPCMessage() grpc.Message {
-	return nil
-}
-
-func (a *CustomRPCRequest) FromGRPCMessage(grpc.Message) error {
-	return nil
-}
-
-func (a *CustomRPCResponse) ToGRPCMessage() grpc.Message {
-	return nil
-}
-
-func (a *CustomRPCResponse) FromGRPCMessage(grpc.Message) error {
-	return nil
-}
-
-// Consume custom service of the server.
-func Example_customService() {
-	// syntax = "proto3";
-	//
-	// service CustomService {
-	// 	rpc CustomRPC(CustomRPCRequest) returns (CustomRPCResponse);
-	// }
-
-	// import "github.com/nspcc-dev/neofs-api-go/v2/rpc/client"
-	// import "github.com/nspcc-dev/neofs-api-go/v2/rpc/common"
-
-	var prmInit client.PrmInit
-	// ...
-
-	c, _ := client.New(prmInit)
-
-	req := &CustomRPCRequest{}
-	resp := &CustomRPCResponse{}
-
-	err := c.ExecRaw(func(c *rpcClient.Client) error {
-		return rpcClient.SendUnary(c, common.CallMethodInfo{
-			Service: "CustomService",
-			Name:    "CustomRPC",
-		}, req, resp)
-	})
-
-	_ = err
-
-	// ...
-
-	// Close the connection
-	_ = c.Close()
-
-	// Note that it's not allowed to override Client behaviour directly: the parameters
-	// for the all operations are write-only and the results of the all operations are
-	// read-only. To be able to override client behavior (e.g. for tests), abstract it
-	// with an interface:
-	//
-	// import "github.com/nspcc-dev/neofs-sdk-go/client"
-	//
-	// type NeoFSClient interface {
-	// // Operations according to the application needs
-	// CreateContainer(context.Context, container.Container) error
-	// // ...
-	// }
-	//
-	// type client struct {
-	// 	c *client.Client
-	// }
-	//
-	// func (x *client) CreateContainer(context.Context, container.Container) error {
-	// // ...
-	// }
 }
 
 // Session created for the one node, and it will work only for this node. Other nodes don't have info about this session.

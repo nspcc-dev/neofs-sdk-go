@@ -14,15 +14,12 @@ const (
 // MarshaledSize returns size of the EACLTable in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLTable) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldEACLVersion, x.Version) +
-			proto.SizeEmbedded(fieldEACLContainer, x.ContainerId)
-		for i := range x.Records {
-			sz += proto.SizeEmbedded(fieldEACLRecords, x.Records[i])
-		}
+		return proto.SizeEmbedded(fieldEACLVersion, x.Version) +
+			proto.SizeEmbedded(fieldEACLContainer, x.ContainerId) +
+			proto.SizeRepeatedMessages(fieldEACLRecords, x.Records)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the EACLTable in Protocol Buffers V3 format with
@@ -32,9 +29,7 @@ func (x *EACLTable) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, fieldEACLVersion, x.Version)
 		off += proto.MarshalToEmbedded(b[off:], fieldEACLContainer, x.ContainerId)
-		for i := range x.Records {
-			off += proto.MarshalToEmbedded(b[off:], fieldEACLRecords, x.Records[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldEACLRecords, x.Records)
 	}
 }
 
@@ -49,18 +44,13 @@ const (
 // MarshaledSize returns size of the EACLRecord in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLRecord) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldEACLOp, int32(x.Operation)) +
-			proto.SizeVarint(fieldEACLAction, int32(x.Action))
-		for i := range x.Filters {
-			sz += proto.SizeEmbedded(fieldEACLFilters, x.Filters[i])
-		}
-		for i := range x.Targets {
-			sz += proto.SizeEmbedded(fieldEACLTargets, x.Targets[i])
-		}
+		return proto.SizeVarint(fieldEACLOp, int32(x.Operation)) +
+			proto.SizeVarint(fieldEACLAction, int32(x.Action)) +
+			proto.SizeRepeatedMessages(fieldEACLFilters, x.Filters) +
+			proto.SizeRepeatedMessages(fieldEACLTargets, x.Targets)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the EACLRecord in Protocol Buffers V3 format with
@@ -70,12 +60,8 @@ func (x *EACLRecord) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldEACLOp, int32(x.Operation))
 		off += proto.MarshalToVarint(b[off:], fieldEACLAction, int32(x.Action))
-		for i := range x.Filters {
-			off += proto.MarshalToEmbedded(b[off:], fieldEACLFilters, x.Filters[i])
-		}
-		for i := range x.Targets {
-			off += proto.MarshalToEmbedded(b[off:], fieldEACLTargets, x.Targets[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldEACLFilters, x.Filters)
+		proto.MarshalToRepeatedMessages(b[off:], fieldEACLTargets, x.Targets)
 	}
 }
 

@@ -9,12 +9,10 @@ import (
 	"os"
 	"sync"
 
-	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -56,21 +54,13 @@ func (c *Client) ReplicateObject(ctx context.Context, id oid.ID, src io.ReadSeek
 		return nil, err
 	}
 
-	var resp objectgrpc.ReplicateResponse
-	err = c.conn.Invoke(ctx, objectgrpc.ObjectService_Replicate_FullMethodName, msg, &resp, grpc.ForceCodec(onlyBinarySendingCodec{}))
+	var resp protoobject.ReplicateResponse
+	err = c.conn.Invoke(ctx, protoobject.ObjectService_Replicate_FullMethodName, msg, &resp, grpc.ForceCodec(onlyBinarySendingCodec{}))
 	if err != nil {
 		return nil, fmt.Errorf("send request over gRPC: %w", err)
 	}
 
-	var st *status.Status
-	if mst := resp.GetStatus(); mst != nil {
-		st = new(status.Status)
-		err := st.FromGRPCMessage(mst)
-		if err != nil {
-			return nil, fmt.Errorf("decode response status: %w", err)
-		}
-	}
-	if err = apistatus.ErrorFromV2(st); err != nil {
+	if err = apistatus.ToError(resp.GetStatus()); err != nil {
 		return nil, err
 	}
 
@@ -83,13 +73,8 @@ func (c *Client) ReplicateObject(ctx context.Context, id oid.ID, src io.ReadSeek
 		return nil, errors.New("requested but missing signature")
 	}
 
-	var sigV2 refs.Signature
-	if err := sigV2.Unmarshal(sigBin); err != nil {
-		return nil, fmt.Errorf("decoding signature from proto message: %w", err)
-	}
-
 	var sig neofscrypto.Signature
-	if err = sig.ReadFromV2(sigV2); err != nil {
+	if err = sig.Unmarshal(sigBin); err != nil {
 		return nil, fmt.Errorf("invalid signature: %w", err)
 	}
 

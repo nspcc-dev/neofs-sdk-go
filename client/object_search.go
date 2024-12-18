@@ -7,28 +7,33 @@ import (
 	"io"
 	"time"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	v2refs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.
 type PrmObjectSearch struct {
 	sessionContainer
+	prmCommonMeta
+	bearerToken *bearer.Token
+	local       bool
 
 	filters object.SearchFilters
 }
 
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectSearch) MarkLocal() {
-	x.meta.SetTTL(1)
+	x.local = true
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -37,17 +42,7 @@ func (x *PrmObjectSearch) MarkLocal() {
 //
 // Must be signed.
 func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
-	var v2token acl.BearerToken
-	t.WriteToV2(&v2token)
-	x.meta.SetBearerToken(&v2token)
-}
-
-// WithXHeaders specifies list of extended headers (string key-value pairs)
-// to be attached to the request. Must have an even length.
-//
-// Slice must not be mutated until the operation completes.
-func (x *PrmObjectSearch) WithXHeaders(hs ...string) {
-	writeXHeadersToMeta(hs, &x.meta)
+	x.bearerToken = &t
 }
 
 // SetFilters sets filters by which to select objects. All container objects
@@ -69,12 +64,11 @@ type searchObjectsResponseStream interface {
 //
 // Must be initialized using Client.ObjectSearch, any other usage is unsafe.
 type ObjectListReader struct {
-	client           *Client
 	cancelCtxStream  context.CancelFunc
 	err              error
 	stream           searchObjectsResponseStream
 	singleMsgTimeout time.Duration
-	tail             []v2refs.ObjectID
+	tail             []*refs.ObjectID
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
@@ -108,18 +102,18 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 		if x.err != nil {
 			return read, x.err
 		}
-		var respV2 v2object.SearchResponse
-		if x.err = respV2.FromGRPCMessage(resp); x.err != nil {
+
+		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.SearchResponse_Body](resp, nil); x.err != nil {
+			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 			return read, x.err
 		}
 
-		x.err = x.client.processResponse(&respV2)
-		if x.err != nil {
+		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, x.err
 		}
 
 		// read new chunk of objects
-		ids := respV2.GetBody().GetIDList()
+		ids := resp.GetBody().GetIdList()
 		if len(ids) == 0 {
 			// just skip empty lists since they are not prohibited by protocol
 			continue
@@ -137,10 +131,10 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 	}
 }
 
-func copyIDBuffers(dst []oid.ID, src []v2refs.ObjectID) int {
+func copyIDBuffers(dst []oid.ID, src []*refs.ObjectID) int {
 	var i int
 	for ; i < len(dst) && i < len(src); i++ {
-		_ = dst[i].ReadFromV2(src[i])
+		copy(dst[i][:], src[i].GetValue())
 	}
 	return i
 }
@@ -219,37 +213,47 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 		return nil, ErrMissingSigner
 	}
 
-	var cidV2 v2refs.ContainerID
-	containerID.WriteToV2(&cidV2)
-
-	var body v2object.SearchRequestBody
-	body.SetVersion(1)
-	body.SetContainerID(&cidV2)
-	body.SetFilters(prm.filters.ToV2())
-
-	// init reader
-	var req v2object.SearchRequest
-	req.SetBody(&body)
-	c.prepareRequest(&req, &prm.meta)
+	req := &protoobject.SearchRequest{
+		Body: &protoobject.SearchRequest_Body{
+			ContainerId: containerID.ProtoMessage(),
+			Version:     1,
+			Filters:     prm.filters.ProtoMessage(),
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
+	if prm.local {
+		req.MetaHeader.Ttl = localRequestTTL
+	} else {
+		req.MetaHeader.Ttl = defaultRequestTTL
+	}
+	if prm.session != nil {
+		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.bearerToken != nil {
+		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
+	}
 
 	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(signer, &req, *buf)
-	c.buffers.Put(buf)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchRequest_Body](signer, req, *buf)
 	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
 	}
 
 	var r ObjectListReader
 	ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
-	r.stream, err = c.object.Search(ctx, req.ToGRPCMessage().(*protoobject.SearchRequest))
+	r.stream, err = c.object.Search(ctx, req)
 	if err != nil {
 		err = fmt.Errorf("open stream: %w", err)
 		return nil, err
 	}
 	r.singleMsgTimeout = c.streamTimeout
-	r.client = c
 	if c.prm.statisticCallback != nil {
 		r.startTime = time.Now()
 		r.statisticCallback = func(dur time.Duration, err error) {

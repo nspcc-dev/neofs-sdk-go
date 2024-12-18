@@ -3,15 +3,17 @@ package version
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	"google.golang.org/protobuf/encoding/protojson"
 )
 
 // Version represents revision number in SemVer scheme.
 //
 // ID implements built-in comparable interface.
 //
-// Version is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Version
-// message. See ReadFromV2 / WriteToV2 methods.
+// Version is mutually compatible with [refs.Version] message. See
+// [Version.FromProtoMessage] / [Version.ProtoMessage] methods.
 //
 // Instances should be created using one of the constructors.
 type Version struct{ mjr, mnr uint32 }
@@ -58,22 +60,24 @@ func (v *Version) SetMinor(val uint32) {
 	v.mnr = val
 }
 
-// WriteToV2 writes Version to the refs.Version message.
-// The message must not be nil.
+// ProtoMessage converts v into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (v Version) WriteToV2(m *refs.Version) {
-	m.SetMajor(v.mjr)
-	m.SetMinor(v.mnr)
+// See also [Version.FromProtoMessage].
+func (v Version) ProtoMessage() *refs.Version {
+	return &refs.Version{
+		Major: v.mjr,
+		Minor: v.mnr,
+	}
 }
 
-// ReadFromV2 reads Version from the refs.Version message. Checks if the message
-// conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// v from it.
 //
-// See also WriteToV2.
-func (v *Version) ReadFromV2(m refs.Version) error {
-	v.mjr = m.GetMajor()
-	v.mnr = m.GetMinor()
+// See also [Version.ProtoMessage].
+func (v *Version) FromProtoMessage(m *refs.Version) error {
+	v.mjr = m.Major
+	v.mnr = m.Minor
 	return nil
 }
 
@@ -103,10 +107,7 @@ func (v Version) Equal(v2 Version) bool {
 //
 // See also UnmarshalJSON.
 func (v Version) MarshalJSON() ([]byte, error) {
-	var m refs.Version
-	v.WriteToV2(&m)
-
-	return m.MarshalJSON()
+	return neofsproto.MarshalJSON(v)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Version
@@ -117,10 +118,10 @@ func (v Version) MarshalJSON() ([]byte, error) {
 func (v *Version) UnmarshalJSON(data []byte) error {
 	var m refs.Version
 
-	err := m.UnmarshalJSON(data)
+	err := protojson.Unmarshal(data, &m)
 	if err != nil {
 		return err
 	}
 
-	return v.ReadFromV2(m)
+	return v.FromProtoMessage(&m)
 }

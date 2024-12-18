@@ -4,7 +4,6 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
@@ -17,10 +16,9 @@ func TestID(t *testing.T) {
 	id := usertest.ID()
 	require.NotEqual(t, id, usertest.ID())
 
-	var m refs.OwnerID
-	id.WriteToV2(&m)
+	m := id.ProtoMessage()
 	var id2 user.ID
-	require.NoError(t, id2.ReadFromV2(m))
+	require.NoError(t, id2.FromProtoMessage(m))
 }
 
 func TestNIDs(t *testing.T) {

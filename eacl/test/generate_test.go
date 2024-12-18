@@ -41,12 +41,11 @@ func TestTable(t *testing.T) {
 	require.NotEqual(t, eACL, eacltest.Table())
 
 	var eACL2 eacl.Table
-	require.NoError(t, eACL2.ReadFromV2(*eACL.ToV2()))
+	require.NoError(t, eACL2.FromProtoMessage(eACL.ProtoMessage()))
 	require.Equal(t, eACL, eACL2)
 
 	var eACL3 eacl.Table
 	require.NoError(t, eACL3.Unmarshal(eACL.Marshal()))
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, eACL, eACL3)
 
 	j, err := eACL.MarshalJSON()

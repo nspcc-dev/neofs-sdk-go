@@ -5,29 +5,32 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"math/rand/v2"
+	"slices"
 	"testing"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
 	anyValidSearchMatcher = object.SearchMatchType(1937803447)
 )
 
-var eqV2Matches = map[object.SearchMatchType]v2object.MatchType{
-	object.MatchUnspecified:    v2object.MatchUnknown,
-	object.MatchStringEqual:    v2object.MatchStringEqual,
-	object.MatchStringNotEqual: v2object.MatchStringNotEqual,
-	object.MatchNotPresent:     v2object.MatchNotPresent,
-	object.MatchCommonPrefix:   v2object.MatchCommonPrefix,
-	object.MatchNumGT:          v2object.MatchNumGT,
-	object.MatchNumGE:          v2object.MatchNumGE,
-	object.MatchNumLT:          v2object.MatchNumLT,
-	object.MatchNumLE:          v2object.MatchNumLE,
+var protoMatches = map[object.SearchMatchType]protoobject.MatchType{
+	object.MatchUnspecified:    protoobject.MatchType_MATCH_TYPE_UNSPECIFIED,
+	object.MatchStringEqual:    protoobject.MatchType_STRING_EQUAL,
+	object.MatchStringNotEqual: protoobject.MatchType_STRING_NOT_EQUAL,
+	object.MatchNotPresent:     protoobject.MatchType_NOT_PRESENT,
+	object.MatchCommonPrefix:   protoobject.MatchType_COMMON_PREFIX,
+	object.MatchNumGT:          protoobject.MatchType_NUM_GT,
+	object.MatchNumGE:          protoobject.MatchType_NUM_GE,
+	object.MatchNumLT:          protoobject.MatchType_NUM_LT,
+	object.MatchNumLE:          protoobject.MatchType_NUM_LE,
 }
 
 var searchMatchTypeStrings = map[object.SearchMatchType]string{
@@ -73,19 +76,19 @@ func init() {
 // corresponds to validSearchFilters.
 var validSearchFiltersProto = []struct {
 	k string
-	m v2object.MatchType
+	m protoobject.MatchType
 	v string
 }{
-	{"$Object:PHY", v2object.MatchUnknown, ""},
-	{"$Object:ROOT", v2object.MatchUnknown, ""},
-	{"k1", v2object.MatchStringEqual, "v1"},
-	{"k2", v2object.MatchStringNotEqual, "v2"},
-	{"k3", v2object.MatchNotPresent, "v3"},
-	{"k4", v2object.MatchCommonPrefix, "v4"},
-	{"k5", v2object.MatchNumGT, "v5"},
-	{"k6", v2object.MatchNumGE, "v6"},
-	{"k7", v2object.MatchNumLT, "v7"},
-	{"k8", v2object.MatchNumLE, "v8"},
+	{"$Object:PHY", protoobject.MatchType_MATCH_TYPE_UNSPECIFIED, ""},
+	{"$Object:ROOT", protoobject.MatchType_MATCH_TYPE_UNSPECIFIED, ""},
+	{"k1", protoobject.MatchType_STRING_EQUAL, "v1"},
+	{"k2", protoobject.MatchType_STRING_NOT_EQUAL, "v2"},
+	{"k3", protoobject.MatchType_NOT_PRESENT, "v3"},
+	{"k4", protoobject.MatchType_COMMON_PREFIX, "v4"},
+	{"k5", protoobject.MatchType_NUM_GT, "v5"},
+	{"k6", protoobject.MatchType_NUM_GE, "v6"},
+	{"k7", protoobject.MatchType_NUM_LT, "v7"},
+	{"k8", protoobject.MatchType_NUM_LE, "v8"},
 	{"$Object:version", 100, "v88789927.2018985309"},
 	{"$Object:objectID", 101, "CzyDjRYWpwLHxqXVFBXKQGP5XM7ebAR9ndTvBdaSxMMV"},
 	{"$Object:containerID", 102, "HWpbBkyxCi7nhDnn4W3v5rYt2mDfH2wedknQzRkTwquj"},
@@ -248,23 +251,8 @@ func TestSearchFilters_UnmarshalJSON(t *testing.T) {
 	require.Equal(t, validSearchFilters, fs)
 }
 
-func TestMatch(t *testing.T) {
-	require.EqualValues(t, object.MatchUnspecified, v2object.MatchUnknown)
-	t.Run("known matches", func(t *testing.T) {
-		for matchType, matchTypeV2 := range eqV2Matches {
-			require.Equal(t, matchTypeV2, matchType.ToV2())
-			require.Equal(t, object.SearchMatchFromV2(matchTypeV2), matchType)
-		}
-	})
-
-	t.Run("unknown matches", func(t *testing.T) {
-		require.EqualValues(t, 1000, object.SearchMatchType(1000).ToV2())
-		require.EqualValues(t, 1000, object.SearchMatchFromV2(1000))
-	})
-}
-
 func TestSearchFilters_AddFilter(t *testing.T) {
-	const k1, m1, v1 = "k1", object.SearchMatchType(2584744206), "v1"
+	const k1, m1, v1 = "k1", object.SearchMatchType(584744206), "v1"
 	const k2, m2, v2 = "k2", object.SearchMatchType(930572326), "v2"
 
 	var filters object.SearchFilters
@@ -357,17 +345,7 @@ func TestSearchFilters_AddTypeFilter(t *testing.T) {
 }
 
 func TestSearchMatchTypeProto(t *testing.T) {
-	for x, y := range map[v2object.MatchType]object.SearchMatchType{
-		v2object.MatchUnknown:        object.MatchUnspecified,
-		v2object.MatchStringEqual:    object.MatchStringEqual,
-		v2object.MatchStringNotEqual: object.MatchStringNotEqual,
-		v2object.MatchNotPresent:     object.MatchNotPresent,
-		v2object.MatchCommonPrefix:   object.MatchCommonPrefix,
-		v2object.MatchNumGT:          object.MatchNumGT,
-		v2object.MatchNumGE:          object.MatchNumGE,
-		v2object.MatchNumLT:          object.MatchNumLT,
-		v2object.MatchNumLE:          object.MatchNumLE,
-	} {
+	for x, y := range protoMatches {
 		require.EqualValues(t, x, y)
 	}
 }
@@ -462,17 +440,17 @@ func TestNewSearchFilters(t *testing.T) {
 	require.Empty(t, object.NewSearchFilters())
 }
 
-func TestSearchFilters_ToV2(t *testing.T) {
+func TestSearchFilters_ProtoMessage(t *testing.T) {
 	const nFilters = 22
 	require.Len(t, validSearchFiltersProto, nFilters, "not all applied filters are asserted")
 	var fs object.SearchFilters
 
 	// zero
-	m := fs.ToV2()
+	m := fs.ProtoMessage()
 	require.Empty(t, m)
 
 	// filled
-	m = validSearchFilters.ToV2()
+	m = validSearchFilters.ProtoMessage()
 	require.Len(t, m, nFilters)
 
 	for i, exp := range validSearchFiltersProto {
@@ -483,18 +461,35 @@ func TestSearchFilters_ToV2(t *testing.T) {
 	}
 }
 
-func TestNewSearchFiltersFromV2(t *testing.T) {
-	// empty
-	require.Empty(t, object.NewSearchFiltersFromV2(nil))
-	require.Empty(t, object.NewSearchFiltersFromV2([]v2object.SearchFilter{}))
-
-	// filled
-	m := make([]v2object.SearchFilter, len(validSearchFiltersProto))
-	for i, f := range validSearchFiltersProto {
-		m[i].SetKey(f.k)
-		m[i].SetMatchType(f.m)
-		m[i].SetValue(f.v)
+func TestSearchFilters_FromProtoMessage(t *testing.T) {
+	ms := []*protoobject.SearchRequest_Body_Filter{
+		{MatchType: protoobject.MatchType(rand.Int32()), Key: "key_1", Value: "val_1"},
+		{MatchType: protoobject.MatchType(rand.Int32()), Key: "key_2", Value: "val_2"},
 	}
 
-	require.Equal(t, object.NewSearchFiltersFromV2(m), validSearchFilters)
+	var fs object.SearchFilters
+	require.NoError(t, fs.FromProtoMessage(ms))
+	require.Len(t, fs, len(ms))
+	for i := range ms {
+		require.EqualValues(t, ms[i].MatchType, fs[i].Operation())
+		require.Equal(t, ms[i].Key, fs[i].Header())
+		require.Equal(t, ms[i].Value, fs[i].Value())
+	}
+
+	require.NoError(t, fs.FromProtoMessage(nil))
+	require.Empty(t, fs)
+
+	t.Run("invalid", func(t *testing.T) {
+		for _, tc := range []struct {
+			name, err string
+			corrupt   func([]*protoobject.SearchRequest_Body_Filter)
+		}{} {
+			cp := slices.Clone(ms)
+			for i := range ms {
+				cp[i] = proto.Clone(ms[i]).(*protoobject.SearchRequest_Body_Filter)
+			}
+			tc.corrupt(cp)
+			require.EqualError(t, fs.FromProtoMessage(ms), tc.err)
+		}
+	})
 }

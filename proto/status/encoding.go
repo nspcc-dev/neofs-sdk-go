@@ -41,15 +41,12 @@ const (
 // MarshaledSize returns size of the Status in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Status) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldStatusCode, x.Code) +
-			proto.SizeBytes(fieldStatusMessage, x.Message)
-		for i := range x.Details {
-			sz += proto.SizeEmbedded(fieldStatusDetails, x.Details[i])
-		}
+		return proto.SizeVarint(fieldStatusCode, x.Code) +
+			proto.SizeBytes(fieldStatusMessage, x.Message) +
+			proto.SizeRepeatedMessages(fieldStatusDetails, x.Details)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Status in Protocol Buffers V3 format with ascending
@@ -59,8 +56,6 @@ func (x *Status) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldStatusCode, x.Code)
 		off += proto.MarshalToBytes(b[off:], fieldStatusMessage, x.Message)
-		for i := range x.Details {
-			off += proto.MarshalToEmbedded(b[off:], fieldStatusDetails, x.Details[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldStatusDetails, x.Details)
 	}
 }

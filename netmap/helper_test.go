@@ -1,19 +1,11 @@
 package netmap
 
-import (
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
-)
-
-func newFilter(name string, k, v string, op netmap.Operation, fs ...Filter) (f Filter) {
+func newFilter(name string, k, v string, op FilterOp, fs ...Filter) (f Filter) {
 	f.SetName(name)
-	f.m.SetKey(k)
-	f.m.SetOp(op)
-	f.m.SetValue(v)
-	inner := make([]netmap.Filter, len(fs))
-	for i := range fs {
-		inner[i] = fs[i].m
-	}
-	f.m.SetFilters(inner)
+	f.key = k
+	f.op = op
+	f.val = v
+	f.subs = fs
 	return f
 }
 

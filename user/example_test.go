@@ -2,7 +2,6 @@ package user_test
 
 import (
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	apiGoRefs "github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -34,16 +33,13 @@ func ExampleID_DecodeString() {
 
 // Instances can be also used to process NeoFS API V2 protocol messages with [https://github.com/nspcc-dev/neofs-api] package.
 func ExampleID_marshalling() {
-	// import apiGoRefs "github.com/nspcc-dev/neofs-api-go/v2/refs"
-
 	// On the client side.
 
 	var id user.ID
-	var msg apiGoRefs.OwnerID
-	id.WriteToV2(&msg)
+	msg := id.ProtoMessage()
 	// *send message*
 
 	// On the server side.
 
-	_ = id.ReadFromV2(msg)
+	_ = id.FromProtoMessage(msg)
 }

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	"github.com/stretchr/testify/require"
 )
 
@@ -37,15 +36,15 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		var dst PlacementPolicy
 		pp.CopyTo(&dst)
 
-		var f2 netmap.Filter
+		var f2 Filter
 		f2.SetName("filter2")
 
-		require.Equal(t, pp.filters[0].GetName(), dst.filters[0].GetName())
+		require.Equal(t, pp.filters[0].Name(), dst.filters[0].Name())
 		dst.filters[0].SetName("f2")
-		require.NotEqual(t, pp.filters[0].GetName(), dst.filters[0].GetName())
+		require.NotEqual(t, pp.filters[0].Name(), dst.filters[0].Name())
 
 		dst.filters[0] = f2
-		require.NotEqual(t, pp.filters[0].GetName(), dst.filters[0].GetName())
+		require.NotEqual(t, pp.filters[0].Name(), dst.filters[0].Name())
 	})
 
 	t.Run("internal filters", func(t *testing.T) {
@@ -54,7 +53,7 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 
 		var topFilter Filter
 		topFilter.SetName("topFilter")
-		topFilter.setInnerFilters(netmap.EQ, []Filter{includedFilter})
+		topFilter.setInnerFilters(FilterOpEQ, []Filter{includedFilter})
 
 		var policy PlacementPolicy
 		policy.SetFilters([]Filter{topFilter})
@@ -64,13 +63,13 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		require.True(t, bytes.Equal(policy.Marshal(), dst.Marshal()))
 
 		t.Run("change extra filter", func(t *testing.T) {
-			require.Equal(t, topFilter.m.GetName(), dst.filters[0].GetName())
-			require.Equal(t, topFilter.m.GetFilters()[0].GetName(), dst.filters[0].GetFilters()[0].GetName())
+			require.Equal(t, topFilter.Name(), dst.filters[0].Name())
+			require.Equal(t, topFilter.SubFilters()[0].Name(), dst.filters[0].SubFilters()[0].Name())
 
-			dst.filters[0].GetFilters()[0].SetName("someInternalFilterName")
+			dst.filters[0].SubFilters()[0].SetName("someInternalFilterName")
 
-			require.Equal(t, topFilter.m.GetName(), dst.filters[0].GetName())
-			require.NotEqual(t, topFilter.m.GetFilters()[0].GetName(), dst.filters[0].GetFilters()[0].GetName())
+			require.Equal(t, topFilter.Name(), dst.filters[0].Name())
+			require.NotEqual(t, topFilter.SubFilters()[0].Name(), dst.filters[0].SubFilters()[0].Name())
 		})
 	})
 
@@ -88,23 +87,23 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		var dst PlacementPolicy
 		pp.CopyTo(&dst)
 
-		require.Equal(t, pp.selectors[0].GetName(), dst.selectors[0].GetName())
+		require.Equal(t, pp.selectors[0].Name(), dst.selectors[0].Name())
 		dst.selectors[0].SetName("s2")
-		require.NotEqual(t, pp.selectors[0].GetName(), dst.selectors[0].GetName())
+		require.NotEqual(t, pp.selectors[0].Name(), dst.selectors[0].Name())
 
-		var s2 netmap.Selector
+		var s2 Selector
 		s2.SetName("selector2")
 
 		dst.selectors[0] = s2
-		require.NotEqual(t, pp.selectors[0].GetName(), dst.selectors[0].GetName())
+		require.NotEqual(t, pp.selectors[0].Name(), dst.selectors[0].Name())
 	})
 
 	t.Run("change replica", func(t *testing.T) {
 		var dst PlacementPolicy
 		pp.CopyTo(&dst)
 
-		require.Equal(t, pp.replicas[0].GetSelector(), dst.replicas[0].GetSelector())
-		dst.replicas[0].SetSelector("s2")
-		require.NotEqual(t, pp.replicas[0].GetSelector(), dst.replicas[0].GetSelector())
+		require.Equal(t, pp.replicas[0].SelectorName(), dst.replicas[0].SelectorName())
+		dst.replicas[0].SetSelectorName("s2")
+		require.NotEqual(t, pp.replicas[0].SelectorName(), dst.replicas[0].SelectorName())
 	})
 }

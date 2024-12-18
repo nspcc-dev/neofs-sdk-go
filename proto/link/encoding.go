@@ -38,13 +38,10 @@ const (
 // MarshaledSize returns size of the Link in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Link) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		for i := range x.Children {
-			sz += proto.SizeEmbedded(fieldLinkChildren, x.Children[i])
-		}
+		return proto.SizeRepeatedMessages(fieldLinkChildren, x.Children)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Link in Protocol Buffers V3 format with ascending
@@ -52,9 +49,6 @@ func (x *Link) MarshaledSize() int {
 // [Link.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Link) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.Children {
-			off += proto.MarshalToEmbedded(b[off:], fieldLinkChildren, x.Children[i])
-		}
+		proto.MarshalToRepeatedMessages(b, fieldLinkChildren, x.Children)
 	}
 }

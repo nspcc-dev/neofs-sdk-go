@@ -9,15 +9,15 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	protoaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting/grpc"
-	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
-	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protoreputation "github.com/nspcc-dev/neofs-api-go/v2/reputation/grpc"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/uriutil"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -231,7 +231,7 @@ type PrmInit struct {
 
 	cbRespInfo func(ResponseMetaInfo) error
 
-	netMagic uint64
+	netMagic uint64 //nolint:unused // https://github.com/nspcc-dev/neofs-sdk-go/issues/671
 
 	statisticCallback stat.OperationCallback
 
