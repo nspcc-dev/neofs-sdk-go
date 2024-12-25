@@ -7,15 +7,6 @@ import (
 	"testing"
 	"time"
 
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl/grpc"
-	apicontainer "github.com/nspcc-dev/neofs-api-go/v2/container"
-	protocontainer "github.com/nspcc-dev/neofs-api-go/v2/container/grpc"
-	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	apigrpc "github.com/nspcc-dev/neofs-api-go/v2/rpc/grpc"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -24,6 +15,12 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -51,12 +48,8 @@ func newTestContainerClient(t testing.TB, srv any) *Client {
 // for sharing between servers of requests with RFC 6979 signature of particular
 // data.
 type testRFC6979DataSignatureServerSettings[
-	SIGNED apigrpc.Message,
-	SIGNEDV2 any,
-	SIGNEDV2PTR interface {
-		*SIGNEDV2
-		signedMessageV2
-	},
+	SIGNED neofsproto.Message,
+
 ] struct {
 	reqCreds         *authCredentials
 	reqDataSignature *neofscrypto.Signature
@@ -66,7 +59,7 @@ type testRFC6979DataSignatureServerSettings[
 // default, any signer is accepted.
 //
 // Has no effect with checkRequestDataSignature.
-func (x *testRFC6979DataSignatureServerSettings[_, _, _]) authenticateRequestPayload(s neofscrypto.Signer) {
+func (x *testRFC6979DataSignatureServerSettings[_]) authenticateRequestPayload(s neofscrypto.Signer) {
 	c := authCredentialsFromSigner(s)
 	x.reqCreds = &c
 }
@@ -75,11 +68,11 @@ func (x *testRFC6979DataSignatureServerSettings[_, _, _]) authenticateRequestPay
 // verification. By default, any signature matching the data is accepted.
 //
 // Overrides checkRequestDataSignerKey.
-func (x *testRFC6979DataSignatureServerSettings[_, _, _]) checkRequestDataSignature(s neofscrypto.Signature) {
+func (x *testRFC6979DataSignatureServerSettings[_]) checkRequestDataSignature(s neofscrypto.Signature) {
 	x.reqDataSignature = &s
 }
 
-func (x testRFC6979DataSignatureServerSettings[_, _, _]) verifyDataSignature(signedField string, data []byte, m *protorefs.SignatureRFC6979) error {
+func (x testRFC6979DataSignatureServerSettings[_]) verifyDataSignature(signedField string, data []byte, m *protorefs.SignatureRFC6979) error {
 	field := signedField + " signature"
 	if m == nil {
 		return newErrMissingRequestBodyField(field)
@@ -100,12 +93,8 @@ func (x testRFC6979DataSignatureServerSettings[_, _, _]) verifyDataSignature(sig
 	return nil
 }
 
-func (x testRFC6979DataSignatureServerSettings[SIGNED, SIGNEDV2, SIGNEDV2PTR]) verifyMessageSignature(signedField string, signed SIGNED, m *protorefs.SignatureRFC6979) error {
-	mV2 := SIGNEDV2PTR(new(SIGNEDV2))
-	if err := mV2.FromGRPCMessage(signed); err != nil {
-		panic(err)
-	}
-	return x.verifyDataSignature(signedField, mV2.StableMarshal(nil), m)
+func (x testRFC6979DataSignatureServerSettings[SIGNED]) verifyMessageSignature(signedField string, signed SIGNED, m *protorefs.SignatureRFC6979) error {
+	return x.verifyDataSignature(signedField, neofsproto.MarshalMessage(signed), m)
 }
 
 // for sharing between servers of requests with a container session token.
@@ -139,20 +128,12 @@ type testPutContainerServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.PutRequest_Body,
-		apicontainer.PutRequestBody,
-		*apicontainer.PutRequestBody,
 		*protocontainer.PutRequest,
-		apicontainer.PutRequest,
-		*apicontainer.PutRequest,
 		*protocontainer.PutResponse_Body,
-		apicontainer.PutResponseBody,
-		*apicontainer.PutResponseBody,
 		*protocontainer.PutResponse,
-		apicontainer.PutResponse,
-		*apicontainer.PutResponse,
 	]
 	testContainerSessionServerSettings
-	testRFC6979DataSignatureServerSettings[*protocontainer.Container, apicontainer.Container, *apicontainer.Container]
+	testRFC6979DataSignatureServerSettings[*protocontainer.Container]
 	reqContainer *container.Container
 }
 
@@ -229,17 +210,9 @@ type testGetContainerServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.GetRequest_Body,
-		apicontainer.GetRequestBody,
-		*apicontainer.GetRequestBody,
 		*protocontainer.GetRequest,
-		apicontainer.GetRequest,
-		*apicontainer.GetRequest,
 		*protocontainer.GetResponse_Body,
-		apicontainer.GetResponseBody,
-		*apicontainer.GetResponseBody,
 		*protocontainer.GetResponse,
-		apicontainer.GetResponse,
-		*apicontainer.GetResponse,
 	]
 	testRequiredContainerIDServerSettings
 }
@@ -304,17 +277,9 @@ type testListContainersServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.ListRequest_Body,
-		apicontainer.ListRequestBody,
-		*apicontainer.ListRequestBody,
 		*protocontainer.ListRequest,
-		apicontainer.ListRequest,
-		*apicontainer.ListRequest,
 		*protocontainer.ListResponse_Body,
-		apicontainer.ListResponseBody,
-		*apicontainer.ListResponseBody,
 		*protocontainer.ListResponse,
-		apicontainer.ListResponse,
-		*apicontainer.ListResponse,
 	]
 	reqOwner *user.ID
 }
@@ -388,21 +353,13 @@ type testDeleteContainerServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.DeleteRequest_Body,
-		apicontainer.DeleteRequestBody,
-		*apicontainer.DeleteRequestBody,
 		*protocontainer.DeleteRequest,
-		apicontainer.DeleteRequest,
-		*apicontainer.DeleteRequest,
 		*protocontainer.DeleteResponse_Body,
-		apicontainer.DeleteResponseBody,
-		*apicontainer.DeleteResponseBody,
 		*protocontainer.DeleteResponse,
-		apicontainer.DeleteResponse,
-		*apicontainer.DeleteResponse,
 	]
 	testContainerSessionServerSettings
 	testRequiredContainerIDServerSettings
-	testRFC6979DataSignatureServerSettings[*protorefs.ContainerID, refs.ContainerID, *refs.ContainerID]
+	testRFC6979DataSignatureServerSettings[*protorefs.ContainerID]
 }
 
 // returns [protocontainer.ContainerServiceServer] supporting Delete method only.
@@ -472,17 +429,9 @@ type testGetEACLServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.GetExtendedACLRequest_Body,
-		apicontainer.GetExtendedACLRequestBody,
-		*apicontainer.GetExtendedACLRequestBody,
 		*protocontainer.GetExtendedACLRequest,
-		apicontainer.GetExtendedACLRequest,
-		*apicontainer.GetExtendedACLRequest,
 		*protocontainer.GetExtendedACLResponse_Body,
-		apicontainer.GetExtendedACLResponseBody,
-		*apicontainer.GetExtendedACLResponseBody,
 		*protocontainer.GetExtendedACLResponse,
-		apicontainer.GetExtendedACLResponse,
-		*apicontainer.GetExtendedACLResponse,
 	]
 	testRequiredContainerIDServerSettings
 }
@@ -545,20 +494,12 @@ type testSetEACLServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.SetExtendedACLRequest_Body,
-		apicontainer.SetExtendedACLRequestBody,
-		*apicontainer.SetExtendedACLRequestBody,
 		*protocontainer.SetExtendedACLRequest,
-		apicontainer.SetExtendedACLRequest,
-		*apicontainer.SetExtendedACLRequest,
 		*protocontainer.SetExtendedACLResponse_Body,
-		apicontainer.SetExtendedACLResponseBody,
-		*apicontainer.SetExtendedACLResponseBody,
 		*protocontainer.SetExtendedACLResponse,
-		apicontainer.SetExtendedACLResponse,
-		*apicontainer.SetExtendedACLResponse,
 	]
 	testContainerSessionServerSettings
-	testRFC6979DataSignatureServerSettings[*protoacl.EACLTable, v2acl.Table, *v2acl.Table]
+	testRFC6979DataSignatureServerSettings[*protoacl.EACLTable]
 	reqEACL *eacl.Table
 }
 
@@ -637,17 +578,9 @@ type testAnnounceContainerSpaceServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonUnaryServerSettings[
 		*protocontainer.AnnounceUsedSpaceRequest_Body,
-		apicontainer.AnnounceUsedSpaceRequestBody,
-		*apicontainer.AnnounceUsedSpaceRequestBody,
 		*protocontainer.AnnounceUsedSpaceRequest,
-		apicontainer.AnnounceUsedSpaceRequest,
-		*apicontainer.AnnounceUsedSpaceRequest,
 		*protocontainer.AnnounceUsedSpaceResponse_Body,
-		apicontainer.AnnounceUsedSpaceResponseBody,
-		*apicontainer.AnnounceUsedSpaceResponseBody,
 		*protocontainer.AnnounceUsedSpaceResponse,
-		apicontainer.AnnounceUsedSpaceResponse,
-		*apicontainer.AnnounceUsedSpaceResponse,
 	]
 	reqAnnouncements []container.SizeEstimation
 }
@@ -752,8 +685,10 @@ func TestClient_ContainerPut(t *testing.T) {
 			})
 			t.Run("options", func(t *testing.T) {
 				t.Run("X-headers", func(t *testing.T) {
-					testStatusResponses(t, newTestPutContainerServer, newTestContainerClient, func(c *Client) error {
-						_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
+					testRequestXHeaders(t, newTestPutContainerServer, newTestContainerClient, func(c *Client, xhs []string) error {
+						opts := anyValidOpts
+						opts.WithXHeaders(xhs...)
+						_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, opts)
 						return err
 					})
 				})
@@ -1067,13 +1002,12 @@ func TestClient_ContainerGet(t *testing.T) {
 						{name: "missing replicas", msg: "missing replicas", corrupt: func(valid *protonetmap.PlacementPolicy) {
 							valid.Replicas = nil
 						}},
-						// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-						// {name: "selectors/clause/negative", msg: "invalid selector #1: negative clause -1", corrupt: func(valid *protonetmap.PlacementPolicy) {
-						// 	valid.Selectors[1].Clause = -1
-						// }},
-						// {name: "filters/op/negative", msg: "invalid filter #1: negative op -1", corrupt: func(valid *protonetmap.PlacementPolicy) {
-						// 	valid.Filters[1].Op = -1
-						// }},
+						{name: "selectors/clause/negative", msg: "invalid selector #1: negative clause -1", corrupt: func(valid *protonetmap.PlacementPolicy) {
+							valid.Selectors[1].Clause = -1
+						}},
+						{name: "filters/op/negative", msg: "invalid filter #1: negative op -1", corrupt: func(valid *protonetmap.PlacementPolicy) {
+							valid.Filters[1].Op = -1
+						}},
 					} {
 						ctcs = append(ctcs, invalidContainerTestcase{
 							name: "policy" + tc.name, msg: "invalid placement policy: " + tc.msg,
@@ -1542,22 +1476,21 @@ func TestClient_ContainerEACL(t *testing.T) {
 						name, msg string
 						corrupt   func(valid *protoacl.EACLRecord)
 					}{
-						// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-						// {name: "op/negative", msg: "negative op -1", corrupt: func(valid *protoacl.EACLRecord) {
-						// 	valid.Operation = -1
-						// }},
-						// {name: "action/negative", msg: "negative action -1", corrupt: func(valid *protoacl.EACLRecord) {
-						// 	valid.Action = -1
-						// }},
-						// {name: "filters/header type/negative", msg: "invalid filter #1: negative header type -1", corrupt: func(valid *protoacl.EACLRecord) {
-						// 	valid.Filters = []*protoacl.EACLRecord_Filter{{}, {HeaderType: -1}}
-						// }},
-						// {name: "filters/matcher/negative", msg: "invalid filter #1: negative matcher -1", corrupt: func(valid *protoacl.EACLRecord) {
-						// 	valid.Filters = []*protoacl.EACLRecord_Filter{{}, {MatchType: -1}}
-						// }},
-						// {name: "targets/role/negative", msg: "invalid target #1: negative role -1", corrupt: func(valid *protoacl.EACLRecord) {
-						// 	valid.Targets = []*protoacl.EACLRecord_Target{{}, {Role: -1}}
-						// }},
+						{name: "op/negative", msg: "negative op -1", corrupt: func(valid *protoacl.EACLRecord) {
+							valid.Operation = -1
+						}},
+						{name: "action/negative", msg: "negative action -1", corrupt: func(valid *protoacl.EACLRecord) {
+							valid.Action = -1
+						}},
+						{name: "filters/header type/negative", msg: "invalid filter #1: negative header type -1", corrupt: func(valid *protoacl.EACLRecord) {
+							valid.Filters = []*protoacl.EACLRecord_Filter{{}, {HeaderType: -1}}
+						}},
+						{name: "filters/matcher/negative", msg: "invalid filter #1: negative match type -1", corrupt: func(valid *protoacl.EACLRecord) {
+							valid.Filters = []*protoacl.EACLRecord_Filter{{}, {MatchType: -1}}
+						}},
+						{name: "targets/role/negative", msg: "invalid subject descriptor #1: negative role -1", corrupt: func(valid *protoacl.EACLRecord) {
+							valid.Targets = []*protoacl.EACLRecord_Target{{}, {Role: -1}}
+						}},
 					} {
 						etcs = append(etcs, invalidEACLTestcase{
 							name: "records/" + tc.name, msg: "invalid record #1: " + tc.msg,

@@ -8,15 +8,15 @@ import (
 	"sync"
 	"testing"
 
-	objectgrpc "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	status "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	objectgrpc "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -130,10 +130,7 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 			return &resp, nil
 		}
 
-		var sigV2 refs.Signature
-		sig.WriteToV2(&sigV2)
-
-		resp.ObjectSignature = sigV2.StableMarshal(nil)
+		resp.ObjectSignature = neofsproto.Marshal(sig)
 	}
 
 	resp.Status = &status.Status{Code: x.respStatusCode}

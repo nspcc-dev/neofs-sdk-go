@@ -13,20 +13,17 @@ import (
 	"testing"
 	"time"
 
-	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	apigrpc "github.com/nspcc-dev/neofs-api-go/v2/rpc/grpc"
-	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
-	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
@@ -321,17 +318,7 @@ var (
 	}
 )
 
-// TODO: use eacltest.Table() after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-var anyValidEACL = eacl.NewTableForContainer(cidtest.ID(), []eacl.Record{
-	eacl.ConstructRecord(eacl.ActionDeny, eacl.OperationPut,
-		[]eacl.Target{
-			eacl.NewTargetByRole(eacl.RoleOthers),
-			eacl.NewTargetByAccounts(usertest.IDs(3)),
-		},
-		eacl.NewFilterObjectOwnerEquals(usertest.ID()),
-		eacl.NewObjectPropertyFilter("attr1", eacl.MatchStringEqual, "val1"),
-	),
-})
+var anyValidEACL = eacltest.Table()
 
 type (
 	invalidSessionTokenProtoTestcase = struct {
@@ -434,10 +421,9 @@ var (
 		name, msg string
 		corrupt   func(valid *protorefs.Checksum)
 	}{
-		// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-		// {name: "negative scheme", msg: "negative type -1", corrupt: func(valid *protorefs.Checksum) {
-		// 	valid.Type = -1
-		// }},
+		{name: "negative scheme", msg: "negative type -1", corrupt: func(valid *protorefs.Checksum) {
+			valid.Type = -1
+		}},
 		{name: "value/nil", msg: "missing value", corrupt: func(valid *protorefs.Checksum) {
 			valid.Sum = nil
 		}},
@@ -449,10 +435,9 @@ var (
 		name, msg string
 		corrupt   func(valid *protorefs.Signature)
 	}{
-		// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-		// {name: "negative scheme", msg: "negative scheme -1", corrupt: func(valid *protorefs.Signature) {
-		// 	valid.Scheme = -1
-		// }},
+		{name: "negative scheme", msg: "negative scheme -1", corrupt: func(valid *protorefs.Signature) {
+			valid.Scheme = -1
+		}},
 	}
 	invalidCommonSessionTokenProtoTestcases = []invalidSessionTokenProtoTestcase{
 		{name: "body/nil", msg: "missing token body", corrupt: func(valid *protosession.SessionToken) {
@@ -551,91 +536,55 @@ func (x *testCommonServerSettings) setSleepDuration(dur time.Duration) { x.handl
 
 // provides generic server code for various NeoFS API unary RPC servers.
 type testCommonUnaryServerSettings[
-	REQBODY apigrpc.Message,
-	REQBODYV2 any,
-	REQBODYV2PTR interface {
-		*REQBODYV2
-		signedMessageV2
-	},
+	REQBODY neofsproto.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
 		GetVerifyHeader() *protosession.RequestVerificationHeader
 	},
-	REQV2 any,
-	REQV2PTR interface {
-		*REQV2
-		FromGRPCMessage(apigrpc.Message) error
-	},
-	RESPBODY proto.Message,
-	RESPBODYV2 any,
-	RESPBODYV2PTR interface {
-		*RESPBODYV2
-		signedMessageV2
+	RESPBODY interface {
+		proto.Message
+		neofsproto.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
 		GetMetaHeader() *protosession.ResponseMetaHeader
 	},
-	RESPV2 any,
-	RESPV2PTR interface {
-		*RESPV2
-		ToGRPCMessage() apigrpc.Message
-		FromGRPCMessage(apigrpc.Message) error
-	},
 ] struct {
 	testCommonServerSettings
-	testCommonRequestServerSettings[REQBODY, REQBODYV2, REQBODYV2PTR, REQ, REQV2, REQV2PTR]
-	testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]
+	testCommonRequestServerSettings[REQBODY, REQ]
+	testCommonResponseServerSettings[RESPBODY, RESP]
 }
 
 // provides generic server code for various NeoFS API server-side stream RPC
 // servers.
 type testCommonServerStreamServerSettings[
-	REQBODY apigrpc.Message,
-	REQBODYV2 any,
-	REQBODYV2PTR interface {
-		*REQBODYV2
-		signedMessageV2
-	},
+	REQBODY neofsproto.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
 		GetVerifyHeader() *protosession.RequestVerificationHeader
 	},
-	REQV2 any,
-	REQV2PTR interface {
-		*REQV2
-		FromGRPCMessage(apigrpc.Message) error
-	},
-	RESPBODY proto.Message,
-	RESPBODYV2 any,
-	RESPBODYV2PTR interface {
-		*RESPBODYV2
-		signedMessageV2
+	RESPBODY interface {
+		proto.Message
+		neofsproto.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
 		GetMetaHeader() *protosession.ResponseMetaHeader
 	},
-	RESPV2 any,
-	RESPV2PTR interface {
-		*RESPV2
-		ToGRPCMessage() apigrpc.Message
-		FromGRPCMessage(apigrpc.Message) error
-	},
 ] struct {
 	testCommonServerSettings
-	testCommonRequestServerSettings[REQBODY, REQBODYV2, REQBODYV2PTR, REQ, REQV2, REQV2PTR]
-	resps    map[uint]testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]
+	testCommonRequestServerSettings[REQBODY, REQ]
+	resps    map[uint]testCommonResponseServerSettings[RESPBODY, RESP]
 	respErrN uint
 	respErr  error
 }
 
 // tunes processing of N-th response starting from 0.
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) tuneNResp(n uint,
-	tune func(*testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR])) {
-	type t = testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]
+func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) tuneNResp(n uint,
+	tune func(*testCommonResponseServerSettings[RESPBODY, RESP])) {
+	type t = testCommonResponseServerSettings[RESPBODY, RESP]
 	if x.resps == nil {
 		x.resps = make(map[uint]t, 1)
 	}
@@ -648,8 +597,8 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBO
 // response is signed.
 //
 // Overrides signResponsesBy.
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) respondWithoutSigning(n uint) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) {
+func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) respondWithoutSigning(n uint) {
+	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
 		s.respondWithoutSigning()
 	})
 }
@@ -659,8 +608,8 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBO
 //
 // No-op if signing is disabled using respondWithoutSigning.
 // nolint:unused // will be needed for https://github.com/nspcc-dev/neofs-sdk-go/issues/653
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) signResponsesBy(n uint, signer ecdsa.PrivateKey) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) {
+func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) signResponsesBy(n uint, signer ecdsa.PrivateKey) {
+	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
 		s.signResponsesBy(signer)
 	})
 }
@@ -670,8 +619,8 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBO
 //
 // Overrides respondWithStatus.
 // nolint:unused // will be needed for https://github.com/nspcc-dev/neofs-sdk-go/issues/653
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) respondWithMeta(n uint, meta *protosession.ResponseMetaHeader) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) {
+func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) respondWithMeta(n uint, meta *protosession.ResponseMetaHeader) {
+	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
 		s.respondWithMeta(meta)
 	})
 }
@@ -680,16 +629,16 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBO
 // status OK is returned.
 //
 // Overrides respondWithMeta.
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) respondWithStatus(n uint, st *protostatus.Status) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) {
+func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) respondWithStatus(n uint, st *protostatus.Status) {
+	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
 		s.respondWithStatus(st)
 	})
 }
 
 // makes the server to return n-th request with the given body. By default, any
 // valid body is returned.
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) respondWithBody(n uint, body RESPBODY) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) {
+func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) respondWithBody(n uint, body RESPBODY) {
+	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
 		s.respondWithBody(body)
 	})
 }
@@ -700,7 +649,7 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, RESPBODY, RESPBO
 // returned since it leads to a particular gRPC status.
 //
 // Overrides respondWithStatus.
-func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, _, _, _, _, _, _]) abortHandlerAfterResponse(n uint, err error) {
+func (x *testCommonServerStreamServerSettings[_, _, _, _]) abortHandlerAfterResponse(n uint, err error) {
 	if n == 0 {
 		x.setHandlerError(err)
 	} else {
@@ -711,42 +660,24 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _, _, _, _, _, _, _, _, _
 // provides generic server code for various NeoFS API client-side stream RPC
 // servers.
 type testCommonClientStreamServerSettings[
-	REQBODY apigrpc.Message,
-	REQBODYV2 any,
-	REQBODYV2PTR interface {
-		*REQBODYV2
-		signedMessageV2
-	},
+	REQBODY neofsproto.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
 		GetVerifyHeader() *protosession.RequestVerificationHeader
 	},
-	REQV2 any,
-	REQV2PTR interface {
-		*REQV2
-		FromGRPCMessage(apigrpc.Message) error
-	},
-	RESPBODY proto.Message,
-	RESPBODYV2 any,
-	RESPBODYV2PTR interface {
-		*RESPBODYV2
-		signedMessageV2
+	RESPBODY interface {
+		proto.Message
+		neofsproto.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
 		GetMetaHeader() *protosession.ResponseMetaHeader
 	},
-	RESPV2 any,
-	RESPV2PTR interface {
-		*RESPV2
-		ToGRPCMessage() apigrpc.Message
-		FromGRPCMessage(apigrpc.Message) error
-	},
 ] struct {
 	testCommonServerSettings
-	testCommonRequestServerSettings[REQBODY, REQBODYV2, REQBODYV2PTR, REQ, REQV2, REQV2PTR]
-	testCommonResponseServerSettings[RESPBODY, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]
+	testCommonRequestServerSettings[REQBODY, REQ]
+	testCommonResponseServerSettings[RESPBODY, RESP]
 	reqCounter uint
 	reqErrN    uint
 	reqErr     error
@@ -759,7 +690,7 @@ type testCommonClientStreamServerSettings[
 // that nil error is also returned since it leads to a particular gRPC status.
 //
 // Overrides respondWithStatusOnRequest.
-func (x *testCommonClientStreamServerSettings[_, _, _, _, _, _, _, _, _, _, _, _]) abortHandlerAfterRequest(n uint, err error) {
+func (x *testCommonClientStreamServerSettings[_, _, _, _]) abortHandlerAfterRequest(n uint, err error) {
 	if n == 0 {
 		x.setHandlerError(err)
 	} else {
@@ -769,26 +700,16 @@ func (x *testCommonClientStreamServerSettings[_, _, _, _, _, _, _, _, _, _, _, _
 
 // makes the server to immediately respond right after the n-th request
 // received.
-func (x *testCommonClientStreamServerSettings[_, _, _, _, _, _, _, _, _, _, _, _]) respondAfterRequest(n uint) {
+func (x *testCommonClientStreamServerSettings[_, _, _, _]) respondAfterRequest(n uint) {
 	x.respN = n
 }
 
 type testCommonRequestServerSettings[
-	REQBODY apigrpc.Message,
-	REQBODYV2 any,
-	REQBODYV2PTR interface {
-		*REQBODYV2
-		signedMessageV2
-	},
+	REQBODY neofsproto.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
 		GetVerifyHeader() *protosession.RequestVerificationHeader
-	},
-	REQV2 any,
-	REQV2PTR interface {
-		*REQV2
-		FromGRPCMessage(apigrpc.Message) error
 	},
 ] struct {
 	reqCreds *authCredentials
@@ -797,7 +718,7 @@ type testCommonRequestServerSettings[
 
 // makes the server to assert that any request has given X-headers. By default,
 // and if empty, no headers are expected.
-func (x *testCommonRequestServerSettings[_, _, _, _, _, _]) checkRequestXHeaders(xhdrs []string) {
+func (x *testCommonRequestServerSettings[_, _]) checkRequestXHeaders(xhdrs []string) {
 	if len(xhdrs)%2 != 0 {
 		panic("odd number of elements")
 	}
@@ -808,12 +729,12 @@ func (x *testCommonRequestServerSettings[_, _, _, _, _, _]) checkRequestXHeaders
 // signer is accepted.
 //
 // Has no effect with checkRequestDataSignature.
-func (x *testCommonRequestServerSettings[_, _, _, _, _, _]) authenticateRequest(s neofscrypto.Signer) {
+func (x *testCommonRequestServerSettings[_, _]) authenticateRequest(s neofscrypto.Signer) {
 	c := authCredentialsFromSigner(s)
 	x.reqCreds = &c
 }
 
-func (x testCommonRequestServerSettings[REQBODY, REQBODYV2, REQBODYV2PTR, REQ, _, _]) verifyRequest(req REQ) error {
+func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) error {
 	body := req.GetBody()
 	metaHdr := req.GetMetaHeader()
 	verifyHdr := req.GetVerifyHeader()
@@ -825,16 +746,16 @@ func (x testCommonRequestServerSettings[REQBODY, REQBODYV2, REQBODYV2PTR, REQ, _
 	if verifyHdr.Origin != nil {
 		return newInvalidRequestVerificationHeaderErr(errors.New("origin field is set while should not be"))
 	}
-	if err := verifyMessageSignature[REQBODY, REQBODYV2, REQBODYV2PTR](
-		body, verifyHdr.BodySignature, x.reqCreds); err != nil {
+	if err := verifyDataSignature(
+		neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
 		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
 	}
-	if err := verifyMessageSignature[*protosession.RequestMetaHeader, apisession.RequestMetaHeader, *apisession.RequestMetaHeader](
-		metaHdr, verifyHdr.MetaSignature, x.reqCreds); err != nil {
+	if err := verifyDataSignature(
+		neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
 		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
 	}
-	if err := verifyMessageSignature[*protosession.RequestVerificationHeader, apisession.RequestVerificationHeader, *apisession.RequestVerificationHeader](
-		verifyHdr.Origin, verifyHdr.OriginSignature, x.reqCreds); err != nil {
+	if err := verifyDataSignature(
+		neofsproto.MarshalMessage(verifyHdr.Origin), verifyHdr.OriginSignature, x.reqCreds); err != nil {
 		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("verification header's origin signature: %w", err))
 	}
 	// meta header
@@ -871,21 +792,13 @@ func (x testCommonRequestServerSettings[REQBODY, REQBODYV2, REQBODYV2PTR, REQ, _
 }
 
 type testCommonResponseServerSettings[
-	RESPBODY proto.Message,
-	RESPBODYV2 any,
-	RESPBODYV2PTR interface {
-		*RESPBODYV2
-		signedMessageV2
+	RESPBODY interface {
+		proto.Message
+		neofsproto.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
 		GetMetaHeader() *protosession.ResponseMetaHeader
-	},
-	RESPV2 any,
-	RESPV2PTR interface {
-		*RESPV2
-		ToGRPCMessage() apigrpc.Message
-		FromGRPCMessage(apigrpc.Message) error
 	},
 ] struct {
 	respUnsigned   bool
@@ -899,7 +812,7 @@ type testCommonResponseServerSettings[
 // response is signed.
 //
 // Overrides signResponsesBy.
-func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) respondWithoutSigning() {
+func (x *testCommonResponseServerSettings[_, _]) respondWithoutSigning() {
 	x.respUnsigned = true
 }
 
@@ -907,7 +820,7 @@ func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) respondWithoutSigni
 // if nil, random signer is used.
 //
 // No-op if signing is disabled using respondWithoutSigning.
-func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) signResponsesBy(key ecdsa.PrivateKey) {
+func (x *testCommonResponseServerSettings[_, _]) signResponsesBy(key ecdsa.PrivateKey) {
 	x.respSigner = &key
 }
 
@@ -915,7 +828,7 @@ func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) signResponsesBy(key
 // and if nil, no header is attached.
 //
 // Overrides respondWithStatus.
-func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) respondWithMeta(meta *protosession.ResponseMetaHeader) {
+func (x *testCommonResponseServerSettings[_, _]) respondWithMeta(meta *protosession.ResponseMetaHeader) {
 	x.respMeta = meta
 }
 
@@ -923,18 +836,18 @@ func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) respondWithMeta(met
 // OK is returned.
 //
 // Overrides respondWithMeta.
-func (x *testCommonResponseServerSettings[_, _, _, _, _, _]) respondWithStatus(st *protostatus.Status) {
+func (x *testCommonResponseServerSettings[_, _]) respondWithStatus(st *protostatus.Status) {
 	x.respondWithMeta(&protosession.ResponseMetaHeader{Status: st})
 }
 
 // makes the server to always respond with the given body. By default, any valid
 // body is returned.
-func (x *testCommonResponseServerSettings[RESPBODY, _, _, _, _, _]) respondWithBody(body RESPBODY) {
+func (x *testCommonResponseServerSettings[RESPBODY, _]) respondWithBody(body RESPBODY) {
 	x.respBody = proto.Clone(body).(RESPBODY)
 	x.respBodyForced = true
 }
 
-func (x testCommonResponseServerSettings[_, RESPBODYV2, RESPBODYV2PTR, RESP, RESPV2, RESPV2PTR]) signResponse(resp RESP) (*protosession.ResponseVerificationHeader, error) {
+func (x testCommonResponseServerSettings[_, RESP]) signResponse(resp RESP) (*protosession.ResponseVerificationHeader, error) {
 	if x.respUnsigned {
 		return nil, nil
 	}
@@ -945,17 +858,17 @@ func (x testCommonResponseServerSettings[_, RESPBODYV2, RESPBODYV2PTR, RESP, RES
 		signer = neofscryptotest.ECDSAPrivateKey()
 	}
 	// body
-	bs, err := signMessage(signer, resp.GetBody(), RESPBODYV2PTR(nil))
+	bs, err := signMessage(signer, resp.GetBody())
 	if err != nil {
 		return nil, fmt.Errorf("sign body: %w", err)
 	}
 	// meta
-	ms, err := signMessage(signer, resp.GetMetaHeader(), (*apisession.ResponseMetaHeader)(nil))
+	ms, err := signMessage(signer, resp.GetMetaHeader())
 	if err != nil {
 		return nil, fmt.Errorf("sign meta: %w", err)
 	}
 	// origin
-	ors, err := signMessage(signer, (*protosession.ResponseVerificationHeader)(nil), (*apisession.ResponseVerificationHeader)(nil))
+	ors, err := signMessage(signer, (*protosession.ResponseVerificationHeader)(nil))
 	if err != nil {
 		return nil, fmt.Errorf("sign verification header's origin: %w", err)
 	}

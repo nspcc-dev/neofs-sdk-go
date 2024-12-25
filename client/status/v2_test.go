@@ -8,37 +8,37 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestFromStatusV2(t *testing.T) {
+func TestToError(t *testing.T) {
 	type statusConstructor func() error
 
 	for _, testItem := range [...]struct {
-		status         any // Status or statusConstructor
-		codeV2         uint64
-		messageV2      string
+		new            statusConstructor
+		code           uint64
+		message        string
 		compatibleErrs []error
 		checkAsErr     func(error) bool
 	}{
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return errors.New("some error")
-			}),
-			codeV2:    1024,
-			messageV2: "some error",
+			},
+			code:    1024,
+			message: "some error",
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return nil
-			}),
-			codeV2: 0,
+			},
+			code: 0,
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				st := new(apistatus.ServerInternal)
 				st.SetMessage("internal error message")
 
 				return st
-			}),
-			codeV2:         1024,
+			},
+			code:           1024,
 			compatibleErrs: []error{apistatus.ErrServerInternal, apistatus.ServerInternal{}, &apistatus.ServerInternal{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ServerInternal
@@ -46,13 +46,13 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				st := new(apistatus.WrongMagicNumber)
 				st.WriteCorrectMagic(322)
 
 				return st
-			}),
-			codeV2:         1025,
+			},
+			code:           1025,
 			compatibleErrs: []error{apistatus.ErrWrongMagicNumber, apistatus.WrongMagicNumber{}, &apistatus.WrongMagicNumber{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.WrongMagicNumber
@@ -60,10 +60,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.ObjectLocked)
-			}),
-			codeV2:         2050,
+			},
+			code:           2050,
 			compatibleErrs: []error{apistatus.ErrObjectLocked, apistatus.ObjectLocked{}, &apistatus.ObjectLocked{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ObjectLocked
@@ -71,10 +71,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.LockNonRegularObject)
-			}),
-			codeV2:         2051,
+			},
+			code:           2051,
 			compatibleErrs: []error{apistatus.ErrLockNonRegularObject, apistatus.LockNonRegularObject{}, &apistatus.LockNonRegularObject{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.LockNonRegularObject
@@ -82,13 +82,13 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				st := new(apistatus.ObjectAccessDenied)
 				st.WriteReason("any reason")
 
 				return st
-			}),
-			codeV2:         2048,
+			},
+			code:           2048,
 			compatibleErrs: []error{apistatus.ErrObjectAccessDenied, apistatus.ObjectAccessDenied{}, &apistatus.ObjectAccessDenied{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ObjectAccessDenied
@@ -96,10 +96,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.ObjectNotFound)
-			}),
-			codeV2:         2049,
+			},
+			code:           2049,
 			compatibleErrs: []error{apistatus.ErrObjectNotFound, apistatus.ObjectNotFound{}, &apistatus.ObjectNotFound{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ObjectNotFound
@@ -107,10 +107,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.ObjectAlreadyRemoved)
-			}),
-			codeV2:         2052,
+			},
+			code:           2052,
 			compatibleErrs: []error{apistatus.ErrObjectAlreadyRemoved, apistatus.ObjectAlreadyRemoved{}, &apistatus.ObjectAlreadyRemoved{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ObjectAlreadyRemoved
@@ -118,10 +118,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: statusConstructor(func() error {
+			new: func() error {
 				return new(apistatus.ObjectOutOfRange)
-			}),
-			codeV2:         2053,
+			},
+			code:           2053,
 			compatibleErrs: []error{apistatus.ErrObjectOutOfRange, apistatus.ObjectOutOfRange{}, &apistatus.ObjectOutOfRange{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ObjectOutOfRange
@@ -129,10 +129,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.ContainerNotFound)
-			}),
-			codeV2:         3072,
+			},
+			code:           3072,
 			compatibleErrs: []error{apistatus.ErrContainerNotFound, apistatus.ContainerNotFound{}, &apistatus.ContainerNotFound{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.ContainerNotFound
@@ -140,10 +140,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.EACLNotFound)
-			}),
-			codeV2:         3073,
+			},
+			code:           3073,
 			compatibleErrs: []error{apistatus.ErrEACLNotFound, apistatus.EACLNotFound{}, &apistatus.EACLNotFound{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.EACLNotFound
@@ -151,10 +151,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.SessionTokenNotFound)
-			}),
-			codeV2:         4096,
+			},
+			code:           4096,
 			compatibleErrs: []error{apistatus.ErrSessionTokenNotFound, apistatus.SessionTokenNotFound{}, &apistatus.SessionTokenNotFound{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.SessionTokenNotFound
@@ -162,10 +162,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.SessionTokenExpired)
-			}),
-			codeV2:         4097,
+			},
+			code:           4097,
 			compatibleErrs: []error{apistatus.ErrSessionTokenExpired, apistatus.SessionTokenExpired{}, &apistatus.SessionTokenExpired{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.SessionTokenExpired
@@ -173,10 +173,10 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 		{
-			status: (statusConstructor)(func() error {
+			new: func() error {
 				return new(apistatus.NodeUnderMaintenance)
-			}),
-			codeV2:         1027,
+			},
+			code:           1027,
 			compatibleErrs: []error{apistatus.ErrNodeUnderMaintenance, apistatus.NodeUnderMaintenance{}, &apistatus.NodeUnderMaintenance{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.NodeUnderMaintenance
@@ -184,30 +184,23 @@ func TestFromStatusV2(t *testing.T) {
 			},
 		},
 	} {
-		var st error
-		cons, ok := testItem.status.(statusConstructor)
-		require.True(t, ok)
+		st := testItem.new()
 
-		st = cons()
-
-		stv2 := apistatus.ErrorToV2(st)
+		m := apistatus.FromError(st)
 
 		// must generate the same status.Status message
-		require.EqualValues(t, testItem.codeV2, stv2.Code())
-		if len(testItem.messageV2) > 0 {
-			require.Equal(t, testItem.messageV2, stv2.Message())
+		require.EqualValues(t, testItem.code, m.GetCode())
+		if len(testItem.message) > 0 {
+			require.Equal(t, testItem.message, m.Message)
 		}
 
-		_, ok = st.(apistatus.StatusV2)
-		if ok {
-			// restore and convert again
-			restored := apistatus.ErrorFromV2(stv2)
+		// restore and convert again
+		restored := apistatus.ToError(m)
 
-			res := apistatus.ErrorToV2(restored)
+		res := apistatus.FromError(restored)
 
-			// must generate the same status.Status message
-			require.Equal(t, stv2, res)
-		}
+		// must generate the same status.Status message
+		require.Equal(t, m, res)
 
 		randomError := errors.New("garbage")
 		for _, err := range testItem.compatibleErrs {
