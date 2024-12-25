@@ -7,15 +7,14 @@ import (
 	"strconv"
 	"testing"
 
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	protosg "github.com/nspcc-dev/neofs-api-go/v2/storagegroup"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	checksumtest "github.com/nspcc-dev/neofs-sdk-go/checksum/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosg "github.com/nspcc-dev/neofs-sdk-go/proto/storagegroup"
 	"github.com/nspcc-dev/neofs-sdk-go/storagegroup"
 	storagegrouptest "github.com/nspcc-dev/neofs-sdk-go/storagegroup/test"
 	"github.com/nspcc-dev/tzhash/tz"
@@ -43,7 +42,7 @@ var anyValidMembers = []oid.ID{
 }
 
 var validChecksums = []checksum.Checksum{
-	checksum.New(3259832435, []byte("Hello, world!")),
+	checksum.New(259832435, []byte("Hello, world!")),
 	checksum.NewSHA256(anyValidSHA256Hash),
 	checksum.NewTillichZemor(anyValidTillichZemorHash),
 }
@@ -60,13 +59,12 @@ func init() {
 
 // corresponds to validStorageGroups.
 var validBinStorageGroups = [][]byte{
-	{8, 174, 210, 190, 202, 173, 196, 168, 156, 214, 1, 18, 26, 8, 243, 176, 180, 146, 252, 255,
-		255, 255, 255, 1, 18, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 24,
-		238, 188, 144, 132, 238, 174, 251, 156, 187, 1, 34, 34, 10, 32, 138, 163, 217, 148, 183,
-		203, 248, 137, 98, 245, 243, 80, 22, 7, 219, 189, 157, 190, 201, 32, 41, 255, 198, 245,
-		248, 206, 65, 33, 101, 127, 122, 216, 34, 34, 10, 32, 166, 174, 16, 34, 157, 146, 167, 232,
-		106, 101, 234, 123, 46, 85, 109, 169, 62, 223, 253, 39, 172, 237, 222, 223, 134, 93,
-		176, 237, 93, 21, 9, 39},
+	{8, 174, 210, 190, 202, 173, 196, 168, 156, 214, 1, 18, 20, 8, 243, 244, 242, 123, 18, 13, 72,
+		101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33, 24, 238, 188, 144, 132, 238, 174, 251,
+		156, 187, 1, 34, 34, 10, 32, 138, 163, 217, 148, 183, 203, 248, 137, 98, 245, 243, 80, 22,
+		7, 219, 189, 157, 190, 201, 32, 41, 255, 198, 245, 248, 206, 65, 33, 101, 127, 122, 216, 34,
+		34, 10, 32, 166, 174, 16, 34, 157, 146, 167, 232, 106, 101, 234, 123, 46, 85, 109, 169, 62,
+		223, 253, 39, 172, 237, 222, 223, 134, 93, 176, 237, 93, 21, 9, 39},
 	{8, 174, 210, 190, 202, 173, 196, 168, 156, 214, 1, 18, 36, 8, 2, 18, 32, 49, 95, 91, 219, 118,
 		208, 120, 196, 59, 138, 192, 6, 78, 74, 1, 100, 97, 43, 31, 206, 119, 200, 105, 52, 91, 252,
 		148, 199, 88, 148, 237, 211, 24, 238, 188, 144, 132, 238, 174, 251, 156, 187, 1, 34, 34, 10,
@@ -88,7 +86,7 @@ var validJSONStorageGroups = []string{`
 {
  "validationDataSize": "15436265993370839342",
  "validationHash": {
-  "type": -1035134861,
+  "type": 259832435,
   "sum": "SGVsbG8sIHdvcmxkIQ=="
  },
  "expirationEpoch": "13491075253593710190",
@@ -145,69 +143,69 @@ type invalidProtoTestCase struct {
 }
 
 var invalidProtoTestcases = []invalidProtoTestCase{
+	{name: "checksum/type/negative", err: "invalid hash: negative type -1", corrupt: func(sg *protosg.StorageGroup) {
+		sg.ValidationHash.Type = -1
+	}},
 	{name: "checksum/value/nil", err: "invalid hash: missing value", corrupt: func(sg *protosg.StorageGroup) {
-		sg.SetValidationHash(new(refs.Checksum))
+		sg.ValidationHash = new(refs.Checksum)
 	}},
 	{name: "checksum/value/empty", err: "invalid hash: missing value", corrupt: func(sg *protosg.StorageGroup) {
-		var cs refs.Checksum
-		cs.SetSum([]byte{})
-		sg.SetValidationHash(&cs)
+		sg.ValidationHash.Sum = []byte{}
 	}},
 	{name: "members/value/nil", err: "invalid member #1: invalid length 0", corrupt: func(sg *protosg.StorageGroup) {
-		members := make([]refs.ObjectID, 2)
-		members[0].SetValue(anyValidMembers[0][:])
-		sg.SetMembers(members)
+		sg.Members = []*refs.ObjectID{
+			{Value: anyValidMembers[0][:]},
+			{},
+		}
 	}},
 	{name: "members/value/empty", err: "invalid member #1: invalid length 0", corrupt: func(sg *protosg.StorageGroup) {
-		members := make([]refs.ObjectID, 2)
-		members[0].SetValue(anyValidMembers[0][:])
-		members[1].SetValue([]byte{})
-		sg.SetMembers(members)
+		sg.Members = []*refs.ObjectID{
+			{Value: anyValidMembers[0][:]},
+			{Value: []byte{}},
+		}
 	}},
 	{name: "members/value/undersize", err: "invalid member #1: invalid length 31", corrupt: func(sg *protosg.StorageGroup) {
-		members := make([]refs.ObjectID, 2)
-		members[0].SetValue(anyValidMembers[0][:])
-		members[1].SetValue(anyValidMembers[1][:31])
-		sg.SetMembers(members)
+		sg.Members = []*refs.ObjectID{
+			{Value: anyValidMembers[0][:]},
+			{Value: anyValidMembers[1][:31]},
+		}
 	}},
 	{name: "members/value/oversize", err: "invalid member #1: invalid length 33", corrupt: func(sg *protosg.StorageGroup) {
-		members := make([]refs.ObjectID, 2)
-		members[0].SetValue(anyValidMembers[0][:])
-		members[1].SetValue(append(anyValidMembers[1][:], 1))
-		sg.SetMembers(members)
+		sg.Members = []*refs.ObjectID{
+			{Value: anyValidMembers[0][:]},
+			{Value: append(anyValidMembers[1][:], 1)},
+		}
 	}},
 	{name: "members/duplicated", err: "duplicated member ALCAybSe17EF2b2e2TkfVVrMeQ6Gt6TW58rWkzzcGBoV", corrupt: func(sg *protosg.StorageGroup) {
-		members := make([]refs.ObjectID, 3)
-		members[0].SetValue(anyValidMembers[0][:])
-		members[1].SetValue(anyValidMembers[1][:])
-		members[2].SetValue(anyValidMembers[0][:])
-		sg.SetMembers(members)
+		sg.Members = []*refs.ObjectID{
+			{Value: anyValidMembers[0][:]},
+			{Value: anyValidMembers[1][:]},
+			{Value: anyValidMembers[0][:]},
+		}
 	}},
 }
 
-func TestStorageGroup_ReadFromV2(t *testing.T) {
-	members := make([]refs.ObjectID, 2)
-	members[0].SetValue(anyValidMembers[0][:])
-	members[1].SetValue(anyValidMembers[1][:])
-	var mcs refs.Checksum
-	var m protosg.StorageGroup
-	m.SetValidationDataSize(anyValidSize)
-	//nolint:staticcheck
-	m.SetExpirationEpoch(anyValidExp)
-	m.SetMembers(members)
+func TestStorageGroup_FromProtoMessage(t *testing.T) {
+	m := &protosg.StorageGroup{
+		ValidationDataSize: anyValidSize,
+		ExpirationEpoch:    anyValidExp,
+		Members: []*refs.ObjectID{
+			{Value: anyValidMembers[0][:]},
+			{Value: anyValidMembers[1][:]},
+		},
+	}
+
 	var sg storagegroup.StorageGroup
 	for i, tc := range []struct {
 		typ refs.ChecksumType
 		val []byte
 	}{
 		{43503860, []byte("Hello, world!")},
-		{refs.SHA256, anyValidSHA256Hash[:]},
-		{refs.TillichZemor, anyValidTillichZemorHash[:]},
+		{refs.ChecksumType_SHA256, anyValidSHA256Hash[:]},
+		{refs.ChecksumType_TZ, anyValidTillichZemorHash[:]},
 	} {
-		mcs.SetType(tc.typ)
-		mcs.SetSum(tc.val)
-		m.SetValidationHash(&mcs)
-		require.NoError(t, sg.ReadFromV2(m), i)
+		m.ValidationHash = &refs.Checksum{Type: tc.typ, Sum: tc.val}
+		require.NoError(t, sg.FromProtoMessage(m), i)
 		require.EqualValues(t, anyValidSize, sg.ValidationDataSize(), i)
 		require.EqualValues(t, anyValidExp, sg.ExpirationEpoch(), i)
 		require.Equal(t, anyValidMembers, sg.Members(), i)
@@ -217,9 +215,9 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 		switch typ := cs.Type(); tc.typ {
 		default:
 			require.EqualValues(t, tc.typ, typ, i)
-		case refs.SHA256:
+		case refs.ChecksumType_SHA256:
 			require.Equal(t, checksum.SHA256, typ, i)
-		case refs.TillichZemor:
+		case refs.ChecksumType_TZ:
 			require.Equal(t, checksum.TillichZemor, typ, i)
 		}
 	}
@@ -228,30 +226,28 @@ func TestStorageGroup_ReadFromV2(t *testing.T) {
 		for _, tc := range append(invalidProtoTestcases, invalidProtoTestCase{
 			name:    "missing checksum",
 			err:     "missing hash",
-			corrupt: func(sg *protosg.StorageGroup) { sg.SetValidationHash(nil) },
+			corrupt: func(sg *protosg.StorageGroup) { sg.ValidationHash = nil },
 		}, invalidProtoTestCase{
 			name:    "members/nil",
 			err:     "missing members",
-			corrupt: func(sg *protosg.StorageGroup) { sg.SetMembers(nil) },
+			corrupt: func(sg *protosg.StorageGroup) { sg.Members = nil },
 		}, invalidProtoTestCase{
 			name:    "members/empty",
 			err:     "missing members",
-			corrupt: func(sg *protosg.StorageGroup) { sg.SetMembers([]refs.ObjectID{}) },
+			corrupt: func(sg *protosg.StorageGroup) { sg.Members = []*refs.ObjectID{} },
 		}) {
 			t.Run(tc.name, func(t *testing.T) {
-				var m protosg.StorageGroup
-				storagegrouptest.StorageGroup().WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(storagegroup.StorageGroup).ReadFromV2(m), tc.err)
+				m := sg.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(storagegroup.StorageGroup).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestStorageGroup_WriteToV2(t *testing.T) {
+func TestStorageGroup_ProtoMessage(t *testing.T) {
 	for i, sg := range validStorageGroups {
-		var m protosg.StorageGroup
-		sg.WriteToV2(&m)
+		m := sg.ProtoMessage()
 		require.EqualValues(t, anyValidSize, m.GetValidationDataSize(), i)
 		//nolint:staticcheck
 		require.EqualValues(t, anyValidExp, m.GetExpirationEpoch(), i)
@@ -265,9 +261,9 @@ func TestStorageGroup_WriteToV2(t *testing.T) {
 		default:
 			require.EqualValues(t, typ, mcs.GetType())
 		case checksum.SHA256:
-			require.Equal(t, refs.SHA256, mcs.GetType())
+			require.Equal(t, refs.ChecksumType_SHA256, mcs.GetType())
 		case checksum.TillichZemor:
-			require.Equal(t, refs.TillichZemor, mcs.GetType())
+			require.Equal(t, refs.ChecksumType_TZ, mcs.GetType())
 		}
 	}
 }
@@ -473,7 +469,7 @@ func TestWriteToObject(t *testing.T) {
 		var o object.Object
 
 		var attr object.Attribute
-		attr.SetKey(protoobject.SysAttributeExpEpoch)
+		attr.SetKey("__NEOFS__EXPIRATION_EPOCH")
 		attr.SetValue(strconv.FormatUint(sg.ExpirationEpoch()+1, 10))
 
 		o.SetAttributes(object.Attribute{}, attr, object.Attribute{})
@@ -491,7 +487,7 @@ func TestWriteToObject(t *testing.T) {
 
 func expFromObj(t *testing.T, o object.Object) (uint64, bool) {
 	for _, attr := range o.Attributes() {
-		if attr.Key() == protoobject.SysAttributeExpEpoch {
+		if attr.Key() == "__NEOFS__EXPIRATION_EPOCH" {
 			exp, err := strconv.ParseUint(attr.Value(), 10, 64)
 			require.NoError(t, err)
 

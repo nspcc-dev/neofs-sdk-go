@@ -5,18 +5,17 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/json"
-	"math"
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -92,7 +91,7 @@ var validJSONObjectToken = `
   },
   "sessionKey": "ApUrMsRbsT6D6X7xsQ1OYF53RzezCDXxTwIBX1VOLcWI",
   "object": {
-   "verb": 32905430,
+   "verb": 837285395,
    "target": {
     "container": {
      "value": "8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="
@@ -119,38 +118,34 @@ var validJSONObjectToken = `
 }
 `
 
-func TestObject_ReadFromV2(t *testing.T) {
-	var lt apisession.TokenLifetime
-	lt.SetExp(anyValidExp)
-	lt.SetIat(anyValidIat)
-	lt.SetNbf(anyValidNbf)
-	var mo refs.OwnerID
-	mo.SetValue(anyValidUserID[:])
-	var mcnr refs.ContainerID
-	mcnr.SetValue(anyValidContainerID[:])
-	mobjs := make([]refs.ObjectID, len(anyValidObjectIDs))
+func TestObject_FromProtoMessage(t *testing.T) {
+	mobjs := make([]*refs.ObjectID, len(anyValidObjectIDs))
 	for i := range anyValidObjectIDs {
-		mobjs[i].SetValue(anyValidObjectIDs[i][:])
+		mobjs[i] = &refs.ObjectID{Value: anyValidObjectIDs[i][:]}
 	}
-	var mc apisession.ObjectSessionContext
-	mc.SetTarget(&mcnr, mobjs...)
-	mc.SetVerb(anyValidObjectVerb)
-	var mb apisession.TokenBody
-	mb.SetID(anyValidSessionID[:])
-	mb.SetOwnerID(&mo)
-	mb.SetLifetime(&lt)
-	mb.SetSessionKey(anyValidSessionKeyBytes)
-	mb.SetContext(&mc)
-	var msig refs.Signature
-	msig.SetKey(anyValidIssuerPublicKeyBytes)
-	msig.SetScheme(refs.SignatureScheme(anyValidSignatureScheme))
-	msig.SetSign(anyValidSignatureBytes)
-	var m apisession.Token
-	m.SetBody(&mb)
-	m.SetSignature(&msig)
+	m := &protosession.SessionToken{
+		Body: &protosession.SessionToken_Body{
+			Id:         anyValidSessionID[:],
+			OwnerId:    &refs.OwnerID{Value: anyValidUserID[:]},
+			Lifetime:   &protosession.SessionToken_Body_TokenLifetime{Exp: anyValidExp, Nbf: anyValidNbf, Iat: anyValidIat},
+			SessionKey: anyValidSessionKeyBytes,
+			Context: &protosession.SessionToken_Body_Object{Object: &protosession.ObjectSessionContext{
+				Verb: anyValidObjectVerb,
+				Target: &protosession.ObjectSessionContext_Target{
+					Container: &refs.ContainerID{Value: anyValidContainerID[:]},
+					Objects:   mobjs,
+				},
+			}},
+		},
+		Signature: &refs.Signature{
+			Key:    anyValidIssuerPublicKeyBytes,
+			Sign:   anyValidSignatureBytes,
+			Scheme: anyValidSignatureScheme,
+		},
+	}
 
 	var val session.Object
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	require.Equal(t, val.ID(), anyValidSessionID)
 	require.Equal(t, val.Issuer(), anyValidUserID)
 	require.EqualValues(t, anyValidExp, val.Exp())
@@ -171,109 +166,98 @@ func TestObject_ReadFromV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range append(invalidProtoTokenCommonTestcases, invalidProtoTokenTestcase{
 			name: "context/missing", err: "missing session context",
-			corrupt: func(m *apisession.Token) { m.GetBody().SetContext(nil) },
+			corrupt: func(m *protosession.SessionToken) { m.Body.Context = nil },
 		}, invalidProtoTokenTestcase{
-			name: "context/wrong", err: "invalid context: invalid context *session.ContainerSessionContext",
-			corrupt: func(m *apisession.Token) { m.GetBody().SetContext(new(apisession.ContainerSessionContext)) },
+			name: "context/wrong", err: "invalid context: invalid context *session.SessionToken_Body_Container",
+			corrupt: func(m *protosession.SessionToken) { m.Body.Context = new(protosession.SessionToken_Body_Container) },
 		}, invalidProtoTokenTestcase{
-			name: "context/invalid verb", err: "invalid context: verb 2147483648 overflows int32",
-			corrupt: func(m *apisession.Token) {
-				m.GetBody().GetContext().(*apisession.ObjectSessionContext).SetVerb(math.MaxInt32 + 1)
+			name: "context/invalid verb", err: "invalid context: negative verb -1",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Verb = -1
+			},
+		}, invalidProtoTokenTestcase{
+			name: "context/invalid verb", err: "invalid context: negative verb -1",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Verb = -1
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/missing container", err: "invalid context: missing target container",
-			corrupt: func(m *apisession.Token) {
-				m.GetBody().GetContext().(*apisession.ObjectSessionContext).SetTarget(nil)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target = nil
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/nil value", err: "invalid context: invalid container ID: invalid length 0",
-			corrupt: func(m *apisession.Token) {
-				m.GetBody().GetContext().(*apisession.ObjectSessionContext).SetTarget(new(refs.ContainerID))
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Container = new(refs.ContainerID)
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/empty value", err: "invalid context: invalid container ID: invalid length 0",
-			corrupt: func(m *apisession.Token) {
-				var id refs.ContainerID
-				id.SetValue([]byte{})
-				m.GetBody().GetContext().(*apisession.ObjectSessionContext).SetTarget(&id)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Container.Value = []byte{}
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/undersize", err: "invalid context: invalid container ID: invalid length 31",
-			corrupt: func(m *apisession.Token) {
-				var id refs.ContainerID
-				id.SetValue(make([]byte, 31))
-				m.GetBody().GetContext().(*apisession.ObjectSessionContext).SetTarget(&id)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Container.Value = make([]byte, 31)
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/oversize", err: "invalid context: invalid container ID: invalid length 33",
-			corrupt: func(m *apisession.Token) {
-				var id refs.ContainerID
-				id.SetValue(make([]byte, 33))
-				m.GetBody().GetContext().(*apisession.ObjectSessionContext).SetTarget(&id)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Container.Value = make([]byte, 33)
 			},
 		}, invalidProtoTokenTestcase{
-			name: "context/object/nil value", err: "invalid context: invalid target object: invalid length 0",
-			corrupt: func(m *apisession.Token) {
-				c := m.GetBody().GetContext().(*apisession.ObjectSessionContext)
-				mo := c.GetObjects()
-				mo[1].SetValue(nil)
-				c.SetTarget(c.GetContainer(), mo...)
+			name: "context/objects/nil element", err: "invalid context: nil target object #1",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Objects[1] = nil
 			},
 		}, invalidProtoTokenTestcase{
-			name: "context/object/empty value", err: "invalid context: invalid target object: invalid length 0",
-			corrupt: func(m *apisession.Token) {
-				c := m.GetBody().GetContext().(*apisession.ObjectSessionContext)
-				mo := c.GetObjects()
-				mo[1].SetValue([]byte{})
-				c.SetTarget(c.GetContainer(), mo...)
+			name: "context/objects/nil value", err: "invalid context: invalid target object: invalid length 0",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value = nil
 			},
 		}, invalidProtoTokenTestcase{
-			name: "context/object/undersize", err: "invalid context: invalid target object: invalid length 31",
-			corrupt: func(m *apisession.Token) {
-				c := m.GetBody().GetContext().(*apisession.ObjectSessionContext)
-				mo := c.GetObjects()
-				mo[1].SetValue(make([]byte, 31))
-				c.SetTarget(c.GetContainer(), mo...)
+			name: "context/objects/empty value", err: "invalid context: invalid target object: invalid length 0",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value = []byte{}
 			},
 		}, invalidProtoTokenTestcase{
-			name: "context/object/oversize", err: "invalid context: invalid target object: invalid length 33",
-			corrupt: func(m *apisession.Token) {
-				c := m.GetBody().GetContext().(*apisession.ObjectSessionContext)
-				mo := c.GetObjects()
-				mo[1].SetValue(make([]byte, 33))
-				c.SetTarget(c.GetContainer(), mo...)
+			name: "context/objects/undersize", err: "invalid context: invalid target object: invalid length 31",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value = make([]byte, 31)
+			},
+		}, invalidProtoTokenTestcase{
+			name: "context/objects/oversize", err: "invalid context: invalid target object: invalid length 33",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Object).Object.Target.Objects[1].Value = make([]byte, 33)
 			},
 		}) {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m apisession.Token
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(session.Object).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(session.Object).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestObject_WriteToV2(t *testing.T) {
+func TestObject_ProtoMessage(t *testing.T) {
 	var val session.Object
-	var m apisession.Token
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetSignature())
 	body := m.GetBody()
 	require.NotNil(t, body)
-	require.Zero(t, body.GetID())
-	require.Zero(t, body.GetOwnerID())
+	require.Zero(t, body.GetId())
+	require.Zero(t, body.GetOwnerId())
 	require.Zero(t, body.GetLifetime())
 	require.Zero(t, body.GetSessionKey())
 	c := body.GetContext()
-	require.IsType(t, new(apisession.ObjectSessionContext), c)
-	oc := c.(*apisession.ObjectSessionContext)
+	require.IsType(t, new(protosession.SessionToken_Body_Object), c)
+	oc := c.(*protosession.SessionToken_Body_Object).Object
 	require.Zero(t, oc.GetVerb())
-	require.Zero(t, oc.GetContainer())
-	require.Zero(t, oc.GetObjects())
+	require.Zero(t, oc.GetTarget())
 
 	// filled
 	val.SetID(anyValidSessionID)
@@ -287,11 +271,11 @@ func TestObject_WriteToV2(t *testing.T) {
 	val.LimitByObjects(anyValidObjectIDs...)
 	val.AttachSignature(anyValidSignature)
 
-	val.WriteToV2(&m)
+	m = val.ProtoMessage()
 	body = m.GetBody()
 	require.NotNil(t, body)
-	require.Equal(t, anyValidSessionID[:], body.GetID())
-	require.Equal(t, anyValidUserID[:], body.GetOwnerID().GetValue())
+	require.Equal(t, anyValidSessionID[:], body.GetId())
+	require.Equal(t, anyValidUserID[:], body.GetOwnerId().GetValue())
 	lt := body.GetLifetime()
 	require.EqualValues(t, anyValidExp, lt.GetExp())
 	require.EqualValues(t, anyValidIat, lt.GetIat())
@@ -303,11 +287,12 @@ func TestObject_WriteToV2(t *testing.T) {
 	require.Equal(t, anyValidIssuerPublicKeyBytes, sig.GetKey())
 	require.Equal(t, anyValidSignatureBytes, sig.GetSign())
 	c = body.GetContext()
-	require.IsType(t, new(apisession.ObjectSessionContext), c)
-	oc = c.(*apisession.ObjectSessionContext)
+	require.IsType(t, new(protosession.SessionToken_Body_Object), c)
+	oc = c.(*protosession.SessionToken_Body_Object).Object
 	require.EqualValues(t, anyValidObjectVerb, oc.GetVerb())
-	require.Equal(t, anyValidContainerID[:], oc.GetContainer().GetValue())
-	mo := oc.GetObjects()
+	require.NotNil(t, oc.Target)
+	require.Equal(t, anyValidContainerID[:], oc.Target.GetContainer().GetValue())
+	mo := oc.Target.GetObjects()
 	require.Len(t, mo, len(anyValidObjectIDs))
 	for i := range anyValidObjectIDs {
 		require.Equal(t, anyValidObjectIDs[i][:], mo[i].GetValue())
@@ -326,7 +311,7 @@ func TestObject_Unmarshal(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidBinTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.ContainerSessionContext",
+			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Container",
 			b: []byte{10, 2, 50, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/container/empty value", err: "invalid context: invalid container ID: invalid length 0",
@@ -406,7 +391,6 @@ func TestObject_Unmarshal(t *testing.T) {
 	// filled
 	err := val.Unmarshal(validBinObjectToken)
 	require.NoError(t, err)
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validObjectToken, val)
 }
 
@@ -414,7 +398,6 @@ func TestObject_MarshalJSON(t *testing.T) {
 	//nolint:staticcheck
 	b, err := json.MarshalIndent(validObjectToken, "", " ")
 	require.NoError(t, err)
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.JSONEq(t, validJSONObjectToken, string(b))
 }
 
@@ -426,7 +409,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 			require.ErrorContains(t, err, "syntax error")
 		})
 		for _, tc := range append(invalidJSONTokenCommonTestcases, invalidJSONTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.ContainerSessionContext", j: `
+			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Container", j: `
 {"body":{"container":{}}}
 `}, invalidJSONTokenTestcase{
 			name: "body/context/container/empty value", err: "invalid context: invalid container ID: invalid length 0", j: `
@@ -471,7 +454,6 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 
 	// filled
 	require.NoError(t, val.UnmarshalJSON([]byte(validJSONObjectToken)))
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 	require.Equal(t, validObjectToken, val)
 }
 
@@ -664,7 +646,7 @@ func TestObject_UnmarshalSignedData(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidSignedTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.ContainerSessionContext",
+			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Container",
 			b: []byte{50, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/container/empty value", err: "invalid context: invalid container ID: invalid length 0",
@@ -721,8 +703,7 @@ func TestObject_UnmarshalSignedData(t *testing.T) {
 	// filled
 	err := val.UnmarshalSignedData(validSignedObjectToken)
 	require.NoError(t, err)
-	t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
-	require.Equal(t, validObjectToken, val)
+	require.Equal(t, validSignedObjectToken, val.SignedData())
 }
 
 func TestObject_SetExp(t *testing.T) {

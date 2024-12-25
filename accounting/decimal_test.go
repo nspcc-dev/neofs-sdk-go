@@ -4,8 +4,8 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	apiaccounting "github.com/nspcc-dev/neofs-api-go/v2/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
 	"github.com/stretchr/testify/require"
 )
 
@@ -48,23 +48,22 @@ func TestDecimal_SetPrecision(t *testing.T) {
 	testDecimalField(t, accounting.Decimal.Precision, (*accounting.Decimal).SetPrecision)
 }
 
-func TestDecimal_ReadFromV2(t *testing.T) {
-	var m apiaccounting.Decimal
-	m.SetValue(anyValidValue)
-	m.SetPrecision(anyValidPrecision)
+func TestDecimal_FromProtoMessage(t *testing.T) {
+	var m protoaccounting.Decimal
+	m.Value = anyValidValue
+	m.Precision = anyValidPrecision
 
 	var val accounting.Decimal
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(&m))
 	require.EqualValues(t, anyValidValue, val.Value())
 	require.EqualValues(t, anyValidPrecision, val.Precision())
 }
 
-func TestDecimal_WriteToV2(t *testing.T) {
+func TestDecimal_ProtoMessage(t *testing.T) {
 	var val accounting.Decimal
-	var m apiaccounting.Decimal
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetValue())
 	require.Zero(t, m.GetPrecision())
 
@@ -72,9 +71,9 @@ func TestDecimal_WriteToV2(t *testing.T) {
 	val.SetValue(anyValidValue)
 	val.SetPrecision(anyValidPrecision)
 
-	val.WriteToV2(&m)
-	require.EqualValues(t, anyValidValue, val.Value())
-	require.EqualValues(t, anyValidPrecision, val.Precision())
+	m = val.ProtoMessage()
+	require.EqualValues(t, anyValidValue, m.GetValue())
+	require.EqualValues(t, anyValidPrecision, m.GetPrecision())
 }
 
 func TestToken_Marshal(t *testing.T) {

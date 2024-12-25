@@ -4,55 +4,59 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/reputation"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // Trust represents quantitative assessment of the trust of a participant in the
 // NeoFS reputation system.
 //
-// Trust is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/reputation.Trust
-// message. See ReadFromV2 / WriteToV2 methods.
+// Trust is mutually compatible with [protoreputation.Trust] message. See
+// [Trust.FromProtoMessage] / [Trust.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type Trust struct {
-	m reputation.Trust
+	peer PeerID
+	val  float64
 }
 
-// ReadFromV2 reads Trust from the reputation.Trust message. Returns an
-// error if the message is malformed according to the NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *Trust) ReadFromV2(m reputation.Trust) error {
-	if val := m.GetValue(); val < 0 || val > 1 {
-		return fmt.Errorf("invalid trust value %v", val)
+// See also [Table.ProtoMessage].
+func (x *Trust) FromProtoMessage(m *protoreputation.Trust) error {
+	if m.Value < 0 || m.Value > 1 {
+		return fmt.Errorf("invalid trust value %v", m.Value)
 	}
 
-	peerV2 := m.GetPeer()
-	if peerV2 == nil {
+	if m.Peer == nil {
 		return errors.New("missing peer field")
 	}
 
-	var peer PeerID
-
-	err := peer.ReadFromV2(*peerV2)
+	err := x.peer.FromProtoMessage(m.Peer)
 	if err != nil {
 		return fmt.Errorf("invalid peer field: %w", err)
 	}
 
-	x.m = m
+	x.val = m.Value
 
 	return nil
 }
 
-// WriteToV2 writes Trust to the reputation.Trust message.
-// The message must not be nil.
+// ProtoMessage converts t into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x Trust) WriteToV2(m *reputation.Trust) {
-	*m = x.m
+// See also [Table.FromProtoMessage].
+func (x Trust) ProtoMessage() *protoreputation.Trust {
+	m := &protoreputation.Trust{
+		Value: x.val,
+	}
+	if x.peer.key != nil {
+		m.Peer = x.peer.ProtoMessage()
+	}
+	return m
 }
 
 // SetPeer specifies identifier of the participant of the NeoFS reputation system
@@ -60,26 +64,15 @@ func (x Trust) WriteToV2(m *reputation.Trust) {
 //
 // See also Peer.
 func (x *Trust) SetPeer(id PeerID) {
-	var m reputation.PeerID
-	id.WriteToV2(&m)
-
-	x.m.SetPeer(&m)
+	x.peer = id
 }
 
 // Peer returns peer identifier set using SetPeer.
 //
 // Zero Trust returns zero PeerID which is incorrect according to the NeoFS API
 // protocol.
-func (x Trust) Peer() (res PeerID) {
-	m := x.m.GetPeer()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from ReadFromV2: %v", err))
-		}
-	}
-
-	return
+func (x Trust) Peer() PeerID {
+	return x.peer
 }
 
 // SetValue sets the Trust value. Value MUST be in range [0;1].
@@ -89,69 +82,70 @@ func (x *Trust) SetValue(val float64) {
 	if val < 0 || val > 1 {
 		panic(fmt.Sprintf("trust value is out-of-range %v", val))
 	}
-
-	x.m.SetValue(val)
+	x.val = val
 }
 
 // Value returns value set using SetValue.
 //
 // Zero Trust has zero value.
 func (x Trust) Value() float64 {
-	return x.m.GetValue()
+	return x.val
 }
 
 // PeerToPeerTrust represents trust of one participant of the NeoFS reputation
 // system to another one.
 //
-// Trust is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/reputation.PeerToPeerTrust
-// message. See ReadFromV2 / WriteToV2 methods.
+// Trust is mutually compatible [protoreputation.PeerToPeerTrust] message. See
+// [PeerToPeerTrust.FromProtoMessage] / [PeerToPeerTrust.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type PeerToPeerTrust struct {
-	m reputation.PeerToPeerTrust
+	peer  PeerID
+	trust *Trust
 }
 
-// ReadFromV2 reads PeerToPeerTrust from the reputation.PeerToPeerTrust message.
-// Returns an error if the message is malformed according to the NeoFS API V2
-// protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *PeerToPeerTrust) ReadFromV2(m reputation.PeerToPeerTrust) error {
-	trustingV2 := m.GetTrustingPeer()
-	if trustingV2 == nil {
+// See also [PeerToPeerTrust.ProtoMessage].
+func (x *PeerToPeerTrust) FromProtoMessage(m *protoreputation.PeerToPeerTrust) error {
+	if m.TrustingPeer == nil {
 		return errors.New("missing trusting peer")
 	}
 
-	var trusting PeerID
-
-	err := trusting.ReadFromV2(*trustingV2)
+	err := x.peer.FromProtoMessage(m.TrustingPeer)
 	if err != nil {
 		return fmt.Errorf("invalid trusting peer: %w", err)
 	}
 
-	trustV2 := m.GetTrust()
-	if trustV2 == nil {
+	if m.Trust == nil {
 		return errors.New("missing trust")
 	}
 
-	var trust Trust
-
-	err = trust.ReadFromV2(*trustV2)
+	if x.trust == nil {
+		x.trust = new(Trust)
+	}
+	err = x.trust.FromProtoMessage(m.Trust)
 	if err != nil {
 		return fmt.Errorf("invalid trust: %w", err)
 	}
 
-	x.m = m
-
 	return nil
 }
 
-// WriteToV2 writes PeerToPeerTrust to the reputation.PeerToPeerTrust message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x PeerToPeerTrust) WriteToV2(m *reputation.PeerToPeerTrust) {
-	*m = x.m
+// See also [PeerToPeerTrust.FromProtoMessage].
+func (x PeerToPeerTrust) ProtoMessage() *protoreputation.PeerToPeerTrust {
+	var m protoreputation.PeerToPeerTrust
+	if x.peer.key != nil {
+		m.TrustingPeer = x.peer.ProtoMessage()
+	}
+	if x.trust != nil {
+		m.Trust = x.trust.ProtoMessage()
+	}
+	return &m
 }
 
 // SetTrustingPeer specifies the peer from which trust comes in terms of the
@@ -159,26 +153,15 @@ func (x PeerToPeerTrust) WriteToV2(m *reputation.PeerToPeerTrust) {
 //
 // See also TrustingPeer.
 func (x *PeerToPeerTrust) SetTrustingPeer(id PeerID) {
-	var m reputation.PeerID
-	id.WriteToV2(&m)
-
-	x.m.SetTrustingPeer(&m)
+	x.peer = id
 }
 
 // TrustingPeer returns peer set using SetTrustingPeer.
 //
 // Zero PeerToPeerTrust has no trusting peer which is incorrect according
 // to the NeoFS API protocol.
-func (x PeerToPeerTrust) TrustingPeer() (res PeerID) {
-	m := x.m.GetTrustingPeer()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from PeerID.ReadFromV2: %v", err))
-		}
-	}
-
-	return
+func (x PeerToPeerTrust) TrustingPeer() PeerID {
+	return x.peer
 }
 
 // SetTrust sets trust value of the trusting peer to another participant
@@ -186,94 +169,119 @@ func (x PeerToPeerTrust) TrustingPeer() (res PeerID) {
 //
 // See also Trust.
 func (x *PeerToPeerTrust) SetTrust(t Trust) {
-	var tV2 reputation.Trust
-	t.WriteToV2(&tV2)
-
-	x.m.SetTrust(&tV2)
+	x.trust = &t
 }
 
 // Trust returns trust set using SetTrust.
 //
 // Zero PeerToPeerTrust returns zero Trust which is incorrect according to the
 // NeoFS API protocol.
-func (x PeerToPeerTrust) Trust() (res Trust) {
-	m := x.m.GetTrust()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from Trust.ReadFromV2: %v", err))
-		}
+func (x PeerToPeerTrust) Trust() Trust {
+	if x.trust != nil {
+		return *x.trust
 	}
-
-	return
+	return Trust{}
 }
 
 // GlobalTrust represents the final assessment of trust in the participant of
 // the NeoFS reputation system obtained taking into account all other participants.
 //
-// GlobalTrust is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/reputation.GlobalTrust
-// message. See ReadFromV2 / WriteToV2 methods.
+// GlobalTrust is mutually compatible with [protoreputation.GlobalTrust]
+// message. See [GlobalTrust.FromProtoMessage] / [GlobalTrust.ProtoMessage] methods.
 //
 // To submit GlobalTrust value in NeoFS zero instance SHOULD be declared,
 // initialized using Init method and filled using dedicated methods.
 type GlobalTrust struct {
-	m reputation.GlobalTrust
+	version *version.Version
+	manager PeerID
+	trust   *Trust
+	sig     *neofscrypto.Signature
 }
 
-// ReadFromV2 reads GlobalTrust from the reputation.GlobalTrust message.
-// Returns an error if the message is malformed according to the NeoFS API V2
-// protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *GlobalTrust) ReadFromV2(m reputation.GlobalTrust) error {
-	if m.GetVersion() == nil {
+// See also [PeerID.ProtoMessage].
+func (x *GlobalTrust) FromProtoMessage(m *protoreputation.GlobalTrust) error {
+	if m.Version == nil {
 		return errors.New("missing version")
 	}
 
-	if m.GetSignature() == nil {
+	if x.version == nil {
+		x.version = new(version.Version)
+	}
+	if err := x.version.FromProtoMessage(m.Version); err != nil {
+		return fmt.Errorf("invalid version")
+	}
+
+	if m.Signature == nil {
 		return errors.New("missing signature")
 	}
 
-	body := m.GetBody()
-	if body == nil {
+	if x.sig == nil {
+		x.sig = new(neofscrypto.Signature)
+	}
+	if err := x.sig.FromProtoMessage(m.Signature); err != nil {
+		return fmt.Errorf("invalid signature")
+	}
+
+	if m.Body == nil {
 		return errors.New("missing body")
 	}
 
-	managerV2 := body.GetManager()
-	if managerV2 == nil {
+	if m.Body.Manager == nil {
 		return errors.New("missing manager")
 	}
 
-	var manager PeerID
-
-	err := manager.ReadFromV2(*managerV2)
+	err := x.manager.FromProtoMessage(m.Body.Manager)
 	if err != nil {
 		return fmt.Errorf("invalid manager: %w", err)
 	}
 
-	trustV2 := body.GetTrust()
-	if trustV2 == nil {
+	if m.Body.Trust == nil {
 		return errors.New("missing trust")
 	}
 
-	var trust Trust
-
-	err = trust.ReadFromV2(*trustV2)
+	if x.trust == nil {
+		x.trust = new(Trust)
+	}
+	err = x.trust.FromProtoMessage(m.Body.Trust)
 	if err != nil {
 		return fmt.Errorf("invalid trust: %w", err)
 	}
 
-	x.m = m
-
 	return nil
 }
 
-// WriteToV2 writes GlobalTrust to the reputation.GlobalTrust message.
-// The message must not be nil.
+func (x GlobalTrust) protoBodyMessage() *protoreputation.GlobalTrust_Body {
+	if x.trust == nil && x.manager.key == nil {
+		return nil
+	}
+	var m protoreputation.GlobalTrust_Body
+	if x.trust != nil {
+		m.Trust = x.trust.ProtoMessage()
+	}
+	if x.manager.key != nil {
+		m.Manager = x.manager.ProtoMessage()
+	}
+	return &m
+}
+
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x GlobalTrust) WriteToV2(m *reputation.GlobalTrust) {
-	*m = x.m
+// See also [GlobalTrust.FromProtoMessage].
+func (x GlobalTrust) ProtoMessage() *protoreputation.GlobalTrust {
+	m := &protoreputation.GlobalTrust{
+		Body: x.protoBodyMessage(),
+	}
+	if x.version != nil {
+		m.Version = x.version.ProtoMessage()
+	}
+	if x.sig != nil {
+		m.Signature = x.sig.ProtoMessage()
+	}
+	return m
 }
 
 // Init initializes all internal data of the GlobalTrust required by NeoFS API
@@ -281,22 +289,8 @@ func (x GlobalTrust) WriteToV2(m *reputation.GlobalTrust) {
 // Init SHOULD NOT be called multiple times. Init SHOULD NOT be called if
 // the GlobalTrust instance is used for decoding only.
 func (x *GlobalTrust) Init() {
-	var ver refs.Version
-	version.Current().WriteToV2(&ver)
-
-	x.m.SetVersion(&ver)
-}
-
-func (x *GlobalTrust) setBodyField(setter func(*reputation.GlobalTrustBody)) {
-	if x != nil {
-		body := x.m.GetBody()
-		if body == nil {
-			body = new(reputation.GlobalTrustBody)
-			x.m.SetBody(body)
-		}
-
-		setter(body)
-	}
+	ver := version.Current()
+	x.version = &ver
 }
 
 // SetManager sets identifier of the NeoFS reputation system's participant which
@@ -304,28 +298,15 @@ func (x *GlobalTrust) setBodyField(setter func(*reputation.GlobalTrustBody)) {
 //
 // See also Manager.
 func (x *GlobalTrust) SetManager(id PeerID) {
-	var m reputation.PeerID
-	id.WriteToV2(&m)
-
-	x.setBodyField(func(body *reputation.GlobalTrustBody) {
-		body.SetManager(&m)
-	})
+	x.manager = id
 }
 
 // Manager returns peer set using SetManager.
 //
 // Zero GlobalTrust has zero manager which is incorrect according to the
 // NeoFS API protocol.
-func (x GlobalTrust) Manager() (res PeerID) {
-	m := x.m.GetBody().GetManager()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from ReadFromV2: %v", err))
-		}
-	}
-
-	return
+func (x GlobalTrust) Manager() PeerID {
+	return x.manager
 }
 
 // SetTrust sets the global trust score of the network to a specific network
@@ -333,28 +314,18 @@ func (x GlobalTrust) Manager() (res PeerID) {
 //
 // See also Trust.
 func (x *GlobalTrust) SetTrust(trust Trust) {
-	var m reputation.Trust
-	trust.WriteToV2(&m)
-
-	x.setBodyField(func(body *reputation.GlobalTrustBody) {
-		body.SetTrust(&m)
-	})
+	x.trust = &trust
 }
 
 // Trust returns trust set using SetTrust.
 //
 // Zero GlobalTrust return zero Trust which is incorrect according to the
 // NeoFS API protocol.
-func (x GlobalTrust) Trust() (res Trust) {
-	m := x.m.GetBody().GetTrust()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from ReadFromV2: %v", err))
-		}
+func (x GlobalTrust) Trust() Trust {
+	if x.trust != nil {
+		return *x.trust
 	}
-
-	return
+	return Trust{}
 }
 
 // Sign calculates and writes signature of the [GlobalTrust] data. Returns
@@ -369,15 +340,12 @@ func (x GlobalTrust) Trust() (res Trust) {
 func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
 	var sig neofscrypto.Signature
 
-	err := sig.CalculateMarshalled(signer, x.m.GetBody(), nil)
+	err := sig.Calculate(signer, x.SignedData())
 	if err != nil {
 		return fmt.Errorf("calculate signature: %w", err)
 	}
 
-	var sigv2 refs.Signature
-	sig.WriteToV2(&sigv2)
-
-	x.m.SetSignature(&sigv2)
+	x.sig = &sig
 
 	return nil
 }
@@ -386,7 +354,7 @@ func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
 //
 // See also [GlobalTrust.Sign].
 func (x *GlobalTrust) SignedData() []byte {
-	return x.m.GetBody().StableMarshal(nil)
+	return neofsproto.MarshalMessage(x.protoBodyMessage())
 }
 
 // VerifySignature checks if GlobalTrust signature is presented and valid.
@@ -395,14 +363,7 @@ func (x *GlobalTrust) SignedData() []byte {
 //
 // See also Sign.
 func (x GlobalTrust) VerifySignature() bool {
-	sigV2 := x.m.GetSignature()
-	if sigV2 == nil {
-		return false
-	}
-
-	var sig neofscrypto.Signature
-
-	return sig.ReadFromV2(*sigV2) == nil && sig.Verify(x.m.GetBody().StableMarshal(nil))
+	return x.sig != nil && x.sig.Verify(x.SignedData())
 }
 
 // Marshal encodes GlobalTrust into a binary format of the NeoFS API protocol
@@ -410,7 +371,7 @@ func (x GlobalTrust) VerifySignature() bool {
 //
 // See also Unmarshal.
 func (x GlobalTrust) Marshal() []byte {
-	return x.m.StableMarshal(nil)
+	return neofsproto.Marshal(x)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the GlobalTrust
@@ -419,5 +380,5 @@ func (x GlobalTrust) Marshal() []byte {
 //
 // See also Marshal.
 func (x *GlobalTrust) Unmarshal(data []byte) error {
-	return x.m.Unmarshal(data)
+	return neofsproto.Unmarshal(data, x)
 }

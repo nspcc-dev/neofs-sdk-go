@@ -2,13 +2,11 @@ package eacl
 
 import (
 	"strconv"
-
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 )
 
 // Action enumerates actions that may be applied within NeoFS access management.
 // What and how specific Action affects depends on the specific context.
-type Action uint32
+type Action int32
 
 const (
 	ActionUnspecified Action = iota // undefined (zero)
@@ -21,7 +19,7 @@ const (
 const ActionUnknown = ActionUnspecified
 
 // Operation enumerates operations on NeoFS resources under access control.
-type Operation uint32
+type Operation int32
 
 const (
 	OperationUnspecified Operation = iota // undefined (zero)
@@ -39,7 +37,7 @@ const (
 const OperationUnknown = OperationUnspecified
 
 // Role enumerates groups of subjects requesting access to NeoFS resources.
-type Role uint32
+type Role int32
 
 const (
 	RoleUnspecified Role = iota // undefined (zero)
@@ -54,7 +52,7 @@ const RoleUnknown = RoleUnspecified
 
 // Match enumerates operators to check attribute value compliance. What and how
 // specific Match affects depends on the specific context.
-type Match uint32
+type Match int32
 
 const (
 	MatchUnspecified    Match = iota // undefined (zero)
@@ -73,7 +71,7 @@ const MatchUnknown = MatchUnspecified
 
 // FilterHeaderType enumerates the classes of resource attributes processed
 // within NeoFS access management.
-type FilterHeaderType uint32
+type FilterHeaderType int32
 
 const (
 	HeaderTypeUnspecified FilterHeaderType = iota // undefined (zero)
@@ -85,14 +83,6 @@ const (
 // HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
 // Deprecated: use HeaderTypeUnspecified instead.
 const HeaderTypeUnknown = HeaderTypeUnspecified
-
-// ToV2 converts Action to v2 Action enum value.
-// Deprecated: do not use it.
-func (a Action) ToV2() v2acl.Action { return v2acl.Action(a) }
-
-// ActionFromV2 converts v2 Action enum value to Action.
-// Deprecated: do not use it.
-func ActionFromV2(action v2acl.Action) Action { return Action(action) }
 
 const (
 	actionStringZero  = "ACTION_UNSPECIFIED"
@@ -124,7 +114,7 @@ func (a Action) EncodeToString() string { return a.String() }
 func (a Action) String() string {
 	switch a {
 	default:
-		return strconv.FormatUint(uint64(a), 10)
+		return strconv.FormatInt(int64(a), 10)
 	case 0:
 		return actionStringZero
 	case ActionAllow:
@@ -141,7 +131,7 @@ func (a Action) String() string {
 func (a *Action) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}
@@ -155,14 +145,6 @@ func (a *Action) DecodeString(s string) bool {
 	}
 	return true
 }
-
-// ToV2 converts Operation to v2 Operation enum value.
-// Deprecated: do not use it.
-func (o Operation) ToV2() v2acl.Operation { return v2acl.Operation(o) }
-
-// OperationFromV2 converts v2 Operation enum value to Operation.
-// Deprecated: do not use it.
-func OperationFromV2(operation v2acl.Operation) Operation { return Operation(operation) }
 
 const (
 	opStringZero      = "OPERATION_UNSPECIFIED"
@@ -209,7 +191,7 @@ func (o Operation) EncodeToString() string { return o.String() }
 func (o Operation) String() string {
 	switch o {
 	default:
-		return strconv.FormatUint(uint64(o), 10)
+		return strconv.FormatInt(int64(o), 10)
 	case 0:
 		return opStringZero
 	case OperationGet:
@@ -236,7 +218,7 @@ func (o Operation) String() string {
 func (o *Operation) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}
@@ -260,14 +242,6 @@ func (o *Operation) DecodeString(s string) bool {
 	}
 	return true
 }
-
-// ToV2 converts Role to v2 Role enum value.
-// Deprecated: do not use it.
-func (r Role) ToV2() v2acl.Role { return v2acl.Role(r) }
-
-// RoleFromV2 converts v2 Role enum value to Role.
-// Deprecated: do not use it.
-func RoleFromV2(role v2acl.Role) Role { return Role(role) }
 
 const (
 	roleStringZero   = "ROLE_UNSPECIFIED"
@@ -302,7 +276,7 @@ func (r Role) EncodeToString() string { return r.String() }
 func (r Role) String() string {
 	switch r {
 	default:
-		return strconv.FormatUint(uint64(r), 10)
+		return strconv.FormatInt(int64(r), 10)
 	case 0:
 		return roleStringZero
 	case RoleUser:
@@ -321,7 +295,7 @@ func (r Role) String() string {
 func (r *Role) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}
@@ -337,14 +311,6 @@ func (r *Role) DecodeString(s string) bool {
 	}
 	return true
 }
-
-// ToV2 converts Match to v2 MatchType enum value.
-// Deprecated: do not use it.
-func (m Match) ToV2() v2acl.MatchType { return v2acl.MatchType(m) }
-
-// MatchFromV2 converts v2 MatchType enum value to Match.
-// Deprecated: do not use it.
-func MatchFromV2(match v2acl.MatchType) Match { return Match(match) }
 
 const (
 	matcherStringZero       = "MATCH_TYPE_UNSPECIFIED"
@@ -391,7 +357,7 @@ func (m Match) EncodeToString() string { return m.String() }
 func (m Match) String() string {
 	switch m {
 	default:
-		return strconv.FormatUint(uint64(m), 10)
+		return strconv.FormatInt(int64(m), 10)
 	case 0:
 		return matcherStringZero
 	case MatchStringEqual:
@@ -418,7 +384,7 @@ func (m Match) String() string {
 func (m *Match) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}
@@ -441,16 +407,6 @@ func (m *Match) DecodeString(s string) bool {
 		*m = MatchNumLE
 	}
 	return true
-}
-
-// ToV2 converts FilterHeaderType to v2 HeaderType enum value.
-// Deprecated: do not use it.
-func (h FilterHeaderType) ToV2() v2acl.HeaderType { return v2acl.HeaderType(h) }
-
-// FilterHeaderTypeFromV2 converts v2 HeaderType enum value to FilterHeaderType.
-// Deprecated: do not use it.
-func FilterHeaderTypeFromV2(header v2acl.HeaderType) FilterHeaderType {
-	return FilterHeaderType(header)
 }
 
 const (
@@ -485,7 +441,7 @@ func (h FilterHeaderType) EncodeToString() string { return h.String() }
 func (h FilterHeaderType) String() string {
 	switch h {
 	default:
-		return strconv.FormatUint(uint64(h), 10)
+		return strconv.FormatInt(int64(h), 10)
 	case 0:
 		return headerTypeStringZero
 	case HeaderFromRequest:
@@ -504,7 +460,7 @@ func (h FilterHeaderType) String() string {
 func (h *FilterHeaderType) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}

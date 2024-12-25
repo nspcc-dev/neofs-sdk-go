@@ -11,7 +11,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
 // IDSize is the size of an [ID] in bytes.
@@ -22,8 +22,8 @@ const IDSize = 25
 //
 // ID implements built-in comparable interface.
 //
-// ID is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.OwnerID
-// message. See ReadFromV2 / WriteToV2 methods.
+// ID is mutually compatible with [refs.OwnerID] message. See
+// [ID.FromProtoMessage] / [ID.ProtoMessage] methods.
 type ID [IDSize]byte
 
 // ErrZeroID is an error returned on zero [ID] encounter.
@@ -64,24 +64,24 @@ func (x *ID) decodeBytes(b []byte) error {
 	return nil
 }
 
-// ReadFromV2 reads ID from the refs.OwnerID message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *ID) ReadFromV2(m refs.OwnerID) error {
-	err := x.decodeBytes(m.GetValue())
+// See also [ID.ProtoMessage].
+func (x *ID) FromProtoMessage(m *refs.OwnerID) error {
+	err := x.decodeBytes(m.Value)
 	if err == nil && x.IsZero() {
 		err = ErrZeroID
 	}
 	return err
 }
 
-// WriteToV2 writes ID to the refs.OwnerID message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x ID) WriteToV2(m *refs.OwnerID) {
-	m.SetValue(x[:])
+// See also [ID.FromProtoMessage].
+func (x ID) ProtoMessage() *refs.OwnerID {
+	return &refs.OwnerID{Value: x[:]}
 }
 
 // SetScriptHash forms user ID from wallet address scripthash.

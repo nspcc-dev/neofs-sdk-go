@@ -5,16 +5,16 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/hrw/v2"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
 // NetMap represents NeoFS network map. It includes information about all
 // storage nodes registered in NeoFS the network.
 //
-// NetMap is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.NetMap
-// message. See ReadFromV2 / WriteToV2 methods.
+// NetMap is mutually compatible with [protonetmap.Netmap] message. See
+// [NetMap.FromProtoMessage] / [NetMap.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type NetMap struct {
@@ -23,50 +23,51 @@ type NetMap struct {
 	nodes []NodeInfo
 }
 
-// ReadFromV2 reads NetMap from the netmap.NetMap message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates msg according to the NeoFS API protocol and
+// restores m from it.
 //
-// See also WriteToV2.
-func (m *NetMap) ReadFromV2(msg netmap.NetMap) error {
+// See also [NetMap.ProtoMessage].
+func (m *NetMap) FromProtoMessage(msg *protonetmap.Netmap) error {
 	var err error
-	nodes := msg.Nodes()
 
-	if nodes == nil {
+	if msg.Nodes == nil {
 		m.nodes = nil
 	} else {
-		m.nodes = make([]NodeInfo, len(nodes))
+		m.nodes = make([]NodeInfo, len(msg.Nodes))
 
-		for i := range nodes {
-			err = m.nodes[i].ReadFromV2(nodes[i])
+		for i := range msg.Nodes {
+			if msg.Nodes[i] == nil {
+				return fmt.Errorf("nil node info #%d", i)
+			}
+			err = m.nodes[i].FromProtoMessage(msg.Nodes[i])
 			if err != nil {
 				return fmt.Errorf("invalid node info: %w", err)
 			}
 		}
 	}
 
-	m.epoch = msg.Epoch()
+	m.epoch = msg.Epoch
 
 	return nil
 }
 
-// WriteToV2 writes NetMap to the netmap.NetMap message. The message
-// MUST NOT be nil.
+// ProtoMessage converts m into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (m NetMap) WriteToV2(msg *netmap.NetMap) {
-	var nodes []netmap.NodeInfo
-
+// See also [NetMap.FromProtoMessage].
+func (m NetMap) ProtoMessage() *protonetmap.Netmap {
+	msg := &protonetmap.Netmap{
+		Epoch: m.epoch,
+	}
 	if m.nodes != nil {
-		nodes = make([]netmap.NodeInfo, len(m.nodes))
+		msg.Nodes = make([]*protonetmap.NodeInfo, len(m.nodes))
 
 		for i := range m.nodes {
-			m.nodes[i].WriteToV2(&nodes[i])
+			msg.Nodes[i] = m.nodes[i].ProtoMessage()
 		}
-
-		msg.SetNodes(nodes)
 	}
 
-	msg.SetEpoch(m.epoch)
+	return msg
 }
 
 // SetNodes sets information list about all storage nodes from the NeoFS network.
@@ -196,12 +197,12 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 	result := make([][]NodeInfo, len(p.replicas))
 
 	for i := range p.replicas {
-		sName := p.replicas[i].GetSelector()
+		sName := p.replicas[i].SelectorName()
 		if sName == "" {
 			if len(p.selectors) == 0 {
-				var s netmap.Selector
-				s.SetCount(p.replicas[i].GetCount())
-				s.SetFilter(mainFilterName)
+				var s Selector
+				s.SetNumberOfNodes(p.replicas[i].NumberOfObjects())
+				s.SetFilterName(mainFilterName)
 
 				nodes, err := c.getSelection(p, s)
 				if err != nil {
@@ -212,7 +213,7 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 			}
 
 			for i := range p.selectors {
-				result[i] = append(result[i], flattenNodes(c.selections[p.selectors[i].GetName()])...)
+				result[i] = append(result[i], flattenNodes(c.selections[p.selectors[i].Name()])...)
 			}
 
 			continue

@@ -17,7 +17,7 @@ func TestObject(t *testing.T) {
 	require.Equal(t, obj, dst1)
 
 	var dst2 object.Object
-	require.NoError(t, dst2.ReadFromV2(*obj.ToV2()))
+	require.NoError(t, dst2.FromProtoMessage(obj.ProtoMessage()))
 	require.Equal(t, obj, dst2)
 
 	j, err := obj.MarshalJSON()

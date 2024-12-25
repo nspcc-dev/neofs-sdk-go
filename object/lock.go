@@ -3,16 +3,19 @@ package object
 import (
 	"fmt"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protolock "github.com/nspcc-dev/neofs-sdk-go/proto/lock"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
 // Lock represents record with locked objects. It is compatible with
 // NeoFS API V2 protocol.
 //
 // Lock instance can be written to the [Object], see WriteLock/ReadLock.
-type Lock v2object.Lock
+type Lock struct {
+	members []oid.ID
+}
 
 // WriteLock writes [Lock] to the [Object], and sets its type to [TypeLock].
 //
@@ -33,66 +36,63 @@ func (o Object) ReadLock(l *Lock) error {
 
 // NumberOfMembers returns number of members in lock list.
 func (x Lock) NumberOfMembers() int {
-	return (*v2object.Lock)(&x).NumberOfMembers()
+	return len(x.members)
 }
 
 // ReadMembers reads list of locked members.
 //
 // Buffer length must not be less than [Lock.NumberOfMembers].
 func (x Lock) ReadMembers(buf []oid.ID) {
-	var i int
-
-	(*v2object.Lock)(&x).IterateMembers(func(idV2 refs.ObjectID) {
-		if err := buf[i].ReadFromV2(idV2); err != nil {
-			panic(fmt.Errorf("invalid member #%d: %w", i, err))
-		}
-		i++
-	})
+	copy(buf, x.members)
 }
 
 // WriteMembers writes list of locked members.
 //
 // See also [Lock.ReadMembers].
 func (x *Lock) WriteMembers(ids []oid.ID) {
-	var members []refs.ObjectID
-
-	if ids != nil {
-		members = make([]refs.ObjectID, len(ids))
-
-		for i := range ids {
-			ids[i].WriteToV2(&members[i])
-		}
-	}
-
-	(*v2object.Lock)(x).SetMembers(members)
+	x.members = ids
 }
 
 // Marshal encodes the [Lock] into a NeoFS protocol binary format.
 //
 // See also [Lock.Unmarshal].
 func (x Lock) Marshal() []byte {
-	return (*v2object.Lock)(&x).StableMarshal(nil)
+	if len(x.members) == 0 {
+		return nil
+	}
+	m := &protolock.Lock{
+		Members: make([]*refs.ObjectID, len(x.members)),
+	}
+	for i := range x.members {
+		m.Members[i] = x.members[i].ProtoMessage()
+	}
+	return neofsproto.MarshalMessage(m)
 }
 
 // Unmarshal decodes the [Lock] from its NeoFS protocol binary representation.
 //
 // See also [Lock.Marshal].
 func (x *Lock) Unmarshal(data []byte) error {
-	m := (*v2object.Lock)(x)
-	err := m.Unmarshal(data)
+	m := new(protolock.Lock)
+	err := neofsproto.UnmarshalMessage(data, m)
 	if err != nil {
 		return err
 	}
 
-	var id oid.ID
-	var i int
-	m.IterateMembers(func(mid refs.ObjectID) {
-		if err == nil {
-			if err = id.ReadFromV2(mid); err != nil {
-				err = fmt.Errorf("invalid member #%d: %w", i, err)
-			}
+	if m.Members == nil {
+		x.members = nil
+		return nil
+	}
+
+	x.members = make([]oid.ID, len(m.Members))
+	for i := range m.Members {
+		if m.Members[i] == nil {
+			return fmt.Errorf("nil member #%d", i)
 		}
-		i++
-	})
-	return err
+		if err = x.members[i].FromProtoMessage(m.Members[i]); err != nil {
+			return fmt.Errorf("invalid member #%d: %w", i, err)
+		}
+	}
+
+	return nil
 }

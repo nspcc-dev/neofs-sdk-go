@@ -3,10 +3,12 @@ package eacl
 import (
 	"bytes"
 	"crypto/ecdsa"
+	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	v2acl "github.com/nspcc-dev/neofs-api-go/v2/acl"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -200,28 +202,19 @@ func (t Target) Role() Role {
 	return t.role
 }
 
-// ToV2 converts Target to v2 acl.EACLRecord.Target message.
-//
-// Nil Target converts to nil.
-// Deprecated: do not use it.
-func (t *Target) ToV2() *v2acl.Target {
-	if t != nil {
-		return t.toProtoMessage()
+func (t Target) protoMessage() *protoacl.EACLRecord_Target {
+	return &protoacl.EACLRecord_Target{
+		Role: protoacl.Role(t.role),
+		Keys: t.subjs,
 	}
-	return nil
 }
 
-func (t Target) toProtoMessage() *v2acl.Target {
-	target := new(v2acl.Target)
-	target.SetRole(v2acl.Role(t.role))
-	target.SetKeys(t.subjs)
-
-	return target
-}
-
-func (t *Target) fromProtoMessage(m *v2acl.Target) error {
-	t.role = Role(m.GetRole())
-	t.subjs = m.GetKeys()
+func (t *Target) fromProtoMessage(m *protoacl.EACLRecord_Target) error {
+	if m.Role < 0 {
+		return fmt.Errorf("negative role %d", m.Role)
+	}
+	t.role = Role(m.Role)
+	t.subjs = m.Keys
 	return nil
 }
 
@@ -234,23 +227,15 @@ func (t *Target) fromProtoMessage(m *v2acl.Target) error {
 // Deprecated: use [NewTargetByRole] or [TargetByPublicKeys] instead.
 func NewTarget() *Target { return new(Target) }
 
-// NewTargetFromV2 converts v2 acl.EACLRecord.Target message to Target.
-// Deprecated: do not use it.
-func NewTargetFromV2(target *v2acl.Target) *Target {
-	t := new(Target)
-	_ = t.fromProtoMessage(target)
-	return t
-}
-
 // Marshal marshals Target into a protobuf binary form.
 func (t Target) Marshal() []byte {
-	return t.toProtoMessage().StableMarshal(nil)
+	return neofsproto.MarshalMessage(t.protoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of Target.
 func (t *Target) Unmarshal(data []byte) error {
-	m := new(v2acl.Target)
-	if err := m.Unmarshal(data); err != nil {
+	m := new(protoacl.EACLRecord_Target)
+	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
 		return err
 	}
 	return t.fromProtoMessage(m)
@@ -258,13 +243,13 @@ func (t *Target) Unmarshal(data []byte) error {
 
 // MarshalJSON encodes Target to protobuf JSON format.
 func (t Target) MarshalJSON() ([]byte, error) {
-	return t.toProtoMessage().MarshalJSON()
+	return neofsproto.MarshalMessageJSON(t.protoMessage())
 }
 
 // UnmarshalJSON decodes Target from protobuf JSON format.
 func (t *Target) UnmarshalJSON(data []byte) error {
-	m := new(v2acl.Target)
-	if err := m.UnmarshalJSON(data); err != nil {
+	m := new(protoacl.EACLRecord_Target)
+	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
 		return err
 	}
 	return t.fromProtoMessage(m)

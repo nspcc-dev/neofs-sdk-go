@@ -1,36 +1,40 @@
 package accounting
 
 import (
-	"github.com/nspcc-dev/neofs-api-go/v2/accounting"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
 )
 
 // Decimal represents decimal number for accounting operations.
 //
-// Decimal is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/accounting.Decimal
-// message. See ReadFromV2 / WriteToV2 methods.
+// Decimal is mutually compatible with [protoaccounting.Decimal] message. See
+// [Decimal.FromProtoMessage] / [Decimal.FromProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = Decimal(accounting.Decimal{}) // not recommended
-type Decimal accounting.Decimal
+type Decimal struct {
+	val  int64
+	prec uint32
+}
 
-// ReadFromV2 reads Decimal from the accounting.Decimal message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// d from it.
 //
-// See also WriteToV2.
-func (d *Decimal) ReadFromV2(m accounting.Decimal) error {
-	*d = Decimal(m)
+// See also [Decimal.ProtoMessage].
+func (d *Decimal) FromProtoMessage(m *protoaccounting.Decimal) error {
+	d.val = m.Value
+	d.prec = m.Precision
 	return nil
 }
 
-// WriteToV2 writes Decimal to the accounting.Decimal message.
-// The message must not be nil.
+// ProtoMessage converts d into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (d Decimal) WriteToV2(m *accounting.Decimal) {
-	*m = (accounting.Decimal)(d)
+// See also [Decimal.FromProtoMessage].
+func (d Decimal) ProtoMessage() *protoaccounting.Decimal {
+	return &protoaccounting.Decimal{
+		Value:     d.val,
+		Precision: d.prec,
+	}
 }
 
 // Value returns value of the decimal number.
@@ -39,14 +43,14 @@ func (d Decimal) WriteToV2(m *accounting.Decimal) {
 //
 // See also SetValue.
 func (d Decimal) Value() int64 {
-	return (*accounting.Decimal)(&d).GetValue()
+	return d.val
 }
 
 // SetValue sets value of the decimal number.
 //
 // See also Value.
 func (d *Decimal) SetValue(v int64) {
-	(*accounting.Decimal)(d).SetValue(v)
+	d.val = v
 }
 
 // Precision returns precision of the decimal number.
@@ -55,14 +59,14 @@ func (d *Decimal) SetValue(v int64) {
 //
 // See also SetPrecision.
 func (d Decimal) Precision() uint32 {
-	return (*accounting.Decimal)(&d).GetPrecision()
+	return d.prec
 }
 
 // SetPrecision sets precision of the decimal number.
 //
 // See also Precision.
 func (d *Decimal) SetPrecision(p uint32) {
-	(*accounting.Decimal)(d).SetPrecision(p)
+	d.prec = p
 }
 
 // Marshal encodes Decimal into a binary format of the NeoFS API protocol
@@ -70,10 +74,7 @@ func (d *Decimal) SetPrecision(p uint32) {
 //
 // See also Unmarshal.
 func (d Decimal) Marshal() []byte {
-	var m accounting.Decimal
-	d.WriteToV2(&m)
-
-	return m.StableMarshal(nil)
+	return neofsproto.Marshal(d)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Decimal
@@ -82,12 +83,5 @@ func (d Decimal) Marshal() []byte {
 //
 // See also Marshal.
 func (d *Decimal) Unmarshal(data []byte) error {
-	var m accounting.Decimal
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return d.ReadFromV2(m)
+	return neofsproto.Unmarshal(data, d)
 }

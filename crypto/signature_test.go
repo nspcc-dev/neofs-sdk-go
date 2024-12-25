@@ -1,16 +1,16 @@
 package neofscrypto_test
 
 import (
-	"math"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
-const anyUnsupportedScheme = math.MaxInt32 + 1
+const anyUnsupportedScheme = -1
 
 func TestSignatureLifecycle(t *testing.T) {
 	data := []byte("Hello, world!")
@@ -34,30 +34,29 @@ func TestSignatureLifecycle(t *testing.T) {
 
 	testSig(clientSig)
 
-	var sigV2 refs.Signature
-	clientSig.WriteToV2(&sigV2)
+	m := clientSig.ProtoMessage()
 
-	require.Equal(t, refs.SignatureScheme(scheme), sigV2.GetScheme())
-	require.Equal(t, bPubKey, sigV2.GetKey())
-	require.Equal(t, clientSig.Value(), sigV2.GetSign())
+	require.Equal(t, refs.SignatureScheme(scheme), m.GetScheme())
+	require.Equal(t, bPubKey, m.GetKey())
+	require.Equal(t, clientSig.Value(), m.GetSign())
 
-	// sigV2 transmitted to server over the network
+	// m transmitted to server over the network
 
 	var serverSig neofscrypto.Signature
 
-	err = serverSig.ReadFromV2(sigV2)
+	err = serverSig.FromProtoMessage(m)
 	require.NoError(t, err)
 
 	testSig(serverSig)
 
 	// break the message in different ways
 	for i, breakSig := range []func(*refs.Signature){
-		func(sigV2 *refs.Signature) { sigV2.SetScheme(refs.SignatureScheme(anyUnsupportedScheme)) },
+		func(sigV2 *refs.Signature) { sigV2.Scheme = refs.SignatureScheme(anyUnsupportedScheme) },
 	} {
-		sigV2Cp := sigV2
-		breakSig(&sigV2Cp)
+		m := proto.Clone(m).(*refs.Signature)
+		breakSig(m)
 
-		err = serverSig.ReadFromV2(sigV2Cp)
+		err = serverSig.FromProtoMessage(m)
 		require.Errorf(t, err, "break func #%d", i)
 	}
 }
@@ -79,12 +78,11 @@ func TestNewSignature(t *testing.T) {
 
 	checkFields(sig)
 
-	var sigMsg refs.Signature
-	sig.WriteToV2(&sigMsg)
+	m := sig.ProtoMessage()
 
 	var sig2 neofscrypto.Signature
 
-	err := sig2.ReadFromV2(sigMsg)
+	err := sig2.FromProtoMessage(m)
 	require.NoError(t, err)
 
 	checkFields(sig2)

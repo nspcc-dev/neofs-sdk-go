@@ -2,69 +2,14 @@ package eacl_test
 
 import (
 	"encoding/json"
-	"math/rand/v2"
-	"strconv"
 	"testing"
 
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
-
-func TestFilter_ToV2(t *testing.T) {
-	require.Nil(t, (*eacl.Filter)(nil).ToV2())
-	key := "key_" + strconv.Itoa(rand.Int())
-	val := "val_" + strconv.Itoa(rand.Int())
-	r := eacl.ConstructFilter(anyValidHeaderType, key, anyValidMatcher, val)
-	m := r.ToV2()
-	require.EqualValues(t, anyValidHeaderType, m.GetHeaderType())
-	require.Equal(t, key, m.GetKey())
-	require.EqualValues(t, anyValidMatcher, m.GetMatchType())
-	require.Equal(t, val, m.GetValue())
-
-	t.Run("default values", func(t *testing.T) {
-		filter := eacl.NewFilter()
-
-		// check initial values
-		require.Empty(t, filter.Key())
-		require.Empty(t, filter.Value())
-		require.Zero(t, filter.From())
-		require.Zero(t, filter.Matcher())
-
-		// convert to v2 message
-		filterV2 := filter.ToV2()
-
-		require.Empty(t, filterV2.GetKey())
-		require.Empty(t, filterV2.GetValue())
-		require.Zero(t, filterV2.GetHeaderType())
-		require.Zero(t, filterV2.GetMatchType())
-	})
-}
-
-func TestNewFilterFromV2(t *testing.T) {
-	typ := protoacl.HeaderType(rand.Uint32())
-	key := "key_" + strconv.Itoa(rand.Int())
-	op := protoacl.MatchType(rand.Uint32())
-	val := "val_" + strconv.Itoa(rand.Int())
-	var m protoacl.HeaderFilter
-	m.SetHeaderType(typ)
-	m.SetKey(key)
-	m.SetMatchType(op)
-	m.SetValue(val)
-
-	f := eacl.NewFilterFromV2(&m)
-	require.EqualValues(t, typ, f.From())
-	require.Equal(t, key, f.Key())
-	require.EqualValues(t, op, f.Matcher())
-	require.Equal(t, val, f.Value())
-
-	t.Run("nil", func(t *testing.T) {
-		require.Equal(t, new(eacl.Filter), eacl.NewFilterFromV2(nil))
-	})
-}
 
 func TestFilter_Marshal(t *testing.T) {
 	for i := range anyValidFilters {
@@ -82,7 +27,6 @@ func TestFilter_Unmarshal(t *testing.T) {
 	var f eacl.Filter
 	for i := range anyValidBinFilters {
 		require.NoError(t, f.Unmarshal(anyValidBinFilters[i]), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.EqualValues(t, anyValidFilters[i], f, i)
 	}
 }
@@ -99,7 +43,6 @@ func TestFilter_MarshalJSON(t *testing.T) {
 		b, err := anyValidFilters[i].MarshalJSON()
 		require.NoError(t, err, i)
 		require.NoError(t, f1.UnmarshalJSON(b), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidFilters[i], f1, i)
 
 		b, err = json.Marshal(anyValidFilters[i])
@@ -113,7 +56,6 @@ func TestFilter_UnmarshalJSON(t *testing.T) {
 	var f1, f2 eacl.Filter
 	for i := range anyValidJSONFilters {
 		require.NoError(t, f1.UnmarshalJSON([]byte(anyValidJSONFilters[i])), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidFilters[i], f1, i)
 
 		require.NoError(t, json.Unmarshal([]byte(anyValidJSONFilters[i]), &f2), i)

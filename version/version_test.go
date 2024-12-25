@@ -4,7 +4,7 @@ import (
 	"math/rand/v2"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	versiontest "github.com/nspcc-dev/neofs-sdk-go/version/test"
 	"github.com/stretchr/testify/require"
@@ -35,18 +35,17 @@ func testVersionField(
 	t.Run("encoding", func(t *testing.T) {
 		t.Run("api", func(t *testing.T) {
 			var src, dst version.Version
-			var msg refs.Version
 
 			set(&dst, val)
-			src.WriteToV2(&msg)
-			require.Zero(t, getAPI(&msg))
-			require.NoError(t, dst.ReadFromV2(msg))
+			msg := src.ProtoMessage()
+			require.Zero(t, getAPI(msg))
+			require.NoError(t, dst.FromProtoMessage(msg))
 			require.Zero(t, get(dst))
 
 			set(&src, val)
-			src.WriteToV2(&msg)
-			require.EqualValues(t, val, getAPI(&msg))
-			err := dst.ReadFromV2(msg)
+			msg = src.ProtoMessage()
+			require.EqualValues(t, val, getAPI(msg))
+			err := dst.FromProtoMessage(msg)
 			require.NoError(t, err)
 			require.EqualValues(t, val, get(dst))
 		})

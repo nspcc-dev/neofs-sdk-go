@@ -1,23 +1,30 @@
 package container
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/container"
-	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+)
+
+// various attributes.
+const (
+	sysAttrPrefix          = "__NEOFS__"
+	sysAttrDisableHomohash = sysAttrPrefix + "DISABLE_HOMOMORPHIC_HASHING"
+	sysAttrDomainName      = sysAttrPrefix + "NAME"
+	sysAttrDomainZone      = sysAttrPrefix + "ZONE"
 )
 
 // Container represents descriptor of the NeoFS container. Container logically
@@ -35,10 +42,15 @@ import (
 // Instances for existing containers can be initialized using decoding methods
 // (e.g Unmarshal).
 //
-// Container is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/container.Container
-// message. See ReadFromV2 / WriteToV2 methods.
+// Container is mutually compatible with [protocontainer.Container]
+// message. See [Container.FromProtoMessage] / [Container.ProtoMessage] methods.
 type Container struct {
-	v2 container.Container
+	version  *version.Version
+	owner    user.ID
+	nonce    uuid.UUID
+	basicACL acl.Basic
+	attrs    [][2]string
+	policy   *netmap.PlacementPolicy
 }
 
 const (
@@ -50,97 +62,93 @@ const (
 func (x Container) CopyTo(dst *Container) {
 	dst.SetBasicACL(x.BasicACL())
 
-	if owner := x.v2.GetOwnerID(); owner != nil {
-		var newOwner refs.OwnerID
-		newOwner.SetValue(bytes.Clone(owner.GetValue()))
+	dst.owner = x.owner
 
-		dst.v2.SetOwnerID(&newOwner)
+	if x.version != nil {
+		dst.version = new(version.Version)
+		*dst.version = *x.version
 	} else {
-		dst.v2.SetOwnerID(nil)
-	}
-
-	if x.v2.GetVersion() != nil {
-		ver := x.v2.GetVersion()
-		newVer := *ver
-		dst.v2.SetVersion(&newVer)
-	} else {
-		dst.v2.SetVersion(nil)
+		dst.version = nil
 	}
 
 	// do we need to set the different nonce?
-	dst.v2.SetNonce(bytes.Clone(x.v2.GetNonce()))
+	dst.nonce = x.nonce
 
-	if len(x.v2.GetAttributes()) > 0 {
-		dst.v2.SetAttributes([]container.Attribute{})
-
-		attributeIterator := func(key, val string) {
-			dst.SetAttribute(key, val)
-		}
-
-		x.IterateAttributes(attributeIterator)
+	if len(x.attrs) > 0 {
+		dst.attrs = slices.Clone(x.attrs)
 	}
 
-	if x.v2.GetPlacementPolicy() != nil {
-		var ppCopy netmap.PlacementPolicy
-		x.PlacementPolicy().CopyTo(&ppCopy)
-		dst.SetPlacementPolicy(ppCopy)
+	if x.policy != nil {
+		dst.policy = new(netmap.PlacementPolicy)
+		x.policy.CopyTo(dst.policy)
 	} else {
-		x.v2.SetPlacementPolicy(nil)
+		dst.policy = nil
 	}
 }
 
 // reads Container from the container.Container message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
-func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) error {
+func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPresence bool) error {
 	var err error
 
-	ownerV2 := m.GetOwnerID()
-	if ownerV2 != nil {
-		var owner user.ID
-
-		err = owner.ReadFromV2(*ownerV2)
+	if m.OwnerId != nil {
+		err = x.owner.FromProtoMessage(m.OwnerId)
 		if err != nil {
 			return fmt.Errorf("invalid owner: %w", err)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing owner")
+	} else {
+		x.owner = user.ID{}
 	}
 
-	binNonce := m.GetNonce()
-	if len(binNonce) > 0 {
-		var nonce uuid.UUID
-
-		err = nonce.UnmarshalBinary(binNonce)
+	if len(m.Nonce) > 0 {
+		err = x.nonce.UnmarshalBinary(m.Nonce)
 		if err != nil {
 			return fmt.Errorf("invalid nonce: %w", err)
-		} else if ver := nonce.Version(); ver != 4 {
+		} else if ver := x.nonce.Version(); ver != 4 {
 			return fmt.Errorf("invalid nonce: wrong UUID version %d, expected 4", ver)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing nonce")
+	} else {
+		x.nonce = uuid.Nil
 	}
 
-	ver := m.GetVersion()
-	if checkFieldPresence && ver == nil {
+	if m.Version != nil {
+		if x.version == nil {
+			x.version = new(version.Version)
+		}
+		if err = x.version.FromProtoMessage(m.Version); err != nil {
+			return fmt.Errorf("invalid version: %w", err)
+		}
+	} else if checkFieldPresence {
 		return errors.New("missing version")
+	} else {
+		x.version = nil
 	}
 
-	policyV2 := m.GetPlacementPolicy()
-	if policyV2 != nil {
-		var policy netmap.PlacementPolicy
-
-		err = policy.ReadFromV2(*policyV2)
+	if m.PlacementPolicy != nil {
+		if x.policy == nil {
+			x.policy = new(netmap.PlacementPolicy)
+		}
+		err = x.policy.FromProtoMessage(m.PlacementPolicy)
 		if err != nil {
 			return fmt.Errorf("invalid placement policy: %w", err)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing placement policy")
+	} else {
+		x.policy = nil
 	}
 
 	attrs := m.GetAttributes()
 	mAttr := make(map[string]struct{}, len(attrs))
 	var key, val string
 	var was bool
+	if attrs != nil {
+		x.attrs = make([][2]string, len(attrs))
+	}
 
 	for i := range attrs {
 		key = attrs[i].GetKey()
@@ -168,27 +176,49 @@ func (x *Container) readFromV2(m container.Container, checkFieldPresence bool) e
 		}
 
 		mAttr[key] = struct{}{}
+		x.attrs[i] = [2]string{key, val}
 	}
 
-	x.v2 = m
+	x.basicACL.FromBits(m.BasicAcl)
 
 	return nil
 }
 
-// ReadFromV2 reads Container from the container.Container message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *Container) ReadFromV2(m container.Container) error {
-	return x.readFromV2(m, true)
+// See also [Container.ProtoMessage].
+func (x *Container) FromProtoMessage(m *protocontainer.Container) error {
+	return x.fromProtoMessage(m, true)
 }
 
-// WriteToV2 writes Container into the container.Container message.
-// The message MUST NOT be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x Container) WriteToV2(m *container.Container) {
-	*m = x.v2
+// See also [Container.FromProtoMessage].
+func (x Container) ProtoMessage() *protocontainer.Container {
+	m := &protocontainer.Container{
+		BasicAcl: x.basicACL.Bits(),
+	}
+	if x.version != nil {
+		m.Version = x.version.ProtoMessage()
+	}
+	if !x.owner.IsZero() {
+		m.OwnerId = x.owner.ProtoMessage()
+	}
+	if x.nonce != uuid.Nil {
+		m.Nonce = x.nonce[:]
+	}
+	if x.policy != nil {
+		m.PlacementPolicy = x.policy.ProtoMessage()
+	}
+	if len(x.attrs) > 0 {
+		m.Attributes = make([]*protocontainer.Container_Attribute, len(x.attrs))
+		for i := range x.attrs {
+			m.Attributes[i] = &protocontainer.Container_Attribute{Key: x.attrs[i][0], Value: x.attrs[i][1]}
+		}
+	}
+	return m
 }
 
 // Marshal encodes Container into a binary format of the NeoFS API protocol
@@ -196,7 +226,7 @@ func (x Container) WriteToV2(m *container.Container) {
 //
 // See also Unmarshal.
 func (x Container) Marshal() []byte {
-	return x.v2.StableMarshal(nil)
+	return neofsproto.Marshal(x)
 }
 
 // SignedData returns actual payload to sign.
@@ -212,14 +242,7 @@ func (x Container) SignedData() []byte {
 //
 // See also Marshal.
 func (x *Container) Unmarshal(data []byte) error {
-	var m container.Container
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return x.readFromV2(m, false)
+	return neofsproto.UnmarshalOptional(data, x, (*Container).fromProtoMessage)
 }
 
 // MarshalJSON encodes Container into a JSON format of the NeoFS API protocol
@@ -227,7 +250,7 @@ func (x *Container) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (x Container) MarshalJSON() ([]byte, error) {
-	return x.v2.MarshalJSON()
+	return neofsproto.MarshalJSON(x)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Container
@@ -235,11 +258,7 @@ func (x Container) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *Container) UnmarshalJSON(data []byte) error {
-	var m container.Container
-	if err := m.UnmarshalJSON(data); err != nil {
-		return err
-	}
-	return x.readFromV2(m, false)
+	return neofsproto.UnmarshalJSONOptional(data, x, (*Container).fromProtoMessage)
 }
 
 // Init initializes all internal data of the Container required by NeoFS API
@@ -247,17 +266,13 @@ func (x *Container) UnmarshalJSON(data []byte) error {
 // be called multiple times. Init SHOULD NOT be called if the Container instance
 // is used for decoding only.
 func (x *Container) Init() {
-	var ver refs.Version
-	version.Current().WriteToV2(&ver)
-
-	x.v2.SetVersion(&ver)
-
-	nonce, err := uuid.New().MarshalBinary()
-	if err != nil {
-		panic(fmt.Sprintf("unexpected error from UUID.MarshalBinary: %v", err))
+	ver := version.Current()
+	x.version = &ver
+	for {
+		if x.nonce = uuid.New(); x.nonce != uuid.Nil {
+			break
+		}
 	}
-
-	x.v2.SetNonce(nonce)
 }
 
 // SetOwner specifies the owner of the Container. Each Container has exactly
@@ -266,26 +281,15 @@ func (x *Container) Init() {
 //
 // See also Owner.
 func (x *Container) SetOwner(owner user.ID) {
-	var m refs.OwnerID
-	owner.WriteToV2(&m)
-
-	x.v2.SetOwnerID(&m)
+	x.owner = owner
 }
 
 // Owner returns owner of the Container set using SetOwner.
 //
 // Zero Container has no owner which is incorrect according to NeoFS API
 // protocol.
-func (x Container) Owner() (res user.ID) {
-	m := x.v2.GetOwnerID()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from user.ID.ReadFromV2: %v", err))
-		}
-	}
-
-	return
+func (x Container) Owner() user.ID {
+	return x.owner
 }
 
 // SetBasicACL specifies basic part of the Container ACL. Basic ACL is used
@@ -293,16 +297,15 @@ func (x Container) Owner() (res user.ID) {
 //
 // See also BasicACL.
 func (x *Container) SetBasicACL(basicACL acl.Basic) {
-	x.v2.SetBasicACL(basicACL.Bits())
+	x.basicACL = basicACL
 }
 
 // BasicACL returns basic ACL set using SetBasicACL.
 //
 // Zero Container has zero basic ACL which structurally correct but doesn't
 // make sense since it denies any access to any party.
-func (x Container) BasicACL() (res acl.Basic) {
-	res.FromBits(x.v2.GetBasicACL())
-	return
+func (x Container) BasicACL() acl.Basic {
+	return x.basicACL
 }
 
 // SetPlacementPolicy sets placement policy for the objects within the Container.
@@ -310,26 +313,18 @@ func (x Container) BasicACL() (res acl.Basic) {
 //
 // See also PlacementPolicy.
 func (x *Container) SetPlacementPolicy(policy netmap.PlacementPolicy) {
-	var m v2netmap.PlacementPolicy
-	policy.WriteToV2(&m)
-
-	x.v2.SetPlacementPolicy(&m)
+	x.policy = &policy
 }
 
 // PlacementPolicy returns placement policy set using SetPlacementPolicy.
 //
 // Zero Container has no placement policy which is incorrect according to
 // NeoFS API protocol.
-func (x Container) PlacementPolicy() (res netmap.PlacementPolicy) {
-	m := x.v2.GetPlacementPolicy()
-	if m != nil {
-		err := res.ReadFromV2(*m)
-		if err != nil {
-			panic(fmt.Sprintf("unexpected error from PlacementPolicy.ReadFromV2: %v", err))
-		}
+func (x Container) PlacementPolicy() netmap.PlacementPolicy {
+	if x.policy != nil {
+		return *x.policy
 	}
-
-	return
+	return netmap.PlacementPolicy{}
 }
 
 // SetAttribute sets Container attribute value by key. Both key and value
@@ -350,21 +345,14 @@ func (x *Container) SetAttribute(key, value string) {
 		panic("empty attribute value")
 	}
 
-	attrs := x.v2.GetAttributes()
-	ln := len(attrs)
-
-	for i := range ln {
-		if attrs[i].GetKey() == key {
-			attrs[i].SetValue(value)
+	for i := range x.attrs {
+		if x.attrs[i][0] == key {
+			x.attrs[i][1] = value
 			return
 		}
 	}
 
-	attrs = append(attrs, container.Attribute{})
-	attrs[ln].SetKey(key)
-	attrs[ln].SetValue(value)
-
-	x.v2.SetAttributes(attrs)
+	x.attrs = append(x.attrs, [2]string{key, value})
 }
 
 // Attribute reads value of the Container attribute by key. Empty result means
@@ -372,10 +360,9 @@ func (x *Container) SetAttribute(key, value string) {
 //
 // See also SetAttribute, IterateAttributes.
 func (x Container) Attribute(key string) string {
-	attrs := x.v2.GetAttributes()
-	for i := range attrs {
-		if attrs[i].GetKey() == key {
-			return attrs[i].GetValue()
+	for i := range x.attrs {
+		if x.attrs[i][0] == key {
+			return x.attrs[i][1]
 		}
 	}
 
@@ -387,9 +374,8 @@ func (x Container) Attribute(key string) string {
 //
 // See also [Container.SetAttribute], [Container.Attribute], [Container.IterateUserAttributes].
 func (x Container) IterateAttributes(f func(key, val string)) {
-	attrs := x.v2.GetAttributes()
-	for i := range attrs {
-		f(attrs[i].GetKey(), attrs[i].GetValue())
+	for i := range x.attrs {
+		f(x.attrs[i][0], x.attrs[i][1])
 	}
 }
 
@@ -399,7 +385,7 @@ func (x Container) IterateAttributes(f func(key, val string)) {
 // See also [Container.SetAttribute], [Container.Attribute], [Container.IterateAttributes].
 func (x Container) IterateUserAttributes(f func(key, val string)) {
 	x.IterateAttributes(func(key, val string) {
-		if !strings.HasPrefix(key, container.SysAttributePrefix) {
+		if !strings.HasPrefix(key, sysAttrPrefix) {
 			f(key, val)
 		}
 	})
@@ -452,14 +438,14 @@ const attributeHomoHashEnabled = "true"
 //
 // See also IsHomomorphicHashingDisabled.
 func (x *Container) DisableHomomorphicHashing() {
-	x.SetAttribute(container.SysAttributeHomomorphicHashing, attributeHomoHashEnabled)
+	x.SetAttribute(sysAttrDisableHomohash, attributeHomoHashEnabled)
 }
 
 // IsHomomorphicHashingDisabled checks if DisableHomomorphicHashing was called.
 //
 // Zero Container has enabled hashing.
 func (x Container) IsHomomorphicHashingDisabled() bool {
-	return x.Attribute(container.SysAttributeHomomorphicHashing) == attributeHomoHashEnabled
+	return x.Attribute(sysAttrDisableHomohash) == attributeHomoHashEnabled
 }
 
 // Domain represents information about container domain registered in the NNS
@@ -498,17 +484,17 @@ func (x Domain) Zone() string {
 
 // WriteDomain writes Domain into the Container. Name MUST NOT be empty.
 func (x *Container) WriteDomain(domain Domain) {
-	x.SetAttribute(container.SysAttributeName, domain.Name())
-	x.SetAttribute(container.SysAttributeZone, domain.Zone())
+	x.SetAttribute(sysAttrDomainName, domain.Name())
+	x.SetAttribute(sysAttrDomainZone, domain.Zone())
 }
 
 // ReadDomain reads Domain from the Container. Returns value with empty name
 // if domain is not specified.
 func (x Container) ReadDomain() (res Domain) {
-	name := x.Attribute(container.SysAttributeName)
+	name := x.Attribute(sysAttrDomainName)
 	if name != "" {
 		res.SetName(name)
-		res.SetZone(x.Attribute(container.SysAttributeZone))
+		res.SetZone(x.Attribute(sysAttrDomainZone))
 	}
 
 	return
@@ -560,9 +546,8 @@ func (x Container) AssertID(id cid.ID) bool {
 
 // Version returns the NeoFS API version this container was created with.
 func (x Container) Version() version.Version {
-	var v version.Version
-	if m := x.v2.GetVersion(); m != nil {
-		_ = v.ReadFromV2(*m)
+	if x.version != nil {
+		return *x.version
 	}
-	return v
+	return version.Version{}
 }

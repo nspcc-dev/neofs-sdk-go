@@ -7,56 +7,11 @@ import (
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
-
-func TestTarget_ToV2(t *testing.T) {
-	r := eacl.NewTargetByRole(anyValidRole)
-	subjs := [][]byte{
-		anyValidECDSABinPublicKeys[0],
-		anyUserSet[0][:],
-		anyValidECDSABinPublicKeys[1],
-		anyUserSet[1][:],
-		anyUserSet[2][:],
-	}
-	r.SetRawSubjects(subjs)
-	m := r.ToV2()
-	require.EqualValues(t, anyValidRole, m.GetRole())
-	require.Equal(t, subjs, m.GetKeys())
-
-	t.Run("default values", func(t *testing.T) {
-		target := eacl.NewTarget()
-
-		// check initial values
-		require.Zero(t, target.Role())
-		require.Nil(t, target.BinaryKeys())
-
-		// convert to v2 message
-		targetV2 := target.ToV2()
-
-		require.Equal(t, protoacl.RoleUnknown, targetV2.GetRole())
-		require.Nil(t, targetV2.GetKeys())
-	})
-}
-
-func TestNewTargetFromV2(t *testing.T) {
-	role := protoacl.Role(rand.Uint32())
-	var m protoacl.Target
-	m.SetRole(role)
-	m.SetKeys(anyValidBinPublicKeys)
-
-	r := eacl.NewTargetFromV2(&m)
-	require.EqualValues(t, role, r.Role())
-	require.Equal(t, anyValidBinPublicKeys, m.GetKeys())
-
-	t.Run("nil", func(t *testing.T) {
-		require.Equal(t, new(eacl.Target), eacl.NewTargetFromV2(nil))
-	})
-}
 
 func TestTarget_Marshal(t *testing.T) {
 	for i := range anyValidTargets {
@@ -75,7 +30,6 @@ func TestTarget_Unmarshal(t *testing.T) {
 	for i := range anyValidBinTargets {
 		err := tgt.Unmarshal(anyValidBinTargets[i])
 		require.NoError(t, err)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidTargets[i], tgt)
 	}
 }
@@ -92,7 +46,6 @@ func TestTarget_MarshalJSON(t *testing.T) {
 		b, err := anyValidTargets[i].MarshalJSON()
 		require.NoError(t, err, i)
 		require.NoError(t, tgt1.UnmarshalJSON(b), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidTargets[i], tgt1, i)
 
 		b, err = json.Marshal(anyValidTargets[i])
@@ -106,7 +59,6 @@ func TestTarget_UnmarshalJSON(t *testing.T) {
 	var tgt1, tgt2 eacl.Target
 	for i := range anyValidJSONTargets {
 		require.NoError(t, tgt1.UnmarshalJSON([]byte(anyValidJSONTargets[i])), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, anyValidTargets[i], tgt1, i)
 
 		require.NoError(t, json.Unmarshal([]byte(anyValidJSONTargets[i]), &tgt2), i)

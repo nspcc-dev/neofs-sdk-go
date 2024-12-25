@@ -7,17 +7,16 @@ import (
 	"crypto/sha512"
 	"encoding/base64"
 	"encoding/hex"
-	"math"
 	"math/big"
 	"testing"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neo-go/pkg/io"
-	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -65,67 +64,66 @@ var (
 
 type invalidProtoTokenTestcase struct {
 	name, err string
-	corrupt   func(*apisession.Token)
+	corrupt   func(*protosession.SessionToken)
 }
 
 var invalidProtoTokenCommonTestcases = []invalidProtoTokenTestcase{
-	{name: "missing body", err: "missing token body", corrupt: func(st *apisession.Token) {
-		st.SetBody(nil)
+	{name: "missing body", err: "missing token body", corrupt: func(st *protosession.SessionToken) {
+		st.Body = nil
 	}},
-	{name: "missing body signature", err: "missing body signature", corrupt: func(st *apisession.Token) {
-		st.SetSignature(nil)
+	{name: "missing body signature", err: "missing body signature", corrupt: func(st *protosession.SessionToken) {
+		st.Signature = nil
 	}},
-	{name: "body/ID/nil", err: "missing session ID", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetID(nil)
+	{name: "body/ID/nil", err: "missing session ID", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Id = nil
 	}},
-	{name: "body/ID/empty", err: "missing session ID", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetID([]byte{})
+	{name: "body/ID/empty", err: "missing session ID", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Id = []byte{}
 	}},
-	{name: "body/ID/undersize", err: "invalid session ID: invalid UUID (got 15 bytes)", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetID(make([]byte, 15))
+	{name: "body/ID/undersize", err: "invalid session ID: invalid UUID (got 15 bytes)", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Id = make([]byte, 15)
 	}},
-	{name: "body/ID/wrong UUID version", err: "invalid session ID: wrong UUID version 3, expected 4", corrupt: func(st *apisession.Token) {
-		st.GetBody().GetID()[6] = 3 << 4
+	{name: "body/ID/wrong UUID version", err: "invalid session ID: wrong UUID version 3, expected 4", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Id[6] = 3 << 4
 	}},
-	{name: "body/ID/oversize", err: "invalid session ID: invalid UUID (got 17 bytes)", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetID(make([]byte, 17))
+	{name: "body/ID/oversize", err: "invalid session ID: invalid UUID (got 17 bytes)", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Id = make([]byte, 17)
 	}},
-	{name: "body/issuer", err: "missing session issuer", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetOwnerID(nil)
+	{name: "body/issuer", err: "missing session issuer", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId = nil
 	}},
-	{name: "body/issuer/value/nil", err: "invalid session issuer: invalid length 0, expected 25", corrupt: func(st *apisession.Token) {
-		st.GetBody().GetOwnerID().SetValue(nil)
+	{name: "body/issuer/value/nil", err: "invalid session issuer: invalid length 0, expected 25", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId.Value = nil
 	}},
-	{name: "body/issuer/value/empty", err: "invalid session issuer: invalid length 0, expected 25", corrupt: func(st *apisession.Token) {
-		st.GetBody().GetOwnerID().SetValue([]byte{})
+	{name: "body/issuer/value/empty", err: "invalid session issuer: invalid length 0, expected 25", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId.Value = []byte{}
 	}},
-	{name: "body/issuer/value/undersize", err: "invalid session issuer: invalid length 24, expected 25", corrupt: func(st *apisession.Token) {
-		st.GetBody().GetOwnerID().SetValue(make([]byte, 24))
+	{name: "body/issuer/value/undersize", err: "invalid session issuer: invalid length 24, expected 25", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId.Value = make([]byte, 24)
 	}},
-	{name: "body/issuer/value/oversize", err: "invalid session issuer: invalid length 26, expected 25", corrupt: func(st *apisession.Token) {
-		st.GetBody().GetOwnerID().SetValue(make([]byte, 26))
+	{name: "body/issuer/value/oversize", err: "invalid session issuer: invalid length 26, expected 25", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId.Value = make([]byte, 26)
 	}},
-	{name: "body/issuer/value/wrong prefix", err: "invalid session issuer: invalid prefix byte 0x42, expected 0x35", corrupt: func(st *apisession.Token) {
-		st.GetBody().GetOwnerID().GetValue()[0] = 0x42
+	{name: "body/issuer/value/wrong prefix", err: "invalid session issuer: invalid prefix byte 0x42, expected 0x35", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId.Value[0] = 0x42
 	}},
-	{name: "body/issuer/value/checksum mismatch", err: "invalid session issuer: checksum mismatch", corrupt: func(st *apisession.Token) {
-		v := st.GetBody().GetOwnerID().GetValue()
-		v[len(v)-1]++
+	{name: "body/issuer/value/checksum mismatch", err: "invalid session issuer: checksum mismatch", corrupt: func(st *protosession.SessionToken) {
+		st.Body.OwnerId.Value[24]++
 	}},
-	{name: "body/lifetime", err: "missing token lifetime", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetLifetime(nil)
+	{name: "body/lifetime", err: "missing token lifetime", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Lifetime = nil
 	}},
-	{name: "body/session key/nil", err: "missing session public key", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetSessionKey(nil)
+	{name: "body/session key/nil", err: "missing session public key", corrupt: func(st *protosession.SessionToken) {
+		st.Body.SessionKey = nil
 	}},
-	{name: "body/session key/empty", err: "missing session public key", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetSessionKey([]byte{})
+	{name: "body/session key/empty", err: "missing session public key", corrupt: func(st *protosession.SessionToken) {
+		st.Body.SessionKey = []byte{}
 	}},
-	{name: "body/context/nil", err: "missing session context", corrupt: func(st *apisession.Token) {
-		st.GetBody().SetContext(nil)
+	{name: "body/context/nil", err: "missing session context", corrupt: func(st *protosession.SessionToken) {
+		st.Body.Context = nil
 	}},
-	{name: "signature/invalid scheme", err: "invalid body signature: scheme 2147483648 overflows int32", corrupt: func(st *apisession.Token) {
-		st.GetSignature().SetScheme(math.MaxInt32 + 1)
+	{name: "signature/scheme/negative", err: "invalid body signature: negative scheme -1", corrupt: func(st *protosession.SessionToken) {
+		st.Signature.Scheme = -1
 	}},
 }
 
@@ -155,7 +153,7 @@ var invalidBinTokenCommonTestcases = []invalidBinTokenTestcase{
 	{name: "body/issuer/value/checksum mismatch", err: "invalid session issuer: checksum mismatch",
 		b: []byte{10, 29, 18, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203,
 			20, 254, 30, 138, 195, 17, 93}},
-	{name: "signature/invalid scheme", err: "invalid body signature: scheme 2147483648 overflows int32",
+	{name: "signature/invalid scheme", err: "invalid body signature: negative scheme -2147483648",
 		b: []byte{18, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
 }
 
@@ -212,7 +210,7 @@ var invalidJSONTokenCommonTestcases = []invalidJSONTokenTestcase{
 	{name: "body/issuer/value/checksum mismatch", err: "invalid session issuer: checksum mismatch", j: `
 {"body":{"ownerID":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXQ=="}}}
 `},
-	{name: "signature/invalid scheme", err: "invalid body signature: scheme 2147483648 overflows int32", j: `
+	{name: "signature/invalid scheme", err: "invalid body signature: negative scheme -2147483648", j: `
 {"signature":{"scheme":-2147483648}}
 `},
 }

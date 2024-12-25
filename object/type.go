@@ -2,12 +2,10 @@ package object
 
 import (
 	"strconv"
-
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
 )
 
 // Type is an enumerator for possible object types.
-type Type object.Type
+type Type int32
 
 const (
 	TypeRegular Type = iota
@@ -16,18 +14,6 @@ const (
 	TypeLock
 	TypeLink
 )
-
-// ToV2 converts [Type] to v2 [object.Type].
-// Deprecated: cast instead.
-func (t Type) ToV2() object.Type {
-	return object.Type(t)
-}
-
-// TypeFromV2 converts v2 [object.Type] to [Type].
-// Deprecated: cast instead.
-func TypeFromV2(t object.Type) Type {
-	return Type(t)
-}
 
 const (
 	typeStringRegular      = "REGULAR"
@@ -65,7 +51,7 @@ func (t Type) EncodeToString() string { return t.String() }
 func (t Type) String() string {
 	switch t {
 	default:
-		return strconv.FormatUint(uint64(t), 10)
+		return strconv.FormatInt(int64(t), 10)
 	case TypeRegular:
 		return typeStringRegular
 	case TypeTombstone:
@@ -86,7 +72,7 @@ func (t Type) String() string {
 func (t *Type) DecodeString(s string) bool {
 	switch s {
 	default:
-		n, err := strconv.ParseUint(s, 10, 32)
+		n, err := strconv.ParseInt(s, 10, 32)
 		if err != nil {
 			return false
 		}

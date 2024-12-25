@@ -6,33 +6,33 @@ import (
 	"io"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/antlr4-go/antlr/v4"
-	"github.com/nspcc-dev/neofs-api-go/v2/netmap"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap/parser"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
 // PlacementPolicy declares policy to store objects in the NeoFS container.
 // Within itself, PlacementPolicy represents a set of rules to select a subset
 // of nodes from NeoFS network map - node-candidates for object storage.
 //
-// PlacementPolicy is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/netmap.PlacementPolicy
-// message. See ReadFromV2 / WriteToV2 methods.
+// PlacementPolicy is mutually compatible with [protonetmap.PlacementPolicy]
+// message. See [PlacementPolicy.FromProtoMessage] / [PlacementPolicy.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type PlacementPolicy struct {
 	backupFactor uint32
 
-	filters []netmap.Filter
+	filters []Filter
 
-	selectors []netmap.Selector
+	selectors []Selector
 
-	replicas []netmap.Replica
+	replicas []ReplicaDescriptor
 }
 
 // FilterOp defines the matching property.
-type FilterOp uint32
+type FilterOp int32
 
 // Supported FilterOp values.
 const (
@@ -71,24 +71,17 @@ func (x FilterOp) String() string {
 	}
 }
 
-func copyFilter(f netmap.Filter) netmap.Filter {
-	var filter netmap.Filter
+func copyFilter(f Filter) Filter {
+	filter := f
 
-	filter.SetName(f.GetName())
-	filter.SetKey(f.GetKey())
-	filter.SetOp(f.GetOp())
-	filter.SetValue(f.GetValue())
+	if f.subs != nil {
+		filter.subs = make([]Filter, len(f.subs))
 
-	if f.GetFilters() != nil {
-		filters := make([]netmap.Filter, len(f.GetFilters()))
-
-		for i, internalFilter := range f.GetFilters() {
-			filters[i] = copyFilter(internalFilter)
+		for i := range f.subs {
+			filter.subs[i] = copyFilter(f.subs[i])
 		}
-
-		filter.SetFilters(filters)
 	} else {
-		filter.SetFilters(nil)
+		filter.subs = nil
 	}
 
 	return filter
@@ -98,27 +91,52 @@ func copyFilter(f netmap.Filter) netmap.Filter {
 func (p PlacementPolicy) CopyTo(dst *PlacementPolicy) {
 	dst.SetContainerBackupFactor(p.backupFactor)
 
-	dst.filters = make([]netmap.Filter, len(p.filters))
-	for i, f := range p.filters {
-		dst.filters[i] = copyFilter(f)
+	dst.filters = make([]Filter, len(p.filters))
+	for i := range p.filters {
+		dst.filters[i] = copyFilter(p.filters[i])
 	}
 
-	// netmap.Selector is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
+	// protonetmap.Selector is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
 	dst.selectors = slices.Clone(p.selectors)
 
-	// netmap.Replica is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
+	// protonetmap.Replica is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
 	dst.replicas = slices.Clone(p.replicas)
 }
 
-func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresence bool) error {
-	p.replicas = m.GetReplicas()
-	if checkFieldPresence && len(p.replicas) == 0 {
+func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, checkFieldPresence bool) error {
+	if checkFieldPresence && len(m.Replicas) == 0 {
 		return errors.New("missing replicas")
 	}
 
+	p.replicas = make([]ReplicaDescriptor, len(m.Replicas))
+	for i, r := range m.Replicas {
+		if r == nil {
+			return fmt.Errorf("nil replica #%d", i)
+		}
+		p.replicas[i].fromProtoMessage(r)
+	}
+
+	p.selectors = make([]Selector, len(m.Selectors))
+	for i, s := range m.Selectors {
+		if s == nil {
+			return fmt.Errorf("nil selector #%d", i)
+		}
+		if err := p.selectors[i].fromProtoMessage(s); err != nil {
+			return fmt.Errorf("invalid selector #%d: %w", i, err)
+		}
+	}
+
+	p.filters = make([]Filter, len(m.Filters))
+	for i, f := range m.Filters {
+		if f == nil {
+			return fmt.Errorf("nil filter #%d", i)
+		}
+		if err := p.filters[i].fromProtoMessage(f); err != nil {
+			return fmt.Errorf("invalid filter #%d: %w", i, err)
+		}
+	}
+
 	p.backupFactor = m.GetContainerBackupFactor()
-	p.selectors = m.GetSelectors()
-	p.filters = m.GetFilters()
 
 	return nil
 }
@@ -128,10 +146,7 @@ func (p *PlacementPolicy) readFromV2(m netmap.PlacementPolicy, checkFieldPresenc
 //
 // See also Unmarshal.
 func (p PlacementPolicy) Marshal() []byte {
-	var m netmap.PlacementPolicy
-	p.WriteToV2(&m)
-
-	return m.StableMarshal(nil)
+	return neofsproto.Marshal(p)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the PlacementPolicy
@@ -140,14 +155,7 @@ func (p PlacementPolicy) Marshal() []byte {
 //
 // See also Marshal.
 func (p *PlacementPolicy) Unmarshal(data []byte) error {
-	var m netmap.PlacementPolicy
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return p.readFromV2(m, false)
+	return neofsproto.UnmarshalOptional(data, p, (*PlacementPolicy).fromProtoMessage)
 }
 
 // MarshalJSON encodes PlacementPolicy into a JSON format of the NeoFS API
@@ -155,10 +163,7 @@ func (p *PlacementPolicy) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
-	var m netmap.PlacementPolicy
-	p.WriteToV2(&m)
-
-	return m.MarshalJSON()
+	return neofsproto.MarshalJSON(p)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the PlacementPolicy
@@ -166,51 +171,79 @@ func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (p *PlacementPolicy) UnmarshalJSON(data []byte) error {
-	var m netmap.PlacementPolicy
+	return neofsproto.UnmarshalJSONOptional(data, p, (*PlacementPolicy).fromProtoMessage)
+}
 
-	err := m.UnmarshalJSON(data)
-	if err != nil {
-		return err
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// p from it.
+//
+// See also [PlacementPolicy.ProtoMessage].
+func (p *PlacementPolicy) FromProtoMessage(m *protonetmap.PlacementPolicy) error {
+	return p.fromProtoMessage(m, true)
+}
+
+// ProtoMessage converts p into message to transmit using the NeoFS API
+// protocol.
+//
+// See also [PlacementPolicy.FromProtoMessage].
+func (p PlacementPolicy) ProtoMessage() *protonetmap.PlacementPolicy {
+	m := &protonetmap.PlacementPolicy{
+		ContainerBackupFactor: p.backupFactor,
 	}
-
-	return p.readFromV2(m, false)
-}
-
-// ReadFromV2 reads PlacementPolicy from the netmap.PlacementPolicy message.
-// Checks if the message conforms to NeoFS API V2 protocol.
-//
-// See also WriteToV2.
-func (p *PlacementPolicy) ReadFromV2(m netmap.PlacementPolicy) error {
-	return p.readFromV2(m, true)
-}
-
-// WriteToV2 writes PlacementPolicy to the netmap.PlacementPolicy message.
-// The message must not be nil.
-//
-// See also ReadFromV2.
-func (p PlacementPolicy) WriteToV2(m *netmap.PlacementPolicy) {
-	m.SetContainerBackupFactor(p.backupFactor)
-	m.SetFilters(p.filters)
-	m.SetSelectors(p.selectors)
-	m.SetReplicas(p.replicas)
+	if len(p.replicas) > 0 {
+		m.Replicas = make([]*protonetmap.Replica, len(p.replicas))
+		for i := range p.replicas {
+			m.Replicas[i] = p.replicas[i].protoMessage()
+		}
+	}
+	if len(p.selectors) > 0 {
+		m.Selectors = make([]*protonetmap.Selector, len(p.selectors))
+		for i := range p.selectors {
+			m.Selectors[i] = p.selectors[i].protoMessage()
+		}
+	}
+	if len(p.filters) > 0 {
+		m.Filters = make([]*protonetmap.Filter, len(p.filters))
+		for i := range p.filters {
+			m.Filters[i] = p.filters[i].protoMessage()
+		}
+	}
+	return m
 }
 
 // ReplicaDescriptor replica descriptor characterizes replicas of objects from
 // the subset selected by a particular Selector.
 type ReplicaDescriptor struct {
-	m netmap.Replica
+	count    uint32
+	selector string
+}
+
+// fromProtoMessage validates m according to the NeoFS API protocol and restores
+// r from it.
+func (r *ReplicaDescriptor) fromProtoMessage(m *protonetmap.Replica) {
+	r.count = m.Count
+	r.selector = m.Selector
+}
+
+// protoMessage converts r into message to transmit using the NeoFS API
+// protocol.
+func (r ReplicaDescriptor) protoMessage() *protonetmap.Replica {
+	return &protonetmap.Replica{
+		Count:    r.count,
+		Selector: r.selector,
+	}
 }
 
 // SetNumberOfObjects sets number of object replicas.
 func (r *ReplicaDescriptor) SetNumberOfObjects(c uint32) {
-	r.m.SetCount(c)
+	r.count = c
 }
 
 // NumberOfObjects returns number set using SetNumberOfObjects.
 //
 // Zero ReplicaDescriptor has zero number of objects.
 func (r ReplicaDescriptor) NumberOfObjects() uint32 {
-	return r.m.GetCount()
+	return r.count
 }
 
 // SetSelectorName sets name of the related Selector.
@@ -220,7 +253,7 @@ func (r ReplicaDescriptor) NumberOfObjects() uint32 {
 //
 // See also [ReplicaDescriptor.SelectorName].
 func (r *ReplicaDescriptor) SetSelectorName(s string) {
-	r.m.SetSelector(s)
+	r.selector = s
 }
 
 // SelectorName returns name of the related Selector.
@@ -230,7 +263,7 @@ func (r *ReplicaDescriptor) SetSelectorName(s string) {
 //
 // See also [ReplicaDescriptor.SetSelectorName].
 func (r ReplicaDescriptor) SelectorName() string {
-	return r.m.GetSelector()
+	return r.selector
 }
 
 // SetReplicas sets list of object replica's characteristics.
@@ -238,11 +271,7 @@ func (r ReplicaDescriptor) SelectorName() string {
 // See also [PlacementPolicy.Replicas], [PlacementPolicy.NumberOfReplicas],
 // [PlacementPolicy.ReplicaNumberByIndex].
 func (p *PlacementPolicy) SetReplicas(rs []ReplicaDescriptor) {
-	p.replicas = make([]netmap.Replica, len(rs))
-
-	for i := range rs {
-		p.replicas[i] = rs[i].m
-	}
+	p.replicas = rs
 }
 
 // Replicas returns list of object replica characteristics.
@@ -250,11 +279,7 @@ func (p *PlacementPolicy) SetReplicas(rs []ReplicaDescriptor) {
 // See also [PlacementPolicy.SetReplicas], [PlacementPolicy.NumberOfReplicas],
 // [PlacementPolicy.ReplicaNumberByIndex].
 func (p PlacementPolicy) Replicas() []ReplicaDescriptor {
-	rs := make([]ReplicaDescriptor, len(p.replicas))
-	for i := range p.replicas {
-		rs[i].m = p.replicas[i]
-	}
-	return rs
+	return p.replicas
 }
 
 // NumberOfReplicas returns number of replica descriptors set using SetReplicas.
@@ -270,7 +295,7 @@ func (p PlacementPolicy) NumberOfReplicas() int {
 //
 // Zero PlacementPolicy has no replicas.
 func (p PlacementPolicy) ReplicaNumberByIndex(i int) uint32 {
-	return p.replicas[i].GetCount()
+	return p.replicas[i].NumberOfObjects()
 }
 
 // SetContainerBackupFactor sets container backup factor: it controls how deep
@@ -296,14 +321,44 @@ func (p *PlacementPolicy) ContainerBackupFactor() uint32 {
 // Selector describes the bucket selection operator: choose a number of nodes
 // from the bucket taking the nearest nodes to the related container by hash distance.
 type Selector struct {
-	m netmap.Selector
+	name   string
+	count  uint32
+	clause protonetmap.Clause
+	attr   string
+	filter string
+}
+
+// fromProtoMessage validates m according to the NeoFS API protocol and restores
+// s from it.
+func (s *Selector) fromProtoMessage(m *protonetmap.Selector) error {
+	if m.Clause < 0 {
+		return fmt.Errorf("negative clause %d", m.Clause)
+	}
+	s.name = m.Name
+	s.count = m.Count
+	s.clause = m.Clause
+	s.attr = m.Attribute
+	s.filter = m.Filter
+	return nil
+}
+
+// protoMessage converts s into message to transmit using the NeoFS API
+// protocol.
+func (s Selector) protoMessage() *protonetmap.Selector {
+	return &protonetmap.Selector{
+		Name:      s.name,
+		Count:     s.count,
+		Clause:    s.clause,
+		Attribute: s.attr,
+		Filter:    s.filter,
+	}
 }
 
 // SetName sets name with which the Selector can be referenced.
 //
 // Zero Selector is unnamed.
 func (s *Selector) SetName(name string) {
-	s.m.SetName(name)
+	s.name = name
 }
 
 // Name returns name with which the Selector can be referenced.
@@ -312,7 +367,7 @@ func (s *Selector) SetName(name string) {
 //
 // See also [Selector.Name].
 func (s Selector) Name() string {
-	return s.m.GetName()
+	return s.name
 }
 
 // SetNumberOfNodes sets number of nodes to select from the bucket.
@@ -321,7 +376,7 @@ func (s Selector) Name() string {
 //
 // See also [Selector.NumberOfNodes].
 func (s *Selector) SetNumberOfNodes(num uint32) {
-	s.m.SetCount(num)
+	s.count = num
 }
 
 // NumberOfNodes returns number of nodes to select from the bucket.
@@ -330,7 +385,7 @@ func (s *Selector) SetNumberOfNodes(num uint32) {
 //
 // See also [Selector.SetNumberOfNodes].
 func (s Selector) NumberOfNodes() uint32 {
-	return s.m.GetCount()
+	return s.count
 }
 
 // SelectByBucketAttribute sets attribute of the bucket to select nodes from.
@@ -339,7 +394,7 @@ func (s Selector) NumberOfNodes() uint32 {
 //
 // See also [Selector.BucketAttribute].
 func (s *Selector) SelectByBucketAttribute(bucket string) {
-	s.m.SetAttribute(bucket)
+	s.attr = bucket
 }
 
 // BucketAttribute returns attribute of the bucket to select nodes from.
@@ -348,7 +403,7 @@ func (s *Selector) SelectByBucketAttribute(bucket string) {
 //
 // See also [Selector.SelectByBucketAttribute].
 func (s *Selector) BucketAttribute() string {
-	return s.m.GetAttribute()
+	return s.attr
 }
 
 // SelectSame makes selection algorithm to select only nodes having the same values
@@ -358,7 +413,7 @@ func (s *Selector) BucketAttribute() string {
 //
 // See also [Selector.SelectByBucketAttribute], [Selector.IsSame].
 func (s *Selector) SelectSame() {
-	s.m.SetClause(netmap.Same)
+	s.clause = protonetmap.Clause_SAME
 }
 
 // IsSame checks whether selection algorithm is set to select only nodes having
@@ -366,7 +421,7 @@ func (s *Selector) SelectSame() {
 //
 // See also [Selector.SelectSame].
 func (s *Selector) IsSame() bool {
-	return s.m.GetClause() == netmap.Same
+	return s.clause == protonetmap.Clause_SAME
 }
 
 // SelectDistinct makes selection algorithm to select only nodes having the different values
@@ -376,7 +431,7 @@ func (s *Selector) IsSame() bool {
 //
 // See also [Selector.SelectByBucketAttribute], [Selector.IsDistinct].
 func (s *Selector) SelectDistinct() {
-	s.m.SetClause(netmap.Distinct)
+	s.clause = protonetmap.Clause_DISTINCT
 }
 
 // IsDistinct checks whether selection algorithm is set to select only nodes
@@ -384,7 +439,7 @@ func (s *Selector) SelectDistinct() {
 //
 // See also [Selector.SelectByBucketAttribute], [Selector.SelectDistinct].
 func (s *Selector) IsDistinct() bool {
-	return s.m.GetClause() == netmap.Distinct
+	return s.clause == protonetmap.Clause_DISTINCT
 }
 
 // SetFilterName sets reference to pre-filtering nodes for selection.
@@ -393,7 +448,7 @@ func (s *Selector) IsDistinct() bool {
 //
 // See also Filter.SetName.
 func (s *Selector) SetFilterName(f string) {
-	s.m.SetFilter(f)
+	s.filter = f
 }
 
 // FilterName returns reference to pre-filtering nodes for selection.
@@ -402,7 +457,7 @@ func (s *Selector) SetFilterName(f string) {
 //
 // See also [Filter.SetName], [Selector.SetFilterName].
 func (s *Selector) FilterName() string {
-	return s.m.GetFilter()
+	return s.filter
 }
 
 // SetSelectors sets list of Selector to form the subset of the nodes to store
@@ -412,11 +467,7 @@ func (s *Selector) FilterName() string {
 //
 // See also [PlacementPolicy.Selectors].
 func (p *PlacementPolicy) SetSelectors(ss []Selector) {
-	p.selectors = make([]netmap.Selector, len(ss))
-
-	for i := range ss {
-		p.selectors[i] = ss[i].m
-	}
+	p.selectors = ss
 }
 
 // Selectors returns list of Selector to form the subset of the nodes to store
@@ -426,16 +477,55 @@ func (p *PlacementPolicy) SetSelectors(ss []Selector) {
 //
 // See also [PlacementPolicy.SetSelectors].
 func (p PlacementPolicy) Selectors() []Selector {
-	ss := make([]Selector, len(p.selectors))
-	for i := range p.selectors {
-		ss[i].m = p.selectors[i]
-	}
-	return ss
+	return p.selectors
 }
 
 // Filter contains rules for filtering the node sets.
 type Filter struct {
-	m netmap.Filter
+	name string
+	key  string
+	op   FilterOp
+	val  string
+	subs []Filter
+}
+
+// fromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
+func (x *Filter) fromProtoMessage(m *protonetmap.Filter) error {
+	if m.Op < 0 {
+		return fmt.Errorf("negative op %d", m.Op)
+	}
+	var subs []Filter
+	if len(m.Filters) > 0 {
+		subs = make([]Filter, len(m.Filters))
+		for i := range m.Filters {
+			if err := subs[i].fromProtoMessage(m.Filters[i]); err != nil {
+				return fmt.Errorf("invalid sub-filter #%d: %w", i, err)
+			}
+		}
+	}
+	x.name = m.Name
+	x.setAttribute(m.Key, FilterOp(m.Op), m.Value)
+	x.subs = subs
+	return nil
+}
+
+// protoMessage converts x into message to transmit using the NeoFS API
+// protocol.
+func (x Filter) protoMessage() *protonetmap.Filter {
+	m := &protonetmap.Filter{
+		Name:  x.name,
+		Key:   x.key,
+		Op:    protonetmap.Operation(x.op),
+		Value: x.val,
+	}
+	if len(x.subs) > 0 {
+		m.Filters = make([]*protonetmap.Filter, len(x.subs))
+		for i := range x.subs {
+			m.Filters[i] = x.subs[i].protoMessage()
+		}
+	}
+	return m
 }
 
 // SetName sets name with which the Filter can be referenced or, for inner filters,
@@ -446,7 +536,7 @@ type Filter struct {
 //
 // See also [Filter.Name].
 func (x *Filter) SetName(name string) {
-	x.m.SetName(name)
+	x.name = name
 }
 
 // Name returns name with which the Filter can be referenced or, for inner
@@ -457,57 +547,47 @@ func (x *Filter) SetName(name string) {
 //
 // See also [Filter.SetName].
 func (x Filter) Name() string {
-	return x.m.GetName()
+	return x.name
 }
 
 // Key returns key to the property.
 func (x Filter) Key() string {
-	return x.m.GetKey()
+	return x.key
 }
 
 // Op returns operator to match the property.
 func (x Filter) Op() FilterOp {
-	return FilterOp(x.m.GetOp())
+	return x.op
 }
 
 // Value returns value to check the property against.
 func (x Filter) Value() string {
-	return x.m.GetValue()
+	return x.val
 }
 
 // SubFilters returns list of sub-filters when Filter is complex.
 func (x Filter) SubFilters() []Filter {
-	fsm := x.m.GetFilters()
-	if len(fsm) == 0 {
-		return nil
-	}
-
-	fs := make([]Filter, len(fsm))
-	for i := range fsm {
-		fs[i] = Filter{m: fsm[i]}
-	}
-
-	return fs
+	return x.subs
 }
 
-func (x *Filter) setAttribute(key string, op netmap.Operation, val string) {
-	x.m.SetKey(key)
-	x.m.SetOp(op)
-	x.m.SetValue(val)
+func (x *Filter) setAttribute(key string, op FilterOp, val string) {
+	x.key = key
+	x.op = op
+	x.val = val
 }
 
 // Equal applies the rule to accept only nodes with the same attribute value.
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) Equal(key, value string) {
-	x.setAttribute(key, netmap.EQ, value)
+	x.setAttribute(key, FilterOpEQ, value)
 }
 
 // NotEqual applies the rule to accept only nodes with the distinct attribute value.
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) NotEqual(key, value string) {
-	x.setAttribute(key, netmap.NE, value)
+	x.setAttribute(key, FilterOpNE, value)
 }
 
 // NumericGT applies the rule to accept only nodes with the numeric attribute
@@ -515,7 +595,7 @@ func (x *Filter) NotEqual(key, value string) {
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) NumericGT(key string, num int64) {
-	x.setAttribute(key, netmap.GT, strconv.FormatInt(num, 10))
+	x.setAttribute(key, FilterOpGT, strconv.FormatInt(num, 10))
 }
 
 // NumericGE applies the rule to accept only nodes with the numeric attribute
@@ -523,7 +603,7 @@ func (x *Filter) NumericGT(key string, num int64) {
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) NumericGE(key string, num int64) {
-	x.setAttribute(key, netmap.GE, strconv.FormatInt(num, 10))
+	x.setAttribute(key, FilterOpGE, strconv.FormatInt(num, 10))
 }
 
 // NumericLT applies the rule to accept only nodes with the numeric attribute
@@ -531,7 +611,7 @@ func (x *Filter) NumericGE(key string, num int64) {
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) NumericLT(key string, num int64) {
-	x.setAttribute(key, netmap.LT, strconv.FormatInt(num, 10))
+	x.setAttribute(key, FilterOpLT, strconv.FormatInt(num, 10))
 }
 
 // NumericLE applies the rule to accept only nodes with the numeric attribute
@@ -539,22 +619,12 @@ func (x *Filter) NumericLT(key string, num int64) {
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) NumericLE(key string, num int64) {
-	x.setAttribute(key, netmap.LE, strconv.FormatInt(num, 10))
+	x.setAttribute(key, FilterOpLE, strconv.FormatInt(num, 10))
 }
 
-func (x *Filter) setInnerFilters(op netmap.Operation, filters []Filter) {
+func (x *Filter) setInnerFilters(op FilterOp, filters []Filter) {
 	x.setAttribute("", op, "")
-
-	inner := x.m.GetFilters()
-	if rem := len(filters) - len(inner); rem > 0 {
-		inner = append(inner, make([]netmap.Filter, rem)...)
-	}
-
-	for i := range filters {
-		inner[i] = filters[i].m
-	}
-
-	x.m.SetFilters(inner)
+	x.subs = filters
 }
 
 // LogicalOR applies the rule to accept only nodes which satisfy at least one
@@ -562,7 +632,7 @@ func (x *Filter) setInnerFilters(op netmap.Operation, filters []Filter) {
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) LogicalOR(filters ...Filter) {
-	x.setInnerFilters(netmap.OR, filters)
+	x.setInnerFilters(FilterOpOR, filters)
 }
 
 // LogicalAND applies the rule to accept only nodes which satisfy all the given
@@ -570,7 +640,7 @@ func (x *Filter) LogicalOR(filters ...Filter) {
 //
 // Method SHOULD NOT be called along with other similar methods.
 func (x *Filter) LogicalAND(filters ...Filter) {
-	x.setInnerFilters(netmap.AND, filters)
+	x.setInnerFilters(FilterOpAND, filters)
 }
 
 // Filters returns list of Filter that will be applied when selecting nodes.
@@ -579,11 +649,7 @@ func (x *Filter) LogicalAND(filters ...Filter) {
 //
 // See also [PlacementPolicy.SetFilters].
 func (p PlacementPolicy) Filters() []Filter {
-	fs := make([]Filter, len(p.filters))
-	for i := range p.filters {
-		fs[i] = Filter{m: p.filters[i]}
-	}
-	return fs
+	return p.filters
 }
 
 // SetFilters sets list of Filter that will be applied when selecting nodes.
@@ -592,11 +658,7 @@ func (p PlacementPolicy) Filters() []Filter {
 //
 // See also [PlacementPolicy.Filters].
 func (p *PlacementPolicy) SetFilters(fs []Filter) {
-	p.filters = make([]netmap.Filter, len(fs))
-
-	for i := range fs {
-		p.filters[i] = fs[i].m
-	}
+	p.filters = fs
 }
 
 // WriteStringTo encodes PlacementPolicy into human-readably query and writes
@@ -623,8 +685,8 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 			return err
 		}
 
-		c := p.replicas[i].GetCount()
-		s := p.replicas[i].GetSelector()
+		c := p.replicas[i].NumberOfObjects()
+		s := p.replicas[i].SelectorName()
 
 		if s != "" {
 			_, err = w.WriteString(fmt.Sprintf("REP %d IN %s", c, s))
@@ -657,18 +719,18 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 			return err
 		}
 
-		_, err = w.WriteString(fmt.Sprintf("SELECT %d", p.selectors[i].GetCount()))
+		_, err = w.WriteString(fmt.Sprintf("SELECT %d", p.selectors[i].NumberOfNodes()))
 		if err != nil {
 			return err
 		}
 
-		if s = p.selectors[i].GetAttribute(); s != "" {
+		if s = p.selectors[i].BucketAttribute(); s != "" {
 			var clause string
 
-			switch p.selectors[i].GetClause() {
-			case netmap.Same:
+			switch p.selectors[i].clause {
+			case protonetmap.Clause_SAME:
 				clause = "SAME "
-			case netmap.Distinct:
+			case protonetmap.Clause_DISTINCT:
 				clause = "DISTINCT "
 			default:
 				clause = ""
@@ -680,14 +742,14 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 			}
 		}
 
-		if s = p.selectors[i].GetFilter(); s != "" {
+		if s = p.selectors[i].FilterName(); s != "" {
 			_, err = w.WriteString(" FROM " + s)
 			if err != nil {
 				return err
 			}
 		}
 
-		if s = p.selectors[i].GetName(); s != "" {
+		if s = p.selectors[i].Name(); s != "" {
 			_, err = w.WriteString(" AS " + s)
 			if err != nil {
 				return err
@@ -715,25 +777,25 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 	return nil
 }
 
-func writeFilterStringTo(w io.StringWriter, f netmap.Filter) error {
+func writeFilterStringTo(w io.StringWriter, f Filter) error {
 	var err error
 	var s string
-	op := f.GetOp()
+	op := f.Op()
 	unspecified := op == 0
 
-	if s = f.GetKey(); s != "" {
-		_, err = w.WriteString(fmt.Sprintf("%s %s %s", s, op, f.GetValue()))
+	if s = f.Key(); s != "" {
+		_, err = w.WriteString(fmt.Sprintf("%s %s %s", s, op, f.Value()))
 		if err != nil {
 			return err
 		}
-	} else if s = f.GetName(); unspecified && s != "" {
+	} else if s = f.Name(); unspecified && s != "" {
 		_, err = w.WriteString(fmt.Sprintf("@%s", s))
 		if err != nil {
 			return err
 		}
 	}
 
-	inner := f.GetFilters()
+	inner := f.SubFilters()
 	for i := range inner {
 		if i != 0 {
 			_, err = w.WriteString(" " + op.String() + " ")
@@ -748,7 +810,7 @@ func writeFilterStringTo(w io.StringWriter, f netmap.Filter) error {
 		}
 	}
 
-	if s = f.GetName(); s != "" && !unspecified {
+	if s = f.Name(); s != "" && !unspecified {
 		_, err = w.WriteString(" AS " + s)
 		if err != nil {
 			return err
@@ -828,15 +890,14 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 
 	pl := new(PlacementPolicy)
 	repStmts := ctx.AllRepStmt()
-	pl.replicas = make([]netmap.Replica, 0, len(repStmts))
+	pl.replicas = make([]ReplicaDescriptor, len(repStmts))
 
-	for _, r := range repStmts {
-		res, ok := r.Accept(p).(*netmap.Replica)
+	for i, r := range repStmts {
+		res, ok := r.Accept(p).(*protonetmap.Replica)
 		if !ok {
 			return nil
 		}
-
-		pl.replicas = append(pl.replicas, *res)
+		pl.replicas[i].fromProtoMessage(res)
 	}
 
 	if cbfStmt := ctx.CbfStmt(); cbfStmt != nil {
@@ -848,22 +909,29 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 	}
 
 	selStmts := ctx.AllSelectStmt()
-	pl.selectors = make([]netmap.Selector, 0, len(selStmts))
+	pl.selectors = make([]Selector, len(selStmts))
 
-	for _, s := range selStmts {
-		res, ok := s.Accept(p).(*netmap.Selector)
+	for i, s := range selStmts {
+		res, ok := s.Accept(p).(*protonetmap.Selector)
 		if !ok {
 			return nil
 		}
-
-		pl.selectors = append(pl.selectors, *res)
+		if err := pl.selectors[i].fromProtoMessage(res); err != nil {
+			return fmt.Errorf("invalid selector #%d: %w", i, err)
+		}
 	}
 
 	filtStmts := ctx.AllFilterStmt()
-	pl.filters = make([]netmap.Filter, 0, len(filtStmts))
+	pl.filters = make([]Filter, len(filtStmts))
 
-	for _, f := range filtStmts {
-		pl.filters = append(pl.filters, *f.Accept(p).(*netmap.Filter))
+	for i, f := range filtStmts {
+		res, ok := f.Accept(p).(*protonetmap.Filter)
+		if !ok {
+			return nil
+		}
+		if err := pl.filters[i].fromProtoMessage(res); err != nil {
+			return fmt.Errorf("invalid filter #%d: %w", i, err)
+		}
 	}
 
 	return pl
@@ -885,11 +953,11 @@ func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 		return p.reportError(errInvalidNumber)
 	}
 
-	rs := new(netmap.Replica)
-	rs.SetCount(uint32(num))
+	rs := new(protonetmap.Replica)
+	rs.Count = uint32(num)
 
 	if sel := ctx.GetSelector(); sel != nil {
-		rs.SetSelector(sel.GetText())
+		rs.Selector = sel.GetText()
 	}
 
 	return rs
@@ -902,29 +970,29 @@ func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
 		return p.reportError(errInvalidNumber)
 	}
 
-	s := new(netmap.Selector)
-	s.SetCount(uint32(res))
+	s := new(protonetmap.Selector)
+	s.Count = uint32(res)
 
 	if clStmt := ctx.Clause(); clStmt != nil {
-		s.SetClause(clauseFromString(clStmt.GetText()))
+		s.Clause = clauseFromString(clStmt.GetText())
 	}
 
 	if bStmt := ctx.GetBucket(); bStmt != nil {
-		s.SetAttribute(ctx.GetBucket().GetText())
+		s.Attribute = ctx.GetBucket().GetText()
 	}
 
-	s.SetFilter(ctx.GetFilter().GetText()) // either ident or wildcard
+	s.Filter = ctx.GetFilter().GetText() // either ident or wildcard
 
 	if ctx.AS() != nil {
-		s.SetName(ctx.GetName().GetText())
+		s.Name = ctx.GetName().GetText()
 	}
 	return s
 }
 
 // VisitFilterStmt implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitFilterStmt(ctx *parser.FilterStmtContext) any {
-	f := p.VisitFilterExpr(ctx.GetExpr().(*parser.FilterExprContext)).(*netmap.Filter)
-	f.SetName(ctx.GetName().GetText())
+	f := p.VisitFilterExpr(ctx.GetExpr().(*parser.FilterExprContext)).(*protonetmap.Filter)
+	f.Name = ctx.GetName().GetText()
 	return f
 }
 
@@ -937,21 +1005,21 @@ func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) any {
 		return inner.Accept(p)
 	}
 
-	f := new(netmap.Filter)
+	f := new(protonetmap.Filter)
 	op := operationFromString(ctx.GetOp().GetText())
-	f.SetOp(op)
+	f.Op = op
 
-	f1 := *ctx.GetF1().Accept(p).(*netmap.Filter)
-	f2 := *ctx.GetF2().Accept(p).(*netmap.Filter)
+	f1 := ctx.GetF1().Accept(p).(*protonetmap.Filter)
+	f2 := ctx.GetF2().Accept(p).(*protonetmap.Filter)
 
 	// Consider f1=(.. AND ..) AND f2. This can be merged because our AND operation
 	// is of arbitrary arity. ANTLR generates left-associative parse-tree by default.
 	if f1.GetOp() == op {
-		f.SetFilters(append(f1.GetFilters(), f2))
+		f.Filters = append(f1.GetFilters(), f2)
 		return f
 	}
 
-	f.SetFilters([]netmap.Filter{f1, f2})
+	f.Filters = []*protonetmap.Filter{f1, f2}
 
 	return f
 }
@@ -981,9 +1049,9 @@ func (p *policyVisitor) VisitFilterValue(ctx *parser.FilterValueContext) any {
 
 // VisitExpr implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitExpr(ctx *parser.ExprContext) any {
-	f := new(netmap.Filter)
+	f := new(protonetmap.Filter)
 	if flt := ctx.GetFilter(); flt != nil {
-		f.SetName(flt.GetText())
+		f.Name = flt.GetText()
 		return f
 	}
 
@@ -991,9 +1059,9 @@ func (p *policyVisitor) VisitExpr(ctx *parser.ExprContext) any {
 	opStr := ctx.SIMPLE_OP().GetText()
 	value := ctx.GetValue().Accept(p)
 
-	f.SetKey(key.(string))
-	f.SetOp(operationFromString(opStr))
-	f.SetValue(value.(string))
+	f.Key = key.(string)
+	f.Op = operationFromString(opStr)
+	f.Value = value.(string)
 
 	return f
 }
@@ -1004,21 +1072,21 @@ func validatePolicy(p PlacementPolicy) error {
 	seenFilters := map[string]bool{}
 
 	for i := range p.filters {
-		seenFilters[p.filters[i].GetName()] = true
+		seenFilters[p.filters[i].Name()] = true
 	}
 
 	seenSelectors := map[string]bool{}
 
 	for i := range p.selectors {
-		if flt := p.selectors[i].GetFilter(); flt != mainFilterName && !seenFilters[flt] {
+		if flt := p.selectors[i].FilterName(); flt != mainFilterName && !seenFilters[flt] {
 			return fmt.Errorf("%w: '%s'", errUnknownFilter, flt)
 		}
 
-		seenSelectors[p.selectors[i].GetName()] = true
+		seenSelectors[p.selectors[i].Name()] = true
 	}
 
 	for i := range p.replicas {
-		if sel := p.replicas[i].GetSelector(); sel != "" && !seenSelectors[sel] {
+		if sel := p.replicas[i].SelectorName(); sel != "" && !seenSelectors[sel] {
 			return fmt.Errorf("%w: '%s'", errUnknownSelector, sel)
 		}
 	}
@@ -1026,20 +1094,42 @@ func validatePolicy(p PlacementPolicy) error {
 	return nil
 }
 
-func clauseFromString(s string) (c netmap.Clause) {
-	if !c.FromString(strings.ToUpper(s)) {
+func clauseFromString(s string) protonetmap.Clause {
+	switch s {
+	default:
 		// Such errors should be handled by ANTLR code thus this panic.
-		panic(fmt.Errorf("BUG: invalid clause: %s", c))
+		panic(fmt.Errorf("BUG: invalid clause: %s", s))
+	case "CLAUSE_UNSPECIFIED":
+		return protonetmap.Clause_CLAUSE_UNSPECIFIED
+	case "SAME":
+		return protonetmap.Clause_SAME
+	case "DISTINCT":
+		return protonetmap.Clause_DISTINCT
 	}
-
-	return
 }
 
-func operationFromString(s string) (op netmap.Operation) {
-	if !op.FromString(strings.ToUpper(s)) {
+func operationFromString(s string) protonetmap.Operation {
+	switch s {
+	default:
 		// Such errors should be handled by ANTLR code thus this panic.
-		panic(fmt.Errorf("BUG: invalid operation: %s", op))
+		panic(fmt.Errorf("BUG: invalid operation: %s", s))
+	case "OPERATION_UNSPECIFIED":
+		return protonetmap.Operation_OPERATION_UNSPECIFIED
+	case "EQ":
+		return protonetmap.Operation_EQ
+	case "NE":
+		return protonetmap.Operation_NE
+	case "GT":
+		return protonetmap.Operation_GT
+	case "GE":
+		return protonetmap.Operation_GE
+	case "LT":
+		return protonetmap.Operation_LT
+	case "LE":
+		return protonetmap.Operation_LE
+	case "OR":
+		return protonetmap.Operation_OR
+	case "AND":
+		return protonetmap.Operation_AND
 	}
-
-	return
 }

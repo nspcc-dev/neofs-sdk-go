@@ -2,22 +2,19 @@ package neofscrypto
 
 import (
 	"fmt"
-	"math"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
 // StablyMarshallable describes structs which can be marshalled transparently.
-type StablyMarshallable interface {
-	StableMarshal([]byte) []byte
-	StableSize() int
-}
+type StablyMarshallable = neofsproto.Message
 
 // Signature represents a confirmation of data integrity received by the
 // digital signature mechanism.
 //
-// Signature is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Signature
-// message. See ReadFromV2 / WriteToV2 methods.
+// Signature is mutually compatible with [refs.Signature] message. See
+// [Signature.FromProtoMessage] / [Signature.ProtoMessage] methods.
 //
 // Instances should be constructed using one of the constructors.
 type Signature struct {
@@ -36,29 +33,30 @@ func NewSignature(scheme Scheme, publicKey PublicKey, value []byte) Signature {
 	return NewSignatureFromRawKey(scheme, PublicKeyBytes(publicKey), value)
 }
 
-// ReadFromV2 reads Signature from the refs.Signature message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *Signature) ReadFromV2(m refs.Signature) error {
-	scheme := m.GetScheme()
-	if scheme > math.MaxInt32 { // max value of Scheme type
-		return fmt.Errorf("scheme %d overflows int32", scheme)
+// See also [Signature.ProtoMessage].
+func (x *Signature) FromProtoMessage(m *refs.Signature) error {
+	if m.Scheme < 0 {
+		return fmt.Errorf("negative scheme %d", m.Scheme)
 	}
-	x.scheme = Scheme(scheme)
-	x.pub = m.GetKey()
-	x.val = m.GetSign()
+	x.scheme = Scheme(m.Scheme)
+	x.pub = m.Key
+	x.val = m.Sign
 	return nil
 }
 
-// WriteToV2 writes Signature to the refs.Signature message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x Signature) WriteToV2(m *refs.Signature) {
-	m.SetScheme(refs.SignatureScheme(x.scheme))
-	m.SetKey(x.pub)
-	m.SetSign(x.val)
+// See also [Signature.FromProtoMessage].
+func (x Signature) ProtoMessage() *refs.Signature {
+	return &refs.Signature{
+		Key:    x.pub,
+		Sign:   x.val,
+		Scheme: refs.SignatureScheme(x.scheme),
+	}
 }
 
 // Calculate signs data using Signer and encodes public key for subsequent
@@ -78,33 +76,6 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 	return nil
 }
 
-// CalculateMarshalled signs data using Signer and encodes public key for subsequent verification.
-// If signer is a StaticSigner, just sets prepared signature.
-//
-// Pre-allocated byte slice can be passed in buf parameter to avoid new allocations. In ideal case buf length should be
-// StableSize length. If buffer length shorter than StableSize or nil, new slice will be allocated.
-//
-// Signer MUST NOT be nil.
-//
-// See also Verify.
-func (x *Signature) CalculateMarshalled(signer Signer, obj StablyMarshallable, buf []byte) error {
-	if static, ok := signer.(*StaticSigner); ok {
-		*x = NewSignature(static.scheme, static.pubKey, static.sig)
-		return nil
-	}
-
-	var data []byte
-	if obj != nil {
-		if len(buf) >= obj.StableSize() {
-			data = obj.StableMarshal(buf[0:obj.StableSize()])
-		} else {
-			data = obj.StableMarshal(nil)
-		}
-	}
-
-	return x.Calculate(signer, data)
-}
-
 // Verify verifies data signature using encoded public key. True means valid
 // signature.
 //
@@ -119,8 +90,8 @@ func (x Signature) Verify(data []byte) bool {
 
 // Scheme returns signature scheme used by signer to calculate the signature.
 //
-// Scheme MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
-// [Signature.Calculate] methods.
+// Scheme MUST NOT be called before [NewSignature], [Signature.FromProtoMessage]
+// or [Signature.Calculate] methods.
 func (x Signature) Scheme() Scheme {
 	return x.scheme
 }
@@ -132,8 +103,8 @@ func (x *Signature) SetScheme(s Scheme) {
 
 // PublicKey returns public key of the signer which calculated the signature.
 //
-// PublicKey MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
-// [Signature.Calculate] methods.
+// PublicKey MUST NOT be called before [NewSignature],
+// [Signature.FromProtoMessage] or [Signature.Calculate] methods.
 //
 // See also [Signature.PublicKeyBytes].
 func (x Signature) PublicKey() PublicKey {
@@ -151,7 +122,7 @@ func (x *Signature) SetPublicKeyBytes(pub []byte) {
 // calculated the signature.
 //
 // PublicKeyBytes MUST NOT be called before [NewSignature],
-// [Signature.ReadFromV2] or [Signature.Calculate] methods.
+// [Signature.FromProtoMessage] or [Signature.Calculate] methods.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -171,8 +142,8 @@ func (x *Signature) SetValue(v []byte) {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 //
-// Value MUST NOT be called before [NewSignature], [Signature.ReadFromV2] or
-// [Signature.Calculate] methods.
+// Value MUST NOT be called before [NewSignature], [Signature.FromProtoMessage]
+// or [Signature.Calculate] methods.
 func (x Signature) Value() []byte {
 	return x.val
 }
@@ -191,4 +162,15 @@ func decodePublicKey(scheme Scheme, b []byte) (PublicKey, error) {
 	}
 
 	return pubKey, nil
+}
+
+// Marshal encodes x transmitted via NeoFS API protocol into a dynamically
+// allocated buffer.
+func (x Signature) Marshal() []byte {
+	return neofsproto.Marshal(x)
+}
+
+// Unmarshal decodes x transmitted via NeoFS API protocol from data.
+func (x *Signature) Unmarshal(b []byte) error {
+	return neofsproto.Unmarshal(b, x)
 }

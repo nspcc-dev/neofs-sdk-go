@@ -5,18 +5,18 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-api-go/v2/acl"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 // Token represents bearer token for object service operations.
 //
-// Token is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/acl.BearerToken
-// message. See ReadFromV2 / WriteToV2 methods.
+// Token is mutually compatible with [protoacl.BearerToken] message. See
+// [Token.FromProtoMessage] / [Token.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type Token struct {
@@ -35,26 +35,26 @@ type Token struct {
 
 // reads Token from the acl.BearerToken message. If checkFieldPresence is set,
 // returns an error on absence of any protocol-required field.
-func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
+func (b *Token) fromProtoMessage(m *protoacl.BearerToken, checkFieldPresence bool) error {
 	var err error
 
-	body := m.GetBody()
+	body := m.Body
 	if checkFieldPresence && body == nil {
 		return errors.New("missing token body")
 	}
 
-	eaclTable := body.GetEACL()
+	eaclTable := body.GetEaclTable()
 	if b.eaclTableSet = eaclTable != nil; b.eaclTableSet {
-		if err = b.eaclTable.ReadFromV2(*eaclTable); err != nil {
+		if err = b.eaclTable.FromProtoMessage(eaclTable); err != nil {
 			return fmt.Errorf("invalid eACL: %w", err)
 		}
 	} else if checkFieldPresence {
 		return errors.New("missing eACL table")
 	}
 
-	targetUser := body.GetOwnerID()
+	targetUser := body.GetOwnerId()
 	if targetUser != nil {
-		err = b.targetUser.ReadFromV2(*targetUser)
+		err = b.targetUser.FromProtoMessage(targetUser)
 		if err != nil {
 			return fmt.Errorf("invalid target user: %w", err)
 		}
@@ -64,7 +64,7 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 
 	issuer := body.GetIssuer()
 	if issuer != nil {
-		err = b.issuer.ReadFromV2(*issuer)
+		err = b.issuer.FromProtoMessage(issuer)
 		if err != nil {
 			return fmt.Errorf("invalid issuer: %w", err)
 		}
@@ -77,9 +77,8 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 		return errors.New("missing token lifetime")
 	}
 
-	sig := m.GetSignature()
-	if b.sigSet = sig != nil; sig != nil {
-		if err = b.sig.ReadFromV2(*sig); err != nil {
+	if b.sigSet = m.Signature != nil; b.sigSet {
+		if err = b.sig.FromProtoMessage(m.Signature); err != nil {
 			return fmt.Errorf("invalid body signature: %w", err)
 		}
 	} else if checkFieldPresence {
@@ -93,70 +92,57 @@ func (b *Token) readFromV2(m acl.BearerToken, checkFieldPresence bool) error {
 	return nil
 }
 
-// ReadFromV2 reads Token from the acl.BearerToken message.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// b from it.
 //
-// See also WriteToV2.
-func (b *Token) ReadFromV2(m acl.BearerToken) error {
-	return b.readFromV2(m, true)
+// See also [Token.ProtoMessage].
+func (b *Token) FromProtoMessage(m *protoacl.BearerToken) error {
+	return b.fromProtoMessage(m, true)
 }
 
-func (b Token) fillBody() *acl.BearerTokenBody {
+func (b Token) fillBody() *protoacl.BearerToken_Body {
 	lifetimeSet := b.iat != 0 || b.nbf != 0 || b.exp != 0
 	if !b.eaclTableSet && b.targetUser.IsZero() && !lifetimeSet && b.issuer.IsZero() {
 		return nil
 	}
 
-	var body acl.BearerTokenBody
+	var body protoacl.BearerToken_Body
 
 	if b.eaclTableSet {
-		body.SetEACL(b.eaclTable.ToV2())
+		body.EaclTable = b.eaclTable.ProtoMessage()
 	}
 
 	if !b.targetUser.IsZero() {
-		var targetUser refs.OwnerID
-		b.targetUser.WriteToV2(&targetUser)
-
-		body.SetOwnerID(&targetUser)
+		body.OwnerId = b.targetUser.ProtoMessage()
 	}
 
 	if !b.issuer.IsZero() {
-		var issuer refs.OwnerID
-		b.issuer.WriteToV2(&issuer)
-
-		body.SetIssuer(&issuer)
+		body.Issuer = b.issuer.ProtoMessage()
 	}
 
 	if lifetimeSet {
-		var lifetime acl.TokenLifetime
-		lifetime.SetIat(b.iat)
-		lifetime.SetNbf(b.nbf)
-		lifetime.SetExp(b.exp)
-
-		body.SetLifetime(&lifetime)
+		body.Lifetime = &protoacl.BearerToken_Body_TokenLifetime{Exp: b.exp, Nbf: b.nbf, Iat: b.iat}
 	}
 
 	return &body
 }
 
 func (b Token) signedData() []byte {
-	return b.fillBody().StableMarshal(nil)
+	return neofsproto.MarshalMessage(b.fillBody())
 }
 
-// WriteToV2 writes Token to the acl.BearerToken message.
-// The message must not be nil.
+// ProtoMessage converts sg into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (b Token) WriteToV2(m *acl.BearerToken) {
-	m.SetBody(b.fillBody())
-
-	var sig *refs.Signature
-
-	if b.sigSet {
-		sig = new(refs.Signature)
-		b.sig.WriteToV2(sig)
+// See also [Token.FromProtoMessage].
+func (b Token) ProtoMessage() *protoacl.BearerToken {
+	m := &protoacl.BearerToken{
+		Body: b.fillBody(),
 	}
-
-	m.SetSignature(sig)
+	if b.sigSet {
+		m.Signature = b.sig.ProtoMessage()
+	}
+	return m
 }
 
 // SetExp sets "exp" (expiration time) claim which identifies the
@@ -314,15 +300,13 @@ func (b *Token) SignedData() []byte {
 
 // UnmarshalSignedData is a reverse op to [Token.SignedData].
 func (b *Token) UnmarshalSignedData(data []byte) error {
-	var body acl.BearerTokenBody
-	err := body.Unmarshal(data)
+	var body protoacl.BearerToken_Body
+	err := neofsproto.UnmarshalMessage(data, &body)
 	if err != nil {
 		return fmt.Errorf("decode body: %w", err)
 	}
 
-	var tok acl.BearerToken
-	tok.SetBody(&body)
-	return b.readFromV2(tok, false)
+	return b.fromProtoMessage(&protoacl.BearerToken{Body: &body}, false)
 }
 
 // AttachSignature attaches given signature to the Token. Use [Token.SignedData]
@@ -354,10 +338,7 @@ func (b Token) VerifySignature() bool {
 //
 // See also Unmarshal.
 func (b Token) Marshal() []byte {
-	var m acl.BearerToken
-	b.WriteToV2(&m)
-
-	return m.StableMarshal(nil)
+	return neofsproto.Marshal(b)
 }
 
 // Unmarshal decodes NeoFS API protocol binary data into the Token
@@ -366,14 +347,7 @@ func (b Token) Marshal() []byte {
 //
 // See also Marshal.
 func (b *Token) Unmarshal(data []byte) error {
-	var m acl.BearerToken
-
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return b.readFromV2(m, false)
+	return neofsproto.UnmarshalOptional(data, b, (*Token).fromProtoMessage)
 }
 
 // MarshalJSON encodes Token into a JSON format of the NeoFS API protocol
@@ -381,10 +355,7 @@ func (b *Token) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (b Token) MarshalJSON() ([]byte, error) {
-	var m acl.BearerToken
-	b.WriteToV2(&m)
-
-	return m.MarshalJSON()
+	return neofsproto.MarshalJSON(b)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON data into the Token
@@ -392,14 +363,7 @@ func (b Token) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (b *Token) UnmarshalJSON(data []byte) error {
-	var m acl.BearerToken
-
-	err := m.UnmarshalJSON(data)
-	if err != nil {
-		return err
-	}
-
-	return b.readFromV2(m, false)
+	return neofsproto.UnmarshalJSONOptional(data, b, (*Token).fromProtoMessage)
 }
 
 // SigningKeyBytes returns issuer's public key in a binary format of
