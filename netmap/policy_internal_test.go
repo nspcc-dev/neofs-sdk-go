@@ -71,6 +71,14 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 			require.Equal(t, topFilter.Name(), dst.filters[0].Name())
 			require.NotEqual(t, topFilter.SubFilters()[0].Name(), dst.filters[0].SubFilters()[0].Name())
 		})
+		t.Run("empty", func(t *testing.T) {
+			var src, dst PlacementPolicy
+			src.filters = []Filter{{subs: make([]Filter, 0, 1)}}
+
+			src.CopyTo(&dst)
+			require.Len(t, dst.filters, 1)
+			require.Zero(t, cap(dst.filters[0].subs))
+		})
 	})
 
 	t.Run("empty filters", func(t *testing.T) {
