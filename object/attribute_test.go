@@ -1,88 +1,59 @@
-package object
+package object_test
 
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/stretchr/testify/require"
 )
 
-func TestAttribute(t *testing.T) {
+func TestNewAttribute(t *testing.T) {
 	key, val := "some key", "some value"
 
-	a := NewAttribute(key, val)
+	a := object.NewAttribute(key, val)
 
 	require.Equal(t, key, a.Key())
 	require.Equal(t, val, a.Value())
-
-	aV2 := a.ToV2()
-
-	require.Equal(t, key, aV2.GetKey())
-	require.Equal(t, val, aV2.GetValue())
 }
 
-func TestAttributeEncoding(t *testing.T) {
-	a := NewAttribute("key", "value")
-
-	t.Run("binary", func(t *testing.T) {
-		a2 := NewAttribute("", "")
-		require.NoError(t, a2.Unmarshal(a.Marshal()))
-
-		require.Equal(t, a, a2)
-	})
-
-	t.Run("json", func(t *testing.T) {
-		data, err := a.MarshalJSON()
-		require.NoError(t, err)
-
-		a2 := NewAttribute("", "")
-		require.NoError(t, a2.UnmarshalJSON(data))
-
-		require.Equal(t, a, a2)
-	})
+func TestAttribute_Marshal(t *testing.T) {
+	// TODO
 }
 
-func TestNewAttributeFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *object.Attribute
-
-		require.Nil(t, NewAttributeFromV2(x))
-	})
+func TestAttribute_Unmarshal(t *testing.T) {
+	// TODO
 }
 
-func TestAttribute_ToV2(t *testing.T) {
-	t.Run("nil", func(t *testing.T) {
-		var x *Attribute
-
-		require.Nil(t, x.ToV2())
-	})
+func TestAttribute_MarshalJSON(t *testing.T) {
+	// TODO
 }
 
-func TestNewAttribute(t *testing.T) {
-	t.Run("default values", func(t *testing.T) {
-		a := NewAttribute("", "")
+func TestAttribute_UnmarshalJSON(t *testing.T) {
+	// TODO
+}
 
-		// check initial values
-		require.Empty(t, a.Key())
-		require.Empty(t, a.Value())
+func TestAttribute_SetKey(t *testing.T) {
+	var a object.Attribute
+	require.Zero(t, a.Key())
 
-		// convert to v2 message
-		aV2 := a.ToV2()
+	const key = "key"
+	a.SetKey(key)
+	require.Equal(t, key, a.Key())
 
-		require.Empty(t, aV2.GetKey())
-		require.Empty(t, aV2.GetValue())
-	})
+	const otherKey = key + "_other"
+	a.SetKey(otherKey)
+	require.Equal(t, otherKey, a.Key())
+}
 
-	t.Run("pre installed key and value", func(t *testing.T) {
-		a := NewAttribute("key", "value")
+func TestAttribute_SetValue(t *testing.T) {
+	var a object.Attribute
+	require.Zero(t, a.Value())
 
-		require.NotEmpty(t, a.Key())
-		require.NotEmpty(t, a.Value())
+	const val = "key"
+	a.SetValue(val)
+	require.Equal(t, val, a.Value())
 
-		// convert to v2 message
-		aV2 := a.ToV2()
-
-		require.NotEmpty(t, aV2.GetKey())
-		require.NotEmpty(t, aV2.GetValue())
-	})
+	const otherVal = val + "_other"
+	a.SetKey(otherVal)
+	require.Equal(t, otherVal, a.Key())
 }

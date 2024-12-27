@@ -6,8 +6,11 @@ package proto
 import (
 	"encoding/binary"
 	"math"
+	"reflect"
 
+	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/protowire"
+	"google.golang.org/protobuf/proto"
 )
 
 // Message is provided by protobuf 'message' types used in NeoFS for so-called
@@ -19,6 +22,90 @@ type Message interface {
 	// MarshalStable encodes the Message into b. If the buffer is too small,
 	// MarshalStable will panic.
 	MarshalStable(b []byte)
+}
+
+// MarshalMessage encodes m into a dynamically allocated buffer.
+func MarshalMessage(m Message) []byte {
+	b := make([]byte, m.MarshaledSize())
+	m.MarshalStable(b)
+	return b
+}
+
+// Marshal encodes v transmitted via NeoFS API protocol into a dynamically
+// allocated buffer.
+func Marshal[M Message, T interface{ ProtoMessage() M }](v T) []byte {
+	return MarshalMessage(v.ProtoMessage())
+}
+
+// UnmarshalMessage decodes m from b.
+func UnmarshalMessage(b []byte, m proto.Message) error { return proto.Unmarshal(b, m) }
+
+// Unmarshal decodes v transmitted via NeoFS API protocol from b.
+func Unmarshal[M_ any, M interface {
+	*M_
+	proto.Message
+	Message
+}, T interface{ FromProtoMessage(M) error }](b []byte, v T) error {
+	m := M(new(M_))
+	if err := UnmarshalMessage(b, m); err != nil {
+		return err
+	}
+	return v.FromProtoMessage(m)
+}
+
+// UnmarshalOptional decodes v from [protojson] with ignored missing required
+// fields.
+func UnmarshalOptional[M_ any, M interface {
+	*M_
+	proto.Message
+	Message
+}, T interface{ FromProtoMessage(M) error }](b []byte, v T, dec func(T, M, bool) error) error {
+	m := M(new(M_))
+	if err := UnmarshalMessage(b, m); err != nil {
+		return err
+	}
+	return dec(v, m, false)
+}
+
+var jOpts = protojson.MarshalOptions{EmitUnpopulated: true}
+
+// MarshalMessageJSON encodes m into [protojson] with unpopulated fields'
+// emission.
+func MarshalMessageJSON(m proto.Message) ([]byte, error) { return jOpts.Marshal(m) }
+
+// MarshalJSON encodes v into [protojson] with unpopulated fields' emission.
+func MarshalJSON[M proto.Message, T interface{ ProtoMessage() M }](v T) ([]byte, error) {
+	return MarshalMessageJSON(v.ProtoMessage())
+}
+
+// UnmarshalMessageJSON decodes m from [protojson].
+func UnmarshalMessageJSON(b []byte, m proto.Message) error { return protojson.Unmarshal(b, m) }
+
+// UnmarshalJSON decodes v from [protojson].
+func UnmarshalJSON[M_ any, M interface {
+	*M_
+	proto.Message
+	Message
+}, T interface{ FromProtoMessage(M) error }](b []byte, v T) error {
+	m := M(new(M_))
+	if err := UnmarshalMessageJSON(b, m); err != nil {
+		return err
+	}
+	return v.FromProtoMessage(m)
+}
+
+// UnmarshalJSONOptional decodes v from [protojson] with ignored missing
+// required fields.
+func UnmarshalJSONOptional[M_ any, M interface {
+	*M_
+	proto.Message
+	Message
+}, T interface{ FromProtoMessage(M) error }](b []byte, v T, dec func(T, M, bool) error) error {
+	m := M(new(M_))
+	if err := UnmarshalMessageJSON(b, m); err != nil {
+		return err
+	}
+	return dec(v, m, false)
 }
 
 // Bytes is a type parameter constraint for any byte arrays.
@@ -159,27 +246,20 @@ func MarshalToDouble(b []byte, num protowire.Number, v float64) int {
 // SizeEmbedded returns the encoded size of embedded message being a protobuf
 // field with given number and value.
 func SizeEmbedded(num protowire.Number, v Message) int {
-	if v == nil {
+	if isMessageNil(v) {
 		return 0
 	}
-	sz := v.MarshaledSize()
-	if sz == 0 {
-		return 0
-	}
-	return protowire.SizeTag(num) + protowire.SizeBytes(sz)
+	return protowire.SizeTag(num) + protowire.SizeBytes(v.MarshaledSize())
 }
 
 // MarshalToEmbedded encodes embedded message being a protobuf field with given
 // number and value into b and returns the number of bytes written. If the
 // buffer is too small, MarshalToEmbedded will panic.
 func MarshalToEmbedded(b []byte, num protowire.Number, v Message) int {
-	if v == nil {
+	if isMessageNil(v) {
 		return 0
 	}
 	sz := v.MarshaledSize()
-	if sz == 0 {
-		return 0
-	}
 	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
 	off += binary.PutUvarint(b[off:], uint64(sz))
 	v.MarshalStable(b[off:])
@@ -252,4 +332,48 @@ func MarshalToRepeatedBytes[T Bytes](b []byte, num protowire.Number, v []T) int 
 		off += copy(b[off:], v[i])
 	}
 	return off
+}
+
+// SizeRepeatedMessages returns the encoded size of 'repeated M' protobuf field
+// with given number and values.
+func SizeRepeatedMessages[T any, M interface {
+	*T
+	Message
+}](num protowire.Number, v []M) int {
+	var sz int
+	var zero T
+	for i := range v {
+		if !isMessageNil(v[i]) {
+			sz += SizeEmbedded(num, v[i])
+		} else {
+			sz += SizeEmbedded(num, M(&zero))
+		}
+	}
+	return sz
+}
+
+// MarshalToRepeatedMessages encodes 'repeated M' protobuf field with given
+// number and values into b and returns the number of bytes written. If the
+// buffer is too small, MarshalToRepeatedMessages will panic.
+func MarshalToRepeatedMessages[T any, M interface {
+	*T
+	Message
+}](b []byte, num protowire.Number, v []M) int {
+	if len(v) == 0 {
+		return 0
+	}
+	var off int
+	var zero T
+	for i := range v {
+		if !isMessageNil(v[i]) {
+			off += MarshalToEmbedded(b[off:], num, v[i])
+		} else {
+			off += MarshalToEmbedded(b[off:], num, M(&zero))
+		}
+	}
+	return off
+}
+
+func isMessageNil(m Message) bool {
+	return m == nil || reflect.ValueOf(m).IsNil()
 }

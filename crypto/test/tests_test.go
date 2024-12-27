@@ -3,7 +3,6 @@ package neofscryptotest_test
 import (
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
@@ -14,10 +13,9 @@ func TestSignature(t *testing.T) {
 	s := neofscryptotest.Signature()
 	require.NotEqual(t, s, neofscryptotest.Signature())
 
-	var m refs.Signature
-	s.WriteToV2(&m)
+	m := s.ProtoMessage()
 	var s2 neofscrypto.Signature
-	require.NoError(t, s2.ReadFromV2(m))
+	require.NoError(t, s2.FromProtoMessage(m))
 	require.Equal(t, s, s2)
 }
 

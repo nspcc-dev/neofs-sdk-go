@@ -5,21 +5,17 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 )
 
 // SplitInfo is an SDK representation of [object.SplitInfo].
-type SplitInfo object.SplitInfo
-
-// NewSplitInfoFromV2 wraps v2 [object.SplitInfo] message to [SplitInfo].
-//
-// Nil object.SplitInfo converts to nil.
-// Deprecated: BUG: format of fields is not checked. Use [SplitInfo.ReadFromV2]
-// instead.
-func NewSplitInfoFromV2(v2 *object.SplitInfo) *SplitInfo {
-	return (*SplitInfo)(v2)
+type SplitInfo struct {
+	splitID []byte
+	last    oid.ID
+	link    oid.ID
+	first   oid.ID
 }
 
 // NewSplitInfo creates and initializes blank [SplitInfo].
@@ -32,14 +28,24 @@ func NewSplitInfo() *SplitInfo {
 	return new(SplitInfo)
 }
 
-// ToV2 converts [SplitInfo] to v2 [object.SplitInfo] message.
+// ProtoMessage converts s into message to transmit using the NeoFS API
+// protocol.
 //
-// Nil SplitInfo converts to nil.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (s SplitInfo) ToV2() *object.SplitInfo {
-	return (*object.SplitInfo)(&s)
+// See also [SplitInfo.FromProtoMessage].
+func (s SplitInfo) ProtoMessage() *protoobject.SplitInfo {
+	m := &protoobject.SplitInfo{
+		SplitId: s.splitID,
+	}
+	if !s.last.IsZero() {
+		m.LastPart = s.last.ProtoMessage()
+	}
+	if !s.first.IsZero() {
+		m.FirstPart = s.first.ProtoMessage()
+	}
+	if !s.link.IsZero() {
+		m.Link = s.link.ProtoMessage()
+	}
+	return m
 }
 
 // SplitID returns [SplitID] if it has been set. New objects may miss it,
@@ -50,8 +56,7 @@ func (s SplitInfo) ToV2() *object.SplitInfo {
 //
 // See also [SplitInfo.SetSplitID].
 func (s SplitInfo) SplitID() *SplitID {
-	return NewSplitIDFromV2(
-		(*object.SplitInfo)(&s).GetSplitID())
+	return NewSplitIDFromV2(s.splitID)
 }
 
 // SetSplitID sets split ID in object ID. It resets split ID if nil passed.
@@ -61,7 +66,7 @@ func (s SplitInfo) SplitID() *SplitID {
 // DEPRECATED.[SplitInfo.SetFirstPart] usage is required for the _new_ split
 // objects, it serves as chain identification.
 func (s *SplitInfo) SetSplitID(v *SplitID) {
-	(*object.SplitInfo)(s).SetSplitID(v.ToV2())
+	s.splitID = v.ToV2()
 }
 
 // LastPart returns last object ID, can be used to retrieve original object.
@@ -79,22 +84,14 @@ func (s SplitInfo) LastPart() (oid.ID, bool) {
 //
 // See also [SplitInfo.SetLastPart].
 func (s SplitInfo) GetLastPart() oid.ID {
-	var id oid.ID
-	m := (*object.SplitInfo)(&s).GetLastPart()
-	if m != nil {
-		_ = id.ReadFromV2(*m)
-	}
-	return id
+	return s.last
 }
 
 // SetLastPart sets the last object ID.
 //
 // See also [SplitInfo.GetLastPart].
 func (s *SplitInfo) SetLastPart(v oid.ID) {
-	var idV2 refs.ObjectID
-	v.WriteToV2(&idV2)
-
-	(*object.SplitInfo)(s).SetLastPart(&idV2)
+	s.last = v
 }
 
 // Link returns a linker object ID.
@@ -111,21 +108,14 @@ func (s SplitInfo) Link() (oid.ID, bool) {
 //
 // See also [SplitInfo.SetLink].
 func (s SplitInfo) GetLink() oid.ID {
-	var id oid.ID
-	if m := (*object.SplitInfo)(&s).GetLink(); m != nil {
-		_ = id.ReadFromV2(*m)
-	}
-	return id
+	return s.link
 }
 
 // SetLink sets linker object ID.
 //
 // See also [SplitInfo.GetLink].
 func (s *SplitInfo) SetLink(v oid.ID) {
-	var idV2 refs.ObjectID
-	v.WriteToV2(&idV2)
-
-	(*object.SplitInfo)(s).SetLink(&idV2)
+	s.link = v
 }
 
 // FirstPart returns the first part of the split chain.
@@ -141,106 +131,90 @@ func (s SplitInfo) FirstPart() (oid.ID, bool) {
 //
 // See also [SplitInfo.SetFirstPart].
 func (s SplitInfo) GetFirstPart() oid.ID {
-	var id oid.ID
-	if m := (*object.SplitInfo)(&s).GetFirstPart(); m != nil {
-		_ = id.ReadFromV2(*m)
-	}
-	return id
+	return s.first
 }
 
 // SetFirstPart sets the first part of the split chain.
 //
 // See also [SplitInfo.GetFirstPart].
 func (s *SplitInfo) SetFirstPart(v oid.ID) {
-	var idV2 refs.ObjectID
-	v.WriteToV2(&idV2)
-
-	(*object.SplitInfo)(s).SetFirstPart(&idV2)
+	s.first = v
 }
 
 // Marshal marshals [SplitInfo] into a protobuf binary form.
 //
 // See also [SplitInfo.Unmarshal].
 func (s SplitInfo) Marshal() []byte {
-	return (*object.SplitInfo)(&s).StableMarshal(nil)
+	return neofsproto.Marshal(s)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [SplitInfo].
 //
 // See also [SplitInfo.Marshal].
 func (s *SplitInfo) Unmarshal(data []byte) error {
-	var m object.SplitInfo
-	if err := m.Unmarshal(data); err != nil {
-		return err
-	}
-	return s.ReadFromV2(m)
+	return neofsproto.Unmarshal(data, s)
 }
 
 // MarshalJSON implements json.Marshaler.
 //
 // See also [SplitInfo.UnmarshalJSON].
 func (s SplitInfo) MarshalJSON() ([]byte, error) {
-	return (*object.SplitInfo)(&s).MarshalJSON()
+	return neofsproto.MarshalJSON(s)
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
 //
 // See also [SplitInfo.MarshalJSON].
 func (s *SplitInfo) UnmarshalJSON(data []byte) error {
-	var m object.SplitInfo
-	if err := m.UnmarshalJSON(data); err != nil {
-		return err
-	}
-	return s.ReadFromV2(m)
+	return neofsproto.UnmarshalJSON(data, s)
 }
 
 var errSplitInfoMissingFields = errors.New("neither link object ID nor last part object ID is set")
 
-// ReadFromV2 reads SplitInfo from the [object.SplitInfo] message. Returns an
-// error if the message is malformed according to the NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// s from it.
 //
-// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
-// implementation only and is not expected to be directly used by applications.
-func (s *SplitInfo) ReadFromV2(m object.SplitInfo) error {
-	if b := m.GetSplitID(); len(b) > 0 {
+// See also [SplitInfo.ProtoMessage].
+func (s *SplitInfo) FromProtoMessage(m *protoobject.SplitInfo) error {
+	if s.splitID = m.SplitId; len(m.SplitId) > 0 {
 		var uid uuid.UUID
-		if err := uid.UnmarshalBinary(b); err != nil {
+		if err := uid.UnmarshalBinary(m.SplitId); err != nil {
 			return fmt.Errorf("invalid split ID: %w", err)
 		} else if v := uid.Version(); v != 4 {
 			return fmt.Errorf("invalid split ID: wrong UUID version %d, expected 4", v)
 		}
 	}
 
-	link := m.GetLink()
-	lastPart := m.GetLastPart()
-	if link == nil && lastPart == nil {
+	if m.Link == nil && m.LastPart == nil {
 		return errSplitInfoMissingFields
 	}
 
-	var oID oid.ID
-
-	if link != nil {
-		err := oID.ReadFromV2(*link)
+	if m.Link != nil {
+		err := s.link.FromProtoMessage(m.Link)
 		if err != nil {
 			return fmt.Errorf("could not convert link object ID: %w", err)
 		}
+	} else {
+		s.link = oid.ID{}
 	}
 
-	if lastPart != nil {
-		err := oID.ReadFromV2(*lastPart)
+	if m.LastPart != nil {
+		err := s.last.FromProtoMessage(m.LastPart)
 		if err != nil {
 			return fmt.Errorf("could not convert last part object ID: %w", err)
 		}
+	} else {
+		s.last = oid.ID{}
 	}
 
-	firstPart := m.GetFirstPart()
-	if firstPart != nil { // can be missing for old objects
-		err := oID.ReadFromV2(*firstPart)
+	if m.FirstPart != nil { // can be missing for old objects
+		err := s.first.FromProtoMessage(m.FirstPart)
 		if err != nil {
 			return fmt.Errorf("could not convert first part object ID: %w", err)
 		}
+	} else {
+		s.first = oid.ID{}
 	}
 
-	*s = SplitInfo(m)
 	return nil
 }

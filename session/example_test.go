@@ -1,7 +1,6 @@
 package session_test
 
 import (
-	apiGoSession "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -35,17 +34,14 @@ func ExampleContainer() {
 
 // Instances can be also used to process NeoFS API V2 protocol messages with [https://github.com/nspcc-dev/neofs-api] package.
 func ExampleObject_marshalling() {
-	// import apiGoSession "github.com/nspcc-dev/neofs-api-go/v2/session"
-
 	// On the client side.
 
 	var tok session.Object
-	var msg apiGoSession.Token
 
-	tok.WriteToV2(&msg)
+	msg := tok.ProtoMessage()
 	// *send message*
 
 	// On the server side.
 
-	_ = tok.ReadFromV2(msg)
+	_ = tok.FromProtoMessage(msg)
 }

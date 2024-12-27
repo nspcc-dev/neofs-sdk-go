@@ -3,8 +3,7 @@ package apistatus
 import (
 	"errors"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 )
 
 var (
@@ -17,23 +16,19 @@ var (
 )
 
 // SessionTokenNotFound describes status of the failure because of the missing session token.
-// Instances provide [StatusV2] and error interfaces.
 type SessionTokenNotFound struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 const defaultSessionTokenNotFoundMsg = "session token not found"
 
 func (x SessionTokenNotFound) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultSessionTokenNotFoundMsg
+	if x.msg == "" {
+		x.msg = defaultSessionTokenNotFoundMsg
 	}
 
-	return errMessageStatusV2(
-		globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail),
-		msg,
-	)
+	return errMessageStatus(protostatus.SessionTokenNotFound, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -46,41 +41,34 @@ func (x SessionTokenNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *SessionTokenNotFound) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *SessionTokenNotFound) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: TOKEN_NOT_FOUND;
-//   - string message: "session token not found";
-//   - details: empty.
-func (x SessionTokenNotFound) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(session.StatusTokenNotFound, session.GlobalizeFail))
-	x.v2.SetMessage(defaultSessionTokenNotFoundMsg)
-	return &x.v2
+// implements local interface defined in [FromError] func.
+func (x SessionTokenNotFound) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultSessionTokenNotFoundMsg
+	}
+	return &protostatus.Status{Code: protostatus.SessionTokenNotFound, Message: x.msg, Details: x.dts}
 }
 
 // SessionTokenExpired describes status of the failure because of the expired session token.
-// Instances provide [StatusV2] and error interfaces.
 type SessionTokenExpired struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 const defaultSessionTokenExpiredMsg = "expired session token"
 
 func (x SessionTokenExpired) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultSessionTokenExpiredMsg
+	if x.msg == "" {
+		x.msg = defaultSessionTokenExpiredMsg
 	}
 
-	return errMessageStatusV2(
-		globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail),
-		msg,
-	)
+	return errMessageStatus(protostatus.SessionTokenExpired, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -93,19 +81,16 @@ func (x SessionTokenExpired) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *SessionTokenExpired) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *SessionTokenExpired) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: TOKEN_EXPIRED;
-//   - string message: "expired session token";
-//   - details: empty.
-func (x SessionTokenExpired) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(session.StatusTokenExpired, session.GlobalizeFail))
-	x.v2.SetMessage(defaultSessionTokenExpiredMsg)
-	return &x.v2
+// implements local interface defined in [FromError] func.
+func (x SessionTokenExpired) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultSessionTokenExpiredMsg
+	}
+	return &protostatus.Status{Code: protostatus.SessionTokenExpired, Message: x.msg, Details: x.dts}
 }

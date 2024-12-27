@@ -15,14 +15,11 @@ const (
 // MarshaledSize returns size of the ObjectSessionContext_Target in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *ObjectSessionContext_Target) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldTokenObjectTargetContainer, x.Container)
-		for i := range x.Objects {
-			sz += proto.SizeEmbedded(fieldTokenObjectTargetIDs, x.Objects[i])
-		}
+		return proto.SizeEmbedded(fieldTokenObjectTargetContainer, x.Container) +
+			proto.SizeRepeatedMessages(fieldTokenObjectTargetIDs, x.Objects)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the ObjectSessionContext_Target in Protocol Buffers V3
@@ -32,9 +29,7 @@ func (x *ObjectSessionContext_Target) MarshaledSize() int {
 func (x *ObjectSessionContext_Target) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, fieldTokenObjectTargetContainer, x.Container)
-		for i := range x.Objects {
-			off += proto.MarshalToEmbedded(b[off:], fieldTokenObjectTargetIDs, x.Objects[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldTokenObjectTargetIDs, x.Objects)
 	}
 }
 
@@ -307,20 +302,17 @@ const (
 // MarshaledSize returns size of the RequestMetaHeader in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *RequestMetaHeader) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldReqMetaVersion, x.Version) +
+		return proto.SizeEmbedded(fieldReqMetaVersion, x.Version) +
 			proto.SizeVarint(fieldReqMetaEpoch, x.Epoch) +
 			proto.SizeVarint(fieldReqMetaTTL, x.Ttl) +
 			proto.SizeEmbedded(fieldReqMetaSession, x.SessionToken) +
 			proto.SizeEmbedded(fieldReqMetaBearer, x.BearerToken) +
 			proto.SizeEmbedded(fieldReqMetaOrigin, x.Origin) +
-			proto.SizeVarint(fieldReqMetaNetMagic, x.MagicNumber)
-		for i := range x.XHeaders {
-			sz += proto.SizeEmbedded(fieldReqMetaXHeaders, x.XHeaders[i])
-		}
+			proto.SizeVarint(fieldReqMetaNetMagic, x.MagicNumber) +
+			proto.SizeRepeatedMessages(fieldReqMetaXHeaders, x.XHeaders)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the RequestMetaHeader in Protocol Buffers V3 format with
@@ -332,9 +324,7 @@ func (x *RequestMetaHeader) MarshalStable(b []byte) {
 		off := proto.MarshalToEmbedded(b, fieldReqMetaVersion, x.Version)
 		off += proto.MarshalToVarint(b[off:], fieldReqMetaEpoch, x.Epoch)
 		off += proto.MarshalToVarint(b[off:], fieldReqMetaTTL, x.Ttl)
-		for i := range x.XHeaders {
-			off += proto.MarshalToEmbedded(b[off:], fieldReqMetaXHeaders, x.XHeaders[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldReqMetaXHeaders, x.XHeaders)
 		off += proto.MarshalToEmbedded(b[off:], fieldReqMetaSession, x.SessionToken)
 		off += proto.MarshalToEmbedded(b[off:], fieldReqMetaBearer, x.BearerToken)
 		off += proto.MarshalToEmbedded(b[off:], fieldReqMetaOrigin, x.Origin)
@@ -355,18 +345,15 @@ const (
 // MarshaledSize returns size of the ResponseMetaHeader in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *ResponseMetaHeader) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldRespMetaVersion, x.Version) +
+		return proto.SizeEmbedded(fieldRespMetaVersion, x.Version) +
 			proto.SizeVarint(fieldRespMetaEpoch, x.Epoch) +
 			proto.SizeVarint(fieldRespMetaTTL, x.Ttl) +
 			proto.SizeEmbedded(fieldRespMetaOrigin, x.Origin) +
-			proto.SizeEmbedded(fieldRespMetaStatus, x.Status)
-		for i := range x.XHeaders {
-			sz += proto.SizeEmbedded(fieldRespMetaXHeaders, x.XHeaders[i])
-		}
+			proto.SizeEmbedded(fieldRespMetaStatus, x.Status) +
+			proto.SizeRepeatedMessages(fieldRespMetaXHeaders, x.XHeaders)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the ResponseMetaHeader in Protocol Buffers V3 format
@@ -378,9 +365,7 @@ func (x *ResponseMetaHeader) MarshalStable(b []byte) {
 		off := proto.MarshalToEmbedded(b, fieldRespMetaVersion, x.Version)
 		off += proto.MarshalToVarint(b[off:], fieldRespMetaEpoch, x.Epoch)
 		off += proto.MarshalToVarint(b[off:], fieldRespMetaTTL, x.Ttl)
-		for i := range x.XHeaders {
-			off += proto.MarshalToEmbedded(b[off:], fieldRespMetaXHeaders, x.XHeaders[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldRespMetaXHeaders, x.XHeaders)
 		off += proto.MarshalToEmbedded(b[off:], fieldRespMetaOrigin, x.Origin)
 		proto.MarshalToEmbedded(b[off:], fieldRespMetaStatus, x.Status)
 	}

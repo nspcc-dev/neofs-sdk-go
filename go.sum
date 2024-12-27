@@ -85,8 +85,6 @@ github.com/nspcc-dev/hrw/v2 v2.0.2 h1:Vuc2Yu96MCv1YDUjErMuCt5tq+g/43/Y89u/XfyLkR
 github.com/nspcc-dev/hrw/v2 v2.0.2/go.mod h1:XRsG20axGJfr0Ytcau/UcZ/9NF54RmUIqmoYKuuliSo=
 github.com/nspcc-dev/neo-go v0.106.3 h1:HEyhgkjQY+HfBzotMJ12xx2VuOUphkngZ4kEkjvXDtE=
 github.com/nspcc-dev/neo-go v0.106.3/go.mod h1:3vEwJ2ld12N7HRGCaH/l/7EwopplC/+8XdIdPDNmD/M=
-github.com/nspcc-dev/neofs-api-go/v2 v2.14.1-0.20240827150555-5ce597aa14ea h1:mK0EMGLvunXcFyq7fBURS/CsN4MH+4nlYiqn6pTwWAU=
-github.com/nspcc-dev/neofs-api-go/v2 v2.14.1-0.20240827150555-5ce597aa14ea/go.mod h1:YzhD4EZmC9Z/PNyd7ysC7WXgIgURc9uCG1UWDeV027Y=
 github.com/nspcc-dev/rfc6979 v0.2.1 h1:8wWxkamHWFmO790GsewSoKUSJjVnL1fmdRpokU/RgRM=
 github.com/nspcc-dev/rfc6979 v0.2.1/go.mod h1:Tk7h5kyUWkhjyO3zUgFFhy1v2vQv3BvQEntakdtqrWc=
 github.com/nspcc-dev/tzhash v1.8.2 h1:ebRCbPoEuoqrhC6sSZmrT/jI3h1SzCWakxxV6gp5QAg=

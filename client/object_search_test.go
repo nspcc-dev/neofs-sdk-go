@@ -10,16 +10,15 @@ import (
 	"testing"
 	"time"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -57,17 +56,9 @@ type testSearchObjectsServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonServerStreamServerSettings[
 		*protoobject.SearchRequest_Body,
-		v2object.SearchRequestBody,
-		*v2object.SearchRequestBody,
 		*protoobject.SearchRequest,
-		v2object.SearchRequest,
-		*v2object.SearchRequest,
 		*protoobject.SearchResponse_Body,
-		v2object.SearchResponseBody,
-		*v2object.SearchResponseBody,
 		*protoobject.SearchResponse,
-		v2object.SearchResponse,
-		*v2object.SearchResponse,
 	]
 	testObjectSessionServerSettings
 	testBearerTokenServerSettings
@@ -317,7 +308,6 @@ func TestClient_ObjectSearch(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)

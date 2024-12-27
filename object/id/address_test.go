@@ -5,11 +5,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,46 +31,34 @@ var invalidAddressTestcases = []struct {
 	corrupt func(*refs.Address)
 }{
 	{name: "empty", err: "missing container ID", corrupt: func(a *refs.Address) {
-		a.SetContainerID(nil)
-		a.SetObjectID(nil)
+		a.ContainerId = nil
+		a.ObjectId = nil
 	}},
-	{name: "container/missing", err: "missing container ID", corrupt: func(a *refs.Address) { a.SetContainerID(nil) }},
+	{name: "container/missing", err: "missing container ID", corrupt: func(a *refs.Address) { a.ContainerId = nil }},
 	{name: "container/nil value", err: "invalid container ID: invalid length 0", corrupt: func(a *refs.Address) {
-		a.SetContainerID(new(refs.ContainerID))
+		a.ContainerId = new(refs.ContainerID)
 	}},
 	{name: "container/empty value", err: "invalid container ID: invalid length 0", corrupt: func(a *refs.Address) {
-		var m refs.ContainerID
-		m.SetValue([]byte{})
-		a.SetContainerID(&m)
+		a.ContainerId.Value = []byte{}
 	}},
 	{name: "container/undersize", err: "invalid container ID: invalid length 31", corrupt: func(a *refs.Address) {
-		var m refs.ContainerID
-		m.SetValue(make([]byte, 31))
-		a.SetContainerID(&m)
+		a.ContainerId.Value = make([]byte, 31)
 	}},
 	{name: "container/oversize", err: "invalid container ID: invalid length 33", corrupt: func(a *refs.Address) {
-		var m refs.ContainerID
-		m.SetValue(make([]byte, 33))
-		a.SetContainerID(&m)
+		a.ContainerId.Value = make([]byte, 33)
 	}},
-	{name: "object/missing", err: "missing object ID", corrupt: func(a *refs.Address) { a.SetObjectID(nil) }},
+	{name: "object/missing", err: "missing object ID", corrupt: func(a *refs.Address) { a.ObjectId = nil }},
 	{name: "object/nil value", err: "invalid object ID: invalid length 0", corrupt: func(a *refs.Address) {
-		a.SetObjectID(new(refs.ObjectID))
+		a.ObjectId = new(refs.ObjectID)
 	}},
 	{name: "object/empty value", err: "invalid object ID: invalid length 0", corrupt: func(a *refs.Address) {
-		var m refs.ObjectID
-		m.SetValue([]byte{})
-		a.SetObjectID(&m)
+		a.ObjectId.Value = []byte{}
 	}},
 	{name: "object/undersize", err: "invalid object ID: invalid length 31", corrupt: func(a *refs.Address) {
-		var m refs.ObjectID
-		m.SetValue(make([]byte, 31))
-		a.SetObjectID(&m)
+		a.ObjectId.Value = make([]byte, 31)
 	}},
 	{name: "object/oversize", err: "invalid object ID: invalid length 33", corrupt: func(a *refs.Address) {
-		var m refs.ObjectID
-		m.SetValue(make([]byte, 33))
-		a.SetObjectID(&m)
+		a.ObjectId.Value = make([]byte, 33)
 	}},
 }
 
@@ -102,12 +91,11 @@ func testAddressIDField[T ~[32]byte](
 		t.Run("api", func(t *testing.T) {
 			src := oidtest.Address()
 			var dst oid.Address
-			var msg refs.Address
 
 			set(&src, val)
-			src.WriteToV2(&msg)
-			require.EqualValues(t, val[:], getAPI(&msg))
-			require.NoError(t, dst.ReadFromV2(msg))
+			msg := src.ProtoMessage()
+			require.EqualValues(t, val[:], getAPI(msg))
+			require.NoError(t, dst.FromProtoMessage(msg))
 			require.Equal(t, val, get(dst))
 		})
 		t.Run("json", func(t *testing.T) {
@@ -125,36 +113,32 @@ func testAddressIDField[T ~[32]byte](
 
 func TestAddress_SetContainer(t *testing.T) {
 	testAddressIDField(t, cidtest.OtherID, oid.Address.Container, (*oid.Address).SetContainer, func(m *refs.Address) []byte {
-		return m.GetContainerID().GetValue()
+		return m.GetContainerId().GetValue()
 	})
 }
 
 func TestAddress_SetObject(t *testing.T) {
 	testAddressIDField(t, oidtest.OtherID, oid.Address.Object, (*oid.Address).SetObject, func(m *refs.Address) []byte {
-		return m.GetObjectID().GetValue()
+		return m.GetObjectId().GetValue()
 	})
 }
 
-func TestAddress_ReadFromV2(t *testing.T) {
-	var mc refs.ContainerID
-	mc.SetValue(validContainerBytes[:])
-	var mo refs.ObjectID
-	mo.SetValue(validIDBytes[:])
-	var m refs.Address
-	m.SetContainerID(&mc)
-	m.SetObjectID(&mo)
+func TestAddress_FromProtoMessage(t *testing.T) {
+	m := &refs.Address{
+		ContainerId: &refs.ContainerID{Value: validContainerBytes[:]},
+		ObjectId:    &refs.ObjectID{Value: validIDBytes[:]},
+	}
 	var a oid.Address
-	require.NoError(t, a.ReadFromV2(m))
+	require.NoError(t, a.FromProtoMessage(m))
 	require.EqualValues(t, validContainerBytes, a.Container())
 	require.EqualValues(t, validIDBytes, a.Object())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range invalidAddressTestcases {
 			t.Run(tc.name, func(t *testing.T) {
-				var m refs.Address
-				oidtest.Address().WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(oid.Address).ReadFromV2(m), tc.err)
+				m := oidtest.Address().ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(oid.Address).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
@@ -250,10 +234,9 @@ func TestAddress_UnmarshalJSON(t *testing.T) {
 	t.Run("protocol violation", func(t *testing.T) {
 		for _, tc := range invalidAddressTestcases {
 			t.Run(tc.name, func(t *testing.T) {
-				var m refs.Address
-				oidtest.Address().WriteToV2(&m)
-				tc.corrupt(&m)
-				b, err := m.MarshalJSON()
+				m := oidtest.Address().ProtoMessage()
+				tc.corrupt(m)
+				b, err := neofsproto.MarshalMessageJSON(m)
 				require.NoError(t, err)
 				require.EqualError(t, new(oid.Address).UnmarshalJSON(b), tc.err)
 			})

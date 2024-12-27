@@ -11,16 +11,15 @@ import (
 	"testing/iotest"
 	"time"
 
-	apiobject "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
-	protostatus "github.com/nspcc-dev/neofs-api-go/v2/status/grpc"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -111,17 +110,9 @@ type testGetObjectServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonServerStreamServerSettings[
 		*protoobject.GetRequest_Body,
-		apiobject.GetRequestBody,
-		*apiobject.GetRequestBody,
 		*protoobject.GetRequest,
-		apiobject.GetRequest,
-		*apiobject.GetRequest,
 		*protoobject.GetResponse_Body,
-		apiobject.GetResponseBody,
-		*apiobject.GetResponseBody,
 		*protoobject.GetResponse,
-		apiobject.GetResponse,
-		*apiobject.GetResponse,
 	]
 	testCommonReadObjectRequestServerSettings
 	chunk []byte
@@ -235,17 +226,9 @@ type testGetObjectPayloadRangeServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonServerStreamServerSettings[
 		*protoobject.GetRangeRequest_Body,
-		apiobject.GetRangeRequestBody,
-		*apiobject.GetRangeRequestBody,
 		*protoobject.GetRangeRequest,
-		apiobject.GetRangeRequest,
-		*apiobject.GetRangeRequest,
 		*protoobject.GetRangeResponse_Body,
-		apiobject.GetRangeResponseBody,
-		*apiobject.GetRangeResponseBody,
 		*protoobject.GetRangeResponse,
-		apiobject.GetRangeResponse,
-		*apiobject.GetRangeResponse,
 	]
 	testCommonReadObjectRequestServerSettings
 	chunk  []byte
@@ -369,17 +352,9 @@ type testHeadObjectServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonUnaryServerSettings[
 		*protoobject.HeadRequest_Body,
-		apiobject.HeadRequestBody,
-		*apiobject.HeadRequestBody,
 		*protoobject.HeadRequest,
-		apiobject.HeadRequest,
-		*apiobject.HeadRequest,
 		*protoobject.HeadResponse_Body,
-		apiobject.HeadResponseBody,
-		*apiobject.HeadResponseBody,
 		*protoobject.HeadResponse,
-		apiobject.HeadResponse,
-		*apiobject.HeadResponse,
 	]
 	testCommonReadObjectRequestServerSettings
 }
@@ -513,7 +488,6 @@ func TestClient_ObjectHead(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)
@@ -612,7 +586,7 @@ func TestClient_ObjectHead(t *testing.T) {
 							}},
 						{name: "short header oneof/empty", body: &protoobject.HeadResponse_Body{Head: new(protoobject.HeadResponse_Body_ShortHeader)},
 							assertErr: func(t testing.TB, err error) {
-								require.EqualError(t, err, "unexpected header type *object.ShortHeader")
+								require.EqualError(t, err, "unexpected header type *object.HeadResponse_Body_ShortHeader")
 							}},
 						{name: "split info oneof/nil", body: &protoobject.HeadResponse_Body{Head: (*protoobject.HeadResponse_Body_SplitInfo)(nil)},
 							assertErr: func(t testing.TB, err error) {
@@ -679,7 +653,7 @@ func TestClient_ObjectHead(t *testing.T) {
 								},
 							}},
 							assertErr: func(t testing.TB, err error) {
-								require.EqualError(t, err, "invalid header response: invalid header: "+tc.msg)
+								require.EqualError(t, err, "invalid header response: invalid signature: "+tc.msg)
 							},
 						})
 					}
@@ -827,7 +801,6 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)
@@ -1241,7 +1214,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 			srv.respondWithBody(0, proto.Clone(validFullChunkObjectGetResponseBody).(*protoobject.GetResponse_Body))
 			_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-			require.EqualError(t, err, "read header: unexpected message instead of heading part: *object.GetObjectPartChunk")
+			require.EqualError(t, err, "read header: unexpected message instead of heading part: *object.GetResponse_Body_Chunk")
 		})
 		t.Run("repeated heading message", func(t *testing.T) {
 			srv := newTestGetObjectServer()
@@ -1251,7 +1224,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
 			_, err = io.Copy(io.Discard, r)
-			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetObjectPartInit")
+			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetResponse_Body_Init_")
 		})
 		t.Run("non-first split info message", func(t *testing.T) {
 			srv := newTestGetObjectServer()
@@ -1261,7 +1234,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
 			_, err = io.Copy(io.Discard, r)
-			require.EqualError(t, err, "unexpected message instead of chunk part: *object.SplitInfo")
+			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetResponse_Body_SplitInfo")
 		})
 		t.Run("chunk after split info", func(t *testing.T) {
 			srv := newTestGetObjectServer()
@@ -1494,7 +1467,6 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)

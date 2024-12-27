@@ -87,18 +87,14 @@ func RandFloat64() float64 {
 	}
 }
 
-// RandRepeated returns non-empty list of *T up to 10 elements. Each element may
-// be nil and a pointer to zero.
+// RandRepeated returns non-empty list of *T from 2 to 10 elements. First
+// element is always nil, the second one is a pointer to zero.
 func RandRepeated[T any](randFunc func() *T) []*T {
-	vs := make([]*T, 1+rand.Uint32()%10)
-	for i := range vs {
-		switch rand.Uint32() % 3 {
-		case 0: // nil
-		case 1:
-			vs[i] = new(T)
-		case 2:
-			vs[i] = randFunc()
-		}
+	vs := make([]*T, 2+rand.Uint32()%10)
+	vs[0] = nil
+	vs[1] = new(T)
+	for i := range vs[2:] {
+		vs[2+i] = randFunc()
 	}
 	return vs
 }

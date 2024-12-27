@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	v2netmap "github.com/nspcc-dev/neofs-api-go/v2/netmap"
-	protonetmap "github.com/nspcc-dev/neofs-api-go/v2/netmap/grpc"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -68,67 +69,78 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 		}()
 	}
 
-	// form request
-	var req v2netmap.LocalNodeInfoRequest
+	req := &protonetmap.LocalNodeInfoRequest{
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	// init call context
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	var (
-		cc  contextCall
-		res ResEndpointInfo
-	)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return nil, err
+	}
 
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.netmap.LocalNodeInfo(ctx, req.ToGRPCMessage().(*protonetmap.LocalNodeInfoRequest))
+	resp, err := c.netmap.LocalNodeInfo(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return nil, err
+	}
+
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2netmap.LocalNodeInfoResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return nil, err
 		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2netmap.LocalNodeInfoResponse)
-
-		body := resp.GetBody()
-
-		const fieldVersion = "version"
-
-		verV2 := body.GetVersion()
-		if verV2 == nil {
-			cc.err = newErrMissingResponseField(fieldVersion)
-			return
-		}
-
-		cc.err = res.version.ReadFromV2(*verV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldVersion, cc.err)
-			return
-		}
-
-		const fieldNodeInfo = "node info"
-
-		nodeInfoV2 := body.GetNodeInfo()
-		if nodeInfoV2 == nil {
-			cc.err = newErrMissingResponseField(fieldNodeInfo)
-			return
-		}
-
-		cc.err = res.ni.ReadFromV2(*nodeInfoV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldNodeInfo, cc.err)
-			return
-		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.LocalNodeInfoResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return nil, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return nil, err
+	}
+
+	body := resp.GetBody()
+
+	const fieldVersion = "version"
+
+	mv := body.GetVersion()
+	if mv == nil {
+		err = newErrMissingResponseField(fieldVersion)
+		return nil, err
+	}
+
+	var res ResEndpointInfo
+
+	err = res.version.FromProtoMessage(mv)
+	if err != nil {
+		err = newErrInvalidResponseField(fieldVersion, err)
+		return nil, err
+	}
+
+	const fieldNodeInfo = "node info"
+
+	mn := body.GetNodeInfo()
+	if mn == nil {
+		err = newErrMissingResponseField(fieldNodeInfo)
+		return nil, err
+	}
+
+	err = res.ni.FromProtoMessage(mn)
+	if err != nil {
+		err = newErrInvalidResponseField(fieldNodeInfo, err)
 		return nil, err
 	}
 
@@ -157,52 +169,63 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 		}()
 	}
 
-	// form request
-	var req v2netmap.NetworkInfoRequest
+	req := &protonetmap.NetworkInfoRequest{
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
+	}
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	// init call context
+	var res netmap.NetworkInfo
 
-	var (
-		cc  contextCall
-		res netmap.NetworkInfo
-	)
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
 
-	c.initCallContext(&cc)
-	cc.meta = prm.prmCommonMeta
-	cc.req = &req
-	cc.call = func() (responseV2, error) {
-		resp, err := c.netmap.NetworkInfo(ctx, req.ToGRPCMessage().(*protonetmap.NetworkInfoRequest))
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return res, err
+	}
+
+	resp, err := c.netmap.NetworkInfo(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return res, err
+	}
+
+	if c.prm.cbRespInfo != nil {
+		err = c.prm.cbRespInfo(ResponseMetaInfo{
+			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			epoch: resp.GetMetaHeader().GetEpoch(),
+		})
 		if err != nil {
-			return nil, rpcErr(err)
-		}
-		var respV2 v2netmap.NetworkInfoResponse
-		if err = respV2.FromGRPCMessage(resp); err != nil {
-			return nil, err
-		}
-		return &respV2, nil
-	}
-	cc.result = func(r responseV2) {
-		resp := r.(*v2netmap.NetworkInfoResponse)
-
-		const fieldNetInfo = "network info"
-
-		netInfoV2 := resp.GetBody().GetNetworkInfo()
-		if netInfoV2 == nil {
-			cc.err = newErrMissingResponseField(fieldNetInfo)
-			return
-		}
-
-		cc.err = res.ReadFromV2(*netInfoV2)
-		if cc.err != nil {
-			cc.err = newErrInvalidResponseField(fieldNetInfo, cc.err)
-			return
+			err = fmt.Errorf("%w: %w", errResponseCallback, err)
+			return res, err
 		}
 	}
 
-	// process call
-	if !cc.processCall() {
-		err = cc.err
-		return netmap.NetworkInfo{}, cc.err
+	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetworkInfoResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return res, err
+	}
+
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	const fieldNetInfo = "network info"
+
+	mn := resp.GetBody().GetNetworkInfo()
+	if mn == nil {
+		err = newErrMissingResponseField(fieldNetInfo)
+		return res, err
+	}
+
+	err = res.FromProtoMessage(mn)
+	if err != nil {
+		err = newErrInvalidResponseField(fieldNetInfo, err)
+		return res, err
 	}
 
 	return res, nil
@@ -229,49 +252,48 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 		}()
 	}
 
-	// form request body
-	var body v2netmap.SnapshotRequestBody
-
-	// form meta header
-	var meta v2session.RequestMetaHeader
-
-	// form request
-	var req v2netmap.SnapshotRequest
-	req.SetBody(&body)
-	c.prepareRequest(&req, &meta)
-
-	buf := c.buffers.Get().(*[]byte)
-	err = signServiceMessage(c.prm.signer, &req, *buf)
-	c.buffers.Put(buf)
-	if err != nil {
-		err = fmt.Errorf("sign request: %w", err)
-		return netmap.NetMap{}, err
+	req := &protonetmap.NetmapSnapshotRequest{
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version: version.Current().ProtoMessage(),
+			Ttl:     defaultRequestTTL,
+		},
 	}
 
-	resp, err := c.netmap.NetmapSnapshot(ctx, req.ToGRPCMessage().(*protonetmap.NetmapSnapshotRequest))
+	var res netmap.NetMap
+
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, *buf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return res, err
+	}
+
+	resp, err := c.netmap.NetmapSnapshot(ctx, req)
 	if err != nil {
 		err = rpcErr(err)
 		return netmap.NetMap{}, err
 	}
-	var respV2 v2netmap.SnapshotResponse
-	if err = respV2.FromGRPCMessage(resp); err != nil {
-		return netmap.NetMap{}, err
+
+	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetmapSnapshotResponse_Body](resp, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return res, err
 	}
 
-	var res netmap.NetMap
-	if err = c.processResponse(&respV2); err != nil {
-		return netmap.NetMap{}, err
+	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
 	}
 
 	const fieldNetMap = "network map"
 
-	netMapV2 := respV2.GetBody().NetMap()
-	if netMapV2 == nil {
+	mn := resp.GetBody().GetNetmap()
+	if mn == nil {
 		err = newErrMissingResponseField(fieldNetMap)
 		return netmap.NetMap{}, err
 	}
 
-	err = res.ReadFromV2(*netMapV2)
+	err = res.FromProtoMessage(mn)
 	if err != nil {
 		err = newErrInvalidResponseField(fieldNetMap, err)
 		return netmap.NetMap{}, err

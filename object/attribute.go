@@ -1,11 +1,17 @@
 package object
 
 import (
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
+	"errors"
+	"fmt"
+	"strconv"
+
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 )
 
 // Various system attributes.
 const (
+	sysAttrPrefix = "__NEOFS__"
 	// AttributeExpirationEpoch is a key to an object attribute that determines
 	// after what epoch the object becomes expired. Objects that do not have this
 	// attribute never expire.
@@ -17,82 +23,97 @@ const (
 	// Note that the value determines exactly the last epoch of the object's
 	// relevance: for example, with the value N, the object is relevant in epoch N
 	// and expired in any epoch starting from N+1.
-	AttributeExpirationEpoch = object.SysAttributeExpEpoch
+	AttributeExpirationEpoch = sysAttrPrefix + "EXPIRATION_EPOCH"
 )
 
-// Attribute represents v2-compatible object attribute.
-type Attribute object.Attribute
-
-// NewAttributeFromV2 wraps v2 [object.Attribute] message to [Attribute].
-//
-// Nil [object.Attribute] converts to nil.
-func NewAttributeFromV2(aV2 *object.Attribute) *Attribute {
-	return (*Attribute)(aV2)
-}
+// Attribute represents an object attribute.
+type Attribute struct{ k, v string }
 
 // NewAttribute creates and initializes new [Attribute].
 func NewAttribute(key, value string) *Attribute {
-	attr := new(object.Attribute)
-	attr.SetKey(key)
-	attr.SetValue(value)
-
-	return NewAttributeFromV2(attr)
+	return &Attribute{key, value}
 }
 
 // Key returns key to the object attribute.
 func (a *Attribute) Key() string {
-	return (*object.Attribute)(a).GetKey()
+	return a.k
 }
 
 // SetKey sets key to the object attribute.
 func (a *Attribute) SetKey(v string) {
-	(*object.Attribute)(a).SetKey(v)
+	a.k = v
 }
 
 // Value return value of the object attribute.
 func (a *Attribute) Value() string {
-	return (*object.Attribute)(a).GetValue()
+	return a.v
 }
 
 // SetValue sets value of the object attribute.
 func (a *Attribute) SetValue(v string) {
-	(*object.Attribute)(a).SetValue(v)
+	a.v = v
 }
 
-// ToV2 converts [Attribute] to v2 [object.Attribute] message.
-//
-// Nil [Attribute] converts to nil.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (a *Attribute) ToV2() *object.Attribute {
-	return (*object.Attribute)(a)
+// fromProtoMessage validates m according to the NeoFS API protocol and restores
+// a from it.
+func (a *Attribute) fromProtoMessage(m *protoobject.Header_Attribute, checkFieldPresence bool) error {
+	if checkFieldPresence && m.Key == "" {
+		return fmt.Errorf("missing key")
+	}
+	if checkFieldPresence && m.Value == "" {
+		return errors.New("missing value")
+	}
+	switch m.Key {
+	case AttributeExpirationEpoch:
+		if _, err := strconv.ParseUint(m.Value, 10, 64); err != nil {
+			return fmt.Errorf("invalid expiration epoch (must be a uint): %w", err)
+		}
+	}
+	a.k, a.v = m.Key, m.Value
+	return nil
+}
+
+// protoMessage converts a into message to transmit using the NeoFS API
+// protocol.
+func (a *Attribute) protoMessage() *protoobject.Header_Attribute {
+	if a != nil {
+		return &protoobject.Header_Attribute{Key: a.k, Value: a.v}
+	}
+	return nil
 }
 
 // Marshal marshals [Attribute] into a protobuf binary form.
 //
 // See also [Attribute.Unmarshal].
 func (a *Attribute) Marshal() []byte {
-	return (*object.Attribute)(a).StableMarshal(nil)
+	return neofsproto.MarshalMessage(a.protoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of [Attribute].
 //
 // See also [Attribute.Marshal].
 func (a *Attribute) Unmarshal(data []byte) error {
-	return (*object.Attribute)(a).Unmarshal(data)
+	m := new(protoobject.Header_Attribute)
+	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
+		return err
+	}
+	return a.fromProtoMessage(m, false)
 }
 
 // MarshalJSON encodes [Attribute] to protobuf JSON format.
 //
 // See also [Attribute.UnmarshalJSON].
 func (a *Attribute) MarshalJSON() ([]byte, error) {
-	return (*object.Attribute)(a).MarshalJSON()
+	return neofsproto.MarshalMessageJSON(a.protoMessage())
 }
 
 // UnmarshalJSON decodes [Attribute] from protobuf JSON format.
 //
 // See also [Attribute.MarshalJSON].
 func (a *Attribute) UnmarshalJSON(data []byte) error {
-	return (*object.Attribute)(a).UnmarshalJSON(data)
+	m := new(protoobject.Header_Attribute)
+	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
+		return err
+	}
+	return a.fromProtoMessage(m, false)
 }

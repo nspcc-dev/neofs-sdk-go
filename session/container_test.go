@@ -5,17 +5,16 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/json"
-	"math"
 	"math/big"
 	"strconv"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	apisession "github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -49,30 +48,30 @@ var validSignedContainerTokens = [][]byte{
 		51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195,
 		17, 92, 26, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4,
 		34, 33, 2, 149, 43, 50, 196, 91, 177, 62, 131, 233, 126, 241, 177, 13, 78, 96, 94, 119, 71, 55, 179,
-		8, 53, 241, 79, 2, 1, 95, 85, 78, 45, 197, 136, 50, 2, 16, 1},
+		8, 53, 241, 79, 2, 1, 95, 85, 78, 45, 197, 136, 50, 8, 8, 147, 236, 159, 143, 3, 16, 1},
 	{10, 16, 99, 24, 111, 70, 22, 172, 72, 20, 139, 187, 175, 98, 10, 255, 231, 188, 18, 27, 10, 25, 53,
 		51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195,
 		17, 92, 26, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4,
 		34, 33, 2, 149, 43, 50, 196, 91, 177, 62, 131, 233, 126, 241, 177, 13, 78, 96, 94, 119, 71, 55, 179,
-		8, 53, 241, 79, 2, 1, 95, 85, 78, 45, 197, 136, 50, 36, 26, 34, 10, 32, 243, 245, 75, 198, 48, 107,
+		8, 53, 241, 79, 2, 1, 95, 85, 78, 45, 197, 136, 50, 42, 8, 147, 236, 159, 143, 3, 26, 34, 10, 32, 243, 245, 75, 198, 48, 107,
 		141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240,
 		79, 114, 252, 227},
 }
 
 // corresponds to validContainerTokens.
 var validBinContainerTokens = [][]byte{
-	{10, 106, 10, 16, 99, 24, 111, 70, 22, 172, 72, 20, 139, 187, 175, 98, 10, 255, 231, 188, 18, 27, 10, 25, 53,
+	{10, 112, 10, 16, 99, 24, 111, 70, 22, 172, 72, 20, 139, 187, 175, 98, 10, 255, 231, 188, 18, 27, 10, 25, 53,
 		51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92,
 		26, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4, 34, 33, 2,
 		149, 43, 50, 196, 91, 177, 62, 131, 233, 126, 241, 177, 13, 78, 96, 94, 119, 71, 55, 179, 8, 53, 241, 79, 2,
-		1, 95, 85, 78, 45, 197, 136, 50, 2, 16, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123,
+		1, 95, 85, 78, 45, 197, 136, 50, 8, 8, 147, 236, 159, 143, 3, 16, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123,
 		174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249,
 		34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4},
-	{10, 140, 1, 10, 16, 99, 24, 111, 70, 22, 172, 72, 20, 139, 187, 175, 98, 10, 255, 231, 188, 18, 27, 10, 25, 53,
+	{10, 146, 1, 10, 16, 99, 24, 111, 70, 22, 172, 72, 20, 139, 187, 175, 98, 10, 255, 231, 188, 18, 27, 10, 25, 53,
 		51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92,
 		26, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4, 34, 33, 2,
 		149, 43, 50, 196, 91, 177, 62, 131, 233, 126, 241, 177, 13, 78, 96, 94, 119, 71, 55, 179, 8, 53, 241, 79, 2,
-		1, 95, 85, 78, 45, 197, 136, 50, 36, 26, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168,
+		1, 95, 85, 78, 45, 197, 136, 50, 42, 8, 147, 236, 159, 143, 3, 26, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168,
 		21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 56, 10, 33,
 		3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223,
 		219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116,
@@ -134,34 +133,27 @@ var validJSONContainerTokens = []string{`
 }
 `}
 
-func TestContainer_ReadFromV2(t *testing.T) {
-	var lt apisession.TokenLifetime
-	lt.SetExp(anyValidExp)
-	lt.SetIat(anyValidIat)
-	lt.SetNbf(anyValidNbf)
-	var mo refs.OwnerID
-	mo.SetValue(anyValidUserID[:])
-	var mcnr refs.ContainerID
-	mcnr.SetValue(anyValidContainerID[:])
-	var mc apisession.ContainerSessionContext
-	mc.SetContainerID(&mcnr)
-	mc.SetVerb(anyValidContainerVerb)
-	var mb apisession.TokenBody
-	mb.SetID(anyValidSessionID[:])
-	mb.SetOwnerID(&mo)
-	mb.SetLifetime(&lt)
-	mb.SetSessionKey(anyValidSessionKeyBytes)
-	mb.SetContext(&mc)
-	var msig refs.Signature
-	msig.SetKey(anyValidIssuerPublicKeyBytes)
-	msig.SetScheme(refs.SignatureScheme(anyValidSignatureScheme))
-	msig.SetSign(anyValidSignatureBytes)
-	var m apisession.Token
-	m.SetBody(&mb)
-	m.SetSignature(&msig)
+func TestContainer_FromProtoMessage(t *testing.T) {
+	m := &protosession.SessionToken{
+		Body: &protosession.SessionToken_Body{
+			Id:         anyValidSessionID[:],
+			OwnerId:    &refs.OwnerID{Value: anyValidUserID[:]},
+			Lifetime:   &protosession.SessionToken_Body_TokenLifetime{Exp: anyValidExp, Nbf: anyValidNbf, Iat: anyValidIat},
+			SessionKey: anyValidSessionKeyBytes,
+			Context: &protosession.SessionToken_Body_Container{Container: &protosession.ContainerSessionContext{
+				Verb:        anyValidContainerVerb,
+				ContainerId: &refs.ContainerID{Value: anyValidContainerID[:]},
+			}},
+		},
+		Signature: &refs.Signature{
+			Key:    anyValidIssuerPublicKeyBytes,
+			Sign:   anyValidSignatureBytes,
+			Scheme: anyValidSignatureScheme,
+		},
+	}
 
 	var val session.Container
-	require.NoError(t, val.ReadFromV2(m))
+	require.NoError(t, val.FromProtoMessage(m))
 	require.Equal(t, val.ID(), anyValidSessionID)
 	require.Equal(t, val.Issuer(), anyValidUserID)
 	require.EqualValues(t, anyValidExp, val.Exp())
@@ -179,94 +171,74 @@ func TestContainer_ReadFromV2(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range append(invalidProtoTokenCommonTestcases, invalidProtoTokenTestcase{
 			name: "context/missing", err: "missing session context",
-			corrupt: func(m *apisession.Token) { m.GetBody().SetContext(nil) },
+			corrupt: func(m *protosession.SessionToken) { m.Body.Context = nil },
 		}, invalidProtoTokenTestcase{
-			name: "context/wrong", err: "invalid context: invalid context *session.ObjectSessionContext",
-			corrupt: func(m *apisession.Token) { m.GetBody().SetContext(new(apisession.ObjectSessionContext)) },
+			name: "context/wrong", err: "invalid context: invalid context *session.SessionToken_Body_Object",
+			corrupt: func(m *protosession.SessionToken) { m.Body.Context = new(protosession.SessionToken_Body_Object) },
 		}, invalidProtoTokenTestcase{
-			name: "context/invalid verb", err: "invalid context: verb 2147483648 overflows int32",
-			corrupt: func(m *apisession.Token) {
-				var c apisession.ContainerSessionContext
-				c.SetWildcard(true)
-				c.SetVerb(math.MaxInt32 + 1)
-				m.GetBody().SetContext(&c)
+			name: "context/invalid verb", err: "invalid context: negative verb -1",
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.Verb = -1
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/neither container nor wildcard", err: "invalid context: missing container or wildcard flag",
-			corrupt: func(m *apisession.Token) { m.GetBody().SetContext(new(apisession.ContainerSessionContext)) },
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.Reset()
+			},
 		}, invalidProtoTokenTestcase{
 			name: "context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag",
-			corrupt: func(m *apisession.Token) {
-				var c apisession.ContainerSessionContext
-				c.SetContainerID(new(refs.ContainerID))
-				c.SetWildcard(true)
-				m.GetBody().SetContext(&c)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.Wildcard = true
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/nil value", err: "invalid context: invalid container ID: invalid length 0",
-			corrupt: func(m *apisession.Token) {
-				var c apisession.ContainerSessionContext
-				c.SetContainerID(new(refs.ContainerID))
-				m.GetBody().SetContext(&c)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.ContainerId.Value = nil
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/empty value", err: "invalid context: invalid container ID: invalid length 0",
-			corrupt: func(m *apisession.Token) {
-				var id refs.ContainerID
-				id.SetValue([]byte{})
-				var c apisession.ContainerSessionContext
-				c.SetContainerID(&id)
-				m.GetBody().SetContext(&c)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.ContainerId.Value = []byte{}
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/undersize", err: "invalid context: invalid container ID: invalid length 31",
-			corrupt: func(m *apisession.Token) {
-				var id refs.ContainerID
-				id.SetValue(make([]byte, 31))
-				var c apisession.ContainerSessionContext
-				c.SetContainerID(&id)
-				m.GetBody().SetContext(&c)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.ContainerId.Value = make([]byte, 31)
 			},
 		}, invalidProtoTokenTestcase{
 			name: "context/container/oversize", err: "invalid context: invalid container ID: invalid length 33",
-			corrupt: func(m *apisession.Token) {
-				var id refs.ContainerID
-				id.SetValue(make([]byte, 33))
-				var c apisession.ContainerSessionContext
-				c.SetContainerID(&id)
-				m.GetBody().SetContext(&c)
+			corrupt: func(m *protosession.SessionToken) {
+				m.GetBody().GetContext().(*protosession.SessionToken_Body_Container).Container.ContainerId.Value = make([]byte, 33)
 			},
 		}) {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
-				var m apisession.Token
-				st.WriteToV2(&m)
-				tc.corrupt(&m)
-				require.EqualError(t, new(session.Container).ReadFromV2(m), tc.err)
+				m := st.ProtoMessage()
+				tc.corrupt(m)
+				require.EqualError(t, new(session.Container).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestContainer_WriteToV2(t *testing.T) {
+func TestContainer_ProtoMessage(t *testing.T) {
 	var val session.Container
-	var m apisession.Token
 
 	// zero
-	val.WriteToV2(&m)
+	m := val.ProtoMessage()
 	require.Zero(t, m.GetSignature())
 	body := m.GetBody()
 	require.NotNil(t, body)
-	require.Zero(t, body.GetID())
-	require.Zero(t, body.GetOwnerID())
+	require.Zero(t, body.GetId())
+	require.Zero(t, body.GetOwnerId())
 	require.Zero(t, body.GetLifetime())
 	require.Zero(t, body.GetSessionKey())
 	c := body.GetContext()
-	require.IsType(t, new(apisession.ContainerSessionContext), c)
-	cc := c.(*apisession.ContainerSessionContext)
-	require.Zero(t, cc.Verb())
-	require.Zero(t, cc.ContainerID())
-	require.True(t, cc.Wildcard())
+	require.IsType(t, new(protosession.SessionToken_Body_Container), c)
+	cc := c.(*protosession.SessionToken_Body_Container).Container
+	require.Zero(t, cc.GetVerb())
+	require.Zero(t, cc.GetContainerId())
+	require.True(t, cc.GetWildcard())
 
 	// filled
 	val.SetID(anyValidSessionID)
@@ -279,11 +251,11 @@ func TestContainer_WriteToV2(t *testing.T) {
 	val.ApplyOnlyTo(anyValidContainerID)
 	val.AttachSignature(anyValidSignature)
 
-	val.WriteToV2(&m)
+	m = val.ProtoMessage()
 	body = m.GetBody()
 	require.NotNil(t, body)
-	require.Equal(t, anyValidSessionID[:], body.GetID())
-	require.Equal(t, anyValidUserID[:], body.GetOwnerID().GetValue())
+	require.Equal(t, anyValidSessionID[:], body.GetId())
+	require.Equal(t, anyValidUserID[:], body.GetOwnerId().GetValue())
 	lt := body.GetLifetime()
 	require.EqualValues(t, anyValidExp, lt.GetExp())
 	require.EqualValues(t, anyValidIat, lt.GetIat())
@@ -295,11 +267,11 @@ func TestContainer_WriteToV2(t *testing.T) {
 	require.Equal(t, anyValidIssuerPublicKeyBytes, sig.GetKey())
 	require.Equal(t, anyValidSignatureBytes, sig.GetSign())
 	c = body.GetContext()
-	require.IsType(t, new(apisession.ContainerSessionContext), c)
-	cc = c.(*apisession.ContainerSessionContext)
-	require.EqualValues(t, anyValidContainerVerb, cc.Verb())
-	require.Equal(t, anyValidContainerID[:], cc.ContainerID().GetValue())
-	require.Zero(t, cc.Wildcard())
+	require.IsType(t, new(protosession.SessionToken_Body_Container), c)
+	cc = c.(*protosession.SessionToken_Body_Container).Container
+	require.EqualValues(t, anyValidContainerVerb, cc.GetVerb())
+	require.Equal(t, anyValidContainerID[:], cc.GetContainerId().GetValue())
+	require.Zero(t, cc.GetWildcard())
 }
 
 func TestContainer_Marshal(t *testing.T) {
@@ -316,7 +288,7 @@ func TestContainer_Unmarshal(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidBinTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.ObjectSessionContext",
+			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Object",
 			b: []byte{10, 4, 42, 2, 18, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag",
@@ -370,17 +342,14 @@ func TestContainer_Unmarshal(t *testing.T) {
 	for i := range validContainerTokens {
 		err := val.Unmarshal(validBinContainerTokens[i])
 		require.NoError(t, err)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, validContainerTokens[i], val)
 	}
 }
 
 func TestContainer_MarshalJSON(t *testing.T) {
 	for i := range validContainerTokens {
-		//nolint:staticcheck
 		b, err := json.MarshalIndent(validContainerTokens[i], "", " ")
 		require.NoError(t, err, i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.JSONEq(t, validJSONContainerTokens[i], string(b))
 	}
 }
@@ -393,7 +362,7 @@ func TestContainer_UnmarshalJSON(t *testing.T) {
 			require.ErrorContains(t, err, "syntax error")
 		})
 		for _, tc := range append(invalidJSONTokenCommonTestcases, invalidJSONTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.ObjectSessionContext", j: `
+			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Object", j: `
 {"body":{"object":{}}}
 `}, invalidJSONTokenTestcase{
 			name: "body/context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag", j: `
@@ -431,7 +400,6 @@ func TestContainer_UnmarshalJSON(t *testing.T) {
 	// filled
 	for i := range validContainerTokens {
 		require.NoError(t, val.UnmarshalJSON([]byte(validJSONContainerTokens[i])), i)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
 		require.Equal(t, validContainerTokens[i], val, i)
 	}
 }
@@ -539,12 +507,12 @@ func TestContainer_Sign(t *testing.T) {
 
 	var c session.Container
 	for i, rfc6979Sig := range [][]byte{
-		{7, 252, 130, 23, 167, 44, 8, 109, 123, 206, 34, 95, 110, 184, 195, 141, 43, 84, 35, 138, 93, 216, 168,
-			230, 242, 242, 159, 103, 133, 142, 141, 104, 77, 166, 42, 74, 3, 150, 102, 137, 185, 116, 51, 101,
-			147, 33, 4, 7, 14, 65, 174, 28, 44, 91, 168, 58, 128, 38, 163, 102, 52, 239, 213, 118},
-		{239, 43, 34, 239, 180, 70, 238, 28, 100, 254, 33, 4, 89, 177, 32, 18, 215, 175, 8, 126, 126, 104, 102,
-			180, 121, 13, 39, 78, 50, 132, 119, 250, 114, 225, 242, 135, 253, 191, 99, 129, 229, 108, 148, 223,
-			24, 240, 44, 229, 102, 141, 124, 151, 121, 196, 250, 63, 116, 107, 113, 75, 109, 169, 249, 11},
+		{190, 18, 239, 30, 103, 101, 136, 235, 201, 103, 161, 14, 141, 211, 187, 115, 174, 185, 216, 240, 250, 20,
+			104, 255, 159, 187, 123, 153, 69, 51, 114, 161, 38, 249, 83, 23, 227, 242, 14, 169, 163, 96, 174,
+			153, 174, 130, 142, 199, 157, 243, 8, 254, 0, 177, 165, 9, 148, 18, 72, 211, 199, 188, 220, 44},
+		{5, 89, 114, 211, 237, 183, 201, 129, 24, 221, 131, 188, 255, 135, 221, 55, 49, 206, 184, 128, 44, 66,
+			244, 148, 51, 41, 242, 41, 97, 153, 7, 70, 72, 63, 192, 149, 12, 37, 63, 4, 192, 125, 161, 27, 123,
+			242, 76, 178, 148, 202, 241, 54, 4, 108, 34, 182, 217, 246, 125, 107, 132, 53, 91, 188},
 	} {
 		validContainerTokens[i].CopyTo(&c)
 		t.Run("container#"+strconv.Itoa(i), func(t *testing.T) {
@@ -576,26 +544,26 @@ func TestContainer_VerifySignature(t *testing.T) {
 		sigs   [][]byte // of validContainerTokens
 	}{
 		{scheme: neofscrypto.ECDSA_SHA512, sigs: [][]byte{
-			{4, 31, 195, 240, 176, 85, 91, 249, 98, 82, 96, 126, 76, 27, 6, 181, 195, 193, 197, 62, 209, 78, 170, 109, 31, 169,
-				249, 24, 211, 167, 110, 165, 200, 49, 194, 72, 123, 151, 121, 63, 29, 111, 22, 71, 220, 145, 58, 135, 95,
-				244, 202, 224, 70, 162, 136, 39, 30, 58, 151, 240, 9, 65, 144, 32, 184},
-			{4, 43, 119, 4, 66, 20, 131, 214, 29, 233, 25, 125, 222, 56, 184, 15, 153, 70, 48, 112, 211, 193, 79, 49, 233,
-				36, 188, 130, 244, 42, 19, 134, 179, 5, 32, 143, 63, 35, 52, 228, 149, 202, 170, 174, 150, 246, 116, 182,
-				44, 89, 25, 91, 172, 56, 163, 22, 33, 103, 8, 245, 245, 140, 212, 146, 186},
+			{4, 42, 31, 236, 138, 99, 174, 186, 104, 85, 109, 115, 31, 152, 42, 84, 148, 73, 12, 21, 206, 199, 211, 246, 191,
+				185, 143, 181, 125, 99, 149, 43, 26, 49, 26, 152, 186, 161, 95, 12, 157, 144, 212, 203, 158, 233, 148, 226,
+				165, 55, 67, 155, 84, 84, 129, 65, 10, 137, 254, 20, 157, 139, 229, 46, 218},
+			{4, 9, 87, 55, 182, 1, 68, 11, 29, 1, 146, 125, 72, 110, 146, 231, 62, 138, 245, 54, 16, 161, 248, 28, 7, 201,
+				26, 25, 158, 27, 144, 224, 99, 226, 173, 191, 116, 60, 207, 247, 101, 233, 87, 205, 55, 162, 129, 182,
+				211, 149, 194, 23, 242, 124, 238, 56, 80, 109, 45, 165, 15, 129, 91, 7, 180},
 		}},
 		{scheme: neofscrypto.ECDSA_DETERMINISTIC_SHA256, sigs: [][]byte{
-			{184, 33, 118, 69, 74, 185, 216, 122, 57, 209, 165, 34, 215, 252, 81, 171, 91, 211, 169, 223, 107, 78, 246, 20,
-				87, 15, 37, 126, 255, 170, 43, 89, 138, 25, 255, 54, 243, 205, 122, 120, 184, 22, 43, 72, 252, 254, 109,
-				91, 176, 30, 116, 54, 181, 75, 172, 137, 245, 155, 232, 0, 96, 102, 15, 228},
-			{221, 183, 51, 58, 146, 202, 120, 39, 156, 110, 158, 90, 11, 13, 7, 216, 227, 69, 190, 152, 110, 159, 17, 64, 251,
-				35, 96, 40, 106, 69, 211, 112, 139, 127, 24, 179, 13, 199, 161, 102, 117, 217, 61, 25, 144, 222, 171, 203, 240,
-				247, 50, 152, 151, 244, 69, 69, 69, 21, 221, 232, 12, 131, 163, 87},
+			{211, 170, 29, 36, 209, 239, 196, 159, 185, 21, 248, 226, 171, 179, 107, 14, 171, 214, 250, 240, 188, 188, 95, 8,
+				217, 230, 5, 85, 176, 231, 159, 77, 23, 181, 10, 140, 183, 169, 166, 218, 181, 21, 216, 53, 5, 39, 29, 89, 189,
+				7, 79, 67, 114, 72, 62, 136, 144, 73, 91, 76, 151, 52, 1, 205},
+			{129, 98, 32, 222, 16, 112, 71, 181, 155, 28, 175, 176, 189, 243, 132, 130, 112, 157, 244, 105, 218, 22, 28, 27,
+				105, 109, 49, 184, 52, 180, 37, 151, 104, 161, 105, 108, 247, 104, 201, 72, 75, 5, 233, 94, 152, 136, 202, 63,
+				121, 77, 193, 129, 137, 248, 215, 211, 77, 6, 147, 100, 201, 79, 18, 125},
 		}},
 		{scheme: neofscrypto.ECDSA_WALLETCONNECT, sigs: [][]byte{
-			{30, 49, 223, 33, 75, 83, 235, 194, 92, 37, 74, 128, 38, 58, 215, 178, 79, 130, 40, 59, 77, 83, 126, 46, 68, 1,
-				233, 170, 162, 153, 83, 65, 53, 171, 44, 138, 187, 214, 130, 160, 167, 96, 171, 7, 164, 95, 40, 58, 108, 214, 246,
-				192, 239, 15, 36, 194, 179, 189, 192, 117, 166, 80, 176, 247, 117, 104, 6, 229, 191, 221, 25, 152, 75, 103, 187,
-				125, 152, 193, 180, 204},
+			{105, 91, 121, 219, 8, 156, 202, 92, 24, 217, 154, 168, 237, 8, 93, 138, 226, 111, 165, 72, 22, 245, 197, 64, 14,
+				26, 207, 40, 110, 182, 182, 190, 53, 107, 12, 43, 115, 20, 250, 194, 251, 194, 160, 151, 48, 244, 126, 10, 185,
+				226, 201, 137, 35, 122, 186, 69, 8, 239, 68, 66, 87, 126, 116, 12, 150, 15, 108, 163, 129, 197, 192, 140, 15, 96,
+				16, 38, 160, 81, 110, 250},
 		}},
 	} {
 		sig.SetScheme(tc.scheme)
@@ -638,7 +606,7 @@ func TestContainer_UnmarshalSignedData(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidSignedTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.ObjectSessionContext",
+			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Object",
 			b: []byte{42, 2, 18, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag",
@@ -677,8 +645,7 @@ func TestContainer_UnmarshalSignedData(t *testing.T) {
 	for i := range validContainerTokens {
 		err := val.UnmarshalSignedData(validSignedContainerTokens[i])
 		require.NoError(t, err)
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/606")
-		require.Equal(t, validContainerTokens[i], val)
+		require.Equal(t, validSignedContainerTokens[i], val.SignedData())
 	}
 }
 

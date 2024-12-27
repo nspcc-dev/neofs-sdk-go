@@ -9,12 +9,11 @@ import (
 	"testing"
 	"time"
 
-	v2object "github.com/nspcc-dev/neofs-api-go/v2/object"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -26,17 +25,9 @@ type testHashObjectPayloadRangesServer struct {
 	protoobject.UnimplementedObjectServiceServer
 	testCommonUnaryServerSettings[
 		*protoobject.GetRangeHashRequest_Body,
-		v2object.GetRangeHashRequestBody,
-		*v2object.GetRangeHashRequestBody,
 		*protoobject.GetRangeHashRequest,
-		v2object.GetRangeHashRequest,
-		*v2object.GetRangeHashRequest,
 		*protoobject.GetRangeHashResponse_Body,
-		v2object.GetRangeHashResponseBody,
-		*v2object.GetRangeHashResponseBody,
 		*protoobject.GetRangeHashResponse,
-		v2object.GetRangeHashResponse,
-		*v2object.GetRangeHashResponse,
 	]
 	testCommonReadObjectRequestServerSettings
 	reqHomo   bool
@@ -233,7 +224,6 @@ func TestClient_ObjectHash(t *testing.T) {
 					c := newTestObjectClient(t, srv)
 
 					bt := bearertest.Token()
-					bt.SetEACLTable(anyValidEACL) // TODO: drop after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
 					require.NoError(t, bt.Sign(usertest.User()))
 					opts := anyValidOpts
 					opts.WithBearerToken(bt)

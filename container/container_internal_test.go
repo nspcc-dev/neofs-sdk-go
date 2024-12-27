@@ -66,7 +66,7 @@ func TestContainer_CopyTo(t *testing.T) {
 		require.True(t, container.Owner() == dst.Owner())
 
 		newOwner := usertest.ID()
-		dst.v2.GetOwnerID().SetValue(newOwner[:])
+		copy(dst.owner[:], newOwner[:])
 
 		require.False(t, container.Owner() == dst.Owner())
 	})
@@ -87,48 +87,42 @@ func TestContainer_CopyTo(t *testing.T) {
 		var dst Container
 		container.CopyTo(&dst)
 
-		require.True(t, bytes.Equal(container.v2.GetNonce(), dst.v2.GetNonce()))
-		dst.v2.SetNonce([]byte{1, 2, 3})
-		require.False(t, bytes.Equal(container.v2.GetNonce(), dst.v2.GetNonce()))
+		require.True(t, container.nonce == dst.nonce)
+		copy(dst.nonce[:], []byte{1, 2, 3})
+		require.False(t, container.nonce == dst.nonce)
 	})
 
 	t.Run("overwrite nonce", func(t *testing.T) {
 		var local Container
-		require.Empty(t, local.v2.GetNonce())
+		require.Zero(t, local.nonce)
 
 		var dst Container
-		dst.v2.SetNonce([]byte{1, 2, 3})
-		require.NotEmpty(t, dst.v2.GetNonce())
+		copy(dst.nonce[:], []byte{1, 2, 3})
+		require.NotZero(t, dst.nonce)
 
 		local.CopyTo(&dst)
 		require.True(t, bytes.Equal(local.Marshal(), dst.Marshal()))
 
-		require.Empty(t, local.v2.GetNonce())
-		require.Empty(t, dst.v2.GetNonce())
+		require.Zero(t, local.nonce)
+		require.Zero(t, dst.nonce)
 
-		require.True(t, bytes.Equal(local.v2.GetNonce(), dst.v2.GetNonce()))
-		dst.v2.SetNonce([]byte{1, 2, 3})
-		require.False(t, bytes.Equal(local.v2.GetNonce(), dst.v2.GetNonce()))
+		require.True(t, local.nonce == dst.nonce)
+		copy(dst.nonce[:], []byte{1, 2, 3})
+		require.False(t, local.nonce == dst.nonce)
 	})
 
 	t.Run("change version", func(t *testing.T) {
 		var dst Container
 		container.CopyTo(&dst)
 
-		oldVer := container.v2.GetVersion()
-		require.NotNil(t, oldVer)
+		require.Equal(t, container.Version(), dst.Version())
 
-		newVer := dst.v2.GetVersion()
-		require.NotNil(t, newVer)
+		cp := container.Version()
+		dst.version.SetMajor(rand.Uint32())
+		dst.version.SetMinor(rand.Uint32())
 
-		require.Equal(t, oldVer.GetMajor(), newVer.GetMajor())
-		require.Equal(t, oldVer.GetMinor(), newVer.GetMinor())
-
-		newVer.SetMajor(rand.Uint32())
-		newVer.SetMinor(rand.Uint32())
-
-		require.NotEqual(t, oldVer.GetMajor(), newVer.GetMajor())
-		require.NotEqual(t, oldVer.GetMinor(), newVer.GetMinor())
+		require.NotEqual(t, cp, dst.Version())
+		require.Equal(t, cp, container.Version())
 	})
 
 	t.Run("change attributes", func(t *testing.T) {

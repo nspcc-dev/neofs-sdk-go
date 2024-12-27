@@ -7,25 +7,24 @@ import (
 	"fmt"
 	"hash"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/tzhash/tz"
 )
 
 // Checksum represents checksum of some digital data.
 //
-// Checksum is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/refs.Checksum
-// message. See ReadFromV2 / WriteToV2 methods.
+// Checksum is mutually compatible with [refs.Checksum] message. See
+// [Checksum.FromProtoMessage] / [Checksum.ProtoMessage] methods.
 //
 // Instances must be created using one of the constructors.
-//
-// Note that direct typecast is not safe and may result in loss of compatibility:
-//
-//	_ = Checksum(refs.Checksum{}) // not recommended
-type Checksum refs.Checksum
+type Checksum struct {
+	typ Type
+	val []byte
+}
 
 // Type represents the enumeration
 // of checksum types.
-type Type uint32
+type Type int32
 
 const (
 	Unknown      Type = iota // Deprecated: use 0 instead.
@@ -42,19 +41,27 @@ func typeToProto(t Type) refs.ChecksumType {
 	default:
 		return refs.ChecksumType(t)
 	case SHA256:
-		return refs.SHA256
+		return refs.ChecksumType_SHA256
 	case TillichZemor:
-		return refs.TillichZemor
+		return refs.ChecksumType_TZ
+	}
+}
+
+func typeFromProto(t refs.ChecksumType) Type {
+	switch t {
+	default:
+		return Type(t)
+	case refs.ChecksumType_SHA256:
+		return SHA256
+	case refs.ChecksumType_TZ:
+		return TillichZemor
 	}
 }
 
 // New constructs new Checksum instance. It is the caller's responsibility to
 // ensure that the hash matches the type.
 func New(typ Type, hsh []byte) Checksum {
-	var res refs.Checksum
-	res.SetType(typeToProto(typ))
-	res.SetSum(hsh)
-	return Checksum(res)
+	return Checksum{typ: typ, val: hsh}
 }
 
 // NewSHA256 constructs new Checksum from SHA-256 hash.
@@ -87,26 +94,33 @@ func NewFromData(typ Type, data []byte) (Checksum, error) {
 	}
 }
 
-// ReadFromV2 reads Checksum from the refs.Checksum message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// c from it.
 //
-// See also WriteToV2.
-func (c *Checksum) ReadFromV2(m refs.Checksum) error {
-	if len(m.GetSum()) == 0 {
+// See also [Checksum.ProtoMessage].
+func (c *Checksum) FromProtoMessage(m *refs.Checksum) error {
+	if m.Type < 0 {
+		return fmt.Errorf("negative type %d", m.Type)
+	}
+	if len(m.Sum) == 0 {
 		return errors.New("missing value")
 	}
 
-	*c = Checksum(m)
+	c.typ = typeFromProto(m.Type)
+	c.val = m.Sum
 
 	return nil
 }
 
-// WriteToV2 writes Checksum to the refs.Checksum message.
-// The message must not be nil.
+// ProtoMessage converts c into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (c Checksum) WriteToV2(m *refs.Checksum) {
-	*m = (refs.Checksum)(c)
+// See also [Checksum.FromProtoMessage].
+func (c Checksum) ProtoMessage() *refs.Checksum {
+	return &refs.Checksum{
+		Type: typeToProto(c.typ),
+		Sum:  c.val,
+	}
 }
 
 // Type returns checksum type.
@@ -115,15 +129,7 @@ func (c Checksum) WriteToV2(m *refs.Checksum) {
 //
 // See also [NewTillichZemor], [NewSHA256].
 func (c Checksum) Type() Type {
-	v2 := (refs.Checksum)(c)
-	switch typ := v2.GetType(); typ {
-	case refs.SHA256:
-		return SHA256
-	case refs.TillichZemor:
-		return TillichZemor
-	default:
-		return Type(typ)
-	}
+	return c.typ
 }
 
 // Value returns checksum bytes. Return value
@@ -136,8 +142,7 @@ func (c Checksum) Type() Type {
 //
 // See also [NewTillichZemor], [NewSHA256].
 func (c Checksum) Value() []byte {
-	v2 := (refs.Checksum)(c)
-	return v2.GetSum()
+	return c.val
 }
 
 // SetSHA256 sets checksum to SHA256 hash.
@@ -174,8 +179,7 @@ func (c *Checksum) SetTillichZemor(v [tz.Size]byte) { *c = NewTillichZemor(v) }
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.
 func (c Checksum) String() string {
-	v2 := (refs.Checksum)(c)
-	return fmt.Sprintf("%s:%s", c.Type(), hex.EncodeToString(v2.GetSum()))
+	return fmt.Sprintf("%s:%s", c.Type(), hex.EncodeToString(c.Value()))
 }
 
 // String implements fmt.Stringer.

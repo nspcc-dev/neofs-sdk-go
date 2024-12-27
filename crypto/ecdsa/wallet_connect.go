@@ -3,13 +3,19 @@ package neofsecdsa
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"math/big"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
-	"github.com/nspcc-dev/neofs-api-go/v2/util/signature/walletconnect"
+	"github.com/nspcc-dev/neo-go/pkg/io"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 )
+
+const saltLen = 16
 
 // SignerWalletConnect is similar to SignerRFC6979 with 2 changes:
 // 1. The data is base64 encoded before signing/verifying.
@@ -29,7 +35,16 @@ func (x SignerWalletConnect) Scheme() neofscrypto.Scheme {
 func (x SignerWalletConnect) Sign(data []byte) ([]byte, error) {
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
 	base64.StdEncoding.Encode(b64, data)
-	return walletconnect.Sign((*ecdsa.PrivateKey)(&x), b64)
+	var salt [saltLen]byte
+	_, err := rand.Read(salt[:])
+	if err != nil {
+		return nil, fmt.Errorf("randomize salt: %w", err)
+	}
+	sig, err := SignerRFC6979(x).Sign(saltMessageWalletConnect(b64, salt[:]))
+	if err != nil {
+		return nil, err
+	}
+	return append(sig, salt[:]...), nil
 }
 
 // Public initializes PublicKey and returns it as neofscrypto.PublicKey.
@@ -79,7 +94,27 @@ func (x *PublicKeyWalletConnect) Decode(data []byte) error {
 
 // Verify verifies data signature calculated by ECDSA algorithm with SHA-512 hashing.
 func (x PublicKeyWalletConnect) Verify(data, signature []byte) bool {
+	if len(signature) != keys.SignatureLen+saltLen {
+		return false
+	}
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
 	base64.StdEncoding.Encode(b64, data)
-	return walletconnect.Verify((*ecdsa.PublicKey)(&x), b64, signature)
+	sig, salt := signature[:keys.SignatureLen], signature[keys.SignatureLen:]
+	h := sha256.Sum256(saltMessageWalletConnect(b64, salt))
+	r := new(big.Int).SetBytes(sig[:keys.SignatureLen/2])
+	s := new(big.Int).SetBytes(sig[keys.SignatureLen/2:])
+	return ecdsa.Verify((*ecdsa.PublicKey)(&x), h[:], r, s)
+}
+
+// saltMessageWalletConnect calculates signed message for given data and salt
+// according to WalletConnect.
+func saltMessageWalletConnect(data, salt []byte) []byte {
+	saltedLen := hex.EncodedLen(len(salt)) + len(data)
+	b := make([]byte, 4+io.GetVarSize(saltedLen)+saltedLen+2)
+	b[0], b[1], b[2], b[3] = 0x01, 0x00, 0x01, 0xf0
+	n := 4 + io.PutVarUint(b[4:], uint64(saltedLen))
+	n += hex.Encode(b[n:], salt)
+	n += copy(b[n:], data)
+	b[n], b[n+1] = 0x00, 0x00
+	return b
 }

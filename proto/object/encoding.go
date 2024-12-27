@@ -20,19 +20,16 @@ const (
 // MarshaledSize returns size of the Header_Split in Protocol Buffers V3 format
 // in bytes. MarshaledSize is NPE-safe.
 func (x *Header_Split) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldSplitParent, x.Parent) +
+		return proto.SizeEmbedded(fieldSplitParent, x.Parent) +
 			proto.SizeEmbedded(fieldSplitPrevious, x.Previous) +
 			proto.SizeEmbedded(fieldSplitParentSignature, x.ParentSignature) +
 			proto.SizeEmbedded(fieldSplitParentHeader, x.ParentHeader) +
 			proto.SizeBytes(fieldSplitID, x.SplitId) +
-			proto.SizeEmbedded(fieldSplitFirst, x.First)
-		for i := range x.Children {
-			sz += proto.SizeEmbedded(fieldSplitChildren, x.Children[i])
-		}
+			proto.SizeEmbedded(fieldSplitFirst, x.First) +
+			proto.SizeRepeatedMessages(fieldSplitChildren, x.Children)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Header_Split in Protocol Buffers V3 format with
@@ -45,9 +42,7 @@ func (x *Header_Split) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], fieldSplitParentSignature, x.ParentSignature)
 		off += proto.MarshalToEmbedded(b[off:], fieldSplitParentHeader, x.ParentHeader)
 		off += proto.MarshalToBytes(b[off:], fieldSplitID, x.SplitId)
-		for i := range x.Children {
-			off += proto.MarshalToEmbedded(b[off:], fieldSplitChildren, x.Children[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldSplitChildren, x.Children)
 		proto.MarshalToEmbedded(b[off:], fieldSplitFirst, x.First)
 	}
 }
@@ -139,9 +134,8 @@ const (
 // MarshaledSize returns size of the Header in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Header) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldHeaderVersion, x.Version) +
+		return proto.SizeEmbedded(fieldHeaderVersion, x.Version) +
 			proto.SizeEmbedded(fieldHeaderContainer, x.ContainerId) +
 			proto.SizeEmbedded(fieldHeaderOwner, x.OwnerId) +
 			proto.SizeVarint(fieldHeaderCreationEpoch, x.CreationEpoch) +
@@ -150,12 +144,10 @@ func (x *Header) MarshaledSize() int {
 			proto.SizeVarint(fieldHeaderType, int32(x.ObjectType)) +
 			proto.SizeEmbedded(fieldHeaderHomomorphic, x.HomomorphicHash) +
 			proto.SizeEmbedded(fieldHeaderSession, x.SessionToken) +
-			proto.SizeEmbedded(fieldHeaderSplit, x.Split)
-		for i := range x.Attributes {
-			sz += proto.SizeEmbedded(fieldHeaderAttributes, x.Attributes[i])
-		}
+			proto.SizeEmbedded(fieldHeaderSplit, x.Split) +
+			proto.SizeRepeatedMessages(fieldHeaderAttributes, x.Attributes)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the Header in Protocol Buffers V3 format with ascending
@@ -172,9 +164,7 @@ func (x *Header) MarshalStable(b []byte) {
 		off += proto.MarshalToVarint(b[off:], fieldHeaderType, int32(x.ObjectType))
 		off += proto.MarshalToEmbedded(b[off:], fieldHeaderHomomorphic, x.HomomorphicHash)
 		off += proto.MarshalToEmbedded(b[off:], fieldHeaderSession, x.SessionToken)
-		for i := range x.Attributes {
-			off += proto.MarshalToEmbedded(b[off:], fieldHeaderAttributes, x.Attributes[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldHeaderAttributes, x.Attributes)
 		proto.MarshalToEmbedded(b[off:], fieldHeaderSplit, x.Split)
 	}
 }
@@ -597,16 +587,13 @@ const (
 // MarshaledSize returns size of the GetRangeHashRequest_Body in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *GetRangeHashRequest_Body) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldRangeHashReqAddress, x.Address) +
+		return proto.SizeEmbedded(fieldRangeHashReqAddress, x.Address) +
 			proto.SizeBytes(fieldRangeHashReqSalt, x.Salt) +
-			proto.SizeVarint(fieldRangeHashReqType, int32(x.Type))
-		for i := range x.Ranges {
-			sz += proto.SizeEmbedded(fieldRangeHashReqRanges, x.Ranges[i])
-		}
+			proto.SizeVarint(fieldRangeHashReqType, int32(x.Type)) +
+			proto.SizeRepeatedMessages(fieldRangeHashReqRanges, x.Ranges)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the GetRangeHashRequest_Body in Protocol Buffers V3
@@ -616,9 +603,7 @@ func (x *GetRangeHashRequest_Body) MarshaledSize() int {
 func (x *GetRangeHashRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, fieldRangeHashReqAddress, x.Address)
-		for i := range x.Ranges {
-			off += proto.MarshalToEmbedded(b[off:], fieldRangeHashReqRanges, x.Ranges[i])
-		}
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldRangeHashReqRanges, x.Ranges)
 		off += proto.MarshalToBytes(b[off:], fieldRangeHashReqSalt, x.Salt)
 		proto.MarshalToVarint(b[off:], fieldRangeHashReqType, int32(x.Type))
 	}
@@ -842,15 +827,12 @@ const (
 // MarshaledSize returns size of the SearchRequest_Body in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *SearchRequest_Body) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldSearchReqContainer, x.ContainerId)
-		sz += proto.SizeVarint(fieldSearchReqVersion, x.Version)
-		for i := range x.Filters {
-			sz += proto.SizeEmbedded(fieldSearchReqFilters, x.Filters[i])
-		}
+		return proto.SizeEmbedded(fieldSearchReqContainer, x.ContainerId) +
+			proto.SizeVarint(fieldSearchReqVersion, x.Version) +
+			proto.SizeRepeatedMessages(fieldSearchReqFilters, x.Filters)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the SearchRequest_Body in Protocol Buffers V3 format
@@ -861,9 +843,7 @@ func (x *SearchRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, fieldSearchReqContainer, x.ContainerId)
 		off += proto.MarshalToVarint(b[off:], fieldSearchReqVersion, x.Version)
-		for i := range x.Filters {
-			off += proto.MarshalToEmbedded(b[off:], fieldSearchReqFilters, x.Filters[i])
-		}
+		proto.MarshalToRepeatedMessages(b[off:], fieldSearchReqFilters, x.Filters)
 	}
 }
 
@@ -875,13 +855,10 @@ const (
 // MarshaledSize returns size of the SearchResponse_Body in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *SearchResponse_Body) MarshaledSize() int {
-	var sz int
 	if x != nil {
-		for i := range x.IdList {
-			sz += proto.SizeEmbedded(fieldSearchRespIDList, x.IdList[i])
-		}
+		return proto.SizeRepeatedMessages(fieldSearchRespIDList, x.IdList)
 	}
-	return sz
+	return 0
 }
 
 // MarshalStable writes the SearchResponse_Body in Protocol Buffers V3 format
@@ -890,9 +867,6 @@ func (x *SearchResponse_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *SearchResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		var off int
-		for i := range x.IdList {
-			off += proto.MarshalToEmbedded(b[off:], fieldSearchRespIDList, x.IdList[i])
-		}
+		proto.MarshalToRepeatedMessages(b, fieldSearchRespIDList, x.IdList)
 	}
 }

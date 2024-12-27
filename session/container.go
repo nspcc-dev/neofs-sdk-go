@@ -3,12 +3,11 @@ package session
 import (
 	"errors"
 	"fmt"
-	"math"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/session"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -18,8 +17,8 @@ import (
 // limited validity period, and applies to a strictly defined set of operations.
 // See methods for details.
 //
-// Container is mutually compatible with github.com/nspcc-dev/neofs-api-go/v2/session.Token
-// message. See ReadFromV2 / WriteToV2 methods.
+// Container is mutually compatible with [protosession.SessionToken] message.
+// See [Container.FromProtoMessage] / [Container.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type Container struct {
@@ -39,18 +38,18 @@ func (x Container) CopyTo(dst *Container) {
 }
 
 // readContext is a contextReader needed for commonData methods.
-func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool) error {
-	cCnr, ok := c.(*session.ContainerSessionContext)
-	if !ok || cCnr == nil {
+func (x *Container) readContext(c any, checkFieldPresence bool) error {
+	cc, ok := c.(*protosession.SessionToken_Body_Container)
+	if !ok || cc == nil {
 		return fmt.Errorf("invalid context %T", c)
 	}
+	cCnr := cc.Container
 
-	wildcard := cCnr.Wildcard()
-	cnr := cCnr.ContainerID()
+	cnr := cCnr.GetContainerId()
 
-	if !wildcard {
+	if !cCnr.Wildcard {
 		if cnr != nil {
-			err := x.cnr.ReadFromV2(*cnr)
+			err := x.cnr.FromProtoMessage(cnr)
 			if err != nil {
 				return fmt.Errorf("invalid container ID: %w", err)
 			}
@@ -63,49 +62,46 @@ func (x *Container) readContext(c session.TokenContext, checkFieldPresence bool)
 		return errors.New("container conflicts with wildcard flag")
 	}
 
-	verb := cCnr.Verb()
-	if verb > math.MaxInt32 {
-		return fmt.Errorf("verb %d overflows int32", verb)
+	verb := cCnr.GetVerb()
+	if verb < 0 {
+		return fmt.Errorf("negative verb %d", verb)
 	}
-	x.verb = ContainerVerb(verb)
+	x.verb = ContainerVerb(cCnr.Verb)
 
 	return nil
 }
 
-func (x *Container) readFromV2(m session.Token, checkFieldPresence bool) error {
-	return x.commonData.readFromV2(m, checkFieldPresence, x.readContext)
+func (x *Container) fromProtoMessage(m *protosession.SessionToken, checkFieldPresence bool) error {
+	return x.commonData.fromProtoMessage(m, checkFieldPresence, x.readContext)
 }
 
-// ReadFromV2 reads Container from the session.Token message. Checks if the
-// message conforms to NeoFS API V2 protocol.
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// x from it.
 //
-// See also WriteToV2.
-func (x *Container) ReadFromV2(m session.Token) error {
-	return x.readFromV2(m, true)
+// See also [Container.ProtoMessage].
+func (x *Container) FromProtoMessage(m *protosession.SessionToken) error {
+	return x.fromProtoMessage(m, true)
 }
 
-func (x Container) writeContext() session.TokenContext {
-	wildcard := x.cnr.IsZero()
-	var c session.ContainerSessionContext
-	c.SetWildcard(wildcard)
-	c.SetVerb(session.ContainerSessionVerb(x.verb))
-
-	if !wildcard {
-		var cnr refs.ContainerID
-		x.cnr.WriteToV2(&cnr)
-
-		c.SetContainerID(&cnr)
+func (x Container) writeContext(m *protosession.SessionToken_Body) {
+	c := &protosession.ContainerSessionContext{
+		Verb:     protosession.ContainerSessionContext_Verb(x.verb),
+		Wildcard: x.cnr.IsZero(),
 	}
 
-	return &c
+	if !c.Wildcard {
+		c.ContainerId = x.cnr.ProtoMessage()
+	}
+
+	m.Context = &protosession.SessionToken_Body_Container{Container: c}
 }
 
-// WriteToV2 writes Container to the session.Token message.
-// The message must not be nil.
+// ProtoMessage converts x into message to transmit using the NeoFS API
+// protocol.
 //
-// See also ReadFromV2.
-func (x Container) WriteToV2(m *session.Token) {
-	x.writeToV2(m, x.writeContext)
+// See also [Container.FromProtoMessage].
+func (x Container) ProtoMessage() *protosession.SessionToken {
+	return x.protoMessage(x.writeContext)
 }
 
 // Marshal encodes Container into a binary format of the NeoFS API protocol
@@ -175,15 +171,13 @@ func (x *Container) SignedData() []byte {
 
 // UnmarshalSignedData is a reverse op to [Container.SignedData].
 func (x *Container) UnmarshalSignedData(data []byte) error {
-	var body session.TokenBody
-	err := body.Unmarshal(data)
+	var body protosession.SessionToken_Body
+	err := neofsproto.UnmarshalMessage(data, &body)
 	if err != nil {
 		return fmt.Errorf("decode body: %w", err)
 	}
 
-	var tok session.Token
-	tok.SetBody(&body)
-	return x.readFromV2(tok, false)
+	return x.fromProtoMessage(&protosession.SessionToken{Body: &body}, false)
 }
 
 // VerifySignature checks if Container signature is presented and valid.

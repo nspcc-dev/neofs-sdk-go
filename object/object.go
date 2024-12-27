@@ -3,21 +3,44 @@ package object
 import (
 	"bytes"
 	"fmt"
-	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/nspcc-dev/neofs-api-go/v2/object"
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	v2session "github.com/nspcc-dev/neofs-api-go/v2/session"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
+
+type split struct {
+	parID    oid.ID
+	prev     oid.ID
+	parSig   *neofscrypto.Signature
+	parHdr   *header
+	children []oid.ID
+	id       []byte
+	first    oid.ID
+}
+
+type header struct {
+	version     *version.Version
+	owner       user.ID
+	cnr         cid.ID
+	created     uint64
+	payloadLn   uint64
+	pldHash     *checksum.Checksum
+	typ         Type
+	pldHomoHash *checksum.Checksum
+	session     *session.Object
+	attrs       []Attribute
+	split       split
+}
 
 // Object represents in-memory structure of the NeoFS object.
 // Type is compatible with NeoFS API V2 protocol.
@@ -25,8 +48,13 @@ import (
 // Instance can be created depending on scenario:
 //   - [Object.InitCreation] (an object to be placed in container);
 //   - New (blank instance, usually needed for decoding);
-//   - [Object.ReadFromV2] (when working under NeoFS API V2 protocol).
-type Object object.Object
+//   - [Object.FromProtoMessage] (when working under NeoFS API V2 protocol).
+type Object struct {
+	id     oid.ID
+	sig    *neofscrypto.Signature
+	header header
+	pld    []byte
+}
 
 // RequiredFields contains the minimum set of object data that must be set
 // by the NeoFS user at the stage of creation.
@@ -44,218 +72,323 @@ func (o *Object) InitCreation(rf RequiredFields) {
 	o.SetOwner(rf.Owner)
 }
 
-// NewFromV2 wraps v2 [object.Object] message to [Object].
-//
-// Deprecated: BUG: fields' format is not checked. Use [Object.ReadFromV2]
-// instead.
-func NewFromV2(oV2 *object.Object) *Object {
-	return (*Object)(oV2)
-}
-
 // New creates and initializes blank [Object].
 func New() *Object {
 	return new(Object)
 }
 
-func verifySplitHeaderV2(m object.SplitHeader) error {
+func (x split) isZero() bool {
+	return x.parID.IsZero() && x.prev.IsZero() && x.parSig == nil && x.parHdr == nil && len(x.children) == 0 &&
+		len(x.id) == 0 && x.first.IsZero()
+}
+
+func (x *split) fromProtoMessage(m *protoobject.Header_Split) error {
 	// parent ID
-	if mID := m.GetParent(); mID != nil {
-		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+	if m.Parent != nil {
+		if err := x.parID.FromProtoMessage(m.Parent); err != nil {
 			return fmt.Errorf("invalid parent split member ID: %w", err)
 		}
+	} else {
+		x.parID = oid.ID{}
 	}
 	// previous
-	if mID := m.GetPrevious(); mID != nil {
-		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+	if m.Previous != nil {
+		if err := x.prev.FromProtoMessage(m.Previous); err != nil {
 			return fmt.Errorf("invalid previous split member ID: %w", err)
 		}
+	} else {
+		x.prev = oid.ID{}
 	}
 	// first
-	if mID := m.GetFirst(); mID != nil {
-		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+	if m.First != nil {
+		if err := x.first.FromProtoMessage(m.First); err != nil {
 			return fmt.Errorf("invalid first split member ID: %w", err)
 		}
+	} else {
+		x.first = oid.ID{}
 	}
 	// split ID
-	if b := m.GetSplitID(); len(b) > 0 {
+	if x.id = m.SplitId; len(m.SplitId) > 0 {
 		var uid uuid.UUID
-		if err := uid.UnmarshalBinary(b); err != nil {
+		if err := uid.UnmarshalBinary(m.SplitId); err != nil {
 			return fmt.Errorf("invalid split ID: %w", err)
 		} else if ver := uid.Version(); ver != 4 {
 			return fmt.Errorf("invalid split ID: wrong UUID version %d, expected 4", ver)
 		}
 	}
 	// children
-	if mc := m.GetChildren(); len(mc) > 0 {
-		for i := range mc {
-			if err := new(oid.ID).ReadFromV2(mc[i]); err != nil {
+	if len(m.Children) > 0 {
+		x.children = make([]oid.ID, len(m.Children))
+		for i := range m.Children {
+			if m.Children[i] == nil {
+				return fmt.Errorf("nil child split member #%d", i)
+			}
+			if err := x.children[i].FromProtoMessage(m.Children[i]); err != nil {
 				return fmt.Errorf("invalid child split member ID #%d: %w", i, err)
 			}
 		}
+	} else {
+		x.children = nil
 	}
 	// parent signature
-	if ms := m.GetParentSignature(); ms != nil {
-		if err := new(neofscrypto.Signature).ReadFromV2(*ms); err != nil {
+	if m.ParentSignature != nil {
+		if x.parSig == nil {
+			x.parSig = new(neofscrypto.Signature)
+		}
+		if err := x.parSig.FromProtoMessage(m.ParentSignature); err != nil {
 			return fmt.Errorf("invalid parent signature: %w", err)
 		}
+	} else {
+		x.parSig = nil
 	}
 	// parent header
-	if mh := m.GetParentHeader(); mh != nil {
-		if err := verifyHeaderV2(*mh); err != nil {
+	if m.ParentHeader != nil {
+		if x.parHdr == nil {
+			x.parHdr = new(header)
+		}
+		if err := x.parHdr.fromProtoMessage(m.ParentHeader); err != nil {
 			return fmt.Errorf("invalid parent header: %w", err)
 		}
+	} else {
+		x.parHdr = nil
 	}
 	return nil
 }
 
-func verifyHeaderV2(m object.Header) error {
+func (x split) protoMessage() *protoobject.Header_Split {
+	m := &protoobject.Header_Split{
+		SplitId: x.id,
+	}
+	if !x.parID.IsZero() {
+		m.Parent = x.parID.ProtoMessage()
+	}
+	if !x.prev.IsZero() {
+		m.Previous = x.prev.ProtoMessage()
+	}
+	if x.parSig != nil {
+		m.ParentSignature = x.parSig.ProtoMessage()
+	}
+	if x.parHdr != nil {
+		m.ParentHeader = x.parHdr.protoMessage()
+	}
+	if len(x.children) > 0 {
+		m.Children = make([]*refs.ObjectID, len(x.children))
+		for i := range x.children {
+			m.Children[i] = x.children[i].ProtoMessage()
+		}
+	}
+	if !x.first.IsZero() {
+		m.First = x.first.ProtoMessage()
+	}
+	return m
+}
+
+func (x header) isZero() bool {
+	return x.version == nil && x.owner.IsZero() && x.cnr.IsZero() && x.created == 0 && x.payloadLn == 0 &&
+		x.pldHash == nil && x.typ == 0 && x.pldHomoHash == nil && x.session == nil && len(x.attrs) == 0 && x.split.isZero()
+}
+
+func (x *header) fromProtoMessage(m *protoobject.Header) error {
 	// version
-	if mv := m.GetVersion(); mv != nil {
-		if err := new(version.Version).ReadFromV2(*mv); err != nil {
+	if m.Version != nil {
+		if x.version == nil {
+			x.version = new(version.Version)
+		}
+		if err := x.version.FromProtoMessage(m.Version); err != nil {
 			return fmt.Errorf("invalid version: %w", err)
 		}
+	} else {
+		x.version = nil
 	}
 	// owner
-	if mu := m.GetOwnerID(); mu != nil {
-		if err := new(user.ID).ReadFromV2(*mu); err != nil {
+	if m.OwnerId != nil {
+		if err := x.owner.FromProtoMessage(m.OwnerId); err != nil {
 			return fmt.Errorf("invalid owner: %w", err)
 		}
+	} else {
+		x.owner = user.ID{}
 	}
 	// container
-	if mc := m.GetContainerID(); mc != nil {
-		if err := new(cid.ID).ReadFromV2(*mc); err != nil {
+	if m.ContainerId != nil {
+		if err := x.cnr.FromProtoMessage(m.ContainerId); err != nil {
 			return fmt.Errorf("invalid container: %w", err)
 		}
+	} else {
+		x.cnr = cid.ID{}
 	}
 	// payload checksum
-	if mc := m.GetPayloadHash(); mc != nil {
-		if err := new(checksum.Checksum).ReadFromV2(*mc); err != nil {
+	if m.PayloadHash != nil {
+		if x.pldHash == nil {
+			x.pldHash = new(checksum.Checksum)
+		}
+		if err := x.pldHash.FromProtoMessage(m.PayloadHash); err != nil {
 			return fmt.Errorf("invalid payload checksum: %w", err)
 		}
+	} else {
+		x.pldHash = nil
+	}
+	// type
+	if m.ObjectType < 0 {
+		return fmt.Errorf("negative type %d", m.ObjectType)
 	}
 	// payload homomorphic checksum
-	if mc := m.GetHomomorphicHash(); mc != nil {
-		if err := new(checksum.Checksum).ReadFromV2(*mc); err != nil {
+	if m.HomomorphicHash != nil {
+		if x.pldHomoHash == nil {
+			x.pldHomoHash = new(checksum.Checksum)
+		}
+		if err := x.pldHomoHash.FromProtoMessage(m.HomomorphicHash); err != nil {
 			return fmt.Errorf("invalid payload homomorphic checksum: %w", err)
 		}
+	} else {
+		x.pldHomoHash = nil
 	}
 	// session token
-	if ms := m.GetSessionToken(); ms != nil {
-		if err := new(session.Object).ReadFromV2(*ms); err != nil {
+	if m.SessionToken != nil {
+		if x.session == nil {
+			x.session = new(session.Object)
+		}
+		if err := x.session.FromProtoMessage(m.SessionToken); err != nil {
 			return fmt.Errorf("invalid session token: %w", err)
 		}
+	} else {
+		x.session = nil
 	}
 	// split header
-	if ms := m.GetSplit(); ms != nil {
-		if err := verifySplitHeaderV2(*ms); err != nil {
+	if m.Split != nil {
+		if err := x.split.fromProtoMessage(m.Split); err != nil {
 			return fmt.Errorf("invalid split header: %w", err)
 		}
+	} else {
+		x.split = split{}
 	}
 	// attributes
 	if ma := m.GetAttributes(); len(ma) > 0 {
+		x.attrs = make([]Attribute, len(ma))
 		done := make(map[string]struct{}, len(ma))
 		for i := range ma {
-			key := ma[i].GetKey()
-			if key == "" {
-				return fmt.Errorf("empty key of the attribute #%d", i)
+			if ma[i] == nil {
+				return fmt.Errorf("nil attribute #%d", i)
 			}
-			if _, ok := done[key]; ok {
-				return fmt.Errorf("duplicated attribute %s", key)
+			if _, ok := done[ma[i].Key]; ok {
+				return fmt.Errorf("duplicated attribute %s", ma[i].Key)
 			}
-			val := ma[i].GetValue()
-			if val == "" {
-				return fmt.Errorf("empty value of the attribute #%d (%s)", i, key)
+			if err := x.attrs[i].fromProtoMessage(ma[i], true); err != nil {
+				return fmt.Errorf("invalid attribute #%d: %w", i, err)
 			}
-			switch key {
-			case AttributeExpirationEpoch:
-				if _, err := strconv.ParseUint(val, 10, 64); err != nil {
-					return fmt.Errorf("invalid expiration attribute (must be a uint): %w", err)
-				}
-			}
-			done[key] = struct{}{}
+			done[ma[i].Key] = struct{}{}
 		}
+	} else {
+		x.attrs = nil
 	}
+	x.created = m.CreationEpoch
+	x.payloadLn = m.PayloadLength
+	x.typ = Type(m.ObjectType)
 	return nil
 }
 
-// ReadFromV2 reads Object from the [object.Object] message. Returns an error if
-// the message is malformed according to the NeoFS API V2 protocol. The message
-// must not be nil.
+func (x header) protoMessage() *protoobject.Header {
+	m := &protoobject.Header{
+		CreationEpoch: x.created,
+		PayloadLength: x.payloadLn,
+		ObjectType:    protoobject.ObjectType(x.typ),
+	}
+	if x.version != nil {
+		m.Version = x.version.ProtoMessage()
+	}
+	if !x.cnr.IsZero() {
+		m.ContainerId = x.cnr.ProtoMessage()
+	}
+	if !x.owner.IsZero() {
+		m.OwnerId = x.owner.ProtoMessage()
+	}
+	if x.pldHash != nil {
+		m.PayloadHash = x.pldHash.ProtoMessage()
+	}
+	if x.pldHomoHash != nil {
+		m.HomomorphicHash = x.pldHomoHash.ProtoMessage()
+	}
+	if x.session != nil {
+		m.SessionToken = x.session.ProtoMessage()
+	}
+	if len(x.attrs) > 0 {
+		m.Attributes = make([]*protoobject.Header_Attribute, len(x.attrs))
+		for i := range x.attrs {
+			m.Attributes[i] = &protoobject.Header_Attribute{Key: x.attrs[i].Key(), Value: x.attrs[i].Value()}
+		}
+	}
+	if !x.split.isZero() {
+		m.Split = x.split.protoMessage()
+	}
+	return m
+}
+
+// FromProtoMessage validates m according to the NeoFS API protocol and restores
+// o from it.
 //
-// ReadFromV2 is intended to be used by the NeoFS API V2 client/server
-// implementation only and is not expected to be directly used by applications.
-func (o *Object) ReadFromV2(m object.Object) error {
+// See also [Table.ProtoMessage].
+func (o *Object) FromProtoMessage(m *protoobject.Object) error {
 	// ID
-	if mID := m.GetObjectID(); mID != nil {
-		if err := new(oid.ID).ReadFromV2(*mID); err != nil {
+	if m.ObjectId != nil {
+		if err := o.id.FromProtoMessage(m.ObjectId); err != nil {
 			return fmt.Errorf("invalid ID: %w", err)
 		}
+	} else {
+		o.ResetID()
 	}
 	// signature
-	if ms := m.GetSignature(); ms != nil {
-		if err := new(neofscrypto.Signature).ReadFromV2(*ms); err != nil {
+	if m.Signature != nil {
+		if o.sig == nil {
+			o.sig = new(neofscrypto.Signature)
+		}
+		if err := o.sig.FromProtoMessage(m.Signature); err != nil {
 			return fmt.Errorf("invalid signature: %w", err)
 		}
+	} else {
+		o.sig = nil
 	}
 	// header
-	if mh := m.GetHeader(); mh != nil {
-		if err := verifyHeaderV2(*mh); err != nil {
+	if m.Header != nil {
+		if err := o.header.fromProtoMessage(m.Header); err != nil {
 			return fmt.Errorf("invalid header: %w", err)
 		}
+	} else {
+		o.header = header{}
 	}
-	*o = Object(m)
+	o.pld = m.Payload
 	return nil
 }
 
-// ToV2 converts [Object] to v2 [object.Object] message.
+// ProtoMessage converts o into message to transmit using the NeoFS API
+// protocol.
 //
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (o Object) ToV2() *object.Object {
-	return (*object.Object)(&o)
+// See also [Object.FromProtoMessage].
+func (o Object) ProtoMessage() *protoobject.Object {
+	m := &protoobject.Object{
+		Payload: o.pld,
+	}
+	if !o.id.IsZero() {
+		m.ObjectId = o.id.ProtoMessage()
+	}
+	if o.sig != nil {
+		m.Signature = o.sig.ProtoMessage()
+	}
+	if !o.header.isZero() {
+		m.Header = o.header.protoMessage()
+	}
+	return m
 }
 
 // CopyTo writes deep copy of the [Object] to dst.
 func (o Object) CopyTo(dst *Object) {
-	id := (*object.Object)(&o).GetObjectID()
-	(*object.Object)(dst).SetObjectID(copyObjectID(id))
-
-	sig := (*object.Object)(&o).GetSignature()
-	(*object.Object)(dst).SetSignature(copySignature(sig))
-
-	header := (*object.Object)(&o).GetHeader()
-	(*object.Object)(dst).SetHeader(copyHeader(header))
-
+	o.header.copyTo(&dst.header)
+	dst.id = o.id
+	dst.sig = cloneSignature(o.sig)
 	dst.SetPayload(bytes.Clone(o.Payload()))
 }
 
 // MarshalHeaderJSON marshals object's header into JSON format.
 func (o Object) MarshalHeaderJSON() ([]byte, error) {
-	return (*object.Object)(&o).GetHeader().MarshalJSON()
-}
-
-func (o *Object) setHeaderField(setter func(*object.Header)) {
-	obj := (*object.Object)(o)
-	h := obj.GetHeader()
-
-	if h == nil {
-		h = new(object.Header)
-		obj.SetHeader(h)
-	}
-
-	setter(h)
-}
-
-func (o *Object) setSplitFields(setter func(*object.SplitHeader)) {
-	o.setHeaderField(func(h *object.Header) {
-		split := h.GetSplit()
-		if split == nil {
-			split = new(object.SplitHeader)
-			h.SetSplit(split)
-		}
-
-		setter(split)
-	})
+	return neofsproto.MarshalMessageJSON(o.header.protoMessage())
 }
 
 // ID returns object identifier.
@@ -271,66 +404,35 @@ func (o *Object) ID() (oid.ID, bool) {
 //
 // See also [Object.SetID].
 func (o Object) GetID() oid.ID {
-	var res oid.ID
-	m := (*object.Object)(&o)
-	if id := m.GetObjectID(); id != nil {
-		if err := res.ReadFromV2(*id); err != nil {
-			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
-		}
-	}
-
-	return res
+	return o.id
 }
 
 // SetID sets object identifier.
 //
 // See also [Object.GetID].
 func (o *Object) SetID(v oid.ID) {
-	var v2 refs.ObjectID
-	v.WriteToV2(&v2)
-
-	(*object.Object)(o).
-		SetObjectID(&v2)
+	o.id = v
 }
 
 // ResetID removes object identifier.
 //
 // See also [Object.SetID].
 func (o *Object) ResetID() {
-	(*object.Object)(o).
-		SetObjectID(nil)
+	o.id = oid.ID{}
 }
 
 // Signature returns signature of the object identifier.
 //
 // See also [Object.SetSignature].
 func (o Object) Signature() *neofscrypto.Signature {
-	sigv2 := (*object.Object)(&o).GetSignature()
-	if sigv2 == nil {
-		return nil
-	}
-
-	var sig neofscrypto.Signature
-	if err := sig.ReadFromV2(*sigv2); err != nil {
-		return nil
-	}
-
-	return &sig
+	return o.sig
 }
 
 // SetSignature sets signature of the object identifier.
 //
 // See also [Object.Signature].
 func (o *Object) SetSignature(v *neofscrypto.Signature) {
-	var sigv2 *refs.Signature
-
-	if v != nil {
-		sigv2 = new(refs.Signature)
-
-		v.WriteToV2(sigv2)
-	}
-
-	(*object.Object)(o).SetSignature(sigv2)
+	o.sig = v
 }
 
 // Payload returns payload bytes.
@@ -340,59 +442,42 @@ func (o *Object) SetSignature(v *neofscrypto.Signature) {
 //
 // See also [Object.SetPayload].
 func (o Object) Payload() []byte {
-	return (*object.Object)(&o).GetPayload()
+	return o.pld
 }
 
 // SetPayload sets payload bytes.
 //
 // See also [Object.Payload].
 func (o *Object) SetPayload(v []byte) {
-	(*object.Object)(o).SetPayload(v)
+	o.pld = v
 }
 
 // Version returns version of the object. Returns nil if the version is unset.
 //
 // See also [Object.SetVersion].
 func (o Object) Version() *version.Version {
-	verV2 := (*object.Object)(&o).GetHeader().GetVersion()
-	if verV2 == nil {
-		return nil
-	}
-	var ver version.Version
-	if err := ver.ReadFromV2(*verV2); err != nil {
-		return nil
-	}
-	return &ver
+	return o.header.version
 }
 
 // SetVersion sets version of the object.
 //
 // See also [Object.Version].
 func (o *Object) SetVersion(v *version.Version) {
-	var verV2 refs.Version
-	v.WriteToV2(&verV2)
-
-	o.setHeaderField(func(h *object.Header) {
-		h.SetVersion(&verV2)
-	})
+	o.header.version = v
 }
 
 // PayloadSize returns payload length of the object.
 //
 // See also [Object.SetPayloadSize].
 func (o Object) PayloadSize() uint64 {
-	return (*object.Object)(&o).
-		GetHeader().
-		GetPayloadLength()
+	return o.header.payloadLn
 }
 
 // SetPayloadSize sets payload length of the object.
 //
 // See also [Object.PayloadSize].
 func (o *Object) SetPayloadSize(v uint64) {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetPayloadLength(v)
-	})
+	o.header.payloadLn = v
 }
 
 // ContainerID returns identifier of the related container.
@@ -408,12 +493,7 @@ func (o *Object) ContainerID() (v cid.ID, isSet bool) {
 //
 // See also [Object.GetContainerID].
 func (o *Object) SetContainerID(v cid.ID) {
-	var cidV2 refs.ContainerID
-	v.WriteToV2(&cidV2)
-
-	o.setHeaderField(func(h *object.Header) {
-		h.SetContainerID(&cidV2)
-	})
+	o.header.cnr = v
 }
 
 // GetContainerID returns identifier of the related container. Zero means unset
@@ -421,13 +501,7 @@ func (o *Object) SetContainerID(v cid.ID) {
 //
 // See also [Object.SetContainerID].
 func (o Object) GetContainerID() cid.ID {
-	var cnr cid.ID
-	if m := (*object.Object)(&o).GetHeader().GetContainerID(); m != nil {
-		if err := cnr.ReadFromV2(*m); err != nil {
-			panic(fmt.Errorf("unexpected container ID decoding failure: %w", err))
-		}
-	}
-	return cnr
+	return o.header.cnr
 }
 
 // OwnerID returns identifier of the object owner.
@@ -440,22 +514,7 @@ func (o Object) OwnerID() *user.ID { res := o.Owner(); return &res }
 //
 // See also [Object.SetOwner].
 func (o Object) Owner() user.ID {
-	var id user.ID
-
-	m := (*object.Object)(&o).GetHeader().GetOwnerID()
-	if m != nil {
-		// unlike other IDs, user.ID.ReadFromV2 also expects correct prefix and checksum
-		// suffix. So, we cannot call it and panic on error here because nothing
-		// prevents user from setting incorrect owner ID (Object.SetOwnerID accepts it).
-		// At the same time, we always expect correct length.
-		b := m.GetValue()
-		if len(b) != user.IDSize {
-			panic(fmt.Errorf("unexpected user ID decoding failure: invalid length %d, expected %d", len(b), user.IDSize))
-		}
-		copy(id[:], b)
-	}
-
-	return id
+	return o.header.owner
 }
 
 // SetOwnerID sets identifier of the object owner.
@@ -468,30 +527,21 @@ func (o *Object) SetOwnerID(v *user.ID) { o.SetOwner(*v) }
 //
 // See also [Object.GetOwner].
 func (o *Object) SetOwner(v user.ID) {
-	o.setHeaderField(func(h *object.Header) {
-		var m refs.OwnerID
-		v.WriteToV2(&m)
-
-		h.SetOwnerID(&m)
-	})
+	o.header.owner = v
 }
 
 // CreationEpoch returns epoch number in which object was created.
 //
 // See also [Object.SetCreationEpoch].
 func (o Object) CreationEpoch() uint64 {
-	return (*object.Object)(&o).
-		GetHeader().
-		GetCreationEpoch()
+	return o.header.created
 }
 
 // SetCreationEpoch sets epoch number in which object was created.
 //
 // See also [Object.CreationEpoch].
 func (o *Object) SetCreationEpoch(v uint64) {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetCreationEpoch(v)
-	})
+	o.header.created = v
 }
 
 // PayloadChecksum returns checksum of the object payload and
@@ -501,27 +551,17 @@ func (o *Object) SetCreationEpoch(v uint64) {
 //
 // See also [Object.SetPayloadChecksum].
 func (o Object) PayloadChecksum() (checksum.Checksum, bool) {
-	var v checksum.Checksum
-	v2 := (*object.Object)(&o)
-
-	if hash := v2.GetHeader().GetPayloadHash(); hash != nil {
-		err := v.ReadFromV2(*hash)
-		return v, (err == nil)
+	if o.header.pldHash != nil {
+		return *o.header.pldHash, true
 	}
-
-	return v, false
+	return checksum.Checksum{}, false
 }
 
 // SetPayloadChecksum sets checksum of the object payload.
 //
 // See also [Object.PayloadChecksum].
 func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
-	var v2 refs.Checksum
-	v.WriteToV2(&v2)
-
-	o.setHeaderField(func(h *object.Header) {
-		h.SetPayloadHash(&v2)
-	})
+	o.header.pldHash = &v
 }
 
 // PayloadHomomorphicHash returns homomorphic hash of the object
@@ -531,27 +571,17 @@ func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 //
 // See also [Object.SetPayloadHomomorphicHash].
 func (o Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
-	var v checksum.Checksum
-	v2 := (*object.Object)(&o)
-
-	if hash := v2.GetHeader().GetHomomorphicHash(); hash != nil {
-		err := v.ReadFromV2(*hash)
-		return v, (err == nil)
+	if o.header.pldHomoHash != nil {
+		return *o.header.pldHomoHash, true
 	}
-
-	return v, false
+	return checksum.Checksum{}, false
 }
 
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
 //
 // See also [Object.PayloadHomomorphicHash].
 func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
-	var v2 refs.Checksum
-	v.WriteToV2(&v2)
-
-	o.setHeaderField(func(h *object.Header) {
-		h.SetHomomorphicHash(&v2)
-	})
+	o.header.pldHomoHash = &v
 }
 
 // Attributes returns all object attributes.
@@ -561,17 +591,7 @@ func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 //
 // See also [Object.SetAttributes], [Object.UserAttributes].
 func (o Object) Attributes() []Attribute {
-	attrs := (*object.Object)(&o).
-		GetHeader().
-		GetAttributes()
-
-	res := make([]Attribute, len(attrs))
-
-	for i := range attrs {
-		res[i] = *NewAttributeFromV2(&attrs[i])
-	}
-
-	return res
+	return o.header.attrs
 }
 
 // UserAttributes returns user attributes of the Object.
@@ -581,15 +601,11 @@ func (o Object) Attributes() []Attribute {
 //
 // See also [Object.SetAttributes], [Object.Attributes].
 func (o Object) UserAttributes() []Attribute {
-	attrs := (*object.Object)(&o).
-		GetHeader().
-		GetAttributes()
+	res := make([]Attribute, 0, len(o.header.attrs))
 
-	res := make([]Attribute, 0, len(attrs))
-
-	for i := range attrs {
-		if !strings.HasPrefix(attrs[i].GetKey(), object.SysAttributePrefix) {
-			res = append(res, *NewAttributeFromV2(&attrs[i]))
+	for i := range o.header.attrs {
+		if !strings.HasPrefix(o.header.attrs[i].Key(), sysAttrPrefix) {
+			res = append(res, o.header.attrs[i])
 		}
 	}
 
@@ -598,15 +614,7 @@ func (o Object) UserAttributes() []Attribute {
 
 // SetAttributes sets object attributes.
 func (o *Object) SetAttributes(v ...Attribute) {
-	attrs := make([]object.Attribute, len(v))
-
-	for i := range v {
-		attrs[i] = *v[i].ToV2()
-	}
-
-	o.setHeaderField(func(h *object.Header) {
-		h.SetAttributes(attrs)
-	})
+	o.header.attrs = v
 }
 
 // PreviousID returns identifier of the previous sibling object.
@@ -623,75 +631,35 @@ func (o *Object) PreviousID() (oid.ID, bool) {
 //
 // See also [Object.SetPreviousID].
 func (o Object) GetPreviousID() oid.ID {
-	var id oid.ID
-	if m := (*object.Object)(&o).GetHeader().GetSplit().GetPrevious(); m != nil {
-		if err := id.ReadFromV2(*m); err != nil {
-			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
-		}
-	}
-	return id
+	return o.header.split.prev
 }
 
 // ResetPreviousID resets identifier of the previous sibling object.
 //
 // See also [Object.SetPreviousID], [Object.GetPreviousID].
 func (o *Object) ResetPreviousID() {
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetPrevious(nil)
-	})
+	o.header.split.prev = oid.ID{}
 }
 
 // SetPreviousID sets identifier of the previous sibling object.
 //
 // See also [Object.GetPreviousID].
 func (o *Object) SetPreviousID(v oid.ID) {
-	var v2 refs.ObjectID
-	v.WriteToV2(&v2)
-
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetPrevious(&v2)
-	})
+	o.header.split.prev = v
 }
 
 // Children return list of the identifiers of the child objects.
 //
 // See also [Object.SetChildren].
 func (o Object) Children() []oid.ID {
-	v2 := (*object.Object)(&o)
-	ids := v2.GetHeader().GetSplit().GetChildren()
-
-	var (
-		id  oid.ID
-		res = make([]oid.ID, len(ids))
-	)
-
-	for i := range ids {
-		if err := id.ReadFromV2(ids[i]); err != nil {
-			panic(fmt.Errorf("unexpected child#%d decoding failure: %w", i, err))
-		}
-		res[i] = id
-	}
-
-	return res
+	return o.header.split.children
 }
 
 // SetChildren sets list of the identifiers of the child objects.
 //
 // See also [Object.Children].
 func (o *Object) SetChildren(v ...oid.ID) {
-	var (
-		v2  refs.ObjectID
-		ids = make([]refs.ObjectID, len(v))
-	)
-
-	for i := range v {
-		v[i].WriteToV2(&v2)
-		ids[i] = v2
-	}
-
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetChildren(ids)
-	})
+	o.header.split.children = v
 }
 
 // SetFirstID sets the first part's ID of the object's
@@ -699,12 +667,7 @@ func (o *Object) SetChildren(v ...oid.ID) {
 //
 // See also [Object.GetFirstID].
 func (o *Object) SetFirstID(id oid.ID) {
-	var v2 refs.ObjectID
-	id.WriteToV2(&v2)
-
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetFirst(&v2)
-	})
+	o.header.split.first = id
 }
 
 // FirstID returns the first part of the object's split chain.
@@ -719,34 +682,21 @@ func (o Object) FirstID() (oid.ID, bool) {
 //
 // See also [Object.SetFirstID].
 func (o Object) GetFirstID() oid.ID {
-	var id oid.ID
-	if m := (*object.Object)(&o).GetHeader().GetSplit().GetFirst(); m != nil {
-		if err := id.ReadFromV2(*m); err != nil {
-			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
-		}
-	}
-	return id
+	return o.header.split.first
 }
 
 // SplitID return split identity of split object. If object is not split returns nil.
 //
 // See also [Object.SetSplitID].
 func (o Object) SplitID() *SplitID {
-	return NewSplitIDFromV2(
-		(*object.Object)(&o).
-			GetHeader().
-			GetSplit().
-			GetSplitID(),
-	)
+	return NewSplitIDFromV2(o.header.split.id)
 }
 
 // SetSplitID sets split identifier for the split object.
 //
 // See also [Object.SplitID].
 func (o *Object) SetSplitID(id *SplitID) {
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetSplitID(id.ToV2())
-	})
+	o.header.split.id = id.ToV2()
 }
 
 // ParentID returns identifier of the parent object.
@@ -763,118 +713,79 @@ func (o *Object) ParentID() (oid.ID, bool) {
 //
 // See also [Object.SetParentID].
 func (o Object) GetParentID() oid.ID {
-	var id oid.ID
-	if m := (*object.Object)(&o).GetHeader().GetSplit().GetParent(); m != nil {
-		if err := id.ReadFromV2(*m); err != nil {
-			panic(fmt.Errorf("unexpected ID decoding failure: %w", err))
-		}
-	}
-	return id
+	return o.header.split.parID
 }
 
 // SetParentID sets identifier of the parent object.
 //
 // See also [Object.GetParentID].
 func (o *Object) SetParentID(v oid.ID) {
-	var v2 refs.ObjectID
-	v.WriteToV2(&v2)
-
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetParent(&v2)
-	})
+	o.header.split.parID = v
 }
 
 // ResetParentID removes identifier of the parent object.
 //
 // See also [Object.SetParentID].
 func (o *Object) ResetParentID() {
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetParent(nil)
-	})
+	o.header.split.parID = oid.ID{}
 }
 
 // Parent returns parent object w/o payload.
 //
 // See also [Object.SetParent].
 func (o Object) Parent() *Object {
-	h := (*object.Object)(&o).
-		GetHeader().
-		GetSplit()
-
-	parSig := h.GetParentSignature()
-	parHdr := h.GetParentHeader()
-
-	if parSig == nil && parHdr == nil {
+	if o.header.split.parSig == nil && o.header.split.parHdr == nil {
 		return nil
 	}
 
-	oV2 := new(object.Object)
-	oV2.SetObjectID(h.GetParent())
-	oV2.SetSignature(parSig)
-	oV2.SetHeader(parHdr)
-
-	return NewFromV2(oV2)
+	return &Object{
+		header: *o.header.split.parHdr,
+		id:     o.header.split.parID,
+		sig:    o.header.split.parSig,
+	}
 }
 
 // SetParent sets parent object w/o payload.
 //
 // See also [Object.Parent].
 func (o *Object) SetParent(v *Object) {
-	o.setSplitFields(func(split *object.SplitHeader) {
-		split.SetParent((*object.Object)(v).GetObjectID())
-		split.SetParentSignature((*object.Object)(v).GetSignature())
-		split.SetParentHeader((*object.Object)(v).GetHeader())
-	})
+	if v != nil {
+		o.header.split.parHdr = &v.header
+		o.header.split.parID = v.id
+		o.header.split.parSig = v.sig
+		return
+	}
+	o.header.split.parHdr = nil
+	o.header.split.parID = oid.ID{}
+	o.header.split.parSig = nil
 }
 
 // SessionToken returns token of the session within which object was created.
 //
 // See also [Object.SetSessionToken].
 func (o Object) SessionToken() *session.Object {
-	tokv2 := (*object.Object)(&o).GetHeader().GetSessionToken()
-	if tokv2 == nil {
-		return nil
-	}
-
-	var res session.Object
-
-	_ = res.ReadFromV2(*tokv2)
-
-	return &res
+	return o.header.session
 }
 
 // SetSessionToken sets token of the session within which object was created.
 //
 // See also [Object.SessionToken].
 func (o *Object) SetSessionToken(v *session.Object) {
-	o.setHeaderField(func(h *object.Header) {
-		var tokv2 *v2session.Token
-
-		if v != nil {
-			tokv2 = new(v2session.Token)
-			v.WriteToV2(tokv2)
-		}
-
-		h.SetSessionToken(tokv2)
-	})
+	o.header.session = v
 }
 
 // Type returns type of the object.
 //
 // See also [Object.SetType].
 func (o Object) Type() Type {
-	return Type((*object.Object)(&o).
-		GetHeader().
-		GetObjectType())
+	return o.header.typ
 }
 
 // SetType sets type of the object.
 //
 // See also [Object.Type].
 func (o *Object) SetType(v Type) {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetObjectType(object.Type(v))
-	})
+	o.header.typ = v
 }
 
 // CutPayload returns [Object] w/ empty payload.
@@ -882,75 +793,55 @@ func (o *Object) SetType(v Type) {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 func (o *Object) CutPayload() *Object {
-	ov2 := new(object.Object)
-	*ov2 = *(*object.Object)(o)
-	ov2.SetPayload(nil)
-
-	return (*Object)(ov2)
+	if o == nil {
+		return nil
+	}
+	return &Object{
+		header: o.header,
+		id:     o.id,
+		sig:    o.sig,
+	}
 }
 
 // HasParent checks if parent (split ID) is present.
 func (o Object) HasParent() bool {
-	return (*object.Object)(&o).
-		GetHeader().
-		GetSplit() != nil
+	return !o.header.split.isZero()
 }
 
 // ResetRelations removes all fields of links with other objects.
 func (o *Object) ResetRelations() {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetSplit(nil)
-	})
-}
-
-// InitRelations initializes relation field.
-func (o *Object) InitRelations() {
-	o.setHeaderField(func(h *object.Header) {
-		h.SetSplit(new(object.SplitHeader))
-	})
+	o.header.split = split{}
 }
 
 // Marshal marshals object into a protobuf binary form.
 //
 // See also [Object.Unmarshal].
 func (o Object) Marshal() []byte {
-	return (*object.Object)(&o).StableMarshal(nil)
+	return neofsproto.Marshal(o)
 }
 
 // Unmarshal unmarshals protobuf binary representation of object.
 //
 // See also [Object.Marshal].
 func (o *Object) Unmarshal(data []byte) error {
-	var m object.Object
-	err := m.Unmarshal(data)
-	if err != nil {
-		return err
-	}
-
-	return o.ReadFromV2(m)
+	return neofsproto.Unmarshal(data, o)
 }
 
 // MarshalJSON encodes object to protobuf JSON format.
 //
 // See also [Object.UnmarshalJSON].
 func (o Object) MarshalJSON() ([]byte, error) {
-	return (*object.Object)(&o).MarshalJSON()
+	return neofsproto.MarshalJSON(o)
 }
 
 // UnmarshalJSON decodes object from protobuf JSON format.
 //
 // See also [Object.MarshalJSON].
 func (o *Object) UnmarshalJSON(data []byte) error {
-	var m object.Object
-	err := m.UnmarshalJSON(data)
-	if err != nil {
-		return err
-	}
-
-	return o.ReadFromV2(m)
+	return neofsproto.UnmarshalJSON(data, o)
 }
 
 // HeaderLen returns length of the binary header.
 func (o Object) HeaderLen() int {
-	return (*object.Object)(&o).GetHeader().StableSize()
+	return o.header.protoMessage().MarshaledSize()
 }

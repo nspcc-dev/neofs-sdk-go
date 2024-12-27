@@ -6,13 +6,13 @@ import (
 	"strings"
 	"testing"
 
-	protoacl "github.com/nspcc-dev/neofs-api-go/v2/acl/grpc"
-	protoobject "github.com/nspcc-dev/neofs-api-go/v2/object/grpc"
-	protorefs "github.com/nspcc-dev/neofs-api-go/v2/refs/grpc"
-	protosession "github.com/nspcc-dev/neofs-api-go/v2/session/grpc"
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -40,18 +40,17 @@ var (
 		// + other cases in init
 	}
 	invalidObjectSessionTokenProtoTestcases = append(invalidCommonSessionTokenProtoTestcases, invalidSessionTokenProtoTestcase{
-		name: "context/wrong", msg: "invalid context: invalid context *session.ContainerSessionContext",
+		name: "context/wrong", msg: "invalid context: invalid context *session.SessionToken_Body_Container",
 		corrupt: func(valid *protosession.SessionToken) {
 			valid.Body.Context = new(protosession.SessionToken_Body_Container)
 		}},
-		// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-		// invalidSessionTokenProtoTestcase{
-		// 	name: "context/verb/negative", msg: "invalid context: negative verb -1",
-		// 	corrupt: func(valid *protosession.SessionToken) {
-		// 		c := valid.Body.Context.(*protosession.SessionToken_Body_Object).Object
-		// 		c.Verb = -1
-		// 	},
-		// },
+		invalidSessionTokenProtoTestcase{
+			name: "context/verb/negative", msg: "invalid context: negative verb -1",
+			corrupt: func(valid *protosession.SessionToken) {
+				c := valid.Body.Context.(*protosession.SessionToken_Body_Object).Object
+				c.Verb = -1
+			},
+		},
 		invalidSessionTokenProtoTestcase{
 			name: "context/container/nil", msg: "invalid context: missing target container",
 			corrupt: func(valid *protosession.SessionToken) {
@@ -66,19 +65,18 @@ var (
 		// 4. creation epoch (any accepted)
 		// 5. payload length (any accepted)
 		// 6. payload checksum (init)
-		// TODO: uncomment after https://github.com/nspcc-dev/neofs-sdk-go/issues/606
-		// {name: "type/negative", msg: "negative type -1", corrupt: func(valid *protoobject.Header) {
-		// 	valid.ObjectType = -1
-		// }},
+		{name: "type/negative", msg: "negative type -1", corrupt: func(valid *protoobject.Header) {
+			valid.ObjectType = -1
+		}},
 		// 8. homomorphic payload checksum (init)
 		// 9. session token (init)
-		{name: "attributes/no key", msg: "empty key of the attribute #1",
+		{name: "attributes/no key", msg: "invalid attribute #1: missing key",
 			corrupt: func(valid *protoobject.Header) {
 				valid.Attributes = []*protoobject.Header_Attribute{
 					{Key: "k1", Value: "v1"}, {Key: "", Value: "v2"}, {Key: "k3", Value: "v3"},
 				}
 			}},
-		{name: "attributes/no value", msg: "empty value of the attribute #1 (k2)",
+		{name: "attributes/no value", msg: "invalid attribute #1: missing value",
 			corrupt: func(valid *protoobject.Header) {
 				valid.Attributes = []*protoobject.Header_Attribute{
 					{Key: "k1", Value: "v1"}, {Key: "k2", Value: ""}, {Key: "k3", Value: "v3"},
@@ -90,7 +88,7 @@ var (
 					{Key: "k1", Value: "v1"}, {Key: "k2", Value: "v2"}, {Key: "k1", Value: "v3"},
 				}
 			}},
-		{name: "attributes/expiration", msg: `invalid expiration attribute (must be a uint): strconv.ParseUint: parsing "foo": invalid syntax`,
+		{name: "attributes/expiration", msg: `invalid attribute #1: invalid expiration epoch (must be a uint): strconv.ParseUint: parsing "foo": invalid syntax`,
 			corrupt: func(valid *protoobject.Header) {
 				valid.Attributes = []*protoobject.Header_Attribute{
 					{Key: "k1", Value: "v1"}, {Key: "__NEOFS__EXPIRATION_EPOCH", Value: "foo"}, {Key: "k3", Value: "v3"},

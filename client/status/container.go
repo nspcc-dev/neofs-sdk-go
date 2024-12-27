@@ -3,8 +3,7 @@ package apistatus
 import (
 	"errors"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/container"
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 )
 
 var (
@@ -17,23 +16,19 @@ var (
 )
 
 // ContainerNotFound describes status of the failure because of the missing container.
-// Instances provide [StatusV2] and error interfaces.
 type ContainerNotFound struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 const defaultContainerNotFoundMsg = "container not found"
 
 func (x ContainerNotFound) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultContainerNotFoundMsg
+	if x.msg == "" {
+		x.msg = defaultContainerNotFoundMsg
 	}
 
-	return errMessageStatusV2(
-		globalizeCodeV2(container.StatusNotFound, container.GlobalizeFail),
-		msg,
-	)
+	return errMessageStatus(protostatus.ContainerNotFound, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -46,42 +41,35 @@ func (x ContainerNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ContainerNotFound) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *ContainerNotFound) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: CONTAINER_NOT_FOUND;
-//   - string message: "container not found";
-//   - details: empty.
-func (x ContainerNotFound) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(container.StatusNotFound, container.GlobalizeFail))
-	x.v2.SetMessage(defaultContainerNotFoundMsg)
-	return &x.v2
+// implements local interface defined in [FromError] func.
+func (x ContainerNotFound) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultContainerNotFoundMsg
+	}
+	return &protostatus.Status{Code: protostatus.ContainerNotFound, Message: x.msg, Details: x.dts}
 }
 
 // EACLNotFound describes status of the failure because of the missing eACL
 // table.
-// Instances provide [StatusV2] and error interfaces.
 type EACLNotFound struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 const defaultEACLNotFoundMsg = "eACL not found"
 
 func (x EACLNotFound) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultEACLNotFoundMsg
+	if x.msg == "" {
+		x.msg = defaultEACLNotFoundMsg
 	}
 
-	return errMessageStatusV2(
-		globalizeCodeV2(container.StatusEACLNotFound, container.GlobalizeFail),
-		msg,
-	)
+	return errMessageStatus(protostatus.EACLNotFound, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -94,19 +82,16 @@ func (x EACLNotFound) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *EACLNotFound) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *EACLNotFound) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: EACL_NOT_FOUND;
-//   - string message: "eACL not found";
-//   - details: empty.
-func (x EACLNotFound) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(container.StatusEACLNotFound, container.GlobalizeFail))
-	x.v2.SetMessage(defaultEACLNotFoundMsg)
-	return &x.v2
+// implements local interface defined in [FromError] func.
+func (x EACLNotFound) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultEACLNotFoundMsg
+	}
+	return &protostatus.Status{Code: protostatus.EACLNotFound, Message: x.msg, Details: x.dts}
 }

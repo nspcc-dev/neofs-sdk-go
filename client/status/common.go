@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/status"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 )
 
 // Error describes common error which is a grouping type for any [apistatus] errors. Any [apistatus] error may be checked
@@ -27,18 +27,15 @@ var (
 )
 
 // ServerInternal describes failure statuses related to internal server errors.
-// Instances provide [StatusV2] and error interfaces.
 //
 // The status is purely informative, the client should not go into details of the error except for debugging needs.
 type ServerInternal struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 func (x ServerInternal) Error() string {
-	return errMessageStatusV2(
-		globalizeCodeV2(status.Internal, status.GlobalizeCommonFail),
-		x.v2.Message(),
-	)
+	return errMessageStatus(protostatus.InternalServerError, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -51,34 +48,29 @@ func (x ServerInternal) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *ServerInternal) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *ServerInternal) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: INTERNAL;
-//   - string message: empty;
-//   - details: empty.
-func (x ServerInternal) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(status.Internal, status.GlobalizeCommonFail))
-	return &x.v2
+// implements local interface defined in [FromError] func.
+func (x ServerInternal) protoMessage() *protostatus.Status {
+	return &protostatus.Status{Code: protostatus.InternalServerError, Message: x.msg, Details: x.dts}
 }
 
 // SetMessage sets message describing internal error.
 //
 // Message should be used for debug purposes only.
 func (x *ServerInternal) SetMessage(msg string) {
-	x.v2.SetMessage(msg)
+	x.msg = msg
 }
 
 // Message returns message describing internal server error.
 //
 // Message should be used for debug purposes only. By default, it is empty.
 func (x ServerInternal) Message() string {
-	return x.v2.Message()
+	return x.msg
 }
 
 // WriteInternalServerErr writes err message to ServerInternal instance.
@@ -89,14 +81,12 @@ func WriteInternalServerErr(x *ServerInternal, err error) {
 // WrongMagicNumber describes failure status related to incorrect network magic.
 // Instances provide [StatusV2] and error interfaces.
 type WrongMagicNumber struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 func (x WrongMagicNumber) Error() string {
-	return errMessageStatusV2(
-		globalizeCodeV2(status.WrongMagicNumber, status.GlobalizeCommonFail),
-		x.v2.Message(),
-	)
+	return errMessageStatus(protostatus.WrongNetMagic, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -109,20 +99,15 @@ func (x WrongMagicNumber) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *WrongMagicNumber) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *WrongMagicNumber) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: WRONG_MAGIC_NUMBER;
-//   - string message: empty;
-//   - details: empty.
-func (x WrongMagicNumber) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(status.WrongMagicNumber, status.GlobalizeCommonFail))
-	return &x.v2
+// implements local interface defined in [FromError] func.
+func (x WrongMagicNumber) protoMessage() *protostatus.Status {
+	return &protostatus.Status{Code: protostatus.WrongNetMagic, Message: x.msg, Details: x.dts}
 }
 
 // WriteCorrectMagic writes correct network magic.
@@ -132,14 +117,16 @@ func (x *WrongMagicNumber) WriteCorrectMagic(magic uint64) {
 
 	binary.BigEndian.PutUint64(buf, magic)
 
-	// create corresponding detail
-	var d status.Detail
-
-	d.SetID(status.DetailIDCorrectMagic)
-	d.SetValue(buf)
-
-	// attach the detail
-	x.v2.AppendDetails(d)
+	for i := range x.dts {
+		if x.dts[i].Id == protostatus.DetailCorrectNetMagic {
+			x.dts[i].Value = buf
+			return
+		}
+	}
+	x.dts = append(x.dts, &protostatus.Status_Detail{
+		Id:    protostatus.DetailCorrectNetMagic,
+		Value: buf,
+	})
 }
 
 // CorrectMagic returns network magic returned by the server.
@@ -147,41 +134,32 @@ func (x *WrongMagicNumber) WriteCorrectMagic(magic uint64) {
 //   - -1 if number is presented in incorrect format
 //   - 0 if number is not presented
 //   - +1 otherwise
-func (x WrongMagicNumber) CorrectMagic() (magic uint64, ok int8) {
-	x.v2.IterateDetails(func(d *status.Detail) bool {
-		if d.ID() == status.DetailIDCorrectMagic {
-			if val := d.Value(); len(val) == 8 {
-				magic = binary.BigEndian.Uint64(val)
-				ok = 1
-			} else {
-				ok = -1
+func (x WrongMagicNumber) CorrectMagic() (uint64, int8) {
+	for i := range x.dts {
+		if x.dts[i].Id == protostatus.DetailCorrectNetMagic {
+			if len(x.dts[i].Value) == 8 {
+				return binary.BigEndian.Uint64(x.dts[i].Value), 1
 			}
+			return 0, -1
 		}
-
-		return ok != 0
-	})
-
-	return
+	}
+	return 0, 0
 }
 
 // SignatureVerification describes failure status related to signature verification.
-// Instances provide [StatusV2] and error interfaces.
 type SignatureVerification struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 const defaultSignatureVerificationMsg = "signature verification failed"
 
 func (x SignatureVerification) Error() string {
-	msg := x.v2.Message()
-	if msg == "" {
-		msg = defaultSignatureVerificationMsg
+	if x.msg == "" {
+		x.msg = defaultSignatureVerificationMsg
 	}
 
-	return errMessageStatusV2(
-		globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail),
-		msg,
-	)
+	return errMessageStatus(protostatus.SignatureVerificationFail, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -194,26 +172,18 @@ func (x SignatureVerification) Is(target error) bool {
 	}
 }
 
-// implements local interface defined in [ErrorFromV2] func.
-func (x *SignatureVerification) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *SignatureVerification) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: SIGNATURE_VERIFICATION_FAIL;
-//   - string message: written message via [SignatureVerification.SetMessage] or
-//     "signature verification failed" as a default message;
-//   - details: empty.
-func (x SignatureVerification) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(status.SignatureVerificationFail, status.GlobalizeCommonFail))
-
-	if x.v2.Message() == "" {
-		x.v2.SetMessage(defaultSignatureVerificationMsg)
+// implements local interface defined in [FromError] func.
+func (x SignatureVerification) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultSignatureVerificationMsg
 	}
-
-	return &x.v2
+	return &protostatus.Status{Code: protostatus.SignatureVerificationFail, Message: x.msg, Details: x.dts}
 }
 
 // SetMessage writes signature verification failure message.
@@ -221,7 +191,7 @@ func (x SignatureVerification) ErrorToV2() *status.Status {
 //
 // See also Message.
 func (x *SignatureVerification) SetMessage(v string) {
-	x.v2.SetMessage(v)
+	x.msg = v
 }
 
 // Message returns status message. Zero status returns empty message.
@@ -229,28 +199,24 @@ func (x *SignatureVerification) SetMessage(v string) {
 //
 // See also SetMessage.
 func (x SignatureVerification) Message() string {
-	return x.v2.Message()
+	return x.msg
 }
 
 // NodeUnderMaintenance describes failure status for nodes being under maintenance.
-// Instances provide [StatusV2] and error interfaces.
 type NodeUnderMaintenance struct {
-	v2 status.Status
+	msg string
+	dts []*protostatus.Status_Detail
 }
 
 const defaultNodeUnderMaintenanceMsg = "node is under maintenance"
 
 // Error implements the error interface.
 func (x NodeUnderMaintenance) Error() string {
-	msg := x.Message()
-	if msg == "" {
-		msg = defaultNodeUnderMaintenanceMsg
+	if x.msg == "" {
+		x.msg = defaultNodeUnderMaintenanceMsg
 	}
 
-	return errMessageStatusV2(
-		globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail),
-		msg,
-	)
+	return errMessageStatus(protostatus.NodeUnderMaintenance, x.msg)
 }
 
 // Is implements interface for correct checking current error type with [errors.Is].
@@ -263,24 +229,18 @@ func (x NodeUnderMaintenance) Is(target error) bool {
 	}
 }
 
-func (x *NodeUnderMaintenance) fromStatusV2(st *status.Status) {
-	x.v2 = *st
+// implements local interface defined in [ToError] func.
+func (x *NodeUnderMaintenance) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
 }
 
-// ErrorToV2 implements [StatusV2] interface method.
-// If the value was returned by [ErrorFromV2], returns the source message.
-// Otherwise, returns message with
-//   - code: NODE_UNDER_MAINTENANCE;
-//   - string message: written message via [NodeUnderMaintenance.SetMessage] or
-//     "node is under maintenance" as a default message;
-//   - details: empty.
-func (x NodeUnderMaintenance) ErrorToV2() *status.Status {
-	x.v2.SetCode(globalizeCodeV2(status.NodeUnderMaintenance, status.GlobalizeCommonFail))
-	if x.v2.Message() == "" {
-		x.v2.SetMessage(defaultNodeUnderMaintenanceMsg)
+// implements local interface defined in [FromError] func.
+func (x NodeUnderMaintenance) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultNodeUnderMaintenanceMsg
 	}
-
-	return &x.v2
+	return &protostatus.Status{Code: protostatus.NodeUnderMaintenance, Message: x.msg, Details: x.dts}
 }
 
 // SetMessage writes signature verification failure message.
@@ -288,7 +248,7 @@ func (x NodeUnderMaintenance) ErrorToV2() *status.Status {
 //
 // See also Message.
 func (x *NodeUnderMaintenance) SetMessage(v string) {
-	x.v2.SetMessage(v)
+	x.msg = v
 }
 
 // Message returns status message. Zero status returns empty message.
@@ -296,5 +256,5 @@ func (x *NodeUnderMaintenance) SetMessage(v string) {
 //
 // See also SetMessage.
 func (x NodeUnderMaintenance) Message() string {
-	return x.v2.Message()
+	return x.msg
 }

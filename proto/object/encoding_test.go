@@ -3,9 +3,11 @@ package object_test
 import (
 	"testing"
 
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	"github.com/stretchr/testify/require"
 )
 
 // returns random object.Range with all non-zero fields.
@@ -149,12 +151,40 @@ func TestShortHeader_MarshalStable(t *testing.T) {
 }
 
 func TestHeader_Split_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &object.Header_Split{
+			Children: []*refs.ObjectID{nil, {}},
+		}
+
+		var dst object.Header_Split
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		cs := dst.GetChildren()
+		require.Len(t, cs, 2)
+		require.Equal(t, cs[0], new(refs.ObjectID))
+		require.Equal(t, cs[1], new(refs.ObjectID))
+	})
+
 	prototest.TestMarshalStable(t, []*object.Header_Split{
 		randSplitHeader(),
 	})
 }
 
 func TestHeader_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &object.Header{
+			Attributes: []*object.Header_Attribute{nil, {}},
+		}
+
+		var dst object.Header
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		as := dst.GetAttributes()
+		require.Len(t, as, 2)
+		require.Equal(t, as[0], new(object.Header_Attribute))
+		require.Equal(t, as[1], new(object.Header_Attribute))
+	})
+
 	prototest.TestMarshalStable(t, []*object.Header{
 		randHeader(),
 	})
@@ -258,6 +288,20 @@ func TestGetRangeResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestGetRangeHashRequest_Body_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &object.GetRangeHashRequest_Body{
+			Ranges: []*object.Range{nil, {}},
+		}
+
+		var dst object.GetRangeHashRequest_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		rs := dst.GetRanges()
+		require.Len(t, rs, 2)
+		require.Equal(t, rs[0], new(object.Range))
+		require.Equal(t, rs[1], new(object.Range))
+	})
+
 	prototest.TestMarshalStable(t, []*object.GetRangeHashRequest_Body{
 		{
 			Address: prototest.RandObjectAddress(),
@@ -315,6 +359,20 @@ func TestDeleteResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestSearchRequest_Body_Filter_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &object.SearchRequest_Body{
+			Filters: []*object.SearchRequest_Body_Filter{nil, {}},
+		}
+
+		var dst object.SearchRequest_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		fs := dst.GetFilters()
+		require.Len(t, fs, 2)
+		require.Equal(t, fs[0], new(object.SearchRequest_Body_Filter))
+		require.Equal(t, fs[1], new(object.SearchRequest_Body_Filter))
+	})
+
 	prototest.TestMarshalStable(t, []*object.SearchRequest_Body_Filter{
 		randSearchFilter(),
 	})
@@ -331,6 +389,20 @@ func TestSearchRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestSearchResponse_Body_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &object.SearchResponse_Body{
+			IdList: []*refs.ObjectID{nil, {}},
+		}
+
+		var dst object.SearchResponse_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		ids := dst.GetIdList()
+		require.Len(t, ids, 2)
+		require.Equal(t, ids[0], new(refs.ObjectID))
+		require.Equal(t, ids[1], new(refs.ObjectID))
+	})
+
 	prototest.TestMarshalStable(t, []*object.SearchResponse_Body{
 		{IdList: prototest.RandObjectIDs()},
 	})

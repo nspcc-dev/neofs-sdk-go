@@ -348,12 +348,21 @@ func BenchmarkMarshalBytes(b *testing.B) {
 
 func TestEmbedded(t *testing.T) {
 	fieldNum := randFieldNum()
-	require.Zero(t, proto.SizeEmbedded(fieldNum, nil))
-	require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, nil))
-	require.Zero(t, proto.SizeEmbedded(fieldNum, (*timestamp)(nil)))
-	require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, (*timestamp)(nil)))
-	require.Zero(t, proto.SizeEmbedded(fieldNum, new(timestamp)))
-	require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, new(timestamp)))
+	t.Run("nil", func(t *testing.T) {
+		require.Zero(t, proto.SizeEmbedded(fieldNum, nil))
+		require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, nil))
+		require.Zero(t, proto.SizeEmbedded(fieldNum, (*timestamp)(nil)))
+		require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, (*timestamp)(nil)))
+	})
+	t.Run("zero", func(t *testing.T) {
+		const fieldNum = 480010005
+		const expLen = 6
+		tz := new(timestamp)
+		require.EqualValues(t, expLen, proto.SizeEmbedded(fieldNum, tz))
+		b := make([]byte, expLen)
+		proto.MarshalToEmbedded(b, fieldNum, tz)
+		require.Equal(t, []byte{170, 241, 139, 167, 14, 0}, b) // first 5 bytes is num, last zero is size
+	})
 
 	v := (*timestamp)(timestamppb.Now())
 	sz := proto.SizeEmbedded(fieldNum, v)

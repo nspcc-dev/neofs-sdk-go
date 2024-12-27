@@ -3,12 +3,12 @@ package object_test
 import (
 	"crypto/sha256"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/nspcc-dev/tzhash/tz"
@@ -87,19 +87,13 @@ var (
 )
 
 func protoIDFromBytes(b []byte) *refs.ObjectID {
-	var id refs.ObjectID
-	id.SetValue(b)
-	return &id
+	return &refs.ObjectID{Value: b}
 }
 
 func protoUserIDFromBytes(b []byte) *refs.OwnerID {
-	var id refs.OwnerID
-	id.SetValue(b)
-	return &id
+	return &refs.OwnerID{Value: b}
 }
 
 func protoContainerIDFromBytes(b []byte) *refs.ContainerID {
-	var id refs.ContainerID
-	id.SetValue(b)
-	return &id
+	return &refs.ContainerID{Value: b}
 }

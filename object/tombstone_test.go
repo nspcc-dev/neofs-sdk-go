@@ -3,14 +3,14 @@ package object_test
 import (
 	"bytes"
 	"encoding/json"
-	"slices"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-api-go/v2/refs"
-	"github.com/nspcc-dev/neofs-api-go/v2/tombstone"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	prototombstone "github.com/nspcc-dev/neofs-sdk-go/proto/tombstone"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 var validTombstone object.Tombstone // set by init.
@@ -50,93 +50,85 @@ const validJSONTombstone = `
 }
 `
 
-func TestTombstone_ReadFromV2(t *testing.T) {
-	ms := make([]refs.ObjectID, len(anyValidIDs))
+func TestTombstone_FromProtoMessage(t *testing.T) {
+	ms := make([]*refs.ObjectID, len(anyValidIDs))
 	for i := range anyValidIDs {
-		ms[i].SetValue(anyValidIDs[i][:])
+		ms[i] = protoIDFromBytes(anyValidIDs[i][:])
 	}
 
-	var m tombstone.Tombstone
-	m.SetExpirationEpoch(anyValidExpirationEpoch)
-	m.SetSplitID(anyValidSplitIDBytes)
-	m.SetMembers(ms)
+	m := &prototombstone.Tombstone{
+		ExpirationEpoch: anyValidExpirationEpoch,
+		SplitId:         anyValidSplitIDBytes,
+		Members:         ms,
+	}
 
 	var ts object.Tombstone
-	require.NoError(t, ts.ReadFromV2(m))
+	require.NoError(t, ts.FromProtoMessage(m))
 	require.EqualValues(t, anyValidExpirationEpoch, ts.ExpirationEpoch())
 	require.Equal(t, anyValidSplitID, ts.SplitID())
 	require.Equal(t, anyValidIDs, ts.Members())
 
 	// reset optional fields
-	m.SetExpirationEpoch(0)
-	m.SetSplitID(nil)
-	m.SetMembers(nil)
+	m.ExpirationEpoch = 0 //nolint:staticcheck // must be tested still
+	m.SplitId = nil
+	m.Members = nil
 	ts2 := ts
-	require.NoError(t, ts2.ReadFromV2(m))
+	require.NoError(t, ts2.FromProtoMessage(m))
 	require.Zero(t, ts2)
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func(*tombstone.Tombstone)
+			corrupt   func(*prototombstone.Tombstone)
 		}{
 			{name: "members/nil value", err: "invalid member #1: invalid length 0",
-				corrupt: func(m *tombstone.Tombstone) {
-					ms := slices.Clone(ms)
-					ms[1] = *protoIDFromBytes(nil)
-					m.SetMembers(ms)
+				corrupt: func(m *prototombstone.Tombstone) {
+					m.Members[1].Value = nil
 				}},
 			{name: "members/empty value", err: "invalid member #1: invalid length 0",
-				corrupt: func(m *tombstone.Tombstone) {
-					ms := slices.Clone(ms)
-					ms[1] = *protoIDFromBytes([]byte{})
-					m.SetMembers(ms)
+				corrupt: func(m *prototombstone.Tombstone) {
+					m.Members[1].Value = []byte{}
 				}},
 			{name: "members/undersize", err: "invalid member #1: invalid length 31",
-				corrupt: func(m *tombstone.Tombstone) {
-					ms := slices.Clone(ms)
-					ms[1] = *protoIDFromBytes(make([]byte, 31))
-					m.SetMembers(ms)
+				corrupt: func(m *prototombstone.Tombstone) {
+					m.Members[1].Value = make([]byte, 31)
 				}},
 			{name: "members/oversize", err: "invalid member #1: invalid length 33",
-				corrupt: func(m *tombstone.Tombstone) {
-					ms := slices.Clone(ms)
-					ms[1] = *protoIDFromBytes(make([]byte, 33))
-					m.SetMembers(ms)
+				corrupt: func(m *prototombstone.Tombstone) {
+					m.Members[1].Value = make([]byte, 33)
 				}},
 			{name: "split ID/undersize", err: "invalid split ID: invalid UUID (got 15 bytes)",
-				corrupt: func(m *tombstone.Tombstone) { m.SetSplitID(anyValidSplitIDBytes[:15]) }},
+				corrupt: func(m *prototombstone.Tombstone) { m.SplitId = anyValidSplitIDBytes[:15] }},
 			{name: "split ID/oversize", err: "invalid split ID: invalid UUID (got 17 bytes)",
-				corrupt: func(m *tombstone.Tombstone) { m.SetSplitID(append(anyValidSplitIDBytes[:], 1)) }},
+				corrupt: func(m *prototombstone.Tombstone) { m.SplitId = append(anyValidSplitIDBytes[:], 1) }},
 			{name: "split ID/wrong version", err: "invalid split ID: wrong UUID version 3, expected 4",
-				corrupt: func(m *tombstone.Tombstone) {
-					b := bytes.Clone(anyValidSplitIDBytes[:])
-					b[6] = 3 << 4
-					m.SetSplitID(b)
+				corrupt: func(m *prototombstone.Tombstone) {
+					m.SplitId = bytes.Clone(anyValidSplitIDBytes[:])
+					m.SplitId[6] = 3 << 4
 				}},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
-				m := ts.ToV2()
+				m := proto.Clone(ts.ProtoMessage()).(*prototombstone.Tombstone)
 				tc.corrupt(m)
-				require.EqualError(t, new(object.Tombstone).ReadFromV2(*m), tc.err)
+				require.EqualError(t, new(object.Tombstone).FromProtoMessage(m), tc.err)
 			})
 		}
 	})
 }
 
-func TestTombstone_WriteToV2(t *testing.T) {
+func TestTombstone_ProtoMessage(t *testing.T) {
 	var ts object.Tombstone
 
 	// zero
-	m := ts.ToV2()
-	require.Zero(t, m.GetExpirationEpoch())
-	require.Zero(t, m.GetSplitID())
+	m := ts.ProtoMessage()
+	require.Zero(t, m.GetExpirationEpoch()) //nolint:staticcheck // must be tested still
+	require.Zero(t, m.GetSplitId())
 	require.Zero(t, m.GetMembers())
 
 	// filled
-	m = validTombstone.ToV2()
-	require.EqualValues(t, anyValidExpirationEpoch, m.GetExpirationEpoch())
-	require.EqualValues(t, anyValidSplitIDBytes, m.GetSplitID())
+	m = validTombstone.ProtoMessage()
+	require.EqualValues(t, anyValidExpirationEpoch, m.GetExpirationEpoch()) //nolint:staticcheck // must be tested still
+	require.EqualValues(t, anyValidSplitIDBytes, m.GetSplitId())
 	ms := m.GetMembers()
 	require.Len(t, ms, 3)
 	for i := range ms {
@@ -273,14 +265,6 @@ func TestTombstone_SetMembers(t *testing.T) {
 	require.Equal(t, otherIDs, ts.Members())
 }
 
-func TestNewTombstoneFromV2(t *testing.T) {
-	t.Run("from nil", func(t *testing.T) {
-		var x *tombstone.Tombstone
-
-		require.Nil(t, object.NewTombstoneFromV2(x))
-	})
-}
-
 func TestNewTombstone(t *testing.T) {
 	t.Run("default values", func(t *testing.T) {
 		ts := object.NewTombstone()
@@ -291,10 +275,10 @@ func TestNewTombstone(t *testing.T) {
 		require.Zero(t, ts.ExpirationEpoch())
 
 		// convert to v2 message
-		tsV2 := ts.ToV2()
+		m := ts.ProtoMessage()
 
-		require.Nil(t, tsV2.GetSplitID())
-		require.Nil(t, tsV2.GetMembers())
-		require.Zero(t, tsV2.GetExpirationEpoch())
+		require.Nil(t, m.GetSplitId())
+		require.Nil(t, m.GetMembers())
+		require.Zero(t, m.GetExpirationEpoch()) //nolint:staticcheck // must be tested still
 	})
 }
