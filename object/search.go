@@ -182,8 +182,8 @@ const (
 	FilterPhysical = reservedFilterPrefix + "PHY"
 )
 
-func (f SearchFilter) protoMessage() *protoobject.SearchRequest_Body_Filter {
-	return &protoobject.SearchRequest_Body_Filter{
+func (f SearchFilter) protoMessage() *protoobject.SearchFilter {
+	return &protoobject.SearchFilter{
 		MatchType: protoobject.MatchType(f.Operation()),
 		Key:       f.Header(),
 		Value:     f.Value(),
@@ -267,7 +267,7 @@ func (f *SearchFilters) AddObjectOwnerIDFilter(m SearchMatchType, id user.ID) {
 // f from it.
 //
 // See also [SearchFilters.ProtoMessage].
-func (f *SearchFilters) FromProtoMessage(ms []*protoobject.SearchRequest_Body_Filter) error {
+func (f *SearchFilters) FromProtoMessage(ms []*protoobject.SearchFilter) error {
 	fs := make(SearchFilters, len(ms))
 	for i, m := range ms {
 		if m == nil {
@@ -293,8 +293,8 @@ func (f *SearchFilters) FromProtoMessage(ms []*protoobject.SearchRequest_Body_Fi
 // protocol.
 //
 // See also [SearchFilters.FromProtoMessage].
-func (f SearchFilters) ProtoMessage() []*protoobject.SearchRequest_Body_Filter {
-	m := make([]*protoobject.SearchRequest_Body_Filter, len(f))
+func (f SearchFilters) ProtoMessage() []*protoobject.SearchFilter {
+	m := make([]*protoobject.SearchFilter, len(f))
 	for i := range f {
 		m[i] = f[i].protoMessage()
 	}
@@ -346,10 +346,10 @@ func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
 	f.addFilter(m, FilterType, typ.EncodeToString())
 }
 
-type fj protoobject.SearchRequest_Body_Filter
+type fj protoobject.SearchFilter
 
 func (x *fj) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON((*protoobject.SearchRequest_Body_Filter)(x))
+	return neofsproto.MarshalMessageJSON((*protoobject.SearchFilter)(x))
 }
 
 // MarshalJSON encodes [SearchFilters] to protobuf JSON format.
@@ -364,7 +364,7 @@ func (f SearchFilters) MarshalJSON() ([]byte, error) {
 }
 
 func (x *fj) UnmarshalJSON(b []byte) error {
-	return neofsproto.UnmarshalMessageJSON(b, (*protoobject.SearchRequest_Body_Filter)(x))
+	return neofsproto.UnmarshalMessageJSON(b, (*protoobject.SearchFilter)(x))
 }
 
 // UnmarshalJSON decodes [SearchFilters] from protobuf JSON format.
@@ -377,9 +377,9 @@ func (f *SearchFilters) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	m := make([]*protoobject.SearchRequest_Body_Filter, len(j))
+	m := make([]*protoobject.SearchFilter, len(j))
 	for i := range j {
-		m[i] = (*protoobject.SearchRequest_Body_Filter)(j[i])
+		m[i] = (*protoobject.SearchFilter)(j[i])
 	}
 
 	return f.FromProtoMessage(m)

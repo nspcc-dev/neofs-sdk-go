@@ -793,9 +793,9 @@ const (
 	fieldSearchFilterValue
 )
 
-// MarshaledSize returns size of the SearchRequest_Body_Filter in Protocol
+// MarshaledSize returns size of the SearchFilter in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
-func (x *SearchRequest_Body_Filter) MarshaledSize() int {
+func (x *SearchFilter) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = proto.SizeVarint(fieldSearchFilterMatcher, int32(x.MatchType))
@@ -805,11 +805,11 @@ func (x *SearchRequest_Body_Filter) MarshaledSize() int {
 	return sz
 }
 
-// MarshalStable writes the SearchRequest_Body_Filter in Protocol Buffers V3
+// MarshalStable writes the SearchFilter in Protocol Buffers V3
 // format with ascending order of fields by number into b. MarshalStable uses
-// exactly [SearchRequest_Body_Filter.MarshaledSize] first bytes of b.
+// exactly [SearchFilter.MarshaledSize] first bytes of b.
 // MarshalStable is NPE-safe.
-func (x *SearchRequest_Body_Filter) MarshalStable(b []byte) {
+func (x *SearchFilter) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldSearchFilterMatcher, int32(x.MatchType))
 		off += proto.MarshalToBytes(b[off:], fieldSearchFilterKey, x.Key)

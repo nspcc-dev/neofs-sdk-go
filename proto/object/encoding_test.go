@@ -117,18 +117,18 @@ func randPutRequestInit() *object.PutRequest_Body_Init {
 	}
 }
 
-// returns random object.SearchRequest_Body_Filter with all non-zero fields.
-func randSearchFilter() *object.SearchRequest_Body_Filter {
-	return &object.SearchRequest_Body_Filter{
+// returns random object.SearchFilter with all non-zero fields.
+func randSearchFilter() *object.SearchFilter {
+	return &object.SearchFilter{
 		MatchType: prototest.RandInteger[object.MatchType](),
 		Key:       prototest.RandString(),
 		Value:     prototest.RandString(),
 	}
 }
 
-// returns non-empty list of object.SearchRequest_Body_Filter up to 10 elements.
+// returns non-empty list of object.SearchFilter up to 10 elements.
 // Each element may be nil and pointer to zero.
-func randSearchFilters() []*object.SearchRequest_Body_Filter {
+func randSearchFilters() []*object.SearchFilter {
 	return prototest.RandRepeated(randSearchFilter)
 }
 
@@ -358,10 +358,10 @@ func TestDeleteResponse_Body_MarshalStable(t *testing.T) {
 	})
 }
 
-func TestSearchRequest_Body_Filter_MarshalStable(t *testing.T) {
+func TestSearchFilter_MarshalStable(t *testing.T) {
 	t.Run("nil in repeated messages", func(t *testing.T) {
 		src := &object.SearchRequest_Body{
-			Filters: []*object.SearchRequest_Body_Filter{nil, {}},
+			Filters: []*object.SearchFilter{nil, {}},
 		}
 
 		var dst object.SearchRequest_Body
@@ -369,11 +369,11 @@ func TestSearchRequest_Body_Filter_MarshalStable(t *testing.T) {
 
 		fs := dst.GetFilters()
 		require.Len(t, fs, 2)
-		require.Equal(t, fs[0], new(object.SearchRequest_Body_Filter))
-		require.Equal(t, fs[1], new(object.SearchRequest_Body_Filter))
+		require.Equal(t, fs[0], new(object.SearchFilter))
+		require.Equal(t, fs[1], new(object.SearchFilter))
 	})
 
-	prototest.TestMarshalStable(t, []*object.SearchRequest_Body_Filter{
+	prototest.TestMarshalStable(t, []*object.SearchFilter{
 		randSearchFilter(),
 	})
 }

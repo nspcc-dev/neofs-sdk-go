@@ -24,6 +24,7 @@ const (
 	ObjectService_Delete_FullMethodName       = "/neo.fs.v2.object.ObjectService/Delete"
 	ObjectService_Head_FullMethodName         = "/neo.fs.v2.object.ObjectService/Head"
 	ObjectService_Search_FullMethodName       = "/neo.fs.v2.object.ObjectService/Search"
+	ObjectService_SearchV2_FullMethodName     = "/neo.fs.v2.object.ObjectService/SearchV2"
 	ObjectService_GetRange_FullMethodName     = "/neo.fs.v2.object.ObjectService/GetRange"
 	ObjectService_GetRangeHash_FullMethodName = "/neo.fs.v2.object.ObjectService/GetRangeHash"
 	ObjectService_Replicate_FullMethodName    = "/neo.fs.v2.object.ObjectService/Replicate"
@@ -154,6 +155,8 @@ type ObjectServiceClient interface {
 	// Header's filed values. Please see the corresponding NeoFS Technical
 	// Specification section for more details.
 	//
+	// DEPRECATED: please use SearchV2.
+	//
 	// Extended headers can change `Search` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \
 	//     Will use the requsted version of Network Map for object placement
@@ -172,6 +175,14 @@ type ObjectServiceClient interface {
 	//   - **TOKEN_EXPIRED** (4097, SECTION_SESSION): \
 	//     provided session token has expired.
 	Search(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (ObjectService_SearchClient, error)
+	// Search for objects in a container. Similar to Search, but:
+	// * sorted
+	// * limited in amount of returned data
+	// * single message
+	// * allows for additional header fields to be returned
+	//
+	// Result is ordered by requested attributes and object ID.
+	SearchV2(ctx context.Context, in *SearchV2Request, opts ...grpc.CallOption) (*SearchV2Response, error)
 	// Get byte range of data payload. Range is set as an (offset, length) tuple.
 	// Like in `Get` method, the response uses gRPC stream. Requested range can be
 	// restored by concatenation of all received payload chunks keeping the receiving
@@ -376,6 +387,15 @@ func (x *objectServiceSearchClient) Recv() (*SearchResponse, error) {
 	return m, nil
 }
 
+func (c *objectServiceClient) SearchV2(ctx context.Context, in *SearchV2Request, opts ...grpc.CallOption) (*SearchV2Response, error) {
+	out := new(SearchV2Response)
+	err := c.cc.Invoke(ctx, ObjectService_SearchV2_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *objectServiceClient) GetRange(ctx context.Context, in *GetRangeRequest, opts ...grpc.CallOption) (ObjectService_GetRangeClient, error) {
 	stream, err := c.cc.NewStream(ctx, &ObjectService_ServiceDesc.Streams[3], ObjectService_GetRange_FullMethodName, opts...)
 	if err != nil {
@@ -551,6 +571,8 @@ type ObjectServiceServer interface {
 	// Header's filed values. Please see the corresponding NeoFS Technical
 	// Specification section for more details.
 	//
+	// DEPRECATED: please use SearchV2.
+	//
 	// Extended headers can change `Search` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \
 	//     Will use the requsted version of Network Map for object placement
@@ -569,6 +591,14 @@ type ObjectServiceServer interface {
 	//   - **TOKEN_EXPIRED** (4097, SECTION_SESSION): \
 	//     provided session token has expired.
 	Search(*SearchRequest, ObjectService_SearchServer) error
+	// Search for objects in a container. Similar to Search, but:
+	// * sorted
+	// * limited in amount of returned data
+	// * single message
+	// * allows for additional header fields to be returned
+	//
+	// Result is ordered by requested attributes and object ID.
+	SearchV2(context.Context, *SearchV2Request) (*SearchV2Response, error)
 	// Get byte range of data payload. Range is set as an (offset, length) tuple.
 	// Like in `Get` method, the response uses gRPC stream. Requested range can be
 	// restored by concatenation of all received payload chunks keeping the receiving
@@ -667,6 +697,9 @@ func (UnimplementedObjectServiceServer) Head(context.Context, *HeadRequest) (*He
 }
 func (UnimplementedObjectServiceServer) Search(*SearchRequest, ObjectService_SearchServer) error {
 	return status.Errorf(codes.Unimplemented, "method Search not implemented")
+}
+func (UnimplementedObjectServiceServer) SearchV2(context.Context, *SearchV2Request) (*SearchV2Response, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SearchV2 not implemented")
 }
 func (UnimplementedObjectServiceServer) GetRange(*GetRangeRequest, ObjectService_GetRangeServer) error {
 	return status.Errorf(codes.Unimplemented, "method GetRange not implemented")
@@ -793,6 +826,24 @@ func (x *objectServiceSearchServer) Send(m *SearchResponse) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _ObjectService_SearchV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SearchV2Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ObjectServiceServer).SearchV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ObjectService_SearchV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ObjectServiceServer).SearchV2(ctx, req.(*SearchV2Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ObjectService_GetRange_Handler(srv interface{}, stream grpc.ServerStream) error {
 	m := new(GetRangeRequest)
 	if err := stream.RecvMsg(m); err != nil {
@@ -864,6 +915,10 @@ var ObjectService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Head",
 			Handler:    _ObjectService_Head_Handler,
+		},
+		{
+			MethodName: "SearchV2",
+			Handler:    _ObjectService_SearchV2_Handler,
 		},
 		{
 			MethodName: "GetRangeHash",

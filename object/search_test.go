@@ -462,7 +462,7 @@ func TestSearchFilters_ProtoMessage(t *testing.T) {
 }
 
 func TestSearchFilters_FromProtoMessage(t *testing.T) {
-	ms := []*protoobject.SearchRequest_Body_Filter{
+	ms := []*protoobject.SearchFilter{
 		{MatchType: protoobject.MatchType(rand.Int32()), Key: "key_1", Value: "val_1"},
 		{MatchType: protoobject.MatchType(rand.Int32()), Key: "key_2", Value: "val_2"},
 	}
@@ -482,11 +482,11 @@ func TestSearchFilters_FromProtoMessage(t *testing.T) {
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
-			corrupt   func([]*protoobject.SearchRequest_Body_Filter)
+			corrupt   func([]*protoobject.SearchFilter)
 		}{} {
 			cp := slices.Clone(ms)
 			for i := range ms {
-				cp[i] = proto.Clone(ms[i]).(*protoobject.SearchRequest_Body_Filter)
+				cp[i] = proto.Clone(ms[i]).(*protoobject.SearchFilter)
 			}
 			tc.corrupt(cp)
 			require.EqualError(t, fs.FromProtoMessage(ms), tc.err)

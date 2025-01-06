@@ -1840,7 +1840,7 @@ func checkSplitInfoTransport(s object.SplitInfo, m *protoobject.SplitInfo) error
 	return nil
 }
 
-func checkObjectSearchFilterTransport(f object.SearchFilter, m *protoobject.SearchRequest_Body_Filter) error {
+func checkObjectSearchFilterTransport(f object.SearchFilter, m *protoobject.SearchFilter) error {
 	// 1. matcher
 	var expMatcher protoobject.MatchType
 	switch m := f.Operation(); m {
@@ -1877,7 +1877,7 @@ func checkObjectSearchFilterTransport(f object.SearchFilter, m *protoobject.Sear
 	return nil
 }
 
-func checkObjectSearchFiltersTransport(fs []object.SearchFilter, ms []*protoobject.SearchRequest_Body_Filter) error {
+func checkObjectSearchFiltersTransport(fs []object.SearchFilter, ms []*protoobject.SearchFilter) error {
 	if v1, v2 := len(fs), len(ms); v1 != v2 {
 		return fmt.Errorf("number of attributes (client: %d, message: %d)", v1, v2)
 	}
