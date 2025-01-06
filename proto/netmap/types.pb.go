@@ -733,9 +733,9 @@ type NetworkInfo struct {
 
 	// Number of the current epoch in the NeoFS network
 	CurrentEpoch uint64 `protobuf:"varint,1,opt,name=current_epoch,json=currentEpoch,proto3" json:"current_epoch,omitempty"`
-	// Magic number of the sidechain of the NeoFS network
+	// Magic number of FS chain of the NeoFS network
 	MagicNumber uint64 `protobuf:"varint,2,opt,name=magic_number,json=magicNumber,proto3" json:"magic_number,omitempty"`
-	// MillisecondsPerBlock network parameter of the sidechain of the NeoFS network
+	// MillisecondsPerBlock network parameter of FS chain of the NeoFS network
 	MsPerBlock int64 `protobuf:"varint,3,opt,name=ms_per_block,json=msPerBlock,proto3" json:"ms_per_block,omitempty"`
 	// NeoFS network configuration
 	NetworkConfig *NetworkConfig `protobuf:"bytes,4,opt,name=network_config,json=networkConfig,proto3" json:"network_config,omitempty"`
@@ -976,7 +976,7 @@ func (x *NodeInfo_Attribute) GetParents() []string {
 //     Number of EigenTrust algorithm iterations to pass in the Reputation system.
 //     Value: little-endian integer. Default: 0.
 //   - **EpochDuration** \
-//     NeoFS epoch duration measured in Sidechain blocks.
+//     NeoFS epoch duration measured in FS chain blocks.
 //     Value: little-endian integer. Default: 0.
 //   - **HomomorphicHashingDisabled** \
 //     Flag of disabling the homomorphic hashing of objects' payload.

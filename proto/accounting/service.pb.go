@@ -163,7 +163,7 @@ func (x *BalanceResponse) GetVerifyHeader() *session.ResponseVerificationHeader 
 }
 
 // To indicate the account for which the balance is requested, its identifier
-// is used. It can be any existing account in NeoFS sidechain `Balance` smart
+// is used. It can be any existing account in FS chain `Balance` smart
 // contract. If omitted, client implementation MUST set it to the request's
 // signer `OwnerID`.
 type BalanceRequest_Body struct {

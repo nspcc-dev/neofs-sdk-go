@@ -1005,7 +1005,7 @@ func (x *AnnounceUsedSpaceResponse) GetVerifyHeader() *session.ResponseVerificat
 }
 
 // Container creation request has container structure's signature as a
-// separate field. It's not stored in sidechain, just verified on container
+// separate field. It's not stored in FS chain, just verified on container
 // creation by `Container` smart contract. `ContainerID` is a SHA256 hash of
 // the stable-marshalled container strucutre, hence there is no need for
 // additional signature checks.
@@ -1494,7 +1494,7 @@ func (x *SetExtendedACLRequest_Body) GetSignature() *refs.SignatureRFC6979 {
 
 // `SetExtendedACLResponse` has an empty body because the operation is
 // asynchronous and the update should be reflected in `Container` smart contract's
-// storage after next block is issued in sidechain.
+// storage after next block is issued in FS chain.
 type SetExtendedACLResponse_Body struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache

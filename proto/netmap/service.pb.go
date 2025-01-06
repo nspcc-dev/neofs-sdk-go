@@ -233,7 +233,7 @@ func (x *NetworkInfoRequest) GetVerifyHeader() *session.RequestVerificationHeade
 }
 
 // Response with NetworkInfo structure including current epoch and
-// sidechain magic number.
+// FS chain magic number.
 type NetworkInfoResponse struct {
 	state         protoimpl.MessageState
 	sizeCache     protoimpl.SizeCache
