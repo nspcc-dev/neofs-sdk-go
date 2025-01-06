@@ -530,6 +530,17 @@ var (
 			proto.Clone(validProtoObjectIDs[2]).(*protorefs.ObjectID),
 		},
 	}
+	// correct ObjectService.SearchV2 response payload with required fields only.
+	validMinSearchV2ResponseBody = &protoobject.SearchV2Response_Body{}
+	// correct ObjectService.SearchV2 response payload with all fields.
+	validFullSearchV2ResponseBody = &protoobject.SearchV2Response_Body{
+		Result: []*protoobject.SearchV2Response_OIDWithMeta{
+			{Id: proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID), Attributes: []string{"val_1_1", "val_1_2"}},
+			{Id: proto.Clone(validProtoObjectIDs[1]).(*protorefs.ObjectID), Attributes: []string{"val_2_1", "val_2_2"}},
+			{Id: proto.Clone(validProtoObjectIDs[2]).(*protorefs.ObjectID), Attributes: []string{"val_3_1", "val_3_2"}},
+		},
+		Cursor: "any_cursor",
+	}
 )
 
 // Reputation service.

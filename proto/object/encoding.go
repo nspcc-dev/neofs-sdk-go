@@ -870,3 +870,96 @@ func (x *SearchResponse_Body) MarshalStable(b []byte) {
 		proto.MarshalToRepeatedMessages(b, fieldSearchRespIDList, x.IdList)
 	}
 }
+
+const (
+	_ = iota
+	fieldSearchV2ReqContainer
+	fieldSearchV2ReqVersion
+	fieldSearchV2ReqFilters
+	fieldSearchV2ReqCursor
+	fieldSearchV2ReqCount
+	fieldSearchV2ReqAttrs
+)
+
+// MarshaledSize returns size of x in Protocol Buffers V3 format in bytes.
+// MarshaledSize is NPE-safe.
+func (x *SearchV2Request_Body) MarshaledSize() int {
+	if x != nil {
+		return proto.SizeEmbedded(fieldSearchV2ReqContainer, x.ContainerId) +
+			proto.SizeVarint(fieldSearchV2ReqVersion, x.Version) +
+			proto.SizeRepeatedMessages(fieldSearchV2ReqFilters, x.Filters) +
+			proto.SizeBytes(fieldSearchV2ReqCursor, x.Cursor) +
+			proto.SizeVarint(fieldSearchV2ReqCount, x.Count) +
+			proto.SizeRepeatedBytes(fieldSearchV2ReqAttrs, x.Attributes)
+	}
+	return 0
+}
+
+// MarshalStable writes x in Protocol Buffers V3 format with ascending order of
+// fields by number into b. MarshalStable uses exactly
+// [SearchV2Request_Body.MarshaledSize] first bytes of b. MarshalStable is
+// NPE-safe.
+func (x *SearchV2Request_Body) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToEmbedded(b, fieldSearchV2ReqContainer, x.ContainerId)
+		off += proto.MarshalToVarint(b[off:], fieldSearchV2ReqVersion, x.Version)
+		off += proto.MarshalToRepeatedMessages(b[off:], fieldSearchV2ReqFilters, x.Filters)
+		off += proto.MarshalToBytes(b[off:], fieldSearchV2ReqCursor, x.Cursor)
+		off += proto.MarshalToVarint(b[off:], fieldSearchV2ReqCount, x.Count)
+		proto.MarshalToRepeatedBytes(b[off:], fieldSearchV2ReqAttrs, x.Attributes)
+	}
+}
+
+const (
+	_ = iota
+	fieldSearchV2RespItemID
+	fieldSearchV2RespItemAttrs
+)
+
+// MarshaledSize returns size of x in Protocol Buffers V3 format in bytes.
+// MarshaledSize is NPE-safe.
+func (x *SearchV2Response_OIDWithMeta) MarshaledSize() int {
+	if x != nil {
+		return proto.SizeEmbedded(fieldSearchV2RespItemID, x.Id) +
+			proto.SizeRepeatedBytes(fieldSearchV2RespItemAttrs, x.Attributes)
+	}
+	return 0
+}
+
+// MarshalStable writes x in Protocol Buffers V3 format with ascending order of
+// fields by number into b. MarshalStable uses exactly
+// [SearchV2Response_OIDWithMeta.MarshaledSize] first bytes of b. MarshalStable
+// is NPE-safe.
+func (x *SearchV2Response_OIDWithMeta) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToEmbedded(b, fieldSearchV2RespItemID, x.Id)
+		proto.MarshalToRepeatedBytes(b[off:], fieldSearchV2RespItemAttrs, x.Attributes)
+	}
+}
+
+const (
+	_ = iota
+	fieldSearchV2RespItems
+	fieldSearchV2RespCursor
+)
+
+// MarshaledSize returns size of x in Protocol Buffers V3 format in bytes.
+// MarshaledSize is NPE-safe.
+func (x *SearchV2Response_Body) MarshaledSize() int {
+	if x != nil {
+		return proto.SizeRepeatedMessages(fieldSearchV2RespItems, x.Result) +
+			proto.SizeBytes(fieldSearchV2RespCursor, x.Cursor)
+	}
+	return 0
+}
+
+// MarshalStable writes x in Protocol Buffers V3 format with ascending order of
+// fields by number into b. MarshalStable uses exactly
+// [SearchV2Response_Body.MarshaledSize] first bytes of b. MarshalStable is
+// NPE-safe.
+func (x *SearchV2Response_Body) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToRepeatedMessages(b, fieldSearchV2RespItems, x.Result)
+		proto.MarshalToBytes(b[off:], fieldSearchV2RespCursor, x.Cursor)
+	}
+}

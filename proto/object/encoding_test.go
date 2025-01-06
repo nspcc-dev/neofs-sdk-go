@@ -407,3 +407,48 @@ func TestSearchResponse_Body_MarshalStable(t *testing.T) {
 		{IdList: prototest.RandObjectIDs()},
 	})
 }
+
+func TestSearchV2Request_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*object.SearchV2Request_Body{
+		{
+			ContainerId: prototest.RandContainerID(),
+			Version:     prototest.RandUint32(),
+			Filters:     randSearchFilters(),
+			Cursor:      prototest.RandString(),
+			Count:       prototest.RandUint32(),
+			Attributes:  prototest.RandStrings(),
+		},
+	})
+}
+
+func TestSearchV2Response_Body_MarshalStable(t *testing.T) {
+	t.Run("nil in repeated messages", func(t *testing.T) {
+		src := &object.SearchV2Response_Body{
+			Result: []*object.SearchV2Response_OIDWithMeta{nil, {}},
+		}
+
+		var dst object.SearchV2Response_Body
+		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+
+		ids := dst.GetResult()
+		require.Len(t, ids, 2)
+		require.Equal(t, ids[0], new(object.SearchV2Response_OIDWithMeta))
+		require.Equal(t, ids[1], new(object.SearchV2Response_OIDWithMeta))
+	})
+
+	prototest.TestMarshalStable(t, []*object.SearchV2Response_Body{
+		{
+			Result: []*object.SearchV2Response_OIDWithMeta{
+				{
+					Id:         prototest.RandObjectID(),
+					Attributes: prototest.RandStrings(),
+				},
+				{
+					Id:         prototest.RandObjectID(),
+					Attributes: prototest.RandStrings(),
+				},
+			},
+			Cursor: prototest.RandString(),
+		},
+	})
+}
