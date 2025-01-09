@@ -100,7 +100,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 		b.ReportAllocs()
 		b.ResetTimer()
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			_, err = s.Put(ctx, r, in.attributes)
 			b.StopTimer()
 			require.NoError(b, err)
@@ -115,7 +115,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 		var err error
 		var w *slicer.PayloadWriter
 
-		for i := 0; i < b.N; i++ {
+		for range b.N {
 			w, err = s.InitPut(ctx, in.attributes)
 			b.StopTimer()
 			require.NoError(b, err)
@@ -954,7 +954,7 @@ func BenchmarkWritePayloadBuffer(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
 					require.NoError(b, err)
 
@@ -970,7 +970,7 @@ func BenchmarkWritePayloadBuffer(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
 					require.NoError(b, err)
 
@@ -1009,7 +1009,7 @@ func BenchmarkReadPayloadBuffer(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, in.signer, bytes.NewReader(in.payload), opts)
 					require.NoError(b, err)
 				}
@@ -1019,7 +1019,7 @@ func BenchmarkReadPayloadBuffer(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, in.signer, bytes.NewReader(in.payload), opts)
 					require.NoError(b, err)
 				}
@@ -1177,7 +1177,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					_, err := slicer.Put(ctx, discardObject{opts: opts}, hdr, signer, bytes.NewReader(payload), opts)
 					require.NoError(b, err)
 				}
@@ -1198,7 +1198,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 				b.ReportAllocs()
 				b.ResetTimer()
 
-				for i := 0; i < b.N; i++ {
+				for range b.N {
 					w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, signer, opts)
 					require.NoError(b, err)
 

@@ -135,7 +135,7 @@ func BenchmarkPlacementPolicyInteropability(b *testing.B) {
 
 					b.ReportAllocs()
 					b.ResetTimer()
-					for i := 0; i < b.N; i++ {
+					for range b.N {
 						b.StartTimer()
 						v, err := nm.ContainerNodes(tt.Policy, pivot)
 						b.StopTimer()
@@ -184,7 +184,7 @@ func BenchmarkManySelects(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err = nm.ContainerNodes(tt.Policy, pivot)
 		if err != nil {
 			b.FailNow()

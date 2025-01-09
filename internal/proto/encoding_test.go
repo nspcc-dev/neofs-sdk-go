@@ -217,7 +217,7 @@ func benchmarkType[T anySupportedType](
 	buf := make([]byte, sizeFunc(fieldNum, v))
 	b.ResetTimer()
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		marshalFunc(buf, fieldNum, v)
 	}
 }
@@ -233,7 +233,7 @@ func benchmarkRepeatedType[T anySupportedType](
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		marshalFunc(buf, fieldNum, v)
 	}
 }
@@ -389,7 +389,7 @@ func BenchmarkMarshalEmbedded(b *testing.B) {
 
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		proto.MarshalToEmbedded(buf, fieldNum, v)
 	}
 }

@@ -32,7 +32,7 @@ func BenchmarkPrepareReplicationMessage(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		_, err = prepareReplicateMessage(id, bytes.NewReader(bObj), signer, true)
 		require.NoError(b, err)
 	}
