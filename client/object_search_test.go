@@ -699,8 +699,16 @@ func (x *testSearchObjectsV2Server) verifyRequest(req *protoobject.SearchV2Reque
 	if body.Count > 1000 {
 		return newErrInvalidRequestField("count", errors.New("limit exceeded"))
 	}
-	if x.count != nil && body.Count != *x.count {
-		return newErrInvalidRequestField("version", fmt.Errorf("wrong value (client: %d, message: %d)", *x.count, body.Count))
+	if x.count != nil {
+		var expCount uint32
+		if *x.count != 0 {
+			expCount = *x.count
+		} else {
+			expCount = 1000
+		}
+		if body.Count != expCount {
+			return newErrInvalidRequestField("count", fmt.Errorf("wrong value (client: %d, message: %d)", expCount, body.Count))
+		}
 	}
 	// 5. cursor
 	if x.reqCursor != nil && body.Cursor != *x.reqCursor {
@@ -781,7 +789,9 @@ func TestClient_SearchObjects(t *testing.T) {
 	ctx := context.Background()
 	var anyValidOpts SearchObjectsOptions
 	anyCID := cidtest.ID()
-	const anyValidCount = 1000
+	const anyRequestCursor = ""
+	var anyValidFilters object.SearchFilters
+	var anyValidAttrs []string
 	anyValidSigner := usertest.User()
 	okConn := newTestObjectClient(t, newTestSearchObjectsV2Server())
 
@@ -795,6 +805,7 @@ func TestClient_SearchObjects(t *testing.T) {
 			t.Run("required data", func(t *testing.T) {
 				srv := newTestSearchObjectsV2Server()
 				c := newTestObjectClient(t, srv)
+				const anyRequestCursor = "any_request_cursor"
 
 				reqAttrs := make([]string, 4)
 				for i := range reqAttrs {
@@ -803,8 +814,15 @@ func TestClient_SearchObjects(t *testing.T) {
 
 				var fs object.SearchFilters
 				fs.AddFilter(reqAttrs[0], "any_val", 100)
+				fs.AddFilter("k1", "v1", object.MatchStringEqual)
+				fs.AddFilter("k1", "v2", object.MatchStringNotEqual)
+				fs.AddFilter("k3", "v3", object.MatchNotPresent)
+				fs.AddFilter("k4", "v4", object.MatchCommonPrefix)
+				fs.AddFilter("k5", "v5", object.MatchNumGT)
+				fs.AddFilter("k6", "v6", object.MatchNumGE)
+				fs.AddFilter("k7", "v7", object.MatchNumLT)
 
-				nItems := min(len(validProtoObjectIDs), anyValidCount)
+				nItems := min(len(validProtoObjectIDs), 1000)
 				respBody := &protoobject.SearchV2Response_Body{
 					Result: make([]*protoobject.SearchV2Response_OIDWithMeta, nItems),
 					Cursor: "any_response_cursor",
@@ -821,14 +839,12 @@ func TestClient_SearchObjects(t *testing.T) {
 
 				srv.respondWithBody(respBody)
 
-				opts := anyValidOpts
-				opts.AttachAttributes(reqAttrs)
-				opts.SetFilters(fs)
-
 				srv.checkRequestContainerID(anyCID)
-				srv.checkRequestCount(anyValidCount)
+				srv.checkRequestFilters(fs)
+				srv.checkRequestAttributes(reqAttrs)
+				srv.checkRequestCursor(anyRequestCursor)
 				srv.authenticateRequest(anyValidSigner)
-				items, cursor, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+				items, cursor, err := c.SearchObjects(ctx, anyCID, fs, reqAttrs, anyRequestCursor, anyValidSigner, SearchObjectsOptions{})
 				require.NoError(t, err)
 				assertSearchV2ResponseTransport(t, respBody, items, cursor)
 			})
@@ -837,7 +853,7 @@ func TestClient_SearchObjects(t *testing.T) {
 					testRequestXHeaders(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client, xhs []string) error {
 						opts := anyValidOpts
 						opts.WithXHeaders(xhs...)
-						_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
 						return err
 					})
 				})
@@ -849,7 +865,7 @@ func TestClient_SearchObjects(t *testing.T) {
 					opts.DisableForwarding()
 
 					srv.checkRequestLocal()
-					_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+					_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
 				t.Run("session token", func(t *testing.T) {
@@ -861,7 +877,7 @@ func TestClient_SearchObjects(t *testing.T) {
 					opts.WithSessionToken(st)
 
 					srv.checkRequestSessionToken(st)
-					_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+					_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
 				t.Run("bearer token", func(t *testing.T) {
@@ -874,56 +890,19 @@ func TestClient_SearchObjects(t *testing.T) {
 					opts.WithBearerToken(bt)
 
 					srv.checkRequestBearerToken(bt)
-					_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+					_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
-				t.Run("filters", func(t *testing.T) {
+				t.Run("count", func(t *testing.T) {
 					srv := newTestSearchObjectsV2Server()
 					c := newTestObjectClient(t, srv)
-
-					var fs object.SearchFilters
-					fs.AddFilter("k1", "v1", object.MatchStringEqual)
-					fs.AddFilter("k1", "v2", object.MatchStringNotEqual)
-					fs.AddFilter("k3", "v3", object.MatchNotPresent)
-					fs.AddFilter("k4", "v4", object.MatchCommonPrefix)
-					fs.AddFilter("k5", "v5", object.MatchNumGT)
-					fs.AddFilter("k6", "v6", object.MatchNumGE)
-					fs.AddFilter("k7", "v7", object.MatchNumLT)
-					fs.AddFilter("k8", "v8", object.MatchNumLE)
+					count := rand.Uint32() % 1001
 
 					opts := anyValidOpts
-					opts.SetFilters(fs)
+					opts.SetCount(count)
 
-					srv.checkRequestFilters(fs)
-					_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
-					require.NoError(t, err)
-				})
-				t.Run("cursor", func(t *testing.T) {
-					srv := newTestSearchObjectsV2Server()
-					c := newTestObjectClient(t, srv)
-					const anyCursor = "any_cursor"
-
-					opts := anyValidOpts
-					opts.SetCursor(anyCursor)
-
-					srv.checkRequestCursor(anyCursor)
-					_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
-					require.NoError(t, err)
-				})
-				t.Run("attributes", func(t *testing.T) {
-					srv := newTestSearchObjectsV2Server()
-					c := newTestObjectClient(t, srv)
-					attrs := []string{"a1", "a2", "a3"}
-
-					var fs object.SearchFilters
-					fs.AddFilter(attrs[0], "any_val", 100)
-
-					opts := anyValidOpts
-					opts.AttachAttributes(attrs)
-					opts.SetFilters(fs)
-
-					srv.checkRequestAttributes(attrs)
-					_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+					srv.checkRequestCount(count)
+					_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
 			})
@@ -943,24 +922,21 @@ func TestClient_SearchObjects(t *testing.T) {
 							srv := newTestSearchObjectsV2Server()
 							c := newTestObjectClient(t, srv)
 
-							opts := anyValidOpts
+							var as []string
+							var fs object.SearchFilters
 							if r := tc.body.GetResult(); len(r) > 0 {
 								if n := len(r[0].GetAttributes()); n > 0 {
-									as := make([]string, n)
+									as = make([]string, n)
 									for i := range as {
 										as[i] = "attr_" + strconv.Itoa(i)
 									}
 
-									var fs object.SearchFilters
 									fs.AddFilter(as[0], "any_val", 100)
-
-									opts.AttachAttributes(as)
-									opts.SetFilters(fs)
 								}
 							}
 
 							srv.respondWithBody(tc.body)
-							items, cursor, err := c.SearchObjects(ctx, anyCID, 1000, anyValidSigner, opts)
+							items, cursor, err := c.SearchObjects(ctx, anyCID, fs, as, anyRequestCursor, anyValidSigner, anyValidOpts)
 							require.NoError(t, err)
 							assertSearchV2ResponseTransport(t, tc.body, items, cursor)
 						})
@@ -968,7 +944,7 @@ func TestClient_SearchObjects(t *testing.T) {
 				})
 				t.Run("statuses", func(t *testing.T) {
 					testStatusResponses(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client) error {
-						_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 						return err
 					})
 				})
@@ -976,13 +952,13 @@ func TestClient_SearchObjects(t *testing.T) {
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "object.ObjectService", "SearchV2", func(c *Client) error {
-						_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 						return err
 					})
 				})
 				t.Run("verification header", func(t *testing.T) {
 					testInvalidResponseVerificationHeader(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client) error {
-						_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 						return err
 					})
 				})
@@ -1051,19 +1027,18 @@ func TestClient_SearchObjects(t *testing.T) {
 							}
 
 							opts := anyValidOpts
-							opts.SetCursor(tc.reqCursor)
+							opts.SetCount(tc.count)
+
+							var fs object.SearchFilters
 							if len(tc.attrs) > 0 {
-								opts.AttachAttributes(tc.attrs)
-								var fs object.SearchFilters
 								fs.AddFilter(tc.attrs[0], "any_val", 100)
-								opts.SetFilters(fs)
 							}
 
 							srv.respondWithBody(&protoobject.SearchV2Response_Body{
 								Result: tc.items,
 								Cursor: tc.respCursor,
 							})
-							_, _, err := c.SearchObjects(ctx, anyCID, tc.count, anyValidSigner, opts)
+							_, _, err := c.SearchObjects(ctx, anyCID, fs, tc.attrs, tc.reqCursor, anyValidSigner, opts)
 							require.EqualError(t, err, tc.msg)
 						})
 					}
@@ -1073,26 +1048,22 @@ func TestClient_SearchObjects(t *testing.T) {
 	})
 	t.Run("invalid user input", func(t *testing.T) {
 		t.Run("zero container", func(t *testing.T) {
-			_, _, err := okConn.SearchObjects(ctx, cid.ID{}, anyValidCount, anyValidSigner, anyValidOpts)
+			_, _, err := okConn.SearchObjects(ctx, cid.ID{}, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			require.ErrorIs(t, err, cid.ErrZero)
 		})
 		t.Run("count", func(t *testing.T) {
-			for _, count := range []uint32{0, 1001} {
-				t.Run(strconv.FormatUint(uint64(count), 10), func(t *testing.T) {
-					_, _, err := okConn.SearchObjects(ctx, anyCID, count, anyValidSigner, anyValidOpts)
-					require.EqualError(t, err, "count is out of [1, 1000] range")
-				})
-			}
+			opts := anyValidOpts
+			opts.SetCount(1001)
+			_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
+			require.EqualError(t, err, "count is out of [1, 1000] range")
 		})
 		t.Run("missing signer", func(t *testing.T) {
-			_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidCount, nil, anyValidOpts)
+			_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, nil, anyValidOpts)
 			require.ErrorIs(t, err, ErrMissingSigner)
 		})
 		t.Run("filters", func(t *testing.T) {
 			t.Run("limit exceeded", func(t *testing.T) {
-				opts := anyValidOpts
-				opts.SetFilters(make(object.SearchFilters, 9))
-				_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+				_, _, err := okConn.SearchObjects(ctx, anyCID, make(object.SearchFilters, 9), anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "more than 8 filters")
 			})
 			t.Run("missing 1st requested attribute", func(t *testing.T) {
@@ -1102,10 +1073,7 @@ func TestClient_SearchObjects(t *testing.T) {
 					fs.AddFilter(as[i+1], "any_val", 100)
 				}
 
-				opts := anyValidOpts
-				opts.AttachAttributes(as)
-				opts.SetFilters(fs)
-				_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, as, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, `attribute "a1" is requested but not filtered`)
 			})
 		})
@@ -1119,9 +1087,7 @@ func TestClient_SearchObjects(t *testing.T) {
 				{name: "limit exceeded", err: "more than 4 attributes", as: []string{"a1", "a2", "a3", "a4", "a5"}},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
-					opts := anyValidOpts
-					opts.AttachAttributes(tc.as)
-					_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, opts)
+					_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidFilters, tc.as, anyRequestCursor, anyValidSigner, anyValidOpts)
 					require.EqualError(t, err, tc.err)
 				})
 			}
@@ -1129,78 +1095,60 @@ func TestClient_SearchObjects(t *testing.T) {
 	})
 	t.Run("context", func(t *testing.T) {
 		testContextErrors(t, newTestSearchObjectsV2Server, newTestObjectClient, func(ctx context.Context, c *Client) error {
-			_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			return err
 		})
 	})
 	t.Run("sign request failure", func(t *testing.T) {
-		_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidCount, neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
+		_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor,
+			neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
 		assertSignRequestErr(t, err)
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client) error {
-			_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			return err
 		})
 	})
 	t.Run("response callback", func(t *testing.T) {
 		testUnaryResponseCallback(t, newTestSearchObjectsV2Server, newDefaultObjectService, func(c *Client) error {
-			_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			return err
 		})
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		var statFailures []testedClientOp
 		for _, in := range []struct {
-			cnr         cid.ID
-			count       uint32
-			signer      neofscrypto.Signer
-			corruptOpts func(valid *SearchObjectsOptions)
+			cnr     cid.ID
+			count   uint32
+			signer  neofscrypto.Signer
+			filters object.SearchFilters
+			attrs   []string
 		}{
-			{cnr: cid.ID{}, count: anyValidCount, signer: anyValidSigner},
-			{cnr: anyCID, count: 0, signer: anyValidSigner},
+			{cnr: cid.ID{}, signer: anyValidSigner},
 			{cnr: anyCID, count: 1001, signer: anyValidSigner},
-			{cnr: anyCID, count: 1001, signer: anyValidSigner},
-			{cnr: anyCID, count: anyValidCount, signer: neofscryptotest.FailSigner(anyValidSigner)},
-			{cnr: anyCID, count: anyValidCount, signer: anyValidSigner, corruptOpts: func(valid *SearchObjectsOptions) {
-				valid.SetFilters(make(object.SearchFilters, 9))
-			}},
-			{cnr: anyCID, count: anyValidCount, signer: anyValidSigner, corruptOpts: func(valid *SearchObjectsOptions) {
-				valid.SetFilters(make(object.SearchFilters, 9))
-			}},
-			{cnr: anyCID, count: anyValidCount, signer: anyValidSigner, corruptOpts: func(valid *SearchObjectsOptions) {
-				valid.AttachAttributes([]string{"a1", "a2", "a3", "a4", "a5"})
-			}},
-			{cnr: anyCID, count: anyValidCount, signer: anyValidSigner, corruptOpts: func(valid *SearchObjectsOptions) {
-				valid.AttachAttributes([]string{"a1", "", "a3"})
-			}},
-			{cnr: anyCID, count: anyValidCount, signer: anyValidSigner, corruptOpts: func(valid *SearchObjectsOptions) {
-				valid.AttachAttributes([]string{"a1", "a2", "a3", "a2"})
-			}},
-			{cnr: anyCID, count: anyValidCount, signer: anyValidSigner, corruptOpts: func(valid *SearchObjectsOptions) {
-				valid.AttachAttributes([]string{"a1", "a2"})
-				var fs object.SearchFilters
-				fs.AddFilter("a2", "any_val", 100)
-				valid.SetFilters(fs)
-			}},
+			{cnr: anyCID, signer: neofscryptotest.FailSigner(anyValidSigner)},
+			{cnr: anyCID, signer: anyValidSigner, filters: make(object.SearchFilters, 9)},
+			{cnr: anyCID, signer: anyValidSigner, attrs: []string{"a1", "a2", "a3", "a4", "a5"}},
+			{cnr: anyCID, signer: anyValidSigner, attrs: []string{"a1", "", "a3"}},
+			{cnr: anyCID, signer: anyValidSigner, attrs: []string{"a1", "a2", "a3", "a2"}},
+			{cnr: anyCID, signer: anyValidSigner, filters: nil, attrs: []string{"a1", "a2"}},
 		} {
 			statFailures = append(statFailures, func(c *Client) error {
 				opts := anyValidOpts
-				if in.corruptOpts != nil {
-					in.corruptOpts(&opts)
-				}
-				_, _, err := c.SearchObjects(ctx, in.cnr, in.count, in.signer, opts)
+				opts.SetCount(in.count)
+				_, _, err := c.SearchObjects(ctx, in.cnr, in.filters, in.attrs, anyRequestCursor, in.signer, opts)
 				return err
 			})
 		}
 
 		testStatistic(t, newTestSearchObjectsV2Server, newDefaultObjectService, stat.MethodObjectSearchV2, []testedClientOp{
 			func(c *Client) error {
-				_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, nil, anyValidOpts)
+				_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, nil, anyValidOpts)
 				return err
 			},
 		}, statFailures, func(c *Client) error {
-			_, _, err := c.SearchObjects(ctx, anyCID, anyValidCount, anyValidSigner, anyValidOpts)
+			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			return err
 		})
 	})

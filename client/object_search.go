@@ -44,9 +44,7 @@ type SearchObjectsOptions struct {
 	bearerToken  *bearer.Token
 	noForwarding bool
 
-	filters object.SearchFilters
-	cursor  string
-	attrs   []string
+	count uint32
 }
 
 // DisableForwarding disables request forwarding by the server and limits
@@ -62,36 +60,26 @@ func (x *SearchObjectsOptions) WithSessionToken(st session.Object) { x.sessionTo
 // must be issued by the container owner for the request signer.
 func (x *SearchObjectsOptions) WithBearerToken(bt bearer.Token) { x.bearerToken = &bt }
 
-// SetFilters sets filters by which to select objects. All container objects
-// match unset/empty filters. Limited by 8.
-//
-// If at least one attribute is requested via
-// [SearchObjectsOptions.AttachAttributes], query must include the 1st one.
-func (x *SearchObjectsOptions) SetFilters(filters object.SearchFilters) { x.filters = filters }
+// SetCount limits the search result to a given number. Must be in [1, 1000]
+// range. Defaults to 1000.
+func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 
-// AttachAttributes allows to specify set of requested object attributes: their
-// values will be attached to the response as strings in the canonical search
-// format. If attributes are specified, matching objects are sorted by them in
+// SearchObjects selects objects from given container by applying specified
+// filters, collects values of requested attributes and returns the result
+// sorted. Elements are compared by attributes' values lexicographically in
 // priority from first to last, closing with the default sorting by IDs. System
-// attributes can also be included using special aliases like
-// [object.FilterPayloadSize]. Limited by 4.
-func (x *SearchObjectsOptions) AttachAttributes(attrs []string) { x.attrs = attrs }
-
-// SetCursor sets cursor to continue search returned from previous
-// [Client.SearchObjects] call.
-func (x *SearchObjectsOptions) SetCursor(cursor string) { x.cursor = cursor }
-
-// SearchObjects selects at most given count of objects from the specified
-// container, sorts them and returns their IDs. Also returns an opaque string
-// cursor allowing to continue search via [SearchObjectsOptions.SetCursor] when
-// more than count objects are needed.
+// attributes can be included using special aliases like
+// [object.FilterPayloadSize]. SearchObjects also returns opaque continuation
+// cursor: when passed to a repeat call, it specifies where to continue the
+// operation from. To start the search anew, pass an empty cursor.
 //
-// Count must be in [1, 1000] range.
+// Max number of filters is 8. Max number of attributes is 4. If attributes are
+// specified, filters must include the 1st of them.
 //
-// To filter out some objects, use [SearchObjectsOptions.SetFilters]. To get
-// some attributes of matching objects, use
-// [SearchObjectsOptions.AttachAttributes].
-func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, count uint32, signer neofscrypto.Signer, opts SearchObjectsOptions) ([]SearchResultItem, string, error) {
+// Note that if requested attribute is missing in the matching object,
+// corresponding element in its [SearchResultItem.Attributes] is empty.
+func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.SearchFilters, attrs []string, cursor string,
+	signer neofscrypto.Signer, opts SearchObjectsOptions) ([]SearchResultItem, string, error) {
 	var err error
 	if c.prm.statisticCallback != nil {
 		startTime := time.Now()
@@ -106,43 +94,47 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, count uint32, si
 	case cnr.IsZero():
 		err = cid.ErrZero
 		return nil, "", err
-	case count == 0 || count > maxSearchObjectsCount:
+	case opts.count > maxSearchObjectsCount:
 		err = fmt.Errorf("count is out of [1, %d] range", maxSearchObjectsCount)
 		return nil, "", err
-	case len(opts.filters) > maxSearchObjectsFilterCount:
+	case len(filters) > maxSearchObjectsFilterCount:
 		err = fmt.Errorf("more than %d filters", maxSearchObjectsFilterCount)
 		return nil, "", err
-	case len(opts.attrs) > 0:
-		if len(opts.attrs) > maxSearchObjectsAttrCount {
+	case len(attrs) > 0:
+		if len(attrs) > maxSearchObjectsAttrCount {
 			err = fmt.Errorf("more than %d attributes", maxSearchObjectsAttrCount)
 			return nil, "", err
 		}
-		for i := range opts.attrs {
-			if opts.attrs[i] == "" {
+		for i := range attrs {
+			if attrs[i] == "" {
 				err = fmt.Errorf("empty attribute #%d", i)
 				return nil, "", err
 			}
-			for j := i + 1; j < len(opts.attrs); j++ {
-				if opts.attrs[i] == opts.attrs[j] {
-					err = fmt.Errorf("duplicated attribute %q", opts.attrs[i])
+			for j := i + 1; j < len(attrs); j++ {
+				if attrs[i] == attrs[j] {
+					err = fmt.Errorf("duplicated attribute %q", attrs[i])
 					return nil, "", err
 				}
 			}
 		}
-		if !slices.ContainsFunc(opts.filters, func(f object.SearchFilter) bool { return f.Header() == opts.attrs[0] }) {
-			err = fmt.Errorf("attribute %q is requested but not filtered", opts.attrs[0])
+		if !slices.ContainsFunc(filters, func(f object.SearchFilter) bool { return f.Header() == attrs[0] }) {
+			err = fmt.Errorf("attribute %q is requested but not filtered", attrs[0])
 			return nil, "", err
 		}
+	}
+
+	if opts.count == 0 {
+		opts.count = maxSearchObjectsCount
 	}
 
 	req := &protoobject.SearchV2Request{
 		Body: &protoobject.SearchV2Request_Body{
 			ContainerId: cnr.ProtoMessage(),
 			Version:     defaultSearchObjectsQueryVersion,
-			Filters:     opts.filters.ProtoMessage(),
-			Cursor:      opts.cursor,
-			Count:       count,
-			Attributes:  opts.attrs,
+			Filters:     filters.ProtoMessage(),
+			Cursor:      cursor,
+			Count:       opts.count,
+			Attributes:  attrs,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
 			Version: version.Current().ProtoMessage(),
@@ -209,12 +201,12 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, count uint32, si
 		}
 		return nil, "", nil
 	}
-	if opts.cursor != "" && resp.Body.Cursor == opts.cursor {
+	if cursor != "" && resp.Body.Cursor == cursor {
 		err = newErrInvalidResponseField(cursorField, errors.New("repeats the initial one"))
 		return nil, "", err
 	}
 	const resultField = "result"
-	if n > count {
+	if n > opts.count {
 		err = newErrInvalidResponseField(resultField, fmt.Errorf("more items than requested: %d", n))
 		return nil, "", err
 	}
@@ -228,7 +220,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, count uint32, si
 		case r.Id == nil:
 			err = newErrInvalidResponseField(resultField, fmt.Errorf("invalid element #%d: missing ID", i))
 			return nil, "", err
-		case len(r.Attributes) != len(opts.attrs):
+		case len(r.Attributes) != len(attrs):
 			err = newErrInvalidResponseField(resultField, fmt.Errorf("invalid element #%d: wrong attribute count %d", i, len(r.Attributes)))
 			return nil, "", err
 		}

@@ -154,10 +154,11 @@ func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer 
 
 // SearchObjects selects a suitable connection from the pool and calls
 // [client.Client.SearchObjects] on it.
-func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, count uint32, signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
+func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, filters object.SearchFilters, attrs []string, cursor string,
+	signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
 	c, err := p.sdkClient()
 	if err != nil {
 		return nil, "", err
 	}
-	return c.SearchObjects(ctx, containerID, count, signer, opts)
+	return c.SearchObjects(ctx, containerID, filters, attrs, cursor, signer, opts)
 }
