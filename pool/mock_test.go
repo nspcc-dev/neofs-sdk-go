@@ -138,6 +138,11 @@ func (m *mockClient) ObjectSearchInit(_ context.Context, _ cid.ID, _ user.Signer
 	panic("implement me")
 }
 
+func (m *mockClient) SearchObjects(ctx context.Context, cnr cid.ID, count uint32, signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
 func (m *mockClient) SessionCreate(_ context.Context, signer user.Signer, _ client.PrmSessionCreate) (*client.ResSessionCreate, error) {
 	if m.errorOnCreateSession {
 		err := errors.New("create session")

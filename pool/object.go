@@ -6,6 +6,7 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -149,4 +150,14 @@ func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer 
 		return nil, err
 	}
 	return c.ObjectSearchInit(ctx, containerID, signer, prm)
+}
+
+// SearchObjects selects a suitable connection from the pool and calls
+// [client.Client.SearchObjects] on it.
+func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, count uint32, signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
+	c, err := p.sdkClient()
+	if err != nil {
+		return nil, "", err
+	}
+	return c.SearchObjects(ctx, containerID, count, signer, opts)
 }
