@@ -450,7 +450,7 @@ func TestClient_ObjectSearch(t *testing.T) {
 					require.Equal(t, join(chunks[:n-1]), read)
 				})
 				t.Run("payloads", func(t *testing.T) {
-					t.Skip("")
+					t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/657")
 					type testcase = struct {
 						name, msg string
 						corrupt   func(valid *protoobject.SearchResponse_Body) // with 3 valid IDs
