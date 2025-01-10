@@ -33,18 +33,18 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type ContainerServiceClient interface {
 	// `Put` invokes `Container` smart contract's `Put` method and returns
-	// response immediately. After a new block is issued in sidechain, request is
-	// verified by Inner Ring nodes. After one more block in sidechain, the container
+	// response immediately. After a new block is issued in FS chain, request is
+	// verified by Inner Ring nodes. After one more block in FS chain, the container
 	// is added into smart contract storage.
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save the container has been sent to the sidechain;
+	//     request to save the container has been sent to FS chain;
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	// `Delete` invokes `Container` smart contract's `Delete` method and returns
-	// response immediately. After a new block is issued in sidechain, request is
-	// verified by Inner Ring nodes. After one more block in sidechain, the container
+	// response immediately. After a new block is issued in FS chain, request is
+	// verified by Inner Ring nodes. After one more block in FS chain, the container
 	// is added into smart contract storage.
 	// NOTE: a container deletion leads to the removal of every object in that
 	// container, regardless of any restrictions on the object removal (e.g. lock/locked
@@ -52,7 +52,7 @@ type ContainerServiceClient interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to remove the container has been sent to the sidechain;
+	//     request to remove the container has been sent to FS chain;
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 	// Returns container structure from `Container` smart contract storage.
@@ -72,12 +72,12 @@ type ContainerServiceClient interface {
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
 	// Invokes 'SetEACL' method of 'Container` smart contract and returns response
-	// immediately. After one more block in sidechain, changes in an Extended ACL are
+	// immediately. After one more block in FS chain, changes in an Extended ACL are
 	// added into smart contract storage.
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save container eACL has been sent to the sidechain;
+	//     request to save container eACL has been sent to FS chain;
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	SetExtendedACL(ctx context.Context, in *SetExtendedACLRequest, opts ...grpc.CallOption) (*SetExtendedACLResponse, error)
 	// Returns Extended ACL table and signature from `Container` smart contract
@@ -177,18 +177,18 @@ func (c *containerServiceClient) AnnounceUsedSpace(ctx context.Context, in *Anno
 // for forward compatibility
 type ContainerServiceServer interface {
 	// `Put` invokes `Container` smart contract's `Put` method and returns
-	// response immediately. After a new block is issued in sidechain, request is
-	// verified by Inner Ring nodes. After one more block in sidechain, the container
+	// response immediately. After a new block is issued in FS chain, request is
+	// verified by Inner Ring nodes. After one more block in FS chain, the container
 	// is added into smart contract storage.
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save the container has been sent to the sidechain;
+	//     request to save the container has been sent to FS chain;
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	Put(context.Context, *PutRequest) (*PutResponse, error)
 	// `Delete` invokes `Container` smart contract's `Delete` method and returns
-	// response immediately. After a new block is issued in sidechain, request is
-	// verified by Inner Ring nodes. After one more block in sidechain, the container
+	// response immediately. After a new block is issued in FS chain, request is
+	// verified by Inner Ring nodes. After one more block in FS chain, the container
 	// is added into smart contract storage.
 	// NOTE: a container deletion leads to the removal of every object in that
 	// container, regardless of any restrictions on the object removal (e.g. lock/locked
@@ -196,7 +196,7 @@ type ContainerServiceServer interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to remove the container has been sent to the sidechain;
+	//     request to remove the container has been sent to FS chain;
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	// Returns container structure from `Container` smart contract storage.
@@ -216,12 +216,12 @@ type ContainerServiceServer interface {
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	List(context.Context, *ListRequest) (*ListResponse, error)
 	// Invokes 'SetEACL' method of 'Container` smart contract and returns response
-	// immediately. After one more block in sidechain, changes in an Extended ACL are
+	// immediately. After one more block in FS chain, changes in an Extended ACL are
 	// added into smart contract storage.
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save container eACL has been sent to the sidechain;
+	//     request to save container eACL has been sent to FS chain;
 	//   - Common failures (SECTION_FAILURE_COMMON).
 	SetExtendedACL(context.Context, *SetExtendedACLRequest) (*SetExtendedACLResponse, error)
 	// Returns Extended ACL table and signature from `Container` smart contract

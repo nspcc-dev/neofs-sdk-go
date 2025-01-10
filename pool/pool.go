@@ -55,6 +55,7 @@ type sdkClientInterface interface {
 	ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectDelete) (oid.ID, error)
 	ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm sdkClient.PrmObjectHash) ([][]byte, error)
 	ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm sdkClient.PrmObjectSearch) (*sdkClient.ObjectListReader, error)
+	SearchObjects(ctx context.Context, containerID cid.ID, filters object.SearchFilters, attrs []string, cursor string, signer neofscrypto.Signer, opts sdkClient.SearchObjectsOptions) ([]sdkClient.SearchResultItem, string, error)
 
 	SessionCreate(ctx context.Context, signer user.Signer, prm sdkClient.PrmSessionCreate) (*sdkClient.ResSessionCreate, error)
 

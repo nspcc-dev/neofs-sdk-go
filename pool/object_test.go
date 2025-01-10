@@ -14,6 +14,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -93,6 +94,10 @@ func (noOtherClientCalls) ObjectHash(context.Context, cid.ID, oid.ID, user.Signe
 }
 
 func (noOtherClientCalls) ObjectSearchInit(context.Context, cid.ID, user.Signer, client.PrmObjectSearch) (*client.ObjectListReader, error) {
+	panic("must not be called")
+}
+
+func (noOtherClientCalls) SearchObjects(context.Context, cid.ID, object.SearchFilters, []string, string, neofscrypto.Signer, client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
 	panic("must not be called")
 }
 
@@ -552,4 +557,107 @@ func TestPool_ObjectSearchInit(t *testing.T) {
 	rdr, err := p.ObjectSearchInit(context.Background(), cnrID, usr, searchOpts)
 	require.Equal(t, err, searchClient.err)
 	require.Equal(t, rdr, searchClient.rdr)
+}
+
+type objectSearchV2OnlyClient struct {
+	noOtherClientCalls
+	// expected input
+	cnr       cid.ID
+	filters   object.SearchFilters
+	attrs     []string
+	reqCursor string
+	signer    neofscrypto.Signer
+	opts      client.SearchObjectsOptions
+	// ret
+	items      []client.SearchResultItem
+	respCursor string
+	err        error
+}
+
+func (x objectSearchV2OnlyClient) SearchObjects(ctx context.Context, cnr cid.ID, filters object.SearchFilters, attrs []string, cursor string,
+	signer neofscrypto.Signer, opts client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
+	switch {
+	case ctx == nil:
+		return nil, "", errors.New("[test] nil context")
+	case cnr != x.cnr:
+		return nil, "", errors.New("[test] wrong container")
+	case !assert.ObjectsAreEqual(filters, x.filters):
+		return nil, "", errors.New("[test] wrong filters")
+	case !assert.ObjectsAreEqual(attrs, x.attrs):
+		return nil, "", errors.New("[test] wrong attributes")
+	case cursor != x.reqCursor:
+		return nil, "", errors.New("[test] wrong cursor")
+	case !assert.ObjectsAreEqual(signer, x.signer):
+		return nil, "", errors.New("[test] wrong signer")
+	case !assert.ObjectsAreEqual(opts, x.opts):
+		return nil, "", errors.New("[test] wrong options")
+	}
+	return x.items, x.respCursor, x.err
+}
+
+type objectSearchV2OnlyClientWrapper struct {
+	mockedClientWrapper
+	c objectSearchV2OnlyClient
+}
+
+func (x objectSearchV2OnlyClientWrapper) getClient() (sdkClientInterface, error) { return x.c, nil }
+
+func TestPool_SearchObjects(t *testing.T) {
+	ctx := context.Background()
+	cnrID := cidtest.ID()
+	const reqCursor = "any_request_cursor"
+	signer := neofscryptotest.Signer()
+	attrs := []string{"a1", "a2", "a3"}
+	var fs object.SearchFilters
+	fs.AddFilter("k1", "v1", object.MatchStringEqual)
+	fs.AddFilter("k2", "v2", object.MatchStringNotEqual)
+
+	var opts client.SearchObjectsOptions
+	opts.WithXHeaders("k1", "v1", "k2", "v2")
+	opts.DisableForwarding()
+	opts.WithSessionToken(sessiontest.Object())
+	opts.WithBearerToken(bearertest.Token())
+	opts.SetCount(1000)
+
+	searchClient := objectSearchV2OnlyClient{
+		cnr:       cnrID,
+		filters:   fs,
+		attrs:     attrs,
+		reqCursor: "any_request_cursor",
+		signer:    signer,
+		opts:      opts,
+		items: []client.SearchResultItem{
+			{ID: oidtest.ID(), Attributes: []string{"val_1_1", "val_1_2"}},
+			{ID: oidtest.ID(), Attributes: []string{"val_2_1", "val_2_2"}},
+			{ID: oidtest.ID(), Attributes: []string{"val_3_1", "val_3_2"}},
+		},
+		respCursor: "any_response_cursor",
+		err:        errors.New("any error"),
+	}
+	endpoints := []string{"localhost:8080", "localhost:8081"}
+	nodes := make([]NodeParam, len(endpoints))
+	cws := make([]objectSearchV2OnlyClientWrapper, len(endpoints))
+	for i := range endpoints {
+		nodes[i].address = endpoints[i]
+		cws[i].addr = endpoints[i]
+		cws[i].c = searchClient
+	}
+
+	var poolOpts InitParameters
+	poolOpts.setClientBuilder(func(endpoint string) (internalClient, error) {
+		ind := slices.Index(endpoints, endpoint)
+		if ind < 0 {
+			return nil, fmt.Errorf("unexpected endpoint %q", endpoint)
+		}
+		return &cws[ind], nil
+	})
+	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
+	require.NoError(t, err)
+	require.NoError(t, p.Dial(ctx))
+	t.Cleanup(p.Close)
+
+	items, cursor, err := p.SearchObjects(ctx, cnrID, fs, attrs, reqCursor, signer, opts)
+	require.Equal(t, items, searchClient.items)
+	require.Equal(t, cursor, searchClient.respCursor)
+	require.Equal(t, err, searchClient.err)
 }
