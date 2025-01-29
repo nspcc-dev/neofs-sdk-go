@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
 )
@@ -28,15 +27,22 @@ func newErrInvalidVerificationHeader(depth uint, cause error) error {
 	return fmt.Errorf("invalid verification header at depth %d: %w", depth, cause)
 }
 
+// ProtoMessage is the marshaling interface provided by all NeoFS proto-level
+// structures.
+type ProtoMessage interface {
+	MarshaledSize() int
+	MarshalStable([]byte)
+}
+
 // SignedRequest is a generic interface of a signed NeoFS API request.
-type SignedRequest[B proto.Message] interface {
+type SignedRequest[B ProtoMessage] interface {
 	GetBody() B
 	GetMetaHeader() *session.RequestMetaHeader
 	GetVerifyHeader() *session.RequestVerificationHeader
 }
 
 // SignedResponse is a generic interface of a signed NeoFS API response.
-type SignedResponse[B proto.Message] interface {
+type SignedResponse[B ProtoMessage] interface {
 	GetBody() B
 	GetMetaHeader() *session.ResponseMetaHeader
 	GetVerifyHeader() *session.ResponseVerificationHeader
@@ -47,7 +53,7 @@ type SignedResponse[B proto.Message] interface {
 // header to attach to this request.
 //
 // Buffer is optional and free after the call.
-func SignRequestWithBuffer[B proto.Message](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
+func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
 	var ln int
 	var err error
 	vhOriginal := r.GetVerifyHeader()
@@ -91,7 +97,7 @@ func SignRequestWithBuffer[B proto.Message](signer Signer, r SignedRequest[B], b
 // formed according to the NeoFS API protocol.
 //
 // Buffer is optional and free after the call.
-func VerifyRequestWithBuffer[B proto.Message](r SignedRequest[B], buf []byte) error {
+func VerifyRequestWithBuffer[B ProtoMessage](r SignedRequest[B], buf []byte) error {
 	v := r.GetVerifyHeader()
 	if v == nil {
 		return errMissingVerifyHdr
@@ -151,7 +157,7 @@ func VerifyRequestWithBuffer[B proto.Message](r SignedRequest[B], buf []byte) er
 // resulting verification header to attach to this response.
 //
 // Buffer is optional and free after the call.
-func SignResponseWithBuffer[B proto.Message](signer Signer, r SignedResponse[B], buf []byte) (*session.ResponseVerificationHeader, error) {
+func SignResponseWithBuffer[B ProtoMessage](signer Signer, r SignedResponse[B], buf []byte) (*session.ResponseVerificationHeader, error) {
 	var ln int
 	var err error
 	vhOriginal := r.GetVerifyHeader()
@@ -195,7 +201,7 @@ func SignResponseWithBuffer[B proto.Message](signer Signer, r SignedResponse[B],
 // is formed according to the NeoFS API protocol.
 //
 // Buffer is optional and free after the call.
-func VerifyResponseWithBuffer[B proto.Message](r SignedResponse[B], buf []byte) error {
+func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) error {
 	v := r.GetVerifyHeader()
 	if v == nil {
 		return errMissingVerifyHdr
@@ -250,7 +256,7 @@ func VerifyResponseWithBuffer[B proto.Message](r SignedResponse[B], buf []byte) 
 	}
 }
 
-func verifyMessageSignature(m proto.Message, s *refs.Signature, b []byte) error {
+func verifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
 	if len(s.Key) == 0 {
 		return errors.New("missing public key")
 	}
@@ -273,7 +279,7 @@ func verifyMessageSignature(m proto.Message, s *refs.Signature, b []byte) error 
 
 // marshals m into buffer and returns it. Second value means buffer len occupied
 // for m.
-func encodeMessage(m proto.Message, b []byte) ([]byte, int) {
+func encodeMessage(m ProtoMessage, b []byte) ([]byte, int) {
 	s := m.MarshaledSize()
 	if len(b) < s {
 		b = make([]byte, s)
@@ -282,7 +288,7 @@ func encodeMessage(m proto.Message, b []byte) ([]byte, int) {
 	return b, s
 }
 
-func maxEncodedSize(ms ...proto.Message) int {
+func maxEncodedSize(ms ...ProtoMessage) int {
 	res := ms[0].MarshaledSize()
 	for _, m := range ms[1:] {
 		if s := m.MarshaledSize(); s > res {
