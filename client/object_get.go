@@ -482,6 +482,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 
 		var obj object.Object
 		if err = obj.FromProtoMessage(&protoobject.Object{
+			ObjectId:  objectID.ProtoMessage(),
 			Signature: v.Header.Signature,
 			Header:    v.Header.Header,
 		}); err != nil {
