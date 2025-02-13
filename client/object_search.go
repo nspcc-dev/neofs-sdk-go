@@ -28,7 +28,7 @@ const (
 
 	maxSearchObjectsCount       = 1000
 	maxSearchObjectsFilterCount = 8
-	maxSearchObjectsAttrCount   = 4
+	maxSearchObjectsAttrCount   = 8
 )
 
 // SearchResultItem groups data of an object matching particular search query.
@@ -73,7 +73,7 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // cursor: when passed to a repeat call, it specifies where to continue the
 // operation from. To start the search anew, pass an empty cursor.
 //
-// Max number of filters is 8. Max number of attributes is 4. If attributes are
+// Max number of filters is 8. Max number of attributes is 8. If attributes are
 // specified, filters must include the 1st of them.
 //
 // Note that if requested attribute is missing in the matching object,
