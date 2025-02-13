@@ -1084,7 +1084,7 @@ func TestClient_SearchObjects(t *testing.T) {
 			}{
 				{name: "empty", err: "empty attribute #1", as: []string{"a1", "", "a3"}},
 				{name: "duplicated", err: `duplicated attribute "a2"`, as: []string{"a1", "a2", "a3", "a2"}},
-				{name: "limit exceeded", err: "more than 4 attributes", as: []string{"a1", "a2", "a3", "a4", "a5"}},
+				{name: "limit exceeded", err: "more than 8 attributes", as: []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"}},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidFilters, tc.as, anyRequestCursor, anyValidSigner, anyValidOpts)
