@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -74,7 +73,7 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // operation from. To start the search anew, pass an empty cursor.
 //
 // Max number of filters is 8. Max number of attributes is 8. If attributes are
-// specified, filters must include the 1st of them. Neither filters nor
+// specified, the 1st filter must be about it. Neither filters nor
 // attributes can contain [object.FilterContainerID] or [object.FilterID].
 //
 // Note that if requested attribute is missing in the matching object,
@@ -122,8 +121,8 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 				}
 			}
 		}
-		if !slices.ContainsFunc(filters, func(f object.SearchFilter) bool { return f.Header() == attrs[0] }) {
-			err = fmt.Errorf("attribute %q is requested but not filtered", attrs[0])
+		if len(filters) == 0 || filters[0].Header() != attrs[0] {
+			err = fmt.Errorf("1st attribute %q is requested but not filtered 1st", attrs[0])
 			return nil, "", err
 		}
 	}

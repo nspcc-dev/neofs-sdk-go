@@ -1069,22 +1069,24 @@ func TestClient_SearchObjects(t *testing.T) {
 			t.Run("missing 1st requested attribute", func(t *testing.T) {
 				as := []string{"a1", "a2", "a3"}
 				var fs object.SearchFilters
-				for i := range as[1:] {
-					fs.AddFilter(as[i+1], "any_val", 100)
+				for i := range as {
+					fs.AddFilter(as[i], "any_val", 100)
 				}
 
-				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, as, anyRequestCursor, anyValidSigner, anyValidOpts)
-				require.EqualError(t, err, `attribute "a1" is requested but not filtered`)
+				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, as[1:], anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, `1st attribute "a2" is requested but not filtered 1st`)
+				_, _, err = okConn.SearchObjects(ctx, anyCID, nil, as[2:], anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, `1st attribute "a3" is requested but not filtered 1st`)
 			})
 			t.Run("prohibited", func(t *testing.T) {
 				var fs object.SearchFilters
 				fs.AddFilter("attr", "val", object.MatchStringEqual)
 				fs.AddObjectContainerIDFilter(object.SearchMatchType(rand.Int31()), cidtest.ID())
-				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
+				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:containerID")
 				fs = fs[:1]
 				fs.AddObjectIDFilter(object.SearchMatchType(rand.Int31()), oidtest.ID())
-				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
+				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:objectID")
 			})
 		})
