@@ -74,7 +74,8 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // operation from. To start the search anew, pass an empty cursor.
 //
 // Max number of filters is 8. Max number of attributes is 8. If attributes are
-// specified, filters must include the 1st of them.
+// specified, filters must include the 1st of them. Neither filters nor
+// attributes can contain [object.FilterContainerID] or [object.FilterID].
 //
 // Note that if requested attribute is missing in the matching object,
 // corresponding element in its [SearchResultItem.Attributes] is empty.
@@ -106,8 +107,12 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 			return nil, "", err
 		}
 		for i := range attrs {
-			if attrs[i] == "" {
+			switch attrs[i] {
+			case "":
 				err = fmt.Errorf("empty attribute #%d", i)
+				return nil, "", err
+			case object.FilterContainerID, object.FilterID:
+				err = fmt.Errorf("prohibited attribute %s", attrs[i])
 				return nil, "", err
 			}
 			for j := i + 1; j < len(attrs); j++ {
@@ -119,6 +124,12 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		}
 		if !slices.ContainsFunc(filters, func(f object.SearchFilter) bool { return f.Header() == attrs[0] }) {
 			err = fmt.Errorf("attribute %q is requested but not filtered", attrs[0])
+			return nil, "", err
+		}
+	}
+	for i := range filters {
+		if err = verifySearchFilter(filters[i]); err != nil {
+			err = fmt.Errorf("invalid filter #%d: %w", i, err)
 			return nil, "", err
 		}
 	}
@@ -232,6 +243,14 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 
 	return res, resp.Body.Cursor, nil
+}
+
+func verifySearchFilter(f object.SearchFilter) error {
+	switch attr := f.Header(); attr {
+	case object.FilterContainerID, object.FilterID:
+		return fmt.Errorf("prohibited attribute %s", attr)
+	}
+	return nil
 }
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.

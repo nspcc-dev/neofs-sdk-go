@@ -1076,6 +1076,17 @@ func TestClient_SearchObjects(t *testing.T) {
 				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, as, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, `attribute "a1" is requested but not filtered`)
 			})
+			t.Run("prohibited", func(t *testing.T) {
+				var fs object.SearchFilters
+				fs.AddFilter("attr", "val", object.MatchStringEqual)
+				fs.AddObjectContainerIDFilter(object.SearchMatchType(rand.Int31()), cidtest.ID())
+				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:containerID")
+				fs = fs[:1]
+				fs.AddObjectIDFilter(object.SearchMatchType(rand.Int31()), oidtest.ID())
+				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:objectID")
+			})
 		})
 		t.Run("attributes", func(t *testing.T) {
 			for _, tc := range []struct {
@@ -1085,6 +1096,8 @@ func TestClient_SearchObjects(t *testing.T) {
 				{name: "empty", err: "empty attribute #1", as: []string{"a1", "", "a3"}},
 				{name: "duplicated", err: `duplicated attribute "a2"`, as: []string{"a1", "a2", "a3", "a2"}},
 				{name: "limit exceeded", err: "more than 8 attributes", as: []string{"a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"}},
+				{name: "prohibited/CID", err: "prohibited attribute $Object:containerID", as: []string{object.FilterContainerID}},
+				{name: "prohibited/OID", err: "prohibited attribute $Object:objectID", as: []string{object.FilterID}},
 			} {
 				t.Run(tc.name, func(t *testing.T) {
 					_, _, err := okConn.SearchObjects(ctx, anyCID, anyValidFilters, tc.as, anyRequestCursor, anyValidSigner, anyValidOpts)
