@@ -246,6 +246,8 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 
 func verifySearchFilter(f object.SearchFilter) error {
 	switch attr := f.Header(); attr {
+	case "":
+		return errors.New("missing attribute")
 	case object.FilterContainerID, object.FilterID:
 		return fmt.Errorf("prohibited attribute %s", attr)
 	}

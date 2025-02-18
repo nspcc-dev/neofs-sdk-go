@@ -1089,6 +1089,13 @@ func TestClient_SearchObjects(t *testing.T) {
 				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:objectID")
 			})
+			t.Run("empty", func(t *testing.T) {
+				var fs object.SearchFilters
+				fs.AddFilter("attr", "val", object.MatchStringEqual)
+				fs.AddFilter("", "val", object.SearchMatchType(rand.Int31()))
+				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: missing attribute")
+			})
 		})
 		t.Run("attributes", func(t *testing.T) {
 			for _, tc := range []struct {
