@@ -1096,6 +1096,25 @@ func TestClient_SearchObjects(t *testing.T) {
 				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "invalid filter #1: missing attribute")
 			})
+			t.Run("key-only", func(t *testing.T) {
+				var fs object.SearchFilters
+				fs.AddFilter("attr", "val", object.MatchStringEqual)
+				fs.AddFilter(object.FilterRoot, "", 123)
+				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: non-zero matcher 123 for attribute $Object:ROOT")
+				fs = fs[:1]
+				fs.AddFilter(object.FilterRoot, "val", 0)
+				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: value for attribute $Object:ROOT is prohibited")
+				fs = fs[:1]
+				fs.AddFilter(object.FilterPhysical, "", 123)
+				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: non-zero matcher 123 for attribute $Object:PHY")
+				fs = fs[:1]
+				fs.AddFilter(object.FilterPhysical, "val", 0)
+				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, "invalid filter #1: value for attribute $Object:PHY is prohibited")
+			})
 		})
 		t.Run("attributes", func(t *testing.T) {
 			for _, tc := range []struct {

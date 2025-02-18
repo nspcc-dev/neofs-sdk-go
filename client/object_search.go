@@ -75,6 +75,8 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // Max number of filters is 8. Max number of attributes is 8. If attributes are
 // specified, the 1st filter must be about it. Neither filters nor
 // attributes can contain [object.FilterContainerID] or [object.FilterID].
+// Filters by [object.FilterRoot] and [object.FilterPhysical] properties must
+// have zero value and matcher.
 //
 // Note that if requested attribute is missing in the matching object,
 // corresponding element in its [SearchResultItem.Attributes] is empty.
@@ -250,6 +252,13 @@ func verifySearchFilter(f object.SearchFilter) error {
 		return errors.New("missing attribute")
 	case object.FilterContainerID, object.FilterID:
 		return fmt.Errorf("prohibited attribute %s", attr)
+	case object.FilterRoot, object.FilterPhysical:
+		if m := f.Operation(); m != 0 {
+			return fmt.Errorf("non-zero matcher %s for attribute %s", m, attr)
+		}
+		if val := f.Value(); val != "" {
+			return fmt.Errorf("value for attribute %s is prohibited", attr)
+		}
 	}
 	return nil
 }
