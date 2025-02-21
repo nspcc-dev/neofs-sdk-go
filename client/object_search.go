@@ -64,6 +64,9 @@ func (x *SearchObjectsOptions) WithBearerToken(bt bearer.Token) { x.bearerToken 
 // range. Defaults to 1000.
 func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 
+// Count returns limit for the search result.
+func (x SearchObjectsOptions) Count() uint32 { return x.count }
+
 // SearchObjects selects objects from given container by applying specified
 // filters, collects values of requested attributes and returns the result
 // sorted. Elements are compared by attributes' values lexicographically in
