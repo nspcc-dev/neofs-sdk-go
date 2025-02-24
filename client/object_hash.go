@@ -75,6 +75,9 @@ func (x *PrmObjectHash) UseSalt(salt []byte) {
 // ObjectHash requests checksum of the range list of the object payload using
 // NeoFS API protocol.
 //
+// To hash full payload, set both offset and length to zero. Otherwise, length
+// must not be zero.
+//
 // Returns a list of checksums in raw form: the format of hashes and their number
 // is left for the caller to check. Client preserves the order of the server's response.
 //

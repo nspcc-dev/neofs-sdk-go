@@ -284,7 +284,7 @@ func (x *testGetObjectPayloadRangeServer) verifyRequest(req *protoobject.GetRang
 	if body.Range == nil {
 		return newErrMissingRequestBodyField("range")
 	}
-	if body.Range.Length == 0 {
+	if body.Range.Length == 0 && body.Range.Offset != 0 {
 		return newErrInvalidRequestField("range", errors.New("zero length"))
 	}
 	if x.reqRng != nil {
