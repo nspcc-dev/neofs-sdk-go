@@ -671,6 +671,9 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 // ObjectRangeInit initiates reading an object's payload range through a remote
 // server using NeoFS API protocol.
 //
+// To get full payload, set both offset and length to zero. Otherwise, length
+// must not be zero.
+//
 // The call only opens the transmission channel, explicit fetching is done using the ObjectRangeReader.
 // Exactly one return value is non-nil. Resulting reader must be finally closed.
 //
@@ -692,7 +695,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		}()
 	}
 
-	if length == 0 {
+	if length == 0 && offset != 0 {
 		err = ErrZeroRangeLength
 		return nil, err
 	}
