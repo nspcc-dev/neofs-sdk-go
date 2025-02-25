@@ -13,6 +13,15 @@ import (
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
+const defaultContainerBackupFactor = 3
+
+const (
+	maxObjectReplicasPerSet = 8
+	maxContainerNodesInSet  = 64
+	maxContainerNodeSets    = 256
+	maxContainerNodes       = 512
+)
+
 // PlacementPolicy declares policy to store objects in the NeoFS container.
 // Within itself, PlacementPolicy represents a set of rules to select a subset
 // of nodes from NeoFS network map - node-candidates for object storage.
@@ -1132,4 +1141,45 @@ func operationFromString(s string) protonetmap.Operation {
 	case "AND":
 		return protonetmap.Operation_AND
 	}
+}
+
+var errInvalidNodeSetDesc = errors.New("invalid node set descriptor")
+
+// Verify checks whether p complies with NeoFS protocol requirements. The checks
+// performed may vary, so the method is recommended for system purposes only.
+func (p PlacementPolicy) Verify() error {
+	rs := p.Replicas()
+	if len(rs) > maxContainerNodeSets {
+		return fmt.Errorf("more than %d node sets", maxContainerNodeSets)
+	}
+	ss := p.Selectors()
+	bf := p.ContainerBackupFactor()
+	if bf == 0 {
+		bf = defaultContainerBackupFactor
+	}
+	var cnrNodeCount uint32
+	for i := range rs {
+		rNum := rs[i].NumberOfObjects()
+		if rNum > maxObjectReplicasPerSet {
+			return fmt.Errorf("%w #%d: more than %d object replicas", errInvalidNodeSetDesc, i, maxObjectReplicasPerSet)
+		}
+		var sNum uint32
+		if sName := rs[i].SelectorName(); sName != "" {
+			si := slices.IndexFunc(ss, func(s Selector) bool { return s.Name() == sName })
+			if si < 0 {
+				return fmt.Errorf("%w #%d: missing selector %q", errInvalidNodeSetDesc, i, sName)
+			}
+			sNum = ss[si].NumberOfNodes()
+		} else {
+			sNum = rNum
+		}
+		nodesInSet := bf * sNum
+		if nodesInSet > maxContainerNodesInSet {
+			return fmt.Errorf("%w #%d: more than %d nodes", errInvalidNodeSetDesc, i, maxContainerNodesInSet)
+		}
+		if cnrNodeCount += nodesInSet; cnrNodeCount > maxContainerNodes {
+			return fmt.Errorf("more than %d nodes in total", maxContainerNodes)
+		}
+	}
+	return nil
 }

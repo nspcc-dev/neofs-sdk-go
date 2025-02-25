@@ -54,6 +54,12 @@ func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
 
 // ContainerPut sends request to save container in NeoFS.
 //
+// Storage policy is required and limited by:
+//   - 256 replica descriptors;
+//   - 8 objects in each one;
+//   - 64 nodes in any set, i.e. BF * selector count;
+//   - 512 total nodes.
+//
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
@@ -83,6 +89,11 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 
 	if signer == nil {
 		return cid.ID{}, ErrMissingSigner
+	}
+
+	if err = cont.PlacementPolicy().Verify(); err != nil {
+		err = fmt.Errorf("invalid storage policy: %w", err)
+		return cid.ID{}, err
 	}
 
 	if !prm.sigSet {

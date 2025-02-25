@@ -72,7 +72,7 @@ func (c *context) setPivot(pivot []byte) {
 
 func (c *context) setCBF(cbf uint32) {
 	if cbf == 0 {
-		c.cbf = 3
+		c.cbf = defaultContainerBackupFactor
 	} else {
 		c.cbf = cbf
 	}

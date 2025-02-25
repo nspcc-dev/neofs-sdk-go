@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
@@ -666,6 +669,18 @@ func TestClient_ContainerPut(t *testing.T) {
 	anyValidContainer := containertest.Container()
 	anyValidSigner := neofscryptotest.Signer().RFC6979
 
+	rs, ss := make([]netmap.ReplicaDescriptor, 2), make([]netmap.Selector, 2)
+	rs[0].SetSelectorName("SEL1")
+	ss[0].SetName("SEL1")
+	rs[1].SetSelectorName("SEL2")
+	ss[1].SetName("SEL2")
+	rs[0].SetNumberOfObjects(7)
+	rs[1].SetNumberOfObjects(8)
+	policy := anyValidContainer.PlacementPolicy()
+	policy.SetReplicas(rs)
+	policy.SetSelectors(ss)
+	anyValidContainer.SetPlacementPolicy(policy)
+
 	t.Run("messages", func(t *testing.T) {
 		/*
 			This test is dedicated for cases when user input results in sending a certain
@@ -799,6 +814,125 @@ func TestClient_ContainerPut(t *testing.T) {
 			_, err := c.ContainerPut(ctx, anyValidContainer, nil, anyValidOpts)
 			require.ErrorIs(t, err, ErrMissingSigner)
 		})
+		t.Run("storage policy", func(t *testing.T) {
+			test := func(t *testing.T, msg string, corrupt func(policy *netmap.PlacementPolicy)) {
+				cnr := anyValidContainer
+				policy := cnr.PlacementPolicy()
+				policy.SetReplicas(rs)
+				policy.SetSelectors(ss)
+				corrupt(&policy)
+				cnr.SetPlacementPolicy(policy)
+				_, err := c.ContainerPut(ctx, cnr, anyValidSigner, anyValidOpts)
+				require.EqualError(t, err, msg)
+			}
+			t.Run("too many node sets", func(t *testing.T) {
+				test(t, "invalid storage policy: more than 256 node sets", func(policy *netmap.PlacementPolicy) {
+					policy.SetReplicas(make([]netmap.ReplicaDescriptor, 257))
+				})
+			})
+			t.Run("too many object replicas", func(t *testing.T) {
+				test(t, "invalid storage policy: invalid node set descriptor #1: more than 8 object replicas", func(policy *netmap.PlacementPolicy) {
+					rs := slices.Clone(rs)
+					rs[1].SetNumberOfObjects(9)
+					policy.SetReplicas(rs)
+				})
+			})
+			t.Run("missing selector", func(t *testing.T) {
+				test(t, `invalid storage policy: invalid node set descriptor #1: missing selector "SEL2"`, func(policy *netmap.PlacementPolicy) {
+					ss := slices.Clone(ss)
+					ss[1].SetName("SEL3")
+					policy.SetSelectors(ss)
+				})
+			})
+			t.Run("too many nodes in set", func(t *testing.T) {
+				t.Run("with selectors", func(t *testing.T) {
+					test := func(t *testing.T, sn, bf uint32) {
+						test(t, `invalid storage policy: invalid node set descriptor #1: more than 64 nodes`, func(policy *netmap.PlacementPolicy) {
+							ss := slices.Clone(ss)
+							ss[1].SetNumberOfNodes(sn)
+							policy.SetContainerBackupFactor(bf)
+							policy.SetSelectors(ss)
+						})
+					}
+					t.Run("default BF", func(t *testing.T) { test(t, 22, 0) })
+					t.Run("BF=1", func(t *testing.T) { test(t, 65, 1) })
+					t.Run("BF=5", func(t *testing.T) { test(t, 13, 5) })
+				})
+				test(t, `invalid storage policy: invalid node set descriptor #1: more than 64 nodes`, func(policy *netmap.PlacementPolicy) {
+					rs := make([]netmap.ReplicaDescriptor, 2)
+					rs[0].SetNumberOfObjects(4)
+					rs[1].SetNumberOfObjects(5)
+					policy.SetContainerBackupFactor(13)
+					policy.SetReplicas(rs)
+					policy.SetSelectors(nil)
+				})
+			})
+			t.Run("too many nodes in total", func(t *testing.T) {
+				test := func(t *testing.T, bf uint32, rs []netmap.ReplicaDescriptor, ss []netmap.Selector) {
+					test(t, "invalid storage policy: more than 512 nodes in total", func(policy *netmap.PlacementPolicy) {
+						policy.SetContainerBackupFactor(bf)
+						policy.SetReplicas(rs)
+						policy.SetSelectors(ss)
+					})
+				}
+				t.Run("with selectors", func(t *testing.T) {
+					t.Run("default BF", func(t *testing.T) {
+						t.Run("one node in set", func(t *testing.T) {
+							rs, ss := make([]netmap.ReplicaDescriptor, 171), make([]netmap.Selector, 171)
+							for i := range rs {
+								sName := "SEL" + strconv.Itoa(i)
+								rs[i].SetSelectorName(sName)
+								ss[i].SetName(sName)
+								rs[i].SetNumberOfObjects(1)
+								ss[i].SetNumberOfNodes(1)
+							}
+							test(t, 0, rs, ss)
+						})
+						t.Run("max nodes in set", func(t *testing.T) {
+							rs, ss := make([]netmap.ReplicaDescriptor, 9), make([]netmap.Selector, 9)
+							for i := range rs {
+								sName := "SEL" + strconv.Itoa(i)
+								rs[i].SetSelectorName(sName)
+								ss[i].SetName(sName)
+								rs[i].SetNumberOfObjects(1)
+								ss[i].SetNumberOfNodes(21)
+							}
+							ss[2].SetNumberOfNodes(3)
+							test(t, 0, rs, ss)
+						})
+					})
+					t.Run("BF=1", func(t *testing.T) {
+						rs, ss := make([]netmap.ReplicaDescriptor, 65), make([]netmap.Selector, 65)
+						for i := range rs {
+							sName := "SEL" + strconv.Itoa(i)
+							rs[i].SetSelectorName(sName)
+							ss[i].SetName(sName)
+							rs[i].SetNumberOfObjects(1)
+							ss[i].SetNumberOfNodes(8)
+						}
+						ss[64].SetNumberOfNodes(1)
+						test(t, 1, rs, ss)
+					})
+					t.Run("big BF", func(t *testing.T) {
+						rs, ss := make([]netmap.ReplicaDescriptor, 9), make([]netmap.Selector, 9)
+						for i := range rs {
+							sName := "SEL" + strconv.Itoa(i)
+							rs[i].SetSelectorName(sName)
+							ss[i].SetName(sName)
+							rs[i].SetNumberOfObjects(1)
+							ss[i].SetNumberOfNodes(1)
+						}
+						test(t, 64, rs, ss)
+					})
+				})
+				rs := make([]netmap.ReplicaDescriptor, 22)
+				for i := range rs {
+					rs[i].SetNumberOfObjects(8)
+				}
+				rs[21].SetNumberOfObjects(3)
+				test(t, 0, rs, nil)
+			})
+		})
 	})
 	t.Run("sign container failure", func(t *testing.T) {
 		c := newClient(t)
@@ -843,6 +977,13 @@ func TestClient_ContainerPut(t *testing.T) {
 			}},
 			[]testedClientOp{func(c *Client) error {
 				_, err := c.ContainerPut(ctx, anyValidContainer, neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
+				return err
+			}, func(c *Client) error {
+				cnr := anyValidContainer
+				policy := cnr.PlacementPolicy()
+				policy.SetReplicas(make([]netmap.ReplicaDescriptor, 257))
+				cnr.SetPlacementPolicy(policy)
+				_, err := c.ContainerPut(ctx, cnr, anyValidSigner, anyValidOpts)
 				return err
 			}}, func(c *Client) error {
 				_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
