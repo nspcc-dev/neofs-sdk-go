@@ -2,6 +2,8 @@ package netmap_test
 
 import (
 	"encoding/json"
+	"slices"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -522,4 +524,125 @@ func TestPlacementPolicy_UnmarshalJSON(t *testing.T) {
 	// filled
 	require.NoError(t, val.UnmarshalJSON([]byte(validJSONPlacementPolicy)))
 	require.Equal(t, validPlacementPolicy, val)
+}
+
+func TestPlacementPolicy_Verify(t *testing.T) {
+	var policy netmap.PlacementPolicy
+	require.NoError(t, policy.Verify())
+
+	validRs, validSs := make([]netmap.ReplicaDescriptor, 2), make([]netmap.Selector, 2)
+	validRs[0].SetSelectorName("SEL1")
+	validSs[0].SetName("SEL1")
+	validRs[1].SetSelectorName("SEL2")
+	validSs[1].SetName("SEL2")
+	validRs[0].SetNumberOfObjects(7)
+	validRs[1].SetNumberOfObjects(8)
+
+	policy.SetReplicas(validRs)
+	policy.SetSelectors(validSs)
+	require.NoError(t, policy.Verify())
+
+	t.Run("too many node sets", func(t *testing.T) {
+		policy.SetReplicas(make([]netmap.ReplicaDescriptor, 257))
+		require.EqualError(t, policy.Verify(), "more than 256 node sets")
+	})
+	t.Run("too many object replicas", func(t *testing.T) {
+		rs := slices.Clone(validRs)
+		rs[1].SetNumberOfObjects(9)
+		policy.SetReplicas(rs)
+		require.EqualError(t, policy.Verify(), "invalid node set descriptor #1: more than 8 object replicas")
+		policy.SetReplicas(validRs)
+	})
+	t.Run("missing selector", func(t *testing.T) {
+		ss := slices.Clone(validSs)
+		ss[1].SetName("SEL3")
+		policy.SetSelectors(ss)
+		require.EqualError(t, policy.Verify(), `invalid node set descriptor #1: missing selector "SEL2"`)
+		policy.SetSelectors(validSs)
+	})
+	t.Run("too many nodes in set", func(t *testing.T) {
+		t.Run("with selectors", func(t *testing.T) {
+			test := func(t *testing.T, sn, bf uint32) {
+				ss := slices.Clone(validSs)
+				ss[1].SetNumberOfNodes(sn)
+				policy.SetContainerBackupFactor(bf)
+				policy.SetSelectors(ss)
+				require.EqualError(t, policy.Verify(), `invalid node set descriptor #1: more than 64 nodes`)
+			}
+			t.Run("default BF", func(t *testing.T) { test(t, 22, 0) })
+			t.Run("BF=1", func(t *testing.T) { test(t, 65, 1) })
+			t.Run("BF=5", func(t *testing.T) { test(t, 13, 5) })
+		})
+		rs := make([]netmap.ReplicaDescriptor, 2)
+		rs[0].SetNumberOfObjects(4)
+		rs[1].SetNumberOfObjects(5)
+		policy.SetContainerBackupFactor(13)
+		policy.SetReplicas(rs)
+		policy.SetSelectors(nil)
+		require.EqualError(t, policy.Verify(), `invalid node set descriptor #1: more than 64 nodes`)
+	})
+	t.Run("too many nodes in total", func(t *testing.T) {
+		test := func(t *testing.T, bf uint32, rs []netmap.ReplicaDescriptor, ss []netmap.Selector) {
+			policy.SetContainerBackupFactor(bf)
+			policy.SetReplicas(rs)
+			policy.SetSelectors(ss)
+			require.EqualError(t, policy.Verify(), "more than 512 nodes in total")
+		}
+		t.Run("with selectors", func(t *testing.T) {
+			t.Run("default BF", func(t *testing.T) {
+				t.Run("one node in set", func(t *testing.T) {
+					rs, ss := make([]netmap.ReplicaDescriptor, 171), make([]netmap.Selector, 171)
+					for i := range rs {
+						sName := "SEL" + strconv.Itoa(i)
+						rs[i].SetSelectorName(sName)
+						ss[i].SetName(sName)
+						rs[i].SetNumberOfObjects(1)
+						ss[i].SetNumberOfNodes(1)
+					}
+					test(t, 0, rs, ss)
+				})
+				t.Run("max nodes in set", func(t *testing.T) {
+					rs, ss := make([]netmap.ReplicaDescriptor, 9), make([]netmap.Selector, 9)
+					for i := range rs {
+						sName := "SEL" + strconv.Itoa(i)
+						rs[i].SetSelectorName(sName)
+						ss[i].SetName(sName)
+						rs[i].SetNumberOfObjects(1)
+						ss[i].SetNumberOfNodes(21)
+					}
+					ss[2].SetNumberOfNodes(3)
+					test(t, 0, rs, ss)
+				})
+			})
+			t.Run("BF=1", func(t *testing.T) {
+				rs, ss := make([]netmap.ReplicaDescriptor, 65), make([]netmap.Selector, 65)
+				for i := range rs {
+					sName := "SEL" + strconv.Itoa(i)
+					rs[i].SetSelectorName(sName)
+					ss[i].SetName(sName)
+					rs[i].SetNumberOfObjects(1)
+					ss[i].SetNumberOfNodes(8)
+				}
+				ss[64].SetNumberOfNodes(1)
+				test(t, 1, rs, ss)
+			})
+			t.Run("big BF", func(t *testing.T) {
+				rs, ss := make([]netmap.ReplicaDescriptor, 9), make([]netmap.Selector, 9)
+				for i := range rs {
+					sName := "SEL" + strconv.Itoa(i)
+					rs[i].SetSelectorName(sName)
+					ss[i].SetName(sName)
+					rs[i].SetNumberOfObjects(1)
+					ss[i].SetNumberOfNodes(1)
+				}
+				test(t, 64, rs, ss)
+			})
+		})
+		rs := make([]netmap.ReplicaDescriptor, 22)
+		for i := range rs {
+			rs[i].SetNumberOfObjects(8)
+		}
+		rs[21].SetNumberOfObjects(3)
+		test(t, 0, rs, nil)
+	})
 }
