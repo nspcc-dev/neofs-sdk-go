@@ -155,8 +155,8 @@ type SearchFilters []SearchFilter
 const (
 	reservedFilterPrefix         = "$Object:"
 	FilterVersion                = reservedFilterPrefix + "version"
-	FilterID                     = reservedFilterPrefix + "objectID"
-	FilterContainerID            = reservedFilterPrefix + "containerID"
+	FilterID                     = reservedFilterPrefix + "objectID"    // Deprecated.
+	FilterContainerID            = reservedFilterPrefix + "containerID" // Deprecated.
 	FilterOwnerID                = reservedFilterPrefix + "ownerID"
 	FilterPayloadChecksum        = reservedFilterPrefix + "payloadHash"
 	FilterType                   = reservedFilterPrefix + "objectType"
@@ -252,6 +252,7 @@ func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v version.Ver
 // AddObjectContainerIDFilter adds a filter by container id.
 //
 // The m must not be numeric (like [MatchNumGT]).
+// Deprecated: must not be used.
 func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
 	f.addFilter(m, FilterContainerID, id.EncodeToString())
 }
@@ -321,6 +322,7 @@ func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id oid.ID) {
 // AddObjectIDFilter adds filter by object identifier.
 //
 // The m must not be numeric (like [MatchNumGT]).
+// Deprecated: must not be used.
 func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
 	f.addFilter(m, FilterID, id.EncodeToString())
 }

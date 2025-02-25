@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"slices"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -77,7 +76,10 @@ func (x SearchObjectsOptions) Count() uint32 { return x.count }
 // operation from. To start the search anew, pass an empty cursor.
 //
 // Max number of filters is 8. Max number of attributes is 8. If attributes are
-// specified, filters must include the 1st of them.
+// specified, the 1st filter must be about it. Neither filters nor
+// attributes can contain [object.FilterContainerID] or [object.FilterID].
+// Filters by [object.FilterRoot] and [object.FilterPhysical] properties must
+// have zero value and matcher.
 //
 // Note that if requested attribute is missing in the matching object,
 // corresponding element in its [SearchResultItem.Attributes] is empty.
@@ -109,8 +111,12 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 			return nil, "", err
 		}
 		for i := range attrs {
-			if attrs[i] == "" {
+			switch attrs[i] {
+			case "":
 				err = fmt.Errorf("empty attribute #%d", i)
+				return nil, "", err
+			case object.FilterContainerID, object.FilterID:
+				err = fmt.Errorf("prohibited attribute %s", attrs[i])
 				return nil, "", err
 			}
 			for j := i + 1; j < len(attrs); j++ {
@@ -120,8 +126,14 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 				}
 			}
 		}
-		if !slices.ContainsFunc(filters, func(f object.SearchFilter) bool { return f.Header() == attrs[0] }) {
-			err = fmt.Errorf("attribute %q is requested but not filtered", attrs[0])
+		if len(filters) == 0 || filters[0].Header() != attrs[0] {
+			err = fmt.Errorf("1st attribute %q is requested but not filtered 1st", attrs[0])
+			return nil, "", err
+		}
+	}
+	for i := range filters {
+		if err = verifySearchFilter(filters[i]); err != nil {
+			err = fmt.Errorf("invalid filter #%d: %w", i, err)
 			return nil, "", err
 		}
 	}
@@ -235,6 +247,23 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 
 	return res, resp.Body.Cursor, nil
+}
+
+func verifySearchFilter(f object.SearchFilter) error {
+	switch attr := f.Header(); attr {
+	case "":
+		return errors.New("missing attribute")
+	case object.FilterContainerID, object.FilterID:
+		return fmt.Errorf("prohibited attribute %s", attr)
+	case object.FilterRoot, object.FilterPhysical:
+		if m := f.Operation(); m != 0 {
+			return fmt.Errorf("non-zero matcher %s for attribute %s", m, attr)
+		}
+		if val := f.Value(); val != "" {
+			return fmt.Errorf("value for attribute %s is prohibited", attr)
+		}
+	}
+	return nil
 }
 
 // PrmObjectSearch groups optional parameters of ObjectSearch operation.
