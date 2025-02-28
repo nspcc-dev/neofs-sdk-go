@@ -104,6 +104,8 @@ type ObjectServiceClient interface {
 	Put(ctx context.Context, opts ...grpc.CallOption) (ObjectService_PutClient, error)
 	// Delete the object from a container. There is no immediate removal
 	// guarantee. Object will be marked for removal and deleted eventually.
+	// Notice that some types of objects (see ObjectType) can not be removed,
+	// currently it's Tombstone and Lock.
 	//
 	// Extended headers can change `Delete` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \
@@ -181,7 +183,7 @@ type ObjectServiceClient interface {
 	// * single message
 	// * allows for additional header fields to be returned
 	//
-	// Result is ordered by requested attributes and object ID.
+	// Result is ordered by the 1st requested attribute (if any) and object ID.
 	SearchV2(ctx context.Context, in *SearchV2Request, opts ...grpc.CallOption) (*SearchV2Response, error)
 	// Get byte range of data payload. Range is set as an (offset, length) tuple.
 	// Like in `Get` method, the response uses gRPC stream. Requested range can be
@@ -520,6 +522,8 @@ type ObjectServiceServer interface {
 	Put(ObjectService_PutServer) error
 	// Delete the object from a container. There is no immediate removal
 	// guarantee. Object will be marked for removal and deleted eventually.
+	// Notice that some types of objects (see ObjectType) can not be removed,
+	// currently it's Tombstone and Lock.
 	//
 	// Extended headers can change `Delete` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \
@@ -597,7 +601,7 @@ type ObjectServiceServer interface {
 	// * single message
 	// * allows for additional header fields to be returned
 	//
-	// Result is ordered by requested attributes and object ID.
+	// Result is ordered by the 1st requested attribute (if any) and object ID.
 	SearchV2(context.Context, *SearchV2Request) (*SearchV2Response, error)
 	// Get byte range of data payload. Range is set as an (offset, length) tuple.
 	// Like in `Get` method, the response uses gRPC stream. Requested range can be

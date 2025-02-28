@@ -186,10 +186,6 @@ func (MatchType) EnumDescriptor() ([]byte, []int) {
 //
 //   - $Object:version \
 //     version
-//   - $Object:objectID \
-//     object_id
-//   - $Object:containerID \
-//     container_id
 //   - $Object:ownerID \
 //     owner_id
 //   - $Object:creationEpoch \
@@ -224,6 +220,13 @@ func (MatchType) EnumDescriptor() ([]byte, []int) {
 //   - $Object:PHY \
 //     Returns only objects physically stored in the system. This filter is
 //     activated if the `key` exists, disregarding the value and matcher type.
+//
+// Following filters are deprecated:
+//
+//   - $Object:objectID \
+//     object_id
+//   - $Object:containerID \
+//     container_id
 //
 // Note: using filters with a key with prefix `$Object:` and match type
 // `NOT_PRESENT `is not recommended since this is not a cross-version approach.
@@ -312,9 +315,9 @@ type ShortHeader struct {
 	// Size of payload in bytes.
 	// `0xFFFFFFFFFFFFFFFF` means `payload_length` is unknown
 	PayloadLength uint64 `protobuf:"varint,5,opt,name=payload_length,json=payloadLength,proto3" json:"payload_length,omitempty"`
-	// Hash of payload bytes
+	// SHA256 hash of payload bytes.
 	PayloadHash *refs.Checksum `protobuf:"bytes,6,opt,name=payload_hash,json=payloadHash,proto3" json:"payload_hash,omitempty"`
-	// Homomorphic hash of the object payload
+	// Homomorphic hash of the object payload (Tillich-Zemor).
 	HomomorphicHash *refs.Checksum `protobuf:"bytes,7,opt,name=homomorphic_hash,json=homomorphicHash,proto3" json:"homomorphic_hash,omitempty"`
 }
 
@@ -417,11 +420,11 @@ type Header struct {
 	// Size of payload in bytes.
 	// `0xFFFFFFFFFFFFFFFF` means `payload_length` is unknown.
 	PayloadLength uint64 `protobuf:"varint,5,opt,name=payload_length,json=payloadLength,proto3" json:"payload_length,omitempty"`
-	// Hash of payload bytes
+	// SHA256 hash of payload bytes
 	PayloadHash *refs.Checksum `protobuf:"bytes,6,opt,name=payload_hash,json=payloadHash,proto3" json:"payload_hash,omitempty"`
 	// Type of the object payload content
 	ObjectType ObjectType `protobuf:"varint,7,opt,name=object_type,json=objectType,proto3,enum=neo.fs.v2.object.ObjectType" json:"object_type,omitempty"`
-	// Homomorphic hash of the object payload
+	// Homomorphic hash of the object payload (Tillich-Zemor).
 	HomomorphicHash *refs.Checksum `protobuf:"bytes,8,opt,name=homomorphic_hash,json=homomorphicHash,proto3" json:"homomorphic_hash,omitempty"`
 	// Session token, if it was used during Object creation. Need it to verify
 	// integrity and authenticity out of Request scope.
@@ -713,13 +716,15 @@ func (x *SplitInfo) GetFirstPart() *refs.ObjectID {
 //
 // Key name must be an object-unique valid UTF-8 string. Value can't be empty.
 // Objects with duplicated attribute names or attributes with empty values
-// will be considered invalid.
+// will be considered invalid. Keys and values can't contain zero bytes as
+// well.
 //
 // There are some "well-known" attributes starting with `__NEOFS__` prefix
 // that affect system behaviour:
 //
 //   - __NEOFS__EXPIRATION_EPOCH \
-//     Tells GC to delete object after that epoch
+//     Tells GC to delete object after that epoch (but object is available
+//     throughout the epoch specified in this attribute).
 //   - __NEOFS__TICK_EPOCH \
 //     Decimal number that defines what epoch must produce
 //     object notification with UTF-8 object address in a
@@ -1067,13 +1072,13 @@ var file_proto_object_types_proto_rawDesc = []byte{
 	0x4d, 0x4f, 0x4e, 0x5f, 0x50, 0x52, 0x45, 0x46, 0x49, 0x58, 0x10, 0x04, 0x12, 0x0a, 0x0a, 0x06,
 	0x4e, 0x55, 0x4d, 0x5f, 0x47, 0x54, 0x10, 0x05, 0x12, 0x0a, 0x0a, 0x06, 0x4e, 0x55, 0x4d, 0x5f,
 	0x47, 0x45, 0x10, 0x06, 0x12, 0x0a, 0x0a, 0x06, 0x4e, 0x55, 0x4d, 0x5f, 0x4c, 0x54, 0x10, 0x07,
-	0x12, 0x0a, 0x0a, 0x06, 0x4e, 0x55, 0x4d, 0x5f, 0x4c, 0x45, 0x10, 0x08, 0x42, 0x54, 0x5a, 0x35,
+	0x12, 0x0a, 0x0a, 0x06, 0x4e, 0x55, 0x4d, 0x5f, 0x4c, 0x45, 0x10, 0x08, 0x42, 0x4d, 0x5a, 0x2e,
 	0x67, 0x69, 0x74, 0x68, 0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x73, 0x70, 0x63, 0x63,
 	0x2d, 0x64, 0x65, 0x76, 0x2f, 0x6e, 0x65, 0x6f, 0x66, 0x73, 0x2d, 0x73, 0x64, 0x6b, 0x2d, 0x67,
-	0x6f, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x3b, 0x6f,
-	0x62, 0x6a, 0x65, 0x63, 0x74, 0xaa, 0x02, 0x1a, 0x4e, 0x65, 0x6f, 0x2e, 0x46, 0x69, 0x6c, 0x65,
-	0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x2e, 0x41, 0x50, 0x49, 0x2e, 0x4f, 0x62, 0x6a, 0x65,
-	0x63, 0x74, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x2f, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x2f, 0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0xaa, 0x02,
+	0x1a, 0x4e, 0x65, 0x6f, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65,
+	0x2e, 0x41, 0x50, 0x49, 0x2e, 0x4f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x62, 0x06, 0x70, 0x72, 0x6f,
+	0x74, 0x6f, 0x33,
 }
 
 var (

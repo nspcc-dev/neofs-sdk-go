@@ -394,7 +394,7 @@ type Replica struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// How many object replicas to put
+	// How many object replicas to put. Limited to 8.
 	Count uint32 `protobuf:"varint,1,opt,name=count,proto3" json:"count,omitempty"`
 	// Named selector bucket to put replicas
 	Selector string `protobuf:"bytes,2,opt,name=selector,proto3" json:"selector,omitempty"`
@@ -455,10 +455,12 @@ type PlacementPolicy struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Rules to set number of object replicas and place each one into a named
-	// bucket
+	// bucket. Limited to 256 items.
 	Replicas []*Replica `protobuf:"bytes,1,rep,name=replicas,proto3" json:"replicas,omitempty"`
-	// Container backup factor controls how deep NeoFS will search for nodes
-	// alternatives to include into container's nodes subset
+	// Container backup factor (CBF) controls how deep NeoFS will search for
+	// alternative nodes to include into container's nodes subset. In total,
+	// the number of container nodes is Selector (used by Replica) count
+	// times CBF. This number is limited to 64 per-Replica and 512 overall.
 	ContainerBackupFactor uint32 `protobuf:"varint,2,opt,name=container_backup_factor,json=containerBackupFactor,proto3" json:"container_backup_factor,omitempty"`
 	// Set of Selectors to form the container's nodes subset
 	Selectors []*Selector `protobuf:"bytes,3,rep,name=selectors,proto3" json:"selectors,omitempty"`
@@ -550,9 +552,9 @@ type NodeInfo struct {
 	// Ways to connect to a node
 	Addresses []string `protobuf:"bytes,2,rep,name=addresses,proto3" json:"addresses,omitempty"`
 	// Carries list of the NeoFS node attributes in a key-value form. Key name
-	// must be a node-unique valid UTF-8 string. Value can't be empty. NodeInfo
-	// structures with duplicated attribute names or attributes with empty values
-	// will be considered invalid.
+	// must be a node-unique valid UTF-8 string (without zero bytes). Value can't
+	// be empty. NodeInfo structures with duplicated attribute names or
+	// attributes with empty values will be considered invalid.
 	Attributes []*NodeInfo_Attribute `protobuf:"bytes,3,rep,name=attributes,proto3" json:"attributes,omitempty"`
 	// Carries state of the NeoFS node
 	State NodeInfo_State `protobuf:"varint,4,opt,name=state,proto3,enum=neo.fs.v2.netmap.NodeInfo_State" json:"state,omitempty"`
@@ -804,7 +806,7 @@ func (x *NetworkInfo) GetNetworkConfig() *NetworkConfig {
 // Administrator-defined Attributes of the NeoFS Storage Node.
 //
 // `Attribute` is a Key-Value metadata pair. Key name must be a valid UTF-8
-// string. Value can't be empty.
+// string (without zero bytes that are forbidden). Value can't be empty.
 //
 // Attributes can be constructed into a chain of attributes: any attribute can
 // have a parent attribute and a child attribute (except the first and the last
@@ -998,7 +1000,7 @@ type NetworkConfig_Parameter struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	// Parameter key. UTF-8 encoded string
+	// Parameter key. UTF-8 encoded string (with no zero bytes).
 	Key []byte `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// Parameter value
 	Value []byte `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
@@ -1158,13 +1160,12 @@ var file_proto_netmap_types_proto_rawDesc = []byte{
 	0x0a, 0x06, 0x43, 0x6c, 0x61, 0x75, 0x73, 0x65, 0x12, 0x16, 0x0a, 0x12, 0x43, 0x4c, 0x41, 0x55,
 	0x53, 0x45, 0x5f, 0x55, 0x4e, 0x53, 0x50, 0x45, 0x43, 0x49, 0x46, 0x49, 0x45, 0x44, 0x10, 0x00,
 	0x12, 0x08, 0x0a, 0x04, 0x53, 0x41, 0x4d, 0x45, 0x10, 0x01, 0x12, 0x0c, 0x0a, 0x08, 0x44, 0x49,
-	0x53, 0x54, 0x49, 0x4e, 0x43, 0x54, 0x10, 0x02, 0x42, 0x54, 0x5a, 0x35, 0x67, 0x69, 0x74, 0x68,
+	0x53, 0x54, 0x49, 0x4e, 0x43, 0x54, 0x10, 0x02, 0x42, 0x4d, 0x5a, 0x2e, 0x67, 0x69, 0x74, 0x68,
 	0x75, 0x62, 0x2e, 0x63, 0x6f, 0x6d, 0x2f, 0x6e, 0x73, 0x70, 0x63, 0x63, 0x2d, 0x64, 0x65, 0x76,
 	0x2f, 0x6e, 0x65, 0x6f, 0x66, 0x73, 0x2d, 0x73, 0x64, 0x6b, 0x2d, 0x67, 0x6f, 0x2f, 0x70, 0x72,
-	0x6f, 0x74, 0x6f, 0x2f, 0x6e, 0x65, 0x74, 0x6d, 0x61, 0x70, 0x3b, 0x6e, 0x65, 0x74, 0x6d, 0x61,
-	0x70, 0xaa, 0x02, 0x1a, 0x4e, 0x65, 0x6f, 0x2e, 0x46, 0x69, 0x6c, 0x65, 0x53, 0x74, 0x6f, 0x72,
-	0x61, 0x67, 0x65, 0x2e, 0x41, 0x50, 0x49, 0x2e, 0x4e, 0x65, 0x74, 0x6d, 0x61, 0x70, 0x62, 0x06,
-	0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
+	0x6f, 0x74, 0x6f, 0x2f, 0x6e, 0x65, 0x74, 0x6d, 0x61, 0x70, 0xaa, 0x02, 0x1a, 0x4e, 0x65, 0x6f,
+	0x2e, 0x46, 0x69, 0x6c, 0x65, 0x53, 0x74, 0x6f, 0x72, 0x61, 0x67, 0x65, 0x2e, 0x41, 0x50, 0x49,
+	0x2e, 0x4e, 0x65, 0x74, 0x6d, 0x61, 0x70, 0x62, 0x06, 0x70, 0x72, 0x6f, 0x74, 0x6f, 0x33,
 }
 
 var (
