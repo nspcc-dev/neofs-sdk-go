@@ -127,10 +127,11 @@ func (x mockedClientWrapper) GetNodeSession(neofscrypto.PublicKey) *session.Obje
 func (x mockedClientWrapper) ResetSessions()             { panic("must not be called") }
 func (x mockedClientWrapper) dial(context.Context) error { return nil }
 func (x mockedClientWrapper) restartIfUnhealthy(context.Context) (bool, bool) {
-	panic("must not be called")
+	return true, false
 }
 func (x mockedClientWrapper) getClient() (sdkClientInterface, error) { panic("must not be called") }
 func (x mockedClientWrapper) getRawClient() (*client.Client, error)  { panic("must not be called") }
+func (x mockedClientWrapper) Close() error                           { panic("must not be called") }
 
 type objectGetOnlyClient struct {
 	noOtherClientCalls
@@ -210,7 +211,7 @@ func TestPool_ObjectGetInit(t *testing.T) {
 	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
 	require.NoError(t, err)
 	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	hdr, pld, err := p.ObjectGetInit(context.Background(), cnrID, objID, usr, getOpts)
 	require.Equal(t, err, getClient.err)
@@ -294,7 +295,7 @@ func TestPool_ObjectHead(t *testing.T) {
 	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
 	require.NoError(t, err)
 	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	hdr, err := p.ObjectHead(context.Background(), cnrID, objID, usr, headOpts)
 	require.Equal(t, err, headClient.err)
@@ -385,7 +386,7 @@ func TestPool_ObjectRangeInit(t *testing.T) {
 	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
 	require.NoError(t, err)
 	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	pld, err := p.ObjectRangeInit(context.Background(), cnrID, objID, off, ln, usr, rangeOpts)
 	require.Equal(t, err, rangeClient.err)
@@ -470,7 +471,7 @@ func TestPool_ObjectHash(t *testing.T) {
 	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
 	require.NoError(t, err)
 	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	hs, err := p.ObjectHash(context.Background(), cnrID, objID, usr, hashOpts)
 	require.Equal(t, err, hashClient.err)
@@ -552,7 +553,7 @@ func TestPool_ObjectSearchInit(t *testing.T) {
 	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
 	require.NoError(t, err)
 	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	rdr, err := p.ObjectSearchInit(context.Background(), cnrID, usr, searchOpts)
 	require.Equal(t, err, searchClient.err)
@@ -654,7 +655,7 @@ func TestPool_SearchObjects(t *testing.T) {
 	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
 	require.NoError(t, err)
 	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	items, cursor, err := p.SearchObjects(ctx, cnrID, fs, attrs, reqCursor, signer, opts)
 	require.Equal(t, items, searchClient.items)
