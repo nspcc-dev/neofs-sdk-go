@@ -245,3 +245,5 @@ func (m *mockClient) GetNodeSession(neofscrypto.PublicKey) *session.Object {
 
 func (m *mockClient) ResetSessions() {
 }
+
+func (m *mockClient) Close() error { panic("unimplemented") }

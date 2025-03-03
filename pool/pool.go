@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -84,6 +85,7 @@ type nodeSessionContainer interface {
 type internalClient interface {
 	clientStatus
 	nodeSessionContainer
+	io.Closer
 
 	// see clientWrapper.dial.
 	dial(ctx context.Context) error
@@ -370,6 +372,8 @@ func (c *clientWrapper) GetNodeSession(pubKey neofscrypto.PublicKey) *session.Ob
 func (c *clientWrapper) ResetSessions() {
 	c.nodeSessionCache.Purge()
 }
+
+func (c *clientWrapper) Close() error { return c.client.Close() }
 
 func (c *clientStatusMonitor) isHealthy() bool {
 	return c.healthy.Load()
@@ -1023,7 +1027,18 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 func (p *Pool) Close() error {
 	p.cancel()
 	<-p.closedCh
-	return nil
+
+	es := make([]error, 0, len(p.innerPools))
+	for i := range p.innerPools {
+		pes := make([]error, 0, len(p.innerPools[i].clients))
+		for _, c := range p.innerPools[i].clients {
+			if c != nil {
+				pes = append(pes, c.Close())
+			}
+		}
+		es = append(es, errors.Join(pes...))
+	}
+	return errors.Join(es...)
 }
 
 func (p *Pool) sdkClient() (*sdkClientWrapper, error) {

@@ -131,6 +131,7 @@ func (x mockedClientWrapper) restartIfUnhealthy(context.Context) (bool, bool) {
 }
 func (x mockedClientWrapper) getClient() (sdkClientInterface, error) { panic("must not be called") }
 func (x mockedClientWrapper) getRawClient() (*client.Client, error)  { panic("must not be called") }
+func (x mockedClientWrapper) Close() error                           { panic("must not be called") }
 
 type objectGetOnlyClient struct {
 	noOtherClientCalls
