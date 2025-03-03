@@ -127,7 +127,7 @@ func (x mockedClientWrapper) GetNodeSession(neofscrypto.PublicKey) *session.Obje
 func (x mockedClientWrapper) ResetSessions()             { panic("must not be called") }
 func (x mockedClientWrapper) dial(context.Context) error { return nil }
 func (x mockedClientWrapper) restartIfUnhealthy(context.Context) (bool, bool) {
-	panic("must not be called")
+	return true, false
 }
 func (x mockedClientWrapper) getClient() (sdkClientInterface, error) { panic("must not be called") }
 func (x mockedClientWrapper) getRawClient() (*client.Client, error)  { panic("must not be called") }
