@@ -1020,9 +1020,10 @@ func (p *Pool) RawClient() (*sdkClient.Client, error) {
 }
 
 // Close closes the Pool and releases all the associated resources.
-func (p *Pool) Close() {
+func (p *Pool) Close() error {
 	p.cancel()
 	<-p.closedCh
+	return nil
 }
 
 func (p *Pool) sdkClient() (*sdkClientWrapper, error) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"testing"
 	"time"
@@ -83,7 +84,7 @@ func TestBuildPoolOneNodeFailed(t *testing.T) {
 	require.NoError(t, err)
 	err = clientPool.Dial(context.Background())
 	require.NoError(t, err)
-	t.Cleanup(clientPool.Close)
+	t.Cleanup(func() { _ = clientPool.Close })
 
 	condition := func() bool {
 		cp, err := clientPool.connection()
@@ -134,7 +135,7 @@ func TestOneNode(t *testing.T) {
 	require.NoError(t, err)
 	err = pool.Dial(context.Background())
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
@@ -159,7 +160,7 @@ func TestTwoNodes(t *testing.T) {
 	require.NoError(t, err)
 	err = pool.Dial(context.Background())
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
@@ -206,7 +207,7 @@ func TestOneOfTwoFailed(t *testing.T) {
 	require.NoError(t, err)
 
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	time.Sleep(2 * time.Second)
 
@@ -239,7 +240,7 @@ func TestTwoFailed(t *testing.T) {
 	err = pool.Dial(context.Background())
 	require.NoError(t, err)
 
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	time.Sleep(2 * time.Second)
 
@@ -273,7 +274,7 @@ func TestSessionCache(t *testing.T) {
 	require.NoError(t, err)
 	err = pool.Dial(ctx)
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	cp, err := pool.connection()
 	require.NoError(t, err)
@@ -368,7 +369,7 @@ func TestPriority(t *testing.T) {
 	require.NoError(t, err)
 	err = pool.Dial(ctx)
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	firstNode := func() bool {
 		cp, err := pool.connection()
@@ -442,7 +443,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.NoError(t, err)
 	err = p.Dial(ctx)
 	require.NoError(t, err)
-	t.Cleanup(p.Close)
+	t.Cleanup(func() { _ = p.Close })
 
 	cp, err := p.connection()
 	require.NoError(t, err)
@@ -589,7 +590,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.NoError(t, err)
 	err = pool.Dial(ctx)
 	require.NoError(t, err)
-	t.Cleanup(pool.Close)
+	t.Cleanup(func() { _ = pool.Close })
 
 	for range errorThreshold {
 		conn, err := pool.connection()
@@ -610,4 +611,8 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.NoError(t, err)
 	_, _, err = sdkClient.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, usr, client.PrmObjectGet{})
 	require.NoError(t, err)
+}
+
+func TestPool_Close(t *testing.T) {
+	require.Implements(t, (*io.Closer)(nil), new(Pool))
 }
