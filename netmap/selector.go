@@ -1,8 +1,9 @@
 package netmap
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 
 	"github.com/nspcc-dev/hrw/v2"
 )
@@ -68,12 +69,12 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 	// we also need to have deterministic input to HRW sorting routine.
 	if len(c.hrwSeed) == 0 {
 		if s.BucketAttribute() == "" {
-			sort.Slice(buckets, func(i, j int) bool {
-				return less(buckets[i].nodes[0], buckets[j].nodes[0])
+			slices.SortFunc(buckets, func(a, b nodeAttrPair) int {
+				return cmp.Compare(a.nodes[0].Hash(), b.nodes[0].Hash())
 			})
 		} else {
-			sort.Slice(buckets, func(i, j int) bool {
-				return buckets[i].attr < buckets[j].attr
+			slices.SortFunc(buckets, func(a, b nodeAttrPair) int {
+				return cmp.Compare(a.attr, b.attr)
 			})
 		}
 	}
