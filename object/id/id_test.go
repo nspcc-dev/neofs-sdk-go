@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"fmt"
-	"math/rand"
 	"testing"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -214,9 +214,7 @@ func TestIDComparable(t *testing.T) {
 
 func TestNewFromObjectHeaderBinary(t *testing.T) {
 	// use any binary just for the test
-	hdr := make([]byte, 512)
-	//nolint:staticcheck
-	rand.Read(hdr)
+	hdr := testutil.RandByteSlice(512)
 	id := oid.NewFromObjectHeaderBinary(hdr)
 	require.EqualValues(t, sha256.Sum256(hdr), id)
 	require.Equal(t, id, oid.NewFromObjectHeaderBinary(hdr))

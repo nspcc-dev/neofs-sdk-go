@@ -2,11 +2,11 @@ package eacltest
 
 import (
 	"bytes"
-	"math/rand"
 	"testing"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -72,9 +72,7 @@ func TargetN(n int) *eacl.Target {
 	keys := make([][]byte, n)
 
 	for i := range n {
-		keys[i] = make([]byte, 32)
-		//nolint:staticcheck
-		rand.Read(keys[i])
+		keys[i] = testutil.RandByteSlice(32)
 	}
 
 	x.SetBinaryKeys(keys)

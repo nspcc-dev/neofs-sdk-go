@@ -1,8 +1,7 @@
 package netmaptest
 
 import (
-	"math/rand"
-
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 )
 
@@ -71,11 +70,7 @@ func NetworkInfo() (x netmap.NetworkInfo) {
 
 // NodeInfo returns random netmap.NodeInfo.
 func NodeInfo() (x netmap.NodeInfo) {
-	key := make([]byte, 33)
-	//nolint:staticcheck
-	rand.Read(key)
-
-	x.SetPublicKey(key)
+	x.SetPublicKey(testutil.RandByteSlice(33))
 	x.SetNetworkEndpoints("1", "2", "3")
 
 	return

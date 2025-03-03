@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 	stdproto "google.golang.org/protobuf/proto"
@@ -57,10 +58,7 @@ func randBytes[T proto.Bytes]() T {
 	if ln == 0 {
 		ln = 1
 	}
-	b := make([]byte, ln)
-	//nolint:staticcheck // cryptorandom is not required for this test
-	rand.Read(b)
-	return T(b)
+	return T(testutil.RandByteSlice(ln))
 }
 
 func randVarint[T proto.Varint]() T { return T(rand.Uint64()) }

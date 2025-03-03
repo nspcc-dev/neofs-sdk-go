@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
@@ -64,17 +65,13 @@ func TestChecksumDecodingFailures(t *testing.T) {
 
 func TestNew(t *testing.T) {
 	typ := checksum.Type(rand.Int31())
-	val := make([]byte, 128)
-	//nolint:staticcheck
-	rand.Read(val)
+	val := testutil.RandByteSlice(128)
 	cs := checksum.New(typ, val)
 	require.Equal(t, typ, cs.Type())
 	require.Equal(t, val, cs.Value())
 
 	otherTyp := checksum.Type(rand.Int31())
-	otherVal := make([]byte, 128)
-	//nolint:staticcheck
-	rand.Read(otherVal)
+	otherVal := testutil.RandByteSlice(128)
 	cs = checksum.New(otherTyp, otherVal)
 	require.Equal(t, otherTyp, cs.Type())
 	require.Equal(t, otherVal, cs.Value())
@@ -108,18 +105,13 @@ func testTypeConstructor[T [sha256.Size]byte | [tz.Size]byte](
 	cons func(T) checksum.Checksum,
 ) {
 	// array generics do not support T[:] op, so randomize through conversion
-	b := make([]byte, 128) // more than any popular hash
-	//nolint:staticcheck
-	rand.Read(b)
-	val := T(b)
+	val := T(testutil.RandByteSlice(128)) // more than any popular hash)
 	cs := cons(val)
 	require.Equal(t, typ, cs.Type())
 	require.Len(t, cs.Value(), len(val))
 	require.Equal(t, val, T(cs.Value()))
 
-	//nolint:staticcheck
-	rand.Read(b)
-	otherVal := T(b)
+	otherVal := T(testutil.RandByteSlice(128))
 	cs = cons(otherVal)
 	require.Equal(t, typ, cs.Type())
 	require.Len(t, cs.Value(), len(otherVal))

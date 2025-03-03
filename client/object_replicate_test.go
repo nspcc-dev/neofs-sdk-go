@@ -3,7 +3,6 @@ package client
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"fmt"
 	"sync"
 	"testing"
@@ -12,6 +11,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
@@ -22,9 +22,7 @@ import (
 )
 
 func BenchmarkPrepareReplicationMessage(b *testing.B) {
-	bObj := make([]byte, 1<<10)
-	_, err := rand.Read(bObj) // structure does not matter for
-	require.NoError(b, err)
+	bObj := testutil.RandByteSlice(1 << 10) // structure does not matter for
 	id := oidtest.ID()
 
 	var signer nopSigner
@@ -33,7 +31,7 @@ func BenchmarkPrepareReplicationMessage(b *testing.B) {
 	b.ResetTimer()
 
 	for range b.N {
-		_, err = prepareReplicateMessage(id, bytes.NewReader(bObj), signer, true)
+		_, err := prepareReplicateMessage(id, bytes.NewReader(bObj), signer, true)
 		require.NoError(b, err)
 	}
 }

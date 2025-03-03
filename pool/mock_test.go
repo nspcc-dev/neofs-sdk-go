@@ -2,7 +2,6 @@ package pool
 
 import (
 	"context"
-	"crypto/rand"
 	"errors"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -19,13 +19,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
-
-func randomBytes(size uint64) []byte {
-	data := make([]byte, size)
-	_, _ = rand.Read(data)
-
-	return data
-}
 
 type mockClient struct {
 	signer neofscrypto.Signer
@@ -90,7 +83,7 @@ func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (ne
 		return ni, err
 	}
 
-	ni.SetRawNetworkParameter(string(randomBytes(16)), randomBytes(16))
+	ni.SetRawNetworkParameter(string(testutil.RandByteSlice(16)), testutil.RandByteSlice(16))
 	ni.SetCurrentEpoch(uint64(time.Now().Unix()))
 	ni.SetMaxObjectSize(1024)
 
@@ -153,7 +146,7 @@ func (m *mockClient) SessionCreate(_ context.Context, signer user.Signer, _ clie
 	b := make([]byte, signer.Public().MaxEncodedSize())
 	signer.Public().Encode(b)
 
-	res := client.NewResSessionCreate(randomBytes(16), b)
+	res := client.NewResSessionCreate(testutil.RandByteSlice(16), b)
 	return &res, nil
 }
 

@@ -9,20 +9,18 @@ import (
 	"encoding/hex"
 	"errors"
 	"math/big"
-	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSignature(t *testing.T) {
-	data := make([]byte, 512)
-	//nolint:staticcheck
-	rand.Read(data)
+	data := testutil.RandByteSlice(512)
 
 	k, err := keys.NewPrivateKey()
 	require.NoError(t, err)

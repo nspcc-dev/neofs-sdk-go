@@ -12,6 +12,7 @@ import (
 
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -284,9 +285,7 @@ func TestClient_ObjectPut(t *testing.T) {
 						srv := newPutObjectServer()
 						c := newTestObjectClient(t, srv)
 
-						payload := make([]byte, tc.payloadLen)
-						//nolint:staticcheck // OK for this test
-						rand.Read(payload)
+						payload := testutil.RandByteSlice(tc.payloadLen)
 
 						srv.checkRequestHeader(anyValidHdr)
 						srv.checkRequestPayload(payload)

@@ -2,12 +2,12 @@ package eacl_test
 
 import (
 	"encoding/json"
-	"math/rand"
 	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -84,18 +84,14 @@ func TestTarget_SetBinaryKeys(t *testing.T) {
 
 	ks := make([][]byte, 3)
 	for i := range ks {
-		ks[i] = make([]byte, 33)
-		//nolint:staticcheck
-		rand.Read(ks[i])
+		ks[i] = testutil.RandByteSlice(33)
 	}
 	tgt.SetBinaryKeys(ks)
 	require.Equal(t, ks, tgt.BinaryKeys())
 
 	otherKeys := make([][]byte, 3)
 	for i := range otherKeys {
-		otherKeys[i] = make([]byte, 33)
-		//nolint:staticcheck
-		rand.Read(otherKeys[i])
+		otherKeys[i] = testutil.RandByteSlice(33)
 	}
 	tgt.SetBinaryKeys(otherKeys)
 	require.Equal(t, otherKeys, tgt.BinaryKeys())
@@ -117,8 +113,7 @@ func TestNewTargetByAccounts(t *testing.T) {
 func randomScriptHashes(n int) []util.Uint160 {
 	hs := make([]util.Uint160, n)
 	for i := range hs {
-		//nolint:staticcheck
-		rand.Read(hs[i][:])
+		hs[i] = testutil.RandScriptHash()
 	}
 	return hs
 }
@@ -177,16 +172,14 @@ func TestTarget_SetRawSubjects(t *testing.T) {
 
 	subjs := [][]byte{
 		garbageSubjs[0],
-		make([]byte, 33),
+		nil,
 		nil,
 		garbageSubjs[1],
 		nil,
-		make([]byte, 33),
+		nil,
 	}
-	//nolint:staticcheck
-	rand.Read(subjs[1])
-	//nolint:staticcheck
-	rand.Read(subjs[5])
+	subjs[1] = testutil.RandByteSlice(33)
+	subjs[5] = testutil.RandByteSlice(33)
 	usrs := usertest.IDs(2)
 	subjs[2] = usrs[0][:]
 	subjs[4] = usrs[1][:]
