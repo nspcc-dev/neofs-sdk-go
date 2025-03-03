@@ -691,7 +691,6 @@ func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table ea
 
 func isContainerCreated(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var cmdGet client.PrmContainerGet
 
@@ -716,7 +715,6 @@ func isContainerCreated(ctx context.Context, c containerGetter, id cid.ID) error
 
 func isContainerDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var cmdGet client.PrmContainerGet
 
@@ -741,7 +739,6 @@ func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTab
 	oldBinary := oldTable.Marshal()
 
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var cmdGet client.PrmContainerEACL
 
@@ -768,7 +765,6 @@ func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTab
 
 func isObjectDeleted(ctx context.Context, c objectHeadGetter, id cid.ID, oid oid.ID, signer user.Signer) error {
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var prmHead client.PrmObjectHead
 

@@ -94,7 +94,6 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 
 	select {
 	case err := <-ch:
-		tt.Stop()
 		return err
 	case <-tt.C:
 		cancel()

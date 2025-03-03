@@ -67,7 +67,6 @@ func poll(ctx context.Context, pollInterval time.Duration, callBack pollLogic) e
 	}
 
 	t := time.NewTicker(pollInterval)
-	defer t.Stop()
 
 	for {
 		select {
