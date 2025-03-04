@@ -521,7 +521,7 @@ type ObjectRangeReader struct {
 
 	tailPayload []byte
 
-	remainingPayloadLen int
+	requestedLen, receivedLen uint64
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
@@ -612,7 +612,7 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) error {
 		if ignoreEOF {
 			return nil
 		}
-		if x.remainingPayloadLen > 0 {
+		if x.receivedLen < x.requestedLen {
 			return io.ErrUnexpectedEOF
 		}
 	}
@@ -650,7 +650,7 @@ func (x *ObjectRangeReader) Close() error {
 func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
 
-	x.remainingPayloadLen -= n
+	x.receivedLen += uint64(n)
 
 	if !ok {
 		err := x.close(false)
@@ -661,7 +661,7 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 		return n, x.err
 	}
 
-	if x.remainingPayloadLen < 0 {
+	if x.requestedLen > 0 && x.receivedLen > x.requestedLen { // zero means full payload, we don't know its size
 		return n, errors.New("payload range size overflow")
 	}
 
@@ -746,7 +746,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	}
 
 	var r ObjectRangeReader
-	r.remainingPayloadLen = int(length)
+	r.requestedLen = length
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
