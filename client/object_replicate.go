@@ -55,7 +55,7 @@ func (c *Client) ReplicateObject(ctx context.Context, id oid.ID, src io.ReadSeek
 	}
 
 	var resp protoobject.ReplicateResponse
-	err = c.conn.Invoke(ctx, protoobject.ObjectService_Replicate_FullMethodName, msg, &resp, grpc.ForceCodec(onlyBinarySendingCodec{}))
+	err = c.conn.Invoke(ctx, protoobject.ObjectService_Replicate_FullMethodName, msg, &resp, grpc.ForceCodecV2(onlyBinarySendingCodec{}))
 	if err != nil {
 		return nil, fmt.Errorf("send request over gRPC: %w", err)
 	}
