@@ -1526,6 +1526,19 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 								require.NoError(t, iotest.TestReader(r, payload))
 							})
 						}
+						t.Run("zero range", func(t *testing.T) {
+							srv := newTestObjectPayloadRangeServer()
+							c := newTestObjectClient(t, srv)
+
+							payload := testutil.RandByteSlice(512)
+							srv.respondWithChunks([][]byte{payload[:(len(payload) / 2)], payload[(len(payload) / 2):]})
+
+							r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, 0, 0, anyValidSigner, PrmObjectRange{})
+							require.NoError(t, err)
+							got, err := io.ReadAll(r)
+							require.NoError(t, err)
+							require.Equal(t, payload, got)
+						})
 					})
 				})
 				t.Run("statuses", func(t *testing.T) {
