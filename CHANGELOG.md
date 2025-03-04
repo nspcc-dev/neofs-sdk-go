@@ -1,5 +1,65 @@
 # Changelog
 
+## [1.0.0-rc.13] - 2025-03-04
+
+The key change is the removal of `github.com/nspcc-dev/neofs-api-go/v2` module.
+When updating, app code may break in places importing components of this module.
+However, it is expected that this will only affect the system code: regular apps
+following the lib recommendations will most likely not require edits.
+
+Several code elements have been marked as deprecated. It is strongly
+recommended to update all places. All deprecated parts will be removed in the
+upcoming major release.
+
+Go 1.23 is the minimum required now. Watch for dep changes in `go.mod` file.
+
+New features:
+ * eACL rules may subject NeoFS accounts now (#592)
+ * various instance constructors are available now (#593, #598, #601, #602, #605, #612)
+ * constant sizes of various IDs are exported now (#598)
+ * tokens' lifetime claims are exported now (#612, #626)
+ * eACL presence marker (#626)
+ * node attributes' getter and setter are available now (#635)
+ * `client.Client/SearchObjects` method calling new `ObjectService.SearchV2` API (#676)
+
+Behaviour changes:
+ * all ID types are declared as arrays (#598)
+ * several types have been affirmed `comparable` (#598, #601)
+ * IDs consisting only of zeros are now prohibited (#607)
+ * `client/Client.ReplicateObject` now works with object signature field (#622)
+ * container JSON fields are verified on decoding now (#628)
+ * payload of irregular objects is checked against the NeoFS protocol now (#629)
+ * zero range objects ops now operate with the full payload (#685)
+ * several reasonable limits are now imposed on storage policies (#686)
+ * (#689)
+
+Improvements:
+ * intra-system `audit` package is no longer presented in the lib (#590)
+ * Go tests may now easier change ID instance or randomize several ones (#590)
+ * test randomizers are now error-free and no longer accept `testing.TB` (#590)
+ * crypto test randomizers now provide more stuff in-box (#590)
+ * Go-compiled NeoFS API proto files are in this lib now (#591)
+ * stable marshalling functionality is in this lib now (#597)
+ * enum string mapping is now pure-functional, `fmt.Stringer` is stabilized (#605, #629)
+ * node shortage error when applying storage policy can now be checked (#615)
+ * main branch is also tested via GH actions now (#620)
+ * connection pool no longer opens redundant sessions with storage nodes (#623)
+ * invalid URI errors are caught faster and their causes are clear now (#636)
+ * `client.Client` no longer sends requests with invalid signature (#641)
+
+Bugs fixed:
+ * unknown `enum` field values are no longer lost on conversions (#593, #605, #629)
+ * ID fields with incorrect byte len are no longer passed (#595)
+ * `user/ID.DecodeString` method no longer passes invalid byte sequences (#598)
+ * validity of tokens with unset lifetime at zero epoch (#612, #626)
+ * bit-len of session verb types (#612)
+ * duplicated node attributes are no longer passed (#627)
+ * invalid EigenTrust alpha network parameter is no longer passed (#627)
+ * invalid duration in `client.Client` statistics (#636)
+ * response fields unchecked by `client.Client` (#641)
+ * thread-unsafe random number generator used by `pool.Pool` concurrently (#643)
+ * unclosed connections after `pool.Pool` close (#689)
+
 ## [1.0.0-rc.12] - 2024-05-29
 
 RC12 brings some protocol updates, new dependencies and solves a number of
@@ -243,6 +303,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.13]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.12...v1.0.0-rc.13
 [1.0.0-rc.12]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.11...v1.0.0-rc.12
 [1.0.0-rc.11]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.10...v1.0.0-rc.11
 [1.0.0-rc.10]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.9...v1.0.0-rc.10
