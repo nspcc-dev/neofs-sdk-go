@@ -1,9 +1,10 @@
 package netmap
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -238,14 +239,6 @@ var _ hrw.Hashable = NodeInfo{}
 // based on their public key. Hash isn't expected to be used directly.
 func (x NodeInfo) Hash() uint64 {
 	return hrw.Hash(x.PublicKey())
-}
-
-// less declares "less than" comparison between two NodeInfo instances:
-// x1 is less than x2 if it has less Hash().
-//
-// Method is needed for internal placement needs.
-func less(x1, x2 NodeInfo) bool {
-	return x1.Hash() < x2.Hash()
 }
 
 func (x *NodeInfo) setNumericAttribute(key string, num uint64) {
@@ -534,15 +527,11 @@ func (x *NodeInfo) SortAttributes() {
 		return
 	}
 
-	sort.Slice(x.attrs, func(i, j int) bool {
-		switch strings.Compare(x.attrs[i][0], x.attrs[j][0]) {
-		case -1:
-			return true
-		case 1:
-			return false
-		default:
-			return x.attrs[i][1] < x.attrs[j][1]
+	slices.SortFunc(x.attrs, func(a, b [2]string) int {
+		if c := cmp.Compare(a[0], b[0]); c != 0 {
+			return c
 		}
+		return cmp.Compare(a[1], b[1])
 	})
 }
 

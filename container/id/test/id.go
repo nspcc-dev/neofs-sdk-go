@@ -2,17 +2,14 @@ package cidtest
 
 import (
 	"crypto/sha256"
-	"math/rand"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 )
 
 // ID returns random cid.ID.
 func ID() cid.ID {
-	var res cid.ID
-	//nolint:staticcheck
-	rand.Read(res[:])
-	return res
+	return cid.ID(testutil.RandByteSlice(cid.Size))
 }
 
 // IDs returns n random cid.ID instances.

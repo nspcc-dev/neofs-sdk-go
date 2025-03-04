@@ -1,11 +1,12 @@
 package pool
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	"slices"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -866,8 +867,8 @@ func adjustNodeParams(nodeParams []NodeParam) ([]*nodesParam, error) {
 		nodesParams = append(nodesParams, nodes)
 	}
 
-	sort.Slice(nodesParams, func(i, j int) bool {
-		return nodesParams[i].priority < nodesParams[j].priority
+	slices.SortFunc(nodesParams, func(a, b *nodesParam) int {
+		return cmp.Compare(a.priority, b.priority)
 	})
 
 	return nodesParams, nil

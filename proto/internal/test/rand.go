@@ -5,6 +5,7 @@ import (
 	"math/rand"
 
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -15,10 +16,7 @@ import (
 // RandBytes random non-empty []byte up to 1024 len.
 func RandBytes() []byte {
 	ln := 1 + rand.Uint32()%1024
-	b := make([]byte, ln)
-	//nolint:staticcheck
-	rand.Read(b)
-	return b
+	return testutil.RandByteSlice(ln)
 }
 
 // RandRepeatedBytes returns non-empty [][]byte up to 10 elements. Each element

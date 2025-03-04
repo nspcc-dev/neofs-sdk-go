@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 
@@ -52,9 +53,7 @@ func FailSigner(s neofscrypto.Signer) neofscrypto.Signer {
 
 // Signature returns random neofscrypto.Signature.
 func Signature() neofscrypto.Signature {
-	sig := make([]byte, 1+rand.Intn(128))
-	//nolint:staticcheck // cryptorandom is not required for testing
-	rand.Read(sig)
+	sig := testutil.RandByteSlice(1 + rand.Intn(128))
 	return neofscrypto.NewSignature(neofscrypto.Scheme(rand.Int31()%3), Signer().Public(), sig)
 }
 

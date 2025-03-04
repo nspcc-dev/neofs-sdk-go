@@ -3,11 +3,11 @@ package cid_test
 import (
 	"bytes"
 	"crypto/sha256"
-	"math/rand"
 	"testing"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
 )
@@ -141,9 +141,7 @@ func TestIDComparable(t *testing.T) {
 
 func TestNewFromContainerBinary(t *testing.T) {
 	// use any binary just for the test
-	cnr := make([]byte, 512)
-	//nolint:staticcheck
-	rand.Read(cnr)
+	cnr := testutil.RandByteSlice(512)
 	id := cid.NewFromMarshalledContainer(cnr)
 	require.EqualValues(t, sha256.Sum256(cnr), id)
 	require.Equal(t, id, cid.NewFromMarshalledContainer(cnr))

@@ -19,6 +19,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -135,7 +136,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 
 func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
 	var ni netmap.NetworkInfo
-	ni.SetRawNetworkParameter(string(randomData(10)), randomData(10))
+	ni.SetRawNetworkParameter(string(testutil.RandByteSlice(10)), testutil.RandByteSlice(10))
 	ni.SetCurrentEpoch(opts.CurrentNeoFSEpoch())
 	ni.SetMaxObjectSize(opts.ObjectPayloadLimit())
 	if !opts.IsHomomorphicChecksumEnabled() {
@@ -184,13 +185,6 @@ type input struct {
 	withHomo     bool
 }
 
-func randomData(size uint64) []byte {
-	data := make([]byte, size)
-	//nolint:staticcheck
-	rand.Read(data)
-	return data
-}
-
 func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 	key, err := ecdsa.GenerateKey(elliptic.P256(), cryptorand.Reader)
 	if err != nil {
@@ -202,8 +196,8 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 
 	for range attrNum {
 		var attr object.Attribute
-		attr.SetKey(base64.StdEncoding.EncodeToString(randomData(32)))
-		attr.SetValue(base64.StdEncoding.EncodeToString(randomData(32)))
+		attr.SetKey(base64.StdEncoding.EncodeToString(testutil.RandByteSlice(32)))
+		attr.SetValue(base64.StdEncoding.EncodeToString(testutil.RandByteSlice(32)))
 
 		attrs = append(attrs, attr)
 	}
@@ -217,7 +211,7 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 	} else {
 		in.payloadLimit = defaultLimit
 	}
-	in.payload = randomData(size)
+	in.payload = testutil.RandByteSlice(size)
 	in.attributes = attrs
 	in.owner = usertest.ID()
 
@@ -840,10 +834,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		sl, err := slicer.New(ctx, writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
-		payload := make([]byte, maxObjectSize*overheadAmount)
-		//nolint:staticcheck
-		_, err = rand.Read(payload)
-		require.NoError(t, err)
+		payload := testutil.RandByteSlice(maxObjectSize * overheadAmount)
 
 		_, err = sl.Put(ctx, bytes.NewBuffer(payload), nil)
 		require.NoError(t, err)
@@ -877,10 +868,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		require.NoError(t, err)
 
 		for range overheadAmount {
-			payload := make([]byte, maxObjectSize)
-			//nolint:staticcheck
-			_, err = rand.Read(payload)
-			require.NoError(t, err)
+			payload := testutil.RandByteSlice(maxObjectSize)
 
 			_, err := payloadWriter.Write(payload)
 			require.NoError(t, err)
@@ -912,10 +900,7 @@ func TestSlicedObjectsHaveSplitID(t *testing.T) {
 		sl, err := slicer.New(ctx, writer, usr, containerID, usrID, nil)
 		require.NoError(t, err)
 
-		payload := make([]byte, maxObjectSize-1)
-		//nolint:staticcheck
-		_, err = rand.Read(payload)
-		require.NoError(t, err)
+		payload := testutil.RandByteSlice(maxObjectSize - 1)
 
 		_, err = sl.Put(ctx, bytes.NewBuffer(payload), nil)
 		require.NoError(t, err)
@@ -1166,9 +1151,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 				obj := objecttest.Object()
 				hdr := *obj.CutPayload()
 				signer := user.NewSigner(neofscryptotest.Signer(), usertest.ID())
-				payload := make([]byte, tc.size)
-				//nolint:staticcheck
-				rand.Read(payload)
+				payload := testutil.RandByteSlice(tc.size)
 
 				var opts slicer.Options
 				opts.SetObjectPayloadLimit(tc.sizeLimit)
@@ -1187,9 +1170,7 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 				obj := objecttest.Object()
 				hdr := *obj.CutPayload()
 				signer := user.NewSigner(neofscryptotest.Signer(), usertest.ID())
-				payload := make([]byte, tc.size)
-				//nolint:staticcheck
-				rand.Read(payload)
+				payload := testutil.RandByteSlice(tc.size)
 
 				var opts slicer.Options
 				opts.SetObjectPayloadLimit(tc.sizeLimit)

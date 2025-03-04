@@ -14,6 +14,7 @@ import (
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -838,9 +839,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					})
 					t.Run("header", func(t *testing.T) {
 						const bigChunkSize = 4<<20 - object.MaxHeaderLen
-						bigChunkTwice := make([]byte, 2*bigChunkSize)
-						//nolint:staticcheck // OK for this test
-						rand.Read(bigChunkTwice)
+						bigChunkTwice := testutil.RandByteSlice(2 * bigChunkSize)
 						type bodies = struct {
 							heading *protoobject.GetResponse_Body
 							chunks  [][]byte
@@ -1506,9 +1505,7 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 					})
 					t.Run("header", func(t *testing.T) {
 						const bigChunkSize = 4<<20 - object.MaxHeaderLen
-						bigChunkTwice := make([]byte, 2*bigChunkSize)
-						//nolint:staticcheck // OK for this test
-						rand.Read(bigChunkTwice)
+						bigChunkTwice := testutil.RandByteSlice(2 * bigChunkSize)
 						for _, tc := range []struct {
 							name   string
 							chunks [][]byte

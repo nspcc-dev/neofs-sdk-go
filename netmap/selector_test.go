@@ -8,6 +8,7 @@ import (
 
 	"github.com/nspcc-dev/hrw/v2"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
@@ -24,9 +25,7 @@ func BenchmarkHRWSort(b *testing.B) {
 	vectors := make([]nodes, netmapSize)
 	weights := make([]float64, netmapSize)
 	for i := range vectors {
-		key := make([]byte, 33)
-		//nolint:staticcheck
-		rand.Read(key)
+		key := testutil.RandByteSlice(33)
 
 		var node NodeInfo
 		node.SetPrice(1)

@@ -1,18 +1,14 @@
 package oidtest
 
 import (
-	"math/rand"
-
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
 // ID returns random oid.ID.
 func ID() oid.ID {
-	var res oid.ID
-	//nolint:staticcheck
-	rand.Read(res[:])
-	return res
+	return oid.ID(testutil.RandByteSlice(oid.Size))
 }
 
 // OtherID returns random oid.ID other than any given one.

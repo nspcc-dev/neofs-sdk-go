@@ -2,10 +2,10 @@ package eacl
 
 import (
 	"bytes"
-	"math/rand"
 	"slices"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -312,11 +312,8 @@ func TestSystemRoleModificationIgnored(t *testing.T) {
 func makeKeys(t *testing.T, n int) [][]byte {
 	pubs := make([][]byte, n)
 	for i := range pubs {
-		pubs[i] = make([]byte, 33)
+		pubs[i] = testutil.RandByteSlice(33)
 		pubs[i][0] = 0x02
-		//nolint:staticcheck
-		_, err := rand.Read(pubs[i][1:])
-		require.NoError(t, err)
 	}
 	return pubs
 }

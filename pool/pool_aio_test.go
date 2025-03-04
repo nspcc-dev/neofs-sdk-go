@@ -5,7 +5,6 @@ package pool
 import (
 	"bytes"
 	"context"
-	"crypto/rand"
 	"errors"
 	"fmt"
 	"math"
@@ -22,6 +21,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -304,9 +304,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			require.NoError(t, isEACLCreated(ctxTimeout, cl, containerID, eaclTable))
 		})
 		t.Run("objects", func(t *testing.T) {
-			payload := make([]byte, 8)
-			_, err = rand.Read(payload)
-			require.NoError(t, err)
+			payload := testutil.RandByteSlice(8)
 
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
@@ -439,8 +437,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 			w, err := pool.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 			require.NoError(t, err)
 
-			payload := make([]byte, 8)
-			_, err = rand.Read(payload)
+			payload := testutil.RandByteSlice(8)
 			_, err = w.Write(payload)
 			require.NoError(t, err)
 
@@ -570,9 +567,7 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 			w, err := cl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 			require.NoError(t, err)
 
-			payload := make([]byte, 8)
-			_, err = rand.Read(payload)
-			require.NoError(t, err)
+			payload := testutil.RandByteSlice(8)
 			_, err = w.Write(payload)
 			require.NoError(t, err)
 
@@ -691,7 +686,6 @@ func testGetEacl(ctx context.Context, t *testing.T, containerID cid.ID, table ea
 
 func isContainerCreated(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var cmdGet client.PrmContainerGet
 
@@ -716,7 +710,6 @@ func isContainerCreated(ctx context.Context, c containerGetter, id cid.ID) error
 
 func isContainerDeleted(ctx context.Context, c containerGetter, id cid.ID) error {
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var cmdGet client.PrmContainerGet
 
@@ -741,7 +734,6 @@ func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTab
 	oldBinary := oldTable.Marshal()
 
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var cmdGet client.PrmContainerEACL
 
@@ -768,7 +760,6 @@ func isEACLCreated(ctx context.Context, c containerEaclGetter, id cid.ID, oldTab
 
 func isObjectDeleted(ctx context.Context, c objectHeadGetter, id cid.ID, oid oid.ID, signer user.Signer) error {
 	t := time.NewTicker(tickInterval)
-	defer t.Stop()
 
 	var prmHead client.PrmObjectHead
 

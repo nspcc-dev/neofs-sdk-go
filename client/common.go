@@ -8,6 +8,7 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
+	"google.golang.org/grpc/mem"
 )
 
 // Various field numbers in from NeoFS API definitions.
@@ -65,17 +66,17 @@ func (x onlyBinarySendingCodec) Name() string {
 	return "neofs_binary_sender"
 }
 
-func (x onlyBinarySendingCodec) Marshal(msg any) ([]byte, error) {
+func (x onlyBinarySendingCodec) Marshal(msg any) (mem.BufferSlice, error) {
 	bMsg, ok := msg.([]byte)
 	if ok {
-		return bMsg, nil
+		return mem.BufferSlice{mem.NewBuffer(&bMsg, mem.DefaultBufferPool())}, nil
 	}
 
 	return nil, fmt.Errorf("message is not of type %T", bMsg)
 }
 
-func (x onlyBinarySendingCodec) Unmarshal(raw []byte, msg any) error {
-	return encoding.GetCodec(proto.Name).Unmarshal(raw, msg)
+func (x onlyBinarySendingCodec) Unmarshal(data mem.BufferSlice, msg any) error {
+	return encoding.GetCodecV2(proto.Name).Unmarshal(data, msg)
 }
 
 // Tries to make an action within given timeout canceling the context at
@@ -94,7 +95,6 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 
 	select {
 	case err := <-ch:
-		tt.Stop()
 		return err
 	case <-tt.C:
 		cancel()

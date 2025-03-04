@@ -3,23 +3,19 @@ package usertest
 import (
 	"crypto/ecdsa"
 	"errors"
-	"math/rand"
 	"testing"
 
-	"github.com/nspcc-dev/neo-go/pkg/util"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/stretchr/testify/require"
 )
 
 // ID returns random user.ID.
 func ID() user.ID {
-	var h util.Uint160
-	//nolint:staticcheck
-	rand.Read(h[:])
 	var res user.ID
-	res.SetScriptHash(h)
+	res.SetScriptHash(testutil.RandScriptHash())
 	return res
 }
 

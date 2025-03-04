@@ -9,6 +9,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
@@ -103,11 +104,9 @@ func TestTable_FromProtoMessage(t *testing.T) {
 			Major: rand.Uint32(),
 			Minor: rand.Uint32(),
 		},
-		ContainerId: &refs.ContainerID{Value: make([]byte, cid.Size)},
+		ContainerId: &refs.ContainerID{Value: testutil.RandByteSlice(cid.Size)},
 		Records:     []*protoacl.EACLRecord{{}, {}},
 	}
-	//nolint:staticcheck
-	rand.Read(m.ContainerId.Value)
 
 	for _, r := range m.Records {
 		r.Targets = make([]*protoacl.EACLRecord_Target, 2)
