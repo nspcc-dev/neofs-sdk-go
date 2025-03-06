@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0-rc.13] - 2025-03-04
+## [1.0.0-rc.13] - 2025-03-06
 
 The key change is the removal of `github.com/nspcc-dev/neofs-api-go/v2` module (#667).
 When updating, app code may break in places importing components of this module.
