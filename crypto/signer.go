@@ -25,6 +25,7 @@ const (
 	ECDSA_SHA512               // ECDSA with SHA-512 hashing (FIPS 186-3)
 	ECDSA_DETERMINISTIC_SHA256 // Deterministic ECDSA with SHA-256 hashing (RFC 6979)
 	ECDSA_WALLETCONNECT        // Wallet Connect signature scheme
+	N3                         // Neo N3 witness
 )
 
 // String implements fmt.Stringer.
