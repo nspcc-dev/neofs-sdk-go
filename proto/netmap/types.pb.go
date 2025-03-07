@@ -847,6 +847,7 @@ func (x *NetworkInfo) GetNetworkConfig() *NetworkConfig {
 //     Node's preferred way for communications with external clients.
 //     Clients SHOULD use these addresses if possible.
 //     Must contain a comma-separated list of multi-addresses.
+//     DEPRECATED. Use 'addresses' field instead.
 //   - Version
 //     Node implementation's version in a free string form.
 //   - VerifiedNodesDomain

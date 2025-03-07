@@ -1659,9 +1659,7 @@ type PutRequest_Body_Init struct {
 	ObjectId *refs.ObjectID `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
 	// Object signature if available
 	Signature *refs.Signature `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
-	// Object's Header. The maximum length is 16KB. The only exclusion are
-	// replication requests, i.e. requests sent by container nodes with
-	// 'meta_header.ttl=1': for such cases the limit is 4MB.
+	// Object's Header. The maximum length is 16KB.
 	Header *Header `protobuf:"bytes,3,opt,name=header,proto3" json:"header,omitempty"`
 	// Number of the object copies to store within the RPC call. By default
 	// object is processed according to the container's placement policy.
