@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -192,8 +193,6 @@ func StringifyPublicKey(node NodeInfo) string {
 // endpoints (it also adds a wait on their network availability).
 //
 // Argument MUST NOT be mutated, make a copy first.
-//
-// See also IterateNetworkEndpoints.
 func (x *NodeInfo) SetNetworkEndpoints(v ...string) {
 	x.addrs = v
 }
@@ -205,6 +204,12 @@ func (x NodeInfo) NumberOfNetworkEndpoints() int {
 	return len(x.addrs)
 }
 
+// NetworkEndpoints returns an iterator that yields the network endpoints
+// announced by the node.
+func (x NodeInfo) NetworkEndpoints() iter.Seq[string] {
+	return slices.Values(x.addrs)
+}
+
 // IterateNetworkEndpoints iterates over network endpoints announced by the
 // node and pass them into f. Breaks iteration on f's true return. Handler
 // MUST NOT be nil.
@@ -213,6 +218,7 @@ func (x NodeInfo) NumberOfNetworkEndpoints() int {
 // NeoFS system requirements.
 //
 // See also SetNetworkEndpoints.
+// Deprecated: use [NodeInfo.NetworkEndpoints] instead.
 func (x NodeInfo) IterateNetworkEndpoints(f func(string) bool) {
 	for i := range x.addrs {
 		if f(x.addrs[i]) {
@@ -223,6 +229,7 @@ func (x NodeInfo) IterateNetworkEndpoints(f func(string) bool) {
 
 // IterateNetworkEndpoints is an extra-sugared function over IterateNetworkEndpoints
 // method which allows to unconditionally iterate over all node's network endpoints.
+// Deprecated: use [NodeInfo.NetworkEndpoints] instead.
 func IterateNetworkEndpoints(node NodeInfo, f func(string)) {
 	node.IterateNetworkEndpoints(func(addr string) bool {
 		f(addr)
@@ -455,8 +462,20 @@ func (x NodeInfo) NumberOfAttributes() int {
 	return len(x.attrs)
 }
 
+// Attributes returns an iterator that yields the node attributes.
+func (x NodeInfo) Attributes() iter.Seq2[string, string] {
+	return func(yield func(string, string) bool) {
+		for i := range x.attrs {
+			if !yield(x.attrs[i][0], x.attrs[i][1]) {
+				return
+			}
+		}
+	}
+}
+
 // IterateAttributes iterates over all node attributes and passes the into f.
 // Handler MUST NOT be nil.
+// Deprecated: use [NodeInfo.Attributes] instead.
 func (x NodeInfo) IterateAttributes(f func(key, value string)) {
 	for i := range x.attrs {
 		f(x.attrs[i][0], x.attrs[i][1])
@@ -466,7 +485,7 @@ func (x NodeInfo) IterateAttributes(f func(key, value string)) {
 // GetAttributes returns all the node attributes.
 // Each attribute is a [2]string slice: {"key", "value"}.
 //
-// See also Attribute, IterateAttributes.
+// See also Attribute.
 func (x NodeInfo) GetAttributes() [][2]string {
 	return x.attrs
 }

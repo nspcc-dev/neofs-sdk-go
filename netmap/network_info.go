@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"iter"
 	"math"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -216,7 +217,7 @@ func (x NetworkInfo) configValue(name string) []byte {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also RawNetworkParameter, IterateRawNetworkParameters.
+// See also RawNetworkParameter.
 func (x *NetworkInfo) SetRawNetworkParameter(name string, value []byte) {
 	x.setConfig(name, value)
 }
@@ -232,12 +233,42 @@ func (x *NetworkInfo) RawNetworkParameter(name string) []byte {
 	return x.configValue(name)
 }
 
+// RawNetworkParameters returns an iterator that yields the non-system network
+// parameters.
+func (x NetworkInfo) RawNetworkParameters() iter.Seq2[string, []byte] {
+	return func(yield func(string, []byte) bool) {
+		for i := range x.prms {
+			name := string(x.prms[i][0])
+			switch name {
+			default:
+				if !yield(name, x.prms[i][1]) {
+					return
+				}
+			case
+				configEigenTrustAlpha,
+				configAuditFee,
+				configStoragePrice,
+				configContainerFee,
+				configNamedContainerFee,
+				configEigenTrustNumberOfIterations,
+				configEpochDuration,
+				configIRCandidateFee,
+				configMaxObjSize,
+				configWithdrawalFee,
+				configHomomorphicHashingDisabled,
+				configMaintenanceModeAllowed:
+			}
+		}
+	}
+}
+
 // IterateRawNetworkParameters iterates over all raw networks parameters set
 // using SetRawNetworkParameter and passes them into f.
 //
 // Handler MUST NOT be nil. Handler MUST NOT mutate value parameter.
 //
 // Zero NetworkInfo has no network parameters.
+// Deprecated: use [NetworkInfo.RawNetworkParameters] instead.
 func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []byte)) {
 	for i := range x.prms {
 		name := string(x.prms[i][0])

@@ -3,6 +3,7 @@ package container
 import (
 	"errors"
 	"fmt"
+	"iter"
 	"slices"
 	"strconv"
 	"strings"
@@ -337,7 +338,7 @@ func (x Container) PlacementPolicy() netmap.PlacementPolicy {
 //
 // SetAttribute overwrites existing attribute value.
 //
-// See also Attribute, IterateAttributes.
+// See also Attribute.
 func (x *Container) SetAttribute(key, value string) {
 	if key == "" {
 		panic("empty attribute key")
@@ -358,7 +359,7 @@ func (x *Container) SetAttribute(key, value string) {
 // Attribute reads value of the Container attribute by key. Empty result means
 // attribute absence.
 //
-// See also SetAttribute, IterateAttributes.
+// See also SetAttribute.
 func (x Container) Attribute(key string) string {
 	for i := range x.attrs {
 		if x.attrs[i][0] == key {
@@ -369,10 +370,34 @@ func (x Container) Attribute(key string) string {
 	return ""
 }
 
+// Attributes returns an iterator that yields the container attributes.
+func (x Container) Attributes() iter.Seq2[string, string] {
+	return func(yield func(string, string) bool) {
+		for i := range x.attrs {
+			if !yield(x.attrs[i][0], x.attrs[i][1]) {
+				return
+			}
+		}
+	}
+}
+
+// UserAttributes returns an iterator that yields the user-defined container
+// attributes.
+func (x Container) UserAttributes() iter.Seq2[string, string] {
+	return func(yield func(string, string) bool) {
+		for i := range x.attrs {
+			if !strings.HasPrefix(x.attrs[i][0], sysAttrPrefix) && !yield(x.attrs[i][0], x.attrs[i][1]) {
+				return
+			}
+		}
+	}
+}
+
 // IterateAttributes iterates over all Container attributes and passes them
 // into f. The handler MUST NOT be nil.
 //
 // See also [Container.SetAttribute], [Container.Attribute], [Container.IterateUserAttributes].
+// Deprecated: use [Container.Attributes] instead.
 func (x Container) IterateAttributes(f func(key, val string)) {
 	for i := range x.attrs {
 		f(x.attrs[i][0], x.attrs[i][1])
@@ -383,6 +408,7 @@ func (x Container) IterateAttributes(f func(key, val string)) {
 // passes them into f. The handler MUST NOT be nil.
 //
 // See also [Container.SetAttribute], [Container.Attribute], [Container.IterateAttributes].
+// Deprecated: use [Container.UserAttributes] instead.
 func (x Container) IterateUserAttributes(f func(key, val string)) {
 	x.IterateAttributes(func(key, val string) {
 		if !strings.HasPrefix(key, sysAttrPrefix) {

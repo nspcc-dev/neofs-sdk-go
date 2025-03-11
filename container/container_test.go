@@ -795,8 +795,12 @@ func TestContainer_SetAttribute(t *testing.T) {
 	var val container.Container
 	require.Panics(t, func() { val.SetAttribute("", "v") })
 	require.Panics(t, func() { val.SetAttribute("k", "") })
-	val.IterateAttributes(func(string, string) { t.Fatal("handler must not be called") })
-	val.IterateUserAttributes(func(string, string) { t.Fatal("handler must not be called") })
+	for range val.Attributes() {
+		t.Fatal("handler must not be called")
+	}
+	for range val.UserAttributes() {
+		t.Fatal("handler must not be called")
+	}
 
 	const k1, v1 = "k1", "v1"
 	const sk1, sv1 = "__NEOFS__sk1", "sv1"
@@ -818,7 +822,9 @@ func TestContainer_SetAttribute(t *testing.T) {
 	require.Equal(t, sv2, val.Attribute(sk2))
 
 	var collected []string
-	val.IterateAttributes(func(k, v string) { collected = append(collected, k, v) })
+	for k, v := range val.Attributes() {
+		collected = append(collected, k, v)
+	}
 	require.Equal(t, []string{
 		k1, v1,
 		sk1, sv1,
@@ -827,7 +833,9 @@ func TestContainer_SetAttribute(t *testing.T) {
 	}, collected)
 
 	collected = nil
-	val.IterateUserAttributes(func(k, v string) { collected = append(collected, k, v) })
+	for k, v := range val.UserAttributes() {
+		collected = append(collected, k, v)
+	}
 	require.Equal(t, []string{
 		k1, v1,
 		k2, v2,
@@ -835,6 +843,63 @@ func TestContainer_SetAttribute(t *testing.T) {
 
 	val.SetAttribute(k1, v1+"_other")
 	require.Equal(t, v1+"_other", val.Attribute(k1))
+}
+
+func TestContainer_Attributes(t *testing.T) {
+	var cnr container.Container
+	for range cnr.Attributes() {
+		t.Fatal("handler must not be called")
+	}
+
+	exp := []string{
+		"key1", "val1",
+		"key2", "val2",
+		"key3", "val3",
+	}
+	for i := 0; i < len(exp); i += 2 {
+		cnr.SetAttribute(exp[i], exp[i+1])
+	}
+
+	var got []string
+	for k, v := range cnr.Attributes() {
+		got = append(got, k, v)
+	}
+	require.Equal(t, exp, got)
+
+	require.NotPanics(t, func() {
+		for range cnr.Attributes() {
+			break
+		}
+	})
+}
+
+func TestContainer_UserAttributes(t *testing.T) {
+	var cnr container.Container
+	for range cnr.UserAttributes() {
+		t.Fatal("handler must not be called")
+	}
+
+	exp := []string{
+		"key1", "val1",
+		"key2", "val2",
+		"key3", "val3",
+		"__NEOFS__ANY", "val4",
+	}
+	for i := 0; i < len(exp); i += 2 {
+		cnr.SetAttribute(exp[i], exp[i+1])
+	}
+
+	var got []string
+	for k, v := range cnr.UserAttributes() {
+		got = append(got, k, v)
+	}
+	require.Equal(t, exp[:6], got)
+
+	require.NotPanics(t, func() {
+		for range cnr.UserAttributes() {
+			break
+		}
+	})
 }
 
 func TestContainer_SetName(t *testing.T) {

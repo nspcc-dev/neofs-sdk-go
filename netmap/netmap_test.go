@@ -1,6 +1,7 @@
 package netmap_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -94,14 +95,9 @@ func TestNetMap_FromProtoMessage(t *testing.T) {
 
 	require.EqualValues(t, 2, ns[0].NumberOfNetworkEndpoints())
 	require.EqualValues(t, 2, ns[1].NumberOfNetworkEndpoints())
-	var collectedEndpoints []string
-	ns[0].IterateNetworkEndpoints(func(el string) bool {
-		collectedEndpoints = append(collectedEndpoints, el)
-		return false
-	})
+	collectedEndpoints := slices.Collect(ns[0].NetworkEndpoints())
 	require.Equal(t, []string{"endpoint_0_0", "endpoint_0_1"}, collectedEndpoints)
-	collectedEndpoints = nil
-	ns[1].IterateNetworkEndpoints(func(el string) bool { collectedEndpoints = append(collectedEndpoints, el); return false })
+	collectedEndpoints = slices.Collect(ns[1].NetworkEndpoints())
 	require.Equal(t, []string{"endpoint_1_0", "endpoint_1_1"}, collectedEndpoints)
 
 	require.EqualValues(t, 2, ns[0].NumberOfAttributes())
@@ -111,13 +107,17 @@ func TestNetMap_FromProtoMessage(t *testing.T) {
 	require.Equal(t, "v_1_0", ns[1].Attribute("k_1_0"))
 	require.Equal(t, "v_1_1", ns[1].Attribute("k_1_1"))
 	var collectedAttrs []string
-	ns[0].IterateAttributes(func(k, v string) { collectedAttrs = append(collectedAttrs, k, v) })
+	for k, v := range ns[0].Attributes() {
+		collectedAttrs = append(collectedAttrs, k, v)
+	}
 	require.Equal(t, []string{
 		"k_0_0", "v_0_0",
 		"k_0_1", "v_0_1",
 	}, collectedAttrs)
 	collectedAttrs = nil
-	ns[1].IterateAttributes(func(k, v string) { collectedAttrs = append(collectedAttrs, k, v) })
+	for k, v := range ns[1].Attributes() {
+		collectedAttrs = append(collectedAttrs, k, v)
+	}
 	require.Equal(t, []string{
 		"k_1_0", "v_1_0",
 		"k_1_1", "v_1_1",

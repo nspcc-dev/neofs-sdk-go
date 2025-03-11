@@ -2,6 +2,7 @@ package netmap_test
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -181,18 +182,30 @@ func TestStringifyPublicKey(t *testing.T) {
 func TestNodeInfo_SetNetworkEndpoints(t *testing.T) {
 	var n netmap.NodeInfo
 	require.Zero(t, n.NumberOfNetworkEndpoints())
-	n.IterateNetworkEndpoints(func(string) bool {
-		t.Fatal("handler must not be called")
-		return false
-	})
+	require.Empty(t, slices.Collect(n.NetworkEndpoints()))
 
 	require.EqualValues(t, 3, validNodeInfo.NumberOfNetworkEndpoints())
-	var collected []string
-	validNodeInfo.IterateNetworkEndpoints(func(el string) bool {
-		collected = append(collected, el)
-		return false
+	require.Equal(t, anyValidNetworkEndpoints, slices.Collect(validNodeInfo.NetworkEndpoints()))
+}
+
+func TestNodeInfo_NetworkEndpoints(t *testing.T) {
+	var n netmap.NodeInfo
+	require.Empty(t, slices.Collect(n.NetworkEndpoints()))
+
+	n.SetNetworkEndpoints(anyValidNetworkEndpoints...)
+	require.Equal(t, anyValidNetworkEndpoints, slices.Collect(n.NetworkEndpoints()))
+
+	var got []string
+	for s := range n.NetworkEndpoints() {
+		got = append(got, s)
+	}
+	require.Equal(t, anyValidNetworkEndpoints, got)
+
+	require.NotPanics(t, func() {
+		for range n.NetworkEndpoints() {
+			break
+		}
 	})
-	require.Equal(t, anyValidNetworkEndpoints, collected)
 }
 
 func TestNodeInfo_IterateNetworkEndpoints(t *testing.T) {
@@ -297,9 +310,9 @@ func TestNodeInfo_SetContinentName(t *testing.T) {
 func TestNodeInfo_SetAttributes(t *testing.T) {
 	var n netmap.NodeInfo
 	require.Zero(t, n.NumberOfAttributes())
-	n.IterateAttributes(func(string, string) {
+	for range n.Attributes() {
 		t.Fatal("handler must not be called")
-	})
+	}
 
 	const k1, v1 = "k1", "v1"
 	const k2, v2 = "k2", "v2"
@@ -337,12 +350,38 @@ func TestNodeInfo_SetAttributes(t *testing.T) {
 	require.Zero(t, n.NumberOfAttributes())
 }
 
+func TestNodeInfo_Attributes(t *testing.T) {
+	var n netmap.NodeInfo
+	for range n.Attributes() {
+		t.Fatal("handler must not be called")
+	}
+
+	exp := [][2]string{
+		{"key1", "val1"},
+		{"key2", "val2"},
+		{"key3", "val3"},
+	}
+	n.SetAttributes(exp)
+
+	var got [][2]string
+	for k, v := range n.Attributes() {
+		got = append(got, [2]string{k, v})
+	}
+	require.Equal(t, exp, got)
+
+	require.NotPanics(t, func() {
+		for range n.Attributes() {
+			break
+		}
+	})
+}
+
 func TestNodeInfo_GetAttributes(t *testing.T) {
 	var n netmap.NodeInfo
 	require.Zero(t, n.NumberOfAttributes())
-	n.IterateAttributes(func(string, string) {
+	for range n.Attributes() {
 		t.Fatal("handler must not be called")
-	})
+	}
 
 	const k1, v1 = "k1", "v1"
 	const k2, v2 = "k2", "v2"
@@ -365,9 +404,9 @@ func TestNodeInfo_GetAttributes(t *testing.T) {
 func TestNodeInfo_SetAttribute(t *testing.T) {
 	var n netmap.NodeInfo
 	require.Zero(t, n.NumberOfAttributes())
-	n.IterateAttributes(func(string, string) {
+	for range n.Attributes() {
 		t.Fatal("handler must not be called")
-	})
+	}
 	require.Panics(t, func() { n.SetAttribute("", "v") })
 	require.Panics(t, func() { n.SetAttribute("k", "") })
 
@@ -381,9 +420,9 @@ func TestNodeInfo_SetAttribute(t *testing.T) {
 	require.EqualValues(t, 2, n.NumberOfAttributes())
 
 	var collected []string
-	n.IterateAttributes(func(k, v string) {
+	for k, v := range n.Attributes() {
 		collected = append(collected, k, v)
-	})
+	}
 	require.Equal(t, []string{
 		k1, v1,
 		k2, v2,
@@ -407,9 +446,9 @@ func TestNodeInfo_SortAttributes(t *testing.T) {
 	n.SetAttribute(k4, v4)
 
 	var collected []string
-	n.IterateAttributes(func(k, v string) {
+	for k, v := range n.Attributes() {
 		collected = append(collected, k, v)
-	})
+	}
 	require.Equal(t, []string{
 		k1, v1,
 		k2, v2,
@@ -419,9 +458,9 @@ func TestNodeInfo_SortAttributes(t *testing.T) {
 
 	n.SortAttributes()
 	collected = nil
-	n.IterateAttributes(func(k, v string) {
+	for k, v := range n.Attributes() {
 		collected = append(collected, k, v)
-	})
+	}
 	require.Equal(t, []string{
 		k3, v3,
 		k2, v2,
@@ -524,13 +563,7 @@ func TestNodeInfo_FromProtoMessage(t *testing.T) {
 	var val netmap.NodeInfo
 	require.NoError(t, val.FromProtoMessage(m))
 	require.Equal(t, anyValidPublicKey, val.PublicKey())
-	var i int
-	val.IterateNetworkEndpoints(func(el string) bool {
-		require.Equal(t, anyValidNetworkEndpoints[i], el)
-		i++
-		return false
-	})
-	require.Len(t, anyValidNetworkEndpoints, i)
+	require.Equal(t, anyValidNetworkEndpoints, slices.Collect(val.NetworkEndpoints()))
 	for _, checkState := range []func(netmap.NodeInfo) bool{
 		netmap.NodeInfo.IsOnline,
 		netmap.NodeInfo.IsOffline,
@@ -573,9 +606,9 @@ func TestNodeInfo_FromProtoMessage(t *testing.T) {
 	val2 := val
 	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.NumberOfAttributes())
-	val2.IterateAttributes(func(string, string) {
+	for range val2.Attributes() {
 		t.Fatal("handler must not be called")
-	})
+	}
 	for _, checkState := range []func(netmap.NodeInfo) bool{
 		netmap.NodeInfo.IsOnline,
 		netmap.NodeInfo.IsOffline,
@@ -713,9 +746,11 @@ func TestNodeInfo_Unmarshal(t *testing.T) {
 	require.NoError(t, val.Unmarshal(nil))
 	require.Zero(t, val.PublicKey())
 	require.Zero(t, val.NumberOfNetworkEndpoints())
-	val.IterateNetworkEndpoints(func(string) bool { t.Fatal("handler must not be called"); return false })
+	require.Empty(t, slices.Collect(val.NetworkEndpoints()))
 	require.Zero(t, val.NumberOfAttributes())
-	val.IterateAttributes(func(string, string) { t.Fatal("handler must not be called") })
+	for range val.Attributes() {
+		t.Fatal("handler must not be called")
+	}
 	for _, checkState := range []func(netmap.NodeInfo) bool{
 		netmap.NodeInfo.IsOnline,
 		netmap.NodeInfo.IsOffline,
@@ -765,9 +800,11 @@ func TestNodeInfo_UnmarshalJSON(t *testing.T) {
 	require.NoError(t, val.UnmarshalJSON([]byte("{}")))
 	require.Zero(t, val.PublicKey())
 	require.Zero(t, val.NumberOfNetworkEndpoints())
-	val.IterateNetworkEndpoints(func(string) bool { t.Fatal("handler must not be called"); return false })
+	require.Empty(t, slices.Collect(val.NetworkEndpoints()))
 	require.Zero(t, val.NumberOfAttributes())
-	val.IterateAttributes(func(string, string) { t.Fatal("handler must not be called") })
+	for range val.Attributes() {
+		t.Fatal("handler must not be called")
+	}
 	for _, checkState := range []func(netmap.NodeInfo) bool{
 		netmap.NodeInfo.IsOnline,
 		netmap.NodeInfo.IsOffline,

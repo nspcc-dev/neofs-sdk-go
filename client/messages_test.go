@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1040,7 +1041,9 @@ func checkContainerTransport(c container.Container, m *protocontainer.Container)
 		}
 	}
 	var cas [][2]string
-	c.IterateAttributes(func(k, v string) { cas = append(cas, [2]string{k, v}) })
+	for k, v := range c.Attributes() {
+		cas = append(cas, [2]string{k, v})
+	}
 	if v1, v2 := len(cas), len(mas); v1 != v2 {
 		return fmt.Errorf("number of attributes (client: %d, message: %d)", v1, v2)
 	}
@@ -1276,8 +1279,7 @@ func checkNodeInfoTransport(n netmap.NodeInfo, m *protonetmap.NodeInfo) error {
 	}
 	// 2. addresses
 	maddrs := m.GetAddresses()
-	var caddrs []string
-	netmap.IterateNetworkEndpoints(n, func(e string) { caddrs = append(caddrs, e) })
+	caddrs := slices.Collect(n.NetworkEndpoints())
 	if v1, v2 := len(caddrs), len(maddrs); v1 != v2 {
 		return fmt.Errorf("number of addresses (client: %d, message: %d)", v1, v2)
 	}
@@ -1355,7 +1357,9 @@ func checkNetInfoTransport(n netmap.NetworkInfo, m *protonetmap.NetworkInfo) err
 	// 4. config
 	mps := m.GetNetworkConfig().GetParameters()
 	var raw []string
-	n.IterateRawNetworkParameters(func(name string, value []byte) { raw = append(raw, name, string(value)) })
+	for name, value := range n.RawNetworkParameters() {
+		raw = append(raw, name, string(value))
+	}
 
 	var mraw []string
 	var auditFee, storagePrice, cnrDmnFee, cnrFee, etIters, epochDur, irFee, maxObjSize, withdrawFee uint64
