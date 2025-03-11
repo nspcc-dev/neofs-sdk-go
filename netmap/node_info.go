@@ -462,8 +462,20 @@ func (x NodeInfo) NumberOfAttributes() int {
 	return len(x.attrs)
 }
 
+// Attributes returns an iterator that yields the node attributes.
+func (x NodeInfo) Attributes() iter.Seq2[string, string] {
+	return func(yield func(string, string) bool) {
+		for i := range x.attrs {
+			if !yield(x.attrs[i][0], x.attrs[i][1]) {
+				return
+			}
+		}
+	}
+}
+
 // IterateAttributes iterates over all node attributes and passes the into f.
 // Handler MUST NOT be nil.
+// Deprecated: use [NodeInfo.Attributes] instead.
 func (x NodeInfo) IterateAttributes(f func(key, value string)) {
 	for i := range x.attrs {
 		f(x.attrs[i][0], x.attrs[i][1])
@@ -473,7 +485,7 @@ func (x NodeInfo) IterateAttributes(f func(key, value string)) {
 // GetAttributes returns all the node attributes.
 // Each attribute is a [2]string slice: {"key", "value"}.
 //
-// See also Attribute, IterateAttributes.
+// See also Attribute.
 func (x NodeInfo) GetAttributes() [][2]string {
 	return x.attrs
 }
