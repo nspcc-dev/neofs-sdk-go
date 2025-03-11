@@ -2,6 +2,7 @@ package netmap_test
 
 import (
 	"encoding/json"
+	"slices"
 	"strings"
 	"testing"
 
@@ -181,18 +182,30 @@ func TestStringifyPublicKey(t *testing.T) {
 func TestNodeInfo_SetNetworkEndpoints(t *testing.T) {
 	var n netmap.NodeInfo
 	require.Zero(t, n.NumberOfNetworkEndpoints())
-	n.IterateNetworkEndpoints(func(string) bool {
-		t.Fatal("handler must not be called")
-		return false
-	})
+	require.Empty(t, slices.Collect(n.NetworkEndpoints()))
 
 	require.EqualValues(t, 3, validNodeInfo.NumberOfNetworkEndpoints())
-	var collected []string
-	validNodeInfo.IterateNetworkEndpoints(func(el string) bool {
-		collected = append(collected, el)
-		return false
+	require.Equal(t, anyValidNetworkEndpoints, slices.Collect(validNodeInfo.NetworkEndpoints()))
+}
+
+func TestNodeInfo_NetworkEndpoints(t *testing.T) {
+	var n netmap.NodeInfo
+	require.Empty(t, slices.Collect(n.NetworkEndpoints()))
+
+	n.SetNetworkEndpoints(anyValidNetworkEndpoints...)
+	require.Equal(t, anyValidNetworkEndpoints, slices.Collect(n.NetworkEndpoints()))
+
+	var got []string
+	for s := range n.NetworkEndpoints() {
+		got = append(got, s)
+	}
+	require.Equal(t, anyValidNetworkEndpoints, got)
+
+	require.NotPanics(t, func() {
+		for range n.NetworkEndpoints() {
+			break
+		}
 	})
-	require.Equal(t, anyValidNetworkEndpoints, collected)
 }
 
 func TestNodeInfo_IterateNetworkEndpoints(t *testing.T) {
@@ -524,13 +537,7 @@ func TestNodeInfo_FromProtoMessage(t *testing.T) {
 	var val netmap.NodeInfo
 	require.NoError(t, val.FromProtoMessage(m))
 	require.Equal(t, anyValidPublicKey, val.PublicKey())
-	var i int
-	val.IterateNetworkEndpoints(func(el string) bool {
-		require.Equal(t, anyValidNetworkEndpoints[i], el)
-		i++
-		return false
-	})
-	require.Len(t, anyValidNetworkEndpoints, i)
+	require.Equal(t, anyValidNetworkEndpoints, slices.Collect(val.NetworkEndpoints()))
 	for _, checkState := range []func(netmap.NodeInfo) bool{
 		netmap.NodeInfo.IsOnline,
 		netmap.NodeInfo.IsOffline,
@@ -713,7 +720,7 @@ func TestNodeInfo_Unmarshal(t *testing.T) {
 	require.NoError(t, val.Unmarshal(nil))
 	require.Zero(t, val.PublicKey())
 	require.Zero(t, val.NumberOfNetworkEndpoints())
-	val.IterateNetworkEndpoints(func(string) bool { t.Fatal("handler must not be called"); return false })
+	require.Empty(t, slices.Collect(val.NetworkEndpoints()))
 	require.Zero(t, val.NumberOfAttributes())
 	val.IterateAttributes(func(string, string) { t.Fatal("handler must not be called") })
 	for _, checkState := range []func(netmap.NodeInfo) bool{
@@ -765,7 +772,7 @@ func TestNodeInfo_UnmarshalJSON(t *testing.T) {
 	require.NoError(t, val.UnmarshalJSON([]byte("{}")))
 	require.Zero(t, val.PublicKey())
 	require.Zero(t, val.NumberOfNetworkEndpoints())
-	val.IterateNetworkEndpoints(func(string) bool { t.Fatal("handler must not be called"); return false })
+	require.Empty(t, slices.Collect(val.NetworkEndpoints()))
 	require.Zero(t, val.NumberOfAttributes())
 	val.IterateAttributes(func(string, string) { t.Fatal("handler must not be called") })
 	for _, checkState := range []func(netmap.NodeInfo) bool{

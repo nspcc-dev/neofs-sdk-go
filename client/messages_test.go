@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -1276,8 +1277,7 @@ func checkNodeInfoTransport(n netmap.NodeInfo, m *protonetmap.NodeInfo) error {
 	}
 	// 2. addresses
 	maddrs := m.GetAddresses()
-	var caddrs []string
-	netmap.IterateNetworkEndpoints(n, func(e string) { caddrs = append(caddrs, e) })
+	caddrs := slices.Collect(n.NetworkEndpoints())
 	if v1, v2 := len(caddrs), len(maddrs); v1 != v2 {
 		return fmt.Errorf("number of addresses (client: %d, message: %d)", v1, v2)
 	}

@@ -1,6 +1,7 @@
 package netmap_test
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
@@ -94,14 +95,9 @@ func TestNetMap_FromProtoMessage(t *testing.T) {
 
 	require.EqualValues(t, 2, ns[0].NumberOfNetworkEndpoints())
 	require.EqualValues(t, 2, ns[1].NumberOfNetworkEndpoints())
-	var collectedEndpoints []string
-	ns[0].IterateNetworkEndpoints(func(el string) bool {
-		collectedEndpoints = append(collectedEndpoints, el)
-		return false
-	})
+	collectedEndpoints := slices.Collect(ns[0].NetworkEndpoints())
 	require.Equal(t, []string{"endpoint_0_0", "endpoint_0_1"}, collectedEndpoints)
-	collectedEndpoints = nil
-	ns[1].IterateNetworkEndpoints(func(el string) bool { collectedEndpoints = append(collectedEndpoints, el); return false })
+	collectedEndpoints = slices.Collect(ns[1].NetworkEndpoints())
 	require.Equal(t, []string{"endpoint_1_0", "endpoint_1_1"}, collectedEndpoints)
 
 	require.EqualValues(t, 2, ns[0].NumberOfAttributes())
