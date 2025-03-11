@@ -1355,7 +1355,9 @@ func checkNetInfoTransport(n netmap.NetworkInfo, m *protonetmap.NetworkInfo) err
 	// 4. config
 	mps := m.GetNetworkConfig().GetParameters()
 	var raw []string
-	n.IterateRawNetworkParameters(func(name string, value []byte) { raw = append(raw, name, string(value)) })
+	for name, value := range n.RawNetworkParameters() {
+		raw = append(raw, name, string(value))
+	}
 
 	var mraw []string
 	var auditFee, storagePrice, cnrDmnFee, cnrFee, etIters, epochDur, irFee, maxObjSize, withdrawFee uint64

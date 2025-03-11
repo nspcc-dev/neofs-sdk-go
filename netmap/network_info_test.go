@@ -127,9 +127,9 @@ func TestNetworkInfo_SetRawNetworkParameter(t *testing.T) {
 
 	require.Zero(t, x.RawNetworkParameter(k1))
 	require.Zero(t, x.RawNetworkParameter(k2))
-	x.IterateRawNetworkParameters(func(string, []byte) {
+	for range x.RawNetworkParameters() {
 		t.Fatal("handler must not be called")
-	})
+	}
 
 	x.SetRawNetworkParameter(k1, []byte(v1))
 	x.SetRawNetworkParameter(k2, []byte(v2))
@@ -137,10 +137,43 @@ func TestNetworkInfo_SetRawNetworkParameter(t *testing.T) {
 	require.EqualValues(t, v1, x.RawNetworkParameter(k1))
 	require.EqualValues(t, v2, x.RawNetworkParameter(k2))
 	var collected [][2]string
-	x.IterateRawNetworkParameters(func(name string, value []byte) {
+	for name, value := range x.RawNetworkParameters() {
 		collected = append(collected, [2]string{name, string(value)})
-	})
+	}
 	require.ElementsMatch(t, [][2]string{{k1, v1}, {k2, v2}}, collected)
+}
+
+func TestNetworkInfo_RawNetworkParameters(t *testing.T) {
+	var n netmap.NetworkInfo
+	for range n.RawNetworkParameters() {
+		t.Fatal("handler must not be called")
+	}
+
+	type kv = struct {
+		k string
+		v []byte
+	}
+	exp := []kv{
+		{"key1", []byte("val1")},
+		{"key2", []byte("val2")},
+		{"key3", []byte("val3")},
+		{"ContainerFee", []byte("any")},
+	}
+	for _, p := range exp {
+		n.SetRawNetworkParameter(p.k, p.v)
+	}
+
+	var got []kv
+	for k, v := range n.RawNetworkParameters() {
+		got = append(got, kv{k, v})
+	}
+	require.Equal(t, exp[:3], got)
+
+	require.NotPanics(t, func() {
+		for range n.RawNetworkParameters() {
+			break
+		}
+	})
 }
 
 func testConfigValue[T comparable](t testing.TB,
