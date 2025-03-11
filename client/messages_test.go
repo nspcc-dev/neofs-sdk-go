@@ -1041,7 +1041,9 @@ func checkContainerTransport(c container.Container, m *protocontainer.Container)
 		}
 	}
 	var cas [][2]string
-	c.IterateAttributes(func(k, v string) { cas = append(cas, [2]string{k, v}) })
+	for k, v := range c.Attributes() {
+		cas = append(cas, [2]string{k, v})
+	}
 	if v1, v2 := len(cas), len(mas); v1 != v2 {
 		return fmt.Errorf("number of attributes (client: %d, message: %d)", v1, v2)
 	}
