@@ -191,7 +191,7 @@ func (c *Client) Dial(prm PrmDial) error {
 	c.reputation = protoreputation.NewReputationServiceClient(c.conn)
 	c.session = protosession.NewSessionServiceClient(c.conn)
 
-	endpointInfo, err := c.EndpointInfo(prm.parentCtx, PrmEndpointInfo{})
+	endpointInfo, err := c.EndpointInfo(ctx, PrmEndpointInfo{})
 	if err != nil {
 		return err
 	}
