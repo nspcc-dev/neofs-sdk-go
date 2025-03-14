@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"time"
+	"unicode/utf8"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -125,11 +126,18 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 					return nil, "", err
 				}
 			}
+			if !utf8.ValidString(attrs[i]) {
+				err = fmt.Errorf("attribute#%d is not a valid UTF-8", i)
+				return nil, "", err
+			}
 		}
 		if len(filters) == 0 || filters[0].Header() != attrs[0] {
 			err = fmt.Errorf("1st attribute %q is requested but not filtered 1st", attrs[0])
 			return nil, "", err
 		}
+	case !utf8.ValidString(cursor):
+		err = errors.New("cursor is not a valid UTF-8")
+		return nil, "", err
 	}
 	for i := range filters {
 		if err = verifySearchFilter(filters[i]); err != nil {
@@ -250,7 +258,8 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 }
 
 func verifySearchFilter(f object.SearchFilter) error {
-	switch attr := f.Header(); attr {
+	attr := f.Header()
+	switch attr {
 	case "":
 		return errors.New("missing attribute")
 	case object.FilterContainerID, object.FilterID:
@@ -262,6 +271,12 @@ func verifySearchFilter(f object.SearchFilter) error {
 		if val := f.Value(); val != "" {
 			return fmt.Errorf("value for attribute %s is prohibited", attr)
 		}
+	}
+	if !utf8.ValidString(attr) {
+		return errors.New("attribute is not a valid UTF-8")
+	}
+	if !utf8.ValidString(f.Value()) {
+		return errors.New("value is not a valid UTF-8")
 	}
 	return nil
 }
