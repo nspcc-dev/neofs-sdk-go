@@ -440,12 +440,14 @@ const (
 // to connect to this node from outside.
 //
 // Panics if addr is an empty list.
+// Deprecated: use [NodeInfo.SetNetworkEndpoints] instead.
 func (x *NodeInfo) SetExternalAddresses(addr ...string) {
 	x.SetAttribute(attrExternalAddr, strings.Join(addr, sepExternalAddr))
 }
 
 // ExternalAddresses returns list of multi-addresses to use
 // to connect to this node from outside.
+// Deprecated: use [NodeInfo.NetworkEndpoints] instead.
 func (x NodeInfo) ExternalAddresses() []string {
 	a := x.Attribute(attrExternalAddr)
 	if len(a) == 0 {
