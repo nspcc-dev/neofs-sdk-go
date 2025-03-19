@@ -27,9 +27,7 @@ func Range() object.Range {
 
 // Attribute returns random object.Attribute.
 func Attribute() object.Attribute {
-	x := object.NewAttribute("key", "value")
-
-	return *x
+	return object.NewAttribute("key", "value")
 }
 
 // SplitID returns random object.SplitID.
