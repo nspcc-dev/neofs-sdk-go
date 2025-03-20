@@ -6,8 +6,12 @@ import (
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	"golang.org/x/exp/constraints"
 )
+
+// Integer is just some int type to simplify [RandByteSlice] use.
+type Integer interface {
+	~int | ~int8 | ~int16 | ~int32 | ~int64 | ~uint | ~uint8 | ~uint16 | ~uint32 | ~uint64
+}
 
 // RandScriptHash returns random 20-byte array.
 func RandScriptHash() util.Uint160 {
@@ -15,7 +19,7 @@ func RandScriptHash() util.Uint160 {
 }
 
 // RandByteSlice returns randomized byte slice of specified length.
-func RandByteSlice[I constraints.Integer](ln I) []byte {
+func RandByteSlice[I Integer](ln I) []byte {
 	b := make([]byte, ln)
 	RandRead(b)
 	return b
