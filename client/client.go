@@ -26,7 +26,8 @@ import (
 
 const (
 	// max GRPC message size.
-	defaultBufferSize = 4194304 // 4MB
+	defaultBufferSize       = 4194304 // 4MB
+	defaultStreamMsgTimeout = 10 * time.Second
 )
 
 // Client represents virtual connection to the NeoFS network to communicate
@@ -83,12 +84,12 @@ type Client struct {
 // See docs of [PrmInit] methods for details. See also [Client.Dial]/[Client.Close].
 func New(prm PrmInit) (*Client, error) {
 	var c = new(Client)
-	pk, err := keys.NewPrivateKey()
+	signer, err := randSigner()
 	if err != nil {
-		return nil, fmt.Errorf("private key: %w", err)
+		return nil, err
 	}
 
-	prm.signer = neofsecdsa.SignerRFC6979(pk.PrivateKey)
+	prm.signer = signer
 
 	if prm.buffers != nil {
 		c.buffers = prm.buffers
@@ -98,15 +99,21 @@ func New(prm PrmInit) (*Client, error) {
 			size = defaultBufferSize
 		}
 
-		c.buffers = &sync.Pool{}
-		c.buffers.New = func() any {
-			b := make([]byte, size)
-			return &b
-		}
+		c.buffers = newByteBufferPool(size)
 	}
 
 	c.prm = prm
 	return c, nil
+}
+
+func (c *Client) setConn(conn *grpc.ClientConn) {
+	c.conn = conn
+	c.accounting = protoaccounting.NewAccountingServiceClient(conn)
+	c.container = protocontainer.NewContainerServiceClient(conn)
+	c.netmap = protonetmap.NewNetmapServiceClient(conn)
+	c.object = protoobject.NewObjectServiceClient(conn)
+	c.reputation = protoreputation.NewReputationServiceClient(conn)
+	c.session = protosession.NewSessionServiceClient(conn)
 }
 
 // Dial establishes a connection to the server from the NeoFS network.
@@ -149,7 +156,7 @@ func (c *Client) Dial(prm PrmDial) error {
 		}
 		c.streamTimeout = prm.streamTimeout
 	} else {
-		c.streamTimeout = 10 * time.Second
+		c.streamTimeout = defaultStreamMsgTimeout
 	}
 
 	addr, withTLS, err := uriutil.Parse(prm.endpoint)
@@ -175,21 +182,17 @@ func (c *Client) Dial(prm PrmDial) error {
 	//  grpc.NewClient. This was not done because some options are no longer
 	//  supported. Review carefully and make a proper transition.
 	//nolint:staticcheck
-	if c.conn, err = grpc.DialContext(ctx, addr,
+	conn, err := grpc.DialContext(ctx, addr,
 		grpc.WithTransportCredentials(creds),
 		grpc.WithReturnConnectionError(),
 		grpc.FailOnNonTempDialError(true),
 		grpc.WithContextDialer(prm.customConnFunc),
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("gRPC dial: %w", err)
 	}
 
-	c.accounting = protoaccounting.NewAccountingServiceClient(c.conn)
-	c.container = protocontainer.NewContainerServiceClient(c.conn)
-	c.netmap = protonetmap.NewNetmapServiceClient(c.conn)
-	c.object = protoobject.NewObjectServiceClient(c.conn)
-	c.reputation = protoreputation.NewReputationServiceClient(c.conn)
-	c.session = protosession.NewSessionServiceClient(c.conn)
+	c.setConn(conn)
 
 	endpointInfo, err := c.EndpointInfo(prm.parentCtx, PrmEndpointInfo{})
 	if err != nil {
@@ -335,4 +338,63 @@ func (x *PrmDial) setDialFunc(connFunc connFunc) {
 		panic("nil func does not override the default")
 	}
 	x.customConnFunc = connFunc
+}
+
+// NewGRPC constructs Client from the provided gRPC connection with options.
+// Resulting client is ready for RPCs, [Client.Dial] must not be called for it.
+// All requests, except ops accepting signer parameter, are signed with
+// randomized private key in [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
+//
+// The signBufPool is optional. If provided, it must contain/generate objects of
+// *[]byte type. By default, it pools 4MB byte slices.
+//
+// The streamMsgTimeout must not be negative. It defaults to 10s when zero.
+//
+// The respInterceptor is optional.
+//
+// Experimental: the function focuses on SN system needs and is not recommended
+// for use by regular apps. May be removed in future releases.
+func NewGRPC(conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration, respInterceptor func(pub []byte) error) (*Client, error) {
+	if streamMsgTimeout < 0 {
+		panic(fmt.Sprintf("negative stream message timeout %v", streamMsgTimeout))
+	}
+	if signBufPool == nil {
+		signBufPool = newByteBufferPool(defaultBufferSize)
+	}
+	signer, err := randSigner()
+	if err != nil {
+		return nil, err
+	}
+	if streamMsgTimeout == 0 {
+		streamMsgTimeout = defaultStreamMsgTimeout
+	}
+	c := &Client{
+		prm: PrmInit{
+			signer: signer,
+		},
+		buffers:       signBufPool,
+		streamTimeout: streamMsgTimeout,
+	}
+	c.setConn(conn)
+	if respInterceptor != nil {
+		c.prm.cbRespInfo = func(info ResponseMetaInfo) error { return respInterceptor(info.key) }
+	}
+	return c, nil
+}
+
+func randSigner() (neofscrypto.Signer, error) {
+	pk, err := keys.NewPrivateKey()
+	if err != nil {
+		return nil, fmt.Errorf("private key: %w", err)
+	}
+	return neofsecdsa.SignerRFC6979(pk.PrivateKey), nil
+}
+
+func newByteBufferPool(ln uint64) *sync.Pool {
+	return &sync.Pool{
+		New: func() any {
+			b := make([]byte, ln)
+			return &b
+		},
+	}
 }

@@ -10,12 +10,14 @@ import (
 	"net"
 	"slices"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
@@ -28,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
@@ -1422,4 +1425,65 @@ func testStatistic[SRV interface {
 	require.NoError(t, err)
 	assert(err)
 	require.Greater(t, collected[0].dur, sleepDur)
+}
+
+func TestNewGRPC(t *testing.T) {
+	conn, err := grpc.NewClient("any", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+
+	t.Run("negative stream message timeout", func(t *testing.T) {
+		require.PanicsWithValue(t, "negative stream message timeout -1ms", func() {
+			_, _ = NewGRPC(conn, nil, -time.Millisecond, nil)
+		})
+	})
+	t.Run("default buffer pool", func(t *testing.T) {
+		c, err := NewGRPC(conn, nil, 0, nil)
+		require.NoError(t, err)
+		require.NotNil(t, c.buffers)
+		b := c.buffers.Get()
+		require.IsType(t, (*[]byte)(nil), b)
+		require.Len(t, *b.(*[]byte), 4<<20)
+	})
+	t.Run("default stream message timeout", func(t *testing.T) {
+		c, err := NewGRPC(conn, nil, 0, nil)
+		require.NoError(t, err)
+		require.Equal(t, 10*time.Second, c.streamTimeout)
+	})
+	t.Run("no response interceptor", func(t *testing.T) {
+		c, err := NewGRPC(conn, nil, 0, nil)
+		require.NoError(t, err)
+		require.Nil(t, c.prm.cbRespInfo)
+	})
+
+	const anyStreamMsgTimeout = time.Minute
+	anySignBufferPool := &sync.Pool{New: func() any { return "Hello, world!" }}
+	var caughtPub []byte
+	anyInterceptorErr := errors.New("any interceptor error")
+
+	c, err := NewGRPC(conn, anySignBufferPool, anyStreamMsgTimeout, func(pub []byte) error {
+		caughtPub = pub
+		return anyInterceptorErr
+	})
+	require.NoError(t, err)
+	require.NotNil(t, c)
+
+	require.Equal(t, conn, c.conn)
+	require.NotNil(t, c.accounting)
+	require.NotNil(t, c.container)
+	require.NotNil(t, c.netmap)
+	require.NotNil(t, c.object)
+	require.NotNil(t, c.reputation)
+	require.NotNil(t, c.session)
+
+	require.NotNil(t, c.prm.signer)
+	require.IsType(t, neofsecdsa.SignerRFC6979{}, c.prm.signer)
+	require.Equal(t, anySignBufferPool, c.buffers)
+
+	require.Equal(t, anyStreamMsgTimeout, c.streamTimeout)
+
+	require.NotNil(t, c.prm.cbRespInfo)
+	pub := []byte("any public key")
+	err = c.prm.cbRespInfo(ResponseMetaInfo{key: pub})
+	require.ErrorIs(t, err, anyInterceptorErr)
+	require.Equal(t, pub, caughtPub)
 }
