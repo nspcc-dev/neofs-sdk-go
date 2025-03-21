@@ -1,6 +1,6 @@
 //go:build aiotest
 
-package pool
+package pool_test
 
 import (
 	"bytes"
@@ -25,6 +25,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -235,19 +236,19 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 	account, signer, cont := testData(t)
 
 	poolStat := stat.NewPoolStatistic()
-	opts := DefaultOptions()
+	opts := pool.DefaultOptions()
 	opts.SetStatisticCallback(poolStat.OperationCallback)
-	opts.sessionExpirationDuration = sessionExpirationInEpochs
-	opts.clientRebalanceInterval = clientRebalanceInterval
+	opts.SetSessionExpirationDuration(sessionExpirationInEpochs)
+	opts.SetClientRebalanceInterval(clientRebalanceInterval)
 
-	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, opts)
+	pl, err := pool.New(pool.NewFlatNodeParams([]string{nodeAddr}), signer, opts)
 	require.NoError(t, err)
-	require.NoError(t, pool.Dial(ctx))
+	require.NoError(t, pl.Dial(ctx))
 
 	t.Run("balance ok", func(t *testing.T) {
 		var cmd client.PrmBalanceGet
 		cmd.SetAccount(account)
-		_, err = pool.BalanceGet(ctx, cmd)
+		_, err = pl.BalanceGet(ctx, cmd)
 		require.NoError(t, err)
 
 		st := poolStat.Statistic()
@@ -266,7 +267,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 		var cmd client.PrmBalanceGet
 		cmd.SetAccount(id)
-		_, err = pool.BalanceGet(ctx, cmd)
+		_, err = pl.BalanceGet(ctx, cmd)
 		require.Error(t, err)
 
 		st := poolStat.Statistic()
@@ -285,8 +286,8 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 		ctxTimeout, cancel := context.WithTimeout(context.Background(), defaultTimeOut)
 		t.Cleanup(cancel)
 
-		containerID := testCreateContainer(ctxTimeout, t, signer, cont, pool)
-		cl, err := pool.sdkClient()
+		containerID := testCreateContainer(ctxTimeout, t, signer, cont, pl)
+		cl, err := pl.RawClient()
 
 		require.NoError(t, err)
 		require.NoError(t, isContainerCreated(ctxTimeout, cl, containerID))
@@ -295,10 +296,10 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
 
-			containerID := testCreateContainer(ctxTimeout, t, signer, cont, pool)
+			containerID := testCreateContainer(ctxTimeout, t, signer, cont, pl)
 
-			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), pool)
-			cl, err := pool.sdkClient()
+			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), pl)
+			cl, err := pl.RawClient()
 
 			require.NoError(t, err)
 			require.NoError(t, isEACLCreated(ctxTimeout, cl, containerID, eaclTable))
@@ -309,7 +310,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
 
-			objectID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
+			objectID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pl)
 
 			t.Run("download", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
@@ -317,7 +318,7 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 				var cmd client.PrmObjectGet
 
-				hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
+				hdr, read, err := pl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
 				require.NoError(t, err)
 				t.Cleanup(func() { _ = read.Close() })
 
@@ -336,17 +337,17 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 				t.Cleanup(cancel)
 
-				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
-				cl, err := pool.sdkClient()
+				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pl)
+				cl, err := pl.RawClient()
 
 				require.NoError(t, err)
 				require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID, signer))
 			})
 			t.Run("epochs", func(t *testing.T) {
 				var objectList []oid.ID
-				times := int(opts.sessionExpirationDuration * 3)
+				times := int(sessionExpirationInEpochs * 3)
 				for range times {
-					epoch, err := tickNewEpoch(ctx, pool)
+					epoch, err := tickNewEpoch(ctx, pl)
 					require.NoError(t, err)
 
 					t.Run(fmt.Sprintf("upload at epoch#%d", epoch), func(t *testing.T) {
@@ -354,21 +355,21 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 						t.Cleanup(cancel)
 
 						payload = append(payload, 0x01) // Make it different from the one above, otherwise OID will be the same and we can get "status: code = 2052 message = object already removed"
-						objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pool)
+						objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pl)
 						objectList = append(objectList, objID)
 					})
 				}
 				for _, objID := range objectList {
-					epoch, err := tickNewEpoch(ctx, pool)
+					epoch, err := tickNewEpoch(ctx, pl)
 					require.NoError(t, err)
 
 					t.Run(fmt.Sprintf("delete at epoch#%d", epoch), func(t *testing.T) {
 						ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
 						t.Cleanup(cancel)
 
-						testDeleteObject(ctxTimeout, t, signer, containerID, objID, pool)
+						testDeleteObject(ctxTimeout, t, signer, containerID, objID, pl)
 
-						cl, err := pool.sdkClient()
+						cl, err := pl.RawClient()
 						require.NoError(t, err)
 
 						require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objID, signer))
@@ -380,8 +381,8 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
 
-			testDeleteContainer(ctxTimeout, t, signer, containerID, pool)
-			cl, err := pool.sdkClient()
+			testDeleteContainer(ctxTimeout, t, signer, containerID, pl)
+			cl, err := pl.RawClient()
 
 			require.NoError(t, err)
 			require.NoError(t, isContainerDeleted(ctxTimeout, cl, containerID))
@@ -394,11 +395,11 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 	account, signer, cont := testData(t)
 
-	pool, err := New(NewFlatNodeParams([]string{nodeAddr}), signer, DefaultOptions())
+	pl, err := pool.New(pool.NewFlatNodeParams([]string{nodeAddr}), signer, pool.DefaultOptions())
 	require.NoError(t, err)
-	require.NoError(t, pool.Dial(ctx))
+	require.NoError(t, pl.Dial(ctx))
 
-	wait := waiter.NewWaiter(pool, time.Second)
+	wait := waiter.NewWaiter(pl, time.Second)
 
 	t.Run("container", func(t *testing.T) {
 		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
@@ -416,7 +417,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 				t.Cleanup(cancel)
 
-				testGetEacl(ctxTimeout, t, containerID, eaclTable, pool)
+				testGetEacl(ctxTimeout, t, containerID, eaclTable, pl)
 			})
 		})
 		t.Run("object", func(t *testing.T) {
@@ -434,7 +435,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 			var prm client.PrmObjectPutInit
 			prm.SetCopiesNumber(1)
 
-			w, err := pool.ObjectPutInit(ctxTimeout, hdr, signer, prm)
+			w, err := pl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
 			require.NoError(t, err)
 
 			payload := testutil.RandByteSlice(8)
@@ -452,7 +453,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 
 				var cmd client.PrmObjectGet
 
-				hdr, read, err := pool.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
+				hdr, read, err := pl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
 				require.NoError(t, err)
 				t.Cleanup(func() { _ = read.Close() })
 
@@ -471,7 +472,7 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 				t.Cleanup(cancel)
 
-				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pool)
+				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pl)
 			})
 		})
 		t.Run("delete", func(t *testing.T) {
