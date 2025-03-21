@@ -65,9 +65,9 @@ func init() {
 	par.SetType(anyValidType)
 	par.SetPayloadHomomorphicHash(anyValidChecksums[1])
 	par.SetAttributes(
-		*object.NewAttribute("par_attr_key1", "par_attr_val1"),
-		*object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "14208497712700580130"),
-		*object.NewAttribute("par_attr_key2", "par_attr_val2"),
+		object.NewAttribute("par_attr_key1", "par_attr_val1"),
+		object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "14208497712700580130"),
+		object.NewAttribute("par_attr_key2", "par_attr_val2"),
 	)
 
 	validObject.SetID(anyValidIDs[0])
@@ -83,9 +83,9 @@ func init() {
 	validObject.SetPayloadHomomorphicHash(anyValidChecksums[3])
 	validObject.SetSessionToken(&anyValidObjectToken)
 	validObject.SetAttributes(
-		*object.NewAttribute("attr_key1", "attr_val1"),
-		*object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "8516691293958955670"),
-		*object.NewAttribute("attr_key2", "attr_val2"),
+		object.NewAttribute("attr_key1", "attr_val1"),
+		object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "8516691293958955670"),
+		object.NewAttribute("attr_key2", "attr_val2"),
 	)
 	validObject.SetPreviousID(anyValidIDs[2])
 	validObject.SetParent(&par)
@@ -480,10 +480,10 @@ func TestObject_SetAttributes(t *testing.T) {
 	require.Empty(t, obj.Attributes())
 	require.Empty(t, obj.UserAttributes())
 
-	a1 := *object.NewAttribute("k1", "v1")
-	sa1 := *object.NewAttribute("__NEOFS__sk1", "sv1")
-	a2 := *object.NewAttribute("k2", "v2")
-	sa2 := *object.NewAttribute("__NEOFS__sk2", "sv2")
+	a1 := object.NewAttribute("k1", "v1")
+	sa1 := object.NewAttribute("__NEOFS__sk1", "sv1")
+	a2 := object.NewAttribute("k2", "v2")
+	sa2 := object.NewAttribute("__NEOFS__sk2", "sv2")
 
 	obj.SetAttributes(a1, sa1, a2, sa2)
 	require.Equal(t, []object.Attribute{a1, sa1, a2, sa2}, obj.Attributes())

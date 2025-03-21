@@ -137,7 +137,7 @@ func TestObject_CalculateAndSetID(t *testing.T) {
 		}},
 		{name: "attributes", id: oid.ID{111, 113, 39, 89, 222, 193, 249, 95, 9, 92, 207, 177, 208, 184, 181, 55, 122, 93, 42,
 			237, 171, 27, 5, 85, 61, 78, 14, 57, 139, 11, 0, 113}, setHdr: func(obj *object.Object) {
-			obj.SetAttributes(*object.NewAttribute("k1", "v1"), *object.NewAttribute("k2", "v2"))
+			obj.SetAttributes(object.NewAttribute("k1", "v1"), object.NewAttribute("k2", "v2"))
 		}},
 		{name: "parent ID", id: oid.ID{251, 8, 196, 121, 53, 217, 66, 125, 74, 220, 6, 136, 236, 147, 196, 32, 129, 176, 8, 252,
 			205, 111, 44, 93, 229, 164, 15, 195, 239, 148, 174, 17}, setHdr: func(obj *object.Object) {

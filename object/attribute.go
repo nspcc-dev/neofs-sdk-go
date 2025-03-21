@@ -30,8 +30,8 @@ const (
 type Attribute struct{ k, v string }
 
 // NewAttribute creates and initializes new [Attribute].
-func NewAttribute(key, value string) *Attribute {
-	return &Attribute{key, value}
+func NewAttribute(key, value string) Attribute {
+	return Attribute{key, value}
 }
 
 // Key returns key to the object attribute.
