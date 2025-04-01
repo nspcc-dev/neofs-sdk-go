@@ -2198,4 +2198,26 @@ func TestObjectPartialDeserialization(t *testing.T) {
 	require.Equal(t, o2.GetObjectId(), o.GetID().ProtoMessage())
 	require.Equal(t, o2.GetSignature(), o.Signature().ProtoMessage())
 	require.Equal(t, o2.GetHeader(), o.ProtoMessage().GetHeader())
+
+	oo := object.New()
+	err = oo.FromProtoMessage(o2)
+	require.NoError(t, err)
+
+	oii, err := oo.CalculateID()
+	require.NoError(t, err)
+	require.Equal(t, oii, o.GetID())
+
+	headbin[32+2+140]++ // somewhere in the container id
+	o3 := new(protoobject.Object)
+
+	err = proto.Unmarshal(headbin, o3)
+	require.Error(t, err)
+
+	ooo := object.New()
+	err = ooo.FromProtoMessage(o3)
+	require.NoError(t, err)
+
+	oii, err = ooo.CalculateID()
+	require.NoError(t, err)
+	require.NotEqual(t, oii, o.GetID())
 }
