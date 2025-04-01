@@ -22,6 +22,7 @@ import (
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -2171,4 +2172,30 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 func TestObject_HeaderLen(t *testing.T) {
 	require.EqualValues(t, 0, object.Object{}.HeaderLen())
 	require.EqualValues(t, 1047, validObject.HeaderLen())
+}
+
+func TestObjectPartialDeserialization(t *testing.T) {
+	o := object.New()
+	cnr := cidtest.ID()
+	usr := usertest.User()
+
+	o.InitCreation(object.RequiredFields{
+		Container: cnr,
+		Owner:     usr.ID,
+	})
+	o.SetPayload(make([]byte, 1024*1024))
+	o.CalculateAndSetID()
+	o.Sign(usr)
+
+	ser := o.Marshal()
+
+	headbin := ser[:16*1024]
+
+	o2 := new(protoobject.Object)
+
+	err := proto.Unmarshal(headbin, o2)
+	require.Error(t, err)
+	require.Equal(t, o2.GetObjectId(), o.GetID().ProtoMessage())
+	require.Equal(t, o2.GetSignature(), o.Signature().ProtoMessage())
+	require.Equal(t, o2.GetHeader(), o.ProtoMessage().GetHeader())
 }
