@@ -515,7 +515,7 @@ func TestObject_ID(t *testing.T) {
 }
 
 func TestObject_SetAuthKey(t *testing.T) {
-	testSetAuthKey(t, (*session.Container).SetAuthKey, session.Container.AssertAuthKey)
+	testSetAuthKey(t, (*session.Object).SetAuthKey, session.Object.AssertAuthKey)
 }
 
 func TestObject_ForVerb(t *testing.T) {
