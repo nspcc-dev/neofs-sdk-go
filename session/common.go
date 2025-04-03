@@ -347,3 +347,15 @@ func (x *commonData) AttachSignature(sig neofscrypto.Signature) {
 func (x commonData) Signature() (neofscrypto.Signature, bool) {
 	return x.sig, x.sigSet
 }
+
+// SetAuthKeyBytes sets binary-encoded public key corresponding to the private key
+// bound to the session.
+func (x *commonData) SetAuthKeyBytes(b []byte) {
+	x.authKey = b
+}
+
+// AuthKeyBytes returns binary-encoded public key corresponding to the private
+// key bound to the session.
+func (x commonData) AuthKeyBytes() []byte {
+	return x.authKey
+}

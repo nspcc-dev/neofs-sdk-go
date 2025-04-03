@@ -515,7 +515,7 @@ func TestObject_ID(t *testing.T) {
 }
 
 func TestObject_SetAuthKey(t *testing.T) {
-	testSetAuthKey(t, (*session.Object).SetAuthKey, session.Object.AssertAuthKey)
+	testSetAuthKey(t, (*session.Object).SetAuthKey, session.Object.AssertAuthKey, session.Object.AuthKeyBytes)
 }
 
 func TestObject_ForVerb(t *testing.T) {
@@ -745,4 +745,15 @@ func TestObject_ExpiredAt(t *testing.T) {
 	require.False(t, val.ExpiredAt(0))
 	require.False(t, val.ExpiredAt(epoch))
 	require.True(t, val.ExpiredAt(epoch+1))
+}
+
+func TestObject_SetAuthKeyBytes(t *testing.T) {
+	var val session.Object
+	require.False(t, val.AssertAuthKey(anyValidSessionKey))
+	require.Zero(t, val.AuthKeyBytes())
+
+	val.SetAuthKeyBytes(anyValidSessionKeyBytes)
+
+	require.True(t, val.AssertAuthKey(anyValidSessionKey))
+	require.Equal(t, anyValidSessionKeyBytes, val.AuthKeyBytes())
 }

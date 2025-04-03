@@ -444,7 +444,7 @@ func TestContainer_ID(t *testing.T) {
 }
 
 func TestContainer_SetAuthKey(t *testing.T) {
-	testSetAuthKey(t, (*session.Container).SetAuthKey, session.Container.AssertAuthKey)
+	testSetAuthKey(t, (*session.Container).SetAuthKey, session.Container.AssertAuthKey, session.Container.AuthKeyBytes)
 }
 
 func TestContainer_ForVerb(t *testing.T) {
@@ -704,4 +704,15 @@ func TestContainer_IssuerPublicKeyBytes(t *testing.T) {
 	sig.SetPublicKeyBytes(otherKey)
 	val.AttachSignature(sig)
 	require.Equal(t, otherKey, val.IssuerPublicKeyBytes())
+}
+
+func TestContainer_SetAuthKeyBytes(t *testing.T) {
+	var val session.Container
+	require.False(t, val.AssertAuthKey(anyValidSessionKey))
+	require.Zero(t, val.AuthKeyBytes())
+
+	val.SetAuthKeyBytes(anyValidSessionKeyBytes)
+
+	require.True(t, val.AssertAuthKey(anyValidSessionKey))
+	require.Equal(t, anyValidSessionKeyBytes, val.AuthKeyBytes())
 }
