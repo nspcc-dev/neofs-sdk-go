@@ -287,9 +287,8 @@ func TestSessionCache(t *testing.T) {
 	hdr.SetContainerID(containerID)
 
 	t.Run("no session token after pool creation", func(t *testing.T) {
-		st, ok := pool.cache.Get(cacheKey)
+		_, ok := pool.cache.Get(cacheKey)
 		require.False(t, ok)
-		require.False(t, st.AssertAuthKey(usr.Public()))
 	})
 
 	t.Run("session token was created after request", func(t *testing.T) {
