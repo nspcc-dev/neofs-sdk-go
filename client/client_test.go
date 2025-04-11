@@ -293,6 +293,19 @@ func TestClient_Dial(t *testing.T) {
 	})
 }
 
+func TestClientClose(t *testing.T) {
+	var prmInit PrmInit
+
+	c, err := New(prmInit) // No Dial called.
+	require.NoError(t, err)
+
+	require.NoError(t, c.Close())
+
+	c = newClient(t) // Dial called.
+
+	require.NoError(t, c.Close())
+}
+
 type nopPublicKey struct{}
 
 func (x nopPublicKey) MaxEncodedSize() int     { return 10 }

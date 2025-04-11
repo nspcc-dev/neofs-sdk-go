@@ -210,16 +210,20 @@ func (c *Client) Dial(prm PrmDial) error {
 func (c *Client) Conn() *grpc.ClientConn { return c.conn }
 
 // Close closes underlying connection to the NeoFS server. Implements io.Closer.
-// MUST NOT be called before successful Dial. Can be called concurrently
-// with server operations processing on running goroutines: in this case
-// they are likely to fail due to a connection error.
+// Can be called concurrently to server operations in other goroutines: in this
+// case they are likely to fail due to a connection error.
 //
 // One-time method call during application shutdown stage (after [Client.Dial])
 // is expected. Calling multiple times leads to undefined behavior.
 //
 // See also [Client.Dial].
 func (c *Client) Close() error {
-	return c.Conn().Close()
+	var err error
+
+	if c.conn != nil {
+		err = c.conn.Close()
+	}
+	return err
 }
 
 func (c *Client) sendStatistic(m stat.Method, dur time.Duration, err error) {
