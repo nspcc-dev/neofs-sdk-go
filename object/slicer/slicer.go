@@ -64,6 +64,10 @@ type Slicer struct {
 // New constructs Slicer which writes sliced ready-to-go objects owned by
 // particular user into the specified container using provided ObjectWriter.
 // All objects are signed using provided neofscrypto.Signer.
+// If signer implements [neofscrypto.SignerV2], signing is done using it. In
+// this case, [neofscrypto.Signer] methods are not called.
+// [neofscrypto.OverlapSigner] may be used to pass [neofscrypto.SignerV2] when
+// [neofscrypto.Signer] is unimplemented.
 //
 // If ObjectWriter returns data streams which provide io.Closer, they are closed
 // in Slicer.Slice after the payload of any object has been written. In this
@@ -613,7 +617,11 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 
 	var sig neofscrypto.Signature
 
-	err = sig.Calculate(signer, id.Marshal())
+	if signerV2, ok := signer.(neofscrypto.SignerV2); ok {
+		sig, err = signerV2.SignData(id.Marshal())
+	} else {
+		err = sig.Calculate(signer, id.Marshal())
+	}
 	if err != nil {
 		return id, fmt.Errorf("sign object ID: %w", err)
 	}
