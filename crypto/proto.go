@@ -52,43 +52,76 @@ type SignedResponse[B ProtoMessage] interface {
 // according to the NeoFS API protocol, and returns resulting verification
 // header to attach to this request.
 //
+// If signer implements [SignerV2], signing is done using it. In this case,
+// [Signer] methods are not called. [OverlapSigner] may be used to pass
+// [SignerV2] when [Signer] is unimplemented.
+//
 // Buffer is optional and free after the call.
 func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
+	signerV2, signV2 := signer.(SignerV2)
 	var ln int
 	var err error
 	vhOriginal := r.GetVerifyHeader()
 
 	var bs []byte
+	var bSig Signature
 	signBody := vhOriginal == nil
 	if signBody { // body should be signed by the original sender only
 		buf, ln = encodeMessage(r.GetBody(), buf)
-		bs, err = signer.Sign(buf[:ln])
+		if signV2 {
+			bSig, err = signerV2.SignData(buf[:ln])
+		} else {
+			bs, err = signer.Sign(buf[:ln])
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignBody, err)
 		}
 	}
 
 	buf, ln = encodeMessage(r.GetMetaHeader(), buf)
-	ms, err := signer.Sign(buf[:ln])
+	var ms []byte
+	var mSig Signature
+	if signV2 {
+		mSig, err = signerV2.SignData(buf[:ln])
+	} else {
+		ms, err = signer.Sign(buf[:ln])
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errSignMeta, err)
 	}
 
 	buf, ln = encodeMessage(vhOriginal, buf)
-	vs, err := signer.Sign(buf[:ln])
+	var vs []byte
+	var vSig Signature
+	if signV2 {
+		vSig, err = signerV2.SignData(buf[:ln])
+	} else {
+		vs, err = signer.Sign(buf[:ln])
+	}
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errSignVerifyOrigin, err)
 	}
 
-	scheme := refs.SignatureScheme(signer.Scheme())
-	pub := PublicKeyBytes(signer.Public())
 	res := &session.RequestVerificationHeader{
-		MetaSignature:   &refs.Signature{Key: pub, Sign: ms, Scheme: scheme},
-		OriginSignature: &refs.Signature{Key: pub, Sign: vs, Scheme: scheme},
-		Origin:          vhOriginal,
+		Origin: vhOriginal,
+	}
+	var pub []byte
+	var scheme refs.SignatureScheme
+	if signV2 {
+		res.MetaSignature = mSig.ProtoMessage()
+		res.OriginSignature = vSig.ProtoMessage()
+	} else {
+		scheme = refs.SignatureScheme(signer.Scheme())
+		pub = PublicKeyBytes(signer.Public())
+		res.MetaSignature = &refs.Signature{Key: pub, Sign: ms, Scheme: scheme}
+		res.OriginSignature = &refs.Signature{Key: pub, Sign: vs, Scheme: scheme}
 	}
 	if signBody {
-		res.BodySignature = &refs.Signature{Key: pub, Sign: bs, Scheme: scheme}
+		if signV2 {
+			res.BodySignature = bSig.ProtoMessage()
+		} else {
+			res.BodySignature = &refs.Signature{Key: pub, Sign: bs, Scheme: scheme}
+		}
 	}
 	return res, nil
 }
