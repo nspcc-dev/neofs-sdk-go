@@ -131,6 +131,15 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 //
 // Buffer is optional and free after the call.
 func VerifyRequestWithBuffer[B ProtoMessage](r SignedRequest[B], buf []byte) error {
+	return VerifyRequestWithBufferN3(r, buf, nil)
+}
+
+// VerifyRequestWithBufferN3 checks whether verification header of the request
+// is formed according to the NeoFS API protocol. [N3] signatures are supported
+// and checked if verifyN3 is non-nil.
+//
+// Buffer is optional and free after the call.
+func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	v := r.GetVerifyHeader()
 	if v == nil {
 		return errMissingVerifyHdr
@@ -161,20 +170,20 @@ func VerifyRequestWithBuffer[B ProtoMessage](r SignedRequest[B], buf []byte) err
 		if v.MetaSignature == nil {
 			return newErrInvalidVerificationHeader(i, errMissingMetaSig)
 		}
-		if err := verifyMessageSignature(m, v.MetaSignature, buf); err != nil {
+		if err := verifyMessageSignatureN3(m, v.MetaSignature, buf, verifyN3); err != nil {
 			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidMetaSig, err))
 		}
 		if v.OriginSignature == nil {
 			return newErrInvalidVerificationHeader(i, errMissingVerifyOriginSig)
 		}
-		if err := verifyMessageSignature(v.Origin, v.OriginSignature, buf); err != nil {
+		if err := verifyMessageSignatureN3(v.Origin, v.OriginSignature, buf, verifyN3); err != nil {
 			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidVerifyOriginSig, err))
 		}
 		if v.Origin == nil {
 			if v.BodySignature == nil {
 				return newErrInvalidVerificationHeader(i, errMissingBodySig)
 			}
-			if err := verifyMessageSignature(b, v.BodySignature, buf); err != nil {
+			if err := verifyMessageSignatureN3(b, v.BodySignature, buf, verifyN3); err != nil {
 				return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidBodySig, err))
 			}
 			return nil
@@ -287,6 +296,14 @@ func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) e
 			return newErrInvalidVerificationHeader(i, errNonOriginBodySig)
 		}
 	}
+}
+
+func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
+		b, sz := encodeMessage(m, b)
+		return verifyN3(b[:sz], s.Sign, s.Key)
+	}
+	return verifyMessageSignature(m, s, b)
 }
 
 func verifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
