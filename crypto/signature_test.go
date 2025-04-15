@@ -87,3 +87,14 @@ func TestNewSignature(t *testing.T) {
 
 	checkFields(sig2)
 }
+
+func TestNewN3Signature(t *testing.T) {
+	invocScript := []byte("foo")
+	verifScript := []byte("bar")
+
+	sig := neofscrypto.NewN3Signature(invocScript, verifScript)
+
+	require.Equal(t, neofscrypto.N3, sig.Scheme())
+	require.Equal(t, verifScript, sig.PublicKeyBytes())
+	require.Equal(t, invocScript, sig.Value())
+}

@@ -33,6 +33,11 @@ func NewSignature(scheme Scheme, publicKey PublicKey, value []byte) Signature {
 	return NewSignatureFromRawKey(scheme, PublicKeyBytes(publicKey), value)
 }
 
+// NewN3Signature constructs signature from given N3 witness scripts.
+func NewN3Signature(invocScript, verifScript []byte) Signature {
+	return NewSignatureFromRawKey(N3, verifScript, invocScript)
+}
+
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
 // x from it.
 //
