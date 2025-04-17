@@ -336,6 +336,10 @@ func (x *DefaultObjectWriter) GetResult() ResObjectPut {
 //
 // Signer is required and must not be nil. The operation is executed on behalf of
 // the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
+// If signer implements [neofscrypto.SignerV2], signing is done using it. In
+// this case, [neofscrypto.Signer] methods are not called.
+// [neofscrypto.OverlapSigner] may be used to pass [neofscrypto.SignerV2] when
+// [neofscrypto.Signer] is unimplemented.
 //
 // Returns errors:
 //   - [ErrMissingSigner]

@@ -25,6 +25,7 @@ const (
 	ECDSA_SHA512               // ECDSA with SHA-512 hashing (FIPS 186-3)
 	ECDSA_DETERMINISTIC_SHA256 // Deterministic ECDSA with SHA-256 hashing (RFC 6979)
 	ECDSA_WALLETCONNECT        // Wallet Connect signature scheme
+	N3                         // Neo N3 witness
 )
 
 // String implements fmt.Stringer.
@@ -145,4 +146,21 @@ func (s *StaticSigner) Sign(_ []byte) ([]byte, error) {
 // Implements [Signer].
 func (s *StaticSigner) Public() PublicKey {
 	return s.pubKey
+}
+
+// SignerV2 allows to sign authorized data.
+type SignerV2 interface {
+	SignData(data []byte) (Signature, error)
+}
+
+type signers struct {
+	Signer
+	SignerV2
+}
+
+// OverlapSigner returns [Signer] which implements [SignerV2] for functions
+// trying to switch to [SignerV2] usage. It is unsafe to use OverlapSigner for
+// any other case.
+func OverlapSigner(s SignerV2) Signer {
+	return signers{SignerV2: s}
 }
