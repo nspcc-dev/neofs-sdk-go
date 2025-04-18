@@ -270,10 +270,6 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		header.SetOwner(owner)
 	} else if opts.bearerToken != nil {
 		prm.WithBearerToken(*opts.bearerToken)
-		// token issuer is a container owner.
-		issuer := opts.bearerToken.Issuer()
-		owner = issuer
-		header.SetOwner(owner)
 	}
 
 	header.SetCreationEpoch(opts.currentNeoFSEpoch)
