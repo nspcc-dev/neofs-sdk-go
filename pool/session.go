@@ -9,7 +9,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -49,13 +48,8 @@ func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer us
 		return dst, fmt.Errorf("invalid session token ID: %w", err)
 	}
 
-	var key neofsecdsa.PublicKey
-	if err = key.Decode(res.PublicKey()); err != nil {
-		return dst, fmt.Errorf("invalid public session key: %w", err)
-	}
-
 	dst.SetID(id)
-	dst.SetAuthKey(&key)
+	dst.SetAuthKeyBytes(res.PublicKey())
 	dst.SetExp(exp)
 
 	c.nodeSession.SetNodeSession(&dst, signer.Public())
