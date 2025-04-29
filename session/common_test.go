@@ -260,20 +260,27 @@ func TestInvalidAt(t *testing.T) {
 	testValidAt(t, new(session.Object))
 }
 
-func testSetAuthKey[T session.Container | session.Object](t testing.TB, set func(*T, neofscrypto.PublicKey), assert func(T, neofscrypto.PublicKey) bool) {
-	k1 := neofscryptotest.Signer().Public()
-	k2 := neofscryptotest.Signer().Public()
+func testSetAuthKey[T session.Container | session.Object](t testing.TB, set func(*T, neofscrypto.PublicKey), assert func(T, neofscrypto.PublicKey) bool,
+	getBytes func(T) []byte) {
+	k1 := neofscryptotest.Signer()
+	k2 := neofscryptotest.Signer()
 	var x T
-	require.False(t, assert(x, k1))
-	require.False(t, assert(x, k2))
+	require.False(t, assert(x, k1.Public()))
+	require.NotEqual(t, k1.PublicKeyBytes, getBytes(x))
+	require.False(t, assert(x, k2.Public()))
+	require.NotEqual(t, k2.PublicKeyBytes, getBytes(x))
 
-	set(&x, k1)
-	require.True(t, assert(x, k1))
-	require.False(t, assert(x, k2))
+	set(&x, k1.Public())
+	require.True(t, assert(x, k1.Public()))
+	require.Equal(t, k1.PublicKeyBytes, getBytes(x))
+	require.False(t, assert(x, k2.Public()))
+	require.NotEqual(t, k2.PublicKeyBytes, getBytes(x))
 
-	set(&x, k2)
-	require.False(t, assert(x, k1))
-	require.True(t, assert(x, k2))
+	set(&x, k2.Public())
+	require.False(t, assert(x, k1.Public()))
+	require.NotEqual(t, k1.PublicKeyBytes, getBytes(x))
+	require.True(t, assert(x, k2.Public()))
+	require.Equal(t, k2.PublicKeyBytes, getBytes(x))
 }
 
 func testTokenIssuer[T interface {
