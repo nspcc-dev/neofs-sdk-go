@@ -344,7 +344,7 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 
 	for {
 		var resp *protoobject.SearchResponse
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		x.err = dowithTimeout("SEARCH", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
 			resp, err = x.stream.Recv()
 			return err

@@ -148,7 +148,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) err
 		return x.err
 	}
 
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	x.err = dowithTimeout("PUT (HDR)", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		return x.stream.Send(req)
 	})
 	return x.err
@@ -213,13 +213,13 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			return writtenBytes, x.err
 		}
 
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		x.err = dowithTimeout("PUT (CHK)", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			return x.stream.Send(req)
 		})
 		if x.err != nil {
 			if errors.Is(x.err, io.EOF) {
 				var resp *protoobject.PutResponse
-				x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+				x.err = dowithTimeout("PUT (CLS EOF)", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 					var err error
 					resp, err = x.stream.CloseAndRecv()
 					return err
@@ -287,7 +287,7 @@ func (x *DefaultObjectWriter) Close() error {
 	}
 
 	var resp *protoobject.PutResponse
-	if x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	if x.err = dowithTimeout("PUT (CLS)", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		var err error
 		resp, err = x.stream.CloseAndRecv()
 		return err

@@ -90,7 +90,7 @@ type PayloadReader struct {
 // Failure reason can be received via Close.
 func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	var resp *protoobject.GetResponse
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	x.err = dowithTimeout("GET (HDR)", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		var err error
 		resp, err = x.stream.Recv()
 		return err
@@ -174,7 +174,7 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 
 	for {
 		var resp *protoobject.GetResponse
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		x.err = dowithTimeout("GET (CHUNK)", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
 			resp, err = x.stream.Recv()
 			return err
@@ -552,7 +552,7 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 
 	for {
 		var resp *protoobject.GetRangeResponse
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		x.err = dowithTimeout("RANGE", x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
 			resp, err = x.stream.Recv()
 			return err

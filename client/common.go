@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/google/uuid"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
@@ -84,10 +85,15 @@ func (x onlyBinarySendingCodec) Unmarshal(data mem.BufferSlice, msg any) error {
 //
 // Copy-pasted from https://github.com/nspcc-dev/neofs-api-go/blob/4d4eaa29436e2b1ce9bcdddd6551133c388a1cdb/rpc/grpc/init.go#L53.
 // TODO: https://github.com/nspcc-dev/neofs-sdk-go/issues/640.
-func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func() error) error {
+func dowithTimeout(desc string, timeout time.Duration, cancel context.CancelFunc, action func() error) error {
+	st := time.Now()
+	uid := uuid.New()
+	fmt.Printf("TESTLOG start op %s ID %s timeout %s\n", desc, uid, timeout)
 	ch := make(chan error, 1)
 	go func() {
-		ch <- action()
+		err := action()
+		fmt.Printf("TESTLOG fin op %s ID %s took %s\n", desc, uid, time.Since(st))
+		ch <- err
 		close(ch)
 	}()
 
@@ -95,8 +101,10 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 
 	select {
 	case err := <-ch:
+		fmt.Printf("TESTLOG return op %s ID %s took %s\n", desc, uid, time.Since(st))
 		return err
 	case <-tt.C:
+		fmt.Printf("TESTLOG deadline op %s ID %s took %s", desc, uid, time.Since(st))
 		cancel()
 		return context.DeadlineExceeded
 	}
