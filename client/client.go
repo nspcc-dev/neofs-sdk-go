@@ -27,7 +27,7 @@ import (
 const (
 	// max GRPC message size.
 	defaultBufferSize       = 4194304 // 4MB
-	defaultStreamMsgTimeout = 10 * time.Second
+	defaultStreamMsgTimeout = 5 * time.Second
 )
 
 // Client represents virtual connection to the NeoFS network to communicate

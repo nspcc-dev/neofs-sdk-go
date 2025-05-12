@@ -631,7 +631,7 @@ const (
 	defaultRebalanceInterval  = 25 * time.Second
 	defaultHealthcheckTimeout = 4 * time.Second
 	defaultDialTimeout        = 5 * time.Second
-	defaultStreamTimeout      = 10 * time.Second
+	defaultStreamTimeout      = 7 * time.Second
 )
 
 // DefaultOptions returns default option preset for Pool creation. It may be used like start point for configuration or
