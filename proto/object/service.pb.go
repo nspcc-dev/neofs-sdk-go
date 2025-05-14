@@ -2168,6 +2168,8 @@ type SearchV2Request_Body struct {
 	// and then by OID). If additional attributes are requested, then the first
 	// filter's key (see filters above) MUST be the first requested attribute.
 	// '$Object:containerID' and '$Object:objectID' attributes are prohibited.
+	// If meta_header.ttl = 1 and the first filter is not STRING_EQUAL,
+	// values of the first filtered attribute are requested  automatically.
 	Attributes    []string `protobuf:"bytes,6,rep,name=attributes,proto3" json:"attributes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2251,7 +2253,9 @@ type SearchV2Response_OIDWithMeta struct {
 	// Object ID that matches search criteria.
 	Id *refs.ObjectID `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// List of attribute data from the respective object, fields
-	// strictly follow requested ones.
+	// strictly follow requested ones. The only exception are attribute-less
+	// requests with TTL = 1 and the first non-STRING_EQUAL filter: this field
+	// carry value of the first filtered attribute.
 	Attributes    []string `protobuf:"bytes,2,rep,name=attributes,proto3" json:"attributes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
