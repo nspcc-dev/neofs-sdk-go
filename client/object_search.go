@@ -232,6 +232,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 
 	res := make([]SearchResultItem, n)
+	localFilteredAttributeless := opts.noForwarding && len(attrs) == 0 && len(filters) > 0
 	for i, r := range resp.Body.Result {
 		switch {
 		case r == nil:
@@ -240,7 +241,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		case r.Id == nil:
 			err = newErrInvalidResponseField(resultField, fmt.Errorf("invalid element #%d: missing ID", i))
 			return nil, "", err
-		case len(r.Attributes) != len(attrs):
+		case (!localFilteredAttributeless && len(r.Attributes) != len(attrs)) || (localFilteredAttributeless && len(r.Attributes) > 1):
 			err = newErrInvalidResponseField(resultField, fmt.Errorf("invalid element #%d: wrong attribute count %d", i, len(r.Attributes)))
 			return nil, "", err
 		}
