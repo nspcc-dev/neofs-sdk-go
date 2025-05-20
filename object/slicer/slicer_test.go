@@ -213,7 +213,7 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 	}
 	in.payload = testutil.RandByteSlice(size)
 	in.attributes = attrs
-	in.owner = usertest.ID()
+	in.owner = in.signer.UserID()
 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
@@ -546,12 +546,7 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.False(tb, cnr.IsZero(), "all objects must be bound to some container")
 	require.True(tb, cnr == in.container, "the container must be set to the configured one")
 
-	owner := header.Owner()
-	if in.sessionToken != nil {
-		require.True(tb, in.sessionToken.Issuer() == owner, "owner must be set to the session issuer")
-	} else {
-		require.True(tb, owner == in.owner, "owner must be set to the particular user")
-	}
+	require.True(tb, in.signer.UserID() == header.Owner(), "owner must be set to the signer user")
 
 	ver := header.Version()
 	require.NotNil(tb, ver, "version must be set in all objects")

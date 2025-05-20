@@ -237,25 +237,10 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 	return rootID, nil
 }
 
-// headerData extract required fields from header, otherwise throw the error.
-func headerData(header object.Object) (cid.ID, user.ID, error) {
+func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
 	containerID := header.GetContainerID()
 	if containerID.IsZero() {
-		return cid.ID{}, user.ID{}, fmt.Errorf("container-id: %w", ErrIncompleteHeader)
-	}
-
-	owner := header.Owner()
-	if owner.IsZero() {
-		return cid.ID{}, user.ID{}, fmt.Errorf("owner: %w", ErrIncompleteHeader)
-	}
-
-	return containerID, owner, nil
-}
-
-func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
-	containerID, owner, err := headerData(header)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrIncompleteHeader, cid.ErrZero)
 	}
 
 	var prm client.PrmObjectPutInit
@@ -264,10 +249,6 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	if opts.sessionToken != nil {
 		prm.WithinSession(*opts.sessionToken)
 		header.SetSessionToken(opts.sessionToken)
-		// session issuer is a container owner.
-		issuer := opts.sessionToken.Issuer()
-		owner = issuer
-		header.SetOwner(owner)
 	} else if opts.bearerToken != nil {
 		prm.WithBearerToken(*opts.bearerToken)
 	}
@@ -281,7 +262,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	stubObject.SetContainerID(containerID)
 	stubObject.SetCreationEpoch(opts.currentNeoFSEpoch)
 	stubObject.SetType(object.TypeRegular)
-	stubObject.SetOwner(owner)
+	stubObject.SetOwner(signer.UserID())
 	stubObject.SetSessionToken(opts.sessionToken)
 
 	res := &PayloadWriter{
@@ -290,7 +271,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		stream:           ow,
 		signer:           signer,
 		container:        containerID,
-		owner:            owner,
+		owner:            signer.UserID(),
 		currentEpoch:     opts.currentNeoFSEpoch,
 		sessionToken:     opts.sessionToken,
 		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
