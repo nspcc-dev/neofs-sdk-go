@@ -271,7 +271,6 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		stream:           ow,
 		signer:           signer,
 		container:        containerID,
-		owner:            signer.UserID(),
 		currentEpoch:     opts.currentNeoFSEpoch,
 		sessionToken:     opts.sessionToken,
 		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
@@ -304,7 +303,6 @@ type PayloadWriter struct {
 
 	signer       user.Signer
 	container    cid.ID
-	owner        user.ID
 	currentEpoch uint64
 	sessionToken *session.Object
 
