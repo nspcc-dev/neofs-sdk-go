@@ -237,19 +237,10 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 	return rootID, nil
 }
 
-func headerData(header object.Object) (cid.ID, error) {
+func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
 	containerID := header.GetContainerID()
 	if containerID.IsZero() {
-		return cid.ID{}, fmt.Errorf("container-id: %w", ErrIncompleteHeader)
-	}
-
-	return containerID, nil
-}
-
-func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
-	containerID, err := headerData(header)
-	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %w", ErrIncompleteHeader, cid.ErrZero)
 	}
 
 	var prm client.PrmObjectPutInit
