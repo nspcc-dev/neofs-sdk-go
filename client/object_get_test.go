@@ -11,6 +11,7 @@ import (
 	"testing/iotest"
 	"time"
 
+	"github.com/google/uuid"
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -26,6 +27,7 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
@@ -392,7 +394,7 @@ func (x *testHeadObjectServer) verifyRequest(req *protoobject.HeadRequest) error
 	return x.verifyRawFlag(body.Raw)
 }
 
-func (x *testHeadObjectServer) Head(_ context.Context, req *protoobject.HeadRequest) (*protoobject.HeadResponse, error) {
+func (x *testHeadObjectServer) Head(ctx context.Context, req *protoobject.HeadRequest) (*protoobject.HeadResponse, error) {
 	time.Sleep(x.handlerSleepDur)
 	if err := x.verifyRequest(req); err != nil {
 		return nil, err
@@ -438,7 +440,7 @@ func TestClient_ObjectHead(t *testing.T) {
 
 				srv.checkRequestObjectAddress(anyCID, anyOID)
 				srv.authenticateRequest(anyValidSigner)
-				_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, PrmObjectHead{})
+				_, err := c.ObjectHead(metadata.AppendToOutgoingContext(ctx, "x-amz-request-id", uuid.New().String()), anyCID, anyOID, anyValidSigner, PrmObjectHead{})
 				require.NoError(t, err)
 			})
 			t.Run("options", func(t *testing.T) {

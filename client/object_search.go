@@ -11,6 +11,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/debugprint"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -182,7 +183,9 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		return nil, "", err
 	}
 
+	st := debugprint.LogRequestStageStart(ctx, "NeoFS API SearchV2")
 	resp, err := c.object.SearchV2(ctx, req)
+	debugprint.LogRequestStageFinish(st)
 	if err != nil {
 		err = rpcErr(err)
 		return nil, "", err
@@ -315,6 +318,7 @@ type searchObjectsResponseStream interface {
 //
 // Must be initialized using Client.ObjectSearch, any other usage is unsafe.
 type ObjectListReader struct {
+	ctx              context.Context
 	cancelCtxStream  context.CancelFunc
 	err              error
 	stream           searchObjectsResponseStream
@@ -347,7 +351,9 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 		var resp *protoobject.SearchResponse
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
+			st := debugprint.LogRequestStageStart(x.ctx, "NeoFS API Search (chunk)")
 			resp, err = x.stream.Recv()
+			debugprint.LogRequestStageFinish(st)
 			return err
 		})
 		if x.err != nil {
@@ -501,9 +507,11 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	}
 
 	var r ObjectListReader
-	ctx, r.cancelCtxStream = context.WithCancel(ctx)
+	r.ctx, r.cancelCtxStream = context.WithCancel(ctx)
 
-	r.stream, err = c.object.Search(ctx, req)
+	st := debugprint.LogRequestStageStart(r.ctx, "NeoFS API Search")
+	r.stream, err = c.object.Search(r.ctx, req)
+	debugprint.LogRequestStageFinish(st)
 	if err != nil {
 		err = fmt.Errorf("open stream: %w", err)
 		return nil, err

@@ -11,6 +11,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	"github.com/nspcc-dev/neofs-sdk-go/debugprint"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -71,6 +72,7 @@ type getObjectResponseStream interface {
 // Must be initialized using Client.ObjectGetInit, any other
 // usage is unsafe.
 type PayloadReader struct {
+	ctx             context.Context
 	cancelCtxStream context.CancelFunc
 
 	stream           getObjectResponseStream
@@ -92,7 +94,9 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	var resp *protoobject.GetResponse
 	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		var err error
+		st := debugprint.LogRequestStageStart(x.ctx, "NeoFS API Get (header)")
 		resp, err = x.stream.Recv()
+		debugprint.LogRequestStageFinish(st)
 		return err
 	})
 	if x.err != nil {
@@ -176,7 +180,9 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 		var resp *protoobject.GetResponse
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
+			st := debugprint.LogRequestStageStart(x.ctx, "NeoFS API Get (chunk)")
 			resp, err = x.stream.Recv()
+			debugprint.LogRequestStageFinish(st)
 			return err
 		})
 		if x.err != nil {
@@ -344,7 +350,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	ctx, cancel := context.WithCancel(ctx)
 
+	st := debugprint.LogRequestStageStart(ctx, "NeoFS API Get (init)")
 	stream, err := c.object.Get(ctx, req)
+	debugprint.LogRequestStageFinish(st)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -352,6 +360,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	var r PayloadReader
+	r.ctx = ctx
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
@@ -444,7 +453,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
+	st := debugprint.LogRequestStageStart(ctx, "NeoFS API Head")
 	resp, err := c.object.Head(ctx, req)
+	debugprint.LogRequestStageFinish(st)
 	if err != nil {
 		err = rpcErr(err)
 		return nil, err
@@ -520,6 +531,7 @@ type getObjectPayloadRangeResponseStream interface {
 // Must be initialized using Client.ObjectRangeInit, any other
 // usage is unsafe.
 type ObjectRangeReader struct {
+	ctx             context.Context
 	cancelCtxStream context.CancelFunc
 
 	err error
@@ -554,7 +566,9 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 		var resp *protoobject.GetRangeResponse
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
+			st := debugprint.LogRequestStageStart(x.ctx, "NeoFS API Range (chunk)")
 			resp, err = x.stream.Recv()
+			debugprint.LogRequestStageFinish(st)
 			return err
 		})
 		if x.err != nil {
@@ -750,7 +764,9 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 
 	ctx, cancel := context.WithCancel(ctx)
 
+	st := debugprint.LogRequestStageStart(ctx, "NeoFS API Range")
 	stream, err := c.object.GetRange(ctx, req)
+	debugprint.LogRequestStageFinish(st)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -759,6 +775,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 
 	var r ObjectRangeReader
 	r.requestedLen = length
+	r.ctx = ctx
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
