@@ -19,6 +19,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
@@ -745,4 +746,47 @@ func TestObject_ExpiredAt(t *testing.T) {
 	require.False(t, val.ExpiredAt(0))
 	require.False(t, val.ExpiredAt(epoch))
 	require.True(t, val.ExpiredAt(epoch+1))
+}
+
+func TestSessionTokenVersionValidation(t *testing.T) {
+	// Create a session token without lifetime field
+	sessionToken := &protosession.SessionToken{
+		Body: &protosession.SessionToken_Body{
+			Id:         anyValidSessionID[:],
+			OwnerId:    &refs.OwnerID{Value: anyValidUserID[:]},
+			SessionKey: anyValidSessionKeyBytes,
+			Context: &protosession.SessionToken_Body_Object{
+				Object: &protosession.ObjectSessionContext{
+					Verb: anyValidObjectVerb,
+					Target: &protosession.ObjectSessionContext_Target{
+						Container: &refs.ContainerID{Value: anyValidContainerID[:]},
+					},
+				},
+			},
+		},
+		Signature: &refs.Signature{
+			Key:    anyValidIssuerPublicKeyBytes,
+			Sign:   anyValidSignatureBytes,
+			Scheme: anyValidSignatureScheme,
+		},
+	}
+
+	// With version < 2.12, missing lifetime should be accepted
+	obj := new(session.Object)
+	olderVersion := version.New(2, 11)
+	err := obj.FromProtoMessageWithVersion(sessionToken, &olderVersion)
+	require.NoError(t, err)
+
+	// With version >= 2.12, missing lifetime should cause error
+	obj = new(session.Object)
+	currentVersion := version.New(2, 12)
+	err = obj.FromProtoMessageWithVersion(sessionToken, &currentVersion)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing token lifetime")
+
+	// With no version check (nil version), missing lifetime should cause error
+	obj = new(session.Object)
+	err = obj.FromProtoMessage(sessionToken)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "missing token lifetime")
 }

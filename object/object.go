@@ -247,7 +247,7 @@ func (x *header) fromProtoMessage(m *protoobject.Header) error {
 		if x.session == nil {
 			x.session = new(session.Object)
 		}
-		if err := x.session.FromProtoMessage(m.SessionToken); err != nil {
+		if err := x.session.FromProtoMessageWithVersion(m.SessionToken, x.version); err != nil {
 			return fmt.Errorf("invalid session token: %w", err)
 		}
 	} else {

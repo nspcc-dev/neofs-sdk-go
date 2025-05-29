@@ -12,6 +12,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // Object represents token of the NeoFS Object session. A session is opened
@@ -91,7 +92,11 @@ func (x *Object) readContext(c any, checkFieldPresence bool) error {
 }
 
 func (x *Object) fromProtoMessage(m *protosession.SessionToken, checkFieldPresence bool) error {
-	return x.commonData.fromProtoMessage(m, checkFieldPresence, x.readContext)
+	return x.fromProtoMessageWithVersion(m, checkFieldPresence, nil)
+}
+
+func (x *Object) fromProtoMessageWithVersion(m *protosession.SessionToken, checkFieldPresence bool, version *version.Version) error {
+	return x.commonData.fromProtoMessageWithVersion(m, checkFieldPresence, x.readContext, version)
 }
 
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
@@ -100,6 +105,14 @@ func (x *Object) fromProtoMessage(m *protosession.SessionToken, checkFieldPresen
 // See also [Object.ProtoMessage].
 func (x *Object) FromProtoMessage(m *protosession.SessionToken) error {
 	return x.fromProtoMessage(m, true)
+}
+
+// FromProtoMessageWithVersion validates m according to the NeoFS API protocol and restores
+// x from it, taking into account the object version for backward compatibility.
+//
+// See also [Object.ProtoMessage].
+func (x *Object) FromProtoMessageWithVersion(m *protosession.SessionToken, version *version.Version) error {
+	return x.fromProtoMessageWithVersion(m, true, version)
 }
 
 func (x Object) writeContext(m *protosession.SessionToken_Body) {

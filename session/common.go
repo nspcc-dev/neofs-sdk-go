@@ -10,6 +10,7 @@ import (
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 type commonData struct {
@@ -47,6 +48,26 @@ func (x commonData) copyTo(dst *commonData) {
 // field. Verifies format of any presented field according to NeoFS API V2 protocol.
 // Calls contextReader if session context is set. Passes checkFieldPresence into contextReader.
 func (x *commonData) fromProtoMessage(m *protosession.SessionToken, checkFieldPresence bool, r contextReader) error {
+	return x.fromProtoMessageWithVersion(m, checkFieldPresence, r, nil)
+}
+
+// minLifetimeVersion is the minimum version of NeoFS API protocol that supports session tokens lifetime.
+var minLifetimeVersion = version.New(2, 12)
+
+// isVersionWithMandatoryLifetime checks whether the given version is supported by
+// this package and has mandatory lifetime fields.
+func isVersionWithMandatoryLifetime(version *version.Version) bool {
+	return version == nil ||
+		version.Major() > minLifetimeVersion.Major() ||
+		(version.Major() == minLifetimeVersion.Major() && version.Minor() >= minLifetimeVersion.Minor())
+}
+
+// reads commonData and custom context from the session.Token message considering object version.
+// If checkFieldPresence is set, returns an error on absence of any protocol-required
+// field. Verifies format of any presented field according to NeoFS API V2 protocol.
+// If version is not nil, some field validations may be skipped for older versions.
+// Calls contextReader if session context is set. Passes checkFieldPresence into contextReader.
+func (x *commonData) fromProtoMessageWithVersion(m *protosession.SessionToken, checkFieldPresence bool, r contextReader, version *version.Version) error {
 	var err error
 
 	body := m.GetBody()
@@ -81,7 +102,7 @@ func (x *commonData) fromProtoMessage(m *protosession.SessionToken, checkFieldPr
 	}
 
 	lifetime := body.GetLifetime()
-	if checkFieldPresence && lifetime == nil {
+	if checkFieldPresence && lifetime == nil && isVersionWithMandatoryLifetime(version) {
 		return errors.New("missing token lifetime")
 	}
 
