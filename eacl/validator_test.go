@@ -12,19 +12,22 @@ import (
 )
 
 func checkIgnoredAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit) {
-	action, ok := v.CalculateAction(vu)
+	action, ok, err := v.CalculateAction(vu)
+	require.NoError(t, err)
 	require.False(t, ok)
 	require.Equal(t, expected, action)
 }
 
 func checkAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit) {
-	action, ok := v.CalculateAction(vu)
+	action, ok, err := v.CalculateAction(vu)
+	require.NoError(t, err)
 	require.True(t, ok)
 	require.Equal(t, expected, action)
 }
 
 func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit, msgAndArgs ...any) {
-	action, ok := v.CalculateAction(vu)
+	action, ok, err := v.CalculateAction(vu)
+	require.NoError(t, err)
 	require.False(t, ok, msgAndArgs)
 	require.Equal(t, ActionAllow, action, msgAndArgs...)
 }
@@ -340,14 +343,14 @@ func makeHeaders(kv ...string) []Header {
 	return hs
 }
 
-func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool) {
+func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool, error) {
 	switch ht {
 	case HeaderFromRequest:
-		return h.req, true
+		return h.req, true, nil
 	case HeaderFromObject:
-		return h.obj, true
+		return h.obj, true, nil
 	default:
-		return nil, false
+		return nil, false, nil
 	}
 }
 
@@ -445,7 +448,8 @@ func TestNumericRules(t *testing.T) {
 		rec.AddObjectAttributeFilter(tc.m, "any_key", tc.f)
 		hs := headers{obj: makeHeaders("any_key", tc.h)}
 
-		v := matchFilters(hs, rec.filters)
+		v, err := matchFilters(hs, rec.filters)
+		require.NoError(t, err)
 		if tc.exp {
 			require.Zero(t, v, tc)
 		} else {
@@ -464,19 +468,22 @@ func TestAbsenceRules(t *testing.T) {
 
 	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
 	r.AddObjectAttributeFilter(MatchNotPresent, "key1", "")
-	v := matchFilters(hs, r.filters)
+	v, err := matchFilters(hs, r.filters)
+	require.NoError(t, err)
 	require.Positive(t, v)
 
 	r.filters = r.filters[:0]
 	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
 	r.AddObjectAttributeFilter(MatchNotPresent, "key2", "")
-	v = matchFilters(hs, r.filters)
+	v, err = matchFilters(hs, r.filters)
+	require.NoError(t, err)
 	require.Positive(t, v)
 
 	r.filters = r.filters[:0]
 	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
 	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
 	r.AddObjectAttributeFilter(MatchNotPresent, "key3", "")
-	v = matchFilters(hs, r.filters)
+	v, err = matchFilters(hs, r.filters)
+	require.NoError(t, err)
 	require.Zero(t, v)
 }
