@@ -66,14 +66,17 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // Count returns limit for the search result.
 func (x SearchObjectsOptions) Count() uint32 { return x.count }
 
-// SearchObjects selects objects from given container by applying specified
-// filters, collects values of requested attributes and returns the result
-// sorted. Elements are compared by attributes' values lexicographically in
-// priority from first to last, closing with the default sorting by IDs. System
-// attributes can be included using special aliases like
-// [object.FilterPayloadSize]. SearchObjects also returns opaque continuation
-// cursor: when passed to a repeat call, it specifies where to continue the
-// operation from. To start the search anew, pass an empty cursor.
+// SearchObjects selects objects from a given container by applying specified
+// filters, collects values of requested attributes, and returns the sorted
+// result.
+// SearchObjects also returns an opaque continuation cursor: when passed to a
+// repeat call, it specifies where to continue the operation from. To start a
+// new search, pass an empty cursor.
+//
+// The result is sorted lexicographically by the first attribute, then by
+// object ID. When the first filter is an integer, numeric comparison is used.
+// System attributes can be included using special aliases like
+// [object.FilterPayloadSize].
 //
 // Max number of filters is 8. Max number of attributes is 8. If attributes are
 // specified, the 1st filter must be about it. Neither filters nor
