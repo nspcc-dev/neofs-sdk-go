@@ -6,7 +6,6 @@ import (
 	"time"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
@@ -66,14 +65,14 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return err
+	// }
 
 	resp, err := c.reputation.AnnounceLocalTrust(ctx, req)
 	if err != nil {
@@ -92,10 +91,10 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceLocalTrustResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceLocalTrustResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return err
+	// }
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err
@@ -153,14 +152,14 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return err
+	// }
 
 	resp, err := c.reputation.AnnounceIntermediateResult(ctx, req)
 	if err != nil {
@@ -179,10 +178,10 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceIntermediateResultResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceIntermediateResultResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return err
+	// }
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err

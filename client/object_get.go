@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -99,10 +98,10 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
-	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-		return false
-	}
+	// if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
+	// 	x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+	// 	return false
+	// }
 
 	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 		return false
@@ -183,10 +182,10 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-			return read, false
-		}
+		// if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
+		// 	x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+		// 	return read, false
+		// }
 
 		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, false
@@ -333,14 +332,14 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return hdr, nil, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return hdr, nil, err
+	// }
 
 	ctx, cancel := context.WithCancel(ctx)
 
@@ -435,14 +434,14 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.HeadRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.HeadRequest_Body](signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return nil, err
+	// }
 
 	resp, err := c.object.Head(ctx, req)
 	if err != nil {
@@ -450,10 +449,10 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.HeadResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.HeadResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return nil, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
@@ -561,10 +560,10 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-			return read, false
-		}
+		// if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeResponse_Body](resp, nil); x.err != nil {
+		// 	x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+		// 	return read, false
+		// }
 
 		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, false
@@ -739,14 +738,14 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return nil, err
+	// }
 
 	ctx, cancel := context.WithCancel(ctx)
 

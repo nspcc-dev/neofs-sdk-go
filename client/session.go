@@ -6,7 +6,6 @@ import (
 	"time"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -96,14 +95,14 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protosession.CreateRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protosession.CreateRequest_Body](signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return nil, err
+	// }
 
 	resp, err := c.session.Create(ctx, req)
 	if err != nil {
@@ -122,10 +121,10 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protosession.CreateResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protosession.CreateResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return nil, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err

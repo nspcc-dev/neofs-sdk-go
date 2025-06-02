@@ -7,7 +7,6 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -65,14 +64,14 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 
 	var res accounting.Decimal
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return res, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return res, err
+	// }
 
 	resp, err := c.accounting.Balance(ctx, req)
 	if err != nil {
@@ -91,10 +90,10 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoaccounting.BalanceResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protoaccounting.BalanceResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return res, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return res, err

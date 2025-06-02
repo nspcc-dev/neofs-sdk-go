@@ -142,11 +142,11 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) err
 		req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
 	}
 
-	req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-	if x.err != nil {
-		x.err = fmt.Errorf("sign message: %w", x.err)
-		return x.err
-	}
+	// req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
+	// if x.err != nil {
+	// 	x.err = fmt.Errorf("sign message: %w", x.err)
+	// 	return x.err
+	// }
 
 	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		return x.stream.Send(req)
@@ -207,11 +207,11 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
 		}
 
-		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-		if x.err != nil {
-			x.err = fmt.Errorf("sign message: %w", x.err)
-			return writtenBytes, x.err
-		}
+		// req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
+		// if x.err != nil {
+		// 	x.err = fmt.Errorf("sign message: %w", x.err)
+		// 	return writtenBytes, x.err
+		// }
 
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			return x.stream.Send(req)
@@ -227,11 +227,11 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 				if x.err != nil {
 					return writtenBytes, x.err
 				}
-				if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
-					x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-				} else {
-					x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
-				}
+				// if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
+				// 	x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+				// } else {
+				x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+				// }
 				x.streamClosed = true
 				x.cancelCtxStream()
 			}
@@ -295,10 +295,10 @@ func (x *DefaultObjectWriter) Close() error {
 		return x.err
 	}
 
-	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
-		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-		return x.err
-	}
+	// if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
+	// 	x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+	// 	return x.err
+	// }
 
 	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 		return x.err
@@ -371,11 +371,11 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 		return nil, err
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	w.buf = *buf
-	w.bufCleanCallback = func() {
-		c.buffers.Put(buf)
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// w.buf = *buf
+	// w.bufCleanCallback = func() {
+	// 	c.buffers.Put(buf)
+	// }
 
 	w.signer = signer
 	w.cancelCtxStream = cancel

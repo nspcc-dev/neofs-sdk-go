@@ -3,13 +3,11 @@ package client
 import (
 	"context"
 	"errors"
-	"fmt"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -94,14 +92,14 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.DeleteRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return oid.ID{}, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.DeleteRequest_Body](signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return oid.ID{}, err
+	// }
 
 	resp, err := c.object.Delete(ctx, req)
 	if err != nil {
@@ -109,10 +107,10 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.DeleteResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return oid.ID{}, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.DeleteResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return oid.ID{}, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return oid.ID{}, err

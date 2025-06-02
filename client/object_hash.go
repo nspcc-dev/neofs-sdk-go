@@ -2,13 +2,11 @@ package client
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -150,14 +148,14 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeHashRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeHashRequest_Body](signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return nil, err
+	// }
 
 	resp, err := c.object.GetRangeHash(ctx, req)
 	if err != nil {
@@ -165,10 +163,10 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeHashResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeHashResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return nil, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err

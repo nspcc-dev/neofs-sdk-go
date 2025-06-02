@@ -123,14 +123,14 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 
 	var res cid.ID
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.PutRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return res, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.PutRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return res, err
+	// }
 
 	resp, err := c.container.Put(ctx, req)
 	if err != nil {
@@ -149,10 +149,10 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.PutResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.PutResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return res, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return res, err
@@ -207,14 +207,14 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
 	var res container.Container
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return res, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return res, err
+	// }
 
 	resp, err := c.container.Get(ctx, req)
 	if err != nil {
@@ -233,10 +233,10 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.GetResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.GetResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return res, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return res, err
@@ -288,14 +288,14 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.ListRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.ListRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return nil, err
+	// }
 
 	resp, err := c.container.List(ctx, req)
 	if err != nil {
@@ -314,10 +314,10 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.ListResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.ListResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return nil, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
@@ -431,14 +431,14 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 		req.MetaHeader.SessionToken = prm.tok.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.DeleteRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.DeleteRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return err
+	// }
 
 	resp, err := c.container.Delete(ctx, req)
 	if err != nil {
@@ -457,10 +457,10 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.DeleteResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.DeleteResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return err
+	// }
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err
@@ -499,14 +499,14 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 
 	var res eacl.Table
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return res, err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return res, err
+	// }
 
 	resp, err := c.container.GetExtendedACL(ctx, req)
 	if err != nil {
@@ -525,10 +525,10 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.GetExtendedACLResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.GetExtendedACLResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return res, err
+	// }
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return res, err
@@ -650,14 +650,14 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetExtendedACLRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetExtendedACLRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return err
+	// }
 
 	resp, err := c.container.SetExtendedACL(ctx, req)
 	if err != nil {
@@ -676,10 +676,10 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.SetExtendedACLResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.SetExtendedACLResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return err
+	// }
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err
@@ -734,14 +734,14 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.AnnounceUsedSpaceRequest_Body](c.prm.signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return err
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
+	//
+	// req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.AnnounceUsedSpaceRequest_Body](c.prm.signer, req, *buf)
+	// if err != nil {
+	// 	err = fmt.Errorf("%w: %w", errSignRequest, err)
+	// 	return err
+	// }
 
 	resp, err := c.container.AnnounceUsedSpace(ctx, req)
 	if err != nil {
@@ -760,10 +760,10 @@ func (c *Client) ContainerAnnounceUsedSpace(ctx context.Context, announcements [
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.AnnounceUsedSpaceResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
+	// if err = neofscrypto.VerifyResponseWithBuffer[*protocontainer.AnnounceUsedSpaceResponse_Body](resp, *buf); err != nil {
+	// 	err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+	// 	return err
+	// }
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err
