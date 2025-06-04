@@ -183,10 +183,10 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-			return read, false
-		}
+		// if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
+		// 	x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+		// 	return read, false
+		// }
 
 		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, false
