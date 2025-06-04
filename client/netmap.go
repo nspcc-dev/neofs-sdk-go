@@ -77,10 +77,10 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
@@ -103,7 +103,7 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.LocalNodeInfoResponse_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.LocalNodeInfoResponse_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return nil, err
 	}
@@ -179,10 +179,10 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	var res netmap.NetworkInfo
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
@@ -205,7 +205,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetworkInfoResponse_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetworkInfoResponse_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return res, err
 	}
@@ -261,10 +261,10 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	var res netmap.NetMap
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
@@ -276,7 +276,7 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 		return netmap.NetMap{}, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetmapSnapshotResponse_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetmapSnapshotResponse_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return res, err
 	}

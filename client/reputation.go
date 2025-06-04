@@ -66,10 +66,10 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
@@ -92,7 +92,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceLocalTrustResponse_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceLocalTrustResponse_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return err
 	}
@@ -153,10 +153,10 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
@@ -179,7 +179,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceIntermediateResultResponse_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceIntermediateResultResponse_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return err
 	}

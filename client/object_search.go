@@ -173,10 +173,10 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		req.MetaHeader.BearerToken = opts.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchV2Request_Body](signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchV2Request_Body](signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, "", err
@@ -199,7 +199,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		}
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.SearchV2Response_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.SearchV2Response_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return nil, "", err
 	}
@@ -491,10 +491,10 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchRequest_Body](signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchRequest_Body](signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err

@@ -371,11 +371,11 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 		return nil, err
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	w.buf = *buf
-	w.bufCleanCallback = func() {
-		c.buffers.Put(buf)
-	}
+	// buf := c.buffers.Get().(*[]byte)
+	// w.buf = *buf
+	// w.bufCleanCallback = func() {
+	// 	c.buffers.Put(buf)
+	// }
 
 	w.signer = signer
 	w.cancelCtxStream = cancel

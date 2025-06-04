@@ -150,10 +150,10 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	// buf := c.buffers.Get().(*[]byte)
+	// defer func() { c.buffers.Put(buf) }()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeHashRequest_Body](signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeHashRequest_Body](signer, req, nil)
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
@@ -165,7 +165,7 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeHashResponse_Body](resp, *buf); err != nil {
+	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetRangeHashResponse_Body](resp, nil); err != nil {
 		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return nil, err
 	}
