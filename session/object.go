@@ -203,6 +203,11 @@ func (x *Object) SetSignature(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 
+func (x *Object) SetRawSignature(signature neofscrypto.Signature) {
+	x.sigSet = true
+	x.sig = signature
+}
+
 // SignedData returns actual payload to sign.
 //
 // See also [Object.Sign], [Object.UnmarshalSignedData].
