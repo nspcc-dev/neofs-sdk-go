@@ -84,6 +84,8 @@ type PayloadReader struct {
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
+
+	oid oid.ID
 }
 
 // readHeader reads header of the object. Result means success.
@@ -99,62 +101,48 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
-	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+	if x.err = apistatus.ToError(resp.Status); x.err != nil {
 		return false
 	}
 
-	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
-		return false
-	}
-
-	var partInit *protoobject.GetResponse_Body_Init
-
-	switch v := resp.GetBody().GetObjectPart().(type) {
+	switch {
 	default:
-		x.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
+		x.err = errors.New("neither header nor split info field is set")
 		return false
-	case *protoobject.GetResponse_Body_SplitInfo:
-		if v == nil || v.SplitInfo == nil {
-			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+	case resp.SplitInfo != nil:
+		if resp.Header != nil || resp.Signature != nil || len(resp.PayloadChunk) > 0 {
+			x.err = errors.New("mutually exclusive fields are set")
 			return false
 		}
 		var si object.SplitInfo
-		if x.err = si.FromProtoMessage(v.SplitInfo); x.err != nil {
+		if x.err = si.FromProtoMessage(resp.SplitInfo); x.err != nil {
 			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
 			return false
 		}
 		x.err = object.NewSplitInfoError(&si)
 		return false
-	case *protoobject.GetResponse_Body_Init_:
-		if v == nil || v.Init == nil {
-			x.err = errors.New("nil header oneof field")
+	case resp.Header != nil:
+		if resp.Signature == nil {
+			x.err = newErrMissingResponseField("signature")
 			return false
 		}
-		partInit = v.Init
 	}
 
-	if partInit.ObjectId == nil {
-		x.err = newErrMissingResponseField("object ID")
-		return false
-	}
-	if partInit.Signature == nil {
-		x.err = newErrMissingResponseField("signature")
-		return false
-	}
-	if partInit.Header == nil {
-		x.err = newErrMissingResponseField("header")
-		return false
-	}
-
-	x.remainingPayloadLen = int(partInit.Header.GetPayloadLength())
+	x.remainingPayloadLen = int(resp.Header.PayloadLength)
+	// TODO: verify chunk len correctness
+	x.tailPayload = resp.PayloadChunk
 
 	x.err = dst.FromProtoMessage(&protoobject.Object{
-		ObjectId:  partInit.ObjectId,
-		Signature: partInit.Signature,
-		Header:    partInit.Header,
+		Signature: resp.Signature,
+		Header:    resp.Header,
 	})
-	return x.err == nil
+	if x.err != nil {
+		return false
+	}
+
+	dst.SetID(x.oid)
+
+	return true
 }
 
 func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
@@ -169,9 +157,6 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 		return read, true
 	}
 
-	var chunk []byte
-	var lastRead int
-
 	for {
 		var resp *protoobject.GetResponse
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
@@ -183,40 +168,19 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
+		if x.err = apistatus.ToError(resp.Status); x.err != nil {
 			return read, false
 		}
 
-		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
-			return read, false
-		}
-
-		part := resp.GetBody().GetObjectPart()
-		partChunk, ok := part.(*protoobject.GetResponse_Body_Chunk)
-		if !ok {
-			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
-			return read, false
-		}
-		if partChunk == nil {
-			x.err = errors.New("nil chunk oneof field")
-			return read, false
-		}
-
-		// read new chunk
-		chunk = partChunk.Chunk
-		if len(chunk) == 0 {
-			// just skip empty chunks since they are not prohibited by protocol
-			continue
-		}
-
-		lastRead = copy(buf[read:], chunk)
+		// TODO: check other fields are unset
+		// TODO: check chunk len against remaining payload
+		lastRead := copy(buf[read:], resp.PayloadChunk)
 
 		read += lastRead
 
 		if read == len(buf) {
 			// save the tail
-			x.tailPayload = append(x.tailPayload, chunk[lastRead:]...)
+			x.tailPayload = append(x.tailPayload, resp.PayloadChunk[lastRead:]...)
 
 			return read, true
 		}
@@ -361,6 +325,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 			c.sendStatistic(stat.MethodObjectGetStream, dur, err)
 		}
 	}
+	r.oid = objectID
 
 	if !r.readHeader(&hdr) {
 		err = fmt.Errorf("read header: %w", r.Close())
