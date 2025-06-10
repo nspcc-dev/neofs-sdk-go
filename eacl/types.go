@@ -19,7 +19,7 @@ type TypedHeaderSource interface {
 	//
 	// It returns any problem encountered through the boolean
 	// false value.
-	HeadersOfType(FilterHeaderType) ([]Header, bool)
+	HeadersOfType(FilterHeaderType) ([]Header, bool, error)
 }
 
 // ValidationUnit represents unit of check for Validator.

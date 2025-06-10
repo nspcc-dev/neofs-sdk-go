@@ -29,7 +29,7 @@ func NewValidator() *Validator {
 //
 // Note that if some rule imposes requirements on the format of values (like
 // numeric), but they do not comply with it - such a rule does not match.
-func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool) {
+func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool, error) {
 	for _, record := range unit.table.Records() {
 		// check type of operation
 		if record.Operation() != unit.op {
@@ -42,31 +42,36 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool) {
 		}
 
 		// check headers
-		switch val := matchFilters(unit.hdrSrc, record.Filters()); {
+		switch val, err := matchFilters(unit.hdrSrc, record.Filters()); {
+		case err != nil:
+			return ActionDeny, false, err
 		case val < 0:
 			// headers of some type could not be composed => allow
-			return ActionAllow, false
+			return ActionAllow, false, nil
 		case val == 0:
-			return record.Action(), true
+			return record.Action(), true, nil
 		}
 	}
 
-	return ActionAllow, false
+	return ActionAllow, false, nil
 }
 
 // returns:
 //   - positive value if no matching header is found for at least one filter;
 //   - zero if at least one suitable header is found for all filters;
 //   - negative value if the headers of at least one filter cannot be obtained.
-func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) int {
+func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) (int, error) {
 	matched := 0
 	var nv, nf big.Int
 
 nextFilter:
 	for _, filter := range filters {
-		headers, ok := hdrSrc.HeadersOfType(filter.From())
+		headers, ok, err := hdrSrc.HeadersOfType(filter.From())
+		if err != nil {
+			return 0, err
+		}
 		if !ok {
-			return -1
+			return -1, nil
 		}
 
 		m := filter.Matcher()
@@ -137,7 +142,7 @@ nextFilter:
 		}
 	}
 
-	return len(filters) - matched
+	return len(filters) - matched, nil
 }
 
 // returns true if one of ExtendedACLTarget has
