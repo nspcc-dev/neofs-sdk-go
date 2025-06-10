@@ -18,6 +18,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"google.golang.org/grpc"
 )
 
 var errInvalidSplitInfo = errors.New("invalid split info")
@@ -308,7 +309,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.object.Get(ctx, req)
+	stream, err := c.object.Get(ctx, req, grpc.MaxCallRecvMsgSize(5<<20))
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
