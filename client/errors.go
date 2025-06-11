@@ -37,9 +37,8 @@ var (
 	// ErrMissingResponseField is returned when required field is not exists in NeoFS api response.
 	ErrMissingResponseField MissingResponseFieldErr
 
-	errSignRequest        = errors.New("sign request")
-	errResponseCallback   = errors.New("response callback error")
-	errResponseSignatures = errors.New("invalid response signature")
+	errSignRequest      = errors.New("sign request")
+	errResponseCallback = errors.New("response callback error")
 )
 
 // MissingResponseFieldErr contains field name which should be in NeoFS API response.
