@@ -83,18 +83,13 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 
 	if c.prm.cbRespInfo != nil {
 		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			key:   c.nodeKey,
 			epoch: resp.GetMetaHeader().GetEpoch(),
 		})
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return err
 		}
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceLocalTrustResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
 	}
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
@@ -170,18 +165,13 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 
 	if c.prm.cbRespInfo != nil {
 		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			key:   c.nodeKey,
 			epoch: resp.GetMetaHeader().GetEpoch(),
 		})
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return err
 		}
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoreputation.AnnounceIntermediateResultResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
 	}
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())

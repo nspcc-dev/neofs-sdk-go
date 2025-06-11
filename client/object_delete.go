@@ -109,11 +109,6 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.DeleteResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return oid.ID{}, err
-	}
-
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return oid.ID{}, err
 	}

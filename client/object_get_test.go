@@ -564,12 +564,6 @@ func TestClient_ObjectHead(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestHeadObjectServer, newTestObjectClient, func(c *Client) error {
-						_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protoobject.HeadResponse_Body]
 					tcs := []testcase{
@@ -998,33 +992,6 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "object.ObjectService", "Get", func(c *Client) error {
 						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 						return err
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					t.Run("heading message", func(t *testing.T) {
-						srv := newTestGetObjectServer()
-						srv.respondWithoutSigning(0)
-						c := newTestObjectClient(t, srv)
-						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						require.ErrorContains(t, err, "invalid response signature")
-					})
-					t.Run("payload chunk message", func(t *testing.T) {
-						srv := newTestGetObjectServer()
-						c := newTestObjectClient(t, srv)
-
-						const n = 10
-						chunks := make([][]byte, n)
-						for i := range chunks {
-							chunks[i] = []byte(fmt.Sprintf("chunk#%d", i))
-						}
-
-						srv.respondWithObject(validFullHeadingObjectGetResponseBody.GetInit(), chunks)
-						srv.respondWithoutSigning(n) // remember that 1st message is heading
-						_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						require.NoError(t, err)
-						read, err := io.ReadAll(r)
-						require.ErrorContains(t, err, "invalid response signature")
-						require.Equal(t, join(chunks[:n-1]), read)
 					})
 				})
 				t.Run("payloads", func(t *testing.T) {
@@ -1631,24 +1598,6 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 						}
 						return err
 					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					srv := newTestObjectPayloadRangeServer()
-					c := newTestObjectClient(t, srv)
-
-					const n = 10
-					chunks := make([][]byte, n)
-					for i := range chunks {
-						chunks[i] = []byte(fmt.Sprintf("chunk#%d", i))
-					}
-
-					srv.respondWithChunks(chunks)
-					srv.respondWithoutSigning(n - 1)
-					r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(n*len(chunks)), anyValidSigner, anyValidOpts)
-					require.NoError(t, err)
-					read, err := io.ReadAll(r)
-					require.ErrorContains(t, err, "invalid response signature")
-					require.Equal(t, join(chunks[:n-1]), read)
 				})
 				t.Run("payloads", func(t *testing.T) {
 					t.Run("split info", func(t *testing.T) {
