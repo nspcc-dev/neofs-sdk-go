@@ -606,7 +606,7 @@ var (
 	responseSignerL2ECDSAPubBin = []byte{3, 154, 201, 144, 52, 75, 150, 123, 180, 230, 46, 67, 182, 66, 134, 3, 8, 227, 139, 137, 41,
 		117, 235, 244, 250, 191, 92, 36, 38, 101, 142, 96, 47}
 	getObjectResponseBody = &protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_Init_{Init: &protoobject.GetResponse_Body_Init{
+		Init: &protoobject.GetResponse_Body_Init{
 			ObjectId:  &refs.ObjectID{Value: []byte("any_ID")},
 			Signature: &refs.Signature{Key: []byte("any_pub"), Sign: []byte("any_sig"), Scheme: 2128773493},
 			Header: &protoobject.Header{
@@ -616,7 +616,7 @@ var (
 				CreationEpoch: 10561284447300915844,
 				PayloadLength: 766049361057238504,
 			},
-		}},
+		},
 	}
 	getObjectResponseBodyBin = []byte{10, 103, 10, 8, 10, 6, 97, 110, 121, 95, 73, 68, 18, 24, 10, 7, 97, 110, 121, 95, 112, 117, 98, 18,
 		7, 97, 110, 121, 95, 115, 105, 103, 24, 245, 130, 138, 247, 7, 26, 65, 10, 12, 8, 140, 208, 215, 231, 5, 16, 163, 253, 148,

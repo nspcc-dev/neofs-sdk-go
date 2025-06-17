@@ -467,41 +467,31 @@ var (
 	}
 	// correct ObjectService.Get heading response payload with required fields only.
 	validMinHeadingObjectGetResponseBody = &protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_Init_{
-			Init: &protoobject.GetResponse_Body_Init{
-				ObjectId:  proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID),
-				Signature: proto.Clone(validMinProtoSignature).(*protorefs.Signature),
-				Header:    proto.Clone(validMinObjectHeader).(*protoobject.Header),
-			},
+		Init: &protoobject.GetResponse_Body_Init{
+			ObjectId:  proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID),
+			Signature: proto.Clone(validMinProtoSignature).(*protorefs.Signature),
+			Header:    proto.Clone(validMinObjectHeader).(*protoobject.Header),
 		},
 	}
 	// correct ObjectService.Get heading response payload with all fields.
 	validFullHeadingObjectGetResponseBody = &protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_Init_{
-			Init: &protoobject.GetResponse_Body_Init{
-				ObjectId:  proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID),
-				Signature: proto.Clone(validFullProtoSignature).(*protorefs.Signature),
-				Header:    proto.Clone(validFullObjectHeader).(*protoobject.Header),
-			},
+		Init: &protoobject.GetResponse_Body_Init{
+			ObjectId:  proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID),
+			Signature: proto.Clone(validFullProtoSignature).(*protorefs.Signature),
+			Header:    proto.Clone(validFullObjectHeader).(*protoobject.Header),
 		},
 	}
 	// correct ObjectService.Get chunk response payload with all fields.
 	validFullChunkObjectGetResponseBody = &protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_Chunk{
-			Chunk: []byte("Hello, world!"),
-		},
+		Chunk: []byte("Hello, world!"),
 	}
 	// correct ObjectService.Get split info response payload with required fields only.
 	validMinObjectSplitInfoGetResponseBody = &protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_SplitInfo{
-			SplitInfo: proto.Clone(validMinSplitInfo).(*protoobject.SplitInfo),
-		},
+		SplitInfo: proto.Clone(validMinSplitInfo).(*protoobject.SplitInfo),
 	}
 	// correct ObjectService.Get split info response payload with all fields.
 	validFullObjectSplitInfoGetResponseBody = &protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_SplitInfo{
-			SplitInfo: proto.Clone(validFullSplitInfo).(*protoobject.SplitInfo),
-		},
+		SplitInfo: proto.Clone(validFullSplitInfo).(*protoobject.SplitInfo),
 	}
 	// correct ObjectService.GetRange chunk response payload with all fields.
 	validFullChunkObjectRangeResponseBody = &protoobject.GetRangeResponse_Body{

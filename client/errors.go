@@ -40,6 +40,8 @@ var (
 	errSignRequest        = errors.New("sign request")
 	errResponseCallback   = errors.New("response callback error")
 	errResponseSignatures = errors.New("invalid response signature")
+
+	errMissingResponseBody = newErrMissingResponseField("body")
 )
 
 // MissingResponseFieldErr contains field name which should be in NeoFS API response.

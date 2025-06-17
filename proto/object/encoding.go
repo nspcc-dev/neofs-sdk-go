@@ -305,23 +305,9 @@ const (
 func (x *GetResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		switch p := x.ObjectPart.(type) {
-		default:
-			panic(fmt.Sprintf("unexpected object part %T", x.ObjectPart))
-		case nil:
-		case *GetResponse_Body_Init_:
-			if p != nil {
-				sz = proto.SizeEmbedded(fieldGetRespInit, p.Init)
-			}
-		case *GetResponse_Body_Chunk:
-			if p != nil {
-				sz = proto.SizeBytes(fieldGetRespChunk, p.Chunk)
-			}
-		case *GetResponse_Body_SplitInfo:
-			if p != nil {
-				sz = proto.SizeEmbedded(fieldGetRespSplitInfo, p.SplitInfo)
-			}
-		}
+		sz = proto.SizeEmbedded(fieldGetRespInit, x.Init) +
+			proto.SizeBytes(fieldGetRespChunk, x.Chunk) +
+			proto.SizeEmbedded(fieldGetRespSplitInfo, x.SplitInfo)
 	}
 	return sz
 }
@@ -331,23 +317,9 @@ func (x *GetResponse_Body) MarshaledSize() int {
 // [GetResponse_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *GetResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		switch p := x.ObjectPart.(type) {
-		default:
-			panic(fmt.Sprintf("unexpected object part %T", x.ObjectPart))
-		case nil:
-		case *GetResponse_Body_Init_:
-			if p != nil {
-				proto.MarshalToEmbedded(b, fieldGetRespInit, p.Init)
-			}
-		case *GetResponse_Body_Chunk:
-			if p != nil {
-				proto.MarshalToBytes(b, fieldGetRespChunk, p.Chunk)
-			}
-		case *GetResponse_Body_SplitInfo:
-			if p != nil {
-				proto.MarshalToEmbedded(b, fieldGetRespSplitInfo, p.SplitInfo)
-			}
-		}
+		off := proto.MarshalToEmbedded(b, fieldGetRespInit, x.Init)
+		off += proto.MarshalToBytes(b[off:], fieldGetRespChunk, x.Chunk)
+		proto.MarshalToEmbedded(b[off:], fieldGetRespSplitInfo, x.SplitInfo)
 	}
 }
 

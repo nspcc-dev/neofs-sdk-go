@@ -223,11 +223,11 @@ func TestGetResponse_Body_Init_MarshalStable(t *testing.T) {
 func TestGetResponse_Body_MarshalStable(t *testing.T) {
 	var vEmpty object.GetResponse_Body
 	var vInit object.GetResponse_Body
-	vInit.ObjectPart = &object.GetResponse_Body_Init_{Init: randGetResponseInit()}
+	vInit.Init = randGetResponseInit()
 	var vChunk object.GetResponse_Body
-	vChunk.ObjectPart = &object.GetResponse_Body_Chunk{Chunk: prototest.RandBytes()}
+	vChunk.Chunk = prototest.RandBytes()
 	var vSplitInfo object.GetResponse_Body
-	vSplitInfo.ObjectPart = &object.GetResponse_Body_SplitInfo{SplitInfo: randSplitInfo()}
+	vSplitInfo.SplitInfo = randSplitInfo()
 	prototest.TestMarshalStable(t, []*object.GetResponse_Body{
 		&vEmpty,
 		&vInit,

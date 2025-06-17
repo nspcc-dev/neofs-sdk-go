@@ -35,7 +35,7 @@ func setPayloadLengthInHeadingGetResponse(b *protoobject.GetResponse_Body, ln ui
 	in := b.GetInit()
 	if in == nil {
 		in = new(protoobject.GetResponse_Body_Init)
-		b.ObjectPart = &protoobject.GetResponse_Body_Init_{Init: in}
+		b.Init = in
 	}
 	h := in.GetHeader()
 	if h == nil {
@@ -48,7 +48,7 @@ func setPayloadLengthInHeadingGetResponse(b *protoobject.GetResponse_Body, ln ui
 
 func setChunkInGetResponse(b *protoobject.GetResponse_Body, c []byte) *protoobject.GetResponse_Body {
 	b = proto.Clone(b).(*protoobject.GetResponse_Body)
-	b.ObjectPart.(*protoobject.GetResponse_Body_Chunk).Chunk = c
+	b.Chunk = c
 	return b
 }
 
@@ -140,7 +140,7 @@ func (x *testGetObjectServer) respondWithObject(h *protoobject.GetResponse_Body_
 		ln += uint64(len(chunks[i]))
 	}
 	b := setPayloadLengthInHeadingGetResponse(&protoobject.GetResponse_Body{
-		ObjectPart: &protoobject.GetResponse_Body_Init_{Init: h},
+		Init: h,
 	}, ln)
 	x.respondWithBody(0, b)
 	return b
@@ -1049,11 +1049,8 @@ func TestClient_ObjectGetInit(t *testing.T) {
 							corrupt   func(valid *protoobject.GetResponse_Body)
 						}
 						tcs := []testcase{
-							{name: "nil", msg: "missing object ID field in the response", corrupt: func(valid *protoobject.GetResponse_Body) {
-								valid.ObjectPart.(*protoobject.GetResponse_Body_Init_).Init = nil
-							}},
-							{name: "nil oneof", msg: "missing object ID field in the response", corrupt: func(valid *protoobject.GetResponse_Body) {
-								valid.ObjectPart = &protoobject.GetResponse_Body_Init_{}
+							{name: "nil", msg: "neither init nor split info field is set", corrupt: func(valid *protoobject.GetResponse_Body) {
+								valid.Init = nil
 							}},
 						}
 						type initTescase = struct {
@@ -1094,7 +1091,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 							tcs = append(tcs, testcase{
 								name: tc.name, msg: tc.msg,
 								corrupt: func(valid *protoobject.GetResponse_Body) {
-									tc.corrupt(valid.ObjectPart.(*protoobject.GetResponse_Body_Init_).Init)
+									tc.corrupt(valid.Init)
 								},
 							})
 						}
@@ -1213,7 +1210,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 			srv.respondWithBody(0, proto.Clone(validFullChunkObjectGetResponseBody).(*protoobject.GetResponse_Body))
 			_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-			require.EqualError(t, err, "read header: unexpected message instead of heading part: *object.GetResponse_Body_Chunk")
+			require.EqualError(t, err, "read header: neither init nor split info field is set")
 		})
 		t.Run("repeated heading message", func(t *testing.T) {
 			srv := newTestGetObjectServer()
@@ -1223,7 +1220,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
 			_, err = io.Copy(io.Discard, r)
-			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetResponse_Body_Init_")
+			require.EqualError(t, err, "init field is set, expected chunk only")
 		})
 		t.Run("non-first split info message", func(t *testing.T) {
 			srv := newTestGetObjectServer()
@@ -1233,7 +1230,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
 			_, err = io.Copy(io.Discard, r)
-			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetResponse_Body_SplitInfo")
+			require.EqualError(t, err, "split info field is set, expected chunk only")
 		})
 		t.Run("chunk after split info", func(t *testing.T) {
 			srv := newTestGetObjectServer()

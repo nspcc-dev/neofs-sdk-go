@@ -108,30 +108,31 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
-	var partInit *protoobject.GetResponse_Body_Init
-
-	switch v := resp.GetBody().GetObjectPart().(type) {
-	default:
-		x.err = fmt.Errorf("unexpected message instead of heading part: %T", v)
+	if resp.Body == nil {
+		x.err = errMissingResponseBody
 		return false
-	case *protoobject.GetResponse_Body_SplitInfo:
-		if v == nil || v.SplitInfo == nil {
-			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+	}
+
+	if resp.Body.SplitInfo != nil {
+		if resp.Body.Init != nil {
+			x.err = errors.New("mutually exclusive init and split info fields are both set")
 			return false
 		}
+
 		var si object.SplitInfo
-		if x.err = si.FromProtoMessage(v.SplitInfo); x.err != nil {
+		if x.err = si.FromProtoMessage(resp.Body.SplitInfo); x.err != nil {
 			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
 			return false
 		}
+
 		x.err = object.NewSplitInfoError(&si)
 		return false
-	case *protoobject.GetResponse_Body_Init_:
-		if v == nil || v.Init == nil {
-			x.err = errors.New("nil header oneof field")
-			return false
-		}
-		partInit = v.Init
+	}
+
+	partInit := resp.Body.Init
+	if partInit == nil {
+		x.err = errors.New("neither init nor split info field is set")
+		return false
 	}
 
 	if partInit.ObjectId == nil {
@@ -148,6 +149,7 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	}
 
 	x.remainingPayloadLen = int(partInit.Header.GetPayloadLength())
+	x.tailPayload = resp.Body.Chunk
 
 	x.err = dst.FromProtoMessage(&protoobject.Object{
 		ObjectId:  partInit.ObjectId,
@@ -192,19 +194,21 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		part := resp.GetBody().GetObjectPart()
-		partChunk, ok := part.(*protoobject.GetResponse_Body_Chunk)
-		if !ok {
-			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
+		if resp.Body == nil {
+			x.err = errMissingResponseBody
 			return read, false
 		}
-		if partChunk == nil {
-			x.err = errors.New("nil chunk oneof field")
+		if resp.Body.Init != nil {
+			x.err = errors.New("init field is set, expected chunk only")
+			return read, false
+		}
+		if resp.Body.SplitInfo != nil {
+			x.err = errors.New("split info field is set, expected chunk only")
 			return read, false
 		}
 
 		// read new chunk
-		chunk = partChunk.Chunk
+		chunk = resp.Body.Chunk
 		if len(chunk) == 0 {
 			// just skip empty chunks since they are not prohibited by protocol
 			continue

@@ -13,17 +13,6 @@ func (unsupportedOneOf) isGetResponse_Body_ObjectPart()     {} //nolint:revive
 func (unsupportedOneOf) isGetRangeResponse_Body_RangePart() {} //nolint:revive
 func (unsupportedOneOf) isPutRequest_Body_ObjectPart()      {} //nolint:revive
 
-func TestGetResponse_Body(t *testing.T) {
-	var v GetResponse_Body
-	v.ObjectPart = unsupportedOneOf{}
-	require.PanicsWithValue(t, "unexpected object part object.unsupportedOneOf", func() {
-		v.MarshaledSize()
-	})
-	require.PanicsWithValue(t, "unexpected object part object.unsupportedOneOf", func() {
-		v.MarshalStable(make([]byte, 100))
-	})
-}
-
 func TestHeadResponse_Body(t *testing.T) {
 	var v HeadResponse_Body
 	v.Head = unsupportedOneOf{}
