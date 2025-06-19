@@ -488,6 +488,10 @@ func TestContainer_Issuer(t *testing.T) {
 	testTokenIssuer(t, session.Container{})
 }
 
+func TestContainer_SetSignature(t *testing.T) {
+	testSetSignature(t, &session.Container{})
+}
+
 func TestContainer_Sign(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		require.Error(t, new(session.Container).Sign(usertest.FailSigner(usertest.User())))

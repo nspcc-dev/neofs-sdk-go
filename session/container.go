@@ -160,6 +160,12 @@ func (x *Container) SignIssued(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 
+// SetSignature allows to set signature without evaluating it.
+func (x *Container) SetSignature(signature neofscrypto.Signature) {
+	x.sigSet = true
+	x.sig = signature
+}
+
 // SignedData returns actual payload to sign.
 //
 // Using this method require to set issuer via [Container.SetIssuer] before SignedData call.

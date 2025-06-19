@@ -545,6 +545,10 @@ func TestObject_Issuer(t *testing.T) {
 	testTokenIssuer(t, session.Object{})
 }
 
+func TestObject_SetSignature(t *testing.T) {
+	testSetSignature(t, &session.Object{})
+}
+
 func TestObject_Sign(t *testing.T) {
 	t.Run("failure", func(t *testing.T) {
 		require.Error(t, new(session.Object).Sign(usertest.FailSigner(usertest.User())))

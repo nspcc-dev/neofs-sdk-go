@@ -417,3 +417,24 @@ func testSignCDSA[T interface {
 	r, s = new(big.Int).SetBytes(sig[:32]), new(big.Int).SetBytes(sig[32:][:32])
 	require.True(t, ecdsa.Verify(&ecdsaPriv.PublicKey, h256[:], r, s))
 }
+
+func testSetSignature[T interface {
+	Signature() (neofscrypto.Signature, bool)
+	SetSignature(signature neofscrypto.Signature)
+}](t testing.TB, x T) {
+	sig, isSet := x.Signature()
+	require.False(t, isSet)
+	require.Empty(t, sig.Value())
+
+	signature := neofscrypto.NewSignatureFromRawKey(
+		neofscrypto.ECDSA_SHA512,
+		[]byte{1, 2, 3, 4, 5},
+		[]byte{6, 7, 8, 9, 0},
+	)
+
+	x.SetSignature(signature)
+
+	sig, isSet = x.Signature()
+	require.True(t, isSet)
+	require.Equal(t, signature, sig)
+}

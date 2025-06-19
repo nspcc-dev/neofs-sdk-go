@@ -203,6 +203,12 @@ func (x *Object) SignIssued(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 
+// SetSignature allows to set signature without evaluating it.
+func (x *Object) SetSignature(signature neofscrypto.Signature) {
+	x.sigSet = true
+	x.sig = signature
+}
+
 // SignedData returns actual payload to sign.
 //
 // See also [Object.Sign], [Object.UnmarshalSignedData].
