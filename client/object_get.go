@@ -99,11 +99,6 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
-	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-		return false
-	}
-
 	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 		return false
 	}
@@ -180,11 +175,6 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return err
 		})
 		if x.err != nil {
-			return read, false
-		}
-
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 			return read, false
 		}
 
@@ -447,11 +437,6 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	resp, err := c.object.Head(ctx, req)
 	if err != nil {
 		err = rpcErr(err)
-		return nil, err
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.HeadResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
 		return nil, err
 	}
 
