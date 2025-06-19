@@ -194,12 +194,12 @@ func (x *Object) Sign(signer user.Signer) error {
 	if x.issuer.IsZero() {
 		return user.ErrZeroID
 	}
-	return x.SetSignature(signer)
+	return x.SignIssued(signer)
 }
 
-// SetSignature allows to sign Object like [Object.Sign] but without issuer
+// SignIssued allows to sign Object like [Object.Sign] but without issuer
 // setting.
-func (x *Object) SetSignature(signer neofscrypto.Signer) error {
+func (x *Object) SignIssued(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 

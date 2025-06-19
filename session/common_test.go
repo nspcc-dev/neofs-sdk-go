@@ -312,15 +312,15 @@ func testTokenID[T interface {
 	require.Equal(t, otherID, x.ID())
 }
 
-func testSetSignatureECDSA[T interface {
+func testSignIssuedECDSA[T interface {
 	*session.Container | *session.Object
-	SetSignature(neofscrypto.Signer) error
+	SignIssued(neofscrypto.Signer) error
 	Signature() (neofscrypto.Signature, bool)
 }](t testing.TB, ecdsaPriv ecdsa.PrivateKey, token T, signed []byte, rfc6979Sig []byte) {
 	/* non-deterministic schemes */
 	assertECDSACommon := func(signer neofscrypto.Signer) []byte {
 		scheme := signer.Scheme()
-		require.NoError(t, token.SetSignature(signer), scheme)
+		require.NoError(t, token.SignIssued(signer), scheme)
 		sig, ok := token.Signature()
 		require.True(t, ok)
 		require.Equal(t, signer.Scheme(), scheme)

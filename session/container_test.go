@@ -517,7 +517,7 @@ func TestContainer_Sign(t *testing.T) {
 		validContainerTokens[i].CopyTo(&c)
 		t.Run("container#"+strconv.Itoa(i), func(t *testing.T) {
 			testSignCDSA(t, ecdsaPriv, anyValidUserID, &c, validSignedContainerTokens[i], rfc6979Sig)
-			testSetSignatureECDSA(t, ecdsaPriv, &c, validSignedContainerTokens[i], rfc6979Sig)
+			testSignIssuedECDSA(t, ecdsaPriv, &c, validSignedContainerTokens[i], rfc6979Sig)
 		})
 	}
 }

@@ -570,7 +570,7 @@ func TestObject_Sign(t *testing.T) {
 	validObjectToken.CopyTo(&o)
 
 	testSignCDSA(t, ecdsaPriv, anyValidUserID, &o, validSignedObjectToken, rfc6979Sig)
-	testSetSignatureECDSA(t, ecdsaPriv, &o, validSignedObjectToken, rfc6979Sig)
+	testSignIssuedECDSA(t, ecdsaPriv, &o, validSignedObjectToken, rfc6979Sig)
 }
 
 func TestObject_VerifySignature(t *testing.T) {

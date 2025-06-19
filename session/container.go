@@ -151,12 +151,12 @@ func (x *Container) Sign(signer user.Signer) error {
 	if x.issuer.IsZero() {
 		return user.ErrZeroID
 	}
-	return x.SetSignature(signer)
+	return x.SignIssued(signer)
 }
 
-// SetSignature allows to sign Container like [Container.Sign] but without
+// SignIssued allows to sign Container like [Container.Sign] but without
 // issuer setting.
-func (x *Container) SetSignature(signer neofscrypto.Signer) error {
+func (x *Container) SignIssued(signer neofscrypto.Signer) error {
 	return x.sign(signer, x.writeContext)
 }
 
