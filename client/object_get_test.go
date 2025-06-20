@@ -14,8 +14,10 @@ import (
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -71,6 +73,11 @@ func checkSuccessfulGetObjectTransport(t testing.TB, hb *protoobject.GetResponse
 		Header:    in.GetHeader(),
 		Signature: in.GetSignature(),
 	}))
+}
+
+func getObjectIDForHeaderResponseBody(resp *protoobject.HeadResponse_Body) oid.ID {
+	h := resp.GetHeader().GetHeader()
+	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
 }
 
 type testCommonReadObjectRequestServerSettings struct {
@@ -424,7 +431,7 @@ func TestClient_ObjectHead(t *testing.T) {
 	ctx := context.Background()
 	var anyValidOpts PrmObjectHead
 	anyCID := cidtest.ID()
-	anyOID := oidtest.ID()
+	anyOID := getObjectIDForHeaderResponseBody(validMinObjectHeadResponseBody)
 	anyValidSigner := usertest.User()
 
 	t.Run("messages", func(t *testing.T) {
@@ -543,7 +550,8 @@ func TestClient_ObjectHead(t *testing.T) {
 							c := newTestObjectClient(t, srv)
 
 							srv.respondWithBody(tc.body)
-							hdr, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+							id := getObjectIDForHeaderResponseBody(tc.body)
+							hdr, err := c.ObjectHead(ctx, anyCID, id, anyValidSigner, anyValidOpts)
 							if err != nil {
 								tc.assert(t, tc.body, object.Object{}, err)
 							} else {
@@ -735,6 +743,17 @@ func TestClient_ObjectHead(t *testing.T) {
 				return err
 			},
 		)
+	})
+	t.Run("checksum", func(t *testing.T) {
+		srv := newTestHeadObjectServer()
+		c := newTestObjectClient(t, srv)
+
+		_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
+
+		otherID := oidtest.OtherID(anyOID)
+		_, err = c.ObjectHead(ctx, anyCID, otherID, anyValidSigner, anyValidOpts)
+		require.EqualError(t, err, "received header mismatches ID")
 	})
 }
 

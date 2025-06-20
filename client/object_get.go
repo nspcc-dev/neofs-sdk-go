@@ -11,6 +11,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -481,6 +482,12 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		}); err != nil {
 			return nil, fmt.Errorf("invalid header response: %w", err)
 		}
+
+		hb := neofsproto.MarshalMessage(v.Header.Header)
+		if oid.NewFromObjectHeaderBinary(hb) != objectID {
+			return nil, errors.New("received header mismatches ID")
+		}
+
 		return &obj, nil
 	}
 }
