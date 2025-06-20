@@ -1,9 +1,12 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"time"
 
@@ -55,6 +58,13 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 // PrmObjectGet groups optional parameters of ObjectGetInit operation.
 type PrmObjectGet struct {
 	prmObjectRead
+	skipChecksumVerification bool
+}
+
+// SkipChecksumVerification allows to skip verification of received header
+// against object ID and payload against its in-header checksum.
+func (x *PrmObjectGet) SkipChecksumVerification() {
+	x.skipChecksumVerification = true
 }
 
 // used part of [protoobject.ObjectService_GetClient] simplifying test
@@ -85,6 +95,13 @@ type PayloadReader struct {
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
+
+	requestedOID oid.ID
+
+	verifyChecksums bool
+
+	payloadHashCheck []byte
+	payloadHashGot   hash.Hash
 }
 
 // readHeader reads header of the object. Result means success.
@@ -150,7 +167,26 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		Signature: partInit.Signature,
 		Header:    partInit.Header,
 	})
-	return x.err == nil
+	if x.err != nil {
+		return false
+	}
+
+	if x.verifyChecksums {
+		hb := neofsproto.MarshalMessage(partInit.Header)
+		if oid.NewFromObjectHeaderBinary(hb) != x.requestedOID {
+			x.err = errors.New("received header mismatches ID")
+			return false
+		}
+
+		if partInit.Header.PayloadHash == nil {
+			x.err = errors.New("missing payload hash in header")
+			return false
+		}
+		x.payloadHashGot = sha256.New()
+		x.payloadHashCheck = partInit.Header.PayloadHash.Sum
+	}
+
+	return true
 }
 
 func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
@@ -201,6 +237,9 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			continue
 		}
 
+		if x.verifyChecksums {
+			x.payloadHashGot.Write(chunk) // never returns an error according to docs
+		}
 		lastRead = copy(buf[read:], chunk)
 
 		read += lastRead
@@ -223,6 +262,9 @@ func (x *PayloadReader) close(ignoreEOF bool) error {
 		}
 		if x.remainingPayloadLen > 0 {
 			return io.ErrUnexpectedEOF
+		}
+		if x.verifyChecksums && !bytes.Equal(x.payloadHashGot.Sum(nil), x.payloadHashCheck) {
+			return errors.New("received payload mismatches checksum from header")
 		}
 	}
 	return x.err
@@ -343,6 +385,8 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	var r PayloadReader
+	r.requestedOID = objectID
+	r.verifyChecksums = !prm.skipChecksumVerification
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout

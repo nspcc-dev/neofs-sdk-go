@@ -80,6 +80,11 @@ func getObjectIDForHeaderResponseBody(resp *protoobject.HeadResponse_Body) oid.I
 	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
 }
 
+func getObjectIDForGetResponseBody(resp *protoobject.GetResponse_Body) oid.ID {
+	h := resp.GetInit().GetHeader()
+	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
+}
+
 type testCommonReadObjectRequestServerSettings struct {
 	testObjectSessionServerSettings
 	testBearerTokenServerSettings
@@ -767,6 +772,7 @@ func TestClient_ObjectHead(t *testing.T) {
 func TestClient_ObjectGetInit(t *testing.T) {
 	ctx := context.Background()
 	var anyValidOpts PrmObjectGet
+	anyValidOpts.SkipChecksumVerification()
 	anyCID := cidtest.ID()
 	anyOID := oidtest.ID()
 	anyValidSigner := usertest.User()
@@ -784,7 +790,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 				srv.checkRequestObjectAddress(anyCID, anyOID)
 				srv.authenticateRequest(anyValidSigner)
-				_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, PrmObjectGet{})
+				_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 				require.NoError(t, err)
 				_, err = io.Copy(io.Discard, r)
 				require.NoError(t, err)
@@ -1422,6 +1428,61 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			require.Equal(t, stat.MethodObjectGetStream, collected[1].mtd)
 			require.NoError(t, collected[1].err)
 			require.Greater(t, collected[1].dur, sleepDur)
+		})
+	})
+	t.Run("checksum", func(t *testing.T) {
+		srv := newTestGetObjectServer()
+		c := newTestObjectClient(t, srv)
+
+		hb := proto.Clone(validFullHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body)
+		hb = setPayloadLengthInHeadingGetResponse(hb, 13)
+		hb.GetInit().Header.PayloadHash = &protorefs.Checksum{
+			Type: protorefs.ChecksumType_SHA256,
+			Sum: []byte{49, 95, 91, 219, 118, 208, 120, 196, 59, 138, 192, 6, 78, 74, 1, 100, 97, 43, 31, 206, 119, 200,
+				105, 52, 91, 252, 148, 199, 88, 148, 237, 211},
+		}
+
+		id := getObjectIDForGetResponseBody(hb)
+
+		payloadChunks := [][]byte{[]byte("Hello, "), []byte("world!")}
+		fullPayload := join(payloadChunks)
+		srv.respondWithObject(hb.GetInit(), payloadChunks)
+
+		var opts PrmObjectGet
+		h, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+		require.NoError(t, err)
+		checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
+
+		t.Run("ID mismatch", func(t *testing.T) {
+			otherID := oidtest.OtherID(id)
+			_, _, err := c.ObjectGetInit(ctx, anyCID, otherID, anyValidSigner, opts)
+			require.EqualError(t, err, "read header: received header mismatches ID")
+
+			t.Run("skip", func(t *testing.T) {
+				opts := opts
+				opts.SkipChecksumVerification()
+				h, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+				require.NoError(t, err)
+				checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
+			})
+		})
+
+		t.Run("payload checksum mismatch", func(t *testing.T) {
+			hb.GetInit().Header.PayloadHash.Sum[0]++
+			srv.respondWithObject(hb.GetInit(), payloadChunks)
+
+			_, r, err := c.ObjectGetInit(ctx, anyCID, getObjectIDForGetResponseBody(hb), anyValidSigner, opts)
+			require.NoError(t, err)
+			_, err = io.ReadAll(r)
+			require.EqualError(t, err, "received payload mismatches checksum from header")
+
+			t.Run("skip", func(t *testing.T) {
+				opts := opts
+				opts.SkipChecksumVerification()
+				h, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+				require.NoError(t, err)
+				checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
+			})
 		})
 	})
 }
