@@ -364,6 +364,13 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 // PrmObjectHead groups optional parameters of ObjectHead operation.
 type PrmObjectHead struct {
 	prmObjectRead
+	skipChecksumVerification bool
+}
+
+// SkipChecksumVerification allows to skip verification of received header
+// against object ID.
+func (x *PrmObjectHead) SkipChecksumVerification() {
+	x.skipChecksumVerification = true
 }
 
 // ObjectHead reads object header through a remote server using NeoFS API protocol.
@@ -483,9 +490,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 			return nil, fmt.Errorf("invalid header response: %w", err)
 		}
 
-		hb := neofsproto.MarshalMessage(v.Header.Header)
-		if oid.NewFromObjectHeaderBinary(hb) != objectID {
-			return nil, errors.New("received header mismatches ID")
+		if !prm.skipChecksumVerification {
+			hb := neofsproto.MarshalMessage(v.Header.Header)
+			if oid.NewFromObjectHeaderBinary(hb) != objectID {
+				return nil, errors.New("received header mismatches ID")
+			}
 		}
 
 		return &obj, nil

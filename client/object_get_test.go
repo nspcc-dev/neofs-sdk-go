@@ -754,6 +754,13 @@ func TestClient_ObjectHead(t *testing.T) {
 		otherID := oidtest.OtherID(anyOID)
 		_, err = c.ObjectHead(ctx, anyCID, otherID, anyValidSigner, anyValidOpts)
 		require.EqualError(t, err, "received header mismatches ID")
+
+		t.Run("skip", func(t *testing.T) {
+			opts := anyValidOpts
+			opts.SkipChecksumVerification()
+			_, err = c.ObjectHead(ctx, anyCID, otherID, anyValidSigner, opts)
+			require.NoError(t, err)
+		})
 	})
 }
 
