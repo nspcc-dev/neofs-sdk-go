@@ -14,8 +14,10 @@ import (
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -25,9 +27,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func setPayloadLengthInHeadingGetResponse(b *protoobject.GetResponse_Body, ln uint64) *protoobject.GetResponse_Body {
@@ -69,6 +73,16 @@ func checkSuccessfulGetObjectTransport(t testing.TB, hb *protoobject.GetResponse
 		Header:    in.GetHeader(),
 		Signature: in.GetSignature(),
 	}))
+}
+
+func getObjectIDForHeaderResponseBody(resp *protoobject.HeadResponse_Body) oid.ID {
+	h := resp.GetHeader().GetHeader()
+	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
+}
+
+func getObjectIDForGetResponseBody(resp *protoobject.GetResponse_Body) oid.ID {
+	h := resp.GetInit().GetHeader()
+	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
 }
 
 type testCommonReadObjectRequestServerSettings struct {
@@ -422,7 +436,7 @@ func TestClient_ObjectHead(t *testing.T) {
 	ctx := context.Background()
 	var anyValidOpts PrmObjectHead
 	anyCID := cidtest.ID()
-	anyOID := oidtest.ID()
+	anyOID := getObjectIDForHeaderResponseBody(validMinObjectHeadResponseBody)
 	anyValidSigner := usertest.User()
 
 	t.Run("messages", func(t *testing.T) {
@@ -541,7 +555,8 @@ func TestClient_ObjectHead(t *testing.T) {
 							c := newTestObjectClient(t, srv)
 
 							srv.respondWithBody(tc.body)
-							hdr, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+							id := getObjectIDForHeaderResponseBody(tc.body)
+							hdr, err := c.ObjectHead(ctx, anyCID, id, anyValidSigner, anyValidOpts)
 							if err != nil {
 								tc.assert(t, tc.body, object.Object{}, err)
 							} else {
@@ -556,19 +571,32 @@ func TestClient_ObjectHead(t *testing.T) {
 						return err
 					})
 				})
+				t.Run("unsigned response", func(t *testing.T) {
+					srv := newTestHeadObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					srv.respondWithoutSigning()
+					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+					require.NoError(t, err)
+				})
 			})
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
-					testIncorrectUnaryRPCResponseFormat(t, "object.ObjectService", "Head", func(c *Client) error {
-						_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestHeadObjectServer, newTestObjectClient, func(c *Client) error {
-						_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						return err
-					})
+					svc := testService{
+						desc: &grpc.ServiceDesc{ServiceName: "neo.fs.v2.object.ObjectService", Methods: []grpc.MethodDesc{
+							{
+								MethodName: "Head",
+								Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+									return timestamppb.Now(), nil // any completely different message
+								},
+							},
+						}},
+						impl: nil, // disables interface assert
+					}
+					c := newClient(t, svc)
+
+					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+					require.EqualError(t, err, "unexpected header type <nil>")
 				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protoobject.HeadResponse_Body]
@@ -721,11 +749,30 @@ func TestClient_ObjectHead(t *testing.T) {
 			},
 		)
 	})
+	t.Run("checksum", func(t *testing.T) {
+		srv := newTestHeadObjectServer()
+		c := newTestObjectClient(t, srv)
+
+		_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
+
+		otherID := oidtest.OtherID(anyOID)
+		_, err = c.ObjectHead(ctx, anyCID, otherID, anyValidSigner, anyValidOpts)
+		require.EqualError(t, err, "received header mismatches ID")
+
+		t.Run("skip", func(t *testing.T) {
+			opts := anyValidOpts
+			opts.SkipChecksumVerification()
+			_, err = c.ObjectHead(ctx, anyCID, otherID, anyValidSigner, opts)
+			require.NoError(t, err)
+		})
+	})
 }
 
 func TestClient_ObjectGetInit(t *testing.T) {
 	ctx := context.Background()
 	var anyValidOpts PrmObjectGet
+	anyValidOpts.SkipChecksumVerification()
 	anyCID := cidtest.ID()
 	anyOID := oidtest.ID()
 	anyValidSigner := usertest.User()
@@ -743,7 +790,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 				srv.checkRequestObjectAddress(anyCID, anyOID)
 				srv.authenticateRequest(anyValidSigner)
-				_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, PrmObjectGet{})
+				_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 				require.NoError(t, err)
 				_, err = io.Copy(io.Discard, r)
 				require.NoError(t, err)
@@ -992,40 +1039,43 @@ func TestClient_ObjectGetInit(t *testing.T) {
 						})
 					})
 				})
-			})
-			t.Run("invalid", func(t *testing.T) {
-				t.Run("format", func(t *testing.T) {
-					testIncorrectUnaryRPCResponseFormat(t, "object.ObjectService", "Get", func(c *Client) error {
-						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					t.Run("heading message", func(t *testing.T) {
-						srv := newTestGetObjectServer()
-						srv.respondWithoutSigning(0)
-						c := newTestObjectClient(t, srv)
-						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						require.ErrorContains(t, err, "invalid response signature")
-					})
-					t.Run("payload chunk message", func(t *testing.T) {
-						srv := newTestGetObjectServer()
-						c := newTestObjectClient(t, srv)
+				t.Run("unsigned response", func(t *testing.T) {
+					srv := newTestGetObjectServer()
+					c := newTestObjectClient(t, srv)
 
-						const n = 10
-						chunks := make([][]byte, n)
-						for i := range chunks {
-							chunks[i] = []byte(fmt.Sprintf("chunk#%d", i))
-						}
+					const n = 10
+					chunks := make([][]byte, n)
+					for i := range chunks {
+						chunks[i] = []byte(fmt.Sprintf("chunk#%d", i))
+					}
 
-						srv.respondWithObject(validFullHeadingObjectGetResponseBody.GetInit(), chunks)
-						srv.respondWithoutSigning(n) // remember that 1st message is heading
+					srv.respondWithObject(validFullHeadingObjectGetResponseBody.GetInit(), chunks)
+					for i := range uint(n + 1) {
+						srv.respondWithoutSigning(i)
 						_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 						require.NoError(t, err)
 						read, err := io.ReadAll(r)
-						require.ErrorContains(t, err, "invalid response signature")
-						require.Equal(t, join(chunks[:n-1]), read)
-					})
+						require.NoError(t, err)
+						require.Equal(t, join(chunks), read)
+					}
+				})
+			})
+			t.Run("invalid", func(t *testing.T) {
+				t.Run("format", func(t *testing.T) {
+					svc := testService{
+						desc: &grpc.ServiceDesc{ServiceName: "neo.fs.v2.object.ObjectService", Methods: []grpc.MethodDesc{
+							{
+								MethodName: "Get",
+								Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
+									return timestamppb.Now(), nil // any completely different message
+								},
+							},
+						}},
+						impl: nil, // disables interface assert
+					}
+					c := newClient(t, svc)
+					_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+					require.EqualError(t, err, "read header: unexpected message instead of heading part: <nil>")
 				})
 				t.Run("payloads", func(t *testing.T) {
 					t.Run("split info", func(t *testing.T) {
@@ -1378,6 +1428,61 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			require.Equal(t, stat.MethodObjectGetStream, collected[1].mtd)
 			require.NoError(t, collected[1].err)
 			require.Greater(t, collected[1].dur, sleepDur)
+		})
+	})
+	t.Run("checksum", func(t *testing.T) {
+		srv := newTestGetObjectServer()
+		c := newTestObjectClient(t, srv)
+
+		hb := proto.Clone(validFullHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body)
+		hb = setPayloadLengthInHeadingGetResponse(hb, 13)
+		hb.GetInit().Header.PayloadHash = &protorefs.Checksum{
+			Type: protorefs.ChecksumType_SHA256,
+			Sum: []byte{49, 95, 91, 219, 118, 208, 120, 196, 59, 138, 192, 6, 78, 74, 1, 100, 97, 43, 31, 206, 119, 200,
+				105, 52, 91, 252, 148, 199, 88, 148, 237, 211},
+		}
+
+		id := getObjectIDForGetResponseBody(hb)
+
+		payloadChunks := [][]byte{[]byte("Hello, "), []byte("world!")}
+		fullPayload := join(payloadChunks)
+		srv.respondWithObject(hb.GetInit(), payloadChunks)
+
+		var opts PrmObjectGet
+		h, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+		require.NoError(t, err)
+		checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
+
+		t.Run("ID mismatch", func(t *testing.T) {
+			otherID := oidtest.OtherID(id)
+			_, _, err := c.ObjectGetInit(ctx, anyCID, otherID, anyValidSigner, opts)
+			require.EqualError(t, err, "read header: received header mismatches ID")
+
+			t.Run("skip", func(t *testing.T) {
+				opts := opts
+				opts.SkipChecksumVerification()
+				h, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+				require.NoError(t, err)
+				checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
+			})
+		})
+
+		t.Run("payload checksum mismatch", func(t *testing.T) {
+			hb.GetInit().Header.PayloadHash.Sum[0]++
+			srv.respondWithObject(hb.GetInit(), payloadChunks)
+
+			_, r, err := c.ObjectGetInit(ctx, anyCID, getObjectIDForGetResponseBody(hb), anyValidSigner, opts)
+			require.NoError(t, err)
+			_, err = io.ReadAll(r)
+			require.EqualError(t, err, "received payload mismatches checksum from header")
+
+			t.Run("skip", func(t *testing.T) {
+				opts := opts
+				opts.SkipChecksumVerification()
+				h, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+				require.NoError(t, err)
+				checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
+			})
 		})
 	})
 }

@@ -1,9 +1,12 @@
 package client
 
 import (
+	"bytes"
 	"context"
+	"crypto/sha256"
 	"errors"
 	"fmt"
+	"hash"
 	"io"
 	"time"
 
@@ -11,6 +14,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -54,6 +58,13 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 // PrmObjectGet groups optional parameters of ObjectGetInit operation.
 type PrmObjectGet struct {
 	prmObjectRead
+	skipChecksumVerification bool
+}
+
+// SkipChecksumVerification allows to skip verification of received header
+// against object ID and payload against its in-header checksum.
+func (x *PrmObjectGet) SkipChecksumVerification() {
+	x.skipChecksumVerification = true
 }
 
 // used part of [protoobject.ObjectService_GetClient] simplifying test
@@ -84,6 +95,13 @@ type PayloadReader struct {
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
+
+	requestedOID oid.ID
+
+	verifyChecksums bool
+
+	payloadHashCheck []byte
+	payloadHashGot   hash.Hash
 }
 
 // readHeader reads header of the object. Result means success.
@@ -96,11 +114,6 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return err
 	})
 	if x.err != nil {
-		return false
-	}
-
-	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 		return false
 	}
 
@@ -154,7 +167,26 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		Signature: partInit.Signature,
 		Header:    partInit.Header,
 	})
-	return x.err == nil
+	if x.err != nil {
+		return false
+	}
+
+	if x.verifyChecksums {
+		hb := neofsproto.MarshalMessage(partInit.Header)
+		if oid.NewFromObjectHeaderBinary(hb) != x.requestedOID {
+			x.err = errors.New("received header mismatches ID")
+			return false
+		}
+
+		if partInit.Header.PayloadHash == nil {
+			x.err = errors.New("missing payload hash in header")
+			return false
+		}
+		x.payloadHashGot = sha256.New()
+		x.payloadHashCheck = partInit.Header.PayloadHash.Sum
+	}
+
+	return true
 }
 
 func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
@@ -183,11 +215,6 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-			return read, false
-		}
-
 		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
 			return read, false
 		}
@@ -210,6 +237,9 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			continue
 		}
 
+		if x.verifyChecksums {
+			x.payloadHashGot.Write(chunk) // never returns an error according to docs
+		}
 		lastRead = copy(buf[read:], chunk)
 
 		read += lastRead
@@ -232,6 +262,9 @@ func (x *PayloadReader) close(ignoreEOF bool) error {
 		}
 		if x.remainingPayloadLen > 0 {
 			return io.ErrUnexpectedEOF
+		}
+		if x.verifyChecksums && !bytes.Equal(x.payloadHashGot.Sum(nil), x.payloadHashCheck) {
+			return errors.New("received payload mismatches checksum from header")
 		}
 	}
 	return x.err
@@ -352,6 +385,8 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	var r PayloadReader
+	r.requestedOID = objectID
+	r.verifyChecksums = !prm.skipChecksumVerification
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
@@ -373,6 +408,13 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 // PrmObjectHead groups optional parameters of ObjectHead operation.
 type PrmObjectHead struct {
 	prmObjectRead
+	skipChecksumVerification bool
+}
+
+// SkipChecksumVerification allows to skip verification of received header
+// against object ID.
+func (x *PrmObjectHead) SkipChecksumVerification() {
+	x.skipChecksumVerification = true
 }
 
 // ObjectHead reads object header through a remote server using NeoFS API protocol.
@@ -450,11 +492,6 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	}
 
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.HeadResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, err
-	}
-
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
 	}
@@ -496,6 +533,14 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		}); err != nil {
 			return nil, fmt.Errorf("invalid header response: %w", err)
 		}
+
+		if !prm.skipChecksumVerification {
+			hb := neofsproto.MarshalMessage(v.Header.Header)
+			if oid.NewFromObjectHeaderBinary(hb) != objectID {
+				return nil, errors.New("received header mismatches ID")
+			}
+		}
+
 		return &obj, nil
 	}
 }
