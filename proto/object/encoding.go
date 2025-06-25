@@ -129,6 +129,7 @@ const (
 	fieldHeaderSession
 	fieldHeaderAttributes
 	fieldHeaderSplit
+	fieldHeaderTarget
 )
 
 // MarshaledSize returns size of the Header in Protocol Buffers V3 format in
@@ -145,6 +146,7 @@ func (x *Header) MarshaledSize() int {
 			proto.SizeEmbedded(fieldHeaderHomomorphic, x.HomomorphicHash) +
 			proto.SizeEmbedded(fieldHeaderSession, x.SessionToken) +
 			proto.SizeEmbedded(fieldHeaderSplit, x.Split) +
+			proto.SizeEmbedded(fieldHeaderTarget, x.Target) +
 			proto.SizeRepeatedMessages(fieldHeaderAttributes, x.Attributes)
 	}
 	return 0
@@ -165,7 +167,8 @@ func (x *Header) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], fieldHeaderHomomorphic, x.HomomorphicHash)
 		off += proto.MarshalToEmbedded(b[off:], fieldHeaderSession, x.SessionToken)
 		off += proto.MarshalToRepeatedMessages(b[off:], fieldHeaderAttributes, x.Attributes)
-		proto.MarshalToEmbedded(b[off:], fieldHeaderSplit, x.Split)
+		off += proto.MarshalToEmbedded(b[off:], fieldHeaderSplit, x.Split)
+		proto.MarshalToEmbedded(b[off:], fieldHeaderTarget, x.Target)
 	}
 }
 

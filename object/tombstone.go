@@ -11,6 +11,8 @@ import (
 )
 
 // Tombstone represents object tombstone structure.
+//
+// DEPRECATED. Use [Object.DeleteObject] instead.
 type Tombstone struct {
 	exp     uint64
 	splitID []byte

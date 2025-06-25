@@ -20,6 +20,8 @@ type Lock struct {
 // WriteLock writes [Lock] to the [Object], and sets its type to [TypeLock].
 //
 // See also ReadLock.
+//
+// DEPRECATED. Use [Object.LockObject] instead.
 func (o *Object) WriteLock(l Lock) {
 	o.SetType(TypeLock)
 	o.SetPayload(l.Marshal())
@@ -30,6 +32,8 @@ func (o *Object) WriteLock(l Lock) {
 // if object has [TypeLock] type.
 //
 // See also [Object.WriteLock].
+//
+// DEPRECATED. Use [Object.Target] instead.
 func (o Object) ReadLock(l *Lock) error {
 	return l.Unmarshal(o.Payload())
 }
