@@ -22,6 +22,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DEPRECATED: delete objects 1-to-1 with __NEOFS__ASSOCIATE object attribute in a
+// TOMBSTONE-typed object with no payload. For objects of 2.18+ API version, it is
+// prohibited to have TOMBSTONE objects with payload.
+//
 // Tombstone keeps record of deleted objects for a few epochs until they are
 // purged from the NeoFS network. It is impossible to delete a tombstone object
 // via ObjectService.Delete RPC call.
