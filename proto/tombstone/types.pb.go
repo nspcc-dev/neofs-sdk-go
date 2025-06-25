@@ -22,6 +22,9 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// DEPRECATED: delete objects 1-to-1 with Object.header.target field in a
+// TOMBSTONE-typed object with no payload.
+//
 // Tombstone keeps record of deleted objects for a few epochs until they are
 // purged from the NeoFS network. It is impossible to delete a tombstone object
 // via ObjectService.Delete RPC call.
