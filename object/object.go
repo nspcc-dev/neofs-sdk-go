@@ -40,6 +40,7 @@ type header struct {
 	session     *session.Object
 	attrs       []Attribute
 	split       split
+	target      oid.ID
 }
 
 // Object represents in-memory structure of the NeoFS object.
@@ -185,7 +186,8 @@ func (x split) protoMessage() *protoobject.Header_Split {
 
 func (x header) isZero() bool {
 	return x.version == nil && x.owner.IsZero() && x.cnr.IsZero() && x.created == 0 && x.payloadLn == 0 &&
-		x.pldHash == nil && x.typ == 0 && x.pldHomoHash == nil && x.session == nil && len(x.attrs) == 0 && x.split.isZero()
+		x.pldHash == nil && x.typ == 0 && x.pldHomoHash == nil && x.session == nil && len(x.attrs) == 0 &&
+		x.split.isZero() && x.target.IsZero()
 }
 
 func (x *header) fromProtoMessage(m *protoobject.Header) error {
@@ -280,6 +282,14 @@ func (x *header) fromProtoMessage(m *protoobject.Header) error {
 	} else {
 		x.attrs = nil
 	}
+	// target
+	if m.Target != nil {
+		if err := x.target.FromProtoMessage(m.Target); err != nil {
+			return fmt.Errorf("invalid object target: %w", err)
+		}
+	} else {
+		x.target = oid.ID{}
+	}
 	x.created = m.CreationEpoch
 	x.payloadLn = m.PayloadLength
 	x.typ = Type(m.ObjectType)
@@ -318,6 +328,9 @@ func (x header) protoMessage() *protoobject.Header {
 	}
 	if !x.split.isZero() {
 		m.Split = x.split.protoMessage()
+	}
+	if !x.target.IsZero() {
+		m.Target = x.target.ProtoMessage()
 	}
 	return m
 }
@@ -786,6 +799,32 @@ func (o Object) Type() Type {
 // See also [Object.Type].
 func (o *Object) SetType(v Type) {
 	o.header.typ = v
+}
+
+// DeleteObject makes this object to delete another object.
+//
+// See also [Object.Target].
+func (o *Object) DeleteObject(id oid.ID) {
+	o.header.target = id
+	o.header.typ = TypeTombstone
+	o.pld = nil
+}
+
+// LockObject makes this object to lock another object from deletion.
+//
+// See also [Object.Target].
+func (o *Object) LockObject(id oid.ID) {
+	o.header.target = id
+	o.header.typ = TypeLock
+	o.pld = nil
+}
+
+// Target returns target of the object. It only makes sense for [TypeTombstone]
+// and [TypeLock] objects.
+//
+// See also [Object.Type], [Object.DeleteObject] and [Object.LockObject].
+func (o Object) Target() oid.ID {
+	return o.header.target
 }
 
 // CutPayload returns [Object] w/ empty payload.

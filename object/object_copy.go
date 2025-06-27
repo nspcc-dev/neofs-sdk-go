@@ -51,6 +51,7 @@ func (x header) copyTo(dst *header) {
 	dst.attrs = slices.Clone(x.attrs)
 	dst.pldHash = cloneChecksum(x.pldHash)
 	dst.pldHomoHash = cloneChecksum(x.pldHomoHash)
+	dst.target = x.target
 	x.split.copyTo(&dst.split)
 	if x.version != nil {
 		ver := *x.version

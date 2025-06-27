@@ -166,6 +166,7 @@ const (
 	FilterFirstSplitObject       = reservedFilterPrefix + "split.first"
 	FilterCreationEpoch          = reservedFilterPrefix + "creationEpoch"
 	FilterPayloadSize            = reservedFilterPrefix + "payloadLength"
+	FilterTarget                 = reservedFilterPrefix + "target"
 )
 
 // Various filters to match certain object properties.
