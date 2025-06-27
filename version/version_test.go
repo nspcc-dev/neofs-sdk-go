@@ -92,6 +92,10 @@ func TestVersion_String(t *testing.T) {
 	require.NotEmpty(t, v.String())
 	require.Equal(t, v.String(), v.String())
 	require.NotEqual(t, v.String(), versiontest.Version().String())
+
+	var v2 version.Version
+	require.NoError(t, v2.DecodeString(v.String()))
+	require.Equal(t, v, v2)
 }
 
 func TestVersion_MarshalJSON(t *testing.T) {
@@ -136,4 +140,32 @@ func TestCurrent(t *testing.T) {
 
 	require.EqualValues(t, 2, v.Major())
 	require.EqualValues(t, 16, v.Minor())
+}
+
+func TestDecodeString(t *testing.T) {
+	var v version.Version
+
+	require.Error(t, v.DecodeString(""))
+	require.Error(t, v.DecodeString("v"))
+	require.Error(t, v.DecodeString("v."))
+	require.Error(t, v.DecodeString("v0."))
+	require.Error(t, v.DecodeString("v0"))
+	require.Error(t, v.DecodeString("v100"))
+	require.Error(t, v.DecodeString("v10023"))
+	require.Error(t, v.DecodeString("v1.1.1"))
+	require.Error(t, v.DecodeString("v1..0"))
+	require.Error(t, v.DecodeString("v1.01"))
+	require.Error(t, v.DecodeString("v01.1"))
+	require.Error(t, v.DecodeString("va.1"))
+	require.Error(t, v.DecodeString("v1.a"))
+	require.Error(t, v.DecodeString("v-1.0"))
+	require.Error(t, v.DecodeString("v1.-1"))
+
+	require.NoError(t, v.DecodeString("v2.17"))
+	require.Equal(t, uint32(2), v.Major())
+	require.Equal(t, uint32(17), v.Minor())
+
+	require.NoError(t, v.DecodeString("v0.0"))
+	require.Equal(t, uint32(0), v.Major())
+	require.Equal(t, uint32(0), v.Minor())
 }

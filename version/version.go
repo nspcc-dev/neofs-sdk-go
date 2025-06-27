@@ -1,7 +1,10 @@
 package version
 
 import (
+	"errors"
 	"fmt"
+	"strconv"
+	"strings"
 
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -87,6 +90,35 @@ func (v *Version) FromProtoMessage(m *refs.Version) error {
 // SDK versions.
 func (v Version) String() string {
 	return EncodeToString(v)
+}
+
+// DecodeString is the inverse of [String], it parses string representation
+// of [Version] and sets the value accordingly.
+func (v *Version) DecodeString(s string) error {
+	if len(s) < 4 { // v0.0
+		return errors.New("wrong length")
+	}
+	if s[0] != 'v' {
+		return errors.New("doesn't start with 'v'")
+	}
+	majS, minS, found := strings.Cut(s[1:], ".")
+	if !found {
+		return errors.New("dot not found")
+	}
+	if (len(majS) > 1 && majS[0] == '0') || (len(minS) > 1 && minS[0] == '0') {
+		return errors.New("leading zero in number")
+	}
+	majV, err := strconv.ParseUint(majS, 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid major: %w", err)
+	}
+	minV, err := strconv.ParseUint(minS, 10, 32)
+	if err != nil {
+		return fmt.Errorf("invalid minor: %w", err)
+	}
+	v.mjr = uint32(majV)
+	v.mnr = uint32(minV)
+	return nil
 }
 
 // EncodeToString encodes version according to format from specification:
