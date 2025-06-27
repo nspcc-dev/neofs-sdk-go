@@ -251,7 +251,7 @@ func TestConstructTable(t *testing.T) {
 	_, ok := tbl.CID()
 	require.False(t, ok)
 	require.EqualValues(t, 2, tbl.Version().Major())
-	require.EqualValues(t, 16, tbl.Version().Minor())
+	require.EqualValues(t, 18, tbl.Version().Minor())
 }
 
 func TestNewTableForContainer(t *testing.T) {
@@ -262,13 +262,13 @@ func TestNewTableForContainer(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, cnr, cnr2)
 	require.EqualValues(t, 2, tbl.Version().Major())
-	require.EqualValues(t, 16, tbl.Version().Minor())
+	require.EqualValues(t, 18, tbl.Version().Minor())
 }
 
 func TestCreateTable(t *testing.T) {
 	tbl := eacl.CreateTable(anyValidContainerID)
 	require.EqualValues(t, 2, tbl.Version().Major())
-	require.EqualValues(t, 16, tbl.Version().Minor())
+	require.EqualValues(t, 18, tbl.Version().Minor())
 	cnr, ok := tbl.CID()
 	require.True(t, ok)
 	require.Equal(t, anyValidContainerID, cnr)
