@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 )
 
@@ -24,6 +25,10 @@ const (
 	// relevance: for example, with the value N, the object is relevant in epoch N
 	// and expired in any epoch starting from N+1.
 	AttributeExpirationEpoch = sysAttrPrefix + "EXPIRATION_EPOCH"
+	// AttributeAssociatedObject is a key to an object attribute that determines
+	// associated object's ID. For [object.TypeTombstone] it defines object to
+	// delete. For [object.TypeLock] it defines object to lock.
+	AttributeAssociatedObject = sysAttrPrefix + "ASSOCIATE"
 )
 
 // Attribute represents an object attribute.
@@ -67,6 +72,11 @@ func (a *Attribute) fromProtoMessage(m *protoobject.Header_Attribute, checkField
 	case AttributeExpirationEpoch:
 		if _, err := strconv.ParseUint(m.Value, 10, 64); err != nil {
 			return fmt.Errorf("invalid expiration epoch (must be a uint): %w", err)
+		}
+	case AttributeAssociatedObject:
+		var id oid.ID
+		if err := id.DecodeString(m.Value); err != nil {
+			return fmt.Errorf("invalid associated object ID: %w", err)
 		}
 	}
 	a.k, a.v = m.Key, m.Value

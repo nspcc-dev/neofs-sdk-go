@@ -490,6 +490,36 @@ func TestObject_SetAttributes(t *testing.T) {
 	require.Equal(t, []object.Attribute{a1, a2}, obj.UserAttributes())
 }
 
+func TestObject_AssociatedObject(t *testing.T) {
+	t.Run("deleted", func(t *testing.T) {
+		var obj object.Object
+		ts := oidtest.ID()
+		require.Equal(t, oid.ID{}, obj.AssociatedObject())
+
+		obj.AssociateDeleted(ts)
+		require.Equal(t, object.TypeTombstone, obj.Type())
+		require.Equal(t, ts, obj.AssociatedObject())
+
+		aa := obj.Attributes()
+		require.Len(t, aa, 1)
+		require.Equal(t, ts.EncodeToString(), aa[0].Value())
+	})
+
+	t.Run("locked", func(t *testing.T) {
+		var obj object.Object
+		lock := oidtest.ID()
+		require.Equal(t, oid.ID{}, obj.AssociatedObject())
+
+		obj.AssociateLocked(lock)
+		require.Equal(t, object.TypeLock, obj.Type())
+		require.Equal(t, lock, obj.AssociatedObject())
+
+		aa := obj.Attributes()
+		require.Len(t, aa, 1)
+		require.Equal(t, lock.EncodeToString(), aa[0].Value())
+	})
+}
+
 func TestObject_SetPreviousID(t *testing.T) {
 	var obj object.Object
 	require.True(t, obj.GetPreviousID().IsZero())

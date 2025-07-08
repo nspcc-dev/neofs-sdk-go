@@ -788,6 +788,44 @@ func (o *Object) SetType(v Type) {
 	o.header.typ = v
 }
 
+// AssociateDeleted makes this object to delete another object.
+// See also [object.AttributeAssociatedObject].
+func (o *Object) AssociateDeleted(id oid.ID) {
+	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeAssociatedObject, v: id.EncodeToString()})
+	o.header.typ = TypeTombstone
+	o.pld = nil
+}
+
+// AssociateLocked makes this object to lock another object from deletion.
+// See also [object.AttributeAssociatedObject].
+func (o *Object) AssociateLocked(id oid.ID) {
+	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeAssociatedObject, v: id.EncodeToString()})
+	o.header.typ = TypeLock
+	o.pld = nil
+}
+
+// AssociateObject associates object with the current one. See also
+// [object.AttributeAssociatedObject] attribute.
+func (o *Object) AssociateObject(id oid.ID) {
+	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeAssociatedObject, v: id.EncodeToString()})
+}
+
+// AssociatedObject returns associated object with the current one. Returns
+// zero object ID of no association has been made or if associated object
+// ID is incorrect. If more than one association has been made, retuned
+// result is undefined. See also [object.AttributeAssociatedObject].
+func (o *Object) AssociatedObject() oid.ID {
+	var id oid.ID
+	for _, attr := range o.header.attrs {
+		if attr.k == AttributeAssociatedObject {
+			_ = id.DecodeString(attr.v)
+			break
+		}
+	}
+
+	return id
+}
+
 // CutPayload returns [Object] w/ empty payload.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
