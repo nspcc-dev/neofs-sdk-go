@@ -190,6 +190,8 @@ func (x *testGetObjectServer) Get(req *protoobject.GetRequest, stream protoobjec
 		return x.handlerErr
 	}
 	lastRespInd := uint(1)
+	x.m.Lock()
+	defer x.m.Unlock()
 	if x.resps != nil {
 		lastRespInd = 0
 	}
@@ -323,6 +325,8 @@ func (x *testGetObjectPayloadRangeServer) GetRange(req *protoobject.GetRangeRequ
 		return x.handlerErr
 	}
 	lastRespInd := uint(1)
+	x.m.Lock()
+	defer x.m.Unlock()
 	if x.resps != nil {
 		lastRespInd = 0
 	}
