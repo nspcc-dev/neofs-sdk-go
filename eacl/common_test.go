@@ -111,10 +111,16 @@ var (
 		eacl.ConstructRecord(eacl.Action(5692342), eacl.Operation(12943052), []eacl.Target{anyValidTargets[0]}, anyValidFilters[0]),
 		eacl.ConstructRecord(eacl.Action(43658603), eacl.Operation(12943052), anyValidTargets, anyValidFilters...),
 	}
-	anyValidEACL = eacl.NewTableForContainer(anyValidContainerID, anyValidRecords)
+	anyValidEACL eacl.Table
 )
 
 func init() {
+	anyValidEACL = eacl.NewTableForContainer(anyValidContainerID, anyValidRecords)
+	var v version.Version
+	v.SetMajor(2)
+	v.SetMinor(16)
+	anyValidEACL.SetVersion(v)
+
 	rawSubjs := [][]byte{
 		anyValidECDSABinPublicKeys[0],
 		anyUserSet[0][:],

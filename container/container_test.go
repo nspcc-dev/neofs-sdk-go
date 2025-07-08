@@ -109,6 +109,8 @@ func init() {
 	// init sets random nonce, we need a fixed one. There is no setter for it
 	m := validContainer.ProtoMessage()
 	m.Nonce = anyValidNonce[:]
+	m.Version.Major = 2
+	m.Version.Minor = 16
 	if err := validContainer.FromProtoMessage(m); err != nil {
 		panic(fmt.Errorf("unexpected encode-decode failure: %w", err))
 	}
