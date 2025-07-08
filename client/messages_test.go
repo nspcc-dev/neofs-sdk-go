@@ -1617,7 +1617,7 @@ func checkObjectHeaderTransport(h object.Object, m *protoobject.Header) error {
 		expType = protoobject.ObjectType_REGULAR
 	case object.TypeTombstone:
 		expType = protoobject.ObjectType_TOMBSTONE
-	case object.TypeStorageGroup:
+	case object.TypeStorageGroup: //nolint:staticcheck // deprecated, but it's a test.
 		expType = protoobject.ObjectType_STORAGE_GROUP
 	case object.TypeLock:
 		expType = protoobject.ObjectType_LOCK

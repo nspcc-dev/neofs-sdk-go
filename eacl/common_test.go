@@ -73,7 +73,7 @@ var (
 		32852,
 		object.TypeRegular,
 		object.TypeTombstone,
-		object.TypeStorageGroup,
+		object.TypeStorageGroup, //nolint:staticcheck // deprecated, but it's a test.
 		object.TypeLock,
 		object.TypeLink,
 	}

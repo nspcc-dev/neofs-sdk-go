@@ -10,6 +10,7 @@ type Type int32
 const (
 	TypeRegular Type = iota
 	TypeTombstone
+	// Deprecated: storage groups and audit are obsolete since API 2.18.
 	TypeStorageGroup
 	TypeLock
 	TypeLink
