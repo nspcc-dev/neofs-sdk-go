@@ -592,6 +592,7 @@ type testCommonServerStreamServerSettings[
 ] struct {
 	testCommonServerSettings
 	testCommonRequestServerSettings[REQBODY, REQ]
+	m        sync.Mutex
 	resps    map[uint]testCommonResponseServerSettings[RESPBODY, RESP]
 	respErrN uint
 	respErr  error
@@ -601,6 +602,8 @@ type testCommonServerStreamServerSettings[
 func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) tuneNResp(n uint,
 	tune func(*testCommonResponseServerSettings[RESPBODY, RESP])) {
 	type t = testCommonResponseServerSettings[RESPBODY, RESP]
+	x.m.Lock()
+	defer x.m.Unlock()
 	if x.resps == nil {
 		x.resps = make(map[uint]t, 1)
 	}
