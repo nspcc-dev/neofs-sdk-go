@@ -24,6 +24,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
@@ -79,6 +80,9 @@ var (
 )
 
 func init() {
+	v := version.New(2, 16)
+	anyValidEACL.SetVersion(v)
+
 	validBearerToken.SetEACLTable(anyValidEACL)
 	validBearerToken.ForUser(anyValidSubject)
 	validBearerToken.SetIssuer(anyValidIssuer)

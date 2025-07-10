@@ -13,6 +13,9 @@ import (
 // NeoFS API V2 protocol.
 //
 // Lock instance can be written to the [Object], see WriteLock/ReadLock.
+//
+// DEPRECATED: use [Object.AssociateLocked] instead, locking exactly one object
+// per Lock.
 type Lock struct {
 	members []oid.ID
 }
