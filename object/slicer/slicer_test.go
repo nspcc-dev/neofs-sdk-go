@@ -53,18 +53,18 @@ func TestSliceDataIntoObjects(t *testing.T) {
 
 	t.Run("unknown limit", func(t *testing.T) {
 		t.Run("under limit", func(t *testing.T) {
-			testSlicer(t, defaultLimit-1, 0)
-			testSlicer(t, defaultLimit, 0)
+			testSlicer(t, defaultLimit-1, defaultLimit)
+			testSlicer(t, defaultLimit, defaultLimit)
 		})
 
 		t.Run("multiple size", func(t *testing.T) {
-			testSlicer(t, 3*defaultLimit, 0)
-			testSlicer(t, 3*defaultLimit+1, 0)
+			testSlicer(t, 3*defaultLimit, defaultLimit)
+			testSlicer(t, 3*defaultLimit+1, defaultLimit)
 		})
 	})
 
 	t.Run("no payload", func(t *testing.T) {
-		testSlicer(t, 0, 0)
+		testSlicer(t, 0, defaultLimit)
 		testSlicer(t, 0, 1024)
 	})
 }
@@ -206,11 +206,7 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 	in.signer = user.NewAutoIDSigner(*key)
 	in.container = cidtest.ID()
 	in.currentEpoch = rand.Uint64()
-	if sizeLimit > 0 {
-		in.payloadLimit = sizeLimit
-	} else {
-		in.payloadLimit = defaultLimit
-	}
+	in.payloadLimit = sizeLimit
 	in.payload = testutil.RandByteSlice(size)
 	in.attributes = attrs
 	in.owner = usertest.ID()
