@@ -37,19 +37,20 @@ import (
 func TestSliceDataIntoObjects(t *testing.T) {
 	const limit = 1 << 10
 
-	t.Run("under limit", func(t *testing.T) {
-		testSlicer(t, limit, limit)
-		testSlicer(t, limit, limit+1)
-	})
-
-	t.Run("multiple size", func(t *testing.T) {
-		testSlicer(t, 3*limit, limit)
-		testSlicer(t, 3*limit+1, limit)
-	})
-
-	t.Run("no payload", func(t *testing.T) {
-		testSlicer(t, 0, 1024)
-	})
+	for _, tc := range []struct {
+		name string
+		ln   uint64
+	}{
+		{name: "no payload", ln: 0},
+		{name: "limit-1B", ln: limit - 1},
+		{name: "exactly limit", ln: limit},
+		{name: "limitX3", ln: limit * 3},
+		{name: "limitX3+1B", ln: limit*3 + 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testSlicer(t, tc.ln, limit)
+		})
+	}
 }
 
 func BenchmarkSliceDataIntoObjects(b *testing.B) {
