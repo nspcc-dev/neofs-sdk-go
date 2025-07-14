@@ -37,17 +37,17 @@ import (
 const defaultLimit = 1 << 20
 
 func TestSliceDataIntoObjects(t *testing.T) {
-	const size = 1 << 10
+	const limit = 1 << 10
 
 	t.Run("known limit", func(t *testing.T) {
 		t.Run("under limit", func(t *testing.T) {
-			testSlicer(t, size, size)
-			testSlicer(t, size, size+1)
+			testSlicer(t, limit, limit)
+			testSlicer(t, limit, limit+1)
 		})
 
 		t.Run("multiple size", func(t *testing.T) {
-			testSlicer(t, size, 3*size)
-			testSlicer(t, size, 3*size+1)
+			testSlicer(t, 3*limit, limit)
+			testSlicer(t, 3*limit+1, limit)
 		})
 	})
 
