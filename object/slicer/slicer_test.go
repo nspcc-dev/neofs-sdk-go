@@ -488,9 +488,9 @@ func (x *writeSizeChecker) Close() error {
 
 		var testLink object.Link
 		require.NoError(x.tb, testLink.Unmarshal(payload), "link object's payload must be structured")
-	} else {
-		require.LessOrEqual(x.tb, x.processed, x.limit, "object payload must not overflow the limit")
 	}
+
+	require.LessOrEqual(x.tb, x.processed, x.limit, "object payload must not overflow the limit")
 
 	require.Equal(x.tb, x.processed, x.hdr.PayloadSize())
 
