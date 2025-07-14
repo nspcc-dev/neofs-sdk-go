@@ -509,7 +509,7 @@ type chainCollector struct {
 
 	mPayloads map[oid.ID]payloadWithChecksum
 
-	children []object.MeasuredObject
+	link oid.ID
 }
 
 func newChainCollector(tb testing.TB) *chainCollector {
@@ -555,6 +555,8 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 	// and share the "sent" objects
 	var header object.Object
 	headerOriginal.CopyTo(&header)
+
+	require.Empty(x.tb, header.Payload(), "payload must be unset in header")
 
 	id := header.GetID()
 	require.False(x.tb, id.IsZero(), "all objects must have an ID")
@@ -628,14 +630,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 			var testLink object.Link
 			require.NoError(x.tb, header.ReadLink(&testLink))
 
-			children := testLink.Objects()
-			if len(children) > 0 {
-				if len(x.children) > 0 {
-					require.Equal(x.tb, x.children, children, "children list must be the same")
-				} else {
-					x.children = children
-				}
-			}
+			x.link = id
 		}
 	}
 
@@ -725,9 +720,17 @@ func (x *chainCollector) verify(in input, rootID oid.ID) {
 	rootObj.SetPayload(restoredPayload.Bytes())
 
 	if uint64(len(in.payload)) <= in.payloadLimit {
-		require.Empty(x.tb, x.children)
+		require.Zero(x.tb, x.link)
 	} else {
-		require.Equal(x.tb, x.children, restoredChain)
+		require.NotZero(x.tb, x.link)
+		p, ok := x.mPayloads[x.link]
+		require.True(x.tb, ok)
+		payload, err := io.ReadAll(p.r)
+		require.NoError(x.tb, err)
+
+		var l object.Link
+		require.NoError(x.tb, l.Unmarshal(payload))
+		require.Equal(x.tb, l.Objects(), restoredChain)
 	}
 
 	id := rootObj.GetID()

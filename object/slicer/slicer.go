@@ -569,15 +569,15 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 	if x.withSplit && last {
 		var linkObj object.Link
 		linkObj.SetObjects(x.writtenChildren)
-		obj.WriteLink(linkObj)
+		obj.SetType(object.TypeLink)
 
 		obj.ResetPreviousID()
 		// we reuse already written object, we should reset these fields, to eval them one more time in writeInMemObject.
 		obj.ResetID()
 		obj.SetSignature(nil)
 
-		payload := obj.Payload()
-		payloadAsBuffers := [][]byte{obj.Payload()}
+		payload := linkObj.Marshal()
+		payloadAsBuffers := [][]byte{payload}
 
 		if uint64(len(payload)) > x.payloadSizeLimit {
 			return fmt.Errorf("link's payload exceeds max available size: %d > %d", uint64(len(payload)), x.payloadSizeLimit)
