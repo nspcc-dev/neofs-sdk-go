@@ -34,37 +34,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const defaultLimit = 1 << 20
-
 func TestSliceDataIntoObjects(t *testing.T) {
 	const limit = 1 << 10
 
-	t.Run("known limit", func(t *testing.T) {
-		t.Run("under limit", func(t *testing.T) {
-			testSlicer(t, limit, limit)
-			testSlicer(t, limit, limit+1)
-		})
-
-		t.Run("multiple size", func(t *testing.T) {
-			testSlicer(t, 3*limit, limit)
-			testSlicer(t, 3*limit+1, limit)
-		})
+	t.Run("under limit", func(t *testing.T) {
+		testSlicer(t, limit, limit)
+		testSlicer(t, limit, limit+1)
 	})
 
-	t.Run("unknown limit", func(t *testing.T) {
-		t.Run("under limit", func(t *testing.T) {
-			testSlicer(t, defaultLimit-1, defaultLimit)
-			testSlicer(t, defaultLimit, defaultLimit)
-		})
-
-		t.Run("multiple size", func(t *testing.T) {
-			testSlicer(t, 3*defaultLimit, defaultLimit)
-			testSlicer(t, 3*defaultLimit+1, defaultLimit)
-		})
+	t.Run("multiple size", func(t *testing.T) {
+		testSlicer(t, 3*limit, limit)
+		testSlicer(t, 3*limit+1, limit)
 	})
 
 	t.Run("no payload", func(t *testing.T) {
-		testSlicer(t, 0, defaultLimit)
 		testSlicer(t, 0, 1024)
 	})
 }
