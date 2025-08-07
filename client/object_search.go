@@ -66,6 +66,8 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // Count returns limit for the search result.
 func (x SearchObjectsOptions) Count() uint32 { return x.count }
 
+func (x SearchObjectsOptions) BearerToken() *bearer.Token { return x.bearerToken }
+
 // SearchObjects selects objects from a given container by applying specified
 // filters, collects values of requested attributes, and returns the sorted
 // result.
