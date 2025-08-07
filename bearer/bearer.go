@@ -402,6 +402,10 @@ func (b Token) Issuer() user.ID {
 	return b.issuer
 }
 
+func (b Token) TargetUser() user.ID {
+	return b.targetUser
+}
+
 // ResolveIssuer works like [Token.Issuer] with fallback to the public key
 // resolution when explicit issuer ID is unset. Returns zero [user.ID] when
 // neither issuer is set nor key resolution succeeds.
