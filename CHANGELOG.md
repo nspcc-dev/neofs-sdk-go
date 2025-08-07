@@ -1,5 +1,37 @@
 # Changelog
 
+## [1.0.0-rc.14] - 2025-08-07
+
+This version makes SDK compatible with API 2.18, cleans up some APIs and
+fixes a number of bugs.
+
+New features:
+ * New (iter.Seq-style) iterator APIs for parameters and attributes (#694)
+ * Client constructor reusing existing GRPC connection (#702)
+ * N3 witnesses in requests and objects (#708)
+ * Unsigned GET/HEAD response support (#719)
+ * DecodeString() support for version.Version (#720)
+ * Associate attribute support (#721)
+ 
+Behaviour changes:
+ * ExternalAddresses deprecation following API changes (#700)
+ * object.NewAttribute returns instance instead of a pointer making it easier to use other APIs (#701)
+ * SearchV2 checks are adjusted according to API changes (#712)
+ * storagegroup package is gone because it's deprecated in API 2.18 (#723)
+ * API 2.18 is used now by default (#721)
+
+Improvements:
+ * SearchObjects documentation update (#698)
+ * EACL processing code allows for lazy header evaluation now (#716)
+
+Bugs fixed:
+ * Client.Dial waiting for more time than allowed by timeout configuration (#696)
+ * Client panic on Close() call before Dial() (#706)
+ * Slicer overriding object owner based on bearer token data (#710)
+ * Incorrect buffer pool use by Client (#713)
+ * Old objects with incorrect session tokens (missing lifetime settings) couldn't be processed correctly (#715, #727)
+ * Link objects created by slicer could have doubled payload (#725)
+
 ## [1.0.0-rc.13] - 2025-03-06
 
 The key change is the removal of `github.com/nspcc-dev/neofs-api-go/v2` module (#667).
@@ -319,6 +351,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.14]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.13...v1.0.0-rc.14
 [1.0.0-rc.13]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.12...v1.0.0-rc.13
 [1.0.0-rc.12]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.11...v1.0.0-rc.12
 [1.0.0-rc.11]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.10...v1.0.0-rc.11
