@@ -3,6 +3,7 @@ package object_test
 import (
 	"bytes"
 	"crypto/elliptic"
+	"encoding/hex"
 	"encoding/json"
 	"math/big"
 	"testing"
@@ -1763,6 +1764,23 @@ func TestObject_Unmarshal(t *testing.T) {
 	// filled
 	require.NoError(t, obj.Unmarshal(validBinObject))
 	require.Equal(t, validObject, obj)
+}
+
+func TestHeaderUnmarshalMarshalCompat(t *testing.T) {
+	// This is a real mwa6Fbia757WvezeeaLfvDsA7hMhdv7bDwN34hBhc97/5vY7ApjJSf9pUynQ33yHRPPXKBE3CQV2HtwfY9Mza4Wa header from mainnet with proto 2.11.
+	// It has no lifetime in session token, but it should be supported for unmarshal/marshal.
+	const header211 = "0a220a204925b3e21fef9813089944ce11498782ac2b766eaf9e3927d0f2641374449bd712660a21034b6d79aa13d4f2e4080cb7643375807a5d0f617e9ee6f7f8ba590f1def307145124104037e152a122e7650853926c50acae8a6f4277f7f8a4373559626c22776324c02c12d155e6fa44a0593ab7f47b34490bef4d337e1e2fc9a9cba50ce9c5ca6d77c1ad7030a040802100b12220a200b8342398aa18af793b9a8a5653845c330c620c5fe6f0b623bf91233a73d40621a1b0a1935ad5aad4ad12b0793499d691c27c2a6b06f2f425ecc0d12fa20e12a28bfe89008322408021220d2d94eb0ba70df70680ca6d540351ef73deac79b9d951b5b7ca6a6238bf4271f4244080112402a4f8e8641c85a67b18e4cea160b4d1b02f210f7c3f106ae294e35d7a8bbda0d695a8b8b61d31eaa1f9c2fbe533715f033b4093c084cff60549f5c383adcbf794ae8010a7e0a10ea83e89853ab44d8bd9a9105b7188cfb121b0a1935ad5aad4ad12b0793499d691c27c2a6b06f2f425ecc0d12fa1a002221034b6d79aa13d4f2e4080cb7643375807a5d0f617e9ee6f7f8ba590f1def3071452a28080112240a220a200b8342398aa18af793b9a8a5653845c330c620c5fe6f0b623bf91233a73d406212660a2102a0e6f24fcce7f490819c8c5ba4849fec12c9d14ac8f425a272ed81fe6b466f90124104c80e8a25be32e0b38cad17e5ba187917d7a1060dd0fad77794e4ebfeade6d7ab26a01ac55196eb2c4529708da2277899400a697d2f5bd32962282b7d6480251a52160a0846696c654e616d65120a7377696e67732e6a706752170a0954696d657374616d70120a31363437383636313333"
+	var binHeader, err = hex.DecodeString(header211)
+
+	require.NoError(t, err)
+
+	var obj object.Object
+
+	require.NoError(t, obj.Unmarshal(binHeader))
+
+	var marshaled = obj.Marshal()
+
+	require.Equal(t, binHeader, marshaled)
 }
 
 func TestObject_MarshalJSON(t *testing.T) {
