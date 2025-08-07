@@ -19,7 +19,9 @@ type commonData struct {
 
 	issuer user.ID
 
-	iat, nbf, exp uint64
+	// hasInvalidLifetime is used for compat with pre-2.12 objects.
+	hasInvalidLifetime bool
+	iat, nbf, exp      uint64
 
 	authKey []byte
 
@@ -35,6 +37,7 @@ func (x commonData) copyTo(dst *commonData) {
 
 	dst.issuer = x.issuer
 
+	dst.hasInvalidLifetime = x.hasInvalidLifetime
 	dst.iat = x.iat
 	dst.nbf = x.nbf
 	dst.exp = x.exp
@@ -133,6 +136,8 @@ func (x *commonData) fromProtoMessageWithVersion(m *protosession.SessionToken, c
 	x.nbf = lifetime.GetNbf()
 	x.exp = lifetime.GetExp()
 
+	x.hasInvalidLifetime = (x.iat == 0 && x.nbf == 0 && x.exp == 0 && lifetime != nil && !isVersionWithMandatoryLifetime(version))
+
 	return nil
 }
 
@@ -149,7 +154,7 @@ func (x commonData) fillBody(w contextWriter) *protosession.SessionToken_Body {
 		body.OwnerId = x.issuer.ProtoMessage()
 	}
 
-	if x.iat != 0 || x.nbf != 0 || x.exp != 0 {
+	if x.iat != 0 || x.nbf != 0 || x.exp != 0 || x.hasInvalidLifetime {
 		body.Lifetime = &protosession.SessionToken_Body_TokenLifetime{
 			Exp: x.exp,
 			Nbf: x.nbf,
