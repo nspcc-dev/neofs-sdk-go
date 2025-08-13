@@ -48,7 +48,7 @@ func (w ContainerPutWaiter) ContainerPut(ctx context.Context, cont container.Con
 	var prmGet client.PrmContainerGet
 
 	logic := func() error {
-		_, err = w.executor.ContainerGet(ctx, id, prmGet)
+		contaier, err := w.executor.ContainerGet(ctx, id, prmGet)
 		if err != nil {
 			if errors.Is(err, apistatus.ErrContainerNotFound) {
 				return errRetry
@@ -56,6 +56,8 @@ func (w ContainerPutWaiter) ContainerPut(ctx context.Context, cont container.Con
 
 			return fmt.Errorf("ContainerGet: %w", err)
 		}
+
+		fmt.Println("ContainerPutWaiter", "id", id.String(), "owner", contaier.Owner().String())
 
 		return nil
 	}
