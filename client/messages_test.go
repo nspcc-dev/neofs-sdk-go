@@ -229,10 +229,6 @@ var (
 	validMinSetEACLResponseBody = (*protocontainer.SetExtendedACLResponse_Body)(nil)
 	// correct ContainerService.SetExtendedACL response payload with all fields.
 	validFullSetEACLResponseBody = &protocontainer.SetExtendedACLResponse_Body{}
-	// correct ContainerService.AnnounceUsedSpace response payload with required fields only.
-	validMinUsedSpaceResponseBody = (*protocontainer.AnnounceUsedSpaceResponse_Body)(nil)
-	// correct ContainerService.AnnounceUsedSpace response payload with all fields.
-	validFullUsedSpaceResponseBody = &protocontainer.AnnounceUsedSpaceResponse_Body{}
 )
 
 // Netmap service.
@@ -1248,26 +1244,6 @@ func checkEACLTransport(e eacl.Table, m *protoacl.EACLTable) error {
 		if err := checkEACLRecordTransport(crs[i], mrs[i]); err != nil {
 			return fmt.Errorf("record#%d field: %w", i, err)
 		}
-	}
-	return nil
-}
-
-func checkContainerSizeEstimationTransport(e container.SizeEstimation, m *protocontainer.AnnounceUsedSpaceRequest_Body_Announcement) error {
-	// 1. epoch
-	if v1, v2 := e.Epoch(), m.GetEpoch(); v1 != v2 {
-		return fmt.Errorf("epoch field (client: %d, message: %d)", v1, v2)
-	}
-	// 1. container ID
-	mc := m.GetContainerId()
-	if mc == nil {
-		return newErrMissingRequestBodyField("container ID")
-	}
-	if err := checkContainerIDTransport(e.Container(), mc); err != nil {
-		return fmt.Errorf("container ID field: %w", err)
-	}
-	// 3. value
-	if v1, v2 := e.Value(), m.GetUsedSpace(); v1 != v2 {
-		return fmt.Errorf("value field (client: %d, message: %d)", v1, v2)
 	}
 	return nil
 }

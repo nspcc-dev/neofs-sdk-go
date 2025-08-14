@@ -1873,7 +1873,9 @@ type HeadRequest_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Address of the object with the requested Header
 	Address *refs.Address `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	// Return only minimal header subset
+	// Return only minimal header subset.
+	//
+	// DEPRECATED. This field is ignored.
 	MainOnly bool `protobuf:"varint,2,opt,name=main_only,json=mainOnly,proto3" json:"main_only,omitempty"`
 	// If `raw` flag is set, request will work only with objects that are
 	// physically stored on the peer node
@@ -2023,7 +2025,9 @@ type HeadResponse_Body_Header struct {
 }
 
 type HeadResponse_Body_ShortHeader struct {
-	// Short object header
+	// Short object header.
+	//
+	// DEPRECATED. Use HeaderWithSignature instead.
 	ShortHeader *ShortHeader `protobuf:"bytes,2,opt,name=short_header,json=shortHeader,proto3,oneof"`
 }
 

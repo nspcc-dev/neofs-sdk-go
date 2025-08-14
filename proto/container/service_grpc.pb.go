@@ -103,6 +103,9 @@ type ContainerServiceClient interface {
 	//   - **OK** (0, SECTION_SUCCESS): \
 	//     estimation of used space has been successfully announced;
 	//   - Common failures (SECTION_FAILURE_COMMON).
+	//
+	// DEPRECATED: every storage node must send storage load directly to `container`
+	// contract.
 	AnnounceUsedSpace(ctx context.Context, in *AnnounceUsedSpaceRequest, opts ...grpc.CallOption) (*AnnounceUsedSpaceResponse, error)
 }
 
@@ -259,6 +262,9 @@ type ContainerServiceServer interface {
 	//   - **OK** (0, SECTION_SUCCESS): \
 	//     estimation of used space has been successfully announced;
 	//   - Common failures (SECTION_FAILURE_COMMON).
+	//
+	// DEPRECATED: every storage node must send storage load directly to `container`
+	// contract.
 	AnnounceUsedSpace(context.Context, *AnnounceUsedSpaceRequest) (*AnnounceUsedSpaceResponse, error)
 }
 

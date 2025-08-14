@@ -830,6 +830,9 @@ func (x *GetExtendedACLResponse) GetVerifyHeader() *session.ResponseVerification
 }
 
 // Announce container used space
+//
+// DEPRECATED: every storage node must send storage load directly to `container`
+// contract.
 type AnnounceUsedSpaceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of announce used space request message.
@@ -897,6 +900,9 @@ func (x *AnnounceUsedSpaceRequest) GetVerifyHeader() *session.RequestVerificatio
 }
 
 // Announce container used space
+//
+// DEPRECATED: every storage node must send storage load directly to `container`
+// contract.
 type AnnounceUsedSpaceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of announce used space response message.
