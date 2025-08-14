@@ -40,7 +40,7 @@ const (
 	ObjectType_REGULAR ObjectType = 0
 	// Used internally to identify deleted objects
 	ObjectType_TOMBSTONE ObjectType = 1
-	// StorageGroup information
+	// StorageGroup information. DEPRECATED: no longer used for audit since 2.18.
 	ObjectType_STORAGE_GROUP ObjectType = 2
 	// Object lock
 	ObjectType_LOCK ObjectType = 3
@@ -296,6 +296,9 @@ func (x *SearchFilter) GetValue() string {
 }
 
 // Short header fields
+//
+// DEPRECATED. It is not supported in practice and should not be used. Use full
+// Header instead.
 type ShortHeader struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Object format version. Effectively, the version of API library used to
