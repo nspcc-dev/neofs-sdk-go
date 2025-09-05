@@ -28,6 +28,7 @@ import (
 //   - [protostatus.ObjectNotFound]: *[ObjectNotFound].
 //   - [protostatus.ObjectAlreadyRemoved]: *[ObjectAlreadyRemoved].
 //   - [protostatus.OutOfRange]: *[ObjectOutOfRange].
+//   - [protostatus.QuotaExceeded]: *[QuotaExceeded].
 //
 // Container failures:
 //   - [protostatus.ContainerNotFound]: *[ContainerNotFound];
@@ -71,6 +72,8 @@ func ToError(st *protostatus.Status) error {
 		decoder = new(ObjectAlreadyRemoved)
 	case protostatus.OutOfRange:
 		decoder = new(ObjectOutOfRange)
+	case protostatus.QuotaExceeded:
+		decoder = new(QuotaExceeded)
 	case protostatus.ContainerNotFound:
 		decoder = new(ContainerNotFound)
 	case protostatus.EACLNotFound:

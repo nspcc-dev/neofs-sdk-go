@@ -53,7 +53,10 @@ func TestErrors(t *testing.T) {
 			errs:        []error{ObjectOutOfRange{}, new(ObjectOutOfRange)},
 			errVariable: ErrObjectOutOfRange,
 		},
-
+		{
+			errs:        []error{QuotaExceeded{}, new(QuotaExceeded)},
+			errVariable: ErrQuotaExceeded,
+		},
 		{
 			errs:        []error{ContainerNotFound{}, new(ContainerNotFound)},
 			errVariable: ErrContainerNotFound,

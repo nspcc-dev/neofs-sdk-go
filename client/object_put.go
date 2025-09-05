@@ -260,6 +260,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrLockNonRegularObject]
+//   - [apistatus.ErrQuotaExceeded]
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *DefaultObjectWriter) Close() error {
