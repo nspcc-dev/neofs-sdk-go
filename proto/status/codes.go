@@ -13,6 +13,7 @@ const (
 	LockIrregularObject       = 2051
 	ObjectAlreadyRemoved      = 2052
 	OutOfRange                = 2053
+	QuotaExceeded             = 2054
 	ContainerNotFound         = 3072
 	EACLNotFound              = 3073
 	SessionTokenNotFound      = 4096

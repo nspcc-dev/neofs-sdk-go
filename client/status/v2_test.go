@@ -130,6 +130,17 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				return new(apistatus.QuotaExceeded)
+			},
+			code:           2054,
+			compatibleErrs: []error{apistatus.ErrQuotaExceeded, apistatus.QuotaExceeded{}, &apistatus.QuotaExceeded{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.QuotaExceeded
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.ContainerNotFound)
 			},
 			code:           3072,

@@ -25,6 +25,9 @@ var (
 	// ErrObjectOutOfRange is an instance of ObjectOutOfRange error status. It's expected to be used for [errors.Is]
 	// and MUST NOT be changed.
 	ErrObjectOutOfRange ObjectOutOfRange
+	// ErrQuotaExceeded is an instance of QuotaExceeded error status. It's expected to be used for [errors.Is]
+	// and MUST NOT be changed.
+	ErrQuotaExceeded QuotaExceeded
 )
 
 // ObjectLocked describes status of the failure because of the locked object.
@@ -293,4 +296,43 @@ func (x ObjectOutOfRange) protoMessage() *protostatus.Status {
 		x.msg = defaultObjectOutOfRangeMsg
 	}
 	return &protostatus.Status{Code: protostatus.OutOfRange, Message: x.msg, Details: x.dts}
+}
+
+type QuotaExceeded struct {
+	msg string
+	dts []*protostatus.Status_Detail
+}
+
+const defaultQuotaExceededMsg = "size quota limits are exceeded"
+
+func (x QuotaExceeded) Error() string {
+	if x.msg == "" {
+		x.msg = defaultQuotaExceededMsg
+	}
+
+	return errMessageStatus(protostatus.QuotaExceeded, x.msg)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x QuotaExceeded) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case QuotaExceeded, *QuotaExceeded:
+		return true
+	}
+}
+
+// implements local interface defined in [ToError] func.
+func (x *QuotaExceeded) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
+}
+
+// implements local interface defined in [FromError] func.
+func (x QuotaExceeded) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultQuotaExceededMsg
+	}
+	return &protostatus.Status{Code: protostatus.QuotaExceeded, Message: x.msg}
 }
