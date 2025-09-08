@@ -12,7 +12,15 @@ func (v *BaseQueryVisitor) VisitPolicy(ctx *PolicyContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 
+func (v *BaseQueryVisitor) VisitRuleStmt(ctx *RuleStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
 func (v *BaseQueryVisitor) VisitRepStmt(ctx *RepStmtContext) interface{} {
+	return v.VisitChildren(ctx)
+}
+
+func (v *BaseQueryVisitor) VisitEcStmt(ctx *EcStmtContext) interface{} {
 	return v.VisitChildren(ctx)
 }
 

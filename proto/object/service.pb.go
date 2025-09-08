@@ -24,7 +24,14 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// GET object request
+// GET object request.
+//
+// The query for an EC part of the parent object is specified as follows:
+//   - `body.address` is an address of the parent;
+//   - `meta_header.x_headers` includes `__NEOFS__EC_RULE_IDX` and
+//     `__NEOFS__EC_PART_IDX` by object attribute format.  Rule index MUST NOT
+//     exceed container's `PlacementPolicy.ec_rules` list. Part index MUST NOT
+//     exceed total part number in the indexed rule.
 type GetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of get object request message.
