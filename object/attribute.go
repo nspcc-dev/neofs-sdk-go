@@ -29,6 +29,16 @@ const (
 	// associated object's ID. For [object.TypeTombstone] it defines object to
 	// delete. For [object.TypeLock] it defines object to lock.
 	AttributeAssociatedObject = sysAttrPrefix + "ASSOCIATE"
+	// AttributeECPrefix is a prefix of EC object attributes.
+	AttributeECPrefix = sysAttrPrefix + "EC_"
+	// AttributeECRuleIndex is an attribute of EC part object specifying index of EC
+	// rule in container storage policy according to which the part was created.
+	// Value is base-10 integer.
+	AttributeECRuleIndex = AttributeECPrefix + "RULE_IDX"
+	// AttributeECPartIndex is an attribute of EC part object specifying index in
+	// the EC parts into which the parent object is divided. Value is base-10
+	// integer.
+	AttributeECPartIndex = AttributeECPrefix + "PART_IDX"
 )
 
 // Attribute represents an object attribute.
