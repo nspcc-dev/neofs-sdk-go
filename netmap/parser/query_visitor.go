@@ -11,8 +11,14 @@ type QueryVisitor interface {
 	// Visit a parse tree produced by Query#policy.
 	VisitPolicy(ctx *PolicyContext) interface{}
 
+	// Visit a parse tree produced by Query#ruleStmt.
+	VisitRuleStmt(ctx *RuleStmtContext) interface{}
+
 	// Visit a parse tree produced by Query#repStmt.
 	VisitRepStmt(ctx *RepStmtContext) interface{}
+
+	// Visit a parse tree produced by Query#ecStmt.
+	VisitEcStmt(ctx *EcStmtContext) interface{}
 
 	// Visit a parse tree produced by Query#cbfStmt.
 	VisitCbfStmt(ctx *CbfStmtContext) interface{}

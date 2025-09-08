@@ -104,11 +104,42 @@ func (x *Filter) MarshalStable(b []byte) {
 
 const (
 	_ = iota
+	fieldECRuleDataPartNum
+	fieldECRuleParityPartNum
+	fieldECRuleSelector
+)
+
+// MarshaledSize returns size of the PlacementPolicy_ECRule in Protocol Buffers
+// V3 format in bytes. MarshaledSize is NPE-safe.
+func (x *PlacementPolicy_ECRule) MarshaledSize() int {
+	if x != nil {
+		return proto.SizeVarint(fieldECRuleDataPartNum, x.DataPartNum) +
+			proto.SizeVarint(fieldECRuleParityPartNum, x.ParityPartNum) +
+			proto.SizeBytes(fieldECRuleSelector, x.Selector)
+	}
+	return 0
+}
+
+// MarshalStable writes the PlacementPolicy_ECRule in Protocol Buffers V3 format
+// with ascending order of fields by number into b. MarshalStable uses exactly
+// [PlacementPolicy_ECRule.MarshaledSize] first bytes of b. MarshalStable is
+// NPE-safe.
+func (x *PlacementPolicy_ECRule) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToVarint(b, fieldECRuleDataPartNum, x.DataPartNum)
+		off += proto.MarshalToVarint(b[off:], fieldECRuleParityPartNum, x.ParityPartNum)
+		proto.MarshalToBytes(b[off:], fieldECRuleSelector, x.Selector)
+	}
+}
+
+const (
+	_ = iota
 	fieldPolicyReplicas
 	fieldPolicyBackupFactor
 	fieldPolicySelectors
 	fieldPolicyFilters
 	fieldPolicySubnet
+	fieldPolicyECRules
 )
 
 // MarshaledSize returns size of the PlacementPolicy in Protocol Buffers V3
@@ -119,7 +150,8 @@ func (x *PlacementPolicy) MarshaledSize() int {
 			proto.SizeEmbedded(fieldPolicySubnet, x.SubnetId) +
 			proto.SizeRepeatedMessages(fieldPolicyReplicas, x.Replicas) +
 			proto.SizeRepeatedMessages(fieldPolicySelectors, x.Selectors) +
-			proto.SizeRepeatedMessages(fieldPolicyFilters, x.Filters)
+			proto.SizeRepeatedMessages(fieldPolicyFilters, x.Filters) +
+			proto.SizeRepeatedMessages(fieldPolicyECRules, x.EcRules)
 	}
 	return 0
 }
@@ -133,7 +165,8 @@ func (x *PlacementPolicy) MarshalStable(b []byte) {
 		off += proto.MarshalToVarint(b[off:], fieldPolicyBackupFactor, x.ContainerBackupFactor)
 		off += proto.MarshalToRepeatedMessages(b[off:], fieldPolicySelectors, x.Selectors)
 		off += proto.MarshalToRepeatedMessages(b[off:], fieldPolicyFilters, x.Filters)
-		proto.MarshalToEmbedded(b[off:], fieldPolicySubnet, x.SubnetId)
+		off += proto.MarshalToEmbedded(b[off:], fieldPolicySubnet, x.SubnetId)
+		proto.MarshalToRepeatedMessages(b[off:], fieldPolicyECRules, x.EcRules)
 	}
 }
 

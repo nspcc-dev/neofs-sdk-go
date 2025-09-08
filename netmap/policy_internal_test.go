@@ -24,6 +24,10 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 	s.SetName("selector")
 	pp.SetSelectors([]Selector{s})
 
+	pp.SetECRules([]ECRule{
+		NewECRule(1, 2),
+	})
+
 	t.Run("copy", func(t *testing.T) {
 		var dst PlacementPolicy
 		pp.CopyTo(&dst)
@@ -113,5 +117,14 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		require.Equal(t, pp.replicas[0].SelectorName(), dst.replicas[0].SelectorName())
 		dst.replicas[0].SetSelectorName("s2")
 		require.NotEqual(t, pp.replicas[0].SelectorName(), dst.replicas[0].SelectorName())
+	})
+
+	t.Run("change EC rule", func(t *testing.T) {
+		var dst PlacementPolicy
+		pp.CopyTo(&dst)
+
+		require.Equal(t, pp.ECRules()[0].DataPartNum(), dst.ECRules()[0].DataPartNum())
+		dst.ECRules()[0].SetDataPartNum(3)
+		require.NotEqual(t, pp.ECRules()[0].DataPartNum(), dst.ECRules()[0].DataPartNum())
 	})
 }
