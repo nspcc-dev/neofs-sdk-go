@@ -4,7 +4,9 @@ import (
 	"slices"
 	"testing"
 
+	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
+	netmaptest "github.com/nspcc-dev/neofs-sdk-go/netmap/test"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
 )
@@ -199,4 +201,36 @@ func TestNetMap_SetEpoch(t *testing.T) {
 
 	nm.SetEpoch(anyValidCurrentEpoch + 1)
 	require.EqualValues(t, anyValidCurrentEpoch+1, nm.Epoch())
+}
+
+func TestNetMap_ContainerNodes(t *testing.T) {
+	t.Run("unlinked selectors", func(t *testing.T) {
+		t.Run("more than REP rules", func(t *testing.T) {
+			nodes := nNodes(5)
+			const ps = "REP 1 CBF 1 SELECT 1 FROM * SELECT 1 FROM *"
+
+			var p netmap.PlacementPolicy
+			require.NoError(t, p.DecodeString(ps))
+
+			var nm netmap.NetMap
+			nm.SetNodes(nodes)
+
+			res, err := nm.ContainerNodes(p, cidtest.ID())
+			require.NoError(t, err)
+			require.Len(t, res, 1) // num of REP statements
+			require.Len(t, res[0], 2)
+			for _, set := range res {
+				require.Len(t, set, 2)
+				require.Subset(t, nodes, set)
+			}
+		})
+	})
+}
+
+func nNodes(n int) []netmap.NodeInfo {
+	res := make([]netmap.NodeInfo, n)
+	for i := range res {
+		res[i] = netmaptest.NodeInfo()
+	}
+	return res
 }
