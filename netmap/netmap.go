@@ -212,8 +212,8 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 				result[i] = flattenNodes(nodes)
 			}
 
-			for i := range p.selectors {
-				result[i] = append(result[i], flattenNodes(c.selections[p.selectors[i].Name()])...)
+			for _, s := range p.selectors {
+				result[i] = append(result[i], flattenNodes(c.selections[s.Name()])...)
 			}
 
 			continue
