@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/ecdsa"
 	"fmt"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
@@ -59,7 +60,7 @@ func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
 func (t Target) CopyTo(dst *Target) {
 	dst.role = t.role
 
-	dst.subjs = make([][]byte, len(t.subjs))
+	dst.subjs = slices.Clone(t.subjs)
 	for i := range t.subjs {
 		dst.subjs[i] = bytes.Clone(t.subjs[i])
 	}

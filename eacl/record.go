@@ -40,12 +40,9 @@ func (r Record) CopyTo(dst *Record) {
 	dst.operation = r.operation
 	dst.filters = slices.Clone(r.filters)
 
-	dst.targets = make([]Target, len(r.targets))
+	dst.targets = slices.Clone(r.targets)
 	for i, t := range r.targets {
-		var newTarget Target
-		t.CopyTo(&newTarget)
-
-		dst.targets[i] = newTarget
+		t.CopyTo(&dst.targets[i])
 	}
 }
 
