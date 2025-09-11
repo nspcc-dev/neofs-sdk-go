@@ -116,6 +116,12 @@ type clientStatus interface {
 // errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
 var errPoolClientUnhealthy = errors.New("pool client unhealthy")
 
+// ErrUnhealthy can be returned from any [Pool] method when there are no good
+// connections available to it and therefore no action can be performed.
+// Usually this error is transient, pool tries to establish new connections if
+// and when it can.
+var ErrUnhealthy = errors.New("no healthy client")
+
 // clientStatusMonitor count error rate and other statistics for connection.
 type clientStatusMonitor struct {
 	addr           string
@@ -973,7 +979,7 @@ func (p *Pool) connection() (internalClient, error) {
 		}
 	}
 
-	return nil, errors.New("no healthy client")
+	return nil, ErrUnhealthy
 }
 
 func (p *innerPool) connection() (internalClient, error) {
@@ -984,7 +990,7 @@ func (p *innerPool) connection() (internalClient, error) {
 		if cp.isHealthy() {
 			return cp, nil
 		}
-		return nil, errors.New("no healthy client")
+		return nil, ErrUnhealthy
 	}
 	attempts := 3 * len(p.clients)
 	for range attempts {
@@ -994,7 +1000,7 @@ func (p *innerPool) connection() (internalClient, error) {
 		}
 	}
 
-	return nil, errors.New("no healthy client")
+	return nil, ErrUnhealthy
 }
 
 // cacheKeyForSession generates cache key for a signed session token.
