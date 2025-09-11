@@ -314,29 +314,19 @@ func TestInitCreation(t *testing.T) {
 func TestObject_SetID(t *testing.T) {
 	var obj object.Object
 	require.True(t, obj.GetID().IsZero())
-	_, ok := obj.ID()
-	require.False(t, ok)
 
 	id1 := oidtest.ID()
 	obj.SetID(id1)
 	require.Equal(t, id1, obj.GetID())
-	res, ok := obj.ID()
-	require.True(t, ok)
-	require.Equal(t, id1, res)
 
 	id2 := oidtest.OtherID(id1)
 	obj.SetID(id2)
 	require.Equal(t, id2, obj.GetID())
-	res, ok = obj.ID()
-	require.True(t, ok)
-	require.Equal(t, id2, res)
 
 	// reset
 	require.False(t, obj.GetID().IsZero())
 	obj.ResetID()
 	require.True(t, obj.GetID().IsZero())
-	_, ok = obj.ID()
-	require.False(t, ok)
 }
 
 func TestObject_SetSignature(t *testing.T) {
@@ -389,22 +379,14 @@ func TestObject_SetPayloadSize(t *testing.T) {
 func TestObject_SetContainerID(t *testing.T) {
 	var obj object.Object
 	require.True(t, obj.GetContainerID().IsZero())
-	_, ok := obj.ContainerID()
-	require.False(t, ok)
 
 	cnr1 := cidtest.ID()
 	obj.SetContainerID(cnr1)
 	require.Equal(t, cnr1, obj.GetContainerID())
-	res, ok := obj.ContainerID()
-	require.True(t, ok)
-	require.Equal(t, cnr1, res)
 
 	cnr2 := cidtest.OtherID(cnr1)
 	obj.SetContainerID(cnr2)
 	require.Equal(t, cnr2, obj.GetContainerID())
-	res, ok = obj.ContainerID()
-	require.True(t, ok)
-	require.Equal(t, cnr2, res)
 }
 
 func TestObject_SetOwner(t *testing.T) {
@@ -418,19 +400,6 @@ func TestObject_SetOwner(t *testing.T) {
 	usr2 := usertest.OtherID(usr1)
 	obj.SetOwner(usr2)
 	require.Equal(t, usr2, obj.Owner())
-}
-
-func TestObject_SetOwnerID(t *testing.T) {
-	var obj object.Object
-	require.True(t, obj.OwnerID().IsZero())
-
-	usr1 := usertest.ID()
-	obj.SetOwnerID(&usr1)
-	require.Equal(t, usr1, *obj.OwnerID())
-
-	usr2 := usertest.OtherID(usr1)
-	obj.SetOwnerID(&usr2)
-	require.Equal(t, usr2, *obj.OwnerID())
 }
 
 func TestObject_SetCreationEpoch(t *testing.T) {
@@ -524,29 +493,19 @@ func TestObject_AssociatedObject(t *testing.T) {
 func TestObject_SetPreviousID(t *testing.T) {
 	var obj object.Object
 	require.True(t, obj.GetPreviousID().IsZero())
-	_, ok := obj.PreviousID()
-	require.False(t, ok)
 
 	id1 := oidtest.ID()
 	obj.SetPreviousID(id1)
 	require.Equal(t, id1, obj.GetPreviousID())
-	res, ok := obj.PreviousID()
-	require.True(t, ok)
-	require.Equal(t, id1, res)
 
 	id2 := oidtest.OtherID(id1)
 	obj.SetPreviousID(id2)
 	require.Equal(t, id2, obj.GetPreviousID())
-	res, ok = obj.PreviousID()
-	require.True(t, ok)
-	require.Equal(t, id2, res)
 
 	// reset
 	require.False(t, obj.GetPreviousID().IsZero())
 	obj.ResetPreviousID()
 	require.True(t, obj.GetPreviousID().IsZero())
-	_, ok = obj.PreviousID()
-	require.False(t, ok)
 }
 
 func TestObject_SetChildren(t *testing.T) {
@@ -599,29 +558,19 @@ func TestObject_SetSplitID(t *testing.T) {
 func TestObject_SetParentID(t *testing.T) {
 	var obj object.Object
 	require.True(t, obj.GetParentID().IsZero())
-	_, ok := obj.ParentID()
-	require.False(t, ok)
 
 	id1 := oidtest.ID()
 	obj.SetParentID(id1)
 	require.Equal(t, id1, obj.GetParentID())
-	res, ok := obj.ParentID()
-	require.True(t, ok)
-	require.Equal(t, id1, res)
 
 	id2 := oidtest.OtherID(id1)
 	obj.SetParentID(id2)
 	require.Equal(t, id2, obj.GetParentID())
-	res, ok = obj.ParentID()
-	require.True(t, ok)
-	require.Equal(t, id2, res)
 
 	// reset
 	require.False(t, obj.GetParentID().IsZero())
 	obj.ResetParentID()
 	require.True(t, obj.GetParentID().IsZero())
-	_, ok = obj.ParentID()
-	require.False(t, ok)
 }
 
 func TestObject_SetParent(t *testing.T) {

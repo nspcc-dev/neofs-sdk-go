@@ -230,10 +230,8 @@ func testValidAt[T interface {
 	SetIat(uint64)
 	SetNbf(uint64)
 	ValidAt(uint64) bool
-	InvalidAt(uint64) bool
 }](t testing.TB, x T) {
 	require.True(t, x.ValidAt(0))
-	require.False(t, x.InvalidAt(0))
 
 	const iat = 13
 	const nbf = iat + 1
@@ -244,15 +242,10 @@ func testValidAt[T interface {
 	x.SetExp(exp)
 
 	require.False(t, x.ValidAt(iat-1))
-	require.True(t, x.InvalidAt(iat-1))
 	require.False(t, x.ValidAt(iat))
-	require.True(t, x.InvalidAt(iat))
 	require.True(t, x.ValidAt(nbf))
-	require.False(t, x.InvalidAt(nbf))
 	require.True(t, x.ValidAt(exp))
-	require.False(t, x.InvalidAt(exp))
 	require.False(t, x.ValidAt(exp+1))
-	require.True(t, x.InvalidAt(exp+1))
 }
 
 func TestInvalidAt(t *testing.T) {

@@ -15,16 +15,6 @@ type UnrecognizedStatus struct {
 	dts  []*protostatus.Status_Detail
 }
 
-// ErrUnrecognizedStatusV2 is an instance of UnrecognizedStatusV2 error status. It's expected to be used for [errors.Is]
-// and MUST NOT be changed.
-// Deprecated: use ErrUnrecognizedStatus instead.
-var ErrUnrecognizedStatusV2 UnrecognizedStatusV2
-
-// UnrecognizedStatusV2 describes status of the uncertain failure.
-// Instances provide [StatusV2] and error interfaces.
-// Deprecated: use UnrecognizedStatus instead.
-type UnrecognizedStatusV2 = UnrecognizedStatus
-
 func (x UnrecognizedStatus) Error() string {
 	return errMessageStatus("unrecognized", x.msg)
 }

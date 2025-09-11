@@ -2,11 +2,9 @@ package eacl
 
 import (
 	"bytes"
-	"crypto/ecdsa"
 	"fmt"
 	"slices"
 
-	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/util"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
@@ -46,16 +44,6 @@ func NewTargetByScriptHashes(hs []util.Uint160) Target {
 	return Target{subjs: b}
 }
 
-func ecdsaKeysToPtrs(keys []ecdsa.PublicKey) []*ecdsa.PublicKey {
-	keysPtr := make([]*ecdsa.PublicKey, len(keys))
-
-	for i := range keys {
-		keysPtr[i] = &keys[i]
-	}
-
-	return keysPtr
-}
-
 // CopyTo writes deep copy of the [Target] to dst.
 func (t Target) CopyTo(dst *Target) {
 	dst.role = t.role
@@ -66,7 +54,7 @@ func (t Target) CopyTo(dst *Target) {
 	}
 }
 
-// BinaryKeys returns list of public keys to identify
+// binaryKeys returns list of public keys to identify
 // target subject in a binary format.
 //
 // Each element of the resulting slice is a serialized compressed public key. See [elliptic.MarshalCompressed].
@@ -75,7 +63,7 @@ func (t Target) CopyTo(dst *Target) {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 // Deprecated: use [Target.Accounts] instead.
-func (t *Target) BinaryKeys() [][]byte {
+func (t *Target) binaryKeys() [][]byte {
 	var r [][]byte
 
 	for _, key := range t.subjs {
@@ -106,14 +94,6 @@ func (t Target) RawSubjects() [][]byte {
 	return t.subjs
 }
 
-// SetBinaryKeys sets list of binary public keys to identify
-// target subject.
-//
-// Each element of the keys parameter is a slice of bytes is a serialized compressed public key.
-// See [elliptic.MarshalCompressed].
-// Deprecated: use [Target.SetAccounts] instead.
-func (t *Target) SetBinaryKeys(keys [][]byte) { t.SetRawSubjects(keys) }
-
 // Accounts returns list of accounts to identify target subject.
 //
 // Use `user := user.ID(slice)` to decode it into a type-specific structure.
@@ -137,60 +117,6 @@ func (t *Target) SetAccounts(accounts []user.ID) {
 		subjs[i] = bytes.Clone(acc[:])
 	}
 	t.SetRawSubjects(subjs)
-}
-
-// SetTargetECDSAKeys converts ECDSA public keys to a binary format and stores
-// them in Target.
-// Deprecated: use [NewTargetByAccounts] or [Target.SetAccounts] along with
-// [user.NewFromECDSAPublicKey] instead.
-func SetTargetECDSAKeys(t *Target, pubs ...*ecdsa.PublicKey) {
-	binKeys := t.BinaryKeys()
-	ln := len(pubs)
-
-	if cap(binKeys) >= ln {
-		binKeys = binKeys[:0]
-	} else {
-		binKeys = make([][]byte, 0, ln)
-	}
-
-	for i := range ln {
-		binKeys = append(binKeys, (*keys.PublicKey)(pubs[i]).Bytes())
-	}
-
-	t.SetBinaryKeys(binKeys)
-}
-
-// SetTargetAccounts sets accounts in Target.
-// Deprecated: use [NewTargetByScriptHashes] instead.
-func SetTargetAccounts(t *Target, accs ...util.Uint160) {
-	account := make([]user.ID, len(accs))
-	ln := len(accs)
-
-	for i := range ln {
-		account[i] = user.NewFromScriptHash(accs[i])
-	}
-
-	t.SetAccounts(account)
-}
-
-// TargetECDSAKeys interprets binary public keys of Target
-// as ECDSA public keys. If any key has a different format,
-// the corresponding element will be nil.
-// Deprecated: use [Target.RawSubjects] with [keys.PublicKey.DecodeBytes] instead.
-func TargetECDSAKeys(t *Target) []*ecdsa.PublicKey {
-	binKeys := t.BinaryKeys()
-	ln := len(binKeys)
-
-	pubs := make([]*ecdsa.PublicKey, ln)
-
-	for i := range ln {
-		p := new(keys.PublicKey)
-		if p.DecodeBytes(binKeys[i]) == nil {
-			pubs[i] = (*ecdsa.PublicKey)(p)
-		}
-	}
-
-	return pubs
 }
 
 // SetRole sets target subject's role class.
@@ -218,15 +144,6 @@ func (t *Target) fromProtoMessage(m *protoacl.EACLRecord_Target) error {
 	t.subjs = m.Keys
 	return nil
 }
-
-// NewTarget creates, initializes and returns blank Target instance.
-//
-// Defaults:
-//   - role: RoleUnspecified;
-//   - keys: nil.
-//
-// Deprecated: use [NewTargetByRole] or [TargetByPublicKeys] instead.
-func NewTarget() *Target { return new(Target) }
 
 // Marshal marshals Target into a protobuf binary form.
 func (t Target) Marshal() []byte {

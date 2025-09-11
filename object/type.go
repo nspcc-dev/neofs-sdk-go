@@ -24,18 +24,6 @@ const (
 	typeStringLink         = "LINK"
 )
 
-// EncodeToString returns string representation of [Type].
-//
-// String mapping:
-//   - [TypeTombstone]: TOMBSTONE;
-//   - [TypeStorageGroup]: STORAGE_GROUP;
-//   - [TypeLock]: LOCK;
-//   - [TypeRegular], default: REGULAR.
-//   - [TypeLink], default: LINK.
-//
-// Deprecated: use [TypeToString] instead.
-func (t Type) EncodeToString() string { return t.String() }
-
 // String implements [fmt.Stringer] with the following string mapping:
 //   - [TypeRegular]: REGULAR
 //   - [TypeTombstone]: TOMBSTONE

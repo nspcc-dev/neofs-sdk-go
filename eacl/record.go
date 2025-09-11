@@ -1,18 +1,11 @@
 package eacl
 
 import (
-	"crypto/ecdsa"
 	"fmt"
 	"slices"
 
-	"github.com/nspcc-dev/neofs-sdk-go/checksum"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
-	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // Record represents an access rule operating in NeoFS access management. The
@@ -95,120 +88,8 @@ func (r *Record) SetAction(action Action) {
 	r.action = action
 }
 
-// AddRecordTarget adds single Target to the Record.
-// Deprecated: use [Record.SetTargets] instead.
-func AddRecordTarget(r *Record, t *Target) {
-	r.SetTargets(append(r.Targets(), *t)...)
-}
-
-// AddFormedTarget forms Target with specified Role and list of
-// ECDSA public keys and adds it to the Record.
-// Deprecated: use [Record.SetTargets] with [TargetByRole] or
-// [TargetByPublicKeys] instead. Note that role and public keys are mutually
-// exclusive.
-func AddFormedTarget(r *Record, role Role, keys ...ecdsa.PublicKey) {
-	t := NewTarget()
-	t.SetRole(role)
-
-	SetTargetECDSAKeys(t, ecdsaKeysToPtrs(keys)...)
-	AddRecordTarget(r, t)
-}
-
 type stringEncoder interface {
 	EncodeToString() string
-}
-
-// AddFilter adds generic filter.
-//
-// If matcher is [MatchNotPresent], the value must be empty. If matcher is
-// numeric (e.g. [MatchNumGT]), value must be a base-10 integer.
-// Deprecated: use [ConstructRecord] with [ConstructFilter] instead.
-func (r *Record) AddFilter(from FilterHeaderType, matcher Match, name, value string) {
-	r.SetFilters(append(r.Filters(), ConstructFilter(from, name, matcher, value)))
-}
-
-// AddObjectAttributeFilter adds filter by object attribute.
-//
-// If m is [MatchNotPresent], the value must be empty. If matcher is numeric
-// (e.g. [MatchNumGT]), value must be a base-10 integer.
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
-func (r *Record) AddObjectAttributeFilter(m Match, key, value string) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(key, m, value)))
-}
-
-// AddObjectVersionFilter adds filter by object version.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
-func (r *Record) AddObjectVersionFilter(m Match, v *version.Version) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectVersion, m, version.EncodeToString(*v))))
-}
-
-// AddObjectIDFilter adds filter by object ID.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] or
-// [NewFilterObjectWithID] instead.
-func (r *Record) AddObjectIDFilter(m Match, id oid.ID) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectID, m, id.EncodeToString())))
-}
-
-// AddObjectContainerIDFilter adds filter by object container ID.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] or
-// [NewFilterObjectsFromContainer] instead.
-func (r *Record) AddObjectContainerIDFilter(m Match, id cid.ID) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectContainerID, m, id.EncodeToString())))
-}
-
-// AddObjectOwnerIDFilter adds filter by object owner ID.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] or
-// [NewFilterObjectOwnerEquals] instead.
-func (r *Record) AddObjectOwnerIDFilter(m Match, id *user.ID) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectOwnerID, m, id.EncodeToString())))
-}
-
-// AddObjectCreationEpoch adds filter by object creation epoch.
-//
-// The m must not be [MatchNotPresent].
-// Deprecated: use [ConstructRecord] with [NewFilterObjectCreationEpochIs] instead.
-func (r *Record) AddObjectCreationEpoch(m Match, epoch uint64) {
-	r.SetFilters(append(r.Filters(), NewFilterObjectCreationEpochIs(m, epoch)))
-}
-
-// AddObjectPayloadLengthFilter adds filter by object payload length.
-//
-// The m must not be [MatchNotPresent].
-// Deprecated: use [ConstructRecord] with [NewFilterObjectPayloadSizeIs] instead.
-func (r *Record) AddObjectPayloadLengthFilter(m Match, size uint64) {
-	r.SetFilters(append(r.Filters(), NewFilterObjectPayloadSizeIs(m, size)))
-}
-
-// AddObjectPayloadHashFilter adds filter by object payload hash value.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
-func (r *Record) AddObjectPayloadHashFilter(m Match, h checksum.Checksum) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectPayloadChecksum, m, h.String())))
-}
-
-// AddObjectTypeFilter adds filter by object type.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
-func (r *Record) AddObjectTypeFilter(m Match, t object.Type) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectType, m, t.String())))
-}
-
-// AddObjectHomomorphicHashFilter adds filter by object payload homomorphic hash value.
-//
-// The m must not be [MatchNotPresent] or numeric (e.g. [MatchNumGT]).
-// Deprecated: use [ConstructRecord] with [NewObjectPropertyFilter] instead.
-func (r *Record) AddObjectHomomorphicHashFilter(m Match, h checksum.Checksum) {
-	r.SetFilters(append(r.Filters(), NewObjectPropertyFilter(FilterObjectPayloadHomomorphicChecksum, m, h.String())))
 }
 
 func (r Record) toProtoMessage() *protoacl.EACLRecord {
@@ -268,31 +149,6 @@ func (r *Record) fromProtoMessage(m *protoacl.EACLRecord) error {
 	r.operation = Operation(m.Operation)
 
 	return nil
-}
-
-// NewRecord creates and returns blank Record instance.
-//
-// Defaults:
-//   - action: ActionUnspecified;
-//   - operation: OperationUnspecified;
-//   - targets: nil,
-//   - filters: nil.
-//
-// Deprecated: use [ConstructRecord] instead.
-func NewRecord() *Record {
-	return new(Record)
-}
-
-// CreateRecord creates, initializes with parameters and returns Record instance.
-// Deprecated: use [ConstructRecord] instead.
-func CreateRecord(action Action, operation Operation) *Record {
-	r := NewRecord()
-	r.action = action
-	r.operation = operation
-	r.targets = []Target{}
-	r.filters = []Filter{}
-
-	return r
 }
 
 // Marshal marshals Record into a protobuf binary form.

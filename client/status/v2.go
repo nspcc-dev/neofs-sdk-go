@@ -85,7 +85,7 @@ func ToError(st *protostatus.Status) error {
 	}
 
 	if decoder == nil {
-		decoder = new(UnrecognizedStatusV2)
+		decoder = new(UnrecognizedStatus)
 	}
 
 	decoder.fromProtoMessage(st)

@@ -36,10 +36,7 @@ func NewSigner(s neofscrypto.Signer, usr ID) Signer {
 }
 
 func newAutoResolvedSigner(s neofscrypto.Signer, pubKey ecdsa.PublicKey) Signer {
-	var id ID
-	id.SetScriptHash((*keys.PublicKey)(&pubKey).GetScriptHash())
-
-	return NewSigner(s, id)
+	return NewSigner(s, NewFromScriptHash((*keys.PublicKey)(&pubKey).GetScriptHash()))
 }
 
 // NewAutoIDSigner returns [Signer] with neofscrypto.ECDSA_SHA512
@@ -55,13 +52,4 @@ func NewAutoIDSigner(key ecdsa.PrivateKey) Signer {
 // [neofscrypto.ECDSA_DETERMINISTIC_SHA256] signature scheme.
 func NewAutoIDSignerRFC6979(key ecdsa.PrivateKey) Signer {
 	return newAutoResolvedSigner(neofsecdsa.SignerRFC6979(key), key.PublicKey)
-}
-
-// ResolveFromECDSAPublicKey resolves [ID] from the given [ecdsa.PublicKey].
-// Deprecated: use [NewFromECDSAPublicKey].
-func ResolveFromECDSAPublicKey(pk ecdsa.PublicKey) ID {
-	var id ID
-	id.SetScriptHash((*keys.PublicKey)(&pk).GetScriptHash())
-
-	return id
 }

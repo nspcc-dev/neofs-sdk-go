@@ -393,30 +393,6 @@ func (x Container) UserAttributes() iter.Seq2[string, string] {
 	}
 }
 
-// IterateAttributes iterates over all Container attributes and passes them
-// into f. The handler MUST NOT be nil.
-//
-// See also [Container.SetAttribute], [Container.Attribute], [Container.IterateUserAttributes].
-// Deprecated: use [Container.Attributes] instead.
-func (x Container) IterateAttributes(f func(key, val string)) {
-	for i := range x.attrs {
-		f(x.attrs[i][0], x.attrs[i][1])
-	}
-}
-
-// IterateUserAttributes iterates over user attributes of the Container and
-// passes them into f. The handler MUST NOT be nil.
-//
-// See also [Container.SetAttribute], [Container.Attribute], [Container.IterateAttributes].
-// Deprecated: use [Container.UserAttributes] instead.
-func (x Container) IterateUserAttributes(f func(key, val string)) {
-	x.IterateAttributes(func(key, val string) {
-		if !strings.HasPrefix(key, sysAttrPrefix) {
-			f(key, val)
-		}
-	})
-}
-
 // SetName sets human-readable name of the Container. Name MUST NOT be empty.
 //
 // See also Name.
@@ -551,23 +527,12 @@ func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
 	return sig.Verify(x.Marshal())
 }
 
-// CalculateID encodes the given Container and passes the result into FromBinary.
-//
-// See also Container.Marshal, AssertID.
-// Deprecated: use cid.NewFromMarshalledContainer(x.Marshal()) instead.
-func (x Container) CalculateID(dst *cid.ID) {
-	*dst = cid.NewFromMarshalledContainer(x.Marshal())
-}
-
 // AssertID checks if the given Container matches its identifier in CAS of the
 // NeoFS containers.
 //
 // See also CalculateID.
 func (x Container) AssertID(id cid.ID) bool {
-	var id2 cid.ID
-	x.CalculateID(&id2)
-
-	return id2 == id
+	return id == cid.NewFromMarshalledContainer(x.Marshal())
 }
 
 // Version returns the NeoFS API version this container was created with.

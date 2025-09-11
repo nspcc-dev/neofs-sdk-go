@@ -690,18 +690,3 @@ func TestContainer_SetIat(t *testing.T) {
 func TestContainer_SetNbf(t *testing.T) {
 	testLifetimeClaim(t, session.Container.Nbf, (*session.Container).SetNbf)
 }
-
-func TestContainer_IssuerPublicKeyBytes(t *testing.T) {
-	var val session.Container
-	require.Zero(t, val.IssuerPublicKeyBytes())
-
-	sig := neofscrypto.NewSignatureFromRawKey(anyValidSignatureScheme, anyValidIssuerPublicKeyBytes, anyValidSignatureBytes)
-	val.AttachSignature(sig)
-	require.Equal(t, anyValidIssuerPublicKeyBytes, val.IssuerPublicKeyBytes())
-
-	otherKey := bytes.Clone(anyValidIssuerPublicKeyBytes)
-	otherKey[0]++
-	sig.SetPublicKeyBytes(otherKey)
-	val.AttachSignature(sig)
-	require.Equal(t, otherKey, val.IssuerPublicKeyBytes())
-}

@@ -127,14 +127,14 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 	var table eacl.Table
 	table.SetCID(containerID)
 
-	r := eacl.NewRecord()
+	r := eacl.Record{}
 	r.SetOperation(eacl.OperationPut)
 	r.SetAction(eacl.ActionAllow)
 
 	var target eacl.Target
 	target.SetRole(eacl.RoleOthers)
 	r.SetTargets(target)
-	table.AddRecord(r)
+	table.SetRecords([]eacl.Record{r})
 
 	return table
 }

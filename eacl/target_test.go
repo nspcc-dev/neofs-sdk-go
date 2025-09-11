@@ -78,25 +78,6 @@ func TestTarget_SetRole(t *testing.T) {
 	require.Equal(t, otherRole, tgt.Role())
 }
 
-func TestTarget_SetBinaryKeys(t *testing.T) {
-	var tgt eacl.Target
-	require.Zero(t, tgt.BinaryKeys())
-
-	ks := make([][]byte, 3)
-	for i := range ks {
-		ks[i] = testutil.RandByteSlice(33)
-	}
-	tgt.SetBinaryKeys(ks)
-	require.Equal(t, ks, tgt.BinaryKeys())
-
-	otherKeys := make([][]byte, 3)
-	for i := range otherKeys {
-		otherKeys[i] = testutil.RandByteSlice(33)
-	}
-	tgt.SetBinaryKeys(otherKeys)
-	require.Equal(t, otherKeys, tgt.BinaryKeys())
-}
-
 func TestTargetByRole(t *testing.T) {
 	tgt := eacl.NewTargetByRole(anyValidRole)
 	require.Equal(t, anyValidRole, tgt.Role())
@@ -133,42 +114,15 @@ func TestNewTargetByScriptHashes(t *testing.T) {
 	assertUsersMatchScriptHashes(t, tgt.Accounts(), hs)
 }
 
-func TestSetTargetAccounts(t *testing.T) {
-	hs := randomScriptHashes(3)
-	var tgt eacl.Target
-	eacl.SetTargetAccounts(&tgt, hs...)
-	assertUsersMatchScriptHashes(t, tgt.Accounts(), hs)
-}
-
-func TestSetTargetECDSAKeys(t *testing.T) {
-	var tgt eacl.Target
-	require.Zero(t, tgt.BinaryKeys())
-	eacl.SetTargetECDSAKeys(&tgt)
-	require.Zero(t, tgt.BinaryKeys())
-
-	eacl.SetTargetECDSAKeys(&tgt, anyECDSAPublicKeysPtr...)
-	require.Equal(t, anyValidECDSABinPublicKeys, tgt.BinaryKeys())
-}
-
-func TestTargetECDSAKeys(t *testing.T) {
-	var tgt eacl.Target
-	require.Empty(t, eacl.TargetECDSAKeys(&tgt))
-
-	tgt.SetBinaryKeys(anyValidECDSABinPublicKeys)
-	require.Equal(t, anyECDSAPublicKeysPtr, eacl.TargetECDSAKeys(&tgt))
-}
-
 func TestTarget_SetRawSubjects(t *testing.T) {
 	var tgt eacl.Target
 	require.Zero(t, tgt.RawSubjects())
 	require.Zero(t, tgt.Accounts())
-	require.Zero(t, tgt.BinaryKeys())
 
 	garbageSubjs := [][]byte{[]byte("foo"), []byte("bar")}
 	tgt.SetRawSubjects(garbageSubjs)
 	require.Equal(t, garbageSubjs, tgt.RawSubjects())
 	require.Zero(t, tgt.Accounts())
-	require.Zero(t, tgt.BinaryKeys())
 
 	subjs := [][]byte{
 		garbageSubjs[0],
@@ -187,5 +141,4 @@ func TestTarget_SetRawSubjects(t *testing.T) {
 	tgt.SetRawSubjects(subjs)
 	require.Equal(t, subjs, tgt.RawSubjects())
 	require.Equal(t, usrs, tgt.Accounts())
-	require.Equal(t, [][]byte{subjs[1], subjs[5]}, tgt.BinaryKeys())
 }

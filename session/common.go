@@ -286,14 +286,6 @@ func (x commonData) ValidAt(epoch uint64) bool {
 	return x.Nbf() <= epoch && x.Iat() <= epoch && x.Exp() >= epoch
 }
 
-// InvalidAt asserts "exp", "nbf" and "iat" claims.
-//
-// Zero session is invalid in any epoch.
-//
-// See also SetExp, SetNbf, SetIat.
-// Deprecated: use inverse [Token.ValidAt] instead.
-func (x commonData) InvalidAt(epoch uint64) bool { return !x.ValidAt(epoch) }
-
 // SetID sets a unique identifier for the session. The identifier value MUST be
 // assigned in a manner that ensures that there is a negligible probability
 // that the same value will be accidentally assigned to a different session.
@@ -348,17 +340,6 @@ func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
 // See also Sign.
 func (x commonData) Issuer() user.ID {
 	return x.issuer
-}
-
-// IssuerPublicKeyBytes returns binary-encoded public key of the session issuer.
-//
-// IssuerPublicKeyBytes MUST NOT be called before ProtoMessage or Sign methods.
-// Deprecated: use Signature method.
-func (x *commonData) IssuerPublicKeyBytes() []byte {
-	if sig, ok := x.Signature(); ok {
-		return sig.PublicKeyBytes()
-	}
-	return nil
 }
 
 // AttachSignature attaches given signature to the token. Use SignedData method

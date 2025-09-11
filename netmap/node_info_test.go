@@ -50,7 +50,7 @@ func init() {
 	validNodeInfo.SetSubdivisionCode(anyValidSubdivCode)
 	validNodeInfo.SetSubdivisionName(anyValidSubdivName)
 	validNodeInfo.SetContinentName(anyValidContinentName)
-	validNodeInfo.SetExternalAddresses(anyValidExternalNetworkEndpoints...)
+	validNodeInfo.SetAttribute("ExternalAddr", strings.Join(anyValidExternalNetworkEndpoints, ","))
 	validNodeInfo.SetVersion(anyValidNodeVersion)
 	validNodeInfo.SetVerifiedNodesDomain(anyValidVerifiedNodesDomain)
 }
@@ -206,23 +206,6 @@ func TestNodeInfo_NetworkEndpoints(t *testing.T) {
 			break
 		}
 	})
-}
-
-func TestNodeInfo_IterateNetworkEndpoints(t *testing.T) {
-	var collected []string
-	validNodeInfo.IterateNetworkEndpoints(func(el string) bool {
-		collected = append(collected, el)
-		return len(collected) == 2
-	})
-	require.Equal(t, anyValidNetworkEndpoints[:2], collected)
-}
-
-func TestIterateNetworkEndpoints(t *testing.T) {
-	var collected []string
-	netmap.IterateNetworkEndpoints(validNodeInfo, func(el string) {
-		collected = append(collected, el)
-	})
-	require.Equal(t, anyValidNetworkEndpoints, collected)
 }
 
 func TestNodeInfo_Hash(t *testing.T) {
@@ -510,14 +493,6 @@ func TestNodeInfo_SetVersion(t *testing.T) {
 	require.Equal(t, anyValidNodeVersion, n.Attribute("Version"))
 }
 
-func TestNodeInfo_SetExternalAddresses(t *testing.T) {
-	var n netmap.NodeInfo
-	require.Zero(t, n.ExternalAddresses())
-
-	n.SetExternalAddresses(anyValidExternalNetworkEndpoints...)
-	require.Equal(t, anyValidExternalNetworkEndpoints, n.ExternalAddresses())
-}
-
 func TestNodeInfo_SetVerifiedNodesDomain(t *testing.T) {
 	var n netmap.NodeInfo
 
@@ -583,7 +558,6 @@ func TestNodeInfo_FromProtoMessage(t *testing.T) {
 	require.Equal(t, anyValidSubdivCode, val.SubdivisionCode())
 	require.Equal(t, anyValidSubdivName, val.SubdivisionName())
 	require.Equal(t, anyValidContinentName, val.ContinentName())
-	require.Equal(t, anyValidExternalNetworkEndpoints, val.ExternalAddresses())
 	require.Equal(t, anyValidNodeVersion, val.Attribute("Version"))
 	require.Equal(t, anyValidVerifiedNodesDomain, val.VerifiedNodesDomain())
 

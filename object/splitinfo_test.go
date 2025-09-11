@@ -100,37 +100,28 @@ func TestSplitInfo_SetSplitID(t *testing.T) {
 func testSplitInfoIDField(
 	t testing.TB,
 	get func(info object.SplitInfo) oid.ID,
-	getFlag func(info object.SplitInfo) (oid.ID, bool),
 	set func(*object.SplitInfo, oid.ID),
 ) {
 	var s object.SplitInfo
 	require.True(t, get(s).IsZero())
-	_, ok := getFlag(s)
-	require.False(t, ok)
 
 	set(&s, anyValidIDs[0])
 	require.Equal(t, anyValidIDs[0], get(s))
-	res, ok := getFlag(s)
-	require.True(t, ok)
-	require.Equal(t, anyValidIDs[0], res)
 
 	set(&s, anyValidIDs[1])
 	require.Equal(t, anyValidIDs[1], get(s))
-	res, ok = getFlag(s)
-	require.True(t, ok)
-	require.Equal(t, anyValidIDs[1], res)
 }
 
 func TestSplitInfo_SetLastPart(t *testing.T) {
-	testSplitInfoIDField(t, object.SplitInfo.GetLastPart, object.SplitInfo.LastPart, (*object.SplitInfo).SetLastPart)
+	testSplitInfoIDField(t, object.SplitInfo.GetLastPart, (*object.SplitInfo).SetLastPart)
 }
 
 func TestSplitInfo_SetLink(t *testing.T) {
-	testSplitInfoIDField(t, object.SplitInfo.GetLink, object.SplitInfo.Link, (*object.SplitInfo).SetLink)
+	testSplitInfoIDField(t, object.SplitInfo.GetLink, (*object.SplitInfo).SetLink)
 }
 
 func TestSplitInfo_SetFirstPart(t *testing.T) {
-	testSplitInfoIDField(t, object.SplitInfo.GetFirstPart, object.SplitInfo.FirstPart, (*object.SplitInfo).SetFirstPart)
+	testSplitInfoIDField(t, object.SplitInfo.GetFirstPart, (*object.SplitInfo).SetFirstPart)
 }
 
 func TestSplitInfo(t *testing.T) {
@@ -214,17 +205,8 @@ func TestSplitInfo_FromProtoMessage(t *testing.T) {
 	require.NoError(t, s.FromProtoMessage(m))
 	require.Equal(t, anyValidSplitID, s.SplitID())
 	require.Equal(t, anyValidIDs[0], s.GetLastPart())
-	id, ok := s.LastPart()
-	require.True(t, ok)
-	require.Equal(t, anyValidIDs[0], id)
 	require.Equal(t, anyValidIDs[1], s.GetLink())
-	id, ok = s.Link()
-	require.True(t, ok)
-	require.Equal(t, anyValidIDs[1], id)
 	require.Equal(t, anyValidIDs[2], s.GetFirstPart())
-	id, ok = s.FirstPart()
-	require.True(t, ok)
-	require.Equal(t, anyValidIDs[2], id)
 
 	// reset optional fields
 	m.SplitId = nil
@@ -235,15 +217,9 @@ func TestSplitInfo_FromProtoMessage(t *testing.T) {
 
 	require.Zero(t, s2.SplitID())
 	require.True(t, s2.GetFirstPart().IsZero())
-	_, ok = s2.FirstPart()
-	require.False(t, ok)
 	require.Equal(t, anyValidIDs[0], s2.GetLastPart())
 	require.True(t, s2.GetFirstPart().IsZero())
-	_, ok = s2.Link()
 	require.True(t, s2.GetLink().IsZero())
-	require.False(t, ok)
-	_, ok = s2.Link()
-	require.False(t, ok)
 
 	// either linking or last part must be set, so lets swap
 	m.Link = protoIDFromBytes(anyValidIDs[1][:])
@@ -252,8 +228,6 @@ func TestSplitInfo_FromProtoMessage(t *testing.T) {
 
 	require.Equal(t, anyValidIDs[1], s2.GetLink())
 	require.True(t, s2.GetLastPart().IsZero())
-	_, ok = s2.LastPart()
-	require.False(t, ok)
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {

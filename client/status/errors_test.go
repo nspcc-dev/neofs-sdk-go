@@ -76,8 +76,8 @@ func TestErrors(t *testing.T) {
 		},
 
 		{
-			errs:        []error{UnrecognizedStatusV2{}, new(UnrecognizedStatusV2)},
-			errVariable: ErrUnrecognizedStatusV2,
+			errs:        []error{UnrecognizedStatus{}, new(UnrecognizedStatus)},
+			errVariable: ErrUnrecognizedStatus,
 		},
 	} {
 		require.NotEmpty(t, tc.errs)

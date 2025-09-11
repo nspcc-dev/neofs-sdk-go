@@ -3,19 +3,14 @@ package eacl_test
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/sha256"
 	"math/big"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,48 +37,11 @@ var (
 
 // Other NeoFS stuff.
 var (
-	anyValidObjectID           = oid.ID{86, 149, 134, 57, 161, 211, 240, 124, 106, 146, 201, 140, 249, 50, 158, 38, 82, 140, 5, 160, 180, 117, 106, 214, 47, 255, 166, 89, 55, 99, 178, 66}
-	anyValidObjectIDString     = "6pzJXAjxTH6i38Yk9dFWAPY6wrUpSLi4DUwZf82EompD"
-	anyValidProtoVersion       = version.New(4835, 1532621)
-	anyValidProtoVersionString = "v4835.1532621"
-	anyValidContainerID        = cid.ID{243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227}
-	anyValidContainerIDString  = "HRK1fwY2PMS4mgy292eZeDBr5XyH6mHbXzx7ds3n81vz"
-	anyValidUserID             = user.ID{53, 52, 176, 7, 17, 140, 220, 179, 170, 128, 138, 214, 130, 87, 179, 211, 36, 197, 16, 38, 50, 88, 207, 120, 145}
-	anyValidUserIDString       = "NQiZCLuU4EeP47mMFW6FWEu7Pfm4MDFVBn"
-	anyData                    = []byte("Hello, world!")
-	anyUserSet                 = []user.ID{
+	anyValidContainerID = cid.ID{243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227}
+	anyUserSet          = []user.ID{
 		{53, 121, 249, 124, 139, 174, 30, 193, 143, 226, 163, 208, 188, 194, 173, 123, 60, 84, 224, 229, 4, 14, 206, 19, 117},
 		{53, 246, 34, 60, 106, 147, 200, 106, 111, 144, 9, 61, 86, 46, 111, 148, 91, 65, 206, 216, 139, 168, 188, 23, 102},
 		{53, 164, 213, 123, 6, 115, 90, 134, 224, 150, 72, 192, 236, 220, 188, 131, 102, 5, 152, 164, 166, 222, 119, 72, 228},
-	}
-	anyValidChecksums = []checksum.Checksum{
-		checksum.New(0, anyData),
-		checksum.New(4893983, anyData),
-		checksum.NewSHA256(sha256.Sum256(anyData)),
-		checksum.NewTillichZemor(tz.Sum(anyData)),
-	}
-	// corresponds to anyValidChecksums.
-	anyValidStringChecksums = []string{
-		"CHECKSUM_TYPE_UNSPECIFIED:48656c6c6f2c20776f726c6421",
-		"4893983:48656c6c6f2c20776f726c6421",
-		"SHA256:315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3",
-		"TZ:0000014249f10795c0240eddca8a6ebf000001c9c4dc98b017fd92ad62979c8c0000008d94cd98a457b983e937838dcd000000dbc8689e75c7dd8925ad0df727",
-	}
-	anyValidObjectTypes = []object.Type{
-		32852,
-		object.TypeRegular,
-		object.TypeTombstone,
-		object.TypeStorageGroup, //nolint:staticcheck // deprecated, but it's a test.
-		object.TypeLock,
-		object.TypeLink,
-	}
-	anyValidStringObjectTypes = []string{
-		"32852",
-		"REGULAR",
-		"TOMBSTONE",
-		"STORAGE_GROUP",
-		"LOCK",
-		"LINK",
 	}
 )
 

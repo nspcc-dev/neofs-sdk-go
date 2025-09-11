@@ -84,24 +84,9 @@ func (x ID) ProtoMessage() *refs.OwnerID {
 	return &refs.OwnerID{Value: x[:]}
 }
 
-// SetScriptHash forms user ID from wallet address scripthash.
-// Deprecated: use [NewFromScriptHash] instead.
-func (x *ID) SetScriptHash(scriptHash util.Uint160) { *x = NewFromScriptHash(scriptHash) }
-
 // ScriptHash gets scripthash from user ID.
 func (x ID) ScriptHash() util.Uint160 {
 	return util.Uint160(x[1:21])
-}
-
-// WalletBytes returns NeoFS user ID as Neo3 wallet address in a binary format.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-//
-// See also Neo3 wallet docs.
-// Deprecated: use x[:] instead.
-func (x ID) WalletBytes() []byte {
-	return x[:]
 }
 
 // EncodeToString encodes ID into NeoFS API V2 protocol string.
@@ -133,12 +118,6 @@ func (x *ID) DecodeString(s string) error {
 // be used to encode ID into NeoFS protocol string.
 func (x ID) String() string {
 	return x.EncodeToString()
-}
-
-// Equals defines a comparison relation between two ID instances.
-// Deprecated: ID is comparable.
-func (x ID) Equals(x2 ID) bool {
-	return x == x2
 }
 
 // IsZero checks whether ID is zero.

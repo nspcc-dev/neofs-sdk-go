@@ -8,37 +8,12 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
-	"testing"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
-	"github.com/stretchr/testify/require"
 )
-
-// SignedComponent contains data to be signed and its signature to be verified.
-type SignedComponent interface {
-	SignedData() []byte
-	Sign(neofscrypto.Signer) error
-	VerifySignature() bool
-}
-
-// TestSignedData tests signing and verification of
-// [SignedComponent.SignedData].
-func TestSignedData(tb testing.TB, signer neofscrypto.Signer, cmp SignedComponent) {
-	data := cmp.SignedData()
-
-	sig, err := signer.Sign(data)
-	require.NoError(tb, err)
-
-	static := neofscrypto.NewStaticSigner(signer.Scheme(), sig, signer.Public())
-
-	err = cmp.Sign(static)
-	require.NoError(tb, err)
-
-	require.True(tb, cmp.VerifySignature())
-}
 
 type failedSigner struct {
 	neofscrypto.Signer

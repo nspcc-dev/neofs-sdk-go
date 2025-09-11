@@ -60,8 +60,8 @@ func init() {
 	validSearchFilters.AddFilter("k7", "v7", object.MatchNumLT)
 	validSearchFilters.AddFilter("k8", "v8", object.MatchNumLE)
 	validSearchFilters.AddObjectVersionFilter(100, anyValidVersions[0])
-	validSearchFilters.AddObjectIDFilter(101, anyValidIDs[0])
-	validSearchFilters.AddObjectContainerIDFilter(102, anyValidContainers[0])
+	validSearchFilters.AddFilter(object.FilterID, anyValidIDs[0].String(), 101)
+	validSearchFilters.AddFilter(object.FilterContainerID, anyValidContainers[0].String(), 102)
 	validSearchFilters.AddObjectOwnerIDFilter(103, anyValidUsers[0])
 	validSearchFilters.AddCreationEpochFilter(104, anyValidCreationEpoch)
 	validSearchFilters.AddPayloadSizeFilter(105, anyValidPayloadSize)
@@ -271,14 +271,6 @@ func TestSearchFilters_AddObjectVersionFilter(t *testing.T) {
 	assertSearchFilter(t, fs, 0, object.FilterVersion, anyValidSearchMatcher, "v88789927.2018985309", true)
 }
 
-func TestSearchFilters_AddObjectContainerIDFilter(t *testing.T) {
-	var fs object.SearchFilters
-	fs.AddObjectContainerIDFilter(anyValidSearchMatcher, anyValidContainers[0])
-	require.Len(t, fs, 1)
-	assertSearchFilter(t, fs, 0, object.FilterContainerID, anyValidSearchMatcher,
-		"HWpbBkyxCi7nhDnn4W3v5rYt2mDfH2wedknQzRkTwquj", true)
-}
-
 func TestSearchFilters_AddObjectOwnerIDFilter(t *testing.T) {
 	var fs object.SearchFilters
 	fs.AddObjectOwnerIDFilter(anyValidSearchMatcher, anyValidUsers[0])
@@ -306,14 +298,6 @@ func TestSearchFilters_AddParentIDFilter(t *testing.T) {
 	fs.AddParentIDFilter(anyValidSearchMatcher, anyValidIDs[0])
 	require.Len(t, fs, 1)
 	assertSearchFilter(t, fs, 0, object.FilterParentID, anyValidSearchMatcher,
-		"CzyDjRYWpwLHxqXVFBXKQGP5XM7ebAR9ndTvBdaSxMMV", true)
-}
-
-func TestSearchFilters_AddObjectIDFilter(t *testing.T) {
-	var fs object.SearchFilters
-	fs.AddObjectIDFilter(anyValidSearchMatcher, anyValidIDs[0])
-	require.Len(t, fs, 1)
-	assertSearchFilter(t, fs, 0, object.FilterID, anyValidSearchMatcher,
 		"CzyDjRYWpwLHxqXVFBXKQGP5XM7ebAR9ndTvBdaSxMMV", true)
 }
 

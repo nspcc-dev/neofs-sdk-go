@@ -66,7 +66,7 @@ var invalidProtoEACLTestcases = []struct {
 func TestTable_AddRecord(t *testing.T) {
 	for i := range anyValidRecords {
 		var tbl eacl.Table
-		tbl.AddRecord(&anyValidRecords[i])
+		tbl.SetRecords([]eacl.Record{anyValidRecords[i]})
 		require.Len(t, tbl.Records(), 1)
 		require.Equal(t, anyValidRecords[i], tbl.Records()[0])
 	}
@@ -78,17 +78,6 @@ func TestTable_LimitToContainer(t *testing.T) {
 	require.Zero(t, tbl.GetCID())
 	tbl.SetCID(cnr)
 	require.Equal(t, cnr, tbl.GetCID())
-}
-
-func TestTable_CID(t *testing.T) {
-	cnr := cidtest.ID()
-	var tbl eacl.Table
-	_, ok := tbl.CID()
-	require.False(t, ok)
-	tbl.SetCID(cnr)
-	res, ok := tbl.CID()
-	require.True(t, ok)
-	require.Equal(t, cnr, res)
 }
 
 func TestTable_SetCID(t *testing.T) {
@@ -248,8 +237,7 @@ func TestSetRecords(t *testing.T) {
 func TestConstructTable(t *testing.T) {
 	tbl := eacl.ConstructTable(anyValidRecords)
 	require.Equal(t, anyValidRecords, tbl.Records())
-	_, ok := tbl.CID()
-	require.False(t, ok)
+	require.Zero(t, tbl.GetCID())
 	require.EqualValues(t, 2, tbl.Version().Major())
 	require.EqualValues(t, 18, tbl.Version().Minor())
 }
@@ -258,19 +246,8 @@ func TestNewTableForContainer(t *testing.T) {
 	cnr := cidtest.ID()
 	tbl := eacl.NewTableForContainer(cnr, anyValidRecords)
 	require.Equal(t, anyValidRecords, tbl.Records())
-	cnr2, ok := tbl.CID()
-	require.True(t, ok)
+	cnr2 := tbl.GetCID()
 	require.Equal(t, cnr, cnr2)
 	require.EqualValues(t, 2, tbl.Version().Major())
 	require.EqualValues(t, 18, tbl.Version().Minor())
-}
-
-func TestCreateTable(t *testing.T) {
-	tbl := eacl.CreateTable(anyValidContainerID)
-	require.EqualValues(t, 2, tbl.Version().Major())
-	require.EqualValues(t, 18, tbl.Version().Minor())
-	cnr, ok := tbl.CID()
-	require.True(t, ok)
-	require.Equal(t, anyValidContainerID, cnr)
-	require.Zero(t, tbl.Records())
 }

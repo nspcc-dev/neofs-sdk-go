@@ -7,7 +7,6 @@ import (
 	"iter"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/nspcc-dev/hrw/v2"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -210,33 +209,6 @@ func (x NodeInfo) NetworkEndpoints() iter.Seq[string] {
 	return slices.Values(x.addrs)
 }
 
-// IterateNetworkEndpoints iterates over network endpoints announced by the
-// node and pass them into f. Breaks iteration on f's true return. Handler
-// MUST NOT be nil.
-//
-// Zero NodeInfo contains no endpoints which is incorrect according to
-// NeoFS system requirements.
-//
-// See also SetNetworkEndpoints.
-// Deprecated: use [NodeInfo.NetworkEndpoints] instead.
-func (x NodeInfo) IterateNetworkEndpoints(f func(string) bool) {
-	for i := range x.addrs {
-		if f(x.addrs[i]) {
-			return
-		}
-	}
-}
-
-// IterateNetworkEndpoints is an extra-sugared function over IterateNetworkEndpoints
-// method which allows to unconditionally iterate over all node's network endpoints.
-// Deprecated: use [NodeInfo.NetworkEndpoints] instead.
-func IterateNetworkEndpoints(node NodeInfo, f func(string)) {
-	node.IterateNetworkEndpoints(func(addr string) bool {
-		f(addr)
-		return false
-	})
-}
-
 // assert NodeInfo type provides hrw.Hasher required for HRW sorting.
 var _ hrw.Hashable = NodeInfo{}
 
@@ -429,33 +401,7 @@ const (
 	// attrCapacity is a key to the node attribute that indicates the
 	// total available disk space in Gigabytes.
 	attrCapacity = "Capacity"
-
-	// attrExternalAddr is a key for the attribute storing node external addresses.
-	attrExternalAddr = "ExternalAddr"
-	// sepExternalAddr is a separator for multi-value ExternalAddr attribute.
-	sepExternalAddr = ","
 )
-
-// SetExternalAddresses sets multi-addresses to use
-// to connect to this node from outside.
-//
-// Panics if addr is an empty list.
-// Deprecated: use [NodeInfo.SetNetworkEndpoints] instead.
-func (x *NodeInfo) SetExternalAddresses(addr ...string) {
-	x.SetAttribute(attrExternalAddr, strings.Join(addr, sepExternalAddr))
-}
-
-// ExternalAddresses returns list of multi-addresses to use
-// to connect to this node from outside.
-// Deprecated: use [NodeInfo.NetworkEndpoints] instead.
-func (x NodeInfo) ExternalAddresses() []string {
-	a := x.Attribute(attrExternalAddr)
-	if len(a) == 0 {
-		return nil
-	}
-
-	return strings.Split(a, sepExternalAddr)
-}
 
 // NumberOfAttributes returns number of attributes announced by the node.
 //
@@ -472,15 +418,6 @@ func (x NodeInfo) Attributes() iter.Seq2[string, string] {
 				return
 			}
 		}
-	}
-}
-
-// IterateAttributes iterates over all node attributes and passes the into f.
-// Handler MUST NOT be nil.
-// Deprecated: use [NodeInfo.Attributes] instead.
-func (x NodeInfo) IterateAttributes(f func(key, value string)) {
-	for i := range x.attrs {
-		f(x.attrs[i][0], x.attrs[i][1])
 	}
 }
 

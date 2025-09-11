@@ -76,12 +76,6 @@ func generate(withParent bool) object.Object {
 	return *x
 }
 
-// Raw returns random object.Object.
-// Deprecated: (v1.0.0) use Object instead.
-func Raw() object.Object {
-	return Object()
-}
-
 // Object returns random object.Object.
 func Object() object.Object {
 	return generate(true)
@@ -115,8 +109,7 @@ func SplitInfo() object.SplitInfo {
 func SearchFilters() object.SearchFilters {
 	x := object.NewSearchFilters()
 
-	x.AddObjectIDFilter(object.MatchStringEqual, oidtest.ID())
-	x.AddObjectContainerIDFilter(object.MatchStringNotEqual, cidtest.ID())
+	x.AddParentIDFilter(object.MatchStringEqual, oidtest.ID())
 
 	return x
 }
