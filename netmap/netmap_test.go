@@ -48,8 +48,6 @@ func init() {
 	anyValidNodes[1].SetSubdivisionName("Helmand")
 	anyValidNodes[0].SetContinentName("Europe")
 	anyValidNodes[1].SetContinentName("Africa") // wrong, but only for diff
-	anyValidNodes[0].SetExternalAddresses("ext_endpoint_0_0", "ext_endpoint_0_1")
-	anyValidNodes[1].SetExternalAddresses("ext_endpoint_1_0", "ext_endpoint_1_1")
 	anyValidNodes[0].SetVersion("v0.1.2")
 	anyValidNodes[1].SetVersion("v3.4.5")
 	anyValidNodes[0].SetVerifiedNodesDomain("domain0.neofs")

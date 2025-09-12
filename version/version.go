@@ -127,13 +127,6 @@ func EncodeToString(v Version) string {
 	return fmt.Sprintf("v%d.%d", v.Major(), v.Minor())
 }
 
-// Equal returns true if versions are identical.
-// Deprecated: Version is comparable.
-func (v Version) Equal(v2 Version) bool {
-	return v.Major() == v2.Major() &&
-		v.Minor() == v2.Minor()
-}
-
 // MarshalJSON encodes Version into a JSON format of the NeoFS API
 // protocol (Protocol Buffers JSON).
 //

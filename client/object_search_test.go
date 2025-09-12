@@ -1081,11 +1081,11 @@ func TestClient_SearchObjects(t *testing.T) {
 			t.Run("prohibited", func(t *testing.T) {
 				var fs object.SearchFilters
 				fs.AddFilter("attr", "val", object.MatchStringEqual)
-				fs.AddObjectContainerIDFilter(object.SearchMatchType(rand.Int31()), cidtest.ID())
+				fs.AddFilter(object.FilterContainerID, cidtest.ID().String(), object.SearchMatchType(rand.Int31()))
 				_, _, err := okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:containerID")
 				fs = fs[:1]
-				fs.AddObjectIDFilter(object.SearchMatchType(rand.Int31()), oidtest.ID())
+				fs.AddFilter(object.FilterID, oidtest.ID().String(), object.SearchMatchType(rand.Int31()))
 				_, _, err = okConn.SearchObjects(ctx, anyCID, fs, []string{"attr"}, anyRequestCursor, anyValidSigner, anyValidOpts)
 				require.EqualError(t, err, "invalid filter #1: prohibited attribute $Object:objectID")
 			})

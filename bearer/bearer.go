@@ -1,6 +1,7 @@
 package bearer
 
 import (
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
@@ -202,14 +203,6 @@ func (b Token) ValidAt(epoch uint64) bool {
 	return b.Nbf() <= epoch && b.Iat() <= epoch && b.Exp() >= epoch
 }
 
-// InvalidAt asserts "exp", "nbf" and "iat" claims for the given epoch.
-//
-// Zero Container is invalid in any epoch.
-//
-// See also SetExp, SetNbf, SetIat.
-// Deprecated: use inverse [Token.ValidAt] instead.
-func (b Token) InvalidAt(epoch uint64) bool { return !b.ValidAt(epoch) }
-
 // SetEACLTable sets eacl.Table that replaces the one from the issuer's
 // container. If table has specified container, bearer token can be used only
 // for operations within this specific container. Otherwise, Token can be used
@@ -366,26 +359,6 @@ func (b *Token) UnmarshalJSON(data []byte) error {
 	return neofsproto.UnmarshalJSONOptional(data, b, (*Token).fromProtoMessage)
 }
 
-// SigningKeyBytes returns issuer's public key in a binary format of
-// NeoFS API protocol.
-//
-// Unsigned [Token] has empty key.
-//
-// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
-// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-//
-// See also [Token.ResolveIssuer].
-// Deprecated: use [Token.Signature] instead.
-func (b Token) SigningKeyBytes() []byte {
-	if sig, ok := b.Signature(); ok {
-		return sig.PublicKeyBytes()
-	}
-	return nil
-}
-
 // SetIssuer sets NeoFS user ID of the Token issuer.
 //
 // See also [Token.Issuer], [Token.Sign].
@@ -428,6 +401,6 @@ func idFromKey(id *user.ID, key []byte) error {
 		return fmt.Errorf("decode owner failed: %w", err)
 	}
 
-	id.SetScriptHash(pk.GetScriptHash())
+	*id = user.NewFromECDSAPublicKey(ecdsa.PublicKey(pk))
 	return nil
 }

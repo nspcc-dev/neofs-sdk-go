@@ -80,11 +80,9 @@ func TestVersionComparable(t *testing.T) {
 	y := x
 	require.True(t, x == y)
 	require.False(t, x != y)
-	require.True(t, x.Equal(y))
 	y = versiontest.Version()
 	require.False(t, x == y)
 	require.True(t, x != y)
-	require.False(t, x.Equal(y))
 }
 
 func TestVersion_String(t *testing.T) {

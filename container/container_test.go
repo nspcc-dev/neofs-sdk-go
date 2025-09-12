@@ -14,7 +14,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	containertest "github.com/nspcc-dev/neofs-sdk-go/container/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -955,16 +954,13 @@ func TestContainer_WriteDomain(t *testing.T) {
 	require.Equal(t, dOther, val.ReadDomain())
 }
 
-func TestCalculateID(t *testing.T) {
+func TestAssertID(t *testing.T) {
 	val := containertest.Container()
 
 	require.False(t, val.AssertID(cidtest.ID()))
 
-	var id cid.ID
-	val.CalculateID(&id)
-
 	h := sha256.Sum256(val.Marshal())
-	require.EqualValues(t, h, id)
+	require.True(t, val.AssertID(h))
 }
 
 func TestContainer_CalculateSignature(t *testing.T) {

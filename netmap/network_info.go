@@ -262,36 +262,6 @@ func (x NetworkInfo) RawNetworkParameters() iter.Seq2[string, []byte] {
 	}
 }
 
-// IterateRawNetworkParameters iterates over all raw networks parameters set
-// using SetRawNetworkParameter and passes them into f.
-//
-// Handler MUST NOT be nil. Handler MUST NOT mutate value parameter.
-//
-// Zero NetworkInfo has no network parameters.
-// Deprecated: use [NetworkInfo.RawNetworkParameters] instead.
-func (x *NetworkInfo) IterateRawNetworkParameters(f func(name string, value []byte)) {
-	for i := range x.prms {
-		name := string(x.prms[i][0])
-		switch name {
-		default:
-			f(name, x.prms[i][1])
-		case
-			configEigenTrustAlpha,
-			configAuditFee,
-			configStoragePrice,
-			configContainerFee,
-			configNamedContainerFee,
-			configEigenTrustNumberOfIterations,
-			configEpochDuration,
-			configIRCandidateFee,
-			configMaxObjSize,
-			configWithdrawalFee,
-			configHomomorphicHashingDisabled,
-			configMaintenanceModeAllowed:
-		}
-	}
-}
-
 func (x *NetworkInfo) setConfigUint64(name string, num uint64) {
 	val := make([]byte, 8)
 	binary.LittleEndian.PutUint64(val, num)

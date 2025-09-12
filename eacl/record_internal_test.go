@@ -4,23 +4,14 @@ import (
 	"bytes"
 	"testing"
 
+	"github.com/nspcc-dev/neo-go/pkg/util"
 	"github.com/stretchr/testify/require"
 )
 
 func TestRecord_CopyTo(t *testing.T) {
-	var record Record
-	record.action = ActionAllow
-	record.operation = OperationPut
-	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
-
-	var target Target
-	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
-		{1, 2, 3},
-	})
-
-	record.SetTargets(target)
-	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+	var record = ConstructRecord(ActionAllow, OperationPut,
+		[]Target{NewTargetByRole(1), NewTargetByScriptHashes([]util.Uint160{{1, 2, 3}})},
+		NewObjectPropertyFilter("key", MatchStringEqual, "value"))
 
 	t.Run("copy", func(t *testing.T) {
 		var dst Record

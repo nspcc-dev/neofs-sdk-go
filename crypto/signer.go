@@ -103,51 +103,6 @@ type PublicKey interface {
 	Verify(data, signature []byte) bool
 }
 
-// StaticSigner is an emulation of a real [Signer] (implementing the same
-// interface). While normally [Signer] is expected to hold a private key and
-// use it to calculate [Signature], StaticSigner contains already precalculated
-// serialized signature and doesn't need a private key. Use it when you already
-// have an appropriate signature (calculated elsewhere, not by SDK code), but
-// want to attach it to some structure/request.
-// Deprecated: construct [Signature] instead.
-type StaticSigner struct {
-	scheme Scheme
-	sig    []byte
-	pubKey PublicKey
-}
-
-// NewStaticSigner creates new StaticSigner.
-// Deprecated: use [NewSignature] instead.
-func NewStaticSigner(scheme Scheme, sig []byte, pubKey PublicKey) *StaticSigner {
-	return &StaticSigner{
-		scheme: scheme,
-		sig:    sig,
-		pubKey: pubKey,
-	}
-}
-
-// Scheme returns the scheme that [StaticSigner] was instantiated with.
-// Implements [Signer].
-func (s *StaticSigner) Scheme() Scheme {
-	return s.scheme
-}
-
-// Sign returns precalculated serialized signature that was provided upon
-// [StaticSigner] creation. Never returns an error.
-// Implements [Signer].
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (s *StaticSigner) Sign(_ []byte) ([]byte, error) {
-	return s.sig, nil
-}
-
-// Public returns the public key that [StaticSigner] was instantiated with.
-// Implements [Signer].
-func (s *StaticSigner) Public() PublicKey {
-	return s.pubKey
-}
-
 // SignerV2 allows to sign authorized data.
 type SignerV2 interface {
 	SignData(data []byte) (Signature, error)

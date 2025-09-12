@@ -106,27 +106,6 @@ func TestID_ProtoMessage(t *testing.T) {
 	require.Equal(t, id[:], m.GetValue())
 }
 
-func TestID_Encode(t *testing.T) {
-	var id cid.ID
-
-	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, cid.Size-1)
-
-		require.Panics(t, func() {
-			id.Encode(dst)
-		})
-	})
-
-	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, cid.Size)
-
-		require.NotPanics(t, func() {
-			id.Encode(dst)
-		})
-		require.Equal(t, "11111111111111111111111111111111", id.EncodeToString())
-	})
-}
-
 func TestIDComparable(t *testing.T) {
 	x := cidtest.ID()
 	y := x
@@ -135,8 +114,6 @@ func TestIDComparable(t *testing.T) {
 	y = cidtest.OtherID(x)
 	require.False(t, x == y)
 	require.True(t, x != y)
-	require.True(t, x.Equals(x))
-	require.False(t, x.Equals(y))
 }
 
 func TestNewFromContainerBinary(t *testing.T) {
@@ -150,13 +127,6 @@ func TestNewFromContainerBinary(t *testing.T) {
 		cnrCp[i]++
 		require.NotEqual(t, id, cid.NewFromMarshalledContainer(cnrCp))
 	}
-
-	var id2 cid.ID
-	id2.FromBinary(cnr)
-	require.Equal(t, id, id2)
-	var id3 cid.ID
-	id3.SetSHA256(sha256.Sum256(cnr))
-	require.Equal(t, id, id3)
 }
 
 func TestID_String(t *testing.T) {

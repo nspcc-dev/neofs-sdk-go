@@ -34,7 +34,7 @@ func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	b.ResetTimer()
 	b.StartTimer()
 	for range b.N {
-		if !eacl.EqualTables(*t, t2) {
+		if !bytes.Equal(t.Marshal(), t2.Marshal()) {
 			b.Fail()
 		}
 	}
@@ -75,7 +75,7 @@ func TargetN(n int) *eacl.Target {
 		keys[i] = testutil.RandByteSlice(32)
 	}
 
-	x.SetBinaryKeys(keys)
+	x.SetRawSubjects(keys)
 
 	return &x
 }

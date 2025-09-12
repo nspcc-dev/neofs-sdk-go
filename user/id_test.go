@@ -26,11 +26,6 @@ var (
 // corresponds to validBytes.
 var validString = "NQZkR7mG74rJsGAHnpkiFeU9c4f5VLN54f"
 
-func TestID_WalletBytes(t *testing.T) {
-	id := usertest.ID()
-	require.Equal(t, id[:], id.WalletBytes())
-}
-
 func TestID_FromProtoMessage(t *testing.T) {
 	m := &refs.OwnerID{Value: validBytes[:]}
 	var id user.ID
@@ -100,17 +95,6 @@ func TestID_DecodeString(t *testing.T) {
 	})
 }
 
-func TestID_Equal(t *testing.T) {
-	id1 := usertest.ID()
-	id2 := usertest.ID()
-	id3 := id1
-
-	require.True(t, id1.Equals(id1)) // self-equality
-	require.True(t, id1.Equals(id3))
-	require.True(t, id3.Equals(id1)) // commutativity
-	require.False(t, id1.Equals(id2))
-}
-
 func TestIDComparable(t *testing.T) {
 	x := usertest.ID()
 	y := x
@@ -127,9 +111,6 @@ func TestNewFromScriptHash(t *testing.T) {
 	require.EqualValues(t, 0x35, id[0])
 	require.Equal(t, scriptHash[:], id[1:21])
 	require.Equal(t, []byte{78, 31, 235, 139}, id[21:])
-	var id2 user.ID
-	id2.SetScriptHash(scriptHash)
-	require.Equal(t, id, id2)
 }
 
 func TestNewFromECDSAPublicKey(t *testing.T) {

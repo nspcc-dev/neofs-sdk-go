@@ -391,15 +391,6 @@ func (o Object) MarshalHeaderJSON() ([]byte, error) {
 	return neofsproto.MarshalMessageJSON(o.header.protoMessage())
 }
 
-// ID returns object identifier.
-//
-// See also [Object.SetID].
-// Deprecated: use [Object.GetID] instead.
-func (o *Object) ID() (oid.ID, bool) {
-	id := o.GetID()
-	return id, !id.IsZero()
-}
-
 // GetID returns identifier of the object. Zero return means unset ID.
 //
 // See also [Object.SetID].
@@ -480,15 +471,6 @@ func (o *Object) SetPayloadSize(v uint64) {
 	o.header.payloadLn = v
 }
 
-// ContainerID returns identifier of the related container.
-//
-// See also [Object.SetContainerID].
-// Deprecated: use [Object.GetContainerID] instead.
-func (o *Object) ContainerID() (v cid.ID, isSet bool) {
-	cnr := o.GetContainerID()
-	return cnr, !cnr.IsZero()
-}
-
 // SetContainerID sets identifier of the related container.
 //
 // See also [Object.GetContainerID].
@@ -504,24 +486,12 @@ func (o Object) GetContainerID() cid.ID {
 	return o.header.cnr
 }
 
-// OwnerID returns identifier of the object owner.
-//
-// See also [Object.SetOwnerID].
-// Deprecated: use [Object.Owner] instead.
-func (o Object) OwnerID() *user.ID { res := o.Owner(); return &res }
-
 // Owner returns user ID of the object owner. Zero return means unset ID.
 //
 // See also [Object.SetOwner].
 func (o Object) Owner() user.ID {
 	return o.header.owner
 }
-
-// SetOwnerID sets identifier of the object owner.
-//
-// See also [Object.OwnerID].
-// Deprecated: use [Object.SetOwner] accepting value instead.
-func (o *Object) SetOwnerID(v *user.ID) { o.SetOwner(*v) }
 
 // SetOwner sets identifier of the object owner.
 //
@@ -617,15 +587,6 @@ func (o *Object) SetAttributes(v ...Attribute) {
 	o.header.attrs = v
 }
 
-// PreviousID returns identifier of the previous sibling object.
-//
-// See also [Object.SetPreviousID].
-// Deprecated: use [Object.GetPreviousID] instead.
-func (o *Object) PreviousID() (oid.ID, bool) {
-	id := o.GetPreviousID()
-	return id, !id.IsZero()
-}
-
 // GetPreviousID returns identifier of the previous sibling object. Zero return
 // means unset ID.
 //
@@ -697,15 +658,6 @@ func (o Object) SplitID() *SplitID {
 // See also [Object.SplitID].
 func (o *Object) SetSplitID(id *SplitID) {
 	o.header.split.id = id.ToV2()
-}
-
-// ParentID returns identifier of the parent object.
-//
-// See also [Object.SetParentID].
-// Deprecated: use [Object.GetParentID] instead.
-func (o *Object) ParentID() (oid.ID, bool) {
-	id := o.GetParentID()
-	return id, !id.IsZero()
 }
 
 // GetParentID returns identifier of the parent object. Zero return means unset

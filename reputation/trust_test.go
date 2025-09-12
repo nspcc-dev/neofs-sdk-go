@@ -167,7 +167,13 @@ func TestGlobalTrust_SignedData(t *testing.T) {
 
 	require.False(t, val.VerifySignature())
 
-	neofscryptotest.TestSignedData(t, neofscryptotest.Signer(), &val)
+	sd := val.SignedData()
+	require.NotNil(t, sd)
+
+	require.NoError(t, val.Sign(neofscryptotest.Signer()))
+
+	sd2 := val.SignedData()
+	require.Equal(t, sd, sd2)
 }
 
 func TestGlobalTrustEncoding(t *testing.T) {

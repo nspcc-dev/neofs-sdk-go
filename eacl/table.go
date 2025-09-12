@@ -1,7 +1,6 @@
 package eacl
 
 import (
-	"bytes"
 	"fmt"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -62,10 +61,6 @@ func (t Table) CopyTo(dst *Table) {
 	}
 }
 
-// CID returns identifier of the container that should use given access control rules.
-// Deprecated: use [Table.GetCID] instead.
-func (t Table) CID() (cid.ID, bool) { return t.cid, !t.cid.IsZero() }
-
 // GetCID returns identifier of the NeoFS container to which the eACL scope is
 // limited. Zero return means the eACL may be applied to any container.
 func (t Table) GetCID() cid.ID { return t.cid }
@@ -100,14 +95,6 @@ func (t Table) Records() []Record {
 // Make a copy if you need to change it.
 func (t *Table) SetRecords(rs []Record) {
 	t.records = rs
-}
-
-// AddRecord adds single eACL rule.
-// Deprecated: use [Table.SetRecords] instead.
-func (t *Table) AddRecord(r *Record) {
-	if r != nil {
-		t.records = append(t.records, *r)
-	}
 }
 
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
@@ -169,26 +156,6 @@ func (t Table) ProtoMessage() *protoacl.EACLTable {
 	return m
 }
 
-// NewTable creates, initializes and returns blank Table instance.
-//
-// Defaults:
-//   - version: version.Current();
-//   - container ID: nil;
-//   - records: nil.
-//
-// Deprecated: use [ConstructTable] instead.
-func NewTable() *Table {
-	t := ConstructTable(nil)
-	return &t
-}
-
-// CreateTable creates, initializes with parameters and returns Table instance.
-// Deprecated: use [NewTableForContainer] instead.
-func CreateTable(cid cid.ID) *Table {
-	t := NewTableForContainer(cid, nil)
-	return &t
-}
-
 // Marshal marshals Table into a protobuf binary form.
 func (t Table) Marshal() []byte {
 	return neofsproto.Marshal(t)
@@ -217,10 +184,6 @@ func (t Table) MarshalJSON() ([]byte, error) {
 func (t *Table) UnmarshalJSON(data []byte) error {
 	return neofsproto.UnmarshalJSON(data, t)
 }
-
-// EqualTables compares Table with each other.
-// Deprecated: compare [Table.Marshal] instead.
-func EqualTables(t1, t2 Table) bool { return bytes.Equal(t1.Marshal(), t2.Marshal()) }
 
 // IsZero checks whether all fields of the table are zero/empty. The property
 // can be used as a marker of unset eACL.

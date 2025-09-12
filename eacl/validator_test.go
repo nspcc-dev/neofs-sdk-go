@@ -33,21 +33,19 @@ func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit, msgAndAr
 }
 
 func TestFilterMatch(t *testing.T) {
-	tgt := *NewTarget()
+	tgt := Target{}
 	tgt.SetRole(RoleOthers)
 
 	t.Run("simple header match", func(t *testing.T) {
-		tb := NewTable()
+		tb := &Table{}
 
-		r := newRecord(ActionDeny, OperationUnspecified, tgt)
-		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
-		tb.AddRecord(r)
+		r1 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt},
+			NewObjectPropertyFilter("a", MatchStringEqual, "xxx"))
+		r2 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt},
+			NewRequestHeaderFilter("b", MatchStringNotEqual, "yyy"))
+		r3 := ConstructRecord(ActionAllow, OperationUnspecified, []Target{tgt})
 
-		r = newRecord(ActionDeny, OperationUnspecified, tgt)
-		r.AddFilter(HeaderFromRequest, MatchStringNotEqual, "b", "yyy")
-		tb.AddRecord(r)
-
-		tb.AddRecord(newRecord(ActionAllow, OperationUnspecified, tgt))
+		tb.SetRecords([]Record{r1, r2, r3})
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -71,12 +69,13 @@ func TestFilterMatch(t *testing.T) {
 	})
 
 	t.Run("all filters must match", func(t *testing.T) {
-		tb := NewTable()
-		r := newRecord(ActionDeny, OperationUnspecified, tgt)
-		r.AddFilter(HeaderFromObject, MatchStringEqual, "a", "xxx")
-		r.AddFilter(HeaderFromRequest, MatchStringEqual, "b", "yyy")
-		tb.AddRecord(r)
-		tb.AddRecord(newRecord(ActionAllow, OperationUnspecified, tgt))
+		tb := &Table{}
+		r1 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt},
+			NewObjectPropertyFilter("a", MatchStringEqual, "xxx"),
+			NewRequestHeaderFilter("b", MatchStringEqual, "yyy"))
+		r2 := ConstructRecord(ActionAllow, OperationUnspecified, []Target{tgt})
+
+		tb.SetRecords([]Record{r1, r2})
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -94,16 +93,14 @@ func TestFilterMatch(t *testing.T) {
 	})
 
 	t.Run("filters with unknown type are skipped", func(t *testing.T) {
-		tb := NewTable()
-		r := newRecord(ActionDeny, OperationUnspecified, tgt)
-		r.AddFilter(HeaderTypeUnspecified, MatchStringEqual, "a", "xxx")
-		tb.AddRecord(r)
+		tb := &Table{}
+		r1 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt},
+			ConstructFilter(HeaderTypeUnspecified, "a", MatchStringEqual, "xxx"))
+		r2 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt},
+			ConstructFilter(0xFF, "b", MatchStringEqual, "yyy"))
+		r3 := ConstructRecord(ActionAllow, OperationUnspecified, []Target{tgt})
 
-		r = newRecord(ActionDeny, OperationUnspecified, tgt)
-		r.AddFilter(0xFF, MatchStringEqual, "b", "yyy")
-		tb.AddRecord(r)
-
-		tb.AddRecord(newRecord(ActionDeny, OperationUnspecified, tgt))
+		tb.SetRecords([]Record{r1, r2, r3})
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -121,11 +118,12 @@ func TestFilterMatch(t *testing.T) {
 	})
 
 	t.Run("filters with match function are skipped", func(t *testing.T) {
-		tb := NewTable()
-		r := newRecord(ActionAllow, OperationUnspecified, tgt)
-		r.AddFilter(HeaderFromObject, 0xFF, "a", "xxx")
-		tb.AddRecord(r)
-		tb.AddRecord(newRecord(ActionDeny, OperationUnspecified, tgt))
+		tb := &Table{}
+		r1 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt},
+			NewObjectPropertyFilter("a", 0xFF, "xxx"))
+		r2 := ConstructRecord(ActionDeny, OperationUnspecified, []Target{tgt})
+
+		tb.SetRecords([]Record{r1, r2})
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -140,13 +138,15 @@ func TestFilterMatch(t *testing.T) {
 }
 
 func TestOperationMatch(t *testing.T) {
-	tgt := *NewTarget()
+	tgt := Target{}
 	tgt.SetRole(RoleOthers)
 
 	t.Run("single operation", func(t *testing.T) {
-		tb := NewTable()
-		tb.AddRecord(newRecord(ActionDeny, OperationPut, tgt))
-		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
+		tb := &Table{}
+		tb.SetRecords([]Record{
+			newRecord(ActionDeny, OperationPut, tgt),
+			newRecord(ActionAllow, OperationGet, tgt),
+		})
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -159,9 +159,11 @@ func TestOperationMatch(t *testing.T) {
 	})
 
 	t.Run("unknown operation", func(t *testing.T) {
-		tb := NewTable()
-		tb.AddRecord(newRecord(ActionDeny, OperationUnspecified, tgt))
-		tb.AddRecord(newRecord(ActionAllow, OperationGet, tgt))
+		tb := &Table{}
+		tb.SetRecords([]Record{
+			newRecord(ActionDeny, OperationUnspecified, tgt),
+			newRecord(ActionAllow, OperationGet, tgt),
+		})
 
 		v := NewValidator()
 		vu := newValidationUnit(RoleOthers, nil, tb)
@@ -180,15 +182,14 @@ func TestTargetMatches(t *testing.T) {
 	accs := usertest.IDs(3)
 
 	t.Run("keys", func(t *testing.T) {
-		tgt1 := NewTarget()
-		tgt1.SetBinaryKeys(pubs[0:2])
+		tgt1 := Target{}
+		tgt1.SetRawSubjects(pubs[0:2])
 		tgt1.SetRole(RoleUser)
 
-		tgt2 := NewTarget()
-		tgt2.SetRole(RoleOthers)
+		tgt2 := NewTargetByRole(RoleOthers)
 
-		r := NewRecord()
-		r.SetTargets(*tgt1, *tgt2)
+		r := &Record{}
+		r.SetTargets(tgt1, tgt2)
 
 		u := newValidationUnit(RoleUser, pubs[0], nil)
 		require.True(t, targetMatches(u, r))
@@ -207,15 +208,15 @@ func TestTargetMatches(t *testing.T) {
 	})
 
 	t.Run("accounts", func(t *testing.T) {
-		tgt1 := NewTarget()
+		tgt1 := Target{}
 		tgt1.SetAccounts(accs[0:2])
 		tgt1.SetRole(RoleUser)
 
-		tgt2 := NewTarget()
+		tgt2 := Target{}
 		tgt2.SetRole(RoleOthers)
 
-		r := NewRecord()
-		r.SetTargets(*tgt1, *tgt2)
+		r := &Record{}
+		r.SetTargets(tgt1, tgt2)
 
 		u := newValidationUnitWithScriptHash(RoleUser, accs[0], nil)
 		require.True(t, targetMatches(u, r))
@@ -223,7 +224,7 @@ func TestTargetMatches(t *testing.T) {
 		u = newValidationUnitWithScriptHash(RoleUser, accs[2], nil)
 		require.False(t, targetMatches(u, r))
 
-		u = newValidationUnitWithScriptHash(RoleUnknown, accs[1], nil)
+		u = newValidationUnitWithScriptHash(RoleUnspecified, accs[1], nil)
 		require.True(t, targetMatches(u, r))
 
 		u = newValidationUnitWithScriptHash(RoleOthers, accs[2], nil)
@@ -234,20 +235,20 @@ func TestTargetMatches(t *testing.T) {
 	})
 
 	t.Run("mix", func(t *testing.T) {
-		tgt1 := NewTarget()
+		tgt1 := Target{}
 		accList := make([][]byte, 0, len(accs))
 		for _, acc := range accs {
 			accList = append(accList, bytes.Clone(acc[:]))
 		}
 
-		tgt1.SetBinaryKeys(slices.Concat(pubs[0:2], accList[0:2]))
+		tgt1.SetRawSubjects(slices.Concat(pubs[0:2], accList[0:2]))
 		tgt1.SetRole(RoleUser)
 
-		tgt2 := NewTarget()
+		tgt2 := Target{}
 		tgt2.SetRole(RoleOthers)
 
-		r := NewRecord()
-		r.SetTargets(*tgt1, *tgt2)
+		r := &Record{}
+		r.SetTargets(tgt1, tgt2)
 
 		t.Run("user role", func(t *testing.T) {
 			u := newValidationUnitWithScriptHash(RoleUser, accs[0], nil)
@@ -264,7 +265,7 @@ func TestTargetMatches(t *testing.T) {
 		})
 
 		t.Run("others role", func(t *testing.T) {
-			u := newValidationUnitWithScriptHash(RoleUnknown, accs[1], nil)
+			u := newValidationUnitWithScriptHash(RoleUnspecified, accs[1], nil)
 			require.True(t, targetMatches(u, r))
 
 			u = newValidationUnitWithScriptHash(RoleOthers, accs[2], nil)
@@ -273,7 +274,7 @@ func TestTargetMatches(t *testing.T) {
 			u = newValidationUnitWithScriptHash(RoleSystem, accs[2], nil)
 			require.False(t, targetMatches(u, r))
 
-			u = newValidationUnit(RoleUnknown, pubs[1], nil)
+			u = newValidationUnit(RoleUnspecified, pubs[1], nil)
 			require.True(t, targetMatches(u, r))
 
 			u = newValidationUnit(RoleOthers, pubs[2], nil)
@@ -286,7 +287,7 @@ func TestTargetMatches(t *testing.T) {
 }
 
 func TestSystemRoleModificationIgnored(t *testing.T) {
-	tgt := *NewTarget()
+	tgt := Target{}
 	tgt.SetRole(RoleSystem)
 
 	operations := []Operation{
@@ -298,10 +299,12 @@ func TestSystemRoleModificationIgnored(t *testing.T) {
 		OperationRangeHash,
 	}
 
-	tb := NewTable()
+	tb := &Table{}
+	rrs := []Record{}
 	for _, operation := range operations {
-		tb.AddRecord(newRecord(ActionDeny, operation, tgt))
+		rrs = append(rrs, newRecord(ActionDeny, operation, tgt))
 	}
+	tb.SetRecords(rrs)
 
 	v := NewValidator()
 	vu := newValidationUnit(RoleSystem, nil, tb)
@@ -354,8 +357,8 @@ func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool, error) {
 	}
 }
 
-func newRecord(a Action, op Operation, tgt ...Target) *Record {
-	r := NewRecord()
+func newRecord(a Action, op Operation, tgt ...Target) Record {
+	r := Record{}
 	r.SetAction(a)
 	r.SetOperation(op)
 	r.SetTargets(tgt...)
@@ -445,7 +448,7 @@ func TestNumericRules(t *testing.T) {
 		{MatchNumLE, "-111111111111111111111111111110", "-111111111111111111111111111111", false},
 	} {
 		var rec Record
-		rec.AddObjectAttributeFilter(tc.m, "any_key", tc.f)
+		rec.SetFilters([]Filter{NewObjectPropertyFilter("any_key", tc.m, tc.f)})
 		hs := headers{obj: makeHeaders("any_key", tc.h)}
 
 		v, err := matchFilters(hs, rec.filters)
@@ -466,23 +469,27 @@ func TestAbsenceRules(t *testing.T) {
 
 	var r Record
 
-	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
-	r.AddObjectAttributeFilter(MatchNotPresent, "key1", "")
+	r.SetFilters([]Filter{
+		NewObjectPropertyFilter("key2", MatchStringEqual, "val2"),
+		NewObjectPropertyFilter("key1", MatchNotPresent, ""),
+	})
 	v, err := matchFilters(hs, r.filters)
 	require.NoError(t, err)
 	require.Positive(t, v)
 
-	r.filters = r.filters[:0]
-	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
-	r.AddObjectAttributeFilter(MatchNotPresent, "key2", "")
+	r.SetFilters([]Filter{
+		NewObjectPropertyFilter("key1", MatchStringEqual, "val1"),
+		NewObjectPropertyFilter("key2", MatchNotPresent, ""),
+	})
 	v, err = matchFilters(hs, r.filters)
 	require.NoError(t, err)
 	require.Positive(t, v)
 
-	r.filters = r.filters[:0]
-	r.AddObjectAttributeFilter(MatchStringEqual, "key1", "val1")
-	r.AddObjectAttributeFilter(MatchStringEqual, "key2", "val2")
-	r.AddObjectAttributeFilter(MatchNotPresent, "key3", "")
+	r.SetFilters([]Filter{
+		NewObjectPropertyFilter("key1", MatchStringEqual, "val1"),
+		NewObjectPropertyFilter("key2", MatchStringEqual, "val2"),
+		NewObjectPropertyFilter("key3", MatchNotPresent, ""),
+	})
 	v, err = matchFilters(hs, r.filters)
 	require.NoError(t, err)
 	require.Zero(t, v)

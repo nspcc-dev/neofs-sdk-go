@@ -719,21 +719,6 @@ func TestObject_SetNbf(t *testing.T) {
 	testLifetimeClaim(t, session.Object.Nbf, (*session.Object).SetNbf)
 }
 
-func TestObject_IssuerPublicKeyBytes(t *testing.T) {
-	var val session.Object
-	require.Zero(t, val.IssuerPublicKeyBytes())
-
-	sig := neofscrypto.NewSignatureFromRawKey(anyValidSignatureScheme, anyValidIssuerPublicKeyBytes, anyValidSignatureBytes)
-	val.AttachSignature(sig)
-	require.Equal(t, anyValidIssuerPublicKeyBytes, val.IssuerPublicKeyBytes())
-
-	otherKey := bytes.Clone(anyValidIssuerPublicKeyBytes)
-	otherKey[0]++
-	sig.SetPublicKeyBytes(otherKey)
-	val.AttachSignature(sig)
-	require.Equal(t, otherKey, val.IssuerPublicKeyBytes())
-}
-
 func TestObject_ExpiredAt(t *testing.T) {
 	var val session.Object
 	const epoch = 13

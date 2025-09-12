@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -19,10 +18,6 @@ import (
 
 // SearchMatchType indicates match operation on specified header.
 type SearchMatchType int32
-
-// MatchUnknown is an SearchMatchType value used to mark operator as undefined.
-// Deprecated: use MatchUnspecified instead.
-const MatchUnknown = MatchUnspecified
 
 const (
 	MatchUnspecified SearchMatchType = iota
@@ -47,23 +42,6 @@ const (
 	matcherStringNumLT        = "NUM_LT"
 	matcherStringNumLE        = "NUM_LE"
 )
-
-// EncodeToString returns string representation of [SearchMatchType].
-//
-// String mapping:
-//   - [MatchStringEqual]: STRING_EQUAL;
-//   - [MatchStringNotEqual]: STRING_NOT_EQUAL;
-//   - [MatchNotPresent]: NOT_PRESENT;
-//   - [MatchCommonPrefix]: COMMON_PREFIX;
-//   - [MatchNumGT], default: NUM_GT;
-//   - [MatchNumGE], default: NUM_GE;
-//   - [MatchNumLT], default: NUM_LT;
-//   - [MatchNumLE], default: NUM_LE;
-//   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED.
-//
-// All other values are base-10 integers.
-// Deprecated: use [SearchMatchType.String] instead.
-func (m SearchMatchType) EncodeToString() string { return m.String() }
 
 // String implements [fmt.Stringer] with the following string mapping:
 //   - [MatchStringEqual]: STRING_EQUAL
@@ -249,14 +227,6 @@ func (f *SearchFilters) AddObjectVersionFilter(op SearchMatchType, v version.Ver
 	f.addFilter(op, FilterVersion, version.EncodeToString(v))
 }
 
-// AddObjectContainerIDFilter adds a filter by container id.
-//
-// The m must not be numeric (like [MatchNumGT]).
-// Deprecated: must not be used.
-func (f *SearchFilters) AddObjectContainerIDFilter(m SearchMatchType, id cid.ID) {
-	f.addFilter(m, FilterContainerID, id.EncodeToString())
-}
-
 // AddObjectOwnerIDFilter adds a filter by object owner id.
 //
 // The m must not be numeric (like [MatchNumGT]).
@@ -319,14 +289,6 @@ func (f *SearchFilters) AddParentIDFilter(m SearchMatchType, id oid.ID) {
 	f.addFilter(m, FilterParentID, id.EncodeToString())
 }
 
-// AddObjectIDFilter adds filter by object identifier.
-//
-// The m must not be numeric (like [MatchNumGT]).
-// Deprecated: must not be used.
-func (f *SearchFilters) AddObjectIDFilter(m SearchMatchType, id oid.ID) {
-	f.addFilter(m, FilterID, id.EncodeToString())
-}
-
 // AddSplitIDFilter adds filter by split ID.
 //
 // The m must not be numeric (like [MatchNumGT]).
@@ -345,7 +307,7 @@ func (f *SearchFilters) AddFirstSplitObjectFilter(m SearchMatchType, id oid.ID) 
 //
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
-	f.addFilter(m, FilterType, typ.EncodeToString())
+	f.addFilter(m, FilterType, typ.String())
 }
 
 type fj protoobject.SearchFilter

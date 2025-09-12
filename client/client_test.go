@@ -1073,8 +1073,8 @@ func testStatusResponses[SRV interface {
 			t.Run("unrecognized_"+strconv.FormatUint(uint64(code), 10), func(t *testing.T) {
 				err := execWithStatus(code, "any message", make([]*protostatus.Status_Detail, 2))
 				require.ErrorContains(t, err, "status: code = unrecognized message = any message")
-				require.ErrorIs(t, err, apistatus.ErrUnrecognizedStatusV2)
-				require.ErrorAs(t, err, new(*apistatus.UnrecognizedStatusV2))
+				require.ErrorIs(t, err, apistatus.ErrUnrecognizedStatus)
+				require.ErrorAs(t, err, new(*apistatus.UnrecognizedStatus))
 				t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/648")
 				require.ErrorIs(t, err, apistatus.Error)
 			})

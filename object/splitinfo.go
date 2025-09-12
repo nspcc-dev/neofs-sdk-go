@@ -69,16 +69,6 @@ func (s *SplitInfo) SetSplitID(v *SplitID) {
 	s.splitID = v.ToV2()
 }
 
-// LastPart returns last object ID, can be used to retrieve original object.
-// The second return value is a flag, indicating if the last part is present.
-//
-// See also [SplitInfo.SetLastPart].
-// Deprecated: use [SplitInfo.GetLastPart] instead.
-func (s SplitInfo) LastPart() (oid.ID, bool) {
-	id := s.GetLastPart()
-	return id, !id.IsZero()
-}
-
 // GetLastPart returns last object ID, can be used to retrieve original object.
 // Zero return means unset ID.
 //
@@ -94,16 +84,6 @@ func (s *SplitInfo) SetLastPart(v oid.ID) {
 	s.last = v
 }
 
-// Link returns a linker object ID.
-// The second return value is a flag, indicating if the last part is present.
-//
-// See also [SplitInfo.SetLink].
-// Deprecated: use [SplitInfo.GetLink] instead.
-func (s SplitInfo) Link() (oid.ID, bool) {
-	id := s.GetLink()
-	return id, !id.IsZero()
-}
-
 // GetLink returns a linker object ID. Zero return means unset ID.
 //
 // See also [SplitInfo.SetLink].
@@ -116,15 +96,6 @@ func (s SplitInfo) GetLink() oid.ID {
 // See also [SplitInfo.GetLink].
 func (s *SplitInfo) SetLink(v oid.ID) {
 	s.link = v
-}
-
-// FirstPart returns the first part of the split chain.
-//
-// See also [SplitInfo.SetFirstPart].
-// Deprecated: use [SplitInfo.GetFirstPart] instead.
-func (s SplitInfo) FirstPart() (oid.ID, bool) {
-	id := s.GetFirstPart()
-	return id, !id.IsZero()
 }
 
 // GetFirstPart returns the first part of the split chain. Zero means unset ID.

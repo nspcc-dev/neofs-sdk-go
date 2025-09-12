@@ -14,10 +14,6 @@ const (
 	ActionDeny                      // deny the op
 )
 
-// ActionUnknown is an Action value used to mark action as undefined.
-// Deprecated: use ActionUnspecified instead.
-const ActionUnknown = ActionUnspecified
-
 // Operation enumerates operations on NeoFS resources under access control.
 type Operation int32
 
@@ -32,10 +28,6 @@ const (
 	OperationRangeHash                    // ObjectService.GetRangeHash RPC
 )
 
-// OperationUnknown is an Operation value used to mark operation as undefined.
-// Deprecated: use OperationUnspecified instead.
-const OperationUnknown = OperationUnspecified
-
 // Role enumerates groups of subjects requesting access to NeoFS resources.
 type Role int32
 
@@ -45,10 +37,6 @@ const (
 	RoleSystem                  // Deprecated: NeoFS storage and Inner Ring nodes
 	RoleOthers                  // any other party
 )
-
-// RoleUnknown is a Role value used to mark role as undefined.
-// Deprecated: use RoleUnspecified instead.
-const RoleUnknown = RoleUnspecified
 
 // Match enumerates operators to check attribute value compliance. What and how
 // specific Match affects depends on the specific context.
@@ -65,10 +53,6 @@ const (
 	MatchNumLE                       // is a numeric "less or equal than" operator
 )
 
-// MatchUnknown is a Match value used to mark matcher as undefined.
-// Deprecated: use MatchUnspecified instead.
-const MatchUnknown = MatchUnspecified
-
 // FilterHeaderType enumerates the classes of resource attributes processed
 // within NeoFS access management.
 type FilterHeaderType int32
@@ -80,25 +64,11 @@ const (
 	HeaderFromService                             // custom application-level attribute
 )
 
-// HeaderTypeUnknown is a FilterHeaderType value used to mark header type as undefined.
-// Deprecated: use HeaderTypeUnspecified instead.
-const HeaderTypeUnknown = HeaderTypeUnspecified
-
 const (
 	actionStringZero  = "ACTION_UNSPECIFIED"
 	actionStringAllow = "ALLOW"
 	actionStringDeny  = "DENY"
 )
-
-// EncodeToString returns string representation of Action.
-//
-// String mapping:
-//   - ActionAllow: ALLOW;
-//   - ActionDeny: DENY;
-//   - ActionUnspecified, default: ACTION_UNSPECIFIED.
-//
-// Deprecated: use [Action.String] instead.
-func (a Action) EncodeToString() string { return a.String() }
 
 // String implements [fmt.Stringer] with the following string mapping:
 //   - 0: ACTION_UNSPECIFIED
@@ -156,21 +126,6 @@ const (
 	opStringRange     = "GETRANGE"
 	opStringRangeHash = "GETRANGEHASH"
 )
-
-// EncodeToString returns string representation of Operation.
-//
-// String mapping:
-//   - OperationGet: GET;
-//   - OperationHead: HEAD;
-//   - OperationPut: PUT;
-//   - OperationDelete: DELETE;
-//   - OperationSearch: SEARCH;
-//   - OperationRange: GETRANGE;
-//   - OperationRangeHash: GETRANGEHASH;
-//   - OperationUnspecified, default: OPERATION_UNSPECIFIED.
-//
-// Deprecated: use [Operation.String] instead.
-func (o Operation) EncodeToString() string { return o.String() }
 
 // String implements [fmt.Stringer] with the following string mapping:
 //   - 0: OPERATION_UNSPECIFIED
@@ -250,17 +205,6 @@ const (
 	roleStringOthers = "OTHERS"
 )
 
-// EncodeToString returns string representation of Role.
-//
-// String mapping:
-//   - RoleUser: USER;
-//   - RoleSystem: SYSTEM;
-//   - RoleOthers: OTHERS;
-//   - RoleUnspecified, default: ROLE_UNKNOWN.
-//
-// Deprecated: use [Role.String] instead.
-func (r Role) EncodeToString() string { return r.String() }
-
 // String implements [fmt.Stringer] with the following string mapping:
 //   - 0: ROLE_UNSPECIFIED
 //   - [RoleUser]: USER
@@ -322,21 +266,6 @@ const (
 	matcherStringNumLT      = "NUM_LT"
 	matcherStringNumLE      = "NUM_LE"
 )
-
-// EncodeToString returns string representation of Match.
-//
-// String mapping:
-//   - MatchStringEqual: STRING_EQUAL;
-//   - MatchStringNotEqual: STRING_NOT_EQUAL;
-//   - MatchNotPresent: NOT_PRESENT;
-//   - MatchNumGT: NUM_GT;
-//   - MatchNumGE: NUM_GE;
-//   - MatchNumLT: NUM_LT;
-//   - MatchNumLE: NUM_LE;
-//   - MatchUnspecified, default: MATCH_TYPE_UNSPECIFIED.
-//
-// Deprecated: use [Match.String] instead.
-func (m Match) EncodeToString() string { return m.String() }
 
 // String implements [fmt.Stringer] with the following string mapping:
 //   - 0: MATCH_TYPE_UNSPECIFIED
@@ -415,16 +344,6 @@ const (
 	headerTypeStringObject  = "OBJECT"
 	headerTypeStringService = "SERVICE"
 )
-
-// EncodeToString returns string representation of FilterHeaderType.
-//
-// String mapping:
-//   - HeaderFromRequest: REQUEST;
-//   - HeaderFromObject: OBJECT;
-//   - HeaderTypeUnspecified, default: HEADER_UNSPECIFIED.
-//
-// Deprecated: use [HeaderTypeToString] instead.
-func (h FilterHeaderType) EncodeToString() string { return h.String() }
 
 // String implements [fmt.Stringer] with the following string mapping:
 //   - 0: HEADER_UNSPECIFIED

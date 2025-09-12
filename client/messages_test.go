@@ -644,7 +644,6 @@ func checkCommonSessionTransport(t interface {
 	Exp() uint64
 	Nbf() uint64
 	Iat() uint64
-	IssuerPublicKeyBytes() []byte
 	AssertAuthKey(neofscrypto.PublicKey) bool
 	Signature() (neofscrypto.Signature, bool)
 }, m *protosession.SessionToken) (any, error) {

@@ -3,20 +3,15 @@ package usertest
 import (
 	"crypto/ecdsa"
 	"errors"
-	"testing"
 
-	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/stretchr/testify/require"
 )
 
 // ID returns random user.ID.
 func ID() user.ID {
-	var res user.ID
-	res.SetScriptHash(testutil.RandScriptHash())
-	return res
+	return user.NewFromScriptHash(testutil.RandScriptHash())
 }
 
 // OtherID returns random user.ID other than any given one.
@@ -75,27 +70,4 @@ func (x failedSigner) Sign([]byte) ([]byte, error) { return nil, errors.New("[te
 // FailSigner returns wraps s to always return error from Sign method.
 func FailSigner(s user.Signer) user.Signer {
 	return failedSigner{s}
-}
-
-// SignedComponent contains data to be signed and its signature to be verified.
-type SignedComponent interface {
-	SignedData() []byte
-	Sign(user.Signer) error
-	VerifySignature() bool
-}
-
-// TestSignedData SignedDataComponentUser signing and verification of
-// [SignedComponent.SignedData].
-func TestSignedData(tb testing.TB, signer user.Signer, cmp SignedComponent) {
-	data := cmp.SignedData()
-
-	sig, err := signer.Sign(data)
-	require.NoError(tb, err)
-
-	static := neofscrypto.NewStaticSigner(signer.Scheme(), sig, signer.Public())
-
-	err = cmp.Sign(user.NewSigner(static, signer.UserID()))
-	require.NoError(tb, err)
-
-	require.True(tb, cmp.VerifySignature())
 }

@@ -159,7 +159,7 @@ func targetMatches(unit *ValidationUnit, record *Record) bool {
 		checkRole = true
 
 		// check public key match
-		if pubs := target.BinaryKeys(); len(pubs) != 0 {
+		if pubs := target.binaryKeys(); len(pubs) != 0 {
 			checkRole = false
 
 			for _, key := range pubs {

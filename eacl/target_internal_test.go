@@ -10,7 +10,7 @@ import (
 func TestTarget_CopyTo(t *testing.T) {
 	var target Target
 	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
+	target.SetRawSubjects([][]byte{
 		{1, 2, 3},
 	})
 

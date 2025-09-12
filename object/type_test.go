@@ -49,7 +49,7 @@ func TestType_String(t *testing.T) {
 
 type enumIface interface {
 	DecodeString(string) bool
-	EncodeToString() string
+	String() string
 }
 
 type enumStringItem struct {
@@ -59,9 +59,9 @@ type enumStringItem struct {
 
 func testEnumStrings(t *testing.T, e enumIface, items []enumStringItem) {
 	for _, item := range items {
-		require.Equal(t, item.str, item.val.EncodeToString())
+		require.Equal(t, item.str, item.val.String())
 
-		s := item.val.EncodeToString()
+		s := item.val.String()
 
 		require.True(t, e.DecodeString(s), s)
 

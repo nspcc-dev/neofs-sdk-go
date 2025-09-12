@@ -1,8 +1,6 @@
 package cidtest
 
 import (
-	"crypto/sha256"
-
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 )
@@ -33,11 +31,4 @@ loop:
 		}
 		return v
 	}
-}
-
-// IDWithChecksum returns cid.ID initialized
-// with specified checksum.
-// Deprecated: use [ID], [OtherID] or manual creation instead.
-func IDWithChecksum(cs [sha256.Size]byte) cid.ID {
-	return cs
 }

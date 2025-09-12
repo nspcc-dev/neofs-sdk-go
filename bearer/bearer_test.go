@@ -269,26 +269,18 @@ func TestToken_ValidAt(t *testing.T) {
 	var val bearer.Token
 
 	require.True(t, val.ValidAt(0))
-	require.False(t, val.InvalidAt(0))
 	require.False(t, val.ValidAt(1))
-	require.True(t, val.InvalidAt(1))
 
 	val.SetIat(1)
 	val.SetNbf(2)
 	val.SetExp(4)
 
 	require.False(t, val.ValidAt(0))
-	require.True(t, val.InvalidAt(0))
 	require.False(t, val.ValidAt(1))
-	require.True(t, val.InvalidAt(1))
 	require.True(t, val.ValidAt(2))
-	require.False(t, val.InvalidAt(2))
 	require.True(t, val.ValidAt(3))
-	require.False(t, val.InvalidAt(3))
 	require.True(t, val.ValidAt(4))
-	require.False(t, val.InvalidAt(4))
 	require.False(t, val.ValidAt(5))
-	require.True(t, val.InvalidAt(5))
 }
 
 func TestToken_AssertContainer(t *testing.T) {
@@ -901,14 +893,4 @@ func TestToken_SetIssuer(t *testing.T) {
 	token.SetIssuer(usr2)
 	require.Equal(t, usr2, token.Issuer())
 	require.Equal(t, usr2, token.ResolveIssuer())
-}
-
-func TestToken_SigningKeyBytes(t *testing.T) {
-	var tok bearer.Token
-	require.Zero(t, tok.SigningKeyBytes())
-
-	var sig neofscrypto.Signature
-	sig.SetPublicKeyBytes(anyValidIssuerPublicKeyBytes)
-	tok.AttachSignature(sig)
-	require.Equal(t, anyValidIssuerPublicKeyBytes, tok.SigningKeyBytes())
 }

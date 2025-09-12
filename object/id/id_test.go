@@ -128,27 +128,6 @@ func TestID_DecodeString(t *testing.T) {
 	})
 }
 
-func TestID_Encode(t *testing.T) {
-	var id oid.ID
-
-	t.Run("panic", func(t *testing.T) {
-		dst := make([]byte, oid.Size-1)
-
-		require.Panics(t, func() {
-			id.Encode(dst)
-		})
-	})
-
-	t.Run("correct", func(t *testing.T) {
-		dst := make([]byte, oid.Size)
-
-		require.NotPanics(t, func() {
-			id.Encode(dst)
-		})
-		require.Equal(t, "11111111111111111111111111111111", id.EncodeToString())
-	})
-}
-
 func TestID_Marshal(t *testing.T) {
 	require.Equal(t, validIDProtoBytes, oid.ID(validIDBytes).Marshal())
 }
@@ -208,8 +187,6 @@ func TestIDComparable(t *testing.T) {
 	y = oidtest.OtherID(x)
 	require.False(t, x == y)
 	require.True(t, x != y)
-	require.True(t, x.Equals(x))
-	require.False(t, x.Equals(y))
 }
 
 func TestNewFromObjectHeaderBinary(t *testing.T) {
@@ -223,10 +200,6 @@ func TestNewFromObjectHeaderBinary(t *testing.T) {
 		hdrCp[i]++
 		require.NotEqual(t, id, oid.NewFromObjectHeaderBinary(hdrCp))
 	}
-
-	var id2 oid.ID
-	id2.SetSHA256(sha256.Sum256(hdr))
-	require.Equal(t, id, id2)
 }
 
 func TestID_String(t *testing.T) {

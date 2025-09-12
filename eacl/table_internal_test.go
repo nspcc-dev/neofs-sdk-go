@@ -18,15 +18,14 @@ func TestTable_CopyTo(t *testing.T) {
 
 	var target Target
 	target.SetRole(1)
-	target.SetBinaryKeys([][]byte{
+	target.SetRawSubjects([][]byte{
 		{1, 2, 3},
 	})
 
-	record := CreateRecord(ActionAllow, OperationPut)
-	record.SetTargets(target)
-	record.AddObjectAttributeFilter(MatchStringEqual, "key", "value")
+	record := ConstructRecord(ActionAllow, OperationPut,
+		[]Target{target}, NewObjectPropertyFilter("key", MatchStringEqual, "value"))
 
-	table.AddRecord(record)
+	table.SetRecords([]Record{record})
 
 	t.Run("copy", func(t *testing.T) {
 		var dst Table
@@ -40,7 +39,7 @@ func TestTable_CopyTo(t *testing.T) {
 		var dst Table
 		table.CopyTo(&dst)
 
-		require.True(t, table.Version().Equal(dst.Version()))
+		require.True(t, table.Version() == dst.Version())
 
 		var newVersion version.Version
 		newVersion.SetMajor(10)
@@ -48,7 +47,7 @@ func TestTable_CopyTo(t *testing.T) {
 
 		dst.SetVersion(newVersion)
 
-		require.False(t, table.Version().Equal(dst.Version()))
+		require.False(t, table.Version() == dst.Version())
 	})
 
 	t.Run("change cid", func(t *testing.T) {

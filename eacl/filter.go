@@ -146,20 +146,6 @@ func (f *Filter) fromProtoMessage(m *protoacl.EACLRecord_Filter) error {
 	return nil
 }
 
-// NewFilter creates, initializes and returns blank Filter instance.
-//
-// Defaults:
-//   - header type: HeaderTypeUnspecified;
-//   - matcher: MatchUnspecified;
-//   - key: "";
-//   - value: "".
-//
-// Deprecated: use [ConstructFilter] instead.
-func NewFilter() *Filter {
-	f := ConstructFilter(0, "", 0, "")
-	return &f
-}
-
 // Marshal marshals Filter into a protobuf binary form.
 func (f Filter) Marshal() []byte {
 	return neofsproto.MarshalMessage(f.protoMessage())

@@ -27,14 +27,10 @@ type Checksum struct {
 type Type int32
 
 const (
-	Unknown      Type = iota // Deprecated: use 0 instead.
-	SHA256                   // SHA-256 hash
-	TillichZemor             // Tillich-Zémor homomorphic hash
+	_            Type = iota
+	SHA256            // SHA-256 hash
+	TillichZemor      // Tillich-Zémor homomorphic hash
 )
-
-// TZ is a type for Tillich-Zémor homomorphic hash.
-// Deprecated: use TillichZemor instead.
-const TZ = TillichZemor
 
 func typeToProto(t Type) refs.ChecksumType {
 	switch t {
@@ -144,35 +140,6 @@ func (c Checksum) Type() Type {
 func (c Checksum) Value() []byte {
 	return c.val
 }
-
-// SetSHA256 sets checksum to SHA256 hash.
-//
-// See also Calculate.
-// Deprecated: use [NewSHA256] instead.
-func (c *Checksum) SetSHA256(v [sha256.Size]byte) { *c = NewSHA256(v) }
-
-// Calculate calculates checksum and sets it
-// to the passed checksum. Checksum must not be nil.
-//
-// Does nothing if the passed type is not one of the:
-//   - SHA256;
-//   - TillichZemor.
-//
-// Does not mutate the passed value.
-//
-// See also SetSHA256, SetTillichZemor.
-// Deprecated: use [NewFromData] instead.
-func Calculate(c *Checksum, t Type, v []byte) {
-	if cs, err := NewFromData(t, v); err == nil {
-		*c = cs
-	}
-}
-
-// SetTillichZemor sets checksum to Tillich-Zémor hash.
-//
-// See also Calculate.
-// Deprecated: use [NewTillichZemor] instead.
-func (c *Checksum) SetTillichZemor(v [tz.Size]byte) { *c = NewTillichZemor(v) }
 
 // String implements fmt.Stringer.
 //

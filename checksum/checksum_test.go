@@ -177,13 +177,8 @@ func TestNewFromHash(t *testing.T) {
 func TestNewFromData(t *testing.T) {
 	_, err := checksum.NewFromData(0, nil)
 	require.EqualError(t, err, "unsupported checksum type 0")
-	var cs checksum.Checksum
-	checksum.Calculate(&cs, 0, nil)
-	require.Zero(t, cs)
 	_, err = checksum.NewFromData(checksum.TillichZemor+1, nil)
 	require.EqualError(t, err, "unsupported checksum type 3")
-	checksum.Calculate(&cs, checksum.TillichZemor+1, nil)
-	require.Zero(t, cs)
 
 	payload := []byte("Hello, world!")
 	hSHA256 := [sha256.Size]byte{49, 95, 91, 219, 118, 208, 120, 196, 59, 138, 192, 6, 78, 74, 1, 100, 97, 43, 31, 206, 119, 200, 105, 52, 91, 252, 148, 199, 88, 148, 237, 211}
@@ -195,11 +190,6 @@ func TestNewFromData(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, hSHA256[:], c.Value())
 		require.Equal(t, checksum.SHA256, c.Type())
-
-		c = checksum.Checksum{}
-		checksum.Calculate(&c, checksum.SHA256, payload)
-		require.Equal(t, hSHA256[:], c.Value())
-		require.Equal(t, checksum.SHA256, c.Type())
 	})
 
 	t.Run("TillichZemor", func(t *testing.T) {
@@ -207,18 +197,5 @@ func TestNewFromData(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, hTZ[:], c.Value())
 		require.Equal(t, checksum.TillichZemor, c.Type())
-
-		c = checksum.Checksum{}
-		checksum.Calculate(&c, checksum.TillichZemor, payload)
-		require.Equal(t, hTZ[:], c.Value())
-		require.Equal(t, checksum.TillichZemor, c.Type())
 	})
-}
-
-func TestChecksum_SetSHA256(t *testing.T) {
-	testTypeConstructor(t, checksum.SHA256, refs.ChecksumType_SHA256, func(b [sha256.Size]byte) (c checksum.Checksum) { c.SetSHA256(b); return })
-}
-
-func TestChecksum_SetTillichZemor(t *testing.T) {
-	testTypeConstructor(t, checksum.TillichZemor, refs.ChecksumType_TZ, func(b [tz.Size]byte) (c checksum.Checksum) { c.SetTillichZemor(b); return })
 }

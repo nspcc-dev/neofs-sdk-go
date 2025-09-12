@@ -62,21 +62,6 @@ func (id ID) ProtoMessage() *refs.ContainerID {
 	return &refs.ContainerID{Value: id[:]}
 }
 
-// Encode encodes ID into [Size] bytes of dst. Panics if
-// dst length is less than [Size].
-//
-// Zero ID is all zeros.
-//
-// See also Decode.
-// Deprecated: use id[:] instead.
-func (id ID) Encode(dst []byte) {
-	if l := len(dst); l < Size {
-		panic(fmt.Sprintf("destination length is less than %d bytes: %d", Size, l))
-	}
-
-	copy(dst, id[:])
-}
-
 // Decode decodes src bytes into ID. Use [DecodeBytes] to decode src into a new
 // ID.
 //
@@ -93,21 +78,6 @@ func (id *ID) Decode(src []byte) error {
 	*id = ID(src)
 
 	return nil
-}
-
-// SetSHA256 sets container identifier value to SHA256 checksum of container structure.
-// Deprecated: use direct assignment instead.
-func (id *ID) SetSHA256(v [sha256.Size]byte) {
-	*id = v
-}
-
-// Equals defines a comparison relation between two ID instances.
-//
-// Note that comparison using '==' operator is not recommended since it MAY result
-// in loss of compatibility.
-// Deprecated: ID is comparable.
-func (id ID) Equals(id2 ID) bool {
-	return id == id2
 }
 
 // EncodeToString encodes ID into NeoFS API protocol string.
@@ -140,13 +110,6 @@ func (id *ID) DecodeString(s string) error {
 func (id ID) String() string {
 	return id.EncodeToString()
 }
-
-// FromBinary calculates identifier of the binary-encoded container
-// in CAS of the NeoFS containers and writes it into id.
-//
-// See also [container.Container.CalculateID], [container.Container.AssertID].
-// Deprecated: use [NewFromContainerBinary].
-func (id *ID) FromBinary(cnr []byte) { *id = NewFromMarshalledContainer(cnr) }
 
 // IsZero checks whether ID is zero.
 func (id ID) IsZero() bool {

@@ -151,7 +151,6 @@ func flattenNodes(ns []nodes) nodes {
 // the fixed NetMap and parameters.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
 	pivot := slices.Clone(objectID[:])
-	objectID.Encode(pivot)
 
 	h := hrw.WrapBytes(pivot)
 	wf := defaultWeightFunc(m.nodes)
