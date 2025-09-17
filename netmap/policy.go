@@ -1001,23 +1001,19 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 }
 
 func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) any {
-	cbf, err := strconv.ParseUint(ctx.GetBackupFactor().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
+	if cbf := uint32(0); p.parseUint32Token(&cbf, ctx.GetBackupFactor()) {
+		return cbf
 	}
-
-	return uint32(cbf)
+	return nil
 }
 
 // VisitRepStmt implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
-	num, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
-	}
-
 	rs := new(protonetmap.Replica)
-	rs.Count = uint32(num)
+
+	if !p.parseUint32Token(&rs.Count, ctx.GetCount()) {
+		return nil
+	}
 
 	if sel := ctx.GetSelector(); sel != nil {
 		rs.Selector = sel.GetText()
@@ -1028,13 +1024,11 @@ func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 
 // VisitSelectStmt implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
-	res, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
-	}
-
 	s := new(protonetmap.Selector)
-	s.Count = uint32(res)
+
+	if !p.parseUint32Token(&s.Count, ctx.GetCount()) {
+		return nil
+	}
 
 	if clStmt := ctx.Clause(); clStmt != nil {
 		s.Clause = clauseFromString(clStmt.GetText())
