@@ -57,3 +57,19 @@ func TestAttribute_SetValue(t *testing.T) {
 	a.SetKey(otherVal)
 	require.Equal(t, otherVal, a.Key())
 }
+
+func TestSystemAttributes(t *testing.T) {
+	for _, tc := range []struct {
+		cnst, exp string
+	}{
+		{cnst: object.AttributeExpirationEpoch, exp: "__NEOFS__EXPIRATION_EPOCH"},
+		{cnst: object.AttributeAssociatedObject, exp: "__NEOFS__ASSOCIATE"},
+		{cnst: object.AttributeAssociatedObject, exp: "__NEOFS__ASSOCIATE"},
+		{cnst: object.AttributeECRuleIndex, exp: "__NEOFS__EC_RULE_IDX"},
+		{cnst: object.AttributeECPartIndex, exp: "__NEOFS__EC_PART_IDX"},
+	} {
+		t.Run(tc.exp, func(t *testing.T) {
+			require.Equal(t, tc.exp, tc.cnst)
+		})
+	}
+}

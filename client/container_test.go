@@ -846,6 +846,41 @@ func TestClient_ContainerPut(t *testing.T) {
 				rs[21].SetNumberOfObjects(3)
 				test(t, 0, rs, nil)
 			})
+			t.Run("EC", func(t *testing.T) {
+				for _, tc := range []struct {
+					name    string
+					err     string
+					corrupt func(rule *netmap.ECRule)
+				}{
+					{name: "zero data part num", err: "zero data part num", corrupt: func(rule *netmap.ECRule) {
+						rule.SetDataPartNum(0)
+					}},
+					{name: "zero parity part num", err: "zero parity part num", corrupt: func(rule *netmap.ECRule) {
+						rule.SetParityPartNum(0)
+					}},
+					{name: "too many data parts", err: "more than 64 total parts", corrupt: func(rule *netmap.ECRule) {
+						rule.SetDataPartNum(65)
+					}},
+					{name: "too many parity parts", err: "more than 64 total parts", corrupt: func(rule *netmap.ECRule) {
+						rule.SetParityPartNum(65)
+					}},
+					{name: "too many total parts", err: "more than 64 total parts", corrupt: func(rule *netmap.ECRule) {
+						rule.SetDataPartNum(32)
+						rule.SetParityPartNum(33)
+					}},
+				} {
+					t.Run(tc.err, func(t *testing.T) {
+						test(t, "invalid storage policy: invalid EC rule #1: "+tc.err, func(policy *netmap.PlacementPolicy) {
+							rs := []netmap.ECRule{
+								netmap.NewECRule(1, 2),
+								netmap.NewECRule(32, 32),
+							}
+							tc.corrupt(&rs[1])
+							policy.SetECRules(rs)
+						})
+					})
+				}
+			})
 		})
 	})
 	t.Run("sign container failure", func(t *testing.T) {
