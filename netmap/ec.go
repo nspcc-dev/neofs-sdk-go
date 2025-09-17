@@ -3,7 +3,6 @@ package netmap
 import (
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/nspcc-dev/neofs-sdk-go/netmap/parser"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
@@ -108,22 +107,19 @@ func (p PlacementPolicy) ECRules() []ECRule {
 
 // VisitEcStmt implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitEcStmt(ctx *parser.EcStmtContext) any {
-	dataPartNum, err := strconv.ParseUint(ctx.DataPartNum.GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
-	}
-	parityPartNum, err := strconv.ParseUint(ctx.ParityPartNum.GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
+	var res protonetmap.PlacementPolicy_ECRule
+
+	if !p.parseUint32Token(&res.DataPartNum, ctx.DataPartNum) {
+		return nil
 	}
 
-	var res protonetmap.PlacementPolicy_ECRule
+	if !p.parseUint32Token(&res.ParityPartNum, ctx.ParityPartNum) {
+		return nil
+	}
+
 	if sel := ctx.GetSelector(); sel != nil {
 		res.Selector = sel.GetText()
 	}
-
-	res.DataPartNum = uint32(dataPartNum)
-	res.ParityPartNum = uint32(parityPartNum)
 
 	return &res
 }
