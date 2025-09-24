@@ -31,7 +31,7 @@ type Container struct {
 
 // CopyTo writes deep copy of the [Container] to dst.
 func (x Container) CopyTo(dst *Container) {
-	x.commonData.copyTo(&dst.commonData)
+	x.copyTo(&dst.commonData)
 
 	dst.verb = x.verb
 	dst.cnr = x.cnr
