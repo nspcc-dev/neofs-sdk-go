@@ -64,13 +64,13 @@ func (x *NodeInfo) fromProtoMessage(m *protonetmap.NodeInfo, checkFieldPresence 
 		}
 
 		val := attributes[i].GetValue()
-		switch {
-		case key == attrCapacity:
+		switch key {
+		case attrCapacity:
 			_, err = strconv.ParseUint(val, 10, 64)
 			if err != nil {
 				return fmt.Errorf("invalid %s attribute: %w", attrCapacity, err)
 			}
-		case key == attrPrice:
+		case attrPrice:
 			var err error
 			_, err = strconv.ParseUint(val, 10, 64)
 			if err != nil {
