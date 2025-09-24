@@ -426,7 +426,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 			Ttl:     defaultRequestTTL,
 		},
 	}
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, req.MetaHeader)
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.tokSet {
 		req.MetaHeader.SessionToken = prm.tok.ProtoMessage()
 	}
@@ -645,7 +645,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 			Ttl:     defaultRequestTTL,
 		},
 	}
-	writeXHeadersToMeta(prm.prmCommonMeta.xHeaders, req.MetaHeader)
+	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.sessionSet {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
