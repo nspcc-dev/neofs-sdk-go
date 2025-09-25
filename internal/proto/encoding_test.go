@@ -213,9 +213,8 @@ func benchmarkType[T anySupportedType](
 ) {
 	const fieldNum = protowire.MaxValidNumber
 	buf := make([]byte, sizeFunc(fieldNum, v))
-	b.ResetTimer()
 	b.ReportAllocs()
-	for range b.N {
+	for b.Loop() {
 		marshalFunc(buf, fieldNum, v)
 	}
 }
@@ -229,9 +228,7 @@ func benchmarkRepeatedType[T anySupportedType](
 	const fieldNum = protowire.MaxValidNumber
 	buf := make([]byte, sizeFunc(fieldNum, v))
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		marshalFunc(buf, fieldNum, v)
 	}
 }
@@ -385,9 +382,7 @@ func BenchmarkMarshalEmbedded(b *testing.B) {
 	v := (*timestamp)(timestamppb.Now())
 	buf := make([]byte, proto.SizeEmbedded(fieldNum, v))
 
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		proto.MarshalToEmbedded(buf, fieldNum, v)
 	}
 }

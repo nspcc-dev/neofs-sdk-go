@@ -14,10 +14,7 @@ func baseBenchmarkTableBinaryComparison(b *testing.B, factor int) {
 	t := TableN(factor)
 	exp := t.Marshal()
 
-	b.StopTimer()
-	b.ResetTimer()
-	b.StartTimer()
-	for range b.N {
+	for b.Loop() {
 		if !bytes.Equal(exp, t.Marshal()) {
 			b.Fail()
 		}
@@ -30,10 +27,7 @@ func baseBenchmarkTableEqualsComparison(b *testing.B, factor int) {
 	err := t2.Unmarshal(t.Marshal())
 	require.NoError(b, err)
 
-	b.StopTimer()
-	b.ResetTimer()
-	b.StartTimer()
-	for range b.N {
+	for b.Loop() {
 		if !bytes.Equal(t.Marshal(), t2.Marshal()) {
 			b.Fail()
 		}
