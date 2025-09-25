@@ -32,7 +32,10 @@ func TestErrors(t *testing.T) {
 			errs:        []error{NodeUnderMaintenance{}, new(NodeUnderMaintenance)},
 			errVariable: ErrNodeUnderMaintenance,
 		},
-
+		{
+			errs:        []error{BadRequest{}, new(BadRequest)},
+			errVariable: ErrBadRequest,
+		},
 		{
 			errs:        []error{ObjectLocked{}, new(ObjectLocked)},
 			errVariable: ErrObjectLocked,

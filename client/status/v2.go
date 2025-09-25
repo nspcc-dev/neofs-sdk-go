@@ -62,6 +62,8 @@ func ToError(st *protostatus.Status) error {
 		decoder = new(SignatureVerification)
 	case protostatus.NodeUnderMaintenance:
 		decoder = new(NodeUnderMaintenance)
+	case protostatus.BadRequest:
+		decoder = new(BadRequest)
 	case protostatus.ObjectLocked:
 		decoder = new(ObjectLocked)
 	case protostatus.LockIrregularObject:

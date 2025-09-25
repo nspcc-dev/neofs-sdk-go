@@ -1065,7 +1065,7 @@ func testStatusResponses[SRV interface {
 		for _, code := range []uint32{
 			10,
 			1023,
-			1028,
+			1036,
 			2055,
 			3074,
 			4098,

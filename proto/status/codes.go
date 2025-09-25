@@ -8,6 +8,7 @@ const (
 	WrongNetMagic             = 1025
 	SignatureVerificationFail = 1026
 	NodeUnderMaintenance      = 1027
+	BadRequest                = 1028
 	ObjectAccessDenied        = 2048
 	ObjectNotFound            = 2049
 	ObjectLocked              = 2050

@@ -75,6 +75,20 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				st := new(apistatus.BadRequest)
+				st.SetMessage("some field isn't set")
+
+				return st
+			},
+			code:           1028,
+			compatibleErrs: []error{apistatus.ErrBadRequest, apistatus.BadRequest{}, &apistatus.BadRequest{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.BadRequest
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.ObjectLocked)
 			},
 			code:           2050,
