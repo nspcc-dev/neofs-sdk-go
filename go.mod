@@ -11,7 +11,7 @@ require (
 	github.com/nspcc-dev/hrw/v2 v2.0.3
 	github.com/nspcc-dev/neo-go v0.108.1
 	github.com/nspcc-dev/tzhash v1.8.2
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.39.0
 	go.uber.org/zap v1.27.0
 	google.golang.org/grpc v1.75.1
