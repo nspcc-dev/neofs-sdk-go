@@ -37,6 +37,10 @@ func TestErrors(t *testing.T) {
 			errVariable: ErrBadRequest,
 		},
 		{
+			errs:        []error{Busy{}, new(Busy)},
+			errVariable: ErrBusy,
+		},
+		{
 			errs:        []error{ObjectLocked{}, new(ObjectLocked)},
 			errVariable: ErrObjectLocked,
 		},

@@ -89,6 +89,20 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				st := new(apistatus.Busy)
+				st.SetMessage("some pool is overflown")
+
+				return st
+			},
+			code:           1029,
+			compatibleErrs: []error{apistatus.ErrBusy, apistatus.Busy{}, &apistatus.Busy{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.Busy
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.ObjectLocked)
 			},
 			code:           2050,
