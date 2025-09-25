@@ -13,6 +13,10 @@ func TestErrors(t *testing.T) {
 		errVariable error
 	}{
 		{
+			errs:        []error{Incomplete{}, new(Incomplete)},
+			errVariable: ErrIncomplete,
+		},
+		{
 			errs:        []error{ServerInternal{}, new(ServerInternal)},
 			errVariable: ErrServerInternal,
 		},

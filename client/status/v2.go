@@ -52,6 +52,8 @@ func ToError(st *protostatus.Status) error {
 	switch code := st.GetCode(); code {
 	case protostatus.OK:
 		return nil
+	case protostatus.IncompleteSuccess:
+		decoder = new(Incomplete)
 	case protostatus.InternalServerError:
 		decoder = new(ServerInternal)
 	case protostatus.WrongNetMagic:

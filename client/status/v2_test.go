@@ -33,6 +33,20 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				st := new(apistatus.Incomplete)
+				st.SetMessage("2 out of 3 replicas made")
+
+				return st
+			},
+			code:           1,
+			compatibleErrs: []error{apistatus.ErrIncomplete, apistatus.Incomplete{}, &apistatus.Incomplete{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.Incomplete
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				st := new(apistatus.ServerInternal)
 				st.SetMessage("internal error message")
 

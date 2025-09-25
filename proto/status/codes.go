@@ -3,6 +3,7 @@ package status
 // All supported status codes.
 const (
 	OK                        = 0
+	IncompleteSuccess         = 1
 	InternalServerError       = 1024
 	WrongNetMagic             = 1025
 	SignatureVerificationFail = 1026

@@ -1063,7 +1063,7 @@ func testStatusResponses[SRV interface {
 	})
 	t.Run("unrecognized", func(t *testing.T) {
 		for _, code := range []uint32{
-			1,
+			10,
 			1023,
 			1028,
 			2055,
