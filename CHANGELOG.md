@@ -36,7 +36,7 @@ New features:
  * Unsigned GET/HEAD response support (#719)
  * DecodeString() support for version.Version (#720)
  * Associate attribute support (#721)
- 
+
 Behaviour changes:
  * ExternalAddresses deprecation following API changes (#700)
  * object.NewAttribute returns instance instead of a pointer making it easier to use other APIs (#701)
