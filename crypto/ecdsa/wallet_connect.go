@@ -36,10 +36,7 @@ func (x SignerWalletConnect) Sign(data []byte) ([]byte, error) {
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
 	base64.StdEncoding.Encode(b64, data)
 	var salt [saltLen]byte
-	_, err := rand.Read(salt[:])
-	if err != nil {
-		return nil, fmt.Errorf("randomize salt: %w", err)
-	}
+	_, _ = rand.Read(salt[:])
 	sig, err := SignerRFC6979(x).Sign(saltMessageWalletConnect(b64, salt[:]))
 	if err != nil {
 		return nil, err

@@ -28,9 +28,7 @@ func BenchmarkPrepareReplicationMessage(b *testing.B) {
 	var signer nopSigner
 
 	b.ReportAllocs()
-	b.ResetTimer()
-
-	for range b.N {
+	for b.Loop() {
 		_, err := prepareReplicateMessage(id, bytes.NewReader(bObj), signer, true)
 		require.NoError(b, err)
 	}

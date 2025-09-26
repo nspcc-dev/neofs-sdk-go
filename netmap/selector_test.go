@@ -39,8 +39,7 @@ func BenchmarkHRWSort(b *testing.B) {
 	pivot := hashableUint(rand.Uint64())
 	b.Run("sort by value, no weight", func(b *testing.B) {
 		realNodes := make([]nodes, netmapSize)
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			b.StopTimer()
 			copy(realNodes, vectors)
 			b.StartTimer()
@@ -50,8 +49,7 @@ func BenchmarkHRWSort(b *testing.B) {
 	})
 	b.Run("sort by value", func(b *testing.B) {
 		realNodes := make([]nodes, netmapSize)
-		b.ResetTimer()
-		for range b.N {
+		for b.Loop() {
 			b.StopTimer()
 			copy(realNodes, vectors)
 			b.StartTimer()
@@ -97,8 +95,7 @@ func BenchmarkPolicyHRWType(b *testing.B) {
 	var nm NetMap
 	nm.SetNodes(nodes)
 
-	b.ResetTimer()
-	for range b.N {
+	for b.Loop() {
 		_, err := nm.ContainerNodes(p, cid.ID{1})
 		if err != nil {
 			b.Fatal()
