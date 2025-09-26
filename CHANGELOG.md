@@ -1,5 +1,29 @@
 # Changelog
 
+## [1.0.0-rc.15] - 2025-09-26
+
+This version makes SDK compatible with API 2.19, removes all deprecated APIs
+and brings updates to use Go 1.24+.
+
+New features:
+ * QuotaExceeded API status (#734)
+ * pool.ErrUnhealthy error (#737)
+ * Incomplete API status (#742)
+ * BadRequest API status (#742)
+ * Busy API status (#742)
+
+Behaviour changes:
+ * Removed P2P estimations API which is deprecated and unused (#732)
+ * Removed all previously deprecated APIs (#738)
+
+Improvements:
+ * Go 1.24+ is required now (#743)
+ * Updated NeoGo dependency to 0.113.0 (#743)
+
+Bugs fixed:
+ * panic in NetMap.ContainerNodes methods when the number of SELECTs exceeds the number of REPs (#735)
+ * nil EACL targets and target subjects were not preserved in CopyTo methods (#738)
+
 ## [1.0.0-rc.14] - 2025-08-07
 
 This version makes SDK compatible with API 2.18, cleans up some APIs and
@@ -12,7 +36,7 @@ New features:
  * Unsigned GET/HEAD response support (#719)
  * DecodeString() support for version.Version (#720)
  * Associate attribute support (#721)
- 
+
 Behaviour changes:
  * ExternalAddresses deprecation following API changes (#700)
  * object.NewAttribute returns instance instead of a pointer making it easier to use other APIs (#701)
@@ -351,6 +375,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.15]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.14...v1.0.0-rc.15
 [1.0.0-rc.14]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.13...v1.0.0-rc.14
 [1.0.0-rc.13]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.12...v1.0.0-rc.13
 [1.0.0-rc.12]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.11...v1.0.0-rc.12
