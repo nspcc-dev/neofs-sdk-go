@@ -13,6 +13,10 @@ func TestErrors(t *testing.T) {
 		errVariable error
 	}{
 		{
+			errs:        []error{Incomplete{}, new(Incomplete)},
+			errVariable: ErrIncomplete,
+		},
+		{
 			errs:        []error{ServerInternal{}, new(ServerInternal)},
 			errVariable: ErrServerInternal,
 		},
@@ -28,7 +32,14 @@ func TestErrors(t *testing.T) {
 			errs:        []error{NodeUnderMaintenance{}, new(NodeUnderMaintenance)},
 			errVariable: ErrNodeUnderMaintenance,
 		},
-
+		{
+			errs:        []error{BadRequest{}, new(BadRequest)},
+			errVariable: ErrBadRequest,
+		},
+		{
+			errs:        []error{Busy{}, new(Busy)},
+			errVariable: ErrBusy,
+		},
 		{
 			errs:        []error{ObjectLocked{}, new(ObjectLocked)},
 			errVariable: ErrObjectLocked,

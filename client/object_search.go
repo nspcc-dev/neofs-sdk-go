@@ -421,6 +421,7 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 // Return errors:
 //   - global (see Client docs)
 //   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrIncomplete]
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrSessionTokenExpired]
 func (x *ObjectListReader) Close() error {

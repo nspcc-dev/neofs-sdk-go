@@ -116,3 +116,75 @@ func TestNodeUnderMaintenance(t *testing.T) {
 		require.Equal(t, msg, m.Message)
 	})
 }
+
+func TestBadRequest(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		var st apistatus.BadRequest
+
+		require.Empty(t, st.Message())
+	})
+
+	t.Run("custom message", func(t *testing.T) {
+		var st apistatus.BadRequest
+		msg := "some message"
+
+		st.SetMessage(msg)
+
+		m := apistatus.FromError(st)
+
+		require.Equal(t, msg, st.Message())
+		require.Equal(t, msg, m.Message)
+	})
+
+	t.Run("proto", func(t *testing.T) {
+		var st apistatus.BadRequest
+
+		m := apistatus.FromError(st)
+
+		require.Equal(t, "bad request", m.Message)
+
+		msg := "some other msg"
+
+		st.SetMessage(msg)
+
+		m = apistatus.FromError(st)
+
+		require.Equal(t, msg, m.Message)
+	})
+}
+
+func TestBusy(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		var st apistatus.Busy
+
+		require.Empty(t, st.Message())
+	})
+
+	t.Run("custom message", func(t *testing.T) {
+		var st apistatus.Busy
+		msg := "some message"
+
+		st.SetMessage(msg)
+
+		m := apistatus.FromError(st)
+
+		require.Equal(t, msg, st.Message())
+		require.Equal(t, msg, m.Message)
+	})
+
+	t.Run("proto", func(t *testing.T) {
+		var st apistatus.Busy
+
+		m := apistatus.FromError(st)
+
+		require.Equal(t, "busy, retry later", m.Message)
+
+		msg := "some other msg"
+
+		st.SetMessage(msg)
+
+		m = apistatus.FromError(st)
+
+		require.Equal(t, msg, m.Message)
+	})
+}

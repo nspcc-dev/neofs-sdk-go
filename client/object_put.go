@@ -257,6 +257,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 // Return errors:
 //   - global (see Client docs)
 //   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrIncomplete]
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrLockNonRegularObject]

@@ -3,10 +3,13 @@ package status
 // All supported status codes.
 const (
 	OK                        = 0
+	IncompleteSuccess         = 1
 	InternalServerError       = 1024
 	WrongNetMagic             = 1025
 	SignatureVerificationFail = 1026
 	NodeUnderMaintenance      = 1027
+	BadRequest                = 1028
+	Busy                      = 1029
 	ObjectAccessDenied        = 2048
 	ObjectNotFound            = 2049
 	ObjectLocked              = 2050

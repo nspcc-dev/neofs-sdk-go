@@ -33,6 +33,20 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				st := new(apistatus.Incomplete)
+				st.SetMessage("2 out of 3 replicas made")
+
+				return st
+			},
+			code:           1,
+			compatibleErrs: []error{apistatus.ErrIncomplete, apistatus.Incomplete{}, &apistatus.Incomplete{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.Incomplete
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				st := new(apistatus.ServerInternal)
 				st.SetMessage("internal error message")
 
@@ -56,6 +70,34 @@ func TestToError(t *testing.T) {
 			compatibleErrs: []error{apistatus.ErrWrongMagicNumber, apistatus.WrongMagicNumber{}, &apistatus.WrongMagicNumber{}, apistatus.Error},
 			checkAsErr: func(err error) bool {
 				var target *apistatus.WrongMagicNumber
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
+				st := new(apistatus.BadRequest)
+				st.SetMessage("some field isn't set")
+
+				return st
+			},
+			code:           1028,
+			compatibleErrs: []error{apistatus.ErrBadRequest, apistatus.BadRequest{}, &apistatus.BadRequest{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.BadRequest
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
+				st := new(apistatus.Busy)
+				st.SetMessage("some pool is overflown")
+
+				return st
+			},
+			code:           1029,
+			compatibleErrs: []error{apistatus.ErrBusy, apistatus.Busy{}, &apistatus.Busy{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.Busy
 				return errors.As(err, &target)
 			},
 		},

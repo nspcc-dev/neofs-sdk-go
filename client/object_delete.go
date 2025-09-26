@@ -60,6 +60,7 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 //   - global (see Client docs)
 //   - [ErrMissingSigner]
 //   - [apistatus.ErrContainerNotFound]
+//   - [apistatus.ErrIncomplete]
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrSessionTokenExpired]

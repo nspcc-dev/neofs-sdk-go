@@ -24,6 +24,12 @@ var (
 	// ErrNodeUnderMaintenance is an instance of NodeUnderMaintenance error status. It's expected to be used for [errors.Is]
 	// and MUST NOT be changed.
 	ErrNodeUnderMaintenance NodeUnderMaintenance
+	// ErrBadRequest is an instance of BadRequest error status. It's
+	// expected to be used for [errors.Is] and MUST NOT be changed.
+	ErrBadRequest BadRequest
+	// ErrBusy is an instance of Busy error status. It's expected
+	// to be used for [errors.Is] and MUST NOT be changed.
+	ErrBusy Busy
 )
 
 // ServerInternal describes failure statuses related to internal server errors.
@@ -256,5 +262,122 @@ func (x *NodeUnderMaintenance) SetMessage(v string) {
 //
 // See also SetMessage.
 func (x NodeUnderMaintenance) Message() string {
+	return x.msg
+}
+
+// BadRequest describes failure status for requests that don't follow
+// the protocol.
+type BadRequest struct {
+	msg string
+	dts []*protostatus.Status_Detail
+}
+
+const defaultBadRequestMsg = "bad request"
+
+// Error implements the error interface.
+func (x BadRequest) Error() string {
+	if x.msg == "" {
+		x.msg = defaultBadRequestMsg
+	}
+
+	return errMessageStatus(protostatus.BadRequest, x.msg)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x BadRequest) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case BadRequest, *BadRequest:
+		return true
+	}
+}
+
+// implements local interface defined in [ToError] func.
+func (x *BadRequest) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
+}
+
+// implements local interface defined in [FromError] func.
+func (x BadRequest) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultBadRequestMsg
+	}
+	return &protostatus.Status{Code: protostatus.BadRequest, Message: x.msg, Details: x.dts}
+}
+
+// SetMessage sets details for why the request is bad.
+// Message should be used for debug purposes only.
+//
+// See also [Message].
+func (x *BadRequest) SetMessage(v string) {
+	x.msg = v
+}
+
+// Message returns status message. Zero status returns empty message.
+// Message should be used for debug purposes only.
+//
+// See also [SetMessage].
+func (x BadRequest) Message() string {
+	return x.msg
+}
+
+// Busy describes failure status for servers that currently incapable of
+// performing the requested call, but are likely to be able to do that
+// in future.
+type Busy struct {
+	msg string
+	dts []*protostatus.Status_Detail
+}
+
+const defaultBusyMsg = "busy, retry later"
+
+// Error implements the error interface.
+func (x Busy) Error() string {
+	if x.msg == "" {
+		x.msg = defaultBusyMsg
+	}
+
+	return errMessageStatus(protostatus.Busy, x.msg)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x Busy) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case Busy, *Busy:
+		return true
+	}
+}
+
+// implements local interface defined in [ToError] func.
+func (x *Busy) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
+}
+
+// implements local interface defined in [FromError] func.
+func (x Busy) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultBusyMsg
+	}
+	return &protostatus.Status{Code: protostatus.Busy, Message: x.msg, Details: x.dts}
+}
+
+// SetMessage sets details of server state.
+// Message should be used for debug purposes only.
+//
+// See also [Message].
+func (x *Busy) SetMessage(v string) {
+	x.msg = v
+}
+
+// Message returns status message. Zero status returns empty message.
+// Message should be used for debug purposes only.
+//
+// See also [SetMessage].
+func (x Busy) Message() string {
 	return x.msg
 }

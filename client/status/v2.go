@@ -52,6 +52,8 @@ func ToError(st *protostatus.Status) error {
 	switch code := st.GetCode(); code {
 	case protostatus.OK:
 		return nil
+	case protostatus.IncompleteSuccess:
+		decoder = new(Incomplete)
 	case protostatus.InternalServerError:
 		decoder = new(ServerInternal)
 	case protostatus.WrongNetMagic:
@@ -60,6 +62,10 @@ func ToError(st *protostatus.Status) error {
 		decoder = new(SignatureVerification)
 	case protostatus.NodeUnderMaintenance:
 		decoder = new(NodeUnderMaintenance)
+	case protostatus.BadRequest:
+		decoder = new(BadRequest)
+	case protostatus.Busy:
+		decoder = new(Busy)
 	case protostatus.ObjectLocked:
 		decoder = new(ObjectLocked)
 	case protostatus.LockIrregularObject:
