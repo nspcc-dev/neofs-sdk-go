@@ -25,7 +25,9 @@ import (
 const (
 	defaultSearchObjectsQueryVersion = 1
 
-	maxSearchObjectsCount       = 1000
+	// MaxSearchObjectsCount is the maximal allowed number of objects requested
+	// in a single [Client.SearchObjects] call.
+	MaxSearchObjectsCount       = 1000
 	maxSearchObjectsFilterCount = 8
 	maxSearchObjectsAttrCount   = 8
 )
@@ -59,8 +61,8 @@ func (x *SearchObjectsOptions) WithSessionToken(st session.Object) { x.sessionTo
 // must be issued by the container owner for the request signer.
 func (x *SearchObjectsOptions) WithBearerToken(bt bearer.Token) { x.bearerToken = &bt }
 
-// SetCount limits the search result to a given number. Must be in [1, 1000]
-// range. Defaults to 1000.
+// SetCount limits the search result to a given number. Must be in [1, [client.MaxSearchObjectsCount]]
+// range. Defaults to [client.MaxSearchObjectsCount].
 func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 
 // Count returns limit for the search result.
@@ -107,8 +109,8 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	case cnr.IsZero():
 		err = cid.ErrZero
 		return nil, "", err
-	case opts.count > maxSearchObjectsCount:
-		err = fmt.Errorf("count is out of [1, %d] range", maxSearchObjectsCount)
+	case opts.count > MaxSearchObjectsCount:
+		err = fmt.Errorf("count is out of [1, %d] range", MaxSearchObjectsCount)
 		return nil, "", err
 	case len(filters) > maxSearchObjectsFilterCount:
 		err = fmt.Errorf("more than %d filters", maxSearchObjectsFilterCount)
@@ -147,7 +149,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 
 	if opts.count == 0 {
-		opts.count = maxSearchObjectsCount
+		opts.count = MaxSearchObjectsCount
 	}
 
 	req := &protoobject.SearchV2Request{
