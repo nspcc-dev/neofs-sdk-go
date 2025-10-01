@@ -108,6 +108,12 @@ func TestFilter_MarshalStable(t *testing.T) {
 	})
 }
 
+func TestPlacementPolicy_ECRule_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*netmap.PlacementPolicy_ECRule{
+		prototest.RandECRule(),
+	})
+}
+
 func TestPlacement_MarshalStable(t *testing.T) {
 	t.Run("nil in repeated messages", func(t *testing.T) {
 		src := &netmap.PlacementPolicy{

@@ -20,6 +20,7 @@ const (
 	maxContainerNodesInSet  = 64
 	maxContainerNodeSets    = 256
 	maxContainerNodes       = 512
+	maxTotalECParts         = maxContainerNodesInSet
 )
 
 // PlacementPolicy declares policy to store objects in the NeoFS container.
@@ -38,6 +39,8 @@ type PlacementPolicy struct {
 	selectors []Selector
 
 	replicas []ReplicaDescriptor
+
+	ecRules []ECRule
 }
 
 // FilterOp defines the matching property.
@@ -110,11 +113,13 @@ func (p PlacementPolicy) CopyTo(dst *PlacementPolicy) {
 
 	// protonetmap.Replica is a struct with simple types, no links inside. Just create a new slice and copy all items inside.
 	dst.replicas = slices.Clone(p.replicas)
+
+	dst.ecRules = slices.Clone(p.ecRules)
 }
 
 func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, checkFieldPresence bool) error {
-	if checkFieldPresence && len(m.Replicas) == 0 {
-		return errors.New("missing replicas")
+	if checkFieldPresence && len(m.Replicas) == 0 && len(m.EcRules) == 0 {
+		return errors.New("missing both REP and EC rules")
 	}
 
 	p.replicas = make([]ReplicaDescriptor, len(m.Replicas))
@@ -143,6 +148,20 @@ func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, check
 		if err := p.filters[i].fromProtoMessage(f); err != nil {
 			return fmt.Errorf("invalid filter #%d: %w", i, err)
 		}
+	}
+
+	if m.EcRules != nil {
+		p.ecRules = make([]ECRule, len(m.EcRules))
+		for i, r := range m.EcRules {
+			if r == nil {
+				return fmt.Errorf("nil EC rule #%d", i)
+			}
+			if err := p.ecRules[i].fromProtoMessage(r); err != nil {
+				return fmt.Errorf("invalid EC rule #%d: %w", i, err)
+			}
+		}
+	} else {
+		p.ecRules = nil
 	}
 
 	p.backupFactor = m.GetContainerBackupFactor()
@@ -215,6 +234,12 @@ func (p PlacementPolicy) ProtoMessage() *protonetmap.PlacementPolicy {
 		m.Filters = make([]*protonetmap.Filter, len(p.filters))
 		for i := range p.filters {
 			m.Filters[i] = p.filters[i].protoMessage()
+		}
+	}
+	if len(p.ecRules) > 0 {
+		m.EcRules = make([]*protonetmap.PlacementPolicy_ECRule, len(p.ecRules))
+		for i := range p.ecRules {
+			m.EcRules[i] = p.ecRules[i].protoMessage()
 		}
 	}
 	return m
@@ -708,6 +733,20 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 		}
 	}
 
+	for _, r := range p.ecRules {
+		if err = writeLnIfNeeded(); err != nil {
+			return err
+		}
+		if r.selector != "" {
+			_, err = w.WriteString(fmt.Sprintf("EC %d/%d IN %s", r.dataPartNum, r.parityPartNum, r.selector))
+		} else {
+			_, err = w.WriteString(fmt.Sprintf("EC %d/%d", r.dataPartNum, r.parityPartNum))
+		}
+		if err != nil {
+			return err
+		}
+	}
+
 	if p.backupFactor > 0 {
 		err = writeLnIfNeeded()
 		if err != nil {
@@ -898,15 +937,30 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 	}
 
 	pl := new(PlacementPolicy)
-	repStmts := ctx.AllRepStmt()
-	pl.replicas = make([]ReplicaDescriptor, len(repStmts))
+	ruleStmts := ctx.AllRuleStmt()
 
-	for i, r := range repStmts {
-		res, ok := r.Accept(p).(*protonetmap.Replica)
-		if !ok {
-			return nil
+	for i := range ruleStmts {
+		if s := ruleStmts[i].EcStmt(); s != nil {
+			m, ok := s.Accept(p).(*protonetmap.PlacementPolicy_ECRule)
+			if !ok {
+				return nil
+			}
+
+			pl.ecRules = append(pl.ecRules, ECRule{})
+			if err := pl.ecRules[len(pl.ecRules)-1].fromProtoMessage(m); err != nil {
+				return fmt.Errorf("invalid EC rule #%d: %w", i, err)
+			}
+		} else if r := ruleStmts[i].RepStmt(); r != nil {
+			m, ok := ruleStmts[i].RepStmt().Accept(p).(*protonetmap.Replica)
+			if !ok {
+				return nil
+			}
+
+			pl.replicas = append(pl.replicas, ReplicaDescriptor{})
+			pl.replicas[len(pl.replicas)-1].fromProtoMessage(m)
+		} else {
+			return errors.New("invalid rule: neither REP nor EC")
 		}
-		pl.replicas[i].fromProtoMessage(res)
 	}
 
 	if cbfStmt := ctx.CbfStmt(); cbfStmt != nil {
@@ -947,23 +1001,19 @@ func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 }
 
 func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) any {
-	cbf, err := strconv.ParseUint(ctx.GetBackupFactor().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
+	if cbf := uint32(0); p.parseUint32Token(&cbf, ctx.GetBackupFactor()) {
+		return cbf
 	}
-
-	return uint32(cbf)
+	return nil
 }
 
 // VisitRepStmt implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
-	num, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
-	}
-
 	rs := new(protonetmap.Replica)
-	rs.Count = uint32(num)
+
+	if !p.parseUint32Token(&rs.Count, ctx.GetCount()) {
+		return nil
+	}
 
 	if sel := ctx.GetSelector(); sel != nil {
 		rs.Selector = sel.GetText()
@@ -974,13 +1024,11 @@ func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 
 // VisitSelectStmt implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
-	res, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
-	}
-
 	s := new(protonetmap.Selector)
-	s.Count = uint32(res)
+
+	if !p.parseUint32Token(&s.Count, ctx.GetCount()) {
+		return nil
+	}
 
 	if clStmt := ctx.Clause(); clStmt != nil {
 		s.Clause = clauseFromString(clStmt.GetText())
@@ -1100,6 +1148,8 @@ func validatePolicy(p PlacementPolicy) error {
 		}
 	}
 
+	// TODO: adopt EC rules
+
 	return nil
 }
 
@@ -1143,13 +1193,17 @@ func operationFromString(s string) protonetmap.Operation {
 	}
 }
 
-var errInvalidNodeSetDesc = errors.New("invalid node set descriptor")
+var (
+	errInvalidNodeSetDesc = errors.New("invalid node set descriptor")
+	errInvalidECRule      = errors.New("invalid EC rule")
+)
 
 // Verify checks whether p complies with NeoFS protocol requirements. The checks
 // performed may vary, so the method is recommended for system purposes only.
 func (p PlacementPolicy) Verify() error {
 	rs := p.Replicas()
-	if len(rs) > maxContainerNodeSets {
+	es := p.ECRules()
+	if len(rs)+len(es) > maxContainerNodeSets {
 		return fmt.Errorf("more than %d node sets", maxContainerNodeSets)
 	}
 	ss := p.Selectors()
@@ -1181,5 +1235,30 @@ func (p PlacementPolicy) Verify() error {
 			return fmt.Errorf("more than %d nodes in total", maxContainerNodes)
 		}
 	}
+
+	for i := range es {
+		if err := es[i].verify(); err != nil {
+			return fmt.Errorf("%w #%d: %w", errInvalidECRule, i, err)
+		}
+
+		var sNum uint32
+		if sName := es[i].SelectorName(); sName != "" {
+			si := slices.IndexFunc(ss, func(s Selector) bool { return s.Name() == sName })
+			if si < 0 {
+				return fmt.Errorf("%w #%d: missing selector %q", errInvalidECRule, i, sName)
+			}
+			sNum = ss[si].NumberOfNodes()
+		} else {
+			sNum = es[i].DataPartNum() + es[i].ParityPartNum()
+		}
+		nodesInSet := bf * sNum
+		if nodesInSet > maxContainerNodesInSet {
+			return fmt.Errorf("%w #%d: more than %d nodes", errInvalidECRule, i, maxContainerNodesInSet)
+		}
+		if cnrNodeCount += nodesInSet; cnrNodeCount > maxContainerNodes {
+			return fmt.Errorf("more than %d nodes in total", maxContainerNodes)
+		}
+	}
+
 	return nil
 }

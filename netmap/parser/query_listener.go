@@ -11,8 +11,14 @@ type QueryListener interface {
 	// EnterPolicy is called when entering the policy production.
 	EnterPolicy(c *PolicyContext)
 
+	// EnterRuleStmt is called when entering the ruleStmt production.
+	EnterRuleStmt(c *RuleStmtContext)
+
 	// EnterRepStmt is called when entering the repStmt production.
 	EnterRepStmt(c *RepStmtContext)
+
+	// EnterEcStmt is called when entering the ecStmt production.
+	EnterEcStmt(c *EcStmtContext)
 
 	// EnterCbfStmt is called when entering the cbfStmt production.
 	EnterCbfStmt(c *CbfStmtContext)
@@ -53,8 +59,14 @@ type QueryListener interface {
 	// ExitPolicy is called when exiting the policy production.
 	ExitPolicy(c *PolicyContext)
 
+	// ExitRuleStmt is called when exiting the ruleStmt production.
+	ExitRuleStmt(c *RuleStmtContext)
+
 	// ExitRepStmt is called when exiting the repStmt production.
 	ExitRepStmt(c *RepStmtContext)
+
+	// ExitEcStmt is called when exiting the ecStmt production.
+	ExitEcStmt(c *EcStmtContext)
 
 	// ExitCbfStmt is called when exiting the cbfStmt production.
 	ExitCbfStmt(c *CbfStmtContext)

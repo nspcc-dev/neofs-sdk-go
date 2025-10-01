@@ -4,10 +4,16 @@ options {
     tokenVocab = QueryLexer;
 }
 
-policy: repStmt+ cbfStmt? selectStmt* filterStmt* EOF;
+policy: ruleStmt+ cbfStmt? selectStmt* filterStmt* EOF;
+
+ruleStmt: repStmt | ecStmt;
 
 repStmt:
     REP Count = NUMBER1     // number of object replicas
+    (IN Selector = ident)?; // optional selector name
+
+ecStmt:
+    EC DataPartNum = NUMBER1 EC_SEP ParityPartNum = NUMBER1
     (IN Selector = ident)?; // optional selector name
 
 cbfStmt: CBF BackupFactor = NUMBER1; // container backup factor
@@ -41,6 +47,6 @@ expr:
 filterKey : ident | STRING;
 filterValue : ident | number | STRING;
 number : ZERO | NUMBER1;
-keyword : REP | IN | AS | SELECT | FROM | FILTER;
+keyword : REP | IN | AS | SELECT | FROM | FILTER | EC;
 ident : keyword | IDENT;
 identWC : ident | WILDCARD;
