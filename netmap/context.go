@@ -83,7 +83,7 @@ func defaultWeightFunc(ns nodes) weightFunc {
 	minA := newMinAgg()
 
 	for i := range ns {
-		meanA.Add(float64(ns[i].capacity()))
+		meanA.Add(float64(ns[i].Capacity()))
 		minA.Add(float64(ns[i].Price()))
 	}
 
