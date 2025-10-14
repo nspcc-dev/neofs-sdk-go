@@ -113,7 +113,7 @@ func (c *context) matchKeyValue(f Filter, b NodeInfo) bool {
 		case attrPrice:
 			attr = b.Price()
 		case attrCapacity:
-			attr = b.capacity()
+			attr = b.Capacity()
 		default:
 			var err error
 

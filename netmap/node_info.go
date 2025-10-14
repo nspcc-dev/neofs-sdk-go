@@ -259,10 +259,10 @@ func (x *NodeInfo) SetVersion(version string) {
 	x.SetAttribute(attrVersion, version)
 }
 
-// capacity returns capacity set using SetCapacity.
+// Capacity returns capacity set using SetCapacity.
 //
 // Zero NodeInfo has zero capacity.
-func (x NodeInfo) capacity() uint64 {
+func (x NodeInfo) Capacity() uint64 {
 	val := x.Attribute(attrCapacity)
 	if val == "" {
 		return 0
