@@ -230,9 +230,11 @@ func (x *NodeInfo) SetPrice(price uint64) {
 	x.setNumericAttribute(attrPrice, price)
 }
 
-// Price returns price set using SetPrice.
+// Price returns price stored in the Price node attribute.
 //
 // Zero NodeInfo has zero price.
+//
+// See [NodeInfo.SetPrice] also.
 func (x NodeInfo) Price() uint64 {
 	val := x.Attribute(attrPrice)
 	if val == "" {
@@ -259,9 +261,11 @@ func (x *NodeInfo) SetVersion(version string) {
 	x.SetAttribute(attrVersion, version)
 }
 
-// Capacity returns capacity set using SetCapacity.
+// Capacity returns capacity (GB) stored in the Capacity node attribute.
 //
 // Zero NodeInfo has zero capacity.
+//
+// See [NodeInfo.SetCapacity] also.
 func (x NodeInfo) Capacity() uint64 {
 	val := x.Attribute(attrCapacity)
 	if val == "" {
