@@ -193,7 +193,7 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 		return nil, err
 	}
 
-	result := make([][]NodeInfo, len(p.replicas))
+	result := make([][]NodeInfo, len(p.replicas)+len(p.ecRules))
 
 	for i := range p.replicas {
 		sName := p.replicas[i].SelectorName()
@@ -221,6 +221,38 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 		nodes, ok := c.selections[sName]
 		if !ok {
 			return nil, fmt.Errorf("selector not found: REPLICA '%s'", sName)
+		}
+
+		result[i] = append(result[i], flattenNodes(nodes)...)
+	}
+
+	for j, r := range p.ecRules {
+		i := len(p.replicas) + j
+		sName := r.SelectorName()
+		if sName == "" {
+			if len(p.selectors) == 0 {
+				var s Selector
+				s.SetNumberOfNodes(r.DataPartNum() + r.ParityPartNum())
+				s.SetFilterName(mainFilterName)
+
+				nodes, err := c.getSelection(p, s)
+				if err != nil {
+					return nil, err
+				}
+
+				result[i] = flattenNodes(nodes)
+			}
+
+			for _, s := range p.selectors {
+				result[i] = append(result[i], flattenNodes(c.selections[s.Name()])...)
+			}
+
+			continue
+		}
+
+		nodes, ok := c.selections[sName]
+		if !ok {
+			return nil, fmt.Errorf("selector not found: EC '%s'", sName)
 		}
 
 		result[i] = append(result[i], flattenNodes(nodes)...)

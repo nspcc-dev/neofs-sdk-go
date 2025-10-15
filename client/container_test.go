@@ -740,19 +740,19 @@ func TestClient_ContainerPut(t *testing.T) {
 				require.EqualError(t, err, msg)
 			}
 			t.Run("too many node sets", func(t *testing.T) {
-				test(t, "invalid storage policy: more than 256 node sets", func(policy *netmap.PlacementPolicy) {
+				test(t, "invalid storage policy: more than 256 REP rules", func(policy *netmap.PlacementPolicy) {
 					policy.SetReplicas(make([]netmap.ReplicaDescriptor, 257))
 				})
 			})
 			t.Run("too many object replicas", func(t *testing.T) {
-				test(t, "invalid storage policy: invalid node set descriptor #1: more than 8 object replicas", func(policy *netmap.PlacementPolicy) {
+				test(t, "invalid storage policy: invalid REP rule #1: more than 8 object replicas", func(policy *netmap.PlacementPolicy) {
 					rs := slices.Clone(rs)
 					rs[1].SetNumberOfObjects(9)
 					policy.SetReplicas(rs)
 				})
 			})
 			t.Run("missing selector", func(t *testing.T) {
-				test(t, `invalid storage policy: invalid node set descriptor #1: missing selector "SEL2"`, func(policy *netmap.PlacementPolicy) {
+				test(t, `invalid storage policy: invalid REP rule #1: missing selector "SEL2"`, func(policy *netmap.PlacementPolicy) {
 					ss := slices.Clone(ss)
 					ss[1].SetName("SEL3")
 					policy.SetSelectors(ss)
@@ -761,7 +761,7 @@ func TestClient_ContainerPut(t *testing.T) {
 			t.Run("too many nodes in set", func(t *testing.T) {
 				t.Run("with selectors", func(t *testing.T) {
 					test := func(t *testing.T, sn, bf uint32) {
-						test(t, `invalid storage policy: invalid node set descriptor #1: more than 64 nodes`, func(policy *netmap.PlacementPolicy) {
+						test(t, `invalid storage policy: invalid REP rule #1: more than 64 nodes`, func(policy *netmap.PlacementPolicy) {
 							ss := slices.Clone(ss)
 							ss[1].SetNumberOfNodes(sn)
 							policy.SetContainerBackupFactor(bf)
@@ -772,7 +772,7 @@ func TestClient_ContainerPut(t *testing.T) {
 					t.Run("BF=1", func(t *testing.T) { test(t, 65, 1) })
 					t.Run("BF=5", func(t *testing.T) { test(t, 13, 5) })
 				})
-				test(t, `invalid storage policy: invalid node set descriptor #1: more than 64 nodes`, func(policy *netmap.PlacementPolicy) {
+				test(t, `invalid storage policy: invalid REP rule #1: more than 64 nodes`, func(policy *netmap.PlacementPolicy) {
 					rs := make([]netmap.ReplicaDescriptor, 2)
 					rs[0].SetNumberOfObjects(4)
 					rs[1].SetNumberOfObjects(5)
@@ -845,6 +845,57 @@ func TestClient_ContainerPut(t *testing.T) {
 				}
 				rs[21].SetNumberOfObjects(3)
 				test(t, 0, rs, nil)
+			})
+			t.Run("EC", func(t *testing.T) {
+				for _, tc := range []struct {
+					name    string
+					err     string
+					corrupt func(p *netmap.PlacementPolicy)
+				}{
+					{name: "too many rules", err: "more than 4 EC rules", corrupt: func(p *netmap.PlacementPolicy) {
+						rules := make([]netmap.ECRule, 5)
+						for i := range rules {
+							rules[i].SetDataPartNum(3)
+							rules[i].SetParityPartNum(uint32(1 + i))
+						}
+						p.SetECRules(rules)
+					}},
+					{name: "zero data parts", err: "invalid EC rule #1: zero data part num", corrupt: func(p *netmap.PlacementPolicy) {
+						p.ECRules()[1].SetDataPartNum(0)
+					}},
+					{name: "zero parity parts", err: "invalid EC rule #1: zero parity part num", corrupt: func(p *netmap.PlacementPolicy) {
+						p.ECRules()[1].SetParityPartNum(0)
+					}},
+					{name: "too many data parts", err: "invalid EC rule #1: more than 64 total parts", corrupt: func(p *netmap.PlacementPolicy) {
+						p.ECRules()[1].SetDataPartNum(65)
+					}},
+					{name: "too many parity parts", err: "invalid EC rule #1: more than 64 total parts", corrupt: func(p *netmap.PlacementPolicy) {
+						p.ECRules()[1].SetDataPartNum(65)
+					}},
+					{name: "too many total parts", err: "invalid EC rule #1: more than 64 total parts", corrupt: func(p *netmap.PlacementPolicy) {
+						p.ECRules()[1].SetDataPartNum(32)
+						p.ECRules()[1].SetParityPartNum(33)
+					}},
+					{name: "missing selector", err: `invalid EC rule #1: missing selector "SEL3"`, corrupt: func(p *netmap.PlacementPolicy) {
+						p.ECRules()[1].SetSelectorName("SEL3")
+					}},
+					{name: "too many nodes for rule", err: `invalid EC rule #1: more than 64 nodes`, corrupt: func(p *netmap.PlacementPolicy) {
+						ss := slices.Clone(p.Selectors())
+						ss[1].SetNumberOfNodes(22)
+						p.SetSelectors(ss)
+					}},
+				} {
+					t.Run(tc.err, func(t *testing.T) {
+						test(t, "invalid storage policy: "+tc.err, func(policy *netmap.PlacementPolicy) {
+							policy.SetReplicas(nil)
+							policy.SetECRules([]netmap.ECRule{
+								netmap.NewECRule(3, 1),
+								netmap.NewECRule(12, 4),
+							})
+							tc.corrupt(policy)
+						})
+					})
+				}
 			})
 		})
 	})
@@ -1054,8 +1105,9 @@ func TestClient_ContainerGet(t *testing.T) {
 						name, msg string
 						corrupt   func(valid *protonetmap.PlacementPolicy)
 					}{
-						{name: "missing replicas", msg: "missing replicas", corrupt: func(valid *protonetmap.PlacementPolicy) {
+						{name: "missing rules", msg: "missing both REP and EC rules", corrupt: func(valid *protonetmap.PlacementPolicy) {
 							valid.Replicas = nil
+							valid.EcRules = nil
 						}},
 						{name: "selectors/clause/negative", msg: "invalid selector #1: negative clause -1", corrupt: func(valid *protonetmap.PlacementPolicy) {
 							valid.Selectors[1].Clause = -1

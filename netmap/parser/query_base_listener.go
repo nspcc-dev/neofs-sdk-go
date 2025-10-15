@@ -27,11 +27,23 @@ func (s *BaseQueryListener) EnterPolicy(ctx *PolicyContext) {}
 // ExitPolicy is called when production policy is exited.
 func (s *BaseQueryListener) ExitPolicy(ctx *PolicyContext) {}
 
+// EnterRuleStmt is called when production ruleStmt is entered.
+func (s *BaseQueryListener) EnterRuleStmt(ctx *RuleStmtContext) {}
+
+// ExitRuleStmt is called when production ruleStmt is exited.
+func (s *BaseQueryListener) ExitRuleStmt(ctx *RuleStmtContext) {}
+
 // EnterRepStmt is called when production repStmt is entered.
 func (s *BaseQueryListener) EnterRepStmt(ctx *RepStmtContext) {}
 
 // ExitRepStmt is called when production repStmt is exited.
 func (s *BaseQueryListener) ExitRepStmt(ctx *RepStmtContext) {}
+
+// EnterEcStmt is called when production ecStmt is entered.
+func (s *BaseQueryListener) EnterEcStmt(ctx *EcStmtContext) {}
+
+// ExitEcStmt is called when production ecStmt is exited.
+func (s *BaseQueryListener) ExitEcStmt(ctx *EcStmtContext) {}
 
 // EnterCbfStmt is called when production cbfStmt is entered.
 func (s *BaseQueryListener) EnterCbfStmt(ctx *CbfStmtContext) {}

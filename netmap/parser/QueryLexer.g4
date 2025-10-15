@@ -12,6 +12,7 @@ SELECT   : 'SELECT';
 FROM     : 'FROM';
 FILTER   : 'FILTER';
 WILDCARD : '*';
+EC       : 'EC';
 
 CLAUSE_SAME     : 'SAME';
 CLAUSE_DISTINCT : 'DISTINCT';
@@ -19,6 +20,7 @@ CLAUSE_DISTINCT : 'DISTINCT';
 L_PAREN : '(';
 R_PAREN : ')';
 AT      : '@';
+EC_SEP  : '/';
 
 IDENT             : Nondigit (Digit | Nondigit)* ;
 fragment Digit    : [0-9] ;

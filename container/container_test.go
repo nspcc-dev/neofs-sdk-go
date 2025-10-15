@@ -294,7 +294,8 @@ var validJSONContainer = `
     ]
    }
   ],
-  "subnetId": null
+  "subnetId": null,
+  "ecRules": []
  }
 }
 `
@@ -485,10 +486,12 @@ func TestContainer_FromProtoMessage(t *testing.T) {
 					m.Nonce = bytes.Clone(anyValidNonce[:])
 					m.Nonce[6] = 3 << 4
 				}},
-			{name: "policy/replicas/nil", err: "invalid placement policy: missing replicas",
+			{name: "policy/rules/nil", err: "invalid placement policy: missing both REP and EC rules",
 				corrupt: func(m *protocontainer.Container) { m.PlacementPolicy.Replicas = nil }},
-			{name: "policy/replicas/empty", err: "invalid placement policy: missing replicas",
-				corrupt: func(m *protocontainer.Container) { m.PlacementPolicy.Replicas = []*protonetmap.Replica{} }},
+			{name: "policy/rules/empty", err: "invalid placement policy: missing both REP and EC rules",
+				corrupt: func(m *protocontainer.Container) {
+					m.PlacementPolicy.Replicas, m.PlacementPolicy.EcRules = []*protonetmap.Replica{}, []*protonetmap.PlacementPolicy_ECRule{}
+				}},
 			{name: "attributes/no key", err: "empty attribute key",
 				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "", "v2") }},
 			{name: "attributes/no value", err: `empty "k2" attribute value`,
@@ -658,7 +661,7 @@ func TestContainer_Unmarshal(t *testing.T) {
 				b: []byte{26, 17, 229, 22, 237, 42, 123, 159, 78, 139, 136, 206, 237, 126, 224, 125, 147, 223, 1}},
 			{name: "nonce/wrong version", err: "invalid nonce: wrong UUID version 3, expected 4",
 				b: []byte{26, 16, 229, 22, 237, 42, 123, 159, 48, 139, 136, 206, 237, 126, 224, 125, 147, 223}},
-			{name: "policy/replicas/missing", err: "invalid placement policy: missing replicas",
+			{name: "policy/rules/missing", err: "invalid placement policy: missing both REP and EC rules",
 				b: []byte{50, 0}},
 			{name: "attributes/no key", err: "empty attribute key",
 				b: []byte{42, 8, 10, 2, 107, 49, 18, 2, 118, 49, 42, 4, 18, 2, 118, 50}},
@@ -716,7 +719,7 @@ func TestContainer_UnmarshalJSON(t *testing.T) {
 				j: `{"nonce":"5RbtKnufTouIzu1+4H2T3wE="}`},
 			{name: "nonce/wrong version", err: "invalid nonce: wrong UUID version 3, expected 4",
 				j: `{"nonce":"5RbtKnufMIuIzu1+4H2T3w=="}`},
-			{name: "policy/replicas/missing", err: "invalid placement policy: missing replicas",
+			{name: "policy/rules/missing", err: "invalid placement policy: missing both REP and EC rules",
 				j: `{"placementPolicy":{}}`},
 			{name: "attributes/no key", err: "empty attribute key",
 				j: `{"attributes":[{"key":"k1","value":"v1"},{"key":"","value":"v2"}]}`},

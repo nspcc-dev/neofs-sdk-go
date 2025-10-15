@@ -201,6 +201,20 @@ func RandPlacementFilter() *netmap.Filter { return randPlacementFilter(true) }
 // elements. Each element may be nil and pointer to zero.
 func RandPlacementFilters() []*netmap.Filter { return randPlacementFilters(true) }
 
+// RandECRule returns random netmap.PlacementPolicy_ECRule with all non-zero
+// fields.
+func RandECRule() *netmap.PlacementPolicy_ECRule {
+	return &netmap.PlacementPolicy_ECRule{
+		DataPartNum:   RandUint32(),
+		ParityPartNum: RandUint32(),
+		Selector:      RandString(),
+	}
+}
+
+// RandECRules returns non-empty list of netmap.PlacementPolicy_ECRule up to 10
+// elements. Each element may be nil and pointer to zero.
+func RandECRules() []*netmap.PlacementPolicy_ECRule { return RandRepeated(RandECRule) }
+
 // RandPlacementPolicy returns random netmap.PlacementPolicy with all non-zero
 // fields.
 func RandPlacementPolicy() *netmap.PlacementPolicy {
@@ -210,6 +224,7 @@ func RandPlacementPolicy() *netmap.PlacementPolicy {
 		Selectors:             RandPlacementSelectors(),
 		Filters:               RandPlacementFilters(),
 		SubnetId:              RandSubnetID(),
+		EcRules:               RandECRules(),
 	}
 }
 

@@ -10,6 +10,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -133,7 +134,8 @@ var validJSONPlacementPolicy = `
    ]
   }
  ],
- "subnetId": null
+ "subnetId": null,
+ "ecRules": []
 }
 `
 
@@ -214,6 +216,8 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 	for i := range invalidTestCases {
 		require.Error(t, p.DecodeString(invalidTestCases[i]), "#%d", i)
 	}
+
+	t.Run("EC", testPolicyDecodeStringEC)
 }
 
 func TestPlacementPolicy_SetContainerBackupFactor(t *testing.T) {
@@ -278,6 +282,10 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 				{Name: "filter_1_2", Key: "key_1_2", Op: protonetmap.Operation_LT, Value: "3722656060317482335"},
 				{Name: "filter_1_3", Key: "key_1_3", Op: protonetmap.Operation_LE, Value: "1950504987705284805"},
 			}},
+		},
+		EcRules: []*protonetmap.PlacementPolicy_ECRule{
+			{DataPartNum: 1, ParityPartNum: 2, Selector: "slctr"},
+			{DataPartNum: 3, ParityPartNum: 4, Selector: ""},
 		},
 	}
 
@@ -344,26 +352,45 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	require.Equal(t, netmap.FilterOpLE, subs[3].Op())
 	require.Equal(t, "1950504987705284805", subs[3].Value())
 	require.Empty(t, subs[3].SubFilters())
+	er := val.ECRules()
+	require.Len(t, er, 2)
+	require.EqualValues(t, 1, er[0].DataPartNum())
+	require.EqualValues(t, 2, er[0].ParityPartNum())
+	require.EqualValues(t, "slctr", er[0].SelectorName())
+	require.EqualValues(t, 3, er[1].DataPartNum())
+	require.EqualValues(t, 4, er[1].ParityPartNum())
+	require.Zero(t, er[1].SelectorName())
 
 	// reset optional fields
-	m.Selectors = nil
-	m.Filters = nil
+	m2 := proto.Clone(m).(*protonetmap.PlacementPolicy)
+	m2.Selectors = nil
+	m2.Filters = nil
+	m2.EcRules = nil
 	val2 := val
-	require.NoError(t, val2.FromProtoMessage(m))
+	require.NoError(t, val2.FromProtoMessage(m2))
 	require.Empty(t, val2.Selectors())
 	require.Empty(t, val2.Filters())
+	require.Empty(t, val2.ECRules())
+
+	m2 = proto.Clone(m).(*protonetmap.PlacementPolicy)
+	m2.Selectors = nil
+	m2.Filters = nil
+	m2.Replicas = nil
+	val2 = val
+	require.NoError(t, val2.FromProtoMessage(m2))
+	require.Empty(t, val2.Selectors())
+	require.Empty(t, val2.Filters())
+	require.Empty(t, val2.Replicas())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
 			name, err string
 			corrupt   func(*protonetmap.PlacementPolicy)
 		}{
-			{name: "replicas/nil", err: "missing replicas",
-				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas = nil }},
+			{name: "neither replicas nor EC", err: "missing both REP and EC rules",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas, m.EcRules = nil, nil }},
 			{name: "replicas/nil element", err: "nil replica #1",
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas[1] = nil }},
-			{name: "replicas/empty", err: "missing replicas",
-				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas = []*protonetmap.Replica{} }},
 			{name: "selectors/nil element", err: "nil selector #1",
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.Selectors[1] = nil }},
 			{name: "selectors/negative clause", err: "invalid selector #1: negative clause -1",
@@ -372,6 +399,18 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.Filters[1] = nil }},
 			{name: "filters/negative op", err: "invalid filter #1: negative op -1",
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.Filters[1].Op = -1 }},
+			{name: "ec/nil element", err: "nil EC rule #1",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1] = nil }},
+			{name: "ec/zero data parts", err: "invalid EC rule #1: zero data part num",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].DataPartNum = 0 }},
+			{name: "ec/zero parity parts", err: "invalid EC rule #1: zero parity part num",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].ParityPartNum = 0 }},
+			{name: "ec/too many data parts", err: "invalid EC rule #1: more than 64 total parts",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].DataPartNum = 65 }},
+			{name: "ec/too many parity parts", err: "invalid EC rule #1: more than 64 total parts",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].ParityPartNum = 65 }},
+			{name: "ec/too many total parts", err: "invalid EC rule #1: more than 64 total parts",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].DataPartNum, m.EcRules[1].ParityPartNum = 32, 33 }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
@@ -470,10 +509,14 @@ func TestPlacementPolicy_ProtoMessage(t *testing.T) {
 	require.Equal(t, protonetmap.Operation_LE, msubs[3].GetOp())
 	require.Equal(t, "1950504987705284805", msubs[3].GetValue())
 	require.Zero(t, msubs[3].GetFilters())
+
+	t.Run("EC", testPolicyProtoMessageEC)
 }
 
 func TestPlacementPolicy_Marshal(t *testing.T) {
 	require.Equal(t, validBinPlacementPolicy, validPlacementPolicy.Marshal())
+
+	t.Run("EC", testPolicyMarshalEC)
 }
 
 func TestPlacementPolicy_Unmarshal(t *testing.T) {
@@ -492,16 +535,21 @@ func TestPlacementPolicy_Unmarshal(t *testing.T) {
 	require.Empty(t, val.Replicas())
 	require.Empty(t, val.Selectors())
 	require.Empty(t, val.Filters())
+	require.Empty(t, val.ECRules())
 
 	// filled
 	require.NoError(t, val.Unmarshal(validBinPlacementPolicy))
 	require.Equal(t, validPlacementPolicy, val)
+
+	t.Run("EC", testPolicyUnmarshalEC)
 }
 
 func TestPlacementPolicy_MarshalJSON(t *testing.T) {
 	b, err := json.MarshalIndent(validPlacementPolicy, "", " ")
 	require.NoError(t, err)
 	require.JSONEq(t, validJSONPlacementPolicy, string(b))
+
+	t.Run("EC", testPolicyMarshalJSONEC)
 }
 
 func TestPlacementPolicy_UnmarshalJSON(t *testing.T) {
@@ -520,10 +568,13 @@ func TestPlacementPolicy_UnmarshalJSON(t *testing.T) {
 	require.Empty(t, val.Replicas())
 	require.Empty(t, val.Selectors())
 	require.Empty(t, val.Replicas())
+	require.Zero(t, val.ECRules())
 
 	// filled
 	require.NoError(t, val.UnmarshalJSON([]byte(validJSONPlacementPolicy)))
 	require.Equal(t, validPlacementPolicy, val)
+
+	t.Run("EC", testPolicyUnmarshalJSONEC)
 }
 
 func TestPlacementPolicy_Verify(t *testing.T) {
@@ -544,20 +595,20 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 
 	t.Run("too many node sets", func(t *testing.T) {
 		policy.SetReplicas(make([]netmap.ReplicaDescriptor, 257))
-		require.EqualError(t, policy.Verify(), "more than 256 node sets")
+		require.EqualError(t, policy.Verify(), "more than 256 REP rules")
 	})
 	t.Run("too many object replicas", func(t *testing.T) {
 		rs := slices.Clone(validRs)
 		rs[1].SetNumberOfObjects(9)
 		policy.SetReplicas(rs)
-		require.EqualError(t, policy.Verify(), "invalid node set descriptor #1: more than 8 object replicas")
+		require.EqualError(t, policy.Verify(), "invalid REP rule #1: more than 8 object replicas")
 		policy.SetReplicas(validRs)
 	})
 	t.Run("missing selector", func(t *testing.T) {
 		ss := slices.Clone(validSs)
 		ss[1].SetName("SEL3")
 		policy.SetSelectors(ss)
-		require.EqualError(t, policy.Verify(), `invalid node set descriptor #1: missing selector "SEL2"`)
+		require.EqualError(t, policy.Verify(), `invalid REP rule #1: missing selector "SEL2"`)
 		policy.SetSelectors(validSs)
 	})
 	t.Run("too many nodes in set", func(t *testing.T) {
@@ -567,7 +618,7 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 				ss[1].SetNumberOfNodes(sn)
 				policy.SetContainerBackupFactor(bf)
 				policy.SetSelectors(ss)
-				require.EqualError(t, policy.Verify(), `invalid node set descriptor #1: more than 64 nodes`)
+				require.EqualError(t, policy.Verify(), `invalid REP rule #1: more than 64 nodes`)
 			}
 			t.Run("default BF", func(t *testing.T) { test(t, 22, 0) })
 			t.Run("BF=1", func(t *testing.T) { test(t, 65, 1) })
@@ -579,7 +630,7 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 		policy.SetContainerBackupFactor(13)
 		policy.SetReplicas(rs)
 		policy.SetSelectors(nil)
-		require.EqualError(t, policy.Verify(), `invalid node set descriptor #1: more than 64 nodes`)
+		require.EqualError(t, policy.Verify(), `invalid REP rule #1: more than 64 nodes`)
 	})
 	t.Run("too many nodes in total", func(t *testing.T) {
 		test := func(t *testing.T, bf uint32, rs []netmap.ReplicaDescriptor, ss []netmap.Selector) {
@@ -645,4 +696,6 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 		rs[21].SetNumberOfObjects(3)
 		test(t, 0, rs, nil)
 	})
+
+	t.Run("EC", testPolicyVerifyEC)
 }
