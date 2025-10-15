@@ -232,19 +232,12 @@ func (x *NodeInfo) SetPrice(price uint64) {
 
 // Price returns price stored in the Price node attribute.
 //
-// Zero NodeInfo has zero price.
+// Invalid (non-numeric, not valid for returned type) or missing attribute
+// yields zero in return value.
 //
 // See [NodeInfo.SetPrice] also.
 func (x NodeInfo) Price() uint64 {
-	val := x.Attribute(attrPrice)
-	if val == "" {
-		return 0
-	}
-
-	price, err := strconv.ParseUint(val, 10, 64)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected price parsing error %s: %v", val, err))
-	}
+	price, _ := strconv.ParseUint(x.Attribute(attrPrice), 10, 64)
 
 	return price
 }
@@ -263,19 +256,12 @@ func (x *NodeInfo) SetVersion(version string) {
 
 // Capacity returns capacity (GB) stored in the Capacity node attribute.
 //
-// Zero NodeInfo has zero capacity.
+// Invalid (non-numeric, not valid for returned type) or missing attribute
+// yields zero in return value.
 //
 // See [NodeInfo.SetCapacity] also.
 func (x NodeInfo) Capacity() uint64 {
-	val := x.Attribute(attrCapacity)
-	if val == "" {
-		return 0
-	}
-
-	capacity, err := strconv.ParseUint(val, 10, 64)
-	if err != nil {
-		panic(fmt.Sprintf("unexpected capacity parsing error %s: %v", val, err))
-	}
+	capacity, _ := strconv.ParseUint(x.Attribute(attrCapacity), 10, 64)
 
 	return capacity
 }
