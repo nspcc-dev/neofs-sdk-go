@@ -28,6 +28,9 @@ type PrmContainerPut struct {
 	sessionSet bool
 	session    session.Container
 
+	sessionV2Set bool
+	sessionV2    session.TokenV2
+
 	sigSet bool
 	sig    neofscrypto.Signature
 }
@@ -43,6 +46,22 @@ type PrmContainerPut struct {
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
+	x.sessionV2Set = false
+}
+
+// WithinSessionV2 specifies session token V2 within which container should be saved.
+//
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+// When both V1 and V2 tokens are present, V2 takes precedence.
+//
+// Must be signed.
+func (x *PrmContainerPut) WithinSessionV2(s session.TokenV2) {
+	x.sessionV2 = s
+	x.sessionV2Set = true
+	x.sessionSet = false
 }
 
 // AttachSignature allows to attach pre-calculated container signature and free
@@ -119,6 +138,9 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.sessionSet {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2Set {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 
 	var res cid.ID
@@ -346,6 +368,9 @@ type PrmContainerDelete struct {
 	tokSet bool
 	tok    session.Container
 
+	tokV2Set bool
+	tokV2    session.TokenV2
+
 	sigSet bool
 	sig    neofscrypto.Signature
 }
@@ -359,6 +384,22 @@ type PrmContainerDelete struct {
 func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 	x.tok = tok
 	x.tokSet = true
+	x.tokV2Set = false
+}
+
+// WithinSessionV2 specifies session token V2 within which container should be removed.
+//
+// Creator of the session acquires the authorship of the request.
+// This may affect the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+// When both V1 and V2 tokens are present, V2 takes precedence.
+//
+// Must be signed.
+func (x *PrmContainerDelete) WithinSessionV2(tok session.TokenV2) {
+	x.tokV2 = tok
+	x.tokV2Set = true
+	x.tokSet = false
 }
 
 // AttachSignature allows to attach pre-calculated container ID signature and
@@ -429,6 +470,9 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.tokSet {
 		req.MetaHeader.SessionToken = prm.tok.ProtoMessage()
+	}
+	if prm.tokV2Set {
+		req.MetaHeader.SessionTokenV2 = prm.tokV2.ProtoMessage()
 	}
 
 	buf := c.buffers.Get().(*[]byte)
@@ -555,6 +599,9 @@ type PrmContainerSetEACL struct {
 	sessionSet bool
 	session    session.Container
 
+	sessionV2Set bool
+	sessionV2    session.TokenV2
+
 	sigSet bool
 	sig    neofscrypto.Signature
 }
@@ -573,6 +620,22 @@ type PrmContainerSetEACL struct {
 func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.session = s
 	x.sessionSet = true
+	x.sessionV2Set = false
+}
+
+// WithinSessionV2 specifies session token V2 within which extended ACL of the
+// container should be saved.
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+// When both V1 and V2 tokens are present, V2 takes precedence.
+//
+// Must be signed.
+func (x *PrmContainerSetEACL) WithinSessionV2(s session.TokenV2) {
+	x.sessionV2 = s
+	x.sessionV2Set = true
+	x.sessionSet = false
 }
 
 // AttachSignature allows to attach pre-calculated eACL signature and free
@@ -648,6 +711,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.sessionSet {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2Set {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 
 	buf := c.buffers.Get().(*[]byte)

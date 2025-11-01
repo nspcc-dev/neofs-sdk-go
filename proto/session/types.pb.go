@@ -24,6 +24,93 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Verb represents all possible operations in NeoFS that can be authorized
+// via session tokens or delegation chains. This enum covers both object and
+// container service operations.
+type Verb int32
+
+const (
+	// Unknown verb
+	Verb_VERB_UNSPECIFIED Verb = 0
+	// Refers to object.Put RPC call
+	Verb_OBJECT_PUT Verb = 1
+	// Refers to object.Get RPC call
+	Verb_OBJECT_GET Verb = 2
+	// Refers to object.Head RPC call
+	Verb_OBJECT_HEAD Verb = 3
+	// Refers to object.Search RPC call
+	Verb_OBJECT_SEARCH Verb = 4
+	// Refers to object.Delete RPC call
+	Verb_OBJECT_DELETE Verb = 5
+	// Refers to object.GetRange RPC call
+	Verb_OBJECT_RANGE Verb = 6
+	// Refers to object.GetRangeHash RPC call
+	Verb_OBJECT_RANGEHASH Verb = 7
+	// Refers to container.Put RPC call
+	Verb_CONTAINER_PUT Verb = 8
+	// Refers to container.Delete RPC call
+	Verb_CONTAINER_DELETE Verb = 9
+	// Refers to container.SetExtendedACL RPC call
+	Verb_CONTAINER_SETEACL Verb = 10
+)
+
+// Enum value maps for Verb.
+var (
+	Verb_name = map[int32]string{
+		0:  "VERB_UNSPECIFIED",
+		1:  "OBJECT_PUT",
+		2:  "OBJECT_GET",
+		3:  "OBJECT_HEAD",
+		4:  "OBJECT_SEARCH",
+		5:  "OBJECT_DELETE",
+		6:  "OBJECT_RANGE",
+		7:  "OBJECT_RANGEHASH",
+		8:  "CONTAINER_PUT",
+		9:  "CONTAINER_DELETE",
+		10: "CONTAINER_SETEACL",
+	}
+	Verb_value = map[string]int32{
+		"VERB_UNSPECIFIED":  0,
+		"OBJECT_PUT":        1,
+		"OBJECT_GET":        2,
+		"OBJECT_HEAD":       3,
+		"OBJECT_SEARCH":     4,
+		"OBJECT_DELETE":     5,
+		"OBJECT_RANGE":      6,
+		"OBJECT_RANGEHASH":  7,
+		"CONTAINER_PUT":     8,
+		"CONTAINER_DELETE":  9,
+		"CONTAINER_SETEACL": 10,
+	}
+)
+
+func (x Verb) Enum() *Verb {
+	p := new(Verb)
+	*p = x
+	return p
+}
+
+func (x Verb) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Verb) Descriptor() protoreflect.EnumDescriptor {
+	return file_proto_session_types_proto_enumTypes[0].Descriptor()
+}
+
+func (Verb) Type() protoreflect.EnumType {
+	return &file_proto_session_types_proto_enumTypes[0]
+}
+
+func (x Verb) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Verb.Descriptor instead.
+func (Verb) EnumDescriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{0}
+}
+
 // Object request verbs
 type ObjectSessionContext_Verb int32
 
@@ -81,11 +168,11 @@ func (x ObjectSessionContext_Verb) String() string {
 }
 
 func (ObjectSessionContext_Verb) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_session_types_proto_enumTypes[0].Descriptor()
+	return file_proto_session_types_proto_enumTypes[1].Descriptor()
 }
 
 func (ObjectSessionContext_Verb) Type() protoreflect.EnumType {
-	return &file_proto_session_types_proto_enumTypes[0]
+	return &file_proto_session_types_proto_enumTypes[1]
 }
 
 func (x ObjectSessionContext_Verb) Number() protoreflect.EnumNumber {
@@ -138,11 +225,11 @@ func (x ContainerSessionContext_Verb) String() string {
 }
 
 func (ContainerSessionContext_Verb) Descriptor() protoreflect.EnumDescriptor {
-	return file_proto_session_types_proto_enumTypes[1].Descriptor()
+	return file_proto_session_types_proto_enumTypes[2].Descriptor()
 }
 
 func (ContainerSessionContext_Verb) Type() protoreflect.EnumType {
-	return &file_proto_session_types_proto_enumTypes[1]
+	return &file_proto_session_types_proto_enumTypes[2]
 }
 
 func (x ContainerSessionContext_Verb) Number() protoreflect.EnumNumber {
@@ -277,6 +364,73 @@ func (x *ContainerSessionContext) GetContainerId() *refs.ContainerID {
 	return nil
 }
 
+// Lifetime parameters of the token. Field names taken from rfc7519.
+type TokenLifetime struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Expiration epoch, the last epoch when token is valid.
+	// For SessionTokenV2 this is the last valid Unix timestamp.
+	Exp uint64 `protobuf:"varint,1,opt,name=exp,proto3" json:"exp,omitempty"`
+	// Not valid before epoch, the first epoch when token is valid.
+	// For SessionTokenV2 this is the first valid Unix timestamp.
+	Nbf uint64 `protobuf:"varint,2,opt,name=nbf,proto3" json:"nbf,omitempty"`
+	// Issued at epoch.
+	// For SessionTokenV2 this is the Unix timestamp when the token was issued.
+	Iat           uint64 `protobuf:"varint,3,opt,name=iat,proto3" json:"iat,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *TokenLifetime) Reset() {
+	*x = TokenLifetime{}
+	mi := &file_proto_session_types_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TokenLifetime) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TokenLifetime) ProtoMessage() {}
+
+func (x *TokenLifetime) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_session_types_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TokenLifetime.ProtoReflect.Descriptor instead.
+func (*TokenLifetime) Descriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TokenLifetime) GetExp() uint64 {
+	if x != nil {
+		return x.Exp
+	}
+	return 0
+}
+
+func (x *TokenLifetime) GetNbf() uint64 {
+	if x != nil {
+		return x.Nbf
+	}
+	return 0
+}
+
+func (x *TokenLifetime) GetIat() uint64 {
+	if x != nil {
+		return x.Iat
+	}
+	return 0
+}
+
 // NeoFS Session Token.
 type SessionToken struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -292,7 +446,7 @@ type SessionToken struct {
 
 func (x *SessionToken) Reset() {
 	*x = SessionToken{}
-	mi := &file_proto_session_types_proto_msgTypes[2]
+	mi := &file_proto_session_types_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -304,7 +458,7 @@ func (x *SessionToken) String() string {
 func (*SessionToken) ProtoMessage() {}
 
 func (x *SessionToken) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[2]
+	mi := &file_proto_session_types_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -317,7 +471,7 @@ func (x *SessionToken) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionToken.ProtoReflect.Descriptor instead.
 func (*SessionToken) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{2}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *SessionToken) GetBody() *SessionToken_Body {
@@ -365,7 +519,7 @@ type XHeader struct {
 
 func (x *XHeader) Reset() {
 	*x = XHeader{}
-	mi := &file_proto_session_types_proto_msgTypes[3]
+	mi := &file_proto_session_types_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -377,7 +531,7 @@ func (x *XHeader) String() string {
 func (*XHeader) ProtoMessage() {}
 
 func (x *XHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[3]
+	mi := &file_proto_session_types_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -390,7 +544,7 @@ func (x *XHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use XHeader.ProtoReflect.Descriptor instead.
 func (*XHeader) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{3}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *XHeader) GetKey() string {
@@ -421,6 +575,9 @@ type RequestMetaHeader struct {
 	XHeaders []*XHeader `protobuf:"bytes,4,rep,name=x_headers,json=xHeaders,proto3" json:"x_headers,omitempty"`
 	// Session token within which the request is sent
 	SessionToken *SessionToken `protobuf:"bytes,5,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
+	// Session token v2 with delegation chain support.
+	// If both session_token and session_token_v2 are set, session_token_v2 takes precedence.
+	SessionTokenV2 *SessionTokenV2 `protobuf:"bytes,9,opt,name=session_token_v2,json=sessionTokenV2,proto3" json:"session_token_v2,omitempty"`
 	// `BearerToken` with eACL overrides for the request
 	BearerToken *acl.BearerToken `protobuf:"bytes,6,opt,name=bearer_token,json=bearerToken,proto3" json:"bearer_token,omitempty"`
 	// `RequestMetaHeader` of the origin request
@@ -434,7 +591,7 @@ type RequestMetaHeader struct {
 
 func (x *RequestMetaHeader) Reset() {
 	*x = RequestMetaHeader{}
-	mi := &file_proto_session_types_proto_msgTypes[4]
+	mi := &file_proto_session_types_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +603,7 @@ func (x *RequestMetaHeader) String() string {
 func (*RequestMetaHeader) ProtoMessage() {}
 
 func (x *RequestMetaHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[4]
+	mi := &file_proto_session_types_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +616,7 @@ func (x *RequestMetaHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestMetaHeader.ProtoReflect.Descriptor instead.
 func (*RequestMetaHeader) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{4}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RequestMetaHeader) GetVersion() *refs.Version {
@@ -493,6 +650,13 @@ func (x *RequestMetaHeader) GetXHeaders() []*XHeader {
 func (x *RequestMetaHeader) GetSessionToken() *SessionToken {
 	if x != nil {
 		return x.SessionToken
+	}
+	return nil
+}
+
+func (x *RequestMetaHeader) GetSessionTokenV2() *SessionTokenV2 {
+	if x != nil {
+		return x.SessionTokenV2
 	}
 	return nil
 }
@@ -539,7 +703,7 @@ type ResponseMetaHeader struct {
 
 func (x *ResponseMetaHeader) Reset() {
 	*x = ResponseMetaHeader{}
-	mi := &file_proto_session_types_proto_msgTypes[5]
+	mi := &file_proto_session_types_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -551,7 +715,7 @@ func (x *ResponseMetaHeader) String() string {
 func (*ResponseMetaHeader) ProtoMessage() {}
 
 func (x *ResponseMetaHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[5]
+	mi := &file_proto_session_types_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -564,7 +728,7 @@ func (x *ResponseMetaHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResponseMetaHeader.ProtoReflect.Descriptor instead.
 func (*ResponseMetaHeader) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{5}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *ResponseMetaHeader) GetVersion() *refs.Version {
@@ -626,7 +790,7 @@ type RequestVerificationHeader struct {
 
 func (x *RequestVerificationHeader) Reset() {
 	*x = RequestVerificationHeader{}
-	mi := &file_proto_session_types_proto_msgTypes[6]
+	mi := &file_proto_session_types_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +802,7 @@ func (x *RequestVerificationHeader) String() string {
 func (*RequestVerificationHeader) ProtoMessage() {}
 
 func (x *RequestVerificationHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[6]
+	mi := &file_proto_session_types_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +815,7 @@ func (x *RequestVerificationHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RequestVerificationHeader.ProtoReflect.Descriptor instead.
 func (*RequestVerificationHeader) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{6}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *RequestVerificationHeader) GetBodySignature() *refs.Signature {
@@ -699,7 +863,7 @@ type ResponseVerificationHeader struct {
 
 func (x *ResponseVerificationHeader) Reset() {
 	*x = ResponseVerificationHeader{}
-	mi := &file_proto_session_types_proto_msgTypes[7]
+	mi := &file_proto_session_types_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -711,7 +875,7 @@ func (x *ResponseVerificationHeader) String() string {
 func (*ResponseVerificationHeader) ProtoMessage() {}
 
 func (x *ResponseVerificationHeader) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[7]
+	mi := &file_proto_session_types_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -724,7 +888,7 @@ func (x *ResponseVerificationHeader) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResponseVerificationHeader.ProtoReflect.Descriptor instead.
 func (*ResponseVerificationHeader) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{7}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ResponseVerificationHeader) GetBodySignature() *refs.Signature {
@@ -755,6 +919,318 @@ func (x *ResponseVerificationHeader) GetOrigin() *ResponseVerificationHeader {
 	return nil
 }
 
+// Target account for SessionTokenV2.
+// It can be either direct (OwnerID) or indirect (NNS domain).
+type Target struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Account identifier.
+	//
+	// Types that are valid to be assigned to Identifier:
+	//
+	//	*Target_OwnerId
+	//	*Target_NnsName
+	Identifier    isTarget_Identifier `protobuf_oneof:"identifier"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Target) Reset() {
+	*x = Target{}
+	mi := &file_proto_session_types_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Target) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Target) ProtoMessage() {}
+
+func (x *Target) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_session_types_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Target.ProtoReflect.Descriptor instead.
+func (*Target) Descriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *Target) GetIdentifier() isTarget_Identifier {
+	if x != nil {
+		return x.Identifier
+	}
+	return nil
+}
+
+func (x *Target) GetOwnerId() *refs.OwnerID {
+	if x != nil {
+		if x, ok := x.Identifier.(*Target_OwnerId); ok {
+			return x.OwnerId
+		}
+	}
+	return nil
+}
+
+func (x *Target) GetNnsName() string {
+	if x != nil {
+		if x, ok := x.Identifier.(*Target_NnsName); ok {
+			return x.NnsName
+		}
+	}
+	return ""
+}
+
+type isTarget_Identifier interface {
+	isTarget_Identifier()
+}
+
+type Target_OwnerId struct {
+	// Direct account reference via OwnerID (hash of verification script).
+	OwnerId *refs.OwnerID `protobuf:"bytes,1,opt,name=owner_id,json=ownerID,proto3,oneof"`
+}
+
+type Target_NnsName struct {
+	// Indirect account reference via NeoFS Name Service.
+	// NNS name is a domain name that resolves to an OwnerID through the
+	// NeoFS Name Service. The name must be a valid DNS-like domain name
+	// (e.g., "example.neofs") that is registered in the NNS contract on
+	// the Neo blockchain. The NNS record should contain a string record with
+	// the corresponding OwnerID value.
+	NnsName string `protobuf:"bytes,2,opt,name=nns_name,json=nnsName,proto3,oneof"`
+}
+
+func (*Target_OwnerId) isTarget_Identifier() {}
+
+func (*Target_NnsName) isTarget_Identifier() {}
+
+// DelegationInfo represents a single delegation in a chain of trust.
+type DelegationInfo struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Account that performed this delegation.
+	Issuer *Target `protobuf:"bytes,1,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	// Accounts that received the delegation.
+	Subjects []*Target `protobuf:"bytes,2,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	// Lifetime of this delegation.
+	// Allows each delegation in the chain to have its own validity window.
+	Lifetime *TokenLifetime `protobuf:"bytes,3,opt,name=lifetime,proto3" json:"lifetime,omitempty"`
+	// List of verbs authorized by this delegation.
+	Verbs []Verb `protobuf:"varint,4,rep,packed,name=verbs,proto3,enum=neo.fs.v2.session.Verb" json:"verbs,omitempty"`
+	// Signature of the issuer confirming this delegation record.
+	// The signature is created over the deterministic serialization
+	// of this DelegationInfo message excluding this field.
+	Signature     *refs.Signature `protobuf:"bytes,5,opt,name=signature,proto3" json:"signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DelegationInfo) Reset() {
+	*x = DelegationInfo{}
+	mi := &file_proto_session_types_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DelegationInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DelegationInfo) ProtoMessage() {}
+
+func (x *DelegationInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_session_types_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DelegationInfo.ProtoReflect.Descriptor instead.
+func (*DelegationInfo) Descriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *DelegationInfo) GetIssuer() *Target {
+	if x != nil {
+		return x.Issuer
+	}
+	return nil
+}
+
+func (x *DelegationInfo) GetSubjects() []*Target {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
+func (x *DelegationInfo) GetLifetime() *TokenLifetime {
+	if x != nil {
+		return x.Lifetime
+	}
+	return nil
+}
+
+func (x *DelegationInfo) GetVerbs() []Verb {
+	if x != nil {
+		return x.Verbs
+	}
+	return nil
+}
+
+func (x *DelegationInfo) GetSignature() *refs.Signature {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+// SessionContextV2 carries unified context for both ObjectService and ContainerService requests.
+type SessionContextV2 struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Container where operation is allowed.
+	// For container operations, this is the container being operated on.
+	// For object operations, this is the container holding the objects.
+	Container *refs.ContainerID `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
+	// Specific objects where operation is allowed.
+	// Only relevant for object operations.
+	// Empty list means all objects in the container.
+	Objects []*refs.ObjectID `protobuf:"bytes,2,rep,name=objects,proto3" json:"objects,omitempty"`
+	// Operations authorized for this context.
+	Verbs         []Verb `protobuf:"varint,3,rep,packed,name=verbs,proto3,enum=neo.fs.v2.session.Verb" json:"verbs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SessionContextV2) Reset() {
+	*x = SessionContextV2{}
+	mi := &file_proto_session_types_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionContextV2) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionContextV2) ProtoMessage() {}
+
+func (x *SessionContextV2) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_session_types_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionContextV2.ProtoReflect.Descriptor instead.
+func (*SessionContextV2) Descriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *SessionContextV2) GetContainer() *refs.ContainerID {
+	if x != nil {
+		return x.Container
+	}
+	return nil
+}
+
+func (x *SessionContextV2) GetObjects() []*refs.ObjectID {
+	if x != nil {
+		return x.Objects
+	}
+	return nil
+}
+
+func (x *SessionContextV2) GetVerbs() []Verb {
+	if x != nil {
+		return x.Verbs
+	}
+	return nil
+}
+
+// SessionTokenV2 represents NeoFS Session Token with delegation support.
+type SessionTokenV2 struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Session token body.
+	Body *SessionTokenV2_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
+	// Signature of the body by the issuer.
+	Signature *refs.Signature `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// DelegationInfo is a full history of authority delegation (chain of trust).
+	// Similar to X.509 certificate chains, each delegation entry
+	// is independently signed by its issuer.
+	DelegationChain []*DelegationInfo `protobuf:"bytes,3,rep,name=delegation_chain,json=delegationChain,proto3" json:"delegation_chain,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SessionTokenV2) Reset() {
+	*x = SessionTokenV2{}
+	mi := &file_proto_session_types_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SessionTokenV2) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SessionTokenV2) ProtoMessage() {}
+
+func (x *SessionTokenV2) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_session_types_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SessionTokenV2.ProtoReflect.Descriptor instead.
+func (*SessionTokenV2) Descriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *SessionTokenV2) GetBody() *SessionTokenV2_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *SessionTokenV2) GetSignature() *refs.Signature {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *SessionTokenV2) GetDelegationChain() []*DelegationInfo {
+	if x != nil {
+		return x.DelegationChain
+	}
+	return nil
+}
+
 // Carries objects involved in the object session.
 type ObjectSessionContext_Target struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -771,7 +1247,7 @@ type ObjectSessionContext_Target struct {
 
 func (x *ObjectSessionContext_Target) Reset() {
 	*x = ObjectSessionContext_Target{}
-	mi := &file_proto_session_types_proto_msgTypes[8]
+	mi := &file_proto_session_types_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -783,7 +1259,7 @@ func (x *ObjectSessionContext_Target) String() string {
 func (*ObjectSessionContext_Target) ProtoMessage() {}
 
 func (x *ObjectSessionContext_Target) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[8]
+	mi := &file_proto_session_types_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -821,7 +1297,7 @@ type SessionToken_Body struct {
 	// Identifier of the session initiator
 	OwnerId *refs.OwnerID `protobuf:"bytes,2,opt,name=owner_id,json=ownerID,proto3" json:"owner_id,omitempty"`
 	// Lifetime of the session
-	Lifetime *SessionToken_Body_TokenLifetime `protobuf:"bytes,3,opt,name=lifetime,proto3" json:"lifetime,omitempty"`
+	Lifetime *TokenLifetime `protobuf:"bytes,3,opt,name=lifetime,proto3" json:"lifetime,omitempty"`
 	// Public key used in session
 	SessionKey []byte `protobuf:"bytes,4,opt,name=session_key,json=sessionKey,proto3" json:"session_key,omitempty"`
 	// Session Context information
@@ -837,7 +1313,7 @@ type SessionToken_Body struct {
 
 func (x *SessionToken_Body) Reset() {
 	*x = SessionToken_Body{}
-	mi := &file_proto_session_types_proto_msgTypes[9]
+	mi := &file_proto_session_types_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -849,7 +1325,7 @@ func (x *SessionToken_Body) String() string {
 func (*SessionToken_Body) ProtoMessage() {}
 
 func (x *SessionToken_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[9]
+	mi := &file_proto_session_types_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -862,7 +1338,7 @@ func (x *SessionToken_Body) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SessionToken_Body.ProtoReflect.Descriptor instead.
 func (*SessionToken_Body) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{2, 0}
+	return file_proto_session_types_proto_rawDescGZIP(), []int{3, 0}
 }
 
 func (x *SessionToken_Body) GetId() []byte {
@@ -879,7 +1355,7 @@ func (x *SessionToken_Body) GetOwnerId() *refs.OwnerID {
 	return nil
 }
 
-func (x *SessionToken_Body) GetLifetime() *SessionToken_Body_TokenLifetime {
+func (x *SessionToken_Body) GetLifetime() *TokenLifetime {
 	if x != nil {
 		return x.Lifetime
 	}
@@ -936,34 +1412,41 @@ func (*SessionToken_Body_Object) isSessionToken_Body_Context() {}
 
 func (*SessionToken_Body_Container) isSessionToken_Body_Context() {}
 
-// Lifetime parameters of the token. Field names taken from rfc7519.
-type SessionToken_Body_TokenLifetime struct {
+// Session Token body.
+type SessionTokenV2_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Expiration epoch, the last epoch when token is valid.
-	Exp uint64 `protobuf:"varint,1,opt,name=exp,proto3" json:"exp,omitempty"`
-	// Not valid before epoch, the first epoch when token is valid.
-	Nbf uint64 `protobuf:"varint,2,opt,name=nbf,proto3" json:"nbf,omitempty"`
-	// Issued at Epoch
-	Iat           uint64 `protobuf:"varint,3,opt,name=iat,proto3" json:"iat,omitempty"`
+	// Token version.
+	Version uint32 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
+	// Token identifier (UUIDv4 in binary form).
+	Id []byte `protobuf:"bytes,2,opt,name=id,proto3" json:"id,omitempty"`
+	// Account that issued this token (who signed it).
+	Issuer *Target `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
+	// Accounts authorized by this token (who can use it).
+	Subjects []*Target `protobuf:"bytes,4,rep,name=subjects,proto3" json:"subjects,omitempty"`
+	// Lifetime of this token.
+	Lifetime *TokenLifetime `protobuf:"bytes,5,opt,name=lifetime,proto3" json:"lifetime,omitempty"`
+	// Unified session contexts for both object and container operations.
+	// Multiple contexts allow authorization for different combinations.
+	Contexts      []*SessionContextV2 `protobuf:"bytes,6,rep,name=contexts,proto3" json:"contexts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *SessionToken_Body_TokenLifetime) Reset() {
-	*x = SessionToken_Body_TokenLifetime{}
-	mi := &file_proto_session_types_proto_msgTypes[10]
+func (x *SessionTokenV2_Body) Reset() {
+	*x = SessionTokenV2_Body{}
+	mi := &file_proto_session_types_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *SessionToken_Body_TokenLifetime) String() string {
+func (x *SessionTokenV2_Body) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*SessionToken_Body_TokenLifetime) ProtoMessage() {}
+func (*SessionTokenV2_Body) ProtoMessage() {}
 
-func (x *SessionToken_Body_TokenLifetime) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_session_types_proto_msgTypes[10]
+func (x *SessionTokenV2_Body) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_session_types_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -974,30 +1457,51 @@ func (x *SessionToken_Body_TokenLifetime) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use SessionToken_Body_TokenLifetime.ProtoReflect.Descriptor instead.
-func (*SessionToken_Body_TokenLifetime) Descriptor() ([]byte, []int) {
-	return file_proto_session_types_proto_rawDescGZIP(), []int{2, 0, 0}
+// Deprecated: Use SessionTokenV2_Body.ProtoReflect.Descriptor instead.
+func (*SessionTokenV2_Body) Descriptor() ([]byte, []int) {
+	return file_proto_session_types_proto_rawDescGZIP(), []int{12, 0}
 }
 
-func (x *SessionToken_Body_TokenLifetime) GetExp() uint64 {
+func (x *SessionTokenV2_Body) GetVersion() uint32 {
 	if x != nil {
-		return x.Exp
+		return x.Version
 	}
 	return 0
 }
 
-func (x *SessionToken_Body_TokenLifetime) GetNbf() uint64 {
+func (x *SessionTokenV2_Body) GetId() []byte {
 	if x != nil {
-		return x.Nbf
+		return x.Id
 	}
-	return 0
+	return nil
 }
 
-func (x *SessionToken_Body_TokenLifetime) GetIat() uint64 {
+func (x *SessionTokenV2_Body) GetIssuer() *Target {
 	if x != nil {
-		return x.Iat
+		return x.Issuer
 	}
-	return 0
+	return nil
+}
+
+func (x *SessionTokenV2_Body) GetSubjects() []*Target {
+	if x != nil {
+		return x.Subjects
+	}
+	return nil
+}
+
+func (x *SessionTokenV2_Body) GetLifetime() *TokenLifetime {
+	if x != nil {
+		return x.Lifetime
+	}
+	return nil
+}
+
+func (x *SessionTokenV2_Body) GetContexts() []*SessionContextV2 {
+	if x != nil {
+		return x.Contexts
+	}
+	return nil
 }
 
 var File_proto_session_types_proto protoreflect.FileDescriptor
@@ -1031,32 +1535,33 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\x03PUT\x10\x01\x12\n" +
 	"\n" +
 	"\x06DELETE\x10\x02\x12\v\n" +
-	"\aSETEACL\x10\x03\"\xa0\x04\n" +
-	"\fSessionToken\x128\n" +
-	"\x04body\x18\x01 \x01(\v2$.neo.fs.v2.session.SessionToken.BodyR\x04body\x127\n" +
-	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x1a\x9c\x03\n" +
-	"\x04Body\x12\x0e\n" +
-	"\x02id\x18\x01 \x01(\fR\x02id\x122\n" +
-	"\bowner_id\x18\x02 \x01(\v2\x17.neo.fs.v2.refs.OwnerIDR\aownerID\x12N\n" +
-	"\blifetime\x18\x03 \x01(\v22.neo.fs.v2.session.SessionToken.Body.TokenLifetimeR\blifetime\x12\x1f\n" +
-	"\vsession_key\x18\x04 \x01(\fR\n" +
-	"sessionKey\x12A\n" +
-	"\x06object\x18\x05 \x01(\v2'.neo.fs.v2.session.ObjectSessionContextH\x00R\x06object\x12J\n" +
-	"\tcontainer\x18\x06 \x01(\v2*.neo.fs.v2.session.ContainerSessionContextH\x00R\tcontainer\x1aE\n" +
+	"\aSETEACL\x10\x03\"E\n" +
 	"\rTokenLifetime\x12\x10\n" +
 	"\x03exp\x18\x01 \x01(\x04R\x03exp\x12\x10\n" +
 	"\x03nbf\x18\x02 \x01(\x04R\x03nbf\x12\x10\n" +
-	"\x03iat\x18\x03 \x01(\x04R\x03iatB\t\n" +
+	"\x03iat\x18\x03 \x01(\x04R\x03iat\"\xc7\x03\n" +
+	"\fSessionToken\x128\n" +
+	"\x04body\x18\x01 \x01(\v2$.neo.fs.v2.session.SessionToken.BodyR\x04body\x127\n" +
+	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x1a\xc3\x02\n" +
+	"\x04Body\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\fR\x02id\x122\n" +
+	"\bowner_id\x18\x02 \x01(\v2\x17.neo.fs.v2.refs.OwnerIDR\aownerID\x12<\n" +
+	"\blifetime\x18\x03 \x01(\v2 .neo.fs.v2.session.TokenLifetimeR\blifetime\x12\x1f\n" +
+	"\vsession_key\x18\x04 \x01(\fR\n" +
+	"sessionKey\x12A\n" +
+	"\x06object\x18\x05 \x01(\v2'.neo.fs.v2.session.ObjectSessionContextH\x00R\x06object\x12J\n" +
+	"\tcontainer\x18\x06 \x01(\v2*.neo.fs.v2.session.ContainerSessionContextH\x00R\tcontainerB\t\n" +
 	"\acontext\"1\n" +
 	"\aXHeader\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\x8d\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xda\x03\n" +
 	"\x11RequestMetaHeader\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x10\n" +
 	"\x03ttl\x18\x03 \x01(\rR\x03ttl\x127\n" +
 	"\tx_headers\x18\x04 \x03(\v2\x1a.neo.fs.v2.session.XHeaderR\bxHeaders\x12D\n" +
-	"\rsession_token\x18\x05 \x01(\v2\x1f.neo.fs.v2.session.SessionTokenR\fsessionToken\x12=\n" +
+	"\rsession_token\x18\x05 \x01(\v2\x1f.neo.fs.v2.session.SessionTokenR\fsessionToken\x12K\n" +
+	"\x10session_token_v2\x18\t \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x12=\n" +
 	"\fbearer_token\x18\x06 \x01(\v2\x1a.neo.fs.v2.acl.BearerTokenR\vbearerToken\x12<\n" +
 	"\x06origin\x18\a \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\x06origin\x12!\n" +
 	"\fmagic_number\x18\b \x01(\x04R\vmagicNumber\"\x99\x02\n" +
@@ -1076,7 +1581,48 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\x0ebody_signature\x18\x01 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x12@\n" +
 	"\x0emeta_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rmetaSignature\x12D\n" +
 	"\x10origin_signature\x18\x03 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\x0foriginSignature\x12E\n" +
-	"\x06origin\x18\x04 \x01(\v2-.neo.fs.v2.session.ResponseVerificationHeaderR\x06originBOZ/github.com/nspcc-dev/neofs-sdk-go/proto/session\xaa\x02\x1bNeo.FileStorage.API.Sessionb\x06proto3"
+	"\x06origin\x18\x04 \x01(\v2-.neo.fs.v2.session.ResponseVerificationHeaderR\x06origin\"i\n" +
+	"\x06Target\x124\n" +
+	"\bowner_id\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.OwnerIDH\x00R\aownerID\x12\x1b\n" +
+	"\bnns_name\x18\x02 \x01(\tH\x00R\annsNameB\f\n" +
+	"\n" +
+	"identifier\"\xa0\x02\n" +
+	"\x0eDelegationInfo\x121\n" +
+	"\x06issuer\x18\x01 \x01(\v2\x19.neo.fs.v2.session.TargetR\x06issuer\x125\n" +
+	"\bsubjects\x18\x02 \x03(\v2\x19.neo.fs.v2.session.TargetR\bsubjects\x12<\n" +
+	"\blifetime\x18\x03 \x01(\v2 .neo.fs.v2.session.TokenLifetimeR\blifetime\x12-\n" +
+	"\x05verbs\x18\x04 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\x127\n" +
+	"\tsignature\x18\x05 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\"\xb0\x01\n" +
+	"\x10SessionContextV2\x129\n" +
+	"\tcontainer\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\tcontainer\x122\n" +
+	"\aobjects\x18\x02 \x03(\v2\x18.neo.fs.v2.refs.ObjectIDR\aobjects\x12-\n" +
+	"\x05verbs\x18\x03 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\xef\x03\n" +
+	"\x0eSessionTokenV2\x12:\n" +
+	"\x04body\x18\x01 \x01(\v2&.neo.fs.v2.session.SessionTokenV2.BodyR\x04body\x127\n" +
+	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x12L\n" +
+	"\x10delegation_chain\x18\x03 \x03(\v2!.neo.fs.v2.session.DelegationInfoR\x0fdelegationChain\x1a\x99\x02\n" +
+	"\x04Body\x12\x18\n" +
+	"\aversion\x18\x01 \x01(\rR\aversion\x12\x0e\n" +
+	"\x02id\x18\x02 \x01(\fR\x02id\x121\n" +
+	"\x06issuer\x18\x03 \x01(\v2\x19.neo.fs.v2.session.TargetR\x06issuer\x125\n" +
+	"\bsubjects\x18\x04 \x03(\v2\x19.neo.fs.v2.session.TargetR\bsubjects\x12<\n" +
+	"\blifetime\x18\x05 \x01(\v2 .neo.fs.v2.session.TokenLifetimeR\blifetime\x12?\n" +
+	"\bcontexts\x18\x06 \x03(\v2#.neo.fs.v2.session.SessionContextV2R\bcontexts*\xdb\x01\n" +
+	"\x04Verb\x12\x14\n" +
+	"\x10VERB_UNSPECIFIED\x10\x00\x12\x0e\n" +
+	"\n" +
+	"OBJECT_PUT\x10\x01\x12\x0e\n" +
+	"\n" +
+	"OBJECT_GET\x10\x02\x12\x0f\n" +
+	"\vOBJECT_HEAD\x10\x03\x12\x11\n" +
+	"\rOBJECT_SEARCH\x10\x04\x12\x11\n" +
+	"\rOBJECT_DELETE\x10\x05\x12\x10\n" +
+	"\fOBJECT_RANGE\x10\x06\x12\x14\n" +
+	"\x10OBJECT_RANGEHASH\x10\a\x12\x11\n" +
+	"\rCONTAINER_PUT\x10\b\x12\x14\n" +
+	"\x10CONTAINER_DELETE\x10\t\x12\x15\n" +
+	"\x11CONTAINER_SETEACL\x10\n" +
+	"BOZ/github.com/nspcc-dev/neofs-sdk-go/proto/session\xaa\x02\x1bNeo.FileStorage.API.Sessionb\x06proto3"
 
 var (
 	file_proto_session_types_proto_rawDescOnce sync.Once
@@ -1090,65 +1636,88 @@ func file_proto_session_types_proto_rawDescGZIP() []byte {
 	return file_proto_session_types_proto_rawDescData
 }
 
-var file_proto_session_types_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_session_types_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_proto_session_types_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
+var file_proto_session_types_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
 var file_proto_session_types_proto_goTypes = []any{
-	(ObjectSessionContext_Verb)(0),          // 0: neo.fs.v2.session.ObjectSessionContext.Verb
-	(ContainerSessionContext_Verb)(0),       // 1: neo.fs.v2.session.ContainerSessionContext.Verb
-	(*ObjectSessionContext)(nil),            // 2: neo.fs.v2.session.ObjectSessionContext
-	(*ContainerSessionContext)(nil),         // 3: neo.fs.v2.session.ContainerSessionContext
-	(*SessionToken)(nil),                    // 4: neo.fs.v2.session.SessionToken
-	(*XHeader)(nil),                         // 5: neo.fs.v2.session.XHeader
-	(*RequestMetaHeader)(nil),               // 6: neo.fs.v2.session.RequestMetaHeader
-	(*ResponseMetaHeader)(nil),              // 7: neo.fs.v2.session.ResponseMetaHeader
-	(*RequestVerificationHeader)(nil),       // 8: neo.fs.v2.session.RequestVerificationHeader
-	(*ResponseVerificationHeader)(nil),      // 9: neo.fs.v2.session.ResponseVerificationHeader
-	(*ObjectSessionContext_Target)(nil),     // 10: neo.fs.v2.session.ObjectSessionContext.Target
-	(*SessionToken_Body)(nil),               // 11: neo.fs.v2.session.SessionToken.Body
-	(*SessionToken_Body_TokenLifetime)(nil), // 12: neo.fs.v2.session.SessionToken.Body.TokenLifetime
-	(*refs.ContainerID)(nil),                // 13: neo.fs.v2.refs.ContainerID
-	(*refs.Signature)(nil),                  // 14: neo.fs.v2.refs.Signature
-	(*refs.Version)(nil),                    // 15: neo.fs.v2.refs.Version
-	(*acl.BearerToken)(nil),                 // 16: neo.fs.v2.acl.BearerToken
-	(*status.Status)(nil),                   // 17: neo.fs.v2.status.Status
-	(*refs.ObjectID)(nil),                   // 18: neo.fs.v2.refs.ObjectID
-	(*refs.OwnerID)(nil),                    // 19: neo.fs.v2.refs.OwnerID
+	(Verb)(0),                           // 0: neo.fs.v2.session.Verb
+	(ObjectSessionContext_Verb)(0),      // 1: neo.fs.v2.session.ObjectSessionContext.Verb
+	(ContainerSessionContext_Verb)(0),   // 2: neo.fs.v2.session.ContainerSessionContext.Verb
+	(*ObjectSessionContext)(nil),        // 3: neo.fs.v2.session.ObjectSessionContext
+	(*ContainerSessionContext)(nil),     // 4: neo.fs.v2.session.ContainerSessionContext
+	(*TokenLifetime)(nil),               // 5: neo.fs.v2.session.TokenLifetime
+	(*SessionToken)(nil),                // 6: neo.fs.v2.session.SessionToken
+	(*XHeader)(nil),                     // 7: neo.fs.v2.session.XHeader
+	(*RequestMetaHeader)(nil),           // 8: neo.fs.v2.session.RequestMetaHeader
+	(*ResponseMetaHeader)(nil),          // 9: neo.fs.v2.session.ResponseMetaHeader
+	(*RequestVerificationHeader)(nil),   // 10: neo.fs.v2.session.RequestVerificationHeader
+	(*ResponseVerificationHeader)(nil),  // 11: neo.fs.v2.session.ResponseVerificationHeader
+	(*Target)(nil),                      // 12: neo.fs.v2.session.Target
+	(*DelegationInfo)(nil),              // 13: neo.fs.v2.session.DelegationInfo
+	(*SessionContextV2)(nil),            // 14: neo.fs.v2.session.SessionContextV2
+	(*SessionTokenV2)(nil),              // 15: neo.fs.v2.session.SessionTokenV2
+	(*ObjectSessionContext_Target)(nil), // 16: neo.fs.v2.session.ObjectSessionContext.Target
+	(*SessionToken_Body)(nil),           // 17: neo.fs.v2.session.SessionToken.Body
+	(*SessionTokenV2_Body)(nil),         // 18: neo.fs.v2.session.SessionTokenV2.Body
+	(*refs.ContainerID)(nil),            // 19: neo.fs.v2.refs.ContainerID
+	(*refs.Signature)(nil),              // 20: neo.fs.v2.refs.Signature
+	(*refs.Version)(nil),                // 21: neo.fs.v2.refs.Version
+	(*acl.BearerToken)(nil),             // 22: neo.fs.v2.acl.BearerToken
+	(*status.Status)(nil),               // 23: neo.fs.v2.status.Status
+	(*refs.OwnerID)(nil),                // 24: neo.fs.v2.refs.OwnerID
+	(*refs.ObjectID)(nil),               // 25: neo.fs.v2.refs.ObjectID
 }
 var file_proto_session_types_proto_depIdxs = []int32{
-	0,  // 0: neo.fs.v2.session.ObjectSessionContext.verb:type_name -> neo.fs.v2.session.ObjectSessionContext.Verb
-	10, // 1: neo.fs.v2.session.ObjectSessionContext.target:type_name -> neo.fs.v2.session.ObjectSessionContext.Target
-	1,  // 2: neo.fs.v2.session.ContainerSessionContext.verb:type_name -> neo.fs.v2.session.ContainerSessionContext.Verb
-	13, // 3: neo.fs.v2.session.ContainerSessionContext.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	11, // 4: neo.fs.v2.session.SessionToken.body:type_name -> neo.fs.v2.session.SessionToken.Body
-	14, // 5: neo.fs.v2.session.SessionToken.signature:type_name -> neo.fs.v2.refs.Signature
-	15, // 6: neo.fs.v2.session.RequestMetaHeader.version:type_name -> neo.fs.v2.refs.Version
-	5,  // 7: neo.fs.v2.session.RequestMetaHeader.x_headers:type_name -> neo.fs.v2.session.XHeader
-	4,  // 8: neo.fs.v2.session.RequestMetaHeader.session_token:type_name -> neo.fs.v2.session.SessionToken
-	16, // 9: neo.fs.v2.session.RequestMetaHeader.bearer_token:type_name -> neo.fs.v2.acl.BearerToken
-	6,  // 10: neo.fs.v2.session.RequestMetaHeader.origin:type_name -> neo.fs.v2.session.RequestMetaHeader
-	15, // 11: neo.fs.v2.session.ResponseMetaHeader.version:type_name -> neo.fs.v2.refs.Version
-	5,  // 12: neo.fs.v2.session.ResponseMetaHeader.x_headers:type_name -> neo.fs.v2.session.XHeader
-	7,  // 13: neo.fs.v2.session.ResponseMetaHeader.origin:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	17, // 14: neo.fs.v2.session.ResponseMetaHeader.status:type_name -> neo.fs.v2.status.Status
-	14, // 15: neo.fs.v2.session.RequestVerificationHeader.body_signature:type_name -> neo.fs.v2.refs.Signature
-	14, // 16: neo.fs.v2.session.RequestVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
-	14, // 17: neo.fs.v2.session.RequestVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
-	8,  // 18: neo.fs.v2.session.RequestVerificationHeader.origin:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	14, // 19: neo.fs.v2.session.ResponseVerificationHeader.body_signature:type_name -> neo.fs.v2.refs.Signature
-	14, // 20: neo.fs.v2.session.ResponseVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
-	14, // 21: neo.fs.v2.session.ResponseVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
-	9,  // 22: neo.fs.v2.session.ResponseVerificationHeader.origin:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	13, // 23: neo.fs.v2.session.ObjectSessionContext.Target.container:type_name -> neo.fs.v2.refs.ContainerID
-	18, // 24: neo.fs.v2.session.ObjectSessionContext.Target.objects:type_name -> neo.fs.v2.refs.ObjectID
-	19, // 25: neo.fs.v2.session.SessionToken.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	12, // 26: neo.fs.v2.session.SessionToken.Body.lifetime:type_name -> neo.fs.v2.session.SessionToken.Body.TokenLifetime
-	2,  // 27: neo.fs.v2.session.SessionToken.Body.object:type_name -> neo.fs.v2.session.ObjectSessionContext
-	3,  // 28: neo.fs.v2.session.SessionToken.Body.container:type_name -> neo.fs.v2.session.ContainerSessionContext
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	29, // [29:29] is the sub-list for extension type_name
-	29, // [29:29] is the sub-list for extension extendee
-	0,  // [0:29] is the sub-list for field type_name
+	1,  // 0: neo.fs.v2.session.ObjectSessionContext.verb:type_name -> neo.fs.v2.session.ObjectSessionContext.Verb
+	16, // 1: neo.fs.v2.session.ObjectSessionContext.target:type_name -> neo.fs.v2.session.ObjectSessionContext.Target
+	2,  // 2: neo.fs.v2.session.ContainerSessionContext.verb:type_name -> neo.fs.v2.session.ContainerSessionContext.Verb
+	19, // 3: neo.fs.v2.session.ContainerSessionContext.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	17, // 4: neo.fs.v2.session.SessionToken.body:type_name -> neo.fs.v2.session.SessionToken.Body
+	20, // 5: neo.fs.v2.session.SessionToken.signature:type_name -> neo.fs.v2.refs.Signature
+	21, // 6: neo.fs.v2.session.RequestMetaHeader.version:type_name -> neo.fs.v2.refs.Version
+	7,  // 7: neo.fs.v2.session.RequestMetaHeader.x_headers:type_name -> neo.fs.v2.session.XHeader
+	6,  // 8: neo.fs.v2.session.RequestMetaHeader.session_token:type_name -> neo.fs.v2.session.SessionToken
+	15, // 9: neo.fs.v2.session.RequestMetaHeader.session_token_v2:type_name -> neo.fs.v2.session.SessionTokenV2
+	22, // 10: neo.fs.v2.session.RequestMetaHeader.bearer_token:type_name -> neo.fs.v2.acl.BearerToken
+	8,  // 11: neo.fs.v2.session.RequestMetaHeader.origin:type_name -> neo.fs.v2.session.RequestMetaHeader
+	21, // 12: neo.fs.v2.session.ResponseMetaHeader.version:type_name -> neo.fs.v2.refs.Version
+	7,  // 13: neo.fs.v2.session.ResponseMetaHeader.x_headers:type_name -> neo.fs.v2.session.XHeader
+	9,  // 14: neo.fs.v2.session.ResponseMetaHeader.origin:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	23, // 15: neo.fs.v2.session.ResponseMetaHeader.status:type_name -> neo.fs.v2.status.Status
+	20, // 16: neo.fs.v2.session.RequestVerificationHeader.body_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 17: neo.fs.v2.session.RequestVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 18: neo.fs.v2.session.RequestVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
+	10, // 19: neo.fs.v2.session.RequestVerificationHeader.origin:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	20, // 20: neo.fs.v2.session.ResponseVerificationHeader.body_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 21: neo.fs.v2.session.ResponseVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 22: neo.fs.v2.session.ResponseVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
+	11, // 23: neo.fs.v2.session.ResponseVerificationHeader.origin:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	24, // 24: neo.fs.v2.session.Target.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	12, // 25: neo.fs.v2.session.DelegationInfo.issuer:type_name -> neo.fs.v2.session.Target
+	12, // 26: neo.fs.v2.session.DelegationInfo.subjects:type_name -> neo.fs.v2.session.Target
+	5,  // 27: neo.fs.v2.session.DelegationInfo.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
+	0,  // 28: neo.fs.v2.session.DelegationInfo.verbs:type_name -> neo.fs.v2.session.Verb
+	20, // 29: neo.fs.v2.session.DelegationInfo.signature:type_name -> neo.fs.v2.refs.Signature
+	19, // 30: neo.fs.v2.session.SessionContextV2.container:type_name -> neo.fs.v2.refs.ContainerID
+	25, // 31: neo.fs.v2.session.SessionContextV2.objects:type_name -> neo.fs.v2.refs.ObjectID
+	0,  // 32: neo.fs.v2.session.SessionContextV2.verbs:type_name -> neo.fs.v2.session.Verb
+	18, // 33: neo.fs.v2.session.SessionTokenV2.body:type_name -> neo.fs.v2.session.SessionTokenV2.Body
+	20, // 34: neo.fs.v2.session.SessionTokenV2.signature:type_name -> neo.fs.v2.refs.Signature
+	13, // 35: neo.fs.v2.session.SessionTokenV2.delegation_chain:type_name -> neo.fs.v2.session.DelegationInfo
+	19, // 36: neo.fs.v2.session.ObjectSessionContext.Target.container:type_name -> neo.fs.v2.refs.ContainerID
+	25, // 37: neo.fs.v2.session.ObjectSessionContext.Target.objects:type_name -> neo.fs.v2.refs.ObjectID
+	24, // 38: neo.fs.v2.session.SessionToken.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	5,  // 39: neo.fs.v2.session.SessionToken.Body.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
+	3,  // 40: neo.fs.v2.session.SessionToken.Body.object:type_name -> neo.fs.v2.session.ObjectSessionContext
+	4,  // 41: neo.fs.v2.session.SessionToken.Body.container:type_name -> neo.fs.v2.session.ContainerSessionContext
+	12, // 42: neo.fs.v2.session.SessionTokenV2.Body.issuer:type_name -> neo.fs.v2.session.Target
+	12, // 43: neo.fs.v2.session.SessionTokenV2.Body.subjects:type_name -> neo.fs.v2.session.Target
+	5,  // 44: neo.fs.v2.session.SessionTokenV2.Body.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
+	14, // 45: neo.fs.v2.session.SessionTokenV2.Body.contexts:type_name -> neo.fs.v2.session.SessionContextV2
+	46, // [46:46] is the sub-list for method output_type
+	46, // [46:46] is the sub-list for method input_type
+	46, // [46:46] is the sub-list for extension type_name
+	46, // [46:46] is the sub-list for extension extendee
+	0,  // [0:46] is the sub-list for field type_name
 }
 
 func init() { file_proto_session_types_proto_init() }
@@ -1157,6 +1726,10 @@ func file_proto_session_types_proto_init() {
 		return
 	}
 	file_proto_session_types_proto_msgTypes[9].OneofWrappers = []any{
+		(*Target_OwnerId)(nil),
+		(*Target_NnsName)(nil),
+	}
+	file_proto_session_types_proto_msgTypes[14].OneofWrappers = []any{
 		(*SessionToken_Body_Object)(nil),
 		(*SessionToken_Body_Container)(nil),
 	}
@@ -1165,8 +1738,8 @@ func file_proto_session_types_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_session_types_proto_rawDesc), len(file_proto_session_types_proto_rawDesc)),
-			NumEnums:      2,
-			NumMessages:   11,
+			NumEnums:      3,
+			NumMessages:   16,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

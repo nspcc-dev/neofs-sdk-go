@@ -99,9 +99,9 @@ const (
 	fieldTokenIat
 )
 
-// MarshaledSize returns size of the SessionToken_Body_TokenLifetime in Protocol
+// MarshaledSize returns size of the TokenLifetime in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
-func (x *SessionToken_Body_TokenLifetime) MarshaledSize() int {
+func (x *TokenLifetime) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = proto.SizeVarint(fieldTokenExp, x.Exp) +
@@ -111,11 +111,11 @@ func (x *SessionToken_Body_TokenLifetime) MarshaledSize() int {
 	return sz
 }
 
-// MarshalStable writes the SessionToken_Body_TokenLifetime in Protocol Buffers
+// MarshalStable writes the TokenLifetime in Protocol Buffers
 // V3 format with ascending order of fields by number into b. MarshalStable uses
-// exactly [SessionToken_Body_TokenLifetime.MarshaledSize] first bytes of b.
+// exactly [TokenLifetime.MarshaledSize] first bytes of b.
 // MarshalStable is NPE-safe.
-func (x *SessionToken_Body_TokenLifetime) MarshalStable(b []byte) {
+func (x *TokenLifetime) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldTokenExp, x.Exp)
 		off += proto.MarshalToVarint(b[off:], fieldTokenNbf, x.Nbf)

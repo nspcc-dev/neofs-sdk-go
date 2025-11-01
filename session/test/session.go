@@ -11,6 +11,7 @@ import (
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 )
 
 // Container returns random session.Container.
@@ -77,6 +78,42 @@ func Object() session.Object {
 // Panics if token could not be signed (actually unexpected).
 func ObjectSigned(signer user.Signer) session.Object {
 	tok := Object()
+
+	err := tok.Sign(signer)
+	if err != nil {
+		panic(err)
+	}
+
+	return tok
+}
+
+// TokenV2 returns random session.TokenV2.
+//
+// Resulting token is unsigned.
+func TokenV2() session.TokenV2 {
+	var tok session.TokenV2
+
+	tok.SetVersion(session.TokenV2CurrentVersion)
+	tok.SetID(uuid.New())
+	tok.AddSubject(session.NewTarget(usertest.ID()))
+	tok.SetIat(11)
+	tok.SetNbf(22)
+	tok.SetExp(33)
+
+	ctx := session.NewContextV2(cidtest.ID(), []session.VerbV2{
+		session.VerbV2ObjectPut,
+		session.VerbV2ObjectGet,
+	})
+	tok.AddContext(ctx)
+
+	return tok
+}
+
+// TokenV2Signed returns signed random session.TokenV2.
+//
+// Panics if token could not be signed (actually unexpected).
+func TokenV2Signed(signer user.Signer) session.TokenV2 {
+	tok := TokenV2()
 
 	err := tok.Sign(signer)
 	if err != nil {

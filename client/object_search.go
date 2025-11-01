@@ -41,9 +41,10 @@ type SearchResultItem struct {
 // SearchObjectsOptions groups optional parameters of [Client.SearchObjects].
 type SearchObjectsOptions struct {
 	prmCommonMeta
-	sessionToken *session.Object
-	bearerToken  *bearer.Token
-	noForwarding bool
+	sessionToken   *session.Object
+	sessionTokenV2 *session.TokenV2
+	bearerToken    *bearer.Token
+	noForwarding   bool
 
 	count uint32
 }
@@ -56,6 +57,11 @@ func (x *SearchObjectsOptions) DisableForwarding() { x.noForwarding = true }
 // must be issued for the request signer and target the requested container and
 // operation.
 func (x *SearchObjectsOptions) WithSessionToken(st session.Object) { x.sessionToken = &st }
+
+// WithSessionTokenV2 specifies session token V2 to attach to the request. The token
+// must be issued for the request signer and target the requested container and
+// operation. V2 tokens support multiple subjects, delegation chains, and unified contexts.
+func (x *SearchObjectsOptions) WithSessionTokenV2(st session.TokenV2) { x.sessionTokenV2 = &st }
 
 // WithBearerToken specifies bearer token to attach to the request. The token
 // must be issued by the container owner for the request signer.
@@ -173,6 +179,9 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 	if opts.sessionToken != nil {
 		req.MetaHeader.SessionToken = opts.sessionToken.ProtoMessage()
+	}
+	if opts.sessionTokenV2 != nil {
+		req.MetaHeader.SessionTokenV2 = opts.sessionTokenV2.ProtoMessage()
 	}
 	if opts.bearerToken != nil {
 		req.MetaHeader.BearerToken = opts.bearerToken.ProtoMessage()
@@ -492,6 +501,9 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()

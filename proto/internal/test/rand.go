@@ -229,9 +229,9 @@ func RandPlacementPolicy() *netmap.PlacementPolicy {
 }
 
 // RandSessionTokenLifetime returns random
-// session.SessionToken_Body_TokenLifetime with all non-zero fields.
-func RandSessionTokenLifetime() *session.SessionToken_Body_TokenLifetime {
-	return &session.SessionToken_Body_TokenLifetime{
+// session.TokenLifetime with all non-zero fields.
+func RandSessionTokenLifetime() *session.TokenLifetime {
+	return &session.TokenLifetime{
 		Exp: RandUint64(),
 		Nbf: RandUint64(),
 		Iat: RandUint64(),

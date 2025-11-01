@@ -185,6 +185,9 @@ func (x commonSearchObjectsServerSettings) verifyRequest(mh *protosession.Reques
 	if err := x.verifySessionToken(mh.GetSessionToken()); err != nil {
 		return err
 	}
+	if err := x.verifySessionTokenV2(mh.GetSessionTokenV2()); err != nil {
+		return err
+	}
 	// bearer token
 	if err := x.verifyBearerToken(mh.GetBearerToken()); err != nil {
 		return err
