@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0-rc.16] - 2025-11-14
+
+This version is compatible with API 2.20, the most important change is erasure
+coding support that has experimental status for now and APIs can be updated
+if it requires some fixes.
+
+New features:
+ * EC container placement policies (#736)
+
+Improvements:
+ * MaxSearchObjectsCount constant (#745)
+ * NodeInfo.Capacity method (#746)
+ * Better documentation for NodeInfo.Capacity and NodeInfo.Price (#747)
+ * Object PUT and GET examples (#752)
+
+Bugs fixed:
+ * Potential panic in NodeInfo.Capacity and NodeInfo.Price (#747)
+
 ## [1.0.0-rc.15] - 2025-09-26
 
 This version makes SDK compatible with API 2.19, removes all deprecated APIs
@@ -375,6 +393,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.16]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.15...v1.0.0-rc.16
 [1.0.0-rc.15]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.14...v1.0.0-rc.15
 [1.0.0-rc.14]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.13...v1.0.0-rc.14
 [1.0.0-rc.13]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.12...v1.0.0-rc.13
