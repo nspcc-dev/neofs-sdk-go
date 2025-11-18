@@ -866,6 +866,13 @@ func (x *testCommonResponseServerSettings[RESPBODY, _]) respondWithBody(body RES
 	x.respBodyForced = true
 }
 
+// makes the server to always respond with the given body and status. By default, any valid
+// body is returned with OK status.
+func (x *testCommonResponseServerSettings[RESPBODY, _]) respondWithBodyAndStatus(body RESPBODY, st *protostatus.Status) {
+	x.respondWithBody(body)
+	x.respondWithStatus(st)
+}
+
 func (x testCommonResponseServerSettings[_, RESP]) signResponse(resp RESP) (*protosession.ResponseVerificationHeader, error) {
 	if x.respUnsigned {
 		return nil, nil

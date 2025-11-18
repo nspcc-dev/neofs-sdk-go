@@ -385,24 +385,38 @@ func TestClient_ObjectPut(t *testing.T) {
 		t.Run("responses", func(t *testing.T) {
 			t.Run("valid", func(t *testing.T) {
 				t.Run("payloads", func(t *testing.T) {
-					for _, tc := range []struct {
-						name string
-						body *protoobject.PutResponse_Body
+					for statusName, status := range map[string]struct {
+						status *protostatus.Status
+						err    error
 					}{
-						{name: "min", body: validMinPutObjectResponseBody},
-						{name: "full", body: validFullPutObjectResponseBody},
+						"ok": {nil, nil},
+						"incomplete": {&protostatus.Status{
+							Code:    1,
+							Message: "incomplete",
+							Details: make([]*protostatus.Status_Detail, 2),
+						}, apistatus.ErrIncomplete},
 					} {
-						t.Run(tc.name, func(t *testing.T) {
-							srv := newPutObjectServer()
-							c := newTestObjectClient(t, srv)
+						t.Run(statusName, func(t *testing.T) {
+							for _, tc := range []struct {
+								name string
+								body *protoobject.PutResponse_Body
+							}{
+								{name: "min", body: validMinPutObjectResponseBody},
+								{name: "full", body: validFullPutObjectResponseBody},
+							} {
+								t.Run(tc.name, func(t *testing.T) {
+									srv := newPutObjectServer()
+									c := newTestObjectClient(t, srv)
 
-							srv.respondWithBody(tc.body)
-							w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, anyValidOpts)
-							require.NoError(t, err)
-							_, err = w.Write([]byte{1})
-							require.NoError(t, err)
-							require.NoError(t, w.Close())
-							require.NoError(t, checkObjectIDTransport(w.GetResult().StoredObjectID(), tc.body.GetObjectId()))
+									srv.respondWithBodyAndStatus(tc.body, status.status)
+									w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, anyValidOpts)
+									require.NoError(t, err)
+									_, err = w.Write([]byte{1})
+									require.NoError(t, err)
+									require.ErrorIs(t, w.Close(), status.err)
+									require.NoError(t, checkObjectIDTransport(w.GetResult().StoredObjectID(), tc.body.GetObjectId()))
+								})
+							}
 						})
 					}
 				})

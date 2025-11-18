@@ -8,10 +8,12 @@ import (
 	"time"
 
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -151,27 +153,42 @@ func TestClient_ObjectDelete(t *testing.T) {
 		t.Run("responses", func(t *testing.T) {
 			t.Run("valid", func(t *testing.T) {
 				t.Run("payloads", func(t *testing.T) {
-					for _, tc := range []struct {
-						name string
-						body *protoobject.DeleteResponse_Body
+					for statusName, status := range map[string]struct {
+						status *protostatus.Status
+						err    error
 					}{
-						{name: "min", body: validMinDeleteObjectResponseBody},
-						{name: "full", body: validFullDeleteObjectResponseBody},
-						{name: "invalid container ID", body: &protoobject.DeleteResponse_Body{
-							Tombstone: &protorefs.Address{
-								ContainerId: &protorefs.ContainerID{Value: []byte("any_invalid")},
-								ObjectId:    proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID),
-							},
-						}},
+						"ok": {nil, nil},
+						"incomplete": {&protostatus.Status{
+							Code:    1,
+							Message: "incomplete",
+							Details: make([]*protostatus.Status_Detail, 2),
+						}, apistatus.ErrIncomplete},
 					} {
-						t.Run(tc.name, func(t *testing.T) {
-							srv := newTestDeleteObjectServer()
-							c := newTestObjectClient(t, srv)
+						t.Run(statusName, func(t *testing.T) {
+							for _, tc := range []struct {
+								name string
+								body *protoobject.DeleteResponse_Body
+							}{
+								{name: "min", body: validMinDeleteObjectResponseBody},
+								{name: "full", body: validFullDeleteObjectResponseBody},
+								{name: "invalid container ID", body: &protoobject.DeleteResponse_Body{
+									Tombstone: &protorefs.Address{
+										ContainerId: &protorefs.ContainerID{Value: []byte("any_invalid")},
+										ObjectId:    proto.Clone(validProtoObjectIDs[0]).(*protorefs.ObjectID),
+									},
+								}},
+							} {
+								t.Run(tc.name, func(t *testing.T) {
+									srv := newTestDeleteObjectServer()
+									c := newTestObjectClient(t, srv)
 
-							srv.respondWithBody(tc.body)
-							id, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-							require.NoError(t, err)
-							require.NoError(t, checkObjectIDTransport(id, tc.body.GetTombstone().GetObjectId()))
+									srv.respondWithBodyAndStatus(tc.body, status.status)
+									id, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+
+									require.ErrorIs(t, err, status.err)
+									require.NoError(t, checkObjectIDTransport(id, tc.body.GetTombstone().GetObjectId()))
+								})
+							}
 						})
 					}
 				})
@@ -180,6 +197,29 @@ func TestClient_ObjectDelete(t *testing.T) {
 						_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 						return err
 					})
+				})
+				t.Run("incomplete", func(t *testing.T) {
+					for _, tc := range []struct {
+						name string
+						body *protoobject.DeleteResponse_Body
+					}{
+						{name: "min", body: validMinDeleteObjectResponseBody},
+						{name: "full", body: validFullDeleteObjectResponseBody},
+					} {
+						t.Run(tc.name, func(t *testing.T) {
+							srv := newTestDeleteObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							srv.respondWithBodyAndStatus(tc.body, &protostatus.Status{
+								Code:    1,
+								Message: "incomplete",
+								Details: make([]*protostatus.Status_Detail, 2),
+							})
+							id, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+							require.ErrorIs(t, err, apistatus.ErrIncomplete)
+							require.NoError(t, checkObjectIDTransport(id, tc.body.GetTombstone().GetObjectId()))
+						})
+					}
 				})
 			})
 			t.Run("invalid", func(t *testing.T) {

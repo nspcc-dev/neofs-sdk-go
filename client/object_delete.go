@@ -115,8 +115,12 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
+	var statusError error
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
-		return oid.ID{}, err
+		if !errors.Is(err, apistatus.ErrIncomplete) {
+			return oid.ID{}, err
+		}
+		statusError = err
 	}
 
 	const fieldTombstone = "tombstone"
@@ -134,5 +138,5 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	return res, nil
+	return res, statusError
 }
