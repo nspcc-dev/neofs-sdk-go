@@ -302,8 +302,12 @@ func (x *DefaultObjectWriter) Close() error {
 		return x.err
 	}
 
+	var statusError error
 	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
-		return x.err
+		if !errors.Is(x.err, apistatus.ErrIncomplete) {
+			return x.err
+		}
+		statusError = x.err
 	}
 
 	const fieldID = "ID"
@@ -317,6 +321,9 @@ func (x *DefaultObjectWriter) Close() error {
 	x.err = x.res.obj.FromProtoMessage(idV2)
 	if x.err != nil {
 		x.err = newErrInvalidResponseField(fieldID, x.err)
+	}
+	if x.err == nil {
+		x.err = statusError
 	}
 
 	return x.err

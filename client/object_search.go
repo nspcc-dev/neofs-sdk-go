@@ -209,12 +209,16 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		return nil, "", err
 	}
 
+	var statusError error
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
-		return nil, "", err
+		if !errors.Is(err, apistatus.ErrIncomplete) {
+			return nil, "", err
+		}
+		statusError = err
 	}
 
 	if resp.Body == nil {
-		return nil, "", nil
+		return nil, "", statusError
 	}
 
 	n := uint32(len(resp.Body.Result))
@@ -224,7 +228,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 			err = newErrInvalidResponseField(cursorField, errors.New("set while result is empty"))
 			return nil, "", err
 		}
-		return nil, "", nil
+		return nil, "", statusError
 	}
 	if cursor != "" && resp.Body.Cursor == cursor {
 		err = newErrInvalidResponseField(cursorField, errors.New("repeats the initial one"))
@@ -257,7 +261,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		res[i].Attributes = r.Attributes
 	}
 
-	return res, resp.Body.Cursor, nil
+	return res, resp.Body.Cursor, statusError
 }
 
 func verifySearchFilter(f object.SearchFilter) error {

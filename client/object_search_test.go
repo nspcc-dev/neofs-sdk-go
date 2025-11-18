@@ -910,35 +910,49 @@ func TestClient_SearchObjects(t *testing.T) {
 		t.Run("responses", func(t *testing.T) {
 			t.Run("valid", func(t *testing.T) {
 				t.Run("payloads", func(t *testing.T) {
-					for _, tc := range []struct {
-						name string
-						body *protoobject.SearchV2Response_Body
+					for statusName, status := range map[string]struct {
+						status *protostatus.Status
+						err    error
 					}{
-						{name: "nil", body: nil},
-						{name: "min", body: validMinSearchV2ResponseBody},
-						{name: "full", body: validFullSearchV2ResponseBody},
+						"ok": {nil, nil},
+						"incomplete": {&protostatus.Status{
+							Code:    1,
+							Message: "incomplete",
+							Details: make([]*protostatus.Status_Detail, 2),
+						}, apistatus.ErrIncomplete},
 					} {
-						t.Run(tc.name, func(t *testing.T) {
-							srv := newTestSearchObjectsV2Server()
-							c := newTestObjectClient(t, srv)
+						t.Run(statusName, func(t *testing.T) {
+							for _, tc := range []struct {
+								name string
+								body *protoobject.SearchV2Response_Body
+							}{
+								{name: "nil", body: nil},
+								{name: "min", body: validMinSearchV2ResponseBody},
+								{name: "full", body: validFullSearchV2ResponseBody},
+							} {
+								t.Run(tc.name, func(t *testing.T) {
+									srv := newTestSearchObjectsV2Server()
+									c := newTestObjectClient(t, srv)
 
-							var as []string
-							var fs object.SearchFilters
-							if r := tc.body.GetResult(); len(r) > 0 {
-								if n := len(r[0].GetAttributes()); n > 0 {
-									as = make([]string, n)
-									for i := range as {
-										as[i] = "attr_" + strconv.Itoa(i)
+									var as []string
+									var fs object.SearchFilters
+									if r := tc.body.GetResult(); len(r) > 0 {
+										if n := len(r[0].GetAttributes()); n > 0 {
+											as = make([]string, n)
+											for i := range as {
+												as[i] = "attr_" + strconv.Itoa(i)
+											}
+
+											fs.AddFilter(as[0], "any_val", 100)
+										}
 									}
 
-									fs.AddFilter(as[0], "any_val", 100)
-								}
+									srv.respondWithBodyAndStatus(tc.body, status.status)
+									items, cursor, err := c.SearchObjects(ctx, anyCID, fs, as, anyRequestCursor, anyValidSigner, anyValidOpts)
+									require.ErrorIs(t, err, status.err)
+									assertSearchV2ResponseTransport(t, tc.body, items, cursor)
+								})
 							}
-
-							srv.respondWithBody(tc.body)
-							items, cursor, err := c.SearchObjects(ctx, anyCID, fs, as, anyRequestCursor, anyValidSigner, anyValidOpts)
-							require.NoError(t, err)
-							assertSearchV2ResponseTransport(t, tc.body, items, cursor)
 						})
 					}
 				})
