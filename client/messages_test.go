@@ -195,7 +195,7 @@ var (
 			Body: &protosession.SessionToken_Body{
 				Id:         []byte("any_ID"),
 				OwnerId:    &protorefs.OwnerID{Value: []byte("any_user")},
-				Lifetime:   &protosession.SessionToken_Body_TokenLifetime{Exp: 1, Nbf: 2, Iat: 3},
+				Lifetime:   &protosession.TokenLifetime{Exp: 1, Nbf: 2, Iat: 3},
 				SessionKey: []byte("any_session_key"),
 			},
 			Signature: proto.Clone(validFullProtoSignature).(*protorefs.Signature),
@@ -329,7 +329,7 @@ var (
 				Id: []byte{219, 53, 231, 42, 56, 82, 65, 196, 175, 34, 22, 36, 170, 248, 64, 45},
 				OwnerId: &protorefs.OwnerID{Value: []byte{53, 79, 105, 50, 97, 214, 227, 217, 243, 111, 24, 28, 164, 116, 174, 36,
 					217, 111, 165, 197, 109, 225, 168, 165, 133}},
-				Lifetime: &protosession.SessionToken_Body_TokenLifetime{
+				Lifetime: &protosession.TokenLifetime{
 					Exp: 2306780414485650416, Nbf: 17091941679101563337, Iat: 10428481937388069414,
 				},
 				SessionKey: []byte{3, 47, 174, 204, 218, 71, 223, 103, 27, 142, 185, 141, 190, 177, 199, 235, 100, 168, 68, 216, 253,
@@ -803,6 +803,68 @@ func checkObjectSessionTransport(t session.Object, m *protosession.SessionToken)
 	}
 	// FIXME: t can have more objects, this is wrong but won't be detected. Full
 	//  list should be accessible to verify.
+	return nil
+}
+
+func checkSessionTokenV2Transport(t session.TokenV2, m *protosession.SessionTokenV2) error {
+	body := m.GetBody()
+	if body == nil {
+		return errors.New("missing body field in the message")
+	}
+	// 1. version
+	if v1, v2 := t.Version(), body.GetVersion(); v1 != v2 {
+		return fmt.Errorf("version field (client: %d, message: %d)", v1, v2)
+	}
+	// 2. ID
+	expID := t.ID()
+	actID := body.GetId()
+	if !slices.Equal(expID[:], actID) {
+		return fmt.Errorf("wrong ID: %x vs %x", expID, actID)
+	}
+	// 3. issuer (just check it exists in message)
+	actIssuer := body.GetIssuer()
+	if actIssuer == nil {
+		return errors.New("missing issuer field")
+	}
+	// 4. subjects
+	expSubjects := t.Subjects()
+	actSubjects := body.GetSubjects()
+	if len(expSubjects) != len(actSubjects) {
+		return fmt.Errorf("subjects count mismatch (client: %d, message: %d)", len(expSubjects), len(actSubjects))
+	}
+	// 5. lifetime
+	lt := body.GetLifetime()
+	if lt == nil {
+		return errors.New("missing lifetime field")
+	}
+	if v1, v2 := t.Iat(), lt.GetIat(); v1 != v2 {
+		return fmt.Errorf("iat lifetime field (client: %d, message: %d)", v1, v2)
+	}
+	if v1, v2 := t.Nbf(), lt.GetNbf(); v1 != v2 {
+		return fmt.Errorf("nbf lifetime field (client: %d, message: %d)", v1, v2)
+	}
+	if v1, v2 := t.Exp(), lt.GetExp(); v1 != v2 {
+		return fmt.Errorf("exp lifetime field (client: %d, message: %d)", v1, v2)
+	}
+	// 6. contexts
+	expContexts := t.Contexts()
+	actContexts := body.GetContexts()
+	if len(expContexts) != len(actContexts) {
+		return fmt.Errorf("contexts count mismatch (client: %d, message: %d)", len(expContexts), len(actContexts))
+	}
+	// 7. signature
+	sig, hasSig := t.Signature()
+	actSig := m.GetSignature()
+	if hasSig {
+		if actSig == nil {
+			return errors.New("missing signature field")
+		}
+		if err := checkSignatureTransport(sig, actSig); err != nil {
+			return fmt.Errorf("signature field: %w", err)
+		}
+	} else if actSig != nil {
+		return errors.New("unexpected signature field")
+	}
 	return nil
 }
 

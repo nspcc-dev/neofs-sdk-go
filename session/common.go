@@ -155,7 +155,7 @@ func (x commonData) fillBody(w contextWriter) *protosession.SessionToken_Body {
 	}
 
 	if x.iat != 0 || x.nbf != 0 || x.exp != 0 || x.hasInvalidLifetime {
-		body.Lifetime = &protosession.SessionToken_Body_TokenLifetime{
+		body.Lifetime = &protosession.TokenLifetime{
 			Exp: x.exp,
 			Nbf: x.nbf,
 			Iat: x.iat,

@@ -16,6 +16,8 @@ import (
 type containerSessionParams interface {
 	GetSession() (*session.Object, error)
 	WithinSession(session.Object)
+	GetSessionV2() (*session.TokenV2, error)
+	WithinSessionV2(session.TokenV2)
 }
 
 func (p *Pool) actualSigner(signer user.Signer) user.Signer {

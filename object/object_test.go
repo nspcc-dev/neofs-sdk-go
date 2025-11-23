@@ -687,7 +687,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 				Body: &protosession.SessionToken_Body{
 					Id:      anyValidSessionID[:],
 					OwnerId: protoUserIDFromBytes(anyValidUsers[2][:]),
-					Lifetime: &protosession.SessionToken_Body_TokenLifetime{
+					Lifetime: &protosession.TokenLifetime{
 						Exp: 16429376563136800338,
 						Nbf: 17237208928641773338,
 						Iat: 7956510363313998522,

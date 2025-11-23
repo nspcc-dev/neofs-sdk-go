@@ -114,6 +114,9 @@ func (x *testCommonReadObjectRequestServerSettings) verifyMeta(m *protosession.R
 	if err := x.verifySessionToken(m.GetSessionToken()); err != nil {
 		return err
 	}
+	if err := x.verifySessionTokenV2(m.GetSessionTokenV2()); err != nil {
+		return err
+	}
 	// bearer token
 	if err := x.verifyBearerToken(m.GetBearerToken()); err != nil {
 		return err

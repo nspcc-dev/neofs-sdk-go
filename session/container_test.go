@@ -138,7 +138,7 @@ func TestContainer_FromProtoMessage(t *testing.T) {
 		Body: &protosession.SessionToken_Body{
 			Id:         anyValidSessionID[:],
 			OwnerId:    &refs.OwnerID{Value: anyValidUserID[:]},
-			Lifetime:   &protosession.SessionToken_Body_TokenLifetime{Exp: anyValidExp, Nbf: anyValidNbf, Iat: anyValidIat},
+			Lifetime:   &protosession.TokenLifetime{Exp: anyValidExp, Nbf: anyValidNbf, Iat: anyValidIat},
 			SessionKey: anyValidSessionKeyBytes,
 			Context: &protosession.SessionToken_Body_Container{Container: &protosession.ContainerSessionContext{
 				Verb:        anyValidContainerVerb,

@@ -362,6 +362,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
+	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
@@ -472,6 +475,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
@@ -779,6 +785,9 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()

@@ -123,8 +123,8 @@ func TestContainerSessionContext_MarshalStable(t *testing.T) {
 	})
 }
 
-func TestSessionToken_Body_TokenLifetime_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.SessionToken_Body_TokenLifetime{
+func TestTokenLifetime_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*session.TokenLifetime{
 		prototest.RandSessionTokenLifetime(),
 	})
 }

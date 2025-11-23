@@ -50,6 +50,9 @@ func (x *testDeleteObjectServer) verifyRequest(req *protoobject.DeleteRequest) e
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
 		return err
 	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
+		return err
+	}
 	if err := x.verifyBearerToken(req.MetaHeader.BearerToken); err != nil {
 		return err
 	}
@@ -132,6 +135,18 @@ func TestClient_ObjectDelete(t *testing.T) {
 					opts.WithinSession(st)
 
 					srv.checkRequestSessionToken(st)
+					_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, opts)
+					require.NoError(t, err)
+				})
+				t.Run("session token V2", func(t *testing.T) {
+					srv := newTestDeleteObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					st := sessiontest.TokenV2Signed(usertest.User())
+					opts := anyValidOpts
+					opts.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
 					_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
