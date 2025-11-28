@@ -1003,3 +1003,54 @@ func TestContainer_VerifySignature(t *testing.T) {
 		require.False(t, validContainer.VerifySignature(sig), i)
 	}
 }
+
+func TestContainer_SetLockUntil(t *testing.T) {
+	var cnr container.Container
+
+	got, err := cnr.GetLockUntil()
+	require.NoError(t, err)
+	require.Zero(t, got)
+
+	until := time.Unix(time.Now().Unix(), 0)
+
+	cnr.SetLockUntil(until)
+
+	got, err = cnr.GetLockUntil()
+	require.NoError(t, err)
+	require.True(t, got.Equal(until))
+
+	until = until.Add(5 * time.Second)
+
+	cnr.SetLockUntil(until)
+
+	got, err = cnr.GetLockUntil()
+	require.NoError(t, err)
+	require.True(t, got.Equal(until))
+}
+
+func TestContainer_GetLockUntil(t *testing.T) {
+	var cnr container.Container
+
+	got, err := cnr.GetLockUntil()
+	require.NoError(t, err)
+	require.Zero(t, got)
+
+	cnr.SetAttribute("__NEOFS__LOCK_UNTIL", "foo")
+	_, err = cnr.GetLockUntil()
+	require.EqualError(t, err, `parse "foo": invalid syntax`)
+
+	for _, tc := range []struct {
+		s string
+		n int64
+	}{
+		{s: "1234567890", n: 1234567890},
+		{s: "0", n: 0},
+		{s: "-42", n: -42},
+	} {
+		cnr.SetAttribute("__NEOFS__LOCK_UNTIL", tc.s)
+
+		got, err = cnr.GetLockUntil()
+		require.NoError(t, err)
+		require.True(t, got.Equal(time.Unix(tc.n, 0)))
+	}
+}

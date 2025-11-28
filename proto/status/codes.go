@@ -19,6 +19,7 @@ const (
 	QuotaExceeded             = 2054
 	ContainerNotFound         = 3072
 	EACLNotFound              = 3073
+	ContainerLocked           = 3074
 	SessionTokenNotFound      = 4096
 	SessionTokenExpired       = 4097
 )

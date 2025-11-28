@@ -58,7 +58,9 @@ type ContainerServiceClient interface {
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
 	//     request to remove the container has been sent to FS chain;
-	//   - Common failures (SECTION_FAILURE_COMMON).
+	//   - Common failures (SECTION_FAILURE_COMMON);
+	//   - **CONTAINER_LOCKED** (3074, SECTION_CONTAINER): \
+	//     deleting a locked container is prohibited.
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
 	// Returns container structure from `Container` smart contract storage.
 	//
@@ -217,7 +219,9 @@ type ContainerServiceServer interface {
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
 	//     request to remove the container has been sent to FS chain;
-	//   - Common failures (SECTION_FAILURE_COMMON).
+	//   - Common failures (SECTION_FAILURE_COMMON);
+	//   - **CONTAINER_LOCKED** (3074, SECTION_CONTAINER): \
+	//     deleting a locked container is prohibited.
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
 	// Returns container structure from `Container` smart contract storage.
 	//

@@ -1074,7 +1074,7 @@ func testStatusResponses[SRV interface {
 			1023,
 			1036,
 			2055,
-			3074,
+			3075,
 			4098,
 		} {
 			t.Run("unrecognized_"+strconv.FormatUint(uint64(code), 10), func(t *testing.T) {

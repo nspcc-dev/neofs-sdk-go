@@ -76,7 +76,10 @@ func TestErrors(t *testing.T) {
 			errs:        []error{EACLNotFound{}, new(EACLNotFound)},
 			errVariable: ErrEACLNotFound,
 		},
-
+		{
+			errs:        []error{ContainerLocked{}, new(ContainerLocked)},
+			errVariable: ErrContainerLocked,
+		},
 		{
 			errs:        []error{SessionTokenExpired{}, new(SessionTokenExpired)},
 			errVariable: ErrSessionTokenExpired,
