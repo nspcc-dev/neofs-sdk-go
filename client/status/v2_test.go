@@ -216,6 +216,17 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				return new(apistatus.ContainerAwaitTimeout)
+			},
+			code:           3075,
+			compatibleErrs: []error{apistatus.ErrContainerAwaitTimeout, apistatus.ContainerAwaitTimeout{}, &apistatus.ContainerAwaitTimeout{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.ContainerAwaitTimeout
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.SessionTokenNotFound)
 			},
 			code:           4096,

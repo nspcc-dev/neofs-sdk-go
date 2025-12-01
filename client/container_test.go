@@ -673,6 +673,23 @@ func TestClient_ContainerPut(t *testing.T) {
 					}
 				})
 				t.Run("statuses", func(t *testing.T) {
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestPutContainerServer()
+						c := newTestContainerClient(t, srv)
+
+						body := validMinPutContainerResponseBody
+
+						srv.respondWithBodyAndStatus(validMinPutContainerResponseBody, &protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+						srv.respondWithBody(validMinPutContainerResponseBody)
+						id, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+						require.NoError(t, checkContainerIDTransport(id, body.GetContainerId()))
+					})
+
 					testStatusResponses(t, newTestPutContainerServer, newTestContainerClient, func(c *Client) error {
 						_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
 						return err
@@ -1430,6 +1447,20 @@ func TestClient_ContainerDelete(t *testing.T) {
 						require.EqualError(t, err, "status: code = 3074 message = some lock context")
 					})
 
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestDeleteContainerServer()
+						c := newTestContainerClient(t, srv)
+
+						srv.respondWithStatus(&protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+
+						err := c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+					})
+
 					testStatusResponses(t, newTestDeleteContainerServer, newTestContainerClient, func(c *Client) error {
 						return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
 					})
@@ -1755,6 +1786,20 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 					}
 				})
 				t.Run("statuses", func(t *testing.T) {
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestSetEACLServer()
+						c := newTestContainerClient(t, srv)
+
+						srv.respondWithStatus(&protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+
+						err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+					})
+
 					testStatusResponses(t, newTestSetEACLServer, newTestContainerClient, func(c *Client) error {
 						return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
 					})

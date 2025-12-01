@@ -81,6 +81,10 @@ func TestErrors(t *testing.T) {
 			errVariable: ErrContainerLocked,
 		},
 		{
+			errs:        []error{ContainerAwaitTimeout{}, new(ContainerAwaitTimeout)},
+			errVariable: ErrContainerAwaitTimeout,
+		},
+		{
 			errs:        []error{SessionTokenExpired{}, new(SessionTokenExpired)},
 			errVariable: ErrSessionTokenExpired,
 		},
