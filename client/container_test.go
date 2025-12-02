@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
@@ -24,6 +25,7 @@ import (
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -1409,6 +1411,25 @@ func TestClient_ContainerDelete(t *testing.T) {
 					}
 				})
 				t.Run("statuses", func(t *testing.T) {
+					t.Run("locked", func(t *testing.T) {
+						srv := newTestDeleteContainerServer()
+						c := newTestContainerClient(t, srv)
+
+						st := protostatus.Status{Code: 3074}
+
+						srv.respondWithStatus(&st)
+
+						err := c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerLocked)
+						require.EqualError(t, err, "status: code = 3074 message = container is locked")
+
+						st.Message = "some lock context"
+
+						err = c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerLocked)
+						require.EqualError(t, err, "status: code = 3074 message = some lock context")
+					})
+
 					testStatusResponses(t, newTestDeleteContainerServer, newTestContainerClient, func(c *Client) error {
 						return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
 					})

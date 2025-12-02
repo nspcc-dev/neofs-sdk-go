@@ -26,6 +26,7 @@ const (
 	sysAttrDisableHomohash = sysAttrPrefix + "DISABLE_HOMOMORPHIC_HASHING"
 	sysAttrDomainName      = sysAttrPrefix + "NAME"
 	sysAttrDomainZone      = sysAttrPrefix + "ZONE"
+	sysAttrLockUntil       = sysAttrPrefix + "LOCK_UNTIL"
 )
 
 // Container represents descriptor of the NeoFS container. Container logically
@@ -168,7 +169,7 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 		}
 
 		switch key {
-		case attributeTimestamp:
+		case attributeTimestamp, sysAttrLockUntil:
 			_, err = strconv.ParseInt(val, 10, 64)
 		}
 
@@ -541,4 +542,32 @@ func (x Container) Version() version.Version {
 		return *x.version
 	}
 	return version.Version{}
+}
+
+// SetLockUntil sets attribute with removal lock timestamp in Unix Timestamp
+// format.
+func (x *Container) SetLockUntil(until time.Time) {
+	x.SetAttribute(sysAttrLockUntil, strconv.FormatInt(until.Unix(), 10))
+}
+
+// GetLockUntil looks up for attribute with removal lock timestamp in Unix
+// Timestamp format. If attribute is missing, GetLockUntil returns both zero.
+// Otherwise, GetLockUntil parses the value. If parsing fails, GetLockUntil
+// returns an error containing the value.
+func (x Container) GetLockUntil() (time.Time, error) {
+	attr := x.Attribute(sysAttrLockUntil)
+	if attr == "" {
+		return time.Time{}, nil
+	}
+
+	n, err := strconv.ParseInt(attr, 10, 64)
+	if err != nil {
+		var ne *strconv.NumError
+		if !errors.As(err, &ne) {
+			panic(fmt.Sprintf("unexpected strconv.ParseInt error type %T", err))
+		}
+		return time.Time{}, fmt.Errorf("parse %q: %w", ne.Num, ne.Err)
+	}
+
+	return time.Unix(n, 0), nil
 }

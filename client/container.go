@@ -388,6 +388,7 @@ func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
 // Reflects all internal errors in second return value (transport problems, response processing, etc.).
 // Return errors:
 //   - [ErrMissingSigner]
+//   - [apistatus.ErrContainerLocked]
 func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	var err error
 	if c.prm.statisticCallback != nil {

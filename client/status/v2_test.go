@@ -205,6 +205,17 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				return new(apistatus.ContainerLocked)
+			},
+			code:           3074,
+			compatibleErrs: []error{apistatus.ErrContainerLocked, apistatus.ContainerLocked{}, &apistatus.ContainerLocked{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.ContainerLocked
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.SessionTokenNotFound)
 			},
 			code:           4096,
