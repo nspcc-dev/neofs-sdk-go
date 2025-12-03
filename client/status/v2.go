@@ -34,6 +34,7 @@ import (
 //   - [protostatus.ContainerNotFound]: *[ContainerNotFound];
 //   - [protostatus.EACLNotFound]: *[EACLNotFound];
 //   - [protostatus.ContainerLocked]: *[ContainerLocked];
+//   - [protostatus.ContainerAwaitTimeout]: *[ContainerAwaitTimeout];
 //
 // Session failures:
 //   - [protostatus.SessionTokenNotFound]: *[SessionTokenNotFound];
@@ -87,6 +88,8 @@ func ToError(st *protostatus.Status) error {
 		decoder = new(EACLNotFound)
 	case protostatus.ContainerLocked:
 		decoder = new(ContainerLocked)
+	case protostatus.ContainerAwaitTimeout:
+		decoder = new(ContainerAwaitTimeout)
 	case protostatus.SessionTokenNotFound:
 		decoder = new(SessionTokenNotFound)
 	case protostatus.SessionTokenExpired:

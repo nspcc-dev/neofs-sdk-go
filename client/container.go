@@ -63,8 +63,13 @@ func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerGet] with
+// returned ID. It is recommended to always use context with timeout. Note that
+// the context includes all processing stages incl. network delays.
 //
 // Success can be verified by reading [Client.ContainerGet] using the returned
 // identifier (notice that it needs some time to succeed).
@@ -78,6 +83,7 @@ func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
 //
 // Return errors:
 //   - [ErrMissingSigner]
+//   - [apistatus.ErrContainerAwaitTimeout]
 func (c *Client) ContainerPut(ctx context.Context, cont container.Container, signer neofscrypto.Signer, prm PrmContainerPut) (cid.ID, error) {
 	var err error
 	if c.prm.statisticCallback != nil {
@@ -154,8 +160,12 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		return res, err
 	}
 
+	var statusError error
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
-		return res, err
+		if !errors.Is(err, apistatus.ErrContainerAwaitTimeout) {
+			return res, err
+		}
+		statusError = err
 	}
 
 	const fieldCnrID = "container ID"
@@ -172,7 +182,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		return res, err
 	}
 
-	return res, nil
+	return res, statusError
 }
 
 // PrmContainerGet groups optional parameters of ContainerGet operation.
@@ -373,8 +383,13 @@ func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerGet]. It is
+// recommended to always use context with timeout. Note that the context
+// includes all processing stages incl. network delays.
 //
 // Success can be verified by reading by identifier (see GetContainer).
 //
@@ -389,6 +404,7 @@ func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
 // Return errors:
 //   - [ErrMissingSigner]
 //   - [apistatus.ErrContainerLocked]
+//   - [apistatus.ErrContainerAwaitTimeout]
 func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm PrmContainerDelete) error {
 	var err error
 	if c.prm.statisticCallback != nil {
@@ -588,8 +604,13 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
 // see [apistatus] package for NeoFS-specific error types.
 //
-// Operation is asynchronous and no guaranteed even in the absence of errors.
-// The required time is also not predictable.
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerEACL]. It is
+// recommended to always use context with timeout. Note that the context
+// includes all processing stages incl. network delays.
 //
 // Success can be verified by reading by identifier (see EACL).
 //
@@ -601,6 +622,7 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 // Return errors:
 //   - [ErrMissingEACLContainer]
 //   - [ErrMissingSigner]
+//   - [apistatus.ErrContainerAwaitTimeout]
 //
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {
