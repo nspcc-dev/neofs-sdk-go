@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -15,21 +16,21 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 type mockClient struct {
 	signer neofscrypto.Signer
+	netmap netmap.NetMap
 	clientStatusMonitor
 
-	errorOnDial          bool
-	errorOnCreateSession bool
-	errorOnEndpointInfo  bool
-	errorOnNetworkInfo   bool
-	errOnGetObject       error
-	errOnPutObject       error
+	errorOnDial           bool
+	errorOnNetMapSnapshot bool
+	errorOnEndpointInfo   bool
+	errorOnNetworkInfo    bool
+	errOnGetObject        error
+	errOnPutObject        error
 }
 
 func (m *mockClient) Dial(_ client.PrmDial) error {
@@ -91,8 +92,15 @@ func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (ne
 }
 
 func (m *mockClient) NetMapSnapshot(_ context.Context, _ client.PrmNetMapSnapshot) (netmap.NetMap, error) {
-	// TODO implement me
-	panic("implement me")
+	var nm netmap.NetMap
+
+	if m.errorOnNetMapSnapshot {
+		err := errors.New("snapshot error")
+		m.updateErrorRate(err)
+		return nm, err
+	}
+
+	return m.netmap, nil
 }
 
 func (m *mockClient) ObjectPutInit(_ context.Context, _ object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
@@ -136,18 +144,9 @@ func (m *mockClient) SearchObjects(context.Context, cid.ID, object.SearchFilters
 	panic("implement me")
 }
 
-func (m *mockClient) SessionCreate(_ context.Context, signer user.Signer, _ client.PrmSessionCreate) (*client.ResSessionCreate, error) {
-	if m.errorOnCreateSession {
-		err := errors.New("create session")
-		m.updateErrorRate(err)
-		return nil, err
-	}
-
-	b := make([]byte, signer.Public().MaxEncodedSize())
-	signer.Public().Encode(b)
-
-	res := client.NewResSessionCreate(testutil.RandByteSlice(16), b)
-	return &res, nil
+func (m *mockClient) SessionCreate(context.Context, user.Signer, client.PrmSessionCreate) (*client.ResSessionCreate, error) {
+	// TODO implement me
+	panic("implement me")
 }
 
 func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (*client.ResEndpointInfo, error) {
@@ -165,8 +164,17 @@ func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (
 }
 
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
+	var nm netmap.NetMap
+	pk, err := keys.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	var ni netmap.NodeInfo
+	ni.SetPublicKey(pk.PublicKey().Bytes())
+	nm.SetNodes([]netmap.NodeInfo{ni})
 	return &mockClient{
 		signer:              signer,
+		netmap:              nm,
 		clientStatusMonitor: newClientStatusMonitor(addr, 10),
 	}
 }
@@ -175,8 +183,8 @@ func (m *mockClient) setThreshold(threshold uint32) {
 	m.errorThreshold = threshold
 }
 
-func (m *mockClient) errOnCreateSession() {
-	m.errorOnCreateSession = true
+func (m *mockClient) errOnNetMapSnapshot() {
+	m.errorOnNetMapSnapshot = true
 }
 
 func (m *mockClient) errOnEndpointInfo() {
@@ -189,7 +197,7 @@ func (m *mockClient) errOnNetworkInfo() {
 
 func (m *mockClient) errOnDial() {
 	m.errorOnDial = true
-	m.errOnCreateSession()
+	m.errOnNetMapSnapshot()
 	m.errOnEndpointInfo()
 	m.errOnNetworkInfo()
 }
@@ -227,16 +235,6 @@ func (m *mockClient) getClient() (sdkClientInterface, error) {
 
 func (m *mockClient) getRawClient() (*client.Client, error) {
 	return nil, errors.New("now supported to return sdkClient from mockClient")
-}
-
-func (m *mockClient) SetNodeSession(*session.Object, neofscrypto.PublicKey) {
-}
-
-func (m *mockClient) GetNodeSession(neofscrypto.PublicKey) *session.Object {
-	return nil
-}
-
-func (m *mockClient) ResetSessions() {
 }
 
 func (m *mockClient) Close() error { panic("unimplemented") }

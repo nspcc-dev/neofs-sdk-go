@@ -2,63 +2,59 @@ package pool
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
+	"time"
 
-	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer user.Signer) (session.Object, error) {
-	tok := c.nodeSession.GetNodeSession(signer.Public())
-	if tok != nil {
-		return *tok, nil
-	}
-
-	var dst session.Object
-	ni, err := c.NetworkInfo(ctx, client.PrmNetworkInfo{})
-	if err != nil {
-		return dst, err
-	}
-
-	epoch := ni.CurrentEpoch()
+func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer user.Signer) (session.Token, error) {
+	currentTime := uint64(time.Now().Unix())
 
 	var exp uint64
-	if math.MaxUint64-epoch < dur {
+	if math.MaxUint64-currentTime < dur {
 		exp = math.MaxUint64
 	} else {
-		exp = epoch + dur
+		exp = currentTime + dur
 	}
 
-	var prm client.PrmSessionCreate
-	prm.SetExp(exp)
-
-	res, err := c.SessionCreate(ctx, signer, prm)
-
-	if err != nil {
-		return dst, err
-	}
-
-	var id uuid.UUID
-	if err = id.UnmarshalBinary(res.ID()); err != nil {
-		return dst, fmt.Errorf("invalid session token ID: %w", err)
-	}
-
-	var key neofsecdsa.PublicKey
-	if err = key.Decode(res.PublicKey()); err != nil {
-		return dst, fmt.Errorf("invalid public session key: %w", err)
-	}
-
-	dst.SetID(id)
-	dst.SetAuthKey(&key)
+	var dst session.Token
+	dst.SetVersion(session.TokenCurrentVersion)
 	dst.SetExp(exp)
+	dst.SetIssuer(session.NewTargetUser(signer.UserID()))
 
-	c.nodeSession.SetNodeSession(&dst, signer.Public())
+	// set random nonce
+	dst.SetNonce(session.NewNonce())
+
+	nm, err := c.NetMapSnapshot(ctx, client.PrmNetMapSnapshot{})
+	if err != nil {
+		return dst, fmt.Errorf("get netmap snapshot: %w", err)
+	}
+	for _, node := range nm.Nodes() {
+		neoPubKey, err := keys.NewPublicKeyFromBytes(node.PublicKey(), elliptic.P256())
+		if err != nil {
+			return dst, fmt.Errorf("parse node public key: %w", err)
+		}
+
+		ecdsaPubKey := (*ecdsa.PublicKey)(neoPubKey)
+
+		userID := user.NewFromECDSAPublicKey(*ecdsaPubKey)
+		if err = dst.AddSubject(session.NewTargetUser(userID)); err != nil {
+			return dst, fmt.Errorf("add subject: %w", err)
+		}
+	}
+
+	dst.SetIat(currentTime)
+	dst.SetNbf(currentTime)
+	dst.SetExp(exp)
 
 	return dst, nil
 }
@@ -68,37 +64,49 @@ func (p *Pool) withinContainerSession(
 	c *sdkClientWrapper,
 	containerID cid.ID,
 	signer user.Signer,
-	verb session.ObjectVerb,
+	verb session.Verb,
 	params containerSessionParams,
 ) error {
-	_, err := params.GetSession()
-	if err == nil || errors.Is(err, client.ErrNoSessionExplicitly) {
+	_, errV1 := params.GetSession()
+	_, errV2 := params.GetSessionV2()
+
+	switch {
+	case errV1 == nil && errV2 == nil:
+		return client.ErrSessionTokenBothVersionsSet
+	case errV2 == nil || errors.Is(errV2, client.ErrNoSessionExplicitly):
 		return nil
+	case errV1 == nil || errors.Is(errV1, client.ErrNoSessionExplicitly):
+		return nil
+	default:
 	}
 
 	cacheKey := cacheKeyForSession(c.addr, signer, verb, containerID)
 
-	tok, ok := p.cache.Get(cacheKey)
+	tokV2, ok := p.cache.Get(cacheKey)
 	if !ok {
-		// init new session or take base session data from cache
-		tok, err = initSession(ctx, c, p.stokenDuration, signer)
+		var err error
+		tokV2, err = initSession(ctx, c, p.stokenDuration, signer)
 		if err != nil {
-			return fmt.Errorf("init session: %w", err)
+			return fmt.Errorf("init session v2: %w", err)
 		}
 
-		tok.ForVerb(verb)
-		tok.BindContainer(containerID)
-
-		// sign the token
-		if err = tok.Sign(signer); err != nil {
-			return fmt.Errorf("sign token: %w", err)
+		ctxV2, err := session.NewContext(containerID, []session.Verb{verb})
+		if err != nil {
+			return fmt.Errorf("create context v2: %w", err)
 		}
 
-		// cache the opened session
-		p.cache.Put(cacheKey, tok)
+		if err = tokV2.AddContext(ctxV2); err != nil {
+			return fmt.Errorf("add context v2: %w", err)
+		}
+
+		if err = tokV2.Sign(signer); err != nil {
+			return fmt.Errorf("sign token v2: %w", err)
+		}
+
+		p.cache.Put(cacheKey, tokV2)
 	}
 
-	params.WithinSession(tok)
+	params.WithinSessionV2(tokV2)
 
 	return nil
 }

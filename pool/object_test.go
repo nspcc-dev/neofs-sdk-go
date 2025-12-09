@@ -21,7 +21,6 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -113,18 +112,11 @@ type mockedClientWrapper struct {
 	addr string
 }
 
-func (x mockedClientWrapper) isHealthy() bool          { return true }
-func (x mockedClientWrapper) setUnhealthy()            { panic("must not be called") }
-func (x mockedClientWrapper) address() string          { return x.addr }
-func (x mockedClientWrapper) currentErrorRate() uint32 { panic("must not be called") }
-func (x mockedClientWrapper) overallErrorRate() uint64 { panic("must not be called") }
-func (x mockedClientWrapper) SetNodeSession(*session.Object, neofscrypto.PublicKey) {
-	panic("must not be called")
-}
-func (x mockedClientWrapper) GetNodeSession(neofscrypto.PublicKey) *session.Object {
-	panic("must not be called")
-}
-func (x mockedClientWrapper) ResetSessions()             { panic("must not be called") }
+func (x mockedClientWrapper) isHealthy() bool            { return true }
+func (x mockedClientWrapper) setUnhealthy()              { panic("must not be called") }
+func (x mockedClientWrapper) address() string            { return x.addr }
+func (x mockedClientWrapper) currentErrorRate() uint32   { panic("must not be called") }
+func (x mockedClientWrapper) overallErrorRate() uint64   { panic("must not be called") }
 func (x mockedClientWrapper) dial(context.Context) error { return nil }
 func (x mockedClientWrapper) restartIfUnhealthy(context.Context) (bool, bool) {
 	return true, false
@@ -176,7 +168,7 @@ func TestPool_ObjectGetInit(t *testing.T) {
 	usr := usertest.User()
 
 	var getOpts client.PrmObjectGet
-	getOpts.WithinSession(sessiontest.Object())
+	getOpts.WithinSessionV2(sessiontest.Token())
 	getOpts.WithBearerToken(bearertest.Token())
 	getOpts.MarkRaw()
 	getOpts.MarkLocal()
@@ -261,7 +253,7 @@ func TestPool_ObjectHead(t *testing.T) {
 	usr := usertest.User()
 
 	var headOpts client.PrmObjectHead
-	headOpts.WithinSession(sessiontest.Object())
+	headOpts.WithinSessionV2(sessiontest.Token())
 	headOpts.WithBearerToken(bearertest.Token())
 	headOpts.MarkRaw()
 	headOpts.MarkLocal()
@@ -350,7 +342,7 @@ func TestPool_ObjectRangeInit(t *testing.T) {
 	usr := usertest.User()
 
 	var rangeOpts client.PrmObjectRange
-	rangeOpts.WithinSession(sessiontest.Object())
+	rangeOpts.WithinSessionV2(sessiontest.Token())
 	rangeOpts.WithBearerToken(bearertest.Token())
 	rangeOpts.MarkRaw()
 	rangeOpts.MarkLocal()
@@ -435,7 +427,7 @@ func TestPool_ObjectHash(t *testing.T) {
 	usr := usertest.User()
 
 	var hashOpts client.PrmObjectHash
-	hashOpts.WithinSession(sessiontest.Object())
+	hashOpts.WithinSessionV2(sessiontest.Token())
 	hashOpts.WithBearerToken(bearertest.Token())
 	hashOpts.MarkLocal()
 	hashOpts.WithXHeaders("k1", "v1", "k2", "v2")
@@ -520,7 +512,7 @@ func TestPool_ObjectSearchInit(t *testing.T) {
 	sfs.AddFilter("k2", "v2", object.MatchStringNotEqual)
 
 	var searchOpts client.PrmObjectSearch
-	searchOpts.WithinSession(sessiontest.Object())
+	searchOpts.WithinSessionV2(sessiontest.Token())
 	searchOpts.WithBearerToken(bearertest.Token())
 	searchOpts.MarkLocal()
 	searchOpts.WithXHeaders("k1", "v1", "k2", "v2")
@@ -616,7 +608,7 @@ func TestPool_SearchObjects(t *testing.T) {
 	var opts client.SearchObjectsOptions
 	opts.WithXHeaders("k1", "v1", "k2", "v2")
 	opts.DisableForwarding()
-	opts.WithSessionToken(sessiontest.Object())
+	opts.WithSessionTokenV2(sessiontest.Token())
 	opts.WithBearerToken(bearertest.Token())
 	opts.SetCount(1000)
 

@@ -2,6 +2,8 @@ package pool
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"io"
@@ -10,14 +12,17 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
-	"github.com/nspcc-dev/neofs-sdk-go/session"
+	"github.com/nspcc-dev/neofs-sdk-go/session/v2"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -289,7 +294,7 @@ func TestSessionCache(t *testing.T) {
 	t.Run("no session token after pool creation", func(t *testing.T) {
 		st, ok := pool.cache.Get(cacheKey)
 		require.False(t, ok)
-		require.False(t, st.AssertAuthKey(usr.Public()))
+		require.False(t, st.AssertAuthority(session.NewTargetUser(usr.UserID())))
 	})
 
 	t.Run("session token was created after request", func(t *testing.T) {
@@ -298,7 +303,7 @@ func TestSessionCache(t *testing.T) {
 
 		st, ok := pool.cache.Get(cacheKey)
 		require.True(t, ok)
-		require.True(t, st.AssertAuthKey(usr.Public()))
+		assertSessionToken(t, st, usr.UserID(), mockCli.netmap.Nodes())
 	})
 
 	t.Run("session is not removed", func(t *testing.T) {
@@ -390,8 +395,10 @@ func TestPriority(t *testing.T) {
 }
 
 func TestSessionCacheWithKey(t *testing.T) {
+	var mockCli *mockClient
 	mockClientBuilder := func(addr string) (internalClient, error) {
-		return newMockClient(addr, neofscryptotest.Signer()), nil
+		mockCli = newMockClient(addr, neofscryptotest.Signer())
+		return mockCli, nil
 	}
 
 	opts := InitParameters{
@@ -421,12 +428,14 @@ func TestSessionCacheWithKey(t *testing.T) {
 	require.NoError(t, err)
 
 	st, _ := pool.cache.Get(cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectDelete, cid.ID{}))
-	require.True(t, st.AssertAuthKey(anonSigner.Public()))
+	assertSessionToken(t, st, anonSigner.UserID(), mockCli.netmap.Nodes())
 }
 
 func TestSessionTokenOwner(t *testing.T) {
+	var mockCli *mockClient
 	mockClientBuilder := func(addr string) (internalClient, error) {
-		return newMockClient(addr, neofscryptotest.Signer()), nil
+		mockCli = newMockClient(addr, neofscryptotest.Signer())
+		return mockCli, nil
 	}
 
 	opts := InitParameters{
@@ -461,10 +470,9 @@ func TestSessionTokenOwner(t *testing.T) {
 	cacheKey := cacheKeyForSession(cp.address(), anonSigner, session.VerbObjectPut, containerID)
 	st, ok := p.cache.Get(cacheKey)
 	require.True(t, ok)
-	require.True(t, st.AssertAuthKey(anonSigner.Public()))
 
 	require.True(t, st.VerifySignature())
-	require.True(t, st.Issuer() == anonSigner.UserID())
+	assertSessionToken(t, st, anonSigner.UserID(), mockCli.netmap.Nodes())
 }
 
 func TestStatusMonitor(t *testing.T) {
@@ -665,5 +673,19 @@ func TestPool_Close(t *testing.T) {
 		pes := unwrapped[i].(multiError).Unwrap()
 		require.Len(t, pes, 1)
 		require.ErrorIs(t, errs[i], pes[0])
+	}
+}
+
+func assertSessionToken(t *testing.T, tok session.Token, owner user.ID, nodes []netmap.NodeInfo) {
+	require.Equal(t, tok.Issuer().OwnerID(), owner)
+
+	for _, node := range nodes {
+		neoPubKey, err := keys.NewPublicKeyFromBytes(node.PublicKey(), elliptic.P256())
+		require.NoError(t, err)
+
+		ecdsaPubKey := (*ecdsa.PublicKey)(neoPubKey)
+
+		userID := user.NewFromECDSAPublicKey(*ecdsaPubKey)
+		require.True(t, tok.AssertAuthority(session.NewTargetUser(userID)))
 	}
 }

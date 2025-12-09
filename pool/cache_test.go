@@ -2,18 +2,20 @@ package pool
 
 import (
 	"testing"
+	"time"
 
-	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	"github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
 
 func TestSessionCache_GetUnmodifiedToken(t *testing.T) {
 	const key = "Foo"
-	target := sessiontest.Object()
+	target := sessiontest.Token()
+	target.SetExp(uint64(time.Now().Unix() + 1000))
 
-	check := func(t *testing.T, tok session.Object, extra string) {
+	check := func(t *testing.T, tok session.Token, extra string) {
 		require.False(t, tok.VerifySignature(), extra)
 	}
 

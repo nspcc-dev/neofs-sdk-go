@@ -10,12 +10,15 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 type containerSessionParams interface {
 	GetSession() (*session.Object, error)
 	WithinSession(session.Object)
+	GetSessionV2() (*sessionv2.Token, error)
+	WithinSessionV2(sessionv2.Token)
 }
 
 func (p *Pool) actualSigner(signer user.Signer) user.Signer {
@@ -48,14 +51,14 @@ func (p *Pool) ObjectPutInit(ctx context.Context, hdr object.Object, signer user
 		c,
 		cnr,
 		p.actualSigner(signer),
-		session.VerbObjectPut,
+		sessionv2.VerbObjectPut,
 		&prm,
 	); err != nil {
 		return nil, fmt.Errorf("session: %w", err)
 	}
 
 	ow, err := c.ObjectPutInit(ctx, hdr, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
+	p.checkSessionTokenErr(err, c.addr)
 
 	return ow, err
 }
@@ -114,14 +117,14 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 		c,
 		containerID,
 		p.actualSigner(signer),
-		session.VerbObjectDelete,
+		sessionv2.VerbObjectDelete,
 		&prm,
 	); err != nil {
 		return oid.ID{}, fmt.Errorf("session: %w", err)
 	}
 
 	id, err := c.ObjectDelete(ctx, containerID, objectID, signer, prm)
-	p.checkSessionTokenErr(err, c.addr, c.nodeSession)
+	p.checkSessionTokenErr(err, c.addr)
 
 	return id, err
 }
