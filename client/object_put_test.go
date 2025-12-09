@@ -154,6 +154,9 @@ func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 	if err := x.verifySessionToken(metaHdr.GetSessionToken()); err != nil {
 		return err
 	}
+	if err := x.verifySessionTokenV2(metaHdr.GetSessionTokenV2()); err != nil {
+		return err
+	}
 	// bearer token
 	if err := x.verifyBearerToken(metaHdr.GetBearerToken()); err != nil {
 		return err

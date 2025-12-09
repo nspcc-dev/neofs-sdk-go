@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
@@ -34,6 +35,7 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/protobuf/proto"
@@ -803,6 +805,74 @@ func checkObjectSessionTransport(t session.Object, m *protosession.SessionToken)
 	}
 	// FIXME: t can have more objects, this is wrong but won't be detected. Full
 	//  list should be accessible to verify.
+	return nil
+}
+
+func checkSessionTokenV2Transport(t sessionv2.Token, m *protosession.SessionTokenV2) error {
+	body := m.GetBody()
+	if body == nil {
+		return errors.New("missing body field in the message")
+	}
+	// 1. version
+	if v1, v2 := t.Version(), body.GetVersion(); v1 != v2 {
+		return fmt.Errorf("version field (client: %d, message: %d)", v1, v2)
+	}
+	// 2. nonce
+	expNonce := t.Nonce()
+	actNonce := body.GetNonce()
+	if expNonce != actNonce {
+		return fmt.Errorf("wrong ID: %x vs %x", expNonce, actNonce)
+	}
+	// 3. issuer (just check it exists in message)
+	actIssuer := body.GetIssuer()
+	if actIssuer == nil {
+		return errors.New("missing issuer field")
+	}
+	// 4. subjects
+	expSubjects := t.Subjects()
+	actSubjects := body.GetSubjects()
+	if len(expSubjects) != len(actSubjects) {
+		return fmt.Errorf("subjects count mismatch (client: %d, message: %d)", len(expSubjects), len(actSubjects))
+	}
+	// 5. lifetime
+	lt := body.GetLifetime()
+	if lt == nil {
+		return errors.New("missing lifetime field")
+	}
+	if v1, v2 := t.Iat(), lt.GetIat(); v1.Equal(time.Unix(int64(v2), 0)) {
+		return fmt.Errorf("iat lifetime field (client: %v, message: %d)", v1, v2)
+	}
+	if v1, v2 := t.Nbf(), lt.GetNbf(); v1.Equal(time.Unix(int64(v2), 0)) {
+		return fmt.Errorf("nbf lifetime field (client: %v, message: %d)", v1, v2)
+	}
+	if v1, v2 := t.Exp(), lt.GetExp(); v1.Equal(time.Unix(int64(v2), 0)) {
+		return fmt.Errorf("exp lifetime field (client: %v, message: %d)", v1, v2)
+	}
+	// 6. contexts
+	expContexts := t.Contexts()
+	actContexts := body.GetContexts()
+	if len(expContexts) != len(actContexts) {
+		return fmt.Errorf("contexts count mismatch (client: %d, message: %d)", len(expContexts), len(actContexts))
+	}
+	// 7. final
+	expFinal := t.IsFinal()
+	actFinal := body.GetFinal()
+	if expFinal != actFinal {
+		return fmt.Errorf("final field mismatch (client: %v, message: %v)", expFinal, actFinal)
+	}
+	// 8. signature
+	sig, hasSig := t.Signature()
+	actSig := m.GetSignature()
+	if hasSig {
+		if actSig == nil {
+			return errors.New("missing signature field")
+		}
+		if err := checkSignatureTransport(sig, actSig); err != nil {
+			return fmt.Errorf("signature field: %w", err)
+		}
+	} else if actSig != nil {
+		return errors.New("unexpected signature field")
+	}
 	return nil
 }
 

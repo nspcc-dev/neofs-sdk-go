@@ -138,6 +138,9 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) err
 	if x.opts.session != nil {
 		req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
 	}
+	if x.opts.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
+	}
 	if x.opts.bearerToken != nil {
 		req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
 	}
@@ -202,6 +205,9 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		}
 		if x.opts.session != nil {
 			req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
+		}
+		if x.opts.sessionV2 != nil {
+			req.MetaHeader.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
 		}
 		if x.opts.bearerToken != nil {
 			req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
@@ -370,6 +376,9 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 
 	if signer == nil {
 		return nil, ErrMissingSigner
+	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return nil, errSessionTokenBothVersionsSet
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

@@ -110,8 +110,15 @@ func (x *testCommonReadObjectRequestServerSettings) verifyMeta(m *protosession.R
 	if err := x.verifyTTL(m); err != nil {
 		return err
 	}
+	// check both tokens not set
+	if m.GetSessionToken() != nil && m.GetSessionTokenV2() != nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
+	}
 	// session token
 	if err := x.verifySessionToken(m.GetSessionToken()); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(m.GetSessionTokenV2()); err != nil {
 		return err
 	}
 	// bearer token

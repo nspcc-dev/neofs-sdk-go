@@ -28,6 +28,7 @@ import (
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -104,13 +105,22 @@ func (x testRFC6979DataSignatureServerSettings[SIGNED]) verifyMessageSignature(s
 
 // for sharing between servers of requests with a container session token.
 type testContainerSessionServerSettings struct {
-	expectedToken *session.Container
+	expectedToken   *session.Container
+	expectedTokenV2 *sessionv2.Token
 }
 
 // makes the server to assert that any request carries given session token. By
 // default, session token must not be attached.
 func (x *testContainerSessionServerSettings) checkRequestSessionToken(st session.Container) {
 	x.expectedToken = &st
+	x.expectedTokenV2 = nil
+}
+
+// makes the server to assert that any request carries given V2 session token. By
+// default, session token must not be attached.
+func (x *testContainerSessionServerSettings) checkRequestSessionTokenV2(st sessionv2.Token) {
+	x.expectedTokenV2 = &st
+	x.expectedToken = nil
 }
 
 func (x testContainerSessionServerSettings) verifySessionToken(m *protosession.SessionToken) error {
@@ -125,6 +135,22 @@ func (x testContainerSessionServerSettings) verifySessionToken(m *protosession.S
 	}
 	if err := checkContainerSessionTransport(*x.expectedToken, m); err != nil {
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("session token: %w", err))
+	}
+	return nil
+}
+
+func (x testContainerSessionServerSettings) verifySessionTokenV2(m *protosession.SessionTokenV2) error {
+	if m == nil {
+		if x.expectedTokenV2 != nil {
+			return newInvalidRequestMetaHeaderErr(errors.New("session token V2 is missing while should not be"))
+		}
+		return nil
+	}
+	if x.expectedTokenV2 == nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("session token V2 attached while should not be"))
+	}
+	if err := checkSessionTokenV2Transport(*x.expectedTokenV2, m); err != nil {
+		return newInvalidRequestMetaHeaderErr(fmt.Errorf("session token V2: %w", err))
 	}
 	return nil
 }
@@ -165,6 +191,9 @@ func (x *testPutContainerServer) verifyRequest(req *protocontainer.PutRequest) e
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
 	}
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
 		return err
 	}
 	// body
@@ -386,6 +415,9 @@ func (x *testDeleteContainerServer) verifyRequest(req *protocontainer.DeleteRequ
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
 		return err
 	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
+		return err
+	}
 	// bearer token
 	if req.MetaHeader.BearerToken != nil {
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
@@ -532,6 +564,9 @@ func (x *testSetEACLServer) verifyRequest(req *protocontainer.SetExtendedACLRequ
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
 		return err
 	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
+		return err
+	}
 	// bearer token
 	if req.MetaHeader.BearerToken != nil {
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
@@ -646,6 +681,18 @@ func TestClient_ContainerPut(t *testing.T) {
 					opts.WithinSession(st)
 
 					srv.checkRequestSessionToken(st)
+					_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, opts)
+					require.NoError(t, err)
+				})
+				t.Run("session token V2", func(t *testing.T) {
+					srv := newTestPutContainerServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					opts := anyValidOpts
+					opts.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
 					_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
@@ -1405,6 +1452,18 @@ func TestClient_ContainerDelete(t *testing.T) {
 					err := c.ContainerDelete(ctx, anyID, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
+				t.Run("session token V2", func(t *testing.T) {
+					srv := newTestDeleteContainerServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					opts := anyValidOpts
+					opts.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
+					err := c.ContainerDelete(ctx, anyID, anyValidSigner, opts)
+					require.NoError(t, err)
+				})
 			})
 		})
 		t.Run("responses", func(t *testing.T) {
@@ -1760,6 +1819,18 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 					opts.WithinSession(st)
 
 					srv.checkRequestSessionToken(st)
+					err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, opts)
+					require.NoError(t, err)
+				})
+				t.Run("session token V2", func(t *testing.T) {
+					srv := newTestSetEACLServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					opts := anyValidOpts
+					opts.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
 					err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
