@@ -47,7 +47,13 @@ func (x *testDeleteObjectServer) verifyRequest(req *protoobject.DeleteRequest) e
 	if req.MetaHeader.Ttl != 2 {
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", req.MetaHeader.Ttl))
 	}
+	if req.MetaHeader.SessionToken != nil && req.MetaHeader.SessionTokenV2 != nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
+	}
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
 		return err
 	}
 	if err := x.verifyBearerToken(req.MetaHeader.BearerToken); err != nil {
@@ -132,6 +138,18 @@ func TestClient_ObjectDelete(t *testing.T) {
 					opts.WithinSession(st)
 
 					srv.checkRequestSessionToken(st)
+					_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, opts)
+					require.NoError(t, err)
+				})
+				t.Run("session token V2", func(t *testing.T) {
+					srv := newTestDeleteObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					opts := anyValidOpts
+					opts.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
 					_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)
 				})

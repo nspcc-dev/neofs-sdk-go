@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -25,7 +26,8 @@ import (
 type PrmContainerPut struct {
 	prmCommonMeta
 
-	session *session.Container
+	session   *session.Container
+	sessionV2 *sessionv2.Token
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -39,8 +41,22 @@ type PrmContainerPut struct {
 // Session is optional, if set the following requirements apply:
 //   - session operation MUST be session.VerbContainerPut (ForVerb)
 //   - token MUST be signed using private signer of the owner of the container to be saved
+//   - MUST NOT be used together with WithinSessionV2
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = &s
+}
+
+// WithinSessionV2 specifies session token V2 within which container should be saved.
+//
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+//
+// Must be signed.
+// MUST NOT be used together with WithinSession.
+func (x *PrmContainerPut) WithinSessionV2(s sessionv2.Token) {
+	x.sessionV2 = &s
 }
 
 // AttachSignature allows to attach pre-calculated container signature and free
@@ -94,6 +110,9 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	if signer == nil {
 		return cid.ID{}, ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return cid.ID{}, errSessionTokenBothVersionsSet
+	}
 
 	if err = cont.PlacementPolicy().Verify(); err != nil {
 		err = fmt.Errorf("invalid storage policy: %w", err)
@@ -123,6 +142,9 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 
 	var res cid.ID
@@ -351,7 +373,8 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 type PrmContainerDelete struct {
 	prmCommonMeta
 
-	tok *session.Container
+	tok   *session.Container
+	tokV2 *sessionv2.Token
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -363,8 +386,22 @@ type PrmContainerDelete struct {
 // This may affect the execution of an operation (e.g. access control).
 //
 // Must be signed.
+// MUST NOT be used together with WithinSessionV2.
 func (x *PrmContainerDelete) WithinSession(tok session.Container) {
 	x.tok = &tok
+}
+
+// WithinSessionV2 specifies session token V2 within which container should be removed.
+//
+// Creator of the session acquires the authorship of the request.
+// This may affect the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+//
+// Must be signed.
+// MUST NOT be used together with WithinSession.
+func (x *PrmContainerDelete) WithinSessionV2(tok sessionv2.Token) {
+	x.tokV2 = &tok
 }
 
 // AttachSignature allows to attach pre-calculated container ID signature and
@@ -416,6 +453,9 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
 		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
 	}
+	if prm.tok != nil && prm.tokV2 != nil {
+		return errSessionTokenBothVersionsSet
+	}
 
 	if !prm.sigSet {
 		// container contract expects signature of container ID value
@@ -442,6 +482,9 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.tok != nil {
 		req.MetaHeader.SessionToken = prm.tok.ProtoMessage()
+	}
+	if prm.tokV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.tokV2.ProtoMessage()
 	}
 
 	buf := c.buffers.Get().(*[]byte)
@@ -565,7 +608,8 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 type PrmContainerSetEACL struct {
 	prmCommonMeta
 
-	session *session.Container
+	session   *session.Container
+	sessionV2 *sessionv2.Token
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -582,8 +626,22 @@ type PrmContainerSetEACL struct {
 //     for which extended ACL is going to be set
 //   - session operation MUST be session.VerbContainerSetEACL (ForVerb)
 //   - token MUST be signed using private signer of the owner of the container to be saved
+//   - MUST NOT be used together with WithinSessionV2
 func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.session = &s
+}
+
+// WithinSessionV2 specifies session token V2 within which extended ACL of the
+// container should be saved.
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+//
+// Must be signed.
+// MUST NOT be used together with WithinSession.
+func (x *PrmContainerSetEACL) WithinSessionV2(s sessionv2.Token) {
+	x.sessionV2 = &s
 }
 
 // AttachSignature allows to attach pre-calculated eACL signature and free
@@ -631,6 +689,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	if signer == nil {
 		return ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return errSessionTokenBothVersionsSet
+	}
 
 	if table.GetCID().IsZero() {
 		err = ErrMissingEACLContainer
@@ -665,6 +726,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 
 	buf := c.buffers.Get().(*[]byte)

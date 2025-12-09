@@ -40,6 +40,8 @@ var (
 	errSignRequest        = errors.New("sign request")
 	errResponseCallback   = errors.New("response callback error")
 	errResponseSignatures = errors.New("invalid response signature")
+	// errSessionTokenBothVersionsSet is returned when both versions of session token are set.
+	errSessionTokenBothVersionsSet = errors.New("cannot use both versions of session token")
 )
 
 // MissingResponseFieldErr contains field name which should be in NeoFS API response.

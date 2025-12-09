@@ -77,6 +77,9 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 	if signer == nil {
 		return oid.ID{}, ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return oid.ID{}, errSessionTokenBothVersionsSet
+	}
 
 	req := &protoobject.DeleteRequest{
 		Body: &protoobject.DeleteRequest_Body{
@@ -90,6 +93,9 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
