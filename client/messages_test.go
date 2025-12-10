@@ -231,6 +231,10 @@ var (
 	validMinSetEACLResponseBody = (*protocontainer.SetExtendedACLResponse_Body)(nil)
 	// correct ContainerService.SetExtendedACL response payload with all fields.
 	validFullSetEACLResponseBody = &protocontainer.SetExtendedACLResponse_Body{}
+	// correct ContainerService.SetAttribute response payload with required fields only.
+	validMinSetContainerAttributeResponseBody = (*protocontainer.SetAttributeResponse_Body)(nil)
+	// correct ContainerService.RemoveAttribute response payload with required fields only.
+	validMinRemoveContainerAttributeResponseBody = (*protocontainer.RemoveAttributeResponse_Body)(nil)
 )
 
 // Netmap service.

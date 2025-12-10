@@ -1947,3 +1947,461 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 		)
 	})
 }
+
+type testSetContainerAttributeServer struct {
+	protocontainer.UnimplementedContainerServiceServer
+	testCommonServerSettings
+	testContainerSessionServerSettings
+	testRFC6979DataSignatureServerSettings[*protocontainer.SetAttributeRequest_Body_Parameters]
+
+	prm    *SetContainerAttributeParameters
+	prmSig *neofscrypto.Signature
+
+	respBodyForced bool
+	respBody       *protocontainer.SetAttributeResponse_Body
+}
+
+// returns [protocontainer.ContainerServiceServer] supporting SetAttribute
+// method only. Default implementation performs common verification of any
+// request, and responds with any valid message. Some methods allow to tune the
+// behavior.
+func newTestSetContainerAttributeServer() *testSetContainerAttributeServer {
+	return new(testSetContainerAttributeServer)
+}
+
+// makes the server to assert that any request carries given parameters. By
+// default, any parameters are accepted.
+func (x *testSetContainerAttributeServer) checkRequestParameters(prm SetContainerAttributeParameters) {
+	x.prm = &prm
+}
+
+// makes the server to always respond with the given status. By default, status
+// OK is returned.
+func (x *testSetContainerAttributeServer) respondWithStatus(st *protostatus.Status) {
+	x.respBodyForced = true
+	x.respBody = &protocontainer.SetAttributeResponse_Body{
+		Status: st,
+	}
+}
+
+func (x *testSetContainerAttributeServer) verifyRequest(req *protocontainer.SetAttributeRequest) error {
+	body := req.Body
+	switch {
+	case body == nil:
+		return newInvalidRequestBodyErr(errors.New("missing body"))
+	case body.Parameters == nil:
+		return newErrMissingRequestBodyField("parameters")
+	case body.Parameters.ContainerId == nil:
+		return newErrMissingRequestBodyField("container ID")
+	case body.Parameters.Attribute == "":
+		return newErrMissingRequestBodyField("attribute name")
+	case body.Parameters.Value == "":
+		return newErrMissingRequestBodyField("attribute value")
+	case body.Signature == nil:
+		return newErrMissingRequestBodyField("parameters' signature")
+	case body.SessionToken != nil && body.SessionTokenV1 != nil:
+		return newInvalidRequestBodyErr(errors.New("both session V1 and V2 tokens set"))
+	case req.BodySignature == nil:
+		return newInvalidRequestErr(errors.New("missing body signature"))
+	}
+
+	if err := x.verifySessionToken(body.SessionTokenV1); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(body.SessionToken); err != nil {
+		return err
+	}
+
+	if x.prm != nil {
+		if err := checkContainerIDTransport(x.prm.ID, body.Parameters.ContainerId); err != nil {
+			return fmt.Errorf("container ID parameter: %w", err)
+		}
+		if body.Parameters.Attribute != x.prm.Attribute {
+			return fmt.Errorf("attribute parameter (client: %q, message: %q)", x.prm.Attribute, body.Parameters.Attribute)
+		}
+		if body.Parameters.Value != x.prm.Value {
+			return fmt.Errorf("value parameter (client: %q, message: %q)", x.prm.Value, body.Parameters.Value)
+		}
+		if exp := uint64(x.prm.ValidUntil.Unix()); body.Parameters.ValidUntil != exp {
+			return fmt.Errorf("valid until parameter (client: %q, message: %q)", exp, body.Parameters.ValidUntil)
+		}
+	}
+
+	if x.prmSig != nil {
+		if err := checkSignatureRFC6979Transport(*x.prmSig, body.Signature); err != nil {
+			return err
+		}
+	}
+
+	if err := neofscrypto.VerifyMessageSignature(body, req.BodySignature, nil); err != nil {
+		return fmt.Errorf("verify request signature: %w", err)
+	}
+
+	return nil
+}
+
+func (x *testSetContainerAttributeServer) SetAttribute(_ context.Context, req *protocontainer.SetAttributeRequest) (*protocontainer.SetAttributeResponse, error) {
+	time.Sleep(x.handlerSleepDur)
+
+	if err := x.verifyRequest(req); err != nil {
+		return nil, err
+	}
+
+	if x.handlerErr != nil {
+		return nil, x.handlerErr
+	}
+
+	var resp protocontainer.SetAttributeResponse
+
+	if x.respBodyForced {
+		resp.Body = x.respBody
+	} else {
+		resp.Body = proto.Clone(validMinSetContainerAttributeResponseBody).(*protocontainer.SetAttributeResponse_Body)
+	}
+
+	var err error
+	resp.BodySignature, err = signMessage(neofscryptotest.ECDSAPrivateKey(), resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("sign response: %w", err)
+	}
+
+	return &resp, nil
+}
+
+func TestClient_SetContainerAttribute(t *testing.T) {
+	ctx := context.Background()
+	var anyValidOpts SetContainerAttributeOptions
+	anyValidSigner := usertest.User().RFC6979
+	anyValidPrm := SetContainerAttributeParameters{
+		ID:         cidtest.ID(),
+		Attribute:  "attribute",
+		Value:      "value",
+		ValidUntil: time.Now().Add(time.Minute),
+	}
+	anyValidSignature := neofscryptotest.Signature()
+
+	t.Run("messages", func(t *testing.T) {
+		/*
+			This test is dedicated for cases when user input results in sending a certain
+			request to the server and receiving a specific response to it. For user input
+			errors, transport, client internals, etc. see/add other tests.
+		*/
+		t.Run("requests", func(t *testing.T) {
+			t.Run("required data", func(t *testing.T) {
+				srv := newTestSetContainerAttributeServer()
+				c := newTestContainerClient(t, srv)
+
+				srv.checkRequestParameters(anyValidPrm)
+				srv.checkRequestDataSignature(anyValidSignature)
+				srv.authenticateRequestPayload(anyValidSigner)
+
+				err := c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, SetContainerAttributeOptions{})
+				require.NoError(t, err)
+			})
+			t.Run("options", func(t *testing.T) {
+				t.Run("session token", func(t *testing.T) {
+					srv := newTestSetContainerAttributeServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					opts := anyValidOpts
+					opts.AttachSessionToken(st)
+
+					srv.checkRequestSessionTokenV2(st)
+					err := c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, opts)
+					require.NoError(t, err)
+				})
+				t.Run("session token V1", func(t *testing.T) {
+					srv := newTestSetContainerAttributeServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.ContainerSigned(usertest.User())
+					opts := anyValidOpts
+					opts.AttachSessionTokenV1(st)
+					srv.checkRequestSessionToken(st)
+
+					err := c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, opts)
+					require.NoError(t, err)
+				})
+			})
+		})
+		t.Run("responses", func(t *testing.T) {
+			t.Run("valid", func(t *testing.T) {
+				t.Run("statuses", func(t *testing.T) {
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestSetContainerAttributeServer()
+						c := newTestContainerClient(t, srv)
+
+						srv.respondWithStatus(&protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+
+						err := c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+					})
+
+					testStatusResponses(t, newTestSetContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+						return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+					})
+				})
+			})
+			t.Run("invalid", func(t *testing.T) {
+				t.Run("format", func(t *testing.T) {
+					testIncorrectUnaryRPCResponseFormat(t, "container.ContainerService", "SetAttribute", func(c *Client) error {
+						return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+					})
+				})
+			})
+		})
+	})
+	t.Run("context", func(t *testing.T) {
+		testContextErrors(t, newTestSetContainerAttributeServer, newTestContainerClient, func(ctx context.Context, c *Client) error {
+			return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+		})
+	})
+	t.Run("sign request failure", func(t *testing.T) {
+		testSignRequestFailure(t, func(c *Client) error {
+			return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+		})
+	})
+	t.Run("transport failure", func(t *testing.T) {
+		testTransportFailure(t, newTestSetContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+			return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+		})
+	})
+	t.Run("exec statistics", func(t *testing.T) {
+		testStatistic(t, newTestSetContainerAttributeServer, newDefaultContainerService, stat.MethodContainerSetAttribute,
+			nil, nil, func(c *Client) error {
+				return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+			},
+		)
+	})
+}
+
+type testRemoveContainerAttributeServer struct {
+	protocontainer.UnimplementedContainerServiceServer
+	testCommonServerSettings
+	testContainerSessionServerSettings
+	testRFC6979DataSignatureServerSettings[*protocontainer.RemoveAttributeRequest_Body_Parameters]
+
+	prm    *RemoveContainerAttributeParameters
+	prmSig *neofscrypto.Signature
+
+	respBodyForced bool
+	respBody       *protocontainer.RemoveAttributeResponse_Body
+}
+
+// returns [protocontainer.ContainerServiceServer] supporting RemoveAttribute
+// method only. Default implementation performs common verification of any
+// request, and responds with any valid message. Some methods allow to tune the
+// behavior.
+func newTestRemoveContainerAttributeServer() *testRemoveContainerAttributeServer {
+	return new(testRemoveContainerAttributeServer)
+}
+
+// makes the server to assert that any request carries given parameters. By
+// default, any parameters are accepted.
+func (x *testRemoveContainerAttributeServer) checkRequestParameters(prm RemoveContainerAttributeParameters) {
+	x.prm = &prm
+}
+
+// makes the server to always respond with the given status. By default, status
+// OK is returned.
+func (x *testRemoveContainerAttributeServer) respondWithStatus(st *protostatus.Status) {
+	x.respBodyForced = true
+	x.respBody = &protocontainer.RemoveAttributeResponse_Body{
+		Status: st,
+	}
+}
+
+func (x *testRemoveContainerAttributeServer) verifyRequest(req *protocontainer.RemoveAttributeRequest) error {
+	body := req.Body
+	switch {
+	case body == nil:
+		return newInvalidRequestBodyErr(errors.New("missing body"))
+	case body.Parameters == nil:
+		return newErrMissingRequestBodyField("parameters")
+	case body.Parameters.ContainerId == nil:
+		return newErrMissingRequestBodyField("container ID")
+	case body.Parameters.Attribute == "":
+		return newErrMissingRequestBodyField("attribute name")
+	case body.Signature == nil:
+		return newErrMissingRequestBodyField("parameters' signature")
+	case body.SessionToken != nil && body.SessionTokenV1 != nil:
+		return newInvalidRequestBodyErr(errors.New("both session V1 and V2 tokens set"))
+	case req.BodySignature == nil:
+		return newInvalidRequestErr(errors.New("missing body signature"))
+	}
+
+	if err := x.verifySessionToken(body.SessionTokenV1); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(body.SessionToken); err != nil {
+		return err
+	}
+
+	if x.prm != nil {
+		if err := checkContainerIDTransport(x.prm.ID, body.Parameters.ContainerId); err != nil {
+			return fmt.Errorf("container ID parameter: %w", err)
+		}
+		if body.Parameters.Attribute != x.prm.Attribute {
+			return fmt.Errorf("attribute parameter (client: %q, message: %q)", x.prm.Attribute, body.Parameters.Attribute)
+		}
+		if exp := uint64(x.prm.RequestValidUntil.Unix()); body.Parameters.ValidUntil != exp {
+			return fmt.Errorf("valid until parameter (client: %q, message: %q)", exp, body.Parameters.ValidUntil)
+		}
+	}
+
+	if x.prmSig != nil {
+		if err := checkSignatureRFC6979Transport(*x.prmSig, body.Signature); err != nil {
+			return err
+		}
+	}
+
+	if err := neofscrypto.VerifyMessageSignature(body, req.BodySignature, nil); err != nil {
+		return fmt.Errorf("verify request signature: %w", err)
+	}
+
+	return nil
+}
+
+func (x *testRemoveContainerAttributeServer) RemoveAttribute(_ context.Context, req *protocontainer.RemoveAttributeRequest) (*protocontainer.RemoveAttributeResponse, error) {
+	time.Sleep(x.handlerSleepDur)
+
+	if err := x.verifyRequest(req); err != nil {
+		return nil, err
+	}
+
+	if x.handlerErr != nil {
+		return nil, x.handlerErr
+	}
+
+	var resp protocontainer.RemoveAttributeResponse
+
+	if x.respBodyForced {
+		resp.Body = x.respBody
+	} else {
+		resp.Body = proto.Clone(validMinRemoveContainerAttributeResponseBody).(*protocontainer.RemoveAttributeResponse_Body)
+	}
+
+	var err error
+	resp.BodySignature, err = signMessage(neofscryptotest.ECDSAPrivateKey(), resp.Body)
+	if err != nil {
+		return nil, fmt.Errorf("sign response: %w", err)
+	}
+
+	return &resp, nil
+}
+
+func TestClient_RemoveContainerAttribute(t *testing.T) {
+	ctx := context.Background()
+	var anyValidOpts RemoveContainerAttributeOptions
+	anyValidSigner := usertest.User().RFC6979
+	anyValidPrm := RemoveContainerAttributeParameters{
+		ID:                cidtest.ID(),
+		Attribute:         "attribute",
+		RequestValidUntil: time.Now().Add(time.Minute),
+	}
+	anyValidSignature := neofscryptotest.Signature()
+
+	t.Run("messages", func(t *testing.T) {
+		/*
+			This test is dedicated for cases when user input results in sending a certain
+			request to the server and receiving a specific response to it. For user input
+			errors, transport, client internals, etc. see/add other tests.
+		*/
+		t.Run("requests", func(t *testing.T) {
+			t.Run("required data", func(t *testing.T) {
+				srv := newTestRemoveContainerAttributeServer()
+				c := newTestContainerClient(t, srv)
+
+				srv.checkRequestParameters(anyValidPrm)
+				srv.checkRequestDataSignature(anyValidSignature)
+				srv.authenticateRequestPayload(anyValidSigner)
+
+				err := c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, RemoveContainerAttributeOptions{})
+				require.NoError(t, err)
+			})
+			t.Run("options", func(t *testing.T) {
+				t.Run("session token", func(t *testing.T) {
+					srv := newTestRemoveContainerAttributeServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					opts := anyValidOpts
+					opts.AttachSessionToken(st)
+
+					srv.checkRequestSessionTokenV2(st)
+					err := c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, opts)
+					require.NoError(t, err)
+				})
+				t.Run("session token V1", func(t *testing.T) {
+					srv := newTestRemoveContainerAttributeServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.ContainerSigned(usertest.User())
+					opts := anyValidOpts
+					opts.AttachSessionTokenV1(st)
+					srv.checkRequestSessionToken(st)
+
+					err := c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, opts)
+					require.NoError(t, err)
+				})
+			})
+		})
+		t.Run("responses", func(t *testing.T) {
+			t.Run("valid", func(t *testing.T) {
+				t.Run("statuses", func(t *testing.T) {
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestRemoveContainerAttributeServer()
+						c := newTestContainerClient(t, srv)
+
+						srv.respondWithStatus(&protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+
+						err := c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+					})
+
+					testStatusResponses(t, newTestRemoveContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+						return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+					})
+				})
+			})
+			t.Run("invalid", func(t *testing.T) {
+				t.Run("format", func(t *testing.T) {
+					testIncorrectUnaryRPCResponseFormat(t, "container.ContainerService", "RemoveAttribute", func(c *Client) error {
+						return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+					})
+				})
+			})
+		})
+	})
+	t.Run("context", func(t *testing.T) {
+		testContextErrors(t, newTestRemoveContainerAttributeServer, newTestContainerClient, func(ctx context.Context, c *Client) error {
+			return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+		})
+	})
+	t.Run("sign request failure", func(t *testing.T) {
+		testSignRequestFailure(t, func(c *Client) error {
+			return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+		})
+	})
+	t.Run("transport failure", func(t *testing.T) {
+		testTransportFailure(t, newTestRemoveContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+			return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+		})
+	})
+	t.Run("exec statistics", func(t *testing.T) {
+		testStatistic(t, newTestRemoveContainerAttributeServer, newDefaultContainerService, stat.MethodContainerRemoveAttribute,
+			nil, nil, func(c *Client) error {
+				return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
+			},
+		)
+	})
+}

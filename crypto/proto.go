@@ -274,20 +274,20 @@ func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) e
 		if v.MetaSignature == nil {
 			return newErrInvalidVerificationHeader(i, errMissingMetaSig)
 		}
-		if err := verifyMessageSignature(m, v.MetaSignature, buf); err != nil {
+		if err := VerifyMessageSignature(m, v.MetaSignature, buf); err != nil {
 			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidMetaSig, err))
 		}
 		if v.OriginSignature == nil {
 			return newErrInvalidVerificationHeader(i, errMissingVerifyOriginSig)
 		}
-		if err := verifyMessageSignature(v.Origin, v.OriginSignature, buf); err != nil {
+		if err := VerifyMessageSignature(v.Origin, v.OriginSignature, buf); err != nil {
 			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidVerifyOriginSig, err))
 		}
 		if v.Origin == nil {
 			if v.BodySignature == nil {
 				return newErrInvalidVerificationHeader(i, errMissingBodySig)
 			}
-			if err := verifyMessageSignature(b, v.BodySignature, buf); err != nil {
+			if err := VerifyMessageSignature(b, v.BodySignature, buf); err != nil {
 				return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidBodySig, err))
 			}
 			return nil
@@ -303,10 +303,11 @@ func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verif
 		b, sz := encodeMessage(m, b)
 		return verifyN3(b[:sz], s.Sign, s.Key)
 	}
-	return verifyMessageSignature(m, s, b)
+	return VerifyMessageSignature(m, s, b)
 }
 
-func verifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
+// VerifyMessageSignature verifies signature of m using buffer b.
+func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
 	if len(s.Key) == 0 {
 		return errors.New("missing public key")
 	}

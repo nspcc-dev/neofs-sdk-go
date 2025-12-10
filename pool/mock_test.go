@@ -74,6 +74,14 @@ func (m *mockClient) ContainerSetEACL(_ context.Context, _ eacl.Table, _ user.Si
 	panic("implement me")
 }
 
+func (*mockClient) SetContainerAttribute(context.Context, client.SetContainerAttributeParameters, neofscrypto.Signature, client.SetContainerAttributeOptions) error {
+	panic("unimplemented")
+}
+
+func (*mockClient) RemoveContainerAttribute(context.Context, client.RemoveContainerAttributeParameters, neofscrypto.Signature, client.RemoveContainerAttributeOptions) error {
+	panic("unimplemented")
+}
+
 func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
 	var ni netmap.NetworkInfo
 

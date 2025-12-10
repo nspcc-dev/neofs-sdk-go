@@ -46,6 +46,8 @@ type sdkClientInterface interface {
 	ContainerDelete(ctx context.Context, id cid.ID, signer neofscrypto.Signer, prm sdkClient.PrmContainerDelete) error
 	ContainerEACL(ctx context.Context, id cid.ID, prm sdkClient.PrmContainerEACL) (eacl.Table, error)
 	ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm sdkClient.PrmContainerSetEACL) error
+	SetContainerAttribute(ctx context.Context, prm sdkClient.SetContainerAttributeParameters, prmSig neofscrypto.Signature, opts sdkClient.SetContainerAttributeOptions) error
+	RemoveContainerAttribute(ctx context.Context, prm sdkClient.RemoveContainerAttributeParameters, prmSig neofscrypto.Signature, opts sdkClient.RemoveContainerAttributeOptions) error
 
 	NetworkInfo(ctx context.Context, prm sdkClient.PrmNetworkInfo) (netmap.NetworkInfo, error)
 	NetMapSnapshot(ctx context.Context, prm sdkClient.PrmNetMapSnapshot) (netmap.NetMap, error)

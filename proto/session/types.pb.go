@@ -52,6 +52,10 @@ const (
 	Verb_CONTAINER_DELETE Verb = 9
 	// Refers to container.SetExtendedACL RPC call
 	Verb_CONTAINER_SETEACL Verb = 10
+	// Refers to container.SetAttribute RPC call
+	Verb_CONTAINER_SETATTRIBUTE Verb = 11
+	// Refers to container.RemoveAttribute RPC call
+	Verb_CONTAINER_REMOVEATTRIBUTE Verb = 12
 )
 
 // Enum value maps for Verb.
@@ -68,19 +72,23 @@ var (
 		8:  "CONTAINER_PUT",
 		9:  "CONTAINER_DELETE",
 		10: "CONTAINER_SETEACL",
+		11: "CONTAINER_SETATTRIBUTE",
+		12: "CONTAINER_REMOVEATTRIBUTE",
 	}
 	Verb_value = map[string]int32{
-		"VERB_UNSPECIFIED":  0,
-		"OBJECT_PUT":        1,
-		"OBJECT_GET":        2,
-		"OBJECT_HEAD":       3,
-		"OBJECT_SEARCH":     4,
-		"OBJECT_DELETE":     5,
-		"OBJECT_RANGE":      6,
-		"OBJECT_RANGEHASH":  7,
-		"CONTAINER_PUT":     8,
-		"CONTAINER_DELETE":  9,
-		"CONTAINER_SETEACL": 10,
+		"VERB_UNSPECIFIED":          0,
+		"OBJECT_PUT":                1,
+		"OBJECT_GET":                2,
+		"OBJECT_HEAD":               3,
+		"OBJECT_SEARCH":             4,
+		"OBJECT_DELETE":             5,
+		"OBJECT_RANGE":              6,
+		"OBJECT_RANGEHASH":          7,
+		"CONTAINER_PUT":             8,
+		"CONTAINER_DELETE":          9,
+		"CONTAINER_SETEACL":         10,
+		"CONTAINER_SETATTRIBUTE":    11,
+		"CONTAINER_REMOVEATTRIBUTE": 12,
 	}
 )
 
@@ -196,6 +204,10 @@ const (
 	ContainerSessionContext_DELETE ContainerSessionContext_Verb = 2
 	// Refers to container.SetExtendedACL RPC call
 	ContainerSessionContext_SETEACL ContainerSessionContext_Verb = 3
+	// Refers to container.SetAttribute RPC call
+	ContainerSessionContext_SETATTRIBUTE ContainerSessionContext_Verb = 4
+	// Refers to container.RemoveAttribute RPC call
+	ContainerSessionContext_REMOVEATTRIBUTE ContainerSessionContext_Verb = 5
 )
 
 // Enum value maps for ContainerSessionContext_Verb.
@@ -205,12 +217,16 @@ var (
 		1: "PUT",
 		2: "DELETE",
 		3: "SETEACL",
+		4: "SETATTRIBUTE",
+		5: "REMOVEATTRIBUTE",
 	}
 	ContainerSessionContext_Verb_value = map[string]int32{
 		"VERB_UNSPECIFIED": 0,
 		"PUT":              1,
 		"DELETE":           2,
 		"SETEACL":          3,
+		"SETATTRIBUTE":     4,
+		"REMOVEATTRIBUTE":  5,
 	}
 )
 
@@ -1026,7 +1042,7 @@ type SessionContextV2 struct {
 	// Operations authorized for this context.
 	// Must contain at least one verb (empty list is invalid).
 	// Verbs must be sorted in ascending order.
-	// Maximum number of verbs: 10.
+	// Maximum number of verbs: 12.
 	Verbs         []Verb `protobuf:"varint,3,rep,packed,name=verbs,proto3,enum=neo.fs.v2.session.Verb" json:"verbs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1541,17 +1557,19 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\n" +
 	"\x06DELETE\x10\x05\x12\t\n" +
 	"\x05RANGE\x10\x06\x12\r\n" +
-	"\tRANGEHASH\x10\a\"\xfa\x01\n" +
+	"\tRANGEHASH\x10\a\"\xa1\x02\n" +
 	"\x17ContainerSessionContext\x12C\n" +
 	"\x04verb\x18\x01 \x01(\x0e2/.neo.fs.v2.session.ContainerSessionContext.VerbR\x04verb\x12\x1a\n" +
 	"\bwildcard\x18\x02 \x01(\bR\bwildcard\x12>\n" +
-	"\fcontainer_id\x18\x03 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerID\">\n" +
+	"\fcontainer_id\x18\x03 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerID\"e\n" +
 	"\x04Verb\x12\x14\n" +
 	"\x10VERB_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03PUT\x10\x01\x12\n" +
 	"\n" +
 	"\x06DELETE\x10\x02\x12\v\n" +
-	"\aSETEACL\x10\x03\"\xa0\x04\n" +
+	"\aSETEACL\x10\x03\x12\x10\n" +
+	"\fSETATTRIBUTE\x10\x04\x12\x13\n" +
+	"\x0fREMOVEATTRIBUTE\x10\x05\"\xa0\x04\n" +
 	"\fSessionToken\x128\n" +
 	"\x04body\x18\x01 \x01(\v2$.neo.fs.v2.session.SessionToken.BodyR\x04body\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x1a\x9c\x03\n" +
@@ -1622,7 +1640,7 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\bsubjects\x18\x04 \x03(\v2\x19.neo.fs.v2.session.TargetR\bsubjects\x12<\n" +
 	"\blifetime\x18\x05 \x01(\v2 .neo.fs.v2.session.TokenLifetimeR\blifetime\x12?\n" +
 	"\bcontexts\x18\x06 \x03(\v2#.neo.fs.v2.session.SessionContextV2R\bcontexts\x12\x14\n" +
-	"\x05final\x18\a \x01(\bR\x05final*\xdb\x01\n" +
+	"\x05final\x18\a \x01(\bR\x05final*\x96\x02\n" +
 	"\x04Verb\x12\x14\n" +
 	"\x10VERB_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -1637,7 +1655,9 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\rCONTAINER_PUT\x10\b\x12\x14\n" +
 	"\x10CONTAINER_DELETE\x10\t\x12\x15\n" +
 	"\x11CONTAINER_SETEACL\x10\n" +
-	"BOZ/github.com/nspcc-dev/neofs-sdk-go/proto/session\xaa\x02\x1bNeo.FileStorage.API.Sessionb\x06proto3"
+	"\x12\x1a\n" +
+	"\x16CONTAINER_SETATTRIBUTE\x10\v\x12\x1d\n" +
+	"\x19CONTAINER_REMOVEATTRIBUTE\x10\fBOZ/github.com/nspcc-dev/neofs-sdk-go/proto/session\xaa\x02\x1bNeo.FileStorage.API.Sessionb\x06proto3"
 
 var (
 	file_proto_session_types_proto_rawDescOnce sync.Once

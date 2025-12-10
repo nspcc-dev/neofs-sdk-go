@@ -82,3 +82,25 @@ func (p *Pool) ContainerSetEACL(ctx context.Context, table eacl.Table, signer us
 
 	return c.ContainerSetEACL(ctx, table, signer, prm)
 }
+
+// SetContainerAttribute selects a suitable connection from the pool and calls
+// [client.Client.SetContainerAttribute] on it.
+func (p *Pool) SetContainerAttribute(ctx context.Context, prm client.SetContainerAttributeParameters, prmSig neofscrypto.Signature, opts client.SetContainerAttributeOptions) error {
+	c, err := p.sdkClient()
+	if err != nil {
+		return err
+	}
+
+	return c.SetContainerAttribute(ctx, prm, prmSig, opts)
+}
+
+// RemoveContainerAttribute selects a suitable connection from the pool and calls
+// [client.Client.RemoveContainerAttribute] on it.
+func (p *Pool) RemoveContainerAttribute(ctx context.Context, prm client.RemoveContainerAttributeParameters, prmSig neofscrypto.Signature, opts client.RemoveContainerAttributeOptions) error {
+	c, err := p.sdkClient()
+	if err != nil {
+		return err
+	}
+
+	return c.RemoveContainerAttribute(ctx, prm, prmSig, opts)
+}

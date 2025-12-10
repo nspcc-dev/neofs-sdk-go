@@ -423,6 +423,7 @@ type Header struct {
 	HomomorphicHash *refs.Checksum `protobuf:"bytes,8,opt,name=homomorphic_hash,json=homomorphicHash,proto3" json:"homomorphic_hash,omitempty"`
 	// Session token, if it was used during Object creation. Need it to verify
 	// integrity and authenticity out of Request scope.
+	// Only one of `session_token` or `session_token_v2` can be set.
 	SessionToken *session.SessionToken `protobuf:"bytes,9,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
 	// User-defined object attributes. Attributes vary in length from object to
 	// object, so keep an eye on the entire Header limit depending on the context.

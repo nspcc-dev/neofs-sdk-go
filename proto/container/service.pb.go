@@ -10,6 +10,7 @@ import (
 	acl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	refs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	session "github.com/nspcc-dev/neofs-sdk-go/proto/session"
+	status "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	reflect "reflect"
@@ -969,6 +970,226 @@ func (x *AnnounceUsedSpaceResponse) GetVerifyHeader() *session.ResponseVerificat
 	return nil
 }
 
+// Attribute setting request
+type SetAttributeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Request payload.
+	Body *SetAttributeRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
+	// Signature of stable-marshalled `body` field.
+	BodySignature *refs.Signature `protobuf:"bytes,2,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAttributeRequest) Reset() {
+	*x = SetAttributeRequest{}
+	mi := &file_proto_container_service_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAttributeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAttributeRequest) ProtoMessage() {}
+
+func (x *SetAttributeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAttributeRequest.ProtoReflect.Descriptor instead.
+func (*SetAttributeRequest) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *SetAttributeRequest) GetBody() *SetAttributeRequest_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *SetAttributeRequest) GetBodySignature() *refs.Signature {
+	if x != nil {
+		return x.BodySignature
+	}
+	return nil
+}
+
+// Attribute setting response
+type SetAttributeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Request result.
+	Body *SetAttributeResponse_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
+	// Signature of stable-marshalled `body` field.
+	BodySignature *refs.Signature `protobuf:"bytes,2,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAttributeResponse) Reset() {
+	*x = SetAttributeResponse{}
+	mi := &file_proto_container_service_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAttributeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAttributeResponse) ProtoMessage() {}
+
+func (x *SetAttributeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAttributeResponse.ProtoReflect.Descriptor instead.
+func (*SetAttributeResponse) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *SetAttributeResponse) GetBody() *SetAttributeResponse_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *SetAttributeResponse) GetBodySignature() *refs.Signature {
+	if x != nil {
+		return x.BodySignature
+	}
+	return nil
+}
+
+// Attribute removal request
+type RemoveAttributeRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Request payload.
+	Body *RemoveAttributeRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
+	// Signature of stable-marshalled `body` field.
+	BodySignature *refs.Signature `protobuf:"bytes,2,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAttributeRequest) Reset() {
+	*x = RemoveAttributeRequest{}
+	mi := &file_proto_container_service_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAttributeRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAttributeRequest) ProtoMessage() {}
+
+func (x *RemoveAttributeRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAttributeRequest.ProtoReflect.Descriptor instead.
+func (*RemoveAttributeRequest) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *RemoveAttributeRequest) GetBody() *RemoveAttributeRequest_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *RemoveAttributeRequest) GetBodySignature() *refs.Signature {
+	if x != nil {
+		return x.BodySignature
+	}
+	return nil
+}
+
+// Attribute removal response
+type RemoveAttributeResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Request result.
+	Body *RemoveAttributeResponse_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
+	// Signature of stable-marshalled `body` field.
+	BodySignature *refs.Signature `protobuf:"bytes,2,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAttributeResponse) Reset() {
+	*x = RemoveAttributeResponse{}
+	mi := &file_proto_container_service_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAttributeResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAttributeResponse) ProtoMessage() {}
+
+func (x *RemoveAttributeResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAttributeResponse.ProtoReflect.Descriptor instead.
+func (*RemoveAttributeResponse) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *RemoveAttributeResponse) GetBody() *RemoveAttributeResponse_Body {
+	if x != nil {
+		return x.Body
+	}
+	return nil
+}
+
+func (x *RemoveAttributeResponse) GetBodySignature() *refs.Signature {
+	if x != nil {
+		return x.BodySignature
+	}
+	return nil
+}
+
 // Container creation request has container structure's signature as a
 // separate field. It's not stored in FS chain, just verified on container
 // creation by `Container` smart contract. `ContainerID` is a SHA256 hash of
@@ -986,7 +1207,7 @@ type PutRequest_Body struct {
 
 func (x *PutRequest_Body) Reset() {
 	*x = PutRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[14]
+	mi := &file_proto_container_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -998,7 +1219,7 @@ func (x *PutRequest_Body) String() string {
 func (*PutRequest_Body) ProtoMessage() {}
 
 func (x *PutRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[14]
+	mi := &file_proto_container_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1042,7 +1263,7 @@ type PutResponse_Body struct {
 
 func (x *PutResponse_Body) Reset() {
 	*x = PutResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[15]
+	mi := &file_proto_container_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1054,7 +1275,7 @@ func (x *PutResponse_Body) String() string {
 func (*PutResponse_Body) ProtoMessage() {}
 
 func (x *PutResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[15]
+	mi := &file_proto_container_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1092,7 +1313,7 @@ type DeleteRequest_Body struct {
 
 func (x *DeleteRequest_Body) Reset() {
 	*x = DeleteRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[16]
+	mi := &file_proto_container_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1104,7 +1325,7 @@ func (x *DeleteRequest_Body) String() string {
 func (*DeleteRequest_Body) ProtoMessage() {}
 
 func (x *DeleteRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[16]
+	mi := &file_proto_container_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1144,7 +1365,7 @@ type DeleteResponse_Body struct {
 
 func (x *DeleteResponse_Body) Reset() {
 	*x = DeleteResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[17]
+	mi := &file_proto_container_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1156,7 +1377,7 @@ func (x *DeleteResponse_Body) String() string {
 func (*DeleteResponse_Body) ProtoMessage() {}
 
 func (x *DeleteResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[17]
+	mi := &file_proto_container_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1183,7 +1404,7 @@ type GetRequest_Body struct {
 
 func (x *GetRequest_Body) Reset() {
 	*x = GetRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[18]
+	mi := &file_proto_container_service_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1195,7 +1416,7 @@ func (x *GetRequest_Body) String() string {
 func (*GetRequest_Body) ProtoMessage() {}
 
 func (x *GetRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[18]
+	mi := &file_proto_container_service_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1234,7 +1455,7 @@ type GetResponse_Body struct {
 
 func (x *GetResponse_Body) Reset() {
 	*x = GetResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[19]
+	mi := &file_proto_container_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1246,7 +1467,7 @@ func (x *GetResponse_Body) String() string {
 func (*GetResponse_Body) ProtoMessage() {}
 
 func (x *GetResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[19]
+	mi := &file_proto_container_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1294,7 +1515,7 @@ type ListRequest_Body struct {
 
 func (x *ListRequest_Body) Reset() {
 	*x = ListRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[20]
+	mi := &file_proto_container_service_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1306,7 +1527,7 @@ func (x *ListRequest_Body) String() string {
 func (*ListRequest_Body) ProtoMessage() {}
 
 func (x *ListRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[20]
+	mi := &file_proto_container_service_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1340,7 +1561,7 @@ type ListResponse_Body struct {
 
 func (x *ListResponse_Body) Reset() {
 	*x = ListResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[21]
+	mi := &file_proto_container_service_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1352,7 +1573,7 @@ func (x *ListResponse_Body) String() string {
 func (*ListResponse_Body) ProtoMessage() {}
 
 func (x *ListResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[21]
+	mi := &file_proto_container_service_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1389,7 +1610,7 @@ type SetExtendedACLRequest_Body struct {
 
 func (x *SetExtendedACLRequest_Body) Reset() {
 	*x = SetExtendedACLRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[22]
+	mi := &file_proto_container_service_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1401,7 +1622,7 @@ func (x *SetExtendedACLRequest_Body) String() string {
 func (*SetExtendedACLRequest_Body) ProtoMessage() {}
 
 func (x *SetExtendedACLRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[22]
+	mi := &file_proto_container_service_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1442,7 +1663,7 @@ type SetExtendedACLResponse_Body struct {
 
 func (x *SetExtendedACLResponse_Body) Reset() {
 	*x = SetExtendedACLResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[23]
+	mi := &file_proto_container_service_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1454,7 +1675,7 @@ func (x *SetExtendedACLResponse_Body) String() string {
 func (*SetExtendedACLResponse_Body) ProtoMessage() {}
 
 func (x *SetExtendedACLResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[23]
+	mi := &file_proto_container_service_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1481,7 +1702,7 @@ type GetExtendedACLRequest_Body struct {
 
 func (x *GetExtendedACLRequest_Body) Reset() {
 	*x = GetExtendedACLRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[24]
+	mi := &file_proto_container_service_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1493,7 +1714,7 @@ func (x *GetExtendedACLRequest_Body) String() string {
 func (*GetExtendedACLRequest_Body) ProtoMessage() {}
 
 func (x *GetExtendedACLRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[24]
+	mi := &file_proto_container_service_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1533,7 +1754,7 @@ type GetExtendedACLResponse_Body struct {
 
 func (x *GetExtendedACLResponse_Body) Reset() {
 	*x = GetExtendedACLResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[25]
+	mi := &file_proto_container_service_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1545,7 +1766,7 @@ func (x *GetExtendedACLResponse_Body) String() string {
 func (*GetExtendedACLResponse_Body) ProtoMessage() {}
 
 func (x *GetExtendedACLResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[25]
+	mi := &file_proto_container_service_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1594,7 +1815,7 @@ type AnnounceUsedSpaceRequest_Body struct {
 
 func (x *AnnounceUsedSpaceRequest_Body) Reset() {
 	*x = AnnounceUsedSpaceRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[26]
+	mi := &file_proto_container_service_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1606,7 +1827,7 @@ func (x *AnnounceUsedSpaceRequest_Body) String() string {
 func (*AnnounceUsedSpaceRequest_Body) ProtoMessage() {}
 
 func (x *AnnounceUsedSpaceRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[26]
+	mi := &file_proto_container_service_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1645,7 +1866,7 @@ type AnnounceUsedSpaceRequest_Body_Announcement struct {
 
 func (x *AnnounceUsedSpaceRequest_Body_Announcement) Reset() {
 	*x = AnnounceUsedSpaceRequest_Body_Announcement{}
-	mi := &file_proto_container_service_proto_msgTypes[27]
+	mi := &file_proto_container_service_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1657,7 +1878,7 @@ func (x *AnnounceUsedSpaceRequest_Body_Announcement) String() string {
 func (*AnnounceUsedSpaceRequest_Body_Announcement) ProtoMessage() {}
 
 func (x *AnnounceUsedSpaceRequest_Body_Announcement) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[27]
+	mi := &file_proto_container_service_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1704,7 +1925,7 @@ type AnnounceUsedSpaceResponse_Body struct {
 
 func (x *AnnounceUsedSpaceResponse_Body) Reset() {
 	*x = AnnounceUsedSpaceResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[28]
+	mi := &file_proto_container_service_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1716,7 +1937,7 @@ func (x *AnnounceUsedSpaceResponse_Body) String() string {
 func (*AnnounceUsedSpaceResponse_Body) ProtoMessage() {}
 
 func (x *AnnounceUsedSpaceResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[28]
+	mi := &file_proto_container_service_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1732,11 +1953,429 @@ func (*AnnounceUsedSpaceResponse_Body) Descriptor() ([]byte, []int) {
 	return file_proto_container_service_proto_rawDescGZIP(), []int{13, 0}
 }
 
+// Request payload message.
+type SetAttributeRequest_Body struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Op parameters.
+	Parameters *SetAttributeRequest_Body_Parameters `protobuf:"bytes,1,opt,name=parameters,proto3" json:"parameters,omitempty"`
+	// N3 witness of stable-marshalled `parameters` field. The
+	// signature must authenticate either container owner or one of subjects in
+	// the `session_token` field if any. Signature according to
+	// `ECDSA_RFC6979_SHA256` scheme is also supported.
+	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Optional session token. The token must be issued by the container owner.
+	// The token must have at least one subject authenticated by `signature`
+	// field. The token must have at least one context with this container and
+	// `CONTAINER_SETATTRIBUTE` verb.
+	SessionToken *session.SessionTokenV2 `protobuf:"bytes,3,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
+	// Optional session token (V1). It must not be set together with
+	// `session_token` field that is highly recommended to be used instead.
+	// Requirements are the same for both.
+	SessionTokenV1 *session.SessionToken `protobuf:"bytes,4,opt,name=session_token_v1,json=sessionTokenV1,proto3" json:"session_token_v1,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SetAttributeRequest_Body) Reset() {
+	*x = SetAttributeRequest_Body{}
+	mi := &file_proto_container_service_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAttributeRequest_Body) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAttributeRequest_Body) ProtoMessage() {}
+
+func (x *SetAttributeRequest_Body) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAttributeRequest_Body.ProtoReflect.Descriptor instead.
+func (*SetAttributeRequest_Body) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{14, 0}
+}
+
+func (x *SetAttributeRequest_Body) GetParameters() *SetAttributeRequest_Body_Parameters {
+	if x != nil {
+		return x.Parameters
+	}
+	return nil
+}
+
+func (x *SetAttributeRequest_Body) GetSignature() *refs.SignatureRFC6979 {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *SetAttributeRequest_Body) GetSessionToken() *session.SessionTokenV2 {
+	if x != nil {
+		return x.SessionToken
+	}
+	return nil
+}
+
+func (x *SetAttributeRequest_Body) GetSessionTokenV1() *session.SessionToken {
+	if x != nil {
+		return x.SessionTokenV1
+	}
+	return nil
+}
+
+// Op parameters message.
+//
+// If container does not have the `attribute`, it is added. Otherwise, its
+// value is swapped.
+//
+// `valid_until` is required request expiration time in Unix Timestamp
+// format.
+//
+// `attribute` must be one of:
+//   - `CORS`;
+//   - `__NEOFS__LOCK_UNTIL`.
+//
+// In general, requirements for `value` are the same as for container
+// creation. Attribute-specific requirements:
+//   - `__NEOFS__LOCK_UNTIL`: new timestamp must be after the current one if any
+type SetAttributeRequest_Body_Parameters struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the container to set attribute for.
+	ContainerId *refs.ContainerID `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	// Attribute to be set.
+	Attribute string `protobuf:"bytes,2,opt,name=attribute,proto3" json:"attribute,omitempty"`
+	// New attribute value.
+	Value string `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	// Request expiration time.
+	ValidUntil    uint64 `protobuf:"varint,4,opt,name=valid_until,json=validUntil,proto3" json:"valid_until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAttributeRequest_Body_Parameters) Reset() {
+	*x = SetAttributeRequest_Body_Parameters{}
+	mi := &file_proto_container_service_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAttributeRequest_Body_Parameters) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAttributeRequest_Body_Parameters) ProtoMessage() {}
+
+func (x *SetAttributeRequest_Body_Parameters) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAttributeRequest_Body_Parameters.ProtoReflect.Descriptor instead.
+func (*SetAttributeRequest_Body_Parameters) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{14, 0, 0}
+}
+
+func (x *SetAttributeRequest_Body_Parameters) GetContainerId() *refs.ContainerID {
+	if x != nil {
+		return x.ContainerId
+	}
+	return nil
+}
+
+func (x *SetAttributeRequest_Body_Parameters) GetAttribute() string {
+	if x != nil {
+		return x.Attribute
+	}
+	return ""
+}
+
+func (x *SetAttributeRequest_Body_Parameters) GetValue() string {
+	if x != nil {
+		return x.Value
+	}
+	return ""
+}
+
+func (x *SetAttributeRequest_Body_Parameters) GetValidUntil() uint64 {
+	if x != nil {
+		return x.ValidUntil
+	}
+	return 0
+}
+
+// Request result message.
+type SetAttributeResponse_Body struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Operation execution status.
+	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetAttributeResponse_Body) Reset() {
+	*x = SetAttributeResponse_Body{}
+	mi := &file_proto_container_service_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetAttributeResponse_Body) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetAttributeResponse_Body) ProtoMessage() {}
+
+func (x *SetAttributeResponse_Body) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetAttributeResponse_Body.ProtoReflect.Descriptor instead.
+func (*SetAttributeResponse_Body) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{15, 0}
+}
+
+func (x *SetAttributeResponse_Body) GetStatus() *status.Status {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+// Request payload message.
+type RemoveAttributeRequest_Body struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Op parameters.
+	Parameters *RemoveAttributeRequest_Body_Parameters `protobuf:"bytes,1,opt,name=parameters,proto3" json:"parameters,omitempty"`
+	// N3 witness of stable-marshalled `parameters` field. The
+	// signature must authenticate either container owner or one of subjects in
+	// the `session_token` field if any. Signature according to
+	// `ECDSA_RFC6979_SHA256` scheme is also supported.
+	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Optional session token. The token must be issued by the container owner.
+	// The token must have at least one subject authenticated by `signature`
+	// field. The token must have at least one context with this container and
+	// `CONTAINER_REMOVEATTRIBUTE` verb.
+	SessionToken *session.SessionTokenV2 `protobuf:"bytes,3,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
+	// Optional session token (V1). It must not be set together with
+	// `session_token` field that is highly recommended to be used instead.
+	// Requirements are the same for both.
+	SessionTokenV1 *session.SessionToken `protobuf:"bytes,4,opt,name=session_token_v1,json=sessionTokenV1,proto3" json:"session_token_v1,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *RemoveAttributeRequest_Body) Reset() {
+	*x = RemoveAttributeRequest_Body{}
+	mi := &file_proto_container_service_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAttributeRequest_Body) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAttributeRequest_Body) ProtoMessage() {}
+
+func (x *RemoveAttributeRequest_Body) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAttributeRequest_Body.ProtoReflect.Descriptor instead.
+func (*RemoveAttributeRequest_Body) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{16, 0}
+}
+
+func (x *RemoveAttributeRequest_Body) GetParameters() *RemoveAttributeRequest_Body_Parameters {
+	if x != nil {
+		return x.Parameters
+	}
+	return nil
+}
+
+func (x *RemoveAttributeRequest_Body) GetSignature() *refs.SignatureRFC6979 {
+	if x != nil {
+		return x.Signature
+	}
+	return nil
+}
+
+func (x *RemoveAttributeRequest_Body) GetSessionToken() *session.SessionTokenV2 {
+	if x != nil {
+		return x.SessionToken
+	}
+	return nil
+}
+
+func (x *RemoveAttributeRequest_Body) GetSessionTokenV1() *session.SessionToken {
+	if x != nil {
+		return x.SessionTokenV1
+	}
+	return nil
+}
+
+// Op parameters message.
+//
+// If container does not have the `attribute`, nothing is done and status
+// `OK` is returned.
+//
+// `valid_until` is required request expiration time in Unix Timestamp
+// format.
+//
+// `attribute` must be one of:
+//   - `CORS`;
+//   - `__NEOFS__LOCK_UNTIL`.
+//
+// Attribute-specific requirements:
+//   - `__NEOFS__LOCK_UNTIL`: current timestamp must have already passed if any
+type RemoveAttributeRequest_Body_Parameters struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the container to remove attribute from.
+	ContainerId *refs.ContainerID `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
+	// Attribute to be removed.
+	Attribute string `protobuf:"bytes,2,opt,name=attribute,proto3" json:"attribute,omitempty"`
+	// Request expiration time.
+	ValidUntil    uint64 `protobuf:"varint,3,opt,name=valid_until,json=validUntil,proto3" json:"valid_until,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAttributeRequest_Body_Parameters) Reset() {
+	*x = RemoveAttributeRequest_Body_Parameters{}
+	mi := &file_proto_container_service_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAttributeRequest_Body_Parameters) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAttributeRequest_Body_Parameters) ProtoMessage() {}
+
+func (x *RemoveAttributeRequest_Body_Parameters) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAttributeRequest_Body_Parameters.ProtoReflect.Descriptor instead.
+func (*RemoveAttributeRequest_Body_Parameters) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{16, 0, 0}
+}
+
+func (x *RemoveAttributeRequest_Body_Parameters) GetContainerId() *refs.ContainerID {
+	if x != nil {
+		return x.ContainerId
+	}
+	return nil
+}
+
+func (x *RemoveAttributeRequest_Body_Parameters) GetAttribute() string {
+	if x != nil {
+		return x.Attribute
+	}
+	return ""
+}
+
+func (x *RemoveAttributeRequest_Body_Parameters) GetValidUntil() uint64 {
+	if x != nil {
+		return x.ValidUntil
+	}
+	return 0
+}
+
+// Request result message.
+type RemoveAttributeResponse_Body struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Operation execution status.
+	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RemoveAttributeResponse_Body) Reset() {
+	*x = RemoveAttributeResponse_Body{}
+	mi := &file_proto_container_service_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RemoveAttributeResponse_Body) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RemoveAttributeResponse_Body) ProtoMessage() {}
+
+func (x *RemoveAttributeResponse_Body) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_container_service_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RemoveAttributeResponse_Body.ProtoReflect.Descriptor instead.
+func (*RemoveAttributeResponse_Body) Descriptor() ([]byte, []int) {
+	return file_proto_container_service_proto_rawDescGZIP(), []int{17, 0}
+}
+
+func (x *RemoveAttributeResponse_Body) GetStatus() *status.Status {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
 var File_proto_container_service_proto protoreflect.FileDescriptor
 
 const file_proto_container_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1dproto/container/service.proto\x12\x13neo.fs.v2.container\x1a\x15proto/acl/types.proto\x1a\x1bproto/container/types.proto\x1a\x16proto/refs/types.proto\x1a\x19proto/session/types.proto\"\xe7\x02\n" +
+	"\x1dproto/container/service.proto\x12\x13neo.fs.v2.container\x1a\x15proto/acl/types.proto\x1a\x1bproto/container/types.proto\x1a\x16proto/refs/types.proto\x1a\x19proto/session/types.proto\x1a\x18proto/status/types.proto\"\xe7\x02\n" +
 	"\n" +
 	"PutRequest\x128\n" +
 	"\x04body\x18\x01 \x01(\v2$.neo.fs.v2.container.PutRequest.BodyR\x04body\x12E\n" +
@@ -1845,7 +2484,50 @@ const file_proto_container_service_proto_rawDesc = "" +
 	"\vmeta_header\x18\x02 \x01(\v2%.neo.fs.v2.session.ResponseMetaHeaderR\n" +
 	"metaHeader\x12R\n" +
 	"\rverify_header\x18\x03 \x01(\v2-.neo.fs.v2.session.ResponseVerificationHeaderR\fverifyHeader\x1a\x06\n" +
-	"\x04Body2\x90\x05\n" +
+	"\x04Body\"\xf4\x04\n" +
+	"\x13SetAttributeRequest\x12A\n" +
+	"\x04body\x18\x01 \x01(\v2-.neo.fs.v2.container.SetAttributeRequest.BodyR\x04body\x12@\n" +
+	"\x0ebody_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x1a\xd7\x03\n" +
+	"\x04Body\x12X\n" +
+	"\n" +
+	"parameters\x18\x01 \x01(\v28.neo.fs.v2.container.SetAttributeRequest.Body.ParametersR\n" +
+	"parameters\x12>\n" +
+	"\tsignature\x18\x02 \x01(\v2 .neo.fs.v2.refs.SignatureRFC6979R\tsignature\x12F\n" +
+	"\rsession_token\x18\x03 \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\fsessionToken\x12I\n" +
+	"\x10session_token_v1\x18\x04 \x01(\v2\x1f.neo.fs.v2.session.SessionTokenR\x0esessionTokenV1\x1a\xa1\x01\n" +
+	"\n" +
+	"Parameters\x12>\n" +
+	"\fcontainer_id\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerId\x12\x1c\n" +
+	"\tattribute\x18\x02 \x01(\tR\tattribute\x12\x14\n" +
+	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1f\n" +
+	"\vvalid_until\x18\x04 \x01(\x04R\n" +
+	"validUntil\"\xd6\x01\n" +
+	"\x14SetAttributeResponse\x12B\n" +
+	"\x04body\x18\x01 \x01(\v2..neo.fs.v2.container.SetAttributeResponse.BodyR\x04body\x12@\n" +
+	"\x0ebody_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x1a8\n" +
+	"\x04Body\x120\n" +
+	"\x06status\x18\x01 \x01(\v2\x18.neo.fs.v2.status.StatusR\x06status\"\xe7\x04\n" +
+	"\x16RemoveAttributeRequest\x12D\n" +
+	"\x04body\x18\x01 \x01(\v20.neo.fs.v2.container.RemoveAttributeRequest.BodyR\x04body\x12@\n" +
+	"\x0ebody_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x1a\xc4\x03\n" +
+	"\x04Body\x12[\n" +
+	"\n" +
+	"parameters\x18\x01 \x01(\v2;.neo.fs.v2.container.RemoveAttributeRequest.Body.ParametersR\n" +
+	"parameters\x12>\n" +
+	"\tsignature\x18\x02 \x01(\v2 .neo.fs.v2.refs.SignatureRFC6979R\tsignature\x12F\n" +
+	"\rsession_token\x18\x03 \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\fsessionToken\x12I\n" +
+	"\x10session_token_v1\x18\x04 \x01(\v2\x1f.neo.fs.v2.session.SessionTokenR\x0esessionTokenV1\x1a\x8b\x01\n" +
+	"\n" +
+	"Parameters\x12>\n" +
+	"\fcontainer_id\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerId\x12\x1c\n" +
+	"\tattribute\x18\x02 \x01(\tR\tattribute\x12\x1f\n" +
+	"\vvalid_until\x18\x03 \x01(\x04R\n" +
+	"validUntil\"\xdc\x01\n" +
+	"\x17RemoveAttributeResponse\x12E\n" +
+	"\x04body\x18\x01 \x01(\v21.neo.fs.v2.container.RemoveAttributeResponse.BodyR\x04body\x12@\n" +
+	"\x0ebody_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x1a8\n" +
+	"\x04Body\x120\n" +
+	"\x06status\x18\x01 \x01(\v2\x18.neo.fs.v2.status.StatusR\x06status2\xe3\x06\n" +
 	"\x10ContainerService\x12H\n" +
 	"\x03Put\x12\x1f.neo.fs.v2.container.PutRequest\x1a .neo.fs.v2.container.PutResponse\x12Q\n" +
 	"\x06Delete\x12\".neo.fs.v2.container.DeleteRequest\x1a#.neo.fs.v2.container.DeleteResponse\x12H\n" +
@@ -1853,7 +2535,9 @@ const file_proto_container_service_proto_rawDesc = "" +
 	"\x04List\x12 .neo.fs.v2.container.ListRequest\x1a!.neo.fs.v2.container.ListResponse\x12i\n" +
 	"\x0eSetExtendedACL\x12*.neo.fs.v2.container.SetExtendedACLRequest\x1a+.neo.fs.v2.container.SetExtendedACLResponse\x12i\n" +
 	"\x0eGetExtendedACL\x12*.neo.fs.v2.container.GetExtendedACLRequest\x1a+.neo.fs.v2.container.GetExtendedACLResponse\x12r\n" +
-	"\x11AnnounceUsedSpace\x12-.neo.fs.v2.container.AnnounceUsedSpaceRequest\x1a..neo.fs.v2.container.AnnounceUsedSpaceResponseBSZ1github.com/nspcc-dev/neofs-sdk-go/proto/container\xaa\x02\x1dNeo.FileStorage.API.Containerb\x06proto3"
+	"\x11AnnounceUsedSpace\x12-.neo.fs.v2.container.AnnounceUsedSpaceRequest\x1a..neo.fs.v2.container.AnnounceUsedSpaceResponse\x12c\n" +
+	"\fSetAttribute\x12(.neo.fs.v2.container.SetAttributeRequest\x1a).neo.fs.v2.container.SetAttributeResponse\x12l\n" +
+	"\x0fRemoveAttribute\x12+.neo.fs.v2.container.RemoveAttributeRequest\x1a,.neo.fs.v2.container.RemoveAttributeResponseBSZ1github.com/nspcc-dev/neofs-sdk-go/proto/container\xaa\x02\x1dNeo.FileStorage.API.Containerb\x06proto3"
 
 var (
 	file_proto_container_service_proto_rawDescOnce sync.Once
@@ -1867,7 +2551,7 @@ func file_proto_container_service_proto_rawDescGZIP() []byte {
 	return file_proto_container_service_proto_rawDescData
 }
 
-var file_proto_container_service_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_proto_container_service_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
 var file_proto_container_service_proto_goTypes = []any{
 	(*PutRequest)(nil),                                 // 0: neo.fs.v2.container.PutRequest
 	(*PutResponse)(nil),                                // 1: neo.fs.v2.container.PutResponse
@@ -1883,113 +2567,150 @@ var file_proto_container_service_proto_goTypes = []any{
 	(*GetExtendedACLResponse)(nil),                     // 11: neo.fs.v2.container.GetExtendedACLResponse
 	(*AnnounceUsedSpaceRequest)(nil),                   // 12: neo.fs.v2.container.AnnounceUsedSpaceRequest
 	(*AnnounceUsedSpaceResponse)(nil),                  // 13: neo.fs.v2.container.AnnounceUsedSpaceResponse
-	(*PutRequest_Body)(nil),                            // 14: neo.fs.v2.container.PutRequest.Body
-	(*PutResponse_Body)(nil),                           // 15: neo.fs.v2.container.PutResponse.Body
-	(*DeleteRequest_Body)(nil),                         // 16: neo.fs.v2.container.DeleteRequest.Body
-	(*DeleteResponse_Body)(nil),                        // 17: neo.fs.v2.container.DeleteResponse.Body
-	(*GetRequest_Body)(nil),                            // 18: neo.fs.v2.container.GetRequest.Body
-	(*GetResponse_Body)(nil),                           // 19: neo.fs.v2.container.GetResponse.Body
-	(*ListRequest_Body)(nil),                           // 20: neo.fs.v2.container.ListRequest.Body
-	(*ListResponse_Body)(nil),                          // 21: neo.fs.v2.container.ListResponse.Body
-	(*SetExtendedACLRequest_Body)(nil),                 // 22: neo.fs.v2.container.SetExtendedACLRequest.Body
-	(*SetExtendedACLResponse_Body)(nil),                // 23: neo.fs.v2.container.SetExtendedACLResponse.Body
-	(*GetExtendedACLRequest_Body)(nil),                 // 24: neo.fs.v2.container.GetExtendedACLRequest.Body
-	(*GetExtendedACLResponse_Body)(nil),                // 25: neo.fs.v2.container.GetExtendedACLResponse.Body
-	(*AnnounceUsedSpaceRequest_Body)(nil),              // 26: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body
-	(*AnnounceUsedSpaceRequest_Body_Announcement)(nil), // 27: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement
-	(*AnnounceUsedSpaceResponse_Body)(nil),             // 28: neo.fs.v2.container.AnnounceUsedSpaceResponse.Body
-	(*session.RequestMetaHeader)(nil),                  // 29: neo.fs.v2.session.RequestMetaHeader
-	(*session.RequestVerificationHeader)(nil),          // 30: neo.fs.v2.session.RequestVerificationHeader
-	(*session.ResponseMetaHeader)(nil),                 // 31: neo.fs.v2.session.ResponseMetaHeader
-	(*session.ResponseVerificationHeader)(nil),         // 32: neo.fs.v2.session.ResponseVerificationHeader
-	(*Container)(nil),                                  // 33: neo.fs.v2.container.Container
-	(*refs.SignatureRFC6979)(nil),                      // 34: neo.fs.v2.refs.SignatureRFC6979
-	(*refs.ContainerID)(nil),                           // 35: neo.fs.v2.refs.ContainerID
-	(*session.SessionToken)(nil),                       // 36: neo.fs.v2.session.SessionToken
-	(*refs.OwnerID)(nil),                               // 37: neo.fs.v2.refs.OwnerID
-	(*acl.EACLTable)(nil),                              // 38: neo.fs.v2.acl.EACLTable
+	(*SetAttributeRequest)(nil),                        // 14: neo.fs.v2.container.SetAttributeRequest
+	(*SetAttributeResponse)(nil),                       // 15: neo.fs.v2.container.SetAttributeResponse
+	(*RemoveAttributeRequest)(nil),                     // 16: neo.fs.v2.container.RemoveAttributeRequest
+	(*RemoveAttributeResponse)(nil),                    // 17: neo.fs.v2.container.RemoveAttributeResponse
+	(*PutRequest_Body)(nil),                            // 18: neo.fs.v2.container.PutRequest.Body
+	(*PutResponse_Body)(nil),                           // 19: neo.fs.v2.container.PutResponse.Body
+	(*DeleteRequest_Body)(nil),                         // 20: neo.fs.v2.container.DeleteRequest.Body
+	(*DeleteResponse_Body)(nil),                        // 21: neo.fs.v2.container.DeleteResponse.Body
+	(*GetRequest_Body)(nil),                            // 22: neo.fs.v2.container.GetRequest.Body
+	(*GetResponse_Body)(nil),                           // 23: neo.fs.v2.container.GetResponse.Body
+	(*ListRequest_Body)(nil),                           // 24: neo.fs.v2.container.ListRequest.Body
+	(*ListResponse_Body)(nil),                          // 25: neo.fs.v2.container.ListResponse.Body
+	(*SetExtendedACLRequest_Body)(nil),                 // 26: neo.fs.v2.container.SetExtendedACLRequest.Body
+	(*SetExtendedACLResponse_Body)(nil),                // 27: neo.fs.v2.container.SetExtendedACLResponse.Body
+	(*GetExtendedACLRequest_Body)(nil),                 // 28: neo.fs.v2.container.GetExtendedACLRequest.Body
+	(*GetExtendedACLResponse_Body)(nil),                // 29: neo.fs.v2.container.GetExtendedACLResponse.Body
+	(*AnnounceUsedSpaceRequest_Body)(nil),              // 30: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body
+	(*AnnounceUsedSpaceRequest_Body_Announcement)(nil), // 31: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement
+	(*AnnounceUsedSpaceResponse_Body)(nil),             // 32: neo.fs.v2.container.AnnounceUsedSpaceResponse.Body
+	(*SetAttributeRequest_Body)(nil),                   // 33: neo.fs.v2.container.SetAttributeRequest.Body
+	(*SetAttributeRequest_Body_Parameters)(nil),        // 34: neo.fs.v2.container.SetAttributeRequest.Body.Parameters
+	(*SetAttributeResponse_Body)(nil),                  // 35: neo.fs.v2.container.SetAttributeResponse.Body
+	(*RemoveAttributeRequest_Body)(nil),                // 36: neo.fs.v2.container.RemoveAttributeRequest.Body
+	(*RemoveAttributeRequest_Body_Parameters)(nil),     // 37: neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters
+	(*RemoveAttributeResponse_Body)(nil),               // 38: neo.fs.v2.container.RemoveAttributeResponse.Body
+	(*session.RequestMetaHeader)(nil),                  // 39: neo.fs.v2.session.RequestMetaHeader
+	(*session.RequestVerificationHeader)(nil),          // 40: neo.fs.v2.session.RequestVerificationHeader
+	(*session.ResponseMetaHeader)(nil),                 // 41: neo.fs.v2.session.ResponseMetaHeader
+	(*session.ResponseVerificationHeader)(nil),         // 42: neo.fs.v2.session.ResponseVerificationHeader
+	(*refs.Signature)(nil),                             // 43: neo.fs.v2.refs.Signature
+	(*Container)(nil),                                  // 44: neo.fs.v2.container.Container
+	(*refs.SignatureRFC6979)(nil),                      // 45: neo.fs.v2.refs.SignatureRFC6979
+	(*refs.ContainerID)(nil),                           // 46: neo.fs.v2.refs.ContainerID
+	(*session.SessionToken)(nil),                       // 47: neo.fs.v2.session.SessionToken
+	(*refs.OwnerID)(nil),                               // 48: neo.fs.v2.refs.OwnerID
+	(*acl.EACLTable)(nil),                              // 49: neo.fs.v2.acl.EACLTable
+	(*session.SessionTokenV2)(nil),                     // 50: neo.fs.v2.session.SessionTokenV2
+	(*status.Status)(nil),                              // 51: neo.fs.v2.status.Status
 }
 var file_proto_container_service_proto_depIdxs = []int32{
-	14, // 0: neo.fs.v2.container.PutRequest.body:type_name -> neo.fs.v2.container.PutRequest.Body
-	29, // 1: neo.fs.v2.container.PutRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 2: neo.fs.v2.container.PutRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	15, // 3: neo.fs.v2.container.PutResponse.body:type_name -> neo.fs.v2.container.PutResponse.Body
-	31, // 4: neo.fs.v2.container.PutResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 5: neo.fs.v2.container.PutResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	16, // 6: neo.fs.v2.container.DeleteRequest.body:type_name -> neo.fs.v2.container.DeleteRequest.Body
-	29, // 7: neo.fs.v2.container.DeleteRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 8: neo.fs.v2.container.DeleteRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	17, // 9: neo.fs.v2.container.DeleteResponse.body:type_name -> neo.fs.v2.container.DeleteResponse.Body
-	31, // 10: neo.fs.v2.container.DeleteResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 11: neo.fs.v2.container.DeleteResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	18, // 12: neo.fs.v2.container.GetRequest.body:type_name -> neo.fs.v2.container.GetRequest.Body
-	29, // 13: neo.fs.v2.container.GetRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 14: neo.fs.v2.container.GetRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	19, // 15: neo.fs.v2.container.GetResponse.body:type_name -> neo.fs.v2.container.GetResponse.Body
-	31, // 16: neo.fs.v2.container.GetResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 17: neo.fs.v2.container.GetResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	20, // 18: neo.fs.v2.container.ListRequest.body:type_name -> neo.fs.v2.container.ListRequest.Body
-	29, // 19: neo.fs.v2.container.ListRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 20: neo.fs.v2.container.ListRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	21, // 21: neo.fs.v2.container.ListResponse.body:type_name -> neo.fs.v2.container.ListResponse.Body
-	31, // 22: neo.fs.v2.container.ListResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 23: neo.fs.v2.container.ListResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	22, // 24: neo.fs.v2.container.SetExtendedACLRequest.body:type_name -> neo.fs.v2.container.SetExtendedACLRequest.Body
-	29, // 25: neo.fs.v2.container.SetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 26: neo.fs.v2.container.SetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	23, // 27: neo.fs.v2.container.SetExtendedACLResponse.body:type_name -> neo.fs.v2.container.SetExtendedACLResponse.Body
-	31, // 28: neo.fs.v2.container.SetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 29: neo.fs.v2.container.SetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	24, // 30: neo.fs.v2.container.GetExtendedACLRequest.body:type_name -> neo.fs.v2.container.GetExtendedACLRequest.Body
-	29, // 31: neo.fs.v2.container.GetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 32: neo.fs.v2.container.GetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	25, // 33: neo.fs.v2.container.GetExtendedACLResponse.body:type_name -> neo.fs.v2.container.GetExtendedACLResponse.Body
-	31, // 34: neo.fs.v2.container.GetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 35: neo.fs.v2.container.GetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	26, // 36: neo.fs.v2.container.AnnounceUsedSpaceRequest.body:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body
-	29, // 37: neo.fs.v2.container.AnnounceUsedSpaceRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	30, // 38: neo.fs.v2.container.AnnounceUsedSpaceRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	28, // 39: neo.fs.v2.container.AnnounceUsedSpaceResponse.body:type_name -> neo.fs.v2.container.AnnounceUsedSpaceResponse.Body
-	31, // 40: neo.fs.v2.container.AnnounceUsedSpaceResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	32, // 41: neo.fs.v2.container.AnnounceUsedSpaceResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	33, // 42: neo.fs.v2.container.PutRequest.Body.container:type_name -> neo.fs.v2.container.Container
-	34, // 43: neo.fs.v2.container.PutRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	35, // 44: neo.fs.v2.container.PutResponse.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	35, // 45: neo.fs.v2.container.DeleteRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	34, // 46: neo.fs.v2.container.DeleteRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	35, // 47: neo.fs.v2.container.GetRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	33, // 48: neo.fs.v2.container.GetResponse.Body.container:type_name -> neo.fs.v2.container.Container
-	34, // 49: neo.fs.v2.container.GetResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	36, // 50: neo.fs.v2.container.GetResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
-	37, // 51: neo.fs.v2.container.ListRequest.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	35, // 52: neo.fs.v2.container.ListResponse.Body.container_ids:type_name -> neo.fs.v2.refs.ContainerID
-	38, // 53: neo.fs.v2.container.SetExtendedACLRequest.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
-	34, // 54: neo.fs.v2.container.SetExtendedACLRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	35, // 55: neo.fs.v2.container.GetExtendedACLRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	38, // 56: neo.fs.v2.container.GetExtendedACLResponse.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
-	34, // 57: neo.fs.v2.container.GetExtendedACLResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	36, // 58: neo.fs.v2.container.GetExtendedACLResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
-	27, // 59: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.announcements:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement
-	35, // 60: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	0,  // 61: neo.fs.v2.container.ContainerService.Put:input_type -> neo.fs.v2.container.PutRequest
-	2,  // 62: neo.fs.v2.container.ContainerService.Delete:input_type -> neo.fs.v2.container.DeleteRequest
-	4,  // 63: neo.fs.v2.container.ContainerService.Get:input_type -> neo.fs.v2.container.GetRequest
-	6,  // 64: neo.fs.v2.container.ContainerService.List:input_type -> neo.fs.v2.container.ListRequest
-	8,  // 65: neo.fs.v2.container.ContainerService.SetExtendedACL:input_type -> neo.fs.v2.container.SetExtendedACLRequest
-	10, // 66: neo.fs.v2.container.ContainerService.GetExtendedACL:input_type -> neo.fs.v2.container.GetExtendedACLRequest
-	12, // 67: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:input_type -> neo.fs.v2.container.AnnounceUsedSpaceRequest
-	1,  // 68: neo.fs.v2.container.ContainerService.Put:output_type -> neo.fs.v2.container.PutResponse
-	3,  // 69: neo.fs.v2.container.ContainerService.Delete:output_type -> neo.fs.v2.container.DeleteResponse
-	5,  // 70: neo.fs.v2.container.ContainerService.Get:output_type -> neo.fs.v2.container.GetResponse
-	7,  // 71: neo.fs.v2.container.ContainerService.List:output_type -> neo.fs.v2.container.ListResponse
-	9,  // 72: neo.fs.v2.container.ContainerService.SetExtendedACL:output_type -> neo.fs.v2.container.SetExtendedACLResponse
-	11, // 73: neo.fs.v2.container.ContainerService.GetExtendedACL:output_type -> neo.fs.v2.container.GetExtendedACLResponse
-	13, // 74: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:output_type -> neo.fs.v2.container.AnnounceUsedSpaceResponse
-	68, // [68:75] is the sub-list for method output_type
-	61, // [61:68] is the sub-list for method input_type
-	61, // [61:61] is the sub-list for extension type_name
-	61, // [61:61] is the sub-list for extension extendee
-	0,  // [0:61] is the sub-list for field type_name
+	18, // 0: neo.fs.v2.container.PutRequest.body:type_name -> neo.fs.v2.container.PutRequest.Body
+	39, // 1: neo.fs.v2.container.PutRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 2: neo.fs.v2.container.PutRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	19, // 3: neo.fs.v2.container.PutResponse.body:type_name -> neo.fs.v2.container.PutResponse.Body
+	41, // 4: neo.fs.v2.container.PutResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 5: neo.fs.v2.container.PutResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	20, // 6: neo.fs.v2.container.DeleteRequest.body:type_name -> neo.fs.v2.container.DeleteRequest.Body
+	39, // 7: neo.fs.v2.container.DeleteRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 8: neo.fs.v2.container.DeleteRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	21, // 9: neo.fs.v2.container.DeleteResponse.body:type_name -> neo.fs.v2.container.DeleteResponse.Body
+	41, // 10: neo.fs.v2.container.DeleteResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 11: neo.fs.v2.container.DeleteResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	22, // 12: neo.fs.v2.container.GetRequest.body:type_name -> neo.fs.v2.container.GetRequest.Body
+	39, // 13: neo.fs.v2.container.GetRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 14: neo.fs.v2.container.GetRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	23, // 15: neo.fs.v2.container.GetResponse.body:type_name -> neo.fs.v2.container.GetResponse.Body
+	41, // 16: neo.fs.v2.container.GetResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 17: neo.fs.v2.container.GetResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	24, // 18: neo.fs.v2.container.ListRequest.body:type_name -> neo.fs.v2.container.ListRequest.Body
+	39, // 19: neo.fs.v2.container.ListRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 20: neo.fs.v2.container.ListRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	25, // 21: neo.fs.v2.container.ListResponse.body:type_name -> neo.fs.v2.container.ListResponse.Body
+	41, // 22: neo.fs.v2.container.ListResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 23: neo.fs.v2.container.ListResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	26, // 24: neo.fs.v2.container.SetExtendedACLRequest.body:type_name -> neo.fs.v2.container.SetExtendedACLRequest.Body
+	39, // 25: neo.fs.v2.container.SetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 26: neo.fs.v2.container.SetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	27, // 27: neo.fs.v2.container.SetExtendedACLResponse.body:type_name -> neo.fs.v2.container.SetExtendedACLResponse.Body
+	41, // 28: neo.fs.v2.container.SetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 29: neo.fs.v2.container.SetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	28, // 30: neo.fs.v2.container.GetExtendedACLRequest.body:type_name -> neo.fs.v2.container.GetExtendedACLRequest.Body
+	39, // 31: neo.fs.v2.container.GetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 32: neo.fs.v2.container.GetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	29, // 33: neo.fs.v2.container.GetExtendedACLResponse.body:type_name -> neo.fs.v2.container.GetExtendedACLResponse.Body
+	41, // 34: neo.fs.v2.container.GetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 35: neo.fs.v2.container.GetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	30, // 36: neo.fs.v2.container.AnnounceUsedSpaceRequest.body:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body
+	39, // 37: neo.fs.v2.container.AnnounceUsedSpaceRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	40, // 38: neo.fs.v2.container.AnnounceUsedSpaceRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	32, // 39: neo.fs.v2.container.AnnounceUsedSpaceResponse.body:type_name -> neo.fs.v2.container.AnnounceUsedSpaceResponse.Body
+	41, // 40: neo.fs.v2.container.AnnounceUsedSpaceResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	42, // 41: neo.fs.v2.container.AnnounceUsedSpaceResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	33, // 42: neo.fs.v2.container.SetAttributeRequest.body:type_name -> neo.fs.v2.container.SetAttributeRequest.Body
+	43, // 43: neo.fs.v2.container.SetAttributeRequest.body_signature:type_name -> neo.fs.v2.refs.Signature
+	35, // 44: neo.fs.v2.container.SetAttributeResponse.body:type_name -> neo.fs.v2.container.SetAttributeResponse.Body
+	43, // 45: neo.fs.v2.container.SetAttributeResponse.body_signature:type_name -> neo.fs.v2.refs.Signature
+	36, // 46: neo.fs.v2.container.RemoveAttributeRequest.body:type_name -> neo.fs.v2.container.RemoveAttributeRequest.Body
+	43, // 47: neo.fs.v2.container.RemoveAttributeRequest.body_signature:type_name -> neo.fs.v2.refs.Signature
+	38, // 48: neo.fs.v2.container.RemoveAttributeResponse.body:type_name -> neo.fs.v2.container.RemoveAttributeResponse.Body
+	43, // 49: neo.fs.v2.container.RemoveAttributeResponse.body_signature:type_name -> neo.fs.v2.refs.Signature
+	44, // 50: neo.fs.v2.container.PutRequest.Body.container:type_name -> neo.fs.v2.container.Container
+	45, // 51: neo.fs.v2.container.PutRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	46, // 52: neo.fs.v2.container.PutResponse.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	46, // 53: neo.fs.v2.container.DeleteRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	45, // 54: neo.fs.v2.container.DeleteRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	46, // 55: neo.fs.v2.container.GetRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	44, // 56: neo.fs.v2.container.GetResponse.Body.container:type_name -> neo.fs.v2.container.Container
+	45, // 57: neo.fs.v2.container.GetResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	47, // 58: neo.fs.v2.container.GetResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
+	48, // 59: neo.fs.v2.container.ListRequest.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	46, // 60: neo.fs.v2.container.ListResponse.Body.container_ids:type_name -> neo.fs.v2.refs.ContainerID
+	49, // 61: neo.fs.v2.container.SetExtendedACLRequest.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
+	45, // 62: neo.fs.v2.container.SetExtendedACLRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	46, // 63: neo.fs.v2.container.GetExtendedACLRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	49, // 64: neo.fs.v2.container.GetExtendedACLResponse.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
+	45, // 65: neo.fs.v2.container.GetExtendedACLResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	47, // 66: neo.fs.v2.container.GetExtendedACLResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
+	31, // 67: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.announcements:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement
+	46, // 68: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	34, // 69: neo.fs.v2.container.SetAttributeRequest.Body.parameters:type_name -> neo.fs.v2.container.SetAttributeRequest.Body.Parameters
+	45, // 70: neo.fs.v2.container.SetAttributeRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	50, // 71: neo.fs.v2.container.SetAttributeRequest.Body.session_token:type_name -> neo.fs.v2.session.SessionTokenV2
+	47, // 72: neo.fs.v2.container.SetAttributeRequest.Body.session_token_v1:type_name -> neo.fs.v2.session.SessionToken
+	46, // 73: neo.fs.v2.container.SetAttributeRequest.Body.Parameters.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	51, // 74: neo.fs.v2.container.SetAttributeResponse.Body.status:type_name -> neo.fs.v2.status.Status
+	37, // 75: neo.fs.v2.container.RemoveAttributeRequest.Body.parameters:type_name -> neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters
+	45, // 76: neo.fs.v2.container.RemoveAttributeRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	50, // 77: neo.fs.v2.container.RemoveAttributeRequest.Body.session_token:type_name -> neo.fs.v2.session.SessionTokenV2
+	47, // 78: neo.fs.v2.container.RemoveAttributeRequest.Body.session_token_v1:type_name -> neo.fs.v2.session.SessionToken
+	46, // 79: neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	51, // 80: neo.fs.v2.container.RemoveAttributeResponse.Body.status:type_name -> neo.fs.v2.status.Status
+	0,  // 81: neo.fs.v2.container.ContainerService.Put:input_type -> neo.fs.v2.container.PutRequest
+	2,  // 82: neo.fs.v2.container.ContainerService.Delete:input_type -> neo.fs.v2.container.DeleteRequest
+	4,  // 83: neo.fs.v2.container.ContainerService.Get:input_type -> neo.fs.v2.container.GetRequest
+	6,  // 84: neo.fs.v2.container.ContainerService.List:input_type -> neo.fs.v2.container.ListRequest
+	8,  // 85: neo.fs.v2.container.ContainerService.SetExtendedACL:input_type -> neo.fs.v2.container.SetExtendedACLRequest
+	10, // 86: neo.fs.v2.container.ContainerService.GetExtendedACL:input_type -> neo.fs.v2.container.GetExtendedACLRequest
+	12, // 87: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:input_type -> neo.fs.v2.container.AnnounceUsedSpaceRequest
+	14, // 88: neo.fs.v2.container.ContainerService.SetAttribute:input_type -> neo.fs.v2.container.SetAttributeRequest
+	16, // 89: neo.fs.v2.container.ContainerService.RemoveAttribute:input_type -> neo.fs.v2.container.RemoveAttributeRequest
+	1,  // 90: neo.fs.v2.container.ContainerService.Put:output_type -> neo.fs.v2.container.PutResponse
+	3,  // 91: neo.fs.v2.container.ContainerService.Delete:output_type -> neo.fs.v2.container.DeleteResponse
+	5,  // 92: neo.fs.v2.container.ContainerService.Get:output_type -> neo.fs.v2.container.GetResponse
+	7,  // 93: neo.fs.v2.container.ContainerService.List:output_type -> neo.fs.v2.container.ListResponse
+	9,  // 94: neo.fs.v2.container.ContainerService.SetExtendedACL:output_type -> neo.fs.v2.container.SetExtendedACLResponse
+	11, // 95: neo.fs.v2.container.ContainerService.GetExtendedACL:output_type -> neo.fs.v2.container.GetExtendedACLResponse
+	13, // 96: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:output_type -> neo.fs.v2.container.AnnounceUsedSpaceResponse
+	15, // 97: neo.fs.v2.container.ContainerService.SetAttribute:output_type -> neo.fs.v2.container.SetAttributeResponse
+	17, // 98: neo.fs.v2.container.ContainerService.RemoveAttribute:output_type -> neo.fs.v2.container.RemoveAttributeResponse
+	90, // [90:99] is the sub-list for method output_type
+	81, // [81:90] is the sub-list for method input_type
+	81, // [81:81] is the sub-list for extension type_name
+	81, // [81:81] is the sub-list for extension extendee
+	0,  // [0:81] is the sub-list for field type_name
 }
 
 func init() { file_proto_container_service_proto_init() }
@@ -2004,7 +2725,7 @@ func file_proto_container_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_container_service_proto_rawDesc), len(file_proto_container_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   39,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
