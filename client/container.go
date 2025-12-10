@@ -25,8 +25,7 @@ import (
 type PrmContainerPut struct {
 	prmCommonMeta
 
-	sessionSet bool
-	session    session.Container
+	session *session.Container
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -41,8 +40,7 @@ type PrmContainerPut struct {
 //   - session operation MUST be session.VerbContainerPut (ForVerb)
 //   - token MUST be signed using private signer of the owner of the container to be saved
 func (x *PrmContainerPut) WithinSession(s session.Container) {
-	x.session = s
-	x.sessionSet = true
+	x.session = &s
 }
 
 // AttachSignature allows to attach pre-calculated container signature and free
@@ -123,7 +121,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
-	if prm.sessionSet {
+	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
 
@@ -353,8 +351,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 type PrmContainerDelete struct {
 	prmCommonMeta
 
-	tokSet bool
-	tok    session.Container
+	tok *session.Container
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -367,8 +364,7 @@ type PrmContainerDelete struct {
 //
 // Must be signed.
 func (x *PrmContainerDelete) WithinSession(tok session.Container) {
-	x.tok = tok
-	x.tokSet = true
+	x.tok = &tok
 }
 
 // AttachSignature allows to attach pre-calculated container ID signature and
@@ -444,7 +440,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
-	if prm.tokSet {
+	if prm.tok != nil {
 		req.MetaHeader.SessionToken = prm.tok.ProtoMessage()
 	}
 
@@ -569,8 +565,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 type PrmContainerSetEACL struct {
 	prmCommonMeta
 
-	sessionSet bool
-	session    session.Container
+	session *session.Container
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -588,8 +583,7 @@ type PrmContainerSetEACL struct {
 //   - session operation MUST be session.VerbContainerSetEACL (ForVerb)
 //   - token MUST be signed using private signer of the owner of the container to be saved
 func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
-	x.session = s
-	x.sessionSet = true
+	x.session = &s
 }
 
 // AttachSignature allows to attach pre-calculated eACL signature and free
@@ -669,7 +663,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
-	if prm.sessionSet {
+	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
 	}
 
