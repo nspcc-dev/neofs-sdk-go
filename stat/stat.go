@@ -39,6 +39,8 @@ const (
 	MethodObjectSearchStream
 	MethodObjectPutStream
 	MethodObjectSearchV2
+	MethodContainerSetAttribute
+	MethodContainerRemoveAttribute
 	// MethodLast is no a valid method name, it's a system anchor for tests, etc.
 	MethodLast
 )
