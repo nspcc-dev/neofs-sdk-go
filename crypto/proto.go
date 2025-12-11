@@ -306,6 +306,11 @@ func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verif
 	return verifyMessageSignature(m, s, b)
 }
 
+// VerifyMessageSignature verifies signature of m using buffer b.
+func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
+	return verifyMessageSignature(m, s, b)
+}
+
 func verifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
 	if len(s.Key) == 0 {
 		return errors.New("missing public key")
