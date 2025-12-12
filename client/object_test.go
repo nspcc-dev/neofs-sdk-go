@@ -14,6 +14,7 @@ import (
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -303,13 +304,22 @@ func (x testObjectAddressServerSettings) verifyObjectAddress(m *protorefs.Addres
 
 // for sharing between servers of requests with an object session token.
 type testObjectSessionServerSettings struct {
-	expectedToken *session.Object
+	expectedToken   *session.Object
+	expectedTokenV2 *sessionv2.Token
 }
 
 // makes the server to assert that any request carries given session token. By
 // default, session token must not be attached.
 func (x *testObjectSessionServerSettings) checkRequestSessionToken(st session.Object) {
 	x.expectedToken = &st
+	x.expectedTokenV2 = nil
+}
+
+// makes the server to assert that any request carries given V2 session token. By
+// default, session token must not be attached.
+func (x *testObjectSessionServerSettings) checkRequestSessionTokenV2(st sessionv2.Token) {
+	x.expectedTokenV2 = &st
+	x.expectedToken = nil
 }
 
 func (x testObjectSessionServerSettings) verifySessionToken(m *protosession.SessionToken) error {
@@ -324,6 +334,22 @@ func (x testObjectSessionServerSettings) verifySessionToken(m *protosession.Sess
 	}
 	if err := checkObjectSessionTransport(*x.expectedToken, m); err != nil {
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("session token: %w", err))
+	}
+	return nil
+}
+
+func (x testObjectSessionServerSettings) verifySessionTokenV2(m *protosession.SessionTokenV2) error {
+	if m == nil {
+		if x.expectedTokenV2 != nil {
+			return newInvalidRequestMetaHeaderErr(errors.New("session token V2 is missing while should not be"))
+		}
+		return nil
+	}
+	if x.expectedTokenV2 == nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("session token V2 attached while should not be"))
+	}
+	if err := checkSessionTokenV2Transport(*x.expectedTokenV2, m); err != nil {
+		return newInvalidRequestMetaHeaderErr(fmt.Errorf("session token V2: %w", err))
 	}
 	return nil
 }

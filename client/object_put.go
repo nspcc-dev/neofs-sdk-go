@@ -113,6 +113,10 @@ func (x *PrmObjectPutInit) MarkLocal() {
 // writeHeader writes header of the object. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) error {
+	if x.opts.session != nil && x.opts.sessionV2 != nil {
+		x.err = errSessionTokenBothVersionsSet
+		return x.err
+	}
 	mh := hdr.ProtoMessage()
 	req := &protoobject.PutRequest{
 		Body: &protoobject.PutRequest_Body{
@@ -138,6 +142,9 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) err
 	if x.opts.session != nil {
 		req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
 	}
+	if x.opts.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
+	}
 	if x.opts.bearerToken != nil {
 		req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
 	}
@@ -157,6 +164,10 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) err
 // WritePayloadChunk writes chunk of the object payload. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
+	if x.opts.session != nil && x.opts.sessionV2 != nil {
+		x.err = errSessionTokenBothVersionsSet
+		return 0, x.err
+	}
 	if !x.chunkCalled {
 		x.chunkCalled = true
 	}
@@ -202,6 +213,9 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		}
 		if x.opts.session != nil {
 			req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
+		}
+		if x.opts.sessionV2 != nil {
+			req.MetaHeader.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
 		}
 		if x.opts.bearerToken != nil {
 			req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()

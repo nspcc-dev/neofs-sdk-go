@@ -205,6 +205,8 @@ func (x *testNetmapSnapshotServer) verifyRequest(req *protonetmap.NetmapSnapshot
 	switch metaHdr := req.MetaHeader; {
 	case metaHdr.Ttl != 2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
+	case metaHdr.SessionToken != nil && metaHdr.SessionTokenV2 != nil:
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
 	case metaHdr.SessionToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
@@ -262,6 +264,8 @@ func (x *testGetNetworkInfoServer) verifyRequest(req *protonetmap.NetworkInfoReq
 	switch metaHdr := req.MetaHeader; {
 	case metaHdr.Ttl != 2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
+	case metaHdr.SessionToken != nil && metaHdr.SessionTokenV2 != nil:
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
 	case metaHdr.SessionToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
@@ -328,6 +332,8 @@ func (x *testGetNodeInfoServer) verifyRequest(req *protonetmap.LocalNodeInfoRequ
 	switch metaHdr := req.MetaHeader; {
 	case metaHdr.Ttl != 2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
+	case metaHdr.SessionToken != nil && metaHdr.SessionTokenV2 != nil:
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
 	case metaHdr.SessionToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
