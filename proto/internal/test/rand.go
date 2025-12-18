@@ -294,6 +294,85 @@ func RandSessionToken() *session.SessionToken {
 	}
 }
 
+// RandTarget returns random session.Target with all non-zero fields.
+func RandTarget() *session.Target {
+	v := &session.Target{}
+	switch rand.Uint32() % 2 {
+	case 0:
+		v.Identifier = &session.Target_OwnerId{OwnerId: RandOwnerID()}
+	case 1:
+		v.Identifier = &session.Target_NnsName{NnsName: RandString()}
+	}
+	return v
+}
+
+// RandTargets returns non-empty list of session.Target up to 10 elements. Each
+// element may be nil and pointer to zero.
+func RandTargets() []*session.Target { return RandRepeated(RandTarget) }
+
+// RandVerbs returns random list of session.Verb with 1 to 5 elements.
+func RandVerbs() []session.Verb {
+	verbs := make([]session.Verb, 1+rand.Uint32()%5)
+	for i := range verbs {
+		verbs[i] = RandInteger[session.Verb]()
+	}
+	return verbs
+}
+
+// RandSessionContextV2 returns random session.SessionContextV2 with all
+// non-zero fields.
+func RandSessionContextV2() *session.SessionContextV2 {
+	return &session.SessionContextV2{
+		Container: RandContainerID(),
+		Objects:   RandObjectIDs(),
+		Verbs:     RandVerbs(),
+	}
+}
+
+// RandSessionContextV2s returns non-empty list of session.SessionContextV2 up
+// to 10 elements. Each element may be nil and pointer to zero.
+func RandSessionContextV2s() []*session.SessionContextV2 {
+	return RandRepeated(RandSessionContextV2)
+}
+
+// RandSessionTokenV2Lifetime returns random session.TokenLifetime with all
+// non-zero fields.
+func RandSessionTokenV2Lifetime() *session.TokenLifetime {
+	return &session.TokenLifetime{
+		Exp: RandUint64(),
+		Nbf: RandUint64(),
+		Iat: RandUint64(),
+	}
+}
+
+func RandSessionTokenV2Body() *session.SessionTokenV2_Body {
+	return &session.SessionTokenV2_Body{
+		Version:  RandUint32(),
+		Nonce:    RandUint32(),
+		Issuer:   RandOwnerID(),
+		Subjects: RandTargets(),
+		Lifetime: RandSessionTokenV2Lifetime(),
+		Contexts: RandSessionContextV2s(),
+		Final:    RandUint32()/2 == 0,
+	}
+}
+
+// RandSessionTokenV2 returns random session.SessionTokenV2_Body with all
+// non-zero fields. If original is true, Origin field is filled with another
+// random token.
+func RandSessionTokenV2(original bool) *session.SessionTokenV2 {
+	var origin *session.SessionTokenV2
+	if original {
+		origin = RandSessionTokenV2(false)
+	}
+
+	return &session.SessionTokenV2{
+		Body:      RandSessionTokenV2Body(),
+		Signature: RandSignature(),
+		Origin:    origin,
+	}
+}
+
 // RandEACLFilter returns random acl.EACLRecord_Filter with all non-zero fields.
 func RandEACLFilter() *acl.EACLRecord_Filter {
 	return &acl.EACLRecord_Filter{

@@ -54,6 +54,7 @@ func _randHeader(withParentHdr bool) *object.Header {
 		ObjectType:      prototest.RandInteger[object.ObjectType](),
 		HomomorphicHash: prototest.RandChecksum(),
 		SessionToken:    prototest.RandSessionToken(),
+		SessionTokenV2:  prototest.RandSessionTokenV2(true),
 		Attributes:      randAttributes(),
 		Split:           _randSplitHeader(withParentHdr),
 	}
