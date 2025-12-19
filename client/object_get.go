@@ -343,6 +343,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	if signer == nil {
 		return hdr, nil, ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return hdr, nil, errSessionTokenBothVersionsSet
+	}
 
 	req := &protoobject.GetRequest{
 		Body: &protoobject.GetRequest_Body{
@@ -361,6 +364,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
@@ -454,6 +460,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	if signer == nil {
 		return nil, ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return nil, errSessionTokenBothVersionsSet
+	}
 
 	req := &protoobject.HeadRequest{
 		Body: &protoobject.HeadRequest_Body{
@@ -472,6 +481,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
@@ -760,6 +772,9 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	if signer == nil {
 		return nil, ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return nil, errSessionTokenBothVersionsSet
+	}
 
 	req := &protoobject.GetRangeRequest{
 		Body: &protoobject.GetRangeRequest_Body{
@@ -779,6 +794,9 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()

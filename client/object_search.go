@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -41,9 +42,10 @@ type SearchResultItem struct {
 // SearchObjectsOptions groups optional parameters of [Client.SearchObjects].
 type SearchObjectsOptions struct {
 	prmCommonMeta
-	sessionToken *session.Object
-	bearerToken  *bearer.Token
-	noForwarding bool
+	sessionToken   *session.Object
+	sessionTokenV2 *sessionv2.Token
+	bearerToken    *bearer.Token
+	noForwarding   bool
 
 	count uint32
 }
@@ -56,6 +58,11 @@ func (x *SearchObjectsOptions) DisableForwarding() { x.noForwarding = true }
 // must be issued for the request signer and target the requested container and
 // operation.
 func (x *SearchObjectsOptions) WithSessionToken(st session.Object) { x.sessionToken = &st }
+
+// WithSessionTokenV2 specifies session token V2 to attach to the request. The token
+// must be issued for the request signer and target the requested container and
+// operation. V2 tokens support multiple subjects, delegation chains, and unified contexts.
+func (x *SearchObjectsOptions) WithSessionTokenV2(st sessionv2.Token) { x.sessionTokenV2 = &st }
 
 // WithBearerToken specifies bearer token to attach to the request. The token
 // must be issued by the container owner for the request signer.
@@ -106,6 +113,9 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	switch {
 	case signer == nil:
 		return nil, "", ErrMissingSigner
+	case opts.sessionToken != nil && opts.sessionTokenV2 != nil:
+		err = errSessionTokenBothVersionsSet
+		return nil, "", err
 	case cnr.IsZero():
 		err = cid.ErrZero
 		return nil, "", err
@@ -173,6 +183,9 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 	if opts.sessionToken != nil {
 		req.MetaHeader.SessionToken = opts.sessionToken.ProtoMessage()
+	}
+	if opts.sessionTokenV2 != nil {
+		req.MetaHeader.SessionTokenV2 = opts.sessionTokenV2.ProtoMessage()
 	}
 	if opts.bearerToken != nil {
 		req.MetaHeader.BearerToken = opts.bearerToken.ProtoMessage()
@@ -477,6 +490,9 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	if signer == nil {
 		return nil, ErrMissingSigner
 	}
+	if prm.session != nil && prm.sessionV2 != nil {
+		return nil, errSessionTokenBothVersionsSet
+	}
 
 	req := &protoobject.SearchRequest{
 		Body: &protoobject.SearchRequest_Body{
@@ -496,6 +512,9 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 	}
 	if prm.session != nil {
 		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+	}
+	if prm.sessionV2 != nil {
+		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 	if prm.bearerToken != nil {
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()

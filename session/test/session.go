@@ -4,13 +4,16 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"time"
 
 	"github.com/google/uuid"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 )
 
 // Container returns random session.Container.
@@ -77,6 +80,52 @@ func Object() session.Object {
 // Panics if token could not be signed (actually unexpected).
 func ObjectSigned(signer user.Signer) session.Object {
 	tok := Object()
+
+	err := tok.Sign(signer)
+	if err != nil {
+		panic(err)
+	}
+
+	return tok
+}
+
+// Token returns random session.Token.
+//
+// Resulting token is unsigned.
+func Token() sessionv2.Token {
+	var tok sessionv2.Token
+
+	tok.SetVersion(sessionv2.TokenCurrentVersion)
+	tok.SetNonce(sessionv2.RandomNonce())
+	err := tok.AddSubject(sessionv2.NewTargetUser(usertest.ID()))
+	if err != nil {
+		panic(err)
+	}
+	now := time.Now()
+	tok.SetIat(now)
+	tok.SetNbf(now)
+	tok.SetExp(now.Add(time.Hour))
+
+	ctx, err := sessionv2.NewContext(cidtest.ID(), []sessionv2.Verb{
+		sessionv2.VerbObjectPut,
+		sessionv2.VerbObjectGet,
+	})
+	if err != nil {
+		panic(err)
+	}
+	err = tok.AddContext(ctx)
+	if err != nil {
+		panic(err)
+	}
+
+	return tok
+}
+
+// TokenSigned returns signed random session.Token.
+//
+// Panics if token could not be signed (actually unexpected).
+func TokenSigned(signer user.Signer) sessionv2.Token {
+	tok := Token()
 
 	err := tok.Sign(signer)
 	if err != nil {

@@ -181,8 +181,15 @@ func (x commonSearchObjectsServerSettings) verifyRequest(mh *protosession.Reques
 	if err := x.verifyTTL(mh); err != nil {
 		return err
 	}
+	// check both tokens not set
+	if mh.GetSessionToken() != nil && mh.GetSessionTokenV2() != nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
+	}
 	// session token
 	if err := x.verifySessionToken(mh.GetSessionToken()); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(mh.GetSessionTokenV2()); err != nil {
 		return err
 	}
 	// bearer token

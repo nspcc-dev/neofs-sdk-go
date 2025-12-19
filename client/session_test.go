@@ -64,6 +64,8 @@ func (x *testCreateSessionServer) verifyRequest(req *protosession.CreateRequest)
 	switch metaHdr := req.MetaHeader; {
 	case metaHdr.Ttl != 2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
+	case metaHdr.SessionToken != nil && metaHdr.SessionTokenV2 != nil:
+		return newInvalidRequestMetaHeaderErr(errors.New("both session token and session token v2 are set"))
 	case metaHdr.SessionToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
