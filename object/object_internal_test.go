@@ -3,6 +3,7 @@ package object
 import (
 	"bytes"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -11,6 +12,7 @@ import (
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -22,6 +24,15 @@ func sessionToken(cnr cid.ID) *session.Object {
 	sess.SetID(uuid.New())
 	sess.ForVerb(session.VerbObjectPut)
 	sess.BindContainer(cnr)
+
+	return &sess
+}
+
+func sessionTokenV2(cnr cid.ID) *sessionv2.Token {
+	var sess sessionv2.Token
+	sess.SetNonce(sessionv2.RandomNonce())
+	ctx, _ := sessionv2.NewContext(cnr, []sessionv2.Verb{sessionv2.VerbObjectPut})
+	_ = sess.SetContexts([]sessionv2.Context{ctx})
 
 	return &sess
 }
@@ -56,6 +67,7 @@ func TestObject_CopyTo(t *testing.T) {
 	obj.SetAttributes(attr)
 	obj.SetPayload([]byte{1, 2, 3})
 	obj.SetSessionToken(sessionToken(cnr))
+	obj.SetSessionTokenV2(sessionTokenV2(cnr))
 	obj.SetCreationEpoch(10)
 	obj.SetParent(parenObject(cnr, own))
 	obj.SetChildren(oidtest.ID(), oidtest.ID(), oidtest.ID())
@@ -312,6 +324,83 @@ func TestObject_CopyTo(t *testing.T) {
 		require.NotEqual(t,
 			local.ProtoMessage().GetHeader().GetSessionToken().GetBody(),
 			dst.ProtoMessage().GetHeader().GetSessionToken().GetBody(),
+		)
+
+		local.CopyTo(&dst)
+		checkObjectEquals(t, local, dst)
+	})
+
+	t.Run("header, set session v2 owner", func(t *testing.T) {
+		var local Object
+		sess := sessionTokenV2(cnr)
+		sess.SetIssuer(usr.UserID())
+
+		local.SetSessionTokenV2(sess)
+
+		var dst Object
+
+		require.NotEqual(t,
+			local.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody().GetIssuer(),
+			dst.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody().GetIssuer(),
+		)
+
+		local.CopyTo(&dst)
+		checkObjectEquals(t, local, dst)
+	})
+
+	t.Run("header, set session v2 owner to nil", func(t *testing.T) {
+		var local Object
+		local.SetSessionTokenV2(sessionTokenV2(cnr))
+
+		sess := sessionTokenV2(cnr)
+		sess.SetIssuer(usr.UserID())
+
+		var dst Object
+		dst.SetSessionTokenV2(sess)
+
+		require.NotEqual(t,
+			local.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody().GetIssuer(),
+			dst.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody().GetIssuer(),
+		)
+
+		local.CopyTo(&dst)
+		checkObjectEquals(t, local, dst)
+	})
+
+	t.Run("header, set session v2 lifetime", func(t *testing.T) {
+		var local Object
+		sess := sessionTokenV2(cnr)
+		sess.SetExp(time.Unix(1234, 0))
+
+		local.SetSessionTokenV2(sess)
+
+		var dst Object
+
+		require.NotEqual(t,
+			local.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody().GetLifetime(),
+			dst.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody().GetLifetime(),
+		)
+
+		local.CopyTo(&dst)
+		checkObjectEquals(t, local, dst)
+	})
+
+	t.Run("header, overwrite session v2 body", func(t *testing.T) {
+		var local Object
+		sessLocal := sessionTokenV2(cnr)
+		local.SetSessionTokenV2(sessLocal)
+
+		local.ProtoMessage().GetHeader().GetSessionTokenV2().Body = nil
+
+		sessDst := sessionTokenV2(cnr)
+		sessDst.SetNonce(sessionv2.RandomNonce())
+
+		var dst Object
+		dst.SetSessionTokenV2(sessDst)
+
+		require.NotEqual(t,
+			local.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody(),
+			dst.ProtoMessage().GetHeader().GetSessionTokenV2().GetBody(),
 		)
 
 		local.CopyTo(&dst)

@@ -3,6 +3,7 @@ package slicer
 import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 )
 
 // Options groups Slicer options.
@@ -17,8 +18,9 @@ type Options struct {
 
 	payloadBuffer []byte
 
-	sessionToken *session.Object
-	bearerToken  *bearer.Token
+	sessionToken   *session.Object
+	sessionTokenV2 *sessionv2.Token
+	bearerToken    *bearer.Token
 
 	payloadSizeFixed bool
 	payloadSize      uint64
@@ -44,6 +46,11 @@ func (x *Options) CalculateHomomorphicChecksum() {
 // SetSession sets session object.
 func (x *Options) SetSession(sess session.Object) {
 	x.sessionToken = &sess
+}
+
+// SetSessionV2 sets session v2 token.
+func (x *Options) SetSessionV2(sess sessionv2.Token) {
+	x.sessionTokenV2 = &sess
 }
 
 // SetBearerToken allows to attach signed Extended ACL rules to the request.
@@ -93,6 +100,11 @@ func (x *Options) IsHomomorphicChecksumEnabled() bool {
 // Session returns session object.
 func (x *Options) Session() *session.Object {
 	return x.sessionToken
+}
+
+// SessionV2 returns session v2 token.
+func (x *Options) SessionV2() *sessionv2.Token {
+	return x.sessionTokenV2
 }
 
 // BearerToken returns bearer token.

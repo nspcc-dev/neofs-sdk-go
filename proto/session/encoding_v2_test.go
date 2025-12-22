@@ -1,7 +1,6 @@
 package session_test
 
 import (
-	"math/rand/v2"
 	"testing"
 
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
@@ -11,75 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func randTarget() *session.Target {
-	v := &session.Target{}
-	switch rand.Uint32() % 2 {
-	case 0:
-		v.Identifier = &session.Target_OwnerId{OwnerId: prototest.RandOwnerID()}
-	case 1:
-		v.Identifier = &session.Target_NnsName{NnsName: prototest.RandString()}
-	}
-	return v
-}
-
-func randTargets() []*session.Target { return prototest.RandRepeated(randTarget) }
-
-func randVerbs() []session.Verb {
-	verbs := make([]session.Verb, 1+rand.Uint32()%5)
-	for i := range verbs {
-		verbs[i] = prototest.RandInteger[session.Verb]()
-	}
-	return verbs
-}
-
-func randSessionContextV2() *session.SessionContextV2 {
-	return &session.SessionContextV2{
-		Container: prototest.RandContainerID(),
-		Objects:   prototest.RandObjectIDs(),
-		Verbs:     randVerbs(),
-	}
-}
-
-func randSessionContextV2s() []*session.SessionContextV2 {
-	return prototest.RandRepeated(randSessionContextV2)
-}
-
-func randSessionTokenV2Body() *session.SessionTokenV2_Body {
-	return &session.SessionTokenV2_Body{
-		Version:  prototest.RandUint32(),
-		Nonce:    prototest.RandUint32(),
-		Issuer:   prototest.RandOwnerID(),
-		Subjects: randTargets(),
-		Lifetime: randSessionTokenLifetime(),
-		Contexts: randSessionContextV2s(),
-		Final:    prototest.RandUint32()/2 == 0,
-	}
-}
-
-func randSessionTokenV2(original bool) *session.SessionTokenV2 {
-	var origin *session.SessionTokenV2
-	if original {
-		origin = randSessionTokenV2(false)
-	}
-
-	return &session.SessionTokenV2{
-		Body:      randSessionTokenV2Body(),
-		Signature: prototest.RandSignature(),
-		Origin:    origin,
-	}
-}
-
-func randSessionTokenLifetime() *session.TokenLifetime {
-	return &session.TokenLifetime{
-		Exp: prototest.RandUint64(),
-		Nbf: prototest.RandUint64(),
-		Iat: prototest.RandUint64(),
-	}
-}
-
 func TestTokenLifetime_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*session.TokenLifetime{
-		randSessionTokenLifetime(),
+		prototest.RandSessionTokenV2Lifetime(),
 	})
 }
 
@@ -123,7 +56,7 @@ func TestTarget_MarshalStable(t *testing.T) {
 	})
 
 	prototest.TestMarshalStable(t, []*session.Target{
-		randTarget(),
+		prototest.RandTarget(),
 		{Identifier: &session.Target_OwnerId{OwnerId: prototest.RandOwnerID()}},
 		{Identifier: &session.Target_NnsName{NnsName: prototest.RandString()}},
 	})
@@ -164,7 +97,7 @@ func TestSessionContextV2_MarshalStable(t *testing.T) {
 	})
 
 	prototest.TestMarshalStable(t, []*session.SessionContextV2{
-		randSessionContextV2(),
+		prototest.RandSessionContextV2(),
 		{
 			Container: prototest.RandContainerID(),
 			Objects:   prototest.RandObjectIDs(),
@@ -213,14 +146,14 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 	})
 
 	prototest.TestMarshalStable(t, []*session.SessionTokenV2_Body{
-		randSessionTokenV2Body(),
+		prototest.RandSessionTokenV2Body(),
 		{
 			Version:  1,
 			Nonce:    prototest.RandUint32(),
 			Issuer:   prototest.RandOwnerID(),
-			Subjects: randTargets(),
-			Lifetime: randSessionTokenLifetime(),
-			Contexts: randSessionContextV2s(),
+			Subjects: prototest.RandTargets(),
+			Lifetime: prototest.RandSessionTokenV2Lifetime(),
+			Contexts: prototest.RandSessionContextV2s(),
 		},
 	})
 }
@@ -233,11 +166,11 @@ func TestSessionTokenV2_MarshalStable(t *testing.T) {
 	})
 
 	prototest.TestMarshalStable(t, []*session.SessionTokenV2{
-		randSessionTokenV2(true),
+		prototest.RandSessionTokenV2(true),
 		{
-			Body:      randSessionTokenV2Body(),
+			Body:      prototest.RandSessionTokenV2Body(),
 			Signature: prototest.RandSignature(),
-			Origin:    randSessionTokenV2(false),
+			Origin:    prototest.RandSessionTokenV2(false),
 		},
 	})
 }
@@ -246,7 +179,7 @@ func TestTarget_MarshaledSize(t *testing.T) {
 	tests := []*session.Target{
 		nil,
 		{},
-		randTarget(),
+		prototest.RandTarget(),
 		{Identifier: &session.Target_OwnerId{OwnerId: prototest.RandOwnerID()}},
 		{Identifier: &session.Target_NnsName{NnsName: "example.neofs"}},
 	}
@@ -262,7 +195,7 @@ func TestSessionContextV2_MarshaledSize(t *testing.T) {
 	tests := []*session.SessionContextV2{
 		nil,
 		{},
-		randSessionContextV2(),
+		prototest.RandSessionContextV2(),
 		{
 			Verbs:   []session.Verb{session.Verb_OBJECT_PUT, session.Verb_OBJECT_GET},
 			Objects: prototest.RandObjectIDs(),
@@ -288,14 +221,14 @@ func TestSessionTokenV2_Body_MarshaledSize(t *testing.T) {
 	tests := []*session.SessionTokenV2_Body{
 		nil,
 		{},
-		randSessionTokenV2Body(),
+		prototest.RandSessionTokenV2Body(),
 		{
 			Version:  1,
 			Nonce:    prototest.RandUint32(),
 			Issuer:   prototest.RandOwnerID(),
-			Subjects: randTargets(),
-			Lifetime: randSessionTokenLifetime(),
-			Contexts: randSessionContextV2s(),
+			Subjects: prototest.RandTargets(),
+			Lifetime: prototest.RandSessionTokenV2Lifetime(),
+			Contexts: prototest.RandSessionContextV2s(),
 		},
 	}
 
@@ -310,11 +243,11 @@ func TestSessionTokenV2_MarshaledSize(t *testing.T) {
 	tests := []*session.SessionTokenV2{
 		nil,
 		{},
-		randSessionTokenV2(true),
+		prototest.RandSessionTokenV2(true),
 		{
-			Body:      randSessionTokenV2Body(),
+			Body:      prototest.RandSessionTokenV2Body(),
 			Signature: prototest.RandSignature(),
-			Origin:    randSessionTokenV2(false),
+			Origin:    prototest.RandSessionTokenV2(false),
 		},
 	}
 
@@ -326,7 +259,7 @@ func TestSessionTokenV2_MarshaledSize(t *testing.T) {
 }
 
 func TestSessionTokenV2_RoundTrip(t *testing.T) {
-	original := randSessionTokenV2(true)
+	original := prototest.RandSessionTokenV2(true)
 
 	data := neofsproto.MarshalMessage(original)
 

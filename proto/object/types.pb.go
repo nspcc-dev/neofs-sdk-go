@@ -428,9 +428,13 @@ type Header struct {
 	// object, so keep an eye on the entire Header limit depending on the context.
 	Attributes []*Header_Attribute `protobuf:"bytes,10,rep,name=attributes,proto3" json:"attributes,omitempty"`
 	// Position of the object in the split hierarchy
-	Split         *Header_Split `protobuf:"bytes,11,opt,name=split,proto3" json:"split,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Split *Header_Split `protobuf:"bytes,11,opt,name=split,proto3" json:"split,omitempty"`
+	// Session token V2, if it was used during Object creation. Need it to verify
+	// integrity and authenticity out of Request scope.
+	// Only one of `session_token` or `session_token_v2` can be set.
+	SessionTokenV2 *session.SessionTokenV2 `protobuf:"bytes,12,opt,name=session_token_v2,json=sessionTokenV2,proto3" json:"session_token_v2,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Header) Reset() {
@@ -536,6 +540,13 @@ func (x *Header) GetAttributes() []*Header_Attribute {
 func (x *Header) GetSplit() *Header_Split {
 	if x != nil {
 		return x.Split
+	}
+	return nil
+}
+
+func (x *Header) GetSessionTokenV2() *session.SessionTokenV2 {
+	if x != nil {
+		return x.SessionTokenV2
 	}
 	return nil
 }
@@ -943,7 +954,7 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"objectType\x12%\n" +
 	"\x0epayload_length\x18\x05 \x01(\x04R\rpayloadLength\x12;\n" +
 	"\fpayload_hash\x18\x06 \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\vpayloadHash\x12C\n" +
-	"\x10homomorphic_hash\x18\a \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\x0fhomomorphicHash\"\xab\b\n" +
+	"\x10homomorphic_hash\x18\a \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\x0fhomomorphicHash\"\xf8\b\n" +
 	"\x06Header\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12>\n" +
 	"\fcontainer_id\x18\x02 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerID\x122\n" +
@@ -959,7 +970,8 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"attributes\x18\n" +
 	" \x03(\v2\".neo.fs.v2.object.Header.AttributeR\n" +
 	"attributes\x124\n" +
-	"\x05split\x18\v \x01(\v2\x1e.neo.fs.v2.object.Header.SplitR\x05split\x1a3\n" +
+	"\x05split\x18\v \x01(\v2\x1e.neo.fs.v2.object.Header.SplitR\x05split\x12K\n" +
+	"\x10session_token_v2\x18\f \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x1a3\n" +
 	"\tAttribute\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x1a\xf5\x02\n" +
@@ -1019,22 +1031,23 @@ func file_proto_object_types_proto_rawDescGZIP() []byte {
 var file_proto_object_types_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_proto_object_types_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
 var file_proto_object_types_proto_goTypes = []any{
-	(ObjectType)(0),              // 0: neo.fs.v2.object.ObjectType
-	(MatchType)(0),               // 1: neo.fs.v2.object.MatchType
-	(*SearchFilter)(nil),         // 2: neo.fs.v2.object.SearchFilter
-	(*ShortHeader)(nil),          // 3: neo.fs.v2.object.ShortHeader
-	(*Header)(nil),               // 4: neo.fs.v2.object.Header
-	(*Object)(nil),               // 5: neo.fs.v2.object.Object
-	(*SplitInfo)(nil),            // 6: neo.fs.v2.object.SplitInfo
-	(*Header_Attribute)(nil),     // 7: neo.fs.v2.object.Header.Attribute
-	(*Header_Split)(nil),         // 8: neo.fs.v2.object.Header.Split
-	(*refs.Version)(nil),         // 9: neo.fs.v2.refs.Version
-	(*refs.OwnerID)(nil),         // 10: neo.fs.v2.refs.OwnerID
-	(*refs.Checksum)(nil),        // 11: neo.fs.v2.refs.Checksum
-	(*refs.ContainerID)(nil),     // 12: neo.fs.v2.refs.ContainerID
-	(*session.SessionToken)(nil), // 13: neo.fs.v2.session.SessionToken
-	(*refs.ObjectID)(nil),        // 14: neo.fs.v2.refs.ObjectID
-	(*refs.Signature)(nil),       // 15: neo.fs.v2.refs.Signature
+	(ObjectType)(0),                // 0: neo.fs.v2.object.ObjectType
+	(MatchType)(0),                 // 1: neo.fs.v2.object.MatchType
+	(*SearchFilter)(nil),           // 2: neo.fs.v2.object.SearchFilter
+	(*ShortHeader)(nil),            // 3: neo.fs.v2.object.ShortHeader
+	(*Header)(nil),                 // 4: neo.fs.v2.object.Header
+	(*Object)(nil),                 // 5: neo.fs.v2.object.Object
+	(*SplitInfo)(nil),              // 6: neo.fs.v2.object.SplitInfo
+	(*Header_Attribute)(nil),       // 7: neo.fs.v2.object.Header.Attribute
+	(*Header_Split)(nil),           // 8: neo.fs.v2.object.Header.Split
+	(*refs.Version)(nil),           // 9: neo.fs.v2.refs.Version
+	(*refs.OwnerID)(nil),           // 10: neo.fs.v2.refs.OwnerID
+	(*refs.Checksum)(nil),          // 11: neo.fs.v2.refs.Checksum
+	(*refs.ContainerID)(nil),       // 12: neo.fs.v2.refs.ContainerID
+	(*session.SessionToken)(nil),   // 13: neo.fs.v2.session.SessionToken
+	(*session.SessionTokenV2)(nil), // 14: neo.fs.v2.session.SessionTokenV2
+	(*refs.ObjectID)(nil),          // 15: neo.fs.v2.refs.ObjectID
+	(*refs.Signature)(nil),         // 16: neo.fs.v2.refs.Signature
 }
 var file_proto_object_types_proto_depIdxs = []int32{
 	1,  // 0: neo.fs.v2.object.SearchFilter.match_type:type_name -> neo.fs.v2.object.MatchType
@@ -1052,23 +1065,24 @@ var file_proto_object_types_proto_depIdxs = []int32{
 	13, // 12: neo.fs.v2.object.Header.session_token:type_name -> neo.fs.v2.session.SessionToken
 	7,  // 13: neo.fs.v2.object.Header.attributes:type_name -> neo.fs.v2.object.Header.Attribute
 	8,  // 14: neo.fs.v2.object.Header.split:type_name -> neo.fs.v2.object.Header.Split
-	14, // 15: neo.fs.v2.object.Object.object_id:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 16: neo.fs.v2.object.Object.signature:type_name -> neo.fs.v2.refs.Signature
-	4,  // 17: neo.fs.v2.object.Object.header:type_name -> neo.fs.v2.object.Header
-	14, // 18: neo.fs.v2.object.SplitInfo.last_part:type_name -> neo.fs.v2.refs.ObjectID
-	14, // 19: neo.fs.v2.object.SplitInfo.link:type_name -> neo.fs.v2.refs.ObjectID
-	14, // 20: neo.fs.v2.object.SplitInfo.first_part:type_name -> neo.fs.v2.refs.ObjectID
-	14, // 21: neo.fs.v2.object.Header.Split.parent:type_name -> neo.fs.v2.refs.ObjectID
-	14, // 22: neo.fs.v2.object.Header.Split.previous:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 23: neo.fs.v2.object.Header.Split.parent_signature:type_name -> neo.fs.v2.refs.Signature
-	4,  // 24: neo.fs.v2.object.Header.Split.parent_header:type_name -> neo.fs.v2.object.Header
-	14, // 25: neo.fs.v2.object.Header.Split.children:type_name -> neo.fs.v2.refs.ObjectID
-	14, // 26: neo.fs.v2.object.Header.Split.first:type_name -> neo.fs.v2.refs.ObjectID
-	27, // [27:27] is the sub-list for method output_type
-	27, // [27:27] is the sub-list for method input_type
-	27, // [27:27] is the sub-list for extension type_name
-	27, // [27:27] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	14, // 15: neo.fs.v2.object.Header.session_token_v2:type_name -> neo.fs.v2.session.SessionTokenV2
+	15, // 16: neo.fs.v2.object.Object.object_id:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 17: neo.fs.v2.object.Object.signature:type_name -> neo.fs.v2.refs.Signature
+	4,  // 18: neo.fs.v2.object.Object.header:type_name -> neo.fs.v2.object.Header
+	15, // 19: neo.fs.v2.object.SplitInfo.last_part:type_name -> neo.fs.v2.refs.ObjectID
+	15, // 20: neo.fs.v2.object.SplitInfo.link:type_name -> neo.fs.v2.refs.ObjectID
+	15, // 21: neo.fs.v2.object.SplitInfo.first_part:type_name -> neo.fs.v2.refs.ObjectID
+	15, // 22: neo.fs.v2.object.Header.Split.parent:type_name -> neo.fs.v2.refs.ObjectID
+	15, // 23: neo.fs.v2.object.Header.Split.previous:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 24: neo.fs.v2.object.Header.Split.parent_signature:type_name -> neo.fs.v2.refs.Signature
+	4,  // 25: neo.fs.v2.object.Header.Split.parent_header:type_name -> neo.fs.v2.object.Header
+	15, // 26: neo.fs.v2.object.Header.Split.children:type_name -> neo.fs.v2.refs.ObjectID
+	15, // 27: neo.fs.v2.object.Header.Split.first:type_name -> neo.fs.v2.refs.ObjectID
+	28, // [28:28] is the sub-list for method output_type
+	28, // [28:28] is the sub-list for method input_type
+	28, // [28:28] is the sub-list for extension type_name
+	28, // [28:28] is the sub-list for extension extendee
+	0,  // [0:28] is the sub-list for field type_name
 }
 
 func init() { file_proto_object_types_proto_init() }

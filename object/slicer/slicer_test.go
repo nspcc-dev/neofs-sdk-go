@@ -27,6 +27,7 @@ import (
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -67,14 +68,14 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 	ctx := context.Background()
 
 	in, opts := randomInput(size, sizeLimit)
-	obj := sessiontest.ObjectSigned(usertest.User())
+	tok := sessiontest.TokenSigned(usertest.User())
 	s, err := slicer.New(
 		ctx,
 		discardObject{opts: opts},
 		in.signer,
 		in.container,
 		in.owner,
-		&obj,
+		&tok,
 	)
 	require.NoError(b, err)
 
@@ -155,16 +156,17 @@ func (discardPayload) GetResult() client.ResObjectPut {
 }
 
 type input struct {
-	signer       user.Signer
-	container    cid.ID
-	owner        user.ID
-	objectType   object.Type
-	currentEpoch uint64
-	payloadLimit uint64
-	sessionToken *session.Object
-	payload      []byte
-	attributes   []object.Attribute
-	withHomo     bool
+	signer         user.Signer
+	container      cid.ID
+	owner          user.ID
+	objectType     object.Type
+	currentEpoch   uint64
+	payloadLimit   uint64
+	sessionToken   *session.Object
+	sessionTokenV2 *sessionv2.Token
+	payload        []byte
+	attributes     []object.Attribute
+	withHomo       bool
 }
 
 func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
@@ -195,9 +197,9 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 
 	var opts slicer.Options
 	if rand.Int()%2 == 0 {
-		tok := sessiontest.ObjectSigned(usertest.User())
-		in.sessionToken = &tok
-		opts.SetSession(*in.sessionToken)
+		tok := sessiontest.TokenSigned(usertest.User())
+		in.sessionTokenV2 = &tok
+		opts.SetSessionV2(*in.sessionTokenV2)
 	}
 
 	in.withHomo = rand.Int()%2 == 0
@@ -277,7 +279,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 
 	t.Run("Slicer.Put", func(t *testing.T) {
 		checker.chainCollector = newChainCollector(t)
-		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionToken)
+		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionTokenV2)
 		require.NoError(t, err)
 
 		rootID, err := s.Put(ctx, bytes.NewReader(in.payload), in.attributes)
@@ -303,7 +305,7 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 		checker.chainCollector = newChainCollector(t)
 
 		// check writer with random written chunk's size
-		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionToken)
+		s, err := slicer.New(ctx, checker, checker.input.signer, checker.input.container, checker.input.owner, checker.input.sessionTokenV2)
 		require.NoError(t, err)
 
 		w, err := s.InitPut(ctx, in.attributes)
@@ -525,7 +527,9 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.True(tb, cnr == in.container, "the container must be set to the configured one")
 
 	owner := header.Owner()
-	if in.sessionToken != nil {
+	if in.sessionTokenV2 != nil {
+		require.True(tb, in.sessionTokenV2.Issuer() == owner, "owner must be set to the session issuer")
+	} else if in.sessionToken != nil {
 		require.True(tb, in.sessionToken.Issuer() == owner, "owner must be set to the session issuer")
 	} else {
 		require.True(tb, owner == in.owner, "owner must be set to the particular user")
@@ -598,6 +602,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 			parentNoPayloadInfo.SetType(x.parentHeader.Type())
 			parentNoPayloadInfo.SetOwner(x.parentHeader.Owner())
 			parentNoPayloadInfo.SetSessionToken(x.parentHeader.SessionToken())
+			parentNoPayloadInfo.SetSessionTokenV2(x.parentHeader.SessionTokenV2())
 			parentNoPayloadInfo.SetAttributes(x.parentHeader.Attributes()...)
 
 			require.Equal(x.tb, *x.shortParentHeader, parentNoPayloadInfo, "first object's parent should be equal to the resulting (without payload info)")

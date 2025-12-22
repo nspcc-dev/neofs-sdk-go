@@ -16,6 +16,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/nspcc-dev/tzhash/tz"
@@ -90,7 +91,42 @@ type Slicer struct {
 // objects, but returns the root object ID only.
 //
 // Parameter sessionToken may be nil, if no session is used.
-func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID, owner user.ID, sessionToken *session.Object) (*Slicer, error) {
+func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID, owner user.ID, sessionToken *sessionv2.Token) (*Slicer, error) {
+	ni, err := nw.NetworkInfo(ctx, client.PrmNetworkInfo{})
+	if err != nil {
+		return nil, fmt.Errorf("network info: %w", err)
+	}
+
+	opts := Options{
+		objectPayloadLimit: ni.MaxObjectSize(),
+		currentNeoFSEpoch:  ni.CurrentEpoch(),
+		sessionTokenV2:     sessionToken,
+	}
+
+	if !ni.HomomorphicHashingDisabled() {
+		opts.CalculateHomomorphicChecksum()
+	}
+
+	var hdr object.Object
+	hdr.SetContainerID(cnr)
+	hdr.SetType(object.TypeRegular)
+	hdr.SetOwner(owner)
+	hdr.SetCreationEpoch(ni.CurrentEpoch())
+	if sessionToken != nil {
+		hdr.SetSessionTokenV2(sessionToken)
+	}
+	return &Slicer{
+		opts:   opts,
+		w:      nw,
+		signer: signer,
+		hdr:    hdr,
+	}, nil
+}
+
+// NewWithV1Token works like [New], but accepts v1 session token for backward compatibility.
+//
+// Parameter sessionToken may be nil, if no session is used.
+func NewWithV1Token(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID, owner user.ID, sessionToken *session.Object) (*Slicer, error) {
 	ni, err := nw.NetworkInfo(ctx, client.PrmNetworkInfo{})
 	if err != nil {
 		return nil, fmt.Errorf("network info: %w", err)
@@ -111,7 +147,9 @@ func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID
 	hdr.SetType(object.TypeRegular)
 	hdr.SetOwner(owner)
 	hdr.SetCreationEpoch(ni.CurrentEpoch())
-	hdr.SetSessionToken(sessionToken)
+	if sessionToken != nil {
+		hdr.SetSessionToken(sessionToken)
+	}
 	return &Slicer{
 		opts:   opts,
 		w:      nw,
@@ -261,11 +299,20 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	var prm client.PrmObjectPutInit
 	prm.SetCopiesNumber(opts.copiesNumber)
 
+	if opts.sessionToken != nil && opts.sessionTokenV2 != nil {
+		return nil, errors.New("both session token versions are set")
+	}
 	if opts.sessionToken != nil {
 		prm.WithinSession(*opts.sessionToken)
 		header.SetSessionToken(opts.sessionToken)
 		// session issuer is a container owner.
 		issuer := opts.sessionToken.Issuer()
+		owner = issuer
+		header.SetOwner(owner)
+	} else if opts.sessionTokenV2 != nil {
+		prm.WithinSessionV2(*opts.sessionTokenV2)
+		header.SetSessionTokenV2(opts.sessionTokenV2)
+		issuer := opts.sessionTokenV2.OriginalIssuer()
 		owner = issuer
 		header.SetOwner(owner)
 	} else if opts.bearerToken != nil {
@@ -282,7 +329,11 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	stubObject.SetCreationEpoch(opts.currentNeoFSEpoch)
 	stubObject.SetType(object.TypeRegular)
 	stubObject.SetOwner(owner)
-	stubObject.SetSessionToken(opts.sessionToken)
+	if opts.sessionTokenV2 != nil {
+		stubObject.SetSessionTokenV2(opts.sessionTokenV2)
+	} else if opts.sessionToken != nil {
+		stubObject.SetSessionToken(opts.sessionToken)
+	}
 
 	res := &PayloadWriter{
 		ctx:              ctx,
@@ -293,6 +344,7 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		owner:            owner,
 		currentEpoch:     opts.currentNeoFSEpoch,
 		sessionToken:     opts.sessionToken,
+		sessionTokenV2:   opts.sessionTokenV2,
 		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
 		childMeta:        newDynamicObjectMetadata(opts.withHomoChecksum),
 		payloadSizeLimit: childPayloadSizeLimit(opts),
@@ -321,11 +373,12 @@ type PayloadWriter struct {
 	rootID       oid.ID
 	headerObject object.Object
 
-	signer       user.Signer
-	container    cid.ID
-	owner        user.ID
-	currentEpoch uint64
-	sessionToken *session.Object
+	signer         user.Signer
+	container      cid.ID
+	owner          user.ID
+	currentEpoch   uint64
+	sessionToken   *session.Object
+	sessionTokenV2 *sessionv2.Token
 
 	payloadBuffer      []byte
 	extraPayloadBuffer []byte

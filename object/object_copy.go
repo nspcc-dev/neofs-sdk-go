@@ -7,6 +7,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 )
 
 func cloneSignature(src *neofscrypto.Signature) *neofscrypto.Signature {
@@ -65,5 +66,13 @@ func (x header) copyTo(dst *header) {
 		x.session.CopyTo(dst.session)
 	} else {
 		dst.session = nil
+	}
+	if x.sessionV2 != nil {
+		if dst.sessionV2 == nil {
+			dst.sessionV2 = new(sessionv2.Token)
+		}
+		x.sessionV2.CopyTo(dst.sessionV2)
+	} else {
+		dst.sessionV2 = nil
 	}
 }

@@ -14,6 +14,7 @@ import (
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -38,6 +39,7 @@ type header struct {
 	typ         Type
 	pldHomoHash *checksum.Checksum
 	session     *session.Object
+	sessionV2   *sessionv2.Token
 	attrs       []Attribute
 	split       split
 }
@@ -185,7 +187,8 @@ func (x split) protoMessage() *protoobject.Header_Split {
 
 func (x header) isZero() bool {
 	return x.version == nil && x.owner.IsZero() && x.cnr.IsZero() && x.created == 0 && x.payloadLn == 0 &&
-		x.pldHash == nil && x.typ == 0 && x.pldHomoHash == nil && x.session == nil && len(x.attrs) == 0 && x.split.isZero()
+		x.pldHash == nil && x.typ == 0 && x.pldHomoHash == nil && x.session == nil && x.sessionV2 == nil &&
+		len(x.attrs) == 0 && x.split.isZero()
 }
 
 func (x *header) fromProtoMessage(m *protoobject.Header) error {
@@ -253,6 +256,17 @@ func (x *header) fromProtoMessage(m *protoobject.Header) error {
 	} else {
 		x.session = nil
 	}
+	// session token v2
+	if m.SessionTokenV2 != nil {
+		if x.sessionV2 == nil {
+			x.sessionV2 = new(sessionv2.Token)
+		}
+		if err := x.sessionV2.FromProtoMessage(m.SessionTokenV2); err != nil {
+			return fmt.Errorf("invalid session token v2: %w", err)
+		}
+	} else {
+		x.sessionV2 = nil
+	}
 	// split header
 	if m.Split != nil {
 		if err := x.split.fromProtoMessage(m.Split); err != nil {
@@ -309,6 +323,9 @@ func (x header) protoMessage() *protoobject.Header {
 	}
 	if x.session != nil {
 		m.SessionToken = x.session.ProtoMessage()
+	}
+	if x.sessionV2 != nil {
+		m.SessionTokenV2 = x.sessionV2.ProtoMessage()
 	}
 	if len(x.attrs) > 0 {
 		m.Attributes = make([]*protoobject.Header_Attribute, len(x.attrs))
@@ -724,6 +741,20 @@ func (o Object) SessionToken() *session.Object {
 // See also [Object.SessionToken].
 func (o *Object) SetSessionToken(v *session.Object) {
 	o.header.session = v
+}
+
+// SessionTokenV2 returns V2 token of the session within which object was created.
+//
+// See also [Object.SetSessionTokenV2].
+func (o Object) SessionTokenV2() *sessionv2.Token {
+	return o.header.sessionV2
+}
+
+// SetSessionTokenV2 sets V2 token of the session within which object was created.
+//
+// See also [Object.SessionTokenV2].
+func (o *Object) SetSessionTokenV2(v *sessionv2.Token) {
+	o.header.sessionV2 = v
 }
 
 // Type returns type of the object.
