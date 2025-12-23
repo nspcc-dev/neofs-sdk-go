@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
@@ -2288,4 +2289,17 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 func TestObject_HeaderLen(t *testing.T) {
 	require.EqualValues(t, 0, object.Object{}.HeaderLen())
 	require.EqualValues(t, 1215, validObject.HeaderLen())
+}
+
+func TestObject_Address(t *testing.T) {
+	var o = new(object.Object)
+
+	require.True(t, o.Address().IsZero())
+	var (
+		cnr = cid.ID{1, 2, 3}
+		id  = oid.ID{9, 8, 7}
+	)
+	o.SetContainerID(cnr)
+	o.SetID(id)
+	require.Equal(t, oid.NewAddress(cnr, id), o.Address())
 }

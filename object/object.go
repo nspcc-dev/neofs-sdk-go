@@ -408,6 +408,11 @@ func (o Object) MarshalHeaderJSON() ([]byte, error) {
 	return neofsproto.MarshalMessageJSON(o.header.protoMessage())
 }
 
+// Address returns current object address made of its container and object IDs.
+func (o Object) Address() oid.Address {
+	return oid.NewAddress(o.GetContainerID(), o.GetID())
+}
+
 // GetID returns identifier of the object. Zero return means unset ID.
 //
 // See also [Object.SetID].
