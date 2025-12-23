@@ -1,6 +1,7 @@
 package oid
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strings"
@@ -180,4 +181,10 @@ func (x Address) String() string {
 // IsZero checks if address is zero (uninitialized).
 func (x Address) IsZero() bool {
 	return x.cnr.IsZero() && x.obj.IsZero()
+}
+
+// Compare performs three-way comparison of two addresses and can be used
+// for address list sorting.
+func (x Address) Compare(other Address) int {
+	return cmp.Or(x.cnr.Compare(other.cnr), x.obj.Compare(other.obj))
 }
