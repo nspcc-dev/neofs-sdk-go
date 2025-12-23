@@ -1,6 +1,7 @@
 package oid
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"errors"
 	"fmt"
@@ -146,4 +147,10 @@ func (id ID) IsZero() bool {
 		}
 	}
 	return true
+}
+
+// Compare performs three-way comparison of [ID] and returns the result. It
+// can be used for sorting.
+func (id ID) Compare(other ID) int {
+	return bytes.Compare(id[:], other[:])
 }
