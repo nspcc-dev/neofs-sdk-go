@@ -176,3 +176,8 @@ func (x *Address) DecodeString(s string) error {
 func (x Address) String() string {
 	return x.EncodeToString()
 }
+
+// IsZero checks if address is zero (uninitialized).
+func (x Address) IsZero() bool {
+	return x.cnr.IsZero() && x.obj.IsZero()
+}
