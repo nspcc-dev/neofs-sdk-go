@@ -126,21 +126,20 @@ var ErrUnhealthy = errors.New("no healthy client")
 
 // clientStatusMonitor count error rate and other statistics for connection.
 type clientStatusMonitor struct {
-	addr           string
-	healthy        *atomic.Bool
-	errorThreshold uint32
+	addr    string
+	healthy *atomic.Bool
 
-	mu                *sync.RWMutex // protect counters
-	currentErrorCount uint32
-	overallErrorCount uint64
+	overallErrorCount *atomic.Uint64
+
+	sw *slidingWindow
 }
 
-func newClientStatusMonitor(addr string, errorThreshold uint32) clientStatusMonitor {
+func newClientStatusMonitor(addr string, errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
 	m := clientStatusMonitor{
-		addr:           addr,
-		healthy:        &atomic.Bool{},
-		mu:             &sync.RWMutex{},
-		errorThreshold: errorThreshold,
+		addr:              addr,
+		healthy:           &atomic.Bool{},
+		overallErrorCount: &atomic.Uint64{},
+		sw:                newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
 	}
 
 	m.healthy.Store(true)
@@ -163,15 +162,16 @@ type clientWrapper struct {
 
 // wrapperPrm is params to create clientWrapper.
 type wrapperPrm struct {
-	address              string
-	signer               neofscrypto.Signer
-	dialTimeout          time.Duration
-	streamTimeout        time.Duration
-	errorThreshold       uint32
-	responseInfoCallback func(sdkClient.ResponseMetaInfo) error
-	statisticCallback    stat.OperationCallback
-	buffers              *sync.Pool
-	nodeSessionCacheSize int
+	address                  string
+	signer                   neofscrypto.Signer
+	dialTimeout              time.Duration
+	streamTimeout            time.Duration
+	errorThreshold           uint32
+	errorThresholdWindowSize time.Duration
+	responseInfoCallback     func(sdkClient.ResponseMetaInfo) error
+	statisticCallback        stat.OperationCallback
+	buffers                  *sync.Pool
+	nodeSessionCacheSize     int
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -243,7 +243,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	}
 
 	res := &clientWrapper{
-		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold),
+		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold, prm.errorThresholdWindowSize),
 		statisticCallback:   prm.statisticCallback,
 		nodeSessionCache:    cache,
 	}
@@ -401,26 +401,19 @@ func (c *clientStatusMonitor) address() string {
 }
 
 func (c *clientStatusMonitor) incErrorRate() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.currentErrorCount++
-	c.overallErrorCount++
-	if c.currentErrorCount >= c.errorThreshold {
+	c.overallErrorCount.Add(1)
+
+	if !c.sw.Allow() {
 		c.setUnhealthy()
-		c.currentErrorCount = 0
 	}
 }
 
 func (c *clientStatusMonitor) currentErrorRate() uint32 {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.currentErrorCount
+	return uint32(c.sw.Current())
 }
 
 func (c *clientStatusMonitor) overallErrorRate() uint64 {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.overallErrorCount
+	return c.overallErrorCount.Load()
 }
 
 func (c *clientStatusMonitor) updateErrorRate(err error) {
@@ -464,6 +457,7 @@ type InitParameters struct {
 	clientRebalanceInterval   time.Duration
 	sessionExpirationDuration uint64
 	errorThreshold            uint32
+	errorThresholdWindowSize  time.Duration
 	nodeParams                []NodeParam
 	nodeSessionCacheSize      int
 
@@ -516,6 +510,12 @@ func (x *InitParameters) SetSessionExpirationDuration(expirationDuration uint64)
 // SetErrorThreshold specifies the number of errors on connection after which node is considered as unhealthy.
 func (x *InitParameters) SetErrorThreshold(threshold uint32) {
 	x.errorThreshold = threshold
+}
+
+// SetErrorThresholdWindowSize sets the time period for the sliding window. If the number of errors within this duration
+// exceeds the ErrorThreshold, the node is considered unhealthy.
+func (x *InitParameters) SetErrorThresholdWindowSize(window time.Duration) {
+	x.errorThresholdWindowSize = window
 }
 
 // AddNode append information about the node to which you want to connect.
@@ -635,6 +635,7 @@ type innerPool struct {
 const (
 	defaultSessionTokenExpirationDuration = 100 // in blocks
 	defaultErrorThreshold                 = 100
+	defaultErrorThresholdWindowSize       = 15 * time.Second
 
 	defaultRebalanceInterval  = 25 * time.Second
 	defaultHealthcheckTimeout = 4 * time.Second
@@ -695,6 +696,15 @@ func NewFlatNodeParams(endpoints []string) []NodeParam {
 }
 
 // NewPool creates connection pool using parameters.
+//
+// Default InitParameters values, if not set:
+// - SessionExpirationDuration: 100, in blocks
+// - ErrorThreshold: 100
+// - ErrorThresholdWindowSize: 15, in seconds
+// - ClientRebalanceInterval: 25, in seconds
+// - HealthcheckTimeout: 4, in seconds
+// - NodeDialTimeout: 5, in seconds
+// - NodeStreamTimeout: 10, in seconds
 //
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
@@ -811,6 +821,9 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 	if params.errorThreshold == 0 {
 		params.errorThreshold = defaultErrorThreshold
 	}
+	if params.errorThresholdWindowSize == 0 {
+		params.errorThresholdWindowSize = defaultErrorThresholdWindowSize
+	}
 
 	if params.clientRebalanceInterval <= 0 {
 		params.clientRebalanceInterval = defaultRebalanceInterval
@@ -830,7 +843,10 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 
 	if params.isMissingClientBuilder() {
 		params.setClientBuilder(func(addr string) (internalClient, error) {
-			var prm wrapperPrm
+			var prm = wrapperPrm{
+				errorThresholdWindowSize: params.errorThresholdWindowSize,
+			}
+
 			prm.setAddress(addr)
 			prm.setSigner(params.signer)
 			prm.setDialTimeout(params.nodeDialTimeout)
@@ -1072,4 +1088,89 @@ func (p *Pool) statisticMiddleware(nodeKey []byte, endpoint string, method stat.
 	if p.statisticCallback != nil {
 		p.statisticCallback(nodeKey, endpoint, method, duration, err)
 	}
+}
+
+type (
+	slidingWindow struct {
+		windowSize int64 // Nanoseconds
+		limit      int64
+
+		// Buckets
+		prevCount *atomic.Int64
+		currCount *atomic.Int64
+
+		windowStart *atomic.Int64 // Nanoseconds
+
+		rotationMu *sync.Mutex
+	}
+)
+
+func newSlidingWindow(windowSize time.Duration, limit int64) *slidingWindow {
+	var windowStart atomic.Int64
+	windowStart.Store(time.Now().UnixNano())
+
+	return &slidingWindow{
+		windowSize:  int64(windowSize),
+		limit:       limit,
+		prevCount:   &atomic.Int64{},
+		currCount:   &atomic.Int64{},
+		windowStart: &windowStart,
+		rotationMu:  &sync.Mutex{},
+	}
+}
+
+// Allow returns true if the errors count is below the threshold.
+func (sw *slidingWindow) Allow() bool {
+	now := int64(time.Now().UnixNano())
+	sw.advance(now)
+	sw.currCount.Add(1)
+
+	curr := sw.currCount.Load()
+	prev := sw.prevCount.Load()
+	start := sw.windowStart.Load()
+
+	elapsed := now - start
+	if elapsed >= sw.windowSize {
+		return curr < sw.limit
+	}
+
+	// weightedCount = curr + (prev * (windowSize - elapsed) / windowSize).
+	weightMult := sw.windowSize - elapsed
+	weightedPrev := (prev * weightMult) / sw.windowSize
+
+	return (curr + weightedPrev) < sw.limit
+}
+
+// advance handles the rotation of windows when time passes.
+func (sw *slidingWindow) advance(now int64) {
+	start := sw.windowStart.Load()
+
+	// Fast check: Is rotation needed?
+	if now-start < sw.windowSize {
+		return
+	}
+
+	sw.rotationMu.Lock()
+	defer sw.rotationMu.Unlock()
+
+	start = sw.windowStart.Load()
+	elapsed := now - start
+	if elapsed < sw.windowSize {
+		return
+	}
+
+	if elapsed < sw.windowSize*2 {
+		sw.prevCount.Store(sw.currCount.Load())
+	} else {
+		// Too much time passed, reset prev.
+		sw.prevCount.Store(0)
+	}
+
+	sw.currCount.Store(0)
+	sw.windowStart.Store(now - (now % sw.windowSize))
+}
+
+// Current returns current amount of events.
+func (sw *slidingWindow) Current() int64 {
+	return sw.currCount.Load()
 }
