@@ -25,6 +25,7 @@ import (
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 )
 
@@ -360,19 +361,16 @@ var validJSONObject = `
 }
 `
 
-func TestInitCreation(t *testing.T) {
-	var o object.Object
+func TestNew(t *testing.T) {
 	cnr := cidtest.ID()
 	own := usertest.ID()
 
-	o.InitCreation(object.RequiredFields{
-		Container: cnr,
-		Owner:     own,
-	})
+	var o = object.New(cnr, own)
 
 	cID := o.GetContainerID()
 	require.Equal(t, cnr, cID)
 	require.Equal(t, own, o.Owner())
+	require.Equal(t, version.Current(), *o.Version())
 }
 
 func TestObject_SetID(t *testing.T) {

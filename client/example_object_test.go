@@ -192,11 +192,7 @@ func ExampleClient_ObjectPutInit() {
 	}
 
 	// Create object header with required fields
-	var obj object.Object
-	obj.InitCreation(object.RequiredFields{
-		Container: containerID,
-		Owner:     signer.UserID(),
-	})
+	var obj = object.New(containerID, signer.UserID())
 
 	// Optional: set custom attributes
 	obj.SetAttributes(
@@ -256,7 +252,7 @@ func ExampleClient_ObjectPutInit() {
 	prm.WithinSession(sessionToken)
 
 	// Initiate object upload
-	writer, err := c.ObjectPutInit(ctx, obj, signer, prm)
+	writer, err := c.ObjectPutInit(ctx, *obj, signer, prm)
 	if err != nil {
 		log.Fatal(fmt.Errorf("init object put: %w", err))
 	}

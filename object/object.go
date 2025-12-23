@@ -48,8 +48,8 @@ type header struct {
 // Type is compatible with NeoFS API V2 protocol.
 //
 // Instance can be created depending on scenario:
-//   - [Object.InitCreation] (an object to be placed in container);
-//   - New (blank instance, usually needed for decoding);
+//   - new (blank instance, usually needed for decoding);
+//   - New (minimally initialized, usually when assembling new object to put);
 //   - [Object.FromProtoMessage] (when working under NeoFS API V2 protocol).
 type Object struct {
 	id     oid.ID
@@ -58,25 +58,19 @@ type Object struct {
 	pld    []byte
 }
 
-// RequiredFields contains the minimum set of object data that must be set
-// by the NeoFS user at the stage of creation.
-type RequiredFields struct {
-	// Identifier of the NeoFS container associated with the object.
-	Container cid.ID
+// New creates and initializes new [Object] with the current version from SDK
+// and given mandatory fields.
+func New(cnr cid.ID, owner user.ID) *Object {
+	var (
+		o = new(Object)
+		v = version.Current()
+	)
 
-	// Object owner's user ID in the NeoFS system.
-	Owner user.ID
-}
+	o.SetVersion(&v)
+	o.SetContainerID(cnr)
+	o.SetOwner(owner)
 
-// InitCreation initializes the object instance with minimum set of required fields.
-func (o *Object) InitCreation(rf RequiredFields) {
-	o.SetContainerID(rf.Container)
-	o.SetOwner(rf.Owner)
-}
-
-// New creates and initializes blank [Object].
-func New() *Object {
-	return new(Object)
+	return o
 }
 
 func (x split) isZero() bool {

@@ -424,18 +424,12 @@ func testPoolWaiterWithAIO(t *testing.T, nodeAddr string) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
 
-			rf := object.RequiredFields{
-				Container: containerID,
-				Owner:     account,
-			}
-
-			var hdr object.Object
-			hdr.InitCreation(rf)
+			var hdr = object.New(containerID, account)
 
 			var prm client.PrmObjectPutInit
 			prm.SetCopiesNumber(1)
 
-			w, err := pl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
+			w, err := pl.ObjectPutInit(ctxTimeout, *hdr, signer, prm)
 			require.NoError(t, err)
 
 			payload := testutil.RandByteSlice(8)
@@ -553,19 +547,13 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
 
-			rf := object.RequiredFields{
-				Container: containerID,
-				Owner:     account,
-			}
-
-			var hdr object.Object
-			hdr.InitCreation(rf)
+			var hdr = object.New(containerID, account)
 
 			var prm client.PrmObjectPutInit
 			prm.SetCopiesNumber(1)
 			prm.WithinSession(sess)
 
-			w, err := cl.ObjectPutInit(ctxTimeout, hdr, signer, prm)
+			w, err := cl.ObjectPutInit(ctxTimeout, *hdr, signer, prm)
 			require.NoError(t, err)
 
 			payload := testutil.RandByteSlice(8)
@@ -615,18 +603,12 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 }
 
 func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID {
-	rf := object.RequiredFields{
-		Container: containerID,
-		Owner:     account,
-	}
-
-	var hdr object.Object
-	hdr.InitCreation(rf)
+	var hdr = object.New(containerID, account)
 
 	var prm client.PrmObjectPutInit
 	prm.SetCopiesNumber(1)
 
-	w, err := putter.ObjectPutInit(ctx, hdr, signer, prm)
+	w, err := putter.ObjectPutInit(ctx, *hdr, signer, prm)
 	require.NoError(t, err)
 
 	_, err = w.Write(payload)
