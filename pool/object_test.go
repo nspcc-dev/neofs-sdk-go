@@ -61,6 +61,14 @@ func (noOtherClientCalls) ContainerSetEACL(context.Context, eacl.Table, user.Sig
 	panic("must not be called")
 }
 
+func (noOtherClientCalls) SetContainerAttribute(context.Context, client.SetContainerAttributeParameters, neofscrypto.Signature, client.SetContainerAttributeOptions) error {
+	panic("must not be called")
+}
+
+func (noOtherClientCalls) RemoveContainerAttribute(context.Context, client.RemoveContainerAttributeParameters, neofscrypto.Signature, client.RemoveContainerAttributeOptions) error {
+	panic("must not be called")
+}
+
 func (noOtherClientCalls) NetworkInfo(context.Context, client.PrmNetworkInfo) (netmap.NetworkInfo, error) {
 	panic("must not be called")
 }

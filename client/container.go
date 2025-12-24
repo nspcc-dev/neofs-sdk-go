@@ -786,3 +786,318 @@ func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c N
 
 	return nil
 }
+
+// SetContainerAttributeParameters groups signed parameters of
+// [Client.SetContainerAttribute].
+type SetContainerAttributeParameters struct {
+	ID         cid.ID
+	Attribute  string
+	Value      string
+	ValidUntil time.Time
+}
+
+// GetSignedSetContainerAttributeParameters returns signed message for prm.
+func GetSignedSetContainerAttributeParameters(prm SetContainerAttributeParameters) []byte {
+	return neofsproto.MarshalMessage(&protocontainer.SetAttributeRequest_Body_Parameters{
+		ContainerId: prm.ID.ProtoMessage(),
+		Attribute:   prm.Attribute,
+		Value:       prm.Value,
+		ValidUntil:  uint64(prm.ValidUntil.Unix()),
+	})
+}
+
+// SignSetContainerAttributeParameters signs given prm.
+func SignSetContainerAttributeParameters(signer neofscrypto.Signer, prm SetContainerAttributeParameters) (neofscrypto.Signature, error) {
+	sig, err := signer.Sign(GetSignedSetContainerAttributeParameters(prm))
+	if err != nil {
+		return neofscrypto.Signature{}, err
+	}
+
+	return neofscrypto.NewSignature(signer.Scheme(), signer.Public(), sig), nil
+}
+
+// SetContainerAttributeOptions groups optional parameters of
+// [Client.SetContainerAttribute].
+type SetContainerAttributeOptions struct {
+	sessionToken   *sessionv2.Token
+	sessionTokenV1 *session.Container
+}
+
+// AttachSessionToken makes client to attach specified session token to the
+// request.
+func (x *SetContainerAttributeOptions) AttachSessionToken(tok sessionv2.Token) {
+	x.sessionToken = &tok
+}
+
+// AttachSessionTokenV1 makes client to attach specified session token V1 to the
+// request. AttachSessionTokenV1 must not be set together with
+// [SetContainerAttributeOptions.AttachSessionToken] that is highly recommended
+// to be used instead.
+func (x *SetContainerAttributeOptions) AttachSessionTokenV1(tok session.Container) {
+	x.sessionTokenV1 = &tok
+}
+
+// SetContainerAttribute sets container attribute.
+//
+// If container does not have the attribute, it is added. Otherwise, its value
+// is swapped.
+//
+// [SetContainerAttributeParameters.ValidUntil] must not yet pass.
+//
+// [SetContainerAttributeParameters.Attribute] must be one of:
+//   - CORS
+//   - __NEOFS__LOCK_UNTIL
+//
+// In general, requirements for [SetContainerAttributeParameters.Value] are the
+// same as for container creation. Attribute-specific requirements:
+//   - __NEOFS__LOCK_UNTIL: new timestamp must be after the current one if any
+//
+// The prmSig must be a signature of prm in either [neofscrypto.N3] or
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme (using
+// [SignSetContainerAttributeParameters] for example). It must be either
+// container owner's or session subject's signature when using
+// [SetContainerAttributeOptions.AttachSessionToken]
+// ([SetContainerAttributeOptions.AttachSessionTokenV1]). If session is used,
+// the token must be issued by the container owner and include
+// [SetContainerAttributeParameters.ID] + [sessionv2.VerbContainerSetAttribute]
+// ([session.VerbContainerSetAttribute]) context.
+//
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerGet]. It is
+// recommended to always use context with timeout. Note that the context
+// includes all processing stages incl. network delays.
+func (c *Client) SetContainerAttribute(ctx context.Context, prm SetContainerAttributeParameters, prmSig neofscrypto.Signature, opts SetContainerAttributeOptions) error {
+	var err error
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerSetAttribute, time.Since(startTime), err)
+		}()
+	}
+
+	req := &protocontainer.SetAttributeRequest{
+		Body: &protocontainer.SetAttributeRequest_Body{
+			Parameters: &protocontainer.SetAttributeRequest_Body_Parameters{
+				ContainerId: prm.ID.ProtoMessage(),
+				Attribute:   prm.Attribute,
+				Value:       prm.Value,
+				ValidUntil:  uint64(prm.ValidUntil.Unix()),
+			},
+			Signature: &refs.SignatureRFC6979{
+				Key:  prmSig.PublicKeyBytes(),
+				Sign: prmSig.Value(),
+			},
+		},
+	}
+	if opts.sessionToken != nil {
+		req.Body.SessionToken = opts.sessionToken.ProtoMessage()
+	}
+	if opts.sessionTokenV1 != nil {
+		req.Body.SessionTokenV1 = opts.sessionTokenV1.ProtoMessage()
+	}
+
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
+
+	var bodyBuf []byte
+	if bodyLen := req.Body.MarshaledSize(); len(*buf) >= bodyLen {
+		bodyBuf = (*buf)[:bodyLen]
+	} else {
+		bodyBuf = make([]byte, bodyLen)
+		buf = &bodyBuf
+	}
+	req.Body.MarshalStable(bodyBuf)
+
+	bodySig, err := c.prm.signer.Sign(bodyBuf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
+	}
+
+	req.BodySignature = &refs.Signature{
+		Key:    neofscrypto.PublicKeyBytes(c.prm.signer.Public()),
+		Sign:   bodySig,
+		Scheme: refs.SignatureScheme(c.prm.signer.Scheme()),
+	}
+
+	resp, err := c.container.SetAttribute(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
+
+	if resp.BodySignature == nil {
+		err = fmt.Errorf("%w: missing body signature", errResponseSignatures)
+		return err
+	}
+
+	if err = neofscrypto.VerifyMessageSignature(resp.Body, resp.BodySignature, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
+	}
+
+	if resp.Body != nil {
+		err = apistatus.ToError(resp.Body.Status)
+	}
+
+	return err
+}
+
+// RemoveContainerAttributeParameters groups signed parameters of
+// [Client.RemoveContainerAttribute].
+type RemoveContainerAttributeParameters struct {
+	ID                cid.ID
+	Attribute         string
+	RequestValidUntil time.Time
+}
+
+// GetSignedRemoveContainerAttributeParameters returns signed message for prm.
+func GetSignedRemoveContainerAttributeParameters(prm RemoveContainerAttributeParameters) []byte {
+	return neofsproto.MarshalMessage(&protocontainer.RemoveAttributeRequest_Body_Parameters{
+		ContainerId: prm.ID.ProtoMessage(),
+		Attribute:   prm.Attribute,
+		ValidUntil:  uint64(prm.RequestValidUntil.Unix()),
+	})
+}
+
+// SignRemoveContainerAttributeParameters signs given prm.
+func SignRemoveContainerAttributeParameters(signer neofscrypto.Signer, prm RemoveContainerAttributeParameters) (neofscrypto.Signature, error) {
+	sig, err := signer.Sign(GetSignedRemoveContainerAttributeParameters(prm))
+	if err != nil {
+		return neofscrypto.Signature{}, err
+	}
+
+	return neofscrypto.NewSignature(signer.Scheme(), signer.Public(), sig), nil
+}
+
+// RemoveContainerAttributeOptions groups optional parameters of
+// [Client.RemoveContainerAttribute].
+type RemoveContainerAttributeOptions struct {
+	sessionToken   *sessionv2.Token
+	sessionTokenV1 *session.Container
+}
+
+// AttachSessionToken makes client to attach specified session token to the
+// request.
+func (x *RemoveContainerAttributeOptions) AttachSessionToken(tok sessionv2.Token) {
+	x.sessionToken = &tok
+}
+
+// AttachSessionTokenV1 makes client to attach specified session token V1 to the
+// request. AttachSessionTokenV1 must not be set together with
+// [RemoveContainerAttributeOptions.AttachSessionToken] that is highly
+// recommended to be used instead.
+func (x *RemoveContainerAttributeOptions) AttachSessionTokenV1(tok session.Container) {
+	x.sessionTokenV1 = &tok
+}
+
+// RemoveContainerAttribute removes container attribute.
+//
+// If container does not have the attribute, server does nothing and responds
+// without an error.
+//
+// [RemoveContainerAttributeParameters.RequestValidUntil] must not yet pass.
+//
+// [RemoveContainerAttributeParameters.Attribute] must be one of:
+//   - CORS
+//   - __NEOFS__LOCK_UNTIL
+//
+// Attribute-specific requirements:
+//   - __NEOFS__LOCK_UNTIL: current timestamp must have already passed if any
+//
+// The prmSig must be a signature of prm in either [neofscrypto.N3] or
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme (using
+// [SignRemoveContainerAttributeParameters] for example). It must be either
+// container owner's or session subject's signature when using
+// [RemoveContainerAttributeOptions.AttachSessionToken]
+// ([RemoveContainerAttributeOptions.AttachSessionTokenV1]). If session is used,
+// the token must be issued by the container owner and include
+// [RemoveContainerAttributeParameters.ID] +
+// [sessionv2.VerbContainerRemoveAttribute]
+// ([session.VerbContainerRemoveAttribute]) context.
+//
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerGet]. It is
+// recommended to always use context with timeout. Note that the context
+// includes all processing stages incl. network delays.
+func (c *Client) RemoveContainerAttribute(ctx context.Context, prm RemoveContainerAttributeParameters, prmSig neofscrypto.Signature, opts RemoveContainerAttributeOptions) error {
+	var err error
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerRemoveAttribute, time.Since(startTime), err)
+		}()
+	}
+
+	req := &protocontainer.RemoveAttributeRequest{
+		Body: &protocontainer.RemoveAttributeRequest_Body{
+			Parameters: &protocontainer.RemoveAttributeRequest_Body_Parameters{
+				ContainerId: prm.ID.ProtoMessage(),
+				Attribute:   prm.Attribute,
+				ValidUntil:  uint64(prm.RequestValidUntil.Unix()),
+			},
+			Signature: &refs.SignatureRFC6979{
+				Key:  prmSig.PublicKeyBytes(),
+				Sign: prmSig.Value(),
+			},
+		},
+	}
+	if opts.sessionToken != nil {
+		req.Body.SessionToken = opts.sessionToken.ProtoMessage()
+	}
+	if opts.sessionTokenV1 != nil {
+		req.Body.SessionTokenV1 = opts.sessionTokenV1.ProtoMessage()
+	}
+
+	buf := c.buffers.Get().(*[]byte)
+	defer func() { c.buffers.Put(buf) }()
+
+	var bodyBuf []byte
+	if bodyLen := req.Body.MarshaledSize(); len(*buf) >= bodyLen {
+		bodyBuf = (*buf)[:bodyLen]
+	} else {
+		bodyBuf = make([]byte, bodyLen)
+		buf = &bodyBuf
+	}
+	req.Body.MarshalStable(bodyBuf)
+
+	bodySig, err := c.prm.signer.Sign(bodyBuf)
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
+	}
+
+	req.BodySignature = &refs.Signature{
+		Key:    neofscrypto.PublicKeyBytes(c.prm.signer.Public()),
+		Sign:   bodySig,
+		Scheme: refs.SignatureScheme(c.prm.signer.Scheme()),
+	}
+
+	resp, err := c.container.RemoveAttribute(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
+
+	if resp.BodySignature == nil {
+		err = fmt.Errorf("%w: missing body signature", errResponseSignatures)
+		return err
+	}
+
+	if err = neofscrypto.VerifyMessageSignature(resp.Body, resp.BodySignature, *buf); err != nil {
+		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
+		return err
+	}
+
+	if resp.Body != nil {
+		err = apistatus.ToError(resp.Body.Status)
+	}
+
+	return err
+}

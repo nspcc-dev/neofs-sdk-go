@@ -198,3 +198,46 @@ func TestAnnounceUsedSpaceRequest_Body_MarshalStable(t *testing.T) {
 func TestAnnounceUsedSpaceResponse_Body_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*container.AnnounceUsedSpaceResponse_Body{})
 }
+
+func TestSetAttributeRequest_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*container.SetAttributeRequest_Body{
+		{
+			Parameters: &container.SetAttributeRequest_Body_Parameters{
+				ContainerId: prototest.RandContainerID(),
+				Attribute:   prototest.RandString(),
+				Value:       prototest.RandString(),
+				ValidUntil:  prototest.RandUint64(),
+			},
+			Signature:      prototest.RandSignatureRFC6979(),
+			SessionToken:   prototest.RandSessionTokenV2(true),
+			SessionTokenV1: prototest.RandSessionToken(),
+		},
+	})
+}
+
+func TestSetAttributeResponse_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*container.SetAttributeResponse_Body{
+		{Status: prototest.RandStatus()},
+	})
+}
+
+func TestRemoveAttributeRequest_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*container.RemoveAttributeRequest_Body{
+		{
+			Parameters: &container.RemoveAttributeRequest_Body_Parameters{
+				ContainerId: prototest.RandContainerID(),
+				Attribute:   prototest.RandString(),
+				ValidUntil:  prototest.RandUint64(),
+			},
+			Signature:      prototest.RandSignatureRFC6979(),
+			SessionToken:   prototest.RandSessionTokenV2(true),
+			SessionTokenV1: prototest.RandSessionToken(),
+		},
+	})
+}
+
+func TestRemoveAttributeResponse_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*container.RemoveAttributeResponse_Body{
+		{Status: prototest.RandStatus()},
+	})
+}

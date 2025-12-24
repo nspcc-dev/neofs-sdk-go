@@ -26,6 +26,8 @@ const (
 	ContainerService_SetExtendedACL_FullMethodName    = "/neo.fs.v2.container.ContainerService/SetExtendedACL"
 	ContainerService_GetExtendedACL_FullMethodName    = "/neo.fs.v2.container.ContainerService/GetExtendedACL"
 	ContainerService_AnnounceUsedSpace_FullMethodName = "/neo.fs.v2.container.ContainerService/AnnounceUsedSpace"
+	ContainerService_SetAttribute_FullMethodName      = "/neo.fs.v2.container.ContainerService/SetAttribute"
+	ContainerService_RemoveAttribute_FullMethodName   = "/neo.fs.v2.container.ContainerService/RemoveAttribute"
 )
 
 // ContainerServiceClient is the client API for ContainerService service.
@@ -44,7 +46,7 @@ type ContainerServiceClient interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save the container has been sent to FS chain;
+	//     container successfully created;;
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
@@ -59,7 +61,7 @@ type ContainerServiceClient interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to remove the container has been sent to FS chain;
+	//     container successfully removed;
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_LOCKED** (3074, SECTION_CONTAINER): \
 	//     deleting a locked container is prohibited;
@@ -89,7 +91,7 @@ type ContainerServiceClient interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save container eACL has been sent to FS chain;
+	//     container eACL successfully set;
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
@@ -116,6 +118,30 @@ type ContainerServiceClient interface {
 	// DEPRECATED: every storage node must send storage load directly to `container`
 	// contract.
 	AnnounceUsedSpace(ctx context.Context, in *AnnounceUsedSpaceRequest, opts ...grpc.CallOption) (*AnnounceUsedSpaceResponse, error)
+	// Sends transaction calling contract method to set container attribute, and
+	// waits for the transaction to be executed. Deadline is determined by the
+	// transport protocol (e.g. `grpc-timeout` header). If the deadline is not
+	// set, server waits 15s after submitting the transaction.
+	//
+	// Statuses:
+	//   - **OK** (0, SECTION_SUCCESS): \
+	//     attribute successfully set;
+	//   - Common failures (SECTION_FAILURE_COMMON);
+	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
+	//     transaction was sent but not executed within the deadline.
+	SetAttribute(ctx context.Context, in *SetAttributeRequest, opts ...grpc.CallOption) (*SetAttributeResponse, error)
+	// Sends transaction calling contract method to remove container attribute,
+	// and waits for the transaction to be executed. Deadline is determined by
+	// the transport protocol (e.g. `grpc-timeout` header). If the deadline is
+	// not set, server waits 15s after submitting the transaction.
+	//
+	// Statuses:
+	//   - **OK** (0, SECTION_SUCCESS): \
+	//     attribute successfully removed;
+	//   - Common failures (SECTION_FAILURE_COMMON);
+	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
+	//     transaction was sent but not executed within the deadline.
+	RemoveAttribute(ctx context.Context, in *RemoveAttributeRequest, opts ...grpc.CallOption) (*RemoveAttributeResponse, error)
 }
 
 type containerServiceClient struct {
@@ -196,6 +222,26 @@ func (c *containerServiceClient) AnnounceUsedSpace(ctx context.Context, in *Anno
 	return out, nil
 }
 
+func (c *containerServiceClient) SetAttribute(ctx context.Context, in *SetAttributeRequest, opts ...grpc.CallOption) (*SetAttributeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAttributeResponse)
+	err := c.cc.Invoke(ctx, ContainerService_SetAttribute_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *containerServiceClient) RemoveAttribute(ctx context.Context, in *RemoveAttributeRequest, opts ...grpc.CallOption) (*RemoveAttributeResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveAttributeResponse)
+	err := c.cc.Invoke(ctx, ContainerService_RemoveAttribute_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ContainerServiceServer is the server API for ContainerService service.
 // All implementations should embed UnimplementedContainerServiceServer
 // for forward compatibility.
@@ -212,7 +258,7 @@ type ContainerServiceServer interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save the container has been sent to FS chain;
+	//     container successfully created;;
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
@@ -227,7 +273,7 @@ type ContainerServiceServer interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to remove the container has been sent to FS chain;
+	//     container successfully removed;
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_LOCKED** (3074, SECTION_CONTAINER): \
 	//     deleting a locked container is prohibited;
@@ -257,7 +303,7 @@ type ContainerServiceServer interface {
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
-	//     request to save container eACL has been sent to FS chain;
+	//     container eACL successfully set;
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
@@ -284,6 +330,30 @@ type ContainerServiceServer interface {
 	// DEPRECATED: every storage node must send storage load directly to `container`
 	// contract.
 	AnnounceUsedSpace(context.Context, *AnnounceUsedSpaceRequest) (*AnnounceUsedSpaceResponse, error)
+	// Sends transaction calling contract method to set container attribute, and
+	// waits for the transaction to be executed. Deadline is determined by the
+	// transport protocol (e.g. `grpc-timeout` header). If the deadline is not
+	// set, server waits 15s after submitting the transaction.
+	//
+	// Statuses:
+	//   - **OK** (0, SECTION_SUCCESS): \
+	//     attribute successfully set;
+	//   - Common failures (SECTION_FAILURE_COMMON);
+	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
+	//     transaction was sent but not executed within the deadline.
+	SetAttribute(context.Context, *SetAttributeRequest) (*SetAttributeResponse, error)
+	// Sends transaction calling contract method to remove container attribute,
+	// and waits for the transaction to be executed. Deadline is determined by
+	// the transport protocol (e.g. `grpc-timeout` header). If the deadline is
+	// not set, server waits 15s after submitting the transaction.
+	//
+	// Statuses:
+	//   - **OK** (0, SECTION_SUCCESS): \
+	//     attribute successfully removed;
+	//   - Common failures (SECTION_FAILURE_COMMON);
+	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
+	//     transaction was sent but not executed within the deadline.
+	RemoveAttribute(context.Context, *RemoveAttributeRequest) (*RemoveAttributeResponse, error)
 }
 
 // UnimplementedContainerServiceServer should be embedded to have
@@ -313,6 +383,12 @@ func (UnimplementedContainerServiceServer) GetExtendedACL(context.Context, *GetE
 }
 func (UnimplementedContainerServiceServer) AnnounceUsedSpace(context.Context, *AnnounceUsedSpaceRequest) (*AnnounceUsedSpaceResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AnnounceUsedSpace not implemented")
+}
+func (UnimplementedContainerServiceServer) SetAttribute(context.Context, *SetAttributeRequest) (*SetAttributeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetAttribute not implemented")
+}
+func (UnimplementedContainerServiceServer) RemoveAttribute(context.Context, *RemoveAttributeRequest) (*RemoveAttributeResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveAttribute not implemented")
 }
 func (UnimplementedContainerServiceServer) testEmbeddedByValue() {}
 
@@ -460,6 +536,42 @@ func _ContainerService_AnnounceUsedSpace_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContainerService_SetAttribute_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAttributeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).SetAttribute(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_SetAttribute_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).SetAttribute(ctx, req.(*SetAttributeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContainerService_RemoveAttribute_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveAttributeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).RemoveAttribute(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_RemoveAttribute_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).RemoveAttribute(ctx, req.(*RemoveAttributeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ContainerService_ServiceDesc is the grpc.ServiceDesc for ContainerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -494,6 +606,14 @@ var ContainerService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "AnnounceUsedSpace",
 			Handler:    _ContainerService_AnnounceUsedSpace_Handler,
+		},
+		{
+			MethodName: "SetAttribute",
+			Handler:    _ContainerService_SetAttribute_Handler,
+		},
+		{
+			MethodName: "RemoveAttribute",
+			Handler:    _ContainerService_RemoveAttribute_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

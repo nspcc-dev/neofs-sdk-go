@@ -44,6 +44,8 @@ const (
 	VerbContainerPut
 	VerbContainerDelete
 	VerbContainerSetEACL
+	VerbContainerSetAttribute
+	VerbContainerRemoveAttribute
 )
 
 // Token repeated field limits.

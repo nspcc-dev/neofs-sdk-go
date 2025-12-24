@@ -39,6 +39,8 @@ const (
 	MethodObjectSearchStream
 	MethodObjectPutStream
 	MethodObjectSearchV2
+	MethodContainerSetAttribute
+	MethodContainerRemoveAttribute
 	// MethodLast is no a valid method name, it's a system anchor for tests, etc.
 	MethodLast
 )
@@ -98,6 +100,10 @@ func (m Method) String() string {
 		return "objectPutStream"
 	case MethodObjectSearchV2:
 		return "objectSearchV2"
+	case MethodContainerSetAttribute:
+		return "containerSetAttribute"
+	case MethodContainerRemoveAttribute:
+		return "containerRemoveAttribute"
 	case MethodLast:
 		return "it's a system name rather than a method"
 	default:
