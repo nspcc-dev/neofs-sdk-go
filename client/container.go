@@ -949,9 +949,9 @@ func (c *Client) SetContainerAttribute(ctx context.Context, prm SetContainerAttr
 // RemoveContainerAttributeParameters groups signed parameters of
 // [Client.RemoveContainerAttribute].
 type RemoveContainerAttributeParameters struct {
-	ID                cid.ID
-	Attribute         string
-	RequestValidUntil time.Time
+	ID         cid.ID
+	Attribute  string
+	ValidUntil time.Time
 }
 
 // GetSignedRemoveContainerAttributeParameters returns signed message for prm.
@@ -959,7 +959,7 @@ func GetSignedRemoveContainerAttributeParameters(prm RemoveContainerAttributePar
 	return neofsproto.MarshalMessage(&protocontainer.RemoveAttributeRequest_Body_Parameters{
 		ContainerId: prm.ID.ProtoMessage(),
 		Attribute:   prm.Attribute,
-		ValidUntil:  uint64(prm.RequestValidUntil.Unix()),
+		ValidUntil:  uint64(prm.ValidUntil.Unix()),
 	})
 }
 
@@ -999,7 +999,7 @@ func (x *RemoveContainerAttributeOptions) AttachSessionTokenV1(tok session.Conta
 // If container does not have the attribute, server does nothing and responds
 // without an error.
 //
-// [RemoveContainerAttributeParameters.RequestValidUntil] must not yet pass.
+// [RemoveContainerAttributeParameters.ValidUntil] must not yet pass.
 //
 // [RemoveContainerAttributeParameters.Attribute] must be one of:
 //   - CORS
@@ -1040,7 +1040,7 @@ func (c *Client) RemoveContainerAttribute(ctx context.Context, prm RemoveContain
 			Parameters: &protocontainer.RemoveAttributeRequest_Body_Parameters{
 				ContainerId: prm.ID.ProtoMessage(),
 				Attribute:   prm.Attribute,
-				ValidUntil:  uint64(prm.RequestValidUntil.Unix()),
+				ValidUntil:  uint64(prm.ValidUntil.Unix()),
 			},
 			Signature: &refs.SignatureRFC6979{
 				Key:  prmSig.PublicKeyBytes(),

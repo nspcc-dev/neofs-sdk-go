@@ -2249,7 +2249,7 @@ func (x *testRemoveContainerAttributeServer) verifyRequest(req *protocontainer.R
 		if body.Parameters.Attribute != x.prm.Attribute {
 			return fmt.Errorf("attribute parameter (client: %q, message: %q)", x.prm.Attribute, body.Parameters.Attribute)
 		}
-		if exp := uint64(x.prm.RequestValidUntil.Unix()); body.Parameters.ValidUntil != exp {
+		if exp := uint64(x.prm.ValidUntil.Unix()); body.Parameters.ValidUntil != exp {
 			return fmt.Errorf("valid until parameter (client: %q, message: %q)", exp, body.Parameters.ValidUntil)
 		}
 	}
@@ -2300,9 +2300,9 @@ func TestClient_RemoveContainerAttribute(t *testing.T) {
 	var anyValidOpts RemoveContainerAttributeOptions
 	anyValidSigner := usertest.User().RFC6979
 	anyValidPrm := RemoveContainerAttributeParameters{
-		ID:                cidtest.ID(),
-		Attribute:         "attribute",
-		RequestValidUntil: time.Now().Add(time.Minute),
+		ID:         cidtest.ID(),
+		Attribute:  "attribute",
+		ValidUntil: time.Now().Add(time.Minute),
 	}
 	anyValidSignature := neofscryptotest.Signature()
 
