@@ -3,9 +3,11 @@ package pool
 import (
 	"strings"
 	"sync/atomic"
+	"time"
 
 	lru "github.com/hashicorp/golang-lru/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 )
 
 const (
@@ -18,7 +20,9 @@ type sessionCache struct {
 }
 
 type cacheValue struct {
-	token session.Object
+	token   session.Object
+	tokenV2 sessionv2.Token
+	version int
 }
 
 func newCache(cacheSize int) (*sessionCache, error) {
@@ -35,11 +39,11 @@ func newCache(cacheSize int) (*sessionCache, error) {
 // It is safe to modify and re-sign returned session token.
 func (c *sessionCache) Get(key string) (session.Object, bool) {
 	value, ok := c.cache.Get(key)
-	if !ok {
+	if !ok || value.version != 1 {
 		return session.Object{}, false
 	}
 
-	if c.expired(value) {
+	if value.token.ExpiredAt(atomic.LoadUint64(&c.currentEpoch) + 1) {
 		c.cache.Remove(key)
 		return session.Object{}, false
 	}
@@ -47,9 +51,38 @@ func (c *sessionCache) Get(key string) (session.Object, bool) {
 	return value.token, true
 }
 
+// GetV2 returns a copy of the session token v2 from the cache without signature
+// and context related fields. Returns nil if token is missing in the cache.
+// It is safe to modify and re-sign returned session token.
+func (c *sessionCache) GetV2(key string) (sessionv2.Token, bool) {
+	value, ok := c.cache.Get(key)
+	if !ok || value.version != 2 {
+		return sessionv2.Token{}, false
+	}
+
+	if !value.tokenV2.ValidAt(time.Now()) {
+		c.cache.Remove(key)
+		return sessionv2.Token{}, false
+	}
+
+	return value.tokenV2, true
+}
+
+// Put adds or overwrites a v1 session token in the cache.
+// If a token (v1 or v2) already exists under this key, it will be replaced.
 func (c *sessionCache) Put(key string, token session.Object) bool {
 	return c.cache.Add(key, &cacheValue{
-		token: token,
+		token:   token,
+		version: 1,
+	})
+}
+
+// PutV2 adds or overwrites a v2 session token in the cache.
+// If a token (v1 or v2) already exists under this key, it will be replaced.
+func (c *sessionCache) PutV2(key string, token sessionv2.Token) bool {
+	return c.cache.Add(key, &cacheValue{
+		tokenV2: token,
+		version: 2,
 	})
 }
 
@@ -66,11 +99,6 @@ func (c *sessionCache) updateEpoch(newEpoch uint64) {
 	if newEpoch > epoch {
 		atomic.StoreUint64(&c.currentEpoch, newEpoch)
 	}
-}
-
-func (c *sessionCache) expired(val *cacheValue) bool {
-	epoch := atomic.LoadUint64(&c.currentEpoch)
-	return val.token.ExpiredAt(epoch + 1)
 }
 
 // Purge removes all session keys.

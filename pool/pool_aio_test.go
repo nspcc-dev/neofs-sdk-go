@@ -5,6 +5,8 @@ package pool_test
 import (
 	"bytes"
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"math"
@@ -13,6 +15,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -27,6 +30,7 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -56,7 +60,8 @@ var (
 		{image: "nspccdev/neofs-aio", version: "latest"},
 	}
 
-	sessionExpirationInEpochs = uint64(2)
+	sessionExpirationInEpochs  = uint64(2)
+	sessionExpirationInSeconds = uint64(3600) // 1 hour
 
 	// clientRebalanceInterval must be lower than timeoutAfterEpochChange.
 	// It is important if you are forcing epoch changing. Otherwise, session tokens maybe expired and rejected by node.
@@ -519,39 +524,50 @@ func testClientWaiterWithAIO(t *testing.T, nodeAddr string) {
 			})
 		})
 		t.Run("object", func(t *testing.T) {
-			var prmSess client.PrmSessionCreate
-			prmSess.SetExp(math.MaxUint64)
+			var prm client.PrmObjectPutInit
+			prm.SetCopiesNumber(1)
 
-			res, err := cl.SessionCreate(ctx, signer, prmSess)
-			require.NoError(t, err)
+			// TODO: Enable session v2 when server-side implementation is ready
+			// useSessionV2 controls whether to use session v2 tokens.
+			// Set to false until v2 tokens are implemented on the server side.
+			const useSessionV2 = false
 
-			var id uuid.UUID
-			err = id.UnmarshalBinary(res.ID())
-			require.NoError(t, err)
+			if useSessionV2 {
+				sess := createTokenV2(t, ctx, cl, containerID, sessionv2.VerbObjectPut, signer)
+				prm.WithinSessionV2(sess)
+			} else {
+				var prmSess client.PrmSessionCreate
+				prmSess.SetExp(math.MaxUint64)
 
-			var key neofsecdsa.PublicKey
-			err = key.Decode(res.PublicKey())
-			require.NoError(t, err)
+				res, err := cl.SessionCreate(ctx, signer, prmSess)
+				require.NoError(t, err)
 
-			var sess session.Object
+				var id uuid.UUID
+				err = id.UnmarshalBinary(res.ID())
+				require.NoError(t, err)
 
-			sess.SetID(id)
-			sess.SetAuthKey(&key)
-			sess.SetExp(math.MaxUint64)
-			sess.ForVerb(session.VerbObjectPut)
-			sess.BindContainer(containerID)
+				var key neofsecdsa.PublicKey
+				err = key.Decode(res.PublicKey())
+				require.NoError(t, err)
 
-			err = sess.Sign(signer)
-			require.NoError(t, err)
+				var sess session.Object
+
+				sess.SetID(id)
+				sess.SetAuthKey(&key)
+				sess.SetExp(math.MaxUint64)
+				sess.ForVerb(session.VerbObjectPut)
+				sess.BindContainer(containerID)
+
+				err = sess.Sign(signer)
+				require.NoError(t, err)
+
+				prm.WithinSession(sess)
+			}
 
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 			t.Cleanup(cancel)
 
 			var hdr = object.New(containerID, account)
-
-			var prm client.PrmObjectPutInit
-			prm.SetCopiesNumber(1)
-			prm.WithinSession(sess)
 
 			w, err := cl.ObjectPutInit(ctxTimeout, *hdr, signer, prm)
 			require.NoError(t, err)
@@ -762,4 +778,38 @@ func isObjectDeleted(ctx context.Context, c objectHeadGetter, id cid.ID, oid oid
 			return ctx.Err()
 		}
 	}
+}
+
+func createTokenV2(t *testing.T, ctx context.Context, cl *client.Client, containerID cid.ID, verb sessionv2.Verb, signer user.Signer) sessionv2.Token {
+	var sess sessionv2.Token
+	sess.SetVersion(sessionv2.TokenCurrentVersion)
+	sess.SetNonce(sessionv2.RandomNonce())
+
+	currentTime := time.Now()
+	sess.SetIat(currentTime)
+	sess.SetNbf(currentTime)
+	sess.SetExp(currentTime.Add(time.Duration(sessionExpirationInSeconds) * time.Second))
+
+	nm, err := cl.NetMapSnapshot(ctx, client.PrmNetMapSnapshot{})
+	require.NoError(t, err)
+
+	for _, node := range nm.Nodes() {
+		neoPubKey, err := keys.NewPublicKeyFromBytes(node.PublicKey(), elliptic.P256())
+		require.NoError(t, err)
+
+		ecdsaPubKey := (*ecdsa.PublicKey)(neoPubKey)
+
+		userID := user.NewFromECDSAPublicKey(*ecdsaPubKey)
+		require.NoError(t, sess.AddSubject(sessionv2.NewTargetUser(userID)))
+	}
+
+	ctx2, err := sessionv2.NewContext(containerID, []sessionv2.Verb{verb})
+	require.NoError(t, err)
+
+	err = sess.AddContext(ctx2)
+	require.NoError(t, err)
+
+	err = sess.Sign(signer)
+	require.NoError(t, err)
+	return sess
 }
