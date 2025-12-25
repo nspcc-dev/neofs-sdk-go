@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -22,14 +23,16 @@ import (
 
 type mockClient struct {
 	signer neofscrypto.Signer
+	netmap netmap.NetMap
 	clientStatusMonitor
 
-	errorOnDial          bool
-	errorOnCreateSession bool
-	errorOnEndpointInfo  bool
-	errorOnNetworkInfo   bool
-	errOnGetObject       error
-	errOnPutObject       error
+	errorOnDial           bool
+	errorOnCreateSession  bool
+	errorOnNetMapSnapshot bool
+	errorOnEndpointInfo   bool
+	errorOnNetworkInfo    bool
+	errOnGetObject        error
+	errOnPutObject        error
 }
 
 func (m *mockClient) Dial(_ client.PrmDial) error {
@@ -91,8 +94,15 @@ func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (ne
 }
 
 func (m *mockClient) NetMapSnapshot(_ context.Context, _ client.PrmNetMapSnapshot) (netmap.NetMap, error) {
-	// TODO implement me
-	panic("implement me")
+	var nm netmap.NetMap
+
+	if m.errorOnNetMapSnapshot {
+		err := errors.New("snapshot error")
+		m.updateErrorRate(err)
+		return nm, err
+	}
+
+	return m.netmap, nil
 }
 
 func (m *mockClient) ObjectPutInit(_ context.Context, _ object.Object, _ user.Signer, _ client.PrmObjectPutInit) (client.ObjectWriter, error) {
@@ -165,8 +175,17 @@ func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (
 }
 
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
+	var nm netmap.NetMap
+	pk, err := keys.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
+	var ni netmap.NodeInfo
+	ni.SetPublicKey(pk.PublicKey().Bytes())
+	nm.SetNodes([]netmap.NodeInfo{ni})
 	return &mockClient{
 		signer:              signer,
+		netmap:              nm,
 		clientStatusMonitor: newClientStatusMonitor(addr, 10),
 	}
 }
@@ -177,6 +196,10 @@ func (m *mockClient) setThreshold(threshold uint32) {
 
 func (m *mockClient) errOnCreateSession() {
 	m.errorOnCreateSession = true
+}
+
+func (m *mockClient) errOnNetMapSnapshot() {
+	m.errorOnNetMapSnapshot = true
 }
 
 func (m *mockClient) errOnEndpointInfo() {
@@ -190,6 +213,7 @@ func (m *mockClient) errOnNetworkInfo() {
 func (m *mockClient) errOnDial() {
 	m.errorOnDial = true
 	m.errOnCreateSession()
+	m.errOnNetMapSnapshot()
 	m.errOnEndpointInfo()
 	m.errOnNetworkInfo()
 }

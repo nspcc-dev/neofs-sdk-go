@@ -22,7 +22,6 @@ import (
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
-	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/assert"
@@ -176,7 +175,6 @@ func TestPool_ObjectGetInit(t *testing.T) {
 	usr := usertest.User()
 
 	var getOpts client.PrmObjectGet
-	getOpts.WithinSession(sessiontest.Object())
 	getOpts.WithBearerToken(bearertest.Token())
 	getOpts.MarkRaw()
 	getOpts.MarkLocal()
@@ -261,7 +259,6 @@ func TestPool_ObjectHead(t *testing.T) {
 	usr := usertest.User()
 
 	var headOpts client.PrmObjectHead
-	headOpts.WithinSession(sessiontest.Object())
 	headOpts.WithBearerToken(bearertest.Token())
 	headOpts.MarkRaw()
 	headOpts.MarkLocal()
@@ -350,7 +347,6 @@ func TestPool_ObjectRangeInit(t *testing.T) {
 	usr := usertest.User()
 
 	var rangeOpts client.PrmObjectRange
-	rangeOpts.WithinSession(sessiontest.Object())
 	rangeOpts.WithBearerToken(bearertest.Token())
 	rangeOpts.MarkRaw()
 	rangeOpts.MarkLocal()
@@ -435,7 +431,6 @@ func TestPool_ObjectHash(t *testing.T) {
 	usr := usertest.User()
 
 	var hashOpts client.PrmObjectHash
-	hashOpts.WithinSession(sessiontest.Object())
 	hashOpts.WithBearerToken(bearertest.Token())
 	hashOpts.MarkLocal()
 	hashOpts.WithXHeaders("k1", "v1", "k2", "v2")
@@ -520,7 +515,6 @@ func TestPool_ObjectSearchInit(t *testing.T) {
 	sfs.AddFilter("k2", "v2", object.MatchStringNotEqual)
 
 	var searchOpts client.PrmObjectSearch
-	searchOpts.WithinSession(sessiontest.Object())
 	searchOpts.WithBearerToken(bearertest.Token())
 	searchOpts.MarkLocal()
 	searchOpts.WithXHeaders("k1", "v1", "k2", "v2")
@@ -616,7 +610,6 @@ func TestPool_SearchObjects(t *testing.T) {
 	var opts client.SearchObjectsOptions
 	opts.WithXHeaders("k1", "v1", "k2", "v2")
 	opts.DisableForwarding()
-	opts.WithSessionToken(sessiontest.Object())
 	opts.WithBearerToken(bearertest.Token())
 	opts.SetCount(1000)
 

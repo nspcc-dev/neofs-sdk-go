@@ -10,12 +10,15 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
 type containerSessionParams interface {
 	GetSession() (*session.Object, error)
 	WithinSession(session.Object)
+	GetSessionV2() (*sessionv2.Token, error)
+	WithinSessionV2(sessionv2.Token)
 }
 
 func (p *Pool) actualSigner(signer user.Signer) user.Signer {
