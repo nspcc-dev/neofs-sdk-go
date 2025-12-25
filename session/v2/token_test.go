@@ -556,7 +556,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			require.NoError(t, tok.Sign(subject))
 
 			err = tok.Validate()
-			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb 1 not authorized by origin")
+			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb OBJECT_PUT not authorized by origin")
 		})
 
 		t.Run("delegation with authorized subset of verbs", func(t *testing.T) {
@@ -701,7 +701,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			require.NoError(t, del1.Sign(signer1))
 
 			err = del1.Validate()
-			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb 5 not authorized by origin")
+			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb OBJECT_DELETE not authorized by origin")
 		})
 
 		t.Run("deep chain verb validation", func(t *testing.T) {
@@ -755,7 +755,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 
 			// tok2 should fail because it tries to use Delete which tok1 doesn't authorize
 			err = tok2.Validate()
-			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb 5 not authorized by origin")
+			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb OBJECT_DELETE not authorized by origin")
 
 			// tok3 should also fail because tok2 is invalid
 			err = tok3.Validate()
@@ -788,7 +788,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			require.NoError(t, tok.Sign(subject))
 
 			err = tok.Validate()
-			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 1: verb 9 not authorized by origin")
+			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 1: verb CONTAINER_DELETE not authorized by origin")
 		})
 
 		t.Run("delegation wildcard with unauthorized verb", func(t *testing.T) {
@@ -812,7 +812,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			require.NoError(t, tok.Sign(subject))
 
 			err = tok.Validate()
-			require.EqualError(t, err, "depth 0: invalid origin chain: container "+wildcard.String()+", context 0: verb 1 not authorized by origin")
+			require.EqualError(t, err, "depth 0: invalid origin chain: container "+wildcard.String()+", context 0: verb OBJECT_PUT not authorized by origin")
 		})
 
 		t.Run("wildcard + same container at the end", func(t *testing.T) {

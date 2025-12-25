@@ -48,6 +48,38 @@ const (
 	VerbContainerRemoveAttribute
 )
 
+// String returns string representation of the verb.
+func (v Verb) String() string {
+	switch v {
+	case VerbObjectPut:
+		return "OBJECT_PUT"
+	case VerbObjectGet:
+		return "OBJECT_GET"
+	case VerbObjectHead:
+		return "OBJECT_HEAD"
+	case VerbObjectSearch:
+		return "OBJECT_SEARCH"
+	case VerbObjectDelete:
+		return "OBJECT_DELETE"
+	case VerbObjectRange:
+		return "OBJECT_RANGE"
+	case VerbObjectRangeHash:
+		return "OBJECT_RANGE_HASH"
+	case VerbContainerPut:
+		return "CONTAINER_PUT"
+	case VerbContainerDelete:
+		return "CONTAINER_DELETE"
+	case VerbContainerSetEACL:
+		return "CONTAINER_SET_EACL"
+	case VerbContainerSetAttribute:
+		return "CONTAINER_SET_ATTRIBUTE"
+	case VerbContainerRemoveAttribute:
+		return "CONTAINER_REMOVE_ATTRIBUTE"
+	default:
+		return "UNSPECIFIED"
+	}
+}
+
 // Token repeated field limits.
 const (
 	// MaxSubjectsPerToken is the maximum number of subjects allowed in a Token.
