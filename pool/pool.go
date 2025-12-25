@@ -454,6 +454,16 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 // clientBuilder is a type alias of client constructors.
 type clientBuilder = func(endpoint string) (internalClient, error)
 
+// SessionTokenVersion represents the version of session tokens used by Pool.
+type SessionTokenVersion int
+
+const (
+	// SessionTokenV1 uses legacy session tokens (default for backward compatibility).
+	SessionTokenV1 SessionTokenVersion = 1
+	// SessionTokenV2 uses new session tokens with time-based expiration.
+	SessionTokenV2 SessionTokenVersion = 2
+)
+
 // InitParameters contains values used to initialize connection Pool.
 type InitParameters struct {
 	signer                    user.Signer
@@ -466,6 +476,7 @@ type InitParameters struct {
 	errorThreshold            uint32
 	nodeParams                []NodeParam
 	nodeSessionCacheSize      int
+	sessionTokenVersion       SessionTokenVersion
 
 	clientBuilder clientBuilder
 
@@ -544,6 +555,14 @@ func (x *InitParameters) SetNodeSessionCacheSize(cacheSize int) {
 	x.nodeSessionCacheSize = cacheSize
 }
 
+// SetSessionTokenVersion sets the version of session tokens used by Pool for internal operations.
+//
+// SessionTokenV1 uses legacy epoch-based session tokens (default for backward compatibility).
+// SessionTokenV2 uses new time-based session tokens with improved authorization model.
+func (x *InitParameters) SetSessionTokenVersion(version SessionTokenVersion) {
+	x.sessionTokenVersion = version
+}
+
 type rebalanceParameters struct {
 	nodesParams               []*nodesParam
 	nodeRequestTimeout        time.Duration
@@ -605,21 +624,27 @@ func (x *NodeParam) SetWeight(weight float64) {
 // Calling Dial/Close methods during the communication process step strongly discouraged
 // as it leads to undefined behavior.
 //
+// Pool automatically manages session tokens for operations. By default, it uses
+// legacy session tokens (SessionTokenV1). You can configure Pool to use new
+// time-based session tokens (SessionTokenV2) via InitParameters.SetSessionTokenVersion.
+// This allows gradual migration to the new token format while maintaining backward compatibility.
+//
 // Each method which produces a NeoFS API call may return an error.
 // Status of underlying server response is casted to built-in error instance.
 // Certain statuses can be checked using `sdkClient` and standard `errors` packages.
 //
 // See pool package overview to get some examples.
 type Pool struct {
-	innerPools      []*innerPool
-	signer          user.Signer
-	cancel          context.CancelFunc
-	closedCh        chan struct{}
-	cache           *sessionCache
-	stokenDuration  uint64
-	rebalanceParams rebalanceParameters
-	clientBuilder   clientBuilder
-	logger          *zap.Logger
+	innerPools          []*innerPool
+	signer              user.Signer
+	cancel              context.CancelFunc
+	closedCh            chan struct{}
+	cache               *sessionCache
+	stokenDuration      uint64
+	sessionTokenVersion SessionTokenVersion
+	rebalanceParams     rebalanceParameters
+	clientBuilder       clientBuilder
+	logger              *zap.Logger
 
 	statisticCallback stat.OperationCallback
 
@@ -633,8 +658,9 @@ type innerPool struct {
 }
 
 const (
-	defaultSessionTokenExpirationDuration = 100 // in blocks
-	defaultErrorThreshold                 = 100
+	defaultSessionTokenExpirationDuration   = 100  // in blocks
+	defaultSessionTokenV2ExpirationDuration = 3600 // in seconds
+	defaultErrorThreshold                   = 100
 
 	defaultRebalanceInterval  = 25 * time.Second
 	defaultHealthcheckTimeout = 4 * time.Second
@@ -652,6 +678,7 @@ func DefaultOptions() InitParameters {
 		healthcheckTimeout:        defaultHealthcheckTimeout,
 		nodeDialTimeout:           defaultDialTimeout,
 		nodeStreamTimeout:         defaultStreamTimeout,
+		sessionTokenVersion:       SessionTokenV1,
 	}
 
 	return params
@@ -736,6 +763,7 @@ func NewPool(options InitParameters) (*Pool, error) {
 	pool.signer = options.signer
 	pool.logger = options.logger
 	pool.stokenDuration = options.sessionExpirationDuration
+	pool.sessionTokenVersion = options.sessionTokenVersion
 	pool.rebalanceParams = rebalanceParameters{
 		nodesParams:               nodesParams,
 		nodeRequestTimeout:        options.healthcheckTimeout,
@@ -804,8 +832,16 @@ func (p *Pool) Dial(ctx context.Context) error {
 }
 
 func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisticCallback stat.OperationCallback, buffers *sync.Pool) {
+	if params.sessionTokenVersion == 0 {
+		params.sessionTokenVersion = SessionTokenV1
+	}
+
 	if params.sessionExpirationDuration == 0 {
-		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
+		if params.sessionTokenVersion == SessionTokenV2 {
+			params.sessionExpirationDuration = defaultSessionTokenV2ExpirationDuration
+		} else {
+			params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
+		}
 	}
 
 	if params.errorThreshold == 0 {
@@ -1009,6 +1045,12 @@ func (p *innerPool) connection() (internalClient, error) {
 // It is used with pool methods compatible with [sdkClient.Client].
 func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.ObjectVerb, cnr cid.ID) string {
 	return fmt.Sprintf("%s%s%d%s", address, neofscrypto.PublicKeyBytes(signer.Public()), verb, cnr)
+}
+
+// cacheKeyForSessionV2 generates cache key for a signed session token v2.
+// It is used with pool methods compatible with [sdkClient.Client].
+func cacheKeyForSessionV2(address string, signer neofscrypto.Signer, cnr cid.ID) string {
+	return fmt.Sprintf("%s%s%s", address, neofscrypto.PublicKeyBytes(signer.Public()), cnr)
 }
 
 func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionContainer) {

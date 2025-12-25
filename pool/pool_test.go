@@ -2,6 +2,8 @@ package pool
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"errors"
 	"fmt"
 	"io"
@@ -10,14 +12,18 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -467,6 +473,112 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.True(t, st.Issuer() == anonSigner.UserID())
 }
 
+func TestSessionTokenV2(t *testing.T) {
+	usr := usertest.User()
+	var mockCli *mockClient
+
+	mockClientBuilder := func(addr string) (internalClient, error) {
+		mockCli = newMockClient(addr, usr)
+		return mockCli, nil
+	}
+
+	opts := InitParameters{
+		signer: usr.RFC6979,
+		nodeParams: []NodeParam{
+			{1, anyValidPeerAddress(0), 1},
+		},
+		clientRebalanceInterval: 30 * time.Second,
+		sessionTokenVersion:     SessionTokenV2,
+	}
+	opts.setClientBuilder(mockClientBuilder)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	require.Equal(t, SessionTokenV2, pool.sessionTokenVersion)
+
+	err = pool.Dial(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = pool.Close })
+
+	cp, err := pool.connection()
+	require.NoError(t, err)
+
+	containerID := cidtest.ID()
+	cacheKey := cacheKeyForSessionV2(cp.address(), pool.signer, containerID)
+
+	hdr := objecttest.Object()
+	hdr.SetContainerID(containerID)
+
+	t.Run("no session token after pool creation", func(t *testing.T) {
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.False(t, ok)
+	})
+
+	t.Run("created after request", func(t *testing.T) {
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.NoError(t, err)
+
+		stV2, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok, "v2 token should be in cache")
+		require.Equal(t, usr.UserID(), stV2.Issuer())
+
+		// Verify that v1 token is NOT in cache
+		_, okV1 := pool.cache.Get(cacheKey)
+		require.False(t, okV1, "v1 token should NOT be in cache when using v2")
+	})
+
+	t.Run("not removed on regular error", func(t *testing.T) {
+		mockCli.statusOnPutObject(errors.New("some error"))
+
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.Error(t, err)
+
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+	})
+
+	t.Run("removed on SessionTokenNotFound error", func(t *testing.T) {
+		mockCli.statusOnPutObject(apistatus.SessionTokenNotFound{})
+
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.Error(t, err)
+
+		// cache must not contain session token
+		cp, err = pool.connection()
+		require.NoError(t, err)
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.False(t, ok)
+	})
+
+	t.Run("created again", func(t *testing.T) {
+		mockCli.statusOnPutObject(nil)
+
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.NoError(t, err)
+
+		stV2, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+
+		require.Equal(t, usr.UserID(), stV2.Issuer())
+		require.NoError(t, stV2.Validate())
+		assertSessionToken(t, stV2, usr.UserID(), mockCli.netmap.Nodes())
+
+		t.Run("delete with the same token", func(t *testing.T) {
+			var prm client.PrmObjectDelete
+
+			_, err = pool.ObjectDelete(ctx, containerID, hdr.GetID(), usr, prm)
+			require.NoError(t, err)
+
+			stV2d, ok := pool.cache.GetV2(cacheKey)
+			require.True(t, ok)
+			require.Equal(t, stV2, stV2d)
+		})
+	})
+}
+
 func TestStatusMonitor(t *testing.T) {
 	monitor := newClientStatusMonitor("", 10)
 	monitor.errorThreshold = 3
@@ -665,5 +777,21 @@ func TestPool_Close(t *testing.T) {
 		pes := unwrapped[i].(multiError).Unwrap()
 		require.Len(t, pes, 1)
 		require.ErrorIs(t, errs[i], pes[0])
+	}
+}
+
+func assertSessionToken(t *testing.T, tok sessionv2.Token, owner user.ID, nodes []netmap.NodeInfo) {
+	require.Equal(t, tok.Issuer(), owner)
+
+	for _, node := range nodes {
+		neoPubKey, err := keys.NewPublicKeyFromBytes(node.PublicKey(), elliptic.P256())
+		require.NoError(t, err)
+
+		ecdsaPubKey := (*ecdsa.PublicKey)(neoPubKey)
+
+		userID := user.NewFromECDSAPublicKey(*ecdsaPubKey)
+		ok, err := tok.AssertAuthority(userID, nil)
+		require.NoError(t, err)
+		require.True(t, ok)
 	}
 }
