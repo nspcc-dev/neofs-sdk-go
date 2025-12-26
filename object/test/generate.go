@@ -12,7 +12,6 @@ import (
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // Range returns random object.Range.
@@ -40,17 +39,13 @@ func SplitID() object.SplitID {
 }
 
 func generate(withParent bool) object.Object {
-	x := object.New()
-	ver := version.Current()
+	x := object.New(cidtest.ID(), usertest.ID())
 
 	x.SetID(oidtest.ID())
 	tok := sessiontest.ObjectSigned(usertest.User())
 	x.SetSessionToken(&tok)
 	x.SetPayload([]byte{1, 2, 3})
-	x.SetOwner(usertest.ID())
-	x.SetContainerID(cidtest.ID())
 	x.SetType(object.TypeTombstone)
-	x.SetVersion(&ver)
 	x.SetPayloadSize(111)
 	x.SetCreationEpoch(222)
 	x.SetPreviousID(oidtest.ID())

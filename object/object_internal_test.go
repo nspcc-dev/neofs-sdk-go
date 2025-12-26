@@ -38,29 +38,19 @@ func sessionTokenV2(cnr cid.ID) *sessionv2.Token {
 }
 
 func parenObject(cnr cid.ID, owner user.ID) *Object {
-	var obj Object
-
-	obj.InitCreation(RequiredFields{
-		Container: cnr,
-		Owner:     owner,
-	})
-
-	return &obj
+	return New(cnr, owner)
 }
 
 func TestObject_CopyTo(t *testing.T) {
 	usr := usertest.User()
 
-	var obj Object
-	cnr := cidtest.ID()
-	own := usertest.ID()
+	var (
+		attr Attribute
+		cnr  = cidtest.ID()
+		own  = usertest.ID()
+		obj  = New(cnr, own)
+	)
 
-	obj.InitCreation(RequiredFields{
-		Container: cnr,
-		Owner:     own,
-	})
-
-	var attr Attribute
 	attr.SetKey("key")
 	attr.SetValue("value")
 
@@ -86,7 +76,7 @@ func TestObject_CopyTo(t *testing.T) {
 		var dst Object
 		obj.CopyTo(&dst)
 
-		checkObjectEquals(t, obj, dst)
+		checkObjectEquals(t, *obj, dst)
 	})
 
 	t.Run("change id", func(t *testing.T) {

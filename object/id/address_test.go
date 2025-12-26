@@ -250,3 +250,38 @@ func TestAddress_String(t *testing.T) {
 	require.Equal(t, a.String(), a.String())
 	require.NotEqual(t, a.String(), oidtest.OtherAddress(a).String())
 }
+
+func TestAddress_IsZero(t *testing.T) {
+	var a oid.Address
+
+	require.True(t, a.IsZero())
+	a = oidtest.Address()
+	require.False(t, a.IsZero())
+	a.SetObject(oid.ID{})
+	require.False(t, a.IsZero())
+	a.SetContainer(cid.ID{})
+	require.True(t, a.IsZero())
+}
+
+func TestAddress_Compare(t *testing.T) {
+	var a, b oid.Address
+
+	require.Equal(t, 0, a.Compare(b))
+	require.Equal(t, 0, b.Compare(a))
+
+	a.SetContainer(cid.ID{1})
+	require.Equal(t, 1, a.Compare(b))
+	require.Equal(t, -1, b.Compare(a))
+
+	b.SetObject(oid.ID{1})
+	require.Equal(t, 1, a.Compare(b))
+	require.Equal(t, -1, b.Compare(a))
+
+	b.SetContainer(cid.ID{1})
+	require.Equal(t, -1, a.Compare(b))
+	require.Equal(t, 1, b.Compare(a))
+
+	a.SetObject(oid.ID{1})
+	require.Equal(t, 0, a.Compare(b))
+	require.Equal(t, 0, b.Compare(a))
+}
