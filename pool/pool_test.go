@@ -468,8 +468,9 @@ func TestSessionTokenOwner(t *testing.T) {
 }
 
 func TestStatusMonitor(t *testing.T) {
-	monitor := newClientStatusMonitor("", 10)
-	monitor.errorThreshold = 3
+	thresholdWindowSize := 1 * time.Second
+
+	monitor := newClientStatusMonitor("", 10, thresholdWindowSize)
 
 	count := 10
 	for range count {
@@ -477,11 +478,17 @@ func TestStatusMonitor(t *testing.T) {
 	}
 
 	require.Equal(t, uint64(count), monitor.overallErrorRate())
+	require.Equal(t, uint32(count), monitor.currentErrorRate())
+
+	time.Sleep(thresholdWindowSize * 2)
+	monitor.incErrorRate()
+
+	require.Equal(t, uint64(count+1), monitor.overallErrorRate())
 	require.Equal(t, uint32(1), monitor.currentErrorRate())
 }
 
 func TestHandleError(t *testing.T) {
-	monitor := newClientStatusMonitor("", 10)
+	monitor := newClientStatusMonitor("", 10, 10*time.Second)
 
 	for i, tc := range []struct {
 		err           error
@@ -665,5 +672,13 @@ func TestPool_Close(t *testing.T) {
 		pes := unwrapped[i].(multiError).Unwrap()
 		require.Len(t, pes, 1)
 		require.ErrorIs(t, errs[i], pes[0])
+	}
+}
+
+func BenchmarkSlidingWindow(b *testing.B) {
+	sw := newSlidingWindow(15*time.Second, 100)
+
+	for b.Loop() {
+		sw.Allow()
 	}
 }

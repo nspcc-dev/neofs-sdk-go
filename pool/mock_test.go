@@ -175,12 +175,12 @@ func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
 	return &mockClient{
 		signer:              signer,
-		clientStatusMonitor: newClientStatusMonitor(addr, 10),
+		clientStatusMonitor: newClientStatusMonitor(addr, 10, 30*time.Second),
 	}
 }
 
 func (m *mockClient) setThreshold(threshold uint32) {
-	m.errorThreshold = threshold
+	m.sw.limit = int64(threshold)
 }
 
 func (m *mockClient) errOnCreateSession() {
