@@ -843,14 +843,14 @@ func checkSessionTokenV2Transport(t sessionv2.Token, m *protosession.SessionToke
 	if lt == nil {
 		return errors.New("missing lifetime field")
 	}
-	if v1, v2 := t.Iat(), lt.GetIat(); v1.Equal(time.Unix(int64(v2), 0)) {
-		return fmt.Errorf("iat lifetime field (client: %v, message: %d)", v1, v2)
+	if v1, v2 := t.Iat(), time.Unix(int64(lt.GetIat()), 0); !v1.Equal(v2) {
+		return fmt.Errorf("iat lifetime field (client: %v, message: %v)", v1, v2)
 	}
-	if v1, v2 := t.Nbf(), lt.GetNbf(); v1.Equal(time.Unix(int64(v2), 0)) {
-		return fmt.Errorf("nbf lifetime field (client: %v, message: %d)", v1, v2)
+	if v1, v2 := t.Nbf(), time.Unix(int64(lt.GetNbf()), 0); !v1.Equal(v2) {
+		return fmt.Errorf("nbf lifetime field (client: %v, message: %v)", v1, v2)
 	}
-	if v1, v2 := t.Exp(), lt.GetExp(); v1.Equal(time.Unix(int64(v2), 0)) {
-		return fmt.Errorf("exp lifetime field (client: %v, message: %d)", v1, v2)
+	if v1, v2 := t.Exp(), time.Unix(int64(lt.GetExp()), 0); !v1.Equal(v2) {
+		return fmt.Errorf("exp lifetime field (client: %v, message: %v)", v1, v2)
 	}
 	// 6. contexts
 	expContexts := t.Contexts()
