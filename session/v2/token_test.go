@@ -47,6 +47,32 @@ func TestRandomNonce(t *testing.T) {
 	})
 }
 
+func TestLifetime_MarshalUnmarshalNow(t *testing.T) {
+	base := time.Now()
+	lt := session.NewLifetime(base, base.Add(5*time.Minute), base.Add(10*time.Minute))
+
+	tok := session.Token{Lifetime: lt}
+
+	t.Run("binary", func(t *testing.T) {
+		data := tok.Marshal()
+
+		var decoded session.Token
+		require.NoError(t, decoded.Unmarshal(data))
+
+		require.Equal(t, tok, decoded)
+	})
+
+	t.Run("json", func(t *testing.T) {
+		data, err := tok.MarshalJSON()
+		require.NoError(t, err)
+
+		var decoded session.Token
+		require.NoError(t, decoded.UnmarshalJSON(data))
+
+		require.Equal(t, tok, decoded)
+	})
+}
+
 func TestTarget(t *testing.T) {
 	t.Run("zero target", func(t *testing.T) {
 		var target session.Target

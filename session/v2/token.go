@@ -103,11 +103,12 @@ type Lifetime struct {
 
 // NewLifetime creates a new Lifetime instance.
 // Parameters iat, nbf, exp should be time values.
+// Times are truncated to seconds to ensure consistent serialization/deserialization.
 func NewLifetime(iat, nbf, exp time.Time) Lifetime {
 	return Lifetime{
-		iat: iat,
-		nbf: nbf,
-		exp: exp,
+		iat: iat.Truncate(time.Second),
+		nbf: nbf.Truncate(time.Second),
+		exp: exp.Truncate(time.Second),
 	}
 }
 
@@ -128,17 +129,17 @@ func (l Lifetime) Exp() time.Time {
 
 // SetIat sets the `issued at` claim.
 func (l *Lifetime) SetIat(iat time.Time) {
-	l.iat = iat
+	l.iat = iat.Truncate(time.Second)
 }
 
 // SetNbf sets the `not valid before` claim.
 func (l *Lifetime) SetNbf(nbf time.Time) {
-	l.nbf = nbf
+	l.nbf = nbf.Truncate(time.Second)
 }
 
 // SetExp sets the `expiration` claim.
 func (l *Lifetime) SetExp(exp time.Time) {
-	l.exp = exp
+	l.exp = exp.Truncate(time.Second)
 }
 
 // ValidAt checks if the lifetime is valid at the given time.
