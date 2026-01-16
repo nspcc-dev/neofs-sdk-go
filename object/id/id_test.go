@@ -240,3 +240,13 @@ func TestID_IsZero(t *testing.T) {
 		require.False(t, id2.IsZero())
 	}
 }
+
+func TestID_Compare(t *testing.T) {
+	var id1, id2 oid.ID
+
+	require.Equal(t, 0, id1.Compare(id2))
+	id1[0] = 1
+	require.Equal(t, 1, id1.Compare(id2))
+	id2[0] = 2
+	require.Equal(t, -1, id1.Compare(id2))
+}
