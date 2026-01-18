@@ -2,6 +2,10 @@ package pool
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
@@ -18,6 +23,8 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
+	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
+	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
@@ -467,6 +474,189 @@ func TestSessionTokenOwner(t *testing.T) {
 	require.True(t, st.Issuer() == anonSigner.UserID())
 }
 
+func TestSessionTokenV2(t *testing.T) {
+	usr := usertest.User()
+	var mockCli *mockClient
+
+	mockClientBuilder := func(addr string) (internalClient, error) {
+		mockCli = newMockClient(addr, usr)
+		return mockCli, nil
+	}
+
+	opts := InitParameters{
+		signer: usr.RFC6979,
+		nodeParams: []NodeParam{
+			{1, anyValidPeerAddress(0), 1},
+		},
+		clientRebalanceInterval: 30 * time.Second,
+		useV2Sessions:           true,
+	}
+	opts.setClientBuilder(mockClientBuilder)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	require.True(t, pool.useV2Sessions)
+
+	err = pool.Dial(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = pool.Close })
+
+	cp, err := pool.connection()
+	require.NoError(t, err)
+
+	containerID := cidtest.ID()
+	cacheKey := cacheKeyForSessionV2(cp.address(), pool.signer, containerID, "")
+
+	hdr := objecttest.Object()
+	hdr.SetContainerID(containerID)
+
+	t.Run("no session token after pool creation", func(t *testing.T) {
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.False(t, ok)
+	})
+
+	t.Run("created after request", func(t *testing.T) {
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.NoError(t, err)
+
+		stV2, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok, "v2 token should be in cache")
+		require.Equal(t, usr.UserID(), stV2.Issuer())
+
+		// Verify that v1 token is NOT in cache
+		_, okV1 := pool.cache.Get(cacheKey)
+		require.False(t, okV1, "v1 token should NOT be in cache when using v2")
+	})
+
+	t.Run("not removed on regular error", func(t *testing.T) {
+		mockCli.statusOnPutObject(errors.New("some error"))
+
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.Error(t, err)
+
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+	})
+
+	t.Run("removed on SessionTokenNotFound error", func(t *testing.T) {
+		mockCli.statusOnPutObject(apistatus.SessionTokenNotFound{})
+
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.Error(t, err)
+
+		// cache must not contain session token
+		cp, err = pool.connection()
+		require.NoError(t, err)
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.False(t, ok)
+	})
+
+	t.Run("created again", func(t *testing.T) {
+		mockCli.statusOnPutObject(nil)
+
+		_, err = pool.ObjectPutInit(ctx, hdr, usr, client.PrmObjectPutInit{})
+		require.NoError(t, err)
+
+		stV2, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+
+		require.Equal(t, usr.UserID(), stV2.Issuer())
+		require.NoError(t, stV2.Validate())
+
+		neoPubKey, err := keys.NewPublicKeyFromBytes(mockCli.nodeKey, elliptic.P256())
+		require.NoError(t, err)
+
+		ecdsaPubKey := (*ecdsa.PublicKey)(neoPubKey)
+
+		userID := user.NewFromECDSAPublicKey(*ecdsaPubKey)
+		ok, err = stV2.AssertAuthority(userID, nil)
+		require.NoError(t, err)
+		require.True(t, ok)
+
+		t.Run("delete with the same token", func(t *testing.T) {
+			var prm client.PrmObjectDelete
+
+			_, err = pool.ObjectDelete(ctx, containerID, hdr.GetID(), usr, prm)
+			require.NoError(t, err)
+
+			stV2d, ok := pool.cache.GetV2(cacheKey)
+			require.True(t, ok)
+			require.Equal(t, stV2, stV2d)
+		})
+	})
+}
+
+func TestSessionTokenV2DisableDelegation(t *testing.T) {
+	originSigner := usertest.User()
+	poolSigner := usertest.User()
+	var mockCli *mockClient
+
+	mockClientBuilder := func(addr string) (internalClient, error) {
+		mockCli = newMockClient(addr, poolSigner)
+		return mockCli, nil
+	}
+
+	opts := InitParameters{
+		signer: poolSigner.RFC6979,
+		nodeParams: []NodeParam{
+			{1, anyValidPeerAddress(0), 1},
+		},
+		clientRebalanceInterval: 30 * time.Second,
+		useV2Sessions:           true,
+	}
+	opts.DisableSessionV2Delegation()
+	opts.setClientBuilder(mockClientBuilder)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	require.True(t, pool.disableDelegateSessionV2)
+
+	err = pool.Dial(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = pool.Close })
+
+	containerID := cidtest.ID()
+	testObject := objecttest.Object()
+	testObject.SetContainerID(containerID)
+
+	originToken := createOriginSessionV2Token(t, containerID, originSigner, poolSigner.UserID(), sessionv2.VerbObjectPut, sessionv2.VerbObjectDelete)
+	require.NoError(t, originToken.Validate())
+
+	var putPrm client.PrmObjectPutInit
+	putPrm.WithinSessionV2(originToken)
+
+	_, err = pool.ObjectPutInit(ctx, testObject, originSigner, putPrm)
+	require.NoError(t, err)
+
+	connection, err := pool.connection()
+	require.NoError(t, err)
+
+	tokenHash := hex.EncodeToString(sha256.New().Sum(originToken.SignedData()))
+	cacheKey := cacheKeyForSessionV2(connection.address(), originSigner, containerID, tokenHash)
+	cachedToken, isCached := pool.cache.GetV2(cacheKey)
+	require.False(t, isCached)
+	require.Zero(t, cachedToken)
+
+	require.NoError(t, originToken.Validate())
+	require.Equal(t, originSigner.UserID(), originToken.Issuer())
+
+	var delPrm client.PrmObjectDelete
+	delPrm.WithinSessionV2(originToken)
+
+	_, err = pool.ObjectDelete(ctx, containerID, testObject.GetID(), originSigner, delPrm)
+	require.NoError(t, err)
+
+	cachedToken, isCached = pool.cache.GetV2(cacheKey)
+	require.False(t, isCached)
+	require.Zero(t, cachedToken)
+}
+
 func TestStatusMonitor(t *testing.T) {
 	thresholdWindowSize := 1 * time.Second
 
@@ -681,4 +871,152 @@ func BenchmarkSlidingWindow(b *testing.B) {
 	for b.Loop() {
 		sw.Allow()
 	}
+}
+
+func createOriginSessionV2Token(t *testing.T, containerID cid.ID, signer user.Signer, gatewayID user.ID, verbs ...sessionv2.Verb) sessionv2.Token {
+	var tok sessionv2.Token
+	tok.SetVersion(sessionv2.TokenCurrentVersion)
+	tok.SetNonce(sessionv2.RandomNonce())
+	tok.SetIat(time.Now())
+	tok.SetNbf(time.Now())
+	tok.SetExp(time.Now().Add(1 * time.Hour))
+
+	err := tok.AddSubject(sessionv2.NewTargetUser(gatewayID))
+	require.NoError(t, err)
+
+	ctxV2, err := sessionv2.NewContext(containerID, verbs)
+	require.NoError(t, err)
+	err = tok.AddContext(ctxV2)
+	require.NoError(t, err)
+
+	err = tok.Sign(signer)
+	require.NoError(t, err)
+
+	return tok
+}
+
+func TestSessionTokenV2Delegation(t *testing.T) {
+	user1 := usertest.User()
+	poolSigner := usertest.User()
+	var mockCli *mockClient
+
+	mockClientBuilder := func(addr string) (internalClient, error) {
+		mockCli = newMockClient(addr, poolSigner)
+		return mockCli, nil
+	}
+
+	opts := InitParameters{
+		signer: poolSigner.RFC6979,
+		nodeParams: []NodeParam{
+			{1, anyValidPeerAddress(0), 1},
+		},
+		clientRebalanceInterval: 30 * time.Second,
+		useV2Sessions:           true,
+	}
+	opts.setClientBuilder(mockClientBuilder)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+
+	err = pool.Dial(ctx)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = pool.Close })
+
+	containerID := cidtest.ID()
+	hdr := objecttest.Object()
+	hdr.SetContainerID(containerID)
+
+	t.Run("delegation: user creates token, pool creates new with origin", func(t *testing.T) {
+		originToken := createOriginSessionV2Token(t, containerID, user1, poolSigner.UserID(), sessionv2.VerbObjectPut, sessionv2.VerbObjectDelete)
+		require.NoError(t, originToken.Validate())
+
+		var prm client.PrmObjectPutInit
+		prm.WithinSessionV2(originToken)
+
+		_, err = pool.ObjectPutInit(ctx, hdr, user1, prm)
+		require.NoError(t, err)
+
+		cp, err := pool.connection()
+		require.NoError(t, err)
+
+		tokenHash := hex.EncodeToString(sha256.New().Sum(originToken.SignedData()))
+		cacheKey := cacheKeyForSessionV2(cp.address(), user1, containerID, tokenHash)
+		tokV2, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok, "v2 token should be in cache")
+
+		require.Equal(t, poolSigner.UserID(), tokV2.Issuer())
+
+		require.NotNil(t, tokV2.Origin())
+		require.Equal(t, originToken.Issuer(), tokV2.Origin().Issuer())
+
+		var prmDel client.PrmObjectDelete
+		prmDel.WithinSessionV2(originToken)
+
+		_, err = pool.ObjectDelete(ctx, containerID, hdr.GetID(), user1, prmDel)
+		require.NoError(t, err)
+	})
+
+	t.Run("mixed: delegated and non-delegated requests", func(t *testing.T) {
+		// First: regular request without delegation
+		var prmRegular client.PrmObjectPutInit
+		_, err := pool.ObjectPutInit(ctx, hdr, user1, prmRegular)
+		require.NoError(t, err)
+
+		cp, err := pool.connection()
+		require.NoError(t, err)
+		cacheKey := cacheKeyForSessionV2(cp.address(), user1, containerID, "")
+
+		tokV2Regular, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+		require.Nil(t, tokV2Regular.Origin())
+
+		// Second: request with delegation
+		originToken := createOriginSessionV2Token(t, containerID, user1, poolSigner.UserID(), sessionv2.VerbObjectPut)
+
+		var prmDelegated client.PrmObjectPutInit
+		prmDelegated.WithinSessionV2(originToken)
+
+		_, err = pool.ObjectPutInit(ctx, hdr, user1, prmDelegated)
+		require.NoError(t, err)
+
+		cacheKey = hex.EncodeToString(sha256.New().Sum(originToken.SignedData()))
+		cacheKey = cacheKeyForSessionV2(cp.address(), user1, containerID, cacheKey)
+
+		tokV2Delegated, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+		require.NotNil(t, tokV2Delegated.Origin())
+		require.Equal(t, originToken.Issuer(), tokV2Delegated.Origin().Issuer())
+	})
+
+	t.Run("delegation: removed on SessionTokenNotFound error", func(t *testing.T) {
+		originToken := createOriginSessionV2Token(t, containerID, user1, poolSigner.UserID(), sessionv2.VerbObjectPut)
+
+		var prm client.PrmObjectPutInit
+		prm.WithinSessionV2(originToken)
+
+		_, err := pool.ObjectPutInit(ctx, hdr, user1, prm)
+		require.NoError(t, err)
+
+		cp, err := pool.connection()
+		require.NoError(t, err)
+		tokenHash := hex.EncodeToString(sha256.New().Sum(originToken.SignedData()))
+		cacheKey := cacheKeyForSessionV2(cp.address(), user1, containerID, tokenHash)
+
+		_, ok := pool.cache.GetV2(cacheKey)
+		require.True(t, ok)
+
+		mockCli.statusOnPutObject(apistatus.SessionTokenNotFound{})
+
+		var prm2 client.PrmObjectPutInit
+		prm2.WithinSessionV2(originToken)
+
+		_, err = pool.ObjectPutInit(ctx, hdr, user1, prm2)
+		require.Error(t, err)
+
+		_, ok = pool.cache.GetV2(cacheKey)
+		require.False(t, ok, "delegated token should be removed from cache on SessionTokenNotFound")
+	})
 }

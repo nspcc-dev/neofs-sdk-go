@@ -5,6 +5,7 @@ import (
 	"errors"
 	"time"
 
+	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -21,7 +22,8 @@ import (
 )
 
 type mockClient struct {
-	signer neofscrypto.Signer
+	signer  neofscrypto.Signer
+	nodeKey []byte
 	clientStatusMonitor
 
 	errorOnDial          bool
@@ -167,14 +169,20 @@ func (m *mockClient) EndpointInfo(_ context.Context, _ client.PrmEndpointInfo) (
 
 	var ni netmap.NodeInfo
 	ni.SetNetworkEndpoints(m.addr)
+	ni.SetPublicKey(m.nodeKey)
 	res := client.NewResEndpointInfo(version.Current(), ni)
 
 	return &res, nil
 }
 
 func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
+	pk, err := keys.NewPrivateKey()
+	if err != nil {
+		panic(err)
+	}
 	return &mockClient{
 		signer:              signer,
+		nodeKey:             pk.PublicKey().Bytes(),
 		clientStatusMonitor: newClientStatusMonitor(addr, 10, 30*time.Second),
 	}
 }

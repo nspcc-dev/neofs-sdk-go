@@ -449,17 +449,19 @@ type clientBuilder = func(endpoint string) (internalClient, error)
 
 // InitParameters contains values used to initialize connection Pool.
 type InitParameters struct {
-	signer                    user.Signer
-	logger                    *zap.Logger
-	nodeDialTimeout           time.Duration
-	nodeStreamTimeout         time.Duration
-	healthcheckTimeout        time.Duration
-	clientRebalanceInterval   time.Duration
-	sessionExpirationDuration uint64
-	errorThreshold            uint32
-	errorThresholdWindowSize  time.Duration
-	nodeParams                []NodeParam
-	nodeSessionCacheSize      int
+	signer                     user.Signer
+	logger                     *zap.Logger
+	nodeDialTimeout            time.Duration
+	nodeStreamTimeout          time.Duration
+	healthcheckTimeout         time.Duration
+	clientRebalanceInterval    time.Duration
+	sessionExpirationDuration  uint64
+	errorThreshold             uint32
+	errorThresholdWindowSize   time.Duration
+	nodeParams                 []NodeParam
+	nodeSessionCacheSize       int
+	useV2Sessions              bool
+	disableSessionV2Delegation bool
 
 	clientBuilder clientBuilder
 
@@ -544,6 +546,16 @@ func (x *InitParameters) SetNodeSessionCacheSize(cacheSize int) {
 	x.nodeSessionCacheSize = cacheSize
 }
 
+// UseV2Sessions enables new session tokens v2 for Pool internal operations.
+func (x *InitParameters) UseV2Sessions() {
+	x.useV2Sessions = true
+}
+
+// DisableSessionV2Delegation disables delegation of session token v2, so passed token v2 will be used as-is.
+func (x *InitParameters) DisableSessionV2Delegation() {
+	x.disableSessionV2Delegation = true
+}
+
 type rebalanceParameters struct {
 	nodesParams               []*nodesParam
 	nodeRequestTimeout        time.Duration
@@ -605,21 +617,29 @@ func (x *NodeParam) SetWeight(weight float64) {
 // Calling Dial/Close methods during the communication process step strongly discouraged
 // as it leads to undefined behavior.
 //
+// Pool automatically manages session tokens for operations. By default, it uses
+// legacy session tokens. New session tokens v2 can be enabled using
+// InitParameters.UseV2Sessions method. By default, session tokens v2 that passed
+// via parameters to specific requests are delegated to nodes.
+// To disable delegation, use InitParameters.DisableSessionV2Delegation method.
+//
 // Each method which produces a NeoFS API call may return an error.
 // Status of underlying server response is casted to built-in error instance.
 // Certain statuses can be checked using `sdkClient` and standard `errors` packages.
 //
 // See pool package overview to get some examples.
 type Pool struct {
-	innerPools      []*innerPool
-	signer          user.Signer
-	cancel          context.CancelFunc
-	closedCh        chan struct{}
-	cache           *sessionCache
-	stokenDuration  uint64
-	rebalanceParams rebalanceParameters
-	clientBuilder   clientBuilder
-	logger          *zap.Logger
+	innerPools               []*innerPool
+	signer                   user.Signer
+	cancel                   context.CancelFunc
+	closedCh                 chan struct{}
+	cache                    *sessionCache
+	stokenDuration           uint64
+	useV2Sessions            bool
+	disableDelegateSessionV2 bool
+	rebalanceParams          rebalanceParameters
+	clientBuilder            clientBuilder
+	logger                   *zap.Logger
 
 	statisticCallback stat.OperationCallback
 
@@ -633,9 +653,10 @@ type innerPool struct {
 }
 
 const (
-	defaultSessionTokenExpirationDuration = 100 // in blocks
-	defaultErrorThreshold                 = 100
-	defaultErrorThresholdWindowSize       = 15 * time.Second
+	defaultSessionTokenExpirationDuration   = 100  // in blocks
+	defaultSessionTokenV2ExpirationDuration = 3600 // in seconds
+	defaultErrorThreshold                   = 100
+	defaultErrorThresholdWindowSize         = 15 * time.Second
 
 	defaultRebalanceInterval  = 25 * time.Second
 	defaultHealthcheckTimeout = 4 * time.Second
@@ -653,6 +674,7 @@ func DefaultOptions() InitParameters {
 		healthcheckTimeout:        defaultHealthcheckTimeout,
 		nodeDialTimeout:           defaultDialTimeout,
 		nodeStreamTimeout:         defaultStreamTimeout,
+		useV2Sessions:             false,
 	}
 
 	return params
@@ -746,6 +768,8 @@ func NewPool(options InitParameters) (*Pool, error) {
 	pool.signer = options.signer
 	pool.logger = options.logger
 	pool.stokenDuration = options.sessionExpirationDuration
+	pool.useV2Sessions = options.useV2Sessions
+	pool.disableDelegateSessionV2 = options.disableSessionV2Delegation
 	pool.rebalanceParams = rebalanceParameters{
 		nodesParams:               nodesParams,
 		nodeRequestTimeout:        options.healthcheckTimeout,
@@ -815,7 +839,11 @@ func (p *Pool) Dial(ctx context.Context) error {
 
 func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisticCallback stat.OperationCallback, buffers *sync.Pool) {
 	if params.sessionExpirationDuration == 0 {
-		params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
+		if params.useV2Sessions {
+			params.sessionExpirationDuration = defaultSessionTokenV2ExpirationDuration
+		} else {
+			params.sessionExpirationDuration = defaultSessionTokenExpirationDuration
+		}
 	}
 
 	if params.errorThreshold == 0 {
@@ -1025,6 +1053,14 @@ func (p *innerPool) connection() (internalClient, error) {
 // It is used with pool methods compatible with [sdkClient.Client].
 func cacheKeyForSession(address string, signer neofscrypto.Signer, verb session.ObjectVerb, cnr cid.ID) string {
 	return fmt.Sprintf("%s%s%d%s", address, neofscrypto.PublicKeyBytes(signer.Public()), verb, cnr)
+}
+
+// cacheKeyForSessionV2 generates cache key for a signed session token v2.
+// It is used with pool methods compatible with [sdkClient.Client].
+// hash parameter should be empty string for newly created tokens,
+// or contain token hash when delegating existing tokens.
+func cacheKeyForSessionV2(address string, signer neofscrypto.Signer, cnr cid.ID, hash string) string {
+	return fmt.Sprintf("%s%s%s%s", address, neofscrypto.PublicKeyBytes(signer.Public()), cnr, hash)
 }
 
 func (p *Pool) checkSessionTokenErr(err error, address string, cl nodeSessionContainer) {

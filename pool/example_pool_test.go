@@ -35,6 +35,8 @@ func ExampleNew_adjustingParameters() {
 
 	opts := pool.DefaultOptions()
 	opts.SetErrorThreshold(10)
+	// Use new session token v2 format with time-based expiration.
+	opts.UseV2Sessions()
 
 	p, _ := pool.New(
 		pool.NewFlatNodeParams([]string{"grpc://localhost:8080", "grpcs://localhost:8081"}),
