@@ -847,10 +847,16 @@ func (x *SetContainerAttributeOptions) AttachSessionTokenV1(tok session.Containe
 // [SetContainerAttributeParameters.Attribute] must be one of:
 //   - CORS
 //   - __NEOFS__LOCK_UNTIL
+//   - S3_TAGS
+//   - S3_SETTINGS
+//   - S3_NOTIFICATIONS
 //
 // In general, requirements for [SetContainerAttributeParameters.Value] are the
 // same as for container creation. Attribute-specific requirements:
 //   - __NEOFS__LOCK_UNTIL: new timestamp must be after the current one if any
+//   - S3_TAGS: must be a valid JSON object
+//   - S3_SETTINGS: must be a valid JSON object
+//   - S3_NOTIFICATIONS: must be a valid JSON object
 //
 // The prmSig must be a signature of prm in either [neofscrypto.N3] or
 // [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme (using
@@ -1004,6 +1010,9 @@ func (x *RemoveContainerAttributeOptions) AttachSessionTokenV1(tok session.Conta
 // [RemoveContainerAttributeParameters.Attribute] must be one of:
 //   - CORS
 //   - __NEOFS__LOCK_UNTIL
+//   - S3_TAGS
+//   - S3_SETTINGS
+//   - S3_NOTIFICATIONS
 //
 // Attribute-specific requirements:
 //   - __NEOFS__LOCK_UNTIL: current timestamp must have already passed if any
