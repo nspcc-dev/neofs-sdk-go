@@ -63,20 +63,6 @@ func TestTarget_MarshalStable(t *testing.T) {
 }
 
 func TestSessionContextV2_MarshalStable(t *testing.T) {
-	t.Run("nil in repeated objects", func(t *testing.T) {
-		src := &session.SessionContextV2{
-			Objects: []*refs.ObjectID{nil, {}},
-		}
-
-		var dst session.SessionContextV2
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
-
-		objects := dst.GetObjects()
-		require.Len(t, objects, 2)
-		require.Equal(t, objects[0], new(refs.ObjectID))
-		require.Equal(t, objects[1], new(refs.ObjectID))
-	})
-
 	t.Run("empty verbs", func(t *testing.T) {
 		src := &session.SessionContextV2{
 			Verbs:     []session.Verb{},
@@ -100,7 +86,6 @@ func TestSessionContextV2_MarshalStable(t *testing.T) {
 		prototest.RandSessionContextV2(),
 		{
 			Container: prototest.RandContainerID(),
-			Objects:   prototest.RandObjectIDs(),
 			Verbs: []session.Verb{
 				session.Verb_VERB_UNSPECIFIED,
 				session.Verb_OBJECT_PUT,
@@ -197,15 +182,13 @@ func TestSessionContextV2_MarshaledSize(t *testing.T) {
 		{},
 		prototest.RandSessionContextV2(),
 		{
-			Verbs:   []session.Verb{session.Verb_OBJECT_PUT, session.Verb_OBJECT_GET},
-			Objects: prototest.RandObjectIDs(),
+			Verbs: []session.Verb{session.Verb_OBJECT_PUT, session.Verb_OBJECT_GET},
 			Container: &refs.ContainerID{
 				Value: []byte{1, 2, 3, 4, 5},
 			},
 		},
 		{
 			Verbs:     []session.Verb{},
-			Objects:   []*refs.ObjectID{},
 			Container: &refs.ContainerID{},
 		},
 	}

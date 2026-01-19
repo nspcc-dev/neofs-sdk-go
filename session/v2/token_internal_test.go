@@ -7,7 +7,6 @@ import (
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
 )
@@ -33,7 +32,6 @@ func TestV2_CopyTo(t *testing.T) {
 			{
 				container: cidtest.ID(),
 				verbs:     []Verb{VerbObjectGet, VerbObjectPut},
-				objects:   oidtest.IDs(3),
 			},
 		},
 		final: false,

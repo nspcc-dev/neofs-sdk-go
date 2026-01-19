@@ -1032,18 +1032,12 @@ type SessionContextV2 struct {
 	// For container operations, this is the container being operated on.
 	// For object operations, this is the container holding the objects.
 	// Empty container ID means wildcard (applies to all containers).
-	// Objects list is ignored for wildcard contexts.
 	Container *refs.ContainerID `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
-	// Specific objects where operation is allowed.
-	// Only relevant for object operations.
-	// Empty list means all objects in the container.
-	// Maximum number of objects: 1000.
-	Objects []*refs.ObjectID `protobuf:"bytes,2,rep,name=objects,proto3" json:"objects,omitempty"`
 	// Operations authorized for this context.
 	// Must contain at least one verb (empty list is invalid).
 	// Verbs must be sorted in ascending order.
 	// Maximum number of verbs: 12.
-	Verbs         []Verb `protobuf:"varint,3,rep,packed,name=verbs,proto3,enum=neo.fs.v2.session.Verb" json:"verbs,omitempty"`
+	Verbs         []Verb `protobuf:"varint,2,rep,packed,name=verbs,proto3,enum=neo.fs.v2.session.Verb" json:"verbs,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1081,13 +1075,6 @@ func (*SessionContextV2) Descriptor() ([]byte, []int) {
 func (x *SessionContextV2) GetContainer() *refs.ContainerID {
 	if x != nil {
 		return x.Container
-	}
-	return nil
-}
-
-func (x *SessionContextV2) GetObjects() []*refs.ObjectID {
-	if x != nil {
-		return x.Objects
 	}
 	return nil
 }
@@ -1447,7 +1434,6 @@ type SessionTokenV2_Body struct {
 	// 1. New contexts (containers) can only be added if origin token has a wildcard context.
 	// 2. All rights must be narrowed during delegation:
 	//   - Verbs must be a subset of origin's verbs for the same container
-	//   - Objects (if specified) must be a subset of origin's objects
 	//   - Cannot add new verbs not present in origin for the same container
 	Contexts []*SessionContextV2 `protobuf:"bytes,6,rep,name=contexts,proto3" json:"contexts,omitempty"`
 	// final is a flag indicating whether further delegation is allowed.
@@ -1624,11 +1610,10 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\rTokenLifetime\x12\x10\n" +
 	"\x03exp\x18\x01 \x01(\x04R\x03exp\x12\x10\n" +
 	"\x03nbf\x18\x02 \x01(\x04R\x03nbf\x12\x10\n" +
-	"\x03iat\x18\x03 \x01(\x04R\x03iat\"\xb0\x01\n" +
+	"\x03iat\x18\x03 \x01(\x04R\x03iat\"|\n" +
 	"\x10SessionContextV2\x129\n" +
-	"\tcontainer\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\tcontainer\x122\n" +
-	"\aobjects\x18\x02 \x03(\v2\x18.neo.fs.v2.refs.ObjectIDR\aobjects\x12-\n" +
-	"\x05verbs\x18\x03 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\xf6\x03\n" +
+	"\tcontainer\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\tcontainer\x12-\n" +
+	"\x05verbs\x18\x02 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\xf6\x03\n" +
 	"\x0eSessionTokenV2\x12:\n" +
 	"\x04body\x18\x01 \x01(\v2&.neo.fs.v2.session.SessionTokenV2.BodyR\x04body\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x129\n" +
@@ -1728,26 +1713,25 @@ var file_proto_session_types_proto_depIdxs = []int32{
 	10, // 23: neo.fs.v2.session.ResponseVerificationHeader.origin:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	24, // 24: neo.fs.v2.session.Target.owner_id:type_name -> neo.fs.v2.refs.OwnerID
 	19, // 25: neo.fs.v2.session.SessionContextV2.container:type_name -> neo.fs.v2.refs.ContainerID
-	25, // 26: neo.fs.v2.session.SessionContextV2.objects:type_name -> neo.fs.v2.refs.ObjectID
-	0,  // 27: neo.fs.v2.session.SessionContextV2.verbs:type_name -> neo.fs.v2.session.Verb
-	18, // 28: neo.fs.v2.session.SessionTokenV2.body:type_name -> neo.fs.v2.session.SessionTokenV2.Body
-	20, // 29: neo.fs.v2.session.SessionTokenV2.signature:type_name -> neo.fs.v2.refs.Signature
-	14, // 30: neo.fs.v2.session.SessionTokenV2.origin:type_name -> neo.fs.v2.session.SessionTokenV2
-	19, // 31: neo.fs.v2.session.ObjectSessionContext.Target.container:type_name -> neo.fs.v2.refs.ContainerID
-	25, // 32: neo.fs.v2.session.ObjectSessionContext.Target.objects:type_name -> neo.fs.v2.refs.ObjectID
-	24, // 33: neo.fs.v2.session.SessionToken.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	17, // 34: neo.fs.v2.session.SessionToken.Body.lifetime:type_name -> neo.fs.v2.session.SessionToken.Body.TokenLifetime
-	3,  // 35: neo.fs.v2.session.SessionToken.Body.object:type_name -> neo.fs.v2.session.ObjectSessionContext
-	4,  // 36: neo.fs.v2.session.SessionToken.Body.container:type_name -> neo.fs.v2.session.ContainerSessionContext
-	24, // 37: neo.fs.v2.session.SessionTokenV2.Body.issuer:type_name -> neo.fs.v2.refs.OwnerID
-	11, // 38: neo.fs.v2.session.SessionTokenV2.Body.subjects:type_name -> neo.fs.v2.session.Target
-	12, // 39: neo.fs.v2.session.SessionTokenV2.Body.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
-	13, // 40: neo.fs.v2.session.SessionTokenV2.Body.contexts:type_name -> neo.fs.v2.session.SessionContextV2
-	41, // [41:41] is the sub-list for method output_type
-	41, // [41:41] is the sub-list for method input_type
-	41, // [41:41] is the sub-list for extension type_name
-	41, // [41:41] is the sub-list for extension extendee
-	0,  // [0:41] is the sub-list for field type_name
+	0,  // 26: neo.fs.v2.session.SessionContextV2.verbs:type_name -> neo.fs.v2.session.Verb
+	18, // 27: neo.fs.v2.session.SessionTokenV2.body:type_name -> neo.fs.v2.session.SessionTokenV2.Body
+	20, // 28: neo.fs.v2.session.SessionTokenV2.signature:type_name -> neo.fs.v2.refs.Signature
+	14, // 29: neo.fs.v2.session.SessionTokenV2.origin:type_name -> neo.fs.v2.session.SessionTokenV2
+	19, // 30: neo.fs.v2.session.ObjectSessionContext.Target.container:type_name -> neo.fs.v2.refs.ContainerID
+	25, // 31: neo.fs.v2.session.ObjectSessionContext.Target.objects:type_name -> neo.fs.v2.refs.ObjectID
+	24, // 32: neo.fs.v2.session.SessionToken.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	17, // 33: neo.fs.v2.session.SessionToken.Body.lifetime:type_name -> neo.fs.v2.session.SessionToken.Body.TokenLifetime
+	3,  // 34: neo.fs.v2.session.SessionToken.Body.object:type_name -> neo.fs.v2.session.ObjectSessionContext
+	4,  // 35: neo.fs.v2.session.SessionToken.Body.container:type_name -> neo.fs.v2.session.ContainerSessionContext
+	24, // 36: neo.fs.v2.session.SessionTokenV2.Body.issuer:type_name -> neo.fs.v2.refs.OwnerID
+	11, // 37: neo.fs.v2.session.SessionTokenV2.Body.subjects:type_name -> neo.fs.v2.session.Target
+	12, // 38: neo.fs.v2.session.SessionTokenV2.Body.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
+	13, // 39: neo.fs.v2.session.SessionTokenV2.Body.contexts:type_name -> neo.fs.v2.session.SessionContextV2
+	40, // [40:40] is the sub-list for method output_type
+	40, // [40:40] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_proto_session_types_proto_init() }

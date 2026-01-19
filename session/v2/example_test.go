@@ -5,8 +5,6 @@ import (
 	"time"
 
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	"github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
@@ -155,40 +153,4 @@ func ExampleToken_delegation() {
 	// Subject1 authorized: false
 	// Subject2 authorized: true
 	// Subject3 authorized: false
-}
-
-// ExampleToken_objectRestrictions demonstrates restricting access to specific objects.
-func ExampleToken_objectRestrictions() {
-	var token session.Token
-
-	token.SetNonce(session.RandomNonce())
-	token.SetVersion(session.TokenCurrentVersion)
-	_ = token.AddSubject(session.NewTargetUser(usertest.ID()))
-	now := time.Now()
-	token.SetIat(now)
-	token.SetNbf(now)
-	token.SetExp(now.Add(24 * time.Hour))
-
-	containerID := cidtest.ID()
-	ctx, _ := session.NewContext(containerID, []session.Verb{session.VerbObjectGet})
-
-	// Restrict to specific objects
-	obj1 := oidtest.ID()
-	obj2 := oidtest.ID()
-	_ = ctx.SetObjects([]oid.ID{obj1, obj2})
-
-	_ = token.AddContext(ctx)
-
-	signer := usertest.User()
-	_ = token.Sign(signer)
-
-	// Check object access
-	fmt.Println("Object 1 allowed:", token.AssertObject(session.VerbObjectGet, containerID, obj1))
-	fmt.Println("Object 2 allowed:", token.AssertObject(session.VerbObjectGet, containerID, obj2))
-	fmt.Println("Other object allowed:", token.AssertObject(session.VerbObjectGet, containerID, oidtest.ID()))
-
-	// Output:
-	// Object 1 allowed: true
-	// Object 2 allowed: true
-	// Other object allowed: false
 }

@@ -81,7 +81,6 @@ func (x *Target) MarshalStable(b []byte) {
 const (
 	_ = iota
 	fieldSessionContextV2Container
-	fieldSessionContextV2Objects
 	fieldSessionContextV2Verbs
 )
 
@@ -90,7 +89,6 @@ const (
 func (x *SessionContextV2) MarshaledSize() int {
 	if x != nil {
 		return proto.SizeEmbedded(fieldSessionContextV2Container, x.Container) +
-			proto.SizeRepeatedMessages(fieldSessionContextV2Objects, x.Objects) +
 			proto.SizeRepeatedVarint(fieldSessionContextV2Verbs, x.Verbs)
 	}
 	return 0
@@ -103,7 +101,6 @@ func (x *SessionContextV2) MarshaledSize() int {
 func (x *SessionContextV2) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, fieldSessionContextV2Container, x.Container)
-		off += proto.MarshalToRepeatedMessages(b[off:], fieldSessionContextV2Objects, x.Objects)
 		proto.MarshalToRepeatedVarint(b[off:], fieldSessionContextV2Verbs, x.Verbs)
 	}
 }

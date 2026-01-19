@@ -11,9 +11,6 @@ import (
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
-	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -344,21 +341,6 @@ func TestToken_ValidateFields(t *testing.T) {
 
 			err := invalidTok.Validate()
 			require.ErrorContains(t, err, "too many verbs")
-		})
-
-		t.Run("too many objects in context", func(t *testing.T) {
-			tok := newValidSignedToken(t)
-
-			m := tok.ProtoMessage()
-			m.Body.Contexts[0].Objects = make([]*refs.ObjectID, session.MaxObjectsPerContext+1)
-			for i := range m.Body.Contexts[0].Objects {
-				m.Body.Contexts[0].Objects[i] = oidtest.ID().ProtoMessage()
-			}
-			var invalidTok session.Token
-			require.NoError(t, invalidTok.FromProtoMessage(m))
-
-			err := invalidTok.Validate()
-			require.ErrorContains(t, err, "too many objects")
 		})
 	})
 }
@@ -849,7 +831,6 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 				return bytes.Compare(containers[i][:], containers[j][:]) < 0
 			})
 			wildcard := cid.ID{}
-			t.Logf("containers: %s, %s, %s, %s", containers[0], containers[1], containers[2], containers[3])
 			ctx0, err := session.NewContext(wildcard, []session.Verb{session.VerbObjectPut, session.VerbObjectGet})
 			require.NoError(t, err)
 			ctx1, err := session.NewContext(containers[0], []session.Verb{session.VerbObjectPut})
@@ -1157,17 +1138,6 @@ func TestContext(t *testing.T) {
 
 		require.Equal(t, containerID, ctx.Container())
 		require.Equal(t, verbs, ctx.Verbs())
-		require.Empty(t, ctx.Objects())
-	})
-
-	t.Run("SetObjects", func(t *testing.T) {
-		ctx, err := session.NewContext(containerID, verbs)
-		require.NoError(t, err)
-		objects := []oid.ID{oidtest.ID(), oidtest.ID()}
-
-		require.NoError(t, ctx.SetObjects(objects))
-
-		require.Equal(t, objects, ctx.Objects())
 	})
 
 	t.Run("error cases", func(t *testing.T) {
@@ -1191,20 +1161,6 @@ func TestContext(t *testing.T) {
 			require.True(t, ctxZeroContainer.Container().IsZero())
 			require.Equal(t, verbs, ctxZeroContainer.Verbs())
 		})
-
-		t.Run("SetObjects with nil slice", func(t *testing.T) {
-			ctx, err := session.NewContext(containerID, verbs)
-			require.NoError(t, err)
-			require.NoError(t, ctx.SetObjects(nil))
-			require.Empty(t, ctx.Objects())
-		})
-
-		t.Run("SetObjects with empty slice", func(t *testing.T) {
-			ctx, err := session.NewContext(containerID, verbs)
-			require.NoError(t, err)
-			require.NoError(t, ctx.SetObjects([]oid.ID{}))
-			require.Empty(t, ctx.Objects())
-		})
 	})
 
 	t.Run("verbs limit", func(t *testing.T) {
@@ -1225,33 +1181,6 @@ func TestContext(t *testing.T) {
 			}
 			_, err := session.NewContext(containerID, verbsOverLimit)
 			require.EqualError(t, err, fmt.Sprintf("too many verbs: expected max %d, got %d", session.MaxVerbsPerContext, session.MaxVerbsPerContext+1))
-		})
-	})
-
-	t.Run("objects limit", func(t *testing.T) {
-		ctx, err := session.NewContext(containerID, verbs)
-		require.NoError(t, err)
-
-		t.Run("exactly at limit", func(t *testing.T) {
-			objects := make([]oid.ID, session.MaxObjectsPerContext)
-			for i := range objects {
-				objects[i] = oidtest.ID()
-			}
-			err = ctx.SetObjects(objects)
-			require.NoError(t, err)
-			require.Len(t, ctx.Objects(), session.MaxObjectsPerContext)
-		})
-
-		t.Run("exceeds limit", func(t *testing.T) {
-			ctx2, err := session.NewContext(containerID, verbs)
-			require.NoError(t, err)
-
-			objects := make([]oid.ID, session.MaxObjectsPerContext+1)
-			for i := range objects {
-				objects[i] = oidtest.ID()
-			}
-			err = ctx2.SetObjects(objects)
-			require.EqualError(t, err, fmt.Sprintf("too many objects: expected max %d, got %d", session.MaxObjectsPerContext, session.MaxObjectsPerContext+1))
 		})
 	})
 }
@@ -1698,76 +1627,6 @@ func TestToken_AssertVerb(t *testing.T) {
 		func(tok session.Token, verb session.Verb, cid cid.ID) bool { return tok.AssertVerb(verb, cid) })
 }
 
-func TestToken_AssertObject(t *testing.T) {
-	containerID := cidtest.ID()
-	objectID1 := oidtest.ID()
-	objectID2 := oidtest.ID()
-	objectID3 := oidtest.ID()
-
-	var tok session.Token
-
-	t.Run("no specific objects", func(t *testing.T) {
-		ctx, err := session.NewContext(containerID, []session.Verb{session.VerbObjectGet})
-		require.NoError(t, err)
-		require.NoError(t, tok.AddContext(ctx))
-
-		require.True(t, tok.AssertObject(session.VerbObjectGet, containerID, objectID1))
-		require.True(t, tok.AssertObject(session.VerbObjectGet, containerID, objectID2))
-		require.False(t, tok.AssertObject(session.VerbObjectPut, containerID, objectID1))
-	})
-
-	t.Run("with specific objects", func(t *testing.T) {
-		tok = session.Token{}
-		ctx, err := session.NewContext(containerID, []session.Verb{session.VerbObjectGet})
-		require.NoError(t, err)
-		require.NoError(t, ctx.SetObjects([]oid.ID{objectID1, objectID2}))
-		require.NoError(t, tok.AddContext(ctx))
-
-		require.True(t, tok.AssertObject(session.VerbObjectGet, containerID, objectID1))
-		require.True(t, tok.AssertObject(session.VerbObjectGet, containerID, objectID2))
-		require.False(t, tok.AssertObject(session.VerbObjectGet, containerID, objectID3))
-	})
-
-	t.Run("container mismatch", func(t *testing.T) {
-		otherContainerID := cidtest.ID()
-		require.False(t, tok.AssertObject(session.VerbObjectGet, otherContainerID, objectID1))
-	})
-
-	t.Run("empty contexts", func(t *testing.T) {
-		var emptyTok session.Token
-		require.False(t, emptyTok.AssertObject(session.VerbObjectGet, containerID, objectID1))
-	})
-
-	t.Run("zero object ID", func(t *testing.T) {
-		var zeroObjID oid.ID
-		ctx, err := session.NewContext(containerID, []session.Verb{session.VerbObjectGet})
-		require.NoError(t, err)
-		require.NoError(t, ctx.SetObjects([]oid.ID{objectID1}))
-		var testTok session.Token
-		require.NoError(t, testTok.AddContext(ctx))
-		require.False(t, testTok.AssertObject(session.VerbObjectGet, containerID, zeroObjID))
-	})
-
-	t.Run("zero container ID wildcard", func(t *testing.T) {
-		zeroCtx, err := session.NewContext(cid.ID{}, []session.Verb{session.VerbObjectGet})
-		require.NoError(t, err)
-		var wildcardTok session.Token
-		require.NoError(t, wildcardTok.AddContext(zeroCtx))
-		require.True(t, wildcardTok.AssertObject(session.VerbObjectGet, containerID, objectID1))
-		require.True(t, wildcardTok.AssertObject(session.VerbObjectGet, cidtest.ID(), objectID2))
-	})
-
-	t.Run("container verbs rejected", func(t *testing.T) {
-		ctx, err := session.NewContext(containerID, []session.Verb{session.VerbContainerPut})
-		require.NoError(t, err)
-		var containerVerbTok session.Token
-		require.NoError(t, containerVerbTok.AddContext(ctx))
-		require.False(t, containerVerbTok.AssertObject(session.VerbContainerPut, containerID, objectID1))
-		require.False(t, containerVerbTok.AssertObject(session.VerbContainerDelete, containerID, objectID1))
-		require.False(t, containerVerbTok.AssertObject(session.VerbContainerSetEACL, containerID, objectID1))
-	})
-}
-
 func TestToken_AssertContainer(t *testing.T) {
 	containerID := cidtest.ID()
 	otherContainerID := cidtest.ID()
@@ -1876,6 +1735,7 @@ func TestToken_MarshalJSON(t *testing.T) {
 	require.NoError(t, err)
 	require.JSONEq(t, validJSONToken, string(b))
 }
+
 func TestToken_UnmarshalJSON(t *testing.T) {
 	t.Run("valid", func(t *testing.T) {
 		var val session.Token
