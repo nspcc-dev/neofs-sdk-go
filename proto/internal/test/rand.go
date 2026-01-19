@@ -324,7 +324,6 @@ func RandVerbs() []session.Verb {
 func RandSessionContextV2() *session.SessionContextV2 {
 	return &session.SessionContextV2{
 		Container: RandContainerID(),
-		Objects:   RandObjectIDs(),
 		Verbs:     RandVerbs(),
 	}
 }

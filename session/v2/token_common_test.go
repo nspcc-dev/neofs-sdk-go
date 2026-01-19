@@ -6,7 +6,6 @@ import (
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session/v2"
@@ -38,17 +37,9 @@ var (
 		245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218}
 	anyValidSignatureBytes = []byte("any_signature") // valid structurally, not logically
 	anyValidSignature      = neofscrypto.NewSignatureFromRawKey(anyValidSignatureScheme, anyValidIssuerPublicKeyBytes, anyValidSignatureBytes)
-	anyValidObjectIDs      = []oid.ID{
-		{243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227},
-		{47, 240, 93, 216, 9, 64, 88, 183, 198, 36, 30, 83, 20, 233, 119, 252, 96, 171, 6, 122, 115, 168, 186, 147, 249, 88, 184, 69, 145, 196, 127, 68},
-		{59, 5, 120, 191, 250, 61, 248, 114, 137, 21, 229, 88, 57, 49, 95, 157, 218, 79, 80, 177, 217, 56, 29, 29, 175, 37, 42, 165, 58, 126, 161, 221}}
 )
 
 var validProto = func() *protosession.SessionTokenV2 {
-	mobjs := make([]*refs.ObjectID, len(anyValidObjectIDs))
-	for i := range anyValidObjectIDs {
-		mobjs[i] = &refs.ObjectID{Value: anyValidObjectIDs[i][:]}
-	}
 	return &protosession.SessionTokenV2{
 		Body: &protosession.SessionTokenV2_Body{
 			Version: anyValidVersion,
@@ -66,7 +57,6 @@ var validProto = func() *protosession.SessionTokenV2 {
 				{
 					Container: &refs.ContainerID{Value: anyValidContainerID[:]},
 					Verbs:     []protosession.Verb{anyValidObjectVerb},
-					Objects:   mobjs,
 				},
 			},
 			Final: true,
@@ -153,9 +143,6 @@ var invalidProtoTokenCommonTestcases = []invalidProtoTokenTestcase{
 	{"body/contexts/entry nil", "nil context at index 0", func(m *protosession.SessionTokenV2) {
 		m.Body.Contexts = []*protosession.SessionContextV2{nil}
 	}},
-	{"body/contexts/object nil", "invalid context at index 0: nil object at index 0", func(m *protosession.SessionTokenV2) {
-		m.Body.Contexts = []*protosession.SessionContextV2{{Objects: []*refs.ObjectID{nil}}}
-	}},
 	{"body/contexts/invalid verb", "invalid context at index 0: negative verb -1", func(m *protosession.SessionTokenV2) {
 		m.Body.Contexts[0].Verbs[0] = -1
 	}},
@@ -173,12 +160,6 @@ var invalidProtoTokenCommonTestcases = []invalidProtoTokenTestcase{
 	}},
 	{"body/contexts/container/oversize", "invalid context at index 0: invalid container: invalid length 33", func(m *protosession.SessionTokenV2) {
 		m.Body.Contexts[0].Container.Value = make([]byte, 33)
-	}},
-	{"body/contexts/objects/nil", "invalid context at index 1: invalid object at index 0: invalid length 0", func(m *protosession.SessionTokenV2) {
-		m.Body.Contexts[1].Objects[0].Value = nil
-	}},
-	{"body/contexts/objects/entry nil", "invalid context at index 1: invalid object at index 0: invalid length 0", func(m *protosession.SessionTokenV2) {
-		m.Body.Contexts[1].Objects[0].Value = []byte{}
 	}},
 	{"missing signature", "missing body signature", func(m *protosession.SessionTokenV2) {
 		m.Signature = nil
@@ -219,10 +200,6 @@ var validToken = func() session.Token {
 	if err != nil {
 		panic(err)
 	}
-	err = ctx2.SetObjects(anyValidObjectIDs)
-	if err != nil {
-		panic(err)
-	}
 	err = tok.AddContext(ctx2)
 	if err != nil {
 		panic(err)
@@ -258,22 +235,18 @@ var validToken = func() session.Token {
 
 // validBinToken is the binary encoding of validToken.
 // This should match the output of validToken.Marshal().
-var validBinToken = []byte{10, 132, 2, 8, 2, 16, 185, 96, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254,
+var validBinToken = []byte{10, 151, 1, 8, 2, 16, 185, 96, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254,
 	30, 138, 195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2,
 	24, 190, 132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35,
-	99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 26, 1, 8, 50, 147, 1, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49,
-	51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 34, 10, 32, 243, 245, 75, 198, 48, 107,
-	141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 34, 10, 32, 47, 240,
-	93, 216, 9, 64, 88, 183, 198, 36, 30, 83, 20, 233, 119, 252, 96, 171, 6, 122, 115, 168, 186, 147, 249, 88, 184, 69, 145, 196, 127, 68, 18, 34,
-	10, 32, 59, 5, 120, 191, 250, 61, 248, 114, 137, 21, 229, 88, 57, 49, 95, 157, 218, 79, 80, 177, 217, 56, 29, 29, 175, 37, 42, 165, 58, 126,
-	161, 221, 26, 1, 1, 56, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58,
-	223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192,
-	4, 26, 163, 1, 10, 103, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138,
-	195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190,
-	132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242,
-	163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 26, 1, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239,
-	245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114,
-	101, 24, 236, 236, 175, 192, 4}
+	99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 8, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51,
+	168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 1, 56, 1, 18, 56, 10, 33, 3, 202,
+	217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218, 18,
+	13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4, 26, 163, 1, 10, 103, 26, 27, 10, 25, 53, 51, 5,
+	166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46,
+	110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75,
+	198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 1,
+	18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134,
+	228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4}
 
 // validJSONToken is the JSON encoding of validToken.
 // This should match the output of validToken.MarshalJSON().
@@ -283,11 +256,10 @@ var validJSONToken = `
 "issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}, 
 "subjects":[{"nnsName":"alice.neo"}], 
 "lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, 
-"contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "objects":[], "verbs":["CONTAINER_PUT"]}, {"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, 
-"objects":[{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, {"value":"L/Bd2AlAWLfGJB5TFOl3/GCrBnpzqLqT+Vi4RZHEf0Q="}, {"value":"OwV4v/o9+HKJFeVYOTFfndpPULHZOB0dryUqpTp+od0="}], "verbs":["OBJECT_PUT"]}],
+"contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["CONTAINER_PUT"]}, {"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}],
 "final":true},"signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532},
 "origin":{"body":{"version":0, "nonce":0, "issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}, "subjects":[{"nnsName":"alice.neo"}], 
-"lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "objects":[], "verbs":["OBJECT_PUT"]}], "final":false}, 
+"lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}], "final":false}, 
 "signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532}, "origin":null}}
 `
 
@@ -302,9 +274,6 @@ func checkTokenFields(t *testing.T, val session.Token) {
 	require.Equal(t, anyValidIatTime, val.Iat())
 	require.Equal(t, anyValidNbfTime, val.Nbf())
 	require.True(t, val.AssertVerb(anyValidContainerVerb, anyValidContainerID))
-	for i := range anyValidObjectIDs {
-		require.True(t, val.AssertObject(anyValidObjectVerb, anyValidContainerID, anyValidObjectIDs[i]))
-	}
 	sig, ok := val.Signature()
 	require.True(t, ok)
 	require.EqualValues(t, anyValidSignatureScheme, sig.Scheme())
@@ -331,7 +300,7 @@ var invalidBinCommonTestcases = []invalidBinTokenTestcase{
 	{name: "signature/invalid scheme", err: "invalid body signature: negative scheme -2147483648",
 		b: []byte{18, 11, 24, 128, 128, 128, 128, 248, 255, 255, 255, 255, 1}},
 	{name: "context/invalid verb", err: "invalid context at index 0: negative verb -1",
-		b: []byte{10, 14, 50, 12, 26, 10, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1}},
+		b: []byte{10, 14, 50, 12, 18, 10, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1}},
 	{name: "context/missing container", err: "invalid context at index 0: empty context",
 		b: []byte{10, 2, 50, 0}},
 	{name: "context/container/nil value", err: "invalid context at index 0: invalid container: invalid length 0",
@@ -344,20 +313,6 @@ var invalidBinCommonTestcases = []invalidBinTokenTestcase{
 			0, 0, 0, 0, 0, 0, 0}},
 	{name: "context/container/oversize", err: "invalid context at index 0: invalid container: invalid length 33",
 		b: []byte{10, 39, 50, 37, 10, 35, 10, 33, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0}},
-	{name: "context/objects/nil element", err: "invalid context at index 0: invalid object at index 0: invalid length 0",
-		b: []byte{10, 4, 50, 2, 18, 0}},
-	{name: "context/objects/nil value", err: "invalid context at index 0: invalid object at index 0: invalid length 0",
-		b: []byte{10, 4, 50, 2, 18, 0}},
-	{name: "context/objects/empty value", err: "invalid context at index 0: invalid object at index 0: invalid length 0",
-		b: []byte{10, 4, 50, 2, 18, 0}},
-	{name: "context/objects/undersize", err: "invalid context at index 0: invalid object at index 0: invalid length 31",
-		b: []byte{10, 37, 50, 35, 18, 33, 10, 31, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-			0, 0, 0, 0, 0, 0, 0}},
-	{name: "context/objects/oversize", err: "invalid context at index 0: invalid object at index 0: invalid length 33",
-		b: []byte{10, 39, 50, 37, 18, 35, 10, 33, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 			0, 0, 0, 0, 0, 0, 0, 0, 0}},
 	{name: "origin/invalid signature", err: "invalid origin token: invalid body signature: negative scheme -1",
@@ -429,31 +384,6 @@ var invalidJSONCommonTestcases = []invalidJSONTokenTestcase{
 		name: "context/container/oversize",
 		err:  "invalid context at index 0: invalid container: invalid length 33",
 		j:    `{"body":{"contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OMB"}}]}}`,
-	},
-	{
-		name: "context/objects/nil element",
-		err:  "invalid context at index 0: invalid object at index 0: invalid length 0",
-		j:    `{"body":{"contexts":[{"objects":[{}]}]}}`,
-	},
-	{
-		name: "context/objects/nil value",
-		err:  "invalid context at index 0: invalid object at index 0: invalid length 0",
-		j:    `{"body":{"contexts":[{"objects":[{"value":""}]}]}}`,
-	},
-	{
-		name: "context/objects/empty value",
-		err:  "invalid context at index 0: invalid object at index 0: invalid length 0",
-		j:    `{"body":{"contexts":[{"objects":[{"value":""}]}]}}`,
-	},
-	{
-		name: "context/objects/undersize",
-		err:  "invalid context at index 0: invalid object at index 0: invalid length 31",
-		j:    `{"body":{"contexts":[{"objects":[{"value":"L/Bd2AlAWLfGJB5TFOl3/GCrBnpzqLqT+Vi4RZHEfw=="}]}]}}`,
-	},
-	{
-		name: "context/objects/oversize",
-		err:  "invalid context at index 0: invalid object at index 0: invalid length 33",
-		j:    `{"body":{"contexts":[{"objects":[{"value":"L/Bd2AlAWLfGJB5TFOl3/GCrBnpzqLqT+Vi4RZHEf0QB"}]}]}}`,
 	},
 	{
 		name: "origin/invalid signature scheme",

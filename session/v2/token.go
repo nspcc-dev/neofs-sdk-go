@@ -12,8 +12,6 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
-	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -88,8 +86,6 @@ const (
 	MaxContextsPerToken = 16
 	// MaxVerbsPerContext is the maximum number of verbs allowed in a SessionContextV2.
 	MaxVerbsPerContext = 10
-	// MaxObjectsPerContext is the maximum number of objects allowed in a SessionContextV2.
-	MaxObjectsPerContext = 1000
 	// MaxDelegationDepth is the maximum depth of the delegation chain.
 	MaxDelegationDepth = 4
 )
@@ -235,7 +231,7 @@ func (t *Target) fromProtoMessage(m *protosession.Target) error {
 }
 
 // Context represents a unified session context for both object and container operations.
-// Limits session permissions to specific containers, objects, and operations.
+// Limits session permissions to specific containers and operations.
 //
 // Contexts within a token must be:
 //   - Sorted by container ID in ascending order
@@ -246,7 +242,6 @@ func (t *Target) fromProtoMessage(m *protosession.Target) error {
 // If wildcard is present, explicit containers and wildcard have independent rights.
 type Context struct {
 	container cid.ID
-	objects   []oid.ID
 	verbs     []Verb
 }
 
@@ -272,31 +267,12 @@ func (c Context) Container() cid.ID {
 	return c.container
 }
 
-// Objects returns the specific objects for this context.
-//
-// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
-// Make a copy if you need to change it.
-func (c Context) Objects() []oid.ID {
-	return c.objects
-}
-
 // Verbs returns the authorized operations for this context.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 func (c Context) Verbs() []Verb {
 	return c.verbs
-}
-
-// SetObjects sets specific objects for this context.
-// The input objects slice must not be modified after the call.
-// Returns error if the number of objects exceeds MaxObjectsPerContext.
-func (c *Context) SetObjects(objects []oid.ID) error {
-	if len(objects) > MaxObjectsPerContext {
-		return fmt.Errorf("too many objects: expected max %d, got %d", MaxObjectsPerContext, len(objects))
-	}
-	c.objects = objects
-	return nil
 }
 
 func (c Context) protoMessage() *protosession.SessionContextV2 {
@@ -308,13 +284,6 @@ func (c Context) protoMessage() *protosession.SessionContextV2 {
 		m.Container = c.container.ProtoMessage()
 	}
 
-	if len(c.objects) > 0 {
-		m.Objects = make([]*refs.ObjectID, len(c.objects))
-		for i := range c.objects {
-			m.Objects[i] = c.objects[i].ProtoMessage()
-		}
-	}
-
 	for i, v := range c.verbs {
 		m.Verbs[i] = protosession.Verb(v)
 	}
@@ -323,25 +292,13 @@ func (c Context) protoMessage() *protosession.SessionContextV2 {
 }
 
 func (c *Context) fromProtoMessage(m *protosession.SessionContextV2) error {
-	if m.Container == nil && len(m.Objects) == 0 && len(m.Verbs) == 0 {
+	if m.Container == nil && len(m.Verbs) == 0 {
 		return errors.New("empty context")
 	}
 
 	if m.Container != nil {
 		if err := c.container.FromProtoMessage(m.Container); err != nil {
 			return fmt.Errorf("invalid container: %w", err)
-		}
-	}
-
-	if len(m.Objects) > 0 {
-		c.objects = make([]oid.ID, len(m.Objects))
-		for i, obj := range m.Objects {
-			if obj == nil {
-				return fmt.Errorf("nil object at index %d", i)
-			}
-			if err := c.objects[i].FromProtoMessage(obj); err != nil {
-				return fmt.Errorf("invalid object at index %d: %w", i, err)
-			}
 		}
 	}
 
@@ -395,7 +352,6 @@ func (x Token) CopyTo(dst *Token) {
 		dst.contexts = make([]Context, len(x.contexts))
 		for i := range x.contexts {
 			dst.contexts[i].container = x.contexts[i].container
-			dst.contexts[i].objects = slices.Clone(x.contexts[i].objects)
 			dst.contexts[i].verbs = slices.Clone(x.contexts[i].verbs)
 		}
 	}
@@ -891,9 +847,6 @@ func (x Token) validateFields() error {
 		if len(ctx.verbs) > MaxVerbsPerContext {
 			return fmt.Errorf("context at index %d has too many verbs: expected max %d, got %d", i, MaxVerbsPerContext, len(ctx.verbs))
 		}
-		if len(ctx.objects) > MaxObjectsPerContext {
-			return fmt.Errorf("context at index %d has too many objects: expected max %d, got %d", i, MaxObjectsPerContext, len(ctx.objects))
-		}
 
 		for j := 1; j < len(ctx.verbs); j++ {
 			if ctx.verbs[j] <= ctx.verbs[j-1] {
@@ -1014,45 +967,6 @@ func (x Token) AssertVerb(verb Verb, container cid.ID) bool {
 
 		for _, v := range ctx.verbs {
 			if v == verb {
-				return true
-			}
-		}
-	}
-
-	return false
-}
-
-// AssertObject checks if operations on the given object are authorized.
-func (x Token) AssertObject(verb Verb, container cid.ID, object oid.ID) bool {
-	switch verb {
-	case VerbObjectPut, VerbObjectGet, VerbObjectHead, VerbObjectSearch,
-		VerbObjectDelete, VerbObjectRange, VerbObjectRangeHash:
-	default:
-		return false
-	}
-
-	for _, ctx := range x.contexts {
-		if !ctx.container.IsZero() && ctx.container != container {
-			continue
-		}
-
-		verbAuthorized := false
-		for _, v := range ctx.verbs {
-			if v == verb {
-				verbAuthorized = true
-				break
-			}
-		}
-		if !verbAuthorized {
-			continue
-		}
-
-		if len(ctx.objects) == 0 {
-			return true
-		}
-
-		for _, obj := range ctx.objects {
-			if obj == object {
 				return true
 			}
 		}
