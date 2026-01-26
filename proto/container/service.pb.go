@@ -1028,10 +1028,8 @@ func (x *SetAttributeRequest) GetBodySignature() *refs.Signature {
 // Attribute setting response
 type SetAttributeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Request result.
-	Body *SetAttributeResponse_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Signature of stable-marshalled `body` field.
-	BodySignature *refs.Signature `protobuf:"bytes,2,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
+	// Operation execution status.
+	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1066,16 +1064,9 @@ func (*SetAttributeResponse) Descriptor() ([]byte, []int) {
 	return file_proto_container_service_proto_rawDescGZIP(), []int{15}
 }
 
-func (x *SetAttributeResponse) GetBody() *SetAttributeResponse_Body {
+func (x *SetAttributeResponse) GetStatus() *status.Status {
 	if x != nil {
-		return x.Body
-	}
-	return nil
-}
-
-func (x *SetAttributeResponse) GetBodySignature() *refs.Signature {
-	if x != nil {
-		return x.BodySignature
+		return x.Status
 	}
 	return nil
 }
@@ -1138,10 +1129,8 @@ func (x *RemoveAttributeRequest) GetBodySignature() *refs.Signature {
 // Attribute removal response
 type RemoveAttributeResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Request result.
-	Body *RemoveAttributeResponse_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Signature of stable-marshalled `body` field.
-	BodySignature *refs.Signature `protobuf:"bytes,2,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
+	// Operation execution status.
+	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1176,16 +1165,9 @@ func (*RemoveAttributeResponse) Descriptor() ([]byte, []int) {
 	return file_proto_container_service_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *RemoveAttributeResponse) GetBody() *RemoveAttributeResponse_Body {
+func (x *RemoveAttributeResponse) GetStatus() *status.Status {
 	if x != nil {
-		return x.Body
-	}
-	return nil
-}
-
-func (x *RemoveAttributeResponse) GetBodySignature() *refs.Signature {
-	if x != nil {
-		return x.BodySignature
+		return x.Status
 	}
 	return nil
 }
@@ -2044,11 +2026,17 @@ func (x *SetAttributeRequest_Body) GetSessionTokenV1() *session.SessionToken {
 //
 // `attribute` must be one of:
 //   - `CORS`;
+//   - `S3_TAGS`;
+//   - `S3_SETTINGS`;
+//   - `S3_NOTIFICATIONS`;
 //   - `__NEOFS__LOCK_UNTIL`.
 //
 // In general, requirements for `value` are the same as for container
 // creation. Attribute-specific requirements:
 //   - `__NEOFS__LOCK_UNTIL`: new timestamp must be after the current one if any
+//   - `S3_TAGS`: must be a valid JSON object
+//   - `S3_SETTINGS`: must be a valid JSON object
+//   - `S3_NOTIFICATIONS`: must be a valid JSON object
 type SetAttributeRequest_Body_Parameters struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Identifier of the container to set attribute for.
@@ -2121,52 +2109,6 @@ func (x *SetAttributeRequest_Body_Parameters) GetValidUntil() uint64 {
 	return 0
 }
 
-// Request result message.
-type SetAttributeResponse_Body struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Operation execution status.
-	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *SetAttributeResponse_Body) Reset() {
-	*x = SetAttributeResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *SetAttributeResponse_Body) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*SetAttributeResponse_Body) ProtoMessage() {}
-
-func (x *SetAttributeResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use SetAttributeResponse_Body.ProtoReflect.Descriptor instead.
-func (*SetAttributeResponse_Body) Descriptor() ([]byte, []int) {
-	return file_proto_container_service_proto_rawDescGZIP(), []int{15, 0}
-}
-
-func (x *SetAttributeResponse_Body) GetStatus() *status.Status {
-	if x != nil {
-		return x.Status
-	}
-	return nil
-}
-
 // Request payload message.
 type RemoveAttributeRequest_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2192,7 +2134,7 @@ type RemoveAttributeRequest_Body struct {
 
 func (x *RemoveAttributeRequest_Body) Reset() {
 	*x = RemoveAttributeRequest_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[36]
+	mi := &file_proto_container_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2204,7 +2146,7 @@ func (x *RemoveAttributeRequest_Body) String() string {
 func (*RemoveAttributeRequest_Body) ProtoMessage() {}
 
 func (x *RemoveAttributeRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[36]
+	mi := &file_proto_container_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2258,6 +2200,9 @@ func (x *RemoveAttributeRequest_Body) GetSessionTokenV1() *session.SessionToken 
 //
 // `attribute` must be one of:
 //   - `CORS`;
+//   - `S3_TAGS`;
+//   - `S3_SETTINGS`;
+//   - `S3_NOTIFICATIONS`;
 //   - `__NEOFS__LOCK_UNTIL`.
 //
 // Attribute-specific requirements:
@@ -2276,7 +2221,7 @@ type RemoveAttributeRequest_Body_Parameters struct {
 
 func (x *RemoveAttributeRequest_Body_Parameters) Reset() {
 	*x = RemoveAttributeRequest_Body_Parameters{}
-	mi := &file_proto_container_service_proto_msgTypes[37]
+	mi := &file_proto_container_service_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2288,7 +2233,7 @@ func (x *RemoveAttributeRequest_Body_Parameters) String() string {
 func (*RemoveAttributeRequest_Body_Parameters) ProtoMessage() {}
 
 func (x *RemoveAttributeRequest_Body_Parameters) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[37]
+	mi := &file_proto_container_service_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2323,52 +2268,6 @@ func (x *RemoveAttributeRequest_Body_Parameters) GetValidUntil() uint64 {
 		return x.ValidUntil
 	}
 	return 0
-}
-
-// Request result message.
-type RemoveAttributeResponse_Body struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Operation execution status.
-	Status        *status.Status `protobuf:"bytes,1,opt,name=status,proto3" json:"status,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RemoveAttributeResponse_Body) Reset() {
-	*x = RemoveAttributeResponse_Body{}
-	mi := &file_proto_container_service_proto_msgTypes[38]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RemoveAttributeResponse_Body) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RemoveAttributeResponse_Body) ProtoMessage() {}
-
-func (x *RemoveAttributeResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_container_service_proto_msgTypes[38]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RemoveAttributeResponse_Body.ProtoReflect.Descriptor instead.
-func (*RemoveAttributeResponse_Body) Descriptor() ([]byte, []int) {
-	return file_proto_container_service_proto_rawDescGZIP(), []int{17, 0}
-}
-
-func (x *RemoveAttributeResponse_Body) GetStatus() *status.Status {
-	if x != nil {
-		return x.Status
-	}
-	return nil
 }
 
 var File_proto_container_service_proto protoreflect.FileDescriptor
@@ -2501,11 +2400,8 @@ const file_proto_container_service_proto_rawDesc = "" +
 	"\tattribute\x18\x02 \x01(\tR\tattribute\x12\x14\n" +
 	"\x05value\x18\x03 \x01(\tR\x05value\x12\x1f\n" +
 	"\vvalid_until\x18\x04 \x01(\x04R\n" +
-	"validUntil\"\xd6\x01\n" +
-	"\x14SetAttributeResponse\x12B\n" +
-	"\x04body\x18\x01 \x01(\v2..neo.fs.v2.container.SetAttributeResponse.BodyR\x04body\x12@\n" +
-	"\x0ebody_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x1a8\n" +
-	"\x04Body\x120\n" +
+	"validUntil\"H\n" +
+	"\x14SetAttributeResponse\x120\n" +
 	"\x06status\x18\x01 \x01(\v2\x18.neo.fs.v2.status.StatusR\x06status\"\xe7\x04\n" +
 	"\x16RemoveAttributeRequest\x12D\n" +
 	"\x04body\x18\x01 \x01(\v20.neo.fs.v2.container.RemoveAttributeRequest.BodyR\x04body\x12@\n" +
@@ -2522,11 +2418,8 @@ const file_proto_container_service_proto_rawDesc = "" +
 	"\fcontainer_id\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerId\x12\x1c\n" +
 	"\tattribute\x18\x02 \x01(\tR\tattribute\x12\x1f\n" +
 	"\vvalid_until\x18\x03 \x01(\x04R\n" +
-	"validUntil\"\xdc\x01\n" +
-	"\x17RemoveAttributeResponse\x12E\n" +
-	"\x04body\x18\x01 \x01(\v21.neo.fs.v2.container.RemoveAttributeResponse.BodyR\x04body\x12@\n" +
-	"\x0ebody_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x1a8\n" +
-	"\x04Body\x120\n" +
+	"validUntil\"K\n" +
+	"\x17RemoveAttributeResponse\x120\n" +
 	"\x06status\x18\x01 \x01(\v2\x18.neo.fs.v2.status.StatusR\x06status2\xe3\x06\n" +
 	"\x10ContainerService\x12H\n" +
 	"\x03Put\x12\x1f.neo.fs.v2.container.PutRequest\x1a .neo.fs.v2.container.PutResponse\x12Q\n" +
@@ -2551,7 +2444,7 @@ func file_proto_container_service_proto_rawDescGZIP() []byte {
 	return file_proto_container_service_proto_rawDescData
 }
 
-var file_proto_container_service_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_proto_container_service_proto_msgTypes = make([]protoimpl.MessageInfo, 37)
 var file_proto_container_service_proto_goTypes = []any{
 	(*PutRequest)(nil),                                 // 0: neo.fs.v2.container.PutRequest
 	(*PutResponse)(nil),                                // 1: neo.fs.v2.container.PutResponse
@@ -2588,129 +2481,123 @@ var file_proto_container_service_proto_goTypes = []any{
 	(*AnnounceUsedSpaceResponse_Body)(nil),             // 32: neo.fs.v2.container.AnnounceUsedSpaceResponse.Body
 	(*SetAttributeRequest_Body)(nil),                   // 33: neo.fs.v2.container.SetAttributeRequest.Body
 	(*SetAttributeRequest_Body_Parameters)(nil),        // 34: neo.fs.v2.container.SetAttributeRequest.Body.Parameters
-	(*SetAttributeResponse_Body)(nil),                  // 35: neo.fs.v2.container.SetAttributeResponse.Body
-	(*RemoveAttributeRequest_Body)(nil),                // 36: neo.fs.v2.container.RemoveAttributeRequest.Body
-	(*RemoveAttributeRequest_Body_Parameters)(nil),     // 37: neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters
-	(*RemoveAttributeResponse_Body)(nil),               // 38: neo.fs.v2.container.RemoveAttributeResponse.Body
-	(*session.RequestMetaHeader)(nil),                  // 39: neo.fs.v2.session.RequestMetaHeader
-	(*session.RequestVerificationHeader)(nil),          // 40: neo.fs.v2.session.RequestVerificationHeader
-	(*session.ResponseMetaHeader)(nil),                 // 41: neo.fs.v2.session.ResponseMetaHeader
-	(*session.ResponseVerificationHeader)(nil),         // 42: neo.fs.v2.session.ResponseVerificationHeader
-	(*refs.Signature)(nil),                             // 43: neo.fs.v2.refs.Signature
-	(*Container)(nil),                                  // 44: neo.fs.v2.container.Container
-	(*refs.SignatureRFC6979)(nil),                      // 45: neo.fs.v2.refs.SignatureRFC6979
-	(*refs.ContainerID)(nil),                           // 46: neo.fs.v2.refs.ContainerID
-	(*session.SessionToken)(nil),                       // 47: neo.fs.v2.session.SessionToken
-	(*refs.OwnerID)(nil),                               // 48: neo.fs.v2.refs.OwnerID
-	(*acl.EACLTable)(nil),                              // 49: neo.fs.v2.acl.EACLTable
-	(*session.SessionTokenV2)(nil),                     // 50: neo.fs.v2.session.SessionTokenV2
-	(*status.Status)(nil),                              // 51: neo.fs.v2.status.Status
+	(*RemoveAttributeRequest_Body)(nil),                // 35: neo.fs.v2.container.RemoveAttributeRequest.Body
+	(*RemoveAttributeRequest_Body_Parameters)(nil),     // 36: neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters
+	(*session.RequestMetaHeader)(nil),                  // 37: neo.fs.v2.session.RequestMetaHeader
+	(*session.RequestVerificationHeader)(nil),          // 38: neo.fs.v2.session.RequestVerificationHeader
+	(*session.ResponseMetaHeader)(nil),                 // 39: neo.fs.v2.session.ResponseMetaHeader
+	(*session.ResponseVerificationHeader)(nil),         // 40: neo.fs.v2.session.ResponseVerificationHeader
+	(*refs.Signature)(nil),                             // 41: neo.fs.v2.refs.Signature
+	(*status.Status)(nil),                              // 42: neo.fs.v2.status.Status
+	(*Container)(nil),                                  // 43: neo.fs.v2.container.Container
+	(*refs.SignatureRFC6979)(nil),                      // 44: neo.fs.v2.refs.SignatureRFC6979
+	(*refs.ContainerID)(nil),                           // 45: neo.fs.v2.refs.ContainerID
+	(*session.SessionToken)(nil),                       // 46: neo.fs.v2.session.SessionToken
+	(*refs.OwnerID)(nil),                               // 47: neo.fs.v2.refs.OwnerID
+	(*acl.EACLTable)(nil),                              // 48: neo.fs.v2.acl.EACLTable
+	(*session.SessionTokenV2)(nil),                     // 49: neo.fs.v2.session.SessionTokenV2
 }
 var file_proto_container_service_proto_depIdxs = []int32{
 	18, // 0: neo.fs.v2.container.PutRequest.body:type_name -> neo.fs.v2.container.PutRequest.Body
-	39, // 1: neo.fs.v2.container.PutRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 2: neo.fs.v2.container.PutRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 1: neo.fs.v2.container.PutRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 2: neo.fs.v2.container.PutRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	19, // 3: neo.fs.v2.container.PutResponse.body:type_name -> neo.fs.v2.container.PutResponse.Body
-	41, // 4: neo.fs.v2.container.PutResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 5: neo.fs.v2.container.PutResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 4: neo.fs.v2.container.PutResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 5: neo.fs.v2.container.PutResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	20, // 6: neo.fs.v2.container.DeleteRequest.body:type_name -> neo.fs.v2.container.DeleteRequest.Body
-	39, // 7: neo.fs.v2.container.DeleteRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 8: neo.fs.v2.container.DeleteRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 7: neo.fs.v2.container.DeleteRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 8: neo.fs.v2.container.DeleteRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	21, // 9: neo.fs.v2.container.DeleteResponse.body:type_name -> neo.fs.v2.container.DeleteResponse.Body
-	41, // 10: neo.fs.v2.container.DeleteResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 11: neo.fs.v2.container.DeleteResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 10: neo.fs.v2.container.DeleteResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 11: neo.fs.v2.container.DeleteResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	22, // 12: neo.fs.v2.container.GetRequest.body:type_name -> neo.fs.v2.container.GetRequest.Body
-	39, // 13: neo.fs.v2.container.GetRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 14: neo.fs.v2.container.GetRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 13: neo.fs.v2.container.GetRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 14: neo.fs.v2.container.GetRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	23, // 15: neo.fs.v2.container.GetResponse.body:type_name -> neo.fs.v2.container.GetResponse.Body
-	41, // 16: neo.fs.v2.container.GetResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 17: neo.fs.v2.container.GetResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 16: neo.fs.v2.container.GetResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 17: neo.fs.v2.container.GetResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	24, // 18: neo.fs.v2.container.ListRequest.body:type_name -> neo.fs.v2.container.ListRequest.Body
-	39, // 19: neo.fs.v2.container.ListRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 20: neo.fs.v2.container.ListRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 19: neo.fs.v2.container.ListRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 20: neo.fs.v2.container.ListRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	25, // 21: neo.fs.v2.container.ListResponse.body:type_name -> neo.fs.v2.container.ListResponse.Body
-	41, // 22: neo.fs.v2.container.ListResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 23: neo.fs.v2.container.ListResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 22: neo.fs.v2.container.ListResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 23: neo.fs.v2.container.ListResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	26, // 24: neo.fs.v2.container.SetExtendedACLRequest.body:type_name -> neo.fs.v2.container.SetExtendedACLRequest.Body
-	39, // 25: neo.fs.v2.container.SetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 26: neo.fs.v2.container.SetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 25: neo.fs.v2.container.SetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 26: neo.fs.v2.container.SetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	27, // 27: neo.fs.v2.container.SetExtendedACLResponse.body:type_name -> neo.fs.v2.container.SetExtendedACLResponse.Body
-	41, // 28: neo.fs.v2.container.SetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 29: neo.fs.v2.container.SetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 28: neo.fs.v2.container.SetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 29: neo.fs.v2.container.SetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	28, // 30: neo.fs.v2.container.GetExtendedACLRequest.body:type_name -> neo.fs.v2.container.GetExtendedACLRequest.Body
-	39, // 31: neo.fs.v2.container.GetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 32: neo.fs.v2.container.GetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 31: neo.fs.v2.container.GetExtendedACLRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 32: neo.fs.v2.container.GetExtendedACLRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	29, // 33: neo.fs.v2.container.GetExtendedACLResponse.body:type_name -> neo.fs.v2.container.GetExtendedACLResponse.Body
-	41, // 34: neo.fs.v2.container.GetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 35: neo.fs.v2.container.GetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 34: neo.fs.v2.container.GetExtendedACLResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 35: neo.fs.v2.container.GetExtendedACLResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	30, // 36: neo.fs.v2.container.AnnounceUsedSpaceRequest.body:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body
-	39, // 37: neo.fs.v2.container.AnnounceUsedSpaceRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 38: neo.fs.v2.container.AnnounceUsedSpaceRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 37: neo.fs.v2.container.AnnounceUsedSpaceRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	38, // 38: neo.fs.v2.container.AnnounceUsedSpaceRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
 	32, // 39: neo.fs.v2.container.AnnounceUsedSpaceResponse.body:type_name -> neo.fs.v2.container.AnnounceUsedSpaceResponse.Body
-	41, // 40: neo.fs.v2.container.AnnounceUsedSpaceResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 41: neo.fs.v2.container.AnnounceUsedSpaceResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	39, // 40: neo.fs.v2.container.AnnounceUsedSpaceResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	40, // 41: neo.fs.v2.container.AnnounceUsedSpaceResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
 	33, // 42: neo.fs.v2.container.SetAttributeRequest.body:type_name -> neo.fs.v2.container.SetAttributeRequest.Body
-	43, // 43: neo.fs.v2.container.SetAttributeRequest.body_signature:type_name -> neo.fs.v2.refs.Signature
-	35, // 44: neo.fs.v2.container.SetAttributeResponse.body:type_name -> neo.fs.v2.container.SetAttributeResponse.Body
-	43, // 45: neo.fs.v2.container.SetAttributeResponse.body_signature:type_name -> neo.fs.v2.refs.Signature
-	36, // 46: neo.fs.v2.container.RemoveAttributeRequest.body:type_name -> neo.fs.v2.container.RemoveAttributeRequest.Body
-	43, // 47: neo.fs.v2.container.RemoveAttributeRequest.body_signature:type_name -> neo.fs.v2.refs.Signature
-	38, // 48: neo.fs.v2.container.RemoveAttributeResponse.body:type_name -> neo.fs.v2.container.RemoveAttributeResponse.Body
-	43, // 49: neo.fs.v2.container.RemoveAttributeResponse.body_signature:type_name -> neo.fs.v2.refs.Signature
-	44, // 50: neo.fs.v2.container.PutRequest.Body.container:type_name -> neo.fs.v2.container.Container
-	45, // 51: neo.fs.v2.container.PutRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	46, // 52: neo.fs.v2.container.PutResponse.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	46, // 53: neo.fs.v2.container.DeleteRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	45, // 54: neo.fs.v2.container.DeleteRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	46, // 55: neo.fs.v2.container.GetRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	44, // 56: neo.fs.v2.container.GetResponse.Body.container:type_name -> neo.fs.v2.container.Container
-	45, // 57: neo.fs.v2.container.GetResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	47, // 58: neo.fs.v2.container.GetResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
-	48, // 59: neo.fs.v2.container.ListRequest.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	46, // 60: neo.fs.v2.container.ListResponse.Body.container_ids:type_name -> neo.fs.v2.refs.ContainerID
-	49, // 61: neo.fs.v2.container.SetExtendedACLRequest.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
-	45, // 62: neo.fs.v2.container.SetExtendedACLRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	46, // 63: neo.fs.v2.container.GetExtendedACLRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	49, // 64: neo.fs.v2.container.GetExtendedACLResponse.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
-	45, // 65: neo.fs.v2.container.GetExtendedACLResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	47, // 66: neo.fs.v2.container.GetExtendedACLResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
-	31, // 67: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.announcements:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement
-	46, // 68: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	34, // 69: neo.fs.v2.container.SetAttributeRequest.Body.parameters:type_name -> neo.fs.v2.container.SetAttributeRequest.Body.Parameters
-	45, // 70: neo.fs.v2.container.SetAttributeRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	50, // 71: neo.fs.v2.container.SetAttributeRequest.Body.session_token:type_name -> neo.fs.v2.session.SessionTokenV2
-	47, // 72: neo.fs.v2.container.SetAttributeRequest.Body.session_token_v1:type_name -> neo.fs.v2.session.SessionToken
-	46, // 73: neo.fs.v2.container.SetAttributeRequest.Body.Parameters.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	51, // 74: neo.fs.v2.container.SetAttributeResponse.Body.status:type_name -> neo.fs.v2.status.Status
-	37, // 75: neo.fs.v2.container.RemoveAttributeRequest.Body.parameters:type_name -> neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters
-	45, // 76: neo.fs.v2.container.RemoveAttributeRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
-	50, // 77: neo.fs.v2.container.RemoveAttributeRequest.Body.session_token:type_name -> neo.fs.v2.session.SessionTokenV2
-	47, // 78: neo.fs.v2.container.RemoveAttributeRequest.Body.session_token_v1:type_name -> neo.fs.v2.session.SessionToken
-	46, // 79: neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	51, // 80: neo.fs.v2.container.RemoveAttributeResponse.Body.status:type_name -> neo.fs.v2.status.Status
-	0,  // 81: neo.fs.v2.container.ContainerService.Put:input_type -> neo.fs.v2.container.PutRequest
-	2,  // 82: neo.fs.v2.container.ContainerService.Delete:input_type -> neo.fs.v2.container.DeleteRequest
-	4,  // 83: neo.fs.v2.container.ContainerService.Get:input_type -> neo.fs.v2.container.GetRequest
-	6,  // 84: neo.fs.v2.container.ContainerService.List:input_type -> neo.fs.v2.container.ListRequest
-	8,  // 85: neo.fs.v2.container.ContainerService.SetExtendedACL:input_type -> neo.fs.v2.container.SetExtendedACLRequest
-	10, // 86: neo.fs.v2.container.ContainerService.GetExtendedACL:input_type -> neo.fs.v2.container.GetExtendedACLRequest
-	12, // 87: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:input_type -> neo.fs.v2.container.AnnounceUsedSpaceRequest
-	14, // 88: neo.fs.v2.container.ContainerService.SetAttribute:input_type -> neo.fs.v2.container.SetAttributeRequest
-	16, // 89: neo.fs.v2.container.ContainerService.RemoveAttribute:input_type -> neo.fs.v2.container.RemoveAttributeRequest
-	1,  // 90: neo.fs.v2.container.ContainerService.Put:output_type -> neo.fs.v2.container.PutResponse
-	3,  // 91: neo.fs.v2.container.ContainerService.Delete:output_type -> neo.fs.v2.container.DeleteResponse
-	5,  // 92: neo.fs.v2.container.ContainerService.Get:output_type -> neo.fs.v2.container.GetResponse
-	7,  // 93: neo.fs.v2.container.ContainerService.List:output_type -> neo.fs.v2.container.ListResponse
-	9,  // 94: neo.fs.v2.container.ContainerService.SetExtendedACL:output_type -> neo.fs.v2.container.SetExtendedACLResponse
-	11, // 95: neo.fs.v2.container.ContainerService.GetExtendedACL:output_type -> neo.fs.v2.container.GetExtendedACLResponse
-	13, // 96: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:output_type -> neo.fs.v2.container.AnnounceUsedSpaceResponse
-	15, // 97: neo.fs.v2.container.ContainerService.SetAttribute:output_type -> neo.fs.v2.container.SetAttributeResponse
-	17, // 98: neo.fs.v2.container.ContainerService.RemoveAttribute:output_type -> neo.fs.v2.container.RemoveAttributeResponse
-	90, // [90:99] is the sub-list for method output_type
-	81, // [81:90] is the sub-list for method input_type
-	81, // [81:81] is the sub-list for extension type_name
-	81, // [81:81] is the sub-list for extension extendee
-	0,  // [0:81] is the sub-list for field type_name
+	41, // 43: neo.fs.v2.container.SetAttributeRequest.body_signature:type_name -> neo.fs.v2.refs.Signature
+	42, // 44: neo.fs.v2.container.SetAttributeResponse.status:type_name -> neo.fs.v2.status.Status
+	35, // 45: neo.fs.v2.container.RemoveAttributeRequest.body:type_name -> neo.fs.v2.container.RemoveAttributeRequest.Body
+	41, // 46: neo.fs.v2.container.RemoveAttributeRequest.body_signature:type_name -> neo.fs.v2.refs.Signature
+	42, // 47: neo.fs.v2.container.RemoveAttributeResponse.status:type_name -> neo.fs.v2.status.Status
+	43, // 48: neo.fs.v2.container.PutRequest.Body.container:type_name -> neo.fs.v2.container.Container
+	44, // 49: neo.fs.v2.container.PutRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	45, // 50: neo.fs.v2.container.PutResponse.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	45, // 51: neo.fs.v2.container.DeleteRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	44, // 52: neo.fs.v2.container.DeleteRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	45, // 53: neo.fs.v2.container.GetRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	43, // 54: neo.fs.v2.container.GetResponse.Body.container:type_name -> neo.fs.v2.container.Container
+	44, // 55: neo.fs.v2.container.GetResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	46, // 56: neo.fs.v2.container.GetResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
+	47, // 57: neo.fs.v2.container.ListRequest.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	45, // 58: neo.fs.v2.container.ListResponse.Body.container_ids:type_name -> neo.fs.v2.refs.ContainerID
+	48, // 59: neo.fs.v2.container.SetExtendedACLRequest.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
+	44, // 60: neo.fs.v2.container.SetExtendedACLRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	45, // 61: neo.fs.v2.container.GetExtendedACLRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	48, // 62: neo.fs.v2.container.GetExtendedACLResponse.Body.eacl:type_name -> neo.fs.v2.acl.EACLTable
+	44, // 63: neo.fs.v2.container.GetExtendedACLResponse.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	46, // 64: neo.fs.v2.container.GetExtendedACLResponse.Body.session_token:type_name -> neo.fs.v2.session.SessionToken
+	31, // 65: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.announcements:type_name -> neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement
+	45, // 66: neo.fs.v2.container.AnnounceUsedSpaceRequest.Body.Announcement.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	34, // 67: neo.fs.v2.container.SetAttributeRequest.Body.parameters:type_name -> neo.fs.v2.container.SetAttributeRequest.Body.Parameters
+	44, // 68: neo.fs.v2.container.SetAttributeRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	49, // 69: neo.fs.v2.container.SetAttributeRequest.Body.session_token:type_name -> neo.fs.v2.session.SessionTokenV2
+	46, // 70: neo.fs.v2.container.SetAttributeRequest.Body.session_token_v1:type_name -> neo.fs.v2.session.SessionToken
+	45, // 71: neo.fs.v2.container.SetAttributeRequest.Body.Parameters.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	36, // 72: neo.fs.v2.container.RemoveAttributeRequest.Body.parameters:type_name -> neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters
+	44, // 73: neo.fs.v2.container.RemoveAttributeRequest.Body.signature:type_name -> neo.fs.v2.refs.SignatureRFC6979
+	49, // 74: neo.fs.v2.container.RemoveAttributeRequest.Body.session_token:type_name -> neo.fs.v2.session.SessionTokenV2
+	46, // 75: neo.fs.v2.container.RemoveAttributeRequest.Body.session_token_v1:type_name -> neo.fs.v2.session.SessionToken
+	45, // 76: neo.fs.v2.container.RemoveAttributeRequest.Body.Parameters.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	0,  // 77: neo.fs.v2.container.ContainerService.Put:input_type -> neo.fs.v2.container.PutRequest
+	2,  // 78: neo.fs.v2.container.ContainerService.Delete:input_type -> neo.fs.v2.container.DeleteRequest
+	4,  // 79: neo.fs.v2.container.ContainerService.Get:input_type -> neo.fs.v2.container.GetRequest
+	6,  // 80: neo.fs.v2.container.ContainerService.List:input_type -> neo.fs.v2.container.ListRequest
+	8,  // 81: neo.fs.v2.container.ContainerService.SetExtendedACL:input_type -> neo.fs.v2.container.SetExtendedACLRequest
+	10, // 82: neo.fs.v2.container.ContainerService.GetExtendedACL:input_type -> neo.fs.v2.container.GetExtendedACLRequest
+	12, // 83: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:input_type -> neo.fs.v2.container.AnnounceUsedSpaceRequest
+	14, // 84: neo.fs.v2.container.ContainerService.SetAttribute:input_type -> neo.fs.v2.container.SetAttributeRequest
+	16, // 85: neo.fs.v2.container.ContainerService.RemoveAttribute:input_type -> neo.fs.v2.container.RemoveAttributeRequest
+	1,  // 86: neo.fs.v2.container.ContainerService.Put:output_type -> neo.fs.v2.container.PutResponse
+	3,  // 87: neo.fs.v2.container.ContainerService.Delete:output_type -> neo.fs.v2.container.DeleteResponse
+	5,  // 88: neo.fs.v2.container.ContainerService.Get:output_type -> neo.fs.v2.container.GetResponse
+	7,  // 89: neo.fs.v2.container.ContainerService.List:output_type -> neo.fs.v2.container.ListResponse
+	9,  // 90: neo.fs.v2.container.ContainerService.SetExtendedACL:output_type -> neo.fs.v2.container.SetExtendedACLResponse
+	11, // 91: neo.fs.v2.container.ContainerService.GetExtendedACL:output_type -> neo.fs.v2.container.GetExtendedACLResponse
+	13, // 92: neo.fs.v2.container.ContainerService.AnnounceUsedSpace:output_type -> neo.fs.v2.container.AnnounceUsedSpaceResponse
+	15, // 93: neo.fs.v2.container.ContainerService.SetAttribute:output_type -> neo.fs.v2.container.SetAttributeResponse
+	17, // 94: neo.fs.v2.container.ContainerService.RemoveAttribute:output_type -> neo.fs.v2.container.RemoveAttributeResponse
+	86, // [86:95] is the sub-list for method output_type
+	77, // [77:86] is the sub-list for method input_type
+	77, // [77:77] is the sub-list for extension type_name
+	77, // [77:77] is the sub-list for extension extendee
+	0,  // [0:77] is the sub-list for field type_name
 }
 
 func init() { file_proto_container_service_proto_init() }
@@ -2725,7 +2612,7 @@ func file_proto_container_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_container_service_proto_rawDesc), len(file_proto_container_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   37,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

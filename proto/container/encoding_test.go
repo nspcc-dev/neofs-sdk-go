@@ -215,12 +215,6 @@ func TestSetAttributeRequest_Body_MarshalStable(t *testing.T) {
 	})
 }
 
-func TestSetAttributeResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.SetAttributeResponse_Body{
-		{Status: prototest.RandStatus()},
-	})
-}
-
 func TestRemoveAttributeRequest_Body_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*container.RemoveAttributeRequest_Body{
 		{
@@ -233,11 +227,5 @@ func TestRemoveAttributeRequest_Body_MarshalStable(t *testing.T) {
 			SessionToken:   prototest.RandSessionTokenV2(true),
 			SessionTokenV1: prototest.RandSessionToken(),
 		},
-	})
-}
-
-func TestRemoveAttributeResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.RemoveAttributeResponse_Body{
-		{Status: prototest.RandStatus()},
 	})
 }

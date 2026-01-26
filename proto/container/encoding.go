@@ -489,31 +489,6 @@ func (x *SetAttributeRequest_Body) MarshalStable(b []byte) {
 
 const (
 	_ = iota
-	fieldSetAttributeRespStatus
-)
-
-// MarshaledSize returns size of the x in Protocol Buffers V3 format in bytes.
-// MarshaledSize is NPE-safe.
-func (x *SetAttributeResponse_Body) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeEmbedded(fieldSetAttributeRespStatus, x.Status)
-	}
-	return sz
-}
-
-// MarshalStable writes x in Protocol Buffers V3 format with ascending order of
-// fields by number into b. MarshalStable uses exactly
-// [SetAttributeResponse_Body.MarshaledSize] first bytes of b. MarshalStable is
-// NPE-safe.
-func (x *SetAttributeResponse_Body) MarshalStable(b []byte) {
-	if x != nil {
-		proto.MarshalToEmbedded(b, fieldSetAttributeRespStatus, x.Status)
-	}
-}
-
-const (
-	_ = iota
 	fieldRemoveAttributePrmID
 	fieldRemoveAttributePrmAttribute
 	fieldRemoveAttributePrmValidUntil
@@ -574,30 +549,5 @@ func (x *RemoveAttributeRequest_Body) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], fieldRemoveAttributeReqSignature, x.Signature)
 		off += proto.MarshalToEmbedded(b[off:], fieldRemoveAttributeReqSession, x.SessionToken)
 		proto.MarshalToEmbedded(b[off:], fieldRemoveAttributeReqSessionV1, x.SessionTokenV1)
-	}
-}
-
-const (
-	_ = iota
-	fieldRemoveAttributeRespStatus
-)
-
-// MarshaledSize returns size of the x in Protocol Buffers V3 format in bytes.
-// MarshaledSize is NPE-safe.
-func (x *RemoveAttributeResponse_Body) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeEmbedded(fieldRemoveAttributeRespStatus, x.Status)
-	}
-	return sz
-}
-
-// MarshalStable writes x in Protocol Buffers V3 format with ascending order of
-// fields by number into b. MarshalStable uses exactly
-// [RemoveAttributeResponse_Body.MarshaledSize] first bytes of b. MarshalStable
-// is NPE-safe.
-func (x *RemoveAttributeResponse_Body) MarshalStable(b []byte) {
-	if x != nil {
-		proto.MarshalToEmbedded(b, fieldRemoveAttributeRespStatus, x.Status)
 	}
 }

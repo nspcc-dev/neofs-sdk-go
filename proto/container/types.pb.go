@@ -190,6 +190,18 @@ func (x *Container) GetPlacementPolicy() *netmap.PlacementPolicy {
 //
 //     The CORS schema is based on Amazon S3 CORS (https://docs.aws.amazon.com/AmazonS3/latest/userguide/cors.html)
 //     configuration.
+//
+//   - S3_TAGS \
+//     It is used to store S3 gate-specific container tags. The value is controlled by the gate itself.
+//     Despite it, the value must be valid JSON object.
+//
+//   - S3_SETTINGS \
+//     It is used to store S3 gate-specific container settings. The value is controlled by the gate itself.
+//     Despite it, the value must be valid JSON object.
+//
+//   - S3_NOTIFICATIONS \
+//     It is used to store S3 gate-specific container notification settings. The value is controlled by the gate itself.
+//     Despite it, the value must be valid JSON object.
 type Container_Attribute struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Attribute name key
