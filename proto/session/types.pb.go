@@ -796,6 +796,8 @@ func (x *RequestVerificationHeader) GetOrigin() *RequestVerificationHeader {
 }
 
 // Verification info for the response signed by all intermediate nodes
+//
+// DEPRECATED: was eliminated from the protocol starting from version `v2.22`.
 type ResponseVerificationHeader struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Response Body signature. Should be generated once by an answering node.

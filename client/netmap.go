@@ -94,18 +94,13 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 	if c.prm.cbRespInfo != nil {
 		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			key:   resp.GetBody().GetNodeInfo().GetPublicKey(),
 			epoch: resp.GetMetaHeader().GetEpoch(),
 		})
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return nil, err
 		}
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.LocalNodeInfoResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, err
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
@@ -196,18 +191,13 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	if c.prm.cbRespInfo != nil {
 		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			key:   c.nodeKey,
 			epoch: resp.GetMetaHeader().GetEpoch(),
 		})
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return res, err
 		}
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetworkInfoResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
@@ -274,11 +264,6 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 	if err != nil {
 		err = rpcErr(err)
 		return netmap.NetMap{}, err
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protonetmap.NetmapSnapshotResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {

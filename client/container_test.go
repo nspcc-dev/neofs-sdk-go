@@ -750,12 +750,6 @@ func TestClient_ContainerPut(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestPutContainerServer, newTestContainerClient, func(c *Client) error {
-						_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protocontainer.PutResponse_Body]
 					tcs := []testcase{
@@ -1091,12 +1085,6 @@ func TestClient_ContainerGet(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestGetContainerServer, newTestContainerClient, func(c *Client) error {
-						_, err := c.ContainerGet(ctx, anyID, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protocontainer.GetResponse_Body]
 					tcs := []testcase{
@@ -1313,12 +1301,6 @@ func TestClient_ContainerList(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestListContainersServer, newTestContainerClient, func(c *Client) error {
-						_, err := c.ContainerList(ctx, anyUser, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protocontainer.ListResponse_Body]
 					var tcs []testcase
@@ -1531,11 +1513,6 @@ func TestClient_ContainerDelete(t *testing.T) {
 						return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestDeleteContainerServer, newTestContainerClient, func(c *Client) error {
-						return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
-					})
-				})
 			})
 		})
 	})
@@ -1654,12 +1631,6 @@ func TestClient_ContainerEACL(t *testing.T) {
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "container.ContainerService", "GetExtendedACL", func(c *Client) error {
-						_, err := c.ContainerEACL(ctx, anyID, anyValidOpts)
-						return err
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestGetEACLServer, newTestContainerClient, func(c *Client) error {
 						_, err := c.ContainerEACL(ctx, anyID, anyValidOpts)
 						return err
 					})
@@ -1879,11 +1850,6 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "container.ContainerService", "SetExtendedACL", func(c *Client) error {
-						return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestSetEACLServer, newTestContainerClient, func(c *Client) error {
 						return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
 					})
 				})

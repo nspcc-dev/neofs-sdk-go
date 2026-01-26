@@ -247,12 +247,6 @@ func TestClient_ObjectDelete(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestDeleteObjectServer, newTestObjectClient, func(c *Client) error {
-						_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protoobject.DeleteResponse_Body]
 					// missing fields

@@ -199,12 +199,6 @@ func TestClient_SessionCreate(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestCreateSessionInfoServer, newTestSessionClient, func(c *Client) error {
-						_, err := c.SessionCreate(ctx, anyUsr, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protosession.CreateResponse_Body]
 					tcs := []testcase{

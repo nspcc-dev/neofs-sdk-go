@@ -103,6 +103,8 @@ type PutResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -238,6 +240,8 @@ type DeleteResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -372,6 +376,8 @@ type GetResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -506,6 +512,8 @@ type ListResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -640,6 +648,8 @@ type SetExtendedACLResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -774,6 +784,8 @@ type GetExtendedACLResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -914,6 +926,8 @@ type AnnounceUsedSpaceResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
