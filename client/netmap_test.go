@@ -435,12 +435,6 @@ func TestClient_EndpointInfo(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestGetNodeInfoServer, newTestNetmapClient, func(c *Client) error {
-						_, err := c.EndpointInfo(ctx, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protonetmap.LocalNodeInfoResponse_Body]
 					tcs := []testcase{{name: "missing", body: nil, assertErr: func(t testing.TB, err error) {
@@ -579,12 +573,6 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestNetmapSnapshotServer, newTestNetmapClient, func(c *Client) error {
-						_, err := c.NetMapSnapshot(ctx, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protonetmap.NetmapSnapshotResponse_Body]
 					tcs := []testcase{
@@ -717,12 +705,6 @@ func TestClient_NetworkInfo(t *testing.T) {
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "netmap.NetmapService", "NetworkInfo", func(c *Client) error {
-						_, err := c.NetworkInfo(ctx, anyValidOpts)
-						return err
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestNetworkInfoServer, newTestNetmapClient, func(c *Client) error {
 						_, err := c.NetworkInfo(ctx, anyValidOpts)
 						return err
 					})

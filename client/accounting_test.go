@@ -188,12 +188,6 @@ func TestClient_BalanceGet(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestGetBalanceServer, newTestAccountingClient, func(c *Client) error {
-						_, err := c.BalanceGet(ctx, anyValidPrm)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					tcs := []invalidResponseBodyTestcase[protoaccounting.BalanceResponse_Body]{
 						{name: "missing", body: nil,

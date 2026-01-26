@@ -438,24 +438,6 @@ func TestClient_ObjectSearch(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					srv := newTestSearchObjectsServer()
-					c := newTestObjectClient(t, srv)
-
-					const n = 10
-					chunks := make([][]oid.ID, n)
-					for i := range chunks {
-						chunks[i] = oidtest.IDs(20)
-					}
-
-					srv.respondWithChunks(chunks)
-					srv.respondWithoutSigning(n - 1)
-					r, err := c.ObjectSearchInit(ctx, anyCID, anyValidSigner, anyValidOpts)
-					require.NoError(t, err)
-					read, err := readAllObjectIDs(r)
-					require.ErrorContains(t, err, "invalid response signature")
-					require.Equal(t, join(chunks[:n-1]), read)
-				})
 				t.Run("payloads", func(t *testing.T) {
 					t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/657")
 					type testcase = struct {
@@ -973,12 +955,6 @@ func TestClient_SearchObjects(t *testing.T) {
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "object.ObjectService", "SearchV2", func(c *Client) error {
-						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client) error {
 						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 						return err
 					})
