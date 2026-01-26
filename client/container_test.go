@@ -1957,8 +1957,7 @@ type testSetContainerAttributeServer struct {
 	prm    *SetContainerAttributeParameters
 	prmSig *neofscrypto.Signature
 
-	respBodyForced bool
-	respBody       *protocontainer.SetAttributeResponse_Body
+	respStatus *protostatus.Status
 }
 
 // returns [protocontainer.ContainerServiceServer] supporting SetAttribute
@@ -1978,10 +1977,7 @@ func (x *testSetContainerAttributeServer) checkRequestParameters(prm SetContaine
 // makes the server to always respond with the given status. By default, status
 // OK is returned.
 func (x *testSetContainerAttributeServer) respondWithStatus(st *protostatus.Status) {
-	x.respBodyForced = true
-	x.respBody = &protocontainer.SetAttributeResponse_Body{
-		Status: st,
-	}
+	x.respStatus = st
 }
 
 func (x *testSetContainerAttributeServer) verifyRequest(req *protocontainer.SetAttributeRequest) error {
@@ -2051,21 +2047,9 @@ func (x *testSetContainerAttributeServer) SetAttribute(_ context.Context, req *p
 		return nil, x.handlerErr
 	}
 
-	var resp protocontainer.SetAttributeResponse
-
-	if x.respBodyForced {
-		resp.Body = x.respBody
-	} else {
-		resp.Body = proto.Clone(validMinSetContainerAttributeResponseBody).(*protocontainer.SetAttributeResponse_Body)
-	}
-
-	var err error
-	resp.BodySignature, err = signMessage(neofscryptotest.ECDSAPrivateKey(), resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("sign response: %w", err)
-	}
-
-	return &resp, nil
+	return &protocontainer.SetAttributeResponse{
+		Status: x.respStatus,
+	}, nil
 }
 
 func TestClient_SetContainerAttribute(t *testing.T) {
@@ -2189,8 +2173,7 @@ type testRemoveContainerAttributeServer struct {
 	prm    *RemoveContainerAttributeParameters
 	prmSig *neofscrypto.Signature
 
-	respBodyForced bool
-	respBody       *protocontainer.RemoveAttributeResponse_Body
+	respStatus *protostatus.Status
 }
 
 // returns [protocontainer.ContainerServiceServer] supporting RemoveAttribute
@@ -2210,10 +2193,7 @@ func (x *testRemoveContainerAttributeServer) checkRequestParameters(prm RemoveCo
 // makes the server to always respond with the given status. By default, status
 // OK is returned.
 func (x *testRemoveContainerAttributeServer) respondWithStatus(st *protostatus.Status) {
-	x.respBodyForced = true
-	x.respBody = &protocontainer.RemoveAttributeResponse_Body{
-		Status: st,
-	}
+	x.respStatus = st
 }
 
 func (x *testRemoveContainerAttributeServer) verifyRequest(req *protocontainer.RemoveAttributeRequest) error {
@@ -2278,21 +2258,9 @@ func (x *testRemoveContainerAttributeServer) RemoveAttribute(_ context.Context, 
 		return nil, x.handlerErr
 	}
 
-	var resp protocontainer.RemoveAttributeResponse
-
-	if x.respBodyForced {
-		resp.Body = x.respBody
-	} else {
-		resp.Body = proto.Clone(validMinRemoveContainerAttributeResponseBody).(*protocontainer.RemoveAttributeResponse_Body)
-	}
-
-	var err error
-	resp.BodySignature, err = signMessage(neofscryptotest.ECDSAPrivateKey(), resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("sign response: %w", err)
-	}
-
-	return &resp, nil
+	return &protocontainer.RemoveAttributeResponse{
+		Status: x.respStatus,
+	}, nil
 }
 
 func TestClient_RemoveContainerAttribute(t *testing.T) {

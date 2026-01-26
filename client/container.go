@@ -935,19 +935,7 @@ func (c *Client) SetContainerAttribute(ctx context.Context, prm SetContainerAttr
 		return err
 	}
 
-	if resp.BodySignature == nil {
-		err = fmt.Errorf("%w: missing body signature", errResponseSignatures)
-		return err
-	}
-
-	if err = neofscrypto.VerifyMessageSignature(resp.Body, resp.BodySignature, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
-
-	if resp.Body != nil {
-		err = apistatus.ToError(resp.Body.Status)
-	}
+	err = apistatus.ToError(resp.Status)
 
 	return err
 }
@@ -1094,19 +1082,7 @@ func (c *Client) RemoveContainerAttribute(ctx context.Context, prm RemoveContain
 		return err
 	}
 
-	if resp.BodySignature == nil {
-		err = fmt.Errorf("%w: missing body signature", errResponseSignatures)
-		return err
-	}
-
-	if err = neofscrypto.VerifyMessageSignature(resp.Body, resp.BodySignature, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return err
-	}
-
-	if resp.Body != nil {
-		err = apistatus.ToError(resp.Body.Status)
-	}
+	err = apistatus.ToError(resp.Status)
 
 	return err
 }

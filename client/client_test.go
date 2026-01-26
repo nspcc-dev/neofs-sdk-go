@@ -34,7 +34,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/grpc/test/bufconn"
 	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"google.golang.org/protobuf/types/known/sourcecontextpb"
 )
 
 /*
@@ -1293,18 +1293,20 @@ func testIncorrectUnaryRPCResponseFormat(t testing.TB, svcName, method string, o
 			{
 				MethodName: method,
 				Handler: func(srv any, ctx context.Context, dec func(any) error, interceptor grpc.UnaryServerInterceptor) (any, error) {
-					return timestamppb.Now(), nil // any completely different message
+					return &sourcecontextpb.SourceContext{FileName: "Hello, world!"}, nil // any completely different message
 				},
 			},
 		}},
 		impl: nil, // disables interface assert
 	}
 	c := newClient(t, svc)
-	require.ErrorContains(t, op(c), "invalid response signature")
-	// TODO(https://github.com/nspcc-dev/neofs-sdk-go/issues/661): Although the
-	//  client will not accept such a response, current error does not make it clear
-	//  what exactly the problem is. It is worth reacting to the incorrect structure
-	//  if possible.
+
+	err := op(c)
+	require.ErrorContains(t, err, "failed to unmarshal the received message")
+	require.ErrorContains(t, err, "cannot parse invalid wire-format data")
+	st, ok := status.FromError(err)
+	require.True(t, ok)
+	require.Equal(t, codes.Internal, st.Code())
 }
 
 // asserts that given [Client] op correctly reports meta information received
