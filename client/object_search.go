@@ -208,18 +208,13 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 
 	if c.prm.cbRespInfo != nil {
 		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			key:   c.nodeKey,
 			epoch: resp.GetMetaHeader().GetEpoch(),
 		})
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return nil, "", err
 		}
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoobject.SearchV2Response_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return nil, "", err
 	}
 
 	var statusError error
@@ -373,11 +368,6 @@ func (x *ObjectListReader) Read(buf []oid.ID) (int, error) {
 			return err
 		})
 		if x.err != nil {
-			return read, x.err
-		}
-
-		if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.SearchResponse_Body](resp, nil); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 			return read, x.err
 		}
 
