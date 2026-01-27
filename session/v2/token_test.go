@@ -31,6 +31,12 @@ func (r nnsResolver) HasUser(nnsName string, userID user.ID) (bool, error) {
 	return false, nil
 }
 
+type noopNNSResolver struct{}
+
+func (r noopNNSResolver) HasUser(string, user.ID) (bool, error) {
+	return true, nil
+}
+
 func TestRandomNonce(t *testing.T) {
 	t.Run("generates unique values", func(t *testing.T) {
 		const iterations = 1000
@@ -251,14 +257,14 @@ func TestToken_ValidateFields(t *testing.T) {
 			tok := newValidToken(t)
 			tc.fn(&tok)
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, tc.err)
 		})
 	}
 
 	t.Run("valid token", func(t *testing.T) {
 		tok := newValidSignedToken(t)
-		err := tok.Validate()
+		err := tok.Validate(noopNNSResolver{})
 		require.NoError(t, err)
 	})
 
@@ -266,7 +272,7 @@ func TestToken_ValidateFields(t *testing.T) {
 		tok := newValidSignedToken(t)
 		tok.SetExp(time.Unix(400, 0))
 
-		err := tok.Validate()
+		err := tok.Validate(noopNNSResolver{})
 		require.EqualError(t, err, "depth 0: invalid fields: token signature verification failed")
 	})
 
@@ -284,7 +290,7 @@ func TestToken_ValidateFields(t *testing.T) {
 		require.NoError(t, err)
 		require.NoError(t, tok.SetContexts([]session.Context{ctx1, ctx2}))
 
-		err = tok.Validate()
+		err = tok.Validate(noopNNSResolver{})
 		require.EqualError(t, err, fmt.Sprintf("depth 0: invalid fields: contexts must be sorted by container ID: index 1 (%s) < previous index 0 (%s)", cnr2, cnr1))
 	})
 
@@ -305,7 +311,7 @@ func TestToken_ValidateFields(t *testing.T) {
 			var invalidTok session.Token
 			require.NoError(t, invalidTok.FromProtoMessage(m))
 
-			err := invalidTok.Validate()
+			err := invalidTok.Validate(noopNNSResolver{})
 			require.ErrorContains(t, err, "too many subjects")
 		})
 
@@ -324,7 +330,7 @@ func TestToken_ValidateFields(t *testing.T) {
 			var invalidTok session.Token
 			require.NoError(t, invalidTok.FromProtoMessage(m))
 
-			err := invalidTok.Validate()
+			err := invalidTok.Validate(noopNNSResolver{})
 			require.ErrorContains(t, err, "too many contexts")
 		})
 
@@ -339,7 +345,7 @@ func TestToken_ValidateFields(t *testing.T) {
 			var invalidTok session.Token
 			require.NoError(t, invalidTok.FromProtoMessage(m))
 
-			err := invalidTok.Validate()
+			err := invalidTok.Validate(noopNNSResolver{})
 			require.ErrorContains(t, err, "too many verbs")
 		})
 	})
@@ -349,8 +355,15 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 	t.Run("empty chain", func(t *testing.T) {
 		tok := newValidSignedToken(t)
 
-		err := tok.Validate()
+		err := tok.Validate(noopNNSResolver{})
 		require.NoError(t, err)
+	})
+
+	t.Run("nil nns resolver", func(t *testing.T) {
+		tok := newValidSignedToken(t)
+
+		err := tok.Validate(nil)
+		require.EqualError(t, err, "NNS resolver must not be nil")
 	})
 
 	t.Run("valid single delegation", func(t *testing.T) {
@@ -365,7 +378,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 		tok.SetOrigin(&origin)
 		require.NoError(t, tok.Sign(subject))
 
-		err := tok.Validate()
+		err := tok.Validate(noopNNSResolver{})
 		require.NoError(t, err)
 	})
 
@@ -391,7 +404,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 		del2.SetOrigin(&del1)
 		require.NoError(t, del2.Sign(signer2))
 
-		require.NoError(t, del2.Validate())
+		require.NoError(t, del2.Validate(noopNNSResolver{}))
 	})
 
 	t.Run("invalid fields", func(t *testing.T) {
@@ -407,7 +420,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 1: invalid fields: subject at index 1 is empty")
 		})
 
@@ -422,7 +435,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 1: invalid fields: not valid before (nbf) is not set")
 		})
 
@@ -438,7 +451,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 1: invalid fields: token signature verification failed")
 		})
 
@@ -451,7 +464,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 1: invalid fields: token is not signed")
 		})
 
@@ -463,7 +476,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 1: invalid fields: issuer is not set")
 		})
 	})
@@ -483,7 +496,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: origin token lifetime is outside this token's lifetime")
 		})
 
@@ -501,7 +514,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: origin token lifetime is outside this token's lifetime")
 		})
 
@@ -519,7 +532,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 
@@ -537,7 +550,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 	})
@@ -563,7 +576,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb OBJECT_PUT not authorized by origin")
 		})
 
@@ -588,7 +601,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 
@@ -612,7 +625,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 
@@ -637,7 +650,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID2.String()+" at context 0 not found in origin")
 		})
 
@@ -677,7 +690,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			del2.SetOrigin(&del1)
 			require.NoError(t, del2.Sign(signer2))
 
-			err = del2.Validate()
+			err = del2.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 
@@ -708,7 +721,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			del1.SetOrigin(&root)
 			require.NoError(t, del1.Sign(signer1))
 
-			err = del1.Validate()
+			err = del1.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb OBJECT_DELETE not authorized by origin")
 		})
 
@@ -762,11 +775,11 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			require.NoError(t, tok3.Sign(signer3))
 
 			// tok2 should fail because it tries to use Delete which tok1 doesn't authorize
-			err = tok2.Validate()
+			err = tok2.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 0: verb OBJECT_DELETE not authorized by origin")
 
 			// tok3 should also fail because tok2 is invalid
-			err = tok3.Validate()
+			err = tok3.Validate(noopNNSResolver{})
 			require.ErrorContains(t, err, "depth 1: invalid origin chain")
 		})
 
@@ -795,7 +808,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: invalid origin chain: container "+containerID.String()+", context 1: verb CONTAINER_DELETE not authorized by origin")
 		})
 
@@ -819,7 +832,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: invalid origin chain: container "+wildcard.String()+", context 0: verb OBJECT_PUT not authorized by origin")
 		})
 
@@ -851,7 +864,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 
@@ -895,7 +908,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err = tok.Validate()
+			err = tok.Validate(noopNNSResolver{})
 			require.NoError(t, err)
 		})
 	})
@@ -912,7 +925,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 0: token issuer is not in this origin token's subjects")
 		})
 
@@ -927,8 +940,23 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tok.SetOrigin(&origin)
 			require.NoError(t, tok.Sign(subject))
 
-			err := tok.ValidateWithNNS(resolver)
+			err := tok.Validate(resolver)
 			require.NoError(t, err)
+		})
+
+		t.Run("issuer not in origin token NNS subjects", func(t *testing.T) {
+			issuer := usertest.User()
+			origin := newTokenForDelegation(t, issuer.UserID(), session.NewTargetNamed("some.nns"))
+			require.NoError(t, origin.Sign(issuer))
+
+			subject := usertest.User()
+			resolver := nnsResolver{map[string][]user.ID{"some.nns": {usertest.ID()}}} // does not include issuer
+			tok := newTokenForDelegation(t, subject.UserID(), session.NewTargetUser(usertest.ID()))
+			tok.SetOrigin(&origin)
+			require.NoError(t, tok.Sign(subject))
+
+			err := tok.Validate(resolver)
+			require.EqualError(t, err, "depth 0: token issuer is not in this origin token's subjects")
 		})
 	})
 
@@ -943,7 +971,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 		tok.SetOrigin(&origin)
 		require.NoError(t, tok.Sign(subject))
 
-		err := tok.Validate()
+		err := tok.Validate(noopNNSResolver{})
 		require.NoError(t, err)
 	})
 
@@ -960,7 +988,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 		del.SetOrigin(&origin)
 		require.NoError(t, del.Sign(subject))
 
-		err := del.Validate()
+		err := del.Validate(noopNNSResolver{})
 		require.EqualError(t, err, "depth 1: final token cannot be used as origin (further delegated)")
 	})
 
@@ -981,7 +1009,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 				signer = nextSigner
 			}
 
-			require.NoError(t, currentToken.Validate())
+			require.NoError(t, currentToken.Validate(noopNNSResolver{}))
 		})
 
 		t.Run("exceeds limit", func(t *testing.T) {
@@ -1000,7 +1028,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 				signer = nextSigner
 			}
 
-			err := currentToken.Validate()
+			err := currentToken.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "delegation chain exceeds maximum depth of 4")
 		})
 	})
@@ -1015,7 +1043,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			// Create a cycle: tok -> tok
 			tok.SetOrigin(&tok)
 
-			err := tok.Validate()
+			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "delegation chain exceeds maximum depth of 4")
 		})
 
@@ -1032,7 +1060,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			tokB.SetOrigin(&tokA)
 			tokA.SetOrigin(&tokB)
 
-			err := tokB.Validate()
+			err := tokB.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "delegation chain exceeds maximum depth of 4")
 		})
 
@@ -1057,7 +1085,7 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 			// A -> C
 			tokA.SetOrigin(&tokC)
 
-			err := tokC.Validate()
+			err := tokC.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "delegation chain exceeds maximum depth of 4")
 		})
 	})
