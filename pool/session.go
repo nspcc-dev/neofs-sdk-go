@@ -139,10 +139,6 @@ func (p *Pool) withinContainerSession(
 				return fmt.Errorf("sign token v2: %w", err)
 			}
 
-			if err = tokV2.Validate(); err != nil {
-				return fmt.Errorf("validate token v2: %w", err)
-			}
-
 			p.cache.PutV2(cacheKey, tokV2)
 		}
 
@@ -237,10 +233,6 @@ func (p *Pool) withinContainerSessionV2(
 
 		if err = tokV2.Sign(signer); err != nil {
 			return fmt.Errorf("sign token v2: %w", err)
-		}
-
-		if err = tokV2.Validate(); err != nil {
-			return fmt.Errorf("validate token v2: %w", err)
 		}
 
 		p.cache.PutV2(cacheKey, tokV2)

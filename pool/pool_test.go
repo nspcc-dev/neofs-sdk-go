@@ -30,6 +30,12 @@ import (
 	"go.uber.org/zap"
 )
 
+type noopNNSResolver struct{}
+
+func (r noopNNSResolver) HasUser(string, user.ID) (bool, error) {
+	return true, nil
+}
+
 func anyValidPeerAddress(ind uint) string { return fmt.Sprintf("peer%d:8080", ind) }
 
 func TestBuildPoolClientFailed(t *testing.T) {
@@ -564,7 +570,7 @@ func TestSessionTokenV2(t *testing.T) {
 		require.True(t, ok)
 
 		require.Equal(t, usr.UserID(), stV2.Issuer())
-		require.NoError(t, stV2.Validate())
+		require.NoError(t, stV2.Validate(noopNNSResolver{}))
 
 		neoPubKey, err := keys.NewPublicKeyFromBytes(mockCli.nodeKey, elliptic.P256())
 		require.NoError(t, err)
@@ -626,7 +632,7 @@ func TestSessionTokenV2DisableDelegation(t *testing.T) {
 	testObject.SetContainerID(containerID)
 
 	originToken := createOriginSessionV2Token(t, containerID, originSigner, poolSigner.UserID(), sessionv2.VerbObjectPut, sessionv2.VerbObjectDelete)
-	require.NoError(t, originToken.Validate())
+	require.NoError(t, originToken.Validate(noopNNSResolver{}))
 
 	var putPrm client.PrmObjectPutInit
 	putPrm.WithinSessionV2(originToken)
@@ -643,7 +649,7 @@ func TestSessionTokenV2DisableDelegation(t *testing.T) {
 	require.False(t, isCached)
 	require.Zero(t, cachedToken)
 
-	require.NoError(t, originToken.Validate())
+	require.NoError(t, originToken.Validate(noopNNSResolver{}))
 	require.Equal(t, originSigner.UserID(), originToken.Issuer())
 
 	var delPrm client.PrmObjectDelete
@@ -931,7 +937,7 @@ func TestSessionTokenV2Delegation(t *testing.T) {
 
 	t.Run("delegation: user creates token, pool creates new with origin", func(t *testing.T) {
 		originToken := createOriginSessionV2Token(t, containerID, user1, poolSigner.UserID(), sessionv2.VerbObjectPut, sessionv2.VerbObjectDelete)
-		require.NoError(t, originToken.Validate())
+		require.NoError(t, originToken.Validate(noopNNSResolver{}))
 
 		var prm client.PrmObjectPutInit
 		prm.WithinSessionV2(originToken)

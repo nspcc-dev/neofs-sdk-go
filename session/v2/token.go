@@ -703,25 +703,21 @@ type NNSResolver interface {
 }
 
 // Validate performs comprehensive validation of the token.
-// It is equivalent to ValidateWithNNS(nil), skipping NNS subject checks.
-// See ValidateWithNNS for full details.
-func (x Token) Validate() error {
-	return x.ValidateWithNNS(nil)
-}
-
-// ValidateWithNNS performs comprehensive validation of the token.
 // It includes field checks, depth checks, delegation chain validation,
 // narrowing of authorized verbs and lifetimes and issuer authorization checks.
 // The chain is built using recursive origin tokens, with a maximum depth of MaxDelegationDepth.
 // The nnsResolver checks if a user ID is authorized under a given NNS name.
-// If no NNS resolution is nil, NNS subjects are not considered during issuer authorization checks.
+// nnsResolver must not be nil.
 //
 // Delegation chain validation requirements:
 //   - Delegated contexts must maintain the same container order as origin contexts
 //   - Only one wildcard container (zero ID) is allowed per token
 //   - New containers (not in origin) are only allowed if origin has wildcard
 //   - All verbs in delegated contexts must be subset of origin verbs for matching containers
-func (x Token) ValidateWithNNS(nnsResolver NNSResolver) error {
+func (x Token) Validate(nnsResolver NNSResolver) error {
+	if nnsResolver == nil {
+		return errors.New("NNS resolver must not be nil")
+	}
 	return x.validate(0, nnsResolver)
 }
 
@@ -759,7 +755,7 @@ func (x *Token) validate(depth int, nnsResolver NNSResolver) error {
 			foundIssuer = true
 			break
 		}
-		if subj.IsNNS() && nnsResolver != nil {
+		if subj.IsNNS() {
 			ok, err := nnsResolver.HasUser(subj.NNSName(), x.issuer)
 			if err != nil {
 				return fmt.Errorf("depth %d: NNS resolution error for name %q: %w", depth, subj.NNSName(), err)
@@ -770,7 +766,7 @@ func (x *Token) validate(depth int, nnsResolver NNSResolver) error {
 			}
 		}
 	}
-	if !foundIssuer && nnsResolver == nil {
+	if !foundIssuer {
 		return fmt.Errorf("depth %d: token issuer is not in this origin token's subjects", depth)
 	}
 
