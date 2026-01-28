@@ -100,6 +100,8 @@ type AnnounceLocalTrustResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -234,6 +236,8 @@ type AnnounceIntermediateResultResponse struct {
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
 	// transmission.
+	// DEPRECATED: the field is no longer used for verifications. Servers MUST
+	// attach it for requests with `meta_header.version` <= 2.21.
 	VerifyHeader  *session.ResponseVerificationHeader `protobuf:"bytes,3,opt,name=verify_header,json=verifyHeader,proto3" json:"verify_header,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

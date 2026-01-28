@@ -133,7 +133,6 @@ loop:
 		LocalNodeInfo(context.Context, *protonetmap.LocalNodeInfoRequest) (*protonetmap.LocalNodeInfoResponse, error)
 	}
 	dialSrv := newTestGetNodeInfoServer()
-	dialSrv.signResponsesBy(testServerSignerOnDial.ECDSAPrivateKey)
 	dialSrv.respondWithNodePublicKey(testServerStateOnDial.pub)
 	dialSrv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: testServerStateOnDial.epoch})
 	handleDial := func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
@@ -612,27 +611,6 @@ func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) tuneNResp(n
 	x.resps[n] = s
 }
 
-// tells the server whether to sign the n-th response or not. By default, any
-// response is signed.
-//
-// Overrides signResponsesBy.
-func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) respondWithoutSigning(n uint) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
-		s.respondWithoutSigning()
-	})
-}
-
-// makes the server to sign n-th response using given signer. By default, and
-// if nil, random signer is used.
-//
-// No-op if signing is disabled using respondWithoutSigning.
-// nolint:unused // will be needed for https://github.com/nspcc-dev/neofs-sdk-go/issues/653
-func (x *testCommonServerStreamServerSettings[_, _, RESPBODY, RESP]) signResponsesBy(n uint, signer ecdsa.PrivateKey) {
-	x.tuneNResp(n, func(s *testCommonResponseServerSettings[RESPBODY, RESP]) {
-		s.signResponsesBy(signer)
-	})
-}
-
 // makes the server to return n-th response with given meta header. By default,
 // and if nil, no header is attached.
 //
@@ -827,22 +805,6 @@ type testCommonResponseServerSettings[
 	respBodyForced bool // if respBody = nil is explicitly set
 }
 
-// tells the server whether to sign all the responses or not. By default, any
-// response is signed.
-//
-// Overrides signResponsesBy.
-func (x *testCommonResponseServerSettings[_, _]) respondWithoutSigning() {
-	x.respUnsigned = true
-}
-
-// makes the server to always sign responses using given signer. By default, and
-// if nil, random signer is used.
-//
-// No-op if signing is disabled using respondWithoutSigning.
-func (x *testCommonResponseServerSettings[_, _]) signResponsesBy(key ecdsa.PrivateKey) {
-	x.respSigner = &key
-}
-
 // makes the server to always respond with the given meta header. By default,
 // and if nil, no header is attached.
 //
@@ -971,24 +933,6 @@ func testTransportFailure[SRV interface{ setHandlerError(error) }](
 	// instead of a status field in the response is a protocol violation and can be
 	// equated to a transport error.
 	assertTransportErr(t, transportErr, err)
-}
-
-// asserts that given [Client] op returns an expected error when built test
-// server responds with incorrect verification header. The op must be executed
-// with all the correct parameters.
-func testInvalidResponseVerificationHeader[SRV interface{ respondWithoutSigning() }](
-	t testing.TB,
-	newSrv func() SRV,
-	connect func(t testing.TB, srv any) *Client,
-	op testedClientOp,
-) {
-	srv := newSrv()
-	srv.respondWithoutSigning()
-	// TODO: add cases with less radical corruption such as replacing one byte or
-	//  dropping only one of the signatures.
-	// Note: TBD during transition to proto/* packages in current repository.
-	c := connect(t, srv)
-	require.ErrorContains(t, op(c), "invalid response signature")
 }
 
 type invalidResponseBodyTestcase[BODY any] struct {
@@ -1314,7 +1258,6 @@ func testIncorrectUnaryRPCResponseFormat(t testing.TB, svcName, method string, o
 // executed with all the correct parameters.
 func testUnaryResponseCallback[SRV interface {
 	respondWithMeta(*protosession.ResponseMetaHeader)
-	signResponsesBy(ecdsa.PrivateKey)
 }](
 	t testing.TB,
 	newSrv func() SRV,
@@ -1322,9 +1265,6 @@ func testUnaryResponseCallback[SRV interface {
 	op testedClientOp,
 ) {
 	srv := newSrv()
-	srvSigner := neofscryptotest.Signer()
-	srvPub := neofscrypto.PublicKeyBytes(srvSigner.Public())
-	srv.signResponsesBy(srvSigner.ECDSAPrivateKey)
 	srvEpoch := rand.Uint64()
 	srv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: srvEpoch})
 
@@ -1347,13 +1287,13 @@ func testUnaryResponseCallback[SRV interface {
 
 	err := op(c)
 	require.NoError(t, err)
-	assert(srvEpoch, srvPub)
+	assert(srvEpoch, testServerStateOnDial.pub)
 
 	handlerErr = errors.New("any response meta handler failure")
 	err = op(c)
 	require.ErrorContains(t, err, "response callback error")
 	require.ErrorIs(t, err, handlerErr)
-	assert(srvEpoch, srvPub)
+	assert(srvEpoch, testServerStateOnDial.pub)
 }
 
 // checks that the [Client] correctly keeps exec statistics of specified ops
