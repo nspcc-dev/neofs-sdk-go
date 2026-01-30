@@ -638,6 +638,17 @@ func (x Token) SignedData() []byte {
 	return neofsproto.MarshalMessage(x.fillBody())
 }
 
+// UnmarshalSignedData is a reverse op to [Token.SignedData].
+func (x *Token) UnmarshalSignedData(data []byte) error {
+	var body protosession.SessionTokenV2_Body
+	err := neofsproto.UnmarshalMessage(data, &body)
+	if err != nil {
+		return fmt.Errorf("decode body: %w", err)
+	}
+
+	return x.fromProtoMessage(&protosession.SessionTokenV2{Body: &body}, false)
+}
+
 // Sign calculates and writes signature of the Token data using signer.
 func (x *Token) Sign(signer user.Signer) error {
 	x.issuer = signer.UserID()

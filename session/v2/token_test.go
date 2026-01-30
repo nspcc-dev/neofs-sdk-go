@@ -1787,3 +1787,54 @@ func TestToken_UnmarshalJSON(t *testing.T) {
 		}
 	})
 }
+
+func TestToken_UnmarshalSignedData(t *testing.T) {
+	t.Run("valid token", func(t *testing.T) {
+		tok := newValidToken(t)
+
+		signedData := tok.SignedData()
+		require.NotEmpty(t, signedData)
+
+		var tok2 session.Token
+		err := tok2.UnmarshalSignedData(signedData)
+		require.NoError(t, err)
+
+		signedData2 := tok2.SignedData()
+		require.Equal(t, signedData, signedData2)
+		require.Equal(t, tok, tok2)
+
+		var tok3 session.Token
+		require.NoError(t, tok3.UnmarshalSignedData(signedData2))
+		signedData3 := tok3.SignedData()
+
+		require.Equal(t, signedData, signedData3)
+		require.Equal(t, tok, tok3)
+	})
+
+	t.Run("signed token", func(t *testing.T) {
+		tok := newValidSignedToken(t)
+		signedData := tok.SignedData()
+		require.NotEmpty(t, signedData)
+
+		var tok2 session.Token
+		err := tok2.UnmarshalSignedData(signedData)
+		require.NoError(t, err)
+
+		signedData2 := tok2.SignedData()
+		require.Equal(t, signedData, signedData2)
+		require.NotEqual(t, tok, tok2)
+	})
+
+	t.Run("invalid", func(t *testing.T) {
+		t.Run("invalid proto", func(t *testing.T) {
+			err := new(session.Token).UnmarshalSignedData([]byte("Hello, world!"))
+			require.ErrorContains(t, err, "proto")
+			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
+		})
+		for _, tc := range invalidSignedDataCommonTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				require.EqualError(t, new(session.Token).UnmarshalSignedData(tc.b), tc.err)
+			})
+		}
+	})
+}
