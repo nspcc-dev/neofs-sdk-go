@@ -319,6 +319,35 @@ var invalidBinCommonTestcases = []invalidBinTokenTestcase{
 		b: []byte{26, 13, 18, 11, 24, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1}},
 }
 
+var invalidSignedDataCommonTestcases = []invalidBinTokenTestcase{
+	{name: "body/issuer/value/empty", err: "invalid issuer: invalid length 0, expected 25",
+		b: []byte{26, 0}},
+	{name: "body/issuer/value/undersize", err: "invalid issuer: invalid length 24, expected 25",
+		b: []byte{26, 26, 10, 24, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{name: "body/issuer/value/oversize", err: "invalid issuer: invalid length 26, expected 25",
+		b: []byte{26, 28, 10, 26, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{name: "body/issuer/value/wrong prefix", err: "invalid issuer: invalid prefix byte 0x42, expected 0x35",
+		b: []byte{26, 27, 10, 25, 66, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}},
+	{name: "body/issuer/value/checksum mismatch", err: "invalid issuer: checksum mismatch",
+		b: []byte{26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 93}},
+	{name: "context/invalid verb", err: "invalid context at index 0: negative verb -1",
+		b: []byte{50, 12, 18, 10, 255, 255, 255, 255, 255, 255, 255, 255, 255, 1}},
+	{name: "context/missing container", err: "invalid context at index 0: empty context",
+		b: []byte{50, 0}},
+	{name: "context/container/nil value", err: "invalid context at index 0: invalid container: invalid length 0",
+		b: []byte{50, 2, 10, 0}},
+	{name: "context/container/empty value", err: "invalid context at index 0: invalid container: invalid length 0",
+		b: []byte{50, 2, 10, 0}},
+	{name: "context/container/undersize", err: "invalid context at index 0: invalid container: invalid length 31",
+		b: []byte{50, 35, 10, 33, 10, 31, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0}},
+	{name: "context/container/oversize", err: "invalid context at index 0: invalid container: invalid length 33",
+		b: []byte{50, 37, 10, 35, 10, 33, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+			0, 0, 0, 0, 0, 0, 0, 0, 0}},
+}
+
 type invalidJSONTokenTestcase struct {
 	name, err string
 	j         string
