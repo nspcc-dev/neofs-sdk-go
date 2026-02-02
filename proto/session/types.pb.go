@@ -1409,8 +1409,10 @@ type SessionTokenV2_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Token version.
 	Version uint32 `protobuf:"varint,1,opt,name=version,proto3" json:"version,omitempty"`
-	// Random nonce to prevent collisions.
-	Nonce uint32 `protobuf:"varint,2,opt,name=nonce,proto3" json:"nonce,omitempty"`
+	// Application-specific data that can be used to store additional context.
+	// This field is optional and can contain any application-defined data.
+	// Maximum size: 1024 bytes.
+	Appdata []byte `protobuf:"bytes,2,opt,name=appdata,proto3" json:"appdata,omitempty"`
 	// Account that issued this token (who signed it).
 	Issuer *refs.OwnerID `protobuf:"bytes,3,opt,name=issuer,proto3" json:"issuer,omitempty"`
 	// Accounts authorized by this token (who can use it).
@@ -1480,11 +1482,11 @@ func (x *SessionTokenV2_Body) GetVersion() uint32 {
 	return 0
 }
 
-func (x *SessionTokenV2_Body) GetNonce() uint32 {
+func (x *SessionTokenV2_Body) GetAppdata() []byte {
 	if x != nil {
-		return x.Nonce
+		return x.Appdata
 	}
-	return 0
+	return nil
 }
 
 func (x *SessionTokenV2_Body) GetIssuer() *refs.OwnerID {
@@ -1613,14 +1615,14 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\x03iat\x18\x03 \x01(\x04R\x03iat\"|\n" +
 	"\x10SessionContextV2\x129\n" +
 	"\tcontainer\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\tcontainer\x12-\n" +
-	"\x05verbs\x18\x02 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\xf6\x03\n" +
+	"\x05verbs\x18\x02 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\xfa\x03\n" +
 	"\x0eSessionTokenV2\x12:\n" +
 	"\x04body\x18\x01 \x01(\v2&.neo.fs.v2.session.SessionTokenV2.BodyR\x04body\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x129\n" +
-	"\x06origin\x18\x03 \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x06origin\x1a\xb3\x02\n" +
+	"\x06origin\x18\x03 \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x06origin\x1a\xb7\x02\n" +
 	"\x04Body\x12\x18\n" +
-	"\aversion\x18\x01 \x01(\rR\aversion\x12\x14\n" +
-	"\x05nonce\x18\x02 \x01(\rR\x05nonce\x12/\n" +
+	"\aversion\x18\x01 \x01(\rR\aversion\x12\x18\n" +
+	"\aappdata\x18\x02 \x01(\fR\aappdata\x12/\n" +
 	"\x06issuer\x18\x03 \x01(\v2\x17.neo.fs.v2.refs.OwnerIDR\x06issuer\x125\n" +
 	"\bsubjects\x18\x04 \x03(\v2\x19.neo.fs.v2.session.TargetR\bsubjects\x12<\n" +
 	"\blifetime\x18\x05 \x01(\v2 .neo.fs.v2.session.TokenLifetimeR\blifetime\x12?\n" +

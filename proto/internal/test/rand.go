@@ -347,7 +347,7 @@ func RandSessionTokenV2Lifetime() *session.TokenLifetime {
 func RandSessionTokenV2Body() *session.SessionTokenV2_Body {
 	return &session.SessionTokenV2_Body{
 		Version:  RandUint32(),
-		Nonce:    RandUint32(),
+		Appdata:  RandBytes(),
 		Issuer:   RandOwnerID(),
 		Subjects: RandTargets(),
 		Lifetime: RandSessionTokenV2Lifetime(),

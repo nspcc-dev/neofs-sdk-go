@@ -817,11 +817,11 @@ func checkSessionTokenV2Transport(t sessionv2.Token, m *protosession.SessionToke
 	if v1, v2 := t.Version(), body.GetVersion(); v1 != v2 {
 		return fmt.Errorf("version field (client: %d, message: %d)", v1, v2)
 	}
-	// 2. nonce
-	expNonce := t.Nonce()
-	actNonce := body.GetNonce()
-	if expNonce != actNonce {
-		return fmt.Errorf("wrong ID: %x vs %x", expNonce, actNonce)
+	// 2. app data
+	expAppData := t.AppData()
+	actAppData := body.GetAppdata()
+	if !bytes.Equal(expAppData, actAppData) {
+		return fmt.Errorf("wrong app data: %x vs %x", expAppData, actAppData)
 	}
 	// 3. issuer (just check it exists in message)
 	actIssuer := body.GetIssuer()

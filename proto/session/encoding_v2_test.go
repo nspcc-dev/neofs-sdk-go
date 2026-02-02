@@ -134,7 +134,7 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 		prototest.RandSessionTokenV2Body(),
 		{
 			Version:  1,
-			Nonce:    prototest.RandUint32(),
+			Appdata:  prototest.RandBytes(),
 			Issuer:   prototest.RandOwnerID(),
 			Subjects: prototest.RandTargets(),
 			Lifetime: prototest.RandSessionTokenV2Lifetime(),
@@ -207,7 +207,7 @@ func TestSessionTokenV2_Body_MarshaledSize(t *testing.T) {
 		prototest.RandSessionTokenV2Body(),
 		{
 			Version:  1,
-			Nonce:    prototest.RandUint32(),
+			Appdata:  prototest.RandBytes(),
 			Issuer:   prototest.RandOwnerID(),
 			Subjects: prototest.RandTargets(),
 			Lifetime: prototest.RandSessionTokenV2Lifetime(),
@@ -250,5 +250,5 @@ func TestSessionTokenV2_RoundTrip(t *testing.T) {
 	require.NoError(t, neofsproto.UnmarshalMessage(data, &decoded))
 
 	require.Equal(t, original.GetBody().GetVersion(), decoded.GetBody().GetVersion())
-	require.Equal(t, original.GetBody().GetNonce(), decoded.GetBody().GetNonce())
+	require.Equal(t, original.GetBody().GetAppdata(), decoded.GetBody().GetAppdata())
 }

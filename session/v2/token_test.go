@@ -37,19 +37,6 @@ func (r noopNNSResolver) HasUser(string, user.ID) (bool, error) {
 	return true, nil
 }
 
-func TestRandomNonce(t *testing.T) {
-	t.Run("generates unique values", func(t *testing.T) {
-		const iterations = 1000
-		nonces := make(map[uint32]bool, iterations)
-
-		for range iterations {
-			nonces[session.RandomNonce()] = true
-		}
-
-		require.Greater(t, len(nonces), iterations*99/100)
-	})
-}
-
 func TestLifetime_MarshalUnmarshalNow(t *testing.T) {
 	base := time.Now()
 	lt := session.NewLifetime(base, base.Add(5*time.Minute), base.Add(10*time.Minute))
@@ -145,7 +132,6 @@ func TestTarget(t *testing.T) {
 func newValidToken(t *testing.T) session.Token {
 	var tok session.Token
 	tok.SetVersion(session.TokenCurrentVersion)
-	tok.SetNonce(session.RandomNonce())
 	tok.SetIssuer(usertest.ID())
 	require.NoError(t, tok.AddSubject(session.NewTargetUser(usertest.ID())))
 	tok.SetIat(time.Unix(100, 0))
@@ -167,7 +153,6 @@ func newValidSignedToken(t *testing.T) session.Token {
 
 func newTokenForDelegation(t *testing.T, issuer user.ID, subject session.Target) session.Token {
 	var tok session.Token
-	tok.SetNonce(session.RandomNonce())
 	tok.SetIssuer(issuer)
 	require.NoError(t, tok.AddSubject(subject))
 	tok.SetIat(time.Unix(100, 0))
@@ -1221,10 +1206,34 @@ func TestToken_Setters(t *testing.T) {
 		require.Equal(t, uint32(2), tok.Version())
 	})
 
-	t.Run("SetNonce", func(t *testing.T) {
-		nonce := uint32(2)
-		tok.SetNonce(nonce)
-		require.Equal(t, nonce, tok.Nonce())
+	t.Run("SetAppData", func(t *testing.T) {
+		nonce := []byte{1, 2}
+		require.NoError(t, tok.SetAppData(nonce))
+		require.Equal(t, nonce, tok.AppData())
+
+		t.Run("nil app data", func(t *testing.T) {
+			require.NoError(t, tok.SetAppData(nil))
+			require.Nil(t, tok.AppData())
+		})
+
+		t.Run("exactly at limit", func(t *testing.T) {
+			appData := make([]byte, session.MaxAppDataSize)
+			for i := range appData {
+				appData[i] = byte(i % 256)
+			}
+			err := tok.SetAppData(appData)
+			require.NoError(t, err)
+			require.Equal(t, appData, tok.AppData())
+		})
+
+		t.Run("exceeds limit", func(t *testing.T) {
+			appData := make([]byte, session.MaxAppDataSize+1)
+			for i := range appData {
+				appData[i] = byte(i % 256)
+			}
+			err := tok.SetAppData(appData)
+			require.EqualError(t, err, fmt.Sprintf("app data size exceeds maximum of %d bytes", session.MaxAppDataSize))
+		})
 	})
 
 	t.Run("SetIssuer", func(t *testing.T) {

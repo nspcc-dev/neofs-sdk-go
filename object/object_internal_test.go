@@ -30,7 +30,6 @@ func sessionToken(cnr cid.ID) *session.Object {
 
 func sessionTokenV2(cnr cid.ID) *sessionv2.Token {
 	var sess sessionv2.Token
-	sess.SetNonce(sessionv2.RandomNonce())
 	ctx, _ := sessionv2.NewContext(cnr, []sessionv2.Verb{sessionv2.VerbObjectPut})
 	_ = sess.SetContexts([]sessionv2.Context{ctx})
 
@@ -383,7 +382,7 @@ func TestObject_CopyTo(t *testing.T) {
 		local.ProtoMessage().GetHeader().GetSessionTokenV2().Body = nil
 
 		sessDst := sessionTokenV2(cnr)
-		sessDst.SetNonce(sessionv2.RandomNonce())
+		require.NoError(t, sessDst.SetAppData([]byte("some data")))
 
 		var dst Object
 		dst.SetSessionTokenV2(sessDst)

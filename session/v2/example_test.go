@@ -15,8 +15,8 @@ func ExampleToken_basic() {
 	var token session.Token
 
 	// Set basic token properties
-	token.SetNonce(session.RandomNonce())
 	token.SetVersion(session.TokenCurrentVersion)
+	_ = token.SetAppData([]byte("example app data"))
 
 	// Account creating this token
 	signer := usertest.User()
@@ -53,7 +53,6 @@ func ExampleToken_basic() {
 func ExampleToken_nns() {
 	var token session.Token
 
-	token.SetNonce(session.RandomNonce())
 	token.SetVersion(session.TokenCurrentVersion)
 
 	// Add subjects using NNS names
@@ -105,7 +104,6 @@ func ExampleToken_nns() {
 func ExampleToken_delegation() {
 	var origin session.Token
 
-	origin.SetNonce(session.RandomNonce())
 	origin.SetVersion(session.TokenCurrentVersion)
 
 	subject1 := usertest.User()
@@ -125,7 +123,6 @@ func ExampleToken_delegation() {
 	subject2 := usertest.ID()
 
 	var del session.Token
-	del.SetNonce(session.RandomNonce())
 	del.SetVersion(session.TokenCurrentVersion)
 	del.SetIat(now)
 	del.SetNbf(now)
