@@ -60,7 +60,7 @@ func init() {
 	anyValidObjectToken.LimitByObjects(anyValidIDs[8], anyValidIDs[9])
 	anyValidObjectToken.AttachSignature(neofscrypto.NewSignatureFromRawKey(1134494890, []byte("session_signer"), []byte("session_signature")))
 
-	anyValidSessionTokenV2.SetNonce(12345)
+	_ = anyValidSessionTokenV2.SetAppData([]byte("any_app_data"))
 	anyValidSessionTokenV2.SetVersion(sessionv2.TokenCurrentVersion)
 	anyValidSessionTokenV2.SetIssuer(anyValidUsers[1])
 	anyValidSessionTokenV2.SetIat(time.Unix(123, 0))
@@ -114,13 +114,13 @@ func init() {
 }
 
 // corresponds to validObject.
-var validObjectID = oid.ID{171, 229, 247, 16, 96, 178, 182, 93, 218, 16, 215, 197, 77, 165, 252, 114, 219, 44, 142, 88,
-	232, 76, 174, 158, 88, 99, 42, 11, 104, 99, 154, 36}
+var validObjectID = oid.ID{27, 70, 138, 206, 227, 37, 79, 134, 166, 2, 196, 128, 164, 210, 239, 148, 83, 209, 220, 150,
+	16, 233, 136, 23, 84, 97, 38, 96, 112, 83, 239, 131}
 
 // corresponds to validObject.
 var validBinObject = []byte{
 	10, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70, 246, 8, 139,
-	247, 174, 53, 60, 18, 20, 10, 5, 112, 117, 98, 95, 50, 18, 5, 115, 105, 103, 95, 50, 24, 171, 178, 212, 208, 4, 26, 191, 9, 10, 11, 8,
+	247, 174, 53, 60, 18, 20, 10, 5, 112, 117, 98, 95, 50, 18, 5, 115, 105, 103, 95, 50, 24, 171, 178, 212, 208, 4, 26, 202, 9, 10, 11, 8,
 	209, 134, 217, 250, 1, 16, 202, 208, 129, 82, 18, 34, 10, 32, 217, 213, 19, 152, 91, 248, 2, 180, 17, 177, 248, 226, 163, 200, 56, 31, 123, 24,
 	182, 144, 148, 180, 248, 192, 155, 253, 104, 220, 69, 102, 174, 5, 26, 27, 10, 25, 53, 214, 113, 220, 69, 70, 98, 242, 115, 99, 188, 86, 53, 223,
 	243, 238, 11, 245, 251, 169, 115, 202, 247, 184, 221, 32, 158, 188, 250, 184, 255, 160, 255, 210, 183, 1, 40, 189, 238, 172, 200, 143, 221, 203, 248, 76,
@@ -153,13 +153,13 @@ var validBinObject = []byte{
 	244, 72, 96, 69, 13, 83, 81, 172, 42, 34, 10, 32, 238, 167, 85, 68, 91, 254, 165, 81, 182, 145, 16, 91, 35, 224, 17, 46, 164, 138, 86, 50,
 	196, 148, 215, 210, 247, 29, 44, 153, 203, 20, 137, 169, 42, 34, 10, 32, 226, 165, 123, 249, 146, 166, 187, 202, 244, 12, 156, 43, 207, 204, 40, 230,
 	145, 34, 212, 152, 148, 112, 44, 21, 195, 207, 249, 112, 34, 81, 145, 194, 58, 34, 10, 32, 119, 231, 221, 167, 7, 141, 50, 77, 49, 23, 194, 169,
-	82, 56, 150, 162, 103, 20, 124, 174, 16, 64, 169, 172, 79, 238, 242, 146, 87, 88, 5, 147, 98, 165, 1, 10, 114, 16, 185, 96, 26, 27, 10, 25,
-	53, 214, 113, 220, 69, 70, 98, 242, 115, 99, 188, 86, 53, 223, 243, 238, 11, 245, 251, 169, 115, 202, 247, 184, 221, 34, 29, 10, 27, 10, 25, 53,
-	248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229, 62, 150, 151, 159, 221, 73, 224, 229, 106, 42, 222, 42, 7, 8, 200, 3, 16, 123, 24,
-	123, 50, 40, 10, 34, 10, 32, 135, 89, 149, 219, 185, 209, 233, 137, 224, 211, 141, 70, 193, 205, 248, 254, 226, 30, 114, 177, 245, 171, 29, 90, 212,
-	15, 51, 86, 142, 101, 155, 141, 18, 2, 1, 2, 18, 47, 10, 17, 115, 101, 115, 115, 105, 111, 110, 95, 118, 50, 95, 115, 105, 103, 110, 101, 114,
-	18, 20, 115, 101, 115, 115, 105, 111, 110, 95, 118, 50, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 171, 137, 252, 156, 4, 34, 13, 72, 101,
-	108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
+	82, 56, 150, 162, 103, 20, 124, 174, 16, 64, 169, 172, 79, 238, 242, 146, 87, 88, 5, 147, 98, 176, 1, 10, 125, 18, 12, 97, 110, 121, 95, 97,
+	112, 112, 95, 100, 97, 116, 97, 26, 27, 10, 25, 53, 214, 113, 220, 69, 70, 98, 242, 115, 99, 188, 86, 53, 223, 243, 238, 11, 245, 251, 169, 115,
+	202, 247, 184, 221, 34, 29, 10, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229, 62, 150, 151, 159, 221, 73, 224, 229,
+	106, 42, 222, 42, 7, 8, 200, 3, 16, 123, 24, 123, 50, 40, 10, 34, 10, 32, 135, 89, 149, 219, 185, 209, 233, 137, 224, 211, 141, 70, 193, 205,
+	248, 254, 226, 30, 114, 177, 245, 171, 29, 90, 212, 15, 51, 86, 142, 101, 155, 141, 18, 2, 1, 2, 18, 47, 10, 17, 115, 101, 115, 115, 105, 111,
+	110, 95, 118, 50, 95, 115, 105, 103, 110, 101, 114, 18, 20, 115, 101, 115, 115, 105, 111, 110, 95, 118, 50, 95, 115, 105, 103, 110, 97, 116, 117, 114,
+	101, 24, 171, 137, 252, 156, 4, 34, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
 }
 
 // corresponds to validObject.
@@ -315,7 +315,7 @@ var validJSONObject = `
   "sessionTokenV2": {
    "body": {
     "version": 0,
-    "nonce": 12345,
+    "appdata":"YW55X2FwcF9kYXRh",
     "issuer": {
      "value": "NdZx3EVGYvJzY7xWNd/z7gv1+6lzyve43Q=="
     },
@@ -776,7 +776,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 			SessionTokenV2: &protosession.SessionTokenV2{
 				Body: &protosession.SessionTokenV2_Body{
 					Version: sessionv2.TokenCurrentVersion,
-					Nonce:   12345,
+					Appdata: []byte("any_app_data"),
 					Issuer:  protoUserIDFromBytes(anyValidUsers[1][:]),
 					Subjects: []*protosession.Target{{
 						Identifier: &protosession.Target_OwnerId{
@@ -1127,7 +1127,7 @@ func TestObject_ProtoMessage(t *testing.T) {
 
 	mht2 := mh.GetSessionTokenV2()
 	mht2b := mht2.GetBody()
-	require.EqualValues(t, 12345, mht2b.GetNonce())
+	require.EqualValues(t, []byte("any_app_data"), mht2b.GetAppdata())
 	require.EqualValues(t, sessionv2.TokenCurrentVersion, mht2b.GetVersion())
 	require.Equal(t, anyValidUsers[1][:], mht2b.GetIssuer().GetValue())
 	require.EqualValues(t, 123, mht2b.GetLifetime().GetIat())
@@ -2281,7 +2281,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 
 func TestObject_HeaderLen(t *testing.T) {
 	require.EqualValues(t, 0, object.Object{}.HeaderLen())
-	require.EqualValues(t, 1215, validObject.HeaderLen())
+	require.EqualValues(t, 1226, validObject.HeaderLen())
 }
 
 func TestObject_Address(t *testing.T) {

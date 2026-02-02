@@ -23,7 +23,7 @@ func TestV2_CopyTo(t *testing.T) {
 			exp: time.Unix(3, 0),
 		},
 		version: 2,
-		nonce:   12345,
+		appdata: []byte("appdata"),
 		issuer:  usr.UserID(),
 		subjects: []Target{
 			{nnsName: "alice.neofs"},
@@ -93,36 +93,36 @@ func TestV2_CopyTo(t *testing.T) {
 		require.NotEqual(t, local.version, dst.version)
 	})
 
-	t.Run("change nonce", func(t *testing.T) {
+	t.Run("change app data", func(t *testing.T) {
 		var dst Token
 		data.CopyTo(&dst)
 
-		require.Equal(t, data.nonce, dst.nonce)
+		require.Equal(t, data.appdata, dst.appdata)
 
-		dst.SetNonce(9999)
+		require.NoError(t, dst.SetAppData([]byte{9, 8, 7}))
 
-		require.NotEqual(t, data.nonce, dst.nonce)
+		require.NotEqual(t, data.appdata, dst.appdata)
 	})
 
 	t.Run("overwrite nonce", func(t *testing.T) {
 		local := Token{}
-		require.Zero(t, local.nonce)
+		require.Zero(t, local.appdata)
 
 		var dst Token
-		dst.SetNonce(7777)
-		require.NotZero(t, dst.nonce)
+		require.NoError(t, dst.SetAppData([]byte{7}))
+		require.NotZero(t, dst.appdata)
 
 		local.CopyTo(&dst)
 
 		require.Equal(t, local.Marshal(), dst.Marshal())
 
-		require.Zero(t, local.nonce)
-		require.Zero(t, dst.nonce)
+		require.Zero(t, local.appdata)
+		require.Zero(t, dst.appdata)
 
-		dst.SetNonce(8888)
+		require.NoError(t, dst.SetAppData([]byte{8}))
 
-		require.Zero(t, local.nonce)
-		require.NotZero(t, dst.nonce)
+		require.Zero(t, local.appdata)
+		require.NotZero(t, dst.appdata)
 	})
 
 	t.Run("change final", func(t *testing.T) {

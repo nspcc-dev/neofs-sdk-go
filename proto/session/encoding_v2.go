@@ -108,7 +108,7 @@ func (x *SessionContextV2) MarshalStable(b []byte) {
 const (
 	_ = iota
 	fieldTokenV2Version
-	fieldTokenV2Nonce
+	fieldTokenV2Appdata
 	fieldTokenV2Issuer
 	fieldTokenV2Subjects
 	fieldTokenV2Lifetime
@@ -122,7 +122,7 @@ func (x *SessionTokenV2_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = proto.SizeVarint(fieldTokenV2Version, x.Version) +
-			proto.SizeVarint(fieldTokenV2Nonce, x.Nonce) +
+			proto.SizeBytes(fieldTokenV2Appdata, x.Appdata) +
 			proto.SizeEmbedded(fieldTokenV2Issuer, x.Issuer) +
 			proto.SizeRepeatedMessages(fieldTokenV2Subjects, x.Subjects) +
 			proto.SizeEmbedded(fieldTokenV2Lifetime, x.Lifetime) +
@@ -139,7 +139,7 @@ func (x *SessionTokenV2_Body) MarshaledSize() int {
 func (x *SessionTokenV2_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, fieldTokenV2Version, x.Version)
-		off += proto.MarshalToVarint(b[off:], fieldTokenV2Nonce, x.Nonce)
+		off += proto.MarshalToBytes(b[off:], fieldTokenV2Appdata, x.Appdata)
 		off += proto.MarshalToEmbedded(b[off:], fieldTokenV2Issuer, x.Issuer)
 		off += proto.MarshalToRepeatedMessages(b[off:], fieldTokenV2Subjects, x.Subjects)
 		off += proto.MarshalToEmbedded(b[off:], fieldTokenV2Lifetime, x.Lifetime)

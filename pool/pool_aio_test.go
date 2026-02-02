@@ -783,7 +783,6 @@ func isObjectDeleted(ctx context.Context, c objectHeadGetter, id cid.ID, oid oid
 func createTokenV2(t *testing.T, ctx context.Context, cl *client.Client, containerID cid.ID, verb sessionv2.Verb, signer user.Signer) sessionv2.Token {
 	var sess sessionv2.Token
 	sess.SetVersion(sessionv2.TokenCurrentVersion)
-	sess.SetNonce(sessionv2.RandomNonce())
 
 	currentTime := time.Now()
 	sess.SetIat(currentTime)

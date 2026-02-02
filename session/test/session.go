@@ -96,7 +96,6 @@ func Token() sessionv2.Token {
 	var tok sessionv2.Token
 
 	tok.SetVersion(sessionv2.TokenCurrentVersion)
-	tok.SetNonce(sessionv2.RandomNonce())
 	err := tok.AddSubject(sessionv2.NewTargetUser(usertest.ID()))
 	if err != nil {
 		panic(err)

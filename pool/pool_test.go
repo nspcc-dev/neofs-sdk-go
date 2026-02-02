@@ -882,7 +882,6 @@ func BenchmarkSlidingWindow(b *testing.B) {
 func createOriginSessionV2Token(t *testing.T, containerID cid.ID, signer user.Signer, gatewayID user.ID, verbs ...sessionv2.Verb) sessionv2.Token {
 	var tok sessionv2.Token
 	tok.SetVersion(sessionv2.TokenCurrentVersion)
-	tok.SetNonce(sessionv2.RandomNonce())
 	tok.SetIat(time.Now())
 	tok.SetNbf(time.Now())
 	tok.SetExp(time.Now().Add(1 * time.Hour))

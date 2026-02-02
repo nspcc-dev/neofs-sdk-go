@@ -18,7 +18,6 @@ const (
 	anyValidNNS             = "alice.neo"
 	anyValidContainerVerb   = 8
 	anyValidObjectVerb      = 1
-	anyValidNonce           = 12345
 	anyValidExp             = 32058350
 	anyValidIat             = 1209418302
 	anyValidNbf             = 93843742391
@@ -26,6 +25,7 @@ const (
 )
 
 var (
+	anyValidAppData = []byte("any_appdata")
 	anyValidExpTime = time.Unix(anyValidExp, 0)
 	anyValidNbfTime = time.Unix(anyValidNbf, 0)
 	anyValidIatTime = time.Unix(anyValidIat, 0)
@@ -43,7 +43,7 @@ var validProto = func() *protosession.SessionTokenV2 {
 	return &protosession.SessionTokenV2{
 		Body: &protosession.SessionTokenV2_Body{
 			Version: anyValidVersion,
-			Nonce:   anyValidNonce,
+			Appdata: anyValidAppData,
 			Issuer:  &refs.OwnerID{Value: anyValidUserID[:]},
 			Subjects: []*protosession.Target{{
 				Identifier: &protosession.Target_NnsName{NnsName: anyValidNNS},
@@ -176,10 +176,13 @@ var invalidProtoTokenCommonTestcases = []invalidProtoTokenTestcase{
 var validToken = func() session.Token {
 	var tok session.Token
 	tok.SetVersion(anyValidVersion)
-	tok.SetNonce(anyValidNonce)
+	err := tok.SetAppData(anyValidAppData)
+	if err != nil {
+		panic(err)
+	}
 	tok.SetFinal(true)
 	tok.SetIssuer(anyValidUserID)
-	err := tok.AddSubject(session.NewTargetNamed(anyValidNNS))
+	err = tok.AddSubject(session.NewTargetNamed(anyValidNNS))
 	if err != nil {
 		panic(err)
 	}
@@ -235,37 +238,38 @@ var validToken = func() session.Token {
 
 // validBinToken is the binary encoding of validToken.
 // This should match the output of validToken.Marshal().
-var validBinToken = []byte{10, 151, 1, 8, 2, 16, 185, 96, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254,
-	30, 138, 195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2,
-	24, 190, 132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35,
-	99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 8, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51,
-	168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 1, 56, 1, 18, 56, 10, 33, 3, 202,
-	217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218, 18,
-	13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4, 26, 163, 1, 10, 103, 26, 27, 10, 25, 53, 51, 5,
-	166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46,
-	110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75,
-	198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 1,
-	18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134,
-	228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4}
+var validBinToken = []byte{10, 161, 1, 8, 2, 18, 11, 97, 110, 121, 95, 97, 112, 112, 100, 97, 116, 97, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165,
+	28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238,
+	215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49,
+	51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 8, 50, 39, 10, 34, 10, 32, 243,
+	245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18,
+	1, 1, 56, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209,
+	220, 113, 215, 134, 228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4, 26, 163,
+	1, 10, 103, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92,
+	34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192,
+	4, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26,
+	30, 147, 240, 79, 114, 252, 227, 18, 1, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148,
+	205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236,
+	236, 175, 192, 4}
 
 // validJSONToken is the JSON encoding of validToken.
 // This should match the output of validToken.MarshalJSON().
 var validJSONToken = `
 {"body":{
-"version":2,"nonce":12345,
+"version":2,"appdata":"YW55X2FwcGRhdGE=",
 "issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}, 
 "subjects":[{"nnsName":"alice.neo"}], 
 "lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, 
 "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["CONTAINER_PUT"]}, {"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}],
 "final":true},"signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532},
-"origin":{"body":{"version":0, "nonce":0, "issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}, "subjects":[{"nnsName":"alice.neo"}], 
+"origin":{"body":{"version":0, "appdata":"", "issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}, "subjects":[{"nnsName":"alice.neo"}], 
 "lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}], "final":false}, 
 "signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532}, "origin":null}}
 `
 
 func checkTokenFields(t *testing.T, val session.Token) {
 	require.EqualValues(t, anyValidVersion, val.Version())
-	require.EqualValues(t, anyValidNonce, val.Nonce())
+	require.EqualValues(t, anyValidAppData, val.AppData())
 	require.True(t, val.IsFinal())
 	require.Equal(t, val.Issuer(), anyValidUserID)
 	require.Len(t, val.Subjects(), 1)

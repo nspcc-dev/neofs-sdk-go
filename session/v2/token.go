@@ -2,8 +2,6 @@ package session
 
 import (
 	"bytes"
-	"crypto/rand"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"slices"
@@ -18,13 +16,6 @@ import (
 
 // TokenCurrentVersion is the current [Token] version.
 const TokenCurrentVersion = 0
-
-// RandomNonce generates a random nonce value for use in session tokens.
-func RandomNonce() uint32 {
-	var buf [4]byte
-	_, _ = rand.Read(buf[:])
-	return binary.BigEndian.Uint32(buf[:])
-}
 
 // Verb represents all possible operations in NeoFS
 // that can be authorized via session tokens or delegation chains.
@@ -88,6 +79,8 @@ const (
 	MaxVerbsPerContext = 10
 	// MaxDelegationDepth is the maximum depth of the delegation chain.
 	MaxDelegationDepth = 4
+	// MaxAppDataSize is the maximum size of application-specific data in a Token.
+	MaxAppDataSize = 1024
 )
 
 // Lifetime represents token or delegation lifetime claims.
@@ -327,7 +320,7 @@ func (c *Context) fromProtoMessage(m *protosession.SessionContextV2) error {
 type Token struct {
 	Lifetime
 	version  uint32
-	nonce    uint32
+	appdata  []byte
 	issuer   user.ID
 	subjects []Target
 	contexts []Context
@@ -342,7 +335,7 @@ type Token struct {
 // CopyTo writes deep copy of the [Token] to dst.
 func (x Token) CopyTo(dst *Token) {
 	dst.version = x.version
-	dst.nonce = x.nonce
+	dst.appdata = bytes.Clone(x.appdata)
 	dst.issuer = x.issuer
 	dst.subjects = slices.Clone(x.subjects)
 	dst.Lifetime = x.Lifetime
@@ -381,15 +374,23 @@ func (x Token) Version() uint32 {
 	return x.version
 }
 
-// SetNonce sets the token nonce to prevent collision
-// of tokens with the same fields.
-func (x *Token) SetNonce(nonce uint32) {
-	x.nonce = nonce
+// SetAppData sets the application-specific data.
+// The input data slice must not be modified after the call.
+// Returns error if the size of data exceeds MaxAppDataSize.
+func (x *Token) SetAppData(data []byte) error {
+	if len(data) > MaxAppDataSize {
+		return fmt.Errorf("app data size exceeds maximum of %d bytes", MaxAppDataSize)
+	}
+	x.appdata = data
+	return nil
 }
 
-// Nonce returns the token nonce.
-func (x Token) Nonce() uint32 {
-	return x.nonce
+// AppData returns the application-specific data.
+//
+// The value returned shares memory with the structure itself, so changing it can lead to data corruption.
+// Make a copy if you need to change it.
+func (x Token) AppData() []byte {
+	return x.appdata
 }
 
 // SetIssuer allows to set issuer before Sign call.
@@ -506,7 +507,7 @@ func (x *Token) fromProtoMessage(m *protosession.SessionTokenV2, checkFieldPrese
 	}
 
 	x.version = body.GetVersion()
-	x.nonce = body.GetNonce()
+	x.appdata = body.GetAppdata()
 	x.final = body.GetFinal()
 
 	issuer := body.GetIssuer()
@@ -583,7 +584,7 @@ func (x *Token) fromProtoMessage(m *protosession.SessionTokenV2, checkFieldPrese
 func (x Token) fillBody() *protosession.SessionTokenV2_Body {
 	body := &protosession.SessionTokenV2_Body{
 		Version: x.version,
-		Nonce:   x.nonce,
+		Appdata: x.appdata,
 		Final:   x.final,
 	}
 
@@ -794,6 +795,10 @@ func (x *Token) validate(depth int, nnsResolver NNSResolver) error {
 func (x Token) validateFields() error {
 	if x.version != TokenCurrentVersion {
 		return fmt.Errorf("invalid token version: expected %d, got %d", TokenCurrentVersion, x.version)
+	}
+
+	if len(x.appdata) > MaxAppDataSize {
+		return fmt.Errorf("app data size exceeds maximum of %d bytes", MaxAppDataSize)
 	}
 
 	if x.issuer.IsZero() {

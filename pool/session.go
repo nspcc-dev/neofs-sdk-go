@@ -73,7 +73,6 @@ func initSession(ctx context.Context, c *sdkClientWrapper, dur uint64, signer us
 func initSessionV2(ctx context.Context, c *sdkClientWrapper) (sessionv2.Token, error) {
 	var dst sessionv2.Token
 	dst.SetVersion(sessionv2.TokenCurrentVersion)
-	dst.SetNonce(sessionv2.RandomNonce())
 
 	ei, err := c.EndpointInfo(ctx, client.PrmEndpointInfo{})
 	if err != nil {
