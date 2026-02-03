@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.0.0-rc.17] - 2026-02-04
+
+This version is compatible with API 2.21, it introduces session tokens v2,
+container attribute management API with a number of new well-known names and
+synchronous container operations.
+
+New features:
+ * Container attibute management and new well-known attributes (#758, #763, #767, #770, #772)
+ * Session token v2 (#750, #764, #768, #769, #762, #771, #773, #774, #775)
+ * Three-way comparison methods for OID, CID and Address (#766)
+
+Behaviour changes:
+ * Synchronous container API (#759)
+ * pool uses sliding window for error counting (#765)
+ * object.New is more tailored to create new objects, InitCreation is deleted (#766)
+
+Improvements:
+ * Updated NeoGo dependency to 0.116.0 (#754, #776)
+ * Updated golang.org/x/crypto dependency from 0.42.0 to 0.45.0 (#756)
+
+Bugs fixed:
+ * Incorrect Incomplete status handling (#755)
+
 ## [1.0.0-rc.16] - 2025-11-14
 
 This version is compatible with API 2.20, the most important change is erasure
@@ -393,6 +416,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.17]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.16...v1.0.0-rc.17
 [1.0.0-rc.16]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.15...v1.0.0-rc.16
 [1.0.0-rc.15]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.14...v1.0.0-rc.15
 [1.0.0-rc.14]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.13...v1.0.0-rc.14
