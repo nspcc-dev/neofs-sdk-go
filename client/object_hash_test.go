@@ -276,12 +276,6 @@ func TestClient_ObjectHash(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestHashObjectServer, newTestObjectClient, func(c *Client) error {
-						_, err := c.ObjectHash(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						return err
-					})
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protoobject.GetRangeHashResponse_Body]
 					// missing fields
