@@ -233,11 +233,9 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 				if x.err != nil {
 					return writtenBytes, x.err
 				}
-				if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
-					x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
-				} else {
-					x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
-				}
+
+				x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+
 				x.streamClosed = true
 				x.cancelCtxStream()
 			}
@@ -300,11 +298,6 @@ func (x *DefaultObjectWriter) Close() error {
 		resp, err = x.stream.CloseAndRecv()
 		return err
 	}); x.err != nil {
-		return x.err
-	}
-
-	if x.err = neofscrypto.VerifyResponseWithBuffer[*protoobject.PutResponse_Body](resp, nil); x.err != nil {
-		x.err = fmt.Errorf("%w: %w", errResponseSignatures, x.err)
 		return x.err
 	}
 

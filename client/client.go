@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -349,6 +350,8 @@ func (x *PrmDial) setDialFunc(connFunc connFunc) {
 // All requests, except ops accepting signer parameter, are signed with
 // randomized private key in [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
 //
+// Parameter nodePub specifies remote storage node's public key.
+//
 // The signBufPool is optional. If provided, it must contain/generate objects of
 // *[]byte type. By default, it pools 4MB byte slices.
 //
@@ -358,9 +361,12 @@ func (x *PrmDial) setDialFunc(connFunc connFunc) {
 //
 // Experimental: the function focuses on SN system needs and is not recommended
 // for use by regular apps. May be removed in future releases.
-func NewGRPC(conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration, respInterceptor func(pub []byte) error) (*Client, error) {
+func NewGRPC(_ context.Context, nodePub []byte, conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration, respInterceptor func(pub []byte) error) (*Client, error) {
 	if streamMsgTimeout < 0 {
 		panic(fmt.Sprintf("negative stream message timeout %v", streamMsgTimeout))
+	}
+	if len(nodePub) == 0 {
+		return nil, errors.New("empty public key")
 	}
 	if signBufPool == nil {
 		signBufPool = newByteBufferPool(defaultBufferSize)
@@ -376,6 +382,7 @@ func NewGRPC(conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout tim
 		prm: PrmInit{
 			signer: signer,
 		},
+		nodeKey:       nodePub,
 		buffers:       signBufPool,
 		streamTimeout: streamMsgTimeout,
 	}

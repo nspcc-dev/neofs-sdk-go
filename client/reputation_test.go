@@ -314,11 +314,6 @@ func TestClient_AnnounceIntermediateTrust(t *testing.T) {
 						return c.AnnounceIntermediateTrust(ctx, anyValidEpoch, anyValidTrust, anyValidOpts)
 					})
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestAnnounceIntermediateReputationServer, newTestReputationClient, func(c *Client) error {
-						return c.AnnounceIntermediateTrust(ctx, anyValidEpoch, anyValidTrust, anyValidOpts)
-					})
-				})
 			})
 		})
 	})
@@ -423,11 +418,6 @@ func TestClient_AnnounceLocalTrust(t *testing.T) {
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "reputation.ReputationService", "AnnounceLocalTrust", func(c *Client) error {
-						return c.AnnounceLocalTrust(ctx, anyValidEpoch, anyValidTrusts, anyValidOpts)
-					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newTestAnnounceLocalTrustServer, newTestReputationClient, func(c *Client) error {
 						return c.AnnounceLocalTrust(ctx, anyValidEpoch, anyValidTrusts, anyValidOpts)
 					})
 				})

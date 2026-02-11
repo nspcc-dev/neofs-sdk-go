@@ -82,18 +82,13 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 
 	if c.prm.cbRespInfo != nil {
 		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetVerifyHeader().GetBodySignature().GetKey(),
+			key:   c.nodeKey,
 			epoch: resp.GetMetaHeader().GetEpoch(),
 		})
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errResponseCallback, err)
 			return res, err
 		}
-	}
-
-	if err = neofscrypto.VerifyResponseWithBuffer[*protoaccounting.BalanceResponse_Body](resp, *buf); err != nil {
-		err = fmt.Errorf("%w: %w", errResponseSignatures, err)
-		return res, err
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {

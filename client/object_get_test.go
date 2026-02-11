@@ -582,14 +582,6 @@ func TestClient_ObjectHead(t *testing.T) {
 						return err
 					})
 				})
-				t.Run("unsigned response", func(t *testing.T) {
-					srv := newTestHeadObjectServer()
-					c := newTestObjectClient(t, srv)
-
-					srv.respondWithoutSigning()
-					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-					require.NoError(t, err)
-				})
 			})
 			t.Run("invalid", func(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
@@ -1049,26 +1041,6 @@ func TestClient_ObjectGetInit(t *testing.T) {
 							})
 						})
 					})
-				})
-				t.Run("unsigned response", func(t *testing.T) {
-					srv := newTestGetObjectServer()
-					c := newTestObjectClient(t, srv)
-
-					const n = 10
-					chunks := make([][]byte, n)
-					for i := range chunks {
-						chunks[i] = []byte(fmt.Sprintf("chunk#%d", i))
-					}
-
-					srv.respondWithObject(validFullHeadingObjectGetResponseBody.GetInit(), chunks)
-					for i := range uint(n + 1) {
-						srv.respondWithoutSigning(i)
-						_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-						require.NoError(t, err)
-						read, err := io.ReadAll(r)
-						require.NoError(t, err)
-						require.Equal(t, join(chunks), read)
-					}
 				})
 			})
 			t.Run("invalid", func(t *testing.T) {
@@ -1747,24 +1719,6 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 						}
 						return err
 					})
-				})
-				t.Run("verification header", func(t *testing.T) {
-					srv := newTestObjectPayloadRangeServer()
-					c := newTestObjectClient(t, srv)
-
-					const n = 10
-					chunks := make([][]byte, n)
-					for i := range chunks {
-						chunks[i] = []byte(fmt.Sprintf("chunk#%d", i))
-					}
-
-					srv.respondWithChunks(chunks)
-					srv.respondWithoutSigning(n - 1)
-					r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(n*len(chunks)), anyValidSigner, anyValidOpts)
-					require.NoError(t, err)
-					read, err := io.ReadAll(r)
-					require.ErrorContains(t, err, "invalid response signature")
-					require.Equal(t, join(chunks[:n-1]), read)
 				})
 				t.Run("payloads", func(t *testing.T) {
 					t.Run("split info", func(t *testing.T) {

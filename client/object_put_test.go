@@ -492,9 +492,6 @@ func TestClient_ObjectPut(t *testing.T) {
 				t.Run("format", func(t *testing.T) {
 					testIncorrectUnaryRPCResponseFormat(t, "object.ObjectService", "Put", exec)
 				})
-				t.Run("verification header", func(t *testing.T) {
-					testInvalidResponseVerificationHeader(t, newPutObjectServer, newTestObjectClient, exec)
-				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protoobject.PutResponse_Body]
 					tcs := []testcase{
