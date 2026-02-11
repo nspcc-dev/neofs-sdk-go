@@ -503,7 +503,9 @@ func TestClient_EndpointInfo(t *testing.T) {
 		})
 	})
 	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestGetNodeInfoServer, newDefaultNetmapServiceDesc, func(c *Client) error {
+		srv := newTestGetNodeInfoServer()
+		srv.respondWithNodePublicKey(testServerStateOnDial.pub)
+		testUnaryResponseCallback(t, func() *testGetNodeInfoServer { return srv }, newDefaultNetmapServiceDesc, func(c *Client) error {
 			_, err := c.EndpointInfo(ctx, anyValidOpts)
 			return err
 		})
