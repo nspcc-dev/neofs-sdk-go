@@ -401,3 +401,69 @@ func checkObjectEquals(t *testing.T, local, dst Object) {
 	require.Equal(t, local, dst)
 	require.True(t, bytes.Equal(local.Marshal(), dst.Marshal()))
 }
+
+func TestObject_CalculateID_SessionTokenV2_Version(t *testing.T) {
+	cnr := cidtest.ID()
+	own := usertest.ID()
+
+	sess := sessionTokenV2(cnr)
+
+	t.Run("should not affect ID", func(t *testing.T) {
+		v := version.New(2, 20)
+
+		var obj1 Object
+		obj1.SetVersion(&v)
+		obj1.SetContainerID(cnr)
+		obj1.SetOwner(own)
+		id1, err := obj1.CalculateID()
+		require.NoError(t, err)
+
+		var obj2 Object
+		obj2.SetVersion(&v)
+		obj2.SetContainerID(cnr)
+		obj2.SetOwner(own)
+		obj2.SetSessionTokenV2(sess)
+		id2, err := obj2.CalculateID()
+		require.NoError(t, err)
+
+		require.Equal(t, id1, id2)
+	})
+
+	t.Run("should affect ID", func(t *testing.T) {
+		v := version.New(2, 21)
+
+		var obj1 Object
+		obj1.SetVersion(&v)
+		obj1.SetContainerID(cnr)
+		obj1.SetOwner(own)
+		id1, err := obj1.CalculateID()
+		require.NoError(t, err)
+
+		var obj2 Object
+		obj2.SetVersion(&v)
+		obj2.SetContainerID(cnr)
+		obj2.SetOwner(own)
+		obj2.SetSessionTokenV2(sess)
+		id2, err := obj2.CalculateID()
+		require.NoError(t, err)
+
+		require.NotEqual(t, id1, id2)
+	})
+
+	t.Run("VerifyID with old version", func(t *testing.T) {
+		v := version.New(2, 20)
+
+		var obj Object
+		obj.SetVersion(&v)
+		obj.SetContainerID(cnr)
+		obj.SetOwner(own)
+
+		require.NoError(t, obj.CalculateAndSetID())
+		storedID := obj.GetID()
+
+		obj.SetSessionTokenV2(sess)
+		require.NoError(t, obj.VerifyID())
+
+		require.Equal(t, storedID, obj.GetID())
+	})
+}
