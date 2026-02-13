@@ -152,6 +152,9 @@ func TestObject_FromProtoMessage(t *testing.T) {
 	require.EqualValues(t, anyValidExp, val.Exp())
 	require.EqualValues(t, anyValidIat, val.Iat())
 	require.EqualValues(t, anyValidNbf, val.Nbf())
+	authUser, err := val.AuthUser()
+	require.NoError(t, err)
+	require.Equal(t, user.NewFromECDSAPublicKey(*(*ecdsa.PublicKey)(anyValidSessionKey)), authUser)
 	require.True(t, val.AssertAuthKey(anyValidSessionKey))
 	require.True(t, val.AssertVerb(anyValidObjectVerb))
 	require.True(t, val.AssertContainer(anyValidContainerID))
@@ -380,6 +383,9 @@ func TestObject_Unmarshal(t *testing.T) {
 	require.Zero(t, val.Exp())
 	require.Zero(t, val.Iat())
 	require.Zero(t, val.Nbf())
+	authUser, err := val.AuthUser()
+	require.Error(t, err)
+	require.Zero(t, authUser)
 	require.False(t, val.AssertAuthKey(anyValidSessionKey))
 	require.False(t, val.AssertVerb(anyValidContainerVerb))
 	require.False(t, val.AssertContainer(anyValidContainerID))
@@ -390,7 +396,7 @@ func TestObject_Unmarshal(t *testing.T) {
 	require.False(t, ok)
 
 	// filled
-	err := val.Unmarshal(validBinObjectToken)
+	err = val.Unmarshal(validBinObjectToken)
 	require.NoError(t, err)
 	require.Equal(t, validObjectToken, val)
 }
@@ -445,6 +451,9 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 	require.Zero(t, val.Exp())
 	require.Zero(t, val.Iat())
 	require.Zero(t, val.Nbf())
+	authUser, err := val.AuthUser()
+	require.Error(t, err)
+	require.Zero(t, authUser)
 	require.False(t, val.AssertAuthKey(anyValidSessionKey))
 	require.False(t, val.AssertVerb(anyValidContainerVerb))
 	for i := range anyValidObjectIDs {
@@ -695,6 +704,9 @@ func TestObject_UnmarshalSignedData(t *testing.T) {
 	require.Zero(t, val.Exp())
 	require.Zero(t, val.Iat())
 	require.Zero(t, val.Nbf())
+	authUser, err := val.AuthUser()
+	require.Error(t, err)
+	require.Zero(t, authUser)
 	require.False(t, val.AssertAuthKey(anyValidSessionKey))
 	require.False(t, val.AssertVerb(anyValidObjectVerb))
 	for i := range anyValidObjectIDs {
@@ -702,7 +714,7 @@ func TestObject_UnmarshalSignedData(t *testing.T) {
 	}
 
 	// filled
-	err := val.UnmarshalSignedData(validSignedObjectToken)
+	err = val.UnmarshalSignedData(validSignedObjectToken)
 	require.NoError(t, err)
 	require.Equal(t, validSignedObjectToken, val.SignedData())
 }
