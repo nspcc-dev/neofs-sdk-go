@@ -185,6 +185,20 @@ func (x header) isZero() bool {
 		len(x.attrs) == 0 && x.split.isZero()
 }
 
+// supportsSessionV2 checks if the object version supports SessionTokenV2 field.
+// SessionTokenV2 field was introduced in version 2.21.
+// For backward compatibility, objects created with version < 2.21 should not include
+// SessionTokenV2 field in their proto message when calculating ID, even if the field
+// is set. This ensures that VerifyID works correctly for old objects.
+func (x header) supportsSessionV2() bool {
+	if x.version == nil {
+		return false
+	}
+	major := x.version.Major()
+	minor := x.version.Minor()
+	return major > 2 || (major == 2 && minor >= 21)
+}
+
 func (x *header) fromProtoMessage(m *protoobject.Header) error {
 	// version
 	if m.Version != nil {
@@ -318,7 +332,7 @@ func (x header) protoMessage() *protoobject.Header {
 	if x.session != nil {
 		m.SessionToken = x.session.ProtoMessage()
 	}
-	if x.sessionV2 != nil {
+	if x.sessionV2 != nil && x.supportsSessionV2() {
 		m.SessionTokenV2 = x.sessionV2.ProtoMessage()
 	}
 	if len(x.attrs) > 0 {
