@@ -989,10 +989,14 @@ func (x Token) AssertVerb(verb Verb, container cid.ID) bool {
 
 // AssertContainer checks if container operations with container verbs are authorized for the given container.
 // This method specifically checks for container-level operations
-// ([VerbContainerPut], [VerbContainerDelete], [VerbContainerSetEACL]).
+// ([VerbContainerPut], [VerbContainerDelete], [VerbContainerSetEACL], [VerbContainerSetAttribute], [VerbContainerRemoveAttribute]).
 func (x Token) AssertContainer(verb Verb, container cid.ID) bool {
 	switch verb {
-	case VerbContainerPut, VerbContainerDelete, VerbContainerSetEACL:
+	case VerbContainerPut,
+		VerbContainerDelete,
+		VerbContainerSetEACL,
+		VerbContainerSetAttribute,
+		VerbContainerRemoveAttribute:
 	default:
 		return false
 	}
