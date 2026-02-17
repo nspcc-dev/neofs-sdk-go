@@ -401,3 +401,22 @@ func checkObjectEquals(t *testing.T, local, dst Object) {
 	require.Equal(t, local, dst)
 	require.True(t, bytes.Equal(local.Marshal(), dst.Marshal()))
 }
+
+func TestHeaderVerifyIDCompat(t *testing.T) {
+	// This is a real mwa6Fbia757WvezeeaLfvDsA7hMhdv7bDwN34hBhc97/FubPe8VPqZmQFVodckkA6uxdVsNQaGwPFq7zZoqEAGWF header from mainnet with proto 2.11.
+	// It has split v1 with deprecated now children field, but the ID should be calculated correctly and verified without errors.
+	const header211 = `{"objectID":{"value":"3Xy0TwVyvvPDDtiEx6SH7A7p94m3oSvleg0ZO1smo3Q="},"signature":{"key":"A0vmsMy9f/JBYrFvoDZxMe5jULSFk89iQRnJK9mzyOsh","signature":"BEmXFAEibsXjVuIfQs62zWWhIqVkeTxKBTAamlmxe+QezGhMiZOMtNuRLyITgVdbmIACkPuPXbD2dMaeCSsVaCE=","scheme":"ECDSA_SHA512"},"header":{"version":{"major":2,"minor":11},"containerID":{"value":"C4NCOYqhiveTuailZThFwzDGIMX+bwtiO/kSM6c9QGI="},"ownerID":{"value":"Na1arUrRKweTSZ1pHCfCprBvL0JezA0S+g=="},"creationEpoch":"5472","payloadLength":"0","payloadHash":{"type":"SHA256","sum":"47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU="},"objectType":"REGULAR","homomorphicHash":{"type":"TZ","sum":"AAAAAAAAAAAAAAAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQ=="},
+"sessionToken":{"body":{"id":"CAtVoWmEQpysJOAjbwQ3tQ==","ownerID":{"value":"Na1arUrRKweTSZ1pHCfCprBvL0JezA0S+g=="},"lifetime":{"exp":"0","nbf":"0","iat":"0"},"sessionKey":"A0vmsMy9f/JBYrFvoDZxMe5jULSFk89iQRnJK9mzyOsh","object":{"verb":"PUT","target":{"container":{"value":"C4NCOYqhiveTuailZThFwzDGIMX+bwtiO/kSM6c9QGI="},"objects":[]}}},
+"signature":{"key":"AqDm8k/M5/SQgZyMW6SEn+wSydFKyPQlonLtgf5rRm+Q","signature":"BMYU9h1Tk6u0fEKajXq0TiPpCNrgWkdlG0LWMxN9F/7cWfEuMYaz9NrTIsftCMVAw5y/Wh4ZHujQgB/SbKtP8rA=","scheme":"ECDSA_SHA512"}},"attributes":[],"split":{"parent":{"value":"sTXmXykZpZZnOIMY2pn3QYaCeHk8m31v7UPUgnVoHMQ="},"previous":null,"parentSignature":{"key":"A0vmsMy9f/JBYrFvoDZxMe5jULSFk89iQRnJK9mzyOsh","signature":"BHaO9otXAhSW7ynzfJrgiYaZolshSn1dRDvNTNnfyu7+eDUNOA8itiET9k3ROy31408doPED4yCNebLeJwZxz0Q=","scheme":"ECDSA_SHA512"},"parentHeader":{"version":{"major":2,"minor":11},"containerID":{"value":"C4NCOYqhiveTuailZThFwzDGIMX+bwtiO/kSM6c9QGI="},"ownerID":{"value":"Na1arUrRKweTSZ1pHCfCprBvL0JezA0S+g=="},"creationEpoch":"5472","payloadLength":"81934875","payloadHash":{"type":"SHA256","sum":"PvWpwCRAwm2uwuAvjRklfe/nRdcrGR6VPX1u2iWEa6c="},"objectType":"REGULAR","homomorphicHash":{"type":"TZ","sum":"dw+0eg9h+CDBa9mm1VRYWXJiEpIe/gRZBFggrVexXOhwOJ6xHRRyCxBuEMAGxKPcEIxnrZ8FG382dnNDlgAQrA=="},
+"sessionToken":{"body":{"id":"CAtVoWmEQpysJOAjbwQ3tQ==","ownerID":{"value":"Na1arUrRKweTSZ1pHCfCprBvL0JezA0S+g=="},"lifetime":{"exp":"0","nbf":"0","iat":"0"},"sessionKey":"A0vmsMy9f/JBYrFvoDZxMe5jULSFk89iQRnJK9mzyOsh","object":{"verb":"PUT","target":{"container":{"value":"C4NCOYqhiveTuailZThFwzDGIMX+bwtiO/kSM6c9QGI="},"objects":[]}}},"signature":{"key":"AqDm8k/M5/SQgZyMW6SEn+wSydFKyPQlonLtgf5rRm+Q","signature":"BMYU9h1Tk6u0fEKajXq0TiPpCNrgWkdlG0LWMxN9F/7cWfEuMYaz9NrTIsftCMVAw5y/Wh4ZHujQgB/SbKtP8rA=","scheme":"ECDSA_SHA512"}},
+"attributes":[{"key":"FileName","value":"Wexford_OK_Suburbia_2_Regress.mp4"},{"key":"Timestamp","value":"1647863552"}],"split":null,"sessionTokenV2":null},"children":[{"value":"6+vZkQ0eBAVANDJ7lVbl32yzSancg2a3YM0SoX1gKZY="},{"value":"yejvdbnwLzeEV5UqMyCxsIZuc1Eg15heRb8dMd4nFcU="}],"splitID":"HLrL9UVVQOW1zz/TfhpzAQ==","first":null},"sessionTokenV2":null},"payload":""}`
+
+	var obj Object
+	require.NoError(t, obj.UnmarshalJSON([]byte(header211)))
+
+	marshaled, err := obj.MarshalJSON()
+	require.NoError(t, err)
+	require.JSONEq(t, header211, string(marshaled))
+
+	require.NoError(t, obj.VerifyID())
+}
