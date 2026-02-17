@@ -2,11 +2,13 @@ package session
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -314,6 +316,19 @@ func (x commonData) ID() uuid.UUID {
 // See also AssertAuthKey.
 func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
 	x.authKey = neofscrypto.PublicKeyBytes(key)
+}
+
+// AuthUser returns user ID derived from the public key bound to the session.
+// Zero session fails the check.
+//
+// See also SetAuthKey and AssertAuthKey.
+func (x *commonData) AuthUser() (user.ID, error) {
+	var authKey neofsecdsa.PublicKey
+	err := authKey.Decode(x.authKey)
+	if err != nil {
+		return user.ID{}, fmt.Errorf("decode public key: %w", err)
+	}
+	return user.NewFromECDSAPublicKey((ecdsa.PublicKey)(authKey)), nil
 }
 
 // SetIssuer allows to set issuer before Sign call.
