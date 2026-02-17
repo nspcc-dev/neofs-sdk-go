@@ -41,8 +41,8 @@ func (x *Header_Split) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], fieldSplitPrevious, x.Previous)
 		off += proto.MarshalToEmbedded(b[off:], fieldSplitParentSignature, x.ParentSignature)
 		off += proto.MarshalToEmbedded(b[off:], fieldSplitParentHeader, x.ParentHeader)
-		off += proto.MarshalToBytes(b[off:], fieldSplitID, x.SplitId)
 		off += proto.MarshalToRepeatedMessages(b[off:], fieldSplitChildren, x.Children)
+		off += proto.MarshalToBytes(b[off:], fieldSplitID, x.SplitId)
 		proto.MarshalToEmbedded(b[off:], fieldSplitFirst, x.First)
 	}
 }
