@@ -76,7 +76,7 @@ const (
 	// MaxContextsPerToken is the maximum number of contexts allowed in a Token.
 	MaxContextsPerToken = 16
 	// MaxVerbsPerContext is the maximum number of verbs allowed in a SessionContextV2.
-	MaxVerbsPerContext = 10
+	MaxVerbsPerContext = 12
 	// MaxDelegationDepth is the maximum depth of the delegation chain.
 	MaxDelegationDepth = 4
 	// MaxAppDataSize is the maximum size of application-specific data in a Token.
