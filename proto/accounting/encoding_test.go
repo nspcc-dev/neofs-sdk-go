@@ -14,7 +14,7 @@ func randDecimal() *accounting.Decimal {
 }
 
 func TestDecimal_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*accounting.Decimal{
+	prototest.TestMarshalStable(t, nil, []*accounting.Decimal{
 		{Value: prototest.RandInt64()},
 		{Precision: prototest.RandUint32()},
 		randDecimal(),
@@ -22,7 +22,7 @@ func TestDecimal_MarshalStable(t *testing.T) {
 }
 
 func TestBalanceRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*accounting.BalanceRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*accounting.BalanceRequest_Body{
 		{OwnerId: new(refs.OwnerID)},
 		{OwnerId: &refs.OwnerID{Value: []byte{}}},
 		{OwnerId: prototest.RandOwnerID()},
@@ -30,7 +30,7 @@ func TestBalanceRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestBalanceResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*accounting.BalanceResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*accounting.BalanceResponse_Body{
 		{Balance: new(accounting.Decimal)},
 		{Balance: randDecimal()},
 	})

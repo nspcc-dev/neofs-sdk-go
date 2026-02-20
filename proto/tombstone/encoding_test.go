@@ -25,7 +25,9 @@ func TestTombstone_MarshalStable(t *testing.T) {
 		require.Equal(t, ds[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*tombstone.Tombstone{
+	prototest.TestMarshalStable(t, []int{
+		tombstone.FieldTombstoneMembers,
+	}, []*tombstone.Tombstone{
 		{
 			ExpirationEpoch: prototest.RandUint64(),
 			SplitId:         prototest.RandBytes(),

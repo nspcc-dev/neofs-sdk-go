@@ -25,7 +25,9 @@ func TestLock_MarshalStable(t *testing.T) {
 		require.Equal(t, ms[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*lock.Lock{
+	prototest.TestMarshalStable(t, []int{
+		lock.FieldLockMembers,
+	}, []*lock.Lock{
 		{Members: prototest.RandObjectIDs()},
 	})
 }

@@ -10,31 +10,38 @@ import (
 )
 
 func TestEACLRecord_Filter_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*acl.EACLRecord_Filter{
+	prototest.TestMarshalStable(t, nil, []*acl.EACLRecord_Filter{
 		prototest.RandEACLFilter(),
 	})
 }
 
 func TestEACLRecord_Target_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*acl.EACLRecord_Target{
+	prototest.TestMarshalStable(t, []int{
+		acl.FieldEACLRecordTargetKeys,
+	}, []*acl.EACLRecord_Target{
 		prototest.RandEACLTarget(),
 	})
 }
 
 func TestEACLRecord_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*acl.EACLRecord{
+	prototest.TestMarshalStable(t, []int{
+		acl.FieldEACLRecordFilters,
+		acl.FieldEACLRecordTargets,
+	}, []*acl.EACLRecord{
 		prototest.RandEACLRecord(),
 	})
 }
 
 func TestEACLTable_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*acl.EACLTable{
+	prototest.TestMarshalStable(t, []int{
+		acl.FieldEACLTableRecords,
+	}, []*acl.EACLTable{
 		prototest.RandEACL(),
 	})
 }
 
 func TestBearerToken_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*acl.BearerToken_Body{
+	prototest.TestMarshalStable(t, nil, []*acl.BearerToken_Body{
 		prototest.RandBearerTokenBody(),
 	})
 }
@@ -73,7 +80,7 @@ func TestBearerToken_MarshalStable(t *testing.T) {
 		require.Equal(t, ts[1], new(acl.EACLRecord_Target))
 	})
 
-	prototest.TestMarshalStable(t, []*acl.BearerToken{
+	prototest.TestMarshalStable(t, nil, []*acl.BearerToken{
 		prototest.RandBearerToken(),
 	})
 }

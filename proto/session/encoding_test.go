@@ -107,43 +107,45 @@ func TestObjectSessionContext_Target_MarshalStable(t *testing.T) {
 		require.Equal(t, ids[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*session.ObjectSessionContext_Target{
+	prototest.TestMarshalStable(t, []int{
+		session.FieldObjectSessionContextTargetObjects,
+	}, []*session.ObjectSessionContext_Target{
 		prototest.RandObjectSessionTarget(),
 	})
 }
 
 func TestObjectSessionContext_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.ObjectSessionContext{
+	prototest.TestMarshalStable(t, nil, []*session.ObjectSessionContext{
 		prototest.RandObjectSessionContext(),
 	})
 }
 
 func TestContainerSessionContext_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.ContainerSessionContext{
+	prototest.TestMarshalStable(t, nil, []*session.ContainerSessionContext{
 		prototest.RandContainerSessionContext(),
 	})
 }
 
 func TestSessionToken_Body_TokenLifetime_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.SessionToken_Body_TokenLifetime{
+	prototest.TestMarshalStable(t, nil, []*session.SessionToken_Body_TokenLifetime{
 		prototest.RandSessionTokenLifetime(),
 	})
 }
 
 func TestSessionToken_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.SessionToken_Body{
+	prototest.TestMarshalStable(t, nil, []*session.SessionToken_Body{
 		prototest.RandSessionTokenBody(),
 	})
 }
 
 func TestSessionToken_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.SessionToken{
+	prototest.TestMarshalStable(t, nil, []*session.SessionToken{
 		prototest.RandSessionToken(),
 	})
 }
 
 func TestCreateRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.CreateRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*session.CreateRequest_Body{
 		{
 			OwnerId:    prototest.RandOwnerID(),
 			Expiration: prototest.RandUint64(),
@@ -152,7 +154,7 @@ func TestCreateRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestCreateResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.CreateResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*session.CreateResponse_Body{
 		{
 			Id:         prototest.RandBytes(),
 			SessionKey: prototest.RandBytes(),
@@ -161,7 +163,7 @@ func TestCreateResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestXHeader_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.XHeader{
+	prototest.TestMarshalStable(t, nil, []*session.XHeader{
 		{Key: prototest.RandString()},
 		{Value: prototest.RandString()},
 		randXHeader(),
@@ -183,7 +185,9 @@ func TestRequestMetaHeader_MarshalStable(t *testing.T) {
 		require.Equal(t, hs[1], new(session.XHeader))
 	})
 
-	prototest.TestMarshalStable(t, []*session.RequestMetaHeader{
+	prototest.TestMarshalStable(t, []int{
+		session.FieldRequestMetaHeaderXHeaders,
+	}, []*session.RequestMetaHeader{
 		randRequestMetaHeader(),
 	})
 }
@@ -203,19 +207,21 @@ func TestResponseMetaHeader_MarshalStable(t *testing.T) {
 		require.Equal(t, hs[1], new(session.XHeader))
 	})
 
-	prototest.TestMarshalStable(t, []*session.ResponseMetaHeader{
+	prototest.TestMarshalStable(t, []int{
+		session.FieldResponseMetaHeaderXHeaders,
+	}, []*session.ResponseMetaHeader{
 		randResponseMetaHeader(),
 	})
 }
 
 func TestRequestVerificationHeader_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.RequestVerificationHeader{
+	prototest.TestMarshalStable(t, nil, []*session.RequestVerificationHeader{
 		randRequestVerificationHeader(),
 	})
 }
 
 func TestResponseVerificationHeader_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.ResponseVerificationHeader{
+	prototest.TestMarshalStable(t, nil, []*session.ResponseVerificationHeader{
 		randResponseVerificationHeader(),
 	})
 }

@@ -22,7 +22,7 @@ func randObjectMeasurements() []*link.Link_MeasuredObject {
 }
 
 func TestLink_MeasuredObject_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*link.Link_MeasuredObject{
+	prototest.TestMarshalStable(t, nil, []*link.Link_MeasuredObject{
 		randObjectMeasurement(),
 	})
 }
@@ -42,7 +42,9 @@ func TestLink_MarshalStable(t *testing.T) {
 		require.Equal(t, cs[1], new(link.Link_MeasuredObject))
 	})
 
-	prototest.TestMarshalStable(t, []*link.Link{
+	prototest.TestMarshalStable(t, []int{
+		link.FieldLinkChildren,
+	}, []*link.Link{
 		{Children: randObjectMeasurements()},
 	})
 }

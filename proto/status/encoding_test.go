@@ -10,7 +10,7 @@ import (
 )
 
 func TestStatus_Detail_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*status.Status_Detail{
+	prototest.TestMarshalStable(t, nil, []*status.Status_Detail{
 		prototest.RandStatusDetail(),
 	})
 }
@@ -30,7 +30,9 @@ func TestStatus_MarshalStable(t *testing.T) {
 		require.Equal(t, ds[1], new(status.Status_Detail))
 	})
 
-	prototest.TestMarshalStable(t, []*status.Status{
+	prototest.TestMarshalStable(t, []int{
+		status.FieldStatusDetails,
+	}, []*status.Status{
 		prototest.RandStatus(),
 	})
 }

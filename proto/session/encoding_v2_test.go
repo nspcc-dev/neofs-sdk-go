@@ -11,7 +11,7 @@ import (
 )
 
 func TestTokenLifetime_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*session.TokenLifetime{
+	prototest.TestMarshalStable(t, nil, []*session.TokenLifetime{
 		prototest.RandSessionTokenV2Lifetime(),
 	})
 }
@@ -55,7 +55,7 @@ func TestTarget_MarshalStable(t *testing.T) {
 		require.Empty(t, data)
 	})
 
-	prototest.TestMarshalStable(t, []*session.Target{
+	prototest.TestMarshalStable(t, nil, []*session.Target{
 		prototest.RandTarget(),
 		{Identifier: &session.Target_OwnerId{OwnerId: prototest.RandOwnerID()}},
 		{Identifier: &session.Target_NnsName{NnsName: prototest.RandString()}},
@@ -82,7 +82,7 @@ func TestSessionContextV2_MarshalStable(t *testing.T) {
 		require.Empty(t, data)
 	})
 
-	prototest.TestMarshalStable(t, []*session.SessionContextV2{
+	prototest.TestMarshalStable(t, nil, []*session.SessionContextV2{
 		prototest.RandSessionContextV2(),
 		{
 			Container: prototest.RandContainerID(),
@@ -130,7 +130,10 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 		require.Empty(t, data)
 	})
 
-	prototest.TestMarshalStable(t, []*session.SessionTokenV2_Body{
+	prototest.TestMarshalStable(t, []int{
+		session.FieldSessionTokenV2BodySubjects,
+		session.FieldSessionTokenV2BodyContexts,
+	}, []*session.SessionTokenV2_Body{
 		prototest.RandSessionTokenV2Body(),
 		{
 			Version:  1,
@@ -150,7 +153,7 @@ func TestSessionTokenV2_MarshalStable(t *testing.T) {
 		require.Empty(t, data)
 	})
 
-	prototest.TestMarshalStable(t, []*session.SessionTokenV2{
+	prototest.TestMarshalStable(t, nil, []*session.SessionTokenV2{
 		prototest.RandSessionTokenV2(true),
 		{
 			Body:      prototest.RandSessionTokenV2Body(),

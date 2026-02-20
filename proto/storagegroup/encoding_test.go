@@ -25,7 +25,7 @@ func TestStorageGroup_MarshalStable(t *testing.T) {
 		require.Equal(t, ms[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*storagegroup.StorageGroup{
+	prototest.TestMarshalStable(t, []int{storagegroup.FieldStorageGroupMembers}, []*storagegroup.StorageGroup{
 		{
 			ValidationDataSize: prototest.RandUint64(),
 			ValidationHash:     prototest.RandChecksum(),

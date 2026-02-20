@@ -8,28 +8,28 @@ import (
 )
 
 func TestOwnerID_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.OwnerID{
+	prototest.TestMarshalStable(t, nil, []*refs.OwnerID{
 		{Value: []byte{}},
 		prototest.RandOwnerID(),
 	})
 }
 
 func TestContainerID_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.ContainerID{
+	prototest.TestMarshalStable(t, nil, []*refs.ContainerID{
 		{Value: []byte{}},
 		prototest.RandContainerID(),
 	})
 }
 
 func TestObjectID_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.ObjectID{
+	prototest.TestMarshalStable(t, nil, []*refs.ObjectID{
 		{Value: []byte{}},
 		prototest.RandObjectID(),
 	})
 }
 
 func TestAddress_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.Address{
+	prototest.TestMarshalStable(t, nil, []*refs.Address{
 		{ContainerId: new(refs.ContainerID)},
 		{ContainerId: prototest.RandContainerID()},
 		{ObjectId: new(refs.ObjectID)},
@@ -47,7 +47,7 @@ func TestAddress_MarshalStable(t *testing.T) {
 }
 
 func TestVersion_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.Version{
+	prototest.TestMarshalStable(t, nil, []*refs.Version{
 		{Major: prototest.RandUint32()},
 		{Minor: prototest.RandUint32()},
 		prototest.RandVersion(),
@@ -55,7 +55,7 @@ func TestVersion_MarshalStable(t *testing.T) {
 }
 
 func TestSignature_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.Signature{
+	prototest.TestMarshalStable(t, nil, []*refs.Signature{
 		{Key: []byte{}},
 		{Sign: []byte{}},
 		{Scheme: prototest.RandInteger[refs.SignatureScheme]()},
@@ -64,7 +64,7 @@ func TestSignature_MarshalStable(t *testing.T) {
 }
 
 func TestSignatureRFC6979_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.SignatureRFC6979{
+	prototest.TestMarshalStable(t, nil, []*refs.SignatureRFC6979{
 		{Key: []byte{}},
 		{Sign: []byte{}},
 		prototest.RandSignatureRFC6979(),
@@ -72,14 +72,14 @@ func TestSignatureRFC6979_MarshalStable(t *testing.T) {
 }
 
 func TestChecksum_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.Checksum{
+	prototest.TestMarshalStable(t, nil, []*refs.Checksum{
 		{Sum: []byte{}},
 		prototest.RandChecksum(),
 	})
 }
 
 func TestSubnetID(t *testing.T) {
-	prototest.TestMarshalStable(t, []*refs.SubnetID{
+	prototest.TestMarshalStable(t, nil, []*refs.SubnetID{
 		prototest.RandSubnetID(),
 	})
 }

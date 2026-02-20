@@ -1,6 +1,7 @@
 package prototest
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -17,11 +18,14 @@ import (
 // [proto.Message.MarshalStable] panics if buffer length is less than
 // [proto.Message.MarshaledSize]. Nil and zeroed PTR cases are also tested so no
 // need to add them to xs. The xs may be left empty if message has no fields.
+//
+// repeatedNums specifies numbers of fields which may be repeated in tested
+// message.
 func TestMarshalStable[T any, PTR interface {
 	*T
 	proto.Message
 	stdproto.Message
-}](t testing.TB, xs []PTR) {
+}](t testing.TB, repeatedNums []int, xs []PTR) {
 	xs = append(xs, nil, new(T))
 	for i, x := range xs {
 		sz := x.MarshaledSize()
@@ -45,7 +49,11 @@ func TestMarshalStable[T any, PTR interface {
 			require.NoError(t, protowire.ParseError(ln), i)
 			require.True(t, num >= 0, i)
 			if prevNum >= 0 {
-				require.GreaterOrEqual(t, num, prevNum, i) // may equal for repeated fields
+				if slices.Contains(repeatedNums, int(prevNum)) {
+					require.GreaterOrEqual(t, num, prevNum, i)
+				} else {
+					require.Greater(t, num, prevNum, i) // may equal for repeated fields
+				}
 			}
 			prevNum = num
 			off += ln

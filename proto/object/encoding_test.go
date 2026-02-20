@@ -134,19 +134,19 @@ func randSearchFilters() []*object.SearchFilter {
 }
 
 func TestHeader_Attribute_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.Header_Attribute{
+	prototest.TestMarshalStable(t, nil, []*object.Header_Attribute{
 		randAttribute(),
 	})
 }
 
 func TestRange_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.Range{
+	prototest.TestMarshalStable(t, nil, []*object.Range{
 		randRange(),
 	})
 }
 
 func TestShortHeader_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.ShortHeader{
+	prototest.TestMarshalStable(t, nil, []*object.ShortHeader{
 		randShortHeader(),
 	})
 }
@@ -166,7 +166,9 @@ func TestHeader_Split_MarshalStable(t *testing.T) {
 		require.Equal(t, cs[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*object.Header_Split{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldHeaderSplitChildren,
+	}, []*object.Header_Split{
 		randSplitHeader(),
 	})
 }
@@ -186,13 +188,15 @@ func TestHeader_MarshalStable(t *testing.T) {
 		require.Equal(t, as[1], new(object.Header_Attribute))
 	})
 
-	prototest.TestMarshalStable(t, []*object.Header{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldHeaderAttributes,
+	}, []*object.Header{
 		randHeader(),
 	})
 }
 
 func TestObject_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.Object{
+	prototest.TestMarshalStable(t, nil, []*object.Object{
 		{
 			ObjectId:  prototest.RandObjectID(),
 			Signature: prototest.RandSignature(),
@@ -203,20 +207,20 @@ func TestObject_MarshalStable(t *testing.T) {
 }
 
 func TestSplitInfo_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.SplitInfo{
+	prototest.TestMarshalStable(t, nil, []*object.SplitInfo{
 		randSplitInfo(),
 	})
 }
 
 func TestGetRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.GetRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*object.GetRequest_Body{
 		{Address: prototest.RandObjectAddress(), Raw: false},
 		{Address: prototest.RandObjectAddress(), Raw: true},
 	})
 }
 
 func TestGetResponse_Body_Init_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.GetResponse_Body_Init{
+	prototest.TestMarshalStable(t, nil, []*object.GetResponse_Body_Init{
 		randGetResponseInit(),
 	})
 }
@@ -229,7 +233,7 @@ func TestGetResponse_Body_MarshalStable(t *testing.T) {
 	vChunk.ObjectPart = &object.GetResponse_Body_Chunk{Chunk: prototest.RandBytes()}
 	var vSplitInfo object.GetResponse_Body
 	vSplitInfo.ObjectPart = &object.GetResponse_Body_SplitInfo{SplitInfo: randSplitInfo()}
-	prototest.TestMarshalStable(t, []*object.GetResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*object.GetResponse_Body{
 		&vEmpty,
 		&vInit,
 		&vChunk,
@@ -238,7 +242,7 @@ func TestGetResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestHeadRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.HeadRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*object.HeadRequest_Body{
 		{Address: prototest.RandObjectAddress(), MainOnly: false, Raw: false},
 		{Address: prototest.RandObjectAddress(), MainOnly: true, Raw: false},
 		{Address: prototest.RandObjectAddress(), MainOnly: false, Raw: true},
@@ -247,7 +251,7 @@ func TestHeadRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestHeaderWithSignature_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.HeaderWithSignature{
+	prototest.TestMarshalStable(t, nil, []*object.HeaderWithSignature{
 		randHeaderWithSignature(),
 	})
 }
@@ -260,7 +264,7 @@ func TestHeadResponse_Body_MarshalStable(t *testing.T) {
 	vShort.Head = &object.HeadResponse_Body_ShortHeader{ShortHeader: randShortHeader()}
 	var vSplitInfo object.HeadResponse_Body
 	vSplitInfo.Head = &object.HeadResponse_Body_SplitInfo{SplitInfo: randSplitInfo()}
-	prototest.TestMarshalStable(t, []*object.HeadResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*object.HeadResponse_Body{
 		&vEmpty,
 		&vFull,
 		&vShort,
@@ -269,7 +273,7 @@ func TestHeadResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestGetRangeRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.GetRangeRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*object.GetRangeRequest_Body{
 		{Address: prototest.RandObjectAddress(), Range: randRange(), Raw: false},
 		{Address: prototest.RandObjectAddress(), Range: randRange(), Raw: true},
 	})
@@ -281,7 +285,7 @@ func TestGetRangeResponse_Body_MarshalStable(t *testing.T) {
 	vChunk.RangePart = &object.GetRangeResponse_Body_Chunk{Chunk: prototest.RandBytes()}
 	var vSplitInfo object.GetRangeResponse_Body
 	vSplitInfo.RangePart = &object.GetRangeResponse_Body_SplitInfo{SplitInfo: randSplitInfo()}
-	prototest.TestMarshalStable(t, []*object.GetRangeResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*object.GetRangeResponse_Body{
 		&vEmpty,
 		&vChunk,
 		&vSplitInfo,
@@ -303,7 +307,9 @@ func TestGetRangeHashRequest_Body_MarshalStable(t *testing.T) {
 		require.Equal(t, rs[1], new(object.Range))
 	})
 
-	prototest.TestMarshalStable(t, []*object.GetRangeHashRequest_Body{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldRangeHashRequestBodyRanges,
+	}, []*object.GetRangeHashRequest_Body{
 		{
 			Address: prototest.RandObjectAddress(),
 			Ranges:  randRanges(),
@@ -314,7 +320,9 @@ func TestGetRangeHashRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestGetRangeHashResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.GetRangeHashResponse_Body{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldRangeHashResponseBodyHashes,
+	}, []*object.GetRangeHashResponse_Body{
 		{
 			Type:     prototest.RandInteger[refs.ChecksumType](),
 			HashList: prototest.RandRepeatedBytes(),
@@ -323,7 +331,7 @@ func TestGetRangeHashResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestPutRequest_Body_Init_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.PutRequest_Body_Init{
+	prototest.TestMarshalStable(t, nil, []*object.PutRequest_Body_Init{
 		randPutRequestInit(),
 	})
 }
@@ -334,7 +342,7 @@ func TestPutRequest_Body_MarshalStable(t *testing.T) {
 	vInit.ObjectPart = &object.PutRequest_Body_Init_{Init: randPutRequestInit()}
 	var vChunk object.PutRequest_Body
 	vChunk.ObjectPart = &object.PutRequest_Body_Chunk{Chunk: prototest.RandBytes()}
-	prototest.TestMarshalStable(t, []*object.PutRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*object.PutRequest_Body{
 		&vEmpty,
 		&vInit,
 		&vChunk,
@@ -342,19 +350,19 @@ func TestPutRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestPutResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.PutResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*object.PutResponse_Body{
 		{ObjectId: prototest.RandObjectID()},
 	})
 }
 
 func TestDeleteRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.DeleteRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*object.DeleteRequest_Body{
 		{Address: prototest.RandObjectAddress()},
 	})
 }
 
 func TestDeleteResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.DeleteResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*object.DeleteResponse_Body{
 		{Tombstone: prototest.RandObjectAddress()},
 	})
 }
@@ -374,13 +382,15 @@ func TestSearchFilter_MarshalStable(t *testing.T) {
 		require.Equal(t, fs[1], new(object.SearchFilter))
 	})
 
-	prototest.TestMarshalStable(t, []*object.SearchFilter{
+	prototest.TestMarshalStable(t, nil, []*object.SearchFilter{
 		randSearchFilter(),
 	})
 }
 
 func TestSearchRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.SearchRequest_Body{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldSearchV2RequestBodyFilters,
+	}, []*object.SearchRequest_Body{
 		{
 			ContainerId: prototest.RandContainerID(),
 			Version:     prototest.RandUint32(),
@@ -404,13 +414,18 @@ func TestSearchResponse_Body_MarshalStable(t *testing.T) {
 		require.Equal(t, ids[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*object.SearchResponse_Body{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldSearchResponseBodyIDList,
+	}, []*object.SearchResponse_Body{
 		{IdList: prototest.RandObjectIDs()},
 	})
 }
 
 func TestSearchV2Request_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*object.SearchV2Request_Body{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldSearchV2RequestBodyFilters,
+		object.FieldSearchV2RequestBodyAttributes,
+	}, []*object.SearchV2Request_Body{
 		{
 			ContainerId: prototest.RandContainerID(),
 			Version:     prototest.RandUint32(),
@@ -437,7 +452,9 @@ func TestSearchV2Response_Body_MarshalStable(t *testing.T) {
 		require.Equal(t, ids[1], new(object.SearchV2Response_OIDWithMeta))
 	})
 
-	prototest.TestMarshalStable(t, []*object.SearchV2Response_Body{
+	prototest.TestMarshalStable(t, []int{
+		object.FieldSearchV2ResponseBodyResult,
+	}, []*object.SearchV2Response_Body{
 		{
 			Result: []*object.SearchV2Response_OIDWithMeta{
 				{

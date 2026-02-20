@@ -49,7 +49,7 @@ func randAnnouncements() []*container.AnnounceUsedSpaceRequest_Body_Announcement
 }
 
 func TestContainer_Attribute_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.Container_Attribute{
+	prototest.TestMarshalStable(t, nil, []*container.Container_Attribute{
 		{Key: prototest.RandString()},
 		{Value: prototest.RandString()},
 		randAttribute(),
@@ -71,41 +71,43 @@ func TestContainer_MarshalStable(t *testing.T) {
 		require.Equal(t, as[1], new(container.Container_Attribute))
 	})
 
-	prototest.TestMarshalStable(t, []*container.Container{
+	prototest.TestMarshalStable(t, []int{
+		container.FieldContainerAttributes,
+	}, []*container.Container{
 		randContainer(),
 	})
 }
 
 func TestPutRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.PutRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.PutRequest_Body{
 		{Container: randContainer(), Signature: prototest.RandSignatureRFC6979()},
 	})
 }
 
 func TestPutResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.PutResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*container.PutResponse_Body{
 		{ContainerId: prototest.RandContainerID()},
 	})
 }
 
 func TestDeleteRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.DeleteRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.DeleteRequest_Body{
 		{ContainerId: prototest.RandContainerID(), Signature: prototest.RandSignatureRFC6979()},
 	})
 }
 
 func TestDeleteResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.DeleteResponse_Body{})
+	prototest.TestMarshalStable(t, nil, []*container.DeleteResponse_Body{})
 }
 
 func TestGetRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.GetRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.GetRequest_Body{
 		{ContainerId: prototest.RandContainerID()},
 	})
 }
 
 func TestGetResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.GetResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*container.GetResponse_Body{
 		{
 			Container:    randContainer(),
 			Signature:    prototest.RandSignatureRFC6979(),
@@ -115,7 +117,7 @@ func TestGetResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestListRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.ListRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.ListRequest_Body{
 		{OwnerId: prototest.RandOwnerID()},
 	})
 }
@@ -135,13 +137,15 @@ func TestListResponse_Body_MarshalStable(t *testing.T) {
 		require.Equal(t, cs[1], new(refs.ContainerID))
 	})
 
-	prototest.TestMarshalStable(t, []*container.ListResponse_Body{
+	prototest.TestMarshalStable(t, []int{
+		container.FieldListResponseBodyContainerIDs,
+	}, []*container.ListResponse_Body{
 		{ContainerIds: prototest.RandContainerIDs()},
 	})
 }
 
 func TestSetExtendedACLRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.SetExtendedACLRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.SetExtendedACLRequest_Body{
 		{
 			Eacl:      prototest.RandEACL(),
 			Signature: prototest.RandSignatureRFC6979(),
@@ -150,17 +154,17 @@ func TestSetExtendedACLRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestSetExtendedACLResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.SetExtendedACLResponse_Body{})
+	prototest.TestMarshalStable(t, nil, []*container.SetExtendedACLResponse_Body{})
 }
 
 func TestGetExtendedACLRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.GetExtendedACLRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.GetExtendedACLRequest_Body{
 		{ContainerId: prototest.RandContainerID()},
 	})
 }
 
 func TestGetExtendedACLResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.GetExtendedACLResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*container.GetExtendedACLResponse_Body{
 		{
 			Eacl:         prototest.RandEACL(),
 			Signature:    prototest.RandSignatureRFC6979(),
@@ -170,7 +174,7 @@ func TestGetExtendedACLResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestAnnounceUsedSpaceRequest_Body_Announcement_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.AnnounceUsedSpaceRequest_Body_Announcement{
+	prototest.TestMarshalStable(t, nil, []*container.AnnounceUsedSpaceRequest_Body_Announcement{
 		randAnnouncement(),
 	})
 }
@@ -190,17 +194,17 @@ func TestAnnounceUsedSpaceRequest_Body_MarshalStable(t *testing.T) {
 		require.Equal(t, as[1], new(container.AnnounceUsedSpaceRequest_Body_Announcement))
 	})
 
-	prototest.TestMarshalStable(t, []*container.AnnounceUsedSpaceRequest_Body{
+	prototest.TestMarshalStable(t, []int{1}, []*container.AnnounceUsedSpaceRequest_Body{
 		{Announcements: randAnnouncements()},
 	})
 }
 
 func TestAnnounceUsedSpaceResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.AnnounceUsedSpaceResponse_Body{})
+	prototest.TestMarshalStable(t, nil, []*container.AnnounceUsedSpaceResponse_Body{})
 }
 
 func TestSetAttributeRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.SetAttributeRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.SetAttributeRequest_Body{
 		{
 			Parameters: &container.SetAttributeRequest_Body_Parameters{
 				ContainerId: prototest.RandContainerID(),
@@ -216,7 +220,7 @@ func TestSetAttributeRequest_Body_MarshalStable(t *testing.T) {
 }
 
 func TestRemoveAttributeRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*container.RemoveAttributeRequest_Body{
+	prototest.TestMarshalStable(t, nil, []*container.RemoveAttributeRequest_Body{
 		{
 			Parameters: &container.RemoveAttributeRequest_Body_Parameters{
 				ContainerId: prototest.RandContainerID(),
