@@ -49,7 +49,7 @@ func (x *Selector) MarshaledSize() int {
 	if x != nil {
 		sz = proto.SizeBytes(FieldSelectorName, x.Name) +
 			proto.SizeVarint(FieldSelectorCount, x.Count) +
-			proto.SizeVarint(FieldSelectorClause, int32(x.Clause)) +
+			proto.SizeVarint(FieldSelectorClause, x.Clause) +
 			proto.SizeBytes(FieldSelectorAttribute, x.Attribute) +
 			proto.SizeBytes(FieldSelectorFilter, x.Filter)
 	}
@@ -63,7 +63,7 @@ func (x *Selector) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToBytes(b, FieldSelectorName, x.Name)
 		off += proto.MarshalToVarint(b[off:], FieldSelectorCount, x.Count)
-		off += proto.MarshalToVarint(b[off:], FieldSelectorClause, int32(x.Clause))
+		off += proto.MarshalToVarint(b[off:], FieldSelectorClause, x.Clause)
 		off += proto.MarshalToBytes(b[off:], FieldSelectorAttribute, x.Attribute)
 		proto.MarshalToBytes(b[off:], FieldSelectorFilter, x.Filter)
 	}
@@ -85,7 +85,7 @@ func (x *Filter) MarshaledSize() int {
 	if x != nil {
 		return proto.SizeBytes(FieldFilterName, x.Name) +
 			proto.SizeBytes(FieldFilterKey, x.Key) +
-			proto.SizeVarint(FieldFilterOp, int32(x.Op)) +
+			proto.SizeVarint(FieldFilterOp, x.Op) +
 			proto.SizeBytes(FieldFilterValue, x.Value) +
 			proto.SizeRepeatedMessages(FieldFilterFilters, x.Filters)
 	}
@@ -99,7 +99,7 @@ func (x *Filter) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToBytes(b, FieldFilterName, x.Name)
 		off += proto.MarshalToBytes(b[off:], FieldFilterKey, x.Key)
-		off += proto.MarshalToVarint(b[off:], FieldFilterOp, int32(x.Op))
+		off += proto.MarshalToVarint(b[off:], FieldFilterOp, x.Op)
 		off += proto.MarshalToBytes(b[off:], FieldFilterValue, x.Value)
 		proto.MarshalToRepeatedMessages(b[off:], FieldFilterFilters, x.Filters)
 	}
@@ -309,7 +309,7 @@ func (x *NodeInfo) MarshaledSize() int {
 	if x != nil {
 		return proto.SizeBytes(FieldNodeInfoPublicKey, x.PublicKey) +
 			proto.SizeRepeatedBytes(FieldNodeInfoAddresses, x.Addresses) +
-			proto.SizeVarint(FieldNodeInfoState, int32(x.State)) +
+			proto.SizeVarint(FieldNodeInfoState, x.State) +
 			proto.SizeRepeatedMessages(FieldNodeInfoAttributes, x.Attributes)
 	}
 	return 0
@@ -323,7 +323,7 @@ func (x *NodeInfo) MarshalStable(b []byte) {
 		off := proto.MarshalToBytes(b, FieldNodeInfoPublicKey, x.PublicKey)
 		off += proto.MarshalToRepeatedBytes(b[off:], FieldNodeInfoAddresses, x.Addresses)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldNodeInfoAttributes, x.Attributes)
-		proto.MarshalToVarint(b[off:], FieldNodeInfoState, int32(x.State))
+		proto.MarshalToVarint(b[off:], FieldNodeInfoState, x.State)
 	}
 }
 
