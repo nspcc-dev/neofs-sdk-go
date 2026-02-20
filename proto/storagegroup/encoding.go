@@ -2,22 +2,23 @@ package storagegroup
 
 import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 
+// Field numbers of [StorageGroup] message.
 const (
 	_ = iota
-	fieldStorageGroupSize
-	fieldStorageGroupHash
-	fieldStorageGroupExp
-	fieldStorageGroupMembers
+	FieldStorageGroupValidationDataSize
+	FieldStorageGroupValidationDataHash
+	FieldStorageGroupExpirationEpoch
+	FieldStorageGroupMembers
 )
 
 // MarshaledSize returns size of the StorageGroup in Protocol Buffers V3 format
 // in bytes. MarshaledSize is NPE-safe.
 func (x *StorageGroup) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(fieldStorageGroupSize, x.ValidationDataSize) +
-			proto.SizeEmbedded(fieldStorageGroupHash, x.ValidationHash) +
-			proto.SizeVarint(fieldStorageGroupExp, x.ExpirationEpoch) +
-			proto.SizeRepeatedMessages(fieldStorageGroupMembers, x.Members)
+		return proto.SizeVarint(FieldStorageGroupValidationDataSize, x.ValidationDataSize) +
+			proto.SizeEmbedded(FieldStorageGroupValidationDataHash, x.ValidationHash) +
+			proto.SizeVarint(FieldStorageGroupExpirationEpoch, x.ExpirationEpoch) +
+			proto.SizeRepeatedMessages(FieldStorageGroupMembers, x.Members)
 	}
 	return 0
 }
@@ -27,9 +28,9 @@ func (x *StorageGroup) MarshaledSize() int {
 // [StorageGroup.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *StorageGroup) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldStorageGroupSize, x.ValidationDataSize)
-		off += proto.MarshalToEmbedded(b[off:], fieldStorageGroupHash, x.ValidationHash)
-		off += proto.MarshalToVarint(b[off:], fieldStorageGroupExp, x.ExpirationEpoch)
-		proto.MarshalToRepeatedMessages(b[off:], fieldStorageGroupMembers, x.Members)
+		off := proto.MarshalToVarint(b, FieldStorageGroupValidationDataSize, x.ValidationDataSize)
+		off += proto.MarshalToEmbedded(b[off:], FieldStorageGroupValidationDataHash, x.ValidationHash)
+		off += proto.MarshalToVarint(b[off:], FieldStorageGroupExpirationEpoch, x.ExpirationEpoch)
+		proto.MarshalToRepeatedMessages(b[off:], FieldStorageGroupMembers, x.Members)
 	}
 }

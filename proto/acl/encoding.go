@@ -4,20 +4,21 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 )
 
+// Field numbers of [EACLTable] message.
 const (
 	_ = iota
-	fieldEACLVersion
-	fieldEACLContainer
-	fieldEACLRecords
+	FieldEACLTableVersion
+	FieldEACLTableContainerID
+	FieldEACLTableRecords
 )
 
 // MarshaledSize returns size of the EACLTable in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLTable) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(fieldEACLVersion, x.Version) +
-			proto.SizeEmbedded(fieldEACLContainer, x.ContainerId) +
-			proto.SizeRepeatedMessages(fieldEACLRecords, x.Records)
+		return proto.SizeEmbedded(FieldEACLTableVersion, x.Version) +
+			proto.SizeEmbedded(FieldEACLTableContainerID, x.ContainerId) +
+			proto.SizeRepeatedMessages(FieldEACLTableRecords, x.Records)
 	}
 	return 0
 }
@@ -27,28 +28,29 @@ func (x *EACLTable) MarshaledSize() int {
 // [EACLTable.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *EACLTable) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldEACLVersion, x.Version)
-		off += proto.MarshalToEmbedded(b[off:], fieldEACLContainer, x.ContainerId)
-		proto.MarshalToRepeatedMessages(b[off:], fieldEACLRecords, x.Records)
+		off := proto.MarshalToEmbedded(b, FieldEACLTableVersion, x.Version)
+		off += proto.MarshalToEmbedded(b[off:], FieldEACLTableContainerID, x.ContainerId)
+		proto.MarshalToRepeatedMessages(b[off:], FieldEACLTableRecords, x.Records)
 	}
 }
 
+// Field numbers of [EACLRecord] message.
 const (
 	_ = iota
-	fieldEACLOp
-	fieldEACLAction
-	fieldEACLFilters
-	fieldEACLTargets
+	FieldEACLRecordOperation
+	FieldEACLRecordAction
+	FieldEACLRecordFilters
+	FieldEACLRecordTargets
 )
 
 // MarshaledSize returns size of the EACLRecord in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLRecord) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(fieldEACLOp, int32(x.Operation)) +
-			proto.SizeVarint(fieldEACLAction, int32(x.Action)) +
-			proto.SizeRepeatedMessages(fieldEACLFilters, x.Filters) +
-			proto.SizeRepeatedMessages(fieldEACLTargets, x.Targets)
+		return proto.SizeVarint(FieldEACLRecordOperation, int32(x.Operation)) +
+			proto.SizeVarint(FieldEACLRecordAction, int32(x.Action)) +
+			proto.SizeRepeatedMessages(FieldEACLRecordFilters, x.Filters) +
+			proto.SizeRepeatedMessages(FieldEACLRecordTargets, x.Targets)
 	}
 	return 0
 }
@@ -58,19 +60,20 @@ func (x *EACLRecord) MarshaledSize() int {
 // [EACLRecord.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *EACLRecord) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldEACLOp, int32(x.Operation))
-		off += proto.MarshalToVarint(b[off:], fieldEACLAction, int32(x.Action))
-		off += proto.MarshalToRepeatedMessages(b[off:], fieldEACLFilters, x.Filters)
-		proto.MarshalToRepeatedMessages(b[off:], fieldEACLTargets, x.Targets)
+		off := proto.MarshalToVarint(b, FieldEACLRecordOperation, int32(x.Operation))
+		off += proto.MarshalToVarint(b[off:], FieldEACLRecordAction, int32(x.Action))
+		off += proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordFilters, x.Filters)
+		proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordTargets, x.Targets)
 	}
 }
 
+// Field numbers of [EACLRecord_Filter] message.
 const (
 	_ = iota
-	fieldEACLHeader
-	fieldEACLMatcher
-	fieldEACLKey
-	fieldEACLValue
+	FieldEACLRecordFilterHeaderType
+	FieldEACLRecordFilterMatchType
+	FieldEACLRecordFilterKey
+	FieldEACLRecordFilterValue
 )
 
 // MarshaledSize returns size of the EACLRecord_Filter in Protocol Buffers V3
@@ -78,10 +81,10 @@ const (
 func (x *EACLRecord_Filter) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldEACLHeader, int32(x.HeaderType)) +
-			proto.SizeVarint(fieldEACLMatcher, int32(x.MatchType)) +
-			proto.SizeBytes(fieldEACLKey, x.Key) +
-			proto.SizeBytes(fieldEACLValue, x.Value)
+		sz = proto.SizeVarint(FieldEACLRecordFilterHeaderType, int32(x.HeaderType)) +
+			proto.SizeVarint(FieldEACLRecordFilterMatchType, int32(x.MatchType)) +
+			proto.SizeBytes(FieldEACLRecordFilterKey, x.Key) +
+			proto.SizeBytes(FieldEACLRecordFilterValue, x.Value)
 	}
 	return sz
 }
@@ -92,17 +95,18 @@ func (x *EACLRecord_Filter) MarshaledSize() int {
 // NPE-safe.
 func (x *EACLRecord_Filter) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldEACLHeader, int32(x.HeaderType))
-		off += proto.MarshalToVarint(b[off:], fieldEACLMatcher, int32(x.MatchType))
-		off += proto.MarshalToBytes(b[off:], fieldEACLKey, x.Key)
-		proto.MarshalToBytes(b[off:], fieldEACLValue, x.Value)
+		off := proto.MarshalToVarint(b, FieldEACLRecordFilterHeaderType, int32(x.HeaderType))
+		off += proto.MarshalToVarint(b[off:], FieldEACLRecordFilterMatchType, int32(x.MatchType))
+		off += proto.MarshalToBytes(b[off:], FieldEACLRecordFilterKey, x.Key)
+		proto.MarshalToBytes(b[off:], FieldEACLRecordFilterValue, x.Value)
 	}
 }
 
+// Field numbers of [EACLRecord_Target] message.
 const (
 	_ = iota
-	fieldEACLRole
-	fieldEACLTargetKeys
+	FieldEACLRecordTargetRole
+	FieldEACLRecordTargetKeys
 )
 
 // MarshaledSize returns size of the EACLRecord_Target in Protocol Buffers V3
@@ -110,8 +114,8 @@ const (
 func (x *EACLRecord_Target) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldEACLRole, int32(x.Role)) +
-			proto.SizeRepeatedBytes(fieldEACLTargetKeys, x.Keys)
+		sz = proto.SizeVarint(FieldEACLRecordTargetRole, int32(x.Role)) +
+			proto.SizeRepeatedBytes(FieldEACLRecordTargetKeys, x.Keys)
 	}
 	return sz
 }
@@ -122,16 +126,17 @@ func (x *EACLRecord_Target) MarshaledSize() int {
 // NPE-safe.
 func (x *EACLRecord_Target) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldEACLRole, int32(x.Role))
-		proto.MarshalToRepeatedBytes(b[off:], fieldEACLTargetKeys, x.Keys)
+		off := proto.MarshalToVarint(b, FieldEACLRecordTargetRole, int32(x.Role))
+		proto.MarshalToRepeatedBytes(b[off:], FieldEACLRecordTargetKeys, x.Keys)
 	}
 }
 
+// Field numbers of [BearerToken_Body_TokenLifetime] message.
 const (
 	_ = iota
-	fieldBearerExp
-	fieldBearerNbf
-	fieldBearerIat
+	FieldBearerTokenBodyTokenLifetimeExp
+	FieldBearerTokenBodyTokenLifetimeNbf
+	FieldBearerTokenBodyTokenLifetimeIat
 )
 
 // MarshaledSize returns size of the BearerToken_Body_TokenLifetime in Protocol
@@ -139,9 +144,9 @@ const (
 func (x *BearerToken_Body_TokenLifetime) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldBearerExp, x.Exp) +
-			proto.SizeVarint(fieldBearerNbf, x.Nbf) +
-			proto.SizeVarint(fieldBearerIat, x.Iat)
+		sz = proto.SizeVarint(FieldBearerTokenBodyTokenLifetimeExp, x.Exp) +
+			proto.SizeVarint(FieldBearerTokenBodyTokenLifetimeNbf, x.Nbf) +
+			proto.SizeVarint(FieldBearerTokenBodyTokenLifetimeIat, x.Iat)
 	}
 	return sz
 }
@@ -152,18 +157,19 @@ func (x *BearerToken_Body_TokenLifetime) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *BearerToken_Body_TokenLifetime) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldBearerExp, x.Exp)
-		off += proto.MarshalToVarint(b[off:], fieldBearerNbf, x.Nbf)
-		proto.MarshalToVarint(b[off:], fieldBearerIat, x.Iat)
+		off := proto.MarshalToVarint(b, FieldBearerTokenBodyTokenLifetimeExp, x.Exp)
+		off += proto.MarshalToVarint(b[off:], FieldBearerTokenBodyTokenLifetimeNbf, x.Nbf)
+		proto.MarshalToVarint(b[off:], FieldBearerTokenBodyTokenLifetimeIat, x.Iat)
 	}
 }
 
+// Field numbers of [BearerToken_Body] message.
 const (
 	_ = iota
-	fieldBearerEACL
-	fieldBearerOwner
-	fieldBearerLifetime
-	fieldBearerIssuer
+	FieldBearerTokenBodyEACLTable
+	FieldBearerTokenBodyOwnerID
+	FieldBearerTokenBodyLifetime
+	FieldBearerTokenBodyIssuer
 )
 
 // MarshaledSize returns size of the BearerToken_Body in Protocol Buffers V3
@@ -171,10 +177,10 @@ const (
 func (x *BearerToken_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldBearerEACL, x.EaclTable) +
-			proto.SizeEmbedded(fieldBearerOwner, x.OwnerId) +
-			proto.SizeEmbedded(fieldBearerLifetime, x.Lifetime) +
-			proto.SizeEmbedded(fieldBearerIssuer, x.Issuer)
+		sz = proto.SizeEmbedded(FieldBearerTokenBodyEACLTable, x.EaclTable) +
+			proto.SizeEmbedded(FieldBearerTokenBodyOwnerID, x.OwnerId) +
+			proto.SizeEmbedded(FieldBearerTokenBodyLifetime, x.Lifetime) +
+			proto.SizeEmbedded(FieldBearerTokenBodyIssuer, x.Issuer)
 	}
 	return sz
 }
@@ -184,17 +190,18 @@ func (x *BearerToken_Body) MarshaledSize() int {
 // [BearerToken_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *BearerToken_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldBearerEACL, x.EaclTable)
-		off += proto.MarshalToEmbedded(b[off:], fieldBearerOwner, x.OwnerId)
-		off += proto.MarshalToEmbedded(b[off:], fieldBearerLifetime, x.Lifetime)
-		proto.MarshalToEmbedded(b[off:], fieldBearerIssuer, x.Issuer)
+		off := proto.MarshalToEmbedded(b, FieldBearerTokenBodyEACLTable, x.EaclTable)
+		off += proto.MarshalToEmbedded(b[off:], FieldBearerTokenBodyOwnerID, x.OwnerId)
+		off += proto.MarshalToEmbedded(b[off:], FieldBearerTokenBodyLifetime, x.Lifetime)
+		proto.MarshalToEmbedded(b[off:], FieldBearerTokenBodyIssuer, x.Issuer)
 	}
 }
 
+// Field numbers of [BearerToken] message.
 const (
 	_ = iota
-	fieldBearerBody
-	fieldBearerSignature
+	FieldBearerTokenBody
+	FieldBearerTokenSignature
 )
 
 // MarshaledSize returns size of the BearerToken in Protocol Buffers V3 format
@@ -202,8 +209,8 @@ const (
 func (x *BearerToken) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldBearerBody, x.Body) +
-			proto.SizeEmbedded(fieldBearerSignature, x.Signature)
+		sz = proto.SizeEmbedded(FieldBearerTokenBody, x.Body) +
+			proto.SizeEmbedded(FieldBearerTokenSignature, x.Signature)
 	}
 	return sz
 }
@@ -213,7 +220,7 @@ func (x *BearerToken) MarshaledSize() int {
 // [BearerToken.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *BearerToken) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldBearerBody, x.Body)
-		proto.MarshalToEmbedded(b[off:], fieldBearerSignature, x.Signature)
+		off := proto.MarshalToEmbedded(b, FieldBearerTokenBody, x.Body)
+		proto.MarshalToEmbedded(b[off:], FieldBearerTokenSignature, x.Signature)
 	}
 }

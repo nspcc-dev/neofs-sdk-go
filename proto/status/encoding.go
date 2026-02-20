@@ -4,10 +4,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 )
 
+// Field numbers of [Status_Detail] message.
 const (
 	_ = iota
-	fieldDetailID
-	fieldDetailValue
+	FieldStatusDetailID
+	FieldStatusDetailValue
 )
 
 // MarshaledSize returns size of the Status_Detail in Protocol Buffers V3 format
@@ -15,8 +16,8 @@ const (
 func (x *Status_Detail) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldDetailID, x.Id) +
-			proto.SizeBytes(fieldDetailValue, x.Value)
+		sz = proto.SizeVarint(FieldStatusDetailID, x.Id) +
+			proto.SizeBytes(FieldStatusDetailValue, x.Value)
 	}
 	return sz
 }
@@ -26,25 +27,26 @@ func (x *Status_Detail) MarshaledSize() int {
 // [Status_Detail.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Status_Detail) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldDetailID, x.Id)
-		proto.MarshalToBytes(b[off:], fieldDetailValue, x.Value)
+		off := proto.MarshalToVarint(b, FieldStatusDetailID, x.Id)
+		proto.MarshalToBytes(b[off:], FieldStatusDetailValue, x.Value)
 	}
 }
 
+// Field numbers of [Status_Detail] message.
 const (
 	_ = iota
-	fieldStatusCode
-	fieldStatusMessage
-	fieldStatusDetails
+	FieldStatusCode
+	FieldStatusMessage
+	FieldStatusDetails
 )
 
 // MarshaledSize returns size of the Status in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Status) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(fieldStatusCode, x.Code) +
-			proto.SizeBytes(fieldStatusMessage, x.Message) +
-			proto.SizeRepeatedMessages(fieldStatusDetails, x.Details)
+		return proto.SizeVarint(FieldStatusCode, x.Code) +
+			proto.SizeBytes(FieldStatusMessage, x.Message) +
+			proto.SizeRepeatedMessages(FieldStatusDetails, x.Details)
 	}
 	return 0
 }
@@ -54,8 +56,8 @@ func (x *Status) MarshaledSize() int {
 // [Status.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Status) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldStatusCode, x.Code)
-		off += proto.MarshalToBytes(b[off:], fieldStatusMessage, x.Message)
-		proto.MarshalToRepeatedMessages(b[off:], fieldStatusDetails, x.Details)
+		off := proto.MarshalToVarint(b, FieldStatusCode, x.Code)
+		off += proto.MarshalToBytes(b[off:], FieldStatusMessage, x.Message)
+		proto.MarshalToRepeatedMessages(b[off:], FieldStatusDetails, x.Details)
 	}
 }

@@ -2,10 +2,11 @@ package subnet
 
 import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 
+// Field numbers of [SubnetInfo] message.
 const (
 	_ = iota
-	fieldSubnetInfoID
-	fieldSubnetInfoOwner
+	FieldSubnetInfoID
+	FieldSubnetInfoOwner
 )
 
 // MarshaledSize returns size of the SubnetInfo in Protocol Buffers V3 format in
@@ -13,8 +14,8 @@ const (
 func (x *SubnetInfo) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldSubnetInfoID, x.Id)
-		sz += proto.SizeEmbedded(fieldSubnetInfoOwner, x.Owner)
+		sz = proto.SizeEmbedded(FieldSubnetInfoID, x.Id)
+		sz += proto.SizeEmbedded(FieldSubnetInfoOwner, x.Owner)
 	}
 	return sz
 }
@@ -24,7 +25,7 @@ func (x *SubnetInfo) MarshaledSize() int {
 // [SubnetInfo.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SubnetInfo) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldSubnetInfoID, x.Id)
-		proto.MarshalToEmbedded(b[off:], fieldSubnetInfoOwner, x.Owner)
+		off := proto.MarshalToEmbedded(b, FieldSubnetInfoID, x.Id)
+		proto.MarshalToEmbedded(b[off:], FieldSubnetInfoOwner, x.Owner)
 	}
 }
