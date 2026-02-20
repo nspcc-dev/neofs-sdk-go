@@ -77,13 +77,13 @@ func randNetmap() *netmap.Netmap {
 }
 
 func TestReplica_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.Replica{
+	prototest.TestMarshalStable(t, nil, []*netmap.Replica{
 		prototest.RandPlacementReplica(),
 	})
 }
 
 func TestSelector_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.Selector{
+	prototest.TestMarshalStable(t, nil, []*netmap.Selector{
 		prototest.RandPlacementSelector(),
 	})
 }
@@ -103,13 +103,15 @@ func TestFilter_MarshalStable(t *testing.T) {
 		require.Equal(t, fs[1], new(netmap.Filter))
 	})
 
-	prototest.TestMarshalStable(t, []*netmap.Filter{
+	prototest.TestMarshalStable(t, []int{
+		netmap.FieldFilterFilters,
+	}, []*netmap.Filter{
 		prototest.RandPlacementFilter(),
 	})
 }
 
 func TestPlacementPolicy_ECRule_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.PlacementPolicy_ECRule{
+	prototest.TestMarshalStable(t, nil, []*netmap.PlacementPolicy_ECRule{
 		prototest.RandECRule(),
 	})
 }
@@ -139,13 +141,18 @@ func TestPlacement_MarshalStable(t *testing.T) {
 		require.Equal(t, fs[1], new(netmap.Filter))
 	})
 
-	prototest.TestMarshalStable(t, []*netmap.PlacementPolicy{
+	prototest.TestMarshalStable(t, []int{
+		netmap.FieldPlacementPolicyReplicas,
+		netmap.FieldPlacementPolicySelectors,
+		netmap.FieldPlacementPolicyFilters,
+		netmap.FieldPlacementPolicyECRules,
+	}, []*netmap.PlacementPolicy{
 		prototest.RandPlacementPolicy(),
 	})
 }
 
 func TestNetworkConfig_Parameter_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NetworkConfig_Parameter{
+	prototest.TestMarshalStable(t, nil, []*netmap.NetworkConfig_Parameter{
 		randNetworkConfigParameter(),
 	})
 }
@@ -165,19 +172,23 @@ func TestNetworkConfig_MarshalStable(t *testing.T) {
 		require.Equal(t, ps[1], new(netmap.NetworkConfig_Parameter))
 	})
 
-	prototest.TestMarshalStable(t, []*netmap.NetworkConfig{
+	prototest.TestMarshalStable(t, []int{
+		netmap.FieldNetworkConfigParameters,
+	}, []*netmap.NetworkConfig{
 		randNetworkConfig(),
 	})
 }
 
 func TestNetworkInfo_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NetworkInfo{
+	prototest.TestMarshalStable(t, nil, []*netmap.NetworkInfo{
 		randNetworkInfo(),
 	})
 }
 
 func TestNodeInfo_Attribute_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NodeInfo_Attribute{
+	prototest.TestMarshalStable(t, []int{
+		netmap.FieldNodeInfoAttributeParents,
+	}, []*netmap.NodeInfo_Attribute{
 		randNodeAttribute(),
 	})
 }
@@ -197,7 +208,10 @@ func TestNodeInfo_MarshalStable(t *testing.T) {
 		require.Equal(t, as[1], new(netmap.NodeInfo_Attribute))
 	})
 
-	prototest.TestMarshalStable(t, []*netmap.NodeInfo{
+	prototest.TestMarshalStable(t, []int{
+		netmap.FieldNodeInfoAddresses,
+		netmap.FieldNodeInfoAttributes,
+	}, []*netmap.NodeInfo{
 		randNode(),
 	})
 }
@@ -217,17 +231,19 @@ func TestNetmap_MarshalStable(t *testing.T) {
 		require.Equal(t, ns[1], new(netmap.NodeInfo))
 	})
 
-	prototest.TestMarshalStable(t, []*netmap.Netmap{
+	prototest.TestMarshalStable(t, []int{
+		netmap.FieldNetmapNodes,
+	}, []*netmap.Netmap{
 		randNetmap(),
 	})
 }
 
 func TestLocalNodeInfoRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.LocalNodeInfoRequest_Body{})
+	prototest.TestMarshalStable(t, nil, []*netmap.LocalNodeInfoRequest_Body{})
 }
 
 func TestLocalNodeInfoResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.LocalNodeInfoResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*netmap.LocalNodeInfoResponse_Body{
 		{
 			Version:  prototest.RandVersion(),
 			NodeInfo: randNode(),
@@ -236,21 +252,21 @@ func TestLocalNodeInfoResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestNetworkInfoRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NetworkInfoRequest_Body{})
+	prototest.TestMarshalStable(t, nil, []*netmap.NetworkInfoRequest_Body{})
 }
 
 func TestNetworkInfoResponse_Body_MarshaledSize(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NetworkInfoResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*netmap.NetworkInfoResponse_Body{
 		{NetworkInfo: randNetworkInfo()},
 	})
 }
 
 func TestNetmapSnapshotRequest_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NetmapSnapshotRequest_Body{})
+	prototest.TestMarshalStable(t, nil, []*netmap.NetmapSnapshotRequest_Body{})
 }
 
 func TestNetmapSnapshotResponse_Body_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*netmap.NetmapSnapshotResponse_Body{
+	prototest.TestMarshalStable(t, nil, []*netmap.NetmapSnapshotResponse_Body{
 		{Netmap: randNetmap()},
 	})
 }

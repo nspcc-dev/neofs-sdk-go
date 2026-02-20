@@ -8,7 +8,7 @@ import (
 )
 
 func TestSubnetInfo_MarshalStable(t *testing.T) {
-	prototest.TestMarshalStable(t, []*subnet.SubnetInfo{
+	prototest.TestMarshalStable(t, nil, []*subnet.SubnetInfo{
 		{
 			Id:    prototest.RandSubnetID(),
 			Owner: prototest.RandOwnerID(),

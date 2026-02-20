@@ -30,7 +30,12 @@ func TestDataAuditResult_MarshalStable(t *testing.T) {
 		require.Equal(t, fs[1], new(refs.ObjectID))
 	})
 
-	prototest.TestMarshalStable(t, []*audit.DataAuditResult{
+	prototest.TestMarshalStable(t, []int{
+		audit.FieldDataAuditResultPassSG,
+		audit.FieldDataAuditResultFailSG,
+		audit.FieldDataAuditResultPassNodes,
+		audit.FieldDataAuditResultFailNodes,
+	}, []*audit.DataAuditResult{
 		{
 			Version:     prototest.RandVersion(),
 			AuditEpoch:  prototest.RandUint64(),
