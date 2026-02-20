@@ -47,8 +47,8 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLRecord) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(FieldEACLRecordOperation, int32(x.Operation)) +
-			proto.SizeVarint(FieldEACLRecordAction, int32(x.Action)) +
+		return proto.SizeVarint(FieldEACLRecordOperation, x.Operation) +
+			proto.SizeVarint(FieldEACLRecordAction, x.Action) +
 			proto.SizeRepeatedMessages(FieldEACLRecordFilters, x.Filters) +
 			proto.SizeRepeatedMessages(FieldEACLRecordTargets, x.Targets)
 	}
@@ -60,8 +60,8 @@ func (x *EACLRecord) MarshaledSize() int {
 // [EACLRecord.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *EACLRecord) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldEACLRecordOperation, int32(x.Operation))
-		off += proto.MarshalToVarint(b[off:], FieldEACLRecordAction, int32(x.Action))
+		off := proto.MarshalToVarint(b, FieldEACLRecordOperation, x.Operation)
+		off += proto.MarshalToVarint(b[off:], FieldEACLRecordAction, x.Action)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordFilters, x.Filters)
 		proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordTargets, x.Targets)
 	}
@@ -81,8 +81,8 @@ const (
 func (x *EACLRecord_Filter) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldEACLRecordFilterHeaderType, int32(x.HeaderType)) +
-			proto.SizeVarint(FieldEACLRecordFilterMatchType, int32(x.MatchType)) +
+		sz = proto.SizeVarint(FieldEACLRecordFilterHeaderType, x.HeaderType) +
+			proto.SizeVarint(FieldEACLRecordFilterMatchType, x.MatchType) +
 			proto.SizeBytes(FieldEACLRecordFilterKey, x.Key) +
 			proto.SizeBytes(FieldEACLRecordFilterValue, x.Value)
 	}
@@ -95,8 +95,8 @@ func (x *EACLRecord_Filter) MarshaledSize() int {
 // NPE-safe.
 func (x *EACLRecord_Filter) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldEACLRecordFilterHeaderType, int32(x.HeaderType))
-		off += proto.MarshalToVarint(b[off:], FieldEACLRecordFilterMatchType, int32(x.MatchType))
+		off := proto.MarshalToVarint(b, FieldEACLRecordFilterHeaderType, x.HeaderType)
+		off += proto.MarshalToVarint(b[off:], FieldEACLRecordFilterMatchType, x.MatchType)
 		off += proto.MarshalToBytes(b[off:], FieldEACLRecordFilterKey, x.Key)
 		proto.MarshalToBytes(b[off:], FieldEACLRecordFilterValue, x.Value)
 	}
@@ -114,7 +114,7 @@ const (
 func (x *EACLRecord_Target) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldEACLRecordTargetRole, int32(x.Role)) +
+		sz = proto.SizeVarint(FieldEACLRecordTargetRole, x.Role) +
 			proto.SizeRepeatedBytes(FieldEACLRecordTargetKeys, x.Keys)
 	}
 	return sz
@@ -126,7 +126,7 @@ func (x *EACLRecord_Target) MarshaledSize() int {
 // NPE-safe.
 func (x *EACLRecord_Target) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldEACLRecordTargetRole, int32(x.Role))
+		off := proto.MarshalToVarint(b, FieldEACLRecordTargetRole, x.Role)
 		proto.MarshalToRepeatedBytes(b[off:], FieldEACLRecordTargetKeys, x.Keys)
 	}
 }
