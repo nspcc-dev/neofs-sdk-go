@@ -46,9 +46,8 @@ func TestMarshalStable[T any, PTR interface {
 			require.True(t, num >= 0, i)
 			if prevNum >= 0 {
 				require.GreaterOrEqual(t, num, prevNum, i) // may equal for repeated fields
-			} else {
-				prevNum = num
 			}
+			prevNum = num
 			off += ln
 		}
 
