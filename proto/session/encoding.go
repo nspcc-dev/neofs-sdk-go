@@ -307,6 +307,7 @@ const (
 	FieldRequestMetaHeaderBearerToken
 	FieldRequestMetaHeaderOrigin
 	FieldRequestMetaHeaderMagicNumber
+	FieldRequestMetaHeaderSessionTokenV2
 )
 
 // MarshaledSize returns size of the RequestMetaHeader in Protocol Buffers V3
@@ -320,7 +321,8 @@ func (x *RequestMetaHeader) MarshaledSize() int {
 			proto.SizeEmbedded(FieldRequestMetaHeaderBearerToken, x.BearerToken) +
 			proto.SizeEmbedded(FieldRequestMetaHeaderOrigin, x.Origin) +
 			proto.SizeVarint(FieldRequestMetaHeaderMagicNumber, x.MagicNumber) +
-			proto.SizeRepeatedMessages(FieldRequestMetaHeaderXHeaders, x.XHeaders)
+			proto.SizeRepeatedMessages(FieldRequestMetaHeaderXHeaders, x.XHeaders) +
+			proto.SizeEmbedded(FieldRequestMetaHeaderSessionTokenV2, x.SessionTokenV2)
 	}
 	return 0
 }
@@ -338,7 +340,8 @@ func (x *RequestMetaHeader) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionToken, x.SessionToken)
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderBearerToken, x.BearerToken)
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderOrigin, x.Origin)
-		proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderMagicNumber, x.MagicNumber)
+		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderMagicNumber, x.MagicNumber)
+		proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionTokenV2, x.SessionTokenV2)
 	}
 }
 

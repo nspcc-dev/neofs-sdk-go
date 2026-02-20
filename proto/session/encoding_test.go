@@ -23,13 +23,14 @@ func randXHeaders() []*session.XHeader { return prototest.RandRepeated(randXHead
 
 func _randRequestMetaHeader(withOrigin bool) *session.RequestMetaHeader {
 	v := &session.RequestMetaHeader{
-		Version:      prototest.RandVersion(),
-		Epoch:        prototest.RandUint64(),
-		Ttl:          prototest.RandUint32(),
-		XHeaders:     randXHeaders(),
-		SessionToken: prototest.RandSessionToken(),
-		BearerToken:  prototest.RandBearerToken(),
-		MagicNumber:  prototest.RandUint64(),
+		Version:        prototest.RandVersion(),
+		Epoch:          prototest.RandUint64(),
+		Ttl:            prototest.RandUint32(),
+		XHeaders:       randXHeaders(),
+		SessionToken:   prototest.RandSessionToken(),
+		SessionTokenV2: prototest.RandSessionTokenV2(false),
+		BearerToken:    prototest.RandBearerToken(),
+		MagicNumber:    prototest.RandUint64(),
 	}
 	if withOrigin {
 		v.Origin = _randRequestMetaHeader(false)
