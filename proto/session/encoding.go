@@ -6,18 +6,19 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 )
 
+// Field numbers of [ObjectSessionContext_Target] message.
 const (
 	_ = iota
-	fieldTokenObjectTargetContainer
-	fieldTokenObjectTargetIDs
+	FieldObjectSessionContextTargetContainer
+	FieldObjectSessionContextTargetObjects
 )
 
 // MarshaledSize returns size of the ObjectSessionContext_Target in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *ObjectSessionContext_Target) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(fieldTokenObjectTargetContainer, x.Container) +
-			proto.SizeRepeatedMessages(fieldTokenObjectTargetIDs, x.Objects)
+		return proto.SizeEmbedded(FieldObjectSessionContextTargetContainer, x.Container) +
+			proto.SizeRepeatedMessages(FieldObjectSessionContextTargetObjects, x.Objects)
 	}
 	return 0
 }
@@ -28,15 +29,16 @@ func (x *ObjectSessionContext_Target) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ObjectSessionContext_Target) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldTokenObjectTargetContainer, x.Container)
-		proto.MarshalToRepeatedMessages(b[off:], fieldTokenObjectTargetIDs, x.Objects)
+		off := proto.MarshalToEmbedded(b, FieldObjectSessionContextTargetContainer, x.Container)
+		proto.MarshalToRepeatedMessages(b[off:], FieldObjectSessionContextTargetObjects, x.Objects)
 	}
 }
 
+// Field numbers of [ObjectSessionContext] message.
 const (
 	_ = iota
-	fieldTokenObjectVerb
-	fieldTokenObjectTarget
+	FieldObjectSessionContextVerb
+	FieldObjectSessionContextTarget
 )
 
 // MarshaledSize returns size of the ObjectSessionContext in Protocol Buffers V3
@@ -44,8 +46,8 @@ const (
 func (x *ObjectSessionContext) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldTokenObjectVerb, int32(x.Verb)) +
-			proto.SizeEmbedded(fieldTokenObjectTarget, x.Target)
+		sz = proto.SizeVarint(FieldObjectSessionContextVerb, int32(x.Verb)) +
+			proto.SizeEmbedded(FieldObjectSessionContextTarget, x.Target)
 	}
 	return sz
 }
@@ -56,16 +58,17 @@ func (x *ObjectSessionContext) MarshaledSize() int {
 // NPE-safe.
 func (x *ObjectSessionContext) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldTokenObjectVerb, int32(x.Verb))
-		proto.MarshalToEmbedded(b[off:], fieldTokenObjectTarget, x.Target)
+		off := proto.MarshalToVarint(b, FieldObjectSessionContextVerb, int32(x.Verb))
+		proto.MarshalToEmbedded(b[off:], FieldObjectSessionContextTarget, x.Target)
 	}
 }
 
+// Field numbers of [ContainerSessionContext] message.
 const (
 	_ = iota
-	fieldTokenContainerVerb
-	fieldTokenContainerWildcard
-	fieldTokenContainerID
+	FieldContainerSessionContextVerb
+	FieldContainerSessionContextWildcard
+	FieldContainerSessionContextContainerID
 )
 
 // MarshaledSize returns size of the ContainerSessionContext in Protocol Buffers
@@ -73,9 +76,9 @@ const (
 func (x *ContainerSessionContext) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldTokenContainerVerb, int32(x.Verb)) +
-			proto.SizeBool(fieldTokenContainerWildcard, x.Wildcard) +
-			proto.SizeEmbedded(fieldTokenContainerID, x.ContainerId)
+		sz = proto.SizeVarint(FieldContainerSessionContextVerb, int32(x.Verb)) +
+			proto.SizeBool(FieldContainerSessionContextWildcard, x.Wildcard) +
+			proto.SizeEmbedded(FieldContainerSessionContextContainerID, x.ContainerId)
 	}
 	return sz
 }
@@ -86,17 +89,18 @@ func (x *ContainerSessionContext) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ContainerSessionContext) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldTokenContainerVerb, int32(x.Verb))
-		off += proto.MarshalToBool(b[off:], fieldTokenContainerWildcard, x.Wildcard)
-		proto.MarshalToEmbedded(b[off:], fieldTokenContainerID, x.ContainerId)
+		off := proto.MarshalToVarint(b, FieldContainerSessionContextVerb, int32(x.Verb))
+		off += proto.MarshalToBool(b[off:], FieldContainerSessionContextWildcard, x.Wildcard)
+		proto.MarshalToEmbedded(b[off:], FieldContainerSessionContextContainerID, x.ContainerId)
 	}
 }
 
+// Field numbers of [SessionToken_Body_TokenLifetime] message.
 const (
 	_ = iota
-	fieldTokenExp
-	fieldTokenNbf
-	fieldTokenIat
+	FieldSessionTokenBodyTokenLifetimeExp
+	FieldSessionTokenBodyTokenLifetimeNbf
+	FieldSessionTokenBodyTokenLifetimeIat
 )
 
 // MarshaledSize returns size of the SessionToken_Body_TokenLifetime in Protocol
@@ -104,9 +108,9 @@ const (
 func (x *SessionToken_Body_TokenLifetime) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldTokenExp, x.Exp) +
-			proto.SizeVarint(fieldTokenNbf, x.Nbf) +
-			proto.SizeVarint(fieldTokenIat, x.Iat)
+		sz = proto.SizeVarint(FieldSessionTokenBodyTokenLifetimeExp, x.Exp) +
+			proto.SizeVarint(FieldSessionTokenBodyTokenLifetimeNbf, x.Nbf) +
+			proto.SizeVarint(FieldSessionTokenBodyTokenLifetimeIat, x.Iat)
 	}
 	return sz
 }
@@ -117,20 +121,21 @@ func (x *SessionToken_Body_TokenLifetime) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *SessionToken_Body_TokenLifetime) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldTokenExp, x.Exp)
-		off += proto.MarshalToVarint(b[off:], fieldTokenNbf, x.Nbf)
-		proto.MarshalToVarint(b[off:], fieldTokenIat, x.Iat)
+		off := proto.MarshalToVarint(b, FieldSessionTokenBodyTokenLifetimeExp, x.Exp)
+		off += proto.MarshalToVarint(b[off:], FieldSessionTokenBodyTokenLifetimeNbf, x.Nbf)
+		proto.MarshalToVarint(b[off:], FieldSessionTokenBodyTokenLifetimeIat, x.Iat)
 	}
 }
 
+// Field numbers of [SessionToken_Body] message.
 const (
 	_ = iota
-	fieldTokenID
-	fieldTokenOwner
-	fieldTokenLifetime
-	fieldTokenSessionKey
-	fieldTokenContextObject
-	fieldTokenContextContainer
+	FieldSessionTokenBodyID
+	FieldSessionTokenBodyOwnerID
+	FieldSessionTokenBodyLifetime
+	FieldSessionTokenBodySessionKey
+	FieldSessionTokenBodyObject
+	FieldSessionTokenBodyContainer
 )
 
 // MarshaledSize returns size of the SessionToken_Body in Protocol Buffers V3
@@ -138,18 +143,18 @@ const (
 func (x *SessionToken_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldTokenID, x.Id) +
-			proto.SizeEmbedded(fieldTokenOwner, x.OwnerId) +
-			proto.SizeEmbedded(fieldTokenLifetime, x.Lifetime) +
-			proto.SizeBytes(fieldTokenSessionKey, x.SessionKey)
+		sz = proto.SizeBytes(FieldSessionTokenBodyID, x.Id) +
+			proto.SizeEmbedded(FieldSessionTokenBodyOwnerID, x.OwnerId) +
+			proto.SizeEmbedded(FieldSessionTokenBodyLifetime, x.Lifetime) +
+			proto.SizeBytes(FieldSessionTokenBodySessionKey, x.SessionKey)
 		switch c := x.Context.(type) {
 		default:
 			panic(fmt.Sprintf("unexpected context %T", x.Context))
 		case nil:
 		case *SessionToken_Body_Object:
-			sz += proto.SizeEmbedded(fieldTokenContextObject, c.Object)
+			sz += proto.SizeEmbedded(FieldSessionTokenBodyObject, c.Object)
 		case *SessionToken_Body_Container:
-			sz += proto.SizeEmbedded(fieldTokenContextContainer, c.Container)
+			sz += proto.SizeEmbedded(FieldSessionTokenBodyContainer, c.Container)
 		}
 	}
 	return sz
@@ -161,26 +166,27 @@ func (x *SessionToken_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *SessionToken_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, fieldTokenID, x.Id)
-		off += proto.MarshalToEmbedded(b[off:], fieldTokenOwner, x.OwnerId)
-		off += proto.MarshalToEmbedded(b[off:], fieldTokenLifetime, x.Lifetime)
-		off += proto.MarshalToBytes(b[off:], fieldTokenSessionKey, x.SessionKey)
+		off := proto.MarshalToBytes(b, FieldSessionTokenBodyID, x.Id)
+		off += proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyOwnerID, x.OwnerId)
+		off += proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyLifetime, x.Lifetime)
+		off += proto.MarshalToBytes(b[off:], FieldSessionTokenBodySessionKey, x.SessionKey)
 		switch c := x.Context.(type) {
 		default:
 			panic(fmt.Sprintf("unexpected context %T", x.Context))
 		case nil:
 		case *SessionToken_Body_Object:
-			proto.MarshalToEmbedded(b[off:], fieldTokenContextObject, c.Object)
+			proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyObject, c.Object)
 		case *SessionToken_Body_Container:
-			proto.MarshalToEmbedded(b[off:], fieldTokenContextContainer, c.Container)
+			proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyContainer, c.Container)
 		}
 	}
 }
 
+// Field numbers of [SessionToken] message.
 const (
 	_ = iota
-	fieldTokenBody
-	fieldTokenSignature
+	FieldSessionTokenBody
+	FieldSessionTokenSignature
 )
 
 // MarshaledSize returns size of the SessionToken in Protocol Buffers V3 format
@@ -188,8 +194,8 @@ const (
 func (x *SessionToken) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldTokenBody, x.Body) +
-			proto.SizeEmbedded(fieldTokenSignature, x.Signature)
+		sz = proto.SizeEmbedded(FieldSessionTokenBody, x.Body) +
+			proto.SizeEmbedded(FieldSessionTokenSignature, x.Signature)
 	}
 	return sz
 }
@@ -199,15 +205,16 @@ func (x *SessionToken) MarshaledSize() int {
 // [SessionToken.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SessionToken) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldTokenBody, x.Body)
-		proto.MarshalToEmbedded(b[off:], fieldTokenSignature, x.Signature)
+		off := proto.MarshalToEmbedded(b, FieldSessionTokenBody, x.Body)
+		proto.MarshalToEmbedded(b[off:], FieldSessionTokenSignature, x.Signature)
 	}
 }
 
+// Field numbers of [CreateRequest_Body] message.
 const (
 	_ = iota
-	fieldCreateReqUser
-	fieldCreateReqExp
+	FieldCreateRequestBodyOwnerID
+	FieldCreateRequestBodyExpiration
 )
 
 // MarshaledSize returns size of the CreateRequest_Body in Protocol Buffers V3
@@ -215,8 +222,8 @@ const (
 func (x *CreateRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldCreateReqUser, x.OwnerId) +
-			proto.SizeVarint(fieldCreateReqExp, x.Expiration)
+		sz = proto.SizeEmbedded(FieldCreateRequestBodyOwnerID, x.OwnerId) +
+			proto.SizeVarint(FieldCreateRequestBodyExpiration, x.Expiration)
 	}
 	return sz
 }
@@ -227,15 +234,16 @@ func (x *CreateRequest_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *CreateRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldCreateReqUser, x.OwnerId)
-		proto.MarshalToVarint(b[off:], fieldCreateReqExp, x.Expiration)
+		off := proto.MarshalToEmbedded(b, FieldCreateRequestBodyOwnerID, x.OwnerId)
+		proto.MarshalToVarint(b[off:], FieldCreateRequestBodyExpiration, x.Expiration)
 	}
 }
 
+// Field numbers of [CreateResponse_Body] message.
 const (
 	_ = iota
-	fieldCreateRespID
-	fieldCreateRespSessionKey
+	FieldCreateResponseBodyID
+	FieldCreateResponseBodySessionKey
 )
 
 // MarshaledSize returns size of the CreateResponse_Body in Protocol Buffers V3
@@ -243,8 +251,8 @@ const (
 func (x *CreateResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldCreateRespID, x.Id) +
-			proto.SizeBytes(fieldCreateRespSessionKey, x.SessionKey)
+		sz = proto.SizeBytes(FieldCreateResponseBodyID, x.Id) +
+			proto.SizeBytes(FieldCreateResponseBodySessionKey, x.SessionKey)
 	}
 	return sz
 }
@@ -255,15 +263,16 @@ func (x *CreateResponse_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *CreateResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, fieldCreateRespID, x.Id)
-		proto.MarshalToBytes(b[off:], fieldCreateRespSessionKey, x.SessionKey)
+		off := proto.MarshalToBytes(b, FieldCreateResponseBodyID, x.Id)
+		proto.MarshalToBytes(b[off:], FieldCreateResponseBodySessionKey, x.SessionKey)
 	}
 }
 
+// Field numbers of [XHeader] message.
 const (
 	_ = iota
-	fieldXHeaderKey
-	fieldXHeaderValue
+	FieldXHeaderKey
+	FieldXHeaderValue
 )
 
 // MarshaledSize returns size of the XHeader in Protocol Buffers V3 format in
@@ -271,8 +280,8 @@ const (
 func (x *XHeader) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldXHeaderKey, x.Key) +
-			proto.SizeBytes(fieldXHeaderValue, x.Value)
+		sz = proto.SizeBytes(FieldXHeaderKey, x.Key) +
+			proto.SizeBytes(FieldXHeaderValue, x.Value)
 	}
 	return sz
 }
@@ -282,35 +291,36 @@ func (x *XHeader) MarshaledSize() int {
 // [XHeader.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *XHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, fieldXHeaderKey, x.Key)
-		proto.MarshalToBytes(b[off:], fieldXHeaderValue, x.Value)
+		off := proto.MarshalToBytes(b, FieldXHeaderKey, x.Key)
+		proto.MarshalToBytes(b[off:], FieldXHeaderValue, x.Value)
 	}
 }
 
+// Field numbers of [RequestMetaHeader] message.
 const (
 	_ = iota
-	fieldReqMetaVersion
-	fieldReqMetaEpoch
-	fieldReqMetaTTL
-	fieldReqMetaXHeaders
-	fieldReqMetaSession
-	fieldReqMetaBearer
-	fieldReqMetaOrigin
-	fieldReqMetaNetMagic
+	FieldRequestMetaHeaderVersion
+	FieldRequestMetaHeaderEpoch
+	FieldRequestMetaHeaderTTL
+	FieldRequestMetaHeaderXHeaders
+	FieldRequestMetaHeaderSessionToken
+	FieldRequestMetaHeaderBearerToken
+	FieldRequestMetaHeaderOrigin
+	FieldRequestMetaHeaderMagicNumber
 )
 
 // MarshaledSize returns size of the RequestMetaHeader in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *RequestMetaHeader) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(fieldReqMetaVersion, x.Version) +
-			proto.SizeVarint(fieldReqMetaEpoch, x.Epoch) +
-			proto.SizeVarint(fieldReqMetaTTL, x.Ttl) +
-			proto.SizeEmbedded(fieldReqMetaSession, x.SessionToken) +
-			proto.SizeEmbedded(fieldReqMetaBearer, x.BearerToken) +
-			proto.SizeEmbedded(fieldReqMetaOrigin, x.Origin) +
-			proto.SizeVarint(fieldReqMetaNetMagic, x.MagicNumber) +
-			proto.SizeRepeatedMessages(fieldReqMetaXHeaders, x.XHeaders)
+		return proto.SizeEmbedded(FieldRequestMetaHeaderVersion, x.Version) +
+			proto.SizeVarint(FieldRequestMetaHeaderEpoch, x.Epoch) +
+			proto.SizeVarint(FieldRequestMetaHeaderTTL, x.Ttl) +
+			proto.SizeEmbedded(FieldRequestMetaHeaderSessionToken, x.SessionToken) +
+			proto.SizeEmbedded(FieldRequestMetaHeaderBearerToken, x.BearerToken) +
+			proto.SizeEmbedded(FieldRequestMetaHeaderOrigin, x.Origin) +
+			proto.SizeVarint(FieldRequestMetaHeaderMagicNumber, x.MagicNumber) +
+			proto.SizeRepeatedMessages(FieldRequestMetaHeaderXHeaders, x.XHeaders)
 	}
 	return 0
 }
@@ -321,37 +331,38 @@ func (x *RequestMetaHeader) MarshaledSize() int {
 // NPE-safe.
 func (x *RequestMetaHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldReqMetaVersion, x.Version)
-		off += proto.MarshalToVarint(b[off:], fieldReqMetaEpoch, x.Epoch)
-		off += proto.MarshalToVarint(b[off:], fieldReqMetaTTL, x.Ttl)
-		off += proto.MarshalToRepeatedMessages(b[off:], fieldReqMetaXHeaders, x.XHeaders)
-		off += proto.MarshalToEmbedded(b[off:], fieldReqMetaSession, x.SessionToken)
-		off += proto.MarshalToEmbedded(b[off:], fieldReqMetaBearer, x.BearerToken)
-		off += proto.MarshalToEmbedded(b[off:], fieldReqMetaOrigin, x.Origin)
-		proto.MarshalToVarint(b[off:], fieldReqMetaNetMagic, x.MagicNumber)
+		off := proto.MarshalToEmbedded(b, FieldRequestMetaHeaderVersion, x.Version)
+		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderEpoch, x.Epoch)
+		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderTTL, x.Ttl)
+		off += proto.MarshalToRepeatedMessages(b[off:], FieldRequestMetaHeaderXHeaders, x.XHeaders)
+		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionToken, x.SessionToken)
+		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderBearerToken, x.BearerToken)
+		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderOrigin, x.Origin)
+		proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderMagicNumber, x.MagicNumber)
 	}
 }
 
+// Field numbers of [ResponseMetaHeader] message.
 const (
 	_ = iota
-	fieldRespMetaVersion
-	fieldRespMetaEpoch
-	fieldRespMetaTTL
-	fieldRespMetaXHeaders
-	fieldRespMetaOrigin
-	fieldRespMetaStatus
+	FieldResponseMetaHeaderVersion
+	FieldResponseMetaHeaderEpoch
+	FieldResponseMetaHeaderTTL
+	FieldResponseMetaHeaderXHeaders
+	FieldResponseMetaHeaderOrigin
+	FieldResponseMetaHeaderStatus
 )
 
 // MarshaledSize returns size of the ResponseMetaHeader in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *ResponseMetaHeader) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(fieldRespMetaVersion, x.Version) +
-			proto.SizeVarint(fieldRespMetaEpoch, x.Epoch) +
-			proto.SizeVarint(fieldRespMetaTTL, x.Ttl) +
-			proto.SizeEmbedded(fieldRespMetaOrigin, x.Origin) +
-			proto.SizeEmbedded(fieldRespMetaStatus, x.Status) +
-			proto.SizeRepeatedMessages(fieldRespMetaXHeaders, x.XHeaders)
+		return proto.SizeEmbedded(FieldResponseMetaHeaderVersion, x.Version) +
+			proto.SizeVarint(FieldResponseMetaHeaderEpoch, x.Epoch) +
+			proto.SizeVarint(FieldResponseMetaHeaderTTL, x.Ttl) +
+			proto.SizeEmbedded(FieldResponseMetaHeaderOrigin, x.Origin) +
+			proto.SizeEmbedded(FieldResponseMetaHeaderStatus, x.Status) +
+			proto.SizeRepeatedMessages(FieldResponseMetaHeaderXHeaders, x.XHeaders)
 	}
 	return 0
 }
@@ -362,21 +373,22 @@ func (x *ResponseMetaHeader) MarshaledSize() int {
 // NPE-safe.
 func (x *ResponseMetaHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldRespMetaVersion, x.Version)
-		off += proto.MarshalToVarint(b[off:], fieldRespMetaEpoch, x.Epoch)
-		off += proto.MarshalToVarint(b[off:], fieldRespMetaTTL, x.Ttl)
-		off += proto.MarshalToRepeatedMessages(b[off:], fieldRespMetaXHeaders, x.XHeaders)
-		off += proto.MarshalToEmbedded(b[off:], fieldRespMetaOrigin, x.Origin)
-		proto.MarshalToEmbedded(b[off:], fieldRespMetaStatus, x.Status)
+		off := proto.MarshalToEmbedded(b, FieldResponseMetaHeaderVersion, x.Version)
+		off += proto.MarshalToVarint(b[off:], FieldResponseMetaHeaderEpoch, x.Epoch)
+		off += proto.MarshalToVarint(b[off:], FieldResponseMetaHeaderTTL, x.Ttl)
+		off += proto.MarshalToRepeatedMessages(b[off:], FieldResponseMetaHeaderXHeaders, x.XHeaders)
+		off += proto.MarshalToEmbedded(b[off:], FieldResponseMetaHeaderOrigin, x.Origin)
+		proto.MarshalToEmbedded(b[off:], FieldResponseMetaHeaderStatus, x.Status)
 	}
 }
 
+// Field numbers of [RequestVerificationHeader] message.
 const (
 	_ = iota
-	fieldReqVerifyBodySignature
-	fieldReqVerifyMetaSignature
-	fieldReqVerifyOriginSignature
-	fieldReqVerifyOrigin
+	FieldRequestVerificationHeaderBodySignature
+	FieldRequestVerificationHeaderMetaSignature
+	FieldRequestVerificationHeaderOriginSignature
+	FieldRequestVerificationHeaderOrigin
 )
 
 // MarshaledSize returns size of the RequestVerificationHeader in Protocol
@@ -384,10 +396,10 @@ const (
 func (x *RequestVerificationHeader) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldReqVerifyBodySignature, x.BodySignature) +
-			proto.SizeEmbedded(fieldReqVerifyMetaSignature, x.MetaSignature) +
-			proto.SizeEmbedded(fieldReqVerifyOriginSignature, x.OriginSignature) +
-			proto.SizeEmbedded(fieldReqVerifyOrigin, x.Origin)
+		sz = proto.SizeEmbedded(FieldRequestVerificationHeaderBodySignature, x.BodySignature) +
+			proto.SizeEmbedded(FieldRequestVerificationHeaderMetaSignature, x.MetaSignature) +
+			proto.SizeEmbedded(FieldRequestVerificationHeaderOriginSignature, x.OriginSignature) +
+			proto.SizeEmbedded(FieldRequestVerificationHeaderOrigin, x.Origin)
 	}
 	return sz
 }
@@ -398,19 +410,20 @@ func (x *RequestVerificationHeader) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *RequestVerificationHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldReqVerifyBodySignature, x.BodySignature)
-		off += proto.MarshalToEmbedded(b[off:], fieldReqVerifyMetaSignature, x.MetaSignature)
-		off += proto.MarshalToEmbedded(b[off:], fieldReqVerifyOriginSignature, x.OriginSignature)
-		proto.MarshalToEmbedded(b[off:], fieldReqVerifyOrigin, x.Origin)
+		off := proto.MarshalToEmbedded(b, FieldRequestVerificationHeaderBodySignature, x.BodySignature)
+		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderMetaSignature, x.MetaSignature)
+		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOriginSignature, x.OriginSignature)
+		proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOrigin, x.Origin)
 	}
 }
 
+// Field numbers of [ResponseVerificationHeader] message.
 const (
 	_ = iota
-	fieldRespVerifyBodySignature
-	fieldRespVerifyMetaSignature
-	fieldRespVerifyOriginSignature
-	fieldRespVerifyOrigin
+	FieldResponseVerificationHeaderBodySignature
+	FieldResponseVerificationHeaderMetaSignature
+	FieldResponseVerificationHeaderOriginSignature
+	FieldResponseVerificationHeaderOrigin
 )
 
 // MarshaledSize returns size of the ResponseVerificationHeader in Protocol
@@ -418,10 +431,10 @@ const (
 func (x *ResponseVerificationHeader) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldRespVerifyBodySignature, x.BodySignature) +
-			proto.SizeEmbedded(fieldRespVerifyMetaSignature, x.MetaSignature) +
-			proto.SizeEmbedded(fieldRespVerifyOriginSignature, x.OriginSignature) +
-			proto.SizeEmbedded(fieldRespVerifyOrigin, x.Origin)
+		sz = proto.SizeEmbedded(FieldResponseVerificationHeaderBodySignature, x.BodySignature) +
+			proto.SizeEmbedded(FieldResponseVerificationHeaderMetaSignature, x.MetaSignature) +
+			proto.SizeEmbedded(FieldResponseVerificationHeaderOriginSignature, x.OriginSignature) +
+			proto.SizeEmbedded(FieldResponseVerificationHeaderOrigin, x.Origin)
 	}
 	return sz
 }
@@ -432,9 +445,9 @@ func (x *ResponseVerificationHeader) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ResponseVerificationHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldRespVerifyBodySignature, x.BodySignature)
-		off += proto.MarshalToEmbedded(b[off:], fieldRespVerifyMetaSignature, x.MetaSignature)
-		off += proto.MarshalToEmbedded(b[off:], fieldRespVerifyOriginSignature, x.OriginSignature)
-		proto.MarshalToEmbedded(b[off:], fieldRespVerifyOrigin, x.Origin)
+		off := proto.MarshalToEmbedded(b, FieldResponseVerificationHeaderBodySignature, x.BodySignature)
+		off += proto.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderMetaSignature, x.MetaSignature)
+		off += proto.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderOriginSignature, x.OriginSignature)
+		proto.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderOrigin, x.Origin)
 	}
 }

@@ -2,16 +2,17 @@ package lock
 
 import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 
+// Field numbers of [Lock] message.
 const (
 	_ = iota
-	fieldLockMembers
+	FieldLockMembers
 )
 
 // MarshaledSize returns size of the Lock in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Lock) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeRepeatedMessages(fieldLockMembers, x.Members)
+		return proto.SizeRepeatedMessages(FieldLockMembers, x.Members)
 	}
 	return 0
 }
@@ -21,6 +22,6 @@ func (x *Lock) MarshaledSize() int {
 // [Lock.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Lock) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToRepeatedMessages(b, fieldLockMembers, x.Members)
+		proto.MarshalToRepeatedMessages(b, FieldLockMembers, x.Members)
 	}
 }

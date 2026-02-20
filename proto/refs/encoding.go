@@ -4,9 +4,10 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 )
 
+// Field numbers of [OwnerID] message.
 const (
 	_ = iota
-	fieldOwnerIDValue
+	FieldOwnerIDValue
 )
 
 // MarshaledSize returns size of the OwnerID in Protocol Buffers V3 format in
@@ -14,7 +15,7 @@ const (
 func (x *OwnerID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldOwnerIDValue, x.Value)
+		sz = proto.SizeBytes(FieldOwnerIDValue, x.Value)
 	}
 	return sz
 }
@@ -24,13 +25,14 @@ func (x *OwnerID) MarshaledSize() int {
 // [OwnerID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *OwnerID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, fieldOwnerIDValue, x.Value)
+		proto.MarshalToBytes(b, FieldOwnerIDValue, x.Value)
 	}
 }
 
+// Field numbers of [ContainerID] message.
 const (
 	_ = iota
-	fieldContainerIDValue
+	FieldContainerIDValue
 )
 
 // MarshaledSize returns size of the ContainerID in Protocol Buffers V3 format
@@ -38,7 +40,7 @@ const (
 func (x *ContainerID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldContainerIDValue, x.Value)
+		sz = proto.SizeBytes(FieldContainerIDValue, x.Value)
 	}
 	return sz
 }
@@ -48,13 +50,14 @@ func (x *ContainerID) MarshaledSize() int {
 // [ContainerID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *ContainerID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, fieldContainerIDValue, x.Value)
+		proto.MarshalToBytes(b, FieldContainerIDValue, x.Value)
 	}
 }
 
+// Field numbers of [ObjectID] message.
 const (
 	_ = iota
-	fieldObjectIDValue
+	FieldObjectIDValue
 )
 
 // MarshaledSize returns size of the ObjectID in Protocol Buffers V3 format in
@@ -62,7 +65,7 @@ const (
 func (x *ObjectID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldObjectIDValue, x.Value)
+		sz = proto.SizeBytes(FieldObjectIDValue, x.Value)
 	}
 	return sz
 }
@@ -72,14 +75,15 @@ func (x *ObjectID) MarshaledSize() int {
 // [ObjectID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *ObjectID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, fieldObjectIDValue, x.Value)
+		proto.MarshalToBytes(b, FieldObjectIDValue, x.Value)
 	}
 }
 
+// Field numbers of [Address] message.
 const (
 	_ = iota
-	fieldAddressContainer
-	fieldAddressObject
+	FieldAddressContainerID
+	FieldAddressObjectID
 )
 
 // MarshaledSize returns size of the Address in Protocol Buffers V3 format in
@@ -87,8 +91,8 @@ const (
 func (x *Address) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(fieldAddressContainer, x.ContainerId) +
-			proto.SizeEmbedded(fieldAddressObject, x.ObjectId)
+		sz = proto.SizeEmbedded(FieldAddressContainerID, x.ContainerId) +
+			proto.SizeEmbedded(FieldAddressObjectID, x.ObjectId)
 	}
 	return sz
 }
@@ -98,15 +102,16 @@ func (x *Address) MarshaledSize() int {
 // [Address.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Address) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, fieldAddressContainer, x.ContainerId)
-		proto.MarshalToEmbedded(b[off:], fieldAddressObject, x.ObjectId)
+		off := proto.MarshalToEmbedded(b, FieldAddressContainerID, x.ContainerId)
+		proto.MarshalToEmbedded(b[off:], FieldAddressObjectID, x.ObjectId)
 	}
 }
 
+// Field numbers of [Version] message.
 const (
 	_ = iota
-	fieldVersionMajor
-	fieldVersionMinor
+	FieldVersionMajor
+	FieldVersionMinor
 )
 
 // MarshaledSize returns size of the Version in Protocol Buffers V3 format in
@@ -114,8 +119,8 @@ const (
 func (x *Version) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldVersionMajor, x.Major) +
-			proto.SizeVarint(fieldVersionMinor, x.Minor)
+		sz = proto.SizeVarint(FieldVersionMajor, x.Major) +
+			proto.SizeVarint(FieldVersionMinor, x.Minor)
 	}
 	return sz
 }
@@ -125,16 +130,17 @@ func (x *Version) MarshaledSize() int {
 // [Version.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Version) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldVersionMajor, x.Major)
-		proto.MarshalToVarint(b[off:], fieldVersionMinor, x.Minor)
+		off := proto.MarshalToVarint(b, FieldVersionMajor, x.Major)
+		proto.MarshalToVarint(b[off:], FieldVersionMinor, x.Minor)
 	}
 }
 
+// Field numbers of [Signature] message.
 const (
 	_ = iota
-	fieldSignatureKey
-	fieldSignatureVal
-	fieldSignatureScheme
+	FieldSignatureKey
+	FieldSignatureValue
+	FieldSignatureScheme
 )
 
 // MarshaledSize returns size of the Signature in Protocol Buffers V3 format in
@@ -142,9 +148,9 @@ const (
 func (x *Signature) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldSignatureKey, x.Key) +
-			proto.SizeBytes(fieldSignatureVal, x.Sign) +
-			proto.SizeVarint(fieldSignatureScheme, int32(x.Scheme))
+		sz = proto.SizeBytes(FieldSignatureKey, x.Key) +
+			proto.SizeBytes(FieldSignatureValue, x.Sign) +
+			proto.SizeVarint(FieldSignatureScheme, int32(x.Scheme))
 	}
 	return sz
 }
@@ -154,16 +160,17 @@ func (x *Signature) MarshaledSize() int {
 // [Signature.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Signature) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, fieldSignatureKey, x.Key)
-		off += proto.MarshalToBytes(b[off:], fieldSignatureVal, x.Sign)
-		proto.MarshalToVarint(b[off:], fieldSignatureScheme, int32(x.Scheme))
+		off := proto.MarshalToBytes(b, FieldSignatureKey, x.Key)
+		off += proto.MarshalToBytes(b[off:], FieldSignatureValue, x.Sign)
+		proto.MarshalToVarint(b[off:], FieldSignatureScheme, int32(x.Scheme))
 	}
 }
 
+// Field numbers of [SignatureRFC6979] message.
 const (
 	_ = iota
-	fieldSigRFC6979Key
-	fieldSigRFC6979Val
+	FieldSignatureRFC6979Key
+	FieldSignatureRFC6979Value
 )
 
 // MarshaledSize returns size of the SignatureRFC6979 in Protocol Buffers V3
@@ -171,8 +178,8 @@ const (
 func (x *SignatureRFC6979) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(fieldSigRFC6979Key, x.Key) +
-			proto.SizeBytes(fieldSigRFC6979Val, x.Sign)
+		sz = proto.SizeBytes(FieldSignatureRFC6979Key, x.Key) +
+			proto.SizeBytes(FieldSignatureRFC6979Value, x.Sign)
 	}
 	return sz
 }
@@ -182,15 +189,16 @@ func (x *SignatureRFC6979) MarshaledSize() int {
 // [SignatureRFC6979.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SignatureRFC6979) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, fieldSigRFC6979Key, x.Key)
-		proto.MarshalToBytes(b[off:], fieldSigRFC6979Val, x.Sign)
+		off := proto.MarshalToBytes(b, FieldSignatureRFC6979Key, x.Key)
+		proto.MarshalToBytes(b[off:], FieldSignatureRFC6979Value, x.Sign)
 	}
 }
 
+// Field numbers of [SignatureRFC6979] message.
 const (
 	_ = iota
-	fieldChecksumType
-	fieldChecksumValue
+	FieldChecksumType
+	FieldChecksumValue
 )
 
 // MarshaledSize returns size of the Checksum in Protocol Buffers V3 format in
@@ -198,8 +206,8 @@ const (
 func (x *Checksum) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(fieldChecksumType, int32(x.Type)) +
-			proto.SizeBytes(fieldChecksumValue, x.Sum)
+		sz = proto.SizeVarint(FieldChecksumType, int32(x.Type)) +
+			proto.SizeBytes(FieldChecksumValue, x.Sum)
 	}
 	return sz
 }
@@ -209,14 +217,15 @@ func (x *Checksum) MarshaledSize() int {
 // [Checksum.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Checksum) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, fieldChecksumType, int32(x.Type))
-		proto.MarshalToBytes(b[off:], fieldChecksumValue, x.Sum)
+		off := proto.MarshalToVarint(b, FieldChecksumType, int32(x.Type))
+		proto.MarshalToBytes(b[off:], FieldChecksumValue, x.Sum)
 	}
 }
 
+// Field numbers of [SubnetID] message.
 const (
 	_ = iota
-	fieldSubnetVal
+	FieldSubnetIDValue
 )
 
 // MarshaledSize returns size of the SubnetID in Protocol Buffers V3 format in
@@ -224,7 +233,7 @@ const (
 func (x *SubnetID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeFixed32(fieldSubnetVal, x.Value)
+		sz = proto.SizeFixed32(FieldSubnetIDValue, x.Value)
 	}
 	return sz
 }
@@ -234,6 +243,6 @@ func (x *SubnetID) MarshaledSize() int {
 // [SubnetID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SubnetID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToFixed32(b, fieldSubnetVal, x.Value)
+		proto.MarshalToFixed32(b, FieldSubnetIDValue, x.Value)
 	}
 }
