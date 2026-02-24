@@ -13,6 +13,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"google.golang.org/grpc"
 	"google.golang.org/protobuf/encoding/protowire"
 )
@@ -166,22 +167,18 @@ func newReplicateMessage(id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer
 	bPubKey := neofscrypto.PublicKeyBytes(signer.Public())
 	sigScheme := uint64(signer.Scheme())
 
-	const fieldNumObject = 1
-	const fieldNumSignature = 2
-	const fieldNumSignObjectFlag = 3
+	sigSize := protowire.SizeTag(protorefs.FieldSignatureKey) + protowire.SizeBytes(len(bPubKey)) +
+		protowire.SizeTag(protorefs.FieldSignatureValue) + protowire.SizeBytes(len(idSig)) +
+		protowire.SizeTag(protorefs.FieldSignatureScheme) + protowire.SizeVarint(sigScheme)
 
-	sigSize := protowire.SizeTag(fieldNumSigPubKey) + protowire.SizeBytes(len(bPubKey)) +
-		protowire.SizeTag(fieldNumSigVal) + protowire.SizeBytes(len(idSig)) +
-		protowire.SizeTag(fieldNumSigScheme) + protowire.SizeVarint(sigScheme)
-
-	msgSize := protowire.SizeTag(fieldNumObject) + protowire.SizeVarint(objSize) +
-		protowire.SizeTag(fieldNumSignature) + protowire.SizeBytes(sigSize) +
-		protowire.SizeTag(fieldNumSignObjectFlag) + protowire.SizeVarint(protowire.EncodeBool(requireObjectSignature))
+	msgSize := protowire.SizeTag(protoobject.FieldReplicateRequestObject) + protowire.SizeVarint(objSize) +
+		protowire.SizeTag(protoobject.FieldReplicateRequestSignature) + protowire.SizeBytes(sigSize) +
+		protowire.SizeTag(protoobject.FieldReplicateRequestSignObject) + protowire.SizeVarint(protowire.EncodeBool(requireObjectSignature))
 
 	// TODO(#544): support external buffers
 	msg := make([]byte, 0, uint64(msgSize)+objSize)
 
-	msg = protowire.AppendTag(msg, fieldNumObject, protowire.BytesType)
+	msg = protowire.AppendTag(msg, protoobject.FieldReplicateRequestObject, protowire.BytesType)
 	msg = protowire.AppendVarint(msg, objSize)
 	msg = msg[:uint64(len(msg))+objSize]
 
@@ -191,15 +188,15 @@ func newReplicateMessage(id oid.ID, src io.ReadSeeker, signer neofscrypto.Signer
 		return nil, fmt.Errorf("read full object into the buffer: %w", err)
 	}
 
-	msg = protowire.AppendTag(msg, fieldNumSignature, protowire.BytesType)
+	msg = protowire.AppendTag(msg, protoobject.FieldReplicateRequestSignature, protowire.BytesType)
 	msg = protowire.AppendVarint(msg, uint64(sigSize))
-	msg = protowire.AppendTag(msg, fieldNumSigPubKey, protowire.BytesType)
+	msg = protowire.AppendTag(msg, protorefs.FieldSignatureKey, protowire.BytesType)
 	msg = protowire.AppendBytes(msg, bPubKey)
-	msg = protowire.AppendTag(msg, fieldNumSigVal, protowire.BytesType)
+	msg = protowire.AppendTag(msg, protorefs.FieldSignatureValue, protowire.BytesType)
 	msg = protowire.AppendBytes(msg, idSig)
-	msg = protowire.AppendTag(msg, fieldNumSigScheme, protowire.VarintType)
+	msg = protowire.AppendTag(msg, protorefs.FieldSignatureScheme, protowire.VarintType)
 	msg = protowire.AppendVarint(msg, sigScheme)
-	msg = protowire.AppendTag(msg, fieldNumSignObjectFlag, protowire.VarintType)
+	msg = protowire.AppendTag(msg, protoobject.FieldReplicateRequestSignObject, protowire.VarintType)
 	msg = protowire.AppendVarint(msg, protowire.EncodeBool(requireObjectSignature))
 
 	return msg, nil

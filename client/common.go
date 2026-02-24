@@ -11,13 +11,6 @@ import (
 	"google.golang.org/grpc/mem"
 )
 
-// Various field numbers in from NeoFS API definitions.
-const (
-	fieldNumSigPubKey = 1
-	fieldNumSigVal    = 2
-	fieldNumSigScheme = 3
-)
-
 const (
 	localRequestTTL   = 1
 	defaultRequestTTL = 2
