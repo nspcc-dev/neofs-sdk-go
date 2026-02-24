@@ -994,3 +994,18 @@ func (x *SearchV2Response_Body) MarshalStable(b []byte) {
 		proto.MarshalToBytes(b[off:], FieldSearchV2ResponseBodyCursor, x.Cursor)
 	}
 }
+
+// Field numbers of [ReplicateRequest] message.
+const (
+	_ = iota
+	FieldReplicateRequestObject
+	FieldReplicateRequestSignature
+	FieldReplicateRequestSignObject
+)
+
+// Field numbers of [ReplicateResponse] message.
+const (
+	_ = iota
+	FieldReplicateResponseStatus
+	FieldReplicateResponseObjectSignature
+)
