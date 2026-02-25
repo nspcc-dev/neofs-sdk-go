@@ -42,6 +42,8 @@ type PlacementPolicy struct {
 	replicas []ReplicaDescriptor
 
 	ecRules []ECRule
+
+	initial *InitialPlacementPolicy
 }
 
 // FilterOp defines the matching property.
@@ -116,6 +118,15 @@ func (p PlacementPolicy) CopyTo(dst *PlacementPolicy) {
 	dst.replicas = slices.Clone(p.replicas)
 
 	dst.ecRules = slices.Clone(p.ecRules)
+
+	if p.initial != nil {
+		if dst.initial == nil {
+			dst.initial = new(InitialPlacementPolicy)
+		}
+		p.initial.copyTo(dst.initial)
+	} else {
+		dst.initial = nil
+	}
 }
 
 func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, checkFieldPresence bool) error {
@@ -163,6 +174,15 @@ func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, check
 		}
 	} else {
 		p.ecRules = nil
+	}
+
+	if m.Initial != nil {
+		if p.initial == nil {
+			p.initial = new(InitialPlacementPolicy)
+		}
+		p.initial.fromProtoMessage(m.Initial)
+	} else {
+		p.initial = nil
 	}
 
 	p.backupFactor = m.GetContainerBackupFactor()
@@ -242,6 +262,9 @@ func (p PlacementPolicy) ProtoMessage() *protonetmap.PlacementPolicy {
 		for i := range p.ecRules {
 			m.EcRules[i] = p.ecRules[i].protoMessage()
 		}
+	}
+	if p.initial != nil {
+		m.Initial = p.initial.protoMessage()
 	}
 	return m
 }
@@ -1267,5 +1290,144 @@ func (p PlacementPolicy) Verify() error {
 			return fmt.Errorf("more than %d nodes in total", maxContainerNodes)
 		}
 	}
+
+	if p.initial != nil {
+		if err := p.initial.verify(p.replicas, p.ecRules); err != nil {
+			return fmt.Errorf("invalid initial: %w", err)
+		}
+	}
+
 	return nil
+}
+
+// Initial returns policy applied on initial object placement.
+// Returns nil if policy is unset.
+func (p PlacementPolicy) Initial() *InitialPlacementPolicy {
+	return p.initial
+}
+
+// SetInitial sets policy applied on initial object placement.
+func (p *PlacementPolicy) SetInitial(initial InitialPlacementPolicy) {
+	p.initial = &initial
+}
+
+// InitialPlacementPolicy specifies rules of initial object placement in
+// particular container.
+type InitialPlacementPolicy struct {
+	replicaLimits []uint32
+	maxReplicas   uint32
+	preferLocal   bool
+}
+
+var errMissingInitialReplicas = errors.New("missing both ReplicaLimits and MaxReplicas")
+
+func (x InitialPlacementPolicy) verify(repRules []ReplicaDescriptor, ecRules []ECRule) error {
+	var sumReplicas uint32
+	if len(x.replicaLimits) > 0 {
+		if len(x.replicaLimits) != len(repRules)+len(ecRules) {
+			return fmt.Errorf("ReplicaLimits has len %d while main policy has %d REP and %d EC rules",
+				len(x.replicaLimits), len(repRules), len(ecRules))
+		}
+
+		differsFromMain := false
+		for i := range x.replicaLimits {
+			if i < len(repRules) {
+				if x.replicaLimits[i] > repRules[i].NumberOfObjects() {
+					return fmt.Errorf("invalid ReplicaLimits element #%d: value %d overflows main REP rule %d",
+						i, x.replicaLimits[i], repRules[i].NumberOfObjects())
+				}
+				if x.replicaLimits[i] < repRules[i].NumberOfObjects() {
+					differsFromMain = true
+				}
+			} else { // EC
+				if x.replicaLimits[i] > 1 {
+					return fmt.Errorf("invalid ReplicaLimits element #%d: EC limit is neither 0 nor 1", i)
+				}
+				if x.replicaLimits[i] == 0 {
+					differsFromMain = true
+				}
+			}
+
+			sumReplicas += x.replicaLimits[i]
+		}
+
+		if sumReplicas == 0 {
+			return errors.New("ReplicaLimits is all zeros")
+		}
+		if !differsFromMain && x.maxReplicas == 0 {
+			return errors.New("does not differ from main policy")
+		}
+	} else {
+		for i := range repRules {
+			sumReplicas += repRules[i].NumberOfObjects()
+		}
+		sumReplicas += uint32(len(ecRules))
+	}
+
+	if x.maxReplicas > 0 {
+		if x.maxReplicas > sumReplicas {
+			return fmt.Errorf("MaxReplicas %d overflows sum limit %d", x.maxReplicas, sumReplicas)
+		}
+		return nil
+	}
+
+	if len(x.replicaLimits) == 0 {
+		return errMissingInitialReplicas
+	}
+
+	if x.preferLocal {
+		return errors.New("PreferLocal is set without MaxReplicas")
+	}
+
+	return nil
+}
+
+func (x InitialPlacementPolicy) copyTo(dst *InitialPlacementPolicy) {
+	dst.replicaLimits = slices.Clone(x.replicaLimits)
+	dst.maxReplicas = x.maxReplicas
+	dst.preferLocal = x.preferLocal
+}
+
+func (x *InitialPlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy_Initial) {
+	x.replicaLimits = m.ReplicaLimits
+	x.maxReplicas = m.MaxReplicas
+	x.preferLocal = m.PreferLocal
+}
+
+func (x InitialPlacementPolicy) protoMessage() *protonetmap.PlacementPolicy_Initial {
+	return &protonetmap.PlacementPolicy_Initial{
+		ReplicaLimits: x.replicaLimits,
+		MaxReplicas:   x.maxReplicas,
+		PreferLocal:   x.preferLocal,
+	}
+}
+
+// ReplicaLimits returns limits of object replicas and EC partitions.
+func (x InitialPlacementPolicy) ReplicaLimits() []uint32 {
+	return x.replicaLimits
+}
+
+// SetReplicaLimits sets limits of object replicas and EC partitions.
+func (x *InitialPlacementPolicy) SetReplicaLimits(replicaLimits []uint32) {
+	x.replicaLimits = replicaLimits
+}
+
+// MaxReplicas returns max number of object replicas and EC partitions.
+func (x InitialPlacementPolicy) MaxReplicas() uint32 {
+	return x.maxReplicas
+}
+
+// SetMaxReplicas sets max number of object replicas and EC partitions.
+func (x *InitialPlacementPolicy) SetMaxReplicas(maxReplicas uint32) {
+	x.maxReplicas = maxReplicas
+}
+
+// PreferLocal returns local object location preference flag.
+func (x InitialPlacementPolicy) PreferLocal() bool {
+	return x.preferLocal
+}
+
+// SetPreferLocal sets local object location preference flag.
+func (x *InitialPlacementPolicy) SetPreferLocal(preferLocal bool) {
+	x.preferLocal = preferLocal
 }

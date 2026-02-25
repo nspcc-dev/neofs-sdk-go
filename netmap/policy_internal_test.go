@@ -28,6 +28,12 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		NewECRule(1, 2),
 	})
 
+	var ip InitialPlacementPolicy
+	ip.SetReplicaLimits([]uint32{1, 2, 0, 3})
+	ip.SetMaxReplicas(42)
+	ip.SetPreferLocal(true)
+	pp.SetInitial(ip)
+
 	t.Run("copy", func(t *testing.T) {
 		var dst PlacementPolicy
 		pp.CopyTo(&dst)
@@ -126,5 +132,14 @@ func TestPlacementPolicy_CopyTo(t *testing.T) {
 		require.Equal(t, pp.ECRules()[0].DataPartNum(), dst.ECRules()[0].DataPartNum())
 		dst.ECRules()[0].SetDataPartNum(3)
 		require.NotEqual(t, pp.ECRules()[0].DataPartNum(), dst.ECRules()[0].DataPartNum())
+	})
+
+	t.Run("change initial", func(t *testing.T) {
+		var dst PlacementPolicy
+		pp.CopyTo(&dst)
+
+		require.Equal(t, pp.Initial().ReplicaLimits()[0], dst.Initial().ReplicaLimits()[0])
+		dst.Initial().ReplicaLimits()[0]++
+		require.NotEqual(t, pp.Initial().ReplicaLimits()[0], dst.Initial().ReplicaLimits()[0])
 	})
 }

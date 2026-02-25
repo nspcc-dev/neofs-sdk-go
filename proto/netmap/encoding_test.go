@@ -144,6 +144,12 @@ func TestPlacement_MarshalStable(t *testing.T) {
 	})
 }
 
+func TestInitialPlacementPolicy_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*netmap.PlacementPolicy_Initial{
+		prototest.RandInitialPlacementPolicy(),
+	})
+}
+
 func TestNetworkConfig_Parameter_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*netmap.NetworkConfig_Parameter{
 		randNetworkConfigParameter(),

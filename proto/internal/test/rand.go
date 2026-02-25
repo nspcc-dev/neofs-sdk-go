@@ -97,6 +97,15 @@ func RandRepeated[T any](randFunc func() *T) []*T {
 	return vs
 }
 
+// RandRepeated returns non-empty list of T with up to 10 elements.
+func RandRepeatedValue[T any](randFunc func() T) []T {
+	vs := make([]T, rand.Uint32()%10)
+	for i := range vs {
+		vs[i] = randFunc()
+	}
+	return vs
+}
+
 // RandVersion returns random refs.Version with all non-zero fields.
 func RandVersion() *refs.Version { return &refs.Version{Major: RandUint32(), Minor: RandUint32()} }
 
@@ -225,6 +234,17 @@ func RandPlacementPolicy() *netmap.PlacementPolicy {
 		Filters:               RandPlacementFilters(),
 		SubnetId:              RandSubnetID(),
 		EcRules:               RandECRules(),
+		Initial:               RandInitialPlacementPolicy(),
+	}
+}
+
+// RandPlacementPolicy returns random [netmap.InitialPlacementPolicy] with all
+// non-zero fields.
+func RandInitialPlacementPolicy() *netmap.PlacementPolicy_Initial {
+	return &netmap.PlacementPolicy_Initial{
+		ReplicaLimits: RandRepeatedValue(RandUint32),
+		MaxReplicas:   RandUint32(),
+		PreferLocal:   true,
 	}
 }
 
