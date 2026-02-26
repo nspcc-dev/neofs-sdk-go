@@ -23,6 +23,9 @@ func TestMarshalStable[T any, PTR interface {
 	stdproto.Message
 }](t testing.TB, xs []PTR) {
 	xs = append(xs, nil, new(T))
+
+	repeatedFields := collectRepeatedFields(PTR(new(T)))
+
 	for i, x := range xs {
 		sz := x.MarshaledSize()
 		if x == nil {
@@ -45,7 +48,11 @@ func TestMarshalStable[T any, PTR interface {
 			require.NoError(t, protowire.ParseError(ln), i)
 			require.True(t, num >= 0, i)
 			if prevNum >= 0 {
-				require.GreaterOrEqual(t, num, prevNum, i) // may equal for repeated fields
+				if num == prevNum {
+					require.Contains(t, repeatedFields, num, i)
+				} else {
+					require.Greater(t, num, prevNum, i)
+				}
 			}
 			prevNum = num
 			off += ln
@@ -108,4 +115,17 @@ func equalProtoMessages(x, y stdproto.Message) bool {
 		return true
 	})
 	return equal && nx == ny
+}
+
+func collectRepeatedFields(m stdproto.Message) []protowire.Number {
+	var res []protowire.Number
+
+	flds := m.ProtoReflect().Descriptor().Fields()
+	for i := range flds.Len() {
+		if fld := flds.Get(i); fld.Cardinality() == protoreflect.Repeated {
+			res = append(res, fld.Number())
+		}
+	}
+
+	return res
 }
