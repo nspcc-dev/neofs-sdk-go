@@ -150,7 +150,7 @@ func (x *Signature) MarshaledSize() int {
 	if x != nil {
 		sz = proto.SizeBytes(FieldSignatureKey, x.Key) +
 			proto.SizeBytes(FieldSignatureValue, x.Sign) +
-			proto.SizeVarint(FieldSignatureScheme, int32(x.Scheme))
+			proto.SizeVarint(FieldSignatureScheme, x.Scheme)
 	}
 	return sz
 }
@@ -162,7 +162,7 @@ func (x *Signature) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToBytes(b, FieldSignatureKey, x.Key)
 		off += proto.MarshalToBytes(b[off:], FieldSignatureValue, x.Sign)
-		proto.MarshalToVarint(b[off:], FieldSignatureScheme, int32(x.Scheme))
+		proto.MarshalToVarint(b[off:], FieldSignatureScheme, x.Scheme)
 	}
 }
 
@@ -206,7 +206,7 @@ const (
 func (x *Checksum) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldChecksumType, int32(x.Type)) +
+		sz = proto.SizeVarint(FieldChecksumType, x.Type) +
 			proto.SizeBytes(FieldChecksumValue, x.Sum)
 	}
 	return sz
@@ -217,7 +217,7 @@ func (x *Checksum) MarshaledSize() int {
 // [Checksum.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Checksum) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldChecksumType, int32(x.Type))
+		off := proto.MarshalToVarint(b, FieldChecksumType, x.Type)
 		proto.MarshalToBytes(b[off:], FieldChecksumValue, x.Sum)
 	}
 }

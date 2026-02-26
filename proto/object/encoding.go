@@ -96,7 +96,7 @@ func (x *ShortHeader) MarshaledSize() int {
 		sz = proto.SizeEmbedded(FieldShortHeaderVersion, x.Version) +
 			proto.SizeVarint(FieldShortHeaderCreationEpoch, x.CreationEpoch) +
 			proto.SizeEmbedded(FieldShortHeaderOwnerID, x.OwnerId) +
-			proto.SizeVarint(FieldShortHeaderObjectType, int32(x.ObjectType)) +
+			proto.SizeVarint(FieldShortHeaderObjectType, x.ObjectType) +
 			proto.SizeVarint(FieldShortHeaderPayloadLength, x.PayloadLength) +
 			proto.SizeEmbedded(FieldShortHeaderPayloadHash, x.PayloadHash) +
 			proto.SizeEmbedded(FieldShortHeaderHomomorphicHash, x.HomomorphicHash)
@@ -112,7 +112,7 @@ func (x *ShortHeader) MarshalStable(b []byte) {
 		off := proto.MarshalToEmbedded(b, FieldShortHeaderVersion, x.Version)
 		off += proto.MarshalToVarint(b[off:], FieldShortHeaderCreationEpoch, x.CreationEpoch)
 		off += proto.MarshalToEmbedded(b[off:], FieldShortHeaderOwnerID, x.OwnerId)
-		off += proto.MarshalToVarint(b[off:], FieldShortHeaderObjectType, int32(x.ObjectType))
+		off += proto.MarshalToVarint(b[off:], FieldShortHeaderObjectType, x.ObjectType)
 		off += proto.MarshalToVarint(b[off:], FieldShortHeaderPayloadLength, x.PayloadLength)
 		off += proto.MarshalToEmbedded(b[off:], FieldShortHeaderPayloadHash, x.PayloadHash)
 		proto.MarshalToEmbedded(b[off:], FieldShortHeaderHomomorphicHash, x.HomomorphicHash)
@@ -146,7 +146,7 @@ func (x *Header) MarshaledSize() int {
 			proto.SizeVarint(FieldHeaderCreationEpoch, x.CreationEpoch) +
 			proto.SizeVarint(FieldHeaderPayloadLength, x.PayloadLength) +
 			proto.SizeEmbedded(FieldHeaderPayloadHash, x.PayloadHash) +
-			proto.SizeVarint(FieldHeaderObjectType, int32(x.ObjectType)) +
+			proto.SizeVarint(FieldHeaderObjectType, x.ObjectType) +
 			proto.SizeEmbedded(FieldHeaderHomomorphicHash, x.HomomorphicHash) +
 			proto.SizeEmbedded(FieldHeaderSessionToken, x.SessionToken) +
 			proto.SizeEmbedded(FieldHeaderSplit, x.Split) +
@@ -167,7 +167,7 @@ func (x *Header) MarshalStable(b []byte) {
 		off += proto.MarshalToVarint(b[off:], FieldHeaderCreationEpoch, x.CreationEpoch)
 		off += proto.MarshalToVarint(b[off:], FieldHeaderPayloadLength, x.PayloadLength)
 		off += proto.MarshalToEmbedded(b[off:], FieldHeaderPayloadHash, x.PayloadHash)
-		off += proto.MarshalToVarint(b[off:], FieldHeaderObjectType, int32(x.ObjectType))
+		off += proto.MarshalToVarint(b[off:], FieldHeaderObjectType, x.ObjectType)
 		off += proto.MarshalToEmbedded(b[off:], FieldHeaderHomomorphicHash, x.HomomorphicHash)
 		off += proto.MarshalToEmbedded(b[off:], FieldHeaderSessionToken, x.SessionToken)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldHeaderAttributes, x.Attributes)
@@ -609,7 +609,7 @@ func (x *GetRangeHashRequest_Body) MarshaledSize() int {
 	if x != nil {
 		return proto.SizeEmbedded(FieldRangeHashRequestBodyAddress, x.Address) +
 			proto.SizeBytes(FieldRangeHashRequestBodySalt, x.Salt) +
-			proto.SizeVarint(FieldRangeHashRequestBodyType, int32(x.Type)) +
+			proto.SizeVarint(FieldRangeHashRequestBodyType, x.Type) +
 			proto.SizeRepeatedMessages(FieldRangeHashRequestBodyRanges, x.Ranges)
 	}
 	return 0
@@ -624,7 +624,7 @@ func (x *GetRangeHashRequest_Body) MarshalStable(b []byte) {
 		off := proto.MarshalToEmbedded(b, FieldRangeHashRequestBodyAddress, x.Address)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldRangeHashRequestBodyRanges, x.Ranges)
 		off += proto.MarshalToBytes(b[off:], FieldRangeHashRequestBodySalt, x.Salt)
-		proto.MarshalToVarint(b[off:], FieldRangeHashRequestBodyType, int32(x.Type))
+		proto.MarshalToVarint(b[off:], FieldRangeHashRequestBodyType, x.Type)
 	}
 }
 
@@ -640,7 +640,7 @@ const (
 func (x *GetRangeHashResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldRangeHashResponseBodyType, int32(x.Type)) +
+		sz = proto.SizeVarint(FieldRangeHashResponseBodyType, x.Type) +
 			proto.SizeRepeatedBytes(FieldRangeHashResponseBodyHashes, x.HashList)
 	}
 	return sz
@@ -652,7 +652,7 @@ func (x *GetRangeHashResponse_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *GetRangeHashResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldRangeHashResponseBodyType, int32(x.Type))
+		off := proto.MarshalToVarint(b, FieldRangeHashResponseBodyType, x.Type)
 		proto.MarshalToRepeatedBytes(b[off:], FieldRangeHashResponseBodyHashes, x.HashList)
 	}
 }
@@ -824,7 +824,7 @@ const (
 func (x *SearchFilter) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldSearchFilterMatcher, int32(x.MatchType))
+		sz = proto.SizeVarint(FieldSearchFilterMatcher, x.MatchType)
 		sz += proto.SizeBytes(FieldSearchFilterKey, x.Key)
 		sz += proto.SizeBytes(FieldSearchFilterValue, x.Value)
 	}
@@ -837,7 +837,7 @@ func (x *SearchFilter) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *SearchFilter) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldSearchFilterMatcher, int32(x.MatchType))
+		off := proto.MarshalToVarint(b, FieldSearchFilterMatcher, x.MatchType)
 		off += proto.MarshalToBytes(b[off:], FieldSearchFilterKey, x.Key)
 		proto.MarshalToBytes(b[off:], FieldSearchFilterValue, x.Value)
 	}

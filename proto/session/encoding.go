@@ -46,7 +46,7 @@ const (
 func (x *ObjectSessionContext) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldObjectSessionContextVerb, int32(x.Verb)) +
+		sz = proto.SizeVarint(FieldObjectSessionContextVerb, x.Verb) +
 			proto.SizeEmbedded(FieldObjectSessionContextTarget, x.Target)
 	}
 	return sz
@@ -58,7 +58,7 @@ func (x *ObjectSessionContext) MarshaledSize() int {
 // NPE-safe.
 func (x *ObjectSessionContext) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldObjectSessionContextVerb, int32(x.Verb))
+		off := proto.MarshalToVarint(b, FieldObjectSessionContextVerb, x.Verb)
 		proto.MarshalToEmbedded(b[off:], FieldObjectSessionContextTarget, x.Target)
 	}
 }
@@ -76,7 +76,7 @@ const (
 func (x *ContainerSessionContext) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldContainerSessionContextVerb, int32(x.Verb)) +
+		sz = proto.SizeVarint(FieldContainerSessionContextVerb, x.Verb) +
 			proto.SizeBool(FieldContainerSessionContextWildcard, x.Wildcard) +
 			proto.SizeEmbedded(FieldContainerSessionContextContainerID, x.ContainerId)
 	}
@@ -89,7 +89,7 @@ func (x *ContainerSessionContext) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ContainerSessionContext) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldContainerSessionContextVerb, int32(x.Verb))
+		off := proto.MarshalToVarint(b, FieldContainerSessionContextVerb, x.Verb)
 		off += proto.MarshalToBool(b[off:], FieldContainerSessionContextWildcard, x.Wildcard)
 		proto.MarshalToEmbedded(b[off:], FieldContainerSessionContextContainerID, x.ContainerId)
 	}
@@ -307,6 +307,7 @@ const (
 	FieldRequestMetaHeaderBearerToken
 	FieldRequestMetaHeaderOrigin
 	FieldRequestMetaHeaderMagicNumber
+	FieldRequestMetaHeaderSessionTokenV2
 )
 
 // MarshaledSize returns size of the RequestMetaHeader in Protocol Buffers V3
@@ -320,7 +321,8 @@ func (x *RequestMetaHeader) MarshaledSize() int {
 			proto.SizeEmbedded(FieldRequestMetaHeaderBearerToken, x.BearerToken) +
 			proto.SizeEmbedded(FieldRequestMetaHeaderOrigin, x.Origin) +
 			proto.SizeVarint(FieldRequestMetaHeaderMagicNumber, x.MagicNumber) +
-			proto.SizeRepeatedMessages(FieldRequestMetaHeaderXHeaders, x.XHeaders)
+			proto.SizeRepeatedMessages(FieldRequestMetaHeaderXHeaders, x.XHeaders) +
+			proto.SizeEmbedded(FieldRequestMetaHeaderSessionTokenV2, x.SessionTokenV2)
 	}
 	return 0
 }
@@ -338,7 +340,8 @@ func (x *RequestMetaHeader) MarshalStable(b []byte) {
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionToken, x.SessionToken)
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderBearerToken, x.BearerToken)
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderOrigin, x.Origin)
-		proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderMagicNumber, x.MagicNumber)
+		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderMagicNumber, x.MagicNumber)
+		proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionTokenV2, x.SessionTokenV2)
 	}
 }
 
