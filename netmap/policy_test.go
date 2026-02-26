@@ -43,6 +43,7 @@ var validBinPlacementPolicy = []byte{
 	108, 116, 101, 114, 95, 49, 95, 50, 18, 7, 107, 101, 121, 95, 49, 95, 50, 24, 5, 34, 19, 51, 55, 50, 50, 54, 53, 54, 48, 54, 48,
 	51, 49, 55, 52, 56, 50, 51, 51, 53, 42, 44, 10, 10, 102, 105, 108, 116, 101, 114, 95, 49, 95, 51, 18, 7, 107, 101, 121, 95, 49, 95,
 	51, 24, 6, 34, 19, 49, 57, 53, 48, 53, 48, 52, 57, 56, 55, 55, 48, 53, 50, 56, 52, 56, 48, 53,
+	58, 27, 10, 17, 174, 171, 200, 192, 1, 129, 220, 253, 162, 8, 0, 228, 221, 167, 163, 14, 0, 16, 159, 190, 208, 152, 10, 24, 1,
 }
 
 var validJSONPlacementPolicy = `
@@ -135,7 +136,12 @@ var validJSONPlacementPolicy = `
   }
  ],
  "subnetId": null,
- "ecRules": []
+ "ecRules": [],
+ "initial": {
+  "replicaLimits": [403838382, 2220846593, 0, 3832147684, 0],
+  "maxReplicas": 2736004895,
+  "preferLocal": true
+ }
 }
 `
 
@@ -180,6 +186,12 @@ func init() {
 	fs[1].SetName("filter_1")
 	fs[1].LogicalOR(subs...)
 	validPlacementPolicy.SetFilters(fs)
+	// initial
+	var ip netmap.InitialPlacementPolicy
+	ip.SetReplicaLimits([]uint32{403838382, 2220846593, 0, 3832147684, 0})
+	ip.SetMaxReplicas(2736004895)
+	ip.SetPreferLocal(true)
+	validPlacementPolicy.SetInitial(ip)
 }
 
 func TestPlacementPolicy_DecodeString(t *testing.T) {
@@ -260,6 +272,19 @@ func TestPlacementPolicy_SetFilters(t *testing.T) {
 	require.Equal(t, anyValidFilters, p.Filters())
 }
 
+func TestPlacementPolicy_SetInitialPlacementPolicy(t *testing.T) {
+	var p netmap.PlacementPolicy
+	require.Zero(t, p.Initial())
+
+	var ip netmap.InitialPlacementPolicy
+	ip.SetReplicaLimits([]uint32{1, 2, 3})
+	ip.SetMaxReplicas(3)
+	ip.SetPreferLocal(true)
+
+	p.SetInitial(ip)
+	require.Equal(t, &ip, p.Initial())
+}
+
 func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	m := &protonetmap.PlacementPolicy{
 		Replicas: []*protonetmap.Replica{
@@ -286,6 +311,11 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 		EcRules: []*protonetmap.PlacementPolicy_ECRule{
 			{DataPartNum: 1, ParityPartNum: 2, Selector: "slctr"},
 			{DataPartNum: 3, ParityPartNum: 4, Selector: ""},
+		},
+		Initial: &protonetmap.PlacementPolicy_Initial{
+			ReplicaLimits: []uint32{1, 2, 3},
+			MaxReplicas:   42,
+			PreferLocal:   true,
 		},
 	}
 
@@ -360,17 +390,24 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	require.EqualValues(t, 3, er[1].DataPartNum())
 	require.EqualValues(t, 4, er[1].ParityPartNum())
 	require.Zero(t, er[1].SelectorName())
+	ip := val.Initial()
+	require.NotNil(t, ip)
+	require.Equal(t, []uint32{1, 2, 3}, ip.ReplicaLimits())
+	require.EqualValues(t, 42, ip.MaxReplicas())
+	require.True(t, ip.PreferLocal())
 
 	// reset optional fields
 	m2 := proto.Clone(m).(*protonetmap.PlacementPolicy)
 	m2.Selectors = nil
 	m2.Filters = nil
 	m2.EcRules = nil
+	m2.Initial = nil
 	val2 := val
 	require.NoError(t, val2.FromProtoMessage(m2))
 	require.Empty(t, val2.Selectors())
 	require.Empty(t, val2.Filters())
 	require.Empty(t, val2.ECRules())
+	require.Zero(t, val2.Initial())
 
 	m2 = proto.Clone(m).(*protonetmap.PlacementPolicy)
 	m2.Selectors = nil
@@ -432,6 +469,7 @@ func TestPlacementPolicy_ProtoMessage(t *testing.T) {
 	require.Zero(t, m.GetSelectors())
 	require.Zero(t, m.GetFilters())
 	require.Zero(t, m.GetSubnetId()) //nolint: staticcheck // must be supported still
+	require.Zero(t, m.GetInitial())
 
 	// filled
 	m = validPlacementPolicy.ProtoMessage()
@@ -589,8 +627,14 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 	validRs[0].SetNumberOfObjects(7)
 	validRs[1].SetNumberOfObjects(8)
 
+	var validInitial netmap.InitialPlacementPolicy
+	validInitial.SetReplicaLimits([]uint32{1, 1})
+	validInitial.SetMaxReplicas(1)
+	validInitial.SetPreferLocal(true)
+
 	policy.SetReplicas(validRs)
 	policy.SetSelectors(validSs)
+	policy.SetInitial(validInitial)
 	require.NoError(t, policy.Verify())
 
 	t.Run("too many node sets", func(t *testing.T) {
@@ -698,4 +742,181 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 	})
 
 	t.Run("EC", testPolicyVerifyEC)
+
+	t.Run("initial", func(t *testing.T) {
+		assertError := func(t *testing.T, p netmap.PlacementPolicy, err string) {
+			require.EqualError(t, p.Verify(), "invalid initial: "+err)
+		}
+
+		t.Run("zero", func(t *testing.T) {
+			var p netmap.PlacementPolicy
+
+			var ip netmap.InitialPlacementPolicy
+			p.SetInitial(ip)
+
+			assertError(t, p, "missing both ReplicaLimits and MaxReplicas")
+		})
+		t.Run("repeats main", func(t *testing.T) {
+			var p netmap.PlacementPolicy
+
+			repRules := make([]netmap.ReplicaDescriptor, 3)
+			for i := range repRules {
+				repRules[i].SetNumberOfObjects(uint32(i + 1))
+			}
+			p.SetReplicas(repRules)
+
+			ecRules := make([]netmap.ECRule, 4)
+			for i := range ecRules {
+				ecRules[i] = netmap.NewECRule(uint32(i+1), uint32(i+2))
+			}
+			p.SetECRules(ecRules)
+
+			repLimits := make([]uint32, len(repRules)+len(ecRules))
+			for i := range repRules {
+				repLimits[i] = repRules[i].NumberOfObjects()
+			}
+			for i := len(repRules); i < len(repLimits); i++ {
+				repLimits[i] = 1
+			}
+
+			var ip netmap.InitialPlacementPolicy
+			ip.SetReplicaLimits(repLimits)
+			p.SetInitial(ip)
+
+			assertError(t, p, "does not differ from main policy")
+		})
+		t.Run("replica limits", func(t *testing.T) {
+			t.Run("wrong len", func(t *testing.T) {
+				var p netmap.PlacementPolicy
+				p.SetReplicas(make([]netmap.ReplicaDescriptor, 3))
+				p.SetECRules([]netmap.ECRule{netmap.NewECRule(1, 2), netmap.NewECRule(3, 4)})
+
+				var ip netmap.InitialPlacementPolicy
+				ip.SetReplicaLimits([]uint32{1, 2, 3, 1})
+				p.SetInitial(ip)
+
+				assertError(t, p, "ReplicaLimits has len 4 while main policy has 3 REP and 2 EC rules")
+
+				ip.SetReplicaLimits([]uint32{1, 2, 3, 1, 1, 1})
+				p.SetInitial(ip)
+
+				assertError(t, p, "ReplicaLimits has len 6 while main policy has 3 REP and 2 EC rules")
+			})
+			t.Run("all zeros", func(t *testing.T) {
+				var p netmap.PlacementPolicy
+				p.SetReplicas(make([]netmap.ReplicaDescriptor, 3))
+
+				ecRules := make([]netmap.ECRule, 4)
+				for i := range ecRules {
+					ecRules[i] = netmap.NewECRule(uint32(i+1), uint32(i+2))
+				}
+				p.SetECRules(ecRules)
+
+				var ip netmap.InitialPlacementPolicy
+				ip.SetReplicaLimits(make([]uint32, len(p.Replicas())+len(p.ECRules())))
+				p.SetInitial(ip)
+
+				assertError(t, p, "ReplicaLimits is all zeros")
+			})
+			t.Run("REP rule overflow", func(t *testing.T) {
+				var p netmap.PlacementPolicy
+
+				repRules := make([]netmap.ReplicaDescriptor, 2)
+				repRules[1].SetNumberOfObjects(7)
+				p.SetReplicas(repRules)
+
+				var ip netmap.InitialPlacementPolicy
+				ip.SetReplicaLimits([]uint32{0, 8})
+				p.SetInitial(ip)
+
+				assertError(t, p, "invalid ReplicaLimits element #1: value 8 overflows main REP rule 7")
+			})
+			t.Run("EC rule overflow", func(t *testing.T) {
+				var p netmap.PlacementPolicy
+				p.SetReplicas(nil)
+				p.SetECRules([]netmap.ECRule{netmap.NewECRule(1, 2), netmap.NewECRule(3, 4)})
+
+				var ip netmap.InitialPlacementPolicy
+				ip.SetReplicaLimits([]uint32{1, 2})
+				p.SetInitial(ip)
+
+				assertError(t, p, "invalid ReplicaLimits element #1: EC limit is neither 0 nor 1")
+			})
+		})
+		t.Run("max replicas", func(t *testing.T) {
+			t.Run("overflow", func(t *testing.T) {
+				var p netmap.PlacementPolicy
+
+				repRules := make([]netmap.ReplicaDescriptor, 3)
+				for i := range repRules {
+					repRules[i].SetNumberOfObjects(uint32(i + 1))
+				}
+				p.SetReplicas(repRules)
+
+				ecRules := make([]netmap.ECRule, 3)
+				for i := range ecRules {
+					ecRules[i] = netmap.NewECRule(1, 2)
+				}
+				p.SetECRules(ecRules)
+
+				t.Run("with replica limits", func(t *testing.T) {
+					var ip netmap.InitialPlacementPolicy
+					ip.SetReplicaLimits([]uint32{1, 0, 1, 0, 1, 0})
+					ip.SetMaxReplicas(4)
+					p.SetInitial(ip)
+
+					assertError(t, p, "MaxReplicas 4 overflows sum limit 3")
+				})
+
+				var ip netmap.InitialPlacementPolicy
+				ip.SetMaxReplicas(10)
+				p.SetInitial(ip)
+
+				assertError(t, p, "MaxReplicas 10 overflows sum limit 9")
+			})
+		})
+		t.Run("prefer local", func(t *testing.T) {
+			var p netmap.PlacementPolicy
+
+			repRules := make([]netmap.ReplicaDescriptor, 2)
+			repRules[0].SetNumberOfObjects(2)
+			p.SetReplicas(repRules)
+
+			repLimits := make([]uint32, 2)
+			repLimits[0] = 1
+
+			var ip netmap.InitialPlacementPolicy
+			ip.SetReplicaLimits(repLimits)
+			ip.SetPreferLocal(true)
+			p.SetInitial(ip)
+
+			assertError(t, p, "PreferLocal is set without MaxReplicas")
+		})
+	})
+}
+
+func TestInitialPlacementPolicy_SetReplicaLimits(t *testing.T) {
+	var ip netmap.InitialPlacementPolicy
+	require.Zero(t, ip.ReplicaLimits())
+
+	val := []uint32{1, 2, 0, 3}
+	ip.SetReplicaLimits(val)
+	require.Equal(t, val, ip.ReplicaLimits())
+}
+
+func TestInitialPlacementPolicy_SetMaxReplicas(t *testing.T) {
+	var ip netmap.InitialPlacementPolicy
+	require.Zero(t, ip.MaxReplicas())
+
+	const val = 42
+	ip.SetMaxReplicas(val)
+	require.EqualValues(t, val, ip.MaxReplicas())
+}
+
+func TestInitialPlacementPolicy_SetPreferLocal(t *testing.T) {
+	var ip netmap.InitialPlacementPolicy
+	require.Zero(t, ip.PreferLocal())
+
+	ip.SetPreferLocal(true)
+	require.True(t, ip.PreferLocal())
 }

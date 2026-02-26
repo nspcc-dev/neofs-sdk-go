@@ -38,7 +38,8 @@ var validJSONECPolicy = `
    "parityPartNum": 32,
    "selector": ""
   }
- ]
+ ],
+ "initial": null
 }
 `
 

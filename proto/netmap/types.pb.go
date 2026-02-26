@@ -461,7 +461,9 @@ type PlacementPolicy struct {
 	// Deprecated: Marked as deprecated in proto/netmap/types.proto.
 	SubnetId *refs.SubnetID `protobuf:"bytes,5,opt,name=subnet_id,json=subnetId,proto3" json:"subnet_id,omitempty"`
 	// Erasure coding rules. Limited to 4 items.
-	EcRules       []*PlacementPolicy_ECRule `protobuf:"bytes,6,rep,name=ec_rules,json=ecRules,proto3" json:"ec_rules,omitempty"`
+	EcRules []*PlacementPolicy_ECRule `protobuf:"bytes,6,rep,name=ec_rules,json=ecRules,proto3" json:"ec_rules,omitempty"`
+	// Initial placement rules.
+	Initial       *PlacementPolicy_Initial `protobuf:"bytes,7,opt,name=initial,proto3" json:"initial,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -535,6 +537,13 @@ func (x *PlacementPolicy) GetSubnetId() *refs.SubnetID {
 func (x *PlacementPolicy) GetEcRules() []*PlacementPolicy_ECRule {
 	if x != nil {
 		return x.EcRules
+	}
+	return nil
+}
+
+func (x *PlacementPolicy) GetInitial() *PlacementPolicy_Initial {
+	if x != nil {
+		return x.Initial
 	}
 	return nil
 }
@@ -887,6 +896,91 @@ func (x *PlacementPolicy_ECRule) GetSelector() string {
 	return ""
 }
 
+// Rules applied during initial data placement.
+//
+// `replica_limits` allows to override `Replica.count` and EC partitions. If
+// set, `replica_limits` must have a length equal to the sum of `replicas`
+// (`RN`) and `ec_rules` length. Each of first `RN` elements of
+// `replica_limits` must be less than or equal to corresponding
+// `Replica.count`. The remaining elements must be either 0 (corresponding
+// EC rule is skipped) or 1 (done). At least one `replica_limits` element
+// must be non-zero.
+//
+// `max_replicas` allows to limit total number of replicas and EC partitions
+// for successful operation. If set, `max_replicas` must not overflow total
+// replica limit (`replica_limits` or main ones).
+//
+// `prefer_local` allows to tell server to try to store `MaxReplicas`
+// replicas in locations that include this server. `prefer_local` must be set
+// along with `max_replicas` only.
+//
+// Either `replica_limits` or `max_replicas` must be specified.
+//
+// Initial policy must not repeat the main one. In particular, policy with
+// `replica_limits` equal to main ones only is invalid.
+type PlacementPolicy_Initial struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Limits on the number of replicas and EC partitions
+	ReplicaLimits []uint32 `protobuf:"varint,1,rep,packed,name=replica_limits,json=replicaLimits,proto3" json:"replica_limits,omitempty"`
+	// Maximum total number of replicas
+	MaxReplicas uint32 `protobuf:"varint,2,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
+	// Flag to prefer local placement over regular one
+	PreferLocal   bool `protobuf:"varint,3,opt,name=prefer_local,json=preferLocal,proto3" json:"prefer_local,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PlacementPolicy_Initial) Reset() {
+	*x = PlacementPolicy_Initial{}
+	mi := &file_proto_netmap_types_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PlacementPolicy_Initial) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PlacementPolicy_Initial) ProtoMessage() {}
+
+func (x *PlacementPolicy_Initial) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_netmap_types_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PlacementPolicy_Initial.ProtoReflect.Descriptor instead.
+func (*PlacementPolicy_Initial) Descriptor() ([]byte, []int) {
+	return file_proto_netmap_types_proto_rawDescGZIP(), []int{3, 1}
+}
+
+func (x *PlacementPolicy_Initial) GetReplicaLimits() []uint32 {
+	if x != nil {
+		return x.ReplicaLimits
+	}
+	return nil
+}
+
+func (x *PlacementPolicy_Initial) GetMaxReplicas() uint32 {
+	if x != nil {
+		return x.MaxReplicas
+	}
+	return 0
+}
+
+func (x *PlacementPolicy_Initial) GetPreferLocal() bool {
+	if x != nil {
+		return x.PreferLocal
+	}
+	return false
+}
+
 // Administrator-defined Attributes of the NeoFS Storage Node.
 //
 // `Attribute` is a Key-Value metadata pair. Key name must be a valid UTF-8
@@ -987,7 +1081,7 @@ type NodeInfo_Attribute struct {
 
 func (x *NodeInfo_Attribute) Reset() {
 	*x = NodeInfo_Attribute{}
-	mi := &file_proto_netmap_types_proto_msgTypes[9]
+	mi := &file_proto_netmap_types_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -999,7 +1093,7 @@ func (x *NodeInfo_Attribute) String() string {
 func (*NodeInfo_Attribute) ProtoMessage() {}
 
 func (x *NodeInfo_Attribute) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmap_types_proto_msgTypes[9]
+	mi := &file_proto_netmap_types_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1089,7 +1183,7 @@ type NetworkConfig_Parameter struct {
 
 func (x *NetworkConfig_Parameter) Reset() {
 	*x = NetworkConfig_Parameter{}
-	mi := &file_proto_netmap_types_proto_msgTypes[10]
+	mi := &file_proto_netmap_types_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1195,7 @@ func (x *NetworkConfig_Parameter) String() string {
 func (*NetworkConfig_Parameter) ProtoMessage() {}
 
 func (x *NetworkConfig_Parameter) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_netmap_types_proto_msgTypes[10]
+	mi := &file_proto_netmap_types_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1150,18 +1244,23 @@ const file_proto_netmap_types_proto_rawDesc = "" +
 	"\x06filter\x18\x05 \x01(\tR\x06filter\";\n" +
 	"\aReplica\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\rR\x05count\x12\x1a\n" +
-	"\bselector\x18\x02 \x01(\tR\bselector\"\xe0\x03\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\"\x9d\x05\n" +
 	"\x0fPlacementPolicy\x125\n" +
 	"\breplicas\x18\x01 \x03(\v2\x19.neo.fs.v2.netmap.ReplicaR\breplicas\x126\n" +
 	"\x17container_backup_factor\x18\x02 \x01(\rR\x15containerBackupFactor\x128\n" +
 	"\tselectors\x18\x03 \x03(\v2\x1a.neo.fs.v2.netmap.SelectorR\tselectors\x122\n" +
 	"\afilters\x18\x04 \x03(\v2\x18.neo.fs.v2.netmap.FilterR\afilters\x129\n" +
 	"\tsubnet_id\x18\x05 \x01(\v2\x18.neo.fs.v2.refs.SubnetIDB\x02\x18\x01R\bsubnetId\x12C\n" +
-	"\bec_rules\x18\x06 \x03(\v2(.neo.fs.v2.netmap.PlacementPolicy.ECRuleR\aecRules\x1ap\n" +
+	"\bec_rules\x18\x06 \x03(\v2(.neo.fs.v2.netmap.PlacementPolicy.ECRuleR\aecRules\x12C\n" +
+	"\ainitial\x18\a \x01(\v2).neo.fs.v2.netmap.PlacementPolicy.InitialR\ainitial\x1ap\n" +
 	"\x06ECRule\x12\"\n" +
 	"\rdata_part_num\x18\x01 \x01(\rR\vdataPartNum\x12&\n" +
 	"\x0fparity_part_num\x18\x02 \x01(\rR\rparityPartNum\x12\x1a\n" +
-	"\bselector\x18\x03 \x01(\tR\bselector\"\xd8\x02\n" +
+	"\bselector\x18\x03 \x01(\tR\bselector\x1av\n" +
+	"\aInitial\x12%\n" +
+	"\x0ereplica_limits\x18\x01 \x03(\rR\rreplicaLimits\x12!\n" +
+	"\fmax_replicas\x18\x02 \x01(\rR\vmaxReplicas\x12!\n" +
+	"\fprefer_local\x18\x03 \x01(\bR\vpreferLocal\"\xd8\x02\n" +
 	"\bNodeInfo\x12\x1d\n" +
 	"\n" +
 	"public_key\x18\x01 \x01(\fR\tpublicKey\x12\x1c\n" +
@@ -1224,7 +1323,7 @@ func file_proto_netmap_types_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_netmap_types_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_proto_netmap_types_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
+var file_proto_netmap_types_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
 var file_proto_netmap_types_proto_goTypes = []any{
 	(Operation)(0),                  // 0: neo.fs.v2.netmap.Operation
 	(Clause)(0),                     // 1: neo.fs.v2.netmap.Clause
@@ -1238,9 +1337,10 @@ var file_proto_netmap_types_proto_goTypes = []any{
 	(*NetworkConfig)(nil),           // 9: neo.fs.v2.netmap.NetworkConfig
 	(*NetworkInfo)(nil),             // 10: neo.fs.v2.netmap.NetworkInfo
 	(*PlacementPolicy_ECRule)(nil),  // 11: neo.fs.v2.netmap.PlacementPolicy.ECRule
-	(*NodeInfo_Attribute)(nil),      // 12: neo.fs.v2.netmap.NodeInfo.Attribute
-	(*NetworkConfig_Parameter)(nil), // 13: neo.fs.v2.netmap.NetworkConfig.Parameter
-	(*refs.SubnetID)(nil),           // 14: neo.fs.v2.refs.SubnetID
+	(*PlacementPolicy_Initial)(nil), // 12: neo.fs.v2.netmap.PlacementPolicy.Initial
+	(*NodeInfo_Attribute)(nil),      // 13: neo.fs.v2.netmap.NodeInfo.Attribute
+	(*NetworkConfig_Parameter)(nil), // 14: neo.fs.v2.netmap.NetworkConfig.Parameter
+	(*refs.SubnetID)(nil),           // 15: neo.fs.v2.refs.SubnetID
 }
 var file_proto_netmap_types_proto_depIdxs = []int32{
 	0,  // 0: neo.fs.v2.netmap.Filter.op:type_name -> neo.fs.v2.netmap.Operation
@@ -1249,18 +1349,19 @@ var file_proto_netmap_types_proto_depIdxs = []int32{
 	5,  // 3: neo.fs.v2.netmap.PlacementPolicy.replicas:type_name -> neo.fs.v2.netmap.Replica
 	4,  // 4: neo.fs.v2.netmap.PlacementPolicy.selectors:type_name -> neo.fs.v2.netmap.Selector
 	3,  // 5: neo.fs.v2.netmap.PlacementPolicy.filters:type_name -> neo.fs.v2.netmap.Filter
-	14, // 6: neo.fs.v2.netmap.PlacementPolicy.subnet_id:type_name -> neo.fs.v2.refs.SubnetID
+	15, // 6: neo.fs.v2.netmap.PlacementPolicy.subnet_id:type_name -> neo.fs.v2.refs.SubnetID
 	11, // 7: neo.fs.v2.netmap.PlacementPolicy.ec_rules:type_name -> neo.fs.v2.netmap.PlacementPolicy.ECRule
-	12, // 8: neo.fs.v2.netmap.NodeInfo.attributes:type_name -> neo.fs.v2.netmap.NodeInfo.Attribute
-	2,  // 9: neo.fs.v2.netmap.NodeInfo.state:type_name -> neo.fs.v2.netmap.NodeInfo.State
-	7,  // 10: neo.fs.v2.netmap.Netmap.nodes:type_name -> neo.fs.v2.netmap.NodeInfo
-	13, // 11: neo.fs.v2.netmap.NetworkConfig.parameters:type_name -> neo.fs.v2.netmap.NetworkConfig.Parameter
-	9,  // 12: neo.fs.v2.netmap.NetworkInfo.network_config:type_name -> neo.fs.v2.netmap.NetworkConfig
-	13, // [13:13] is the sub-list for method output_type
-	13, // [13:13] is the sub-list for method input_type
-	13, // [13:13] is the sub-list for extension type_name
-	13, // [13:13] is the sub-list for extension extendee
-	0,  // [0:13] is the sub-list for field type_name
+	12, // 8: neo.fs.v2.netmap.PlacementPolicy.initial:type_name -> neo.fs.v2.netmap.PlacementPolicy.Initial
+	13, // 9: neo.fs.v2.netmap.NodeInfo.attributes:type_name -> neo.fs.v2.netmap.NodeInfo.Attribute
+	2,  // 10: neo.fs.v2.netmap.NodeInfo.state:type_name -> neo.fs.v2.netmap.NodeInfo.State
+	7,  // 11: neo.fs.v2.netmap.Netmap.nodes:type_name -> neo.fs.v2.netmap.NodeInfo
+	14, // 12: neo.fs.v2.netmap.NetworkConfig.parameters:type_name -> neo.fs.v2.netmap.NetworkConfig.Parameter
+	9,  // 13: neo.fs.v2.netmap.NetworkInfo.network_config:type_name -> neo.fs.v2.netmap.NetworkConfig
+	14, // [14:14] is the sub-list for method output_type
+	14, // [14:14] is the sub-list for method input_type
+	14, // [14:14] is the sub-list for extension type_name
+	14, // [14:14] is the sub-list for extension extendee
+	0,  // [0:14] is the sub-list for field type_name
 }
 
 func init() { file_proto_netmap_types_proto_init() }
@@ -1274,7 +1375,7 @@ func file_proto_netmap_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_netmap_types_proto_rawDesc), len(file_proto_netmap_types_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   11,
+			NumMessages:   12,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

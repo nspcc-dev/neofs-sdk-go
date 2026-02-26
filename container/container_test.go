@@ -295,7 +295,8 @@ var validJSONContainer = `
    }
   ],
   "subnetId": null,
-  "ecRules": []
+  "ecRules": [],
+  "initial": null
  }
 }
 `

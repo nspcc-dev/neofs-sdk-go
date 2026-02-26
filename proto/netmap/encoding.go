@@ -145,6 +145,7 @@ const (
 	FieldPlacementPolicyFilters
 	FieldPlacementPolicySubnetID
 	FieldPlacementPolicyECRules
+	FieldPlacementPolicyInitial
 )
 
 // MarshaledSize returns size of the PlacementPolicy in Protocol Buffers V3
@@ -156,7 +157,8 @@ func (x *PlacementPolicy) MarshaledSize() int {
 			proto.SizeRepeatedMessages(FieldPlacementPolicyReplicas, x.Replicas) +
 			proto.SizeRepeatedMessages(FieldPlacementPolicySelectors, x.Selectors) +
 			proto.SizeRepeatedMessages(FieldPlacementPolicyFilters, x.Filters) +
-			proto.SizeRepeatedMessages(FieldPlacementPolicyECRules, x.EcRules)
+			proto.SizeRepeatedMessages(FieldPlacementPolicyECRules, x.EcRules) +
+			proto.SizeEmbedded(FieldPlacementPolicyInitial, x.Initial)
 	}
 	return 0
 }
@@ -171,7 +173,39 @@ func (x *PlacementPolicy) MarshalStable(b []byte) {
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldPlacementPolicySelectors, x.Selectors)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldPlacementPolicyFilters, x.Filters)
 		off += proto.MarshalToEmbedded(b[off:], FieldPlacementPolicySubnetID, x.SubnetId)
-		proto.MarshalToRepeatedMessages(b[off:], FieldPlacementPolicyECRules, x.EcRules)
+		off += proto.MarshalToRepeatedMessages(b[off:], FieldPlacementPolicyECRules, x.EcRules)
+		proto.MarshalToEmbedded(b[off:], FieldPlacementPolicyInitial, x.Initial)
+	}
+}
+
+// Field numbers of [InitialPlacementPolicy] message.
+const (
+	_ = iota
+	FieldInitialPlacementPolicyReplicaLimits
+	FieldInitialPlacementPolicyMaxReplicas
+	FieldInitialPlacementPolicyPreferLocal
+)
+
+// MarshaledSize returns size of x in Protocol Buffers V3 format in bytes.
+// MarshaledSize is NPE-safe.
+func (x *PlacementPolicy_Initial) MarshaledSize() int {
+	if x != nil {
+		return proto.SizeRepeatedVarint(FieldInitialPlacementPolicyReplicaLimits, x.ReplicaLimits) +
+			proto.SizeVarint(FieldInitialPlacementPolicyMaxReplicas, x.MaxReplicas) +
+			proto.SizeBool(FieldInitialPlacementPolicyPreferLocal, x.PreferLocal)
+	}
+	return 0
+}
+
+// MarshalStable writes x in Protocol Buffers V3 format with ascending order of
+// fields by number into b. MarshalStable uses exactly
+// [InitialPlacementPolicy.MarshaledSize] first bytes of b. MarshalStable is
+// NPE-safe.
+func (x *PlacementPolicy_Initial) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToRepeatedVarint(b, FieldInitialPlacementPolicyReplicaLimits, x.ReplicaLimits)
+		off += proto.MarshalToVarint(b[off:], FieldInitialPlacementPolicyMaxReplicas, x.MaxReplicas)
+		proto.MarshalToBool(b[off:], FieldInitialPlacementPolicyPreferLocal, x.PreferLocal)
 	}
 }
 
