@@ -39,7 +39,7 @@ const (
 	FieldContainerNonce
 	FieldContainerBasicACL
 	FieldContainerAttributes
-	fieldContainerPolicy
+	FieldContainerPolicy
 )
 
 // MarshaledSize returns size of the Container in Protocol Buffers V3 format in
@@ -50,7 +50,7 @@ func (x *Container) MarshaledSize() int {
 			proto.SizeEmbedded(FieldContainerOwnerID, x.OwnerId) +
 			proto.SizeBytes(FieldContainerNonce, x.Nonce) +
 			proto.SizeVarint(FieldContainerBasicACL, x.BasicAcl) +
-			proto.SizeEmbedded(fieldContainerPolicy, x.PlacementPolicy) +
+			proto.SizeEmbedded(FieldContainerPolicy, x.PlacementPolicy) +
 			proto.SizeRepeatedMessages(FieldContainerAttributes, x.Attributes)
 	}
 	return 0
@@ -66,7 +66,7 @@ func (x *Container) MarshalStable(b []byte) {
 		off += proto.MarshalToBytes(b[off:], FieldContainerNonce, x.Nonce)
 		off += proto.MarshalToVarint(b[off:], FieldContainerBasicACL, x.BasicAcl)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldContainerAttributes, x.Attributes)
-		proto.MarshalToEmbedded(b[off:], fieldContainerPolicy, x.PlacementPolicy)
+		proto.MarshalToEmbedded(b[off:], FieldContainerPolicy, x.PlacementPolicy)
 	}
 }
 
