@@ -1,5 +1,7 @@
 #!/usr/bin/make -f
 
+.PHONY: test test-full dep lint cover format modernize help
+
 # Run tests
 test:
 	@go test ./... -cover
@@ -35,6 +37,12 @@ format:
 	@gofmt -s -w ./
 	@echo "⇒ Processing goimports check"
 	@goimports -w ./
+
+# Prettify code
+modernize:
+	@echo "⇒ Processing modernize check"
+	@go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest -fix ./...
+
 
 # Show this help prompt
 help:

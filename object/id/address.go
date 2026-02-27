@@ -151,17 +151,17 @@ func (x Address) EncodeToString() string {
 //
 // See also DecodeString.
 func (x *Address) DecodeString(s string) error {
-	indDelimiter := strings.Index(s, idDelimiter)
-	if indDelimiter < 0 {
+	before, after, ok := strings.Cut(s, idDelimiter)
+	if !ok {
 		return errors.New("missing delimiter")
 	}
 
-	err := x.cnr.DecodeString(s[:indDelimiter])
+	err := x.cnr.DecodeString(before)
 	if err != nil {
 		return fmt.Errorf("decode container string: %w", err)
 	}
 
-	err = x.obj.DecodeString(s[indDelimiter+1:])
+	err = x.obj.DecodeString(after)
 	if err != nil {
 		return fmt.Errorf("decode object string: %w", err)
 	}

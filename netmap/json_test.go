@@ -24,7 +24,7 @@ type TestCase struct {
 		Placement struct {
 			Pivot  []byte
 			Result [][]int
-		} `json:"placement,omitempty"`
+		} `json:"placement"`
 	}
 }
 

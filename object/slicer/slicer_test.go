@@ -1073,7 +1073,7 @@ func TestKnownPayloadSize(t *testing.T) {
 			w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
 			require.NoError(t, err)
 
-			for i := byte(0); i < 21; i++ {
+			for i := range byte(21) {
 				_, err = w.Write([]byte{1})
 				if i < 20 {
 					require.NoError(t, err)
