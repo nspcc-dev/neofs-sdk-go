@@ -3,6 +3,7 @@ package session_test
 import (
 	"bytes"
 	"fmt"
+	"slices"
 	"sort"
 	"testing"
 	"time"
@@ -23,12 +24,7 @@ type nnsResolver struct {
 }
 
 func (r nnsResolver) HasUser(nnsName string, userID user.ID) (bool, error) {
-	for _, uid := range r.res[nnsName] {
-		if uid == userID {
-			return true, nil
-		}
-	}
-	return false, nil
+	return slices.Contains(r.res[nnsName], userID), nil
 }
 
 type noopNNSResolver struct{}

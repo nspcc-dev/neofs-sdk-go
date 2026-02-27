@@ -281,8 +281,7 @@ func TestSessionCache(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -376,8 +375,7 @@ func TestPriority(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -416,8 +414,7 @@ func TestSessionCacheWithKey(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -450,8 +447,7 @@ func TestSessionTokenOwner(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	p, err := NewPool(opts)
 	require.NoError(t, err)
@@ -499,8 +495,7 @@ func TestSessionTokenV2(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -616,8 +611,7 @@ func TestSessionTokenV2DisableDelegation(t *testing.T) {
 	opts.DisableSessionV2Delegation()
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -787,8 +781,7 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)
@@ -920,8 +913,7 @@ func TestSessionTokenV2Delegation(t *testing.T) {
 	}
 	opts.setClientBuilder(mockClientBuilder)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	pool, err := NewPool(opts)
 	require.NoError(t, err)

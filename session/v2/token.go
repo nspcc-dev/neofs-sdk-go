@@ -977,10 +977,8 @@ func (x Token) AssertVerb(verb Verb, container cid.ID) bool {
 			continue
 		}
 
-		for _, v := range ctx.verbs {
-			if v == verb {
-				return true
-			}
+		if slices.Contains(ctx.verbs, verb) {
+			return true
 		}
 	}
 
@@ -1006,10 +1004,8 @@ func (x Token) AssertContainer(verb Verb, container cid.ID) bool {
 			continue
 		}
 
-		for _, v := range ctx.verbs {
-			if v == verb {
-				return true
-			}
+		if slices.Contains(ctx.verbs, verb) {
+			return true
 		}
 	}
 

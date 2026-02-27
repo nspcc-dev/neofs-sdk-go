@@ -269,13 +269,7 @@ func (x Object) AssertObject(obj oid.ID) bool {
 		return true
 	}
 
-	for i := range x.objs {
-		if x.objs[i] == obj {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(x.objs, obj)
 }
 
 // ObjectVerb enumerates object operations.
@@ -307,13 +301,7 @@ func (x *Object) ForVerb(verb ObjectVerb) {
 //
 // See also ForVerb.
 func (x Object) AssertVerb(verbs ...ObjectVerb) bool {
-	for i := range verbs {
-		if verbs[i] == x.verb {
-			return true
-		}
-	}
-
-	return false
+	return slices.Contains(verbs, x.verb)
 }
 
 // ExpiredAt asserts "exp" claim.
