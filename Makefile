@@ -1,5 +1,7 @@
 #!/usr/bin/make -f
 
+.PHONY: test test-full dep lint cover format modernize help
+
 # Run tests
 test:
 	@go test ./... -cover
