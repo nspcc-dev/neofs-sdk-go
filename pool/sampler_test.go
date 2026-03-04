@@ -139,11 +139,9 @@ func TestSamplerSafety(t *testing.T) {
 	var wg sync.WaitGroup
 	for range 1000 {
 		const rn = 1000
-		wg.Add(rn)
 		for range rn {
-			go func() {
+			wg.Go(func() {
 				defer func() {
-					wg.Done()
 					// [require.NotPanics] should be called in a test func routine, so we simulate it
 					if r := recover(); r != nil {
 						// in theory, various causes may happen. With this, only the "last" one is
@@ -152,7 +150,7 @@ func TestSamplerSafety(t *testing.T) {
 					}
 				}()
 				s.next()
-			}()
+			})
 		}
 		wg.Wait()
 		if v := pr.Load(); v != nil {

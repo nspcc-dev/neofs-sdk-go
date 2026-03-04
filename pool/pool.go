@@ -948,14 +948,10 @@ func (p *Pool) startRebalance(ctx context.Context) {
 
 func (p *Pool) updateNodesHealth(ctx context.Context, buffers [][]float64) {
 	wg := sync.WaitGroup{}
-	for i, inner := range p.innerPools {
-		wg.Add(1)
-
-		bufferWeights := buffers[i]
-		go func(i int, _ *innerPool) {
-			defer wg.Done()
-			p.updateInnerNodesHealth(ctx, i, bufferWeights)
-		}(i, inner)
+	for i := range p.innerPools {
+		wg.Go(func() {
+			p.updateInnerNodesHealth(ctx, i, buffers[i])
+		})
 	}
 	wg.Wait()
 }
@@ -971,10 +967,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 	wg := sync.WaitGroup{}
 
 	for j, cli := range pool.clients {
-		wg.Add(1)
-		go func(j int, cli internalClient) {
-			defer wg.Done()
-
+		wg.Go(func() {
 			tctx, c := context.WithTimeout(ctx, options.nodeRequestTimeout)
 			defer c()
 
@@ -990,7 +983,7 @@ func (p *Pool) updateInnerNodesHealth(ctx context.Context, i int, bufferWeights 
 			if changed {
 				healthyChanged.Store(true)
 			}
-		}(j, cli)
+		})
 	}
 	wg.Wait()
 
