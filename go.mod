@@ -13,7 +13,7 @@ require (
 	github.com/nspcc-dev/tzhash v1.8.4
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
-	go.uber.org/zap v1.27.0
+	go.uber.org/zap v1.27.1
 	google.golang.org/grpc v1.75.1
 	google.golang.org/protobuf v1.36.9
 )
