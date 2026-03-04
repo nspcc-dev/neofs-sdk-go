@@ -39,13 +39,10 @@ func TestStatisticConcurrency(t *testing.T) {
 		{method: MethodLast - 1, modeKey: []byte{3}, addr: addrNode3, errors: counterNode3},
 	}
 
-	wg.Add(len(configs))
 	n := 30000
 
-	for _, s := range configs {
-		go func(c *config) {
-			defer wg.Done()
-
+	for _, c := range configs {
+		wg.Go(func() {
 			for range n {
 				var err error
 				if rand.N(2) > 0 {
@@ -57,7 +54,7 @@ func TestStatisticConcurrency(t *testing.T) {
 
 				ps.OperationCallback(c.modeKey, c.addr, c.method, duration, err)
 			}
-		}(s)
+		})
 	}
 
 	wg.Wait()

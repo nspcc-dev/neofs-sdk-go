@@ -210,13 +210,10 @@ func TestClient_ReplicateObject(t *testing.T) {
 
 		var wg sync.WaitGroup
 		for range 5 {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-
+			wg.Go(func() {
 				_, err := cli.ReplicateObject(ctx, id, demuxObj, signer, false)
 				require.NoError(t, err)
-			}()
+			})
 		}
 
 		wg.Wait()
