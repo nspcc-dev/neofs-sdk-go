@@ -810,6 +810,62 @@ func TestSwitchAfterErrorThreshold(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// TestSingleNodeNoDisconnectOnErrors verifies that a pool with a single node
+// keeps the node accessible even after the error threshold is exceeded.
+// This ensures that intermittent errors (e.g. ErrBusy, context cancellations)
+// do not cause permanent disconnections when there is no alternative node to switch to.
+func TestSingleNodeNoDisconnectOnErrors(t *testing.T) {
+	const errorThreshold = 5
+
+	node := NodeParam{1, anyValidPeerAddress(0), 1}
+
+	var mockCli *mockClient
+	mockClientBuilder := func(addr string) (internalClient, error) {
+		mockCli = newMockClient(addr, neofscryptotest.Signer())
+		mockCli.setThreshold(errorThreshold)
+		// enable health tracking disable for single-node, matching what the
+		// production client builder does via fillDefaultInitParams.
+		mockCli.disableHealthTracking = true
+		mockCli.statusOnGetObject(apistatus.ServerInternal{})
+		return mockCli, nil
+	}
+
+	usr := usertest.User()
+
+	opts := InitParameters{
+		signer:                  usr.RFC6979,
+		nodeParams:              []NodeParam{node},
+		clientRebalanceInterval: 30 * time.Second,
+	}
+	opts.setClientBuilder(mockClientBuilder)
+
+	ctx := t.Context()
+
+	pool, err := NewPool(opts)
+	require.NoError(t, err)
+	require.NoError(t, pool.Dial(ctx))
+	t.Cleanup(func() { _ = pool.Close })
+
+	// trigger more errors than the configured threshold
+	for range errorThreshold + 1 {
+		conn, err := pool.connection()
+		require.NoError(t, err, "single-node pool must always return a connection")
+		require.Equal(t, node.address, conn.address())
+
+		sdkCl, err := conn.getClient()
+		require.NoError(t, err, "node must remain accessible despite errors")
+
+		_, _, err = sdkCl.ObjectGetInit(ctx, cid.ID{}, oid.ID{}, usr, client.PrmObjectGet{})
+		require.Error(t, err) // expected: the mock returns ServerInternal
+	}
+
+	// even after exceeding the error threshold the node must still be accessible
+	conn, err := pool.connection()
+	require.NoError(t, err, "single-node pool must not become unhealthy after threshold")
+	require.Equal(t, node.address, conn.address())
+	require.True(t, conn.isHealthy(), "node must remain healthy with tracking disabled")
+}
+
 type dialCloseOnlyClient struct {
 	internalClient
 	closeErr error

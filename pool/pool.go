@@ -132,6 +132,12 @@ type clientStatusMonitor struct {
 	overallErrorCount *atomic.Uint64
 
 	sw *slidingWindow
+
+	// disableHealthTracking disables health-based connection management.
+	// When set, errors never mark the node as unhealthy and isHealthy always
+	// returns true. Used for single-node pools where switching to another node
+	// is not possible anyway.
+	disableHealthTracking bool
 }
 
 func newClientStatusMonitor(addr string, errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
@@ -172,6 +178,7 @@ type wrapperPrm struct {
 	statisticCallback        stat.OperationCallback
 	buffers                  *sync.Pool
 	nodeSessionCacheSize     int
+	disableHealthTracking    bool
 }
 
 // setAddress sets endpoint to connect in NeoFS network.
@@ -220,6 +227,13 @@ func (x *wrapperPrm) setNodeSessionCacheSize(cacheSize int) {
 	x.nodeSessionCacheSize = cacheSize
 }
 
+// setDisableHealthTracking disables health-based connection management for this client.
+// When set, errors never mark the node as unhealthy. Intended for single-node pools
+// where switching to another node is not possible.
+func (x *wrapperPrm) setDisableHealthTracking(v bool) {
+	x.disableHealthTracking = v
+}
+
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
 func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
@@ -247,6 +261,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 		statisticCallback:   prm.statisticCallback,
 		nodeSessionCache:    cache,
 	}
+	res.clientStatusMonitor.disableHealthTracking = prm.disableHealthTracking
 
 	oldCallBack := prm.responseInfoCallback
 	prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
@@ -310,6 +325,22 @@ func (c *clientWrapper) dial(ctx context.Context) error {
 // restartIfUnhealthy checks healthy status of client and recreate it if status is unhealthy.
 // Return current healthy status and indicating if status was changed by this function call.
 func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, changed bool) {
+	if c.disableHealthTracking {
+		// Single-node pool: health tracking is disabled so the node is always
+		// considered healthy. We still verify connectivity and attempt to
+		// reconnect silently when needed, but we never report the node as
+		// unhealthy or clear session caches.
+		c.clientMutex.RLock()
+		cl := c.client
+		c.clientMutex.RUnlock()
+
+		_, err := cl.EndpointInfo(ctx, sdkClient.PrmEndpointInfo{})
+		if err != nil {
+			c.reconnect(ctx)
+		}
+		return true, false
+	}
+
 	var wasHealthy bool
 
 	cl, err := c.getRawClient()
@@ -346,6 +377,29 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 
 	c.setHealthy()
 	return true, !wasHealthy
+}
+
+// reconnect attempts to establish a fresh connection. Used for single-node pools
+// where the node should never be marked unhealthy but a reconnect may be needed.
+func (c *clientWrapper) reconnect(ctx context.Context) {
+	cl, err := c.prm.getNewClient(c.statisticMiddleware)
+	if err != nil {
+		return
+	}
+
+	var prmDial sdkClient.PrmDial
+	prmDial.SetServerURI(c.prm.address)
+	prmDial.SetTimeout(c.prm.dialTimeout)
+	prmDial.SetStreamTimeout(c.prm.streamTimeout)
+	prmDial.SetContext(ctx)
+
+	if err = cl.Dial(prmDial); err != nil {
+		return
+	}
+
+	c.clientMutex.Lock()
+	c.client = cl
+	c.clientMutex.Unlock()
 }
 
 func (c *clientWrapper) getClient() (sdkClientInterface, error) {
@@ -385,6 +439,9 @@ func (c *clientWrapper) ResetSessions() {
 func (c *clientWrapper) Close() error { return c.client.Close() }
 
 func (c *clientStatusMonitor) isHealthy() bool {
+	if c.disableHealthTracking {
+		return true
+	}
 	return c.healthy.Load()
 }
 
@@ -402,6 +459,11 @@ func (c *clientStatusMonitor) address() string {
 
 func (c *clientStatusMonitor) incErrorRate() {
 	c.overallErrorCount.Add(1)
+
+	if c.disableHealthTracking {
+		c.sw.Allow() // still track for statistics, but never mark unhealthy
+		return
+	}
 
 	if !c.sw.Allow() {
 		c.setUnhealthy()
@@ -870,6 +932,12 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 	}
 
 	if params.isMissingClientBuilder() {
+		// Health tracking is disabled for single-node pools: with only one server
+		// available, marking it as unhealthy due to intermittent errors (such as
+		// ErrBusy or context cancellations) prevents all operations until the
+		// rebalance loop reconnects, which is worse than simply retrying. gRPC
+		// handles low-level reconnection transparently.
+		singleNode := len(params.nodeParams) == 1
 		params.setClientBuilder(func(addr string) (internalClient, error) {
 			var prm = wrapperPrm{
 				errorThresholdWindowSize: params.errorThresholdWindowSize,
@@ -887,6 +955,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 			prm.setStatisticCallback(statisticCallback)
 			prm.setBuffers(buffers)
 			prm.setNodeSessionCacheSize(params.nodeSessionCacheSize)
+			prm.setDisableHealthTracking(singleNode)
 			return newWrapper(prm)
 		})
 	}
