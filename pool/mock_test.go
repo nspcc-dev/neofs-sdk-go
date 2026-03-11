@@ -24,6 +24,7 @@ import (
 type mockClient struct {
 	signer  neofscrypto.Signer
 	nodeKey []byte
+	addr    string
 	clientStatusMonitor
 
 	errorOnDial          bool
@@ -183,7 +184,8 @@ func newMockClient(addr string, signer neofscrypto.Signer) *mockClient {
 	return &mockClient{
 		signer:              signer,
 		nodeKey:             pk.PublicKey().Bytes(),
-		clientStatusMonitor: newClientStatusMonitor(addr, 10, 30*time.Second),
+		addr:                addr,
+		clientStatusMonitor: newClientStatusMonitor(10, 30*time.Second),
 	}
 }
 
@@ -256,3 +258,7 @@ func (m *mockClient) ResetSessions() {
 }
 
 func (m *mockClient) Close() error { panic("unimplemented") }
+
+func (m *mockClient) address() string {
+	return m.addr
+}

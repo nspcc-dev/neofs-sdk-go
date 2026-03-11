@@ -660,7 +660,7 @@ func TestSessionTokenV2DisableDelegation(t *testing.T) {
 func TestStatusMonitor(t *testing.T) {
 	thresholdWindowSize := 1 * time.Second
 
-	monitor := newClientStatusMonitor("", 10, thresholdWindowSize)
+	monitor := newClientStatusMonitor(10, thresholdWindowSize)
 
 	count := 10
 	for range count {
@@ -678,7 +678,7 @@ func TestStatusMonitor(t *testing.T) {
 }
 
 func TestHandleError(t *testing.T) {
-	monitor := newClientStatusMonitor("", 10, 10*time.Second)
+	monitor := newClientStatusMonitor(10, 10*time.Second)
 
 	for i, tc := range []struct {
 		err           error

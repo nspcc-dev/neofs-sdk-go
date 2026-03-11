@@ -126,7 +126,6 @@ var ErrUnhealthy = errors.New("no healthy client")
 
 // clientStatusMonitor count error rate and other statistics for connection.
 type clientStatusMonitor struct {
-	addr    string
 	healthy *atomic.Bool
 
 	overallErrorCount *atomic.Uint64
@@ -134,9 +133,8 @@ type clientStatusMonitor struct {
 	sw *slidingWindow
 }
 
-func newClientStatusMonitor(addr string, errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
+func newClientStatusMonitor(errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
 	m := clientStatusMonitor{
-		addr:              addr,
 		healthy:           &atomic.Bool{},
 		overallErrorCount: &atomic.Uint64{},
 		sw:                newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
@@ -197,7 +195,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	}
 
 	res := &clientWrapper{
-		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold, prm.errorThresholdWindowSize),
+		clientStatusMonitor: newClientStatusMonitor(prm.errorThreshold, prm.errorThresholdWindowSize),
 		statisticCallback:   prm.statisticCallback,
 		nodeSessionCache:    cache,
 	}
@@ -338,6 +336,10 @@ func (c *clientWrapper) ResetSessions() {
 
 func (c *clientWrapper) Close() error { return c.client.Close() }
 
+func (c *clientWrapper) address() string {
+	return c.prm.address
+}
+
 func (c *clientStatusMonitor) isHealthy() bool {
 	return c.healthy.Load()
 }
@@ -348,10 +350,6 @@ func (c *clientStatusMonitor) setHealthy() {
 
 func (c *clientStatusMonitor) setUnhealthy() {
 	c.healthy.Store(false)
-}
-
-func (c *clientStatusMonitor) address() string {
-	return c.addr
 }
 
 func (c *clientStatusMonitor) incErrorRate() {
