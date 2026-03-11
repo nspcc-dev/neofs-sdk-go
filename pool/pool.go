@@ -352,14 +352,6 @@ func (c *clientStatusMonitor) setUnhealthy() {
 	c.healthy.Store(false)
 }
 
-func (c *clientStatusMonitor) incErrorRate() {
-	c.overallErrorCount.Add(1)
-
-	if !c.sw.Allow() {
-		c.setUnhealthy()
-	}
-}
-
 func (c *clientStatusMonitor) currentErrorRate() uint32 {
 	return uint32(c.sw.Current())
 }
@@ -369,8 +361,20 @@ func (c *clientStatusMonitor) overallErrorRate() uint64 {
 }
 
 func (c *clientStatusMonitor) updateErrorRate(err error) {
-	if err == nil {
+	if !isHealthCountedError(err) {
 		return
+	}
+
+	c.overallErrorCount.Add(1)
+
+	if !c.sw.Allow() {
+		c.setUnhealthy()
+	}
+}
+
+func isHealthCountedError(err error) bool {
+	if err == nil {
+		return false
 	}
 
 	// count only this API errors
@@ -378,22 +382,19 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 		errors.Is(err, apistatus.ErrWrongMagicNumber) ||
 		errors.Is(err, apistatus.ErrSignatureVerification) ||
 		errors.Is(err, apistatus.ErrNodeUnderMaintenance) {
-		c.incErrorRate()
-		return
+		return true
 	}
 
 	// don't count another API errors
 	if errors.Is(err, apistatus.Error) {
-		return
+		return false
 	}
 
 	// non-status logic error that could be returned
 	// from the SDK client; should not be considered
 	// as a connection error
 	var siErr *object.SplitInfoError
-	if !errors.As(err, &siErr) {
-		c.incErrorRate()
-	}
+	return !errors.As(err, &siErr)
 }
 
 // clientBuilder is a type alias of client constructors.

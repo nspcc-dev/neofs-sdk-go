@@ -664,14 +664,14 @@ func TestStatusMonitor(t *testing.T) {
 
 	count := 10
 	for range count {
-		monitor.incErrorRate()
+		monitor.updateErrorRate(errors.New("smth"))
 	}
 
 	require.Equal(t, uint64(count), monitor.overallErrorRate())
 	require.Equal(t, uint32(count), monitor.currentErrorRate())
 
 	time.Sleep(thresholdWindowSize * 2)
-	monitor.incErrorRate()
+	monitor.updateErrorRate(errors.New("smth"))
 
 	require.Equal(t, uint64(count+1), monitor.overallErrorRate())
 	require.Equal(t, uint32(1), monitor.currentErrorRate())
