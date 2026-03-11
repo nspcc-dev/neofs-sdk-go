@@ -90,6 +90,8 @@ type internalClient interface {
 	nodeSessionContainer
 	io.Closer
 
+	// address returns the address of the endpoint.
+	address() string
 	// see clientWrapper.dial.
 	dial(ctx context.Context) error
 	// see clientWrapper.restartIfUnhealthy.
@@ -105,8 +107,6 @@ type clientStatus interface {
 	isHealthy() bool
 	// setUnhealthy marks client as unhealthy.
 	setUnhealthy()
-	// address return address of endpoint.
-	address() string
 }
 
 // errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
