@@ -136,7 +136,12 @@ func TestBuildPoolWrongSigner(t *testing.T) {
 func TestOneNode(t *testing.T) {
 	signer1 := neofscryptotest.Signer()
 	mockClientBuilder := func(addr string) (internalClient, error) {
-		return newMockClient(addr, signer1), nil
+		var mc = newMockClient(addr, signer1)
+
+		mc.errThr = fakeThrottler{} // Single node never counts errors.
+		mc.statusOnGetObject(apistatus.ServerInternal{})
+
+		return mc, nil
 	}
 
 	opts := InitParameters{
@@ -154,6 +159,11 @@ func TestOneNode(t *testing.T) {
 	cp, err := pool.connection()
 	require.NoError(t, err)
 	require.Equal(t, opts.nodeParams[0].address, cp.address())
+
+	for range mockErrorThreshold + 2 {
+		_, _, err = pool.ObjectGetInit(t.Context(), cid.ID{}, oid.ID{}, usertest.User(), client.PrmObjectGet{})
+		require.ErrorIs(t, err, apistatus.ServerInternal{}) // Never ErrUnhealthy.
+	}
 }
 
 func TestTwoNodes(t *testing.T) {
@@ -667,12 +677,12 @@ func TestStatusMonitor(t *testing.T) {
 		monitor.updateErrorRate(errors.New("smth"))
 	}
 
-	require.Equal(t, int64(count), monitor.sw.Current())
+	require.Equal(t, int64(count), monitor.errThr.Current())
 
 	time.Sleep(thresholdWindowSize * 2)
 	monitor.updateErrorRate(errors.New("smth"))
 
-	require.Equal(t, int64(1), monitor.sw.Current())
+	require.Equal(t, int64(1), monitor.errThr.Current())
 }
 
 func TestHandleError(t *testing.T) {
@@ -735,7 +745,7 @@ func TestHandleError(t *testing.T) {
 		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			errCount := monitor.sw.Current()
+			errCount := monitor.errThr.Current()
 			monitor.updateErrorRate(tc.err)
 			if tc.expectedError {
 				require.Error(t, tc.err)
@@ -745,7 +755,7 @@ func TestHandleError(t *testing.T) {
 			if tc.countError {
 				errCount++
 			}
-			require.Equal(t, errCount, monitor.sw.Current())
+			require.Equal(t, errCount, monitor.errThr.Current())
 		})
 	}
 }

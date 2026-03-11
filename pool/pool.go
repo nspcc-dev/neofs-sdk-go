@@ -118,17 +118,37 @@ var errPoolClientUnhealthy = errors.New("pool client unhealthy")
 // and when it can.
 var ErrUnhealthy = errors.New("no healthy client")
 
+type errorThrottler interface {
+	Allow() bool
+	Current() int64
+}
+
+// fakeThrottler doesn't limit or count any errors.
+type fakeThrottler struct{}
+
+func (fakeThrottler) Allow() bool    { return true }
+func (fakeThrottler) Current() int64 { return 0 }
+
 // clientStatusMonitor count error rate and other statistics for connection.
 type clientStatusMonitor struct {
 	healthy *atomic.Bool
-
-	sw *slidingWindow
+	errThr  errorThrottler
 }
 
 func newClientStatusMonitor(errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
 	m := clientStatusMonitor{
 		healthy: &atomic.Bool{},
-		sw:      newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
+		errThr:  newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
+	}
+
+	m.healthy.Store(true)
+	return m
+}
+
+func newNoopClientStatusMonitor() clientStatusMonitor {
+	m := clientStatusMonitor{
+		healthy: &atomic.Bool{},
+		errThr:  fakeThrottler{},
 	}
 
 	m.healthy.Store(true)
@@ -155,6 +175,7 @@ type wrapperPrm struct {
 	signer                   neofscrypto.Signer
 	dialTimeout              time.Duration
 	streamTimeout            time.Duration
+	singleNode               bool
 	errorThreshold           uint32
 	errorThresholdWindowSize time.Duration
 	responseInfoCallback     func(sdkClient.ResponseMetaInfo) error
@@ -186,9 +207,14 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	}
 
 	res := &clientWrapper{
-		clientStatusMonitor: newClientStatusMonitor(prm.errorThreshold, prm.errorThresholdWindowSize),
-		statisticCallback:   prm.statisticCallback,
-		nodeSessionCache:    cache,
+		statisticCallback: prm.statisticCallback,
+		nodeSessionCache:  cache,
+	}
+
+	if prm.singleNode {
+		res.clientStatusMonitor = newNoopClientStatusMonitor()
+	} else {
+		res.clientStatusMonitor = newClientStatusMonitor(prm.errorThreshold, prm.errorThresholdWindowSize)
 	}
 
 	oldCallBack := prm.responseInfoCallback
@@ -348,7 +374,7 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 		return
 	}
 
-	if !c.sw.Allow() {
+	if !c.errThr.Allow() {
 		c.setUnhealthy()
 	}
 }
@@ -443,13 +469,16 @@ func (x *InitParameters) SetSessionExpirationDuration(expirationDuration uint64)
 	x.sessionExpirationDuration = expirationDuration
 }
 
-// SetErrorThreshold specifies the number of errors on connection after which node is considered as unhealthy.
+// SetErrorThreshold specifies the number of errors on connection after which
+// node is considered as unhealthy. It's ignored if pool only has a single node.
 func (x *InitParameters) SetErrorThreshold(threshold uint32) {
 	x.errorThreshold = threshold
 }
 
-// SetErrorThresholdWindowSize sets the time period for the sliding window. If the number of errors within this duration
-// exceeds the ErrorThreshold, the node is considered unhealthy.
+// SetErrorThresholdWindowSize sets the time period for the sliding window.
+// If the number of errors within this duration exceeds the ErrorThreshold
+// (see [InitParameters.SetErrorThreshold]), the node is considered unhealthy.
+// It's ignored if pool has one node only.
 func (x *InitParameters) SetErrorThresholdWindowSize(window time.Duration) {
 	x.errorThresholdWindowSize = window
 }
@@ -662,6 +691,9 @@ func NewFlatNodeParams(endpoints []string) []NodeParam {
 // - NodeDialTimeout: 5, in seconds
 // - NodeStreamTimeout: 10, in seconds
 //
+// Notice that error threshold settings are ignored if there is just one node
+// configured for this pool.
+//
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
 func NewPool(options InitParameters) (*Pool, error) {
@@ -810,6 +842,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 				signer:                   params.signer,
 				dialTimeout:              params.nodeDialTimeout,
 				streamTimeout:            params.nodeStreamTimeout,
+				singleNode:               len(params.nodeParams) == 1,
 				errorThreshold:           params.errorThreshold,
 				errorThresholdWindowSize: params.errorThresholdWindowSize,
 				responseInfoCallback: func(info sdkClient.ResponseMetaInfo) error {
