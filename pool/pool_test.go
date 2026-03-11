@@ -668,13 +668,11 @@ func TestStatusMonitor(t *testing.T) {
 	}
 
 	require.Equal(t, uint64(count), monitor.overallErrorRate())
-	require.Equal(t, uint32(count), monitor.currentErrorRate())
 
 	time.Sleep(thresholdWindowSize * 2)
 	monitor.updateErrorRate(errors.New("smth"))
 
 	require.Equal(t, uint64(count+1), monitor.overallErrorRate())
-	require.Equal(t, uint32(1), monitor.currentErrorRate())
 }
 
 func TestHandleError(t *testing.T) {
@@ -737,7 +735,7 @@ func TestHandleError(t *testing.T) {
 		},
 	} {
 		t.Run(strconv.Itoa(i), func(t *testing.T) {
-			errCount := monitor.currentErrorRate()
+			errCount := monitor.overallErrorRate()
 			monitor.updateErrorRate(tc.err)
 			if tc.expectedError {
 				require.Error(t, tc.err)
@@ -747,7 +745,7 @@ func TestHandleError(t *testing.T) {
 			if tc.countError {
 				errCount++
 			}
-			require.Equal(t, errCount, monitor.currentErrorRate())
+			require.Equal(t, errCount, monitor.overallErrorRate())
 		})
 	}
 }

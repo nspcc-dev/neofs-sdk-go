@@ -107,10 +107,6 @@ type clientStatus interface {
 	setUnhealthy()
 	// address return address of endpoint.
 	address() string
-	// currentErrorRate returns current errors rate.
-	// After specific threshold connection is considered as unhealthy.
-	// Pool.startRebalance routine can make this connection healthy again.
-	currentErrorRate() uint32
 	// overallErrorRate returns the number of all happened errors.
 	overallErrorRate() uint64
 }
@@ -350,10 +346,6 @@ func (c *clientStatusMonitor) setHealthy() {
 
 func (c *clientStatusMonitor) setUnhealthy() {
 	c.healthy.Store(false)
-}
-
-func (c *clientStatusMonitor) currentErrorRate() uint32 {
-	return uint32(c.sw.Current())
 }
 
 func (c *clientStatusMonitor) overallErrorRate() uint64 {

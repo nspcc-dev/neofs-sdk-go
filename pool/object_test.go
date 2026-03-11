@@ -123,7 +123,6 @@ type mockedClientWrapper struct {
 func (x mockedClientWrapper) isHealthy() bool          { return true }
 func (x mockedClientWrapper) setUnhealthy()            { panic("must not be called") }
 func (x mockedClientWrapper) address() string          { return x.addr }
-func (x mockedClientWrapper) currentErrorRate() uint32 { panic("must not be called") }
 func (x mockedClientWrapper) overallErrorRate() uint64 { panic("must not be called") }
 func (x mockedClientWrapper) SetNodeSession(*session.Object, neofscrypto.PublicKey) {
 	panic("must not be called")
