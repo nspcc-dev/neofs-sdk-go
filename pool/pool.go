@@ -174,52 +174,6 @@ type wrapperPrm struct {
 	nodeSessionCacheSize     int
 }
 
-// setAddress sets endpoint to connect in NeoFS network.
-func (x *wrapperPrm) setAddress(address string) {
-	x.address = address
-}
-
-// setSigner sets sdkClient.Client private signer to be used for the protocol communication by default.
-func (x *wrapperPrm) setSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// setDialTimeout sets the timeout for connection to be established.
-func (x *wrapperPrm) setDialTimeout(timeout time.Duration) {
-	x.dialTimeout = timeout
-}
-
-// setStreamTimeout sets the timeout for individual operations in streaming RPC.
-func (x *wrapperPrm) setStreamTimeout(timeout time.Duration) {
-	x.streamTimeout = timeout
-}
-
-// setErrorThreshold sets threshold after reaching which connection is considered unhealthy
-// until Pool.startRebalance routing updates its status.
-func (x *wrapperPrm) setErrorThreshold(threshold uint32) {
-	x.errorThreshold = threshold
-}
-
-// setResponseInfoCallback sets callback that will be invoked after every response.
-func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) error) {
-	x.responseInfoCallback = f
-}
-
-// setStatisticCallback set callback for external statistic.
-func (x *wrapperPrm) setStatisticCallback(statisticCallback stat.OperationCallback) {
-	x.statisticCallback = statisticCallback
-}
-
-// setBuffers set buffer to message sign routine inside sdkClient.Client.
-func (x *wrapperPrm) setBuffers(buffers *sync.Pool) {
-	x.buffers = buffers
-}
-
-// SetNodeSessionCacheSize sets cache size for the basic sessions for node.
-func (x *wrapperPrm) setNodeSessionCacheSize(cacheSize int) {
-	x.nodeSessionCacheSize = cacheSize
-}
-
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
 func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
@@ -249,7 +203,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	}
 
 	oldCallBack := prm.responseInfoCallback
-	prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
+	prm.responseInfoCallback = func(info sdkClient.ResponseMetaInfo) error {
 		newEpoch := info.Epoch()
 		if newEpoch > res.epoch.Load() {
 			res.epoch.Store(newEpoch)
@@ -261,7 +215,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 		}
 
 		return nil
-	})
+	}
 
 	res.prm = prm
 
@@ -872,21 +826,20 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 	if params.isMissingClientBuilder() {
 		params.setClientBuilder(func(addr string) (internalClient, error) {
 			var prm = wrapperPrm{
+				address:                  addr,
+				signer:                   params.signer,
+				dialTimeout:              params.nodeDialTimeout,
+				streamTimeout:            params.nodeStreamTimeout,
+				errorThreshold:           params.errorThreshold,
 				errorThresholdWindowSize: params.errorThresholdWindowSize,
+				responseInfoCallback: func(info sdkClient.ResponseMetaInfo) error {
+					cache.updateEpoch(info.Epoch())
+					return nil
+				},
+				statisticCallback:    statisticCallback,
+				buffers:              buffers,
+				nodeSessionCacheSize: params.nodeSessionCacheSize,
 			}
-
-			prm.setAddress(addr)
-			prm.setSigner(params.signer)
-			prm.setDialTimeout(params.nodeDialTimeout)
-			prm.setStreamTimeout(params.nodeStreamTimeout)
-			prm.setErrorThreshold(params.errorThreshold)
-			prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
-				cache.updateEpoch(info.Epoch())
-				return nil
-			})
-			prm.setStatisticCallback(statisticCallback)
-			prm.setBuffers(buffers)
-			prm.setNodeSessionCacheSize(params.nodeSessionCacheSize)
 			return newWrapper(prm)
 		})
 	}
