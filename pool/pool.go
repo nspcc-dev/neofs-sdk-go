@@ -107,8 +107,6 @@ type clientStatus interface {
 	setUnhealthy()
 	// address return address of endpoint.
 	address() string
-	// overallErrorRate returns the number of all happened errors.
-	overallErrorRate() uint64
 }
 
 // errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
@@ -124,16 +122,13 @@ var ErrUnhealthy = errors.New("no healthy client")
 type clientStatusMonitor struct {
 	healthy *atomic.Bool
 
-	overallErrorCount *atomic.Uint64
-
 	sw *slidingWindow
 }
 
 func newClientStatusMonitor(errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
 	m := clientStatusMonitor{
-		healthy:           &atomic.Bool{},
-		overallErrorCount: &atomic.Uint64{},
-		sw:                newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
+		healthy: &atomic.Bool{},
+		sw:      newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
 	}
 
 	m.healthy.Store(true)
@@ -348,16 +343,10 @@ func (c *clientStatusMonitor) setUnhealthy() {
 	c.healthy.Store(false)
 }
 
-func (c *clientStatusMonitor) overallErrorRate() uint64 {
-	return c.overallErrorCount.Load()
-}
-
 func (c *clientStatusMonitor) updateErrorRate(err error) {
 	if !isHealthCountedError(err) {
 		return
 	}
-
-	c.overallErrorCount.Add(1)
 
 	if !c.sw.Allow() {
 		c.setUnhealthy()
