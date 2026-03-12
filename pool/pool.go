@@ -90,6 +90,8 @@ type internalClient interface {
 	nodeSessionContainer
 	io.Closer
 
+	// address returns the address of the endpoint.
+	address() string
 	// see clientWrapper.dial.
 	dial(ctx context.Context) error
 	// see clientWrapper.restartIfUnhealthy.
@@ -105,14 +107,6 @@ type clientStatus interface {
 	isHealthy() bool
 	// setUnhealthy marks client as unhealthy.
 	setUnhealthy()
-	// address return address of endpoint.
-	address() string
-	// currentErrorRate returns current errors rate.
-	// After specific threshold connection is considered as unhealthy.
-	// Pool.startRebalance routine can make this connection healthy again.
-	currentErrorRate() uint32
-	// overallErrorRate returns the number of all happened errors.
-	overallErrorRate() uint64
 }
 
 // errPoolClientUnhealthy is an error to indicate that client in pool is unhealthy.
@@ -124,22 +118,37 @@ var errPoolClientUnhealthy = errors.New("pool client unhealthy")
 // and when it can.
 var ErrUnhealthy = errors.New("no healthy client")
 
-// clientStatusMonitor count error rate and other statistics for connection.
-type clientStatusMonitor struct {
-	addr    string
-	healthy *atomic.Bool
-
-	overallErrorCount *atomic.Uint64
-
-	sw *slidingWindow
+type errorThrottler interface {
+	Allow() bool
+	Current() int64
 }
 
-func newClientStatusMonitor(addr string, errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
+// fakeThrottler doesn't limit or count any errors.
+type fakeThrottler struct{}
+
+func (fakeThrottler) Allow() bool    { return true }
+func (fakeThrottler) Current() int64 { return 0 }
+
+// clientStatusMonitor count error rate and other statistics for connection.
+type clientStatusMonitor struct {
+	healthy *atomic.Bool
+	errThr  errorThrottler
+}
+
+func newClientStatusMonitor(errorThreshold uint32, thresholdWindowSize time.Duration) clientStatusMonitor {
 	m := clientStatusMonitor{
-		addr:              addr,
-		healthy:           &atomic.Bool{},
-		overallErrorCount: &atomic.Uint64{},
-		sw:                newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
+		healthy: &atomic.Bool{},
+		errThr:  newSlidingWindow(thresholdWindowSize, int64(errorThreshold)),
+	}
+
+	m.healthy.Store(true)
+	return m
+}
+
+func newNoopClientStatusMonitor() clientStatusMonitor {
+	m := clientStatusMonitor{
+		healthy: &atomic.Bool{},
+		errThr:  fakeThrottler{},
 	}
 
 	m.healthy.Store(true)
@@ -166,58 +175,13 @@ type wrapperPrm struct {
 	signer                   neofscrypto.Signer
 	dialTimeout              time.Duration
 	streamTimeout            time.Duration
+	singleNode               bool
 	errorThreshold           uint32
 	errorThresholdWindowSize time.Duration
 	responseInfoCallback     func(sdkClient.ResponseMetaInfo) error
 	statisticCallback        stat.OperationCallback
 	buffers                  *sync.Pool
 	nodeSessionCacheSize     int
-}
-
-// setAddress sets endpoint to connect in NeoFS network.
-func (x *wrapperPrm) setAddress(address string) {
-	x.address = address
-}
-
-// setSigner sets sdkClient.Client private signer to be used for the protocol communication by default.
-func (x *wrapperPrm) setSigner(signer neofscrypto.Signer) {
-	x.signer = signer
-}
-
-// setDialTimeout sets the timeout for connection to be established.
-func (x *wrapperPrm) setDialTimeout(timeout time.Duration) {
-	x.dialTimeout = timeout
-}
-
-// setStreamTimeout sets the timeout for individual operations in streaming RPC.
-func (x *wrapperPrm) setStreamTimeout(timeout time.Duration) {
-	x.streamTimeout = timeout
-}
-
-// setErrorThreshold sets threshold after reaching which connection is considered unhealthy
-// until Pool.startRebalance routing updates its status.
-func (x *wrapperPrm) setErrorThreshold(threshold uint32) {
-	x.errorThreshold = threshold
-}
-
-// setResponseInfoCallback sets callback that will be invoked after every response.
-func (x *wrapperPrm) setResponseInfoCallback(f func(sdkClient.ResponseMetaInfo) error) {
-	x.responseInfoCallback = f
-}
-
-// setStatisticCallback set callback for external statistic.
-func (x *wrapperPrm) setStatisticCallback(statisticCallback stat.OperationCallback) {
-	x.statisticCallback = statisticCallback
-}
-
-// setBuffers set buffer to message sign routine inside sdkClient.Client.
-func (x *wrapperPrm) setBuffers(buffers *sync.Pool) {
-	x.buffers = buffers
-}
-
-// SetNodeSessionCacheSize sets cache size for the basic sessions for node.
-func (x *wrapperPrm) setNodeSessionCacheSize(cacheSize int) {
-	x.nodeSessionCacheSize = cacheSize
 }
 
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
@@ -243,13 +207,18 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 	}
 
 	res := &clientWrapper{
-		clientStatusMonitor: newClientStatusMonitor(prm.address, prm.errorThreshold, prm.errorThresholdWindowSize),
-		statisticCallback:   prm.statisticCallback,
-		nodeSessionCache:    cache,
+		statisticCallback: prm.statisticCallback,
+		nodeSessionCache:  cache,
+	}
+
+	if prm.singleNode {
+		res.clientStatusMonitor = newNoopClientStatusMonitor()
+	} else {
+		res.clientStatusMonitor = newClientStatusMonitor(prm.errorThreshold, prm.errorThresholdWindowSize)
 	}
 
 	oldCallBack := prm.responseInfoCallback
-	prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
+	prm.responseInfoCallback = func(info sdkClient.ResponseMetaInfo) error {
 		newEpoch := info.Epoch()
 		if newEpoch > res.epoch.Load() {
 			res.epoch.Store(newEpoch)
@@ -261,7 +230,7 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 		}
 
 		return nil
-	})
+	}
 
 	res.prm = prm
 
@@ -384,6 +353,10 @@ func (c *clientWrapper) ResetSessions() {
 
 func (c *clientWrapper) Close() error { return c.client.Close() }
 
+func (c *clientWrapper) address() string {
+	return c.prm.address
+}
+
 func (c *clientStatusMonitor) isHealthy() bool {
 	return c.healthy.Load()
 }
@@ -396,29 +369,19 @@ func (c *clientStatusMonitor) setUnhealthy() {
 	c.healthy.Store(false)
 }
 
-func (c *clientStatusMonitor) address() string {
-	return c.addr
-}
+func (c *clientStatusMonitor) updateErrorRate(err error) {
+	if !isHealthCountedError(err) {
+		return
+	}
 
-func (c *clientStatusMonitor) incErrorRate() {
-	c.overallErrorCount.Add(1)
-
-	if !c.sw.Allow() {
+	if !c.errThr.Allow() {
 		c.setUnhealthy()
 	}
 }
 
-func (c *clientStatusMonitor) currentErrorRate() uint32 {
-	return uint32(c.sw.Current())
-}
-
-func (c *clientStatusMonitor) overallErrorRate() uint64 {
-	return c.overallErrorCount.Load()
-}
-
-func (c *clientStatusMonitor) updateErrorRate(err error) {
+func isHealthCountedError(err error) bool {
 	if err == nil {
-		return
+		return false
 	}
 
 	// count only this API errors
@@ -426,22 +389,19 @@ func (c *clientStatusMonitor) updateErrorRate(err error) {
 		errors.Is(err, apistatus.ErrWrongMagicNumber) ||
 		errors.Is(err, apistatus.ErrSignatureVerification) ||
 		errors.Is(err, apistatus.ErrNodeUnderMaintenance) {
-		c.incErrorRate()
-		return
+		return true
 	}
 
 	// don't count another API errors
 	if errors.Is(err, apistatus.Error) {
-		return
+		return false
 	}
 
 	// non-status logic error that could be returned
 	// from the SDK client; should not be considered
 	// as a connection error
 	var siErr *object.SplitInfoError
-	if !errors.As(err, &siErr) {
-		c.incErrorRate()
-	}
+	return !errors.As(err, &siErr)
 }
 
 // clientBuilder is a type alias of client constructors.
@@ -509,13 +469,16 @@ func (x *InitParameters) SetSessionExpirationDuration(expirationDuration uint64)
 	x.sessionExpirationDuration = expirationDuration
 }
 
-// SetErrorThreshold specifies the number of errors on connection after which node is considered as unhealthy.
+// SetErrorThreshold specifies the number of errors on connection after which
+// node is considered as unhealthy. It's ignored if pool only has a single node.
 func (x *InitParameters) SetErrorThreshold(threshold uint32) {
 	x.errorThreshold = threshold
 }
 
-// SetErrorThresholdWindowSize sets the time period for the sliding window. If the number of errors within this duration
-// exceeds the ErrorThreshold, the node is considered unhealthy.
+// SetErrorThresholdWindowSize sets the time period for the sliding window.
+// If the number of errors within this duration exceeds the ErrorThreshold
+// (see [InitParameters.SetErrorThreshold]), the node is considered unhealthy.
+// It's ignored if pool has one node only.
 func (x *InitParameters) SetErrorThresholdWindowSize(window time.Duration) {
 	x.errorThresholdWindowSize = window
 }
@@ -728,6 +691,9 @@ func NewFlatNodeParams(endpoints []string) []NodeParam {
 // - NodeDialTimeout: 5, in seconds
 // - NodeStreamTimeout: 10, in seconds
 //
+// Notice that error threshold settings are ignored if there is just one node
+// configured for this pool.
+//
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
 func NewPool(options InitParameters) (*Pool, error) {
@@ -872,21 +838,21 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 	if params.isMissingClientBuilder() {
 		params.setClientBuilder(func(addr string) (internalClient, error) {
 			var prm = wrapperPrm{
+				address:                  addr,
+				signer:                   params.signer,
+				dialTimeout:              params.nodeDialTimeout,
+				streamTimeout:            params.nodeStreamTimeout,
+				singleNode:               len(params.nodeParams) == 1,
+				errorThreshold:           params.errorThreshold,
 				errorThresholdWindowSize: params.errorThresholdWindowSize,
+				responseInfoCallback: func(info sdkClient.ResponseMetaInfo) error {
+					cache.updateEpoch(info.Epoch())
+					return nil
+				},
+				statisticCallback:    statisticCallback,
+				buffers:              buffers,
+				nodeSessionCacheSize: params.nodeSessionCacheSize,
 			}
-
-			prm.setAddress(addr)
-			prm.setSigner(params.signer)
-			prm.setDialTimeout(params.nodeDialTimeout)
-			prm.setStreamTimeout(params.nodeStreamTimeout)
-			prm.setErrorThreshold(params.errorThreshold)
-			prm.setResponseInfoCallback(func(info sdkClient.ResponseMetaInfo) error {
-				cache.updateEpoch(info.Epoch())
-				return nil
-			})
-			prm.setStatisticCallback(statisticCallback)
-			prm.setBuffers(buffers)
-			prm.setNodeSessionCacheSize(params.nodeSessionCacheSize)
 			return newWrapper(prm)
 		})
 	}
@@ -1117,89 +1083,4 @@ func (p *Pool) statisticMiddleware(nodeKey []byte, endpoint string, method stat.
 	if p.statisticCallback != nil {
 		p.statisticCallback(nodeKey, endpoint, method, duration, err)
 	}
-}
-
-type (
-	slidingWindow struct {
-		windowSize int64 // Nanoseconds
-		limit      int64
-
-		// Buckets
-		prevCount *atomic.Int64
-		currCount *atomic.Int64
-
-		windowStart *atomic.Int64 // Nanoseconds
-
-		rotationMu *sync.Mutex
-	}
-)
-
-func newSlidingWindow(windowSize time.Duration, limit int64) *slidingWindow {
-	var windowStart atomic.Int64
-	windowStart.Store(time.Now().UnixNano())
-
-	return &slidingWindow{
-		windowSize:  int64(windowSize),
-		limit:       limit,
-		prevCount:   &atomic.Int64{},
-		currCount:   &atomic.Int64{},
-		windowStart: &windowStart,
-		rotationMu:  &sync.Mutex{},
-	}
-}
-
-// Allow returns true if the errors count is below the threshold.
-func (sw *slidingWindow) Allow() bool {
-	now := int64(time.Now().UnixNano())
-	sw.advance(now)
-	sw.currCount.Add(1)
-
-	curr := sw.currCount.Load()
-	prev := sw.prevCount.Load()
-	start := sw.windowStart.Load()
-
-	elapsed := now - start
-	if elapsed >= sw.windowSize {
-		return curr < sw.limit
-	}
-
-	// weightedCount = curr + (prev * (windowSize - elapsed) / windowSize).
-	weightMult := sw.windowSize - elapsed
-	weightedPrev := (prev * weightMult) / sw.windowSize
-
-	return (curr + weightedPrev) < sw.limit
-}
-
-// advance handles the rotation of windows when time passes.
-func (sw *slidingWindow) advance(now int64) {
-	start := sw.windowStart.Load()
-
-	// Fast check: Is rotation needed?
-	if now-start < sw.windowSize {
-		return
-	}
-
-	sw.rotationMu.Lock()
-	defer sw.rotationMu.Unlock()
-
-	start = sw.windowStart.Load()
-	elapsed := now - start
-	if elapsed < sw.windowSize {
-		return
-	}
-
-	if elapsed < sw.windowSize*2 {
-		sw.prevCount.Store(sw.currCount.Load())
-	} else {
-		// Too much time passed, reset prev.
-		sw.prevCount.Store(0)
-	}
-
-	sw.currCount.Store(0)
-	sw.windowStart.Store(now - (now % sw.windowSize))
-}
-
-// Current returns current amount of events.
-func (sw *slidingWindow) Current() int64 {
-	return sw.currCount.Load()
 }
