@@ -12,7 +12,6 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 )
 
 // Put a new container into NeoFS.
@@ -71,10 +70,7 @@ func ExampleClient_ContainerPut() {
 	placementPolicy.SetContainerBackupFactor(1)
 	cont.SetPlacementPolicy(placementPolicy)
 
-	w := waiter.NewContainerPutWaiter(c, waiter.DefaultPollInterval)
-
-	// waiter creates the container and waits until it will be created or context canceled.
-	containerID, err = w.ContainerPut(ctx, cont, signer, client.PrmContainerPut{})
+	containerID, err = c.ContainerPut(ctx, cont, signer, client.PrmContainerPut{})
 	if err != nil {
 		panic(fmt.Errorf("ContainerPut %w", err))
 	}
