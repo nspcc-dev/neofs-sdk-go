@@ -8,5 +8,8 @@ Supported operations:
 
 The main component is [Waiter] type. It is using [client.Client] or [pool.Pool] as [Executor] implementation
 for querying async operation and wait some time, to be sure it has effect like container created/deleted etc.
+
+Deprecated: container-related functions are synchronous since NeoFS API 2.21,
+this package is no longer needed and its uses can be safely removed.
 */
 package waiter
