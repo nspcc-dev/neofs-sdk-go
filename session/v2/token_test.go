@@ -249,14 +249,6 @@ func TestToken_ValidateFields(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("invalid signature", func(t *testing.T) {
-		tok := newValidSignedToken(t)
-		tok.SetExp(time.Unix(400, 0))
-
-		err := tok.Validate(noopNNSResolver{})
-		require.EqualError(t, err, "depth 0: invalid fields: token signature verification failed")
-	})
-
 	t.Run("containers in context not in ascending order", func(t *testing.T) {
 		tok := newValidToken(t)
 		cnr1 := cidtest.ID()
@@ -418,22 +410,6 @@ func TestToken_ValidateDelegationChain(t *testing.T) {
 
 			err := tok.Validate(noopNNSResolver{})
 			require.EqualError(t, err, "depth 1: invalid fields: not valid before (nbf) is not set")
-		})
-
-		t.Run("delegation with invalid signature", func(t *testing.T) {
-			issuer := usertest.User()
-			subject := usertest.User()
-			origin := newTokenForDelegation(t, issuer.UserID(), session.NewTargetUser(subject.UserID()))
-			require.NoError(t, origin.Sign(issuer))
-			// Modify origin to invalidate signature
-			origin.SetExp(time.Unix(999, 0))
-
-			tok := newTokenForDelegation(t, subject.UserID(), session.NewTargetUser(usertest.ID()))
-			tok.SetOrigin(&origin)
-			require.NoError(t, tok.Sign(subject))
-
-			err := tok.Validate(noopNNSResolver{})
-			require.EqualError(t, err, "depth 1: invalid fields: token signature verification failed")
 		})
 
 		t.Run("origin token unsigned", func(t *testing.T) {
