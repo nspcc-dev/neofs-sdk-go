@@ -721,6 +721,9 @@ type NNSResolver interface {
 // The nnsResolver checks if a user ID is authorized under a given NNS name.
 // nnsResolver must not be nil.
 //
+// Signature verification is not performed, as it cannot be done universally
+// at this level (e.g. contract-based signatures require external verification).
+//
 // Delegation chain validation requirements:
 //   - Delegated contexts must maintain the same container order as origin contexts
 //   - Only one wildcard container (zero ID) is allowed per token
@@ -885,10 +888,6 @@ func (x Token) validateFields() error {
 	if !x.sigSet {
 		return errors.New("token is not signed")
 	}
-	if !x.VerifySignature() {
-		return errors.New("token signature verification failed")
-	}
-
 	return nil
 }
 
