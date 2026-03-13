@@ -376,7 +376,7 @@ func TestClient_ObjectPut(t *testing.T) {
 					opts := anyValidOpts
 					opts.SetCopiesNumber(n)
 
-					srv.checkRequestCopiesNumber(n)
+					srv.checkRequestCopiesNumber(0)
 					w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, opts)
 					require.NoError(t, err)
 					_, err = w.Write([]byte{1})

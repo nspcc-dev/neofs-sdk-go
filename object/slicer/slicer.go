@@ -297,7 +297,6 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	}
 
 	var prm client.PrmObjectPutInit
-	prm.SetCopiesNumber(opts.copiesNumber)
 
 	if opts.sessionToken != nil && opts.sessionTokenV2 != nil {
 		return nil, errors.New("both session token versions are set")
