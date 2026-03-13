@@ -12,7 +12,6 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	"github.com/nspcc-dev/neofs-sdk-go/pool"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/waiter"
 )
 
 // Create pool instance with 3 nodes connection.
@@ -36,7 +35,6 @@ func ExampleNewPool() {
 }
 
 func ExamplePool_ContainerPut() {
-	// import "github.com/nspcc-dev/neofs-sdk-go/waiter"
 	// import "github.com/nspcc-dev/neofs-sdk-go/container"
 	// import neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 
@@ -55,17 +53,13 @@ func ExamplePool_ContainerPut() {
 	var prmPut client.PrmContainerPut
 	// ... fill params, if required
 
-	// waits until container created or context canceled.
-	w := waiter.NewContainerPutWaiter(&p, waiter.DefaultPollInterval)
-
-	containerID, err := w.ContainerPut(context.Background(), cont, signer, prmPut)
+	containerID, err := p.ContainerPut(context.Background(), cont, signer, prmPut)
 
 	_ = containerID
 	_ = err
 }
 
 func ExamplePool_ObjectHead() {
-	// import "github.com/nspcc-dev/neofs-sdk-go/waiter"
 	// import "github.com/nspcc-dev/neofs-sdk-go/container"
 	// import "github.com/nspcc-dev/neofs-sdk-go/user"
 
