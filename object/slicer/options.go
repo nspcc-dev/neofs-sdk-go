@@ -61,6 +61,9 @@ func (x *Options) SetBearerToken(bearerToken bearer.Token) {
 // SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
 // the object PUT operation to succeed. This means that object operation will return with successful status even before
 // container placement policy is completely satisfied.
+//
+// Deprecated: Specify max replicas in container's initial placement policy
+// instead. This parameter no longer has an effect.
 func (x *Options) SetCopiesNumber(copiesNumber uint32) {
 	x.copiesNumber = copiesNumber
 }
@@ -113,6 +116,8 @@ func (x *Options) BearerToken() *bearer.Token {
 }
 
 // CopiesNumber returns the number of object copies.
+//
+// Deprecated: See [Options.SetCopiesNumber].
 func (x *Options) CopiesNumber() uint32 {
 	return x.copiesNumber
 }

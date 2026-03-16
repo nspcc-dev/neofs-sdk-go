@@ -47,16 +47,15 @@ type PrmObjectPutInit struct {
 	sessionContainer
 	bearerToken *bearer.Token
 	local       bool
-
-	copyNum uint32
 }
 
 // SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
 // the object PUT operation to succeed. This means that object operation will return with successful status even before
 // container placement policy is completely satisfied.
-func (x *PrmObjectPutInit) SetCopiesNumber(copiesNumber uint32) {
-	x.copyNum = copiesNumber
-}
+//
+// Deprecated: Specify max replicas in container's initial placement policy
+// instead. This parameter no longer has an effect.
+func (x *PrmObjectPutInit) SetCopiesNumber(uint32) {}
 
 // ResObjectPut groups the final result values of ObjectPutInit operation.
 type ResObjectPut struct {
@@ -112,16 +111,15 @@ func (x *PrmObjectPutInit) MarkLocal() {
 
 // writeHeader writes header of the object. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
-func (x *DefaultObjectWriter) writeHeader(hdr object.Object, copyNum uint32) error {
+func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	mh := hdr.ProtoMessage()
 	req := &protoobject.PutRequest{
 		Body: &protoobject.PutRequest_Body{
 			ObjectPart: &protoobject.PutRequest_Body_Init_{
 				Init: &protoobject.PutRequest_Body_Init{
-					ObjectId:     mh.ObjectId,
-					Signature:    mh.Signature,
-					Header:       mh.Header,
-					CopiesNumber: copyNum,
+					ObjectId:  mh.ObjectId,
+					Signature: mh.Signature,
+					Header:    mh.Header,
 				},
 			},
 		},
@@ -393,7 +391,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	w.stream = stream
 	w.singleMsgTimeout = c.streamTimeout
 	w.opts = prm
-	if err = w.writeHeader(hdr, prm.copyNum); err != nil {
+	if err = w.writeHeader(hdr); err != nil {
 		_ = w.Close()
 		err = fmt.Errorf("header write: %w", err)
 		return nil, err
