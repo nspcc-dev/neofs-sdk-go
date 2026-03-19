@@ -5,6 +5,7 @@ import (
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
@@ -97,4 +98,34 @@ func TestNewN3Signature(t *testing.T) {
 	require.Equal(t, neofscrypto.N3, sig.Scheme())
 	require.Equal(t, verifScript, sig.PublicKeyBytes())
 	require.Equal(t, invocScript, sig.Value())
+}
+
+func TestSignature_FromProtoMessage(t *testing.T) {
+	anyVerifScript := testutil.RandByteSlice(1024)
+	anyInvocScript := testutil.RandByteSlice(1024)
+
+	var sig neofscrypto.Signature
+
+	t.Run("too big verification script", func(t *testing.T) {
+		err := sig.FromProtoMessage(&refs.Signature{
+			Key: append(anyVerifScript, 0),
+		})
+		require.EqualError(t, err, "verification script len 1025 overflows limit 1024")
+	})
+
+	t.Run("too big invocation script", func(t *testing.T) {
+		err := sig.FromProtoMessage(&refs.Signature{
+			Sign: append(anyInvocScript, 0),
+		})
+		require.EqualError(t, err, "invocation script len 1025 overflows limit 1024")
+	})
+
+	err := sig.FromProtoMessage(&refs.Signature{
+		Key:  anyVerifScript,
+		Sign: anyInvocScript,
+	})
+	require.NoError(t, err)
+
+	require.Equal(t, anyVerifScript, sig.PublicKeyBytes())
+	require.Equal(t, anyInvocScript, sig.Value())
 }
