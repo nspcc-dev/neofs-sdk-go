@@ -7,6 +7,12 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
+// Protocol limits.
+const (
+	MaxVerificationScriptLength = 1024 // verification script or public key binary
+	MaxInvocationScriptLength   = 1024 // invocation script or signature
+)
+
 // StablyMarshallable describes structs which can be marshalled transparently.
 type StablyMarshallable = neofsproto.Message
 
@@ -24,16 +30,26 @@ type Signature struct {
 }
 
 // NewSignatureFromRawKey constructs new Signature instance.
+//
+// The pub and value lengths should not be greater than
+// [MaxVerificationScriptLength] and [MaxInvocationScriptLength]
+// correspondingly.
 func NewSignatureFromRawKey(scheme Scheme, pub []byte, value []byte) Signature {
 	return Signature{scheme: scheme, pub: pub, val: value}
 }
 
 // NewSignature is a Signature instance constructor.
+//
+// The value length should not be greater than [MaxInvocationScriptLength].
 func NewSignature(scheme Scheme, publicKey PublicKey, value []byte) Signature {
 	return NewSignatureFromRawKey(scheme, PublicKeyBytes(publicKey), value)
 }
 
 // NewN3Signature constructs signature from given N3 witness scripts.
+//
+// The verifScript and invocScript lengths should not be greater than
+// [MaxVerificationScriptLength] and [MaxInvocationScriptLength]
+// correspondingly.
 func NewN3Signature(invocScript, verifScript []byte) Signature {
 	return NewSignatureFromRawKey(N3, verifScript, invocScript)
 }
@@ -45,6 +61,12 @@ func NewN3Signature(invocScript, verifScript []byte) Signature {
 func (x *Signature) FromProtoMessage(m *refs.Signature) error {
 	if m.Scheme < 0 {
 		return fmt.Errorf("negative scheme %d", m.Scheme)
+	}
+	if len(m.Key) > MaxVerificationScriptLength {
+		return fmt.Errorf("verification script len %d overflows limit %d", len(m.Key), MaxVerificationScriptLength)
+	}
+	if len(m.Sign) > MaxInvocationScriptLength {
+		return fmt.Errorf("invocation script len %d overflows limit %d", len(m.Sign), MaxInvocationScriptLength)
 	}
 	x.scheme = Scheme(m.Scheme)
 	x.pub = m.Key
@@ -119,6 +141,8 @@ func (x Signature) PublicKey() PublicKey {
 
 // SetPublicKeyBytes returns binary-encoded public key of the signer which
 // calculated the signature.
+//
+// The pub length should not be greater than [MaxVerificationScriptLength].
 func (x *Signature) SetPublicKeyBytes(pub []byte) {
 	x.pub = pub
 }
@@ -138,6 +162,8 @@ func (x Signature) PublicKeyBytes() []byte {
 }
 
 // SetValue sets calculated digital signature.
+//
+// The v length should not be greater than [MaxInvocationScriptLength].
 func (x *Signature) SetValue(v []byte) {
 	x.val = v
 }
