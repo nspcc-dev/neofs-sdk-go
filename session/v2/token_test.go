@@ -200,7 +200,7 @@ func TestToken_ValidateFields(t *testing.T) {
 		{"empty context", "depth 0: invalid fields: context at index 0 has no verbs", func(tok *session.Token) {
 			require.NoError(t, tok.SetContexts([]session.Context{{}}))
 		}},
-		{"multiple wildcard containers in contexts", "depth 0: invalid fields: duplicate container at index 1: 11111111111111111111111111111111", func(tok *session.Token) {
+		{"multiple wildcard containers in contexts", "depth 0: invalid fields: duplicate container at index 1: wildcard", func(tok *session.Token) {
 			ctx, err := session.NewContext(cid.ID{}, []session.Verb{session.VerbObjectGet})
 			require.NoError(t, err)
 			ctx2, err := session.NewContext(cid.ID{}, []session.Verb{session.VerbObjectPut})

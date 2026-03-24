@@ -876,7 +876,12 @@ func (x Token) validateFields() error {
 				return fmt.Errorf("contexts must be sorted by container ID: index %d (%s) < previous index %d (%s)", i, ctx.container.String(), i-1, prev.String())
 			}
 			if cmp == 0 {
-				return fmt.Errorf("duplicate container at index %d: %s", i, ctx.container.String())
+				var cnrID = ctx.container.String()
+				if ctx.container.IsZero() {
+					cnrID = "wildcard"
+				}
+
+				return fmt.Errorf("duplicate container at index %d: %s", i, cnrID)
 			}
 
 			if wildcardVerbs != nil && slices.Equal(ctx.verbs, wildcardVerbs) {
