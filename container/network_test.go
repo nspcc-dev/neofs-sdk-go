@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+//nolint:staticcheck // homomorphic hash compatibility
 func TestContainer_NetworkConfig(t *testing.T) {
 	c := containertest.Container()
 	nc := netmaptest.NetworkInfo()

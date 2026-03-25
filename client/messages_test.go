@@ -1120,7 +1120,7 @@ func checkContainerTransport(c container.Container, m *protocontainer.Container)
 	if v1, v2 := c.Name(), name; v1 != v2 {
 		return fmt.Errorf("name attribute (client: %q, message: %q)", v1, v2)
 	}
-	if v1, v2 := c.IsHomomorphicHashingDisabled(), disableHomoHash; v2 != v1 {
+	if v1, v2 := c.IsHomomorphicHashingDisabled(), disableHomoHash; v2 != v1 { //nolint:staticcheck // homo containers can still be found
 		return fmt.Errorf("homomorphic hashing flag attribute (client: %t, message: %t)", v1, v2)
 	}
 	if v1, v2 := c.CreatedAt().Unix(), timestamp; v2 != v1 {
@@ -1673,6 +1673,7 @@ func checkObjectHeaderTransport(h object.Object, m *protoobject.Header) error {
 		return fmt.Errorf("type field (client: %v, message %v)", expType, actType)
 	}
 	// 8. payload homomorphic checksum
+	//nolint:staticcheck // homo objects can still be replicated
 	cs, ok = h.PayloadHomomorphicHash()
 	mcs = m.GetHomomorphicHash()
 	if ok {

@@ -519,6 +519,9 @@ const configHomomorphicHashingDisabled = "HomomorphicHashingDisabled"
 // hashing of the containers in the network.
 //
 // See also HomomorphicHashingDisabled.
+//
+// Deprecated: Tillich-Zémor checksum is not supported for objects starting
+// from API 2.23+.
 func (x *NetworkInfo) DisableHomomorphicHashing() {
 	x.setConfigBool(configHomomorphicHashingDisabled, true)
 }
@@ -527,6 +530,9 @@ func (x *NetworkInfo) DisableHomomorphicHashing() {
 // hashing network setting.
 //
 // Zero NetworkInfo has enabled homomorphic hashing.
+//
+// Deprecated: Tillich-Zémor checksum is not supported for objects starting
+// from API 2.23+.
 func (x NetworkInfo) HomomorphicHashingDisabled() bool {
 	return x.configBool(configHomomorphicHashingDisabled)
 }

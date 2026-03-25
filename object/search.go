@@ -138,7 +138,7 @@ const (
 	FilterOwnerID                = reservedFilterPrefix + "ownerID"
 	FilterPayloadChecksum        = reservedFilterPrefix + "payloadHash"
 	FilterType                   = reservedFilterPrefix + "objectType"
-	FilterPayloadHomomorphicHash = reservedFilterPrefix + "homomorphicHash"
+	FilterPayloadHomomorphicHash = reservedFilterPrefix + "homomorphicHash" // Deprecated.
 	FilterParentID               = reservedFilterPrefix + "split.parent"
 	FilterSplitID                = reservedFilterPrefix + "split.splitID"
 	FilterFirstSplitObject       = reservedFilterPrefix + "split.first"
@@ -359,6 +359,9 @@ func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size
 // AddHomomorphicHashFilter adds filter by homomorphic hash.
 //
 // The m must not be numeric (like [MatchNumGT]).
+//
+// Deprecated: homomorphic hash is not added to API 2.23+ objects and should
+// not be searched.
 func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
 	f.addFilter(m, FilterPayloadHomomorphicHash, hex.EncodeToString(sum[:]))
 }

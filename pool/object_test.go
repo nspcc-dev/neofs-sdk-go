@@ -440,7 +440,7 @@ func TestPool_ObjectHash(t *testing.T) {
 	hashOpts.WithBearerToken(bearertest.Token())
 	hashOpts.MarkLocal()
 	hashOpts.WithXHeaders("k1", "v1", "k2", "v2")
-	hashOpts.TillichZemorAlgo()
+	hashOpts.TillichZemorAlgo() //nolint:staticcheck // still supported for clients
 	hashOpts.SetRangeList(1, 2, 3, 4)
 	hashOpts.UseSalt([]byte("any_salt"))
 

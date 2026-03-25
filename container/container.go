@@ -440,6 +440,9 @@ const attributeHomoHashEnabled = "true"
 // Container data.
 //
 // See also IsHomomorphicHashingDisabled.
+//
+// Deprecated: Tillich-Zémor checksum is not supported for objects starting
+// from API 2.23+.
 func (x *Container) DisableHomomorphicHashing() {
 	x.SetAttribute(sysAttrDisableHomohash, attributeHomoHashEnabled)
 }
@@ -447,6 +450,9 @@ func (x *Container) DisableHomomorphicHashing() {
 // IsHomomorphicHashingDisabled checks if DisableHomomorphicHashing was called.
 //
 // Zero Container has enabled hashing.
+//
+// Deprecated: Tillich-Zémor checksum is not supported for objects starting
+// from API 2.23+.
 func (x Container) IsHomomorphicHashingDisabled() bool {
 	return x.Attribute(sysAttrDisableHomohash) == attributeHomoHashEnabled
 }

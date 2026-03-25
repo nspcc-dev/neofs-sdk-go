@@ -401,7 +401,7 @@ func TestSearchFilters_AddHomomorphicHashFilter(t *testing.T) {
 
 func ExampleSearchFilters_AddHomomorphicHashFilter() {
 	hash, _ := hex.DecodeString("7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c")
-	cs := checksum.NewTillichZemor([tz.Size]byte(hash))
+	cs := checksum.NewTillichZemor([tz.Size]byte(hash)) //nolint:staticcheck // still supported for clients
 	fmt.Println(hex.EncodeToString(cs.Value()))
 	// Output: 7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c
 }

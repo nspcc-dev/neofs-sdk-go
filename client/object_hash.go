@@ -61,6 +61,9 @@ func (x *PrmObjectHash) SetRangeList(r ...uint64) {
 // (https://link.springer.com/content/pdf/10.1007/3-540-48658-5_5.pdf).
 //
 // By default, SHA256 hash function is used.
+//
+// Deprecated: this algorithm has been deprecated and should not be used. Its
+// support will be removed eventually.
 func (x *PrmObjectHash) TillichZemorAlgo() {
 	x.tz = true
 }

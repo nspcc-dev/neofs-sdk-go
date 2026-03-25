@@ -29,7 +29,7 @@ type Type int32
 const (
 	_            Type = iota
 	SHA256            // SHA-256 hash
-	TillichZemor      // Tillich-Zémor homomorphic hash
+	TillichZemor      // Tillich-Zémor homomorphic hash. Deprecated.
 )
 
 func typeToProto(t Type) refs.ChecksumType {
@@ -66,6 +66,9 @@ func NewSHA256(h [sha256.Size]byte) Checksum {
 }
 
 // NewTillichZemor constructs new Checksum from Tillich-Zémor homomorphic hash.
+//
+// Deprecated: Tillich-Zémor checksum is not supported for objects starting
+// from API 2.23+.
 func NewTillichZemor(h [tz.Size]byte) Checksum {
 	return New(TillichZemor, h[:])
 }
@@ -123,7 +126,7 @@ func (c Checksum) ProtoMessage() *refs.Checksum {
 //
 // Zero Checksum has Unknown checksum type.
 //
-// See also [NewTillichZemor], [NewSHA256].
+// See also [NewSHA256].
 func (c Checksum) Type() Type {
 	return c.typ
 }
@@ -136,7 +139,7 @@ func (c Checksum) Type() Type {
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 //
-// See also [NewTillichZemor], [NewSHA256].
+// See also [NewSHA256].
 func (c Checksum) Value() []byte {
 	return c.val
 }
