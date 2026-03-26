@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.0.0-rc.18] - 2026-03-26
+
+This version is compatible with API 2.22, it introduces initial placement
+policies and contains other relevant changes as well as a set of fixes for
+v2 session tokens.
+
+New features:
+ * AuthUser() API for session tokens (#779)
+ * Initial placement policies (#787)
+
+Behaviour changes:
+ * Protobuf field numbers are exported from the respective packages now (#783, #786)
+ * Single-node pools are always healthy now (#794)
+ * Session v2 token signature check is decoupled from Verify() method (#795)
+ * `waiter` package is deprecated, it's no longer needed with API 2.21+ (#796)
+ * `PrmObjectPutInit.SetCopiesNumber` option is deprecated as in API 2.22 (#798)
+ * API 2.22 signature size limits are enforced (#800)
+
+Improvements:
+ * Support unsigned responses starting with API 2.22 (#717)
+ * Go 1.25+ is required now (#792)
+ * Updated NeoGo dependency to 0.118.0 (#792, #797)
+ * Updated tzhash dependency to 1.8.4 (#792)
+ * Updated zap dependency to 1.27.1 (#792)
+ * Updated grpc dependency to 1.79.3 (#792, #799)
+ * Updated protobuf dependency to 1.36.11 (#792)
+ * Better error message for container duplication in session token v2 (#801)
+
+Bugs fixed:
+ * Container SetAttribute and RemoveAttribute verbs not supported by session token v2 properly (#781)
+ * "Incorrect object identifier" for old objects (#780)
+ * Too low allowed verb limit for session tokens v2 (#782)
+ * Missing session token v2 field in RequestMetaHeader (#784)
+
 ## [1.0.0-rc.17] - 2026-02-04
 
 This version is compatible with API 2.21, it introduces session tokens v2,
@@ -416,6 +450,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.18]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.17...v1.0.0-rc.18
 [1.0.0-rc.17]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.16...v1.0.0-rc.17
 [1.0.0-rc.16]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.15...v1.0.0-rc.16
 [1.0.0-rc.15]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.14...v1.0.0-rc.15
