@@ -78,7 +78,12 @@ func TestContainer_MarshalStable(t *testing.T) {
 
 func TestPutRequest_Body_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*container.PutRequest_Body{
-		{Container: randContainer(), Signature: prototest.RandSignatureRFC6979()},
+		{
+			Container:     randContainer(),
+			Signature:     prototest.RandSignatureRFC6979(),
+			Eacl:          prototest.RandEACL(),
+			EaclSignature: prototest.RandSignatureRFC6979(),
+		},
 	})
 }
 
