@@ -75,6 +75,8 @@ const (
 	_ = iota
 	FieldPutRequestBodyContainer
 	FieldPutRequestBodySignature
+	FieldPutRequestBodyEacl
+	FieldPutRequestBodyEaclSignature
 )
 
 // MarshaledSize returns size of the PutRequest_Body in Protocol Buffers V3
@@ -83,7 +85,9 @@ func (x *PutRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = proto.SizeEmbedded(FieldPutRequestBodyContainer, x.Container) +
-			proto.SizeEmbedded(FieldPutRequestBodySignature, x.Signature)
+			proto.SizeEmbedded(FieldPutRequestBodySignature, x.Signature) +
+			proto.SizeEmbedded(FieldPutRequestBodyEacl, x.Eacl) +
+			proto.SizeEmbedded(FieldPutRequestBodyEaclSignature, x.EaclSignature)
 	}
 	return sz
 }
@@ -94,7 +98,9 @@ func (x *PutRequest_Body) MarshaledSize() int {
 func (x *PutRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, FieldPutRequestBodyContainer, x.Container)
-		proto.MarshalToEmbedded(b[off:], FieldPutRequestBodySignature, x.Signature)
+		off += proto.MarshalToEmbedded(b[off:], FieldPutRequestBodySignature, x.Signature)
+		off += proto.MarshalToEmbedded(b[off:], FieldPutRequestBodyEacl, x.Eacl)
+		proto.MarshalToEmbedded(b[off:], FieldPutRequestBodyEaclSignature, x.EaclSignature)
 	}
 }
 
