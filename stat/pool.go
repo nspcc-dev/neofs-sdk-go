@@ -35,24 +35,29 @@ func (s *PoolStat) OperationCallback(nodeKey []byte, endpoint string, method Met
 
 	k := hex.EncodeToString(nodeKey)
 
-	s.mu.Lock()
+	s.mu.RLock()
 	mon, ok := s.monitors[k]
+	s.mu.RUnlock()
 	if !ok {
-		methods := make([]*methodStatus, MethodLast)
-		for i := range MethodLast {
-			methods[i] = &methodStatus{name: i.String()}
-		}
+		s.mu.Lock()
+		mon, ok = s.monitors[k]
+		if !ok {
+			methods := make([]*methodStatus, MethodLast)
+			for i := range MethodLast {
+				methods[i] = &methodStatus{name: i.String()}
+			}
 
-		mon = &nodeMonitor{
-			addr:           endpoint,
-			mu:             sync.RWMutex{},
-			methods:        methods,
-			errorThreshold: s.errorThreshold,
-		}
+			mon = &nodeMonitor{
+				addr:           endpoint,
+				mu:             sync.RWMutex{},
+				methods:        methods,
+				errorThreshold: s.errorThreshold,
+			}
 
-		s.monitors[k] = mon
+			s.monitors[k] = mon
+		}
+		s.mu.Unlock()
 	}
-	s.mu.Unlock()
 
 	if duration > 0 {
 		mon.methods[method].incRequests(duration)
