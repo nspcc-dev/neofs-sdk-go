@@ -49,7 +49,6 @@ func (s *PoolStat) OperationCallback(nodeKey []byte, endpoint string, method Met
 
 			mon = &nodeMonitor{
 				addr:           endpoint,
-				mu:             sync.RWMutex{},
 				methods:        methods,
 				errorThreshold: s.errorThreshold,
 			}
