@@ -122,6 +122,7 @@ func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
 	ni.SetRawNetworkParameter(string(testutil.RandByteSlice(10)), testutil.RandByteSlice(10))
 	ni.SetCurrentEpoch(opts.CurrentNeoFSEpoch())
 	ni.SetMaxObjectSize(opts.ObjectPayloadLimit())
+	//nolint:staticcheck // compatibility
 	if !opts.IsHomomorphicChecksumEnabled() {
 		ni.DisableHomomorphicHashing()
 	}
@@ -547,6 +548,7 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 
 	require.NoError(tb, header.CheckHeaderVerificationFields(), "verification fields must be correctly set in header")
 
+	//nolint:staticcheck // still supported for clients
 	_, ok := header.PayloadHomomorphicHash()
 	require.Equal(tb, in.withHomo, ok)
 }
@@ -652,6 +654,7 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 		hs: []hash.Hash{sha256.New()},
 	}
 
+	//nolint:staticcheck // still supported for clients
 	csHomo, ok := header.PayloadHomomorphicHash()
 	if ok {
 		pcs.cs = append(pcs.cs, csHomo)

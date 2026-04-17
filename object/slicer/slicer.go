@@ -103,6 +103,7 @@ func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID
 		sessionTokenV2:     sessionToken,
 	}
 
+	//nolint:staticcheck // compatibility
 	if !ni.HomomorphicHashingDisabled() {
 		opts.CalculateHomomorphicChecksum()
 	}
@@ -138,6 +139,7 @@ func NewWithV1Token(ctx context.Context, nw NetworkedClient, signer user.Signer,
 		sessionToken:       sessionToken,
 	}
 
+	//nolint:staticcheck // compatibility
 	if !ni.HomomorphicHashingDisabled() {
 		opts.CalculateHomomorphicChecksum()
 	}
@@ -651,6 +653,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	header.SetPayloadChecksum(checksum.NewFromHash(checksum.SHA256, meta.checksum))
 
 	if meta.homomorphicChecksum != nil {
+		//nolint:staticcheck // still supported for clients
 		header.SetPayloadHomomorphicHash(checksum.NewFromHash(checksum.TillichZemor, meta.homomorphicChecksum))
 	}
 

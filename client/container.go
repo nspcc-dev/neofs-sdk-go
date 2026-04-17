@@ -742,6 +742,8 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 // Returns any network/parsing config errors.
 //
 // See also [client.Client.NetworkInfo], [container.Container.ApplyNetworkConfig].
+//
+// Deprecated: network settings should not affect containers.
 func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c NetworkInfoExecutor) error {
 	if cnr == nil {
 		return errors.New("empty container")

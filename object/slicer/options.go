@@ -39,6 +39,9 @@ func (x *Options) SetCurrentNeoFSEpoch(e uint64) {
 
 // CalculateHomomorphicChecksum makes Slicer to calculate and set homomorphic
 // checksum of the processed objects.
+//
+// Deprecated: homomorphic hashing has been deprecated and should not be used.
+// Its support will be removed eventually.
 func (x *Options) CalculateHomomorphicChecksum() {
 	x.withHomoChecksum = true
 }
@@ -96,6 +99,9 @@ func (x *Options) CurrentNeoFSEpoch() uint64 {
 }
 
 // IsHomomorphicChecksumEnabled indicates homomorphic checksum calculation status.
+//
+// Deprecated: homomorphic hashing has been deprecated and should not be used.
+// Its support will be removed eventually.
 func (x *Options) IsHomomorphicChecksumEnabled() bool {
 	return x.withHomoChecksum
 }

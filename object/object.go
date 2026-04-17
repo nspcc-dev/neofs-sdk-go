@@ -556,6 +556,8 @@ func (o *Object) SetPayloadChecksum(v checksum.Checksum) {
 // Zero [Object] does not have payload homomorphic checksum.
 //
 // See also [Object.SetPayloadHomomorphicHash].
+//
+// Deprecated: API 2.23+ objects must not have homomorphic hash.
 func (o Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 	if o.header.pldHomoHash != nil {
 		return *o.header.pldHomoHash, true
@@ -566,6 +568,8 @@ func (o Object) PayloadHomomorphicHash() (checksum.Checksum, bool) {
 // SetPayloadHomomorphicHash sets homomorphic hash of the object payload.
 //
 // See also [Object.PayloadHomomorphicHash].
+//
+// Deprecated: API 2.23+ objects must not have homomorphic hash.
 func (o *Object) SetPayloadHomomorphicHash(v checksum.Checksum) {
 	o.header.pldHomoHash = &v
 }

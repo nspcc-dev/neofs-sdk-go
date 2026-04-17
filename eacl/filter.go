@@ -88,7 +88,7 @@ const (
 	FilterObjectPayloadSize                = "$Object:payloadLength"
 	FilterObjectPayloadChecksum            = "$Object:payloadHash"
 	FilterObjectType                       = "$Object:objectType"
-	FilterObjectPayloadHomomorphicChecksum = "$Object:homomorphicHash"
+	FilterObjectPayloadHomomorphicChecksum = "$Object:homomorphicHash" // Deprecated.
 )
 
 func (s staticStringer) EncodeToString() string {

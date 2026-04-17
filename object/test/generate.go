@@ -61,7 +61,6 @@ func generate(withParent bool) object.Object {
 	splitID := SplitID()
 	x.SetSplitID(&splitID)
 	x.SetPayloadChecksum(checksumtest.Checksum())
-	x.SetPayloadHomomorphicHash(checksumtest.Checksum())
 
 	if withParent {
 		par := generate(false)
