@@ -1,28 +1,27 @@
 package stat
 
 import (
-	"sync"
+	"sync/atomic"
 	"time"
 )
 
 // methodStatus provide statistic for specific method.
 type methodStatus struct {
-	name string
-	mu   sync.RWMutex // protect counters
-	Snapshot
+	name        string
+	allTime     atomic.Uint64
+	allRequests atomic.Uint64
 }
 
 func (m *methodStatus) snapshot() Snapshot {
-	m.mu.RLock()
-	defer m.mu.RUnlock()
-	return m.Snapshot
+	return Snapshot{
+		allTime:     m.allTime.Load(),
+		allRequests: m.allRequests.Load(), // Technically racy wrt allTime, practically should be good enough.
+	}
 }
 
 func (m *methodStatus) incRequests(elapsed time.Duration) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.allTime += uint64(elapsed)
-	m.allRequests++
+	m.allRequests.Add(1)
+	m.allTime.Add(uint64(elapsed))
 }
 
 // Snapshot represents statistic for specific method.
@@ -47,20 +46,15 @@ type nodeMonitor struct {
 	errorThreshold uint32
 	methods        []*methodStatus
 
-	mu                sync.RWMutex // protect counters
-	overallErrorCount uint64
+	overallErrorCount atomic.Uint64
 }
 
 func (c *nodeMonitor) incErrorRate() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.overallErrorCount++
+	c.overallErrorCount.Add(1)
 }
 
 func (c *nodeMonitor) overallErrorRate() uint64 {
-	c.mu.RLock()
-	defer c.mu.RUnlock()
-	return c.overallErrorCount
+	return c.overallErrorCount.Load()
 }
 
 func (c *nodeMonitor) methodsStatus() []Snapshot {
