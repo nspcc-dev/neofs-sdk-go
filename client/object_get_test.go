@@ -1,6 +1,7 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -73,6 +74,15 @@ func checkSuccessfulGetObjectTransport(t testing.TB, hb *protoobject.GetResponse
 		Header:    in.GetHeader(),
 		Signature: in.GetSignature(),
 	}))
+}
+
+type shortWriter struct{}
+
+func (shortWriter) Write(p []byte) (int, error) {
+	if len(p) == 0 {
+		return 0, nil
+	}
+	return len(p) - 1, nil
 }
 
 func getObjectIDForHeaderResponseBody(resp *protoobject.HeadResponse_Body) oid.ID {
@@ -225,7 +235,7 @@ func (x *testGetObjectServer) Get(req *protoobject.GetRequest, stream protoobjec
 			if n == 0 {
 				resp.Body = proto.Clone(validFullHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body)
 				if lastRespInd > 0 {
-					resp.Body = setPayloadLengthInHeadingGetResponse(resp.Body, uint64(lastRespInd-1)*uint64(len(chunk)))
+					resp.Body = setPayloadLengthInHeadingGetResponse(resp.Body, uint64(lastRespInd)*uint64(len(chunk)))
 				}
 			} else {
 				resp.Body = setChunkInGetResponse(validFullChunkObjectGetResponseBody, chunk)
@@ -331,7 +341,7 @@ func (x *testGetObjectPayloadRangeServer) GetRange(req *protoobject.GetRangeRequ
 	if x.handlerErrForced {
 		return x.handlerErr
 	}
-	lastRespInd := uint(1)
+	lastRespInd := uint(0)
 	x.m.Lock()
 	defer x.m.Unlock()
 	if x.resps != nil {
@@ -348,6 +358,9 @@ func (x *testGetObjectPayloadRangeServer) GetRange(req *protoobject.GetRangeRequ
 	chunk := x.chunk
 	if chunk == nil {
 		chunk = []byte("Hello, world!")
+		if ln := req.GetBody().GetRange().GetLength(); ln > 0 && uint64(len(chunk)) > ln {
+			chunk = chunk[:ln]
+		}
 	}
 	for n := range lastRespInd + 1 {
 		s := x.resps[n]
@@ -1308,8 +1321,11 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			srv.respondWithBody(1, cb)
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
+
+			buf := make([]byte, len(chunk))
 			//nolint:staticcheck // drop with t.Skip()
-			_, err = io.Copy(io.Discard, r)
+			n, err := r.Read(buf)
+			require.Equal(t, len(chunk), n)
 			t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/658")
 			require.EqualError(t, err, "payload size overflow")
 		})
@@ -1317,6 +1333,60 @@ func TestClient_ObjectGetInit(t *testing.T) {
 	t.Run("response callback", func(t *testing.T) {
 		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
 		// TODO: implement
+	})
+	t.Run("writer to", func(t *testing.T) {
+		t.Run("continues from tail payload", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			payload := []byte("Hello, world!")
+			srv.respondWithObject(proto.Clone(validFullHeadingObjectGetResponseBody.GetInit()).(*protoobject.GetResponse_Body_Init), [][]byte{payload})
+
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			var head [1]byte
+			n, err := r.Read(head[:])
+			require.NoError(t, err)
+			require.Equal(t, 1, n)
+			require.Equal(t, payload[:1], head[:])
+
+			var dst bytes.Buffer
+			nn, err := r.WriteTo(&dst)
+			require.NoError(t, err)
+			require.Equal(t, int64(len(payload)-1), nn)
+			require.Equal(t, payload[1:], dst.Bytes())
+		})
+		t.Run("short write", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			payload := []byte("Hello, world!")
+			srv.respondWithObject(proto.Clone(validFullHeadingObjectGetResponseBody.GetInit()).(*protoobject.GetResponse_Body_Init), [][]byte{payload})
+
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			n, err := r.WriteTo(shortWriter{})
+			require.Equal(t, int64(len(payload)-1), n)
+			require.ErrorIs(t, err, io.ErrShortWrite)
+		})
+		t.Run("payload size overflow", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			chunk := []byte("Hello, world!")
+			hb := setPayloadLengthInHeadingGetResponse(validFullHeadingObjectGetResponseBody, uint64(len(chunk)-1))
+			cb := setChunkInGetResponse(validFullChunkObjectGetResponseBody, chunk)
+
+			srv.respondWithBody(0, hb)
+			srv.respondWithBody(1, cb)
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			_, err = r.WriteTo(io.Discard)
+			require.EqualError(t, err, "payload size overflow")
+		})
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		type collectedItem struct {
@@ -1466,6 +1536,36 @@ func TestClient_ObjectGetInit(t *testing.T) {
 				require.NoError(t, err)
 				checkSuccessfulGetObjectTransport(t, hb, fullPayload, h, r, err)
 			})
+		})
+
+		t.Run("writer to checksum after short write", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			hb := proto.Clone(validFullHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body)
+			hb = setPayloadLengthInHeadingGetResponse(hb, uint64(len(fullPayload)))
+			hb.GetInit().Header.PayloadHash = &protorefs.Checksum{
+				Type: protorefs.ChecksumType_SHA256,
+				Sum: []byte{49, 95, 91, 219, 118, 208, 120, 196, 59, 138, 192, 6, 78, 74, 1, 100, 97, 43, 31, 206, 119, 200,
+					105, 52, 91, 252, 148, 199, 88, 148, 237, 211},
+			}
+
+			id := getObjectIDForGetResponseBody(hb)
+			srv.respondWithObject(hb.GetInit(), [][]byte{fullPayload})
+
+			var opts PrmObjectGet
+			_, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+			require.NoError(t, err)
+
+			n, err := r.WriteTo(shortWriter{})
+			require.Equal(t, int64(len(fullPayload)-1), n)
+			require.ErrorIs(t, err, io.ErrShortWrite)
+
+			var dst bytes.Buffer
+			n, err = r.WriteTo(&dst)
+			require.NoError(t, err)
+			require.Equal(t, int64(1), n)
+			require.Equal(t, fullPayload[len(fullPayload)-1:], dst.Bytes())
 		})
 	})
 }
@@ -1889,15 +1989,70 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 			srv.respondWithBody(0, cb)
 			r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(len(chunk))-1, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
+
+			buf := make([]byte, len(chunk))
 			//nolint:staticcheck // drop with t.Skip()
-			_, err = io.Copy(io.Discard, r)
+			n, err := r.Read(buf)
+			require.Equal(t, len(chunk), n)
 			t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/658")
-			require.EqualError(t, err, "payload size overflow")
+			require.EqualError(t, err, "payload range size overflow")
 		})
 	})
 	t.Run("response callback", func(t *testing.T) {
 		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
 		// TODO: implement
+	})
+	t.Run("writer to", func(t *testing.T) {
+		t.Run("continues from tail payload", func(t *testing.T) {
+			srv := newTestObjectPayloadRangeServer()
+			c := newTestObjectClient(t, srv)
+
+			payload := []byte("Hello, world!")
+			srv.respondWithChunks([][]byte{payload})
+
+			r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(len(payload)), anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			var head [1]byte
+			n, err := r.Read(head[:])
+			require.NoError(t, err)
+			require.Equal(t, 1, n)
+			require.Equal(t, payload[:1], head[:])
+
+			var dst bytes.Buffer
+			nn, err := r.WriteTo(&dst)
+			require.NoError(t, err)
+			require.Equal(t, int64(len(payload)-1), nn)
+			require.Equal(t, payload[1:], dst.Bytes())
+		})
+		t.Run("short write", func(t *testing.T) {
+			srv := newTestObjectPayloadRangeServer()
+			c := newTestObjectClient(t, srv)
+
+			payload := []byte("Hello, world!")
+			srv.respondWithChunks([][]byte{payload})
+
+			r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(len(payload)), anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			n, err := r.WriteTo(shortWriter{})
+			require.Equal(t, int64(len(payload)-1), n)
+			require.ErrorIs(t, err, io.ErrShortWrite)
+		})
+		t.Run("payload size overflow", func(t *testing.T) {
+			srv := newTestObjectPayloadRangeServer()
+			c := newTestObjectClient(t, srv)
+
+			chunk := []byte("Hello, world!")
+			cb := setChunkInRangeResponse(validFullChunkObjectRangeResponseBody, chunk)
+
+			srv.respondWithBody(0, cb)
+			r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(len(chunk))-1, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			_, err = r.WriteTo(io.Discard)
+			require.EqualError(t, err, "payload range size overflow")
+		})
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		type collectedItem struct {
