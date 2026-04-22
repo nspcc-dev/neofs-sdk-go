@@ -303,7 +303,12 @@ func (x *PayloadReader) Read(p []byte) (int, error) {
 	consumeErr := x.consumePayload(n)
 
 	if !ok {
-		if err := x.close(false); err != nil {
+		err := x.close(false)
+
+		if consumeErr != nil {
+			return n, consumeErr
+		}
+		if err != nil {
 			return n, err
 		}
 
@@ -799,6 +804,10 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 
 	if !ok {
 		err := x.close(false)
+
+		if consumeErr != nil {
+			return n, consumeErr
+		}
 		if err != nil {
 			return n, err
 		}

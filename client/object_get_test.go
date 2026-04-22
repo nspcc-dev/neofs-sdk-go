@@ -1323,10 +1323,27 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			require.NoError(t, err)
 
 			buf := make([]byte, len(chunk))
-			//nolint:staticcheck // drop with t.Skip()
 			n, err := r.Read(buf)
 			require.Equal(t, len(chunk), n)
-			t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/658")
+			require.EqualError(t, err, "payload size overflow")
+		})
+		t.Run("payload size overflow has priority over next message error", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			chunk := []byte("Hello, world!")
+			hb := setPayloadLengthInHeadingGetResponse(validFullHeadingObjectGetResponseBody, uint64(len(chunk)-1))
+			cb := setChunkInGetResponse(validFullChunkObjectGetResponseBody, chunk)
+
+			srv.respondWithBody(0, hb)
+			srv.respondWithBody(1, cb)
+			srv.respondWithBody(2, proto.Clone(validMinHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body))
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			buf := make([]byte, len(chunk)+1)
+			n, err := r.Read(buf)
+			require.Equal(t, len(chunk), n)
 			require.EqualError(t, err, "payload size overflow")
 		})
 	})
@@ -1991,10 +2008,25 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 			require.NoError(t, err)
 
 			buf := make([]byte, len(chunk))
-			//nolint:staticcheck // drop with t.Skip()
 			n, err := r.Read(buf)
 			require.Equal(t, len(chunk), n)
-			t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/658")
+			require.EqualError(t, err, "payload range size overflow")
+		})
+		t.Run("payload size overflow has priority over next message error", func(t *testing.T) {
+			srv := newTestObjectPayloadRangeServer()
+			c := newTestObjectClient(t, srv)
+
+			chunk := []byte("Hello, world!")
+			cb := setChunkInRangeResponse(validFullChunkObjectRangeResponseBody, chunk)
+
+			srv.respondWithBody(0, cb)
+			srv.respondWithBody(1, validMinObjectSplitInfoRangeResponseBody)
+			r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, uint64(len(chunk))-1, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+
+			buf := make([]byte, len(chunk)+1)
+			n, err := r.Read(buf)
+			require.Equal(t, len(chunk), n)
 			require.EqualError(t, err, "payload range size overflow")
 		})
 	})
