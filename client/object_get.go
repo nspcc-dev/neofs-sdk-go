@@ -201,45 +201,18 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 		return read, true
 	}
 
-	var chunk []byte
 	var lastRead int
 
 	for {
-		var resp *protoobject.GetResponse
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-			var err error
-			resp, err = x.stream.Recv()
-			return err
-		})
-		if x.err != nil {
-			return read, false
-		}
-
-		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
-			return read, false
-		}
-
-		part := resp.GetBody().GetObjectPart()
-		partChunk, ok := part.(*protoobject.GetResponse_Body_Chunk)
+		chunk, ok := x.recvChunk()
 		if !ok {
-			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
 			return read, false
 		}
-		if partChunk == nil {
-			x.err = errors.New("nil chunk oneof field")
-			return read, false
-		}
-
-		// read new chunk
-		chunk = partChunk.Chunk
 		if len(chunk) == 0 {
 			// just skip empty chunks since they are not prohibited by protocol
 			continue
 		}
 
-		if x.verifyChecksums {
-			x.payloadHashGot.Write(chunk) // never returns an error according to docs
-		}
 		lastRead = copy(buf[read:], chunk)
 
 		read += lastRead
@@ -251,6 +224,39 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, true
 		}
 	}
+}
+
+func (x *PayloadReader) recvChunk() ([]byte, bool) {
+	var resp *protoobject.GetResponse
+	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		var err error
+		resp, err = x.stream.Recv()
+		return err
+	})
+	if x.err != nil {
+		return nil, false
+	}
+
+	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
+		return nil, false
+	}
+
+	part := resp.GetBody().GetObjectPart()
+	partChunk, ok := part.(*protoobject.GetResponse_Body_Chunk)
+	if !ok {
+		x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
+		return nil, false
+	}
+	if partChunk == nil {
+		x.err = errors.New("nil chunk oneof field")
+		return nil, false
+	}
+
+	if x.verifyChecksums {
+		x.payloadHashGot.Write(partChunk.Chunk) // never returns an error according to docs
+	}
+
+	return partChunk.Chunk, true
 }
 
 func (x *PayloadReader) close(ignoreEOF bool) error {
@@ -270,6 +276,14 @@ func (x *PayloadReader) close(ignoreEOF bool) error {
 	return x.err
 }
 
+func (x *PayloadReader) consumePayload(n int) error {
+	x.remainingPayloadLen -= n
+	if x.remainingPayloadLen < 0 {
+		return errors.New("payload size overflow")
+	}
+	return nil
+}
+
 // Close ends reading the object payload. Must be called after using the
 // PayloadReader.
 func (x *PayloadReader) Close() error {
@@ -286,22 +300,87 @@ func (x *PayloadReader) Close() error {
 // Read implements io.Reader of the object payload.
 func (x *PayloadReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
-
-	x.remainingPayloadLen -= n
+	consumeErr := x.consumePayload(n)
 
 	if !ok {
-		if err := x.close(false); err != nil {
+		err := x.close(false)
+
+		if consumeErr != nil {
+			return n, consumeErr
+		}
+		if err != nil {
 			return n, err
 		}
 
 		return n, x.err
 	}
 
-	if x.remainingPayloadLen < 0 {
-		return n, errors.New("payload size overflow")
+	if consumeErr != nil {
+		return n, consumeErr
 	}
 
 	return n, nil
+}
+
+// WriteTo writes the remaining object payload to w.
+// It implements [io.WriterTo] and streams chunks without an intermediate read buffer.
+func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
+	var written int64
+
+	for {
+		if len(x.tailPayload) > 0 {
+			tailLen := len(x.tailPayload)
+			n, err := w.Write(x.tailPayload)
+			written += int64(n)
+			x.tailPayload = x.tailPayload[n:]
+
+			if consumeErr := x.consumePayload(n); consumeErr != nil {
+				return written, consumeErr
+			}
+
+			// Write must return a non-nil error if it returns n < len(p),
+			// but handle contract violations defensively
+			if err == nil && n < tailLen {
+				err = io.ErrShortWrite
+			}
+			if err != nil {
+				return written, err
+			}
+
+			continue
+		}
+
+		chunk, ok := x.recvChunk()
+		if !ok {
+			err := x.close(false)
+			if errors.Is(err, io.EOF) {
+				return written, nil
+			}
+			return written, err
+		}
+		if len(chunk) == 0 {
+			continue
+		}
+
+		n, err := w.Write(chunk)
+		written += int64(n)
+
+		if consumeErr := x.consumePayload(n); consumeErr != nil {
+			return written, consumeErr
+		}
+
+		if n < len(chunk) {
+			x.tailPayload = append(x.tailPayload, chunk[n:]...)
+			// Write must return a non-nil error if it returns n < len(p),
+			// but handle contract violations defensively
+			if err == nil {
+				err = io.ErrShortWrite
+			}
+		}
+		if err != nil {
+			return written, err
+		}
+	}
 }
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
@@ -604,49 +683,13 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 		return read, true
 	}
 
-	var chunk []byte
 	var lastRead int
 
 	for {
-		var resp *protoobject.GetRangeResponse
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-			var err error
-			resp, err = x.stream.Recv()
-			return err
-		})
-		if x.err != nil {
+		chunk, ok := x.recvChunk()
+		if !ok {
 			return read, false
 		}
-
-		if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
-			return read, false
-		}
-
-		// get chunk message
-		switch v := resp.GetBody().GetRangePart().(type) {
-		default:
-			x.err = fmt.Errorf("unexpected message received: %T", v)
-			return read, false
-		case *protoobject.GetRangeResponse_Body_SplitInfo:
-			if v == nil || v.SplitInfo == nil {
-				x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
-				return read, false
-			}
-			var si object.SplitInfo
-			if x.err = si.FromProtoMessage(v.SplitInfo); x.err != nil {
-				x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
-				return read, false
-			}
-			x.err = object.NewSplitInfoError(&si)
-			return read, false
-		case *protoobject.GetRangeResponse_Body_Chunk:
-			if v == nil {
-				x.err = errors.New("nil header oneof field")
-				return read, false
-			}
-			chunk = v.Chunk
-		}
-
 		if len(chunk) == 0 {
 			// just skip empty chunks since they are not prohibited by protocol
 			continue
@@ -665,6 +708,46 @@ func (x *ObjectRangeReader) readChunk(buf []byte) (int, bool) {
 	}
 }
 
+func (x *ObjectRangeReader) recvChunk() ([]byte, bool) {
+	var resp *protoobject.GetRangeResponse
+	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		var err error
+		resp, err = x.stream.Recv()
+		return err
+	})
+	if x.err != nil {
+		return nil, false
+	}
+
+	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
+		return nil, false
+	}
+
+	switch v := resp.GetBody().GetRangePart().(type) {
+	default:
+		x.err = fmt.Errorf("unexpected message received: %T", v)
+		return nil, false
+	case *protoobject.GetRangeResponse_Body_SplitInfo:
+		if v == nil || v.SplitInfo == nil {
+			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+			return nil, false
+		}
+		var si object.SplitInfo
+		if x.err = si.FromProtoMessage(v.SplitInfo); x.err != nil {
+			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
+			return nil, false
+		}
+		x.err = object.NewSplitInfoError(&si)
+		return nil, false
+	case *protoobject.GetRangeResponse_Body_Chunk:
+		if v == nil {
+			x.err = errors.New("nil header oneof field")
+			return nil, false
+		}
+		return v.Chunk, true
+	}
+}
+
 func (x *ObjectRangeReader) close(ignoreEOF bool) error {
 	defer x.cancelCtxStream()
 
@@ -677,6 +760,14 @@ func (x *ObjectRangeReader) close(ignoreEOF bool) error {
 		}
 	}
 	return x.err
+}
+
+func (x *ObjectRangeReader) consumePayload(n int) error {
+	x.receivedLen += uint64(n)
+	if x.requestedLen > 0 && x.receivedLen > x.requestedLen { // zero means full payload, we don't know its size
+		return errors.New("payload range size overflow")
+	}
+	return nil
 }
 
 // Close ends reading the payload range and returns the result of the operation
@@ -709,11 +800,14 @@ func (x *ObjectRangeReader) Close() error {
 // Read implements io.Reader of the object payload.
 func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
-
-	x.receivedLen += uint64(n)
+	consumeErr := x.consumePayload(n)
 
 	if !ok {
 		err := x.close(false)
+
+		if consumeErr != nil {
+			return n, consumeErr
+		}
 		if err != nil {
 			return n, err
 		}
@@ -721,11 +815,72 @@ func (x *ObjectRangeReader) Read(p []byte) (int, error) {
 		return n, x.err
 	}
 
-	if x.requestedLen > 0 && x.receivedLen > x.requestedLen { // zero means full payload, we don't know its size
-		return n, errors.New("payload range size overflow")
+	if consumeErr != nil {
+		return n, consumeErr
 	}
 
 	return n, nil
+}
+
+// WriteTo writes the remaining payload range to w.
+// It implements [io.WriterTo] and streams chunks without an intermediate read buffer.
+func (x *ObjectRangeReader) WriteTo(w io.Writer) (int64, error) {
+	var written int64
+
+	for {
+		if len(x.tailPayload) > 0 {
+			tailLen := len(x.tailPayload)
+			n, err := w.Write(x.tailPayload)
+			written += int64(n)
+			x.tailPayload = x.tailPayload[n:]
+
+			if consumeErr := x.consumePayload(n); consumeErr != nil {
+				return written, consumeErr
+			}
+
+			// Write must return a non-nil error if it returns n < len(p),
+			// but handle contract violations defensively
+			if err == nil && n < tailLen {
+				err = io.ErrShortWrite
+			}
+			if err != nil {
+				return written, err
+			}
+
+			continue
+		}
+
+		chunk, ok := x.recvChunk()
+		if !ok {
+			err := x.close(false)
+			if errors.Is(err, io.EOF) {
+				return written, nil
+			}
+			return written, err
+		}
+		if len(chunk) == 0 {
+			continue
+		}
+
+		n, err := w.Write(chunk)
+		written += int64(n)
+
+		if consumeErr := x.consumePayload(n); consumeErr != nil {
+			return written, consumeErr
+		}
+
+		if n < len(chunk) {
+			x.tailPayload = append(x.tailPayload, chunk[n:]...)
+			// Write must return a non-nil error if it returns n < len(p),
+			// but handle contract violations defensively
+			if err == nil {
+				err = io.ErrShortWrite
+			}
+		}
+		if err != nil {
+			return written, err
+		}
+	}
 }
 
 // ObjectRangeInit initiates reading an object's payload range through a remote
