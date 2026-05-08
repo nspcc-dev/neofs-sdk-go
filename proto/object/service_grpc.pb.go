@@ -236,6 +236,8 @@ type ObjectServiceClient interface {
 	// length) tuples. Hashes order in response corresponds to the ranges order in
 	// the request. Note that hash is calculated for XORed data.
 	//
+	// DEPRECATED: no valid use cases.
+	//
 	// Extended headers can change `GetRangeHash` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \
 	//     Will use the requsted version of Network Map for object placement
@@ -612,6 +614,8 @@ type ObjectServiceServer interface {
 	// applying XOR operation with the provided `salt`. Ranges are set of (offset,
 	// length) tuples. Hashes order in response corresponds to the ranges order in
 	// the request. Note that hash is calculated for XORed data.
+	//
+	// DEPRECATED: no valid use cases.
 	//
 	// Extended headers can change `GetRangeHash` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \

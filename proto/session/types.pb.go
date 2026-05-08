@@ -44,7 +44,7 @@ const (
 	Verb_OBJECT_DELETE Verb = 5
 	// Refers to object.GetRange RPC call
 	Verb_OBJECT_RANGE Verb = 6
-	// Refers to object.GetRangeHash RPC call
+	// Refers to object.GetRangeHash RPC call. DEPRECATED: should not be used.
 	Verb_OBJECT_RANGEHASH Verb = 7
 	// Refers to container.Put RPC call
 	Verb_CONTAINER_PUT Verb = 8

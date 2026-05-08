@@ -29,7 +29,7 @@ const (
 	VerbObjectSearch
 	VerbObjectDelete
 	VerbObjectRange
-	VerbObjectRangeHash
+	VerbObjectRangeHash // Deprecated: should not be used.
 	VerbContainerPut
 	VerbContainerDelete
 	VerbContainerSetEACL

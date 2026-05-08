@@ -172,7 +172,7 @@ const (
 	Operation_SEARCH Operation = 5
 	// GetRange
 	Operation_GETRANGE Operation = 6
-	// GetRangeHash
+	// GetRangeHash. DEPRECATED: should not be used.
 	Operation_GETRANGEHASH Operation = 7
 )
 
