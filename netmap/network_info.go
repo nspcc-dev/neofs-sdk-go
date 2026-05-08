@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"iter"
 	"math"
+	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
@@ -282,8 +283,8 @@ func decodeConfigValueUint64(val []byte) (uint64, error) {
 	}
 
 	res := uint64(0)
-	for i := len(val) - 1; i >= 0; i-- {
-		res = res*256 + uint64(val[i])
+	for _, v := range slices.Backward(val) {
+		res = res*256 + uint64(v)
 	}
 
 	return res, nil
