@@ -249,6 +249,8 @@ const (
 	_ = iota
 	FieldGetRequestBodyAddress
 	FieldGetRequestBodyRaw
+	FieldGetRequestBodyRange
+	FieldGetRequestBodyPayloadOnly
 )
 
 // MarshaledSize returns size of the GetRequest_Body in Protocol Buffers V3
@@ -257,7 +259,9 @@ func (x *GetRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = proto.SizeEmbedded(FieldGetRequestBodyAddress, x.Address) +
-			proto.SizeBool(FieldGetRequestBodyRaw, x.Raw)
+			proto.SizeBool(FieldGetRequestBodyRaw, x.Raw) +
+			proto.SizeEmbedded(FieldGetRequestBodyRange, x.Range) +
+			proto.SizeBool(FieldGetRequestBodyPayloadOnly, x.PayloadOnly)
 	}
 	return sz
 }
@@ -268,7 +272,9 @@ func (x *GetRequest_Body) MarshaledSize() int {
 func (x *GetRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, FieldGetRequestBodyAddress, x.Address)
-		proto.MarshalToBool(b[off:], FieldGetRequestBodyRaw, x.Raw)
+		off += proto.MarshalToBool(b[off:], FieldGetRequestBodyRaw, x.Raw)
+		off += proto.MarshalToEmbedded(b[off:], FieldGetRequestBodyRange, x.Range)
+		proto.MarshalToBool(b[off:], FieldGetRequestBodyPayloadOnly, x.PayloadOnly)
 	}
 }
 

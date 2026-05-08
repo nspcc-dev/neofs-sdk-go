@@ -204,6 +204,8 @@ type ObjectServiceClient interface {
 	// restored by concatenation of all received payload chunks keeping the receiving
 	// order.
 	//
+	// DEPRECATED: use `Get` with `range` (and `payload_only` if needed) parameter.
+	//
 	// Extended headers can change `GetRange` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \
 	//     Will use the requsted version of Network Map for object placement
@@ -582,6 +584,8 @@ type ObjectServiceServer interface {
 	// Like in `Get` method, the response uses gRPC stream. Requested range can be
 	// restored by concatenation of all received payload chunks keeping the receiving
 	// order.
+	//
+	// DEPRECATED: use `Get` with `range` (and `payload_only` if needed) parameter.
 	//
 	// Extended headers can change `GetRange` behaviour:
 	//   - __NEOFS__NETMAP_EPOCH \

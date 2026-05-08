@@ -212,6 +212,9 @@ func TestGetRequest_Body_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*object.GetRequest_Body{
 		{Address: prototest.RandObjectAddress(), Raw: false},
 		{Address: prototest.RandObjectAddress(), Raw: true},
+		{Address: prototest.RandObjectAddress(), Raw: true, Range: &object.Range{Offset: 1, Length: 2}},
+		{Address: prototest.RandObjectAddress(), PayloadOnly: true},
+		{Address: prototest.RandObjectAddress(), Raw: true, Range: &object.Range{Offset: 1, Length: 2}, PayloadOnly: true},
 	})
 }
 

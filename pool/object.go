@@ -91,6 +91,7 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 
 // ObjectRangeInit initiates reading an object's payload range through a remote
 //
+// Deprecated: use [Pool.ObjectGetInit] with [client.PrmObjectGet.SetRange] instead.
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectRangeInit].
