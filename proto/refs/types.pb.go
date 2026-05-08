@@ -86,6 +86,7 @@ const (
 	// Unknown. Not used
 	ChecksumType_CHECKSUM_TYPE_UNSPECIFIED ChecksumType = 0
 	// Tillich-Zemor homomorphic hash function
+	// DEPRECATED starting from 2.23 API version.
 	ChecksumType_TZ ChecksumType = 1
 	// SHA-256
 	ChecksumType_SHA256 ChecksumType = 2

@@ -197,8 +197,6 @@ func (MatchType) EnumDescriptor() ([]byte, []int) {
 //     payload_hash
 //   - $Object:objectType \
 //     object_type
-//   - $Object:homomorphicHash \
-//     homomorphic_hash
 //   - $Object:split.parent \
 //     object_id of parent
 //   - $Object:split.splitID \
@@ -420,6 +418,7 @@ type Header struct {
 	// Type of the object payload content
 	ObjectType ObjectType `protobuf:"varint,7,opt,name=object_type,json=objectType,proto3,enum=neo.fs.v2.object.ObjectType" json:"object_type,omitempty"`
 	// Homomorphic hash of the object payload (Tillich-Zemor).
+	// DEPRECATED. Objects of 2.23+ version must have it empty.
 	HomomorphicHash *refs.Checksum `protobuf:"bytes,8,opt,name=homomorphic_hash,json=homomorphicHash,proto3" json:"homomorphic_hash,omitempty"`
 	// Session token, if it was used during Object creation. Need it to verify
 	// integrity and authenticity out of Request scope.
