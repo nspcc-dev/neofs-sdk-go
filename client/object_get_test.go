@@ -147,7 +147,9 @@ type testGetObjectServer struct {
 		*protoobject.GetResponse,
 	]
 	testCommonReadObjectRequestServerSettings
-	chunk []byte
+	chunk          []byte
+	reqRng         *protoobject.Range
+	reqPayloadOnly bool
 }
 
 // returns [protoobject.ObjectServiceServer] supporting Get method only. Default
@@ -158,6 +160,15 @@ func newTestGetObjectServer() *testGetObjectServer { return new(testGetObjectSer
 // makes the server to return given chunk in any chunk response. By default, and
 // if nil, some non-empty data chunk is returned.
 func (x *testGetObjectServer) respondWithChunk(chunk []byte) { x.chunk = chunk }
+
+// makes the server to assert that any request carries given range. By default,
+// any valid range is accepted.
+func (x *testGetObjectServer) checkRequestRange(off, ln uint64) {
+	x.reqRng = &protoobject.Range{Offset: off, Length: ln}
+}
+
+// makes the server to assert that request asks for payload only.
+func (x *testGetObjectServer) checkRequestPayloadOnly() { x.reqPayloadOnly = true }
 
 // makes the server to respond with given heading part and chunk responses.
 // Returns heading response message.
@@ -194,7 +205,27 @@ func (x *testGetObjectServer) verifyRequest(req *protoobject.GetRequest) error {
 	if err := x.verifyObjectAddress(body.Address); err != nil {
 		return err
 	}
-	// 2. raw
+	// 2. range
+	if body.Range != nil {
+		if body.Range.Length == 0 && body.Range.Offset != 0 {
+			return newErrInvalidRequestField("range", errors.New("zero length"))
+		}
+	}
+	if x.reqRng != nil {
+		if body.Range == nil {
+			return newErrMissingRequestBodyField("range")
+		}
+		if v1, v2 := x.reqRng.GetOffset(), body.Range.GetOffset(); v1 != v2 {
+			return newErrInvalidRequestField("range", fmt.Errorf("offset (client: %d, message: %d)", v1, v2))
+		}
+		if v1, v2 := x.reqRng.GetLength(), body.Range.GetLength(); v1 != v2 {
+			return newErrInvalidRequestField("range", fmt.Errorf("length (client: %d, message: %d)", v1, v2))
+		}
+	}
+	if x.reqPayloadOnly && !body.PayloadOnly {
+		return newErrMissingRequestBodyField("payload_only")
+	}
+	// 3. raw
 	return x.verifyRawFlag(body.Raw)
 }
 
@@ -875,6 +906,61 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					_, err = io.Copy(io.Discard, r)
 					require.NoError(t, err)
 				})
+				t.Run("range", func(t *testing.T) {
+					srv := newTestGetObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					rangePayload := []byte("hello")
+					hb := proto.Clone(validFullHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body)
+					hb = setPayloadLengthInHeadingGetResponse(hb, 10)
+					hb.GetInit().Header.PayloadHash = &protorefs.Checksum{Type: protorefs.ChecksumType_SHA256, Sum: []byte{1, 2, 3}}
+					id := getObjectIDForGetResponseBody(hb)
+
+					opts := PrmObjectGet{}
+					opts.SetRange(0, uint64(len(rangePayload)))
+
+					srv.checkRequestRange(0, uint64(len(rangePayload)))
+					srv.respondWithBody(0, hb)
+					srv.respondWithBody(1, setChunkInGetResponse(validFullChunkObjectGetResponseBody, rangePayload))
+
+					hdr, r, err := c.ObjectGetInit(ctx, anyCID, id, anyValidSigner, opts)
+					checkSuccessfulGetObjectTransport(t, hb, rangePayload, hdr, r, err)
+				})
+				t.Run("payload only", func(t *testing.T) {
+					srv := newTestGetObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					payload := []byte("hello")
+					opts := PrmObjectGet{}
+					opts.MarkPayloadOnly()
+
+					srv.checkRequestPayloadOnly()
+					srv.respondWithBody(0, setChunkInGetResponse(validFullChunkObjectGetResponseBody, payload))
+
+					hdr, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+					require.NoError(t, err)
+					require.True(t, hdr.GetID().IsZero())
+					require.NoError(t, iotest.TestReader(r, payload))
+				})
+				t.Run("payload only split info", func(t *testing.T) {
+					srv := newTestGetObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					opts := PrmObjectGet{}
+					opts.MarkPayloadOnly()
+
+					srv.checkRequestPayloadOnly()
+					srv.respondWithBody(0, validFullObjectSplitInfoGetResponseBody)
+
+					hdr, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+					require.NoError(t, err)
+					require.True(t, hdr.GetID().IsZero())
+
+					_, err = io.ReadAll(r)
+					var e *object.SplitInfoError
+					require.ErrorAs(t, err, &e)
+					require.NoError(t, checkSplitInfoTransport(*e.SplitInfo(), validFullObjectSplitInfoGetResponseBody.GetSplitInfo()))
+				})
 			})
 		})
 		t.Run("responses", func(t *testing.T) {
@@ -1168,6 +1254,17 @@ func TestClient_ObjectGetInit(t *testing.T) {
 		t.Run("missing signer", func(t *testing.T) {
 			_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, nil, anyValidOpts)
 			require.ErrorIs(t, err, ErrMissingSigner)
+		})
+		t.Run("zero length", func(t *testing.T) {
+			opts := PrmObjectGet{}
+			opts.SetRange(9, 0)
+			_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+			require.ErrorIs(t, err, ErrZeroRangeLength)
+		})
+		t.Run("payload only option", func(t *testing.T) {
+			opts := PrmObjectGet{}
+			opts.MarkPayloadOnly()
+			require.True(t, opts.payloadOnly)
 		})
 	})
 	t.Run("context", func(t *testing.T) {

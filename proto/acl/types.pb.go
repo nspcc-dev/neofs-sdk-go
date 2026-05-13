@@ -170,9 +170,9 @@ const (
 	Operation_DELETE Operation = 4
 	// Search
 	Operation_SEARCH Operation = 5
-	// GetRange
+	// GetRange. DEPRECATED: use parameterized Get instead.
 	Operation_GETRANGE Operation = 6
-	// GetRangeHash
+	// GetRangeHash. DEPRECATED: should not be used.
 	Operation_GETRANGEHASH Operation = 7
 )
 

@@ -284,7 +284,7 @@ const (
 	VerbObjectSearch    // Search rpc
 	VerbObjectDelete    // Delete rpc
 	VerbObjectRange     // GetRange rpc
-	VerbObjectRangeHash // GetRangeHash rpc
+	VerbObjectRangeHash // Deprecated: should not be used.
 )
 
 // ForVerb specifies the object operation of the session scope. Each

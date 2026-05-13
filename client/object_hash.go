@@ -78,6 +78,8 @@ func (x *PrmObjectHash) UseSalt(salt []byte) {
 // ObjectHash requests checksum of the range list of the object payload using
 // NeoFS API protocol.
 //
+// Deprecated: Object hash API is kept for backward compatibility and will be removed later.
+//
 // To hash full payload, set both offset and length to zero. Otherwise, length
 // must not be zero.
 //

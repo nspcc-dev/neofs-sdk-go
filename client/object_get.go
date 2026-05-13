@@ -59,12 +59,32 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 type PrmObjectGet struct {
 	prmObjectRead
 	skipChecksumVerification bool
+	payloadOnly              bool
+	rng                      *protoobject.Range
 }
 
 // SkipChecksumVerification allows to skip verification of received header
 // against object ID and payload against its in-header checksum.
 func (x *PrmObjectGet) SkipChecksumVerification() {
 	x.skipChecksumVerification = true
+}
+
+// MarkPayloadOnly requests payload without an object header.
+func (x *PrmObjectGet) MarkPayloadOnly() {
+	x.payloadOnly = true
+}
+
+// SetRange requests only a byte range of the payload.
+//
+// To request the full payload, leave the range unset or pass both offset and
+// length as zero. Otherwise, length must not be zero.
+func (x *PrmObjectGet) SetRange(offset, length uint64) {
+	if length == 0 && offset == 0 {
+		x.rng = nil
+		return
+	}
+
+	x.rng = &protoobject.Range{Offset: offset, Length: length}
 }
 
 // used part of [protoobject.ObjectService_GetClient] simplifying test
@@ -92,11 +112,14 @@ type PayloadReader struct {
 	tailPayload []byte
 
 	remainingPayloadLen int
+	enforcePayloadLen   bool
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
 
 	requestedOID oid.ID
+	hasRange     bool
+	payloadOnly  bool
 
 	verifyChecksums bool
 
@@ -160,7 +183,9 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
-	x.remainingPayloadLen = int(partInit.Header.GetPayloadLength())
+	if !x.hasRange {
+		x.remainingPayloadLen = int(partInit.Header.GetPayloadLength())
+	}
 
 	x.err = dst.FromProtoMessage(&protoobject.Object{
 		ObjectId:  partInit.ObjectId,
@@ -241,22 +266,38 @@ func (x *PayloadReader) recvChunk() ([]byte, bool) {
 		return nil, false
 	}
 
-	part := resp.GetBody().GetObjectPart()
-	partChunk, ok := part.(*protoobject.GetResponse_Body_Chunk)
-	if !ok {
+	switch part := resp.GetBody().GetObjectPart().(type) {
+	default:
 		x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
 		return nil, false
-	}
-	if partChunk == nil {
-		x.err = errors.New("nil chunk oneof field")
+	case *protoobject.GetResponse_Body_SplitInfo:
+		if !x.payloadOnly {
+			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
+			return nil, false
+		}
+		if part == nil || part.SplitInfo == nil {
+			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
+			return nil, false
+		}
+		var si object.SplitInfo
+		if x.err = si.FromProtoMessage(part.SplitInfo); x.err != nil {
+			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
+			return nil, false
+		}
+		x.err = object.NewSplitInfoError(&si)
 		return nil, false
-	}
+	case *protoobject.GetResponse_Body_Chunk:
+		if part == nil {
+			x.err = errors.New("nil chunk oneof field")
+			return nil, false
+		}
 
-	if x.verifyChecksums {
-		x.payloadHashGot.Write(partChunk.Chunk) // never returns an error according to docs
-	}
+		if x.verifyChecksums {
+			x.payloadHashGot.Write(part.Chunk) // never returns an error according to docs
+		}
 
-	return partChunk.Chunk, true
+		return part.Chunk, true
+	}
 }
 
 func (x *PayloadReader) close(ignoreEOF bool) error {
@@ -266,7 +307,7 @@ func (x *PayloadReader) close(ignoreEOF bool) error {
 		if ignoreEOF {
 			return nil
 		}
-		if x.remainingPayloadLen > 0 {
+		if x.enforcePayloadLen && x.remainingPayloadLen > 0 {
 			return io.ErrUnexpectedEOF
 		}
 		if x.verifyChecksums && !bytes.Equal(x.payloadHashGot.Sum(nil), x.payloadHashCheck) {
@@ -277,6 +318,10 @@ func (x *PayloadReader) close(ignoreEOF bool) error {
 }
 
 func (x *PayloadReader) consumePayload(n int) error {
+	if !x.enforcePayloadLen {
+		return nil
+	}
+
 	x.remainingPayloadLen -= n
 	if x.remainingPayloadLen < 0 {
 		return errors.New("payload size overflow")
@@ -385,6 +430,8 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
 // Returns header of the requested object and stream of its payload separately.
+// Use [PrmObjectGet.SetRange] to request a payload range.
+// If [PrmObjectGet.MarkPayloadOnly] is used, the returned object.Object is empty.
 //
 // Exactly one return value is non-nil. Resulting PayloadReader must be finally closed.
 //
@@ -422,14 +469,19 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	if signer == nil {
 		return hdr, nil, ErrMissingSigner
 	}
+	if prm.rng != nil && prm.rng.GetLength() == 0 && prm.rng.GetOffset() != 0 {
+		return hdr, nil, ErrZeroRangeLength
+	}
 	if prm.session != nil && prm.sessionV2 != nil {
 		return hdr, nil, errSessionTokenBothVersionsSet
 	}
 
 	req := &protoobject.GetRequest{
 		Body: &protoobject.GetRequest_Body{
-			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
-			Raw:     prm.raw,
+			Address:     oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Raw:         prm.raw,
+			Range:       prm.rng,
+			PayloadOnly: prm.payloadOnly,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
 			Version: version.Current().ProtoMessage(),
@@ -471,7 +523,13 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	var r PayloadReader
 	r.requestedOID = objectID
-	r.verifyChecksums = !prm.skipChecksumVerification
+	r.hasRange = prm.rng != nil
+	r.payloadOnly = prm.payloadOnly
+	if prm.rng != nil {
+		r.remainingPayloadLen = int(prm.rng.GetLength())
+	}
+	r.enforcePayloadLen = !r.payloadOnly || r.hasRange
+	r.verifyChecksums = !prm.skipChecksumVerification && !r.hasRange && !r.payloadOnly
 	r.cancelCtxStream = cancel
 	r.stream = stream
 	r.singleMsgTimeout = c.streamTimeout
@@ -482,9 +540,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		}
 	}
 
-	if !r.readHeader(&hdr) {
-		err = fmt.Errorf("read header: %w", r.Close())
-		return hdr, nil, err
+	if !prm.payloadOnly {
+		if !r.readHeader(&hdr) {
+			err = fmt.Errorf("read header: %w", r.Close())
+			return hdr, nil, err
+		}
 	}
 
 	return hdr, &r, nil
@@ -885,6 +945,8 @@ func (x *ObjectRangeReader) WriteTo(w io.Writer) (int64, error) {
 
 // ObjectRangeInit initiates reading an object's payload range through a remote
 // server using NeoFS API protocol.
+//
+// Deprecated: use [Client.ObjectGetInit] with [PrmObjectGet.SetRange] instead.
 //
 // To get full payload, set both offset and length to zero. Otherwise, length
 // must not be zero.

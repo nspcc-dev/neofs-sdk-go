@@ -215,7 +215,6 @@ func (p *Pool) withinContainerSessionV2(
 			sessionv2.VerbObjectSearch,
 			sessionv2.VerbObjectDelete,
 			sessionv2.VerbObjectRange,
-			sessionv2.VerbObjectRangeHash,
 		})
 		if err != nil {
 			return fmt.Errorf("create context v2: %w", err)

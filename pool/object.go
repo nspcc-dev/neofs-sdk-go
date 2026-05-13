@@ -91,6 +91,7 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 
 // ObjectRangeInit initiates reading an object's payload range through a remote
 //
+// Deprecated: use [Pool.ObjectGetInit] with [client.PrmObjectGet.SetRange] instead.
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectRangeInit].
@@ -130,6 +131,9 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 }
 
 // ObjectHash requests checksum of the range list of the object payload using
+// NeoFS API protocol.
+//
+// Deprecated: use is discouraged; method is kept for backward compatibility and will be removed later.
 //
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
