@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.0.0-rc.19] - 2026-05-20
+
+This version is compatible with API 2.23, it introduces ranged Get requests
+and deprecates GetRangeHash and GetRange RPCs along with TZ hash.
+
+New features:
+ * Object Get call can handle ranges now (#812)
+
+Behaviour changes:
+ * TZ hash is deprecated (#802)
+ * GetRangeHash functions are deprecated (#812)
+ * GetRange functions are deprecated (#812)
+
+Improvements:
+ * Optimized locking for statistics package (#807)
+ * Implemented io.WriterTo for object payload readers reducing data copies (#809)
+
+Bugs fixed:
+ * Get payload overflow not detected in some cases (#809)
+
 ## [1.0.0-rc.18] - 2026-03-26
 
 This version is compatible with API 2.22, it introduces initial placement
@@ -450,6 +470,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.19]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.18...v1.0.0-rc.19
 [1.0.0-rc.18]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.17...v1.0.0-rc.18
 [1.0.0-rc.17]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.16...v1.0.0-rc.17
 [1.0.0-rc.16]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.15...v1.0.0-rc.16
