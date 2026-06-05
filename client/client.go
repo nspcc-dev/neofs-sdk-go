@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/ecdsa"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -173,9 +174,16 @@ func (c *Client) Dial(prm PrmDial) error {
 	defer cancel()
 
 	var creds credentials.TransportCredentials
-	if withTLS {
+	switch {
+	case prm.clientMTLSKey != nil:
+		cfg, err := clientMTLSConfig(prm.clientMTLSKey)
+		if err != nil {
+			return fmt.Errorf("build client-mTLS config: %w", err)
+		}
+		creds = credentials.NewTLS(cfg)
+	case withTLS:
 		creds = credentials.NewTLS(prm.tlsConfig)
-	} else {
+	default:
 		creds = insecure.NewCredentials()
 	}
 
@@ -288,6 +296,8 @@ type PrmDial struct {
 	parentCtx context.Context
 
 	customConnFunc connFunc
+
+	clientMTLSKey *ecdsa.PrivateKey
 }
 
 // SetServerURI sets server URI in the NeoFS network.
@@ -313,6 +323,13 @@ func (x *PrmDial) SetServerURI(endpoint string) {
 // See also SetServerURI.
 func (x *PrmDial) SetTLSConfig(tlsConfig *tls.Config) {
 	x.tlsConfig = tlsConfig
+}
+
+// SetClientMTLS makes Dial use client-side mTLS with a cert built from key,
+// letting the node skip request signature verification. Forces TLS. key MUST be
+// the key that signs requests on this connection, else the skip just won't apply.
+func (x *PrmDial) SetClientMTLS(key ecdsa.PrivateKey) {
+	x.clientMTLSKey = &key
 }
 
 // SetTimeout sets the timeout for connection to be established.

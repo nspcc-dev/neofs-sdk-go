@@ -3,6 +3,7 @@ package pool
 import (
 	"cmp"
 	"context"
+	"crypto/ecdsa"
 	"errors"
 	"fmt"
 	"io"
@@ -182,6 +183,7 @@ type wrapperPrm struct {
 	statisticCallback        stat.OperationCallback
 	buffers                  *sync.Pool
 	nodeSessionCacheSize     int
+	clientMTLSKey            *ecdsa.PrivateKey
 }
 
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
@@ -267,6 +269,9 @@ func (c *clientWrapper) dial(ctx context.Context) error {
 	prmDial.SetTimeout(c.prm.dialTimeout)
 	prmDial.SetStreamTimeout(c.prm.streamTimeout)
 	prmDial.SetContext(ctx)
+	if c.prm.clientMTLSKey != nil {
+		prmDial.SetClientMTLS(*c.prm.clientMTLSKey)
+	}
 
 	if err = cl.Dial(prmDial); err != nil {
 		c.setUnhealthy()
@@ -294,6 +299,9 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 		prmDial.SetTimeout(c.prm.dialTimeout)
 		prmDial.SetStreamTimeout(c.prm.streamTimeout)
 		prmDial.SetContext(ctx)
+		if c.prm.clientMTLSKey != nil {
+			prmDial.SetClientMTLS(*c.prm.clientMTLSKey)
+		}
 
 		if err := cl.Dial(prmDial); err != nil {
 			c.setUnhealthy()
@@ -422,10 +430,18 @@ type InitParameters struct {
 	nodeSessionCacheSize       int
 	useV2Sessions              bool
 	disableSessionV2Delegation bool
+	clientMTLSKey              *ecdsa.PrivateKey
 
 	clientBuilder clientBuilder
 
 	statisticCallback stat.OperationCallback
+}
+
+// SetClientMTLS makes pooled clients dial nodes over client-side mTLS with a
+// cert built from key, letting the node skip request signature verification.
+// key MUST be the same key the pool signs requests with (see [New]).
+func (x *InitParameters) SetClientMTLS(key ecdsa.PrivateKey) {
+	x.clientMTLSKey = &key
 }
 
 // SetSigner specifies default signer to be used for the protocol communication by default.
@@ -852,6 +868,7 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 				statisticCallback:    statisticCallback,
 				buffers:              buffers,
 				nodeSessionCacheSize: params.nodeSessionCacheSize,
+				clientMTLSKey:        params.clientMTLSKey,
 			}
 			return newWrapper(prm)
 		})
