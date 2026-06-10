@@ -29,8 +29,26 @@ type PrmContainerPut struct {
 	session   *session.Container
 	sessionV2 *sessionv2.Token
 
+	eACL    *eacl.Table
+	eACLSig *neofscrypto.Signature
+
 	sigSet bool
 	sig    neofscrypto.Signature
+}
+
+// WithEACL specifies an optional initial eACL table for the container.
+// Using V2 session token [PrmContainerPut.WithinSessionV2] is mandatory
+// with this option. Session token must have [sessionv2.VerbContainerSetEACL]
+// authorization for the provided signer.
+//
+// Session token V1 [PrmContainerPut.WithinSession] is not supported for this option.
+//
+// signature is an optional eACL table signature for overriding. Overriding
+// works the same way it is done for [PrmContainerPut.AttachSignature]:
+// if omitted (nil), signer passed to [Client.ContainerPut] will be used.
+func (x *PrmContainerPut) WithEACL(eACL eacl.Table, signature *neofscrypto.Signature) {
+	x.eACL = &eACL
+	x.eACLSig = signature
 }
 
 // WithinSession specifies session within which container should be saved.
@@ -110,8 +128,19 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	if signer == nil {
 		return cid.ID{}, ErrMissingSigner
 	}
-	if prm.session != nil && prm.sessionV2 != nil {
+	sessV1Set, sessV2Set := prm.session != nil, prm.sessionV2 != nil
+	if sessV1Set && sessV2Set {
 		return cid.ID{}, errSessionTokenBothVersionsSet
+	}
+	if prm.eACL != nil {
+		if sessV1Set {
+			err = errors.New("initial eACL table does not support V1 session tokens")
+			return cid.ID{}, err
+		}
+		if sessV2Set && !prm.sessionV2.AssertVerb(sessionv2.VerbContainerSetEACL, cid.ID{}) {
+			err = fmt.Errorf("session token is not unauthorized for %s operation but initial eACL table is provided", sessionv2.VerbContainerSetEACL)
+			return cid.ID{}, err
+		}
 	}
 
 	if err = cont.PlacementPolicy().Verify(); err != nil {
@@ -145,6 +174,22 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	}
 	if prm.sessionV2 != nil {
 		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
+	}
+	if prm.eACL != nil {
+		mEACL := prm.eACL.ProtoMessage()
+		if prm.eACLSig == nil {
+			prm.eACLSig = new(neofscrypto.Signature)
+			if err = prm.eACLSig.Calculate(signer, neofsproto.MarshalMessage(mEACL)); err != nil {
+				err = fmt.Errorf("calculate eACL signature: %w", err)
+				return cid.ID{}, err
+			}
+		}
+
+		req.Body.Eacl = mEACL
+		req.Body.EaclSignature = &refs.SignatureRFC6979{
+			Key:  prm.eACLSig.PublicKeyBytes(),
+			Sign: prm.eACLSig.Value(),
+		}
 	}
 
 	var res cid.ID
