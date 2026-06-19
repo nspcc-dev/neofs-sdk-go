@@ -22,10 +22,12 @@ func NewValidator() *Validator {
 // The action is calculated according to the application of
 // eACL table of rules to the request.
 //
-// Second return value is true iff the action was produced by a matching entry.
-//
-// If no matching table entry is found or some filters are missing,
-// ActionAllow is returned and the second return value is false.
+// Second return value is true if the action was produced by a matching entry
+// or it's the default action (which is [ActionAllow] to follow basic ACL).
+// It means the calculation is final and either not dependent on headers
+// or all required headers were successfully processed. If some filters
+// can't be processed because of missing headers [ActionAllow] is returned and
+// the second return value is false.
 //
 // Note that if some rule imposes requirements on the format of values (like
 // numeric), but they do not comply with it - such a rule does not match.
@@ -53,7 +55,7 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool, error) 
 		}
 	}
 
-	return ActionAllow, false, nil
+	return ActionAllow, true, nil
 }
 
 // returns:
