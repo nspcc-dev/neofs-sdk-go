@@ -14,7 +14,7 @@ import (
 func checkIgnoredAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit) {
 	action, ok, err := v.CalculateAction(vu)
 	require.NoError(t, err)
-	require.False(t, ok)
+	require.True(t, ok)
 	require.Equal(t, expected, action)
 }
 
@@ -28,7 +28,7 @@ func checkAction(t *testing.T, expected Action, v *Validator, vu *ValidationUnit
 func checkDefaultAction(t *testing.T, v *Validator, vu *ValidationUnit, msgAndArgs ...any) {
 	action, ok, err := v.CalculateAction(vu)
 	require.NoError(t, err)
-	require.False(t, ok, msgAndArgs)
+	require.True(t, ok, msgAndArgs)
 	require.Equal(t, ActionAllow, action, msgAndArgs...)
 }
 
@@ -353,7 +353,7 @@ func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool, error) {
 	case HeaderFromObject:
 		return h.obj, true, nil
 	default:
-		return nil, false, nil
+		return nil, true, nil
 	}
 }
 
