@@ -30,6 +30,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -83,6 +84,42 @@ func (shortWriter) Write(p []byte) (int, error) {
 		return 0, nil
 	}
 	return len(p) - 1, nil
+}
+
+type recordingWriter struct {
+	chunks [][]byte
+}
+
+func (x *recordingWriter) Write(p []byte) (int, error) {
+	x.chunks = append(x.chunks, bytes.Clone(p))
+	return len(p), nil
+}
+
+type rawPayloadTestStream struct {
+	messages     []mem.BufferSlice
+	recvCalls    int
+	recvMsgCalls int
+}
+
+func (x *rawPayloadTestStream) Recv() (*protoobject.GetResponse, error) {
+	x.recvCalls++
+	return nil, errors.New("decoded Recv must not be used")
+}
+
+func (x *rawPayloadTestStream) RecvMsg(dst any) error {
+	x.recvMsgCalls++
+	if len(x.messages) == 0 {
+		return io.EOF
+	}
+
+	switch v := dst.(type) {
+	case *mem.BufferSlice:
+		*v = x.messages[0]
+		x.messages = x.messages[1:]
+		return nil
+	default:
+		return fmt.Errorf("unexpected raw payload destination %T", dst)
+	}
 }
 
 func getObjectIDForHeaderResponseBody(resp *protoobject.HeadResponse_Body) oid.ID {
@@ -1449,6 +1486,40 @@ func TestClient_ObjectGetInit(t *testing.T) {
 		// TODO: implement
 	})
 	t.Run("writer to", func(t *testing.T) {
+		t.Run("uses raw stream buffers", func(t *testing.T) {
+			payload := []byte("Hello, world!")
+			msg, err := proto.Marshal(&protoobject.GetResponse{
+				Body: &protoobject.GetResponse_Body{
+					ObjectPart: &protoobject.GetResponse_Body_Chunk{Chunk: payload},
+				},
+			})
+			require.NoError(t, err)
+
+			payloadOff := bytes.Index(msg, payload)
+			require.NotEqual(t, -1, payloadOff)
+			split := payloadOff + len("Hello")
+			stream := &rawPayloadTestStream{
+				messages: []mem.BufferSlice{{
+					mem.SliceBuffer(msg[:split]),
+					mem.SliceBuffer(msg[split:]),
+				}},
+			}
+			r := &PayloadReader{
+				stream:           stream,
+				payloadOnly:      true,
+				cancelCtxStream:  func() {},
+				singleMsgTimeout: time.Second,
+			}
+
+			var dst recordingWriter
+			n, err := r.WriteTo(&dst)
+			require.NoError(t, err)
+			require.Equal(t, int64(len(payload)), n)
+			require.Equal(t, payload, bytes.Join(dst.chunks, nil))
+			require.Equal(t, [][]byte{[]byte("Hello"), []byte(", world!")}, dst.chunks)
+			require.Zero(t, stream.recvCalls)
+			require.Equal(t, 2, stream.recvMsgCalls)
+		})
 		t.Run("continues from tail payload", func(t *testing.T) {
 			srv := newTestGetObjectServer()
 			c := newTestObjectClient(t, srv)
