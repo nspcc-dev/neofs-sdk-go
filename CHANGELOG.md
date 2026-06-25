@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.0.0-rc.20] - 2026-06-25
+
+An update bringing API 2.24 feature.
+
+New features:
+ * Initial EACL can be specified for new container when it's created (#805)
+
+Behaviour changes:
+ * EACL CalculateAction API now returns 'final' flag instead of 'matched' (#814)
+
 ## [1.0.0-rc.19] - 2026-05-20
 
 This version is compatible with API 2.23, it introduces ranged Get requests
@@ -470,6 +480,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.20]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.19...v1.0.0-rc.20
 [1.0.0-rc.19]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.18...v1.0.0-rc.19
 [1.0.0-rc.18]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.17...v1.0.0-rc.18
 [1.0.0-rc.17]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.16...v1.0.0-rc.17

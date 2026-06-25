@@ -122,7 +122,7 @@ func TestVersion_UnmarshalJSON(t *testing.T) {
 }
 
 func TestEncodeToString(t *testing.T) {
-	require.Equal(t, "v2.23", version.EncodeToString(version.Current()))
+	require.Equal(t, "v2.24", version.EncodeToString(version.Current()))
 	require.Equal(t, "v96984596.1910541418", version.EncodeToString(validVersion))
 }
 
@@ -137,7 +137,7 @@ func TestCurrent(t *testing.T) {
 	v := version.Current()
 
 	require.EqualValues(t, 2, v.Major())
-	require.EqualValues(t, 23, v.Minor())
+	require.EqualValues(t, 24, v.Minor())
 }
 
 func TestDecodeString(t *testing.T) {
