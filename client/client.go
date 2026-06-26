@@ -210,6 +210,8 @@ func (c *Client) Dial(prm PrmDial) error {
 		grpc.WithReturnConnectionError(),
 		grpc.FailOnNonTempDialError(true),
 		grpc.WithContextDialer(prm.customConnFunc),
+		grpc.WithReadBufferSize(256*1024),
+		grpc.WithWriteBufferSize(256*1024),
 	)
 	if err != nil {
 		return fmt.Errorf("gRPC dial: %w", err)
