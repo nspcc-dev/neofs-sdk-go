@@ -117,6 +117,12 @@ func (c *Client) setConn(conn *grpc.ClientConn) {
 	c.session = protosession.NewSessionServiceClient(conn)
 }
 
+type grpcDialer net.Dialer
+
+func (d *grpcDialer) Dial(ctx context.Context, addr string) (net.Conn, error) {
+	return (*net.Dialer)(d).DialContext(ctx, "tcp", addr)
+}
+
 // Dial establishes a connection to the server from the NeoFS network.
 // Returns an error describing failure reason. If failed, the Client
 // SHOULD NOT be used.
@@ -177,6 +183,12 @@ func (c *Client) Dial(prm PrmDial) error {
 		creds = credentials.NewTLS(prm.tlsConfig)
 	} else {
 		creds = insecure.NewCredentials()
+	}
+
+	if prm.customConnFunc == nil {
+		var gd = grpcDialer(net.Dialer{Control: tuneTCPConn})
+
+		prm.customConnFunc = gd.Dial
 	}
 
 	// TODO: copy-pasted from neofs-api-go. Replace deprecated func with
