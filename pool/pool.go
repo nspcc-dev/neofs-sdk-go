@@ -30,7 +30,7 @@ import (
 
 const (
 	// max GRPC message size.
-	defaultBufferSize = 4194304 // 4MB
+	defaultBufferSize = 32 * 1024 // 4MB
 
 	defaultNodeSessionCacheSize = 100
 )
