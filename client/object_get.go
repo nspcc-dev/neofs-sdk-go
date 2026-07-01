@@ -18,10 +18,16 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
+	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"google.golang.org/grpc"
+	grpcproto "google.golang.org/grpc/encoding/proto"
+	"google.golang.org/grpc/mem"
+	gproto "google.golang.org/protobuf/proto"
 )
 
 var errInvalidSplitInfo = errors.New("invalid split info")
@@ -94,6 +100,7 @@ type getObjectResponseStream interface {
 	// [io.EOF] after the server sent the last message and gracefully finished the
 	// stream. Any other error means stream abort.
 	Recv() (*protoobject.GetResponse, error)
+	RecvMsg(any) error
 }
 
 // PayloadReader is a data stream of the particular NeoFS object. Implements
@@ -125,6 +132,15 @@ type PayloadReader struct {
 
 	payloadHashCheck []byte
 	payloadHashGot   hash.Hash
+}
+
+type rawPayloadChunk struct {
+	payload grpcprotobuf.BuffersSlice
+	buffers mem.BufferSlice
+}
+
+func (x rawPayloadChunk) free() {
+	x.buffers.Free()
 }
 
 // readHeader reads header of the object. Result means success.
@@ -367,6 +383,167 @@ func (x *PayloadReader) Read(p []byte) (int, error) {
 	return n, nil
 }
 
+func unmarshalRaw(src grpcprotobuf.BuffersSlice, dst gproto.Message) error {
+	buf := make([]byte, src.Len())
+	src.CopyTo(buf)
+	return gproto.Unmarshal(buf, dst)
+}
+
+func parseRawGetResponseStatus(meta grpcprotobuf.BuffersSlice) (*protostatus.Status, error) {
+	for !meta.IsEmpty() {
+		num, typ, err := meta.ParseTag()
+		if err != nil {
+			return nil, err
+		}
+
+		if num != protosession.FieldResponseMetaHeaderStatus {
+			if err = meta.SkipField(num, typ); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		statusField, err := meta.ParseLENField(num, typ)
+		if err != nil {
+			return nil, err
+		}
+
+		var st protostatus.Status
+		if err = unmarshalRaw(statusField, &st); err != nil {
+			return nil, fmt.Errorf("unmarshal status: %w", err)
+		}
+		return &st, nil
+	}
+
+	return nil, nil
+}
+
+func (x *PayloadReader) parseRawGetResponseBody(body grpcprotobuf.BuffersSlice) (grpcprotobuf.BuffersSlice, bool) {
+	for !body.IsEmpty() {
+		num, typ, err := body.ParseTag()
+		if err != nil {
+			x.err = err
+			return grpcprotobuf.BuffersSlice{}, false
+		}
+
+		switch num {
+		default:
+			if err = body.SkipField(num, typ); err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+		case protoobject.FieldGetResponseBodyInit:
+			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", (*protoobject.GetResponse_Body_Init_)(nil))
+			return grpcprotobuf.BuffersSlice{}, false
+		case protoobject.FieldGetResponseBodyChunk:
+			payload, err := body.ParseLENField(num, typ)
+			if err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+			return payload, true
+		case protoobject.FieldGetResponseBodySplitInfo:
+			if !x.payloadOnly {
+				x.err = fmt.Errorf("unexpected message instead of chunk part: %T", (*protoobject.GetResponse_Body_SplitInfo)(nil))
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+
+			splitInfoField, err := body.ParseLENField(num, typ)
+			if err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+
+			var m protoobject.SplitInfo
+			if err = unmarshalRaw(splitInfoField, &m); err != nil {
+				x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, err)
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+
+			var si object.SplitInfo
+			if x.err = si.FromProtoMessage(&m); x.err != nil {
+				x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+			x.err = object.NewSplitInfoError(&si)
+			return grpcprotobuf.BuffersSlice{}, false
+		}
+	}
+
+	x.err = fmt.Errorf("unexpected message instead of chunk part: %T", nil)
+	return grpcprotobuf.BuffersSlice{}, false
+}
+
+func (x *PayloadReader) parseRawGetResponse(msg grpcprotobuf.BuffersSlice) (grpcprotobuf.BuffersSlice, bool) {
+	var (
+		body    grpcprotobuf.BuffersSlice
+		hasBody bool
+		status  *protostatus.Status
+	)
+
+	for !msg.IsEmpty() {
+		num, typ, err := msg.ParseTag()
+		if err != nil {
+			x.err = err
+			return grpcprotobuf.BuffersSlice{}, false
+		}
+
+		switch num {
+		default:
+			if err = msg.SkipField(num, typ); err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+		case 1: // body
+			body, err = msg.ParseLENField(num, typ)
+			if err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+			hasBody = true
+		case 2: // meta_header
+			meta, err := msg.ParseLENField(num, typ)
+			if err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+			status, err = parseRawGetResponseStatus(meta)
+			if err != nil {
+				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+		}
+	}
+
+	if x.err = apistatus.ToError(status); x.err != nil {
+		return grpcprotobuf.BuffersSlice{}, false
+	}
+	if !hasBody {
+		x.err = fmt.Errorf("unexpected message instead of chunk part: %T", nil)
+		return grpcprotobuf.BuffersSlice{}, false
+	}
+
+	return x.parseRawGetResponseBody(body)
+}
+
+func (x *PayloadReader) recvRawChunk(rawStream getObjectResponseStream) (rawPayloadChunk, bool) {
+	var buffers mem.BufferSlice
+	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		return rawStream.RecvMsg(&buffers)
+	})
+	if x.err != nil {
+		return rawPayloadChunk{}, false
+	}
+
+	payload, ok := x.parseRawGetResponse(grpcprotobuf.NewBuffersSlice(buffers))
+	if !ok {
+		buffers.Free()
+		return rawPayloadChunk{}, false
+	}
+
+	return rawPayloadChunk{payload: payload, buffers: buffers}, true
+}
+
 // WriteTo writes the remaining object payload to w.
 // It implements [io.WriterTo] and streams chunks without an intermediate read buffer.
 func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
@@ -395,7 +572,7 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 			continue
 		}
 
-		chunk, ok := x.recvChunk()
+		chunk, ok := x.recvRawChunk(x.stream)
 		if !ok {
 			err := x.close(false)
 			if errors.Is(err, io.EOF) {
@@ -403,24 +580,33 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 			}
 			return written, err
 		}
-		if len(chunk) == 0 {
+		if chunk.payload.Len() == 0 {
+			chunk.free()
 			continue
 		}
 
-		n, err := w.Write(chunk)
-		written += int64(n)
-
-		if consumeErr := x.consumePayload(n); consumeErr != nil {
-			return written, consumeErr
+		if x.verifyChecksums {
+			_, _ = chunk.payload.WriteTo(x.payloadHashGot)
 		}
 
-		if n < len(chunk) {
-			x.tailPayload = append(x.tailPayload, chunk[n:]...)
-			// Write must return a non-nil error if it returns n < len(p),
-			// but handle contract violations defensively
+		payloadLen := chunk.payload.Len()
+		n, err := chunk.payload.WriteTo(w)
+		written += n
+		// Write must return a non-nil error if it returns n < len(p),
+		// but handle contract violations defensively
+		if n < int64(payloadLen) {
+			rem := chunk.payload
+			_, _ = rem.MoveNext(int(n))
+			x.tailPayload = make([]byte, rem.Len())
+			rem.CopyTo(x.tailPayload)
 			if err == nil {
 				err = io.ErrShortWrite
 			}
+		}
+		chunk.free()
+
+		if consumeErr := x.consumePayload(int(n)); consumeErr != nil {
+			return written, consumeErr
 		}
 		if err != nil {
 			return written, err
@@ -514,7 +700,10 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.object.Get(ctx, req)
+	stream, err := c.object.Get(ctx, req,
+		grpc.ForceCodecV2(grpcprotobuf.BufferedCodec{}),
+		grpc.CallContentSubtype(grpcproto.Name),
+	)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
