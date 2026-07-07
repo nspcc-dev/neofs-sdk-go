@@ -81,17 +81,6 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 		return err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return err
-		}
-	}
-
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err
 }
@@ -161,17 +150,6 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 	if err != nil {
 		err = rpcErr(err)
 		return err
-	}
-
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return err
-		}
 	}
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())

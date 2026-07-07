@@ -111,17 +111,6 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 		return nil, err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return nil, err
-		}
-	}
-
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
 	}

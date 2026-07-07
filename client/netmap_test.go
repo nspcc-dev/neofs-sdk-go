@@ -502,14 +502,6 @@ func TestClient_EndpointInfo(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		srv := newTestGetNodeInfoServer()
-		srv.respondWithNodePublicKey(testServerStateOnDial.pub)
-		testUnaryResponseCallback(t, func() *testGetNodeInfoServer { return srv }, newDefaultNetmapServiceDesc, func(c *Client) error {
-			_, err := c.EndpointInfo(ctx, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetNodeInfoServer, newDefaultNetmapServiceDesc, stat.MethodEndpointInfo,
 			nil, nil, func(c *Client) error {
@@ -627,13 +619,6 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	t.Run("transport failure", func(t *testing.T) {
 		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/654")
 		testTransportFailure(t, newTestNetmapSnapshotServer, newTestNetmapClient, func(c *Client) error {
-			_, err := c.NetMapSnapshot(ctx, anyValidOpts)
-			return err
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/654")
-		testUnaryResponseCallback(t, newTestNetmapSnapshotServer, newDefaultNetmapServiceDesc, func(c *Client) error {
 			_, err := c.NetMapSnapshot(ctx, anyValidOpts)
 			return err
 		})
@@ -762,12 +747,6 @@ func TestClient_NetworkInfo(t *testing.T) {
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestNetworkInfoServer, newTestNetmapClient, func(c *Client) error {
-			_, err := c.NetworkInfo(ctx, anyValidOpts)
-			return err
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestNetworkInfoServer, newDefaultNetmapServiceDesc, func(c *Client) error {
 			_, err := c.NetworkInfo(ctx, anyValidOpts)
 			return err
 		})

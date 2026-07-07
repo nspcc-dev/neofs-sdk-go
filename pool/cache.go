@@ -94,13 +94,6 @@ func (c *sessionCache) DeleteByPrefix(prefix string) {
 	}
 }
 
-func (c *sessionCache) updateEpoch(newEpoch uint64) {
-	epoch := atomic.LoadUint64(&c.currentEpoch)
-	if newEpoch > epoch {
-		atomic.StoreUint64(&c.currentEpoch, newEpoch)
-	}
-}
-
 // Purge removes all session keys.
 func (c *sessionCache) Purge() {
 	c.cache.Purge()

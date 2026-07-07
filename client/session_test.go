@@ -250,12 +250,6 @@ func TestClient_SessionCreate(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestCreateSessionInfoServer, newDefaultSessionServiceDesc, func(c *Client) error {
-			_, err := c.SessionCreate(ctx, anyUsr, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestCreateSessionInfoServer, newDefaultSessionServiceDesc, stat.MethodSessionCreate,
 			[]testedClientOp{

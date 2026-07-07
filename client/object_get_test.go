@@ -815,13 +815,6 @@ func TestClient_ObjectHead(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/654")
-		testUnaryResponseCallback(t, newTestHeadObjectServer, newDefaultObjectService, func(c *Client) error {
-			_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestHeadObjectServer, newDefaultObjectService, stat.MethodObjectHead,
 			[]testedClientOp{func(c *Client) error {
@@ -1480,10 +1473,6 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			require.Equal(t, len(chunk), n)
 			require.EqualError(t, err, "payload size overflow")
 		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
-		// TODO: implement
 	})
 	t.Run("writer to", func(t *testing.T) {
 		t.Run("uses raw stream buffers", func(t *testing.T) {
@@ -2197,10 +2186,6 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 			require.Equal(t, len(chunk), n)
 			require.EqualError(t, err, "payload range size overflow")
 		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
-		// TODO: implement
 	})
 	t.Run("writer to", func(t *testing.T) {
 		t.Run("continues from tail payload", func(t *testing.T) {

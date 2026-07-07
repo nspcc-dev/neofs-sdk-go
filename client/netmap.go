@@ -92,17 +92,6 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 		return nil, err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   resp.GetBody().GetNodeInfo().GetPublicKey(),
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return nil, err
-		}
-	}
-
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return nil, err
 	}
@@ -187,17 +176,6 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 	if err != nil {
 		err = rpcErr(err)
 		return res, err
-	}
-
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return res, err
-		}
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {

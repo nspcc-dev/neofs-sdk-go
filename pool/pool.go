@@ -165,8 +165,6 @@ type clientWrapper struct {
 	statisticCallback stat.OperationCallback
 
 	nodeSessionCache *sessionCache
-
-	epoch atomic.Uint64
 }
 
 // wrapperPrm is params to create clientWrapper.
@@ -178,7 +176,6 @@ type wrapperPrm struct {
 	singleNode               bool
 	errorThreshold           uint32
 	errorThresholdWindowSize time.Duration
-	responseInfoCallback     func(sdkClient.ResponseMetaInfo) error
 	statisticCallback        stat.OperationCallback
 	buffers                  *sync.Pool
 	nodeSessionCacheSize     int
@@ -187,7 +184,6 @@ type wrapperPrm struct {
 // getNewClient returns a new [sdkClient.Client] instance using internal parameters.
 func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sdkClient.Client, error) {
 	var prmInit sdkClient.PrmInit
-	prmInit.SetResponseInfoCallback(x.responseInfoCallback)
 	prmInit.SetStatisticCallback(statisticCallback)
 	prmInit.SetSignMessageBuffers(x.buffers)
 
@@ -215,21 +211,6 @@ func newWrapper(prm wrapperPrm) (*clientWrapper, error) {
 		res.clientStatusMonitor = newNoopClientStatusMonitor()
 	} else {
 		res.clientStatusMonitor = newClientStatusMonitor(prm.errorThreshold, prm.errorThresholdWindowSize)
-	}
-
-	oldCallBack := prm.responseInfoCallback
-	prm.responseInfoCallback = func(info sdkClient.ResponseMetaInfo) error {
-		newEpoch := info.Epoch()
-		if newEpoch > res.epoch.Load() {
-			res.epoch.Store(newEpoch)
-			cache.updateEpoch(newEpoch)
-		}
-
-		if oldCallBack != nil {
-			return oldCallBack(info)
-		}
-
-		return nil
 	}
 
 	res.prm = prm
@@ -845,13 +826,9 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 				singleNode:               len(params.nodeParams) == 1,
 				errorThreshold:           params.errorThreshold,
 				errorThresholdWindowSize: params.errorThresholdWindowSize,
-				responseInfoCallback: func(info sdkClient.ResponseMetaInfo) error {
-					cache.updateEpoch(info.Epoch())
-					return nil
-				},
-				statisticCallback:    statisticCallback,
-				buffers:              buffers,
-				nodeSessionCacheSize: params.nodeSessionCacheSize,
+				statisticCallback:        statisticCallback,
+				buffers:                  buffers,
+				nodeSessionCacheSize:     params.nodeSessionCacheSize,
 			}
 			return newWrapper(prm)
 		})

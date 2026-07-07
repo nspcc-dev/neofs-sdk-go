@@ -988,12 +988,6 @@ func TestClient_ContainerPut(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestPutContainerServer, newDefaultContainerService, func(c *Client) error {
-			_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestPutContainerServer, newDefaultContainerService, stat.MethodContainerPut,
 			[]testedClientOp{func(c *Client) error {
@@ -1213,12 +1207,6 @@ func TestClient_ContainerGet(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestGetContainerServer, newDefaultContainerService, func(c *Client) error {
-			_, err := c.ContainerGet(ctx, anyID, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetContainerServer, newDefaultContainerService, stat.MethodContainerGet,
 			nil, nil, func(c *Client) error {
@@ -1357,12 +1345,6 @@ func TestClient_ContainerList(t *testing.T) {
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestListContainersServer, newTestContainerClient, func(c *Client) error {
-			_, err := c.ContainerList(ctx, anyUser, anyValidOpts)
-			return err
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestListContainersServer, newDefaultContainerService, func(c *Client) error {
 			_, err := c.ContainerList(ctx, anyUser, anyValidOpts)
 			return err
 		})
@@ -1550,11 +1532,6 @@ func TestClient_ContainerDelete(t *testing.T) {
 			return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestDeleteContainerServer, newDefaultContainerService, func(c *Client) error {
-			return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestDeleteContainerServer, newDefaultContainerService, stat.MethodContainerDelete,
 			[]testedClientOp{func(c *Client) error {
@@ -1717,12 +1694,6 @@ func TestClient_ContainerEACL(t *testing.T) {
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestGetEACLServer, newTestContainerClient, func(c *Client) error {
-			_, err := c.ContainerEACL(ctx, anyID, anyValidOpts)
-			return err
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestGetEACLServer, newDefaultContainerService, func(c *Client) error {
 			_, err := c.ContainerEACL(ctx, anyID, anyValidOpts)
 			return err
 		})
@@ -1893,11 +1864,6 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestSetEACLServer, newTestContainerClient, func(c *Client) error {
-			return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestSetEACLServer, newDefaultContainerService, func(c *Client) error {
 			return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
 		})
 	})

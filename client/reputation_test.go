@@ -339,11 +339,6 @@ func TestClient_AnnounceIntermediateTrust(t *testing.T) {
 			return c.AnnounceIntermediateTrust(ctx, anyValidEpoch, anyValidTrust, anyValidOpts)
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestAnnounceIntermediateReputationServer, newDefaultReputationServiceDesc, func(c *Client) error {
-			return c.AnnounceIntermediateTrust(ctx, anyValidEpoch, anyValidTrust, anyValidOpts)
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestAnnounceIntermediateReputationServer, newDefaultReputationServiceDesc, stat.MethodAnnounceIntermediateTrust,
 			nil, []testedClientOp{func(c *Client) error {
@@ -449,11 +444,6 @@ func TestClient_AnnounceLocalTrust(t *testing.T) {
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestAnnounceLocalTrustServer, newTestReputationClient, func(c *Client) error {
-			return c.AnnounceLocalTrust(ctx, anyValidEpoch, anyValidTrusts, anyValidOpts)
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestAnnounceLocalTrustServer, newDefaultReputationServiceDesc, func(c *Client) error {
 			return c.AnnounceLocalTrust(ctx, anyValidEpoch, anyValidTrusts, anyValidOpts)
 		})
 	})

@@ -308,13 +308,6 @@ func TestClient_ObjectDelete(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/654")
-		testUnaryResponseCallback(t, newTestDeleteObjectServer, newDefaultObjectService, func(c *Client) error {
-			_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestDeleteObjectServer, newDefaultObjectService, stat.MethodObjectDelete,
 			[]testedClientOp{func(c *Client) error {

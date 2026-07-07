@@ -237,8 +237,6 @@ func (c *Client) sendStatistic(m stat.Method, dur time.Duration, err error) {
 type PrmInit struct {
 	signer neofscrypto.Signer
 
-	cbRespInfo func(ResponseMetaInfo) error
-
 	netMagic uint64 //nolint:unused // https://github.com/nspcc-dev/neofs-sdk-go/issues/671
 
 	statisticCallback stat.OperationCallback
@@ -256,12 +254,6 @@ func (x *PrmInit) SetSignMessageBufferSizes(size uint64) {
 // SetSignMessageBuffers sets buffers which are using in GRPC message signing process and helps to reduce memory allocations.
 func (x *PrmInit) SetSignMessageBuffers(buffers *sync.Pool) {
 	x.buffers = buffers
-}
-
-// SetResponseInfoCallback makes the Client to pass ResponseMetaInfo from each
-// NeoFS server response to f. Nil (default) means ignore response meta info.
-func (x *PrmInit) SetResponseInfoCallback(f func(ResponseMetaInfo) error) {
-	x.cbRespInfo = f
 }
 
 // SetStatisticCallback makes the Client to pass [stat.OperationCallback] for the external statistic.
@@ -357,11 +349,9 @@ func (x *PrmDial) setDialFunc(connFunc connFunc) {
 //
 // The streamMsgTimeout must not be negative. It defaults to 10s when zero.
 //
-// The respInterceptor is optional.
-//
 // Experimental: the function focuses on SN system needs and is not recommended
 // for use by regular apps. May be removed in future releases.
-func NewGRPC(_ context.Context, nodePub []byte, conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration, respInterceptor func(pub []byte) error) (*Client, error) {
+func NewGRPC(_ context.Context, nodePub []byte, conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration) (*Client, error) {
 	if streamMsgTimeout < 0 {
 		panic(fmt.Sprintf("negative stream message timeout %v", streamMsgTimeout))
 	}
@@ -387,9 +377,7 @@ func NewGRPC(_ context.Context, nodePub []byte, conn *grpc.ClientConn, signBufPo
 		streamTimeout: streamMsgTimeout,
 	}
 	c.setConn(conn)
-	if respInterceptor != nil {
-		c.prm.cbRespInfo = func(info ResponseMetaInfo) error { return respInterceptor(info.key) }
-	}
+
 	return c, nil
 }
 

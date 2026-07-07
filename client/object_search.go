@@ -206,17 +206,6 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		return nil, "", err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return nil, "", err
-		}
-	}
-
 	var statusError error
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		if !errors.Is(err, apistatus.ErrIncomplete) {

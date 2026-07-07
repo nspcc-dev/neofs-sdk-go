@@ -209,17 +209,6 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		return res, err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return res, err
-		}
-	}
-
 	var statusError error
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		if !errors.Is(err, apistatus.ErrContainerAwaitTimeout) {
@@ -292,17 +281,6 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 		return res, err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return res, err
-		}
-	}
-
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return res, err
 	}
@@ -366,17 +344,6 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	if err != nil {
 		err = rpcErr(err)
 		return nil, err
-	}
-
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return nil, err
-		}
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
@@ -532,17 +499,6 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 		return err
 	}
 
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return err
-		}
-	}
-
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
 	return err
 }
@@ -593,17 +549,6 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	if err != nil {
 		err = rpcErr(err)
 		return res, err
-	}
-
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return res, err
-		}
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
@@ -764,17 +709,6 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	if err != nil {
 		err = rpcErr(err)
 		return err
-	}
-
-	if c.prm.cbRespInfo != nil {
-		err = c.prm.cbRespInfo(ResponseMetaInfo{
-			key:   c.nodeKey,
-			epoch: resp.GetMetaHeader().GetEpoch(),
-		})
-		if err != nil {
-			err = fmt.Errorf("%w: %w", errResponseCallback, err)
-			return err
-		}
 	}
 
 	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
