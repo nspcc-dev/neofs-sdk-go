@@ -329,13 +329,6 @@ func TestClient_ObjectHash(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
-		testUnaryResponseCallback(t, newTestHashObjectServer, newDefaultObjectService, func(c *Client) error {
-			_, err := c.ObjectHash(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestHashObjectServer, newDefaultObjectService, stat.MethodObjectHash,
 			[]testedClientOp{func(c *Client) error {

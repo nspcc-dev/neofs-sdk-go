@@ -1252,49 +1252,6 @@ func testIncorrectUnaryRPCResponseFormat(t testing.TB, svcName, method string, o
 	require.Equal(t, codes.Internal, st.Code())
 }
 
-// asserts that given [Client] op correctly reports meta information received
-// from built test server when consuming the specified service. The op must be
-// executed with all the correct parameters.
-func testUnaryResponseCallback[SRV interface {
-	respondWithMeta(*protosession.ResponseMetaHeader)
-}](
-	t testing.TB,
-	newSrv func() SRV,
-	newSvc func(t testing.TB, srv any) testService,
-	op testedClientOp,
-) {
-	srv := newSrv()
-	srvEpoch := rand.Uint64()
-	srv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: srvEpoch})
-
-	var collected []ResponseMetaInfo
-	var handlerErr error
-	handler := func(meta ResponseMetaInfo) error {
-		collected = append(collected, meta)
-		return handlerErr
-	}
-	assert := func(expEpoch uint64, expPub []byte) {
-		require.Len(t, collected, 1)
-		require.Equal(t, expEpoch, collected[0].Epoch())
-		require.Equal(t, expPub, collected[0].ResponderKey())
-		collected = nil
-	}
-
-	c := newCustomClient(t, func(prm *PrmInit) { prm.SetResponseInfoCallback(handler) }, newSvc(t, srv))
-	// [Client.EndpointInfo] is always called to dial the server: this is also submitted
-	assert(testServerStateOnDial.epoch, testServerStateOnDial.pub)
-
-	err := op(c)
-	require.NoError(t, err)
-	assert(srvEpoch, testServerStateOnDial.pub)
-
-	handlerErr = errors.New("any response meta handler failure")
-	err = op(c)
-	require.ErrorContains(t, err, "response callback error")
-	require.ErrorIs(t, err, handlerErr)
-	assert(srvEpoch, testServerStateOnDial.pub)
-}
-
 // checks that the [Client] correctly keeps exec statistics of specified ops
 // performing communication with built test server. All operations must comply
 // with the tested service.
@@ -1402,18 +1359,18 @@ func TestNewGRPC(t *testing.T) {
 	pubKey := testServerStateOnDial.pub
 
 	t.Run("empty public key", func(t *testing.T) {
-		_, err := NewGRPC(ctx, []byte{}, conn, nil, 0, nil)
+		_, err := NewGRPC(ctx, []byte{}, conn, nil, 0)
 		require.EqualError(t, err, "empty public key")
-		_, err = NewGRPC(ctx, nil, conn, nil, 0, nil)
+		_, err = NewGRPC(ctx, nil, conn, nil, 0)
 		require.EqualError(t, err, "empty public key")
 	})
 	t.Run("negative stream message timeout", func(t *testing.T) {
 		require.PanicsWithValue(t, "negative stream message timeout -1ms", func() {
-			_, _ = NewGRPC(ctx, pubKey, conn, nil, -time.Millisecond, nil)
+			_, _ = NewGRPC(ctx, pubKey, conn, nil, -time.Millisecond)
 		})
 	})
 	t.Run("default buffer pool", func(t *testing.T) {
-		c, err := NewGRPC(ctx, pubKey, conn, nil, 0, nil)
+		c, err := NewGRPC(ctx, pubKey, conn, nil, 0)
 		require.NoError(t, err)
 		require.NotNil(t, c.buffers)
 		b := c.buffers.Get()
@@ -1421,25 +1378,15 @@ func TestNewGRPC(t *testing.T) {
 		require.Len(t, *b.(*[]byte), 4<<20)
 	})
 	t.Run("default stream message timeout", func(t *testing.T) {
-		c, err := NewGRPC(ctx, pubKey, conn, nil, 0, nil)
+		c, err := NewGRPC(ctx, pubKey, conn, nil, 0)
 		require.NoError(t, err)
 		require.Equal(t, 10*time.Second, c.streamTimeout)
-	})
-	t.Run("no response interceptor", func(t *testing.T) {
-		c, err := NewGRPC(ctx, pubKey, conn, nil, 0, nil)
-		require.NoError(t, err)
-		require.Nil(t, c.prm.cbRespInfo)
 	})
 
 	const anyStreamMsgTimeout = time.Minute
 	anySignBufferPool := &sync.Pool{New: func() any { b := []byte("Hello, world!"); return &b }}
-	var caughtPub []byte
-	anyInterceptorErr := errors.New("any interceptor error")
 
-	c, err := NewGRPC(ctx, pubKey, conn, anySignBufferPool, anyStreamMsgTimeout, func(pub []byte) error {
-		caughtPub = pub
-		return anyInterceptorErr
-	})
+	c, err := NewGRPC(ctx, pubKey, conn, anySignBufferPool, anyStreamMsgTimeout)
 	require.NoError(t, err)
 	require.NotNil(t, c)
 
@@ -1456,10 +1403,4 @@ func TestNewGRPC(t *testing.T) {
 	require.Equal(t, anySignBufferPool, c.buffers)
 
 	require.Equal(t, anyStreamMsgTimeout, c.streamTimeout)
-
-	require.NotNil(t, c.prm.cbRespInfo)
-	pub := []byte("any public key")
-	err = c.prm.cbRespInfo(ResponseMetaInfo{key: pub})
-	require.ErrorIs(t, err, anyInterceptorErr)
-	require.Equal(t, pub, caughtPub)
 }

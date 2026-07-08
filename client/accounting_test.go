@@ -228,12 +228,6 @@ func TestClient_BalanceGet(t *testing.T) {
 			return err
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestGetBalanceServer, newDefaultAccountingService, func(c *Client) error {
-			_, err := c.BalanceGet(ctx, anyValidPrm)
-			return err
-		})
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetBalanceServer, newDefaultAccountingService, stat.MethodBalanceGet,
 			nil,

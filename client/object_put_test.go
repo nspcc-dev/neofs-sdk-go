@@ -680,10 +680,6 @@ func TestClient_ObjectPut(t *testing.T) {
 			}
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
-		// TODO: implement
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		type collectedItem struct {
 			pub      []byte

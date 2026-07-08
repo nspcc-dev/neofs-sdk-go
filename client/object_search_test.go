@@ -540,10 +540,6 @@ func TestClient_ObjectSearch(t *testing.T) {
 			require.Contains(t, st.Message(), " vs. 4194304)")
 		})
 	})
-	t.Run("response callback", func(t *testing.T) {
-		t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/653")
-		// TODO: implement
-	})
 	t.Run("exec statistics", func(t *testing.T) {
 		type collectedItem struct {
 			pub      []byte
@@ -1144,12 +1140,6 @@ func TestClient_SearchObjects(t *testing.T) {
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		testTransportFailure(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client) error {
-			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
-			return err
-		})
-	})
-	t.Run("response callback", func(t *testing.T) {
-		testUnaryResponseCallback(t, newTestSearchObjectsV2Server, newDefaultObjectService, func(c *Client) error {
 			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			return err
 		})
