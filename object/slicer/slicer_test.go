@@ -156,6 +156,10 @@ func (discardPayload) GetResult() client.ResObjectPut {
 	return client.ResObjectPut{}
 }
 
+func (discardPayload) ReadFrom(_ io.Reader) (n int64, err error) {
+	return 0, nil
+}
+
 type input struct {
 	signer         user.Signer
 	container      cid.ID
@@ -459,6 +463,12 @@ func (x *writeSizeChecker) Write(p []byte) (int, error) {
 	require.NotZero(x.tb, len(p), "non of the split object should be empty")
 
 	n, err := x.base.Write(p)
+	x.processed += uint64(n)
+	return n, err
+}
+
+func (x *writeSizeChecker) ReadFrom(r io.Reader) (int64, error) {
+	n, err := x.base.ReadFrom(r)
 	x.processed += uint64(n)
 	return n, err
 }
@@ -800,6 +810,10 @@ func (p *memoryPayload) Close() error {
 
 func (p *memoryPayload) GetResult() client.ResObjectPut {
 	return client.ResObjectPut{}
+}
+
+func (p *memoryPayload) ReadFrom(_ io.Reader) (n int64, err error) {
+	return 0, nil
 }
 
 func TestSlicedObjectsHaveSplitID(t *testing.T) {

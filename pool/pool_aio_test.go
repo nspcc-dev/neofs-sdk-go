@@ -296,77 +296,85 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			require.NoError(t, isEACLCreated(ctxTimeout, cl, containerID, eaclTable))
 		})
 		t.Run("objects", func(t *testing.T) {
-			payload := testutil.RandByteSlice(8)
+			type createObjFunc = func(ctx context.Context, t *testing.T, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID
+			var creators = []createObjFunc{
+				testObjectPutInit,
+				testObjectPutInitReaderFrom,
+			}
 
-			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-			t.Cleanup(cancel)
+			for _, creator := range creators {
+				payload := testutil.RandByteSlice(8)
 
-			objectID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pl)
-
-			t.Run("download", func(t *testing.T) {
 				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
 				t.Cleanup(cancel)
 
-				var cmd client.PrmObjectGet
+				objectID := creator(ctxTimeout, t, account, containerID, signer, payload, pl)
 
-				hdr, read, err := pl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
-				require.NoError(t, err)
-				t.Cleanup(func() { _ = read.Close() })
+				t.Run("download", func(t *testing.T) {
+					ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+					t.Cleanup(cancel)
 
-				require.False(t, hdr.Owner().IsZero())
-				require.True(t, hdr.Owner() == account)
+					var cmd client.PrmObjectGet
 
-				downloadedPayload := make([]byte, len(payload))
-
-				l, err := read.Read(downloadedPayload)
-				require.NoError(t, err)
-				require.Equal(t, l, len(payload))
-
-				require.True(t, bytes.Equal(payload, downloadedPayload))
-			})
-			t.Run("delete", func(t *testing.T) {
-				ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
-				t.Cleanup(cancel)
-
-				testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pl)
-				cl, err := pl.RawClient()
-
-				require.NoError(t, err)
-				require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID, signer))
-			})
-			t.Run("epochs", func(t *testing.T) {
-				var objectList []oid.ID
-				times := int(sessionExpirationInEpochs * 3)
-				for range times {
-					epoch, err := tickNewEpoch(ctx, pl)
+					hdr, read, err := pl.ObjectGetInit(ctxTimeout, containerID, objectID, signer, cmd)
 					require.NoError(t, err)
+					t.Cleanup(func() { _ = read.Close() })
 
-					t.Run(fmt.Sprintf("upload at epoch#%d", epoch), func(t *testing.T) {
-						ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
-						t.Cleanup(cancel)
+					require.False(t, hdr.Owner().IsZero())
+					require.True(t, hdr.Owner() == account)
 
-						payload = append(payload, 0x01) // Make it different from the one above, otherwise OID will be the same and we can get "status: code = 2052 message = object already removed"
-						objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pl)
-						objectList = append(objectList, objID)
-					})
-				}
-				for _, objID := range objectList {
-					epoch, err := tickNewEpoch(ctx, pl)
+					downloadedPayload := make([]byte, len(payload))
+
+					l, err := read.Read(downloadedPayload)
 					require.NoError(t, err)
+					require.Equal(t, l, len(payload))
 
-					t.Run(fmt.Sprintf("delete at epoch#%d", epoch), func(t *testing.T) {
-						ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
-						t.Cleanup(cancel)
+					require.True(t, bytes.Equal(payload, downloadedPayload))
+				})
+				t.Run("delete", func(t *testing.T) {
+					ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+					t.Cleanup(cancel)
 
-						testDeleteObject(ctxTimeout, t, signer, containerID, objID, pl)
+					testDeleteObject(ctxTimeout, t, signer, containerID, objectID, pl)
+					cl, err := pl.RawClient()
 
-						cl, err := pl.RawClient()
+					require.NoError(t, err)
+					require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objectID, signer))
+				})
+				t.Run("epochs", func(t *testing.T) {
+					var objectList []oid.ID
+					times := int(sessionExpirationInEpochs * 3)
+					for range times {
+						epoch, err := tickNewEpoch(ctx, pl)
 						require.NoError(t, err)
 
-						require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objID, signer))
-					})
-				}
-			})
+						t.Run(fmt.Sprintf("upload at epoch#%d", epoch), func(t *testing.T) {
+							ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
+							t.Cleanup(cancel)
+
+							payload = append(payload, 0x01) // Make it different from the one above, otherwise OID will be the same and we can get "status: code = 2052 message = object already removed"
+							objID := testObjectPutInit(ctxTimeout, t, account, containerID, signer, payload, pl)
+							objectList = append(objectList, objID)
+						})
+					}
+					for _, objID := range objectList {
+						epoch, err := tickNewEpoch(ctx, pl)
+						require.NoError(t, err)
+
+						t.Run(fmt.Sprintf("delete at epoch#%d", epoch), func(t *testing.T) {
+							ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut*time.Duration(times))
+							t.Cleanup(cancel)
+
+							testDeleteObject(ctxTimeout, t, signer, containerID, objID, pl)
+
+							cl, err := pl.RawClient()
+							require.NoError(t, err)
+
+							require.NoError(t, isObjectDeleted(ctxTimeout, cl, containerID, objID, signer))
+						})
+					}
+				})
+			}
 		})
 		t.Run("delete", func(t *testing.T) {
 			ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
@@ -391,6 +399,25 @@ func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, conta
 	require.NoError(t, err)
 
 	_, err = w.Write(payload)
+	require.NoError(t, err)
+
+	err = w.Close()
+	require.NoError(t, err)
+
+	return w.GetResult().StoredObjectID()
+}
+
+func testObjectPutInitReaderFrom(ctx context.Context, t *testing.T, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID {
+	var hdr = object.New(containerID, account)
+
+	var prm client.PrmObjectPutInit
+	prm.SetCopiesNumber(1)
+
+	w, err := putter.ObjectPutInit(ctx, *hdr, signer, prm)
+	require.NoError(t, err)
+
+	n, err := w.ReadFrom(bytes.NewReader(payload))
+	require.Equal(t, n, int64(len(payload)))
 	require.NoError(t, err)
 
 	err = w.Close()
