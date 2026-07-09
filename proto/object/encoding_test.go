@@ -145,6 +145,17 @@ func TestRange_MarshalStable(t *testing.T) {
 	})
 }
 
+func TestExtendedRange_MarshalStable(t *testing.T) {
+	zero, pos := uint64(0), uint64(1)
+	prototest.TestMarshalStable(t, []*object.ExtendedRange{
+		{FirstPos: &zero},
+		{LastPos: &zero},
+		{FirstPos: &pos},
+		{LastPos: &pos},
+		{FirstPos: &zero, LastPos: &pos},
+	})
+}
+
 func TestShortHeader_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*object.ShortHeader{
 		randShortHeader(),
@@ -209,12 +220,14 @@ func TestSplitInfo_MarshalStable(t *testing.T) {
 }
 
 func TestGetRequest_Body_MarshalStable(t *testing.T) {
+	first, last := uint64(1), uint64(2)
 	prototest.TestMarshalStable(t, []*object.GetRequest_Body{
 		{Address: prototest.RandObjectAddress(), Raw: false},
 		{Address: prototest.RandObjectAddress(), Raw: true},
 		{Address: prototest.RandObjectAddress(), Raw: true, Range: &object.Range{Offset: 1, Length: 2}},
 		{Address: prototest.RandObjectAddress(), PayloadOnly: true},
 		{Address: prototest.RandObjectAddress(), Raw: true, Range: &object.Range{Offset: 1, Length: 2}, PayloadOnly: true},
+		{Address: prototest.RandObjectAddress(), ExtendedRange: &object.ExtendedRange{FirstPos: &first, LastPos: &last}},
 	})
 }
 

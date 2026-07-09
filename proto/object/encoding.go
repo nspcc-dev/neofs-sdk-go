@@ -251,6 +251,7 @@ const (
 	FieldGetRequestBodyRaw
 	FieldGetRequestBodyRange
 	FieldGetRequestBodyPayloadOnly
+	FieldGetRequestBodyExtendedRange
 )
 
 // MarshaledSize returns size of the GetRequest_Body in Protocol Buffers V3
@@ -261,7 +262,8 @@ func (x *GetRequest_Body) MarshaledSize() int {
 		sz = proto.SizeEmbedded(FieldGetRequestBodyAddress, x.Address) +
 			proto.SizeBool(FieldGetRequestBodyRaw, x.Raw) +
 			proto.SizeEmbedded(FieldGetRequestBodyRange, x.Range) +
-			proto.SizeBool(FieldGetRequestBodyPayloadOnly, x.PayloadOnly)
+			proto.SizeBool(FieldGetRequestBodyPayloadOnly, x.PayloadOnly) +
+			proto.SizeEmbedded(FieldGetRequestBodyExtendedRange, x.ExtendedRange)
 	}
 	return sz
 }
@@ -274,7 +276,8 @@ func (x *GetRequest_Body) MarshalStable(b []byte) {
 		off := proto.MarshalToEmbedded(b, FieldGetRequestBodyAddress, x.Address)
 		off += proto.MarshalToBool(b[off:], FieldGetRequestBodyRaw, x.Raw)
 		off += proto.MarshalToEmbedded(b[off:], FieldGetRequestBodyRange, x.Range)
-		proto.MarshalToBool(b[off:], FieldGetRequestBodyPayloadOnly, x.PayloadOnly)
+		off += proto.MarshalToBool(b[off:], FieldGetRequestBodyPayloadOnly, x.PayloadOnly)
+		proto.MarshalToEmbedded(b[off:], FieldGetRequestBodyExtendedRange, x.ExtendedRange)
 	}
 }
 
@@ -514,6 +517,34 @@ func (x *Range) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToVarint(b, FieldRangeOffset, x.Offset)
 		proto.MarshalToVarint(b[off:], FieldRangeLength, x.Length)
+	}
+}
+
+// Field numbers of [ExtendedRange] message.
+const (
+	_ = iota
+	FieldExtendedRangeFirstPos
+	FieldExtendedRangeLastPos
+)
+
+// MarshaledSize returns size of the ExtendedRange in Protocol Buffers V3 format
+// in bytes. MarshaledSize is NPE-safe.
+func (x *ExtendedRange) MarshaledSize() int {
+	var sz int
+	if x != nil {
+		sz = proto.SizeOptionalVarint(FieldExtendedRangeFirstPos, x.FirstPos) +
+			proto.SizeOptionalVarint(FieldExtendedRangeLastPos, x.LastPos)
+	}
+	return sz
+}
+
+// MarshalStable writes the ExtendedRange in Protocol Buffers V3 format with
+// ascending order of fields by number into b. MarshalStable uses exactly
+// [ExtendedRange.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
+func (x *ExtendedRange) MarshalStable(b []byte) {
+	if x != nil {
+		off := proto.MarshalToOptionalVarint(b, FieldExtendedRangeFirstPos, x.FirstPos)
+		proto.MarshalToOptionalVarint(b[off:], FieldExtendedRangeLastPos, x.LastPos)
 	}
 }
 
