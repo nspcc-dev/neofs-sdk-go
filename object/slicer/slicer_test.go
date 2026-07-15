@@ -8,11 +8,13 @@ import (
 	cryptorand "crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"hash"
 	"io"
 	"math/rand"
 	"testing"
+	"testing/iotest"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
@@ -129,6 +131,10 @@ func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
 
 	return ni, nil
 }
+
+// hides all interfaces of the wrapped [io.Reader] except Read. In particular,
+// hidden [io.WriterTo] makes [io.Copy] use the destination's [io.ReaderFrom].
+type ioReaderOnly struct{ io.Reader }
 
 type discardObject struct {
 	opts slicer.Options
@@ -368,6 +374,56 @@ func testSlicerByHeaderType(t *testing.T, checker *slicedObjectChecker, in input
 			require.NoError(t, err)
 			require.EqualValues(t, chunkSize, n)
 		}
+
+		err = w.Close()
+		require.NoError(t, err)
+
+		checker.chainCollector.verify(checker.input, w.ID())
+	})
+
+	t.Run("slicer.InitPut, io.Copy", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		var hdr object.Object
+		hdr.SetSessionToken(opts.Session())
+		hdr.SetContainerID(in.container)
+		hdr.SetOwner(in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		w, err := slicer.InitPut(ctx, checker, hdr, checker.input.signer, opts)
+		require.NoError(t, err)
+
+		n, err := io.Copy(w, ioReaderOnly{bytes.NewReader(in.payload)})
+		require.NoError(t, err)
+		require.EqualValues(t, len(in.payload), n)
+
+		err = w.Close()
+		require.NoError(t, err)
+
+		checker.chainCollector.verify(checker.input, w.ID())
+	})
+
+	t.Run("slicer.InitPut, Write, ReadFrom", func(t *testing.T) {
+		checker.chainCollector = newChainCollector(t)
+
+		var hdr object.Object
+		hdr.SetSessionToken(opts.Session())
+		hdr.SetContainerID(in.container)
+		hdr.SetOwner(in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		// switching from Write to ReadFrom mid-payload must continue the same stream
+		w, err := slicer.InitPut(ctx, checker, hdr, checker.input.signer, opts)
+		require.NoError(t, err)
+
+		written := len(in.payload) / 2
+		nw, err := w.Write(in.payload[:written])
+		require.NoError(t, err)
+		require.EqualValues(t, written, nw)
+
+		n, err := w.ReadFrom(bytes.NewReader(in.payload[written:]))
+		require.NoError(t, err)
+		require.EqualValues(t, len(in.payload)-written, n)
 
 		err = w.Close()
 		require.NoError(t, err)
@@ -1221,6 +1277,27 @@ func TestSetSplitChainModifier(t *testing.T) {
 
 	t.Run("split", func(t *testing.T) {
 		testSlicer(t, 1024, 256)
+	})
+}
+
+func TestPayloadWriter_ReadFrom(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("reader failure", func(t *testing.T) {
+		in, opts := randomInput(1<<10, 1<<10)
+
+		var hdr object.Object
+		hdr.SetContainerID(in.container)
+		hdr.SetOwner(in.owner)
+
+		readErr := errors.New("test read failure")
+
+		w, err := slicer.InitPut(ctx, discardObject{opts: opts}, hdr, in.signer, opts)
+		require.NoError(t, err)
+
+		n, err := w.ReadFrom(io.MultiReader(bytes.NewReader(in.payload), iotest.ErrReader(readErr)))
+		require.ErrorIs(t, err, readErr)
+		require.EqualValues(t, len(in.payload), n)
 	})
 }
 

@@ -200,74 +200,24 @@ func childPayloadSizeLimit(opts Options) uint64 {
 }
 
 func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.Reader, signer user.Signer, opts Options) (oid.ID, error) {
-	var rootID oid.ID
-
-	objectPayloadLimit := childPayloadSizeLimit(opts)
-
-	var n int
-
 	writer, err := initPayloadStream(ctx, ow, header, signer, opts)
 	if err != nil {
-		return rootID, fmt.Errorf("init writter: %w", err)
+		return oid.ID{}, fmt.Errorf("init writter: %w", err)
 	}
 
-	var buf []byte
-	var buffered uint64
-
-	for {
-		buffered = writer.rootMeta.length
-		if writer.withSplit {
-			buffered = writer.childMeta.length
-		}
-
-		if buffered == objectPayloadLimit && uint64(len(writer.payloadBuffer)) <= objectPayloadLimit {
-			// in this case, the read buffers are exhausted, and it is unclear whether there
-			// will be more data. We need to know this right away, because the format of the
-			// final objects depends on it. So read to temp buffer
-			buf = []byte{0}
-		} else {
-			payloadBufferLen := uint64(len(writer.payloadBuffer))
-			if payloadBufferLen > buffered {
-				buf = writer.payloadBuffer[buffered:]
-			} else {
-				if writer.extraPayloadBuffer == nil {
-					// TODO(#544): support external buffer pools
-					writer.extraPayloadBuffer = make([]byte, writer.payloadSizeLimit-payloadBufferLen)
-					buf = writer.extraPayloadBuffer
-				} else {
-					buf = writer.extraPayloadBuffer[buffered-payloadBufferLen:]
-				}
-			}
-		}
-
-		n, err = data.Read(buf)
-		if n > 0 {
-			if _, err = writer.Write(buf[:n]); err != nil {
-				return oid.ID{}, err
-			}
-		}
-
-		if err == nil {
-			continue
-		}
-
-		if !errors.Is(err, io.EOF) {
-			return rootID, fmt.Errorf("read payload chunk: %w", err)
-		}
-
-		if writer.payloadSizeFixed && writer.rootMeta.length < writer.payloadSize {
-			return oid.ID{}, io.ErrUnexpectedEOF
-		}
-
-		if err = writer.Close(); err != nil {
-			return rootID, fmt.Errorf("writer close: %w", err)
-		}
-
-		rootID = writer.ID()
-		break
+	if _, err = writer.ReadFrom(data); err != nil {
+		return oid.ID{}, err
 	}
 
-	return rootID, nil
+	if writer.payloadSizeFixed && writer.rootMeta.length < writer.payloadSize {
+		return oid.ID{}, io.ErrUnexpectedEOF
+	}
+
+	if err = writer.Close(); err != nil {
+		return oid.ID{}, fmt.Errorf("writer close: %w", err)
+	}
+
+	return writer.ID(), nil
 }
 
 // headerData extract required fields from header, otherwise throw the error.
@@ -504,6 +454,67 @@ func (x *PayloadWriter) Write(chunk []byte) (int, error) {
 	n2, err := x.Write(chunk[n:]) // here n > 0 so infinite recursion shouldn't occur
 
 	return n + n2, err
+}
+
+// ReadFrom reads r until EOF as the next chunks of the object data. Returns the number of successfully
+// processed bytes. When the data is over, the PayloadWriter should be closed.
+// ReadFrom implements [io.ReaderFrom].
+func (x *PayloadWriter) ReadFrom(r io.Reader) (int64, error) {
+	var (
+		writtenBytes int64
+		buf          []byte
+	)
+
+	for {
+		buffered := x.rootMeta.length
+		if x.withSplit {
+			buffered = x.childMeta.length
+		}
+
+		if buffered == x.payloadSizeLimit && uint64(len(x.payloadBuffer)) <= x.payloadSizeLimit {
+			// in this case, the read buffers are exhausted, and it is unclear whether there
+			// will be more data. We need to know this right away, because the format of the
+			// final objects depends on it. So read to temp buffer
+			buf = []byte{0}
+		} else {
+			var payloadBufferLen = uint64(len(x.payloadBuffer))
+
+			if payloadBufferLen > buffered {
+				buf = x.payloadBuffer[buffered:]
+			} else {
+				if x.extraPayloadBuffer == nil {
+					// TODO(#544): support external buffer pools
+					x.extraPayloadBuffer = make([]byte, x.payloadSizeLimit-payloadBufferLen)
+				} else if payloadBufferLen+uint64(len(x.extraPayloadBuffer)) < x.payloadSizeLimit {
+					// data may have already been written via Write which allocates the extra
+					// buffer of the exact chunk size
+					b := make([]byte, uint64(len(x.extraPayloadBuffer))+x.payloadSizeLimit-buffered)
+					copy(b, x.extraPayloadBuffer)
+					x.extraPayloadBuffer = b
+				}
+
+				buf = x.extraPayloadBuffer[buffered-payloadBufferLen:]
+			}
+		}
+
+		actualRead, err := r.Read(buf)
+		if actualRead > 0 {
+			actualWrite, writeErr := x.Write(buf[:actualRead])
+			writtenBytes += int64(actualWrite)
+
+			if writeErr != nil {
+				return writtenBytes, writeErr
+			}
+		}
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return writtenBytes, nil
+			}
+
+			return writtenBytes, fmt.Errorf("read payload chunk: %w", err)
+		}
+	}
 }
 
 // Close finalizes object with written payload data, saves the object and closes
