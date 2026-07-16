@@ -62,11 +62,15 @@ func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 }
 
 // PrmObjectGet groups optional parameters of ObjectGetInit operation.
+//
+// Range setter methods are mutually exclusive: each method replaces the range
+// configured by an earlier call.
 type PrmObjectGet struct {
 	prmObjectRead
 	skipChecksumVerification bool
 	payloadOnly              bool
 	rng                      *protoobject.Range
+	extendedRange            *protoobject.ExtendedRange
 }
 
 // SkipChecksumVerification allows to skip verification of received header
@@ -85,12 +89,56 @@ func (x *PrmObjectGet) MarkPayloadOnly() {
 // To request the full payload, leave the range unset or pass both offset and
 // length as zero. Otherwise, length must not be zero.
 func (x *PrmObjectGet) SetRange(offset, length uint64) {
+	x.extendedRange = nil
 	if length == 0 && offset == 0 {
 		x.rng = nil
 		return
 	}
 
 	x.rng = &protoobject.Range{Offset: offset, Length: length}
+}
+
+// SetRangeBounds requests a byte range from first to last, inclusive.
+// If object length is lower than `last`, the result is trimmed to the length of
+// the object.
+func (x *PrmObjectGet) SetRangeBounds(first, last uint64) {
+	x.rng = nil
+	x.extendedRange = &protoobject.ExtendedRange{FirstPos: &first, LastPos: &last}
+}
+
+// SetRangeFrom requests a byte range from first to the end of the payload.
+func (x *PrmObjectGet) SetRangeFrom(first uint64) {
+	x.rng = nil
+	x.extendedRange = &protoobject.ExtendedRange{FirstPos: &first}
+}
+
+// SetRangeSuffix requests the last length bytes of the payload.
+func (x *PrmObjectGet) SetRangeSuffix(length uint64) {
+	x.rng = nil
+	x.extendedRange = &protoobject.ExtendedRange{LastPos: &length}
+}
+
+func resolvedRangeLength(rng *protoobject.Range, extendedRange *protoobject.ExtendedRange, payloadLen uint64) uint64 {
+	if rng != nil {
+		return rng.GetLength()
+	}
+
+	first, last := extendedRange.FirstPos, extendedRange.LastPos
+	switch {
+	case first != nil && last != nil:
+		lastPos := *last
+		if lastPos >= payloadLen {
+			lastPos = payloadLen - 1
+		}
+		return lastPos - *first + 1
+	case first != nil:
+		return payloadLen - *first
+	default:
+		if *last > payloadLen {
+			return payloadLen
+		}
+		return *last
+	}
 }
 
 // used part of [protoobject.ObjectService_GetClient] simplifying test
@@ -117,6 +165,9 @@ type PayloadReader struct {
 	err error
 
 	tailPayload []byte
+
+	rng           *protoobject.Range
+	extendedRange *protoobject.ExtendedRange
 
 	remainingPayloadLen int
 	enforcePayloadLen   bool
@@ -201,7 +252,10 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 
 	if !x.hasRange {
 		x.remainingPayloadLen = int(partInit.Header.GetPayloadLength())
+	} else {
+		x.remainingPayloadLen = int(resolvedRangeLength(x.rng, x.extendedRange, partInit.Header.GetPayloadLength()))
 	}
+	x.enforcePayloadLen = true
 
 	x.err = dst.FromProtoMessage(&protoobject.Object{
 		ObjectId:  partInit.ObjectId,
@@ -616,7 +670,9 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 
 // ObjectGetInit initiates reading an object through a remote server using NeoFS API protocol.
 // Returns header of the requested object and stream of its payload separately.
-// Use [PrmObjectGet.SetRange] to request a payload range.
+// Use [PrmObjectGet.SetRange], [PrmObjectGet.SetRangeBounds],
+// [PrmObjectGet.SetRangeFrom], or [PrmObjectGet.SetRangeSuffix] to request a
+// payload range.
 // If [PrmObjectGet.MarkPayloadOnly] is used, the returned object.Object is empty.
 //
 // Exactly one return value is non-nil. Resulting PayloadReader must be finally closed.
@@ -664,10 +720,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	req := &protoobject.GetRequest{
 		Body: &protoobject.GetRequest_Body{
-			Address:     oid.NewAddress(containerID, objectID).ProtoMessage(),
-			Raw:         prm.raw,
-			Range:       prm.rng,
-			PayloadOnly: prm.payloadOnly,
+			Address:       oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Raw:           prm.raw,
+			Range:         prm.rng,
+			PayloadOnly:   prm.payloadOnly,
+			ExtendedRange: prm.extendedRange,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
 			Version: version.Current().ProtoMessage(),
@@ -712,12 +769,14 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	var r PayloadReader
 	r.requestedOID = objectID
-	r.hasRange = prm.rng != nil
+	r.hasRange = prm.rng != nil || prm.extendedRange != nil
 	r.payloadOnly = prm.payloadOnly
+	r.rng = prm.rng
+	r.extendedRange = prm.extendedRange
 	if prm.rng != nil {
 		r.remainingPayloadLen = int(prm.rng.GetLength())
 	}
-	r.enforcePayloadLen = !r.payloadOnly || r.hasRange
+	r.enforcePayloadLen = !r.payloadOnly || prm.rng != nil
 	r.verifyChecksums = !prm.skipChecksumVerification && !r.hasRange && !r.payloadOnly
 	r.cancelCtxStream = cancel
 	r.stream = stream

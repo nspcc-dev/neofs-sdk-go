@@ -184,9 +184,10 @@ type testGetObjectServer struct {
 		*protoobject.GetResponse,
 	]
 	testCommonReadObjectRequestServerSettings
-	chunk          []byte
-	reqRng         *protoobject.Range
-	reqPayloadOnly bool
+	chunk            []byte
+	reqRng           *protoobject.Range
+	reqExtendedRange *protoobject.ExtendedRange
+	reqPayloadOnly   bool
 }
 
 // returns [protoobject.ObjectServiceServer] supporting Get method only. Default
@@ -202,6 +203,11 @@ func (x *testGetObjectServer) respondWithChunk(chunk []byte) { x.chunk = chunk }
 // any valid range is accepted.
 func (x *testGetObjectServer) checkRequestRange(off, ln uint64) {
 	x.reqRng = &protoobject.Range{Offset: off, Length: ln}
+}
+
+// makes the server to assert that any request carries given extended range message.
+func (x *testGetObjectServer) checkRequestExtendedRange(rng *protoobject.ExtendedRange) {
+	x.reqExtendedRange = rng
 }
 
 // makes the server to assert that request asks for payload only.
@@ -243,10 +249,11 @@ func (x *testGetObjectServer) verifyRequest(req *protoobject.GetRequest) error {
 		return err
 	}
 	// 2. range
-	if body.Range != nil {
-		if body.Range.Length == 0 && body.Range.Offset != 0 {
-			return newErrInvalidRequestField("range", errors.New("zero length"))
-		}
+	if body.Range != nil && body.ExtendedRange != nil {
+		return newErrInvalidRequestField("range", errors.New("both range forms"))
+	}
+	if body.Range != nil && body.Range.Length == 0 && body.Range.Offset != 0 {
+		return newErrInvalidRequestField("range", errors.New("zero length"))
 	}
 	if x.reqRng != nil {
 		if body.Range == nil {
@@ -257,6 +264,14 @@ func (x *testGetObjectServer) verifyRequest(req *protoobject.GetRequest) error {
 		}
 		if v1, v2 := x.reqRng.GetLength(), body.Range.GetLength(); v1 != v2 {
 			return newErrInvalidRequestField("range", fmt.Errorf("length (client: %d, message: %d)", v1, v2))
+		}
+	}
+	if x.reqExtendedRange != nil {
+		if body.ExtendedRange == nil {
+			return newErrMissingRequestBodyField("extended_range")
+		}
+		if !proto.Equal(x.reqExtendedRange, body.ExtendedRange) {
+			return newErrInvalidRequestField("extended_range", errors.New("mismatch"))
 		}
 	}
 	if x.reqPayloadOnly && !body.PayloadOnly {
@@ -972,6 +987,49 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					require.True(t, hdr.GetID().IsZero())
 					require.NoError(t, iotest.TestReader(r, payload))
 				})
+				t.Run("payload only with extended range", func(t *testing.T) {
+					uint64ptr := func(v uint64) *uint64 { return &v }
+					for _, tc := range []struct {
+						name string
+						set  func(*PrmObjectGet)
+						rng  *protoobject.ExtendedRange
+					}{
+						{
+							name: "bounds",
+							set:  func(x *PrmObjectGet) { x.SetRangeBounds(10, 19) },
+							rng:  &protoobject.ExtendedRange{FirstPos: uint64ptr(10), LastPos: uint64ptr(19)},
+						},
+						{
+							name: "from",
+							set:  func(x *PrmObjectGet) { x.SetRangeFrom(10) },
+							rng:  &protoobject.ExtendedRange{FirstPos: uint64ptr(10)},
+						},
+						{
+							name: "suffix",
+							set:  func(x *PrmObjectGet) { x.SetRangeSuffix(10) },
+							rng:  &protoobject.ExtendedRange{LastPos: uint64ptr(10)},
+						},
+					} {
+						t.Run(tc.name, func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							payload := []byte("hello")
+							opts := PrmObjectGet{}
+							opts.MarkPayloadOnly()
+							tc.set(&opts)
+
+							srv.checkRequestPayloadOnly()
+							srv.checkRequestExtendedRange(tc.rng)
+							srv.respondWithBody(0, setChunkInGetResponse(validFullChunkObjectGetResponseBody, payload))
+
+							hdr, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.NoError(t, err)
+							require.True(t, hdr.GetID().IsZero())
+							require.NoError(t, iotest.TestReader(r, payload))
+						})
+					}
+				})
 				t.Run("payload only split info", func(t *testing.T) {
 					srv := newTestGetObjectServer()
 					c := newTestObjectClient(t, srv)
@@ -1295,6 +1353,42 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			opts := PrmObjectGet{}
 			opts.MarkPayloadOnly()
 			require.True(t, opts.payloadOnly)
+		})
+		t.Run("bounded range", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			opts := PrmObjectGet{}
+			opts.SetRangeBounds(10, 19)
+			first, last := uint64(10), uint64(19)
+			srv.checkRequestExtendedRange(&protoobject.ExtendedRange{FirstPos: &first, LastPos: &last})
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+			require.NoError(t, err)
+			require.NoError(t, r.Close())
+		})
+		t.Run("from offset range", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			opts := PrmObjectGet{}
+			opts.SetRangeFrom(10)
+			first := uint64(10)
+			srv.checkRequestExtendedRange(&protoobject.ExtendedRange{FirstPos: &first})
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+			require.NoError(t, err)
+			require.NoError(t, r.Close())
+		})
+		t.Run("suffix range", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			opts := PrmObjectGet{}
+			opts.SetRangeSuffix(10)
+			last := uint64(10)
+			srv.checkRequestExtendedRange(&protoobject.ExtendedRange{LastPos: &last})
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+			require.NoError(t, err)
+			require.NoError(t, r.Close())
 		})
 	})
 	t.Run("context", func(t *testing.T) {
@@ -2344,4 +2438,28 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 			require.Greater(t, collected[1].dur, sleepDur)
 		})
 	})
+}
+
+func TestResolvedRangeLength(t *testing.T) {
+	ptr := func(v uint64) *uint64 { return &v }
+
+	for _, tc := range []struct {
+		name          string
+		rng           *protoobject.Range
+		extendedRange *protoobject.ExtendedRange
+		payloadLen    uint64
+		expectedLen   uint64
+	}{
+		{name: "legacy", rng: &protoobject.Range{Length: 5}, payloadLen: 10, expectedLen: 5},
+		{name: "bounded", extendedRange: &protoobject.ExtendedRange{FirstPos: ptr(3), LastPos: ptr(7)}, payloadLen: 10, expectedLen: 5},
+		{name: "bounded clipped", extendedRange: &protoobject.ExtendedRange{FirstPos: ptr(3), LastPos: ptr(20)}, payloadLen: 10, expectedLen: 7},
+		{name: "from", extendedRange: &protoobject.ExtendedRange{FirstPos: ptr(3)}, payloadLen: 10, expectedLen: 7},
+		{name: "suffix", extendedRange: &protoobject.ExtendedRange{LastPos: ptr(3)}, payloadLen: 10, expectedLen: 3},
+		{name: "suffix clipped", extendedRange: &protoobject.ExtendedRange{LastPos: ptr(20)}, payloadLen: 10, expectedLen: 10},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			ln := resolvedRangeLength(tc.rng, tc.extendedRange, tc.payloadLen)
+			require.Equal(t, tc.expectedLen, ln)
+		})
+	}
 }

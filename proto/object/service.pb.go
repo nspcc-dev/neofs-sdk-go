@@ -29,10 +29,22 @@ const (
 // The query for a parent object's EC part locally stored on the server is
 // specified as follows:
 //   - `body.address` is an address of the parent;
-//   - `meta_header.x_headers` includes `__NEOFS__EC_RULE_IDX` and
-//     `__NEOFS__EC_PART_IDX` by object attribute format. Rule index MUST NOT
-//     exceed container's `PlacementPolicy.ec_rules` list. Part index MUST NOT
-//     exceed total part number in the indexed rule.
+//   - `meta_header.x_headers` includes `__NEOFS__EC_RULE_IDX` by object
+//     attribute format. Rule index MUST NOT exceed container's
+//     `PlacementPolicy.ec_rules` list.
+//     If `__NEOFS__EC_PART_IDX` is also included in X-headers, node returns
+//     corresponding part. Part index MUST NOT exceed total part number in the
+//     indexed rule. If index is unspecified:
+//   - if there is a single part in storage node: it is returned;
+//   - if there is more than a single part: the appropriate part for the
+//     current storage node (according to the actual Network map) is returned;
+//     if storage node does not have the appropriate part, the lowest index
+//     part it has is returned;
+//   - if `body.payload_only` is set to `true`, response's
+//     `meta_header.x_headers` MUST include `__NEOFS__EC_PART_IDX` in the same
+//     form to identify returned object part;
+//   - if `body.range` is specified, error is returned, meaning any ranged GET
+//     MUST have `__NEOFS__EC_PART_IDX` set.
 //
 // In this case, if `body.address` refers to TOMBSTONE or LOCK object (which
 // cannot have EC parts), the query applies to it.
@@ -981,6 +993,63 @@ func (x *Range) GetLength() uint64 {
 	return 0
 }
 
+// Extended object payload range.
+type ExtendedRange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Offset of the first byte from the object payload start. If omitted, the
+	// range is defined by `last_pos` as the number of bytes from the payload end.
+	FirstPos *uint64 `protobuf:"varint,1,opt,name=first_pos,json=firstPos,proto3,oneof" json:"first_pos,omitempty"`
+	// Offset of the last byte from the object payload start. If omitted, the
+	// range starts at `first_pos` and extends to the end of the payload.
+	LastPos       *uint64 `protobuf:"varint,2,opt,name=last_pos,json=lastPos,proto3,oneof" json:"last_pos,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExtendedRange) Reset() {
+	*x = ExtendedRange{}
+	mi := &file_proto_object_service_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExtendedRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExtendedRange) ProtoMessage() {}
+
+func (x *ExtendedRange) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_object_service_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExtendedRange.ProtoReflect.Descriptor instead.
+func (*ExtendedRange) Descriptor() ([]byte, []int) {
+	return file_proto_object_service_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *ExtendedRange) GetFirstPos() uint64 {
+	if x != nil && x.FirstPos != nil {
+		return *x.FirstPos
+	}
+	return 0
+}
+
+func (x *ExtendedRange) GetLastPos() uint64 {
+	if x != nil && x.LastPos != nil {
+		return *x.LastPos
+	}
+	return 0
+}
+
 // Request part of object's payload.
 //
 // The query for a parent object's EC part locally stored on the server is
@@ -1010,7 +1079,7 @@ type GetRangeRequest struct {
 
 func (x *GetRangeRequest) Reset() {
 	*x = GetRangeRequest{}
-	mi := &file_proto_object_service_proto_msgTypes[14]
+	mi := &file_proto_object_service_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1022,7 +1091,7 @@ func (x *GetRangeRequest) String() string {
 func (*GetRangeRequest) ProtoMessage() {}
 
 func (x *GetRangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[14]
+	mi := &file_proto_object_service_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1035,7 +1104,7 @@ func (x *GetRangeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeRequest.ProtoReflect.Descriptor instead.
 func (*GetRangeRequest) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{14}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetRangeRequest) GetBody() *GetRangeRequest_Body {
@@ -1079,7 +1148,7 @@ type GetRangeResponse struct {
 
 func (x *GetRangeResponse) Reset() {
 	*x = GetRangeResponse{}
-	mi := &file_proto_object_service_proto_msgTypes[15]
+	mi := &file_proto_object_service_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +1160,7 @@ func (x *GetRangeResponse) String() string {
 func (*GetRangeResponse) ProtoMessage() {}
 
 func (x *GetRangeResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[15]
+	mi := &file_proto_object_service_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1173,7 @@ func (x *GetRangeResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeResponse.ProtoReflect.Descriptor instead.
 func (*GetRangeResponse) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{15}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetRangeResponse) GetBody() *GetRangeResponse_Body {
@@ -1146,7 +1215,7 @@ type GetRangeHashRequest struct {
 
 func (x *GetRangeHashRequest) Reset() {
 	*x = GetRangeHashRequest{}
-	mi := &file_proto_object_service_proto_msgTypes[16]
+	mi := &file_proto_object_service_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1158,7 +1227,7 @@ func (x *GetRangeHashRequest) String() string {
 func (*GetRangeHashRequest) ProtoMessage() {}
 
 func (x *GetRangeHashRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[16]
+	mi := &file_proto_object_service_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1171,7 +1240,7 @@ func (x *GetRangeHashRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeHashRequest.ProtoReflect.Descriptor instead.
 func (*GetRangeHashRequest) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{16}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetRangeHashRequest) GetBody() *GetRangeHashRequest_Body {
@@ -1215,7 +1284,7 @@ type GetRangeHashResponse struct {
 
 func (x *GetRangeHashResponse) Reset() {
 	*x = GetRangeHashResponse{}
-	mi := &file_proto_object_service_proto_msgTypes[17]
+	mi := &file_proto_object_service_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1227,7 +1296,7 @@ func (x *GetRangeHashResponse) String() string {
 func (*GetRangeHashResponse) ProtoMessage() {}
 
 func (x *GetRangeHashResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[17]
+	mi := &file_proto_object_service_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1240,7 +1309,7 @@ func (x *GetRangeHashResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeHashResponse.ProtoReflect.Descriptor instead.
 func (*GetRangeHashResponse) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{17}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *GetRangeHashResponse) GetBody() *GetRangeHashResponse_Body {
@@ -1282,7 +1351,7 @@ type ReplicateRequest struct {
 
 func (x *ReplicateRequest) Reset() {
 	*x = ReplicateRequest{}
-	mi := &file_proto_object_service_proto_msgTypes[18]
+	mi := &file_proto_object_service_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1294,7 +1363,7 @@ func (x *ReplicateRequest) String() string {
 func (*ReplicateRequest) ProtoMessage() {}
 
 func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[18]
+	mi := &file_proto_object_service_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1307,7 +1376,7 @@ func (x *ReplicateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplicateRequest.ProtoReflect.Descriptor instead.
 func (*ReplicateRequest) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{18}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ReplicateRequest) GetObject() *Object {
@@ -1346,7 +1415,7 @@ type ReplicateResponse struct {
 
 func (x *ReplicateResponse) Reset() {
 	*x = ReplicateResponse{}
-	mi := &file_proto_object_service_proto_msgTypes[19]
+	mi := &file_proto_object_service_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1358,7 +1427,7 @@ func (x *ReplicateResponse) String() string {
 func (*ReplicateResponse) ProtoMessage() {}
 
 func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[19]
+	mi := &file_proto_object_service_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1371,7 +1440,7 @@ func (x *ReplicateResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReplicateResponse.ProtoReflect.Descriptor instead.
 func (*ReplicateResponse) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{19}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ReplicateResponse) GetStatus() *status.Status {
@@ -1400,14 +1469,16 @@ type GetRequest_Body struct {
 	Range *Range `protobuf:"bytes,3,opt,name=range,proto3" json:"range,omitempty"`
 	// If set, makes Get return payload only, completely omitting Init response
 	// message with header data.
-	PayloadOnly   bool `protobuf:"varint,4,opt,name=payload_only,json=payloadOnly,proto3" json:"payload_only,omitempty"`
+	PayloadOnly bool `protobuf:"varint,4,opt,name=payload_only,json=payloadOnly,proto3" json:"payload_only,omitempty"`
+	// Requested extended payload range. MUST NOT be set together with `range`.
+	ExtendedRange *ExtendedRange `protobuf:"bytes,5,opt,name=extended_range,json=extendedRange,proto3" json:"extended_range,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetRequest_Body) Reset() {
 	*x = GetRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[20]
+	mi := &file_proto_object_service_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1419,7 +1490,7 @@ func (x *GetRequest_Body) String() string {
 func (*GetRequest_Body) ProtoMessage() {}
 
 func (x *GetRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[20]
+	mi := &file_proto_object_service_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1463,6 +1534,13 @@ func (x *GetRequest_Body) GetPayloadOnly() bool {
 	return false
 }
 
+func (x *GetRequest_Body) GetExtendedRange() *ExtendedRange {
+	if x != nil {
+		return x.ExtendedRange
+	}
+	return nil
+}
+
 // GET Object Response body
 type GetResponse_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1480,7 +1558,7 @@ type GetResponse_Body struct {
 
 func (x *GetResponse_Body) Reset() {
 	*x = GetResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[21]
+	mi := &file_proto_object_service_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1492,7 +1570,7 @@ func (x *GetResponse_Body) String() string {
 func (*GetResponse_Body) ProtoMessage() {}
 
 func (x *GetResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[21]
+	mi := &file_proto_object_service_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1583,7 +1661,7 @@ type GetResponse_Body_Init struct {
 
 func (x *GetResponse_Body_Init) Reset() {
 	*x = GetResponse_Body_Init{}
-	mi := &file_proto_object_service_proto_msgTypes[22]
+	mi := &file_proto_object_service_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1595,7 +1673,7 @@ func (x *GetResponse_Body_Init) String() string {
 func (*GetResponse_Body_Init) ProtoMessage() {}
 
 func (x *GetResponse_Body_Init) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[22]
+	mi := &file_proto_object_service_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1648,7 +1726,7 @@ type PutRequest_Body struct {
 
 func (x *PutRequest_Body) Reset() {
 	*x = PutRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[23]
+	mi := &file_proto_object_service_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1660,7 +1738,7 @@ func (x *PutRequest_Body) String() string {
 func (*PutRequest_Body) ProtoMessage() {}
 
 func (x *PutRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[23]
+	mi := &file_proto_object_service_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1740,7 +1818,7 @@ type PutRequest_Body_Init struct {
 
 func (x *PutRequest_Body_Init) Reset() {
 	*x = PutRequest_Body_Init{}
-	mi := &file_proto_object_service_proto_msgTypes[24]
+	mi := &file_proto_object_service_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1752,7 +1830,7 @@ func (x *PutRequest_Body_Init) String() string {
 func (*PutRequest_Body_Init) ProtoMessage() {}
 
 func (x *PutRequest_Body_Init) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[24]
+	mi := &file_proto_object_service_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1807,7 +1885,7 @@ type PutResponse_Body struct {
 
 func (x *PutResponse_Body) Reset() {
 	*x = PutResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[25]
+	mi := &file_proto_object_service_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1819,7 +1897,7 @@ func (x *PutResponse_Body) String() string {
 func (*PutResponse_Body) ProtoMessage() {}
 
 func (x *PutResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[25]
+	mi := &file_proto_object_service_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1853,7 +1931,7 @@ type DeleteRequest_Body struct {
 
 func (x *DeleteRequest_Body) Reset() {
 	*x = DeleteRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[26]
+	mi := &file_proto_object_service_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1865,7 +1943,7 @@ func (x *DeleteRequest_Body) String() string {
 func (*DeleteRequest_Body) ProtoMessage() {}
 
 func (x *DeleteRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[26]
+	mi := &file_proto_object_service_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1899,7 +1977,7 @@ type DeleteResponse_Body struct {
 
 func (x *DeleteResponse_Body) Reset() {
 	*x = DeleteResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[27]
+	mi := &file_proto_object_service_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1911,7 +1989,7 @@ func (x *DeleteResponse_Body) String() string {
 func (*DeleteResponse_Body) ProtoMessage() {}
 
 func (x *DeleteResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[27]
+	mi := &file_proto_object_service_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1952,7 +2030,7 @@ type HeadRequest_Body struct {
 
 func (x *HeadRequest_Body) Reset() {
 	*x = HeadRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[28]
+	mi := &file_proto_object_service_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1964,7 +2042,7 @@ func (x *HeadRequest_Body) String() string {
 func (*HeadRequest_Body) ProtoMessage() {}
 
 func (x *HeadRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[28]
+	mi := &file_proto_object_service_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2019,7 +2097,7 @@ type HeadResponse_Body struct {
 
 func (x *HeadResponse_Body) Reset() {
 	*x = HeadResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[29]
+	mi := &file_proto_object_service_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2031,7 +2109,7 @@ func (x *HeadResponse_Body) String() string {
 func (*HeadResponse_Body) ProtoMessage() {}
 
 func (x *HeadResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[29]
+	mi := &file_proto_object_service_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2123,7 +2201,7 @@ type SearchRequest_Body struct {
 
 func (x *SearchRequest_Body) Reset() {
 	*x = SearchRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[30]
+	mi := &file_proto_object_service_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2135,7 +2213,7 @@ func (x *SearchRequest_Body) String() string {
 func (*SearchRequest_Body) ProtoMessage() {}
 
 func (x *SearchRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[30]
+	mi := &file_proto_object_service_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2183,7 +2261,7 @@ type SearchResponse_Body struct {
 
 func (x *SearchResponse_Body) Reset() {
 	*x = SearchResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[31]
+	mi := &file_proto_object_service_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2195,7 +2273,7 @@ func (x *SearchResponse_Body) String() string {
 func (*SearchResponse_Body) ProtoMessage() {}
 
 func (x *SearchResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[31]
+	mi := &file_proto_object_service_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2251,7 +2329,7 @@ type SearchV2Request_Body struct {
 
 func (x *SearchV2Request_Body) Reset() {
 	*x = SearchV2Request_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[32]
+	mi := &file_proto_object_service_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2263,7 +2341,7 @@ func (x *SearchV2Request_Body) String() string {
 func (*SearchV2Request_Body) ProtoMessage() {}
 
 func (x *SearchV2Request_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[32]
+	mi := &file_proto_object_service_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2337,7 +2415,7 @@ type SearchV2Response_OIDWithMeta struct {
 
 func (x *SearchV2Response_OIDWithMeta) Reset() {
 	*x = SearchV2Response_OIDWithMeta{}
-	mi := &file_proto_object_service_proto_msgTypes[33]
+	mi := &file_proto_object_service_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2349,7 +2427,7 @@ func (x *SearchV2Response_OIDWithMeta) String() string {
 func (*SearchV2Response_OIDWithMeta) ProtoMessage() {}
 
 func (x *SearchV2Response_OIDWithMeta) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[33]
+	mi := &file_proto_object_service_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2396,7 +2474,7 @@ type SearchV2Response_Body struct {
 
 func (x *SearchV2Response_Body) Reset() {
 	*x = SearchV2Response_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[34]
+	mi := &file_proto_object_service_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2408,7 +2486,7 @@ func (x *SearchV2Response_Body) String() string {
 func (*SearchV2Response_Body) ProtoMessage() {}
 
 func (x *SearchV2Response_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[34]
+	mi := &file_proto_object_service_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2454,7 +2532,7 @@ type GetRangeRequest_Body struct {
 
 func (x *GetRangeRequest_Body) Reset() {
 	*x = GetRangeRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[35]
+	mi := &file_proto_object_service_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2466,7 +2544,7 @@ func (x *GetRangeRequest_Body) String() string {
 func (*GetRangeRequest_Body) ProtoMessage() {}
 
 func (x *GetRangeRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[35]
+	mi := &file_proto_object_service_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2479,7 +2557,7 @@ func (x *GetRangeRequest_Body) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeRequest_Body.ProtoReflect.Descriptor instead.
 func (*GetRangeRequest_Body) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{14, 0}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{15, 0}
 }
 
 func (x *GetRangeRequest_Body) GetAddress() *refs.Address {
@@ -2522,7 +2600,7 @@ type GetRangeResponse_Body struct {
 
 func (x *GetRangeResponse_Body) Reset() {
 	*x = GetRangeResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[36]
+	mi := &file_proto_object_service_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2534,7 +2612,7 @@ func (x *GetRangeResponse_Body) String() string {
 func (*GetRangeResponse_Body) ProtoMessage() {}
 
 func (x *GetRangeResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[36]
+	mi := &file_proto_object_service_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2547,7 +2625,7 @@ func (x *GetRangeResponse_Body) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeResponse_Body.ProtoReflect.Descriptor instead.
 func (*GetRangeResponse_Body) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{15, 0}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{16, 0}
 }
 
 func (x *GetRangeResponse_Body) GetRangePart() isGetRangeResponse_Body_RangePart {
@@ -2610,7 +2688,7 @@ type GetRangeHashRequest_Body struct {
 
 func (x *GetRangeHashRequest_Body) Reset() {
 	*x = GetRangeHashRequest_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[37]
+	mi := &file_proto_object_service_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2622,7 +2700,7 @@ func (x *GetRangeHashRequest_Body) String() string {
 func (*GetRangeHashRequest_Body) ProtoMessage() {}
 
 func (x *GetRangeHashRequest_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[37]
+	mi := &file_proto_object_service_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2635,7 +2713,7 @@ func (x *GetRangeHashRequest_Body) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeHashRequest_Body.ProtoReflect.Descriptor instead.
 func (*GetRangeHashRequest_Body) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{16, 0}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{17, 0}
 }
 
 func (x *GetRangeHashRequest_Body) GetAddress() *refs.Address {
@@ -2679,7 +2757,7 @@ type GetRangeHashResponse_Body struct {
 
 func (x *GetRangeHashResponse_Body) Reset() {
 	*x = GetRangeHashResponse_Body{}
-	mi := &file_proto_object_service_proto_msgTypes[38]
+	mi := &file_proto_object_service_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2691,7 +2769,7 @@ func (x *GetRangeHashResponse_Body) String() string {
 func (*GetRangeHashResponse_Body) ProtoMessage() {}
 
 func (x *GetRangeHashResponse_Body) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_service_proto_msgTypes[38]
+	mi := &file_proto_object_service_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2704,7 +2782,7 @@ func (x *GetRangeHashResponse_Body) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetRangeHashResponse_Body.ProtoReflect.Descriptor instead.
 func (*GetRangeHashResponse_Body) Descriptor() ([]byte, []int) {
-	return file_proto_object_service_proto_rawDescGZIP(), []int{17, 0}
+	return file_proto_object_service_proto_rawDescGZIP(), []int{18, 0}
 }
 
 func (x *GetRangeHashResponse_Body) GetType() refs.ChecksumType {
@@ -2725,18 +2803,19 @@ var File_proto_object_service_proto protoreflect.FileDescriptor
 
 const file_proto_object_service_proto_rawDesc = "" +
 	"\n" +
-	"\x1aproto/object/service.proto\x12\x10neo.fs.v2.object\x1a\x18proto/object/types.proto\x1a\x16proto/refs/types.proto\x1a\x19proto/session/types.proto\x1a\x18proto/status/types.proto\"\xfd\x02\n" +
+	"\x1aproto/object/service.proto\x12\x10neo.fs.v2.object\x1a\x18proto/object/types.proto\x1a\x16proto/refs/types.proto\x1a\x19proto/session/types.proto\x1a\x18proto/status/types.proto\"\xc5\x03\n" +
 	"\n" +
 	"GetRequest\x125\n" +
 	"\x04body\x18\x01 \x01(\v2!.neo.fs.v2.object.GetRequest.BodyR\x04body\x12E\n" +
 	"\vmeta_header\x18\x02 \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\n" +
 	"metaHeader\x12Q\n" +
-	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\x9d\x01\n" +
+	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\xe5\x01\n" +
 	"\x04Body\x121\n" +
 	"\aaddress\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.AddressR\aaddress\x12\x10\n" +
 	"\x03raw\x18\x02 \x01(\bR\x03raw\x12-\n" +
 	"\x05range\x18\x03 \x01(\v2\x17.neo.fs.v2.object.RangeR\x05range\x12!\n" +
-	"\fpayload_only\x18\x04 \x01(\bR\vpayloadOnly\"\xb9\x04\n" +
+	"\fpayload_only\x18\x04 \x01(\bR\vpayloadOnly\x12F\n" +
+	"\x0eextended_range\x18\x05 \x01(\v2\x1f.neo.fs.v2.object.ExtendedRangeR\rextendedRange\"\xb9\x04\n" +
 	"\vGetResponse\x126\n" +
 	"\x04body\x18\x01 \x01(\v2\".neo.fs.v2.object.GetResponse.BodyR\x04body\x12F\n" +
 	"\vmeta_header\x18\x02 \x01(\v2%.neo.fs.v2.session.ResponseMetaHeaderR\n" +
@@ -2856,7 +2935,13 @@ const file_proto_object_service_proto_rawDesc = "" +
 	"\x06cursor\x18\x02 \x01(\tR\x06cursor\"7\n" +
 	"\x05Range\x12\x16\n" +
 	"\x06offset\x18\x01 \x01(\x04R\x06offset\x12\x16\n" +
-	"\x06length\x18\x02 \x01(\x04R\x06length\"\xe3\x02\n" +
+	"\x06length\x18\x02 \x01(\x04R\x06length\"l\n" +
+	"\rExtendedRange\x12 \n" +
+	"\tfirst_pos\x18\x01 \x01(\x04H\x00R\bfirstPos\x88\x01\x01\x12\x1e\n" +
+	"\blast_pos\x18\x02 \x01(\x04H\x01R\alastPos\x88\x01\x01B\f\n" +
+	"\n" +
+	"_first_posB\v\n" +
+	"\t_last_pos\"\xe3\x02\n" +
 	"\x0fGetRangeRequest\x12:\n" +
 	"\x04body\x18\x01 \x01(\v2&.neo.fs.v2.object.GetRangeRequest.BodyR\x04body\x12E\n" +
 	"\vmeta_header\x18\x02 \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\n" +
@@ -2926,7 +3011,7 @@ func file_proto_object_service_proto_rawDescGZIP() []byte {
 	return file_proto_object_service_proto_rawDescData
 }
 
-var file_proto_object_service_proto_msgTypes = make([]protoimpl.MessageInfo, 39)
+var file_proto_object_service_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
 var file_proto_object_service_proto_goTypes = []any{
 	(*GetRequest)(nil),                         // 0: neo.fs.v2.object.GetRequest
 	(*GetResponse)(nil),                        // 1: neo.fs.v2.object.GetResponse
@@ -2942,156 +3027,158 @@ var file_proto_object_service_proto_goTypes = []any{
 	(*SearchV2Request)(nil),                    // 11: neo.fs.v2.object.SearchV2Request
 	(*SearchV2Response)(nil),                   // 12: neo.fs.v2.object.SearchV2Response
 	(*Range)(nil),                              // 13: neo.fs.v2.object.Range
-	(*GetRangeRequest)(nil),                    // 14: neo.fs.v2.object.GetRangeRequest
-	(*GetRangeResponse)(nil),                   // 15: neo.fs.v2.object.GetRangeResponse
-	(*GetRangeHashRequest)(nil),                // 16: neo.fs.v2.object.GetRangeHashRequest
-	(*GetRangeHashResponse)(nil),               // 17: neo.fs.v2.object.GetRangeHashResponse
-	(*ReplicateRequest)(nil),                   // 18: neo.fs.v2.object.ReplicateRequest
-	(*ReplicateResponse)(nil),                  // 19: neo.fs.v2.object.ReplicateResponse
-	(*GetRequest_Body)(nil),                    // 20: neo.fs.v2.object.GetRequest.Body
-	(*GetResponse_Body)(nil),                   // 21: neo.fs.v2.object.GetResponse.Body
-	(*GetResponse_Body_Init)(nil),              // 22: neo.fs.v2.object.GetResponse.Body.Init
-	(*PutRequest_Body)(nil),                    // 23: neo.fs.v2.object.PutRequest.Body
-	(*PutRequest_Body_Init)(nil),               // 24: neo.fs.v2.object.PutRequest.Body.Init
-	(*PutResponse_Body)(nil),                   // 25: neo.fs.v2.object.PutResponse.Body
-	(*DeleteRequest_Body)(nil),                 // 26: neo.fs.v2.object.DeleteRequest.Body
-	(*DeleteResponse_Body)(nil),                // 27: neo.fs.v2.object.DeleteResponse.Body
-	(*HeadRequest_Body)(nil),                   // 28: neo.fs.v2.object.HeadRequest.Body
-	(*HeadResponse_Body)(nil),                  // 29: neo.fs.v2.object.HeadResponse.Body
-	(*SearchRequest_Body)(nil),                 // 30: neo.fs.v2.object.SearchRequest.Body
-	(*SearchResponse_Body)(nil),                // 31: neo.fs.v2.object.SearchResponse.Body
-	(*SearchV2Request_Body)(nil),               // 32: neo.fs.v2.object.SearchV2Request.Body
-	(*SearchV2Response_OIDWithMeta)(nil),       // 33: neo.fs.v2.object.SearchV2Response.OIDWithMeta
-	(*SearchV2Response_Body)(nil),              // 34: neo.fs.v2.object.SearchV2Response.Body
-	(*GetRangeRequest_Body)(nil),               // 35: neo.fs.v2.object.GetRangeRequest.Body
-	(*GetRangeResponse_Body)(nil),              // 36: neo.fs.v2.object.GetRangeResponse.Body
-	(*GetRangeHashRequest_Body)(nil),           // 37: neo.fs.v2.object.GetRangeHashRequest.Body
-	(*GetRangeHashResponse_Body)(nil),          // 38: neo.fs.v2.object.GetRangeHashResponse.Body
-	(*session.RequestMetaHeader)(nil),          // 39: neo.fs.v2.session.RequestMetaHeader
-	(*session.RequestVerificationHeader)(nil),  // 40: neo.fs.v2.session.RequestVerificationHeader
-	(*session.ResponseMetaHeader)(nil),         // 41: neo.fs.v2.session.ResponseMetaHeader
-	(*session.ResponseVerificationHeader)(nil), // 42: neo.fs.v2.session.ResponseVerificationHeader
-	(*Header)(nil),                             // 43: neo.fs.v2.object.Header
-	(*refs.Signature)(nil),                     // 44: neo.fs.v2.refs.Signature
-	(*Object)(nil),                             // 45: neo.fs.v2.object.Object
-	(*status.Status)(nil),                      // 46: neo.fs.v2.status.Status
-	(*refs.Address)(nil),                       // 47: neo.fs.v2.refs.Address
-	(*SplitInfo)(nil),                          // 48: neo.fs.v2.object.SplitInfo
-	(*refs.ObjectID)(nil),                      // 49: neo.fs.v2.refs.ObjectID
-	(*ShortHeader)(nil),                        // 50: neo.fs.v2.object.ShortHeader
-	(*refs.ContainerID)(nil),                   // 51: neo.fs.v2.refs.ContainerID
-	(*SearchFilter)(nil),                       // 52: neo.fs.v2.object.SearchFilter
-	(refs.ChecksumType)(0),                     // 53: neo.fs.v2.refs.ChecksumType
+	(*ExtendedRange)(nil),                      // 14: neo.fs.v2.object.ExtendedRange
+	(*GetRangeRequest)(nil),                    // 15: neo.fs.v2.object.GetRangeRequest
+	(*GetRangeResponse)(nil),                   // 16: neo.fs.v2.object.GetRangeResponse
+	(*GetRangeHashRequest)(nil),                // 17: neo.fs.v2.object.GetRangeHashRequest
+	(*GetRangeHashResponse)(nil),               // 18: neo.fs.v2.object.GetRangeHashResponse
+	(*ReplicateRequest)(nil),                   // 19: neo.fs.v2.object.ReplicateRequest
+	(*ReplicateResponse)(nil),                  // 20: neo.fs.v2.object.ReplicateResponse
+	(*GetRequest_Body)(nil),                    // 21: neo.fs.v2.object.GetRequest.Body
+	(*GetResponse_Body)(nil),                   // 22: neo.fs.v2.object.GetResponse.Body
+	(*GetResponse_Body_Init)(nil),              // 23: neo.fs.v2.object.GetResponse.Body.Init
+	(*PutRequest_Body)(nil),                    // 24: neo.fs.v2.object.PutRequest.Body
+	(*PutRequest_Body_Init)(nil),               // 25: neo.fs.v2.object.PutRequest.Body.Init
+	(*PutResponse_Body)(nil),                   // 26: neo.fs.v2.object.PutResponse.Body
+	(*DeleteRequest_Body)(nil),                 // 27: neo.fs.v2.object.DeleteRequest.Body
+	(*DeleteResponse_Body)(nil),                // 28: neo.fs.v2.object.DeleteResponse.Body
+	(*HeadRequest_Body)(nil),                   // 29: neo.fs.v2.object.HeadRequest.Body
+	(*HeadResponse_Body)(nil),                  // 30: neo.fs.v2.object.HeadResponse.Body
+	(*SearchRequest_Body)(nil),                 // 31: neo.fs.v2.object.SearchRequest.Body
+	(*SearchResponse_Body)(nil),                // 32: neo.fs.v2.object.SearchResponse.Body
+	(*SearchV2Request_Body)(nil),               // 33: neo.fs.v2.object.SearchV2Request.Body
+	(*SearchV2Response_OIDWithMeta)(nil),       // 34: neo.fs.v2.object.SearchV2Response.OIDWithMeta
+	(*SearchV2Response_Body)(nil),              // 35: neo.fs.v2.object.SearchV2Response.Body
+	(*GetRangeRequest_Body)(nil),               // 36: neo.fs.v2.object.GetRangeRequest.Body
+	(*GetRangeResponse_Body)(nil),              // 37: neo.fs.v2.object.GetRangeResponse.Body
+	(*GetRangeHashRequest_Body)(nil),           // 38: neo.fs.v2.object.GetRangeHashRequest.Body
+	(*GetRangeHashResponse_Body)(nil),          // 39: neo.fs.v2.object.GetRangeHashResponse.Body
+	(*session.RequestMetaHeader)(nil),          // 40: neo.fs.v2.session.RequestMetaHeader
+	(*session.RequestVerificationHeader)(nil),  // 41: neo.fs.v2.session.RequestVerificationHeader
+	(*session.ResponseMetaHeader)(nil),         // 42: neo.fs.v2.session.ResponseMetaHeader
+	(*session.ResponseVerificationHeader)(nil), // 43: neo.fs.v2.session.ResponseVerificationHeader
+	(*Header)(nil),                             // 44: neo.fs.v2.object.Header
+	(*refs.Signature)(nil),                     // 45: neo.fs.v2.refs.Signature
+	(*Object)(nil),                             // 46: neo.fs.v2.object.Object
+	(*status.Status)(nil),                      // 47: neo.fs.v2.status.Status
+	(*refs.Address)(nil),                       // 48: neo.fs.v2.refs.Address
+	(*SplitInfo)(nil),                          // 49: neo.fs.v2.object.SplitInfo
+	(*refs.ObjectID)(nil),                      // 50: neo.fs.v2.refs.ObjectID
+	(*ShortHeader)(nil),                        // 51: neo.fs.v2.object.ShortHeader
+	(*refs.ContainerID)(nil),                   // 52: neo.fs.v2.refs.ContainerID
+	(*SearchFilter)(nil),                       // 53: neo.fs.v2.object.SearchFilter
+	(refs.ChecksumType)(0),                     // 54: neo.fs.v2.refs.ChecksumType
 }
 var file_proto_object_service_proto_depIdxs = []int32{
-	20, // 0: neo.fs.v2.object.GetRequest.body:type_name -> neo.fs.v2.object.GetRequest.Body
-	39, // 1: neo.fs.v2.object.GetRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 2: neo.fs.v2.object.GetRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	21, // 3: neo.fs.v2.object.GetResponse.body:type_name -> neo.fs.v2.object.GetResponse.Body
-	41, // 4: neo.fs.v2.object.GetResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 5: neo.fs.v2.object.GetResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	23, // 6: neo.fs.v2.object.PutRequest.body:type_name -> neo.fs.v2.object.PutRequest.Body
-	39, // 7: neo.fs.v2.object.PutRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 8: neo.fs.v2.object.PutRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	25, // 9: neo.fs.v2.object.PutResponse.body:type_name -> neo.fs.v2.object.PutResponse.Body
-	41, // 10: neo.fs.v2.object.PutResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 11: neo.fs.v2.object.PutResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	26, // 12: neo.fs.v2.object.DeleteRequest.body:type_name -> neo.fs.v2.object.DeleteRequest.Body
-	39, // 13: neo.fs.v2.object.DeleteRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 14: neo.fs.v2.object.DeleteRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	27, // 15: neo.fs.v2.object.DeleteResponse.body:type_name -> neo.fs.v2.object.DeleteResponse.Body
-	41, // 16: neo.fs.v2.object.DeleteResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 17: neo.fs.v2.object.DeleteResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	28, // 18: neo.fs.v2.object.HeadRequest.body:type_name -> neo.fs.v2.object.HeadRequest.Body
-	39, // 19: neo.fs.v2.object.HeadRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 20: neo.fs.v2.object.HeadRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	43, // 21: neo.fs.v2.object.HeaderWithSignature.header:type_name -> neo.fs.v2.object.Header
-	44, // 22: neo.fs.v2.object.HeaderWithSignature.signature:type_name -> neo.fs.v2.refs.Signature
-	29, // 23: neo.fs.v2.object.HeadResponse.body:type_name -> neo.fs.v2.object.HeadResponse.Body
-	41, // 24: neo.fs.v2.object.HeadResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 25: neo.fs.v2.object.HeadResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	30, // 26: neo.fs.v2.object.SearchRequest.body:type_name -> neo.fs.v2.object.SearchRequest.Body
-	39, // 27: neo.fs.v2.object.SearchRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 28: neo.fs.v2.object.SearchRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	31, // 29: neo.fs.v2.object.SearchResponse.body:type_name -> neo.fs.v2.object.SearchResponse.Body
-	41, // 30: neo.fs.v2.object.SearchResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 31: neo.fs.v2.object.SearchResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	32, // 32: neo.fs.v2.object.SearchV2Request.body:type_name -> neo.fs.v2.object.SearchV2Request.Body
-	39, // 33: neo.fs.v2.object.SearchV2Request.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 34: neo.fs.v2.object.SearchV2Request.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	34, // 35: neo.fs.v2.object.SearchV2Response.body:type_name -> neo.fs.v2.object.SearchV2Response.Body
-	41, // 36: neo.fs.v2.object.SearchV2Response.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 37: neo.fs.v2.object.SearchV2Response.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	35, // 38: neo.fs.v2.object.GetRangeRequest.body:type_name -> neo.fs.v2.object.GetRangeRequest.Body
-	39, // 39: neo.fs.v2.object.GetRangeRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 40: neo.fs.v2.object.GetRangeRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	36, // 41: neo.fs.v2.object.GetRangeResponse.body:type_name -> neo.fs.v2.object.GetRangeResponse.Body
-	41, // 42: neo.fs.v2.object.GetRangeResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 43: neo.fs.v2.object.GetRangeResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	37, // 44: neo.fs.v2.object.GetRangeHashRequest.body:type_name -> neo.fs.v2.object.GetRangeHashRequest.Body
-	39, // 45: neo.fs.v2.object.GetRangeHashRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
-	40, // 46: neo.fs.v2.object.GetRangeHashRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	38, // 47: neo.fs.v2.object.GetRangeHashResponse.body:type_name -> neo.fs.v2.object.GetRangeHashResponse.Body
-	41, // 48: neo.fs.v2.object.GetRangeHashResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
-	42, // 49: neo.fs.v2.object.GetRangeHashResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	45, // 50: neo.fs.v2.object.ReplicateRequest.object:type_name -> neo.fs.v2.object.Object
-	44, // 51: neo.fs.v2.object.ReplicateRequest.signature:type_name -> neo.fs.v2.refs.Signature
-	46, // 52: neo.fs.v2.object.ReplicateResponse.status:type_name -> neo.fs.v2.status.Status
-	47, // 53: neo.fs.v2.object.GetRequest.Body.address:type_name -> neo.fs.v2.refs.Address
+	21, // 0: neo.fs.v2.object.GetRequest.body:type_name -> neo.fs.v2.object.GetRequest.Body
+	40, // 1: neo.fs.v2.object.GetRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 2: neo.fs.v2.object.GetRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	22, // 3: neo.fs.v2.object.GetResponse.body:type_name -> neo.fs.v2.object.GetResponse.Body
+	42, // 4: neo.fs.v2.object.GetResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 5: neo.fs.v2.object.GetResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	24, // 6: neo.fs.v2.object.PutRequest.body:type_name -> neo.fs.v2.object.PutRequest.Body
+	40, // 7: neo.fs.v2.object.PutRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 8: neo.fs.v2.object.PutRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	26, // 9: neo.fs.v2.object.PutResponse.body:type_name -> neo.fs.v2.object.PutResponse.Body
+	42, // 10: neo.fs.v2.object.PutResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 11: neo.fs.v2.object.PutResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	27, // 12: neo.fs.v2.object.DeleteRequest.body:type_name -> neo.fs.v2.object.DeleteRequest.Body
+	40, // 13: neo.fs.v2.object.DeleteRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 14: neo.fs.v2.object.DeleteRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	28, // 15: neo.fs.v2.object.DeleteResponse.body:type_name -> neo.fs.v2.object.DeleteResponse.Body
+	42, // 16: neo.fs.v2.object.DeleteResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 17: neo.fs.v2.object.DeleteResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	29, // 18: neo.fs.v2.object.HeadRequest.body:type_name -> neo.fs.v2.object.HeadRequest.Body
+	40, // 19: neo.fs.v2.object.HeadRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 20: neo.fs.v2.object.HeadRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	44, // 21: neo.fs.v2.object.HeaderWithSignature.header:type_name -> neo.fs.v2.object.Header
+	45, // 22: neo.fs.v2.object.HeaderWithSignature.signature:type_name -> neo.fs.v2.refs.Signature
+	30, // 23: neo.fs.v2.object.HeadResponse.body:type_name -> neo.fs.v2.object.HeadResponse.Body
+	42, // 24: neo.fs.v2.object.HeadResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 25: neo.fs.v2.object.HeadResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	31, // 26: neo.fs.v2.object.SearchRequest.body:type_name -> neo.fs.v2.object.SearchRequest.Body
+	40, // 27: neo.fs.v2.object.SearchRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 28: neo.fs.v2.object.SearchRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	32, // 29: neo.fs.v2.object.SearchResponse.body:type_name -> neo.fs.v2.object.SearchResponse.Body
+	42, // 30: neo.fs.v2.object.SearchResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 31: neo.fs.v2.object.SearchResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	33, // 32: neo.fs.v2.object.SearchV2Request.body:type_name -> neo.fs.v2.object.SearchV2Request.Body
+	40, // 33: neo.fs.v2.object.SearchV2Request.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 34: neo.fs.v2.object.SearchV2Request.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	35, // 35: neo.fs.v2.object.SearchV2Response.body:type_name -> neo.fs.v2.object.SearchV2Response.Body
+	42, // 36: neo.fs.v2.object.SearchV2Response.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 37: neo.fs.v2.object.SearchV2Response.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	36, // 38: neo.fs.v2.object.GetRangeRequest.body:type_name -> neo.fs.v2.object.GetRangeRequest.Body
+	40, // 39: neo.fs.v2.object.GetRangeRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 40: neo.fs.v2.object.GetRangeRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	37, // 41: neo.fs.v2.object.GetRangeResponse.body:type_name -> neo.fs.v2.object.GetRangeResponse.Body
+	42, // 42: neo.fs.v2.object.GetRangeResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 43: neo.fs.v2.object.GetRangeResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	38, // 44: neo.fs.v2.object.GetRangeHashRequest.body:type_name -> neo.fs.v2.object.GetRangeHashRequest.Body
+	40, // 45: neo.fs.v2.object.GetRangeHashRequest.meta_header:type_name -> neo.fs.v2.session.RequestMetaHeader
+	41, // 46: neo.fs.v2.object.GetRangeHashRequest.verify_header:type_name -> neo.fs.v2.session.RequestVerificationHeader
+	39, // 47: neo.fs.v2.object.GetRangeHashResponse.body:type_name -> neo.fs.v2.object.GetRangeHashResponse.Body
+	42, // 48: neo.fs.v2.object.GetRangeHashResponse.meta_header:type_name -> neo.fs.v2.session.ResponseMetaHeader
+	43, // 49: neo.fs.v2.object.GetRangeHashResponse.verify_header:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	46, // 50: neo.fs.v2.object.ReplicateRequest.object:type_name -> neo.fs.v2.object.Object
+	45, // 51: neo.fs.v2.object.ReplicateRequest.signature:type_name -> neo.fs.v2.refs.Signature
+	47, // 52: neo.fs.v2.object.ReplicateResponse.status:type_name -> neo.fs.v2.status.Status
+	48, // 53: neo.fs.v2.object.GetRequest.Body.address:type_name -> neo.fs.v2.refs.Address
 	13, // 54: neo.fs.v2.object.GetRequest.Body.range:type_name -> neo.fs.v2.object.Range
-	22, // 55: neo.fs.v2.object.GetResponse.Body.init:type_name -> neo.fs.v2.object.GetResponse.Body.Init
-	48, // 56: neo.fs.v2.object.GetResponse.Body.split_info:type_name -> neo.fs.v2.object.SplitInfo
-	49, // 57: neo.fs.v2.object.GetResponse.Body.Init.object_id:type_name -> neo.fs.v2.refs.ObjectID
-	44, // 58: neo.fs.v2.object.GetResponse.Body.Init.signature:type_name -> neo.fs.v2.refs.Signature
-	43, // 59: neo.fs.v2.object.GetResponse.Body.Init.header:type_name -> neo.fs.v2.object.Header
-	24, // 60: neo.fs.v2.object.PutRequest.Body.init:type_name -> neo.fs.v2.object.PutRequest.Body.Init
-	49, // 61: neo.fs.v2.object.PutRequest.Body.Init.object_id:type_name -> neo.fs.v2.refs.ObjectID
-	44, // 62: neo.fs.v2.object.PutRequest.Body.Init.signature:type_name -> neo.fs.v2.refs.Signature
-	43, // 63: neo.fs.v2.object.PutRequest.Body.Init.header:type_name -> neo.fs.v2.object.Header
-	49, // 64: neo.fs.v2.object.PutResponse.Body.object_id:type_name -> neo.fs.v2.refs.ObjectID
-	47, // 65: neo.fs.v2.object.DeleteRequest.Body.address:type_name -> neo.fs.v2.refs.Address
-	47, // 66: neo.fs.v2.object.DeleteResponse.Body.tombstone:type_name -> neo.fs.v2.refs.Address
-	47, // 67: neo.fs.v2.object.HeadRequest.Body.address:type_name -> neo.fs.v2.refs.Address
-	7,  // 68: neo.fs.v2.object.HeadResponse.Body.header:type_name -> neo.fs.v2.object.HeaderWithSignature
-	50, // 69: neo.fs.v2.object.HeadResponse.Body.short_header:type_name -> neo.fs.v2.object.ShortHeader
-	48, // 70: neo.fs.v2.object.HeadResponse.Body.split_info:type_name -> neo.fs.v2.object.SplitInfo
-	51, // 71: neo.fs.v2.object.SearchRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	52, // 72: neo.fs.v2.object.SearchRequest.Body.filters:type_name -> neo.fs.v2.object.SearchFilter
-	49, // 73: neo.fs.v2.object.SearchResponse.Body.id_list:type_name -> neo.fs.v2.refs.ObjectID
-	51, // 74: neo.fs.v2.object.SearchV2Request.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	52, // 75: neo.fs.v2.object.SearchV2Request.Body.filters:type_name -> neo.fs.v2.object.SearchFilter
-	49, // 76: neo.fs.v2.object.SearchV2Response.OIDWithMeta.id:type_name -> neo.fs.v2.refs.ObjectID
-	33, // 77: neo.fs.v2.object.SearchV2Response.Body.result:type_name -> neo.fs.v2.object.SearchV2Response.OIDWithMeta
-	47, // 78: neo.fs.v2.object.GetRangeRequest.Body.address:type_name -> neo.fs.v2.refs.Address
-	13, // 79: neo.fs.v2.object.GetRangeRequest.Body.range:type_name -> neo.fs.v2.object.Range
-	48, // 80: neo.fs.v2.object.GetRangeResponse.Body.split_info:type_name -> neo.fs.v2.object.SplitInfo
-	47, // 81: neo.fs.v2.object.GetRangeHashRequest.Body.address:type_name -> neo.fs.v2.refs.Address
-	13, // 82: neo.fs.v2.object.GetRangeHashRequest.Body.ranges:type_name -> neo.fs.v2.object.Range
-	53, // 83: neo.fs.v2.object.GetRangeHashRequest.Body.type:type_name -> neo.fs.v2.refs.ChecksumType
-	53, // 84: neo.fs.v2.object.GetRangeHashResponse.Body.type:type_name -> neo.fs.v2.refs.ChecksumType
-	0,  // 85: neo.fs.v2.object.ObjectService.Get:input_type -> neo.fs.v2.object.GetRequest
-	2,  // 86: neo.fs.v2.object.ObjectService.Put:input_type -> neo.fs.v2.object.PutRequest
-	4,  // 87: neo.fs.v2.object.ObjectService.Delete:input_type -> neo.fs.v2.object.DeleteRequest
-	6,  // 88: neo.fs.v2.object.ObjectService.Head:input_type -> neo.fs.v2.object.HeadRequest
-	9,  // 89: neo.fs.v2.object.ObjectService.Search:input_type -> neo.fs.v2.object.SearchRequest
-	11, // 90: neo.fs.v2.object.ObjectService.SearchV2:input_type -> neo.fs.v2.object.SearchV2Request
-	14, // 91: neo.fs.v2.object.ObjectService.GetRange:input_type -> neo.fs.v2.object.GetRangeRequest
-	16, // 92: neo.fs.v2.object.ObjectService.GetRangeHash:input_type -> neo.fs.v2.object.GetRangeHashRequest
-	18, // 93: neo.fs.v2.object.ObjectService.Replicate:input_type -> neo.fs.v2.object.ReplicateRequest
-	1,  // 94: neo.fs.v2.object.ObjectService.Get:output_type -> neo.fs.v2.object.GetResponse
-	3,  // 95: neo.fs.v2.object.ObjectService.Put:output_type -> neo.fs.v2.object.PutResponse
-	5,  // 96: neo.fs.v2.object.ObjectService.Delete:output_type -> neo.fs.v2.object.DeleteResponse
-	8,  // 97: neo.fs.v2.object.ObjectService.Head:output_type -> neo.fs.v2.object.HeadResponse
-	10, // 98: neo.fs.v2.object.ObjectService.Search:output_type -> neo.fs.v2.object.SearchResponse
-	12, // 99: neo.fs.v2.object.ObjectService.SearchV2:output_type -> neo.fs.v2.object.SearchV2Response
-	15, // 100: neo.fs.v2.object.ObjectService.GetRange:output_type -> neo.fs.v2.object.GetRangeResponse
-	17, // 101: neo.fs.v2.object.ObjectService.GetRangeHash:output_type -> neo.fs.v2.object.GetRangeHashResponse
-	19, // 102: neo.fs.v2.object.ObjectService.Replicate:output_type -> neo.fs.v2.object.ReplicateResponse
-	94, // [94:103] is the sub-list for method output_type
-	85, // [85:94] is the sub-list for method input_type
-	85, // [85:85] is the sub-list for extension type_name
-	85, // [85:85] is the sub-list for extension extendee
-	0,  // [0:85] is the sub-list for field type_name
+	14, // 55: neo.fs.v2.object.GetRequest.Body.extended_range:type_name -> neo.fs.v2.object.ExtendedRange
+	23, // 56: neo.fs.v2.object.GetResponse.Body.init:type_name -> neo.fs.v2.object.GetResponse.Body.Init
+	49, // 57: neo.fs.v2.object.GetResponse.Body.split_info:type_name -> neo.fs.v2.object.SplitInfo
+	50, // 58: neo.fs.v2.object.GetResponse.Body.Init.object_id:type_name -> neo.fs.v2.refs.ObjectID
+	45, // 59: neo.fs.v2.object.GetResponse.Body.Init.signature:type_name -> neo.fs.v2.refs.Signature
+	44, // 60: neo.fs.v2.object.GetResponse.Body.Init.header:type_name -> neo.fs.v2.object.Header
+	25, // 61: neo.fs.v2.object.PutRequest.Body.init:type_name -> neo.fs.v2.object.PutRequest.Body.Init
+	50, // 62: neo.fs.v2.object.PutRequest.Body.Init.object_id:type_name -> neo.fs.v2.refs.ObjectID
+	45, // 63: neo.fs.v2.object.PutRequest.Body.Init.signature:type_name -> neo.fs.v2.refs.Signature
+	44, // 64: neo.fs.v2.object.PutRequest.Body.Init.header:type_name -> neo.fs.v2.object.Header
+	50, // 65: neo.fs.v2.object.PutResponse.Body.object_id:type_name -> neo.fs.v2.refs.ObjectID
+	48, // 66: neo.fs.v2.object.DeleteRequest.Body.address:type_name -> neo.fs.v2.refs.Address
+	48, // 67: neo.fs.v2.object.DeleteResponse.Body.tombstone:type_name -> neo.fs.v2.refs.Address
+	48, // 68: neo.fs.v2.object.HeadRequest.Body.address:type_name -> neo.fs.v2.refs.Address
+	7,  // 69: neo.fs.v2.object.HeadResponse.Body.header:type_name -> neo.fs.v2.object.HeaderWithSignature
+	51, // 70: neo.fs.v2.object.HeadResponse.Body.short_header:type_name -> neo.fs.v2.object.ShortHeader
+	49, // 71: neo.fs.v2.object.HeadResponse.Body.split_info:type_name -> neo.fs.v2.object.SplitInfo
+	52, // 72: neo.fs.v2.object.SearchRequest.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	53, // 73: neo.fs.v2.object.SearchRequest.Body.filters:type_name -> neo.fs.v2.object.SearchFilter
+	50, // 74: neo.fs.v2.object.SearchResponse.Body.id_list:type_name -> neo.fs.v2.refs.ObjectID
+	52, // 75: neo.fs.v2.object.SearchV2Request.Body.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	53, // 76: neo.fs.v2.object.SearchV2Request.Body.filters:type_name -> neo.fs.v2.object.SearchFilter
+	50, // 77: neo.fs.v2.object.SearchV2Response.OIDWithMeta.id:type_name -> neo.fs.v2.refs.ObjectID
+	34, // 78: neo.fs.v2.object.SearchV2Response.Body.result:type_name -> neo.fs.v2.object.SearchV2Response.OIDWithMeta
+	48, // 79: neo.fs.v2.object.GetRangeRequest.Body.address:type_name -> neo.fs.v2.refs.Address
+	13, // 80: neo.fs.v2.object.GetRangeRequest.Body.range:type_name -> neo.fs.v2.object.Range
+	49, // 81: neo.fs.v2.object.GetRangeResponse.Body.split_info:type_name -> neo.fs.v2.object.SplitInfo
+	48, // 82: neo.fs.v2.object.GetRangeHashRequest.Body.address:type_name -> neo.fs.v2.refs.Address
+	13, // 83: neo.fs.v2.object.GetRangeHashRequest.Body.ranges:type_name -> neo.fs.v2.object.Range
+	54, // 84: neo.fs.v2.object.GetRangeHashRequest.Body.type:type_name -> neo.fs.v2.refs.ChecksumType
+	54, // 85: neo.fs.v2.object.GetRangeHashResponse.Body.type:type_name -> neo.fs.v2.refs.ChecksumType
+	0,  // 86: neo.fs.v2.object.ObjectService.Get:input_type -> neo.fs.v2.object.GetRequest
+	2,  // 87: neo.fs.v2.object.ObjectService.Put:input_type -> neo.fs.v2.object.PutRequest
+	4,  // 88: neo.fs.v2.object.ObjectService.Delete:input_type -> neo.fs.v2.object.DeleteRequest
+	6,  // 89: neo.fs.v2.object.ObjectService.Head:input_type -> neo.fs.v2.object.HeadRequest
+	9,  // 90: neo.fs.v2.object.ObjectService.Search:input_type -> neo.fs.v2.object.SearchRequest
+	11, // 91: neo.fs.v2.object.ObjectService.SearchV2:input_type -> neo.fs.v2.object.SearchV2Request
+	15, // 92: neo.fs.v2.object.ObjectService.GetRange:input_type -> neo.fs.v2.object.GetRangeRequest
+	17, // 93: neo.fs.v2.object.ObjectService.GetRangeHash:input_type -> neo.fs.v2.object.GetRangeHashRequest
+	19, // 94: neo.fs.v2.object.ObjectService.Replicate:input_type -> neo.fs.v2.object.ReplicateRequest
+	1,  // 95: neo.fs.v2.object.ObjectService.Get:output_type -> neo.fs.v2.object.GetResponse
+	3,  // 96: neo.fs.v2.object.ObjectService.Put:output_type -> neo.fs.v2.object.PutResponse
+	5,  // 97: neo.fs.v2.object.ObjectService.Delete:output_type -> neo.fs.v2.object.DeleteResponse
+	8,  // 98: neo.fs.v2.object.ObjectService.Head:output_type -> neo.fs.v2.object.HeadResponse
+	10, // 99: neo.fs.v2.object.ObjectService.Search:output_type -> neo.fs.v2.object.SearchResponse
+	12, // 100: neo.fs.v2.object.ObjectService.SearchV2:output_type -> neo.fs.v2.object.SearchV2Response
+	16, // 101: neo.fs.v2.object.ObjectService.GetRange:output_type -> neo.fs.v2.object.GetRangeResponse
+	18, // 102: neo.fs.v2.object.ObjectService.GetRangeHash:output_type -> neo.fs.v2.object.GetRangeHashResponse
+	20, // 103: neo.fs.v2.object.ObjectService.Replicate:output_type -> neo.fs.v2.object.ReplicateResponse
+	95, // [95:104] is the sub-list for method output_type
+	86, // [86:95] is the sub-list for method input_type
+	86, // [86:86] is the sub-list for extension type_name
+	86, // [86:86] is the sub-list for extension extendee
+	0,  // [0:86] is the sub-list for field type_name
 }
 
 func init() { file_proto_object_service_proto_init() }
@@ -3100,21 +3187,22 @@ func file_proto_object_service_proto_init() {
 		return
 	}
 	file_proto_object_types_proto_init()
-	file_proto_object_service_proto_msgTypes[21].OneofWrappers = []any{
+	file_proto_object_service_proto_msgTypes[14].OneofWrappers = []any{}
+	file_proto_object_service_proto_msgTypes[22].OneofWrappers = []any{
 		(*GetResponse_Body_Init_)(nil),
 		(*GetResponse_Body_Chunk)(nil),
 		(*GetResponse_Body_SplitInfo)(nil),
 	}
-	file_proto_object_service_proto_msgTypes[23].OneofWrappers = []any{
+	file_proto_object_service_proto_msgTypes[24].OneofWrappers = []any{
 		(*PutRequest_Body_Init_)(nil),
 		(*PutRequest_Body_Chunk)(nil),
 	}
-	file_proto_object_service_proto_msgTypes[29].OneofWrappers = []any{
+	file_proto_object_service_proto_msgTypes[30].OneofWrappers = []any{
 		(*HeadResponse_Body_Header)(nil),
 		(*HeadResponse_Body_ShortHeader)(nil),
 		(*HeadResponse_Body_SplitInfo)(nil),
 	}
-	file_proto_object_service_proto_msgTypes[36].OneofWrappers = []any{
+	file_proto_object_service_proto_msgTypes[37].OneofWrappers = []any{
 		(*GetRangeResponse_Body_Chunk)(nil),
 		(*GetRangeResponse_Body_SplitInfo)(nil),
 	}
@@ -3124,7 +3212,7 @@ func file_proto_object_service_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_object_service_proto_rawDesc), len(file_proto_object_service_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   39,
+			NumMessages:   40,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

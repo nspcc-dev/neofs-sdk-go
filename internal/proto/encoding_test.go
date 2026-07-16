@@ -233,6 +233,21 @@ func benchmarkRepeatedType[T anySupportedType](
 	}
 }
 
+func TestOptionalVarint(t *testing.T) {
+	fieldNum := protowire.Number(1)
+	zero := uint64(0)
+
+	t.Run("nil", func(t *testing.T) {
+		require.Zero(t, proto.SizeOptionalVarint[uint64](fieldNum, nil))
+		require.Zero(t, proto.MarshalToOptionalVarint[uint64](nil, fieldNum, nil))
+	})
+	t.Run("zero", func(t *testing.T) {
+		buf := make([]byte, proto.SizeOptionalVarint(fieldNum, &zero))
+		require.Equal(t, len(buf), proto.MarshalToOptionalVarint(buf, fieldNum, &zero))
+		require.Equal(t, []byte{8, 0}, buf)
+	})
+}
+
 func TestVarint(t *testing.T) {
 	testEncoding(t, protowire.VarintType, proto.SizeVarint[uint64], proto.MarshalToVarint[uint64], protowire.ConsumeVarint, randVarint[uint64])
 	testEncoding(t, protowire.VarintType, proto.SizeVarint[uint32], proto.MarshalToVarint[uint32], consumeVarint[uint32], randVarint[uint32])

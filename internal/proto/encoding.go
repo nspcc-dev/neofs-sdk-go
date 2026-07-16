@@ -137,6 +137,26 @@ func MarshalToVarint[T Varint](b []byte, num protowire.Number, v T) int {
 	return off + binary.PutUvarint(b[off:], uint64(v))
 }
 
+// SizeOptionalVarint returns the encoded size of an optional varint protobuf
+// field with given number and value.
+func SizeOptionalVarint[T Varint](num protowire.Number, v *T) int {
+	if v == nil {
+		return 0
+	}
+	return protowire.SizeTag(num) + protowire.SizeVarint(uint64(*v))
+}
+
+// MarshalToOptionalVarint encodes an optional varint protobuf field with given
+// number and value into b and returns the number of bytes written. If the buffer
+// is too small, MarshalToOptionalVarint will panic.
+func MarshalToOptionalVarint[T Varint](b []byte, num protowire.Number, v *T) int {
+	if v == nil {
+		return 0
+	}
+	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.VarintType))
+	return off + binary.PutUvarint(b[off:], uint64(*v))
+}
+
 // SizeBool returns the encoded size of 'bool' protobuf field with given number
 // and value.
 func SizeBool(num protowire.Number, v bool) int {
