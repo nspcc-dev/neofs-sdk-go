@@ -1,0 +1,156 @@
+package ec_test
+
+import (
+	"bytes"
+	"fmt"
+	"testing"
+
+	"github.com/klauspost/reedsolomon"
+	islices "github.com/nspcc-dev/neofs-sdk-go/internal/slices"
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
+	"github.com/nspcc-dev/neofs-sdk-go/object/ec"
+	"github.com/stretchr/testify/require"
+)
+
+func TestRule_String(t *testing.T) {
+	r := ec.Rule{
+		DataPartNum:   12,
+		ParityPartNum: 23,
+	}
+	require.Equal(t, "12/23", r.String())
+}
+
+func testEncode(t *testing.T, rule ec.Rule, data []byte) {
+	ln := uint64(len(data))
+
+	parts, err := ec.Encode(rule, data)
+	require.NoError(t, err)
+
+	res, err := ec.Decode(rule, ln, parts)
+	require.NoError(t, err)
+	require.Equal(t, data, res)
+
+	for lostCount := 1; lostCount <= int(rule.ParityPartNum); lostCount++ {
+		for _, lostIdxs := range islices.IndexCombos(len(parts), lostCount) {
+			res, err := ec.Decode(rule, ln, islices.NilTwoDimSliceElements(parts, lostIdxs))
+			require.NoError(t, err)
+			require.Equal(t, data, res)
+		}
+	}
+
+	for _, lostIdxs := range islices.IndexCombos(len(parts), int(rule.ParityPartNum)+1) {
+		_, err := ec.Decode(rule, ln, islices.NilTwoDimSliceElements(parts, lostIdxs))
+		require.ErrorContains(t, err, "restore Reed-Solomon")
+		require.ErrorIs(t, err, reedsolomon.ErrTooFewShards)
+	}
+}
+
+func TestEncode(t *testing.T) {
+	rules := []ec.Rule{
+		{DataPartNum: 3, ParityPartNum: 1},
+		{DataPartNum: 12, ParityPartNum: 4},
+	}
+
+	data := testutil.RandByteSlice(4 << 10)
+
+	t.Run("empty", func(t *testing.T) {
+		for _, rule := range rules {
+			t.Run(rule.String(), func(t *testing.T) {
+				test := func(t *testing.T, data []byte) {
+					res, err := ec.Encode(rule, []byte{})
+					require.NoError(t, err)
+
+					total := int(rule.DataPartNum + rule.ParityPartNum)
+					require.Len(t, res, total)
+					require.EqualValues(t, total, islices.CountNilsInTwoDimSlice(res))
+				}
+				test(t, nil)
+				test(t, []byte{})
+			})
+		}
+	})
+
+	for _, rule := range rules {
+		t.Run(rule.String(), func(t *testing.T) {
+			testEncode(t, rule, data)
+		})
+	}
+}
+
+func testConcatDataParts(t *testing.T, ln uint64) {
+	data := testutil.RandByteSlice(ln)
+
+	for _, rule := range []ec.Rule{
+		{DataPartNum: 3, ParityPartNum: 1},
+		{DataPartNum: 12, ParityPartNum: 4},
+	} {
+		t.Run(fmt.Sprintf("rule=%s", rule.String()), func(t *testing.T) {
+			var parts [][]byte
+			if ln > 0 {
+				rs, err := reedsolomon.New(int(rule.DataPartNum), int(rule.ParityPartNum))
+				require.NoError(t, err)
+
+				parts, err = rs.Split(data)
+				require.NoError(t, err)
+			} else {
+				parts = make([][]byte, rule.DataPartNum+rule.ParityPartNum)
+			}
+
+			got := ec.ConcatDataParts(rule, ln, parts)
+			require.True(t, bytes.Equal(data, got))
+		})
+	}
+}
+
+func TestConcatDataParts(t *testing.T) {
+	for _, ln := range []uint64{
+		0,
+		1,
+		100,
+		1 << 10,
+		1<<10 + 1,
+		10 << 10,
+		10<<10 + 1,
+	} {
+		t.Run(fmt.Sprintf("len=%d", ln), func(t *testing.T) {
+			testConcatDataParts(t, ln)
+		})
+	}
+}
+
+func TestDecodeRange(t *testing.T) {
+	const dataLen = 4 << 10
+	data := testutil.RandByteSlice(dataLen)
+
+	rule := ec.Rule{
+		DataPartNum:   12,
+		ParityPartNum: 4,
+	}
+
+	parts, err := ec.Encode(rule, data)
+	require.NoError(t, err)
+
+	t.Run("unsupported rule", func(t *testing.T) {
+		err := ec.DecodeRange(ec.Rule{}, 0, 1, nil)
+		require.EqualError(t, err, "init Reed-Solomon decoder: cannot create Encoder with less than one data shard or less than zero parity shards")
+	})
+
+	totalParts := int(rule.DataPartNum + rule.ParityPartNum)
+	idx := islices.Indexes(totalParts)
+
+	for fromIdx := range idx {
+		for toIdx := fromIdx + 1; toIdx-fromIdx <= int(rule.ParityPartNum) && toIdx < totalParts; toIdx++ {
+			s := islices.NilTwoDimSliceElements(parts, idx[fromIdx:toIdx])
+			err := ec.DecodeRange(rule, fromIdx, toIdx, s)
+			require.NoError(t, err)
+			require.Equal(t, parts[fromIdx:toIdx], s[fromIdx:toIdx])
+		}
+
+		for toIdx := fromIdx + 1 + int(rule.ParityPartNum); toIdx < totalParts; toIdx++ {
+			s := islices.NilTwoDimSliceElements(parts, idx[fromIdx:toIdx])
+			err = ec.DecodeRange(rule, fromIdx, toIdx, s)
+			require.ErrorContains(t, err, "restore Reed-Solomon")
+			require.ErrorIs(t, err, reedsolomon.ErrTooFewShards)
+		}
+	}
+}
