@@ -46,6 +46,9 @@ var invalidProtoEACLTestcases = []struct {
 	{name: "records/negative op", err: "invalid record #1: negative op -1", corrupt: func(m *protoacl.EACLTable) {
 		m.Records[1].Operation = -1
 	}},
+	{name: "records/comment/invalid UTF-8", err: "invalid record #1: invalid UTF-8 comment", corrupt: func(m *protoacl.EACLTable) {
+		m.Records[1].Comment = string([]byte{0xff})
+	}},
 	{name: "records/filters/nil element", err: "invalid record #1: nil filter #1", corrupt: func(m *protoacl.EACLTable) {
 		m.Records[1].Filters[1] = nil
 	}},

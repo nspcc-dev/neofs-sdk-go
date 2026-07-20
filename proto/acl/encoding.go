@@ -41,6 +41,7 @@ const (
 	FieldEACLRecordAction
 	FieldEACLRecordFilters
 	FieldEACLRecordTargets
+	FieldEACLRecordComment
 )
 
 // MarshaledSize returns size of the EACLRecord in Protocol Buffers V3 format in
@@ -50,7 +51,8 @@ func (x *EACLRecord) MarshaledSize() int {
 		return proto.SizeVarint(FieldEACLRecordOperation, x.Operation) +
 			proto.SizeVarint(FieldEACLRecordAction, x.Action) +
 			proto.SizeRepeatedMessages(FieldEACLRecordFilters, x.Filters) +
-			proto.SizeRepeatedMessages(FieldEACLRecordTargets, x.Targets)
+			proto.SizeRepeatedMessages(FieldEACLRecordTargets, x.Targets) +
+			proto.SizeBytes(FieldEACLRecordComment, x.Comment)
 	}
 	return 0
 }
@@ -63,7 +65,8 @@ func (x *EACLRecord) MarshalStable(b []byte) {
 		off := proto.MarshalToVarint(b, FieldEACLRecordOperation, x.Operation)
 		off += proto.MarshalToVarint(b[off:], FieldEACLRecordAction, x.Action)
 		off += proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordFilters, x.Filters)
-		proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordTargets, x.Targets)
+		off += proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordTargets, x.Targets)
+		proto.MarshalToBytes(b[off:], FieldEACLRecordComment, x.Comment)
 	}
 }
 

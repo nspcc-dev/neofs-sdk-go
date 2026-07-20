@@ -1,8 +1,11 @@
 package eacl
 
 import (
+	"errors"
 	"fmt"
 	"slices"
+	"strings"
+	"unicode/utf8"
 
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
@@ -17,6 +20,7 @@ type Record struct {
 	operation Operation
 	filters   []Filter
 	targets   []Target
+	comment   string
 }
 
 // ConstructRecord constructs new Record representing access rule regulating
@@ -32,6 +36,7 @@ func (r Record) CopyTo(dst *Record) {
 	dst.action = r.action
 	dst.operation = r.operation
 	dst.filters = slices.Clone(r.filters)
+	dst.comment = r.comment
 
 	dst.targets = slices.Clone(r.targets)
 	for i, t := range r.targets {
@@ -88,6 +93,34 @@ func (r *Record) SetAction(action Action) {
 	r.action = action
 }
 
+// Comment returns auxiliary data associated with the access rule. The comment
+// does not affect permission evaluation.
+func (r Record) Comment() string {
+	return r.comment
+}
+
+// SetComment associates auxiliary data with the access rule. The comment does
+// not affect permission evaluation. It returns an error if comment is not valid
+// UTF-8 or contains zero bytes.
+func (r *Record) SetComment(comment string) error {
+	if err := validateComment(comment); err != nil {
+		return err
+	}
+
+	r.comment = comment
+	return nil
+}
+
+func validateComment(comment string) error {
+	if !utf8.ValidString(comment) {
+		return errors.New("invalid UTF-8 comment")
+	}
+	if strings.ContainsRune(comment, 0) {
+		return errors.New("comment contains zero byte")
+	}
+	return nil
+}
+
 type stringEncoder interface {
 	EncodeToString() string
 }
@@ -96,6 +129,7 @@ func (r Record) toProtoMessage() *protoacl.EACLRecord {
 	m := &protoacl.EACLRecord{
 		Operation: protoacl.Operation(r.operation),
 		Action:    protoacl.Action(r.action),
+		Comment:   r.comment,
 	}
 
 	if r.targets != nil {
@@ -122,6 +156,9 @@ func (r *Record) fromProtoMessage(m *protoacl.EACLRecord) error {
 	if m.Operation < 0 {
 		return fmt.Errorf("negative op %d", m.Operation)
 	}
+	if err := validateComment(m.Comment); err != nil {
+		return err
+	}
 
 	mt := m.Targets
 	r.targets = make([]Target, len(mt))
@@ -147,6 +184,7 @@ func (r *Record) fromProtoMessage(m *protoacl.EACLRecord) error {
 
 	r.action = Action(m.Action)
 	r.operation = Operation(m.Operation)
+	r.comment = m.Comment
 
 	return nil
 }

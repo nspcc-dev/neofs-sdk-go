@@ -159,7 +159,8 @@ var validJSONBearerToken = `
        "role": 690857412,
        "keys": []
       }
-     ]
+     ],
+     "comment": ""
     },
     {
      "operation": 94383138,
@@ -191,7 +192,8 @@ var validJSONBearerToken = `
         "NVUbLYGMEnjfVVhApIPyuL/tIem7Uqt1bw=="
        ]
       }
-     ]
+     ],
+     "comment": ""
     }
    ]
   },
