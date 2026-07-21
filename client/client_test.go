@@ -768,7 +768,7 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("non-zero epoch #%d", metaHdr.Epoch))
 	case metaHdr.MagicNumber != 0:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("non-zero network magic #%d", metaHdr.MagicNumber))
-	case metaHdr.Origin != nil:
+	case metaHdr.Origin != nil: // nolint:staticcheck
 		return newInvalidRequestMetaHeaderErr(errors.New("origin header is presented while should not be"))
 	case len(metaHdr.XHeaders) != len(x.reqXHdrs)/2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("number of x-headers %d differs parameterized %d",

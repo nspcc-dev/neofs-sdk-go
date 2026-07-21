@@ -530,6 +530,8 @@ type RequestMetaHeader struct {
 	// `BearerToken` with eACL overrides for the request
 	BearerToken *acl.BearerToken `protobuf:"bytes,6,opt,name=bearer_token,json=bearerToken,proto3" json:"bearer_token,omitempty"`
 	// `RequestMetaHeader` of the origin request
+	//
+	// Deprecated: drop it.
 	Origin *RequestMetaHeader `protobuf:"bytes,7,opt,name=origin,proto3" json:"origin,omitempty"`
 	// NeoFS network magic. Must match the value for the network
 	// that the server belongs to.

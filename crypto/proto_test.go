@@ -458,7 +458,7 @@ func TestVerifyRequestWithBuffer(t *testing.T) {
 		for _, tc := range invalidOriginalRequestVerificationHeaderTestcases {
 			t.Run(tc.name, func(t *testing.T) {
 				req := proto.Clone(getObjectSignedRequest).(*protoobject.GetRequest)
-				req.MetaHeader = req.MetaHeader.Origin
+				req.MetaHeader = req.MetaHeader.Origin // nolint:staticcheck
 				req.VerifyHeader = req.VerifyHeader.Origin
 				tc.corrupt(req.VerifyHeader)
 				err := neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)

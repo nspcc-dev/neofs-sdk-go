@@ -166,7 +166,7 @@ func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, v
 		buf = make([]byte, bs)
 	}
 
-	for i := uint(0); ; m, v, i = m.Origin, v.Origin, i+1 {
+	for i := uint(0); ; m, v, i = m.Origin, v.Origin, i+1 { // nolint:staticcheck
 		if v.MetaSignature == nil {
 			return newErrInvalidVerificationHeader(i, errMissingMetaSig)
 		}
@@ -179,7 +179,7 @@ func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, v
 		if err := verifyMessageSignatureN3(v.Origin, v.OriginSignature, buf, verifyN3); err != nil {
 			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidVerifyOriginSig, err))
 		}
-		if v.Origin == nil {
+		if v.Origin == nil { // nolint:staticcheck
 			if v.BodySignature == nil {
 				return newErrInvalidVerificationHeader(i, errMissingBodySig)
 			}
