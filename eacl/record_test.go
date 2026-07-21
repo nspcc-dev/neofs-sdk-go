@@ -67,6 +67,62 @@ func TestRecord_SetAction(t *testing.T) {
 	require.Equal(t, anyValidAction, r.Action())
 }
 
+func TestRecord_Comment(t *testing.T) {
+	t.Run("invalid UTF-8", func(t *testing.T) {
+		t.Run("setter", func(t *testing.T) {
+			var r eacl.Record
+			err := r.SetComment(string([]byte{0xff}))
+			require.ErrorContains(t, err, "invalid UTF-8")
+			require.Empty(t, r.Comment())
+		})
+		t.Run("binary", func(t *testing.T) {
+			// Field #5 with a one-byte invalid UTF-8 payload.
+			err := new(eacl.Record).Unmarshal([]byte{42, 1, 0xff})
+			require.ErrorContains(t, err, "invalid UTF-8")
+		})
+	})
+
+	t.Run("zero byte", func(t *testing.T) {
+		t.Run("setter", func(t *testing.T) {
+			var r eacl.Record
+			err := r.SetComment(string([]byte{'a', 0, 'b'}))
+			require.ErrorContains(t, err, "comment contains zero byte")
+			require.Empty(t, r.Comment())
+		})
+		t.Run("binary", func(t *testing.T) {
+			err := new(eacl.Record).Unmarshal([]byte{42, 3, 'a', 0, 'b'})
+			require.ErrorContains(t, err, "comment contains zero byte")
+		})
+		t.Run("JSON", func(t *testing.T) {
+			err := new(eacl.Record).UnmarshalJSON([]byte(`{"comment":"a\u0000b"}`))
+			require.ErrorContains(t, err, "comment contains zero byte")
+		})
+	})
+
+	const comment = "Application rule"
+
+	var r eacl.Record
+	require.Empty(t, r.Comment())
+	require.NoError(t, r.SetComment(comment))
+	require.Equal(t, comment, r.Comment())
+
+	var cp eacl.Record
+	r.CopyTo(&cp)
+	require.Equal(t, comment, cp.Comment())
+
+	var fromBinary eacl.Record
+	require.NoError(t, fromBinary.Unmarshal(r.Marshal()))
+	require.Equal(t, comment, fromBinary.Comment())
+
+	b, err := r.MarshalJSON()
+	require.NoError(t, err)
+	require.JSONEq(t, `{"action":"ACTION_UNSPECIFIED","operation":"OPERATION_UNSPECIFIED","filters":[],"targets":[],"comment":"Application rule"}`, string(b))
+
+	var fromJSON eacl.Record
+	require.NoError(t, fromJSON.UnmarshalJSON(b))
+	require.Equal(t, comment, fromJSON.Comment())
+}
+
 func TestRecord_SetOperation(t *testing.T) {
 	var r eacl.Record
 	require.Zero(t, r.Operation())

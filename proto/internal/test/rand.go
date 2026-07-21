@@ -425,6 +425,7 @@ func RandEACLRecord() *acl.EACLRecord {
 		Action:    RandInteger[acl.Action](),
 		Filters:   RandEACLFilters(),
 		Targets:   RandEACLTargets(),
+		Comment:   RandString(),
 	}
 }
 

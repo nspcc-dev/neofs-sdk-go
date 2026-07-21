@@ -349,7 +349,10 @@ type EACLRecord struct {
 	// List of filters to match and see if rule is applicable
 	Filters []*EACLRecord_Filter `protobuf:"bytes,3,rep,name=filters,proto3" json:"filters,omitempty"`
 	// List of target subjects to apply ACL rule to
-	Targets       []*EACLRecord_Target `protobuf:"bytes,4,rep,name=targets,proto3" json:"targets,omitempty"`
+	Targets []*EACLRecord_Target `protobuf:"bytes,4,rep,name=targets,proto3" json:"targets,omitempty"`
+	// Optional auxiliary data associated with the rule. The comment does not
+	// affect permission evaluation and must be valid UTF-8 without zero bytes.
+	Comment       string `protobuf:"bytes,5,opt,name=comment,proto3" json:"comment,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -410,6 +413,13 @@ func (x *EACLRecord) GetTargets() []*EACLRecord_Target {
 		return x.Targets
 	}
 	return nil
+}
+
+func (x *EACLRecord) GetComment() string {
+	if x != nil {
+		return x.Comment
+	}
+	return ""
 }
 
 // Extended ACL rules table. A list of ACL rules defined additionally to Basic
@@ -858,13 +868,14 @@ var File_proto_acl_types_proto protoreflect.FileDescriptor
 
 const file_proto_acl_types_proto_rawDesc = "" +
 	"\n" +
-	"\x15proto/acl/types.proto\x12\rneo.fs.v2.acl\x1a\x16proto/refs/types.proto\"\xda\x03\n" +
+	"\x15proto/acl/types.proto\x12\rneo.fs.v2.acl\x1a\x16proto/refs/types.proto\"\xf4\x03\n" +
 	"\n" +
 	"EACLRecord\x126\n" +
 	"\toperation\x18\x01 \x01(\x0e2\x18.neo.fs.v2.acl.OperationR\toperation\x12-\n" +
 	"\x06action\x18\x02 \x01(\x0e2\x15.neo.fs.v2.acl.ActionR\x06action\x12:\n" +
 	"\afilters\x18\x03 \x03(\v2 .neo.fs.v2.acl.EACLRecord.FilterR\afilters\x12:\n" +
-	"\atargets\x18\x04 \x03(\v2 .neo.fs.v2.acl.EACLRecord.TargetR\atargets\x1a\xa5\x01\n" +
+	"\atargets\x18\x04 \x03(\v2 .neo.fs.v2.acl.EACLRecord.TargetR\atargets\x12\x18\n" +
+	"\acomment\x18\x05 \x01(\tR\acomment\x1a\xa5\x01\n" +
 	"\x06Filter\x12:\n" +
 	"\vheader_type\x18\x01 \x01(\x0e2\x19.neo.fs.v2.acl.HeaderTypeR\n" +
 	"headerType\x127\n" +
