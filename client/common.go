@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
@@ -93,4 +94,28 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 		cancel()
 		return context.DeadlineExceeded
 	}
+}
+
+func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr []byte) (neofscrypto.Signature, neofscrypto.Signature, neofscrypto.Signature, error) {
+	bodySigVal, err := signer.Sign(body)
+	if err != nil {
+		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign request body: %w", err)
+	}
+	metaHdrSigVal, err := signer.Sign(metaHdr)
+	if err != nil {
+		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign request meta header: %w", err)
+	}
+	originVerifHdrSigVal, err := signer.Sign(nil)
+	if err != nil {
+		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign empty data: %w", err)
+	}
+
+	pubKeyBytes := neofscrypto.PublicKeyBytes(signer.Public())
+	scheme := signer.Scheme()
+
+	bodySig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, bodySigVal)
+	metaHdrSig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, metaHdrSigVal)
+	originVerifHdrSig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, originVerifHdrSigVal)
+
+	return bodySig, metaHdrSig, originVerifHdrSig, nil
 }

@@ -5,6 +5,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"fmt"
 	"math"
 	"reflect"
 
@@ -177,7 +178,7 @@ func SizeBytes[T Bytes](num protowire.Number, v T) int {
 	if ln == 0 {
 		return 0
 	}
-	return protowire.SizeTag(num) + protowire.SizeBytes(ln)
+	return sizeEmbeddedLENField(num, ln)
 }
 
 // MarshalToBytes encodes 'bytes' or 'string' protobuf field with given number and
@@ -269,7 +270,7 @@ func SizeEmbedded(num protowire.Number, v Message) int {
 	if isMessageNil(v) {
 		return 0
 	}
-	return protowire.SizeTag(num) + protowire.SizeBytes(v.MarshaledSize())
+	return sizeEmbeddedLENField(num, v.MarshaledSize())
 }
 
 // MarshalToEmbedded encodes embedded message being a protobuf field with given
@@ -279,7 +280,22 @@ func MarshalToEmbedded(b []byte, num protowire.Number, v Message) int {
 	if isMessageNil(v) {
 		return 0
 	}
-	sz := v.MarshaledSize()
+	return marshalToEmbeddedLength(b, num, v.MarshaledSize(), v)
+}
+
+// MarshalToEmbeddedLength encodes embedded message being a protobuf field with
+// given number, length and value into b and returns the number of bytes
+// written. If the buffer is too small, MarshalToEmbeddedLength will panic.
+//
+// Does not write field if message length is zero.
+func MarshalToEmbeddedLength(b []byte, num protowire.Number, sz int, v Message) int {
+	if sz == 0 {
+		return 0
+	}
+	return marshalToEmbeddedLength(b, num, sz, v)
+}
+
+func marshalToEmbeddedLength(b []byte, num protowire.Number, sz int, v Message) int {
 	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
 	off += binary.PutUvarint(b[off:], uint64(sz))
 	v.MarshalStable(b[off:])
@@ -392,6 +408,25 @@ func MarshalToRepeatedMessages[T any, M interface {
 		}
 	}
 	return off
+}
+
+// SizeEmbeddedLENField returns the encoded size of embedded LEN protobuf field
+// with given number and length. Returns zero for zero length.
+func SizeEmbeddedLENField(num protowire.Number, ln int) int {
+	if ln < 0 {
+		panic(fmt.Sprintf("negative length %d", ln))
+	}
+	if !num.IsValid() {
+		panic(fmt.Sprintf("invalid field number %d", num))
+	}
+	if ln == 0 {
+		return 0
+	}
+	return sizeEmbeddedLENField(num, ln)
+}
+
+func sizeEmbeddedLENField(num protowire.Number, ln int) int {
+	return protowire.SizeTag(num) + protowire.SizeBytes(ln)
 }
 
 func isMessageNil(m Message) bool {

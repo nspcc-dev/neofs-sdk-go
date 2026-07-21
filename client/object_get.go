@@ -17,6 +17,7 @@ import (
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -25,7 +26,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/grpc"
-	grpcproto "google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/mem"
 	gproto "google.golang.org/protobuf/proto"
 )
@@ -718,49 +718,91 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		return hdr, nil, errSessionTokenBothVersionsSet
 	}
 
-	req := &protoobject.GetRequest{
-		Body: &protoobject.GetRequest_Body{
-			Address:       oid.NewAddress(containerID, objectID).ProtoMessage(),
-			Raw:           prm.raw,
-			Range:         prm.rng,
-			PayloadOnly:   prm.payloadOnly,
-			ExtendedRange: prm.extendedRange,
-		},
-		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
-		},
-	}
-	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
-	if prm.local {
-		req.MetaHeader.Ttl = localRequestTTL
-	} else {
-		req.MetaHeader.Ttl = defaultRequestTTL
-	}
+	// pre-calculate body and meta header message lengths
+	var sessionV1TokenMsg *protosession.SessionToken
+	var sessionV1TokenLen int
 	if prm.session != nil {
-		req.MetaHeader.SessionToken = prm.session.ProtoMessage()
+		sessionV1TokenMsg = prm.session.ProtoMessage()
+		sessionV1TokenLen = sessionV1TokenMsg.MarshaledSize()
 	}
-	if prm.sessionV2 != nil {
-		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
-	}
+
+	var bearerTokenMsg *protoacl.BearerToken
+	var bearerTokenLen int
 	if prm.bearerToken != nil {
-		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
+		bearerTokenMsg = prm.bearerToken.ProtoMessage()
+		bearerTokenLen = bearerTokenMsg.MarshaledSize()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	var sessionV2TokenMsg *protosession.SessionTokenV2
+	var sessionV2TokenLen int
+	if prm.sessionV2 != nil {
+		sessionV2TokenMsg = prm.sessionV2.ProtoMessage()
+		sessionV2TokenLen = sessionV2TokenMsg.MarshaledSize()
+	}
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](signer, req, *buf)
+	rngLen := prm.rng.MarshaledSize()
+	extRngLen := prm.extendedRange.MarshaledSize()
+
+	bodyLen := calculateGetObjectRequestBodyLength(prm.raw, rngLen, prm.payloadOnly, extRngLen)
+
+	xHeadersLen := calculateRequestXHeadersLength(prm.xHeaders)
+
+	metaHdrLen := calculateRequestMetaHeaderFieldLengths(prm.local, xHeadersLen, sessionV1TokenLen, bearerTokenLen, sessionV2TokenLen)
+
+	bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
+	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, metaHdrLen)
+
+	// acquire buffer for body + meta header
+	bufItem := c.buffers.Get().(*[]byte)
+	var buf []byte
+	if len(*bufItem) >= bodyWithMetaHdrLen {
+		defer func() { c.buffers.Put(bufItem) }()
+		buf = *bufItem
+	} else {
+		c.buffers.Put(bufItem)
+		buf = make([]byte, bodyWithMetaHdrLen)
+	}
+
+	// encode body
+	off := writeGetRequestBody(buf, bodyLen, containerID, objectID, prm.raw, rngLen, prm.rng, prm.payloadOnly, extRngLen, prm.extendedRange)
+
+	// memorize body for signing
+	signedBody := buf[off-bodyLen : off]
+
+	// encode meta header
+	off += writeRequestMetaHeader(buf[off:], metaHdrLen, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
+
+	bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, signedBody, buf[off-metaHdrLen:off])
 	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return hdr, nil, err
+		return object.Object{}, nil, err
 	}
+
+	// pre-calculate verification header message lengths
+	bodySigMsgLen := calculateSignatureFieldLength(bodySig)
+	metaHdrSigMsgLen := calculateSignatureFieldLength(metaHdrSig)
+	originVerifHdrSigMsgLen := calculateSignatureFieldLength(originVerifHdrSig)
+
+	verifHdrLen := calculateRequestVerificationHeaderLength(bodySigMsgLen, metaHdrSigMsgLen, originVerifHdrSigMsgLen)
+
+	verifHdrFldLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestVerificationHeader, verifHdrLen)
+
+	// acquire buffer for verification header
+	var verifHdrFldBuf []byte
+	var reqBuffers mem.BufferSlice
+	if len(buf) >= off+verifHdrFldLen {
+		verifHdrFldBuf = buf[off:][:verifHdrFldLen]
+		reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:off+verifHdrFldLen])}
+	} else {
+		verifHdrFldBuf = make([]byte, verifHdrFldLen)
+		reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:bodyLen+metaHdrLen]), mem.SliceBuffer(verifHdrFldBuf)}
+	}
+
+	// encode verification header
+	writeRequestVerificationHeader(verifHdrFldBuf, verifHdrLen, bodySigMsgLen, bodySig, metaHdrSigMsgLen, metaHdrSig, originVerifHdrSigMsgLen, originVerifHdrSig)
 
 	ctx, cancel := context.WithCancel(ctx)
 
-	stream, err := c.object.Get(ctx, req,
-		grpc.ForceCodecV2(grpcprotobuf.BufferedCodec{}),
-		grpc.CallContentSubtype(grpcproto.Name),
-	)
+	stream, err := callServerStream(ctx, c.conn, protoobject.ObjectService_Get_FullMethodName, getStreamDesc, reqBuffers)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
@@ -779,7 +821,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	r.enforcePayloadLen = !r.payloadOnly || prm.rng != nil
 	r.verifyChecksums = !prm.skipChecksumVerification && !r.hasRange && !r.payloadOnly
 	r.cancelCtxStream = cancel
-	r.stream = stream
+	r.stream = &grpc.GenericClientStream[protoobject.GetRequest, protoobject.GetResponse]{ClientStream: stream}
 	r.singleMsgTimeout = c.streamTimeout
 	if c.prm.statisticCallback != nil {
 		r.startTime = time.Now()
