@@ -90,9 +90,6 @@ var invalidOriginalRequestVerificationHeaderTestcases = []invalidRequestVerifica
 	{name: "meta header signature/missing", msg: "missing meta header's signature", corrupt: func(valid *protosession.RequestVerificationHeader) {
 		valid.MetaSignature = nil
 	}},
-	{name: "verification header's origin signature/missing", msg: "missing verification header's origin signature", corrupt: func(valid *protosession.RequestVerificationHeader) {
-		valid.OriginSignature = nil
-	}},
 }
 
 func init() {
@@ -103,9 +100,6 @@ func init() {
 		}, invalidRequestVerificationHeaderTestcase{
 			name: "meta header signature/" + tc.name, msg: "invalid meta header's signature: " + tc.msg,
 			corrupt: func(valid *protosession.RequestVerificationHeader) { tc.corrupt(valid.MetaSignature) },
-		}, invalidRequestVerificationHeaderTestcase{
-			name: "verification header's origin signature/" + tc.name, msg: "invalid verification header's origin signature: " + tc.msg,
-			corrupt: func(valid *protosession.RequestVerificationHeader) { tc.corrupt(valid.OriginSignature) },
 		})
 	}
 }
@@ -200,57 +194,11 @@ var (
 		141, 132, 147, 28, 34, 19, 10, 17, 97, 110, 121, 95, 98, 101, 97, 114, 101, 114, 95, 105, 115, 115, 117, 101, 114, 18, 24, 10, 7, 97,
 		110, 121, 95, 112, 117, 98, 18, 7, 97, 110, 121, 95, 115, 105, 103, 24, 158, 181, 255, 143, 5, 64, 210, 230, 221, 152, 247, 205,
 		254, 166, 194, 1}
-
-	reqMetaHdrL2 = &protosession.RequestMetaHeader{
-		Version: &refs.Version{Major: 4012726028, Minor: 3480185720},
-		Epoch:   18426399493784435637, Ttl: 360369950,
-		XHeaders: []*protosession.XHeader{
-			{Key: "x-header-1-key", Value: "x-header-1-val"},
-			{Key: "x-header-2-key", Value: "x-header-2-val"},
-		},
-		// tokens unset to reduce the code, they are checked at L1
-		Origin:      reqMetaHdr,
-		MagicNumber: 14001122173143970642,
-	}
-	reqMetaHdrL2Bin = []byte{10, 12, 8, 140, 174, 181, 249, 14, 16, 248, 214, 189, 251, 12, 16, 181, 247, 213, 227, 229, 150, 238,
-		219, 255, 1, 24, 158, 158, 235, 171, 1, 34, 32, 10, 14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 49, 45, 107, 101, 121, 18, 14,
-		120, 45, 104, 101, 97, 100, 101, 114, 45, 49, 45, 118, 97, 108, 34, 32, 10, 14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 50, 45,
-		107, 101, 121, 18, 14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 50, 45, 118, 97, 108, 58, 146, 6, 10, 12, 8, 140, 174, 181, 249,
-		14, 16, 248, 214, 189, 251, 12, 16, 181, 247, 213, 227, 229, 150, 238, 219, 255, 1, 24, 158, 158, 235, 171, 1, 34, 32, 10,
-		14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 49, 45, 107, 101, 121, 18, 14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 49, 45, 118,
-		97, 108, 34, 32, 10, 14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 50, 45, 107, 101, 121, 18, 14, 120, 45, 104, 101, 97, 100, 101,
-		114, 45, 50, 45, 118, 97, 108, 42, 188, 1, 10, 159, 1, 10, 6, 97, 110, 121, 95, 73, 68, 18, 19, 10, 17, 97, 110, 121, 95, 115, 101,
-		115, 115, 105, 111, 110, 95, 111, 119, 110, 101, 114, 26, 31, 8, 142, 175, 136, 206, 176, 141, 218, 129, 129, 1, 16, 146, 252, 192,
-		149, 246, 253, 161, 217, 105, 24, 177, 201, 250, 251, 176, 240, 143, 176, 109, 34, 15, 97, 110, 121, 95, 115, 101, 115, 115, 105,
-		111, 110, 95, 107, 101, 121, 42, 78, 8, 129, 249, 205, 157, 2, 18, 70, 10, 22, 10, 20, 97, 110, 121, 95, 116, 97, 114, 103, 101,
-		116, 95, 99, 111, 110, 116, 97, 105, 110, 101, 114, 18, 21, 10, 19, 97, 110, 121, 95, 116, 97, 114, 103, 101, 116, 95, 111, 98, 106, 101,
-		99, 116, 95, 49, 18, 21, 10, 19, 97, 110, 121, 95, 116, 97, 114, 103, 101, 116, 95, 111, 98, 106, 101, 99, 116, 95, 50, 18, 24, 10, 7,
-		97, 110, 121, 95, 112, 117, 98, 18, 7, 97, 110, 121, 95, 115, 105, 103, 24, 129, 249, 205, 157, 2, 50, 226, 3, 10, 197, 3, 10,
-		249, 2, 10, 12, 8, 226, 229, 235, 151, 1, 16, 233, 192, 182, 202, 10, 18, 20, 10, 18, 97, 110, 121, 95, 101, 65, 67, 76, 95,
-		99, 111, 110, 116, 97, 105, 110, 101, 114, 26, 167, 1, 8, 181, 172, 128, 150, 4, 16, 199, 217, 244, 29, 26, 44, 8, 185, 184, 168,
-		169, 2, 16, 217, 219, 145, 189, 6, 26, 14, 102, 105, 108, 116, 101, 114, 45, 49, 45, 49, 45, 107, 101, 121, 34, 14, 102, 105, 108,
-		116, 101, 114, 45, 49, 45, 49, 45, 118, 97, 108, 26, 44, 8, 159, 209, 170, 254, 5, 16, 211, 130, 166, 140, 5, 26, 14, 102, 105,
-		108, 116, 101, 114, 45, 49, 45, 50, 45, 107, 101, 121, 34, 14, 102, 105, 108, 116, 101, 114, 45, 49, 45, 50, 45, 118, 97, 108, 34,
-		30, 8, 148, 144, 226, 163, 2, 18, 10, 115, 117, 98, 106, 45, 49, 45, 49, 45, 49, 18, 10, 115, 117, 98, 106, 45, 49, 45, 49, 45,
-		50, 34, 30, 8, 138, 228, 158, 248, 6, 18, 10, 115, 117, 98, 106, 45, 49, 45, 50, 45, 49, 18, 10, 115, 117, 98, 106, 45, 49, 45,
-		50, 45, 50, 26, 168, 1, 8, 182, 137, 168, 207, 4, 16, 182, 202, 221, 178, 6, 26, 44, 8, 185, 184, 168, 169, 2, 16, 217, 219,
-		145, 189, 6, 26, 14, 102, 105, 108, 116, 101, 114, 45, 50, 45, 49, 45, 107, 101, 121, 34, 14, 102, 105, 108, 116, 101, 114, 45, 50,
-		45, 49, 45, 118, 97, 108, 26, 44, 8, 159, 209, 170, 254, 5, 16, 211, 130, 166, 140, 5, 26, 14, 102, 105, 108, 116, 101, 114, 45,
-		50, 45, 50, 45, 107, 101, 121, 34, 14, 102, 105, 108, 116, 101, 114, 45, 50, 45, 50, 45, 118, 97, 108, 34, 30, 8, 148, 144, 226,
-		163, 2, 18, 10, 115, 117, 98, 106, 45, 50, 45, 49, 45, 49, 18, 10, 115, 117, 98, 106, 45, 50, 45, 49, 45, 50, 34, 30, 8, 138,
-		228, 158, 248, 6, 18, 10, 115, 117, 98, 106, 45, 50, 45, 50, 45, 49, 18, 10, 115, 117, 98, 106, 45, 50, 45, 50, 45, 50, 18, 17,
-		10, 15, 97, 110, 121, 95, 98, 101, 97, 114, 101, 114, 95, 117, 115, 101, 114, 26, 31, 8, 183, 239, 172, 246, 142, 197, 200, 130, 184,
-		1, 16, 149, 205, 210, 185, 246, 151, 166, 255, 120, 24, 152, 236, 229, 220, 255, 141, 132, 147, 28, 34, 19, 10, 17, 97, 110,
-		121, 95, 98, 101, 97, 114, 101, 114, 95, 105, 115, 115, 117, 101, 114, 18, 24, 10, 7, 97, 110, 121, 95, 112, 117, 98, 18, 7, 97, 110,
-		121, 95, 115, 105, 103, 24, 158, 181, 255, 143, 5, 64, 210, 230, 221, 152, 247, 205, 254, 166, 194, 1, 64, 210, 230, 221,
-		152, 247, 205, 254, 166, 194, 1}
 )
 
 var (
 	requestSignerECDSAPubBin = []byte{3, 222, 100, 155, 214, 54, 45, 96, 2, 218, 144, 121, 166, 210, 58, 194, 143, 221, 111, 63, 87,
 		254, 66, 2, 236, 94, 45, 93, 30, 39, 191, 127, 80}
-	requestSignerL2ECDSAPubBin = []byte{3, 95, 195, 112, 130, 26, 227, 140, 73, 208, 191, 208, 134, 199, 189, 139, 238, 55, 22, 49,
-		165, 67, 146, 187, 82, 232, 85, 95, 144, 75, 87, 243, 21}
 	getObjectRequestBody = &protoobject.GetRequest_Body{
 		Address: &refs.Address{
 			ContainerId: &refs.ContainerID{Value: []byte("any_container")},
@@ -268,42 +216,21 @@ var (
 	// clone to use.
 	getObjectSignedRequest = &protoobject.GetRequest{
 		Body:       getObjectRequestBody,
-		MetaHeader: reqMetaHdrL2,
+		MetaHeader: reqMetaHdr,
 		VerifyHeader: &protosession.RequestVerificationHeader{
-			BodySignature: nil,
+			BodySignature: &refs.Signature{
+				Key: bytes.Clone(requestSignerECDSAPubBin),
+				Sign: []byte{4, 54, 181, 48, 83, 197, 23, 131, 0, 233, 48, 96, 155, 28, 68, 0, 189, 120, 251, 60, 163, 5, 136, 106, 63,
+					126, 99, 34, 198, 66, 247, 207, 135, 12, 130, 49, 130, 155, 236, 204, 71, 23, 33, 178, 163, 27, 28, 101, 33, 33,
+					91, 229, 217, 170, 250, 226, 62, 93, 22, 3, 181, 81, 69, 9, 97},
+				Scheme: refs.SignatureScheme_ECDSA_SHA512,
+			},
 			MetaSignature: &refs.Signature{
-				Key:    bytes.Clone(requestSignerL2ECDSAPubBin),
-				Sign:   []byte{26, 147, 47, 31, 10, 173, 115, 179, 126, 16, 132, 149, 125, 68, 153, 129, 254, 184, 34, 53, 155, 194, 128, 115, 88, 68, 158, 91, 45, 8, 91, 169, 125, 215, 202, 234, 142, 72, 14, 110, 222, 142, 124, 200, 53, 189, 217, 100, 254, 100, 13, 9, 66, 60, 188, 5, 167, 116, 215, 230, 34, 150, 203, 132},
+				Key: bytes.Clone(requestSignerECDSAPubBin),
+				Sign: []byte{152, 135, 221, 72, 61, 96, 131, 169, 229, 9, 203, 210, 132, 62, 40, 1, 211, 63, 130, 4, 136, 199, 186,
+					219, 104, 2, 50, 101, 89, 252, 144, 184, 28, 125, 230, 39, 128, 238, 210, 223, 69, 128, 164, 112, 218, 133,
+					80, 96, 19, 169, 156, 125, 250, 99, 197, 152, 73, 74, 15, 152, 186, 168, 170, 189},
 				Scheme: refs.SignatureScheme_ECDSA_RFC6979_SHA256,
-			},
-			OriginSignature: &refs.Signature{
-				Key:    bytes.Clone(requestSignerL2ECDSAPubBin),
-				Sign:   []byte{175, 192, 13, 37, 185, 173, 75, 11, 49, 178, 102, 150, 37, 208, 1, 158, 69, 252, 242, 121, 204, 220, 170, 117, 103, 250, 194, 218, 212, 144, 245, 177, 56, 67, 189, 182, 12, 122, 241, 4, 187, 154, 253, 56, 24, 138, 16, 103, 143, 203, 29, 228, 136, 33, 49, 245, 30, 165, 111, 23, 117, 149, 149, 228, 242, 157, 202, 93, 66, 215, 69, 103, 197, 232, 107, 147, 246, 192, 177, 158},
-				Scheme: refs.SignatureScheme_ECDSA_RFC6979_SHA256_WALLET_CONNECT,
-			},
-			Origin: &protosession.RequestVerificationHeader{
-				BodySignature: &refs.Signature{
-					Key: bytes.Clone(requestSignerECDSAPubBin),
-					Sign: []byte{4, 54, 181, 48, 83, 197, 23, 131, 0, 233, 48, 96, 155, 28, 68, 0, 189, 120, 251, 60, 163, 5, 136, 106, 63,
-						126, 99, 34, 198, 66, 247, 207, 135, 12, 130, 49, 130, 155, 236, 204, 71, 23, 33, 178, 163, 27, 28, 101, 33, 33,
-						91, 229, 217, 170, 250, 226, 62, 93, 22, 3, 181, 81, 69, 9, 97},
-					Scheme: refs.SignatureScheme_ECDSA_SHA512,
-				},
-				MetaSignature: &refs.Signature{
-					Key: bytes.Clone(requestSignerECDSAPubBin),
-					Sign: []byte{152, 135, 221, 72, 61, 96, 131, 169, 229, 9, 203, 210, 132, 62, 40, 1, 211, 63, 130, 4, 136, 199, 186,
-						219, 104, 2, 50, 101, 89, 252, 144, 184, 28, 125, 230, 39, 128, 238, 210, 223, 69, 128, 164, 112, 218, 133,
-						80, 96, 19, 169, 156, 125, 250, 99, 197, 152, 73, 74, 15, 152, 186, 168, 170, 189},
-					Scheme: refs.SignatureScheme_ECDSA_RFC6979_SHA256,
-				},
-				OriginSignature: &refs.Signature{
-					Key: bytes.Clone(requestSignerECDSAPubBin),
-					Sign: []byte{232, 128, 107, 75, 64, 63, 81, 149, 215, 6, 170, 132, 68, 181, 142, 100, 169, 242, 40, 227, 12, 103,
-						202, 72, 190, 66, 240, 251, 115, 112, 36, 115, 169, 186, 16, 121, 153, 101, 206, 38, 156, 154, 69, 80, 198, 172, 125,
-						115, 114, 54, 224, 44, 198, 137, 131, 236, 163, 209, 208, 136, 146, 184, 70, 136, 60, 200, 208, 106, 154, 206, 83,
-						44, 222, 202, 169, 116, 157, 3, 5, 181},
-					Scheme: refs.SignatureScheme_ECDSA_RFC6979_SHA256_WALLET_CONNECT,
-				},
 			},
 		},
 	}
@@ -362,35 +289,14 @@ func TestSignRequestWithBuffer(t *testing.T) {
 			require.NotNil(t, vh)
 			require.Nil(t, vh.Origin)
 
-			checkSignerCreds(tc.signer.Scheme(), vh.BodySignature, vh.MetaSignature, vh.OriginSignature)
+			checkSignerCreds(tc.signer.Scheme(), vh.BodySignature, vh.MetaSignature)
 
 			tc.verifyFunc(t, pub, tc.hashFunc(getObjectRequestBodyBin), vh.BodySignature.Sign)
 			tc.verifyFunc(t, pub, tc.hashFunc(reqMetaHdrBin), vh.MetaSignature.Sign)
-			tc.verifyFunc(t, pub, tc.hashFunc(nil), vh.OriginSignature.Sign)
 
 			req.VerifyHeader = vh
 			err = neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)
 			require.NoError(t, err)
-
-			t.Run("re-sign", func(t *testing.T) {
-				req.MetaHeader = reqMetaHdrL2
-
-				vhL2, err := neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](tc.signer, req, nil)
-				require.NoError(t, err)
-				require.NotNil(t, vhL2)
-				require.True(t, vhL2.Origin == vh) // as pointers
-
-				checkSignerCreds(tc.signer.Scheme(), vhL2.MetaSignature, vhL2.OriginSignature)
-
-				require.Nil(t, vhL2.BodySignature)
-				tc.verifyFunc(t, pub, tc.hashFunc(reqMetaHdrL2Bin), vhL2.MetaSignature.Sign)
-				originHash := tc.hashFunc(neofsproto.MarshalMessage(vh))
-				tc.verifyFunc(t, pub, originHash, vhL2.OriginSignature.Sign)
-
-				req.VerifyHeader = vhL2
-				err = neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)
-				require.NoError(t, err)
-			})
 		})
 	}
 	t.Run("ECDSA_SHA256_WalletConnect", func(t *testing.T) {
@@ -401,34 +307,14 @@ func TestSignRequestWithBuffer(t *testing.T) {
 		require.NotNil(t, vh)
 		require.Nil(t, vh.Origin)
 
-		checkSignerCreds(neofscrypto.ECDSA_WALLETCONNECT, vh.BodySignature, vh.MetaSignature, vh.OriginSignature)
+		checkSignerCreds(neofscrypto.ECDSA_WALLETCONNECT, vh.BodySignature, vh.MetaSignature)
 
 		verifyWalletConnectSignature(t, pub, getObjectRequestBodyBin, vh.BodySignature.Sign)
 		verifyWalletConnectSignature(t, pub, reqMetaHdrBin, vh.MetaSignature.Sign)
-		verifyWalletConnectSignature(t, pub, nil, vh.OriginSignature.Sign)
 
 		req.VerifyHeader = vh
 		err = neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)
 		require.NoError(t, err)
-
-		t.Run("re-sign", func(t *testing.T) {
-			req.MetaHeader = reqMetaHdrL2
-
-			vhL2, err := neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](anySigner.WalletConnect, req, nil)
-			require.NoError(t, err)
-			require.NotNil(t, vhL2)
-			require.True(t, vhL2.Origin == vh) // as pointers
-
-			checkSignerCreds(neofscrypto.ECDSA_WALLETCONNECT, vhL2.MetaSignature, vhL2.OriginSignature)
-
-			require.Nil(t, vhL2.BodySignature)
-			verifyWalletConnectSignature(t, pub, reqMetaHdrL2Bin, vhL2.MetaSignature.Sign)
-			verifyWalletConnectSignature(t, pub, neofsproto.MarshalMessage(vh.Origin), vh.OriginSignature.Sign)
-
-			req.VerifyHeader = vhL2
-			err = neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)
-			require.NoError(t, err)
-		})
 	})
 }
 
@@ -458,24 +344,9 @@ func TestVerifyRequestWithBuffer(t *testing.T) {
 		for _, tc := range invalidOriginalRequestVerificationHeaderTestcases {
 			t.Run(tc.name, func(t *testing.T) {
 				req := proto.Clone(getObjectSignedRequest).(*protoobject.GetRequest)
-				req.MetaHeader = req.MetaHeader.Origin
-				req.VerifyHeader = req.VerifyHeader.Origin
 				tc.corrupt(req.VerifyHeader)
 				err := neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)
 				require.EqualError(t, err, "invalid verification header at depth 0: "+tc.msg)
-
-				t.Run("resigned", func(t *testing.T) {
-					req := &protoobject.GetRequest{
-						Body:         req.Body,
-						MetaHeader:   &protosession.RequestMetaHeader{Origin: req.MetaHeader},
-						VerifyHeader: req.VerifyHeader,
-					}
-					req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRequest_Body](neofscryptotest.Signer(), req, nil)
-					require.NoError(t, err)
-
-					err := neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil)
-					require.EqualError(t, err, "invalid verification header at depth 1: "+tc.msg)
-				})
 			})
 		}
 		t.Run("resigned", func(t *testing.T) {
@@ -483,7 +354,7 @@ func TestVerifyRequestWithBuffer(t *testing.T) {
 				name, msg string
 				corrupt   func(valid *protoobject.GetRequest)
 			}{
-				{name: "redundant verification header", msg: "incorrect number of verification headers",
+				{name: "redundant verification header", msg: "invalid verification header at depth 0: missing meta header's signature",
 					corrupt: func(valid *protoobject.GetRequest) {
 						valid.VerifyHeader = &protosession.RequestVerificationHeader{Origin: valid.VerifyHeader}
 					},
@@ -493,7 +364,7 @@ func TestVerifyRequestWithBuffer(t *testing.T) {
 						valid.MetaHeader = &protosession.RequestMetaHeader{Origin: valid.MetaHeader}
 					},
 				},
-				{name: "with body signature", msg: "invalid verification header at depth 0: body signature is set in non-origin verification header",
+				{name: "with body signature", msg: "invalid verification header at depth 0: invalid body signature: missing public key",
 					corrupt: func(valid *protoobject.GetRequest) {
 						valid.VerifyHeader.BodySignature = new(refs.Signature)
 					},
