@@ -6,7 +6,6 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"google.golang.org/grpc"
-	grpcproto "google.golang.org/grpc/encoding/proto"
 )
 
 var (
@@ -20,7 +19,6 @@ func callServerStream(ctx context.Context, conn *grpc.ClientConn, method string,
 	stream, err := conn.NewStream(ctx, streamDesc, method,
 		grpc.StaticMethod(),
 		grpc.ForceCodecV2(protobuf.BufferedCodec{}),
-		grpc.CallContentSubtype(grpcproto.Name), // TODO: check the need
 	)
 	if err != nil {
 		return nil, fmt.Errorf("stream opening failed: %w", err)
