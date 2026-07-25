@@ -241,12 +241,12 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		x.err = newErrMissingResponseField("object ID")
 		return false
 	}
-	if partInit.Signature == nil {
-		x.err = newErrMissingResponseField("signature")
-		return false
-	}
 	if partInit.Header == nil {
 		x.err = newErrMissingResponseField("header")
+		return false
+	}
+	if partInit.Signature == nil && !isECPart(partInit.Header) {
+		x.err = newErrMissingResponseField("signature")
 		return false
 	}
 
@@ -915,12 +915,12 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		if v == nil {
 			return nil, errors.New("empty header")
 		}
-		if v.Header.Signature == nil {
-			err = newErrMissingResponseField("signature")
-			return nil, err
-		}
 		if v.Header.Header == nil {
 			err = newErrMissingResponseField("header")
+			return nil, err
+		}
+		if v.Header.Signature == nil && !isECPart(v.Header.Header) {
+			err = newErrMissingResponseField("signature")
 			return nil, err
 		}
 
@@ -1293,4 +1293,19 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	}
 
 	return &r, nil
+}
+
+func isECPart(hdr *protoobject.Header) bool {
+	var ruleIndFound, partIndFound bool
+	for _, attr := range hdr.Attributes {
+		switch attr.GetKey() {
+		case object.AttributeECRuleIndex:
+			ruleIndFound = true
+		case object.AttributeECPartIndex:
+			partIndFound = true
+		default:
+		}
+	}
+
+	return ruleIndFound && partIndFound
 }
