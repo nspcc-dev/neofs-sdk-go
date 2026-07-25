@@ -1,6 +1,7 @@
 package slicer
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -337,22 +338,23 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 	}
 
 	res := &PayloadWriter{
-		ctx:              ctx,
-		headerObject:     header,
-		stream:           ow,
-		signer:           signer,
-		container:        containerID,
-		owner:            owner,
-		currentEpoch:     opts.currentNeoFSEpoch,
-		sessionToken:     opts.sessionToken,
-		sessionTokenV2:   opts.sessionTokenV2,
-		rootMeta:         newDynamicObjectMetadata(opts.withHomoChecksum),
-		childMeta:        newDynamicObjectMetadata(opts.withHomoChecksum),
-		payloadSizeLimit: childPayloadSizeLimit(opts),
-		payloadSizeFixed: opts.payloadSizeFixed,
-		payloadSize:      opts.payloadSize,
-		prmObjectPutInit: prm,
-		stubObject:       &stubObject,
+		ctx:                ctx,
+		headerObject:       header,
+		stream:             ow,
+		signer:             signer,
+		container:          containerID,
+		owner:              owner,
+		currentEpoch:       opts.currentNeoFSEpoch,
+		sessionToken:       opts.sessionToken,
+		sessionTokenV2:     opts.sessionTokenV2,
+		rootMeta:           newDynamicObjectMetadata(opts.withHomoChecksum),
+		childMeta:          newDynamicObjectMetadata(opts.withHomoChecksum),
+		payloadSizeLimit:   childPayloadSizeLimit(opts),
+		payloadSizeFixed:   opts.payloadSizeFixed,
+		payloadSize:        opts.payloadSize,
+		prmObjectPutInit:   prm,
+		stubObject:         &stubObject,
+		splitChainModifier: opts.splitChainModifier,
 	}
 
 	if res.payloadSizeFixed && res.payloadSize < res.payloadSizeLimit {
@@ -400,6 +402,8 @@ type PayloadWriter struct {
 	writtenChildren  []object.MeasuredObject
 	prmObjectPutInit client.PrmObjectPutInit
 	stubObject       *object.Object
+
+	splitChainModifier func(*object.Object, io.Reader) error
 }
 
 var errPayloadSizeExceeded = errors.New("payload size exceeded")
@@ -587,7 +591,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		obj.SetPreviousID(x.writtenChildren[len(x.writtenChildren)-1].ObjectID())
 	}
 	if last {
-		rootID, err := flushObjectMetadata(x.signer, x.rootMeta, &x.headerObject)
+		rootID, err := x.flushObjectMetadata(x.signer, x.rootMeta, &x.headerObject, payloadBuffers, x.withSplit)
 		if err != nil {
 			return fmt.Errorf("form root object: %w", err)
 		}
@@ -605,7 +609,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 	var id oid.ID
 	var err error
 
-	id, err = writeInMemObject(ctx, x.signer, x.stream, obj, payloadBuffers, meta, x.prmObjectPutInit)
+	id, err = x.writeInMemObject(ctx, x.signer, x.stream, obj, payloadBuffers, meta, x.prmObjectPutInit)
 	if err != nil {
 		return fmt.Errorf("write formed object: %w", err)
 	}
@@ -640,7 +644,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 		meta.reset()
 		meta.accumulateNextPayloadChunk(payload)
 
-		_, err = writeInMemObject(ctx, x.signer, x.stream, obj, payloadAsBuffers, meta, x.prmObjectPutInit)
+		_, err = x.writeInMemObject(ctx, x.signer, x.stream, obj, payloadAsBuffers, meta, x.prmObjectPutInit)
 		if err != nil {
 			return fmt.Errorf("write linking object: %w", err)
 		}
@@ -649,7 +653,7 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 	return nil
 }
 
-func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, header *object.Object) (oid.ID, error) {
+func (x *PayloadWriter) flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, header *object.Object, payloadBuffers [][]byte, virtualObject bool) (oid.ID, error) {
 	header.SetPayloadChecksum(checksum.NewFromHash(checksum.SHA256, meta.checksum))
 
 	if meta.homomorphicChecksum != nil {
@@ -658,6 +662,18 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	}
 
 	header.SetPayloadSize(meta.length)
+
+	if x.splitChainModifier != nil && !virtualObject {
+		payloadReaders := make([]io.Reader, len(payloadBuffers))
+		for i := range payloadBuffers {
+			payloadReaders[i] = bytes.NewReader(payloadBuffers[i])
+		}
+
+		err := x.splitChainModifier(header, io.MultiReader(payloadReaders...))
+		if err != nil {
+			return oid.ID{}, fmt.Errorf("split chain modifier error: %w", err)
+		}
+	}
 
 	id, err := header.CalculateID()
 	if err != nil {
@@ -682,7 +698,7 @@ func flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, 
 	return id, nil
 }
 
-func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payloadBuffers [][]byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
+func (x *PayloadWriter) writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, header object.Object, payloadBuffers [][]byte, meta dynamicObjectMetadata, prm client.PrmObjectPutInit) (oid.ID, error) {
 	var (
 		id  oid.ID
 		err error
@@ -690,7 +706,7 @@ func writeInMemObject(ctx context.Context, signer user.Signer, w ObjectWriter, h
 
 	id = header.GetID()
 	if id.IsZero() || header.Signature() == nil {
-		id, err = flushObjectMetadata(signer, meta, &header)
+		id, err = x.flushObjectMetadata(signer, meta, &header, payloadBuffers, false)
 
 		if err != nil {
 			return id, err

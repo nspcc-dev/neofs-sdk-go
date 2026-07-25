@@ -1,7 +1,10 @@
 package slicer
 
 import (
+	"io"
+
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 )
@@ -24,6 +27,8 @@ type Options struct {
 
 	payloadSizeFixed bool
 	payloadSize      uint64
+
+	splitChainModifier func(*object.Object, io.Reader) error
 }
 
 // SetObjectPayloadLimit specifies data size limit for produced physically
@@ -86,6 +91,17 @@ func (x *Options) SetPayloadBuffer(payloadBuffer []byte) {
 func (x *Options) SetPayloadSize(size uint64) {
 	x.payloadSizeFixed = true
 	x.payloadSize = size
+}
+
+// SetSplitChainModifier allows modifying split object's header right before
+// it is signed and sent to [ObjectWriter]. It will be called against every
+// object in a split chain (if there is no chain, it will be called exactly
+// one time against the resulting object). It is caller's responsibility to
+// ensure the object remains a valid member of the chain it belongs to.
+// Reader allows reading split object's payload, read payload equals to
+// the resulting object's payload.
+func (x *Options) SetSplitChainModifier(splitChainModifier func(*object.Object, io.Reader) error) {
+	x.splitChainModifier = splitChainModifier
 }
 
 // ObjectPayloadLimit returns required max object size.
