@@ -164,7 +164,7 @@ type PayloadReader struct {
 
 	err error
 
-	tailPayload []byte
+	tail rawPayloadChunk
 
 	rng           *protoobject.Range
 	extendedRange *protoobject.ExtendedRange
@@ -288,90 +288,61 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 	var read int
 
 	// read remaining tail
-	read = copy(buf, x.tailPayload)
+	if tailLen := x.tail.payload.Len(); tailLen > 0 {
+		read = min(len(buf), tailLen)
 
-	x.tailPayload = x.tailPayload[read:]
+		next, _ := x.tail.payload.MoveNext(read)
+		next.CopyTo(buf)
+
+		if read == tailLen {
+			x.tail.free()
+			x.tail = rawPayloadChunk{}
+		}
+	}
 
 	if len(buf) == read {
 		return read, true
 	}
 
-	var lastRead int
-
 	for {
-		chunk, ok := x.recvChunk()
+		chunk, ok := x.recvRawChunk(x.stream)
 		if !ok {
 			return read, false
 		}
-		if len(chunk) == 0 {
+		chunkLen := chunk.payload.Len()
+		if chunkLen == 0 {
 			// just skip empty chunks since they are not prohibited by protocol
+			chunk.free()
 			continue
 		}
 
-		lastRead = copy(buf[read:], chunk)
+		if x.verifyChecksums {
+			_, _ = chunk.payload.WriteTo(x.payloadHashGot)
+		}
 
-		read += lastRead
+		n := min(len(buf)-read, chunkLen)
+		sub, _ := chunk.payload.MoveNext(n)
+		sub.CopyTo(buf[read:])
+		read += n
+
+		if n == chunkLen {
+			chunk.free()
+		} else {
+			// retain the remainder without copying
+			x.tail = chunk
+		}
 
 		if read == len(buf) {
-			// save the tail
-			x.tailPayload = append(x.tailPayload, chunk[lastRead:]...)
-
 			return read, true
 		}
 	}
 }
 
-func (x *PayloadReader) recvChunk() ([]byte, bool) {
-	var resp *protoobject.GetResponse
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-		var err error
-		resp, err = x.stream.Recv()
-		return err
-	})
-	if x.err != nil {
-		return nil, false
-	}
-
-	if x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); x.err != nil {
-		return nil, false
-	}
-
-	switch part := resp.GetBody().GetObjectPart().(type) {
-	default:
-		x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
-		return nil, false
-	case *protoobject.GetResponse_Body_SplitInfo:
-		if !x.payloadOnly {
-			x.err = fmt.Errorf("unexpected message instead of chunk part: %T", part)
-			return nil, false
-		}
-		if part == nil || part.SplitInfo == nil {
-			x.err = fmt.Errorf("%w: nil split info field", errInvalidSplitInfo)
-			return nil, false
-		}
-		var si object.SplitInfo
-		if x.err = si.FromProtoMessage(part.SplitInfo); x.err != nil {
-			x.err = fmt.Errorf("%w: %w", errInvalidSplitInfo, x.err)
-			return nil, false
-		}
-		x.err = object.NewSplitInfoError(&si)
-		return nil, false
-	case *protoobject.GetResponse_Body_Chunk:
-		if part == nil {
-			x.err = errors.New("nil chunk oneof field")
-			return nil, false
-		}
-
-		if x.verifyChecksums {
-			x.payloadHashGot.Write(part.Chunk) // never returns an error according to docs
-		}
-
-		return part.Chunk, true
-	}
-}
-
 func (x *PayloadReader) close(ignoreEOF bool) error {
 	defer x.cancelCtxStream()
+
+	x.tail.free()
+	x.tail = rawPayloadChunk{}
 
 	if errors.Is(x.err, io.EOF) {
 		if ignoreEOF {
@@ -604,19 +575,22 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 	var written int64
 
 	for {
-		if len(x.tailPayload) > 0 {
-			tailLen := len(x.tailPayload)
-			n, err := w.Write(x.tailPayload)
-			written += int64(n)
-			x.tailPayload = x.tailPayload[n:]
+		if tailLen := x.tail.payload.Len(); tailLen > 0 {
+			n, err := x.tail.payload.WriteTo(w)
+			written += n
+			_, _ = x.tail.payload.MoveNext(int(n))
+			if x.tail.payload.Len() == 0 {
+				x.tail.free()
+				x.tail = rawPayloadChunk{}
+			}
 
-			if consumeErr := x.consumePayload(n); consumeErr != nil {
+			if consumeErr := x.consumePayload(int(n)); consumeErr != nil {
 				return written, consumeErr
 			}
 
 			// Write must return a non-nil error if it returns n < len(p),
 			// but handle contract violations defensively
-			if err == nil && n < tailLen {
+			if err == nil && n < int64(tailLen) {
 				err = io.ErrShortWrite
 			}
 			if err != nil {
@@ -649,15 +623,15 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 		// Write must return a non-nil error if it returns n < len(p),
 		// but handle contract violations defensively
 		if n < int64(payloadLen) {
-			rem := chunk.payload
-			_, _ = rem.MoveNext(int(n))
-			x.tailPayload = make([]byte, rem.Len())
-			rem.CopyTo(x.tailPayload)
+			// retain the remainder without copying
+			_, _ = chunk.payload.MoveNext(int(n))
+			x.tail = chunk
 			if err == nil {
 				err = io.ErrShortWrite
 			}
+		} else {
+			chunk.free()
 		}
-		chunk.free()
 
 		if consumeErr := x.consumePayload(int(n)); consumeErr != nil {
 			return written, consumeErr
