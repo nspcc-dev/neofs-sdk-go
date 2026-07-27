@@ -93,12 +93,7 @@ func (x SearchObjectsOptions) Count() uint32 { return x.count }
 // [object.FilterContainerID] or [object.FilterID]. Filters using
 // [object.FilterRoot] and [object.FilterPhysical] must have zero value and matcher.
 //
-// If the signer implements [neofscrypto.SignerV2], signing is performed using it.
-// In this case, [neofscrypto.Signer] methods are not invoked.
-// [neofscrypto.OverlapSigner] can be used to pass [neofscrypto.SignerV2] when
-// [neofscrypto.Signer] is unimplemented.
-//
-// Note that if a requested attribute is missing in the matching object, the
+// Note that if requested attribute is missing in the matching object, the
 // corresponding element in its [SearchResultItem.Attributes] is empty.
 func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.SearchFilters, attrs []string, cursor string,
 	signer neofscrypto.Signer, opts SearchObjectsOptions) ([]SearchResultItem, string, error) {
@@ -450,10 +445,6 @@ func (x *ObjectListReader) Close() error {
 //
 // Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
 // the specified Signer, which is taken into account, in particular, for access control.
-// If signer implements [neofscrypto.SignerV2], signing is done using it. In
-// this case, [neofscrypto.Signer] methods are not called.
-// [neofscrypto.OverlapSigner] may be used to pass [neofscrypto.SignerV2] when
-// [neofscrypto.Signer] is unimplemented.
 //
 // Return errors:
 //   - [ErrMissingSigner]

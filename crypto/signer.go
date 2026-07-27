@@ -102,20 +102,3 @@ type PublicKey interface {
 	// Verify checks signature of the given data. True means correct signature.
 	Verify(data, signature []byte) bool
 }
-
-// SignerV2 allows to sign authorized data.
-type SignerV2 interface {
-	SignData(data []byte) (Signature, error)
-}
-
-type signers struct {
-	Signer
-	SignerV2
-}
-
-// OverlapSigner returns [Signer] which implements [SignerV2] for functions
-// trying to switch to [SignerV2] usage. It is unsafe to use OverlapSigner for
-// any other case.
-func OverlapSigner(s SignerV2) Signer {
-	return signers{SignerV2: s}
-}
