@@ -728,7 +728,11 @@ func TestClient_ObjectHead(t *testing.T) {
 							assertErr: func(t testing.TB, err error) {
 								require.EqualError(t, err, "unexpected header type <nil>")
 							}},
-						{name: "header oneof/empty", body: &protoobject.HeadResponse_Body{Head: new(protoobject.HeadResponse_Body_Header)},
+						{name: "header oneof/empty", body: &protoobject.HeadResponse_Body{Head: &protoobject.HeadResponse_Body_Header{
+							Header: &protoobject.HeaderWithSignature{
+								Header: proto.Clone(validMinObjectHeader).(*protoobject.Header),
+							},
+						}},
 							assertErr: func(t testing.TB, err error) {
 								require.ErrorAs(t, err, new(MissingResponseFieldErr))
 								require.EqualError(t, err, "missing signature field in the response")
@@ -858,6 +862,29 @@ func TestClient_ObjectHead(t *testing.T) {
 			_, err = c.ObjectHead(ctx, anyCID, otherID, anyValidSigner, opts)
 			require.NoError(t, err)
 		})
+	})
+	t.Run("EC part without signature", func(t *testing.T) {
+		srv := newTestHeadObjectServer()
+		c := newTestObjectClient(t, srv)
+
+		resp := proto.Clone(validFullObjectHeadResponseBody).(*protoobject.HeadResponse_Body)
+		obj := resp.Head.(*protoobject.HeadResponse_Body_Header)
+		obj.Header.Header.Attributes = append(obj.Header.Header.Attributes, []*protoobject.Header_Attribute{
+			{
+				Key:   object.AttributeECRuleIndex,
+				Value: "1",
+			},
+			{
+				Key:   object.AttributeECPartIndex,
+				Value: "2",
+			},
+		}...)
+		obj.Header.Signature = nil
+
+		srv.respondWithBody(resp)
+
+		_, err := c.ObjectHead(ctx, anyCID, getObjectIDForHeaderResponseBody(resp), anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
 	})
 }
 
@@ -1835,6 +1862,29 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			require.Equal(t, int64(1), n)
 			require.Equal(t, fullPayload[len(fullPayload)-1:], dst.Bytes())
 		})
+	})
+	t.Run("EC part without signature", func(t *testing.T) {
+		srv := newTestGetObjectServer()
+		c := newTestObjectClient(t, srv)
+
+		resp := proto.Clone(validFullHeadingObjectGetResponseBody).(*protoobject.GetResponse_Body)
+		obj := resp.ObjectPart.(*protoobject.GetResponse_Body_Init_)
+		obj.Init.Header.Attributes = append(obj.Init.Header.Attributes, []*protoobject.Header_Attribute{
+			{
+				Key:   object.AttributeECRuleIndex,
+				Value: "1",
+			},
+			{
+				Key:   object.AttributeECPartIndex,
+				Value: "2",
+			},
+		}...)
+		obj.Init.Signature = nil
+
+		srv.respondWithObject(resp.GetInit(), [][]byte{})
+
+		_, _, err := c.ObjectGetInit(ctx, anyCID, getObjectIDForGetResponseBody(resp), anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
 	})
 }
 

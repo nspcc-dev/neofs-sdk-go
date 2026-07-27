@@ -511,6 +511,8 @@ type chainCollector struct {
 	mPayloads map[oid.ID]payloadWithChecksum
 
 	link oid.ID
+
+	childChecker func(object.Object)
 }
 
 func newChainCollector(tb testing.TB) *chainCollector {
@@ -554,6 +556,10 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 }
 
 func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payload io.Reader) {
+	if x.childChecker != nil {
+		x.childChecker(headerOriginal)
+	}
+
 	// copy the header cause some slicer code is written considering
 	// that sent object is a safe-to-change object, while tests store
 	// and share the "sent" objects
@@ -1116,6 +1122,91 @@ func TestKnownPayloadSize(t *testing.T) {
 			err = w.Close()
 			require.ErrorIs(t, err, io.ErrUnexpectedEOF)
 		})
+	})
+}
+
+func TestSetSplitChainModifier(t *testing.T) {
+	const (
+		newAttrKey   = "modifiertestkey"
+		newAttrValue = "modifiertestvalue"
+	)
+
+	testSlicer := func(t *testing.T, origObjectSize, maxPayloadSize uint64) {
+		in, opts := randomInput(origObjectSize, maxPayloadSize)
+		opts.SetSplitChainModifier(func(o *object.Object, reader io.Reader) error {
+			attrs := o.Attributes()
+			attrs = append(attrs, object.NewAttribute(newAttrKey, newAttrValue))
+			o.SetAttributes(attrs...)
+			return nil
+		})
+
+		checker := &slicedObjectChecker{
+			opts:           opts,
+			tb:             t,
+			input:          in,
+			chainCollector: newChainCollector(t),
+		}
+		checker.chainCollector.childChecker = func(o object.Object) {
+			if o.Type() == object.TypeLink {
+				return
+			}
+
+			attrs := o.Attributes()
+			var foundNewAttribute bool
+			for _, attr := range attrs {
+				if attr.Key() == newAttrKey {
+					require.Falsef(t, foundNewAttribute, "duplicated new attribute found")
+
+					require.Equal(t, newAttrValue, attr.Value())
+					foundNewAttribute = true
+				}
+			}
+			require.Truef(t, foundNewAttribute, "new attribute not found")
+		}
+
+		var hdr object.Object
+		hdr.SetSessionToken(opts.Session())
+		hdr.SetContainerID(in.container)
+		hdr.SetOwner(in.owner)
+		hdr.SetAttributes(in.attributes...)
+
+		// check writer with random written chunk's size
+		w, err := slicer.InitPut(t.Context(), checker, hdr, checker.input.signer, opts)
+		require.NoError(t, err)
+
+		var chunkSize int
+		if len(in.payload) > 0 {
+			chunkSize = rand.Int() % len(in.payload)
+			if chunkSize == 0 {
+				chunkSize = 1
+			}
+		}
+
+		for payload := in.payload; len(payload) > 0; payload = payload[chunkSize:] {
+			if chunkSize > len(payload) {
+				chunkSize = len(payload)
+			}
+			n, err := w.Write(payload[:chunkSize])
+			require.NoError(t, err)
+			require.EqualValues(t, chunkSize, n)
+		}
+
+		err = w.Close()
+		require.NoError(t, err)
+
+		if origObjectSize <= maxPayloadSize {
+			// root object without split is a "child" itself, its header must change
+			checker.input.attributes = append(checker.input.attributes, object.NewAttribute(newAttrKey, newAttrValue))
+		}
+		checker.chainCollector.verify(checker.input, w.ID())
+	}
+
+	t.Run("no split", func(t *testing.T) {
+		testSlicer(t, 1024, 1024)
+	})
+
+	t.Run("split", func(t *testing.T) {
+		testSlicer(t, 1024, 256)
 	})
 }
 
