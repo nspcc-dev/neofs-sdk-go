@@ -20,7 +20,6 @@ import (
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 const (
@@ -167,7 +166,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 			Attributes:  attrs,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 		},
 	}
 	writeXHeadersToMeta(opts.xHeaders, req.MetaHeader)
@@ -471,7 +470,7 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 			Filters:     prm.filters.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)

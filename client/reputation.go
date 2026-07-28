@@ -11,7 +11,6 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmAnnounceLocalTrust groups optional parameters of AnnounceLocalTrust operation.
@@ -57,7 +56,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 			Trusts: make([]*protoreputation.Trust, len(trusts)),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
@@ -131,7 +130,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 			Trust:     trust.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}

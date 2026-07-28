@@ -1356,21 +1356,14 @@ func testStatistic[SRV interface {
 func TestNewGRPC(t *testing.T) {
 	ctx := context.Background()
 	conn := newClient(t).conn
-	pubKey := testServerStateOnDial.pub
 
-	t.Run("empty public key", func(t *testing.T) {
-		_, err := NewGRPC(ctx, []byte{}, conn, nil, 0)
-		require.EqualError(t, err, "empty public key")
-		_, err = NewGRPC(ctx, nil, conn, nil, 0)
-		require.EqualError(t, err, "empty public key")
-	})
 	t.Run("negative stream message timeout", func(t *testing.T) {
 		require.PanicsWithValue(t, "negative stream message timeout -1ms", func() {
-			_, _ = NewGRPC(ctx, pubKey, conn, nil, -time.Millisecond)
+			_, _ = NewGRPC(ctx, conn, nil, -time.Millisecond)
 		})
 	})
 	t.Run("default buffer pool", func(t *testing.T) {
-		c, err := NewGRPC(ctx, pubKey, conn, nil, 0)
+		c, err := NewGRPC(ctx, conn, nil, 0)
 		require.NoError(t, err)
 		require.NotNil(t, c.buffers)
 		b := c.buffers.Get()
@@ -1378,7 +1371,7 @@ func TestNewGRPC(t *testing.T) {
 		require.Len(t, *b.(*[]byte), 4<<20)
 	})
 	t.Run("default stream message timeout", func(t *testing.T) {
-		c, err := NewGRPC(ctx, pubKey, conn, nil, 0)
+		c, err := NewGRPC(ctx, conn, nil, 0)
 		require.NoError(t, err)
 		require.Equal(t, 10*time.Second, c.streamTimeout)
 	})
@@ -1386,7 +1379,7 @@ func TestNewGRPC(t *testing.T) {
 	const anyStreamMsgTimeout = time.Minute
 	anySignBufferPool := &sync.Pool{New: func() any { b := []byte("Hello, world!"); return &b }}
 
-	c, err := NewGRPC(ctx, pubKey, conn, anySignBufferPool, anyStreamMsgTimeout)
+	c, err := NewGRPC(ctx, conn, anySignBufferPool, anyStreamMsgTimeout)
 	require.NoError(t, err)
 	require.NotNil(t, c)
 

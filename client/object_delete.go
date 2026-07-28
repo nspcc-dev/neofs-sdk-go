@@ -15,7 +15,6 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 var (
@@ -82,7 +81,7 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}

@@ -24,7 +24,6 @@ import (
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/mem"
 	gproto "google.golang.org/protobuf/proto"
@@ -715,9 +714,10 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	bodyLen := calculateGetObjectRequestBodyLength(prm.raw, rngLen, prm.payloadOnly, extRngLen)
 
+	versionLen := c.apiVersion.MarshaledSize()
 	xHeadersLen := calculateRequestXHeadersLength(prm.xHeaders)
 
-	metaHdrLen := calculateRequestMetaHeaderFieldLengths(prm.local, xHeadersLen, sessionV1TokenLen, bearerTokenLen, sessionV2TokenLen)
+	metaHdrLen := calculateRequestMetaHeaderFieldLengths(versionLen, prm.local, xHeadersLen, sessionV1TokenLen, bearerTokenLen, sessionV2TokenLen)
 
 	bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
 	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, metaHdrLen)
@@ -740,7 +740,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	signedBody := buf[off-bodyLen : off]
 
 	// encode meta header
-	off += writeRequestMetaHeader(buf[off:], metaHdrLen, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
+	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, signedBody, buf[off-metaHdrLen:off])
 	if err != nil {
@@ -865,7 +865,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 			Raw:     prm.raw,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -1247,7 +1247,7 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 			Raw:     prm.raw,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)

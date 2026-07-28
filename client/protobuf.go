@@ -12,30 +12,11 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // TODO: This code is also in demand by https://github.com/nspcc-dev/neofs-node/issues/4005.
 //  Think of the best place for it and share.
-
-// set by init.
-var currentVersionRequestMetaHeader []byte
-
-func initCurrentVersionRequestMetaHeader() {
-	ver := version.Current()
-	verMsg := ver.ProtoMessage()
-	verMsgLen := verMsg.MarshaledSize()
-
-	verFldLen := iproto.SizeEmbeddedLENField(protosession.FieldRequestMetaHeaderVersion, verMsgLen)
-	if verFldLen == 0 {
-		return
-	}
-
-	b := make([]byte, verFldLen)
-	iproto.MarshalToEmbeddedLength(b, protosession.FieldRequestMetaHeaderVersion, verMsgLen, verMsg)
-	currentVersionRequestMetaHeader = b
-}
 
 func calculateRequestVerificationHeaderLength(bodySigLen int, metaSigLen int, originSigLen int) int {
 	ln := iproto.SizeEmbeddedLENField(protosession.FieldRequestVerificationHeaderBodySignature, bodySigLen)
@@ -87,8 +68,8 @@ func localFlagToTTL(local bool) uint32 {
 	return defaultRequestTTL
 }
 
-func calculateRequestMetaHeaderFieldLengths(local bool, xHeadersLen int, sessionV1TokenLen int, bearerTokenLen int, sessionV2TokenLen int) int {
-	ln := len(currentVersionRequestMetaHeader)
+func calculateRequestMetaHeaderFieldLengths(verLen int, local bool, xHeadersLen int, sessionV1TokenLen int, bearerTokenLen int, sessionV2TokenLen int) int {
+	ln := iproto.SizeEmbeddedLENField(protosession.FieldRequestMetaHeaderVersion, verLen)
 	ln += iproto.SizeVarint(protosession.FieldRequestMetaHeaderTTL, localFlagToTTL(local))
 	ln += xHeadersLen
 	ln += iproto.SizeEmbeddedLENField(protosession.FieldRequestMetaHeaderSessionToken, sessionV1TokenLen)
@@ -97,10 +78,10 @@ func calculateRequestMetaHeaderFieldLengths(local bool, xHeadersLen int, session
 	return ln
 }
 
-func writeRequestMetaHeader(buf []byte, ln int, local bool, xHeaders []string, sessionV1TokenLen int, sessionV1TokenMsg *protosession.SessionToken, bearerTokenLen int, bearerTokenMsg *protoacl.BearerToken, sessionV2TokenLen int, sessionV2TokenMsg *protosession.SessionTokenV2) int {
+func writeRequestMetaHeader(buf []byte, ln int, verMsgLen int, verMsg *protorefs.Version, local bool, xHeaders []string, sessionV1TokenLen int, sessionV1TokenMsg *protosession.SessionToken, bearerTokenLen int, bearerTokenMsg *protoacl.BearerToken, sessionV2TokenLen int, sessionV2TokenMsg *protosession.SessionTokenV2) int {
 	off := binary.PutUvarint(buf, protobuf.TagBytes2)
 	off += binary.PutUvarint(buf[off:], uint64(ln))
-	off += copy(buf[off:], currentVersionRequestMetaHeader)
+	off += iproto.MarshalToEmbeddedLength(buf[off:], protosession.FieldRequestMetaHeaderVersion, verMsgLen, verMsg)
 	off += iproto.MarshalToVarint(buf[off:], protosession.FieldRequestMetaHeaderTTL, localFlagToTTL(local))
 	off += writeXHeaders(buf[off:], protosession.FieldRequestMetaHeaderXHeaders, xHeaders)
 	off += iproto.MarshalToEmbeddedLength(buf[off:], protosession.FieldRequestMetaHeaderSessionToken, sessionV1TokenLen, sessionV1TokenMsg)

@@ -10,7 +10,6 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmSessionCreate groups parameters of SessionCreate operation.
@@ -90,7 +89,7 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 			Expiration: prm.exp,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}

@@ -15,7 +15,6 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmObjectHash groups parameters of ObjectHash operation.
@@ -127,7 +126,7 @@ func (c *Client) ObjectHash(ctx context.Context, containerID cid.ID, objectID oi
 			Salt:    prm.salt,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 		},
 	}
 	if prm.tz {

@@ -12,7 +12,6 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmBalanceGet groups parameters of BalanceGet operation.
@@ -57,7 +56,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 			OwnerId: prm.account.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}

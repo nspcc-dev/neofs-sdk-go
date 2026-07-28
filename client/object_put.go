@@ -18,7 +18,6 @@ import (
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -101,7 +100,8 @@ type DefaultObjectWriter struct {
 
 	chunkCalled bool
 
-	opts PrmObjectPutInit
+	apiVersion *refs.Version
+	opts       PrmObjectPutInit
 
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
@@ -125,7 +125,7 @@ func (x *PrmObjectPutInit) MarkLocal() {
 
 func (x *DefaultObjectWriter) newMetaHeader() *protosession.RequestMetaHeader {
 	mh := &protosession.RequestMetaHeader{
-		Version: version.Current().ProtoMessage(),
+		Version: x.apiVersion,
 	}
 	writeXHeadersToMeta(x.opts.xHeaders, mh)
 	if x.opts.local {
@@ -501,6 +501,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 		c.buffers.Put(buf)
 	}
 
+	w.apiVersion = c.apiVersion
 	w.signer = signer
 	w.cancelCtxStream = cancel
 	w.stream = stream
