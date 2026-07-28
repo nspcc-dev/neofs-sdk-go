@@ -89,7 +89,7 @@ type ContainerServiceClient interface {
 	// the transport protocol (e.g. `grpc-timeout` header). If the deadline is
 	// not set, server waits 15s after submitting the transaction.
 	//
-	// Starting from 2.23 version, initial eACL is supported in Put request.
+	// Starting from 2.24 version, initial eACL is supported in Put request.
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \
@@ -303,7 +303,7 @@ type ContainerServiceServer interface {
 	// the transport protocol (e.g. `grpc-timeout` header). If the deadline is
 	// not set, server waits 15s after submitting the transaction.
 	//
-	// Starting from 2.23 version, initial eACL is supported in Put request.
+	// Starting from 2.24 version, initial eACL is supported in Put request.
 	//
 	// Statuses:
 	//   - **OK** (0, SECTION_SUCCESS): \

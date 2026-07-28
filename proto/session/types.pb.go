@@ -510,8 +510,7 @@ func (x *XHeader) GetValue() string {
 	return ""
 }
 
-// Meta information attached to the request. When forwarded between peers,
-// request meta headers are folded in matryoshka style.
+// Meta information attached to the request (common things for all requests).
 type RequestMetaHeader struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Peer's API version used
@@ -529,7 +528,9 @@ type RequestMetaHeader struct {
 	SessionTokenV2 *SessionTokenV2 `protobuf:"bytes,9,opt,name=session_token_v2,json=sessionTokenV2,proto3" json:"session_token_v2,omitempty"`
 	// `BearerToken` with eACL overrides for the request
 	BearerToken *acl.BearerToken `protobuf:"bytes,6,opt,name=bearer_token,json=bearerToken,proto3" json:"bearer_token,omitempty"`
-	// `RequestMetaHeader` of the origin request
+	// `RequestMetaHeader` of the origin request.
+	//
+	// DEPRECATED: Ignored since API v2.25, all requests are original.
 	Origin *RequestMetaHeader `protobuf:"bytes,7,opt,name=origin,proto3" json:"origin,omitempty"`
 	// NeoFS network magic. Must match the value for the network
 	// that the server belongs to.
@@ -642,7 +643,9 @@ type ResponseMetaHeader struct {
 	Ttl uint32 `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
 	// Response X-Headers
 	XHeaders []*XHeader `protobuf:"bytes,4,rep,name=x_headers,json=xHeaders,proto3" json:"x_headers,omitempty"`
-	// `ResponseMetaHeader` of the origin request
+	// `ResponseMetaHeader` of the origin request.
+	//
+	// DEPRECATED: Unused for a long time, ignored since API v2.25.
 	Origin *ResponseMetaHeader `protobuf:"bytes,5,opt,name=origin,proto3" json:"origin,omitempty"`
 	// Status return
 	Status        *status.Status `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
@@ -729,9 +732,13 @@ type RequestVerificationHeader struct {
 	BodySignature *refs.Signature `protobuf:"bytes,1,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
 	// Request Meta signature is added and signed by each intermediate node
 	MetaSignature *refs.Signature `protobuf:"bytes,2,opt,name=meta_signature,json=metaSignature,proto3" json:"meta_signature,omitempty"`
-	// Signature of previous hops
+	// Signature of previous hops.
+	//
+	// DEPRECATED: Unused and unchecked since API v2.25, no origin structure to check.
 	OriginSignature *refs.Signature `protobuf:"bytes,3,opt,name=origin_signature,json=originSignature,proto3" json:"origin_signature,omitempty"`
-	// Chain of previous hops signatures
+	// Chain of previous hops signatures.
+	//
+	// DEPRECATED: Unused and unchecked since API v2.25, no origin structure to check.
 	Origin        *RequestVerificationHeader `protobuf:"bytes,4,opt,name=origin,proto3" json:"origin,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
