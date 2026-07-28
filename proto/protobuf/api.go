@@ -38,6 +38,13 @@ const (
 		1 + 3 + object.MaxHeaderLen
 )
 
+// Common request field numbers.
+const (
+	FieldRequestBody               = 1
+	FieldRequestMetaHeader         = 2
+	FieldRequestVerificationHeader = 3
+)
+
 // Common response field numbers.
 const (
 	FieldResponseBody               = 1

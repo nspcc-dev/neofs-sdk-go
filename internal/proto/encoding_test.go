@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"math/rand"
+	"strconv"
 	"testing"
 
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
@@ -440,4 +441,42 @@ func BenchmarkMarshalRepeatedBytes(b *testing.B) {
 	const bs = "Hello, world!"
 	benchmarkMarshalRepeatedBytes(b, bs)
 	benchmarkMarshalRepeatedBytes(b, []byte(bs))
+}
+
+func TestSizeEmbeddedLENField(t *testing.T) {
+	t.Run("negative length", func(t *testing.T) {
+		require.PanicsWithValue(t, "negative length -1", func() {
+			proto.SizeEmbeddedLENField(1, -1)
+		})
+	})
+
+	t.Run("invalid field number", func(t *testing.T) {
+		for _, num := range []protowire.Number{-1, 0, 536870912} {
+			t.Run(strconv.Itoa(int(num)), func(t *testing.T) {
+				msg := fmt.Sprintf("invalid field number %d", num)
+				require.PanicsWithValue(t, msg, func() {
+					proto.SizeEmbeddedLENField(num, 0)
+				})
+			})
+		}
+	})
+
+	t.Run("zero length", func(t *testing.T) {
+		ln := proto.SizeEmbeddedLENField(1, 0)
+		require.Zero(t, ln)
+	})
+
+	for i, tc := range []struct {
+		num protowire.Number
+		ln  int
+		exp int
+	}{
+		{num: 1, ln: 1, exp: 1 + 1 + 1},
+		{num: 128, ln: 1, exp: 2 + 1 + 1},
+		{num: 1, ln: 128, exp: 1 + 2 + 128},
+		{num: 128, ln: 128, exp: 2 + 2 + 128},
+	} {
+		ln := proto.SizeEmbeddedLENField(tc.num, tc.ln)
+		require.EqualValues(t, tc.exp, ln, i)
+	}
 }
