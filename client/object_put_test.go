@@ -8,6 +8,7 @@ import (
 	"io"
 	"math/rand"
 	"testing"
+	"testing/iotest"
 	"time"
 
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
@@ -63,6 +64,7 @@ type testPutObjectServer struct {
 	reqCopies  uint32
 
 	reqPayloadLenCounter int
+	reqChunkLens         []int
 }
 
 // returns [protoobject.ObjectServiceServer] supporting Put method only. Default
@@ -124,10 +126,10 @@ func (x *testPutObjectServer) verifyPayloadChunkMessage(chunk []byte) error {
 	if ln == 0 {
 		return errors.New("empty payload chunk")
 	}
-	const maxChunkLen = 3 << 20
 	if ln > maxChunkLen {
 		return fmt.Errorf("intermediate chunk exceeds the expected size limit: %dB > %dB", ln, maxChunkLen)
 	}
+	x.reqChunkLens = append(x.reqChunkLens, ln)
 	if x.reqPayload == nil {
 		return nil
 	}
@@ -797,5 +799,156 @@ func TestClient_ObjectPut(t *testing.T) {
 			require.NoError(t, err, collected[1].err)
 			require.Greater(t, collected[1].dur, sleepDur)
 		})
+	})
+}
+
+type (
+	// wraps [io.Reader] hiding [io.WriterTo]. It makes [io.Copy] use [io.ReaderFrom].
+	ioReaderOnly struct {
+		io.Reader
+	}
+
+	// returns [io.Reader] reading at most ln bytes per Read call.
+	chunkReader struct {
+		r  io.Reader
+		ln int
+	}
+)
+
+func (x chunkReader) Read(p []byte) (int, error) {
+	return x.r.Read(p[:min(len(p), x.ln)])
+}
+
+func TestDefaultObjectWriter_ReadFrom(t *testing.T) {
+	var (
+		anyValidOpts   PrmObjectPutInit
+		ctx            = context.Background()
+		anyValidHdr    = objecttest.Object()
+		anyValidSigner = usertest.User()
+	)
+
+	t.Run("payloads", func(t *testing.T) {
+		for _, tc := range []struct {
+			name       string
+			payloadLen uint
+		}{
+			{name: "no payload", payloadLen: 0},
+			{name: "one byte", payloadLen: 1},
+			// chunk length varint boundary
+			{name: "127B", payloadLen: 127},
+			{name: "128B", payloadLen: 128},
+			{name: "3MB-1", payloadLen: 3<<20 - 1},
+			{name: "3MB", payloadLen: 3 << 20},
+			{name: "3MB+1", payloadLen: 3<<20 + 1},
+			{name: "6MB", payloadLen: 6 << 20},
+			{name: "6MB+1", payloadLen: 6<<20 + 1},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				var (
+					srv     = newPutObjectServer()
+					c       = newTestObjectClient(t, srv)
+					payload = testutil.RandByteSlice(tc.payloadLen)
+					hdr     = anyValidHdr
+				)
+				hdr.SetPayloadSize(uint64(tc.payloadLen))
+
+				srv.checkRequestHeader(hdr)
+				srv.checkRequestPayload(payload)
+				srv.authenticateRequest(anyValidSigner)
+
+				w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, anyValidOpts)
+				require.NoError(t, err)
+
+				n, err := io.Copy(w, ioReaderOnly{bytes.NewReader(payload)})
+				require.NoError(t, err)
+				require.EqualValues(t, tc.payloadLen, n)
+				require.NoError(t, w.Close())
+			})
+		}
+	})
+
+	t.Run("small buffer reads", func(t *testing.T) {
+		var (
+			srv     = newPutObjectServer()
+			c       = newTestObjectClient(t, srv)
+			payload = testutil.RandByteSlice(4 << 20)
+			hdr     = anyValidHdr
+		)
+		hdr.SetPayloadSize(uint64(len(payload)))
+
+		srv.checkRequestPayload(payload)
+		w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
+
+		n, err := io.Copy(w, ioReaderOnly{chunkReader{r: bytes.NewReader(payload), ln: 64 << 10}})
+		require.NoError(t, err)
+		require.EqualValues(t, len(payload), n)
+		require.NoError(t, w.Close())
+		require.Equal(t, []int{3 << 20, 1 << 20}, srv.reqChunkLens)
+	})
+
+	t.Run("small sign buffer", func(t *testing.T) {
+		// sign buffer smaller than a chunk message: ReadFrom allocates its own
+		// buffer keeping max-size chunks
+		var (
+			srv     = newPutObjectServer()
+			c       = newCustomClient(t, func(prm *PrmInit) { prm.SetSignMessageBufferSizes(1 << 10) }, newDefaultObjectService(t, srv))
+			payload = testutil.RandByteSlice(4 << 20)
+			hdr     = anyValidHdr
+		)
+		hdr.SetPayloadSize(uint64(len(payload)))
+
+		srv.checkRequestPayload(payload)
+		srv.authenticateRequest(anyValidSigner)
+		w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
+
+		n, err := io.Copy(w, ioReaderOnly{bytes.NewReader(payload)})
+		require.NoError(t, err)
+		require.EqualValues(t, len(payload), n)
+		require.NoError(t, w.Close())
+		require.Equal(t, []int{3 << 20, 1 << 20}, srv.reqChunkLens)
+	})
+
+	t.Run("chunk length capped by known payload size", func(t *testing.T) {
+		// the header declares a size smaller than the default max chunk, so ReadFrom
+		// must not allocate/emit chunks larger than that.
+		var (
+			srv     = newPutObjectServer()
+			c       = newTestObjectClient(t, srv)
+			payload = testutil.RandByteSlice(4 << 20)
+			hdr     = anyValidHdr
+		)
+		hdr.SetPayloadSize(1 << 20)
+
+		srv.checkRequestPayload(payload)
+		w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
+
+		n, err := io.Copy(w, ioReaderOnly{bytes.NewReader(payload)})
+		require.NoError(t, err)
+		require.EqualValues(t, len(payload), n)
+		require.NoError(t, w.Close())
+		require.Equal(t, []int{1 << 20, 1 << 20, 1 << 20, 1 << 20}, srv.reqChunkLens)
+	})
+
+	t.Run("reader failure", func(t *testing.T) {
+		var (
+			srv     = newPutObjectServer()
+			c       = newTestObjectClient(t, srv)
+			payload = testutil.RandByteSlice(512)
+			readErr = errors.New("test read failure")
+			hdr     = anyValidHdr
+		)
+		hdr.SetPayloadSize(uint64(len(payload)))
+
+		srv.checkRequestPayload(payload)
+		w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, anyValidOpts)
+		require.NoError(t, err)
+
+		n, err := w.(io.ReaderFrom).ReadFrom(io.MultiReader(bytes.NewReader(payload), iotest.ErrReader(readErr)))
+		require.ErrorIs(t, err, readErr)
+		require.EqualValues(t, len(payload), n)
+		require.NoError(t, w.Close())
 	})
 }

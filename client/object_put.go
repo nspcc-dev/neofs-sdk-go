@@ -10,19 +10,30 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 var (
 	// ErrNoSessionExplicitly is a special error to show auto-session is disabled.
 	ErrNoSessionExplicitly = errors.New("session was removed explicitly")
 )
+
+// maxChunkLen restricts maximum byte length of the chunk
+// transmitted in a single stream message. It depends on
+// server settings and other message fields, but for now
+// we simply assume that 3MB is large enough to reduce the
+// number of messages, and not to exceed the limit
+// (4MB by default for gRPC servers).
+const maxChunkLen = 3 << 20
 
 // used part of [protoobject.ObjectService_PutClient] simplifying test
 // implementations.
@@ -70,6 +81,7 @@ func (x ResObjectPut) StoredObjectID() oid.ID {
 // ObjectWriter is designed to write one object to NeoFS system.
 type ObjectWriter interface {
 	io.WriteCloser
+	io.ReaderFrom
 	GetResult() ResObjectPut
 }
 
@@ -94,6 +106,8 @@ type DefaultObjectWriter struct {
 	statisticCallback shortStatisticCallback
 	startTime         time.Time // if statisticCallback is set only
 
+	payloadSizeFromHeader uint64
+
 	buf              []byte
 	bufCleanCallback func()
 }
@@ -107,6 +121,52 @@ func (x *PrmObjectPutInit) WithBearerToken(t bearer.Token) {
 // MarkLocal tells the server to execute the operation locally.
 func (x *PrmObjectPutInit) MarkLocal() {
 	x.local = true
+}
+
+func (x *DefaultObjectWriter) newMetaHeader() *protosession.RequestMetaHeader {
+	mh := &protosession.RequestMetaHeader{
+		Version: version.Current().ProtoMessage(),
+	}
+	writeXHeadersToMeta(x.opts.xHeaders, mh)
+	if x.opts.local {
+		mh.Ttl = localRequestTTL
+	} else {
+		mh.Ttl = defaultRequestTTL
+	}
+	if x.opts.session != nil {
+		mh.SessionToken = x.opts.session.ProtoMessage()
+	}
+	if x.opts.sessionV2 != nil {
+		mh.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
+	}
+	if x.opts.bearerToken != nil {
+		mh.BearerToken = x.opts.bearerToken.ProtoMessage()
+	}
+	return mh
+}
+
+// sendRequest transmits signed req to the server recording the result in x.err.
+func (x *DefaultObjectWriter) sendRequest(req *protoobject.PutRequest) error {
+	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		return x.stream.Send(req)
+	})
+	if x.err != nil && errors.Is(x.err, io.EOF) {
+		var resp *protoobject.PutResponse
+		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+			var err error
+			resp, err = x.stream.CloseAndRecv()
+			return err
+		})
+		if x.err != nil {
+			return x.err
+		}
+
+		x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+
+		x.streamClosed = true
+		x.cancelCtxStream()
+	}
+	return x.err
 }
 
 // writeHeader writes header of the object. Result means success.
@@ -123,24 +183,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 				},
 			},
 		},
-		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
-		},
-	}
-	writeXHeadersToMeta(x.opts.xHeaders, req.MetaHeader)
-	if x.opts.local {
-		req.MetaHeader.Ttl = localRequestTTL
-	} else {
-		req.MetaHeader.Ttl = defaultRequestTTL
-	}
-	if x.opts.session != nil {
-		req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
-	}
-	if x.opts.sessionV2 != nil {
-		req.MetaHeader.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
-	}
-	if x.opts.bearerToken != nil {
-		req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
+		MetaHeader: x.newMetaHeader(),
 	}
 
 	req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
@@ -165,13 +208,6 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 	var writtenBytes int
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
-		// maxChunkLen restricts maximum byte length of the chunk
-		// transmitted in a single stream message. It depends on
-		// server settings and other message fields, but for now
-		// we simply assume that 3MB is large enough to reduce the
-		// number of messages, and not to exceed the limit
-		// (4MB by default for gRPC servers).
-		const maxChunkLen = 3 << 20
 		if ln > maxChunkLen {
 			ln = maxChunkLen
 		}
@@ -191,24 +227,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 					Chunk: chunk[:ln],
 				},
 			},
-			MetaHeader: &protosession.RequestMetaHeader{
-				Version: version.Current().ProtoMessage(),
-			},
-		}
-		writeXHeadersToMeta(x.opts.xHeaders, req.MetaHeader)
-		if x.opts.local {
-			req.MetaHeader.Ttl = localRequestTTL
-		} else {
-			req.MetaHeader.Ttl = defaultRequestTTL
-		}
-		if x.opts.session != nil {
-			req.MetaHeader.SessionToken = x.opts.session.ProtoMessage()
-		}
-		if x.opts.sessionV2 != nil {
-			req.MetaHeader.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
-		}
-		if x.opts.bearerToken != nil {
-			req.MetaHeader.BearerToken = x.opts.bearerToken.ProtoMessage()
+			MetaHeader: x.newMetaHeader(),
 		}
 
 		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
@@ -217,28 +236,12 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			return writtenBytes, x.err
 		}
 
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-			return x.stream.Send(req)
-		})
-		if x.err != nil {
-			if errors.Is(x.err, io.EOF) {
-				var resp *protoobject.PutResponse
-				x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-					var err error
-					resp, err = x.stream.CloseAndRecv()
-					return err
-				})
-				if x.err != nil {
-					return writtenBytes, x.err
-				}
-
-				x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
-
-				x.streamClosed = true
-				x.cancelCtxStream()
-			}
-
-			return writtenBytes, x.err
+		if err = x.sendRequest(req); err != nil {
+			return writtenBytes, err
+		}
+		if x.streamClosed {
+			// server gracefully finished the stream ahead of the full payload
+			return writtenBytes, nil
 		}
 
 		writtenBytes += len(chunk[:ln])
@@ -246,6 +249,122 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 	}
 
 	return writtenBytes, nil
+}
+
+// chunkProtoHeaderPrefixLen is the maximum length of the payload chunk field prefix
+// (the field tag and the chunk length varint) in the marshaled
+// [protoobject.PutRequest_Body] with chunks up to maxChunkLen.
+var chunkProtoHeaderPrefixLen = protowire.SizeTag(protoobject.FieldPutRequestBodyChunk) + protowire.SizeVarint(maxChunkLen)
+
+// ReadFrom reads r until EOF and writes object payload.
+// Failure reason can be received via [DefaultObjectWriter.Close].
+// ReadFrom implements [io.ReaderFrom].
+func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
+	if !x.chunkCalled {
+		x.chunkCalled = true
+	}
+
+	var chunkLen = maxChunkLen
+	// For the case where the object size is less than maxChunkLen, according to the object header.
+	if x.payloadSizeFromHeader > 0 && x.payloadSizeFromHeader < uint64(maxChunkLen) {
+		chunkLen = int(x.payloadSizeFromHeader)
+	}
+
+	var (
+		writtenBytes int64
+
+		maxMessageSize = chunkProtoHeaderPrefixLen + chunkLen
+
+		req = &protoobject.PutRequest{
+			Body:       &protoobject.PutRequest_Body{},
+			MetaHeader: x.newMetaHeader(),
+		}
+
+		scheme = refs.SignatureScheme(x.signer.Scheme())
+		pub    = neofscrypto.PublicKeyBytes(x.signer.Public())
+	)
+
+	metaSignatureBytes, err := x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
+	if err != nil {
+		return 0, fmt.Errorf("sign meta: %w", err)
+	}
+
+	originSignatureBytes, err := x.signer.Sign(nil)
+	if err != nil {
+		return 0, fmt.Errorf("sign origin: %w", err)
+	}
+
+	buf := x.buf
+	if len(buf) < maxMessageSize {
+		buf = make([]byte, maxMessageSize)
+	}
+
+	for {
+		actualRead, err := readFull(r, buf[chunkProtoHeaderPrefixLen:maxMessageSize])
+		if actualRead > 0 {
+			var (
+				chunkEnd = chunkProtoHeaderPrefixLen + actualRead
+				// chunkStart depends on actualRead and may vary.
+				chunkStart = chunkProtoHeaderPrefixLen - protowire.SizeTag(protoobject.FieldPutRequestBodyChunk) - protowire.SizeVarint(uint64(actualRead))
+				// protoHeader is empty `len` but keeps buf's `cap`.
+				protoHeader = buf[chunkStart:chunkStart]
+			)
+
+			// Writing to protoHeader actually changes `buf` and we generate payload to be sign.
+			protoHeader = protowire.AppendTag(protoHeader, protoobject.FieldPutRequestBodyChunk, protowire.BytesType)
+			protowire.AppendVarint(protoHeader, uint64(actualRead))
+
+			bSigBts, err := x.signer.Sign(buf[chunkStart:chunkEnd])
+			if err != nil {
+				return writtenBytes, fmt.Errorf("sign body: %w", err)
+			}
+
+			req.VerifyHeader = &protosession.RequestVerificationHeader{
+				BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
+				MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
+				OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
+			}
+
+			req.Body.ObjectPart = &protoobject.PutRequest_Body_Chunk{
+				// Actual chunk payload.
+				Chunk: buf[chunkProtoHeaderPrefixLen:chunkEnd],
+			}
+
+			if writeErr := x.sendRequest(req); writeErr != nil {
+				return writtenBytes, writeErr
+			}
+
+			if x.streamClosed {
+				return writtenBytes, io.ErrShortWrite
+			}
+
+			writtenBytes += int64(actualRead)
+		}
+
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return writtenBytes, nil
+			}
+
+			return writtenBytes, err
+		}
+	}
+}
+
+// readFull reads from r until b is full or r fails.
+func readFull(r io.Reader, b []byte) (int, error) {
+	var n int
+
+	for n < len(b) {
+		read, err := r.Read(b[n:])
+		n += read
+
+		if err != nil {
+			return n, err
+		}
+	}
+
+	return n, nil
 }
 
 // Close ends writing the object and returns the result of the operation
@@ -387,6 +506,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	w.stream = stream
 	w.singleMsgTimeout = c.streamTimeout
 	w.opts = prm
+	w.payloadSizeFromHeader = hdr.PayloadSize()
 	if err = w.writeHeader(hdr); err != nil {
 		_ = w.Close()
 		err = fmt.Errorf("header write: %w", err)
