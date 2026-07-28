@@ -310,6 +310,8 @@ func TestClient_ObjectSearch(t *testing.T) {
 					opts.MarkLocal()
 
 					srv.checkRequestLocal()
+					srv.requireUnsignedRequest()
+					c.SkipSignatureForLocalRequests()
 					r, err := c.ObjectSearchInit(ctx, anyCID, anyValidSigner, opts)
 					require.NoError(t, err)
 					_, err = readAllObjectIDs(r)
@@ -850,6 +852,8 @@ func TestClient_SearchObjects(t *testing.T) {
 					opts.DisableForwarding()
 
 					srv.checkRequestLocal()
+					srv.requireUnsignedRequest()
+					c.SkipSignatureForLocalRequests()
 					_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, opts)
 					require.NoError(t, err)
 				})

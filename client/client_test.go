@@ -708,8 +708,9 @@ type testCommonRequestServerSettings[
 		GetVerifyHeader() *protosession.RequestVerificationHeader
 	},
 ] struct {
-	reqCreds *authCredentials
-	reqXHdrs []string
+	reqCreds        *authCredentials
+	reqXHdrs        []string
+	requireUnsigned bool
 }
 
 // makes the server to assert that any request has given X-headers. By default,
@@ -730,6 +731,10 @@ func (x *testCommonRequestServerSettings[_, _]) authenticateRequest(s neofscrypt
 	x.reqCreds = &c
 }
 
+func (x *testCommonRequestServerSettings[_, _]) requireUnsignedRequest() {
+	x.requireUnsigned = true
+}
+
 func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) error {
 	body := req.GetBody()
 	metaHdr := req.GetMetaHeader()
@@ -737,18 +742,24 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 
 	// signatures
 	if verifyHdr == nil {
-		return newInvalidRequestErr(errors.New("missing verification header"))
-	}
-	if verifyHdr.Origin != nil {
-		return newInvalidRequestVerificationHeaderErr(errors.New("origin field is set while should not be"))
-	}
-	if err := verifyDataSignature(
-		neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
-		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
-	}
-	if err := verifyDataSignature(
-		neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
-		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
+		if !x.requireUnsigned {
+			return newInvalidRequestErr(errors.New("missing verification header"))
+		}
+	} else {
+		if x.requireUnsigned {
+			return newInvalidRequestErr(errors.New("unexpected verification header"))
+		}
+		if verifyHdr.Origin != nil {
+			return newInvalidRequestVerificationHeaderErr(errors.New("origin field is set while should not be"))
+		}
+		if err := verifyDataSignature(
+			neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
+			return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
+		}
+		if err := verifyDataSignature(
+			neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
+			return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
+		}
 	}
 	// meta header
 	curVersion := version.Current()

@@ -745,13 +745,28 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	// encode meta header
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
-	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
-	if err != nil {
-		if reqMemBuf != nil {
-			reqMemBuf.Free()
+	var ttl uint32 = defaultRequestTTL
+	if prm.local {
+		ttl = localRequestTTL
+	}
+
+	var reqBuffers mem.BufferSlice
+	if c.shouldSignRequest(ttl) {
+		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+		if err != nil {
+			if reqMemBuf != nil {
+				reqMemBuf.Free()
+			}
+			return object.Object{}, nil, err
 		}
-		return object.Object{}, nil, err
+	} else {
+		reqSliceBuf := mem.SliceBuffer(buf[:off])
+		if reqMemBuf != nil {
+			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqBuffers = mem.BufferSlice{reqMemBuf}
+		} else {
+			reqBuffers = mem.BufferSlice{reqSliceBuf}
+		}
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -898,13 +913,28 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	// encode meta header
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
-	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
-	if err != nil {
-		if reqMemBuf != nil {
-			reqMemBuf.Free()
+	var ttl uint32 = defaultRequestTTL
+	if prm.local {
+		ttl = localRequestTTL
+	}
+
+	var reqBuffers mem.BufferSlice
+	if c.shouldSignRequest(ttl) {
+		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+		if err != nil {
+			if reqMemBuf != nil {
+				reqMemBuf.Free()
+			}
+			return nil, err
 		}
-		return nil, err
+	} else {
+		reqSliceBuf := mem.SliceBuffer(buf[:off])
+		if reqMemBuf != nil {
+			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqBuffers = mem.BufferSlice{reqMemBuf}
+		} else {
+			reqBuffers = mem.BufferSlice{reqSliceBuf}
+		}
 	}
 
 	var resp protoobject.HeadResponse
@@ -1281,13 +1311,15 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	if c.shouldSignRequest(req.MetaHeader.Ttl) {
+		buf := c.buffers.Get().(*[]byte)
+		defer c.buffers.Put(buf)
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
+		req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, *buf)
+		if err != nil {
+			err = fmt.Errorf("%w: %w", errSignRequest, err)
+			return nil, err
+		}
 	}
 
 	ctx, cancel := context.WithCancel(ctx)

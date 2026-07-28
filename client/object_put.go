@@ -94,9 +94,10 @@ type DefaultObjectWriter struct {
 	singleMsgTimeout time.Duration
 	streamClosed     bool
 
-	signer neofscrypto.Signer
-	res    ResObjectPut
-	err    error
+	signer            neofscrypto.Signer
+	shouldSignRequest func(uint32) bool
+	res               ResObjectPut
+	err               error
 
 	chunkCalled bool
 
@@ -186,10 +187,12 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		MetaHeader: x.newMetaHeader(),
 	}
 
-	req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-	if x.err != nil {
-		x.err = fmt.Errorf("sign message: %w", x.err)
-		return x.err
+	if x.shouldSignRequest(req.MetaHeader.Ttl) {
+		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
+		if x.err != nil {
+			x.err = fmt.Errorf("sign message: %w", x.err)
+			return x.err
+		}
 	}
 
 	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
@@ -230,10 +233,12 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			MetaHeader: x.newMetaHeader(),
 		}
 
-		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-		if x.err != nil {
-			x.err = fmt.Errorf("sign message: %w", x.err)
-			return writtenBytes, x.err
+		if x.shouldSignRequest(req.MetaHeader.Ttl) {
+			req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
+			if x.err != nil {
+				x.err = fmt.Errorf("sign message: %w", x.err)
+				return writtenBytes, x.err
+			}
 		}
 
 		if err = x.sendRequest(req); err != nil {
@@ -503,6 +508,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 
 	w.apiVersion = c.apiVersion
 	w.signer = signer
+	w.shouldSignRequest = c.shouldSignRequest
 	w.cancelCtxStream = cancel
 	w.stream = stream
 	w.singleMsgTimeout = c.streamTimeout

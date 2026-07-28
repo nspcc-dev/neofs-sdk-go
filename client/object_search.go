@@ -24,6 +24,7 @@ import (
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"google.golang.org/grpc/mem"
 )
 
 const (
@@ -214,13 +215,28 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	// encode meta header
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, opts.noForwarding, opts.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
-	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
-	if err != nil {
-		if reqMemBuf != nil {
-			reqMemBuf.Free()
+	var ttl uint32 = defaultRequestTTL
+	if opts.noForwarding {
+		ttl = localRequestTTL
+	}
+
+	var reqBuffers mem.BufferSlice
+	if c.shouldSignRequest(ttl) {
+		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+		if err != nil {
+			if reqMemBuf != nil {
+				reqMemBuf.Free()
+			}
+			return nil, "", err
 		}
-		return nil, "", err
+	} else {
+		reqSliceBuf := mem.SliceBuffer(buf[:off])
+		if reqMemBuf != nil {
+			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqBuffers = mem.BufferSlice{reqMemBuf}
+		} else {
+			reqBuffers = mem.BufferSlice{reqSliceBuf}
+		}
 	}
 
 	var resp protoobject.SearchV2Response
@@ -519,13 +535,15 @@ func (c *Client) ObjectSearchInit(ctx context.Context, containerID cid.ID, signe
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	if c.shouldSignRequest(req.MetaHeader.Ttl) {
+		buf := c.buffers.Get().(*[]byte)
+		defer c.buffers.Put(buf)
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchRequest_Body](signer, req, *buf)
-	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
-		return nil, err
+		req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchRequest_Body](signer, req, *buf)
+		if err != nil {
+			err = fmt.Errorf("%w: %w", errSignRequest, err)
+			return nil, err
+		}
 	}
 
 	var r ObjectListReader
