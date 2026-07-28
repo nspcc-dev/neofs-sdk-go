@@ -167,3 +167,19 @@ func TestDecodeString(t *testing.T) {
 	require.Equal(t, uint32(0), v.Major())
 	require.Equal(t, uint32(0), v.Minor())
 }
+
+func TestCompare(t *testing.T) {
+	var (
+		v10a = version.New(1, 0)
+		v10b = version.New(1, 0)
+		v11  = version.New(1, 1)
+		v20  = version.New(2, 0)
+	)
+	require.Equal(t, 0, v10a.Compare(v10b))
+	require.Equal(t, 1, v11.Compare(v10a))
+	require.Equal(t, -1, v10a.Compare(v11))
+	require.Equal(t, 1, v20.Compare(v10a))
+	require.Equal(t, 1, v20.Compare(v11))
+	require.Equal(t, -1, v10a.Compare(v20))
+	require.Equal(t, -1, v11.Compare(v20))
+}
