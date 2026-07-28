@@ -286,12 +286,12 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 
 	metaSignatureBytes, err := x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
 	if err != nil {
-		return 0, fmt.Errorf("sign meta: %w", x.err)
+		return 0, fmt.Errorf("sign meta: %w", err)
 	}
 
 	originSignatureBytes, err := x.signer.Sign(nil)
 	if err != nil {
-		return 0, fmt.Errorf("sign origin: %w", x.err)
+		return 0, fmt.Errorf("sign origin: %w", err)
 	}
 
 	buf := x.buf
