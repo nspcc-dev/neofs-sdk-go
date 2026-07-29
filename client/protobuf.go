@@ -6,6 +6,7 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	iproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -109,15 +110,19 @@ func writeEmbeddedSignatureField(buf []byte, num int, ln int, sig neofscrypto.Si
 	return off
 }
 
+func writeEmbeddedContainerIDField(buf []byte, num int, cnr cid.ID) int {
+	off := binary.PutUvarint(buf, protowire.EncodeTag(protowire.Number(num), protowire.BytesType))
+	buf[off] = protobuf.ContainerIDLength
+	off++
+	off += iproto.MarshalToBytes(buf[off:], protorefs.FieldContainerIDValue, cnr[:])
+	return off
+}
+
 func writeEmbeddedObjectAddressField(buf []byte, num int, cnr cid.ID, obj oid.ID) int {
 	off := binary.PutUvarint(buf, protowire.EncodeTag(protowire.Number(num), protowire.BytesType))
 	buf[off] = protobuf.ObjectAddressLength
 	off++
-	buf[off] = protobuf.TagBytes1
-	off++
-	buf[off] = protobuf.ContainerIDLength
-	off++
-	off += iproto.MarshalToBytes(buf[off:], protorefs.FieldContainerIDValue, cnr[:])
+	off += writeEmbeddedContainerIDField(buf[off:], protorefs.FieldAddressContainerID, cnr)
 	buf[off] = protobuf.TagBytes2
 	off++
 	buf[off] = protobuf.ObjectIDLength
@@ -155,5 +160,55 @@ func writeGetRequestBody(buf []byte, ln int, cnr cid.ID, obj oid.ID, raw bool, r
 	off += iproto.MarshalToEmbeddedLength(buf[off:], protoobject.FieldGetRequestBodyRange, rngLen, rng)
 	off += iproto.MarshalToBool(buf[off:], protoobject.FieldGetRequestBodyPayloadOnly, payloadOnly)
 	off += iproto.MarshalToEmbeddedLength(buf[off:], protoobject.FieldGetRequestBodyExtendedRange, extRngLen, extRng)
+	return off
+}
+
+func calculateSearchObjectsFilterLength(f object.SearchFilter) int {
+	ln := iproto.SizeVarint(protoobject.FieldSearchFilterMatcher, f.Operation())
+	ln += iproto.SizeBytes(protoobject.FieldSearchFilterKey, f.Header())
+	ln += iproto.SizeBytes(protoobject.FieldSearchFilterValue, f.Value())
+	return ln
+}
+
+func writeEmbeddedSearchObjectsFilter(buf []byte, num int, filter object.SearchFilter) int {
+	ln := calculateSearchObjectsFilterLength(filter)
+	if ln == 0 {
+		return 0
+	}
+	off := binary.PutUvarint(buf, protowire.EncodeTag(protowire.Number(num), protowire.BytesType))
+	off += binary.PutUvarint(buf[off:], uint64(ln))
+	off += iproto.MarshalToVarint(buf[off:], protoobject.FieldSearchFilterMatcher, filter.Operation())
+	off += iproto.MarshalToBytes(buf[off:], protoobject.FieldSearchFilterKey, filter.Header())
+	off += iproto.MarshalToBytes(buf[off:], protoobject.FieldSearchFilterValue, filter.Value())
+	return off
+}
+
+func calculateSearchObjectsRequestBodyLength(filters object.SearchFilters, cursorLen int, count uint32, attributes []string) int {
+	ln := iproto.SizeEmbeddedLENField(protoobject.FieldSearchV2RequestBodyContainerID, protobuf.ContainerIDLength)
+	ln += iproto.SizeVarint(protoobject.FieldSearchV2RequestBodyVersion, defaultSearchObjectsQueryVersion)
+	for i := range filters {
+		lni := calculateSearchObjectsFilterLength(filters[i])
+		ln += iproto.SizeEmbeddedLENField(protoobject.FieldSearchV2RequestBodyFilters, lni)
+	}
+	ln += iproto.SizeEmbeddedLENField(protoobject.FieldSearchV2RequestBodyCursor, cursorLen)
+	ln += iproto.SizeVarint(protoobject.FieldSearchV2RequestBodyCount, count)
+	ln += iproto.SizeRepeatedBytes(protoobject.FieldSearchV2RequestBodyAttributes, attributes)
+	return ln
+}
+
+func writeSearchObjectsRequestBody(buf []byte, ln int, cnr cid.ID, filters object.SearchFilters, cursor string, count uint32, attributes []string) int {
+	if ln == 0 {
+		return 0
+	}
+	buf[0] = protobuf.TagBytes1
+	off := 1 + binary.PutUvarint(buf[1:], uint64(ln))
+	off += writeEmbeddedContainerIDField(buf[off:], protoobject.FieldSearchV2RequestBodyContainerID, cnr)
+	off += iproto.MarshalToVarint(buf[off:], protoobject.FieldSearchV2RequestBodyVersion, defaultSearchObjectsQueryVersion)
+	for i := range filters {
+		off += writeEmbeddedSearchObjectsFilter(buf[off:], protoobject.FieldSearchV2RequestBodyFilters, filters[i])
+	}
+	off += iproto.MarshalToBytes(buf[off:], protoobject.FieldSearchV2RequestBodyCursor, cursor)
+	off += iproto.MarshalToVarint(buf[off:], protoobject.FieldSearchV2RequestBodyCount, count)
+	off += iproto.MarshalToRepeatedBytes(buf[off:], protoobject.FieldSearchV2RequestBodyAttributes, attributes)
 	return off
 }

@@ -742,33 +742,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	// encode meta header
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
-	bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, signedBody, buf[off-metaHdrLen:off])
+	// append verification header
+	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off])
 	if err != nil {
 		return object.Object{}, nil, err
 	}
-
-	// pre-calculate verification header message lengths
-	bodySigMsgLen := calculateSignatureFieldLength(bodySig)
-	metaHdrSigMsgLen := calculateSignatureFieldLength(metaHdrSig)
-	originVerifHdrSigMsgLen := calculateSignatureFieldLength(originVerifHdrSig)
-
-	verifHdrLen := calculateRequestVerificationHeaderLength(bodySigMsgLen, metaHdrSigMsgLen, originVerifHdrSigMsgLen)
-
-	verifHdrFldLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestVerificationHeader, verifHdrLen)
-
-	// acquire buffer for verification header
-	var verifHdrFldBuf []byte
-	var reqBuffers mem.BufferSlice
-	if len(buf) >= off+verifHdrFldLen {
-		verifHdrFldBuf = buf[off:][:verifHdrFldLen]
-		reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:off+verifHdrFldLen])}
-	} else {
-		verifHdrFldBuf = make([]byte, verifHdrFldLen)
-		reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:bodyLen+metaHdrLen]), mem.SliceBuffer(verifHdrFldBuf)}
-	}
-
-	// encode verification header
-	writeRequestVerificationHeader(verifHdrFldBuf, verifHdrLen, bodySigMsgLen, bodySig, metaHdrSigMsgLen, metaHdrSig, originVerifHdrSigMsgLen, originVerifHdrSig)
 
 	ctx, cancel := context.WithCancel(ctx)
 
