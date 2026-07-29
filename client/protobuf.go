@@ -163,6 +163,23 @@ func writeGetRequestBody(buf []byte, ln int, cnr cid.ID, obj oid.ID, raw bool, r
 	return off
 }
 
+func calculateHeadObjectRequestBodyLength(raw bool) int {
+	ln := iproto.SizeEmbeddedLENField(protoobject.FieldHeadRequestBodyAddress, protobuf.ObjectAddressLength)
+	ln += iproto.SizeBool(protoobject.FieldHeadRequestBodyRaw, raw)
+	return ln
+}
+
+func writeHeadRequestBody(buf []byte, ln int, cnr cid.ID, obj oid.ID, raw bool) int {
+	if ln == 0 {
+		return 0
+	}
+	buf[0] = protobuf.TagBytes1
+	off := 1 + binary.PutUvarint(buf[1:], uint64(ln))
+	off += writeEmbeddedObjectAddressField(buf[off:], protoobject.FieldHeadRequestBodyAddress, cnr, obj)
+	off += iproto.MarshalToBool(buf[off:], protoobject.FieldHeadRequestBodyRaw, raw)
+	return off
+}
+
 func calculateSearchObjectsFilterLength(f object.SearchFilter) int {
 	ln := iproto.SizeVarint(protoobject.FieldSearchFilterMatcher, f.Operation())
 	ln += iproto.SizeBytes(protoobject.FieldSearchFilterKey, f.Header())
