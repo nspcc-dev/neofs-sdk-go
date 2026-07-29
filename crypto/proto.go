@@ -57,9 +57,11 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 	var ln int
 	var err error
 	vhOriginal := r.GetVerifyHeader()
+	metaHeader := r.GetMetaHeader()
+	signedOrigin := needsOriginSig(metaHeader)
 
 	var bs []byte
-	signBody := vhOriginal == nil
+	signBody := vhOriginal == nil || !signedOrigin
 	if signBody { // body should be signed by the original sender only
 		buf, ln = encodeMessage(r.GetBody(), buf)
 		bs, err = signer.Sign(buf[:ln])
@@ -74,18 +76,23 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 		return nil, fmt.Errorf("%w: %w", errSignMeta, err)
 	}
 
-	buf, ln = encodeMessage(vhOriginal, buf)
-	vs, err := signer.Sign(buf[:ln])
-	if err != nil {
-		return nil, fmt.Errorf("%w: %w", errSignVerifyOrigin, err)
+	var vs []byte
+	if signedOrigin {
+		buf, ln = encodeMessage(vhOriginal, buf)
+		vs, err = signer.Sign(buf[:ln])
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", errSignVerifyOrigin, err)
+		}
 	}
 
 	scheme := refs.SignatureScheme(signer.Scheme())
 	pub := PublicKeyBytes(signer.Public())
 	res := &session.RequestVerificationHeader{
-		MetaSignature:   &refs.Signature{Key: pub, Sign: ms, Scheme: scheme},
-		OriginSignature: &refs.Signature{Key: pub, Sign: vs, Scheme: scheme},
-		Origin:          vhOriginal,
+		MetaSignature: &refs.Signature{Key: pub, Sign: ms, Scheme: scheme},
+		Origin:        vhOriginal,
+	}
+	if signedOrigin {
+		res.OriginSignature = &refs.Signature{Key: pub, Sign: vs, Scheme: scheme}
 	}
 	if signBody {
 		res.BodySignature = &refs.Signature{Key: pub, Sign: bs, Scheme: scheme}
@@ -115,18 +122,23 @@ func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, v
 	b := r.GetBody()
 	m := r.GetMetaHeader()
 	bs := maxEncodedSize(b, m, v)
-	mo, vo := m.GetOrigin(), v.GetOrigin()
-	for {
-		if (mo == nil) != (vo == nil) {
-			return errWrongVerifyHdrNum
+
+	checkOrigin := needsOriginSig(m)
+
+	if checkOrigin {
+		mo, vo := m.GetOrigin(), v.GetOrigin()
+		for {
+			if (mo == nil) != (vo == nil) {
+				return errWrongVerifyHdrNum
+			}
+			if vo == nil {
+				break
+			}
+			if s := maxEncodedSize(mo, vo); s > bs {
+				bs = s
+			}
+			mo, vo = mo.GetOrigin(), vo.GetOrigin()
 		}
-		if vo == nil {
-			break
-		}
-		if s := maxEncodedSize(mo, vo); s > bs {
-			bs = s
-		}
-		mo, vo = mo.GetOrigin(), vo.GetOrigin()
 	}
 
 	if len(buf) < bs {
@@ -140,13 +152,15 @@ func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, v
 		if err := verifyMessageSignatureN3(m, v.MetaSignature, buf, verifyN3); err != nil {
 			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidMetaSig, err))
 		}
-		if v.OriginSignature == nil {
-			return newErrInvalidVerificationHeader(i, errMissingVerifyOriginSig)
+		if checkOrigin {
+			if v.OriginSignature == nil {
+				return newErrInvalidVerificationHeader(i, errMissingVerifyOriginSig)
+			}
+			if err := verifyMessageSignatureN3(v.Origin, v.OriginSignature, buf, verifyN3); err != nil {
+				return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidVerifyOriginSig, err))
+			}
 		}
-		if err := verifyMessageSignatureN3(v.Origin, v.OriginSignature, buf, verifyN3); err != nil {
-			return newErrInvalidVerificationHeader(i, fmt.Errorf("%w: %w", errInvalidVerifyOriginSig, err))
-		}
-		if v.Origin == nil {
+		if !checkOrigin || v.Origin == nil {
 			if v.BodySignature == nil {
 				return newErrInvalidVerificationHeader(i, errMissingBodySig)
 			}
@@ -314,4 +328,8 @@ func maxEncodedSize(ms ...ProtoMessage) int {
 		}
 	}
 	return res
+}
+
+func needsOriginSig(m *session.RequestMetaHeader) bool {
+	return m == nil || m.Version == nil || m.Version.Major < 2 || (m.Version.Major == 2 && m.Version.Minor < 25)
 }

@@ -3,7 +3,6 @@ package client
 import (
 	"context"
 	"crypto/tls"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -17,9 +16,11 @@ import (
 	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/credentials/insecure"
@@ -74,6 +75,8 @@ type Client struct {
 
 	endpoint string
 	nodeKey  []byte
+
+	apiVersion *protorefs.Version
 
 	buffers *sync.Pool
 
@@ -195,12 +198,26 @@ func (c *Client) Dial(prm PrmDial) error {
 
 	c.setConn(conn)
 
-	endpointInfo, err := c.EndpointInfo(ctx, PrmEndpointInfo{})
+	return c.fetchNodeKeyAndAPI(ctx)
+}
+
+func (c *Client) fetchNodeKeyAndAPI(ctx context.Context) error {
+	endpointInfo, err := c.EndpointInfo(ctx, PrmEndpointInfo{compatAPI: true})
 	if err != nil {
 		return err
 	}
 
 	c.nodeKey = endpointInfo.NodeInfo().PublicKey()
+
+	var (
+		nodeAPI   = endpointInfo.LatestVersion()
+		clientAPI = version.Current()
+	)
+
+	if nodeAPI.Compare(clientAPI) < 0 {
+		clientAPI = nodeAPI
+	}
+	c.apiVersion = clientAPI.ProtoMessage()
 
 	return nil
 }
@@ -342,8 +359,6 @@ func (x *PrmDial) setDialFunc(connFunc connFunc) {
 // All requests, except ops accepting signer parameter, are signed with
 // randomized private key in [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme.
 //
-// Parameter nodePub specifies remote storage node's public key.
-//
 // The signBufPool is optional. If provided, it must contain/generate objects of
 // *[]byte type. By default, it pools 4MB byte slices.
 //
@@ -351,12 +366,9 @@ func (x *PrmDial) setDialFunc(connFunc connFunc) {
 //
 // Experimental: the function focuses on SN system needs and is not recommended
 // for use by regular apps. May be removed in future releases.
-func NewGRPC(_ context.Context, nodePub []byte, conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration) (*Client, error) {
+func NewGRPC(ctx context.Context, conn *grpc.ClientConn, signBufPool *sync.Pool, streamMsgTimeout time.Duration) (*Client, error) {
 	if streamMsgTimeout < 0 {
 		panic(fmt.Sprintf("negative stream message timeout %v", streamMsgTimeout))
-	}
-	if len(nodePub) == 0 {
-		return nil, errors.New("empty public key")
 	}
 	if signBufPool == nil {
 		signBufPool = newByteBufferPool(defaultBufferSize)
@@ -372,11 +384,15 @@ func NewGRPC(_ context.Context, nodePub []byte, conn *grpc.ClientConn, signBufPo
 		prm: PrmInit{
 			signer: signer,
 		},
-		nodeKey:       nodePub,
 		buffers:       signBufPool,
 		streamTimeout: streamMsgTimeout,
 	}
 	c.setConn(conn)
+
+	err = c.fetchNodeKeyAndAPI(ctx)
+	if err != nil {
+		return nil, err
+	}
 
 	return c, nil
 }

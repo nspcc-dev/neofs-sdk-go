@@ -9,6 +9,7 @@ import (
 
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -321,6 +322,7 @@ func newTestGetNodeInfoServer() *testGetNodeInfoServer { return new(testGetNodeI
 func (x *testGetNodeInfoServer) respondWithNodePublicKey(pub []byte) {
 	b := proto.Clone(validMinNodeInfoResponseBody).(*protonetmap.LocalNodeInfoResponse_Body)
 	b.NodeInfo.PublicKey = pub
+	b.Version = version.Current().ProtoMessage() // Dial() uses the response.
 	x.respondWithBody(b)
 }
 

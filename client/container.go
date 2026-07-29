@@ -19,7 +19,6 @@ import (
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
-	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
 // PrmContainerPut groups optional parameters of ContainerPut operation.
@@ -164,7 +163,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 			},
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
@@ -259,7 +258,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 			ContainerId: id.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     2,
 		},
 	}
@@ -325,7 +324,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 			OwnerId: ownerID.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
@@ -472,7 +471,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 			},
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
@@ -528,7 +527,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 			ContainerId: id.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
@@ -684,7 +683,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 			},
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}

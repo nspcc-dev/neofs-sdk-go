@@ -1,6 +1,7 @@
 package version
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"strconv"
@@ -61,6 +62,11 @@ func (v Version) Minor() uint32 {
 // SetMinor sets minor number of the revision.
 func (v *Version) SetMinor(val uint32) {
 	v.mnr = val
+}
+
+// Compare performs three-way comparison of two versions.
+func (v Version) Compare(o Version) int {
+	return cmp.Or(cmp.Compare(v.mjr, o.mjr), cmp.Compare(v.mnr, o.mnr))
 }
 
 // ProtoMessage converts v into message to transmit using the NeoFS API

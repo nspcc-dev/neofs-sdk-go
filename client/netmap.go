@@ -22,6 +22,8 @@ type NetworkInfoExecutor interface {
 // PrmEndpointInfo groups parameters of EndpointInfo operation.
 type PrmEndpointInfo struct {
 	prmCommonMeta
+	// Used internally for the first request to node to ensure compatibility.
+	compatAPI bool
 }
 
 // ResEndpointInfo group resulting values of EndpointInfo operation.
@@ -74,6 +76,9 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 			Version: version.Current().ProtoMessage(),
 			Ttl:     defaultRequestTTL,
 		},
+	}
+	if prm.compatAPI {
+		req.MetaHeader.Version = version.New(2, 24).ProtoMessage()
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
@@ -155,7 +160,7 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	req := &protonetmap.NetworkInfoRequest{
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
@@ -222,7 +227,7 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	req := &protonetmap.NetmapSnapshotRequest{
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: version.Current().ProtoMessage(),
+			Version: c.apiVersion,
 			Ttl:     defaultRequestTTL,
 		},
 	}
