@@ -27,7 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const signOneReqCalls = 3 // body+headers
+const signOneReqCalls = 2 // body+headers
 
 type nFailedSigner struct {
 	user.Signer
