@@ -115,7 +115,7 @@ type Bytes interface{ ~[]byte | ~string }
 // Varint is a type parameter constraint for any variable-length protobuf
 // integers.
 type Varint interface {
-	~int32 | int64 | uint32 | uint64 // ~int32 for 'enum' fields
+	~int32 | int64 | uint32 | uint64 | int // ~int32 for 'enum' fields
 }
 
 // SizeVarint returns the encoded size of varint protobuf field with given
