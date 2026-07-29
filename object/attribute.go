@@ -39,6 +39,9 @@ const (
 	// the EC parts into which the parent object is divided. Value is base-10
 	// integer.
 	AttributeECPartIndex = AttributeECPrefix + "PART_IDX"
+	// AttributeECPartHashes is an attribute of EC parent objects which contains
+	// comma-separated hex-encoded EC parts' SHA-256 hashes.
+	AttributeECPartHashes = AttributeECPrefix + "PART_HASHES"
 )
 
 // Attribute represents an object attribute.

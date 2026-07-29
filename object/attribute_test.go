@@ -67,6 +67,7 @@ func TestSystemAttributes(t *testing.T) {
 		{cnst: object.AttributeAssociatedObject, exp: "__NEOFS__ASSOCIATE"},
 		{cnst: object.AttributeECRuleIndex, exp: "__NEOFS__EC_RULE_IDX"},
 		{cnst: object.AttributeECPartIndex, exp: "__NEOFS__EC_PART_IDX"},
+		{cnst: object.AttributeECPartHashes, exp: "__NEOFS__EC_PART_HASHES"},
 	} {
 		t.Run(tc.exp, func(t *testing.T) {
 			require.Equal(t, tc.exp, tc.cnst)
