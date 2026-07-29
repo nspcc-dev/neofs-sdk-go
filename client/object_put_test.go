@@ -143,9 +143,6 @@ func (x *testPutObjectServer) verifyPayloadChunkMessage(chunk []byte) error {
 func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 	// TODO(https://github.com/nspcc-dev/neofs-sdk-go/issues/662): why meta is
 	//  transmitted in all stream messages when heading parts is enough?
-	if err := x.testCommonClientStreamServerSettings.verifyRequest(req); err != nil {
-		return err
-	}
 	// meta header
 	metaHdr := req.MetaHeader
 	// TTL
@@ -174,6 +171,9 @@ func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 	case nil:
 		return newErrMissingRequestBodyField("object part")
 	case *protoobject.PutRequest_Body_Init_:
+		if err := x.testCommonClientStreamServerSettings.verifyRequest(req); err != nil {
+			return err
+		}
 		if x.reqCounter > 1 {
 			return newErrInvalidRequestField("object part", fmt.Errorf("heading part must be a 1st stream message only, "+
 				"but received in #%d one", x.reqCounter))
@@ -185,6 +185,9 @@ func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 			return newErrInvalidRequestField("heading part", err)
 		}
 	case *protoobject.PutRequest_Body_Chunk:
+		if err := x.testCommonClientStreamServerSettings.verifyUnsignedRequest(req); err != nil {
+			return err
+		}
 		if x.reqCounter <= 1 {
 			return newErrInvalidRequestField("object part", errors.New("payload chunk must not be a 1st stream message"))
 		}
@@ -539,26 +542,6 @@ func TestClient_ObjectPut(t *testing.T) {
 			require.ErrorContains(t, err, "header write")
 			require.ErrorContains(t, err, "sign message")
 		})
-		t.Run("payload chunks", func(t *testing.T) {
-			for _, n := range []int{0, 1, 10} {
-				t.Run(fmt.Sprintf("after %d successes", n), func(t *testing.T) {
-					srv := newPutObjectServer()
-					c := newTestObjectClient(t, srv)
-
-					okSignings := signOneReqCalls * (n + 1) // +1 for header one
-					signer := newNFailedSigner(anyValidSigner, uint(okSignings+1))
-					w, err := c.ObjectPutInit(ctx, anyValidHdr, signer, anyValidOpts)
-					require.NoError(t, err)
-
-					for range n {
-						_, err = w.Write([]byte{1})
-						require.NoError(t, err)
-					}
-					_, err = w.Write([]byte{1})
-					require.ErrorContains(t, err, "sign message")
-				})
-			}
-		})
 	})
 	t.Run("transport failure", func(t *testing.T) {
 		test := func(t testing.TB, n uint, handleInit func(testing.TB, io.WriteCloser, error) error) {
@@ -737,24 +720,6 @@ func TestClient_ObjectPut(t *testing.T) {
 			require.Equal(t, stat.MethodObjectPutStream, collected[0].mtd)
 			require.ErrorContains(t, collected[0].err, "sign message")
 			require.Equal(t, stat.MethodObjectPut, collected[1].mtd)
-			require.Equal(t, err, collected[1].err)
-		})
-		t.Run("sign chunk request failure", func(t *testing.T) {
-			_, c, cl := bind()
-			w, err := c.ObjectPutInit(ctx, anyValidHdr, newNFailedSigner(anyValidSigner, signOneReqCalls*2+1), anyValidOpts)
-			require.NoError(t, err)
-			_, err = w.Write([]byte{1})
-			require.NoError(t, err)
-			_, err = w.Write([]byte{1})
-			require.ErrorContains(t, err, "sign message")
-			err = w.Close()
-			require.ErrorContains(t, err, "sign message")
-			assertCommon(cl)
-			collected := *cl
-			require.Len(t, collected, 2)
-			require.Equal(t, stat.MethodObjectPut, collected[0].mtd)
-			require.NoError(t, collected[0].err)
-			require.Equal(t, stat.MethodObjectPutStream, collected[1].mtd)
 			require.Equal(t, err, collected[1].err)
 		})
 		t.Run("transport failure", func(t *testing.T) {
