@@ -7,6 +7,7 @@ import (
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/proto"
@@ -46,8 +47,8 @@ func callUnary(ctx context.Context, conn *grpc.ClientConn, method string, reques
 	)
 }
 
-func appendVerificationHeader(signer neofscrypto.Signer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte) (mem.BufferSlice, error) {
-	bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, body, metaHdr)
+func appendVerificationHeader(signer neofscrypto.Signer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version) (mem.BufferSlice, error) {
+	bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, body, metaHdr, vers)
 	if err != nil {
 		return nil, err
 	}

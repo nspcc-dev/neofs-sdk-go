@@ -6,6 +6,7 @@ import (
 	"time"
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
@@ -96,7 +97,7 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 	}
 }
 
-func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr []byte) (neofscrypto.Signature, neofscrypto.Signature, neofscrypto.Signature, error) {
+func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr []byte, vers *protorefs.Version) (neofscrypto.Signature, neofscrypto.Signature, neofscrypto.Signature, error) {
 	bodySigVal, err := signer.Sign(body)
 	if err != nil {
 		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign request body: %w", err)
@@ -105,9 +106,16 @@ func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr 
 	if err != nil {
 		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign request meta header: %w", err)
 	}
-	originVerifHdrSigVal, err := signer.Sign(nil)
-	if err != nil {
-		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign empty data: %w", err)
+	var (
+		originVerifHdrSigVal []byte
+		originVerifHdrSig    neofscrypto.Signature
+		signedOrigin         = needsOriginSig(vers)
+	)
+	if signedOrigin {
+		originVerifHdrSigVal, err = signer.Sign(nil)
+		if err != nil {
+			return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign empty data: %w", err)
+		}
 	}
 
 	pubKeyBytes := neofscrypto.PublicKeyBytes(signer.Public())
@@ -115,7 +123,13 @@ func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr 
 
 	bodySig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, bodySigVal)
 	metaHdrSig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, metaHdrSigVal)
-	originVerifHdrSig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, originVerifHdrSigVal)
+	if signedOrigin {
+		originVerifHdrSig = neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, originVerifHdrSigVal)
+	}
 
 	return bodySig, metaHdrSig, originVerifHdrSig, nil
+}
+
+func needsOriginSig(v *protorefs.Version) bool {
+	return v == nil || v.Major < 2 || (v.Major == 2 && v.Minor < 25)
 }

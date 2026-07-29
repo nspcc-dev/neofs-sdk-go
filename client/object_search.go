@@ -212,7 +212,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, opts.noForwarding, opts.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off])
+	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
 	if err != nil {
 		return nil, "", err
 	}
