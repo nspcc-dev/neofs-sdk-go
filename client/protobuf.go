@@ -92,6 +92,9 @@ func writeRequestMetaHeader(buf []byte, ln int, verMsgLen int, verMsg *protorefs
 }
 
 func calculateSignatureFieldLength(sig neofscrypto.Signature) int {
+	if len(sig.Value()) == 0 {
+		return 0
+	}
 	ln := iproto.SizeEmbeddedLENField(protorefs.FieldSignatureKey, len(sig.PublicKeyBytes()))
 	ln += iproto.SizeEmbeddedLENField(protorefs.FieldSignatureValue, len(sig.Value()))
 	ln += iproto.SizeVarint(protorefs.FieldSignatureScheme, sig.Scheme())

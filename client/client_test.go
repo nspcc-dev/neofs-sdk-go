@@ -750,10 +750,6 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
 		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
 	}
-	if err := verifyDataSignature(
-		neofsproto.MarshalMessage(verifyHdr.Origin), verifyHdr.OriginSignature, x.reqCreds); err != nil {
-		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("verification header's origin signature: %w", err))
-	}
 	// meta header
 	curVersion := version.Current()
 	switch {
@@ -762,8 +758,15 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 	case metaHdr.Version == nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("missing protocol version"))
 	case metaHdr.Version.Major != curVersion.Major() || metaHdr.Version.Minor != curVersion.Minor():
-		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong protocol version v%d.%d, expected %s",
-			metaHdr.Version.Major, metaHdr.Version.Minor, curVersion))
+		_, isLocalNodeInfo := any(req).(*protonetmap.LocalNodeInfoRequest)
+		if !isLocalNodeInfo {
+			return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong protocol version v%d.%d, expected %s",
+				metaHdr.Version.Major, metaHdr.Version.Minor, curVersion))
+		}
+		if metaHdr.Version.Major != 2 || metaHdr.Version.Minor != 24 {
+			return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong LocalNodeInfo protocol version v%d.%d, expected 2.24",
+				metaHdr.Version.Major, metaHdr.Version.Minor))
+		}
 	case metaHdr.Epoch != 0:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("non-zero epoch #%d", metaHdr.Epoch))
 	case metaHdr.MagicNumber != 0:

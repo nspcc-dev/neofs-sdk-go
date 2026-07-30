@@ -743,7 +743,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off])
+	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
 	if err != nil {
 		return object.Object{}, nil, err
 	}
@@ -890,7 +890,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off])
+	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
 	if err != nil {
 		return nil, err
 	}
