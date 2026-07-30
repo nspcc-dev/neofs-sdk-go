@@ -1,5 +1,36 @@
 # Changelog
 
+## [1.0.0-rc.21] - 2026-07-30
+
+A set of API 2.25 features and a number of optimizations affecting all
+applications using NeoFS.
+
+New features:
+ * io.WriterTo interface support for object payload reader avoiding data copy (#818)
+ * Extended range parameter for object GET (#826)
+ * EACL record comment field support (#832)
+ * Slicer callback to adjust header before sealing an object (#830)
+ * io.ReaderFrom implementation for object payload writer avoiding data copy (#827)
+
+Behaviour changes:
+ * Response info callback deleted from client (#822)
+ * EC chunk objects no longer require signature (#830)
+ * SignerV2 interface removed from crypto library (#836)
+ * Origin signatures are no longer generated/checked for API 2.25+ requests (#833, #841)
+ * Client uses server API version if it's lower than the latest SDK version (#833)
+ * API v2.25 used by default (#841)
+
+Improvements:
+ * Updated golang.org/x/net dependency from 0.50.0 to 0.55.0 (#820)
+ * Updated golang.org/x/crypto dependency from 0.51.0 to 0.52.0 (#825)
+ * Updated NeoGo dependency from 0.118.0 to 0.121.0 (#823)
+ * Updated google.golang.org/grpc dependency from 1.79.3 to 1.82.1 (#834)
+ * Object payload reader makes one data copy less (#835)
+ * More effective GET/SEARCH/HEAD request encoding (#824, #838)
+
+Bugs fixed:
+ * Missing EC part hashes attribute definition (#840)
+
 ## [1.0.0-rc.20] - 2026-06-25
 
 An update bringing API 2.24 feature.
@@ -480,6 +511,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.21]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.20...v1.0.0-rc.21
 [1.0.0-rc.20]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.19...v1.0.0-rc.20
 [1.0.0-rc.19]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.18...v1.0.0-rc.19
 [1.0.0-rc.18]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.17...v1.0.0-rc.18
