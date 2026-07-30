@@ -255,6 +255,7 @@ func TestVarint(t *testing.T) {
 	testEncoding(t, protowire.VarintType, proto.SizeVarint[int64], proto.MarshalToVarint[int64], consumeVarint[int64], randVarint[int64])
 	testEncoding(t, protowire.VarintType, proto.SizeVarint[int32], proto.MarshalToVarint[int32], consumeVarint[int32], randVarint[int32])
 	testEncoding(t, protowire.VarintType, proto.SizeVarint[enum], proto.MarshalToVarint[enum], consumeVarint[enum], randVarint[enum])
+	testEncoding(t, protowire.VarintType, proto.SizeVarint[int], proto.MarshalToVarint[int], consumeVarint[int], randVarint[int])
 }
 
 func benchmarkMarshalVarint[T proto.Varint](b *testing.B, v T) {

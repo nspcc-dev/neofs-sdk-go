@@ -11,9 +11,12 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -156,45 +159,66 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		opts.count = MaxSearchObjectsCount
 	}
 
-	req := &protoobject.SearchV2Request{
-		Body: &protoobject.SearchV2Request_Body{
-			ContainerId: cnr.ProtoMessage(),
-			Version:     defaultSearchObjectsQueryVersion,
-			Filters:     filters.ProtoMessage(),
-			Cursor:      cursor,
-			Count:       opts.count,
-			Attributes:  attrs,
-		},
-		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-		},
-	}
-	writeXHeadersToMeta(opts.xHeaders, req.MetaHeader)
-	if opts.noForwarding {
-		req.MetaHeader.Ttl = localRequestTTL
-	} else {
-		req.MetaHeader.Ttl = defaultRequestTTL
-	}
+	// pre-calculate body and meta header message lengths
+	var sessionV1TokenMsg *protosession.SessionToken
+	var sessionV1TokenLen int
 	if opts.sessionToken != nil {
-		req.MetaHeader.SessionToken = opts.sessionToken.ProtoMessage()
+		sessionV1TokenMsg = opts.sessionToken.ProtoMessage()
+		sessionV1TokenLen = sessionV1TokenMsg.MarshaledSize()
 	}
-	if opts.sessionTokenV2 != nil {
-		req.MetaHeader.SessionTokenV2 = opts.sessionTokenV2.ProtoMessage()
-	}
+
+	var bearerTokenMsg *protoacl.BearerToken
+	var bearerTokenLen int
 	if opts.bearerToken != nil {
-		req.MetaHeader.BearerToken = opts.bearerToken.ProtoMessage()
+		bearerTokenMsg = opts.bearerToken.ProtoMessage()
+		bearerTokenLen = bearerTokenMsg.MarshaledSize()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	var sessionV2TokenMsg *protosession.SessionTokenV2
+	var sessionV2TokenLen int
+	if opts.sessionTokenV2 != nil {
+		sessionV2TokenMsg = opts.sessionTokenV2.ProtoMessage()
+		sessionV2TokenLen = sessionV2TokenMsg.MarshaledSize()
+	}
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.SearchV2Request_Body](signer, req, *buf)
+	bodyLen := calculateSearchObjectsRequestBodyLength(filters, len(cursor), opts.count, attrs)
+
+	versionLen := c.apiVersion.MarshaledSize()
+	xHeadersLen := calculateRequestXHeadersLength(opts.xHeaders)
+
+	metaHdrLen := calculateRequestMetaHeaderFieldLengths(versionLen, opts.noForwarding, xHeadersLen, sessionV1TokenLen, bearerTokenLen, sessionV2TokenLen)
+
+	bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
+	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, metaHdrLen)
+
+	// acquire buffer for body + meta header
+	bufItem := c.buffers.Get().(*[]byte)
+	var buf []byte
+	if len(*bufItem) >= bodyWithMetaHdrLen {
+		defer func() { c.buffers.Put(bufItem) }()
+		buf = *bufItem
+	} else {
+		c.buffers.Put(bufItem)
+		buf = make([]byte, bodyWithMetaHdrLen)
+	}
+
+	// encode body
+	off := writeSearchObjectsRequestBody(buf, bodyLen, cnr, filters, cursor, opts.count, attrs)
+
+	// memorize body for signing
+	signedBody := buf[off-bodyLen : off]
+
+	// encode meta header
+	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, opts.noForwarding, opts.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
+
+	// append verification header
+	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off])
 	if err != nil {
-		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, "", err
 	}
 
-	resp, err := c.object.SearchV2(ctx, req)
+	var resp protoobject.SearchV2Response
+	err = callUnary(ctx, c.conn, protoobject.ObjectService_SearchV2_FullMethodName, reqBuffers, &resp)
 	if err != nil {
 		err = rpcErr(err)
 		return nil, "", err
