@@ -132,11 +132,6 @@ func (m *mockClient) ObjectDelete(_ context.Context, _ cid.ID, _ oid.ID, _ user.
 	return oid.ID{}, nil
 }
 
-func (m *mockClient) ObjectHash(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectHash) ([][]byte, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
 func (m *mockClient) ObjectSearchInit(_ context.Context, _ cid.ID, _ user.Signer, _ client.PrmObjectSearch) (*client.ObjectListReader, error) {
 	// TODO implement me
 	panic("implement me")
