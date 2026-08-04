@@ -111,8 +111,6 @@ github.com/nspcc-dev/neo-go v0.121.0 h1:PRBY7V2LUSrJCRriMwtpE1/KDSEYlDaZgDrTyzgf
 github.com/nspcc-dev/neo-go v0.121.0/go.mod h1:sa78wYlbBY0bLGKRquUGhGcZdHrUxPm7TKLFoVgV94Q=
 github.com/nspcc-dev/rfc6979 v0.2.4 h1:NBgsdCjhLpEPJZqmC9rciMZDcSY297po2smeaRjw57k=
 github.com/nspcc-dev/rfc6979 v0.2.4/go.mod h1:86ylDw6Kss+P6v4QAJqo1Sp3mC0/Zr9G97xSjQ9TuFg=
-github.com/nspcc-dev/tzhash v1.8.4 h1:lvuPGWsqEo9dVEvo/kdNLKv/Cy0yxRs9z5hJp8VcBuo=
-github.com/nspcc-dev/tzhash v1.8.4/go.mod h1:/Q2xH/vllzLQsx7YeIcf7LL3nn1IoMmBVeSW7oThS2s=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=
 github.com/opencontainers/go-digest v1.0.0/go.mod h1:0JzlMkj0TRzQZfJkVvzbP0HBR3IKzErnv2BNG4W4MAM=
 github.com/opencontainers/image-spec v1.1.1 h1:y0fUlFfIZhPF1W537XOLg0/fcx6zcHCJwooC2xJA040=

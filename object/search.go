@@ -13,7 +13,6 @@ import (
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-	"github.com/nspcc-dev/tzhash/tz"
 )
 
 // SearchMatchType indicates match operation on specified header.
@@ -354,16 +353,6 @@ func (f *SearchFilters) UnmarshalJSON(data []byte) error {
 // The m must not be numeric (like [MatchNumGT]).
 func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size]byte) {
 	f.addFilter(m, FilterPayloadChecksum, hex.EncodeToString(sum[:]))
-}
-
-// AddHomomorphicHashFilter adds filter by homomorphic hash.
-//
-// The m must not be numeric (like [MatchNumGT]).
-//
-// Deprecated: homomorphic hash is not added to API 2.23+ objects and should
-// not be searched.
-func (f *SearchFilters) AddHomomorphicHashFilter(m SearchMatchType, sum [tz.Size]byte) {
-	f.addFilter(m, FilterPayloadHomomorphicHash, hex.EncodeToString(sum[:]))
 }
 
 // AddCreationEpochFilter adds filter by creation epoch.

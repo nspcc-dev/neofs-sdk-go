@@ -8,7 +8,6 @@ import (
 	"hash"
 
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
-	"github.com/nspcc-dev/tzhash/tz"
 )
 
 // Checksum represents checksum of some digital data.
@@ -65,14 +64,6 @@ func NewSHA256(h [sha256.Size]byte) Checksum {
 	return New(SHA256, h[:])
 }
 
-// NewTillichZemor constructs new Checksum from Tillich-Zémor homomorphic hash.
-//
-// Deprecated: Tillich-Zémor checksum is not supported for objects starting
-// from API 2.23+.
-func NewTillichZemor(h [tz.Size]byte) Checksum {
-	return New(TillichZemor, h[:])
-}
-
 // NewFromHash constructs new Checksum of specified type from accumulated
 // hash.Hash. It is the caller's responsibility to ensure that the hash matches
 // the type.
@@ -88,8 +79,6 @@ func NewFromData(typ Type, data []byte) (Checksum, error) {
 		return Checksum{}, fmt.Errorf("unsupported checksum type %d", typ)
 	case SHA256:
 		return NewSHA256(sha256.Sum256(data)), nil
-	case TillichZemor:
-		return NewTillichZemor(tz.Sum(data)), nil
 	}
 }
 
