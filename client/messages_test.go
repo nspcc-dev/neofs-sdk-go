@@ -424,15 +424,6 @@ var (
 	validFullDeleteObjectResponseBody = &protoobject.DeleteResponse_Body{
 		Tombstone: proto.Clone(validFullProtoObjectAddress).(*protorefs.Address),
 	}
-	// correct ObjectService.GetRangeHash response payload with required fields only.
-	validMinObjectHashResponseBody = &protoobject.GetRangeHashResponse_Body{
-		HashList: [][]byte{[]byte("one")},
-	}
-	// correct ObjectService.GetRangeHash response payload with all fields.
-	validFullObjectHashResponseBody = &protoobject.GetRangeHashResponse_Body{
-		Type:     protorefs.ChecksumType(rand.Int31()),
-		HashList: [][]byte{[]byte("one"), []byte("two")},
-	}
 	// correct ObjectService.Head split info response payload with required fields only.
 	validMinObjectSplitInfoHeadResponseBody = &protoobject.HeadResponse_Body{
 		Head: &protoobject.HeadResponse_Body_SplitInfo{

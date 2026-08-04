@@ -130,22 +130,6 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 	return id, err
 }
 
-// ObjectHash requests checksum of the range list of the object payload using
-// NeoFS API protocol.
-//
-// Deprecated: use is discouraged; method is kept for backward compatibility and will be removed later.
-//
-// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
-//
-// See details in [client.Client.ObjectHash].
-func (p *Pool) ObjectHash(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm client.PrmObjectHash) ([][]byte, error) {
-	c, err := p.sdkClient()
-	if err != nil {
-		return [][]byte{}, err
-	}
-	return c.ObjectHash(ctx, containerID, objectID, signer, prm)
-}
-
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
 //
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.

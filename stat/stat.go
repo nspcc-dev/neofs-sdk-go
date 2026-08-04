@@ -29,7 +29,6 @@ const (
 	MethodObjectRange
 	MethodSessionCreate
 	MethodNetMapSnapshot
-	MethodObjectHash
 	MethodObjectSearch
 	MethodContainerAnnounceUsedSpace
 	MethodAnnounceIntermediateTrust
@@ -80,8 +79,6 @@ func (m Method) String() string {
 		return "sessionCreate"
 	case MethodNetMapSnapshot:
 		return "netMapSnapshot"
-	case MethodObjectHash:
-		return "objectHash"
 	case MethodObjectSearch:
 		return "objectSearch"
 	case MethodContainerAnnounceUsedSpace:
