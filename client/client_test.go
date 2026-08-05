@@ -751,6 +751,17 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
 	}
 	// meta header
+	return x.verifyRequestMetaHeader(metaHdr)
+}
+
+func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyUnsignedRequest(req REQ) error {
+	if req.GetVerifyHeader() != nil {
+		return newInvalidRequestErr(errors.New("verification header is set while should not be"))
+	}
+	return x.verifyRequestMetaHeader(req.GetMetaHeader())
+}
+
+func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequestMetaHeader(metaHdr *protosession.RequestMetaHeader) error {
 	curVersion := version.Current()
 	switch {
 	case metaHdr == nil:

@@ -10,11 +10,9 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
-	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -230,12 +228,6 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			MetaHeader: x.newMetaHeader(),
 		}
 
-		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-		if x.err != nil {
-			x.err = fmt.Errorf("sign message: %w", x.err)
-			return writtenBytes, x.err
-		}
-
 		if err = x.sendRequest(req); err != nil {
 			return writtenBytes, err
 		}
@@ -279,20 +271,7 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			Body:       &protoobject.PutRequest_Body{},
 			MetaHeader: x.newMetaHeader(),
 		}
-
-		scheme = refs.SignatureScheme(x.signer.Scheme())
-		pub    = neofscrypto.PublicKeyBytes(x.signer.Public())
 	)
-
-	metaSignatureBytes, err := x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
-	if err != nil {
-		return 0, fmt.Errorf("sign meta: %w", err)
-	}
-
-	originSignatureBytes, err := x.signer.Sign(nil)
-	if err != nil {
-		return 0, fmt.Errorf("sign origin: %w", err)
-	}
 
 	buf := x.buf
 	if len(buf) < maxMessageSize {
@@ -313,17 +292,6 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			// Writing to protoHeader actually changes `buf` and we generate payload to be sign.
 			protoHeader = protowire.AppendTag(protoHeader, protoobject.FieldPutRequestBodyChunk, protowire.BytesType)
 			protowire.AppendVarint(protoHeader, uint64(actualRead))
-
-			bSigBts, err := x.signer.Sign(buf[chunkStart:chunkEnd])
-			if err != nil {
-				return writtenBytes, fmt.Errorf("sign body: %w", err)
-			}
-
-			req.VerifyHeader = &protosession.RequestVerificationHeader{
-				BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
-				MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
-				OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
-			}
 
 			req.Body.ObjectPart = &protoobject.PutRequest_Body_Chunk{
 				// Actual chunk payload.
