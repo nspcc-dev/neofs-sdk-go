@@ -12,7 +12,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
-	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 )
@@ -67,7 +66,6 @@ func init() {
 	validSearchFilters.AddPayloadSizeFilter(105, anyValidPayloadSize)
 	validSearchFilters.AddPayloadHashFilter(106, anySHA256Hash)
 	validSearchFilters.AddTypeFilter(107, anyValidType)
-	validSearchFilters.AddHomomorphicHashFilter(108, anyTillichZemorHash)
 	validSearchFilters.AddParentIDFilter(109, anyValidIDs[1])
 	validSearchFilters.AddSplitIDFilter(110, *anyValidSplitID)
 	validSearchFilters.AddFirstSplitObjectFilter(111, anyValidIDs[2])
@@ -97,7 +95,6 @@ var validSearchFiltersProto = []struct {
 	{"$Object:payloadLength", 105, "5544264194415343420"},
 	{"$Object:payloadHash", 106, "e9cc25bd0f92d28ab24ad58dc7f95e144985109af19803cd65d2998d8b1ed87d"},
 	{"$Object:objectType", 107, "2082391263"},
-	{"$Object:homomorphicHash", 108, "a09506a729461d3dbe9a1e75b4965b921810c3d5d86a77cbb29f2501fcd05717a5131660321c91eb7f6b56d833e254f25eba5a51b8ec76413a456ee816f983ad"},
 	{"$Object:split.parent", 109, "GS6gbvdEKHZQf3EZRYd3fSdep3HAqEueJ1jz7iZDuoBG"},
 	{"$Object:split.splitID", 110, "e0840350-202c-45b8-b920-e2c9cec49329"},
 	{"$Object:split.first", 111, "EvdVD3NXuxFK1PWYSsvZwcbeqsv42SQV39TwXgs6jUQH"},
@@ -195,11 +192,6 @@ var validJSONSearchFilters = `
   "matchType": 107,
   "key": "$Object:objectType",
   "value": "2082391263"
- },
- {
-  "matchType": 108,
-  "key": "$Object:homomorphicHash",
-  "value": "a09506a729461d3dbe9a1e75b4965b921810c3d5d86a77cbb29f2501fcd05717a5131660321c91eb7f6b56d833e254f25eba5a51b8ec76413a456ee816f983ad"
  },
  {
   "matchType": 109,
@@ -390,22 +382,6 @@ func ExampleSearchFilters_AddPayloadHashFilter() {
 	// Output: 66842cfea090b1d906b52400fae49d86df078c0670f2bdd059ba289ebe24a498
 }
 
-func TestSearchFilters_AddHomomorphicHashFilter(t *testing.T) {
-	var fs object.SearchFilters
-	fs.AddHomomorphicHashFilter(anyValidSearchMatcher, anyTillichZemorHash)
-	require.Len(t, fs, 1)
-	assertSearchFilter(t, fs, 0, object.FilterPayloadHomomorphicHash, anyValidSearchMatcher,
-		"a09506a729461d3dbe9a1e75b4965b921810c3d5d86a77cbb29f2501fcd05717a5131660321c91eb7f6b56d833e254f25eba5a51b8ec76413a456ee816f983ad",
-		true)
-}
-
-func ExampleSearchFilters_AddHomomorphicHashFilter() {
-	hash, _ := hex.DecodeString("7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c")
-	cs := checksum.NewTillichZemor([tz.Size]byte(hash)) //nolint:staticcheck // still supported for clients
-	fmt.Println(hex.EncodeToString(cs.Value()))
-	// Output: 7e302ebb3937e810feb501965580c746048db99cebd095c3ce27022407408bf904dde8d9aa8085d2cf7202345341cc947fa9d722c6b6699760d307f653815d0c
-}
-
 func TestSearchFilters_AddCreationEpochFilter(t *testing.T) {
 	var fs object.SearchFilters
 	fs.AddCreationEpochFilter(anyValidSearchMatcher, anyValidCreationEpoch)
@@ -425,7 +401,7 @@ func TestNewSearchFilters(t *testing.T) {
 }
 
 func TestSearchFilters_ProtoMessage(t *testing.T) {
-	const nFilters = 22
+	const nFilters = 21
 	require.Len(t, validSearchFiltersProto, nFilters, "not all applied filters are asserted")
 	var fs object.SearchFilters
 

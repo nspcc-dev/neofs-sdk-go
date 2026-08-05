@@ -4,19 +4,11 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"hash"
-
-	"github.com/nspcc-dev/tzhash/tz"
 )
 
 func ExampleNewSHA256() {
 	data := []byte("Hello, world!")
 	c := NewSHA256(sha256.Sum256(data))
-	fmt.Println(c)
-}
-
-func ExampleNewTillichZemor() {
-	data := []byte("Hello, world!")
-	c := NewTillichZemor(tz.Sum(data))
 	fmt.Println(c)
 }
 
@@ -27,7 +19,6 @@ func ExampleNewFromHash() {
 		newHash func() hash.Hash
 	}{
 		{SHA256, sha256.New},
-		{TillichZemor, tz.New},
 	} {
 		h := tc.newHash()
 		h.Write(data)

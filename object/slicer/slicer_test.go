@@ -33,7 +33,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -124,10 +123,6 @@ func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
 	ni.SetRawNetworkParameter(string(testutil.RandByteSlice(10)), testutil.RandByteSlice(10))
 	ni.SetCurrentEpoch(opts.CurrentNeoFSEpoch())
 	ni.SetMaxObjectSize(opts.ObjectPayloadLimit())
-	//nolint:staticcheck // compatibility
-	if !opts.IsHomomorphicChecksumEnabled() {
-		ni.DisableHomomorphicHashing()
-	}
 
 	return ni, nil
 }
@@ -177,7 +172,6 @@ type input struct {
 	sessionTokenV2 *sessionv2.Token
 	payload        []byte
 	attributes     []object.Attribute
-	withHomo       bool
 }
 
 func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
@@ -213,13 +207,8 @@ func randomInput(size, sizeLimit uint64) (input, slicer.Options) {
 		opts.SetSessionV2(*in.sessionTokenV2)
 	}
 
-	in.withHomo = rand.Int()%2 == 0
-
 	opts.SetObjectPayloadLimit(in.payloadLimit)
 	opts.SetCurrentNeoFSEpoch(in.currentEpoch)
-	if in.withHomo {
-		opts.CalculateHomomorphicChecksum()
-	}
 
 	return in, opts
 }
@@ -615,10 +604,6 @@ func checkStaticMetadata(tb testing.TB, header object.Object, in input) {
 	require.Equal(tb, in.sessionToken, header.SessionToken(), "configured session token must be written into objects")
 
 	require.NoError(tb, header.CheckHeaderVerificationFields(), "verification fields must be correctly set in header")
-
-	//nolint:staticcheck // still supported for clients
-	_, ok := header.PayloadHomomorphicHash()
-	require.Equal(tb, in.withHomo, ok)
 }
 
 func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payload io.Reader) {
@@ -724,13 +709,6 @@ func (x *chainCollector) handleOutgoingObject(headerOriginal object.Object, payl
 		r:  payload,
 		cs: []checksum.Checksum{cs},
 		hs: []hash.Hash{sha256.New()},
-	}
-
-	//nolint:staticcheck // still supported for clients
-	csHomo, ok := header.PayloadHomomorphicHash()
-	if ok {
-		pcs.cs = append(pcs.cs, csHomo)
-		pcs.hs = append(pcs.hs, tz.New())
 	}
 
 	x.mPayloads[id] = pcs

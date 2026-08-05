@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
-	"github.com/nspcc-dev/tzhash/tz"
 	"github.com/stretchr/testify/require"
 )
 
@@ -30,6 +29,12 @@ func TestType_String(t *testing.T) {
 
 func TestChecksum_String(t *testing.T) {
 	data := []byte("Hello, world!")
+
+	hwTZ := []byte{0x00, 0x00, 0x01, 0x42, 0x49, 0xf1, 0x07, 0x95, 0xc0, 0x24, 0x0e, 0xdd, 0xca, 0x8a, 0x6e, 0xbf,
+		0x00, 0x00, 0x01, 0xc9, 0xc4, 0xdc, 0x98, 0xb0, 0x17, 0xfd, 0x92, 0xad, 0x62, 0x97, 0x9c, 0x8c,
+		0x00, 0x00, 0x00, 0x8d, 0x94, 0xcd, 0x98, 0xa4, 0x57, 0xb9, 0x83, 0xe9, 0x37, 0x83, 0x8d, 0xcd,
+		0x00, 0x00, 0x00, 0xdb, 0xc8, 0x68, 0x9e, 0x75, 0xc7, 0xdd, 0x89, 0x25, 0xad, 0x0d, 0xf7, 0x27}
+
 	for _, tc := range []struct {
 		cs  checksum.Checksum
 		exp string
@@ -37,7 +42,7 @@ func TestChecksum_String(t *testing.T) {
 		{checksum.New(0, data), "CHECKSUM_TYPE_UNSPECIFIED:48656c6c6f2c20776f726c6421"},
 		{checksum.New(127, data), "127:48656c6c6f2c20776f726c6421"},
 		{checksum.NewSHA256(sha256.Sum256(data)), "SHA256:315f5bdb76d078c43b8ac0064e4a0164612b1fce77c869345bfc94c75894edd3"},
-		{checksum.NewTillichZemor(tz.Sum(data)), "TZ:0000014249f10795c0240eddca8a6ebf000001c9c4dc98b017fd92ad62979c8c0000008d94cd98a457b983e937838dcd000000dbc8689e75c7dd8925ad0df727"},
+		{checksum.New(checksum.TillichZemor, hwTZ), "TZ:0000014249f10795c0240eddca8a6ebf000001c9c4dc98b017fd92ad62979c8c0000008d94cd98a457b983e937838dcd000000dbc8689e75c7dd8925ad0df727"},
 	} {
 		require.Equal(t, tc.exp, tc.cs.String())
 	}
@@ -98,7 +103,7 @@ func TestNew(t *testing.T) {
 	})
 }
 
-func testTypeConstructor[T [sha256.Size]byte | [tz.Size]byte](
+func testTypeConstructor[T [sha256.Size]byte | [64]byte](
 	t *testing.T,
 	typ checksum.Type,
 	typAPI refs.ChecksumType,
@@ -136,10 +141,6 @@ func testTypeConstructor[T [sha256.Size]byte | [tz.Size]byte](
 
 func TestNewSHA256(t *testing.T) {
 	testTypeConstructor(t, checksum.SHA256, refs.ChecksumType_SHA256, checksum.NewSHA256)
-}
-
-func TestNewTZ(t *testing.T) {
-	testTypeConstructor(t, checksum.TillichZemor, refs.ChecksumType_TZ, checksum.NewTillichZemor)
 }
 
 func TestNewFromHash(t *testing.T) {
@@ -182,8 +183,6 @@ func TestNewFromData(t *testing.T) {
 
 	payload := []byte("Hello, world!")
 	hSHA256 := [sha256.Size]byte{49, 95, 91, 219, 118, 208, 120, 196, 59, 138, 192, 6, 78, 74, 1, 100, 97, 43, 31, 206, 119, 200, 105, 52, 91, 252, 148, 199, 88, 148, 237, 211}
-	hTZ := [tz.Size]byte{0, 0, 1, 66, 73, 241, 7, 149, 192, 36, 14, 221, 202, 138, 110, 191, 0, 0, 1, 201, 196, 220, 152, 176, 23, 253, 146, 173, 98, 151, 156, 140,
-		0, 0, 0, 141, 148, 205, 152, 164, 87, 185, 131, 233, 55, 131, 141, 205, 0, 0, 0, 219, 200, 104, 158, 117, 199, 221, 137, 37, 173, 13, 247, 39}
 
 	t.Run("SHA256", func(t *testing.T) {
 		c, err := checksum.NewFromData(checksum.SHA256, payload)
@@ -193,9 +192,7 @@ func TestNewFromData(t *testing.T) {
 	})
 
 	t.Run("TillichZemor", func(t *testing.T) {
-		c, err := checksum.NewFromData(checksum.TillichZemor, payload)
-		require.NoError(t, err)
-		require.Equal(t, hTZ[:], c.Value())
-		require.Equal(t, checksum.TillichZemor, c.Type())
+		_, err := checksum.NewFromData(checksum.TillichZemor, payload)
+		require.Error(t, err)
 	})
 }

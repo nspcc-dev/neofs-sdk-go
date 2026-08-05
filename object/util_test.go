@@ -11,7 +11,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-	"github.com/nspcc-dev/tzhash/tz"
 )
 
 const (
@@ -65,9 +64,6 @@ var (
 	}
 	anySHA256Hash = [sha256.Size]byte{233, 204, 37, 189, 15, 146, 210, 138, 178, 74, 213, 141, 199, 249, 94, 20, 73, 133, 16,
 		154, 241, 152, 3, 205, 101, 210, 153, 141, 139, 30, 216, 125}
-	anyTillichZemorHash = [tz.Size]byte{160, 149, 6, 167, 41, 70, 29, 61, 190, 154, 30, 117, 180, 150, 91, 146, 24, 16, 195, 213, 216,
-		106, 119, 203, 178, 159, 37, 1, 252, 208, 87, 23, 165, 19, 22, 96, 50, 28, 145, 235, 127, 107, 86, 216, 51, 226, 84, 242,
-		94, 186, 90, 81, 184, 236, 118, 65, 58, 69, 110, 232, 22, 249, 131, 173}
 	anyValidSignatures = []neofscrypto.Signature{
 		neofscrypto.NewSignatureFromRawKey(1277002296, []byte("pub_1"), []byte("sig_1")),
 		neofscrypto.NewSignatureFromRawKey(1242896683, []byte("pub_2"), []byte("sig_2")),

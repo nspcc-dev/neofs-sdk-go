@@ -15,8 +15,6 @@ type Options struct {
 
 	currentNeoFSEpoch uint64
 
-	withHomoChecksum bool
-
 	copiesNumber uint32
 
 	payloadBuffer []byte
@@ -40,15 +38,6 @@ func (x *Options) SetObjectPayloadLimit(l uint64) {
 // SetCurrentNeoFSEpoch sets current NeoFS epoch.
 func (x *Options) SetCurrentNeoFSEpoch(e uint64) {
 	x.currentNeoFSEpoch = e
-}
-
-// CalculateHomomorphicChecksum makes Slicer to calculate and set homomorphic
-// checksum of the processed objects.
-//
-// Deprecated: homomorphic hashing has been deprecated and should not be used.
-// Its support will be removed eventually.
-func (x *Options) CalculateHomomorphicChecksum() {
-	x.withHomoChecksum = true
 }
 
 // SetSession sets session object.
@@ -112,14 +101,6 @@ func (x *Options) ObjectPayloadLimit() uint64 {
 // CurrentNeoFSEpoch returns epoch.
 func (x *Options) CurrentNeoFSEpoch() uint64 {
 	return x.currentNeoFSEpoch
-}
-
-// IsHomomorphicChecksumEnabled indicates homomorphic checksum calculation status.
-//
-// Deprecated: homomorphic hashing has been deprecated and should not be used.
-// Its support will be removed eventually.
-func (x *Options) IsHomomorphicChecksumEnabled() bool {
-	return x.withHomoChecksum
 }
 
 // Session returns session object.

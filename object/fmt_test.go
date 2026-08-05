@@ -125,12 +125,6 @@ func TestObject_CalculateAndSetID(t *testing.T) {
 			214, 201, 193, 121, 18, 157, 137, 131, 232, 101}, setHdr: func(obj *object.Object) {
 			obj.SetType(273597346)
 		}},
-		{name: "homomorphic checksum", id: oid.ID{169, 103, 36, 160, 165, 242, 215, 67, 43, 37, 115, 178, 199, 253, 211, 68, 204,
-			76, 225, 188, 194, 180, 249, 109, 92, 82, 173, 253, 9, 131, 86, 55}, setHdr: func(obj *object.Object) {
-			cs, err := checksum.NewFromData(checksum.TillichZemor, anyValidRegularPayload)
-			require.NoError(t, err)
-			obj.SetPayloadHomomorphicHash(cs)
-		}},
 		{name: "session token", id: oid.ID{198, 180, 102, 30, 21, 150, 211, 56, 197, 91, 91, 223, 10, 18, 156, 171, 238, 183, 219,
 			184, 181, 198, 152, 220, 242, 212, 20, 196, 32, 183, 246, 91}, setHdr: func(obj *object.Object) {
 			obj.SetSessionToken(&anyValidObjectToken)

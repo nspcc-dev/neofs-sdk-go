@@ -10,7 +10,6 @@ require (
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nspcc-dev/hrw/v2 v2.0.4
 	github.com/nspcc-dev/neo-go v0.121.0
-	github.com/nspcc-dev/tzhash v1.8.4
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	go.uber.org/zap v1.27.1

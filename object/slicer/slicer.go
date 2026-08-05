@@ -20,7 +20,6 @@ import (
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
-	"github.com/nspcc-dev/tzhash/tz"
 )
 
 var (
@@ -96,11 +95,6 @@ func New(ctx context.Context, nw NetworkedClient, signer user.Signer, cnr cid.ID
 		sessionTokenV2:     sessionToken,
 	}
 
-	//nolint:staticcheck // compatibility
-	if !ni.HomomorphicHashingDisabled() {
-		opts.CalculateHomomorphicChecksum()
-	}
-
 	var hdr object.Object
 	hdr.SetContainerID(cnr)
 	hdr.SetType(object.TypeRegular)
@@ -130,11 +124,6 @@ func NewWithV1Token(ctx context.Context, nw NetworkedClient, signer user.Signer,
 		objectPayloadLimit: ni.MaxObjectSize(),
 		currentNeoFSEpoch:  ni.CurrentEpoch(),
 		sessionToken:       sessionToken,
-	}
-
-	//nolint:staticcheck // compatibility
-	if !ni.HomomorphicHashingDisabled() {
-		opts.CalculateHomomorphicChecksum()
 	}
 
 	var hdr object.Object
@@ -289,8 +278,8 @@ func initPayloadStream(ctx context.Context, ow ObjectWriter, header object.Objec
 		currentEpoch:       opts.currentNeoFSEpoch,
 		sessionToken:       opts.sessionToken,
 		sessionTokenV2:     opts.sessionTokenV2,
-		rootMeta:           newDynamicObjectMetadata(opts.withHomoChecksum),
-		childMeta:          newDynamicObjectMetadata(opts.withHomoChecksum),
+		rootMeta:           newDynamicObjectMetadata(),
+		childMeta:          newDynamicObjectMetadata(),
 		payloadSizeLimit:   childPayloadSizeLimit(opts),
 		payloadSizeFixed:   opts.payloadSizeFixed,
 		payloadSize:        opts.payloadSize,
@@ -658,12 +647,6 @@ func (x *PayloadWriter) _writeChild(ctx context.Context, meta dynamicObjectMetad
 
 func (x *PayloadWriter) flushObjectMetadata(signer neofscrypto.Signer, meta dynamicObjectMetadata, header *object.Object, payloadBuffers [][]byte, virtualObject bool) (oid.ID, error) {
 	header.SetPayloadChecksum(checksum.NewFromHash(checksum.SHA256, meta.checksum))
-
-	if meta.homomorphicChecksum != nil {
-		//nolint:staticcheck // still supported for clients
-		header.SetPayloadHomomorphicHash(checksum.NewFromHash(checksum.TillichZemor, meta.homomorphicChecksum))
-	}
-
 	header.SetPayloadSize(meta.length)
 
 	if x.splitChainModifier != nil && !virtualObject {
@@ -737,18 +720,13 @@ func (x *PayloadWriter) writeInMemObject(ctx context.Context, signer user.Signer
 // dynamicObjectMetadata groups accumulated object metadata which depends on
 // payload.
 type dynamicObjectMetadata struct {
-	length              uint64
-	checksum            hash.Hash
-	homomorphicChecksum hash.Hash
+	length   uint64
+	checksum hash.Hash
 }
 
-func newDynamicObjectMetadata(withHomoChecksum bool) dynamicObjectMetadata {
+func newDynamicObjectMetadata() dynamicObjectMetadata {
 	m := dynamicObjectMetadata{
 		checksum: sha256.New(),
-	}
-
-	if withHomoChecksum {
-		m.homomorphicChecksum = tz.New()
 	}
 
 	return m
@@ -764,16 +742,10 @@ func (x *dynamicObjectMetadata) Write(chunk []byte) (int, error) {
 func (x *dynamicObjectMetadata) accumulateNextPayloadChunk(chunk []byte) {
 	x.length += uint64(len(chunk))
 	x.checksum.Write(chunk)
-	if x.homomorphicChecksum != nil {
-		x.homomorphicChecksum.Write(chunk)
-	}
 }
 
 // reset resets all accumulated metadata.
 func (x *dynamicObjectMetadata) reset() {
 	x.length = 0
 	x.checksum.Reset()
-	if x.homomorphicChecksum != nil {
-		x.homomorphicChecksum.Reset()
-	}
 }
