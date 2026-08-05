@@ -23,14 +23,27 @@ var (
 		ServerStreams: false,
 		ClientStreams: false,
 	}
+	clientStreamDesc = &grpc.StreamDesc{
+		ServerStreams: false,
+		ClientStreams: true,
+	}
 	grpcCallOptions = []grpc.CallOption{
 		grpc.StaticMethod(),
 		grpc.ForceCodecV2(protobuf.BufferedCodec{}),
 	}
 )
 
-func sendRequest(ctx context.Context, conn *grpc.ClientConn, method string, streamDesc *grpc.StreamDesc, request mem.BufferSlice) (grpc.ClientStream, error) {
+func openStream(ctx context.Context, conn *grpc.ClientConn, streamDesc *grpc.StreamDesc, method string) (grpc.ClientStream, error) {
 	stream, err := conn.NewStream(ctx, streamDesc, method, grpcCallOptions...)
+	if err != nil {
+		return nil, fmt.Errorf("stream opening failed: %w", err)
+	}
+
+	return stream, nil
+}
+
+func sendRequest(ctx context.Context, conn *grpc.ClientConn, method string, streamDesc *grpc.StreamDesc, request mem.BufferSlice) (grpc.ClientStream, error) {
+	stream, err := openStream(ctx, conn, streamDesc, method)
 	if err != nil {
 		request.Free()
 		return nil, fmt.Errorf("stream opening failed: %w", err)
@@ -71,6 +84,10 @@ func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *igrpc.MemBuf
 		return nil, err
 	}
 
+	return appendVerificationHeaderSignatures(reqMemBuf, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig), nil
+}
+
+func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
 	// pre-calculate verification header message lengths
 	bodySigMsgLen := calculateSignatureFieldLength(bodySig)
 	metaHdrSigMsgLen := calculateSignatureFieldLength(metaHdrSig)
@@ -106,5 +123,5 @@ func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *igrpc.MemBuf
 	// encode verification header
 	writeRequestVerificationHeader(verifHdrFldBuf, verifHdrLen, bodySigMsgLen, bodySig, metaHdrSigMsgLen, metaHdrSig, originVerifHdrSigMsgLen, originVerifHdrSig)
 
-	return reqBuffers, nil
+	return reqBuffers
 }

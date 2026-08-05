@@ -2,22 +2,29 @@ package client
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
+	sync "sync"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	igrpc "github.com/nspcc-dev/neofs-sdk-go/internal/grpc"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/mem"
 	"google.golang.org/protobuf/encoding/protowire"
 )
 
@@ -37,11 +44,8 @@ const maxChunkLen = 3 << 20
 // used part of [protoobject.ObjectService_PutClient] simplifying test
 // implementations.
 type putObjectStream interface {
-	// Send writes next message with the object part to the stream. No error does
-	// not guarantee delivery to the server. Send returns [io.EOF] after the server
-	// sent the response and gracefully finished the stream: the result can be
-	// accessed via CloseAndRecv. Any other error means stream abort.
-	Send(*protoobject.PutRequest) error
+	// SendMsg is a part of [grpc.ClientStream] interface.
+	SendMsg(any) error
 	// CloseAndRecv finishes the stream and reads response from the server.
 	CloseAndRecv() (*protoobject.PutResponse, error)
 }
@@ -95,7 +99,7 @@ type DefaultObjectWriter struct {
 	streamClosed     bool
 
 	signer            neofscrypto.Signer
-	shouldSignRequest func(uint32) bool
+	shouldSignRequest bool
 	res               ResObjectPut
 	err               error
 
@@ -109,8 +113,23 @@ type DefaultObjectWriter struct {
 
 	payloadSizeFromHeader uint64
 
-	buf              []byte
-	bufCleanCallback func()
+	bufferPool *sync.Pool
+
+	versionLen        int
+	xHeadersLen       int
+	sessionV1TokenLen int
+	sessionV1TokenMsg *protosession.SessionToken
+	bearerTokenLen    int
+	bearerTokenMsg    *protoacl.BearerToken
+	sessionV2TokenLen int
+	sessionV2TokenMsg *protosession.SessionTokenV2
+	metaHdrLen        int
+	// === group of vars defined if shouldSignRequest only === //
+	signerPublicKeyBinary             []byte // corresponds to signer
+	metaHeaderSignature               neofscrypto.Signature
+	originVerificationHeaderSignature neofscrypto.Signature
+	needSignOrigin                    bool
+	// === //
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -124,33 +143,16 @@ func (x *PrmObjectPutInit) MarkLocal() {
 	x.local = true
 }
 
-func (x *DefaultObjectWriter) newMetaHeader() *protosession.RequestMetaHeader {
-	mh := &protosession.RequestMetaHeader{
-		Version: x.apiVersion,
-	}
-	writeXHeadersToMeta(x.opts.xHeaders, mh)
-	if x.opts.local {
-		mh.Ttl = localRequestTTL
-	} else {
-		mh.Ttl = defaultRequestTTL
-	}
-	if x.opts.session != nil {
-		mh.SessionToken = x.opts.session.ProtoMessage()
-	}
-	if x.opts.sessionV2 != nil {
-		mh.SessionTokenV2 = x.opts.sessionV2.ProtoMessage()
-	}
-	if x.opts.bearerToken != nil {
-		mh.BearerToken = x.opts.bearerToken.ProtoMessage()
-	}
-	return mh
-}
-
 // sendRequest transmits signed req to the server recording the result in x.err.
-func (x *DefaultObjectWriter) sendRequest(req *protoobject.PutRequest) error {
+func (x *DefaultObjectWriter) sendRequest(req any, reqMemBuf *igrpc.MemBuffer) error {
+	var sent bool
 	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-		return x.stream.Send(req)
+		sent = true
+		return x.stream.SendMsg(req)
 	})
+	if !sent && reqMemBuf != nil {
+		reqMemBuf.Free()
+	}
 	if x.err != nil && errors.Is(x.err, io.EOF) {
 		var resp *protoobject.PutResponse
 		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
@@ -174,30 +176,98 @@ func (x *DefaultObjectWriter) sendRequest(req *protoobject.PutRequest) error {
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	mh := hdr.ProtoMessage()
-	req := &protoobject.PutRequest{
-		Body: &protoobject.PutRequest_Body{
-			ObjectPart: &protoobject.PutRequest_Body_Init_{
-				Init: &protoobject.PutRequest_Body_Init{
-					ObjectId:  mh.ObjectId,
-					Signature: mh.Signature,
-					Header:    mh.Header,
-				},
-			},
-		},
-		MetaHeader: x.newMetaHeader(),
+	mh.Payload = nil
+
+	if x.opts.session != nil {
+		x.sessionV1TokenMsg = x.opts.session.ProtoMessage()
+		x.sessionV1TokenLen = x.sessionV1TokenMsg.MarshaledSize()
 	}
 
-	if x.shouldSignRequest(req.MetaHeader.Ttl) {
-		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-		if x.err != nil {
-			x.err = fmt.Errorf("sign message: %w", x.err)
-			return x.err
+	if x.opts.bearerToken != nil {
+		x.bearerTokenMsg = x.opts.bearerToken.ProtoMessage()
+		x.bearerTokenLen = x.bearerTokenMsg.MarshaledSize()
+	}
+
+	if x.opts.sessionV2 != nil {
+		x.sessionV2TokenMsg = x.opts.sessionV2.ProtoMessage()
+		x.sessionV2TokenLen = x.sessionV2TokenMsg.MarshaledSize()
+	}
+
+	initFldLen := mh.MarshaledSize()
+	bodyLen := calculatePutObjectHeadingRequestBodyLength(initFldLen)
+
+	x.versionLen = x.apiVersion.MarshaledSize()
+	x.xHeadersLen = calculateRequestXHeadersLength(x.opts.xHeaders)
+
+	x.metaHdrLen = calculateRequestMetaHeaderFieldLengths(x.versionLen, x.opts.local, x.xHeadersLen, x.sessionV1TokenLen, x.bearerTokenLen, x.sessionV2TokenLen)
+
+	bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
+	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
+
+	// acquire buffer for body + meta header
+	bufItem := x.bufferPool.Get().(*[]byte)
+	var reqMemBuf *igrpc.MemBuffer
+	var buf []byte
+	if len(*bufItem) >= bodyWithMetaHdrLen {
+		// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
+		reqMemBuf = igrpc.NewMemBuffer(bufItem, x.bufferPool)
+		buf = *bufItem
+	} else {
+		x.bufferPool.Put(bufItem)
+		buf = make([]byte, bodyWithMetaHdrLen)
+	}
+
+	// encode body
+	off := writePutObjectHeadingRequestBody(buf, bodyLen, initFldLen, mh)
+
+	// memorize body for signing
+	signedBody := buf[off-bodyLen : off]
+
+	// encode meta header
+	off += writeRequestMetaHeader(buf[off:], x.metaHdrLen, x.versionLen, x.apiVersion, x.opts.local, x.opts.xHeaders, x.sessionV1TokenLen, x.sessionV1TokenMsg, x.bearerTokenLen, x.bearerTokenMsg, x.sessionV2TokenLen, x.sessionV2TokenMsg)
+
+	var reqBuffers mem.BufferSlice
+	if x.shouldSignRequest {
+		// append verification header
+		x.needSignOrigin = needsOriginSig(x.apiVersion)
+		x.signerPublicKeyBinary = neofscrypto.PublicKeyBytes(x.signer.Public())
+
+		bodySigVal, metaHdrSigVal, originVerifHdrSigVal, err := signRequestParts(x.signer, signedBody, buf[off-x.metaHdrLen:off], x.needSignOrigin)
+		if err != nil {
+			if reqMemBuf != nil {
+				reqMemBuf.Free()
+			}
+			x.err = err
+			return err
+		}
+
+		scheme := x.signer.Scheme()
+		bodySig := neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, bodySigVal)
+		x.metaHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, metaHdrSigVal)
+		if x.needSignOrigin {
+			x.originVerificationHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, originVerifHdrSigVal)
+		}
+
+		reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, bodyWithMetaHdrLen, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+	} else {
+		reqSliceBuf := mem.SliceBuffer(buf[:off])
+		if reqMemBuf != nil {
+			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqBuffers = mem.BufferSlice{reqMemBuf}
+		} else {
+			reqBuffers = mem.BufferSlice{reqSliceBuf}
 		}
 	}
 
+	var sent bool
 	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
-		return x.stream.Send(req)
+		sent = true
+		return x.stream.SendMsg(reqBuffers)
 	})
+	if !sent && reqMemBuf != nil {
+		reqMemBuf.Free()
+	}
+
 	return x.err
 }
 
@@ -224,24 +294,58 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		// the allocated buffer is filled, or when the last chunk is received.
 		// It is mentally assumed that allocating and filling the buffer is better than
 		// synchronous sending, but this needs to be tested.
-		req := &protoobject.PutRequest{
-			Body: &protoobject.PutRequest_Body{
-				ObjectPart: &protoobject.PutRequest_Body_Chunk{
-					Chunk: chunk[:ln],
-				},
-			},
-			MetaHeader: x.newMetaHeader(),
+		bodyLen := calculatePutObjectPayloadChunkRequestBodyLength(ln)
+
+		bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
+		bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
+
+		// acquire buffer for body + meta header
+		bufItem := x.bufferPool.Get().(*[]byte)
+		var reqMemBuf *igrpc.MemBuffer
+		var buf []byte
+		if len(*bufItem) >= bodyWithMetaHdrLen {
+			// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
+			reqMemBuf = igrpc.NewMemBuffer(bufItem, x.bufferPool)
+			buf = *bufItem
+		} else {
+			x.bufferPool.Put(bufItem)
+			buf = make([]byte, bodyWithMetaHdrLen)
 		}
 
-		if x.shouldSignRequest(req.MetaHeader.Ttl) {
-			req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-			if x.err != nil {
-				x.err = fmt.Errorf("sign message: %w", x.err)
+		// encode body
+		off := writePutObjectPayloadChunkRequestBody(buf, bodyLen, chunk[:ln])
+
+		bodyTo := off
+
+		// encode meta header
+		off += writeRequestMetaHeader(buf[off:], x.metaHdrLen, x.versionLen, x.apiVersion, x.opts.local, x.opts.xHeaders, x.sessionV1TokenLen, x.sessionV1TokenMsg, x.bearerTokenLen, x.bearerTokenMsg, x.sessionV2TokenLen, x.sessionV2TokenMsg)
+
+		var reqBuffers mem.BufferSlice
+		if x.shouldSignRequest {
+			// append verification header
+			bodySigVal, err := x.signer.Sign(buf[bodyTo-bodyLen : bodyTo])
+			if err != nil {
+				if reqMemBuf != nil {
+					reqMemBuf.Free()
+				}
+				x.err = fmt.Errorf("sign body: %w", err)
 				return writtenBytes, x.err
+			}
+
+			bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
+
+			reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, off, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+		} else {
+			reqSliceBuf := mem.SliceBuffer(buf[:off])
+			if reqMemBuf != nil {
+				reqMemBuf.SliceBuffer = reqSliceBuf
+				reqBuffers = mem.BufferSlice{reqMemBuf}
+			} else {
+				reqBuffers = mem.BufferSlice{reqSliceBuf}
 			}
 		}
 
-		if err = x.sendRequest(req); err != nil {
+		if err = x.sendRequest(reqBuffers, reqMemBuf); err != nil {
 			return writtenBytes, err
 		}
 		if x.streamClosed {
@@ -256,11 +360,6 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 	return writtenBytes, nil
 }
 
-// chunkProtoHeaderPrefixLen is the maximum length of the payload chunk field prefix
-// (the field tag and the chunk length varint) in the marshaled
-// [protoobject.PutRequest_Body] with chunks up to maxChunkLen.
-var chunkProtoHeaderPrefixLen = protowire.SizeTag(protoobject.FieldPutRequestBodyChunk) + protowire.SizeVarint(maxChunkLen)
-
 // ReadFrom reads r until EOF and writes object payload.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 // ReadFrom implements [io.ReaderFrom].
@@ -269,85 +368,81 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 		x.chunkCalled = true
 	}
 
-	var chunkLen = maxChunkLen
+	var maxReadChunkLen = maxChunkLen
 	// For the case where the object size is less than maxChunkLen, according to the object header.
-	if x.payloadSizeFromHeader > 0 && x.payloadSizeFromHeader < uint64(maxChunkLen) {
-		chunkLen = int(x.payloadSizeFromHeader)
+	if x.payloadSizeFromHeader > 0 && x.payloadSizeFromHeader < uint64(maxReadChunkLen) {
+		maxReadChunkLen = int(x.payloadSizeFromHeader)
 	}
 
-	var (
-		writtenBytes int64
+	maxChunkVarlen := protowire.SizeVarint(uint64(maxReadChunkLen))
+	maxBodyVarlen := protowire.SizeVarint(uint64(1 + maxChunkVarlen + maxReadChunkLen)) // 1 for grpcprotobuf.TagBytes1
+	chunkOff := 1 + maxBodyVarlen + 1 + maxChunkVarlen                                  // first 1 for grpcprotobuf.TagBytes1, second for grpcprotobuf.TagBytes2
 
-		maxMessageSize = chunkProtoHeaderPrefixLen + chunkLen
+	maxBodyWithMetaHdrLen := chunkOff + maxReadChunkLen
+	maxBodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
 
-		req = &protoobject.PutRequest{
-			Body:       &protoobject.PutRequest_Body{},
-			MetaHeader: x.newMetaHeader(),
-		}
-
-		scheme = refs.SignatureScheme(x.signer.Scheme())
-		pub    []byte
-
-		metaSignatureBytes   []byte
-		originSignatureBytes []byte
-	)
-
-	shouldSignRequest := x.shouldSignRequest(req.MetaHeader.Ttl)
-	if shouldSignRequest {
-		pub = neofscrypto.PublicKeyBytes(x.signer.Public())
-
-		var err error
-		metaSignatureBytes, err = x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
-		if err != nil {
-			return 0, fmt.Errorf("sign meta: %w", err)
-		}
-
-		originSignatureBytes, err = x.signer.Sign(nil)
-		if err != nil {
-			return 0, fmt.Errorf("sign origin: %w", err)
-		}
-	}
-
-	buf := x.buf
-	if len(buf) < maxMessageSize {
-		buf = make([]byte, maxMessageSize)
-	}
+	var writtenBytes int64
 
 	for {
-		actualRead, err := readFull(r, buf[chunkProtoHeaderPrefixLen:maxMessageSize])
+		// acquire buffer for body + meta header
+		bufItem := x.bufferPool.Get().(*[]byte)
+		var reqMemBuf *igrpc.MemBuffer
+		var buf []byte
+		if len(*bufItem) >= maxBodyWithMetaHdrLen {
+			// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
+			reqMemBuf = igrpc.NewMemBuffer(bufItem, x.bufferPool)
+			buf = *bufItem
+		} else {
+			x.bufferPool.Put(bufItem)
+			buf = make([]byte, maxBodyWithMetaHdrLen)
+		}
+
+		actualRead, err := readFull(r, buf[chunkOff:][:maxReadChunkLen])
 		if actualRead > 0 {
-			var (
-				chunkEnd = chunkProtoHeaderPrefixLen + actualRead
-				// chunkStart depends on actualRead and may vary.
-				chunkStart = chunkProtoHeaderPrefixLen - protowire.SizeTag(protoobject.FieldPutRequestBodyChunk) - protowire.SizeVarint(uint64(actualRead))
-				// protoHeader is empty `len` but keeps buf's `cap`.
-				protoHeader = buf[chunkStart:chunkStart]
-			)
+			chunkVarlen := protowire.SizeVarint(uint64(actualRead))
+			chunkFldOff := chunkOff - chunkVarlen - 1
 
-			// Writing to protoHeader actually changes `buf` and we generate payload to be sign.
-			protoHeader = protowire.AppendTag(protoHeader, protoobject.FieldPutRequestBodyChunk, protowire.BytesType)
-			protowire.AppendVarint(protoHeader, uint64(actualRead))
+			buf[chunkFldOff] = grpcprotobuf.TagBytes2 // chunk
+			binary.PutUvarint(buf[chunkFldOff+1:], uint64(actualRead))
 
-			if shouldSignRequest {
-				bSigBts, err := x.signer.Sign(buf[chunkStart:chunkEnd])
+			bodyLen := 1 + chunkVarlen + actualRead
+			bodyVarlen := protowire.SizeVarint(uint64(bodyLen))
+			bodyOff := chunkFldOff + -bodyVarlen - 1
+
+			buf[bodyOff] = grpcprotobuf.TagBytes1 // body
+			binary.PutUvarint(buf[bodyOff+1:], uint64(bodyLen))
+
+			off := chunkOff + actualRead
+
+			// encode meta header
+			off += writeRequestMetaHeader(buf[off:], x.metaHdrLen, x.versionLen, x.apiVersion, x.opts.local, x.opts.xHeaders, x.sessionV1TokenLen, x.sessionV1TokenMsg, x.bearerTokenLen, x.bearerTokenMsg, x.sessionV2TokenLen, x.sessionV2TokenMsg)
+
+			var reqBuffers mem.BufferSlice
+			if x.shouldSignRequest {
+				// append verification header
+				bodySigVal, err := x.signer.Sign(buf[chunkFldOff : chunkOff+actualRead])
 				if err != nil {
+					if reqMemBuf != nil {
+						reqMemBuf.Free()
+					}
 					return writtenBytes, fmt.Errorf("sign body: %w", err)
 				}
 
-				req.VerifyHeader = &protosession.RequestVerificationHeader{
-					BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
-					MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
-					OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
+				bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
+
+				reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf[bodyOff:], off-bodyOff, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+			} else {
+				reqSliceBuf := mem.SliceBuffer(buf[bodyOff:off])
+				if reqMemBuf != nil {
+					reqMemBuf.SliceBuffer = reqSliceBuf
+					reqBuffers = mem.BufferSlice{reqMemBuf}
+				} else {
+					reqBuffers = mem.BufferSlice{reqSliceBuf}
 				}
 			}
 
-			req.Body.ObjectPart = &protoobject.PutRequest_Body_Chunk{
-				// Actual chunk payload.
-				Chunk: buf[chunkProtoHeaderPrefixLen:chunkEnd],
-			}
-
-			if writeErr := x.sendRequest(req); writeErr != nil {
-				return writtenBytes, writeErr
+			if writeErr := x.sendRequest(reqBuffers, reqMemBuf); writeErr != nil {
+				return writtenBytes, fmt.Errorf("aaaa: %w", writeErr)
 			}
 
 			if x.streamClosed {
@@ -355,6 +450,8 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			}
 
 			writtenBytes += int64(actualRead)
+		} else if reqMemBuf != nil {
+			reqMemBuf.Free()
 		}
 
 		if err != nil {
@@ -406,10 +503,6 @@ func (x *DefaultObjectWriter) Close() error {
 		defer func() {
 			x.statisticCallback(time.Since(x.startTime), x.err)
 		}()
-	}
-
-	if x.bufCleanCallback != nil {
-		defer x.bufCleanCallback()
 	}
 
 	if x.streamClosed {
@@ -504,24 +597,19 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
-	stream, err := c.object.Put(ctx)
+	stream, err := openStream(ctx, c.conn, clientStreamDesc, protoobject.ObjectService_Put_FullMethodName)
 	if err != nil {
 		cancel()
 		err = fmt.Errorf("open stream: %w", err)
 		return nil, err
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	w.buf = *buf
-	w.bufCleanCallback = func() {
-		c.buffers.Put(buf)
-	}
-
+	w.bufferPool = c.buffers
 	w.apiVersion = c.apiVersion
 	w.signer = signer
-	w.shouldSignRequest = c.shouldSignRequest
+	w.shouldSignRequest = !prm.local || !c.skipSignatureForLocalRequests
 	w.cancelCtxStream = cancel
-	w.stream = stream
+	w.stream = &grpc.GenericClientStream[protoobject.PutRequest, protoobject.PutResponse]{ClientStream: stream}
 	w.singleMsgTimeout = c.streamTimeout
 	w.opts = prm
 	w.payloadSizeFromHeader = hdr.PayloadSize()

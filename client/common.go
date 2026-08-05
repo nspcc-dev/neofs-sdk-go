@@ -97,25 +97,34 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 	}
 }
 
-func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr []byte, vers *protorefs.Version) (neofscrypto.Signature, neofscrypto.Signature, neofscrypto.Signature, error) {
+func signRequestParts(signer neofscrypto.Signer, body []byte, metaHdr []byte, signedOrigin bool) ([]byte, []byte, []byte, error) {
 	bodySigVal, err := signer.Sign(body)
 	if err != nil {
-		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign request body: %w", err)
+		return nil, nil, nil, fmt.Errorf("sign request body: %w", err)
 	}
 	metaHdrSigVal, err := signer.Sign(metaHdr)
 	if err != nil {
-		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign request meta header: %w", err)
+		return nil, nil, nil, fmt.Errorf("sign request meta header: %w", err)
 	}
-	var (
-		originVerifHdrSigVal []byte
-		originVerifHdrSig    neofscrypto.Signature
-		signedOrigin         = needsOriginSig(vers)
-	)
+	var originVerifHdrSigVal []byte
 	if signedOrigin {
 		originVerifHdrSigVal, err = signer.Sign(nil)
 		if err != nil {
-			return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, fmt.Errorf("sign empty data: %w", err)
+			return nil, nil, nil, fmt.Errorf("sign empty data: %w", err)
 		}
+	}
+	return bodySigVal, metaHdrSigVal, originVerifHdrSigVal, nil
+}
+
+func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr []byte, vers *protorefs.Version) (neofscrypto.Signature, neofscrypto.Signature, neofscrypto.Signature, error) {
+	var (
+		originVerifHdrSig neofscrypto.Signature
+		signedOrigin      = needsOriginSig(vers)
+	)
+
+	bodySigVal, metaHdrSigVal, originVerifHdrSigVal, err := signRequestParts(signer, body, metaHdr, signedOrigin)
+	if err != nil {
+		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, err
 	}
 
 	pubKeyBytes := neofscrypto.PublicKeyBytes(signer.Public())
