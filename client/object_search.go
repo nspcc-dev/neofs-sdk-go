@@ -11,6 +11,7 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
+	igrpc "github.com/nspcc-dev/neofs-sdk-go/internal/grpc"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -193,9 +194,11 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 
 	// acquire buffer for body + meta header
 	bufItem := c.buffers.Get().(*[]byte)
+	var reqMemBuf *igrpc.MemBuffer
 	var buf []byte
 	if len(*bufItem) >= bodyWithMetaHdrLen {
-		defer func() { c.buffers.Put(bufItem) }()
+		// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
+		reqMemBuf = igrpc.NewMemBuffer(bufItem, c.buffers)
 		buf = *bufItem
 	} else {
 		c.buffers.Put(bufItem)
@@ -212,8 +215,11 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, opts.noForwarding, opts.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+	reqBuffers, err := appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
 	if err != nil {
+		if reqMemBuf != nil {
+			reqMemBuf.Free()
+		}
 		return nil, "", err
 	}
 

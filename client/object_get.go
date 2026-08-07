@@ -746,7 +746,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	// append verification header
-	reqBuffers, err := appendVerificationHeaderToOptionalMemBuffer(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+	reqBuffers, err := appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
 	if err != nil {
 		if reqMemBuf != nil {
 			reqMemBuf.Free()
@@ -878,9 +878,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 
 	// acquire buffer for body + meta header
 	bufItem := c.buffers.Get().(*[]byte)
+	var reqMemBuf *igrpc.MemBuffer
 	var buf []byte
 	if len(*bufItem) >= bodyWithMetaHdrLen {
-		defer func() { c.buffers.Put(bufItem) }()
+		// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
+		reqMemBuf = igrpc.NewMemBuffer(bufItem, c.buffers)
 		buf = *bufItem
 	} else {
 		c.buffers.Put(bufItem)
@@ -897,8 +899,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, prm.local, prm.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
 
 	// append verification header
-	reqBuffers, err := appendVerificationHeader(signer, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+	reqBuffers, err := appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
 	if err != nil {
+		if reqMemBuf != nil {
+			reqMemBuf.Free()
+		}
 		return nil, err
 	}
 
