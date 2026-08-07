@@ -579,6 +579,8 @@ func TestClient_ObjectHead(t *testing.T) {
 					opts.MarkLocal()
 
 					srv.checkRequestLocal()
+					srv.requireUnsignedRequest()
+					c.SkipSignatureForLocalRequests()
 					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
@@ -931,6 +933,8 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					opts.MarkLocal()
 
 					srv.checkRequestLocal()
+					srv.requireUnsignedRequest()
+					c.SkipSignatureForLocalRequests()
 					_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)
 					_, err = io.Copy(io.Discard, r)
@@ -1935,6 +1939,8 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 					opts.MarkLocal()
 
 					srv.checkRequestLocal()
+					srv.requireUnsignedRequest()
+					c.SkipSignatureForLocalRequests()
 					r, err := c.ObjectRangeInit(ctx, anyCID, anyOID, anyValidOff, anyValidLn, anyValidSigner, opts)
 					require.NoError(t, err)
 					_, err = io.Copy(io.Discard, r)

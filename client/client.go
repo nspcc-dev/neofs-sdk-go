@@ -81,6 +81,8 @@ type Client struct {
 	buffers *sync.Pool
 
 	streamTimeout time.Duration
+
+	skipSignatureForLocalRequests bool
 }
 
 // New creates an instance of Client initialized with the given parameters.
@@ -108,6 +110,23 @@ func New(prm PrmInit) (*Client, error) {
 
 	c.prm = prm
 	return c, nil
+}
+
+// SkipSignatureForLocalRequests configures Client to omit signatures from
+// object requests with TTL=1.
+//
+// The caller MUST only call it when the transport authenticates the request
+// author. Must be called before Client is used concurrently.
+//
+// Experimental: disabling signing weakens request authentication unless the
+// transport authenticates request authors. It is not recommended for use by
+// regular apps.
+func (c *Client) SkipSignatureForLocalRequests() {
+	c.skipSignatureForLocalRequests = true
+}
+
+func (c *Client) shouldSignRequest(ttl uint32) bool {
+	return ttl != localRequestTTL || !c.skipSignatureForLocalRequests
 }
 
 func (c *Client) setConn(conn *grpc.ClientConn) {

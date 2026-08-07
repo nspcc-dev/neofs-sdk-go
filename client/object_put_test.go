@@ -333,6 +333,8 @@ func TestClient_ObjectPut(t *testing.T) {
 					opts.MarkLocal()
 
 					srv.checkRequestLocal()
+					srv.requireUnsignedRequest()
+					c.SkipSignatureForLocalRequests()
 					w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, opts)
 					require.NoError(t, err)
 					_, err = w.Write([]byte{1})
