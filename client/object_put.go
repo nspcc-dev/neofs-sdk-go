@@ -10,7 +10,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
@@ -95,7 +94,7 @@ type DefaultObjectWriter struct {
 	streamClosed     bool
 
 	signer            neofscrypto.Signer
-	shouldSignRequest func(uint32) bool
+	shouldSignRequest bool
 	res               ResObjectPut
 	err               error
 
@@ -187,7 +186,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		MetaHeader: x.newMetaHeader(),
 	}
 
-	if x.shouldSignRequest(req.MetaHeader.Ttl) {
+	if x.shouldSignRequest {
 		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
@@ -230,10 +229,9 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 					Chunk: chunk[:ln],
 				},
 			},
-			MetaHeader: x.newMetaHeader(),
 		}
 
-		if x.shouldSignRequest(req.MetaHeader.Ttl) {
+		if x.shouldSignRequest {
 			req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
 			if x.err != nil {
 				x.err = fmt.Errorf("sign message: %w", x.err)
@@ -281,20 +279,14 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 		maxMessageSize = chunkProtoHeaderPrefixLen + chunkLen
 
 		req = &protoobject.PutRequest{
-			Body:       &protoobject.PutRequest_Body{},
-			MetaHeader: x.newMetaHeader(),
+			Body: &protoobject.PutRequest_Body{},
 		}
 
 		scheme = refs.SignatureScheme(x.signer.Scheme())
 		pub    = neofscrypto.PublicKeyBytes(x.signer.Public())
 	)
 
-	metaSignatureBytes, err := x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
-	if err != nil {
-		return 0, fmt.Errorf("sign meta: %w", err)
-	}
-
-	originSignatureBytes, err := x.signer.Sign(nil)
+	emptyDataSignature, err := x.signer.Sign(nil)
 	if err != nil {
 		return 0, fmt.Errorf("sign origin: %w", err)
 	}
@@ -326,8 +318,8 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 
 			req.VerifyHeader = &protosession.RequestVerificationHeader{
 				BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
-				MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
-				OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
+				MetaSignature:   &refs.Signature{Key: pub, Sign: emptyDataSignature, Scheme: scheme},
+				OriginSignature: &refs.Signature{Key: pub, Sign: emptyDataSignature, Scheme: scheme},
 			}
 
 			req.Body.ObjectPart = &protoobject.PutRequest_Body_Chunk{
@@ -508,7 +500,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 
 	w.apiVersion = c.apiVersion
 	w.signer = signer
-	w.shouldSignRequest = c.shouldSignRequest
+	w.shouldSignRequest = !prm.local || !c.skipSignatureForLocalRequests
 	w.cancelCtxStream = cancel
 	w.stream = stream
 	w.singleMsgTimeout = c.streamTimeout
