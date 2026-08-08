@@ -32,6 +32,18 @@ func MarshalMessage(m Message) []byte {
 	return b
 }
 
+// MarshalMessageWithBuffer encodes m into a pre-allocated allocated buffer if
+// it has sufficient length. Otherwise, MarshalMessageWithBuffer allocates a new
+// one. Returns used buffer and number of bytes written into it.
+func MarshalMessageWithBuffer(m Message, buf []byte) ([]byte, int) {
+	s := m.MarshaledSize()
+	if len(buf) < s {
+		buf = make([]byte, s)
+	}
+	m.MarshalStable(buf)
+	return buf, s
+}
+
 // Marshal encodes v transmitted via NeoFS API protocol into a dynamically
 // allocated buffer.
 func Marshal[M Message, T interface{ ProtoMessage() M }](v T) []byte {

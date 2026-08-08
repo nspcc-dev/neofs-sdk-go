@@ -735,31 +735,39 @@ func (x *testCommonRequestServerSettings[_, _]) requireUnsignedRequest() {
 	x.requireUnsigned = true
 }
 
+func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequestSignatures(verifyHdr *protosession.RequestVerificationHeader, body REQBODY, metaHdr *protosession.RequestMetaHeader) error {
+	// signatures
+	if verifyHdr == nil {
+		if !x.requireUnsigned {
+			return newInvalidRequestErr(errors.New("missing verification header"))
+		}
+		return nil
+	}
+	if x.requireUnsigned {
+		return newInvalidRequestErr(errors.New("unexpected verification header"))
+	}
+	if verifyHdr.Origin != nil {
+		return newInvalidRequestVerificationHeaderErr(errors.New("origin field is set while should not be"))
+	}
+	if err := verifyDataSignature(
+		neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
+		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
+	}
+	if err := verifyDataSignature(
+		neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
+		return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
+	}
+	return nil
+}
+
 func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) error {
 	body := req.GetBody()
 	metaHdr := req.GetMetaHeader()
 	verifyHdr := req.GetVerifyHeader()
 
 	// signatures
-	if verifyHdr == nil {
-		if !x.requireUnsigned {
-			return newInvalidRequestErr(errors.New("missing verification header"))
-		}
-	} else {
-		if x.requireUnsigned {
-			return newInvalidRequestErr(errors.New("unexpected verification header"))
-		}
-		if verifyHdr.Origin != nil {
-			return newInvalidRequestVerificationHeaderErr(errors.New("origin field is set while should not be"))
-		}
-		if err := verifyDataSignature(
-			neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
-			return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
-		}
-		if err := verifyDataSignature(
-			neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
-			return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
-		}
+	if err := x.verifyRequestSignatures(verifyHdr, body, metaHdr); err != nil {
+		return err
 	}
 	// meta header
 	curVersion := version.Current()

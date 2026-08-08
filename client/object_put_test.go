@@ -85,7 +85,28 @@ func (x *testPutObjectServer) checkRequestHeader(hdr object.Object) { x.reqHdr =
 // payload. By default, and if nil, any payload is accepted.
 func (x *testPutObjectServer) checkRequestPayload(data []byte) { x.reqPayload = data }
 
-func (x *testPutObjectServer) verifyHeadingMessage(m *protoobject.PutRequest_Body_Init) error {
+func (x *testPutObjectServer) verifyHeadingMessage(req *protoobject.PutRequest, m *protoobject.PutRequest_Body_Init) error {
+	if err := x.testCommonClientStreamServerSettings.verifyRequest(req); err != nil {
+		return err
+	}
+	// meta header
+	metaHdr := req.MetaHeader
+	// TTL
+	if err := x.verifyTTL(metaHdr); err != nil {
+		return err
+	}
+	// session token
+	if err := x.verifySessionToken(metaHdr.GetSessionToken()); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(metaHdr.GetSessionTokenV2()); err != nil {
+		return err
+	}
+	// bearer token
+	if err := x.verifyBearerToken(metaHdr.GetBearerToken()); err != nil {
+		return err
+	}
+
 	if m.Header == nil {
 		return errors.New("missing header field")
 	}
@@ -121,7 +142,13 @@ func (x *testPutObjectServer) verifyHeadingMessage(m *protoobject.PutRequest_Bod
 	return nil
 }
 
-func (x *testPutObjectServer) verifyPayloadChunkMessage(chunk []byte) error {
+func (x *testPutObjectServer) verifyPayloadChunkMessage(req *protoobject.PutRequest, chunk []byte) error {
+	if req.MetaHeader != nil {
+		return errors.New("meta header is chunk request is set while should not be")
+	}
+	if err := x.verifyRequestSignatures(req.VerifyHeader, req.Body, nil); err != nil {
+		return err
+	}
 	ln := len(chunk)
 	if ln == 0 {
 		return errors.New("empty payload chunk")
@@ -141,28 +168,6 @@ func (x *testPutObjectServer) verifyPayloadChunkMessage(chunk []byte) error {
 }
 
 func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
-	// TODO(https://github.com/nspcc-dev/neofs-sdk-go/issues/662): why meta is
-	//  transmitted in all stream messages when heading parts is enough?
-	if err := x.testCommonClientStreamServerSettings.verifyRequest(req); err != nil {
-		return err
-	}
-	// meta header
-	metaHdr := req.MetaHeader
-	// TTL
-	if err := x.verifyTTL(metaHdr); err != nil {
-		return err
-	}
-	// session token
-	if err := x.verifySessionToken(metaHdr.GetSessionToken()); err != nil {
-		return err
-	}
-	if err := x.verifySessionTokenV2(metaHdr.GetSessionTokenV2()); err != nil {
-		return err
-	}
-	// bearer token
-	if err := x.verifyBearerToken(metaHdr.GetBearerToken()); err != nil {
-		return err
-	}
 	// body
 	body := req.Body
 	if body == nil {
@@ -181,14 +186,14 @@ func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 		if v.Init == nil {
 			panic("nil oneof field container")
 		}
-		if err := x.verifyHeadingMessage(v.Init); err != nil {
+		if err := x.verifyHeadingMessage(req, v.Init); err != nil {
 			return newErrInvalidRequestField("heading part", err)
 		}
 	case *protoobject.PutRequest_Body_Chunk:
 		if x.reqCounter <= 1 {
 			return newErrInvalidRequestField("object part", errors.New("payload chunk must not be a 1st stream message"))
 		}
-		if err := x.verifyPayloadChunkMessage(v.Chunk); err != nil {
+		if err := x.verifyPayloadChunkMessage(req, v.Chunk); err != nil {
 			return newErrInvalidRequestField("chunk part", err)
 		}
 	}
@@ -547,7 +552,14 @@ func TestClient_ObjectPut(t *testing.T) {
 					srv := newPutObjectServer()
 					c := newTestObjectClient(t, srv)
 
-					okSignings := signOneReqCalls * (n + 1) // +1 for header one
+					okSignings := signOneReqCalls // header message
+					for i := range n {
+						if i == 0 {
+							okSignings += signOneReqCalls // body + meta header
+						} else {
+							okSignings++ // only body
+						}
+					}
 					signer := newNFailedSigner(anyValidSigner, uint(okSignings+1))
 					w, err := c.ObjectPutInit(ctx, anyValidHdr, signer, anyValidOpts)
 					require.NoError(t, err)
@@ -557,7 +569,7 @@ func TestClient_ObjectPut(t *testing.T) {
 						require.NoError(t, err)
 					}
 					_, err = w.Write([]byte{1})
-					require.ErrorContains(t, err, "sign message")
+					require.ErrorContains(t, err, "sign body")
 				})
 			}
 		})
@@ -748,9 +760,9 @@ func TestClient_ObjectPut(t *testing.T) {
 			_, err = w.Write([]byte{1})
 			require.NoError(t, err)
 			_, err = w.Write([]byte{1})
-			require.ErrorContains(t, err, "sign message")
+			require.ErrorContains(t, err, "sign body")
 			err = w.Close()
-			require.ErrorContains(t, err, "sign message")
+			require.ErrorContains(t, err, "sign body")
 			assertCommon(cl)
 			collected := *cl
 			require.Len(t, collected, 2)
