@@ -103,8 +103,6 @@ type DefaultObjectWriter struct {
 	res               ResObjectPut
 	err               error
 
-	chunkCalled bool
-
 	apiVersion *refs.Version
 	opts       PrmObjectPutInit
 
@@ -274,10 +272,6 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 // WritePayloadChunk writes chunk of the object payload. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
-	if !x.chunkCalled {
-		x.chunkCalled = true
-	}
-
 	var writtenBytes int
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
@@ -364,10 +358,6 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 // Failure reason can be received via [DefaultObjectWriter.Close].
 // ReadFrom implements [io.ReaderFrom].
 func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
-	if !x.chunkCalled {
-		x.chunkCalled = true
-	}
-
 	var maxReadChunkLen = maxChunkLen
 	// For the case where the object size is less than maxChunkLen, according to the object header.
 	if x.payloadSizeFromHeader > 0 && x.payloadSizeFromHeader < uint64(maxReadChunkLen) {
