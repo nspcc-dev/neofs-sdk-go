@@ -865,6 +865,24 @@ func TestDefaultObjectWriter_ReadFrom(t *testing.T) {
 				require.NoError(t, err)
 				require.EqualValues(t, tc.payloadLen, n)
 				require.NoError(t, w.Close())
+
+				t.Run("unsigned local requests", func(t *testing.T) {
+					c.SkipSignatureForLocalRequests()
+
+					opts := anyValidOpts
+					opts.MarkLocal()
+
+					srv.requireUnsignedRequest()
+					srv.checkRequestLocal()
+
+					w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, opts)
+					require.NoError(t, err)
+
+					n, err := io.Copy(w, ioReaderOnly{bytes.NewReader(payload)})
+					require.NoError(t, err)
+					require.EqualValues(t, tc.payloadLen, n)
+					require.NoError(t, w.Close())
+				})
 			})
 		}
 	})

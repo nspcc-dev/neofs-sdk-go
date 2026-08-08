@@ -286,17 +286,26 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 		}
 
 		scheme = refs.SignatureScheme(x.signer.Scheme())
-		pub    = neofscrypto.PublicKeyBytes(x.signer.Public())
+		pub    []byte
+
+		metaSignatureBytes   []byte
+		originSignatureBytes []byte
 	)
 
-	metaSignatureBytes, err := x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
-	if err != nil {
-		return 0, fmt.Errorf("sign meta: %w", err)
-	}
+	shouldSignRequest := x.shouldSignRequest(req.MetaHeader.Ttl)
+	if shouldSignRequest {
+		pub = neofscrypto.PublicKeyBytes(x.signer.Public())
 
-	originSignatureBytes, err := x.signer.Sign(nil)
-	if err != nil {
-		return 0, fmt.Errorf("sign origin: %w", err)
+		var err error
+		metaSignatureBytes, err = x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
+		if err != nil {
+			return 0, fmt.Errorf("sign meta: %w", err)
+		}
+
+		originSignatureBytes, err = x.signer.Sign(nil)
+		if err != nil {
+			return 0, fmt.Errorf("sign origin: %w", err)
+		}
 	}
 
 	buf := x.buf
@@ -319,15 +328,17 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			protoHeader = protowire.AppendTag(protoHeader, protoobject.FieldPutRequestBodyChunk, protowire.BytesType)
 			protowire.AppendVarint(protoHeader, uint64(actualRead))
 
-			bSigBts, err := x.signer.Sign(buf[chunkStart:chunkEnd])
-			if err != nil {
-				return writtenBytes, fmt.Errorf("sign body: %w", err)
-			}
+			if shouldSignRequest {
+				bSigBts, err := x.signer.Sign(buf[chunkStart:chunkEnd])
+				if err != nil {
+					return writtenBytes, fmt.Errorf("sign body: %w", err)
+				}
 
-			req.VerifyHeader = &protosession.RequestVerificationHeader{
-				BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
-				MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
-				OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
+				req.VerifyHeader = &protosession.RequestVerificationHeader{
+					BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
+					MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
+					OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
+				}
 			}
 
 			req.Body.ObjectPart = &protoobject.PutRequest_Body_Chunk{
