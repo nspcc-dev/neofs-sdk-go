@@ -95,7 +95,7 @@ type DefaultObjectWriter struct {
 	streamClosed     bool
 
 	signer            neofscrypto.Signer
-	shouldSignRequest func(uint32) bool
+	shouldSignRequest bool
 	res               ResObjectPut
 	err               error
 
@@ -111,6 +111,9 @@ type DefaultObjectWriter struct {
 
 	buf              []byte
 	bufCleanCallback func()
+
+	signerPublicKeyBinary   []byte // corresponds to signer
+	emptyDataSignatureValue []byte // calculated via signer
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -187,11 +190,17 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		MetaHeader: x.newMetaHeader(),
 	}
 
-	if x.shouldSignRequest(req.MetaHeader.Ttl) {
+	if x.shouldSignRequest {
 		req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
 		if x.err != nil {
 			x.err = fmt.Errorf("sign message: %w", x.err)
 			return x.err
+		}
+
+		x.signerPublicKeyBinary = req.VerifyHeader.BodySignature.Key
+
+		if sig := req.VerifyHeader.OriginSignature; sig != nil {
+			x.emptyDataSignatureValue = sig.Sign
 		}
 	}
 
@@ -199,6 +208,42 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		return x.stream.Send(req)
 	})
 	return x.err
+}
+
+func (x *DefaultObjectWriter) signChunkRequest(req *protoobject.PutRequest) error {
+	buf, n := neofsproto.MarshalMessageWithBuffer(req.Body, x.buf)
+	bodySig, err := x.signer.Sign(buf[:n])
+	if err != nil {
+		return fmt.Errorf("sign body: %w", err)
+	}
+
+	return x.attachChunkRequestVerificationHeader(req, bodySig)
+}
+
+func (x *DefaultObjectWriter) attachChunkRequestVerificationHeader(req *protoobject.PutRequest, bodySig []byte) error {
+	if x.emptyDataSignatureValue == nil {
+		var err error
+		x.emptyDataSignatureValue, err = x.signer.Sign(nil)
+		if err != nil {
+			return fmt.Errorf("sign empty data: %w", err)
+		}
+	}
+
+	if x.signerPublicKeyBinary == nil {
+		x.signerPublicKeyBinary = neofscrypto.PublicKeyBytes(x.signer.Public())
+	}
+
+	req.VerifyHeader = &protosession.RequestVerificationHeader{
+		BodySignature: &refs.Signature{Key: x.signerPublicKeyBinary, Sign: bodySig, Scheme: refs.SignatureScheme(x.signer.Scheme())},
+	}
+
+	req.VerifyHeader.MetaSignature = &refs.Signature{Key: x.signerPublicKeyBinary, Sign: x.emptyDataSignatureValue, Scheme: refs.SignatureScheme(x.signer.Scheme())}
+
+	if needsOriginSig(x.apiVersion) {
+		req.VerifyHeader.OriginSignature = req.VerifyHeader.MetaSignature
+	}
+
+	return nil
 }
 
 // WritePayloadChunk writes chunk of the object payload. Result means success.
@@ -230,14 +275,13 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 					Chunk: chunk[:ln],
 				},
 			},
-			MetaHeader: x.newMetaHeader(),
 		}
 
-		if x.shouldSignRequest(req.MetaHeader.Ttl) {
-			req.VerifyHeader, x.err = neofscrypto.SignRequestWithBuffer[*protoobject.PutRequest_Body](x.signer, req, x.buf)
-			if x.err != nil {
-				x.err = fmt.Errorf("sign message: %w", x.err)
-				return writtenBytes, x.err
+		if x.shouldSignRequest {
+			err = x.signChunkRequest(req)
+			if err != nil {
+				x.err = err
+				return writtenBytes, err
 			}
 		}
 
@@ -281,23 +325,9 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 		maxMessageSize = chunkProtoHeaderPrefixLen + chunkLen
 
 		req = &protoobject.PutRequest{
-			Body:       &protoobject.PutRequest_Body{},
-			MetaHeader: x.newMetaHeader(),
+			Body: &protoobject.PutRequest_Body{},
 		}
-
-		scheme = refs.SignatureScheme(x.signer.Scheme())
-		pub    = neofscrypto.PublicKeyBytes(x.signer.Public())
 	)
-
-	metaSignatureBytes, err := x.signer.Sign(neofsproto.MarshalMessage(req.MetaHeader))
-	if err != nil {
-		return 0, fmt.Errorf("sign meta: %w", err)
-	}
-
-	originSignatureBytes, err := x.signer.Sign(nil)
-	if err != nil {
-		return 0, fmt.Errorf("sign origin: %w", err)
-	}
 
 	buf := x.buf
 	if len(buf) < maxMessageSize {
@@ -324,10 +354,9 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 				return writtenBytes, fmt.Errorf("sign body: %w", err)
 			}
 
-			req.VerifyHeader = &protosession.RequestVerificationHeader{
-				BodySignature:   &refs.Signature{Key: pub, Sign: bSigBts, Scheme: scheme},
-				MetaSignature:   &refs.Signature{Key: pub, Sign: metaSignatureBytes, Scheme: scheme},
-				OriginSignature: &refs.Signature{Key: pub, Sign: originSignatureBytes, Scheme: scheme},
+			err = x.attachChunkRequestVerificationHeader(req, bSigBts)
+			if err != nil {
+				return writtenBytes, err
 			}
 
 			req.Body.ObjectPart = &protoobject.PutRequest_Body_Chunk{
@@ -508,7 +537,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 
 	w.apiVersion = c.apiVersion
 	w.signer = signer
-	w.shouldSignRequest = c.shouldSignRequest
+	w.shouldSignRequest = !prm.local || !c.skipSignatureForLocalRequests
 	w.cancelCtxStream = cancel
 	w.stream = stream
 	w.singleMsgTimeout = c.streamTimeout

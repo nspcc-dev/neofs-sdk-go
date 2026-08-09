@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
 )
@@ -63,14 +64,15 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 	var bs []byte
 	signBody := vhOriginal == nil || !signedOrigin
 	if signBody { // body should be signed by the original sender only
-		buf, ln = encodeMessage(r.GetBody(), buf)
+		buf, ln = neofsproto.MarshalMessageWithBuffer(r.GetBody(), buf)
 		bs, err = signer.Sign(buf[:ln])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignBody, err)
 		}
 	}
 
-	buf, ln = encodeMessage(r.GetMetaHeader(), buf)
+	var m ProtoMessage = r.GetMetaHeader()
+	buf, ln = neofsproto.MarshalMessageWithBuffer(m, buf)
 	ms, err := signer.Sign(buf[:ln])
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errSignMeta, err)
@@ -78,7 +80,8 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 
 	var vs []byte
 	if signedOrigin {
-		buf, ln = encodeMessage(vhOriginal, buf)
+		var m2 ProtoMessage = vhOriginal
+		buf, ln = neofsproto.MarshalMessageWithBuffer(m2, buf)
 		vs, err = signer.Sign(buf[:ln])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignVerifyOrigin, err)
@@ -188,20 +191,22 @@ func SignResponseWithBuffer[B ProtoMessage](signer Signer, r SignedResponse[B], 
 	var bs []byte
 	signBody := vhOriginal == nil
 	if signBody { // body should be signed by the original sender only
-		buf, ln = encodeMessage(r.GetBody(), buf)
+		buf, ln = neofsproto.MarshalMessageWithBuffer(r.GetBody(), buf)
 		bs, err = signer.Sign(buf[:ln])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignBody, err)
 		}
 	}
 
-	buf, ln = encodeMessage(r.GetMetaHeader(), buf)
+	var m ProtoMessage = r.GetMetaHeader()
+	buf, ln = neofsproto.MarshalMessageWithBuffer(m, buf)
 	ms, err := signer.Sign(buf[:ln])
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errSignMeta, err)
 	}
 
-	buf, ln = encodeMessage(vhOriginal, buf)
+	var m2 ProtoMessage = vhOriginal
+	buf, ln = neofsproto.MarshalMessageWithBuffer(m2, buf)
 	vs, err := signer.Sign(buf[:ln])
 	if err != nil {
 		return nil, fmt.Errorf("%w: %w", errSignVerifyOrigin, err)
@@ -281,7 +286,7 @@ func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) e
 
 func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
-		b, sz := encodeMessage(m, b)
+		b, sz := neofsproto.MarshalMessageWithBuffer(m, b)
 		return verifyN3(b[:sz], s.Sign, s.Key)
 	}
 	return VerifyMessageSignature(m, s, b)
@@ -301,7 +306,7 @@ func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
 	}
 
 	var sz int
-	b, sz = encodeMessage(m, b)
+	b, sz = neofsproto.MarshalMessageWithBuffer(m, b)
 	if !pubKey.Verify(b[:sz], s.Sign) {
 		return errors.New("signature mismatch")
 	}
@@ -311,14 +316,6 @@ func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
 
 // marshals m into buffer and returns it. Second value means buffer len occupied
 // for m.
-func encodeMessage(m ProtoMessage, b []byte) ([]byte, int) {
-	s := m.MarshaledSize()
-	if len(b) < s {
-		b = make([]byte, s)
-	}
-	m.MarshalStable(b)
-	return b, s
-}
 
 func maxEncodedSize(ms ...ProtoMessage) int {
 	res := ms[0].MarshaledSize()
