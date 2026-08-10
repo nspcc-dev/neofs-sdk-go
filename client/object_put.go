@@ -198,15 +198,12 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
 
 	// acquire buffer for body + meta header
-	bufItem := x.bufferPool.Get().(*[]byte)
-	var reqMemBuf *igrpc.MemBuffer
+	var reqMemBuf *grpcprotobuf.MemBuffer
 	var buf []byte
-	if len(*bufItem) >= bodyWithMetaHdrLen {
-		// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
-		reqMemBuf = igrpc.NewMemBuffer(bufItem, x.bufferPool)
-		buf = *bufItem
+	if bodyWithMetaHdrLen <= defaultRequestBufferLength {
+		reqMemBuf = defaultRequestBufferPool.Get()
+		buf = reqMemBuf.SliceBuffer
 	} else {
-		x.bufferPool.Put(bufItem)
 		buf = make([]byte, bodyWithMetaHdrLen)
 	}
 
@@ -241,14 +238,13 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 			x.originVerificationHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, originVerifHdrSigVal)
 		}
 
-		reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, bodyWithMetaHdrLen, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+		reqBuffers = appendVerificationHeaderSignatures2(reqMemBuf, buf, bodyWithMetaHdrLen, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 	} else {
-		reqSliceBuf := mem.SliceBuffer(buf[:off])
 		if reqMemBuf != nil {
-			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqMemBuf.SetBounds(0, off)
 			reqBuffers = mem.BufferSlice{reqMemBuf}
 		} else {
-			reqBuffers = mem.BufferSlice{reqSliceBuf}
+			reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:off])}
 		}
 	}
 

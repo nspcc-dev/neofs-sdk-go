@@ -13,6 +13,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -193,10 +194,10 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 
 	var res cid.ID
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.PutRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.PutRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
@@ -265,10 +266,10 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
 	var res container.Container
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
@@ -330,10 +331,10 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.ListRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.ListRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
@@ -483,10 +484,10 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 		req.MetaHeader.SessionTokenV2 = prm.tokV2.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.DeleteRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.DeleteRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
@@ -535,10 +536,10 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 
 	var res eacl.Table
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
@@ -695,10 +696,10 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		req.MetaHeader.SessionTokenV2 = prm.sessionV2.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetExtendedACLRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetExtendedACLRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
@@ -855,19 +856,20 @@ func (c *Client) SetContainerAttribute(ctx context.Context, prm SetContainerAttr
 		req.Body.SessionTokenV1 = opts.sessionTokenV1.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
+	var reqMemBuf *protobuf.MemBuffer
 	var bodyBuf []byte
-	if bodyLen := req.Body.MarshaledSize(); len(*buf) >= bodyLen {
-		bodyBuf = (*buf)[:bodyLen]
+	if bodyLen := req.Body.MarshaledSize(); bodyLen <= defaultRequestBufferLength {
+		reqMemBuf = defaultRequestBufferPool.Get()
+		bodyBuf = reqMemBuf.SliceBuffer[:bodyLen]
 	} else {
 		bodyBuf = make([]byte, bodyLen)
-		buf = &bodyBuf
 	}
 	req.Body.MarshalStable(bodyBuf)
 
 	bodySig, err := c.prm.signer.Sign(bodyBuf)
+	if reqMemBuf != nil {
+		reqMemBuf.Free()
+	}
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err
@@ -1002,19 +1004,20 @@ func (c *Client) RemoveContainerAttribute(ctx context.Context, prm RemoveContain
 		req.Body.SessionTokenV1 = opts.sessionTokenV1.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
-
+	var reqMemBuf *protobuf.MemBuffer
 	var bodyBuf []byte
-	if bodyLen := req.Body.MarshaledSize(); len(*buf) >= bodyLen {
-		bodyBuf = (*buf)[:bodyLen]
+	if bodyLen := req.Body.MarshaledSize(); bodyLen <= defaultRequestBufferLength {
+		reqMemBuf = defaultRequestBufferPool.Get()
+		bodyBuf = reqMemBuf.SliceBuffer[:bodyLen]
 	} else {
 		bodyBuf = make([]byte, bodyLen)
-		buf = &bodyBuf
 	}
 	req.Body.MarshalStable(bodyBuf)
 
 	bodySig, err := c.prm.signer.Sign(bodyBuf)
+	if reqMemBuf != nil {
+		reqMemBuf.Free()
+	}
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return err

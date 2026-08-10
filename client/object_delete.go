@@ -96,10 +96,10 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		req.MetaHeader.BearerToken = prm.bearerToken.ProtoMessage()
 	}
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.DeleteRequest_Body](signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.DeleteRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return oid.ID{}, err

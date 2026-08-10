@@ -78,16 +78,16 @@ func callUnary(ctx context.Context, conn *grpc.ClientConn, method string, reques
 	return stream.RecvMsg(response)
 }
 
-func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *igrpc.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version) (mem.BufferSlice, error) {
+func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version) (mem.BufferSlice, error) {
 	bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, body, metaHdr, vers)
 	if err != nil {
 		return nil, err
 	}
 
-	return appendVerificationHeaderSignatures(reqMemBuf, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig), nil
+	return appendVerificationHeaderSignatures2(reqMemBuf, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig), nil
 }
 
-func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
+func _appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
 	// pre-calculate verification header message lengths
 	bodySigMsgLen := calculateSignatureFieldLength(bodySig)
 	metaHdrSigMsgLen := calculateSignatureFieldLength(metaHdrSig)
@@ -102,21 +102,25 @@ func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byt
 	var reqBuffers mem.BufferSlice
 	if len(reqBuf) >= bodyWithMetaHdrLen+verifHdrFldLen {
 		verifHdrFldBuf = reqBuf[bodyWithMetaHdrLen:][:verifHdrFldLen]
-		reqSliceBuf := mem.SliceBuffer(reqBuf[:bodyWithMetaHdrLen+verifHdrFldLen])
 		if reqMemBuf != nil {
-			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqMemBuf.SliceBuffer = reqBuf[:bodyWithMetaHdrLen+verifHdrFldLen]
 			reqBuffers = mem.BufferSlice{reqMemBuf}
+		} else if reqMemBuf2 != nil {
+			reqMemBuf2.SetBounds(0, bodyWithMetaHdrLen+verifHdrFldLen)
+			reqBuffers = mem.BufferSlice{reqMemBuf2}
 		} else {
-			reqBuffers = mem.BufferSlice{reqSliceBuf}
+			reqBuffers = mem.BufferSlice{mem.SliceBuffer(reqBuf[:bodyWithMetaHdrLen+verifHdrFldLen])}
 		}
 	} else {
 		verifHdrFldBuf = make([]byte, verifHdrFldLen)
-		reqSliceBuf := mem.SliceBuffer(reqBuf[:bodyWithMetaHdrLen])
 		if reqMemBuf != nil {
-			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqMemBuf.SliceBuffer = reqBuf[:bodyWithMetaHdrLen]
 			reqBuffers = mem.BufferSlice{reqMemBuf, mem.SliceBuffer(verifHdrFldBuf)}
+		} else if reqMemBuf2 != nil {
+			reqMemBuf2.SetBounds(0, bodyWithMetaHdrLen)
+			reqBuffers = mem.BufferSlice{reqMemBuf2, mem.SliceBuffer(verifHdrFldBuf)}
 		} else {
-			reqBuffers = mem.BufferSlice{reqSliceBuf, mem.SliceBuffer(verifHdrFldBuf)}
+			reqBuffers = mem.BufferSlice{mem.SliceBuffer(reqBuf[:bodyWithMetaHdrLen]), mem.SliceBuffer(verifHdrFldBuf)}
 		}
 	}
 
@@ -124,4 +128,12 @@ func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byt
 	writeRequestVerificationHeader(verifHdrFldBuf, verifHdrLen, bodySigMsgLen, bodySig, metaHdrSigMsgLen, metaHdrSig, originVerifHdrSigMsgLen, originVerifHdrSig)
 
 	return reqBuffers
+}
+
+func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
+	return _appendVerificationHeaderSignatures(reqMemBuf, nil, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig)
+}
+
+func appendVerificationHeaderSignatures2(reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
+	return _appendVerificationHeaderSignatures(nil, reqMemBuf, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig)
 }
