@@ -121,16 +121,20 @@ func writeEmbeddedContainerIDField(buf []byte, num int, cnr cid.ID) int {
 	return off
 }
 
+func writeEmbeddedObjectIDField(buf []byte, num int, obj oid.ID) int {
+	off := binary.PutUvarint(buf, protowire.EncodeTag(protowire.Number(num), protowire.BytesType))
+	buf[off] = protobuf.ObjectIDLength
+	off++
+	off += iproto.MarshalToBytes(buf[off:], protorefs.FieldObjectIDValue, obj[:])
+	return off
+}
+
 func writeEmbeddedObjectAddressField(buf []byte, num int, cnr cid.ID, obj oid.ID) int {
 	off := binary.PutUvarint(buf, protowire.EncodeTag(protowire.Number(num), protowire.BytesType))
 	buf[off] = protobuf.ObjectAddressLength
 	off++
 	off += writeEmbeddedContainerIDField(buf[off:], protorefs.FieldAddressContainerID, cnr)
-	buf[off] = protobuf.TagBytes2
-	off++
-	buf[off] = protobuf.ObjectIDLength
-	off++
-	off += iproto.MarshalToBytes(buf[off:], protorefs.FieldObjectIDValue, obj[:])
+	off += writeEmbeddedObjectIDField(buf[off:], protorefs.FieldAddressObjectID, obj)
 	return off
 }
 
@@ -230,5 +234,34 @@ func writeSearchObjectsRequestBody(buf []byte, ln int, cnr cid.ID, filters objec
 	off += iproto.MarshalToBytes(buf[off:], protoobject.FieldSearchV2RequestBodyCursor, cursor)
 	off += iproto.MarshalToVarint(buf[off:], protoobject.FieldSearchV2RequestBodyCount, count)
 	off += iproto.MarshalToRepeatedBytes(buf[off:], protoobject.FieldSearchV2RequestBodyAttributes, attributes)
+	return off
+}
+
+func calculatePutObjectHeadingRequestBodyLength(initFldLen int) int {
+	return iproto.SizeEmbeddedLENField(protoobject.FieldPutRequestBodyInit, initFldLen)
+}
+
+func writePutObjectHeadingRequestBody(buf []byte, ln int, hdrLen int, hdr *protoobject.Object) int {
+	buf[0] = protobuf.TagBytes1 // body
+	off := 1 + binary.PutUvarint(buf[1:], uint64(ln))
+	buf[off] = protobuf.TagBytes1 // init
+	off++
+	off += binary.PutUvarint(buf[off:], uint64(hdrLen))
+	hdr.MarshalStable(buf[off:])
+	off += hdrLen
+	return off
+}
+
+func calculatePutObjectPayloadChunkRequestBodyLength(chunkLen int) int {
+	return iproto.SizeEmbeddedLENField(protoobject.FieldPutRequestBodyChunk, chunkLen)
+}
+
+func writePutObjectPayloadChunkRequestBody(buf []byte, ln int, chunk []byte) int {
+	buf[0] = protobuf.TagBytes1 // body
+	off := 1 + binary.PutUvarint(buf[1:], uint64(ln))
+	buf[off] = protobuf.TagBytes2 // chunk
+	off++
+	off += binary.PutUvarint(buf[off:], uint64(len(chunk)))
+	off += copy(buf[off:], chunk)
 	return off
 }

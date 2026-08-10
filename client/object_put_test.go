@@ -539,7 +539,7 @@ func TestClient_ObjectPut(t *testing.T) {
 		t.Run("heading", func(t *testing.T) {
 			_, err := newClient(t).ObjectPutInit(ctx, anyValidHdr, usertest.FailSigner(anyValidSigner), anyValidOpts)
 			require.ErrorContains(t, err, "header write")
-			require.ErrorContains(t, err, "sign message")
+			require.ErrorContains(t, err, "sign request body")
 		})
 		t.Run("payload chunks", func(t *testing.T) {
 			for _, n := range []int{0, 1, 10} {
@@ -547,7 +547,7 @@ func TestClient_ObjectPut(t *testing.T) {
 					srv := newPutObjectServer()
 					c := newTestObjectClient(t, srv)
 
-					okSignings := signOneReqCalls * (n + 1) // +1 for header one
+					okSignings := signOneReqCalls + n
 					signer := newNFailedSigner(anyValidSigner, uint(okSignings+1))
 					w, err := c.ObjectPutInit(ctx, anyValidHdr, signer, anyValidOpts)
 					require.NoError(t, err)
@@ -557,7 +557,7 @@ func TestClient_ObjectPut(t *testing.T) {
 						require.NoError(t, err)
 					}
 					_, err = w.Write([]byte{1})
-					require.ErrorContains(t, err, "sign message")
+					require.ErrorContains(t, err, "sign body")
 				})
 			}
 		})
@@ -732,25 +732,25 @@ func TestClient_ObjectPut(t *testing.T) {
 			_, c, cl := bind()
 			_, err := c.ObjectPutInit(ctx, anyValidHdr, usertest.FailSigner(anyValidSigner), anyValidOpts)
 			require.ErrorContains(t, err, "header write")
-			require.ErrorContains(t, err, "sign message")
+			require.ErrorContains(t, err, "sign request body")
 			assertCommon(cl)
 			collected := *cl
 			require.Len(t, collected, 2)
 			require.Equal(t, stat.MethodObjectPutStream, collected[0].mtd)
-			require.ErrorContains(t, collected[0].err, "sign message")
+			require.ErrorContains(t, collected[0].err, "sign request body")
 			require.Equal(t, stat.MethodObjectPut, collected[1].mtd)
 			require.Equal(t, err, collected[1].err)
 		})
 		t.Run("sign chunk request failure", func(t *testing.T) {
 			_, c, cl := bind()
-			w, err := c.ObjectPutInit(ctx, anyValidHdr, newNFailedSigner(anyValidSigner, signOneReqCalls*2+1), anyValidOpts)
+			w, err := c.ObjectPutInit(ctx, anyValidHdr, newNFailedSigner(anyValidSigner, signOneReqCalls+2), anyValidOpts)
 			require.NoError(t, err)
 			_, err = w.Write([]byte{1})
 			require.NoError(t, err)
 			_, err = w.Write([]byte{1})
-			require.ErrorContains(t, err, "sign message")
+			require.ErrorContains(t, err, "sign body")
 			err = w.Close()
-			require.ErrorContains(t, err, "sign message")
+			require.ErrorContains(t, err, "sign body")
 			assertCommon(cl)
 			collected := *cl
 			require.Len(t, collected, 2)
@@ -865,6 +865,24 @@ func TestDefaultObjectWriter_ReadFrom(t *testing.T) {
 				require.NoError(t, err)
 				require.EqualValues(t, tc.payloadLen, n)
 				require.NoError(t, w.Close())
+
+				t.Run("unsigned local requests", func(t *testing.T) {
+					c.SkipSignatureForLocalRequests()
+
+					opts := anyValidOpts
+					opts.MarkLocal()
+
+					srv.requireUnsignedRequest()
+					srv.checkRequestLocal()
+
+					w, err := c.ObjectPutInit(ctx, hdr, anyValidSigner, opts)
+					require.NoError(t, err)
+
+					n, err := io.Copy(w, ioReaderOnly{bytes.NewReader(payload)})
+					require.NoError(t, err)
+					require.EqualValues(t, tc.payloadLen, n)
+					require.NoError(t, w.Close())
+				})
 			})
 		}
 	})
