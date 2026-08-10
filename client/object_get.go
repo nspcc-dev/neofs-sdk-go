@@ -281,6 +281,36 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		x.payloadHashCheck = partInit.Header.PayloadHash.Sum
 	}
 
+	if unknown := partInit.ProtoReflect().GetUnknown(); len(unknown) > 0 {
+		num, typ, tagLen, err := grpcprotobuf.ParseTag(unknown)
+		if err != nil {
+			x.err = fmt.Errorf("parse unknown field tag: %w", err)
+			return false
+		}
+
+		if num != protoobject.FieldObjectPayload {
+			x.err = grpcprotobuf.NewUnsupportedFieldError(num, typ)
+			return false
+		}
+
+		chunkLen, n, err := grpcprotobuf.ParseLENField(unknown[tagLen:], num, typ)
+		if err != nil {
+			x.err = err
+			return false
+		}
+		chunk := unknown[tagLen+n:][:chunkLen]
+
+		if x.verifyChecksums {
+			_, _ = x.payloadHashGot.Write(chunk)
+		}
+
+		bs := mem.BufferSlice{mem.SliceBuffer(chunk)}
+		x.tail = rawPayloadChunk{
+			payload: grpcprotobuf.NewBuffersSlice(bs),
+			buffers: bs,
+		}
+	}
+
 	return true
 }
 
