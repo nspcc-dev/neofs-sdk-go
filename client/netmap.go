@@ -82,10 +82,10 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err
@@ -168,10 +168,10 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	var res netmap.NetworkInfo
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
@@ -234,10 +234,10 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	var res netmap.NetMap
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err

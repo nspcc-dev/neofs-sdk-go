@@ -95,10 +95,10 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protosession.CreateRequest_Body](signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protosession.CreateRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return nil, err

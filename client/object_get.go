@@ -14,7 +14,6 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	igrpc "github.com/nspcc-dev/neofs-sdk-go/internal/grpc"
 	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -724,15 +723,12 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, metaHdrLen)
 
 	// acquire buffer for body + meta header
-	bufItem := c.buffers.Get().(*[]byte)
-	var reqMemBuf *igrpc.MemBuffer
+	var reqMemBuf *grpcprotobuf.MemBuffer
 	var buf []byte
-	if len(*bufItem) >= bodyWithMetaHdrLen {
-		// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
-		reqMemBuf = igrpc.NewMemBuffer(bufItem, c.buffers)
-		buf = *bufItem
+	if bodyWithMetaHdrLen <= defaultRequestBufferLength {
+		reqMemBuf = defaultRequestBufferPool.Get()
+		buf = reqMemBuf.SliceBuffer
 	} else {
-		c.buffers.Put(bufItem)
 		buf = make([]byte, bodyWithMetaHdrLen)
 	}
 
@@ -760,12 +756,11 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 			return object.Object{}, nil, err
 		}
 	} else {
-		reqSliceBuf := mem.SliceBuffer(buf[:off])
 		if reqMemBuf != nil {
-			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqMemBuf.SetBounds(0, off)
 			reqBuffers = mem.BufferSlice{reqMemBuf}
 		} else {
-			reqBuffers = mem.BufferSlice{reqSliceBuf}
+			reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:off])}
 		}
 	}
 
@@ -892,15 +887,12 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, metaHdrLen)
 
 	// acquire buffer for body + meta header
-	bufItem := c.buffers.Get().(*[]byte)
-	var reqMemBuf *igrpc.MemBuffer
+	var reqMemBuf *grpcprotobuf.MemBuffer
 	var buf []byte
-	if len(*bufItem) >= bodyWithMetaHdrLen {
-		// TODO: this is an extra alloc which can be avoided with pool of fix-size buffers. TBD within https://github.com/nspcc-dev/neofs-sdk-go/issues/666
-		reqMemBuf = igrpc.NewMemBuffer(bufItem, c.buffers)
-		buf = *bufItem
+	if bodyWithMetaHdrLen <= defaultRequestBufferLength {
+		reqMemBuf = defaultRequestBufferPool.Get()
+		buf = reqMemBuf.SliceBuffer
 	} else {
-		c.buffers.Put(bufItem)
 		buf = make([]byte, bodyWithMetaHdrLen)
 	}
 
@@ -928,12 +920,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 			return nil, err
 		}
 	} else {
-		reqSliceBuf := mem.SliceBuffer(buf[:off])
 		if reqMemBuf != nil {
-			reqMemBuf.SliceBuffer = reqSliceBuf
+			reqMemBuf.SetBounds(0, off)
 			reqBuffers = mem.BufferSlice{reqMemBuf}
 		} else {
-			reqBuffers = mem.BufferSlice{reqSliceBuf}
+			reqBuffers = mem.BufferSlice{mem.SliceBuffer(buf[:off])}
 		}
 	}
 
@@ -1312,10 +1303,10 @@ func (c *Client) ObjectRangeInit(ctx context.Context, containerID cid.ID, object
 	}
 
 	if c.shouldSignRequest(req.MetaHeader.Ttl) {
-		buf := c.buffers.Get().(*[]byte)
-		defer c.buffers.Put(buf)
+		reqMemBuf := defaultRequestBufferPool.Get()
 
-		req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, *buf)
+		req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.GetRangeRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+		reqMemBuf.Free()
 		if err != nil {
 			err = fmt.Errorf("%w: %w", errSignRequest, err)
 			return nil, err

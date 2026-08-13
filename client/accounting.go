@@ -64,10 +64,10 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 
 	var res accounting.Decimal
 
-	buf := c.buffers.Get().(*[]byte)
-	defer func() { c.buffers.Put(buf) }()
+	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, *buf)
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
 		return res, err
