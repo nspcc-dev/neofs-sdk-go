@@ -632,22 +632,31 @@ func (x *RequestMetaHeader) GetMagicNumber() uint64 {
 	return 0
 }
 
-// Information about the response
+// Information about the response. For stream RPCs, non-status information
+// can be attached only to stream's first response message and must be
+// omitted for the subsequent ones. Error statuses are allowed to be
+// transmitted in any message to terminate the stream.
 type ResponseMetaHeader struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Peer's API version used
+	// Server's API version used. Must be attached only if server's version is
+	// lower than client's one, optional otherwise.
 	Version *refs.Version `protobuf:"bytes,1,opt,name=version,proto3" json:"version,omitempty"`
-	// Peer's local epoch number
+	// Peer's local epoch number. Optional.
 	Epoch uint64 `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
-	// Maximum number of intermediate nodes in the request route
+	// Maximum number of intermediate nodes in the request route.
+	//
+	// DEPRECATED: ignored since API v2.25.
 	Ttl uint32 `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
-	// Response X-Headers
+	// Response X-Headers. Optional in general, but for certain requests it can
+	// be required for correct result processing, read method's description for
+	// information.
 	XHeaders []*XHeader `protobuf:"bytes,4,rep,name=x_headers,json=xHeaders,proto3" json:"x_headers,omitempty"`
 	// `ResponseMetaHeader` of the origin request.
 	//
 	// DEPRECATED: Unused for a long time, ignored since API v2.25.
 	Origin *ResponseMetaHeader `protobuf:"bytes,5,opt,name=origin,proto3" json:"origin,omitempty"`
-	// Status return
+	// Status return. May be omitted for success request executions (equals to
+	// `0` OK status, and only to it), must be attached otherwise.
 	Status        *status.Status `protobuf:"bytes,6,opt,name=status,proto3" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -729,8 +738,14 @@ func (x *ResponseMetaHeader) GetStatus() *status.Status {
 type RequestVerificationHeader struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request Body signature. Should be generated once by the request initiator.
+	//
+	// DEPRECATED: unused and unchecked since API v2.26, use `request_signature`
+	// as a verification instead.
 	BodySignature *refs.Signature `protobuf:"bytes,1,opt,name=body_signature,json=bodySignature,proto3" json:"body_signature,omitempty"`
-	// Request Meta signature is added and signed by each intermediate node
+	// Request Meta signature is added and signed by each intermediate node.
+	//
+	// DEPRECATED: unused and unchecked since API v2.26, use `request_signature`
+	// as a verification instead.
 	MetaSignature *refs.Signature `protobuf:"bytes,2,opt,name=meta_signature,json=metaSignature,proto3" json:"meta_signature,omitempty"`
 	// Signature of previous hops.
 	//
@@ -739,9 +754,13 @@ type RequestVerificationHeader struct {
 	// Chain of previous hops signatures.
 	//
 	// DEPRECATED: Unused and unchecked since API v2.25, no origin structure to check.
-	Origin        *RequestVerificationHeader `protobuf:"bytes,4,opt,name=origin,proto3" json:"origin,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Origin *RequestVerificationHeader `protobuf:"bytes,4,opt,name=origin,proto3" json:"origin,omitempty"`
+	// Request signature. It is a signature of every request field (except
+	// the verification header itself) marshalled and concatenated, e.g.
+	// request's body and request's meta header.
+	RequestSignature *refs.Signature `protobuf:"bytes,5,opt,name=request_signature,json=requestSignature,proto3" json:"request_signature,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *RequestVerificationHeader) Reset() {
@@ -798,6 +817,13 @@ func (x *RequestVerificationHeader) GetOriginSignature() *refs.Signature {
 func (x *RequestVerificationHeader) GetOrigin() *RequestVerificationHeader {
 	if x != nil {
 		return x.Origin
+	}
+	return nil
+}
+
+func (x *RequestVerificationHeader) GetRequestSignature() *refs.Signature {
+	if x != nil {
+		return x.RequestSignature
 	}
 	return nil
 }
@@ -1602,12 +1628,13 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\x03ttl\x18\x03 \x01(\rR\x03ttl\x127\n" +
 	"\tx_headers\x18\x04 \x03(\v2\x1a.neo.fs.v2.session.XHeaderR\bxHeaders\x12=\n" +
 	"\x06origin\x18\x05 \x01(\v2%.neo.fs.v2.session.ResponseMetaHeaderR\x06origin\x120\n" +
-	"\x06status\x18\x06 \x01(\v2\x18.neo.fs.v2.status.StatusR\x06status\"\xab\x02\n" +
+	"\x06status\x18\x06 \x01(\v2\x18.neo.fs.v2.status.StatusR\x06status\"\xf3\x02\n" +
 	"\x19RequestVerificationHeader\x12@\n" +
 	"\x0ebody_signature\x18\x01 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x12@\n" +
 	"\x0emeta_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rmetaSignature\x12D\n" +
 	"\x10origin_signature\x18\x03 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\x0foriginSignature\x12D\n" +
-	"\x06origin\x18\x04 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\x06origin\"\xad\x02\n" +
+	"\x06origin\x18\x04 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\x06origin\x12F\n" +
+	"\x11request_signature\x18\x05 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\x10requestSignature\"\xad\x02\n" +
 	"\x1aResponseVerificationHeader\x12@\n" +
 	"\x0ebody_signature\x18\x01 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rbodySignature\x12@\n" +
 	"\x0emeta_signature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\rmetaSignature\x12D\n" +
@@ -1718,31 +1745,32 @@ var file_proto_session_types_proto_depIdxs = []int32{
 	20, // 17: neo.fs.v2.session.RequestVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
 	20, // 18: neo.fs.v2.session.RequestVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
 	9,  // 19: neo.fs.v2.session.RequestVerificationHeader.origin:type_name -> neo.fs.v2.session.RequestVerificationHeader
-	20, // 20: neo.fs.v2.session.ResponseVerificationHeader.body_signature:type_name -> neo.fs.v2.refs.Signature
-	20, // 21: neo.fs.v2.session.ResponseVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
-	20, // 22: neo.fs.v2.session.ResponseVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
-	10, // 23: neo.fs.v2.session.ResponseVerificationHeader.origin:type_name -> neo.fs.v2.session.ResponseVerificationHeader
-	24, // 24: neo.fs.v2.session.Target.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	19, // 25: neo.fs.v2.session.SessionContextV2.container:type_name -> neo.fs.v2.refs.ContainerID
-	0,  // 26: neo.fs.v2.session.SessionContextV2.verbs:type_name -> neo.fs.v2.session.Verb
-	18, // 27: neo.fs.v2.session.SessionTokenV2.body:type_name -> neo.fs.v2.session.SessionTokenV2.Body
-	20, // 28: neo.fs.v2.session.SessionTokenV2.signature:type_name -> neo.fs.v2.refs.Signature
-	14, // 29: neo.fs.v2.session.SessionTokenV2.origin:type_name -> neo.fs.v2.session.SessionTokenV2
-	19, // 30: neo.fs.v2.session.ObjectSessionContext.Target.container:type_name -> neo.fs.v2.refs.ContainerID
-	25, // 31: neo.fs.v2.session.ObjectSessionContext.Target.objects:type_name -> neo.fs.v2.refs.ObjectID
-	24, // 32: neo.fs.v2.session.SessionToken.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	17, // 33: neo.fs.v2.session.SessionToken.Body.lifetime:type_name -> neo.fs.v2.session.SessionToken.Body.TokenLifetime
-	3,  // 34: neo.fs.v2.session.SessionToken.Body.object:type_name -> neo.fs.v2.session.ObjectSessionContext
-	4,  // 35: neo.fs.v2.session.SessionToken.Body.container:type_name -> neo.fs.v2.session.ContainerSessionContext
-	24, // 36: neo.fs.v2.session.SessionTokenV2.Body.issuer:type_name -> neo.fs.v2.refs.OwnerID
-	11, // 37: neo.fs.v2.session.SessionTokenV2.Body.subjects:type_name -> neo.fs.v2.session.Target
-	12, // 38: neo.fs.v2.session.SessionTokenV2.Body.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
-	13, // 39: neo.fs.v2.session.SessionTokenV2.Body.contexts:type_name -> neo.fs.v2.session.SessionContextV2
-	40, // [40:40] is the sub-list for method output_type
-	40, // [40:40] is the sub-list for method input_type
-	40, // [40:40] is the sub-list for extension type_name
-	40, // [40:40] is the sub-list for extension extendee
-	0,  // [0:40] is the sub-list for field type_name
+	20, // 20: neo.fs.v2.session.RequestVerificationHeader.request_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 21: neo.fs.v2.session.ResponseVerificationHeader.body_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 22: neo.fs.v2.session.ResponseVerificationHeader.meta_signature:type_name -> neo.fs.v2.refs.Signature
+	20, // 23: neo.fs.v2.session.ResponseVerificationHeader.origin_signature:type_name -> neo.fs.v2.refs.Signature
+	10, // 24: neo.fs.v2.session.ResponseVerificationHeader.origin:type_name -> neo.fs.v2.session.ResponseVerificationHeader
+	24, // 25: neo.fs.v2.session.Target.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	19, // 26: neo.fs.v2.session.SessionContextV2.container:type_name -> neo.fs.v2.refs.ContainerID
+	0,  // 27: neo.fs.v2.session.SessionContextV2.verbs:type_name -> neo.fs.v2.session.Verb
+	18, // 28: neo.fs.v2.session.SessionTokenV2.body:type_name -> neo.fs.v2.session.SessionTokenV2.Body
+	20, // 29: neo.fs.v2.session.SessionTokenV2.signature:type_name -> neo.fs.v2.refs.Signature
+	14, // 30: neo.fs.v2.session.SessionTokenV2.origin:type_name -> neo.fs.v2.session.SessionTokenV2
+	19, // 31: neo.fs.v2.session.ObjectSessionContext.Target.container:type_name -> neo.fs.v2.refs.ContainerID
+	25, // 32: neo.fs.v2.session.ObjectSessionContext.Target.objects:type_name -> neo.fs.v2.refs.ObjectID
+	24, // 33: neo.fs.v2.session.SessionToken.Body.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	17, // 34: neo.fs.v2.session.SessionToken.Body.lifetime:type_name -> neo.fs.v2.session.SessionToken.Body.TokenLifetime
+	3,  // 35: neo.fs.v2.session.SessionToken.Body.object:type_name -> neo.fs.v2.session.ObjectSessionContext
+	4,  // 36: neo.fs.v2.session.SessionToken.Body.container:type_name -> neo.fs.v2.session.ContainerSessionContext
+	24, // 37: neo.fs.v2.session.SessionTokenV2.Body.issuer:type_name -> neo.fs.v2.refs.OwnerID
+	11, // 38: neo.fs.v2.session.SessionTokenV2.Body.subjects:type_name -> neo.fs.v2.session.Target
+	12, // 39: neo.fs.v2.session.SessionTokenV2.Body.lifetime:type_name -> neo.fs.v2.session.TokenLifetime
+	13, // 40: neo.fs.v2.session.SessionTokenV2.Body.contexts:type_name -> neo.fs.v2.session.SessionContextV2
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_proto_session_types_proto_init() }
