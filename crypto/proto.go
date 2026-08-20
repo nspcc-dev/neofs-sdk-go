@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 
+	iproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
 )
 
 var (
+	errSignRequestFields      = errors.New("failed to sign request fields")
 	errSignBody               = errors.New("sign body")
 	errSignMeta               = errors.New("sign meta header")
 	errSignVerifyOrigin       = errors.New("sign verification header's origin")
@@ -16,6 +18,7 @@ var (
 	errWrongVerifyHdrNum      = errors.New("incorrect number of verification headers")
 	errMissingVerifyOriginSig = errors.New("missing verification header's origin signature")
 	errInvalidVerifyOriginSig = errors.New("invalid verification header's origin signature")
+	errMissingRequestSig      = errors.New("missing request's signature")
 	errMissingMetaSig         = errors.New("missing meta header's signature")
 	errInvalidMetaSig         = errors.New("invalid meta header's signature")
 	errMissingBodySig         = errors.New("missing body signature")
@@ -56,9 +59,21 @@ type SignedResponse[B ProtoMessage] interface {
 func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
 	var ln int
 	var err error
-	vhOriginal := r.GetVerifyHeader()
 	metaHeader := r.GetMetaHeader()
+	if !multipleReqSignatures(metaHeader) {
+		buf, ln = iproto.EncodeRequest(buf, r.GetBody(), r.GetMetaHeader())
+		s, err := signer.Sign(buf[:ln])
+		if err != nil {
+			return nil, fmt.Errorf("%w: %w", errSignRequestFields, err)
+		}
+		scheme := refs.SignatureScheme(signer.Scheme())
+		pub := PublicKeyBytes(signer.Public())
+		return &session.RequestVerificationHeader{
+			RequestSignature: &refs.Signature{Key: pub, Sign: s, Scheme: scheme},
+		}, nil
+	}
 	signedOrigin := needsOriginSig(metaHeader)
+	vhOriginal := r.GetVerifyHeader()
 
 	var bs []byte
 	signBody := vhOriginal == nil || !signedOrigin
@@ -122,6 +137,13 @@ func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, v
 	b := r.GetBody()
 	m := r.GetMetaHeader()
 	bs := maxEncodedSize(b, m, v)
+
+	if !multipleReqSignatures(m) {
+		if v.RequestSignature == nil {
+			return errMissingRequestSig
+		}
+		return verifyRequestSignatureN3(r, v.RequestSignature, buf, verifyN3)
+	}
 
 	checkOrigin := needsOriginSig(m)
 
@@ -279,6 +301,29 @@ func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) e
 	}
 }
 
+func verifyRequestSignatureN3[B ProtoMessage](req SignedRequest[B], s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
+		b, sz := iproto.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+		return verifyN3(b[:sz], s.Sign, s.Key)
+	}
+	return verifyRequestSignature(req, s, b)
+}
+
+func verifyRequestSignature[B ProtoMessage](req SignedRequest[B], s *refs.Signature, b []byte) error {
+	pubKey, err := keyFromSignature(s)
+	if err != nil {
+		return err
+	}
+
+	var sz int
+	b, sz = iproto.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+	if !pubKey.Verify(b[:sz], s.Sign) {
+		return errors.New("signature mismatch")
+	}
+
+	return nil
+}
+
 func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
 		b, sz := encodeMessage(m, b)
@@ -289,13 +334,7 @@ func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verif
 
 // VerifyMessageSignature verifies signature of m using buffer b.
 func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
-	if len(s.Key) == 0 {
-		return errors.New("missing public key")
-	}
-	if s.Scheme < 0 {
-		return fmt.Errorf("negative scheme %d", s.Scheme)
-	}
-	pubKey, err := decodePublicKey(Scheme(s.Scheme), s.Key)
+	pubKey, err := keyFromSignature(s)
 	if err != nil {
 		return err
 	}
@@ -307,6 +346,16 @@ func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
 	}
 
 	return nil
+}
+
+func keyFromSignature(s *refs.Signature) (PublicKey, error) {
+	if len(s.Key) == 0 {
+		return nil, errors.New("missing public key")
+	}
+	if s.Scheme < 0 {
+		return nil, fmt.Errorf("negative scheme %d", s.Scheme)
+	}
+	return decodePublicKey(Scheme(s.Scheme), s.Key)
 }
 
 // marshals m into buffer and returns it. Second value means buffer len occupied
@@ -332,4 +381,8 @@ func maxEncodedSize(ms ...ProtoMessage) int {
 
 func needsOriginSig(m *session.RequestMetaHeader) bool {
 	return m == nil || m.Version == nil || m.Version.Major < 2 || (m.Version.Major == 2 && m.Version.Minor < 25)
+}
+
+func multipleReqSignatures(m *session.RequestMetaHeader) bool {
+	return m == nil || m.Version == nil || m.Version.Major < 2 || (m.Version.Major == 2 && m.Version.Minor < 26)
 }

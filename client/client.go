@@ -432,3 +432,7 @@ func newByteBufferPool(ln uint64) *sync.Pool {
 		},
 	}
 }
+
+func multipleReqSignatures(v *protorefs.Version) bool {
+	return v == nil || v.Major < 2 || (v.Major == 2 && v.Minor < 26)
+}

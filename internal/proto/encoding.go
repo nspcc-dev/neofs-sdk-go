@@ -432,3 +432,53 @@ func sizeEmbeddedLENField(num protowire.Number, ln int) int {
 func isMessageNil(m Message) bool {
 	return m == nil || reflect.ValueOf(m).IsNil()
 }
+
+// ProtoMessage is the marshaling interface provided by all NeoFS proto-level
+// structures.
+type ProtoMessage interface {
+	MarshaledSize() int
+	MarshalStable([]byte)
+}
+
+// EncodeRequest ONLY correctly encodes requests that have strictly ordered two
+// fields (excepting verification header): field #1 is body, field #2 is meta
+// header. Any other requests must be encoded differently. The second returned
+// value means buffer len occupied for req.
+func EncodeRequest[B, M ProtoMessage](buf []byte, reqBody B, reqMetaHeader M) ([]byte, int) {
+	const (
+		bodyFieldNumber       = 1
+		metaHeaderFieldNumber = 2
+
+		tagBytes1 = 10
+		tagBytes2 = 18
+	)
+	var (
+		size int
+		bLen = reqBody.MarshaledSize()
+		mLen = reqMetaHeader.MarshaledSize()
+		off  int
+	)
+
+	size += SizeEmbeddedLENField(bodyFieldNumber, bLen)
+	size += SizeEmbeddedLENField(metaHeaderFieldNumber, mLen)
+	if len(buf) < size {
+		buf = make([]byte, size)
+	}
+
+	if bLen > 0 {
+		buf[0] = tagBytes1
+		off = 1 + binary.PutUvarint(buf[1:], uint64(bLen))
+		reqBody.MarshalStable(buf[off:])
+		off += bLen
+	}
+
+	if mLen > 0 {
+		buf[off] = tagBytes2
+		off++
+		off += binary.PutUvarint(buf[off:], uint64(mLen))
+		reqMetaHeader.MarshalStable(buf[off:])
+		off += mLen
+	}
+
+	return buf, off
+}
