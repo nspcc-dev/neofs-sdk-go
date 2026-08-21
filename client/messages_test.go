@@ -138,7 +138,7 @@ var (
 				{Op: 8},
 				{Op: math.MaxInt32},
 			},
-			SubnetId: &protorefs.SubnetID{Value: 987533317},
+			SubnetId: &protorefs.SubnetID{Value: 987533317}, // nolint:staticcheck // Test can have anything.
 		},
 	}
 	// correct eACL with required fields only.
