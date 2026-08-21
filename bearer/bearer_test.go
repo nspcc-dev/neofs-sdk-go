@@ -316,12 +316,12 @@ func TestToken_Sign(t *testing.T) {
 
 	ecdsaPriv := ecdsa.PrivateKey{
 		PublicKey: ecdsa.PublicKey{Curve: elliptic.P256(),
-			X: new(big.Int).SetBytes([]byte{62, 189, 227, 96, 231, 242, 24, 64, 42, 170, 29, 55, 182, 194,
+			X: new(big.Int).SetBytes([]byte{62, 189, 227, 96, 231, 242, 24, 64, 42, 170, 29, 55, 182, 194, //nolint:staticcheck // OK to use X for a test
 				249, 108, 30, 148, 108, 174, 30, 231, 53, 68, 115, 29, 241, 13, 51, 25, 155, 43}),
-			Y: new(big.Int).SetBytes([]byte{136, 146, 121, 11, 234, 137, 251, 64, 44, 241, 84, 74, 155, 77, 39,
+			Y: new(big.Int).SetBytes([]byte{136, 146, 121, 11, 234, 137, 251, 64, 44, 241, 84, 74, 155, 77, 39, //nolint:staticcheck // OK to use Y for a test
 				139, 155, 185, 229, 26, 216, 16, 7, 91, 103, 247, 239, 154, 86, 178, 10, 26}),
 		},
-		D: new(big.Int).SetBytes([]byte{163, 20, 59, 38, 227, 11, 133, 215, 52, 179, 128, 186, 160, 119, 108,
+		D: new(big.Int).SetBytes([]byte{163, 20, 59, 38, 227, 11, 133, 215, 52, 179, 128, 186, 160, 119, 108, //nolint:staticcheck // OK to use D for a test
 			250, 126, 175, 247, 137, 208, 141, 168, 209, 28, 64, 224, 13, 96, 178, 158, 181}),
 	}
 	tok := validBearerToken

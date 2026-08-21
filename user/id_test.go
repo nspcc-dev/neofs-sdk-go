@@ -116,8 +116,8 @@ func TestNewFromScriptHash(t *testing.T) {
 func TestNewFromECDSAPublicKey(t *testing.T) {
 	pub := ecdsa.PublicKey{
 		Curve: elliptic.P256(),
-		X:     new(big.Int).SetBytes(validX),
-		Y:     new(big.Int).SetBytes(validY),
+		X:     new(big.Int).SetBytes(validX), // nolint:staticcheck // Test code.
+		Y:     new(big.Int).SetBytes(validY), // nolint:staticcheck // Test code.
 	}
 	id := user.NewFromECDSAPublicKey(pub)
 	require.EqualValues(t, validBytes, id)
