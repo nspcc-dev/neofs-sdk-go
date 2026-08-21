@@ -7,7 +7,7 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
-	github.com/mr-tron/base58 v1.2.0
+	github.com/mr-tron/base58 v1.3.0
 	github.com/nspcc-dev/hrw/v2 v2.0.4
 	github.com/nspcc-dev/neo-go v0.121.0
 	github.com/stretchr/testify v1.11.1
