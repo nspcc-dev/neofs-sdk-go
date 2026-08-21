@@ -66,7 +66,7 @@ func (t *Tombstone) FromProtoMessage(m *prototombstone.Tombstone) error {
 // See also [Tombstone.FromProtoMessage].
 func (t Tombstone) ProtoMessage() *prototombstone.Tombstone {
 	m := &prototombstone.Tombstone{
-		ExpirationEpoch: t.exp,
+		ExpirationEpoch: t.exp, //nolint:staticcheck // still here to ensure decode/encode symmetry
 		SplitId:         t.splitID,
 	}
 	if t.members != nil {

@@ -57,7 +57,7 @@ func TestTombstone_FromProtoMessage(t *testing.T) {
 	}
 
 	m := &prototombstone.Tombstone{
-		ExpirationEpoch: anyValidExpirationEpoch,
+		ExpirationEpoch: anyValidExpirationEpoch, // nolint:staticcheck // It's a test.
 		SplitId:         anyValidSplitIDBytes,
 		Members:         ms,
 	}
