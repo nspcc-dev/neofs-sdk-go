@@ -568,8 +568,8 @@ func (x Container) GetLockUntil() (time.Time, error) {
 
 	n, err := strconv.ParseInt(attr, 10, 64)
 	if err != nil {
-		var ne *strconv.NumError
-		if !errors.As(err, &ne) {
+		ne, isNumError := errors.AsType[*strconv.NumError](err)
+		if !isNumError {
 			panic(fmt.Sprintf("unexpected strconv.ParseInt error type %T", err))
 		}
 		return time.Time{}, fmt.Errorf("parse %q: %w", ne.Num, ne.Err)

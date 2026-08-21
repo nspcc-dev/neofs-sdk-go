@@ -380,8 +380,8 @@ func isHealthCountedError(err error) bool {
 	// non-status logic error that could be returned
 	// from the SDK client; should not be considered
 	// as a connection error
-	var siErr *object.SplitInfoError
-	return !errors.As(err, &siErr)
+	_, isSIErr := errors.AsType[*object.SplitInfoError](err)
+	return !isSIErr
 }
 
 // clientBuilder is a type alias of client constructors.
