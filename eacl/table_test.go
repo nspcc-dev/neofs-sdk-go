@@ -242,7 +242,7 @@ func TestConstructTable(t *testing.T) {
 	require.Equal(t, anyValidRecords, tbl.Records())
 	require.Zero(t, tbl.GetCID())
 	require.EqualValues(t, 2, tbl.Version().Major())
-	require.EqualValues(t, 25, tbl.Version().Minor())
+	require.EqualValues(t, 26, tbl.Version().Minor())
 }
 
 func TestNewTableForContainer(t *testing.T) {
@@ -252,5 +252,5 @@ func TestNewTableForContainer(t *testing.T) {
 	cnr2 := tbl.GetCID()
 	require.Equal(t, cnr, cnr2)
 	require.EqualValues(t, 2, tbl.Version().Major())
-	require.EqualValues(t, 25, tbl.Version().Minor())
+	require.EqualValues(t, 26, tbl.Version().Minor())
 }
