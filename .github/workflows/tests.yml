@@ -21,16 +21,16 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
-        go: [ '1.25', '1.26' ]
+        go: [ '1.26', '1.27' ]
         exclude:
           # Only latest Go version for Windows and MacOS.
           - os: windows-latest
-            go: '1.25'
+            go: '1.26'
           - os: macos-latest
-            go: '1.25'
+            go: '1.26'
           # Exclude latest Go version for Ubuntu as Coverage uses it.
           - os: ubuntu-latest
-            go: '1.26'
+            go: '1.27'
       fail-fast: false
     steps:
       - uses: actions/checkout@v7
@@ -68,7 +68,7 @@ jobs:
         uses: actions/setup-go@v7
         with:
           cache: true
-          go-version: 1.26
+          go-version: 1.27
 
       - name: Test and write coverage profile
         run: go test -tags aiotest -coverprofile=coverage.txt -covermode=atomic ./...

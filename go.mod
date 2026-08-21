@@ -1,6 +1,6 @@
 module github.com/nspcc-dev/neofs-sdk-go
 
-go 1.25.0
+go 1.26
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
