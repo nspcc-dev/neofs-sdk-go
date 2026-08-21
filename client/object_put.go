@@ -222,23 +222,37 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		x.needSignOrigin = needsOriginSig(x.apiVersion)
 		x.signerPublicKeyBinary = neofscrypto.PublicKeyBytes(x.signer.Public())
 
-		bodySigVal, metaHdrSigVal, originVerifHdrSigVal, err := signRequestParts(x.signer, signedBody, buf[off-x.metaHdrLen:off], x.needSignOrigin)
-		if err != nil {
-			if reqMemBuf != nil {
-				reqMemBuf.Free()
+		if multipleReqSignatures(x.apiVersion) {
+			bodySigVal, metaHdrSigVal, originVerifHdrSigVal, err := signRequestParts(x.signer, signedBody, buf[off-x.metaHdrLen:off], x.needSignOrigin)
+			if err != nil {
+				if reqMemBuf != nil {
+					reqMemBuf.Free()
+				}
+				x.err = err
+				return err
 			}
-			x.err = err
-			return err
-		}
 
-		scheme := x.signer.Scheme()
-		bodySig := neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, bodySigVal)
-		x.metaHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, metaHdrSigVal)
-		if x.needSignOrigin {
-			x.originVerificationHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, originVerifHdrSigVal)
-		}
+			scheme := x.signer.Scheme()
+			bodySig := neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, bodySigVal)
+			x.metaHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, metaHdrSigVal)
+			if x.needSignOrigin {
+				x.originVerificationHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, originVerifHdrSigVal)
+			}
 
-		reqBuffers = appendVerificationHeaderSignatures2(reqMemBuf, buf, bodyWithMetaHdrLen, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+			reqBuffers = appendVerificationHeaderSignatures2(reqMemBuf, buf, bodyWithMetaHdrLen, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+		} else {
+			sigRaw, err := x.signer.Sign(buf[:off])
+			if err != nil {
+				if reqMemBuf != nil {
+					reqMemBuf.Free()
+				}
+				x.err = fmt.Errorf("sign request: %w", err)
+				return x.err
+			}
+			reqSig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, sigRaw)
+
+			reqBuffers = appendVerificationHeaderSignature(nil, reqMemBuf, buf, bodyWithMetaHdrLen, reqSig)
+		}
 	} else {
 		if reqMemBuf != nil {
 			reqMemBuf.SetBounds(0, off)
@@ -301,19 +315,38 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 
 		var reqBuffers mem.BufferSlice
 		if x.shouldSignRequest {
-			// append verification header
-			bodySigVal, err := x.signer.Sign(buf[bodyTo-bodyLen : bodyTo])
-			if err != nil {
-				if reqMemBuf != nil {
-					reqMemBuf.Free()
+			if multipleReqSignatures(x.apiVersion) {
+				// append verification header
+				bodySigVal, err := x.signer.Sign(buf[bodyTo-bodyLen : bodyTo])
+				if err != nil {
+					if reqMemBuf != nil {
+						reqMemBuf.Free()
+					}
+					x.err = fmt.Errorf("sign body: %w", err)
+					return writtenBytes, x.err
 				}
-				x.err = fmt.Errorf("sign body: %w", err)
-				return writtenBytes, x.err
+
+				bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
+
+				reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, off, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+			} else {
+				var sigRaw []byte
+				sigRaw, err = x.signer.Sign(buf[:off])
+				if err != nil {
+					if reqMemBuf != nil {
+						reqMemBuf.Free()
+					}
+					x.err = fmt.Errorf("sign request: %w", err)
+					return writtenBytes, x.err
+				}
+				var (
+					pubKey = make([]byte, x.signer.Public().MaxEncodedSize())
+					n      = x.signer.Public().Encode(pubKey)
+					reqSig = neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), pubKey[:n], sigRaw)
+				)
+
+				reqBuffers = appendVerificationHeaderSignature(reqMemBuf, nil, buf, bodyWithMetaHdrLen, reqSig)
 			}
-
-			bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
-
-			reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, off, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 		} else {
 			reqSliceBuf := mem.SliceBuffer(buf[:off])
 			if reqMemBuf != nil {
@@ -394,18 +427,37 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 
 			var reqBuffers mem.BufferSlice
 			if x.shouldSignRequest {
-				// append verification header
-				bodySigVal, err := x.signer.Sign(buf[chunkFldOff : chunkOff+actualRead])
-				if err != nil {
-					if reqMemBuf != nil {
-						reqMemBuf.Free()
+				if multipleReqSignatures(x.apiVersion) {
+					// append verification header
+					bodySigVal, err := x.signer.Sign(buf[chunkFldOff : chunkOff+actualRead])
+					if err != nil {
+						if reqMemBuf != nil {
+							reqMemBuf.Free()
+						}
+						return writtenBytes, fmt.Errorf("sign body: %w", err)
 					}
-					return writtenBytes, fmt.Errorf("sign body: %w", err)
+
+					bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
+
+					reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf[bodyOff:], off-bodyOff, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+				} else {
+					var sigRaw []byte
+					sigRaw, err = x.signer.Sign(buf[bodyOff:off])
+					if err != nil {
+						if reqMemBuf != nil {
+							reqMemBuf.Free()
+						}
+						x.err = fmt.Errorf("sign request: %w", err)
+						return writtenBytes, x.err
+					}
+					var (
+						pubKey = make([]byte, x.signer.Public().MaxEncodedSize())
+						n      = x.signer.Public().Encode(pubKey)
+						reqSig = neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), pubKey[:n], sigRaw)
+					)
+
+					reqBuffers = appendVerificationHeaderSignature(reqMemBuf, nil, buf[bodyOff:], off-bodyOff, reqSig)
 				}
-
-				bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
-
-				reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf[bodyOff:], off-bodyOff, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 			} else {
 				reqSliceBuf := mem.SliceBuffer(buf[bodyOff:off])
 				if reqMemBuf != nil {

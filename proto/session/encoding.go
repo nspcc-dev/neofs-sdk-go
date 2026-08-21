@@ -392,6 +392,7 @@ const (
 	FieldRequestVerificationHeaderMetaSignature
 	FieldRequestVerificationHeaderOriginSignature
 	FieldRequestVerificationHeaderOrigin
+	FieldRequestVerificationHeaderRequestSignature
 )
 
 // MarshaledSize returns size of the RequestVerificationHeader in Protocol
@@ -402,7 +403,8 @@ func (x *RequestVerificationHeader) MarshaledSize() int {
 		sz = proto.SizeEmbedded(FieldRequestVerificationHeaderBodySignature, x.BodySignature) +
 			proto.SizeEmbedded(FieldRequestVerificationHeaderMetaSignature, x.MetaSignature) +
 			proto.SizeEmbedded(FieldRequestVerificationHeaderOriginSignature, x.OriginSignature) +
-			proto.SizeEmbedded(FieldRequestVerificationHeaderOrigin, x.Origin)
+			proto.SizeEmbedded(FieldRequestVerificationHeaderOrigin, x.Origin) +
+			proto.SizeEmbedded(FieldRequestVerificationHeaderRequestSignature, x.RequestSignature)
 	}
 	return sz
 }
@@ -416,7 +418,8 @@ func (x *RequestVerificationHeader) MarshalStable(b []byte) {
 		off := proto.MarshalToEmbedded(b, FieldRequestVerificationHeaderBodySignature, x.BodySignature)
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderMetaSignature, x.MetaSignature)
 		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOriginSignature, x.OriginSignature)
-		proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOrigin, x.Origin)
+		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOrigin, x.Origin)
+		proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderRequestSignature, x.RequestSignature)
 	}
 }
 

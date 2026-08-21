@@ -752,13 +752,21 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		if verifyHdr.Origin != nil {
 			return newInvalidRequestVerificationHeaderErr(errors.New("origin field is set while should not be"))
 		}
-		if err := verifyDataSignature(
-			neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
-			return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
-		}
-		if err := verifyDataSignature(
-			neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
-			return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
+		if multipleReqSignatures(metaHdr.Version) {
+			if err := verifyDataSignature(
+				neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
+				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
+			}
+			if err := verifyDataSignature(
+				neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
+				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
+			}
+		} else {
+			rawReq, _ := neofsproto.EncodeRequest(nil, body, metaHdr)
+			if err := verifyDataSignature(
+				rawReq, verifyHdr.RequestSignature, x.reqCreds); err != nil {
+				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("request signature: %w", err))
+			}
 		}
 	}
 	// meta header

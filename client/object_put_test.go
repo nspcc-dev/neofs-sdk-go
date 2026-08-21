@@ -27,7 +27,7 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const signOneReqCalls = 2 // body+headers
+const signOneReqCalls = 1 // body+headers
 
 type nFailedSigner struct {
 	user.Signer
@@ -539,7 +539,7 @@ func TestClient_ObjectPut(t *testing.T) {
 		t.Run("heading", func(t *testing.T) {
 			_, err := newClient(t).ObjectPutInit(ctx, anyValidHdr, usertest.FailSigner(anyValidSigner), anyValidOpts)
 			require.ErrorContains(t, err, "header write")
-			require.ErrorContains(t, err, "sign request body")
+			require.ErrorContains(t, err, "sign request")
 		})
 		t.Run("payload chunks", func(t *testing.T) {
 			for _, n := range []int{0, 1, 10} {
@@ -557,7 +557,7 @@ func TestClient_ObjectPut(t *testing.T) {
 						require.NoError(t, err)
 					}
 					_, err = w.Write([]byte{1})
-					require.ErrorContains(t, err, "sign body")
+					require.ErrorContains(t, err, "sign request")
 				})
 			}
 		})
@@ -732,12 +732,12 @@ func TestClient_ObjectPut(t *testing.T) {
 			_, c, cl := bind()
 			_, err := c.ObjectPutInit(ctx, anyValidHdr, usertest.FailSigner(anyValidSigner), anyValidOpts)
 			require.ErrorContains(t, err, "header write")
-			require.ErrorContains(t, err, "sign request body")
+			require.ErrorContains(t, err, "sign request")
 			assertCommon(cl)
 			collected := *cl
 			require.Len(t, collected, 2)
 			require.Equal(t, stat.MethodObjectPutStream, collected[0].mtd)
-			require.ErrorContains(t, collected[0].err, "sign request body")
+			require.ErrorContains(t, collected[0].err, "sign request")
 			require.Equal(t, stat.MethodObjectPut, collected[1].mtd)
 			require.Equal(t, err, collected[1].err)
 		})
@@ -748,9 +748,9 @@ func TestClient_ObjectPut(t *testing.T) {
 			_, err = w.Write([]byte{1})
 			require.NoError(t, err)
 			_, err = w.Write([]byte{1})
-			require.ErrorContains(t, err, "sign body")
+			require.ErrorContains(t, err, "sign request")
 			err = w.Close()
-			require.ErrorContains(t, err, "sign body")
+			require.ErrorContains(t, err, "sign request")
 			assertCommon(cl)
 			collected := *cl
 			require.Len(t, collected, 2)

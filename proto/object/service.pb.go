@@ -120,7 +120,10 @@ type GetResponse struct {
 	// Body of get object response message.
 	Body *GetResponse_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
 	// Carries response meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// message transport and does not affect request execution. Non-status
+	// information can be attached only to stream's first response message and
+	// must be omitted for the subsequent ones. Error statuses are allowed to be
+	// transmitted in any message to terminate the stream.
 	MetaHeader *session.ResponseMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries response verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
