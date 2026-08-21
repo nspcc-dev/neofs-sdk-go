@@ -114,8 +114,10 @@ func FromError(err error) *protostatus.Status {
 		return nil
 	}
 
-	var m interface{ protoMessage() *protostatus.Status }
-	if errors.As(err, &m) {
+	if m, ok := errors.AsType[interface {
+		protoMessage() *protostatus.Status
+		Error() string
+	}](err); ok {
 		return m.protoMessage()
 	}
 

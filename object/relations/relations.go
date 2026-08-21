@@ -134,8 +134,7 @@ func getSplitInfo(ctx context.Context, header HeadExecutor, cnrID cid.ID, objID 
 	hdr, err := header.ObjectHead(ctx, cnrID, objID, signer, prmHead)
 
 	if err != nil {
-		var errSplit *object.SplitInfoError
-		if errors.As(err, &errSplit) {
+		if errSplit, ok := errors.AsType[*object.SplitInfoError](err); ok {
 			return errSplit.SplitInfo(), nil
 		}
 
