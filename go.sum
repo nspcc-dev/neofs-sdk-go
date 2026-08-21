@@ -106,8 +106,8 @@ github.com/nspcc-dev/go-ordered-json v0.0.0-20260302080601-ff7471f924b3 h1:txQ9P
 github.com/nspcc-dev/go-ordered-json v0.0.0-20260302080601-ff7471f924b3/go.mod h1:LtSGm9lKJLWHnB9w4q0ZPfA9bvt/D3FZcm2vHmbsfxQ=
 github.com/nspcc-dev/hrw/v2 v2.0.4 h1:o3Zh/2aF+IgGpvt414f46Ya20WG9u9vWxVd16ErFI8w=
 github.com/nspcc-dev/hrw/v2 v2.0.4/go.mod h1:dUjOx27zTTvoPmT5EG25vSSWL2tKS7ndAa2TPTiZwFo=
-github.com/nspcc-dev/neo-go v0.121.0 h1:PRBY7V2LUSrJCRriMwtpE1/KDSEYlDaZgDrTyzgfeTY=
-github.com/nspcc-dev/neo-go v0.121.0/go.mod h1:sa78wYlbBY0bLGKRquUGhGcZdHrUxPm7TKLFoVgV94Q=
+github.com/nspcc-dev/neo-go v0.122.0 h1:EMVM5qoyUlVvbcgg3nsDR8O1yYtuqABRkRzCodJ4jYc=
+github.com/nspcc-dev/neo-go v0.122.0/go.mod h1:AHsMQ8xbcEkY4NYFmlWe7vrLLTG1bmjDrbejMkvIQcM=
 github.com/nspcc-dev/rfc6979 v0.2.4 h1:NBgsdCjhLpEPJZqmC9rciMZDcSY297po2smeaRjw57k=
 github.com/nspcc-dev/rfc6979 v0.2.4/go.mod h1:86ylDw6Kss+P6v4QAJqo1Sp3mC0/Zr9G97xSjQ9TuFg=
 github.com/opencontainers/go-digest v1.0.0 h1:apOUWs51W5PlhuyGyz9FCeeBIOUDA/6nW8Oi/yOhh5U=

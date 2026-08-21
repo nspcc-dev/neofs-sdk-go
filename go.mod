@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mr-tron/base58 v1.3.0
 	github.com/nspcc-dev/hrw/v2 v2.0.4
-	github.com/nspcc-dev/neo-go v0.121.0
+	github.com/nspcc-dev/neo-go v0.122.0
 	github.com/stretchr/testify v1.11.1
 	github.com/testcontainers/testcontainers-go v0.40.0
 	go.uber.org/zap v1.27.1
