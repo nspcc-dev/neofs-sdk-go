@@ -1951,7 +1951,7 @@ func (x *testSetContainerAttributeServer) verifyRequest(req *protocontainer.SetA
 			return fmt.Errorf("value parameter (client: %q, message: %q)", x.prm.Value, body.Parameters.Value)
 		}
 		if exp := uint64(x.prm.ValidUntil.Unix()); body.Parameters.ValidUntil != exp {
-			return fmt.Errorf("valid until parameter (client: %q, message: %q)", exp, body.Parameters.ValidUntil)
+			return fmt.Errorf("valid until parameter (client: %d, message: %d)", exp, body.Parameters.ValidUntil)
 		}
 	}
 
@@ -2162,7 +2162,7 @@ func (x *testRemoveContainerAttributeServer) verifyRequest(req *protocontainer.R
 			return fmt.Errorf("attribute parameter (client: %q, message: %q)", x.prm.Attribute, body.Parameters.Attribute)
 		}
 		if exp := uint64(x.prm.ValidUntil.Unix()); body.Parameters.ValidUntil != exp {
-			return fmt.Errorf("valid until parameter (client: %q, message: %q)", exp, body.Parameters.ValidUntil)
+			return fmt.Errorf("valid until parameter (client: %d, message: %d)", exp, body.Parameters.ValidUntil)
 		}
 	}
 

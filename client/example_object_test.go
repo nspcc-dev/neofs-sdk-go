@@ -93,8 +93,7 @@ func ExampleClient_ObjectGetInit() {
 	if err != nil {
 		switch {
 		case errors.Is(err, apistatus.ErrObjectAccessDenied):
-			var errAccessDenied apistatus.ObjectAccessDenied
-			if errors.As(err, &errAccessDenied) {
+			if errAccessDenied, ok := errors.AsType[apistatus.ObjectAccessDenied](err); ok {
 				reason := errAccessDenied.Reason()
 				if reason != "" {
 					log.Fatal(fmt.Errorf("access denied: %s", reason))

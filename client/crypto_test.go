@@ -101,7 +101,7 @@ func verifyProtoSignature(creds authCredentials, sig, data []byte) error {
 			return fmt.Errorf("invalid public key: %x", sig)
 		}
 		h := sha512.Sum512(data)
-		if !ecdsa.Verify(&ecdsa.PublicKey{Curve: p256Curve, X: x, Y: y}, h[:], r, s) {
+		if !ecdsa.Verify(&ecdsa.PublicKey{Curve: p256Curve, X: x, Y: y}, h[:], r, s) { // nolint:staticcheck // OK to set X/Y for a test
 			return errors.New("signature mismatch")
 		}
 	case protorefs.SignatureScheme_ECDSA_RFC6979_SHA256:
@@ -114,7 +114,7 @@ func verifyProtoSignature(creds authCredentials, sig, data []byte) error {
 		}
 		h := sha256.Sum256(data)
 		r, s := ecP256PointFromBytes([keys.SignatureLen]byte(sig))
-		if !ecdsa.Verify(&ecdsa.PublicKey{Curve: p256Curve, X: x, Y: y}, h[:], r, s) {
+		if !ecdsa.Verify(&ecdsa.PublicKey{Curve: p256Curve, X: x, Y: y}, h[:], r, s) { // nolint:staticcheck // OK to set X/Y for a test
 			return errors.New("signature mismatch")
 		}
 	case protorefs.SignatureScheme_ECDSA_RFC6979_SHA256_WALLET_CONNECT:
@@ -140,7 +140,7 @@ func verifyProtoSignature(creds authCredentials, sig, data []byte) error {
 
 		h := sha256.Sum256(b)
 		r, s := ecP256PointFromBytes([keys.SignatureLen]byte(sig))
-		if !ecdsa.Verify(&ecdsa.PublicKey{Curve: p256Curve, X: x, Y: y}, h[:], r, s) {
+		if !ecdsa.Verify(&ecdsa.PublicKey{Curve: p256Curve, X: x, Y: y}, h[:], r, s) { // nolint:staticcheck // OK to set X/Y for a test
 			return errors.New("signature mismatch")
 		}
 	}

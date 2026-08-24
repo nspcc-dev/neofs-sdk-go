@@ -232,7 +232,7 @@ func RandPlacementPolicy() *netmap.PlacementPolicy {
 		ContainerBackupFactor: RandUint32(),
 		Selectors:             RandPlacementSelectors(),
 		Filters:               RandPlacementFilters(),
-		SubnetId:              RandSubnetID(),
+		SubnetId:              RandSubnetID(), // nolint:staticcheck // Test can have anything.
 		EcRules:               RandECRules(),
 		Initial:               RandInitialPlacementPolicy(),
 	}
