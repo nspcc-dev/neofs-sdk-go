@@ -1,6 +1,8 @@
 package lock
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [Lock] message.
 const (
@@ -12,7 +14,7 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *Lock) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeRepeatedMessages(FieldLockMembers, x.Members)
+		return protoencoding.SizeRepeatedMessages(FieldLockMembers, x.Members)
 	}
 	return 0
 }
@@ -22,6 +24,6 @@ func (x *Lock) MarshaledSize() int {
 // [Lock.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Lock) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToRepeatedMessages(b, FieldLockMembers, x.Members)
+		protoencoding.MarshalToRepeatedMessages(b, FieldLockMembers, x.Members)
 	}
 }

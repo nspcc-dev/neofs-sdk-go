@@ -9,7 +9,7 @@ import (
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -636,13 +636,13 @@ func (x Token) ProtoMessage() *protosession.SessionTokenV2 {
 
 // SignedData returns actual payload to sign.
 func (x Token) SignedData() []byte {
-	return neofsproto.MarshalMessage(x.fillBody())
+	return protoencoding.MarshalMessage(x.fillBody())
 }
 
 // UnmarshalSignedData is a reverse op to [Token.SignedData].
 func (x *Token) UnmarshalSignedData(data []byte) error {
 	var body protosession.SessionTokenV2_Body
-	err := neofsproto.UnmarshalMessage(data, &body)
+	err := protoencoding.UnmarshalMessage(data, &body)
 	if err != nil {
 		return fmt.Errorf("decode body: %w", err)
 	}
@@ -678,14 +678,14 @@ func (x Token) VerifySignature() bool {
 // Marshal encodes Token into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 func (x Token) Marshal() []byte {
-	return neofsproto.MarshalMessage(x.ProtoMessage())
+	return protoencoding.MarshalMessage(x.ProtoMessage())
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Token
 // (Protocol Buffers with direct field order).
 func (x *Token) Unmarshal(data []byte) error {
 	var m protosession.SessionTokenV2
-	err := neofsproto.UnmarshalMessage(data, &m)
+	err := protoencoding.UnmarshalMessage(data, &m)
 	if err != nil {
 		return err
 	}
@@ -695,14 +695,14 @@ func (x *Token) Unmarshal(data []byte) error {
 // MarshalJSON encodes Token into a JSON format of the NeoFS API protocol
 // (Protocol Buffers JSON).
 func (x Token) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(x.ProtoMessage())
+	return protoencoding.MarshalMessageJSON(x.ProtoMessage())
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Token
 // (Protocol Buffers JSON).
 func (x *Token) UnmarshalJSON(data []byte) error {
 	var m protosession.SessionTokenV2
-	err := neofsproto.UnmarshalMessageJSON(data, &m)
+	err := protoencoding.UnmarshalMessageJSON(data, &m)
 	if err != nil {
 		return err
 	}

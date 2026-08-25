@@ -7,7 +7,7 @@ import (
 	"strings"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -80,7 +80,7 @@ func (x Address) ProtoMessage() *refs.Address {
 //
 // See also UnmarshalJSON.
 func (x Address) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(x)
+	return protoencoding.MarshalJSON(x)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Address

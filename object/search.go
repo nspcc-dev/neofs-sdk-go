@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"strings"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -312,7 +312,7 @@ func (f *SearchFilters) AddTypeFilter(m SearchMatchType, typ Type) {
 type fj protoobject.SearchFilter
 
 func (x *fj) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON((*protoobject.SearchFilter)(x))
+	return protoencoding.MarshalMessageJSON((*protoobject.SearchFilter)(x))
 }
 
 // MarshalJSON encodes [SearchFilters] to protobuf JSON format.
@@ -327,7 +327,7 @@ func (f SearchFilters) MarshalJSON() ([]byte, error) {
 }
 
 func (x *fj) UnmarshalJSON(b []byte) error {
-	return neofsproto.UnmarshalMessageJSON(b, (*protoobject.SearchFilter)(x))
+	return protoencoding.UnmarshalMessageJSON(b, (*protoobject.SearchFilter)(x))
 }
 
 // UnmarshalJSON decodes [SearchFilters] from protobuf JSON format.

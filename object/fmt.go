@@ -8,8 +8,8 @@ import (
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 )
 
 // MaxHeaderLen is a maximum allowed length of binary object header to be
@@ -55,7 +55,7 @@ func (o Object) VerifyPayloadChecksum() error {
 
 // CalculateID calculates identifier for the object.
 func (o Object) CalculateID() (oid.ID, error) {
-	return sha256.Sum256(neofsproto.MarshalMessage(o.header.protoMessage())), nil
+	return sha256.Sum256(protoencoding.MarshalMessage(o.header.protoMessage())), nil
 }
 
 // CalculateAndSetID calculates identifier for the object
@@ -127,7 +127,7 @@ func (o Object) VerifySignature() bool {
 		return false
 	}
 
-	return o.sig.Verify(neofsproto.Marshal(o.id))
+	return o.sig.Verify(protoencoding.Marshal(o.id))
 }
 
 // SetIDWithSignature sets object identifier and signature.

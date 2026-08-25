@@ -11,8 +11,8 @@ import (
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -350,7 +350,7 @@ func TestEncodeRequest(t *testing.T) {
 
 	var (
 		buf                   = make([]byte, protoLen)
-		packageRes, packageLn = neofsproto.EncodeRequest(buf, getR.GetBody(), getR.GetMetaHeader())
+		packageRes, packageLn = protoencoding.EncodeRequest(buf, getR.GetBody(), getR.GetMetaHeader())
 	)
 
 	require.Equal(t, protoLen, packageLn)
@@ -425,7 +425,7 @@ func TestSignRequestWithBuffer(t *testing.T) {
 						tc.verifyFunc(t, pub, tc.hashFunc(reqMetaHdrBinV225), vh.MetaSignature.Sign)
 					} else {
 						checkSignerCreds(tc.signer.Scheme(), vh.RequestSignature)
-						reqMarshaled, _ := neofsproto.EncodeRequest(nil, req.GetBody(), req.GetMetaHeader())
+						reqMarshaled, _ := protoencoding.EncodeRequest(nil, req.GetBody(), req.GetMetaHeader())
 						tc.verifyFunc(t, pub, tc.hashFunc(reqMarshaled), vh.RequestSignature.Sign)
 					}
 
@@ -448,7 +448,7 @@ func TestSignRequestWithBuffer(t *testing.T) {
 					verifyWalletConnectSignature(t, pub, reqMetaHdrBinV225, vh.MetaSignature.Sign)
 				} else {
 					checkSignerCreds(neofscrypto.ECDSA_WALLETCONNECT, vh.RequestSignature)
-					reqMarshaled, _ := neofsproto.EncodeRequest(nil, req.GetBody(), req.GetMetaHeader())
+					reqMarshaled, _ := protoencoding.EncodeRequest(nil, req.GetBody(), req.GetMetaHeader())
 					verifyWalletConnectSignature(t, pub, reqMarshaled, vh.RequestSignature.Sign)
 				}
 
@@ -775,7 +775,7 @@ func TestSignResponseWithBuffer(t *testing.T) {
 
 				require.Nil(t, vhL2.BodySignature)
 				tc.verifyFunc(t, pub, tc.hashFunc(respMetaHdrL2Bin), vhL2.MetaSignature.Sign)
-				originHash := tc.hashFunc(neofsproto.MarshalMessage(vh))
+				originHash := tc.hashFunc(protoencoding.MarshalMessage(vh))
 				tc.verifyFunc(t, pub, originHash, vhL2.OriginSignature.Sign)
 
 				r.VerifyHeader = vhL2
@@ -814,7 +814,7 @@ func TestSignResponseWithBuffer(t *testing.T) {
 
 			require.Nil(t, vhL2.BodySignature)
 			verifyWalletConnectSignature(t, pub, respMetaHdrL2Bin, vhL2.MetaSignature.Sign)
-			verifyWalletConnectSignature(t, pub, neofsproto.MarshalMessage(vh.Origin), vh.OriginSignature.Sign)
+			verifyWalletConnectSignature(t, pub, protoencoding.MarshalMessage(vh.Origin), vh.OriginSignature.Sign)
 
 			r.VerifyHeader = vhL2
 			err = neofscrypto.VerifyResponseWithBuffer[*protoobject.GetResponse_Body](r, nil)

@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	iproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
 )
@@ -61,7 +61,7 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 	var err error
 	metaHeader := r.GetMetaHeader()
 	if !multipleReqSignatures(metaHeader) {
-		buf, ln = iproto.EncodeRequest(buf, r.GetBody(), r.GetMetaHeader())
+		buf, ln = protoencoding.EncodeRequest(buf, r.GetBody(), r.GetMetaHeader())
 		s, err := signer.Sign(buf[:ln])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignRequestFields, err)
@@ -303,7 +303,7 @@ func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) e
 
 func verifyRequestSignatureN3[B ProtoMessage](req SignedRequest[B], s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
-		b, sz := iproto.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+		b, sz := protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
 		return verifyN3(b[:sz], s.Sign, s.Key)
 	}
 	return verifyRequestSignature(req, s, b)
@@ -316,7 +316,7 @@ func verifyRequestSignature[B ProtoMessage](req SignedRequest[B], s *refs.Signat
 	}
 
 	var sz int
-	b, sz = iproto.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+	b, sz = protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
 	if !pubKey.Verify(b[:sz], s.Sign) {
 		return errors.New("signature mismatch")
 	}

@@ -1,6 +1,8 @@
 package link
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [Link_MeasuredObject] message.
 const (
@@ -14,8 +16,8 @@ const (
 func (x *Link_MeasuredObject) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldLinkMeasuredObjectID, x.Id) +
-			proto.SizeVarint(FieldLinkMeasuredObjectSize, x.Size)
+		sz = protoencoding.SizeEmbedded(FieldLinkMeasuredObjectID, x.Id) +
+			protoencoding.SizeVarint(FieldLinkMeasuredObjectSize, x.Size)
 	}
 	return sz
 }
@@ -26,8 +28,8 @@ func (x *Link_MeasuredObject) MarshaledSize() int {
 // NPE-safe.
 func (x *Link_MeasuredObject) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldLinkMeasuredObjectID, x.Id)
-		proto.MarshalToVarint(b[off:], FieldLinkMeasuredObjectSize, x.Size)
+		off := protoencoding.MarshalToEmbedded(b, FieldLinkMeasuredObjectID, x.Id)
+		protoencoding.MarshalToVarint(b[off:], FieldLinkMeasuredObjectSize, x.Size)
 	}
 }
 
@@ -41,7 +43,7 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *Link) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeRepeatedMessages(FieldLinkChildren, x.Children)
+		return protoencoding.SizeRepeatedMessages(FieldLinkChildren, x.Children)
 	}
 	return 0
 }
@@ -51,6 +53,6 @@ func (x *Link) MarshaledSize() int {
 // [Link.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Link) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToRepeatedMessages(b, FieldLinkChildren, x.Children)
+		protoencoding.MarshalToRepeatedMessages(b, FieldLinkChildren, x.Children)
 	}
 }

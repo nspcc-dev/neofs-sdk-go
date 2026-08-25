@@ -3,7 +3,7 @@ package object_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -169,7 +169,7 @@ func TestHeader_Split_MarshalStable(t *testing.T) {
 		}
 
 		var dst object.Header_Split
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		cs := dst.GetChildren()
 		require.Len(t, cs, 2)
@@ -189,7 +189,7 @@ func TestHeader_MarshalStable(t *testing.T) {
 		}
 
 		var dst object.Header
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		as := dst.GetAttributes()
 		require.Len(t, as, 2)
@@ -311,7 +311,7 @@ func TestGetRangeHashRequest_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst object.GetRangeHashRequest_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		rs := dst.GetRanges()
 		require.Len(t, rs, 2)
@@ -382,7 +382,7 @@ func TestSearchFilter_MarshalStable(t *testing.T) {
 		}
 
 		var dst object.SearchRequest_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		fs := dst.GetFilters()
 		require.Len(t, fs, 2)
@@ -412,7 +412,7 @@ func TestSearchResponse_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst object.SearchResponse_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ids := dst.GetIdList()
 		require.Len(t, ids, 2)
@@ -445,7 +445,7 @@ func TestSearchV2Response_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst object.SearchV2Response_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ids := dst.GetResult()
 		require.Len(t, ids, 2)

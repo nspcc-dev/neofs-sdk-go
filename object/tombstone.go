@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	prototombstone "github.com/nspcc-dev/neofs-sdk-go/proto/tombstone"
 )
@@ -127,26 +127,26 @@ func (t *Tombstone) SetMembers(v []oid.ID) {
 //
 // See also [Tombstone.Unmarshal].
 func (t Tombstone) Marshal() []byte {
-	return neofsproto.Marshal(t)
+	return protoencoding.Marshal(t)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [Tombstone].
 //
 // See also [Tombstone.Marshal].
 func (t *Tombstone) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, t)
+	return protoencoding.Unmarshal(data, t)
 }
 
 // MarshalJSON encodes [Tombstone] to protobuf JSON format.
 //
 // See also [Tombstone.UnmarshalJSON].
 func (t Tombstone) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(t)
+	return protoencoding.MarshalJSON(t)
 }
 
 // UnmarshalJSON decodes [Tombstone] from protobuf JSON format.
 //
 // See also [Tombstone.MarshalJSON].
 func (t *Tombstone) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSON(data, t)
+	return protoencoding.UnmarshalJSON(data, t)
 }

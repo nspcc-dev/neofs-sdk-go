@@ -1,6 +1,8 @@
 package storagegroup
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [StorageGroup] message.
 const (
@@ -15,10 +17,10 @@ const (
 // in bytes. MarshaledSize is NPE-safe.
 func (x *StorageGroup) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(FieldStorageGroupValidationDataSize, x.ValidationDataSize) +
-			proto.SizeEmbedded(FieldStorageGroupValidationDataHash, x.ValidationHash) +
-			proto.SizeVarint(FieldStorageGroupExpirationEpoch, x.ExpirationEpoch) +
-			proto.SizeRepeatedMessages(FieldStorageGroupMembers, x.Members)
+		return protoencoding.SizeVarint(FieldStorageGroupValidationDataSize, x.ValidationDataSize) +
+			protoencoding.SizeEmbedded(FieldStorageGroupValidationDataHash, x.ValidationHash) +
+			protoencoding.SizeVarint(FieldStorageGroupExpirationEpoch, x.ExpirationEpoch) +
+			protoencoding.SizeRepeatedMessages(FieldStorageGroupMembers, x.Members)
 	}
 	return 0
 }
@@ -28,9 +30,9 @@ func (x *StorageGroup) MarshaledSize() int {
 // [StorageGroup.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *StorageGroup) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldStorageGroupValidationDataSize, x.ValidationDataSize)
-		off += proto.MarshalToEmbedded(b[off:], FieldStorageGroupValidationDataHash, x.ValidationHash)
-		off += proto.MarshalToVarint(b[off:], FieldStorageGroupExpirationEpoch, x.ExpirationEpoch)
-		proto.MarshalToRepeatedMessages(b[off:], FieldStorageGroupMembers, x.Members)
+		off := protoencoding.MarshalToVarint(b, FieldStorageGroupValidationDataSize, x.ValidationDataSize)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldStorageGroupValidationDataHash, x.ValidationHash)
+		off += protoencoding.MarshalToVarint(b[off:], FieldStorageGroupExpirationEpoch, x.ExpirationEpoch)
+		protoencoding.MarshalToRepeatedMessages(b[off:], FieldStorageGroupMembers, x.Members)
 	}
 }

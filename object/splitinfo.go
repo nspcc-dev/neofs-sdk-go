@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 )
 
@@ -116,28 +116,28 @@ func (s *SplitInfo) SetFirstPart(v oid.ID) {
 //
 // See also [SplitInfo.Unmarshal].
 func (s SplitInfo) Marshal() []byte {
-	return neofsproto.Marshal(s)
+	return protoencoding.Marshal(s)
 }
 
 // Unmarshal unmarshals protobuf binary representation of [SplitInfo].
 //
 // See also [SplitInfo.Marshal].
 func (s *SplitInfo) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, s)
+	return protoencoding.Unmarshal(data, s)
 }
 
 // MarshalJSON implements json.Marshaler.
 //
 // See also [SplitInfo.UnmarshalJSON].
 func (s SplitInfo) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(s)
+	return protoencoding.MarshalJSON(s)
 }
 
 // UnmarshalJSON implements json.Unmarshaler.
 //
 // See also [SplitInfo.MarshalJSON].
 func (s *SplitInfo) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSON(data, s)
+	return protoencoding.UnmarshalJSON(data, s)
 }
 
 var errSplitInfoMissingFields = errors.New("neither link object ID nor last part object ID is set")

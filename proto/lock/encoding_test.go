@@ -3,7 +3,7 @@ package lock_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/lock"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -17,7 +17,7 @@ func TestLock_MarshalStable(t *testing.T) {
 		}
 
 		var dst lock.Lock
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ms := dst.GetMembers()
 		require.Len(t, ms, 2)

@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"google.golang.org/protobuf/encoding/protojson"
 )
@@ -138,7 +138,7 @@ func EncodeToString(v Version) string {
 //
 // See also UnmarshalJSON.
 func (v Version) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(v)
+	return protoencoding.MarshalJSON(v)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Version

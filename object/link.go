@@ -3,8 +3,8 @@ package object
 import (
 	"fmt"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protolink "github.com/nspcc-dev/neofs-sdk-go/proto/link"
 )
 
@@ -50,7 +50,7 @@ func (l *Link) Marshal() []byte {
 			Size: l.children[i].sz,
 		}
 	}
-	return neofsproto.MarshalMessage(m)
+	return protoencoding.MarshalMessage(m)
 }
 
 // Unmarshal decodes the [Link] from its NeoFS protocol binary representation.
@@ -58,7 +58,7 @@ func (l *Link) Marshal() []byte {
 // See also [Link.Marshal].
 func (l *Link) Unmarshal(data []byte) error {
 	m := new(protolink.Link)
-	err := neofsproto.UnmarshalMessage(data, m)
+	err := protoencoding.UnmarshalMessage(data, m)
 	if err != nil {
 		return err
 	}

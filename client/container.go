@@ -11,8 +11,8 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -179,7 +179,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		mEACL := prm.eACL.ProtoMessage()
 		if prm.eACLSig == nil {
 			prm.eACLSig = new(neofscrypto.Signature)
-			if err = prm.eACLSig.Calculate(signer, neofsproto.MarshalMessage(mEACL)); err != nil {
+			if err = prm.eACLSig.Calculate(signer, protoencoding.MarshalMessage(mEACL)); err != nil {
 				err = fmt.Errorf("calculate eACL signature: %w", err)
 				return cid.ID{}, err
 			}
@@ -669,7 +669,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	// sign the eACL table
 	mEACL := table.ProtoMessage()
 	if !prm.sigSet {
-		if err = prm.sig.Calculate(signer, neofsproto.MarshalMessage(mEACL)); err != nil {
+		if err = prm.sig.Calculate(signer, protoencoding.MarshalMessage(mEACL)); err != nil {
 			err = fmt.Errorf("calculate eACL signature: %w", err)
 			return err
 		}
@@ -749,7 +749,7 @@ type SetContainerAttributeParameters struct {
 
 // GetSignedSetContainerAttributeParameters returns signed message for prm.
 func GetSignedSetContainerAttributeParameters(prm SetContainerAttributeParameters) []byte {
-	return neofsproto.MarshalMessage(&protocontainer.SetAttributeRequest_Body_Parameters{
+	return protoencoding.MarshalMessage(&protocontainer.SetAttributeRequest_Body_Parameters{
 		ContainerId: prm.ID.ProtoMessage(),
 		Attribute:   prm.Attribute,
 		Value:       prm.Value,
@@ -902,7 +902,7 @@ type RemoveContainerAttributeParameters struct {
 
 // GetSignedRemoveContainerAttributeParameters returns signed message for prm.
 func GetSignedRemoveContainerAttributeParameters(prm RemoveContainerAttributeParameters) []byte {
-	return neofsproto.MarshalMessage(&protocontainer.RemoveAttributeRequest_Body_Parameters{
+	return protoencoding.MarshalMessage(&protocontainer.RemoveAttributeRequest_Body_Parameters{
 		ContainerId: prm.ID.ProtoMessage(),
 		Attribute:   prm.Attribute,
 		ValidUntil:  uint64(prm.ValidUntil.Unix()),

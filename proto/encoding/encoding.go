@@ -1,7 +1,7 @@
 // Package proto contains helper functions for Protocol Buffers
 // (https://protobuf.dev) in addition to the ones from
 // [google.golang.org/protobuf/encoding/protowire] package.
-package proto
+package encoding
 
 import (
 	"encoding/binary"

@@ -3,7 +3,7 @@ package session
 import (
 	"fmt"
 
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
@@ -18,8 +18,8 @@ const (
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *ObjectSessionContext_Target) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(FieldObjectSessionContextTargetContainer, x.Container) +
-			proto.SizeRepeatedMessages(FieldObjectSessionContextTargetObjects, x.Objects)
+		return protoencoding.SizeEmbedded(FieldObjectSessionContextTargetContainer, x.Container) +
+			protoencoding.SizeRepeatedMessages(FieldObjectSessionContextTargetObjects, x.Objects)
 	}
 	return 0
 }
@@ -30,8 +30,8 @@ func (x *ObjectSessionContext_Target) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ObjectSessionContext_Target) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldObjectSessionContextTargetContainer, x.Container)
-		proto.MarshalToRepeatedMessages(b[off:], FieldObjectSessionContextTargetObjects, x.Objects)
+		off := protoencoding.MarshalToEmbedded(b, FieldObjectSessionContextTargetContainer, x.Container)
+		protoencoding.MarshalToRepeatedMessages(b[off:], FieldObjectSessionContextTargetObjects, x.Objects)
 	}
 }
 
@@ -47,8 +47,8 @@ const (
 func (x *ObjectSessionContext) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldObjectSessionContextVerb, x.Verb) +
-			proto.SizeEmbedded(FieldObjectSessionContextTarget, x.Target)
+		sz = protoencoding.SizeVarint(FieldObjectSessionContextVerb, x.Verb) +
+			protoencoding.SizeEmbedded(FieldObjectSessionContextTarget, x.Target)
 	}
 	return sz
 }
@@ -59,8 +59,8 @@ func (x *ObjectSessionContext) MarshaledSize() int {
 // NPE-safe.
 func (x *ObjectSessionContext) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldObjectSessionContextVerb, x.Verb)
-		proto.MarshalToEmbedded(b[off:], FieldObjectSessionContextTarget, x.Target)
+		off := protoencoding.MarshalToVarint(b, FieldObjectSessionContextVerb, x.Verb)
+		protoencoding.MarshalToEmbedded(b[off:], FieldObjectSessionContextTarget, x.Target)
 	}
 }
 
@@ -77,9 +77,9 @@ const (
 func (x *ContainerSessionContext) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldContainerSessionContextVerb, x.Verb) +
-			proto.SizeBool(FieldContainerSessionContextWildcard, x.Wildcard) +
-			proto.SizeEmbedded(FieldContainerSessionContextContainerID, x.ContainerId)
+		sz = protoencoding.SizeVarint(FieldContainerSessionContextVerb, x.Verb) +
+			protoencoding.SizeBool(FieldContainerSessionContextWildcard, x.Wildcard) +
+			protoencoding.SizeEmbedded(FieldContainerSessionContextContainerID, x.ContainerId)
 	}
 	return sz
 }
@@ -90,9 +90,9 @@ func (x *ContainerSessionContext) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ContainerSessionContext) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldContainerSessionContextVerb, x.Verb)
-		off += proto.MarshalToBool(b[off:], FieldContainerSessionContextWildcard, x.Wildcard)
-		proto.MarshalToEmbedded(b[off:], FieldContainerSessionContextContainerID, x.ContainerId)
+		off := protoencoding.MarshalToVarint(b, FieldContainerSessionContextVerb, x.Verb)
+		off += protoencoding.MarshalToBool(b[off:], FieldContainerSessionContextWildcard, x.Wildcard)
+		protoencoding.MarshalToEmbedded(b[off:], FieldContainerSessionContextContainerID, x.ContainerId)
 	}
 }
 
@@ -109,9 +109,9 @@ const (
 func (x *SessionToken_Body_TokenLifetime) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldSessionTokenBodyTokenLifetimeExp, x.Exp) +
-			proto.SizeVarint(FieldSessionTokenBodyTokenLifetimeNbf, x.Nbf) +
-			proto.SizeVarint(FieldSessionTokenBodyTokenLifetimeIat, x.Iat)
+		sz = protoencoding.SizeVarint(FieldSessionTokenBodyTokenLifetimeExp, x.Exp) +
+			protoencoding.SizeVarint(FieldSessionTokenBodyTokenLifetimeNbf, x.Nbf) +
+			protoencoding.SizeVarint(FieldSessionTokenBodyTokenLifetimeIat, x.Iat)
 	}
 	return sz
 }
@@ -122,9 +122,9 @@ func (x *SessionToken_Body_TokenLifetime) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *SessionToken_Body_TokenLifetime) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldSessionTokenBodyTokenLifetimeExp, x.Exp)
-		off += proto.MarshalToVarint(b[off:], FieldSessionTokenBodyTokenLifetimeNbf, x.Nbf)
-		proto.MarshalToVarint(b[off:], FieldSessionTokenBodyTokenLifetimeIat, x.Iat)
+		off := protoencoding.MarshalToVarint(b, FieldSessionTokenBodyTokenLifetimeExp, x.Exp)
+		off += protoencoding.MarshalToVarint(b[off:], FieldSessionTokenBodyTokenLifetimeNbf, x.Nbf)
+		protoencoding.MarshalToVarint(b[off:], FieldSessionTokenBodyTokenLifetimeIat, x.Iat)
 	}
 }
 
@@ -144,18 +144,18 @@ const (
 func (x *SessionToken_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldSessionTokenBodyID, x.Id) +
-			proto.SizeEmbedded(FieldSessionTokenBodyOwnerID, x.OwnerId) +
-			proto.SizeEmbedded(FieldSessionTokenBodyLifetime, x.Lifetime) +
-			proto.SizeBytes(FieldSessionTokenBodySessionKey, x.SessionKey)
+		sz = protoencoding.SizeBytes(FieldSessionTokenBodyID, x.Id) +
+			protoencoding.SizeEmbedded(FieldSessionTokenBodyOwnerID, x.OwnerId) +
+			protoencoding.SizeEmbedded(FieldSessionTokenBodyLifetime, x.Lifetime) +
+			protoencoding.SizeBytes(FieldSessionTokenBodySessionKey, x.SessionKey)
 		switch c := x.Context.(type) {
 		default:
 			panic(fmt.Sprintf("unexpected context %T", x.Context))
 		case nil:
 		case *SessionToken_Body_Object:
-			sz += proto.SizeEmbedded(FieldSessionTokenBodyObject, c.Object)
+			sz += protoencoding.SizeEmbedded(FieldSessionTokenBodyObject, c.Object)
 		case *SessionToken_Body_Container:
-			sz += proto.SizeEmbedded(FieldSessionTokenBodyContainer, c.Container)
+			sz += protoencoding.SizeEmbedded(FieldSessionTokenBodyContainer, c.Container)
 		}
 	}
 	return sz
@@ -167,18 +167,18 @@ func (x *SessionToken_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *SessionToken_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, FieldSessionTokenBodyID, x.Id)
-		off += proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyOwnerID, x.OwnerId)
-		off += proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyLifetime, x.Lifetime)
-		off += proto.MarshalToBytes(b[off:], FieldSessionTokenBodySessionKey, x.SessionKey)
+		off := protoencoding.MarshalToBytes(b, FieldSessionTokenBodyID, x.Id)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldSessionTokenBodyOwnerID, x.OwnerId)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldSessionTokenBodyLifetime, x.Lifetime)
+		off += protoencoding.MarshalToBytes(b[off:], FieldSessionTokenBodySessionKey, x.SessionKey)
 		switch c := x.Context.(type) {
 		default:
 			panic(fmt.Sprintf("unexpected context %T", x.Context))
 		case nil:
 		case *SessionToken_Body_Object:
-			proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyObject, c.Object)
+			protoencoding.MarshalToEmbedded(b[off:], FieldSessionTokenBodyObject, c.Object)
 		case *SessionToken_Body_Container:
-			proto.MarshalToEmbedded(b[off:], FieldSessionTokenBodyContainer, c.Container)
+			protoencoding.MarshalToEmbedded(b[off:], FieldSessionTokenBodyContainer, c.Container)
 		}
 	}
 }
@@ -195,8 +195,8 @@ const (
 func (x *SessionToken) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldSessionTokenBody, x.Body) +
-			proto.SizeEmbedded(FieldSessionTokenSignature, x.Signature)
+		sz = protoencoding.SizeEmbedded(FieldSessionTokenBody, x.Body) +
+			protoencoding.SizeEmbedded(FieldSessionTokenSignature, x.Signature)
 	}
 	return sz
 }
@@ -206,8 +206,8 @@ func (x *SessionToken) MarshaledSize() int {
 // [SessionToken.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SessionToken) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldSessionTokenBody, x.Body)
-		proto.MarshalToEmbedded(b[off:], FieldSessionTokenSignature, x.Signature)
+		off := protoencoding.MarshalToEmbedded(b, FieldSessionTokenBody, x.Body)
+		protoencoding.MarshalToEmbedded(b[off:], FieldSessionTokenSignature, x.Signature)
 	}
 }
 
@@ -223,8 +223,8 @@ const (
 func (x *CreateRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldCreateRequestBodyOwnerID, x.OwnerId) +
-			proto.SizeVarint(FieldCreateRequestBodyExpiration, x.Expiration)
+		sz = protoencoding.SizeEmbedded(FieldCreateRequestBodyOwnerID, x.OwnerId) +
+			protoencoding.SizeVarint(FieldCreateRequestBodyExpiration, x.Expiration)
 	}
 	return sz
 }
@@ -235,8 +235,8 @@ func (x *CreateRequest_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *CreateRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldCreateRequestBodyOwnerID, x.OwnerId)
-		proto.MarshalToVarint(b[off:], FieldCreateRequestBodyExpiration, x.Expiration)
+		off := protoencoding.MarshalToEmbedded(b, FieldCreateRequestBodyOwnerID, x.OwnerId)
+		protoencoding.MarshalToVarint(b[off:], FieldCreateRequestBodyExpiration, x.Expiration)
 	}
 }
 
@@ -252,8 +252,8 @@ const (
 func (x *CreateResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldCreateResponseBodyID, x.Id) +
-			proto.SizeBytes(FieldCreateResponseBodySessionKey, x.SessionKey)
+		sz = protoencoding.SizeBytes(FieldCreateResponseBodyID, x.Id) +
+			protoencoding.SizeBytes(FieldCreateResponseBodySessionKey, x.SessionKey)
 	}
 	return sz
 }
@@ -264,8 +264,8 @@ func (x *CreateResponse_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *CreateResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, FieldCreateResponseBodyID, x.Id)
-		proto.MarshalToBytes(b[off:], FieldCreateResponseBodySessionKey, x.SessionKey)
+		off := protoencoding.MarshalToBytes(b, FieldCreateResponseBodyID, x.Id)
+		protoencoding.MarshalToBytes(b[off:], FieldCreateResponseBodySessionKey, x.SessionKey)
 	}
 }
 
@@ -279,8 +279,8 @@ const (
 // CalculateXHeaderLength calculates length of X-header message with given
 // fields.
 func CalculateXHeaderLength(key string, value string) int {
-	ln := proto.SizeBytes(FieldXHeaderKey, key)
-	ln += proto.SizeBytes(FieldXHeaderValue, value)
+	ln := protoencoding.SizeBytes(FieldXHeaderKey, key)
+	ln += protoencoding.SizeBytes(FieldXHeaderValue, value)
 	return ln
 }
 
@@ -296,8 +296,8 @@ func (x *XHeader) MarshaledSize() int {
 // WriteXHeader writes X-header message with given fields into buf. Returns
 // number of bytes written.
 func WriteXHeader(buf []byte, key string, value string) int {
-	off := proto.MarshalToBytes(buf, FieldXHeaderKey, key)
-	off += proto.MarshalToBytes(buf[off:], FieldXHeaderValue, value)
+	off := protoencoding.MarshalToBytes(buf, FieldXHeaderKey, key)
+	off += protoencoding.MarshalToBytes(buf[off:], FieldXHeaderValue, value)
 	return off
 }
 
@@ -326,20 +326,20 @@ const (
 
 // CalculateRequestMetaHeaderLength calculates length of request meta header
 // message with given fields.
-func CalculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, magicNumber uint64, sessionV2TokenLen int) int {
+func CalculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, magicNumber uint64, sessionV2TokenLen int) int {
 	return calculateRequestMetaHeaderLength(majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, magicNumber, sessionV2TokenLen)
 }
 
-func calculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, originLen int, magicNumber uint64, sessionV2TokenLen int) int {
-	ln := proto.SizeEmbeddedLENField(FieldRequestMetaHeaderVersion, refs.CalculateVersionLength(majorVersion, minorVersion))
-	ln += proto.SizeVarint(FieldRequestMetaHeaderEpoch, epoch)
-	ln += proto.SizeVarint(FieldRequestMetaHeaderTTL, ttl)
-	ln += proto.CalculateRepeatedFieldsLength(FieldRequestMetaHeaderXHeaders, xHdrNum, xHdrLenFn)
-	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionToken, sessionV1TokenLen)
-	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderBearerToken, bearerTokenLen)
-	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderOrigin, originLen)
-	ln += proto.SizeVarint(FieldRequestMetaHeaderMagicNumber, magicNumber)
-	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen)
+func calculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, originLen int, magicNumber uint64, sessionV2TokenLen int) int {
+	ln := protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderVersion, refs.CalculateVersionLength(majorVersion, minorVersion))
+	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderEpoch, epoch)
+	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderTTL, ttl)
+	ln += protoencoding.CalculateRepeatedFieldsLength(FieldRequestMetaHeaderXHeaders, xHdrNum, xHdrLenFn)
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionToken, sessionV1TokenLen)
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderBearerToken, bearerTokenLen)
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderOrigin, originLen)
+	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderMagicNumber, magicNumber)
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen)
 	return ln
 }
 
@@ -366,35 +366,35 @@ func (x *RequestMetaHeader) MarshaledSize() int {
 
 // WriteRequestMetaHeaderToRequest writes meta header field with given fields
 // into buf. Returns number of bytes written.
-func WriteRequestMetaHeaderToRequest(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, writeXHdrFn proto.WriteRepeatedMessageFunc,
-	sessionV1TokenLen int, writeSessionV1TokenFn proto.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn proto.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn proto.WriteMessageFunc) int {
+func WriteRequestMetaHeaderToRequest(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, writeXHdrFn protoencoding.WriteRepeatedMessageFunc,
+	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc) int {
 	ln := CalculateRequestMetaHeaderLength(majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, magicNumber, sessionV2TokenLen)
 	if ln == 0 {
 		return 0
 	}
-	off := proto.WriteRequestMetaHeaderTagAndLength(buf, ln)
+	off := protoencoding.WriteRequestMetaHeaderTagAndLength(buf, ln)
 	off += WriteRequestMetaHeader(buf[off:], majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
 	return off
 }
 
 // WriteRequestMetaHeader writes request meta header message with given fields
 // into buf. Returns number of bytes written.
-func WriteRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, writeXHdrFn proto.WriteRepeatedMessageFunc,
-	sessionV1TokenLen int, writeSessionV1TokenFn proto.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn proto.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn proto.WriteMessageFunc) int {
+func WriteRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, writeXHdrFn protoencoding.WriteRepeatedMessageFunc,
+	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc) int {
 	return writeRequestMetaHeader(buf, majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, nil, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
 }
 
-func writeRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, writeXHdrFn proto.WriteRepeatedMessageFunc,
-	sessionV1TokenLen int, writeSessionV1TokenFn proto.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn proto.WriteMessageFunc, originLen int, writeOriginFn proto.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn proto.WriteMessageFunc) int {
+func writeRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, writeXHdrFn protoencoding.WriteRepeatedMessageFunc,
+	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, originLen int, writeOriginFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc) int {
 	off := refs.WriteVersionField(buf, FieldRequestMetaHeaderVersion, majorVersion, minorVersion)
-	off += proto.MarshalToVarint(buf[off:], FieldRequestMetaHeaderEpoch, epoch)
-	off += proto.MarshalToVarint(buf[off:], FieldRequestMetaHeaderTTL, ttl)
-	off += proto.WriteRepeatedFields(buf[off:], FieldRequestMetaHeaderXHeaders, xHdrNum, xHdrLenFn, writeXHdrFn)
-	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionToken, sessionV1TokenLen, writeSessionV1TokenFn)
-	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderBearerToken, bearerTokenLen, writeBearerTokenFn)
-	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderOrigin, originLen, writeOriginFn)
-	off += proto.MarshalToVarint(buf[off:], FieldRequestMetaHeaderMagicNumber, magicNumber)
-	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen, writeSessionV2TokenFn)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderEpoch, epoch)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderTTL, ttl)
+	off += protoencoding.WriteRepeatedFields(buf[off:], FieldRequestMetaHeaderXHeaders, xHdrNum, xHdrLenFn, writeXHdrFn)
+	off += protoencoding.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionToken, sessionV1TokenLen, writeSessionV1TokenFn)
+	off += protoencoding.WriteMessageField(buf[off:], FieldRequestMetaHeaderBearerToken, bearerTokenLen, writeBearerTokenFn)
+	off += protoencoding.WriteMessageField(buf[off:], FieldRequestMetaHeaderOrigin, originLen, writeOriginFn)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderMagicNumber, magicNumber)
+	off += protoencoding.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen, writeSessionV2TokenFn)
 	return off
 }
 
@@ -415,13 +415,13 @@ func (x *RequestMetaHeader) MarshalStable(b []byte) {
 		return
 	}
 	sessionV1TokenLen := x.SessionToken.MarshaledSize()
-	writeSessionV1TokenFn := proto.WriteStablyMarshalledMessageFunc(x.SessionToken)
+	writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.SessionToken)
 	bearerTokenLen := x.BearerToken.MarshaledSize()
-	writeBearerTokenFn := proto.WriteStablyMarshalledMessageFunc(x.BearerToken)
+	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.BearerToken)
 	originLen := x.Origin.MarshaledSize()
-	writeOriginFn := proto.WriteStablyMarshalledMessageFunc(x.Origin)
+	writeOriginFn := protoencoding.WriteStablyMarshalledMessageFunc(x.Origin)
 	sessionV2TokenLen := x.SessionTokenV2.MarshaledSize()
-	writeSessionV2TokenFn := proto.WriteStablyMarshalledMessageFunc(x.SessionTokenV2)
+	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.SessionTokenV2)
 	writeRequestMetaHeader(b, x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, x.writeXHeader, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, originLen, writeOriginFn, x.MagicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
 }
 
@@ -440,12 +440,12 @@ const (
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *ResponseMetaHeader) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(FieldResponseMetaHeaderVersion, x.Version) +
-			proto.SizeVarint(FieldResponseMetaHeaderEpoch, x.Epoch) +
-			proto.SizeVarint(FieldResponseMetaHeaderTTL, x.Ttl) +
-			proto.SizeEmbedded(FieldResponseMetaHeaderOrigin, x.Origin) +
-			proto.SizeEmbedded(FieldResponseMetaHeaderStatus, x.Status) +
-			proto.SizeRepeatedMessages(FieldResponseMetaHeaderXHeaders, x.XHeaders)
+		return protoencoding.SizeEmbedded(FieldResponseMetaHeaderVersion, x.Version) +
+			protoencoding.SizeVarint(FieldResponseMetaHeaderEpoch, x.Epoch) +
+			protoencoding.SizeVarint(FieldResponseMetaHeaderTTL, x.Ttl) +
+			protoencoding.SizeEmbedded(FieldResponseMetaHeaderOrigin, x.Origin) +
+			protoencoding.SizeEmbedded(FieldResponseMetaHeaderStatus, x.Status) +
+			protoencoding.SizeRepeatedMessages(FieldResponseMetaHeaderXHeaders, x.XHeaders)
 	}
 	return 0
 }
@@ -456,12 +456,12 @@ func (x *ResponseMetaHeader) MarshaledSize() int {
 // NPE-safe.
 func (x *ResponseMetaHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldResponseMetaHeaderVersion, x.Version)
-		off += proto.MarshalToVarint(b[off:], FieldResponseMetaHeaderEpoch, x.Epoch)
-		off += proto.MarshalToVarint(b[off:], FieldResponseMetaHeaderTTL, x.Ttl)
-		off += proto.MarshalToRepeatedMessages(b[off:], FieldResponseMetaHeaderXHeaders, x.XHeaders)
-		off += proto.MarshalToEmbedded(b[off:], FieldResponseMetaHeaderOrigin, x.Origin)
-		proto.MarshalToEmbedded(b[off:], FieldResponseMetaHeaderStatus, x.Status)
+		off := protoencoding.MarshalToEmbedded(b, FieldResponseMetaHeaderVersion, x.Version)
+		off += protoencoding.MarshalToVarint(b[off:], FieldResponseMetaHeaderEpoch, x.Epoch)
+		off += protoencoding.MarshalToVarint(b[off:], FieldResponseMetaHeaderTTL, x.Ttl)
+		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldResponseMetaHeaderXHeaders, x.XHeaders)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldResponseMetaHeaderOrigin, x.Origin)
+		protoencoding.MarshalToEmbedded(b[off:], FieldResponseMetaHeaderStatus, x.Status)
 	}
 }
 
@@ -494,11 +494,11 @@ func CalculateSingleSignatureRequestVerificationHeaderLength[SCHEME ~int32](pubK
 }
 
 func calculateRequestVerificationHeaderLength[SCHEME ~int32](bodyPubKey []byte, bodySig []byte, bodyScheme SCHEME, metaPubKey []byte, metaSig []byte, metaScheme SCHEME, originPubKey []byte, originSig []byte, originScheme SCHEME, originLen int, reqPubKey []byte, reqSig []byte, reqScheme SCHEME) int {
-	ln := proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderBodySignature, refs.CalculateSignatureLength(bodyPubKey, bodySig, bodyScheme))
-	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderMetaSignature, refs.CalculateSignatureLength(metaPubKey, metaSig, metaScheme))
-	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderOriginSignature, refs.CalculateSignatureLength(originPubKey, originSig, originScheme))
-	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderOrigin, originLen)
-	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderRequestSignature, refs.CalculateSignatureLength(reqPubKey, reqSig, reqScheme))
+	ln := protoencoding.SizeEmbeddedLENField(FieldRequestVerificationHeaderBodySignature, refs.CalculateSignatureLength(bodyPubKey, bodySig, bodyScheme))
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestVerificationHeaderMetaSignature, refs.CalculateSignatureLength(metaPubKey, metaSig, metaScheme))
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestVerificationHeaderOriginSignature, refs.CalculateSignatureLength(originPubKey, originSig, originScheme))
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestVerificationHeaderOrigin, originLen)
+	ln += protoencoding.SizeEmbeddedLENField(FieldRequestVerificationHeaderRequestSignature, refs.CalculateSignatureLength(reqPubKey, reqSig, reqScheme))
 	return ln
 }
 
@@ -519,7 +519,7 @@ func WriteMultiSignatureRequestVerificationHeaderToRequest[SCHEME ~int32](buf []
 	if ln == 0 {
 		return 0
 	}
-	off := proto.WriteRequestVerificationHeaderTagAndLength(buf, ln)
+	off := protoencoding.WriteRequestVerificationHeaderTagAndLength(buf, ln)
 	off += WriteMultiSignatureRequestVerificationHeader(buf[off:], pubKey, scheme, bodySig, metaHdrSig, originSig)
 	return off
 }
@@ -544,7 +544,7 @@ func WriteSingleSignatureRequestVerificationHeaderToRequest[SCHEME ~int32](buf [
 	if ln == 0 {
 		return 0
 	}
-	off := proto.WriteRequestVerificationHeaderTagAndLength(buf, ln)
+	off := protoencoding.WriteRequestVerificationHeaderTagAndLength(buf, ln)
 	off += WriteSingleSignatureRequestVerificationHeader(buf[off:], pubKey, scheme, reqSig)
 	return off
 }
@@ -556,11 +556,11 @@ func WriteSingleSignatureRequestVerificationHeader[SCHEME ~int32](buf []byte, pu
 	return writeRequestVerificationHeader(buf, nil, nil, 0, nil, nil, 0, nil, nil, 0, 0, nil, pubKey, reqSig, scheme)
 }
 
-func writeRequestVerificationHeader[SCHEME ~int32](buf []byte, bodyPubKey []byte, bodySig []byte, bodyScheme SCHEME, metaPubKey []byte, metaSig []byte, metaScheme SCHEME, originPubKey []byte, originSig []byte, originScheme SCHEME, originLen int, writeOriginFn proto.WriteMessageFunc, reqPubKey []byte, reqSig []byte, reqScheme SCHEME) int {
+func writeRequestVerificationHeader[SCHEME ~int32](buf []byte, bodyPubKey []byte, bodySig []byte, bodyScheme SCHEME, metaPubKey []byte, metaSig []byte, metaScheme SCHEME, originPubKey []byte, originSig []byte, originScheme SCHEME, originLen int, writeOriginFn protoencoding.WriteMessageFunc, reqPubKey []byte, reqSig []byte, reqScheme SCHEME) int {
 	off := refs.WriteSignatureField(buf, FieldRequestVerificationHeaderBodySignature, bodyPubKey, bodySig, bodyScheme)
 	off += refs.WriteSignatureField(buf[off:], FieldRequestVerificationHeaderMetaSignature, metaPubKey, metaSig, metaScheme)
 	off += refs.WriteSignatureField(buf[off:], FieldRequestVerificationHeaderOriginSignature, originPubKey, originSig, originScheme)
-	off += proto.WriteMessageField(buf[off:], FieldRequestVerificationHeaderOrigin, originLen, writeOriginFn)
+	off += protoencoding.WriteMessageField(buf[off:], FieldRequestVerificationHeaderOrigin, originLen, writeOriginFn)
 	off += refs.WriteSignatureField(buf[off:], FieldRequestVerificationHeaderRequestSignature, reqPubKey, reqSig, reqScheme)
 	return off
 }
@@ -573,7 +573,7 @@ func (x *RequestVerificationHeader) MarshalStable(b []byte) {
 	if x == nil {
 		return
 	}
-	writeRequestVerificationHeader(b, x.BodySignature.GetKey(), x.BodySignature.GetSign(), x.BodySignature.GetScheme(), x.MetaSignature.GetKey(), x.MetaSignature.GetSign(), x.MetaSignature.GetScheme(), x.OriginSignature.GetKey(), x.OriginSignature.GetSign(), x.OriginSignature.GetScheme(), x.Origin.MarshaledSize(), proto.WriteStablyMarshalledMessageFunc(x.Origin), x.RequestSignature.GetKey(), x.RequestSignature.GetSign(), x.RequestSignature.GetScheme())
+	writeRequestVerificationHeader(b, x.BodySignature.GetKey(), x.BodySignature.GetSign(), x.BodySignature.GetScheme(), x.MetaSignature.GetKey(), x.MetaSignature.GetSign(), x.MetaSignature.GetScheme(), x.OriginSignature.GetKey(), x.OriginSignature.GetSign(), x.OriginSignature.GetScheme(), x.Origin.MarshaledSize(), protoencoding.WriteStablyMarshalledMessageFunc(x.Origin), x.RequestSignature.GetKey(), x.RequestSignature.GetSign(), x.RequestSignature.GetScheme())
 }
 
 // Field numbers of [ResponseVerificationHeader] message.
@@ -590,10 +590,10 @@ const (
 func (x *ResponseVerificationHeader) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldResponseVerificationHeaderBodySignature, x.BodySignature) +
-			proto.SizeEmbedded(FieldResponseVerificationHeaderMetaSignature, x.MetaSignature) +
-			proto.SizeEmbedded(FieldResponseVerificationHeaderOriginSignature, x.OriginSignature) +
-			proto.SizeEmbedded(FieldResponseVerificationHeaderOrigin, x.Origin)
+		sz = protoencoding.SizeEmbedded(FieldResponseVerificationHeaderBodySignature, x.BodySignature) +
+			protoencoding.SizeEmbedded(FieldResponseVerificationHeaderMetaSignature, x.MetaSignature) +
+			protoencoding.SizeEmbedded(FieldResponseVerificationHeaderOriginSignature, x.OriginSignature) +
+			protoencoding.SizeEmbedded(FieldResponseVerificationHeaderOrigin, x.Origin)
 	}
 	return sz
 }
@@ -604,9 +604,9 @@ func (x *ResponseVerificationHeader) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *ResponseVerificationHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldResponseVerificationHeaderBodySignature, x.BodySignature)
-		off += proto.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderMetaSignature, x.MetaSignature)
-		off += proto.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderOriginSignature, x.OriginSignature)
-		proto.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderOrigin, x.Origin)
+		off := protoencoding.MarshalToEmbedded(b, FieldResponseVerificationHeaderBodySignature, x.BodySignature)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderMetaSignature, x.MetaSignature)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderOriginSignature, x.OriginSignature)
+		protoencoding.MarshalToEmbedded(b[off:], FieldResponseVerificationHeaderOrigin, x.Origin)
 	}
 }

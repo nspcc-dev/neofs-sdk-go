@@ -10,7 +10,7 @@ import (
 
 	"github.com/nspcc-dev/hrw/v2"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
@@ -126,7 +126,7 @@ func (x NodeInfo) ProtoMessage() *protonetmap.NodeInfo {
 //
 // See also Unmarshal.
 func (x NodeInfo) Marshal() []byte {
-	return neofsproto.Marshal(x)
+	return protoencoding.Marshal(x)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the NodeInfo
@@ -135,7 +135,7 @@ func (x NodeInfo) Marshal() []byte {
 //
 // See also Marshal.
 func (x *NodeInfo) Unmarshal(data []byte) error {
-	return neofsproto.UnmarshalOptional(data, x, (*NodeInfo).fromProtoMessage)
+	return protoencoding.UnmarshalOptional(data, x, (*NodeInfo).fromProtoMessage)
 }
 
 // MarshalJSON encodes NodeInfo into a JSON format of the NeoFS API protocol
@@ -143,7 +143,7 @@ func (x *NodeInfo) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (x NodeInfo) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(x)
+	return protoencoding.MarshalJSON(x)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the NodeInfo
@@ -151,7 +151,7 @@ func (x NodeInfo) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *NodeInfo) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSONOptional(data, x, (*NodeInfo).fromProtoMessage)
+	return protoencoding.UnmarshalJSONOptional(data, x, (*NodeInfo).fromProtoMessage)
 }
 
 // SetPublicKey sets binary-encoded public key bound to the node. The key

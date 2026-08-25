@@ -12,10 +12,10 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	igrpc "github.com/nspcc-dev/neofs-sdk-go/internal/grpc"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -192,7 +192,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 
 	x.metaHdrLen = protosession.CalculateRequestMetaHeaderLength(x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, x.sessionV1TokenLen, x.bearerTokenLen, 0, x.sessionV2TokenLen)
 
-	bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
+	bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
 
 	// acquire buffer for body + meta header
 	var reqMemBuf *grpcprotobuf.MemBuffer
@@ -205,7 +205,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	}
 
 	// encode body
-	writeInitFldFn := neofsproto.WriteStablyMarshalledMessageFunc(mh)
+	writeInitFldFn := protoencoding.WriteStablyMarshalledMessageFunc(mh)
 	off := protoobject.WritePutInitRequestBodyToRequest(buf, bodyLen, initFldLen, writeInitFldFn)
 
 	// memorize body for signing
@@ -213,9 +213,9 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 
 	// encode meta header
 	writeXHeaderFn := writeXHeaderFunc(x.opts.xHeaders)
-	writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
-	writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
-	writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
+	writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
+	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
+	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
 
 	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
 
@@ -286,7 +286,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		// synchronous sending, but this needs to be tested.
 		bodyLen := protoobject.CalculatePutChunkRequestBodyLength(chunk[:ln])
 
-		bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
+		bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
 
 		// acquire buffer for body + meta header
 		bufItem := x.bufferPool.Get().(*[]byte)
@@ -311,9 +311,9 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		xHdrLenFn := xHeadersLengthFunc(x.opts.xHeaders)
 		xHdrNum := len(x.opts.xHeaders) / 2
 		writeXHeaderFn := writeXHeaderFunc(x.opts.xHeaders)
-		writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
-		writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
-		writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
+		writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
+		writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
+		writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
 
 		off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
 
@@ -384,7 +384,7 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 	chunkOff := 1 + maxBodyVarlen + 1 + maxChunkVarlen                                  // first 1 for grpcprotobuf.TagBytes1, second for grpcprotobuf.TagBytes2
 
 	maxBodyWithMetaHdrLen := chunkOff + maxReadChunkLen
-	maxBodyWithMetaHdrLen += neofsproto.CalculateRequestMetaHeaderFieldLength(x.metaHdrLen)
+	maxBodyWithMetaHdrLen += protoencoding.CalculateRequestMetaHeaderFieldLength(x.metaHdrLen)
 
 	var writtenBytes int64
 
@@ -407,13 +407,13 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			chunkVarlen := protowire.SizeVarint(uint64(actualRead))
 			chunkFldOff := chunkOff - chunkVarlen - 1
 
-			neofsproto.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunk, actualRead)
+			protoencoding.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunk, actualRead)
 
 			bodyLen := 1 + chunkVarlen + actualRead
 			bodyVarlen := protowire.SizeVarint(uint64(bodyLen))
 			bodyOff := chunkFldOff + -bodyVarlen - 1
 
-			neofsproto.WriteRequestBodyTagAndLength(buf[bodyOff:], bodyLen)
+			protoencoding.WriteRequestBodyTagAndLength(buf[bodyOff:], bodyLen)
 
 			off := chunkOff + actualRead
 
@@ -422,9 +422,9 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			xHdrLenFn := xHeadersLengthFunc(x.opts.xHeaders)
 			xHdrNum := len(x.opts.xHeaders) / 2
 			writeXHeaderFn := writeXHeaderFunc(x.opts.xHeaders)
-			writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
-			writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
-			writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
+			writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
+			writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
+			writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
 
 			off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
 

@@ -7,9 +7,9 @@ import (
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
 )
@@ -236,7 +236,7 @@ func TestAddress_UnmarshalJSON(t *testing.T) {
 			t.Run(tc.name, func(t *testing.T) {
 				m := oidtest.Address().ProtoMessage()
 				tc.corrupt(m)
-				b, err := neofsproto.MarshalMessageJSON(m)
+				b, err := protoencoding.MarshalMessageJSON(m)
 				require.NoError(t, err)
 				require.EqualError(t, new(oid.Address).UnmarshalJSON(b), tc.err)
 			})

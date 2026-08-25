@@ -1,7 +1,7 @@
 package accounting
 
 import (
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 )
 
 // Field numbers of [Decimal] message.
@@ -16,8 +16,8 @@ const (
 func (x *Decimal) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldDecimalValue, x.Value) +
-			proto.SizeVarint(FieldDecimalPrecision, x.Precision)
+		sz = protoencoding.SizeVarint(FieldDecimalValue, x.Value) +
+			protoencoding.SizeVarint(FieldDecimalPrecision, x.Precision)
 	}
 	return sz
 }
@@ -27,8 +27,8 @@ func (x *Decimal) MarshaledSize() int {
 // [Decimal.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Decimal) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldDecimalValue, x.Value)
-		proto.MarshalToVarint(b[off:], FieldDecimalPrecision, x.Precision)
+		off := protoencoding.MarshalToVarint(b, FieldDecimalValue, x.Value)
+		protoencoding.MarshalToVarint(b[off:], FieldDecimalPrecision, x.Precision)
 	}
 }
 
@@ -43,7 +43,7 @@ const (
 func (x *BalanceRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldBalanceRequestBodyOwner, x.OwnerId)
+		sz = protoencoding.SizeEmbedded(FieldBalanceRequestBodyOwner, x.OwnerId)
 	}
 	return sz
 }
@@ -54,7 +54,7 @@ func (x *BalanceRequest_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *BalanceRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToEmbedded(b, FieldBalanceRequestBodyOwner, x.OwnerId)
+		protoencoding.MarshalToEmbedded(b, FieldBalanceRequestBodyOwner, x.OwnerId)
 	}
 }
 
@@ -69,7 +69,7 @@ const (
 func (x *BalanceResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldBalanceResponseBodyBalance, x.Balance)
+		sz = protoencoding.SizeEmbedded(FieldBalanceResponseBodyBalance, x.Balance)
 	}
 	return sz
 }
@@ -80,6 +80,6 @@ func (x *BalanceResponse_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *BalanceResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToEmbedded(b, FieldBalanceResponseBodyBalance, x.Balance)
+		protoencoding.MarshalToEmbedded(b, FieldBalanceResponseBodyBalance, x.Balance)
 	}
 }

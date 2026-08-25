@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 	stdproto "google.golang.org/protobuf/proto"
@@ -19,7 +19,7 @@ import (
 // need to add them to xs. The xs may be left empty if message has no fields.
 func TestMarshalStable[T any, PTR interface {
 	*T
-	proto.Message
+	protoencoding.Message
 	stdproto.Message
 }](t testing.TB, xs []PTR) {
 	xs = append(xs, nil, new(T))

@@ -1,6 +1,8 @@
 package reputation
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [PeerID] message.
 const (
@@ -13,7 +15,7 @@ const (
 func (x *PeerID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldPeerIDPublicKey, x.PublicKey)
+		sz = protoencoding.SizeBytes(FieldPeerIDPublicKey, x.PublicKey)
 	}
 	return sz
 }
@@ -23,7 +25,7 @@ func (x *PeerID) MarshaledSize() int {
 // [PeerID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *PeerID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, FieldPeerIDPublicKey, x.PublicKey)
+		protoencoding.MarshalToBytes(b, FieldPeerIDPublicKey, x.PublicKey)
 	}
 }
 
@@ -39,8 +41,8 @@ const (
 func (x *Trust) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldTrustPeer, x.Peer) +
-			proto.SizeDouble(FieldTrustValue, x.Value)
+		sz = protoencoding.SizeEmbedded(FieldTrustPeer, x.Peer) +
+			protoencoding.SizeDouble(FieldTrustValue, x.Value)
 	}
 	return sz
 }
@@ -50,8 +52,8 @@ func (x *Trust) MarshaledSize() int {
 // [Trust.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Trust) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldTrustPeer, x.Peer)
-		proto.MarshalToDouble(b[off:], FieldTrustValue, x.Value)
+		off := protoencoding.MarshalToEmbedded(b, FieldTrustPeer, x.Peer)
+		protoencoding.MarshalToDouble(b[off:], FieldTrustValue, x.Value)
 	}
 }
 
@@ -67,8 +69,8 @@ const (
 func (x *PeerToPeerTrust) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldPeerToPeerTrustTrustingPeer, x.TrustingPeer) +
-			proto.SizeEmbedded(FieldPeerToPeerTrustTrust, x.Trust)
+		sz = protoencoding.SizeEmbedded(FieldPeerToPeerTrustTrustingPeer, x.TrustingPeer) +
+			protoencoding.SizeEmbedded(FieldPeerToPeerTrustTrust, x.Trust)
 	}
 	return sz
 }
@@ -78,8 +80,8 @@ func (x *PeerToPeerTrust) MarshaledSize() int {
 // [PeerToPeerTrust.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *PeerToPeerTrust) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldPeerToPeerTrustTrustingPeer, x.TrustingPeer)
-		proto.MarshalToEmbedded(b[off:], FieldPeerToPeerTrustTrust, x.Trust)
+		off := protoencoding.MarshalToEmbedded(b, FieldPeerToPeerTrustTrustingPeer, x.TrustingPeer)
+		protoencoding.MarshalToEmbedded(b[off:], FieldPeerToPeerTrustTrust, x.Trust)
 	}
 }
 
@@ -95,8 +97,8 @@ const (
 func (x *GlobalTrust_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldGlobalTrustBodyManager, x.Manager) +
-			proto.SizeEmbedded(FieldGlobalTrustBodyTrust, x.Trust)
+		sz = protoencoding.SizeEmbedded(FieldGlobalTrustBodyManager, x.Manager) +
+			protoencoding.SizeEmbedded(FieldGlobalTrustBodyTrust, x.Trust)
 	}
 	return sz
 }
@@ -106,8 +108,8 @@ func (x *GlobalTrust_Body) MarshaledSize() int {
 // [GlobalTrust_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *GlobalTrust_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldGlobalTrustBodyManager, x.Manager)
-		proto.MarshalToEmbedded(b[off:], FieldGlobalTrustBodyTrust, x.Trust)
+		off := protoencoding.MarshalToEmbedded(b, FieldGlobalTrustBodyManager, x.Manager)
+		protoencoding.MarshalToEmbedded(b[off:], FieldGlobalTrustBodyTrust, x.Trust)
 	}
 }
 
@@ -124,9 +126,9 @@ const (
 func (x *GlobalTrust) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldGlobalTrustVersion, x.Version) +
-			proto.SizeEmbedded(FieldGlobalTrustBody, x.Body) +
-			proto.SizeEmbedded(FieldGlobalTrustSignature, x.Signature)
+		sz = protoencoding.SizeEmbedded(FieldGlobalTrustVersion, x.Version) +
+			protoencoding.SizeEmbedded(FieldGlobalTrustBody, x.Body) +
+			protoencoding.SizeEmbedded(FieldGlobalTrustSignature, x.Signature)
 	}
 	return sz
 }
@@ -136,9 +138,9 @@ func (x *GlobalTrust) MarshaledSize() int {
 // [GlobalTrust.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *GlobalTrust) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldGlobalTrustVersion, x.Version)
-		off += proto.MarshalToEmbedded(b[off:], FieldGlobalTrustBody, x.Body)
-		proto.MarshalToEmbedded(b[off:], FieldGlobalTrustSignature, x.Signature)
+		off := protoencoding.MarshalToEmbedded(b, FieldGlobalTrustVersion, x.Version)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldGlobalTrustBody, x.Body)
+		protoencoding.MarshalToEmbedded(b[off:], FieldGlobalTrustSignature, x.Signature)
 	}
 }
 
@@ -153,8 +155,8 @@ const (
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *AnnounceLocalTrustRequest_Body) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(FieldAnnounceLocalTrustRequestBodyEpoch, x.Epoch) +
-			proto.SizeRepeatedMessages(FieldAnnounceLocalTrustRequestBodyTrusts, x.Trusts)
+		return protoencoding.SizeVarint(FieldAnnounceLocalTrustRequestBodyEpoch, x.Epoch) +
+			protoencoding.SizeRepeatedMessages(FieldAnnounceLocalTrustRequestBodyTrusts, x.Trusts)
 	}
 	return 0
 }
@@ -165,8 +167,8 @@ func (x *AnnounceLocalTrustRequest_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *AnnounceLocalTrustRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldAnnounceLocalTrustRequestBodyEpoch, x.Epoch)
-		proto.MarshalToRepeatedMessages(b[off:], FieldAnnounceLocalTrustRequestBodyTrusts, x.Trusts)
+		off := protoencoding.MarshalToVarint(b, FieldAnnounceLocalTrustRequestBodyEpoch, x.Epoch)
+		protoencoding.MarshalToRepeatedMessages(b[off:], FieldAnnounceLocalTrustRequestBodyTrusts, x.Trusts)
 	}
 }
 
@@ -193,9 +195,9 @@ const (
 func (x *AnnounceIntermediateResultRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldAnnounceIntermediateResultRequestBodyEpoch, x.Epoch) +
-			proto.SizeVarint(FieldAnnounceIntermediateResultRequestBodyIteration, x.Iteration) +
-			proto.SizeEmbedded(FieldAnnounceIntermediateResultRequestBodyTrust, x.Trust)
+		sz = protoencoding.SizeVarint(FieldAnnounceIntermediateResultRequestBodyEpoch, x.Epoch) +
+			protoencoding.SizeVarint(FieldAnnounceIntermediateResultRequestBodyIteration, x.Iteration) +
+			protoencoding.SizeEmbedded(FieldAnnounceIntermediateResultRequestBodyTrust, x.Trust)
 	}
 	return sz
 }
@@ -207,9 +209,9 @@ func (x *AnnounceIntermediateResultRequest_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *AnnounceIntermediateResultRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldAnnounceIntermediateResultRequestBodyEpoch, x.Epoch)
-		off += proto.MarshalToVarint(b[off:], FieldAnnounceIntermediateResultRequestBodyIteration, x.Iteration)
-		proto.MarshalToEmbedded(b[off:], FieldAnnounceIntermediateResultRequestBodyTrust, x.Trust)
+		off := protoencoding.MarshalToVarint(b, FieldAnnounceIntermediateResultRequestBodyEpoch, x.Epoch)
+		off += protoencoding.MarshalToVarint(b[off:], FieldAnnounceIntermediateResultRequestBodyIteration, x.Iteration)
+		protoencoding.MarshalToEmbedded(b[off:], FieldAnnounceIntermediateResultRequestBodyTrust, x.Trust)
 	}
 }
 

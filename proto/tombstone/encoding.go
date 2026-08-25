@@ -1,6 +1,8 @@
 package tombstone
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [Tombstone] message.
 const (
@@ -14,9 +16,9 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *Tombstone) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(FieldTombstoneExpirationEpoch, x.ExpirationEpoch) +
-			proto.SizeBytes(FieldTombstoneSplitID, x.SplitId) +
-			proto.SizeRepeatedMessages(FieldTombstoneMembers, x.Members)
+		return protoencoding.SizeVarint(FieldTombstoneExpirationEpoch, x.ExpirationEpoch) +
+			protoencoding.SizeBytes(FieldTombstoneSplitID, x.SplitId) +
+			protoencoding.SizeRepeatedMessages(FieldTombstoneMembers, x.Members)
 	}
 	return 0
 }
@@ -26,8 +28,8 @@ func (x *Tombstone) MarshaledSize() int {
 // [Tombstone.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Tombstone) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldTombstoneExpirationEpoch, x.ExpirationEpoch)
-		off += proto.MarshalToBytes(b[off:], FieldTombstoneSplitID, x.SplitId)
-		proto.MarshalToRepeatedMessages(b[off:], FieldTombstoneMembers, x.Members)
+		off := protoencoding.MarshalToVarint(b, FieldTombstoneExpirationEpoch, x.ExpirationEpoch)
+		off += protoencoding.MarshalToBytes(b[off:], FieldTombstoneSplitID, x.SplitId)
+		protoencoding.MarshalToRepeatedMessages(b[off:], FieldTombstoneMembers, x.Members)
 	}
 }

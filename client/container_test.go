@@ -18,10 +18,10 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
 	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -54,7 +54,7 @@ func newTestContainerClient(t testing.TB, srv any) *Client {
 // for sharing between servers of requests with RFC 6979 signature of particular
 // data.
 type testRFC6979DataSignatureServerSettings[
-	SIGNED neofsproto.Message,
+	SIGNED protoencoding.Message,
 
 ] struct {
 	reqCreds         *authCredentials
@@ -100,7 +100,7 @@ func (x testRFC6979DataSignatureServerSettings[_]) verifyDataSignature(signedFie
 }
 
 func (x testRFC6979DataSignatureServerSettings[SIGNED]) verifyMessageSignature(signedField string, signed SIGNED, m *protorefs.SignatureRFC6979) error {
-	return x.verifyDataSignature(signedField, neofsproto.MarshalMessage(signed), m)
+	return x.verifyDataSignature(signedField, protoencoding.MarshalMessage(signed), m)
 }
 
 // for sharing between servers of requests with a container session token.

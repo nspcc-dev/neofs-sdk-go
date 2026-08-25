@@ -13,9 +13,9 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/container/acl"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap"
 	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -228,7 +228,7 @@ func (x Container) ProtoMessage() *protocontainer.Container {
 //
 // See also Unmarshal.
 func (x Container) Marshal() []byte {
-	return neofsproto.Marshal(x)
+	return protoencoding.Marshal(x)
 }
 
 // SignedData returns actual payload to sign.
@@ -244,7 +244,7 @@ func (x Container) SignedData() []byte {
 //
 // See also Marshal.
 func (x *Container) Unmarshal(data []byte) error {
-	return neofsproto.UnmarshalOptional(data, x, (*Container).fromProtoMessage)
+	return protoencoding.UnmarshalOptional(data, x, (*Container).fromProtoMessage)
 }
 
 // MarshalJSON encodes Container into a JSON format of the NeoFS API protocol
@@ -252,7 +252,7 @@ func (x *Container) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (x Container) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(x)
+	return protoencoding.MarshalJSON(x)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Container
@@ -260,7 +260,7 @@ func (x Container) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (x *Container) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSONOptional(data, x, (*Container).fromProtoMessage)
+	return protoencoding.UnmarshalJSONOptional(data, x, (*Container).fromProtoMessage)
 }
 
 // Init initializes all internal data of the Container required by NeoFS API

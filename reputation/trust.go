@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
@@ -354,7 +354,7 @@ func (x *GlobalTrust) Sign(signer neofscrypto.Signer) error {
 //
 // See also [GlobalTrust.Sign].
 func (x *GlobalTrust) SignedData() []byte {
-	return neofsproto.MarshalMessage(x.protoBodyMessage())
+	return protoencoding.MarshalMessage(x.protoBodyMessage())
 }
 
 // VerifySignature checks if GlobalTrust signature is presented and valid.
@@ -371,7 +371,7 @@ func (x GlobalTrust) VerifySignature() bool {
 //
 // See also Unmarshal.
 func (x GlobalTrust) Marshal() []byte {
-	return neofsproto.Marshal(x)
+	return protoencoding.Marshal(x)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the GlobalTrust
@@ -380,5 +380,5 @@ func (x GlobalTrust) Marshal() []byte {
 //
 // See also Marshal.
 func (x *GlobalTrust) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, x)
+	return protoencoding.Unmarshal(data, x)
 }

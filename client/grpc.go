@@ -6,7 +6,7 @@ import (
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	igrpc "github.com/nspcc-dev/neofs-sdk-go/internal/grpc"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -108,7 +108,7 @@ func _appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 
 	// pre-calculate verification header message lengths
 	verifHdrLen := protosession.CalculateMultiSignatureRequestVerificationHeaderLength(pubKey, scheme, bodySig, metaHdrSig, originVerifHdrSig)
 
-	verifHdrFldLen := neofsproto.CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
+	verifHdrFldLen := protoencoding.CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
 
 	// acquire buffer for verification header
 	var verifHdrFldBuf []byte
@@ -155,7 +155,7 @@ func appendVerificationHeaderSignature(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *p
 	// pre-calculate verification header message lengths
 	var (
 		verifHdrLen    = protosession.CalculateSingleSignatureRequestVerificationHeaderLength(pubKey, scheme, value)
-		verifHdrFldLen = neofsproto.CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
+		verifHdrFldLen = protoencoding.CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
 	)
 
 	// acquire buffer for verification header

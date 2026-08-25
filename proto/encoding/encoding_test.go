@@ -1,4 +1,4 @@
-package proto_test
+package encoding_test
 
 import (
 	"fmt"
@@ -7,8 +7,8 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/encoding/protowire"
 	stdproto "google.golang.org/protobuf/proto"
@@ -54,7 +54,7 @@ func randFieldNum() protowire.Number {
 	return n
 }
 
-func randBytes[T proto.Bytes]() T {
+func randBytes[T protoencoding.Bytes]() T {
 	ln := rand.Uint32() % 64
 	if ln == 0 {
 		ln = 1
@@ -62,9 +62,9 @@ func randBytes[T proto.Bytes]() T {
 	return T(testutil.RandByteSlice(ln))
 }
 
-func randVarint[T proto.Varint]() T { return T(rand.Uint64()) }
+func randVarint[T protoencoding.Varint]() T { return T(rand.Uint64()) }
 
-func randRepeatedBytes[T proto.Bytes]() []T {
+func randRepeatedBytes[T protoencoding.Bytes]() []T {
 	n := rand.Uint32() % 10
 	if n == 0 {
 		n = 1
@@ -78,7 +78,7 @@ func randRepeatedBytes[T proto.Bytes]() []T {
 	return res
 }
 
-func randRepeatedVarint[T proto.Varint]() []T {
+func randRepeatedVarint[T protoencoding.Varint]() []T {
 	n := rand.Uint32() % 10
 	if n == 0 {
 		n = 1
@@ -92,12 +92,12 @@ func randRepeatedVarint[T proto.Varint]() []T {
 	return res
 }
 
-func consumeVarint[T proto.Varint](b []byte) (T, int) {
+func consumeVarint[T protoencoding.Varint](b []byte) (T, int) {
 	v, ln := protowire.ConsumeVarint(b)
 	return T(v), ln
 }
 
-func consumeRepeatedVarint[T proto.Varint](b []byte) ([]T, int) {
+func consumeRepeatedVarint[T protoencoding.Varint](b []byte) ([]T, int) {
 	bs, code := protowire.ConsumeBytes(b)
 	if code < 0 {
 		return nil, code
@@ -114,12 +114,12 @@ func consumeRepeatedVarint[T proto.Varint](b []byte) ([]T, int) {
 	return res, 0
 }
 
-func consumeBytes[T proto.Bytes](b []byte) (T, int) {
+func consumeBytes[T protoencoding.Bytes](b []byte) (T, int) {
 	v, ln := protowire.ConsumeBytes(b)
 	return T(v), ln
 }
 
-func consumePackedRepeated[T proto.Bytes](b []byte, num protowire.Number) ([]T, int) {
+func consumePackedRepeated[T protoencoding.Bytes](b []byte, num protowire.Number) ([]T, int) {
 	var res []T
 	for len(b) > 0 {
 		n, t, tagLn := protowire.ConsumeTag(b)
@@ -142,7 +142,7 @@ func consumePackedRepeated[T proto.Bytes](b []byte, num protowire.Number) ([]T, 
 }
 
 type anySupportedType interface {
-	proto.Varint | proto.Bytes | bool | float32 | float64 | []uint64 | []uint32 | []int64 | []int32 | []enum
+	protoencoding.Varint | protoencoding.Bytes | bool | float32 | float64 | []uint64 | []uint32 | []int64 | []int32 | []enum
 }
 
 func testEncoding[T anySupportedType](
@@ -178,7 +178,7 @@ func testEncoding[T anySupportedType](
 	require.EqualValues(t, v, res, msg)
 }
 
-func testPackedRepeated[T proto.Bytes](t testing.TB,
+func testPackedRepeated[T protoencoding.Bytes](t testing.TB,
 	sizeFunc func(protowire.Number, []T) int,
 	marshalFunc func([]byte, protowire.Number, []T) int,
 	consumeFunc func([]byte, protowire.Number) ([]T, int),
@@ -239,28 +239,28 @@ func TestOptionalVarint(t *testing.T) {
 	zero := uint64(0)
 
 	t.Run("nil", func(t *testing.T) {
-		require.Zero(t, proto.SizeOptionalVarint[uint64](fieldNum, nil))
-		require.Zero(t, proto.MarshalToOptionalVarint[uint64](nil, fieldNum, nil))
+		require.Zero(t, protoencoding.SizeOptionalVarint[uint64](fieldNum, nil))
+		require.Zero(t, protoencoding.MarshalToOptionalVarint[uint64](nil, fieldNum, nil))
 	})
 	t.Run("zero", func(t *testing.T) {
-		buf := make([]byte, proto.SizeOptionalVarint(fieldNum, &zero))
-		require.Equal(t, len(buf), proto.MarshalToOptionalVarint(buf, fieldNum, &zero))
+		buf := make([]byte, protoencoding.SizeOptionalVarint(fieldNum, &zero))
+		require.Equal(t, len(buf), protoencoding.MarshalToOptionalVarint(buf, fieldNum, &zero))
 		require.Equal(t, []byte{8, 0}, buf)
 	})
 }
 
 func TestVarint(t *testing.T) {
-	testEncoding(t, protowire.VarintType, proto.SizeVarint[uint64], proto.MarshalToVarint[uint64], protowire.ConsumeVarint, randVarint[uint64])
-	testEncoding(t, protowire.VarintType, proto.SizeVarint[uint32], proto.MarshalToVarint[uint32], consumeVarint[uint32], randVarint[uint32])
-	testEncoding(t, protowire.VarintType, proto.SizeVarint[int64], proto.MarshalToVarint[int64], consumeVarint[int64], randVarint[int64])
-	testEncoding(t, protowire.VarintType, proto.SizeVarint[int32], proto.MarshalToVarint[int32], consumeVarint[int32], randVarint[int32])
-	testEncoding(t, protowire.VarintType, proto.SizeVarint[enum], proto.MarshalToVarint[enum], consumeVarint[enum], randVarint[enum])
-	testEncoding(t, protowire.VarintType, proto.SizeVarint[int], proto.MarshalToVarint[int], consumeVarint[int], randVarint[int])
+	testEncoding(t, protowire.VarintType, protoencoding.SizeVarint[uint64], protoencoding.MarshalToVarint[uint64], protowire.ConsumeVarint, randVarint[uint64])
+	testEncoding(t, protowire.VarintType, protoencoding.SizeVarint[uint32], protoencoding.MarshalToVarint[uint32], consumeVarint[uint32], randVarint[uint32])
+	testEncoding(t, protowire.VarintType, protoencoding.SizeVarint[int64], protoencoding.MarshalToVarint[int64], consumeVarint[int64], randVarint[int64])
+	testEncoding(t, protowire.VarintType, protoencoding.SizeVarint[int32], protoencoding.MarshalToVarint[int32], consumeVarint[int32], randVarint[int32])
+	testEncoding(t, protowire.VarintType, protoencoding.SizeVarint[enum], protoencoding.MarshalToVarint[enum], consumeVarint[enum], randVarint[enum])
+	testEncoding(t, protowire.VarintType, protoencoding.SizeVarint[int], protoencoding.MarshalToVarint[int], consumeVarint[int], randVarint[int])
 }
 
-func benchmarkMarshalVarint[T proto.Varint](b *testing.B, v T) {
+func benchmarkMarshalVarint[T protoencoding.Varint](b *testing.B, v T) {
 	b.Run(fmt.Sprintf("%T", v), func(b *testing.B) {
-		benchmarkType(b, v, proto.SizeVarint[T], proto.MarshalToVarint[T])
+		benchmarkType(b, v, protoencoding.SizeVarint[T], protoencoding.MarshalToVarint[T])
 	})
 }
 
@@ -274,12 +274,12 @@ func BenchmarkMarshalVarint(b *testing.B) {
 
 func TestBool(t *testing.T) {
 	fieldNum := randFieldNum()
-	require.Zero(t, proto.SizeBool(fieldNum, false))
-	require.Zero(t, proto.MarshalToBool(nil, fieldNum, false))
+	require.Zero(t, protoencoding.SizeBool(fieldNum, false))
+	require.Zero(t, protoencoding.MarshalToBool(nil, fieldNum, false))
 
-	sz := proto.SizeBool(fieldNum, true)
+	sz := protoencoding.SizeBool(fieldNum, true)
 	b := make([]byte, sz)
-	require.EqualValues(t, sz, proto.MarshalToBool(b, fieldNum, true))
+	require.EqualValues(t, sz, protoencoding.MarshalToBool(b, fieldNum, true))
 
 	num, typ, tagLn := protowire.ConsumeTag(b)
 	require.Positive(t, tagLn, protowire.ParseError(tagLn))
@@ -292,27 +292,27 @@ func TestBool(t *testing.T) {
 }
 
 func BenchmarkMarshalBool(b *testing.B) {
-	benchmarkType(b, true, proto.SizeBool, proto.MarshalToBool)
+	benchmarkType(b, true, protoencoding.SizeBool, protoencoding.MarshalToBool)
 }
 
 func TestFixed32(t *testing.T) {
-	testEncoding(t, protowire.Fixed32Type, proto.SizeFixed32, proto.MarshalToFixed32, protowire.ConsumeFixed32, rand.Uint32)
+	testEncoding(t, protowire.Fixed32Type, protoencoding.SizeFixed32, protoencoding.MarshalToFixed32, protowire.ConsumeFixed32, rand.Uint32)
 }
 
 func BenchmarkMarshalFixed32(b *testing.B) {
-	benchmarkType(b, math.MaxUint32, proto.SizeFixed32, proto.MarshalToFixed32)
+	benchmarkType(b, math.MaxUint32, protoencoding.SizeFixed32, protoencoding.MarshalToFixed32)
 }
 
 func TestFixed64(t *testing.T) {
-	testEncoding(t, protowire.Fixed64Type, proto.SizeFixed64, proto.MarshalToFixed64, protowire.ConsumeFixed64, rand.Uint64)
+	testEncoding(t, protowire.Fixed64Type, protoencoding.SizeFixed64, protoencoding.MarshalToFixed64, protowire.ConsumeFixed64, rand.Uint64)
 }
 
 func BenchmarkMarshalFixed64(b *testing.B) {
-	benchmarkType(b, math.MaxUint64, proto.SizeFixed64, proto.MarshalToFixed64)
+	benchmarkType(b, math.MaxUint64, protoencoding.SizeFixed64, protoencoding.MarshalToFixed64)
 }
 
 func TestFloat(t *testing.T) {
-	testEncoding(t, protowire.Fixed32Type, proto.SizeFloat, proto.MarshalToFloat, func(b []byte) (float32, int) {
+	testEncoding(t, protowire.Fixed32Type, protoencoding.SizeFloat, protoencoding.MarshalToFloat, func(b []byte) (float32, int) {
 		v, ln := protowire.ConsumeFixed32(b)
 		return math.Float32frombits(v), ln
 	}, func() float32 {
@@ -323,11 +323,11 @@ func TestFloat(t *testing.T) {
 }
 
 func BenchmarkMarshalFloat(b *testing.B) {
-	benchmarkType(b, math.Float32frombits(math.MaxUint32), proto.SizeFloat, proto.MarshalToFloat)
+	benchmarkType(b, math.Float32frombits(math.MaxUint32), protoencoding.SizeFloat, protoencoding.MarshalToFloat)
 }
 
 func TestDouble(t *testing.T) {
-	testEncoding(t, protowire.Fixed64Type, proto.SizeDouble, proto.MarshalToDouble, func(b []byte) (float64, int) {
+	testEncoding(t, protowire.Fixed64Type, protoencoding.SizeDouble, protoencoding.MarshalToDouble, func(b []byte) (float64, int) {
 		v, ln := protowire.ConsumeFixed64(b)
 		return math.Float64frombits(v), ln
 	}, func() float64 {
@@ -338,17 +338,17 @@ func TestDouble(t *testing.T) {
 }
 
 func BenchmarkDouble(b *testing.B) {
-	benchmarkType(b, math.Float64frombits(math.MaxUint64), proto.SizeDouble, proto.MarshalToDouble)
+	benchmarkType(b, math.Float64frombits(math.MaxUint64), protoencoding.SizeDouble, protoencoding.MarshalToDouble)
 }
 
 func TestBytes(t *testing.T) {
-	testEncoding(t, protowire.BytesType, proto.SizeBytes[[]byte], proto.MarshalToBytes[[]byte], consumeBytes[[]byte], randBytes[[]byte])
-	testEncoding(t, protowire.BytesType, proto.SizeBytes[string], proto.MarshalToBytes[string], consumeBytes[string], randBytes[string])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeBytes[[]byte], protoencoding.MarshalToBytes[[]byte], consumeBytes[[]byte], randBytes[[]byte])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeBytes[string], protoencoding.MarshalToBytes[string], consumeBytes[string], randBytes[string])
 }
 
-func benchmarkMarshalBytes[T proto.Bytes](b *testing.B, v T) {
+func benchmarkMarshalBytes[T protoencoding.Bytes](b *testing.B, v T) {
 	b.Run(fmt.Sprintf("%T", v), func(b *testing.B) {
-		benchmarkType(b, v, proto.SizeBytes[T], proto.MarshalToBytes[T])
+		benchmarkType(b, v, protoencoding.SizeBytes[T], protoencoding.MarshalToBytes[T])
 	})
 }
 
@@ -361,25 +361,25 @@ func BenchmarkMarshalBytes(b *testing.B) {
 func TestEmbedded(t *testing.T) {
 	fieldNum := randFieldNum()
 	t.Run("nil", func(t *testing.T) {
-		require.Zero(t, proto.SizeEmbedded(fieldNum, nil))
-		require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, nil))
-		require.Zero(t, proto.SizeEmbedded(fieldNum, (*timestamp)(nil)))
-		require.Zero(t, proto.MarshalToEmbedded(nil, fieldNum, (*timestamp)(nil)))
+		require.Zero(t, protoencoding.SizeEmbedded(fieldNum, nil))
+		require.Zero(t, protoencoding.MarshalToEmbedded(nil, fieldNum, nil))
+		require.Zero(t, protoencoding.SizeEmbedded(fieldNum, (*timestamp)(nil)))
+		require.Zero(t, protoencoding.MarshalToEmbedded(nil, fieldNum, (*timestamp)(nil)))
 	})
 	t.Run("zero", func(t *testing.T) {
 		const fieldNum = 480010005
 		const expLen = 6
 		tz := new(timestamp)
-		require.EqualValues(t, expLen, proto.SizeEmbedded(fieldNum, tz))
+		require.EqualValues(t, expLen, protoencoding.SizeEmbedded(fieldNum, tz))
 		b := make([]byte, expLen)
-		proto.MarshalToEmbedded(b, fieldNum, tz)
+		protoencoding.MarshalToEmbedded(b, fieldNum, tz)
 		require.Equal(t, []byte{170, 241, 139, 167, 14, 0}, b) // first 5 bytes is num, last zero is size
 	})
 
 	v := (*timestamp)(timestamppb.Now())
-	sz := proto.SizeEmbedded(fieldNum, v)
+	sz := protoencoding.SizeEmbedded(fieldNum, v)
 	b := make([]byte, sz)
-	require.EqualValues(t, sz, proto.MarshalToEmbedded(b, fieldNum, v))
+	require.EqualValues(t, sz, protoencoding.MarshalToEmbedded(b, fieldNum, v))
 
 	num, typ, tagLn := protowire.ConsumeTag(b)
 	require.Positive(t, tagLn, protowire.ParseError(tagLn))
@@ -397,24 +397,24 @@ func TestEmbedded(t *testing.T) {
 func BenchmarkMarshalEmbedded(b *testing.B) {
 	const fieldNum = protowire.MaxValidNumber
 	v := (*timestamp)(timestamppb.Now())
-	buf := make([]byte, proto.SizeEmbedded(fieldNum, v))
+	buf := make([]byte, protoencoding.SizeEmbedded(fieldNum, v))
 
 	for b.Loop() {
-		proto.MarshalToEmbedded(buf, fieldNum, v)
+		protoencoding.MarshalToEmbedded(buf, fieldNum, v)
 	}
 }
 
 func TestRepeatedVarint(t *testing.T) {
-	testEncoding(t, protowire.BytesType, proto.SizeRepeatedVarint[uint64], proto.MarshalToRepeatedVarint[uint64], consumeRepeatedVarint[uint64], randRepeatedVarint[uint64])
-	testEncoding(t, protowire.BytesType, proto.SizeRepeatedVarint[uint32], proto.MarshalToRepeatedVarint[uint32], consumeRepeatedVarint[uint32], randRepeatedVarint[uint32])
-	testEncoding(t, protowire.BytesType, proto.SizeRepeatedVarint[int64], proto.MarshalToRepeatedVarint[int64], consumeRepeatedVarint[int64], randRepeatedVarint[int64])
-	testEncoding(t, protowire.BytesType, proto.SizeRepeatedVarint[int32], proto.MarshalToRepeatedVarint[int32], consumeRepeatedVarint[int32], randRepeatedVarint[int32])
-	testEncoding(t, protowire.BytesType, proto.SizeRepeatedVarint[enum], proto.MarshalToRepeatedVarint[enum], consumeRepeatedVarint[enum], randRepeatedVarint[enum])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeRepeatedVarint[uint64], protoencoding.MarshalToRepeatedVarint[uint64], consumeRepeatedVarint[uint64], randRepeatedVarint[uint64])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeRepeatedVarint[uint32], protoencoding.MarshalToRepeatedVarint[uint32], consumeRepeatedVarint[uint32], randRepeatedVarint[uint32])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeRepeatedVarint[int64], protoencoding.MarshalToRepeatedVarint[int64], consumeRepeatedVarint[int64], randRepeatedVarint[int64])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeRepeatedVarint[int32], protoencoding.MarshalToRepeatedVarint[int32], consumeRepeatedVarint[int32], randRepeatedVarint[int32])
+	testEncoding(t, protowire.BytesType, protoencoding.SizeRepeatedVarint[enum], protoencoding.MarshalToRepeatedVarint[enum], consumeRepeatedVarint[enum], randRepeatedVarint[enum])
 }
 
-func benchmarkMarshalRepeatedVarint[T proto.Varint](b *testing.B, v T) {
+func benchmarkMarshalRepeatedVarint[T protoencoding.Varint](b *testing.B, v T) {
 	b.Run(fmt.Sprintf("%T", v), func(b *testing.B) {
-		benchmarkRepeatedType(b, []T{v, v, v}, proto.SizeRepeatedVarint[T], proto.MarshalToRepeatedVarint[T])
+		benchmarkRepeatedType(b, []T{v, v, v}, protoencoding.SizeRepeatedVarint[T], protoencoding.MarshalToRepeatedVarint[T])
 	})
 }
 
@@ -428,13 +428,13 @@ func BenchmarkMarshalRepeatedVarint(b *testing.B) {
 }
 
 func TestRepeatedBytes(t *testing.T) {
-	testPackedRepeated(t, proto.SizeRepeatedBytes[[]byte], proto.MarshalToRepeatedBytes[[]byte], consumePackedRepeated[[]byte], randRepeatedBytes[[]byte])
-	testPackedRepeated(t, proto.SizeRepeatedBytes[string], proto.MarshalToRepeatedBytes[string], consumePackedRepeated[string], randRepeatedBytes[string])
+	testPackedRepeated(t, protoencoding.SizeRepeatedBytes[[]byte], protoencoding.MarshalToRepeatedBytes[[]byte], consumePackedRepeated[[]byte], randRepeatedBytes[[]byte])
+	testPackedRepeated(t, protoencoding.SizeRepeatedBytes[string], protoencoding.MarshalToRepeatedBytes[string], consumePackedRepeated[string], randRepeatedBytes[string])
 }
 
-func benchmarkMarshalRepeatedBytes[T proto.Bytes](b *testing.B, v T) {
+func benchmarkMarshalRepeatedBytes[T protoencoding.Bytes](b *testing.B, v T) {
 	b.Run(fmt.Sprintf("%T", v), func(b *testing.B) {
-		benchmarkRepeatedType(b, []T{v, v, v}, proto.SizeRepeatedBytes[T], proto.MarshalToRepeatedBytes[T])
+		benchmarkRepeatedType(b, []T{v, v, v}, protoencoding.SizeRepeatedBytes[T], protoencoding.MarshalToRepeatedBytes[T])
 	})
 }
 
@@ -447,7 +447,7 @@ func BenchmarkMarshalRepeatedBytes(b *testing.B) {
 func TestSizeEmbeddedLENField(t *testing.T) {
 	t.Run("negative length", func(t *testing.T) {
 		require.PanicsWithValue(t, "negative length -1", func() {
-			proto.SizeEmbeddedLENField(1, -1)
+			protoencoding.SizeEmbeddedLENField(1, -1)
 		})
 	})
 
@@ -456,14 +456,14 @@ func TestSizeEmbeddedLENField(t *testing.T) {
 			t.Run(strconv.Itoa(int(num)), func(t *testing.T) {
 				msg := fmt.Sprintf("invalid field number %d", num)
 				require.PanicsWithValue(t, msg, func() {
-					proto.SizeEmbeddedLENField(num, 0)
+					protoencoding.SizeEmbeddedLENField(num, 0)
 				})
 			})
 		}
 	})
 
 	t.Run("zero length", func(t *testing.T) {
-		ln := proto.SizeEmbeddedLENField(1, 0)
+		ln := protoencoding.SizeEmbeddedLENField(1, 0)
 		require.Zero(t, ln)
 	})
 
@@ -477,7 +477,7 @@ func TestSizeEmbeddedLENField(t *testing.T) {
 		{num: 1, ln: 128, exp: 1 + 2 + 128},
 		{num: 128, ln: 128, exp: 2 + 2 + 128},
 	} {
-		ln := proto.SizeEmbeddedLENField(tc.num, tc.ln)
+		ln := protoencoding.SizeEmbeddedLENField(tc.num, tc.ln)
 		require.EqualValues(t, tc.exp, ln, i)
 	}
 }

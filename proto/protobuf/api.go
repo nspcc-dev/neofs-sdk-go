@@ -10,8 +10,8 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -38,9 +38,9 @@ const (
 
 // Common request field numbers.
 const (
-	FieldRequestBody               = neofsproto.FieldRequestBody
-	FieldRequestMetaHeader         = neofsproto.FieldRequestMetaHeader
-	FieldRequestVerificationHeader = neofsproto.FieldRequestVerificationHeader
+	FieldRequestBody               = protoencoding.FieldRequestBody
+	FieldRequestMetaHeader         = protoencoding.FieldRequestMetaHeader
+	FieldRequestVerificationHeader = protoencoding.FieldRequestVerificationHeader
 )
 
 // Common response field numbers.

@@ -1,8 +1,8 @@
 package accounting
 
 import (
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 )
 
 // Decimal represents decimal number for accounting operations.
@@ -74,7 +74,7 @@ func (d *Decimal) SetPrecision(p uint32) {
 //
 // See also Unmarshal.
 func (d Decimal) Marshal() []byte {
-	return neofsproto.Marshal(d)
+	return protoencoding.Marshal(d)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the Decimal
@@ -83,5 +83,5 @@ func (d Decimal) Marshal() []byte {
 //
 // See also Marshal.
 func (d *Decimal) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, d)
+	return protoencoding.Unmarshal(data, d)
 }

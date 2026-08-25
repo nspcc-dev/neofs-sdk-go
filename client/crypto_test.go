@@ -16,7 +16,7 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 	"github.com/nspcc-dev/neo-go/pkg/io"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
@@ -54,8 +54,8 @@ func checkAuthCredendials(exp, act authCredentials) error {
 	return nil
 }
 
-func signMessage[MESSAGE neofsproto.Message](key ecdsa.PrivateKey, m MESSAGE) (*protorefs.Signature, error) {
-	b := neofsproto.MarshalMessage(m)
+func signMessage[MESSAGE protoencoding.Message](key ecdsa.PrivateKey, m MESSAGE) (*protorefs.Signature, error) {
+	b := protoencoding.MarshalMessage(m)
 	h := sha512.Sum512(b)
 	r, s, err := ecdsa.Sign(rand.Reader, &key, h[:])
 	if err != nil {

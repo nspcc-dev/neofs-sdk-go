@@ -1,6 +1,8 @@
 package container
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [Container_Attribute] message.
 const (
@@ -14,8 +16,8 @@ const (
 func (x *Container_Attribute) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldContainerAttributeKey, x.Key) +
-			proto.SizeBytes(FieldContainerAttributeValue, x.Value)
+		sz = protoencoding.SizeBytes(FieldContainerAttributeKey, x.Key) +
+			protoencoding.SizeBytes(FieldContainerAttributeValue, x.Value)
 	}
 	return sz
 }
@@ -26,8 +28,8 @@ func (x *Container_Attribute) MarshaledSize() int {
 // NPE-safe.
 func (x *Container_Attribute) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, FieldContainerAttributeKey, x.Key)
-		proto.MarshalToBytes(b[off:], FieldContainerAttributeValue, x.Value)
+		off := protoencoding.MarshalToBytes(b, FieldContainerAttributeKey, x.Key)
+		protoencoding.MarshalToBytes(b[off:], FieldContainerAttributeValue, x.Value)
 	}
 }
 
@@ -46,12 +48,12 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *Container) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(FieldContainerVersion, x.Version) +
-			proto.SizeEmbedded(FieldContainerOwnerID, x.OwnerId) +
-			proto.SizeBytes(FieldContainerNonce, x.Nonce) +
-			proto.SizeVarint(FieldContainerBasicACL, x.BasicAcl) +
-			proto.SizeEmbedded(FieldContainerPolicy, x.PlacementPolicy) +
-			proto.SizeRepeatedMessages(FieldContainerAttributes, x.Attributes)
+		return protoencoding.SizeEmbedded(FieldContainerVersion, x.Version) +
+			protoencoding.SizeEmbedded(FieldContainerOwnerID, x.OwnerId) +
+			protoencoding.SizeBytes(FieldContainerNonce, x.Nonce) +
+			protoencoding.SizeVarint(FieldContainerBasicACL, x.BasicAcl) +
+			protoencoding.SizeEmbedded(FieldContainerPolicy, x.PlacementPolicy) +
+			protoencoding.SizeRepeatedMessages(FieldContainerAttributes, x.Attributes)
 	}
 	return 0
 }
@@ -61,12 +63,12 @@ func (x *Container) MarshaledSize() int {
 // [Container.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Container) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldContainerVersion, x.Version)
-		off += proto.MarshalToEmbedded(b[off:], FieldContainerOwnerID, x.OwnerId)
-		off += proto.MarshalToBytes(b[off:], FieldContainerNonce, x.Nonce)
-		off += proto.MarshalToVarint(b[off:], FieldContainerBasicACL, x.BasicAcl)
-		off += proto.MarshalToRepeatedMessages(b[off:], FieldContainerAttributes, x.Attributes)
-		proto.MarshalToEmbedded(b[off:], FieldContainerPolicy, x.PlacementPolicy)
+		off := protoencoding.MarshalToEmbedded(b, FieldContainerVersion, x.Version)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldContainerOwnerID, x.OwnerId)
+		off += protoencoding.MarshalToBytes(b[off:], FieldContainerNonce, x.Nonce)
+		off += protoencoding.MarshalToVarint(b[off:], FieldContainerBasicACL, x.BasicAcl)
+		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldContainerAttributes, x.Attributes)
+		protoencoding.MarshalToEmbedded(b[off:], FieldContainerPolicy, x.PlacementPolicy)
 	}
 }
 
@@ -84,10 +86,10 @@ const (
 func (x *PutRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldPutRequestBodyContainer, x.Container) +
-			proto.SizeEmbedded(FieldPutRequestBodySignature, x.Signature) +
-			proto.SizeEmbedded(FieldPutRequestBodyEacl, x.Eacl) +
-			proto.SizeEmbedded(FieldPutRequestBodyEaclSignature, x.EaclSignature)
+		sz = protoencoding.SizeEmbedded(FieldPutRequestBodyContainer, x.Container) +
+			protoencoding.SizeEmbedded(FieldPutRequestBodySignature, x.Signature) +
+			protoencoding.SizeEmbedded(FieldPutRequestBodyEacl, x.Eacl) +
+			protoencoding.SizeEmbedded(FieldPutRequestBodyEaclSignature, x.EaclSignature)
 	}
 	return sz
 }
@@ -97,10 +99,10 @@ func (x *PutRequest_Body) MarshaledSize() int {
 // [PutRequest_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *PutRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldPutRequestBodyContainer, x.Container)
-		off += proto.MarshalToEmbedded(b[off:], FieldPutRequestBodySignature, x.Signature)
-		off += proto.MarshalToEmbedded(b[off:], FieldPutRequestBodyEacl, x.Eacl)
-		proto.MarshalToEmbedded(b[off:], FieldPutRequestBodyEaclSignature, x.EaclSignature)
+		off := protoencoding.MarshalToEmbedded(b, FieldPutRequestBodyContainer, x.Container)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodySignature, x.Signature)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodyEacl, x.Eacl)
+		protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodyEaclSignature, x.EaclSignature)
 	}
 }
 
@@ -115,7 +117,7 @@ const (
 func (x *PutResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldPutResponseBodyID, x.ContainerId)
+		sz = protoencoding.SizeEmbedded(FieldPutResponseBodyID, x.ContainerId)
 	}
 	return sz
 }
@@ -125,7 +127,7 @@ func (x *PutResponse_Body) MarshaledSize() int {
 // [PutResponse_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *PutResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToEmbedded(b, FieldPutResponseBodyID, x.ContainerId)
+		protoencoding.MarshalToEmbedded(b, FieldPutResponseBodyID, x.ContainerId)
 	}
 }
 
@@ -141,8 +143,8 @@ const (
 func (x *DeleteRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldDeleteRequestBodyContainerID, x.ContainerId) +
-			proto.SizeEmbedded(FieldDeleteRequestBodySignature, x.Signature)
+		sz = protoencoding.SizeEmbedded(FieldDeleteRequestBodyContainerID, x.ContainerId) +
+			protoencoding.SizeEmbedded(FieldDeleteRequestBodySignature, x.Signature)
 	}
 	return sz
 }
@@ -153,8 +155,8 @@ func (x *DeleteRequest_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *DeleteRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldDeleteRequestBodyContainerID, x.ContainerId)
-		proto.MarshalToEmbedded(b[off:], FieldDeleteRequestBodySignature, x.Signature)
+		off := protoencoding.MarshalToEmbedded(b, FieldDeleteRequestBodyContainerID, x.ContainerId)
+		protoencoding.MarshalToEmbedded(b[off:], FieldDeleteRequestBodySignature, x.Signature)
 	}
 }
 
@@ -179,7 +181,7 @@ const (
 func (x *GetRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldGetRequestBodyContainer, x.ContainerId)
+		sz = protoencoding.SizeEmbedded(FieldGetRequestBodyContainer, x.ContainerId)
 	}
 	return sz
 }
@@ -189,7 +191,7 @@ func (x *GetRequest_Body) MarshaledSize() int {
 // [GetRequest_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *GetRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToEmbedded(b, FieldGetRequestBodyContainer, x.ContainerId)
+		protoencoding.MarshalToEmbedded(b, FieldGetRequestBodyContainer, x.ContainerId)
 	}
 }
 
@@ -206,9 +208,9 @@ const (
 func (x *GetResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldGetResponseBodyContainer, x.Container) +
-			proto.SizeEmbedded(FieldGetResponseBodySignature, x.Signature) +
-			proto.SizeEmbedded(FieldGetResponseBodySessionToken, x.SessionToken)
+		sz = protoencoding.SizeEmbedded(FieldGetResponseBodyContainer, x.Container) +
+			protoencoding.SizeEmbedded(FieldGetResponseBodySignature, x.Signature) +
+			protoencoding.SizeEmbedded(FieldGetResponseBodySessionToken, x.SessionToken)
 	}
 	return sz
 }
@@ -218,9 +220,9 @@ func (x *GetResponse_Body) MarshaledSize() int {
 // [GetResponse_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *GetResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldGetResponseBodyContainer, x.Container)
-		off += proto.MarshalToEmbedded(b[off:], FieldGetResponseBodySignature, x.Signature)
-		proto.MarshalToEmbedded(b[off:], FieldGetResponseBodySessionToken, x.SessionToken)
+		off := protoencoding.MarshalToEmbedded(b, FieldGetResponseBodyContainer, x.Container)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldGetResponseBodySignature, x.Signature)
+		protoencoding.MarshalToEmbedded(b[off:], FieldGetResponseBodySessionToken, x.SessionToken)
 	}
 }
 
@@ -235,7 +237,7 @@ const (
 func (x *ListRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldListRequestBodyOwner, x.OwnerId)
+		sz = protoencoding.SizeEmbedded(FieldListRequestBodyOwner, x.OwnerId)
 	}
 	return sz
 }
@@ -245,7 +247,7 @@ func (x *ListRequest_Body) MarshaledSize() int {
 // [ListRequest_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *ListRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToEmbedded(b, FieldListRequestBodyOwner, x.OwnerId)
+		protoencoding.MarshalToEmbedded(b, FieldListRequestBodyOwner, x.OwnerId)
 	}
 }
 
@@ -259,7 +261,7 @@ const (
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *ListResponse_Body) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeRepeatedMessages(FieldListResponseBodyContainerIDs, x.ContainerIds)
+		return protoencoding.SizeRepeatedMessages(FieldListResponseBodyContainerIDs, x.ContainerIds)
 	}
 	return 0
 }
@@ -270,7 +272,7 @@ func (x *ListResponse_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *ListResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToRepeatedMessages(b, FieldListResponseBodyContainerIDs, x.ContainerIds)
+		protoencoding.MarshalToRepeatedMessages(b, FieldListResponseBodyContainerIDs, x.ContainerIds)
 	}
 }
 
@@ -286,8 +288,8 @@ const (
 func (x *SetExtendedACLRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldSetExtendedACLRequestBodyEACL, x.Eacl) +
-			proto.SizeEmbedded(FieldSetExtendedACLRequestBodySignature, x.Signature)
+		sz = protoencoding.SizeEmbedded(FieldSetExtendedACLRequestBodyEACL, x.Eacl) +
+			protoencoding.SizeEmbedded(FieldSetExtendedACLRequestBodySignature, x.Signature)
 	}
 	return sz
 }
@@ -298,8 +300,8 @@ func (x *SetExtendedACLRequest_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *SetExtendedACLRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldSetExtendedACLRequestBodyEACL, x.Eacl)
-		proto.MarshalToEmbedded(b[off:], FieldSetExtendedACLRequestBodySignature, x.Signature)
+		off := protoencoding.MarshalToEmbedded(b, FieldSetExtendedACLRequestBodyEACL, x.Eacl)
+		protoencoding.MarshalToEmbedded(b[off:], FieldSetExtendedACLRequestBodySignature, x.Signature)
 	}
 }
 
@@ -324,7 +326,7 @@ const (
 func (x *GetExtendedACLRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldGetExtendedACLRequestBodyContainer, x.ContainerId)
+		sz = protoencoding.SizeEmbedded(FieldGetExtendedACLRequestBodyContainer, x.ContainerId)
 	}
 	return sz
 }
@@ -335,7 +337,7 @@ func (x *GetExtendedACLRequest_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *GetExtendedACLRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToEmbedded(b, FieldGetExtendedACLRequestBodyContainer, x.ContainerId)
+		protoencoding.MarshalToEmbedded(b, FieldGetExtendedACLRequestBodyContainer, x.ContainerId)
 	}
 }
 
@@ -352,9 +354,9 @@ const (
 func (x *GetExtendedACLResponse_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldGetExtendedACLResponseBodyEACL, x.Eacl) +
-			proto.SizeEmbedded(FieldGetExtendedACLResponseBodySignature, x.Signature) +
-			proto.SizeEmbedded(FieldGetExtendedACLResponseBodySessionToken, x.SessionToken)
+		sz = protoencoding.SizeEmbedded(FieldGetExtendedACLResponseBodyEACL, x.Eacl) +
+			protoencoding.SizeEmbedded(FieldGetExtendedACLResponseBodySignature, x.Signature) +
+			protoencoding.SizeEmbedded(FieldGetExtendedACLResponseBodySessionToken, x.SessionToken)
 	}
 	return sz
 }
@@ -365,9 +367,9 @@ func (x *GetExtendedACLResponse_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *GetExtendedACLResponse_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldGetExtendedACLResponseBodyEACL, x.Eacl)
-		off += proto.MarshalToEmbedded(b[off:], FieldGetExtendedACLResponseBodySignature, x.Signature)
-		proto.MarshalToEmbedded(b[off:], FieldGetExtendedACLResponseBodySessionToken, x.SessionToken)
+		off := protoencoding.MarshalToEmbedded(b, FieldGetExtendedACLResponseBodyEACL, x.Eacl)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldGetExtendedACLResponseBodySignature, x.Signature)
+		protoencoding.MarshalToEmbedded(b[off:], FieldGetExtendedACLResponseBodySessionToken, x.SessionToken)
 	}
 }
 
@@ -384,9 +386,9 @@ const (
 func (x *AnnounceUsedSpaceRequest_Body_Announcement) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldAnnounceUsedSpaceRequestBodyAnnouncementEpoch, x.Epoch) +
-			proto.SizeEmbedded(FieldAnnounceUsedSpaceRequestBodyAnnouncementContainerID, x.ContainerId) +
-			proto.SizeVarint(FieldAnnounceUsedSpaceRequestBodyAnnouncementUsedSpace, x.UsedSpace)
+		sz = protoencoding.SizeVarint(FieldAnnounceUsedSpaceRequestBodyAnnouncementEpoch, x.Epoch) +
+			protoencoding.SizeEmbedded(FieldAnnounceUsedSpaceRequestBodyAnnouncementContainerID, x.ContainerId) +
+			protoencoding.SizeVarint(FieldAnnounceUsedSpaceRequestBodyAnnouncementUsedSpace, x.UsedSpace)
 	}
 	return sz
 }
@@ -398,9 +400,9 @@ func (x *AnnounceUsedSpaceRequest_Body_Announcement) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *AnnounceUsedSpaceRequest_Body_Announcement) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldAnnounceUsedSpaceRequestBodyAnnouncementEpoch, x.Epoch)
-		off += proto.MarshalToEmbedded(b[off:], FieldAnnounceUsedSpaceRequestBodyAnnouncementContainerID, x.ContainerId)
-		proto.MarshalToVarint(b[off:], FieldAnnounceUsedSpaceRequestBodyAnnouncementUsedSpace, x.UsedSpace)
+		off := protoencoding.MarshalToVarint(b, FieldAnnounceUsedSpaceRequestBodyAnnouncementEpoch, x.Epoch)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldAnnounceUsedSpaceRequestBodyAnnouncementContainerID, x.ContainerId)
+		protoencoding.MarshalToVarint(b[off:], FieldAnnounceUsedSpaceRequestBodyAnnouncementUsedSpace, x.UsedSpace)
 	}
 }
 
@@ -414,7 +416,7 @@ const (
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *AnnounceUsedSpaceRequest_Body) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeRepeatedMessages(FieldAnnounceUsedSpaceRequestBodyAnnouncements, x.Announcements)
+		return protoencoding.SizeRepeatedMessages(FieldAnnounceUsedSpaceRequestBodyAnnouncements, x.Announcements)
 	}
 	return 0
 }
@@ -425,7 +427,7 @@ func (x *AnnounceUsedSpaceRequest_Body) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *AnnounceUsedSpaceRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToRepeatedMessages(b, FieldAnnounceUsedSpaceRequestBodyAnnouncements, x.Announcements)
+		protoencoding.MarshalToRepeatedMessages(b, FieldAnnounceUsedSpaceRequestBodyAnnouncements, x.Announcements)
 	}
 }
 
@@ -453,10 +455,10 @@ const (
 func (x *SetAttributeRequest_Body_Parameters) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldSetAttributeRequestBodyParametersContainerID, x.ContainerId) +
-			proto.SizeBytes(FieldSetAttributeRequestBodyParametersAttribute, x.Attribute) +
-			proto.SizeBytes(FieldSetAttributeRequestBodyParametersValue, x.Value) +
-			proto.SizeVarint(FieldSetAttributeRequestBodyParametersValidUntil, x.ValidUntil)
+		sz = protoencoding.SizeEmbedded(FieldSetAttributeRequestBodyParametersContainerID, x.ContainerId) +
+			protoencoding.SizeBytes(FieldSetAttributeRequestBodyParametersAttribute, x.Attribute) +
+			protoencoding.SizeBytes(FieldSetAttributeRequestBodyParametersValue, x.Value) +
+			protoencoding.SizeVarint(FieldSetAttributeRequestBodyParametersValidUntil, x.ValidUntil)
 	}
 	return sz
 }
@@ -467,10 +469,10 @@ func (x *SetAttributeRequest_Body_Parameters) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *SetAttributeRequest_Body_Parameters) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldSetAttributeRequestBodyParametersContainerID, x.ContainerId)
-		off += proto.MarshalToBytes(b[off:], FieldSetAttributeRequestBodyParametersAttribute, x.Attribute)
-		off += proto.MarshalToBytes(b[off:], FieldSetAttributeRequestBodyParametersValue, x.Value)
-		proto.MarshalToVarint(b[off:], FieldSetAttributeRequestBodyParametersValidUntil, x.ValidUntil)
+		off := protoencoding.MarshalToEmbedded(b, FieldSetAttributeRequestBodyParametersContainerID, x.ContainerId)
+		off += protoencoding.MarshalToBytes(b[off:], FieldSetAttributeRequestBodyParametersAttribute, x.Attribute)
+		off += protoencoding.MarshalToBytes(b[off:], FieldSetAttributeRequestBodyParametersValue, x.Value)
+		protoencoding.MarshalToVarint(b[off:], FieldSetAttributeRequestBodyParametersValidUntil, x.ValidUntil)
 	}
 }
 
@@ -488,10 +490,10 @@ const (
 func (x *SetAttributeRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldSetAttributeRequestBodyParameters, x.Parameters) +
-			proto.SizeEmbedded(FieldSetAttributeRequestBodySignature, x.Signature) +
-			proto.SizeEmbedded(FieldSetAttributeRequestBodySessionToken, x.SessionToken) +
-			proto.SizeEmbedded(FieldSetAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
+		sz = protoencoding.SizeEmbedded(FieldSetAttributeRequestBodyParameters, x.Parameters) +
+			protoencoding.SizeEmbedded(FieldSetAttributeRequestBodySignature, x.Signature) +
+			protoencoding.SizeEmbedded(FieldSetAttributeRequestBodySessionToken, x.SessionToken) +
+			protoencoding.SizeEmbedded(FieldSetAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
 	}
 	return sz
 }
@@ -502,10 +504,10 @@ func (x *SetAttributeRequest_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *SetAttributeRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldSetAttributeRequestBodyParameters, x.Parameters)
-		off += proto.MarshalToEmbedded(b[off:], FieldSetAttributeRequestBodySignature, x.Signature)
-		off += proto.MarshalToEmbedded(b[off:], FieldSetAttributeRequestBodySessionToken, x.SessionToken)
-		proto.MarshalToEmbedded(b[off:], FieldSetAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
+		off := protoencoding.MarshalToEmbedded(b, FieldSetAttributeRequestBodyParameters, x.Parameters)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldSetAttributeRequestBodySignature, x.Signature)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldSetAttributeRequestBodySessionToken, x.SessionToken)
+		protoencoding.MarshalToEmbedded(b[off:], FieldSetAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
 	}
 }
 
@@ -522,9 +524,9 @@ const (
 func (x *RemoveAttributeRequest_Body_Parameters) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldRemoveAttributeRequestBodyParametersContainerID, x.ContainerId) +
-			proto.SizeBytes(FieldRemoveAttributeRequestBodyParametersAttribute, x.Attribute) +
-			proto.SizeVarint(FieldRemoveAttributeRequestBodyParametersValidUntil, x.ValidUntil)
+		sz = protoencoding.SizeEmbedded(FieldRemoveAttributeRequestBodyParametersContainerID, x.ContainerId) +
+			protoencoding.SizeBytes(FieldRemoveAttributeRequestBodyParametersAttribute, x.Attribute) +
+			protoencoding.SizeVarint(FieldRemoveAttributeRequestBodyParametersValidUntil, x.ValidUntil)
 	}
 	return sz
 }
@@ -535,9 +537,9 @@ func (x *RemoveAttributeRequest_Body_Parameters) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *RemoveAttributeRequest_Body_Parameters) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldRemoveAttributeRequestBodyParametersContainerID, x.ContainerId)
-		off += proto.MarshalToBytes(b[off:], FieldRemoveAttributeRequestBodyParametersAttribute, x.Attribute)
-		proto.MarshalToVarint(b[off:], FieldRemoveAttributeRequestBodyParametersValidUntil, x.ValidUntil)
+		off := protoencoding.MarshalToEmbedded(b, FieldRemoveAttributeRequestBodyParametersContainerID, x.ContainerId)
+		off += protoencoding.MarshalToBytes(b[off:], FieldRemoveAttributeRequestBodyParametersAttribute, x.Attribute)
+		protoencoding.MarshalToVarint(b[off:], FieldRemoveAttributeRequestBodyParametersValidUntil, x.ValidUntil)
 	}
 }
 
@@ -555,10 +557,10 @@ const (
 func (x *RemoveAttributeRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldRemoveAttributeRequestBodyParameters, x.Parameters) +
-			proto.SizeEmbedded(FieldRemoveAttributeRequestBodySignature, x.Signature) +
-			proto.SizeEmbedded(FieldRemoveAttributeRequestBodySessionTOken, x.SessionToken) +
-			proto.SizeEmbedded(FieldRemoveAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
+		sz = protoencoding.SizeEmbedded(FieldRemoveAttributeRequestBodyParameters, x.Parameters) +
+			protoencoding.SizeEmbedded(FieldRemoveAttributeRequestBodySignature, x.Signature) +
+			protoencoding.SizeEmbedded(FieldRemoveAttributeRequestBodySessionTOken, x.SessionToken) +
+			protoencoding.SizeEmbedded(FieldRemoveAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
 	}
 	return sz
 }
@@ -569,9 +571,9 @@ func (x *RemoveAttributeRequest_Body) MarshaledSize() int {
 // is NPE-safe.
 func (x *RemoveAttributeRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldRemoveAttributeRequestBodyParameters, x.Parameters)
-		off += proto.MarshalToEmbedded(b[off:], FieldRemoveAttributeRequestBodySignature, x.Signature)
-		off += proto.MarshalToEmbedded(b[off:], FieldRemoveAttributeRequestBodySessionTOken, x.SessionToken)
-		proto.MarshalToEmbedded(b[off:], FieldRemoveAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
+		off := protoencoding.MarshalToEmbedded(b, FieldRemoveAttributeRequestBodyParameters, x.Parameters)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldRemoveAttributeRequestBodySignature, x.Signature)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldRemoveAttributeRequestBodySessionTOken, x.SessionToken)
+		protoencoding.MarshalToEmbedded(b[off:], FieldRemoveAttributeRequestBodySessionTokenV1, x.SessionTokenV1)
 	}
 }

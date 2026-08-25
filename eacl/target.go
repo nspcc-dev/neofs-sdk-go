@@ -6,8 +6,8 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/util"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -147,13 +147,13 @@ func (t *Target) fromProtoMessage(m *protoacl.EACLRecord_Target) error {
 
 // Marshal marshals Target into a protobuf binary form.
 func (t Target) Marshal() []byte {
-	return neofsproto.MarshalMessage(t.protoMessage())
+	return protoencoding.MarshalMessage(t.protoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of Target.
 func (t *Target) Unmarshal(data []byte) error {
 	m := new(protoacl.EACLRecord_Target)
-	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessage(data, m); err != nil {
 		return err
 	}
 	return t.fromProtoMessage(m)
@@ -161,13 +161,13 @@ func (t *Target) Unmarshal(data []byte) error {
 
 // MarshalJSON encodes Target to protobuf JSON format.
 func (t Target) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(t.protoMessage())
+	return protoencoding.MarshalMessageJSON(t.protoMessage())
 }
 
 // UnmarshalJSON decodes Target from protobuf JSON format.
 func (t *Target) UnmarshalJSON(data []byte) error {
 	m := new(protoacl.EACLRecord_Target)
-	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessageJSON(data, m); err != nil {
 		return err
 	}
 	return t.fromProtoMessage(m)

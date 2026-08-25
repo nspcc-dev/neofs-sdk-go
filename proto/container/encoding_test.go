@@ -3,8 +3,8 @@ package container_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/container"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
@@ -63,7 +63,7 @@ func TestContainer_MarshalStable(t *testing.T) {
 		}
 
 		var dst container.Container
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		as := dst.GetAttributes()
 		require.Len(t, as, 2)
@@ -132,7 +132,7 @@ func TestListResponse_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst container.ListResponse_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		cs := dst.GetContainerIds()
 		require.Len(t, cs, 2)
@@ -187,7 +187,7 @@ func TestAnnounceUsedSpaceRequest_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst container.AnnounceUsedSpaceRequest_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		as := dst.GetAnnouncements()
 		require.Len(t, as, 2)

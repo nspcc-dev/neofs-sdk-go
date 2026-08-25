@@ -11,10 +11,10 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -194,7 +194,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 
 	metaHdrLen := protosession.CalculateRequestMetaHeaderLength(c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, sessionV2TokenLen)
 
-	bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
+	bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
 
 	// acquire buffer for body + meta header
 	var reqMemBuf *grpcprotobuf.MemBuffer
@@ -217,9 +217,9 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 
 	// encode meta header
 	writeXHeaderFn := writeXHeaderFunc(opts.xHeaders)
-	writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
-	writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
-	writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
+	writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
+	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
+	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
 
 	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, sessionV2TokenLen, writeSessionV2TokenFn)
 

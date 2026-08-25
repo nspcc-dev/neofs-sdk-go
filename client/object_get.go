@@ -14,10 +14,10 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -266,7 +266,7 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	}
 
 	if x.verifyChecksums {
-		hb := neofsproto.MarshalMessage(partInit.Header)
+		hb := protoencoding.MarshalMessage(partInit.Header)
 		if oid.NewFromObjectHeaderBinary(hb) != x.requestedOID {
 			x.err = errors.New("received header mismatches ID")
 			return false
@@ -722,7 +722,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	metaHdrLen := protosession.CalculateRequestMetaHeaderLength(c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, sessionV2TokenLen)
 
-	bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
+	bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
 
 	// acquire buffer for body + meta header
 	var reqMemBuf *grpcprotobuf.MemBuffer
@@ -742,9 +742,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	// encode meta header
 	writeXHeaderFn := writeXHeaderFunc(prm.xHeaders)
-	writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
-	writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
-	writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
+	writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
+	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
+	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
 
 	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, sessionV2TokenLen, writeSessionV2TokenFn)
 
@@ -886,7 +886,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 
 	metaHdrLen := protosession.CalculateRequestMetaHeaderLength(c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, sessionV2TokenLen)
 
-	bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
+	bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
 
 	// acquire buffer for body + meta header
 	var reqMemBuf *grpcprotobuf.MemBuffer
@@ -906,9 +906,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 
 	// encode meta header
 	writeXHeaderFn := writeXHeaderFunc(prm.xHeaders)
-	writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
-	writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
-	writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
+	writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
+	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
+	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
 
 	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, sessionV2TokenLen, writeSessionV2TokenFn)
 
@@ -980,7 +980,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		}
 
 		if !prm.skipChecksumVerification {
-			hb := neofsproto.MarshalMessage(v.Header.Header)
+			hb := protoencoding.MarshalMessage(v.Header.Header)
 			if oid.NewFromObjectHeaderBinary(hb) != objectID {
 				return nil, errors.New("received header mismatches ID")
 			}

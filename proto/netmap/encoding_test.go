@@ -3,7 +3,7 @@ package netmap_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/stretchr/testify/require"
@@ -95,7 +95,7 @@ func TestFilter_MarshalStable(t *testing.T) {
 		}
 
 		var dst netmap.Filter
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		fs := dst.GetFilters()
 		require.Len(t, fs, 2)
@@ -123,7 +123,7 @@ func TestPlacement_MarshalStable(t *testing.T) {
 		}
 
 		var dst netmap.PlacementPolicy
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		rs := dst.GetReplicas()
 		require.Len(t, rs, 2)
@@ -163,7 +163,7 @@ func TestNetworkConfig_MarshalStable(t *testing.T) {
 		}
 
 		var dst netmap.NetworkConfig
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ps := dst.GetParameters()
 		require.Len(t, ps, 2)
@@ -195,7 +195,7 @@ func TestNodeInfo_MarshalStable(t *testing.T) {
 		}
 
 		var dst netmap.NodeInfo
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		as := dst.GetAttributes()
 		require.Len(t, as, 2)
@@ -215,7 +215,7 @@ func TestNetmap_MarshalStable(t *testing.T) {
 		}
 
 		var dst netmap.Netmap
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ns := dst.GetNodes()
 		require.Len(t, ns, 2)

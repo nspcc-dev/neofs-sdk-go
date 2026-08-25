@@ -8,8 +8,8 @@ import (
 	"strconv"
 
 	"github.com/antlr4-go/antlr/v4"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/netmap/parser"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
@@ -195,7 +195,7 @@ func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, check
 //
 // See also Unmarshal.
 func (p PlacementPolicy) Marshal() []byte {
-	return neofsproto.Marshal(p)
+	return protoencoding.Marshal(p)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the PlacementPolicy
@@ -204,7 +204,7 @@ func (p PlacementPolicy) Marshal() []byte {
 //
 // See also Marshal.
 func (p *PlacementPolicy) Unmarshal(data []byte) error {
-	return neofsproto.UnmarshalOptional(data, p, (*PlacementPolicy).fromProtoMessage)
+	return protoencoding.UnmarshalOptional(data, p, (*PlacementPolicy).fromProtoMessage)
 }
 
 // MarshalJSON encodes PlacementPolicy into a JSON format of the NeoFS API
@@ -212,7 +212,7 @@ func (p *PlacementPolicy) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(p)
+	return protoencoding.MarshalJSON(p)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the PlacementPolicy
@@ -220,7 +220,7 @@ func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (p *PlacementPolicy) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSONOptional(data, p, (*PlacementPolicy).fromProtoMessage)
+	return protoencoding.UnmarshalJSONOptional(data, p, (*PlacementPolicy).fromProtoMessage)
 }
 
 // FromProtoMessage validates m according to the NeoFS API protocol and restores

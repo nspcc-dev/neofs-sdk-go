@@ -3,7 +3,7 @@ package status_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/stretchr/testify/require"
@@ -22,7 +22,7 @@ func TestStatus_MarshalStable(t *testing.T) {
 		}
 
 		var dst status.Status
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ds := dst.GetDetails()
 		require.Len(t, ds, 2)

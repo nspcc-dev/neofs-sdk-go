@@ -20,7 +20,7 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -550,7 +550,7 @@ func (x *testCommonServerSettings) setSleepDuration(dur time.Duration) { x.handl
 
 // provides generic server code for various NeoFS API unary RPC servers.
 type testCommonUnaryServerSettings[
-	REQBODY neofsproto.Message,
+	REQBODY protoencoding.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
@@ -558,7 +558,7 @@ type testCommonUnaryServerSettings[
 	},
 	RESPBODY interface {
 		proto.Message
-		neofsproto.Message
+		protoencoding.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
@@ -573,7 +573,7 @@ type testCommonUnaryServerSettings[
 // provides generic server code for various NeoFS API server-side stream RPC
 // servers.
 type testCommonServerStreamServerSettings[
-	REQBODY neofsproto.Message,
+	REQBODY protoencoding.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
@@ -581,7 +581,7 @@ type testCommonServerStreamServerSettings[
 	},
 	RESPBODY interface {
 		proto.Message
-		neofsproto.Message
+		protoencoding.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
@@ -656,7 +656,7 @@ func (x *testCommonServerStreamServerSettings[_, _, _, _]) abortHandlerAfterResp
 // provides generic server code for various NeoFS API client-side stream RPC
 // servers.
 type testCommonClientStreamServerSettings[
-	REQBODY neofsproto.Message,
+	REQBODY protoencoding.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
@@ -664,7 +664,7 @@ type testCommonClientStreamServerSettings[
 	},
 	RESPBODY interface {
 		proto.Message
-		neofsproto.Message
+		protoencoding.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
@@ -701,7 +701,7 @@ func (x *testCommonClientStreamServerSettings[_, _, _, _]) respondAfterRequest(n
 }
 
 type testCommonRequestServerSettings[
-	REQBODY neofsproto.Message,
+	REQBODY protoencoding.Message,
 	REQ interface {
 		GetBody() REQBODY
 		GetMetaHeader() *protosession.RequestMetaHeader
@@ -754,15 +754,15 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		}
 		if multipleReqSignatures(metaHdr.Version) {
 			if err := verifyDataSignature(
-				neofsproto.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
+				protoencoding.MarshalMessage(body), verifyHdr.BodySignature, x.reqCreds); err != nil {
 				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("body signature: %w", err))
 			}
 			if err := verifyDataSignature(
-				neofsproto.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
+				protoencoding.MarshalMessage(metaHdr), verifyHdr.MetaSignature, x.reqCreds); err != nil {
 				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
 			}
 		} else {
-			rawReq, _ := neofsproto.EncodeRequest(nil, body, metaHdr)
+			rawReq, _ := protoencoding.EncodeRequest(nil, body, metaHdr)
 			if err := verifyDataSignature(
 				rawReq, verifyHdr.RequestSignature, x.reqCreds); err != nil {
 				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("request signature: %w", err))
@@ -812,7 +812,7 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 type testCommonResponseServerSettings[
 	RESPBODY interface {
 		proto.Message
-		neofsproto.Message
+		protoencoding.Message
 	},
 	RESP interface {
 		GetBody() RESPBODY
