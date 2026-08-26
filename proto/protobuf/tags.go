@@ -21,4 +21,6 @@ const (
 	TagVarint4 = 32
 	TagVarint5 = 40
 	TagVarint6 = 48
+	TagVarint7 = 56
+	TagVarint8 = 64
 )

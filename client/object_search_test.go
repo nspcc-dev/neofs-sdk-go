@@ -9,6 +9,7 @@ import (
 	"math/rand"
 	"slices"
 	"strconv"
+	"sync"
 	"testing"
 	"time"
 
@@ -28,6 +29,7 @@ import (
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -1184,4 +1186,91 @@ func TestClient_SearchObjects(t *testing.T) {
 			return err
 		})
 	})
+}
+
+func BenchmarkSearch(b *testing.B) {
+	c, err := New(PrmInit{})
+	require.NoError(b, err)
+	c.apiVersion = version.Current().ProtoMessage()
+
+	ctx := context.Background()
+	cnr := cidtest.ID()
+	var filters object.SearchFilters
+	filters.AddFilter("key", "value", object.MatchStringEqual)
+	filters.AddFilter("foo", "bar", object.MatchStringNotEqual)
+	attrs := []string{"key", "a2", "a3", "a4", "a5"}
+	cursor := "cursor"
+	usr := usertest.User()
+
+	var opts SearchObjectsOptions
+	opts.WithXHeaders(
+		"hdr1", "value1",
+		"hdr2", "value2",
+	)
+	// opts.WithSessionTokenV2(sessionv2.Token{})
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _, err = c.SearchObjects(ctx, cnr, filters, attrs, cursor, usr, opts)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkGet(b *testing.B) {
+	c, err := New(PrmInit{})
+	require.NoError(b, err)
+	c.apiVersion = version.Current().ProtoMessage()
+
+	ctx := context.Background()
+	cnr := cidtest.ID()
+	obj := oidtest.ID()
+	usr := usertest.User()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_, _, err = c.ObjectGetInit(ctx, cnr, obj, usr, PrmObjectGet{})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkHead(b *testing.B) {
+	c, err := New(PrmInit{})
+	require.NoError(b, err)
+	c.apiVersion = version.Current().ProtoMessage()
+
+	ctx := context.Background()
+	cnr := cidtest.ID()
+	obj := oidtest.ID()
+	usr := usertest.User()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		_, err = c.ObjectHead(ctx, cnr, obj, usr, PrmObjectHead{})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkPut(b *testing.B) {
+	var c DefaultObjectWriter
+	c.bufferPool = &sync.Pool{
+		New: func() any {
+			b := make([]byte, 4)
+			return &b
+		},
+	}
+	c.apiVersion = version.Current().ProtoMessage()
+
+	b.ReportAllocs()
+	for b.Loop() {
+		err := c.writeHeader(object.Object{})
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
 }

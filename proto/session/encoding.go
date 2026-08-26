@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
 // Field numbers of [ObjectSessionContext_Target] message.
@@ -275,15 +276,29 @@ const (
 	FieldXHeaderValue
 )
 
+// CalculateXHeaderLength calculates length of X-header message with given
+// fields.
+func CalculateXHeaderLength(key string, value string) int {
+	ln := proto.SizeBytes(FieldXHeaderKey, key)
+	ln += proto.SizeBytes(FieldXHeaderValue, value)
+	return ln
+}
+
 // MarshaledSize returns size of the XHeader in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *XHeader) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeBytes(FieldXHeaderKey, x.Key) +
-			proto.SizeBytes(FieldXHeaderValue, x.Value)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return CalculateXHeaderLength(x.Key, x.Value)
+}
+
+// WriteXHeader writes X-header message with given fields into buf. Returns
+// number of bytes written.
+func WriteXHeader(buf []byte, key string, value string) int {
+	off := proto.MarshalToBytes(buf, FieldXHeaderKey, key)
+	off += proto.MarshalToBytes(buf[off:], FieldXHeaderValue, value)
+	return off
 }
 
 // MarshalStable writes the XHeader in Protocol Buffers V3 format with ascending
@@ -291,8 +306,7 @@ func (x *XHeader) MarshaledSize() int {
 // [XHeader.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *XHeader) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, FieldXHeaderKey, x.Key)
-		proto.MarshalToBytes(b[off:], FieldXHeaderValue, x.Value)
+		WriteXHeader(b, x.Key, x.Value)
 	}
 }
 
@@ -310,21 +324,86 @@ const (
 	FieldRequestMetaHeaderSessionTokenV2
 )
 
+// CalculateRequestMetaHeaderLength calculates length of request meta header
+// message with given fields.
+func CalculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, magicNumber uint64, sessionV2TokenLen int) int {
+	return calculateRequestMetaHeaderLength(majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, magicNumber, sessionV2TokenLen)
+}
+
+func calculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, originLen int, magicNumber uint64, sessionV2TokenLen int) int {
+	ln := proto.SizeEmbeddedLENField(FieldRequestMetaHeaderVersion, refs.CalculateVersionLength(majorVersion, minorVersion))
+	ln += proto.SizeVarint(FieldRequestMetaHeaderEpoch, epoch)
+	ln += proto.SizeVarint(FieldRequestMetaHeaderTTL, ttl)
+	ln += proto.CalculateRepeatedFieldsLength(FieldRequestMetaHeaderXHeaders, xHdrNum, xHdrLenFn)
+	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionToken, sessionV1TokenLen)
+	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderBearerToken, bearerTokenLen)
+	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderOrigin, originLen)
+	ln += proto.SizeVarint(FieldRequestMetaHeaderMagicNumber, magicNumber)
+	ln += proto.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen)
+	return ln
+}
+
+func (x *RequestMetaHeader) getXHeaderLen(i int) int {
+	xh := x.XHeaders[i]
+	if xh == nil {
+		return 0
+	}
+	return CalculateXHeaderLength(xh.Key, xh.Value)
+}
+
 // MarshaledSize returns size of the RequestMetaHeader in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *RequestMetaHeader) MarshaledSize() int {
-	if x != nil {
-		return proto.SizeEmbedded(FieldRequestMetaHeaderVersion, x.Version) +
-			proto.SizeVarint(FieldRequestMetaHeaderEpoch, x.Epoch) +
-			proto.SizeVarint(FieldRequestMetaHeaderTTL, x.Ttl) +
-			proto.SizeEmbedded(FieldRequestMetaHeaderSessionToken, x.SessionToken) +
-			proto.SizeEmbedded(FieldRequestMetaHeaderBearerToken, x.BearerToken) +
-			proto.SizeEmbedded(FieldRequestMetaHeaderOrigin, x.Origin) +
-			proto.SizeVarint(FieldRequestMetaHeaderMagicNumber, x.MagicNumber) +
-			proto.SizeRepeatedMessages(FieldRequestMetaHeaderXHeaders, x.XHeaders) +
-			proto.SizeEmbedded(FieldRequestMetaHeaderSessionTokenV2, x.SessionTokenV2)
+	if x == nil {
+		return 0
 	}
-	return 0
+	sessionV1TokenLen := x.SessionToken.MarshaledSize()
+	bearerTokenLen := x.BearerToken.MarshaledSize()
+	originLen := x.Origin.MarshaledSize()
+	sessionV2TokenLen := x.SessionTokenV2.MarshaledSize()
+	return calculateRequestMetaHeaderLength(x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, sessionV1TokenLen, bearerTokenLen, originLen, x.MagicNumber, sessionV2TokenLen)
+}
+
+// WriteRequestMetaHeaderToRequest writes meta header field with given fields
+// into buf. Returns number of bytes written.
+func WriteRequestMetaHeaderToRequest(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, writeXHdrFn proto.WriteRepeatedMessageFunc,
+	sessionV1TokenLen int, writeSessionV1TokenFn proto.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn proto.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn proto.WriteMessageFunc) int {
+	ln := CalculateRequestMetaHeaderLength(majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, magicNumber, sessionV2TokenLen)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestMetaHeaderTagAndLength(buf, ln)
+	off += WriteRequestMetaHeader(buf[off:], majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
+	return off
+}
+
+// WriteRequestMetaHeader writes request meta header message with given fields
+// into buf. Returns number of bytes written.
+func WriteRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, writeXHdrFn proto.WriteRepeatedMessageFunc,
+	sessionV1TokenLen int, writeSessionV1TokenFn proto.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn proto.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn proto.WriteMessageFunc) int {
+	return writeRequestMetaHeader(buf, majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, nil, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
+}
+
+func writeRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn proto.RepeatedMessageLenFunc, writeXHdrFn proto.WriteRepeatedMessageFunc,
+	sessionV1TokenLen int, writeSessionV1TokenFn proto.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn proto.WriteMessageFunc, originLen int, writeOriginFn proto.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn proto.WriteMessageFunc) int {
+	off := refs.WriteVersionField(buf, FieldRequestMetaHeaderVersion, majorVersion, minorVersion)
+	off += proto.MarshalToVarint(buf[off:], FieldRequestMetaHeaderEpoch, epoch)
+	off += proto.MarshalToVarint(buf[off:], FieldRequestMetaHeaderTTL, ttl)
+	off += proto.WriteRepeatedFields(buf[off:], FieldRequestMetaHeaderXHeaders, xHdrNum, xHdrLenFn, writeXHdrFn)
+	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionToken, sessionV1TokenLen, writeSessionV1TokenFn)
+	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderBearerToken, bearerTokenLen, writeBearerTokenFn)
+	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderOrigin, originLen, writeOriginFn)
+	off += proto.MarshalToVarint(buf[off:], FieldRequestMetaHeaderMagicNumber, magicNumber)
+	off += proto.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen, writeSessionV2TokenFn)
+	return off
+}
+
+func (x *RequestMetaHeader) writeXHeader(buf []byte, i int) int {
+	xh := x.XHeaders[i]
+	if xh == nil {
+		return 0
+	}
+	return WriteXHeader(buf, xh.Key, xh.Value)
 }
 
 // MarshalStable writes the RequestMetaHeader in Protocol Buffers V3 format with
@@ -332,17 +411,18 @@ func (x *RequestMetaHeader) MarshaledSize() int {
 // [RequestMetaHeader.MarshaledSize] first bytes of b. MarshalStable is
 // NPE-safe.
 func (x *RequestMetaHeader) MarshalStable(b []byte) {
-	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldRequestMetaHeaderVersion, x.Version)
-		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderEpoch, x.Epoch)
-		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderTTL, x.Ttl)
-		off += proto.MarshalToRepeatedMessages(b[off:], FieldRequestMetaHeaderXHeaders, x.XHeaders)
-		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionToken, x.SessionToken)
-		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderBearerToken, x.BearerToken)
-		off += proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderOrigin, x.Origin)
-		off += proto.MarshalToVarint(b[off:], FieldRequestMetaHeaderMagicNumber, x.MagicNumber)
-		proto.MarshalToEmbedded(b[off:], FieldRequestMetaHeaderSessionTokenV2, x.SessionTokenV2)
+	if x == nil {
+		return
 	}
+	sessionV1TokenLen := x.SessionToken.MarshaledSize()
+	writeSessionV1TokenFn := proto.WriteStablyMarshalledMessageFunc(x.SessionToken)
+	bearerTokenLen := x.BearerToken.MarshaledSize()
+	writeBearerTokenFn := proto.WriteStablyMarshalledMessageFunc(x.BearerToken)
+	originLen := x.Origin.MarshaledSize()
+	writeOriginFn := proto.WriteStablyMarshalledMessageFunc(x.Origin)
+	sessionV2TokenLen := x.SessionTokenV2.MarshaledSize()
+	writeSessionV2TokenFn := proto.WriteStablyMarshalledMessageFunc(x.SessionTokenV2)
+	writeRequestMetaHeader(b, x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, x.writeXHeader, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, originLen, writeOriginFn, x.MagicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
 }
 
 // Field numbers of [ResponseMetaHeader] message.
@@ -395,18 +475,94 @@ const (
 	FieldRequestVerificationHeaderRequestSignature
 )
 
+// CalculateMultiSignatureRequestVerificationHeaderLength calculates length of
+// request verification header message with same public key and scheme, and
+// given signatures.
+func CalculateMultiSignatureRequestVerificationHeaderLength[SCHEME ~int32](pubKey []byte, scheme SCHEME, bodySig []byte, metaHdrSig []byte, originSig []byte) int {
+	var originPubKey []byte
+	var originScheme SCHEME
+	if originSig != nil {
+		originPubKey, originScheme = pubKey, scheme
+	}
+	return calculateRequestVerificationHeaderLength(pubKey, bodySig, scheme, pubKey, metaHdrSig, scheme, originPubKey, originSig, originScheme, 0, nil, nil, 0)
+}
+
+// CalculateSingleSignatureRequestVerificationHeaderLength calculates length of
+// request verification with single request signature.
+func CalculateSingleSignatureRequestVerificationHeaderLength[SCHEME ~int32](pubKey []byte, scheme SCHEME, reqSig []byte) int {
+	return calculateRequestVerificationHeaderLength(nil, nil, 0, nil, nil, 0, nil, nil, 0, 0, pubKey, reqSig, scheme)
+}
+
+func calculateRequestVerificationHeaderLength[SCHEME ~int32](bodyPubKey []byte, bodySig []byte, bodyScheme SCHEME, metaPubKey []byte, metaSig []byte, metaScheme SCHEME, originPubKey []byte, originSig []byte, originScheme SCHEME, originLen int, reqPubKey []byte, reqSig []byte, reqScheme SCHEME) int {
+	ln := proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderBodySignature, refs.CalculateSignatureLength(bodyPubKey, bodySig, bodyScheme))
+	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderMetaSignature, refs.CalculateSignatureLength(metaPubKey, metaSig, metaScheme))
+	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderOriginSignature, refs.CalculateSignatureLength(originPubKey, originSig, originScheme))
+	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderOrigin, originLen)
+	ln += proto.SizeEmbeddedLENField(FieldRequestVerificationHeaderRequestSignature, refs.CalculateSignatureLength(reqPubKey, reqSig, reqScheme))
+	return ln
+}
+
 // MarshaledSize returns size of the RequestVerificationHeader in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *RequestVerificationHeader) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeEmbedded(FieldRequestVerificationHeaderBodySignature, x.BodySignature) +
-			proto.SizeEmbedded(FieldRequestVerificationHeaderMetaSignature, x.MetaSignature) +
-			proto.SizeEmbedded(FieldRequestVerificationHeaderOriginSignature, x.OriginSignature) +
-			proto.SizeEmbedded(FieldRequestVerificationHeaderOrigin, x.Origin) +
-			proto.SizeEmbedded(FieldRequestVerificationHeaderRequestSignature, x.RequestSignature)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return calculateRequestVerificationHeaderLength(x.BodySignature.GetKey(), x.BodySignature.GetSign(), x.BodySignature.GetScheme(), x.MetaSignature.GetKey(), x.MetaSignature.GetSign(), x.MetaSignature.GetScheme(), x.OriginSignature.GetKey(), x.OriginSignature.GetSign(), x.OriginSignature.GetScheme(), x.Origin.MarshaledSize(), x.RequestSignature.GetKey(), x.RequestSignature.GetSign(), x.RequestSignature.GetScheme())
+}
+
+// WriteMultiSignatureRequestVerificationHeaderToRequest writes verification
+// header field with same public key and scheme, and given signatures into buf.
+// Returns number of bytes written.
+func WriteMultiSignatureRequestVerificationHeaderToRequest[SCHEME ~int32](buf []byte, pubKey []byte, scheme SCHEME, bodySig []byte, metaHdrSig []byte, originSig []byte) int {
+	ln := CalculateMultiSignatureRequestVerificationHeaderLength(pubKey, scheme, bodySig, metaHdrSig, originSig)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestVerificationHeaderTagAndLength(buf, ln)
+	off += WriteMultiSignatureRequestVerificationHeader(buf[off:], pubKey, scheme, bodySig, metaHdrSig, originSig)
+	return off
+}
+
+// WriteMultiSignatureRequestVerificationHeader writes request verification
+// header message with same public key and scheme, and given signatures into
+// buf. Returns number of bytes written.
+func WriteMultiSignatureRequestVerificationHeader[SCHEME ~int32](buf []byte, pubKey []byte, scheme SCHEME, bodySig []byte, metaHdrSig []byte, originSig []byte) int {
+	var originPubKey []byte
+	var originScheme SCHEME
+	if originSig != nil {
+		originPubKey, originScheme = pubKey, scheme
+	}
+	return writeRequestVerificationHeader(buf, pubKey, bodySig, scheme, pubKey, metaHdrSig, scheme, originPubKey, originSig, originScheme, 0, nil, nil, nil, 0)
+}
+
+// WriteSingleSignatureRequestVerificationHeaderToRequest writes verification
+// header field with single request signature into buf. Returns number of bytes
+// written.
+func WriteSingleSignatureRequestVerificationHeaderToRequest[SCHEME ~int32](buf []byte, pubKey []byte, scheme SCHEME, reqSig []byte) int {
+	ln := CalculateSingleSignatureRequestVerificationHeaderLength(pubKey, scheme, reqSig)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestVerificationHeaderTagAndLength(buf, ln)
+	off += WriteSingleSignatureRequestVerificationHeader(buf[off:], pubKey, scheme, reqSig)
+	return off
+}
+
+// WriteSingleSignatureRequestVerificationHeader writes request verification
+// header message with single request signature into buf. Returns number of
+// bytes written.
+func WriteSingleSignatureRequestVerificationHeader[SCHEME ~int32](buf []byte, pubKey []byte, scheme SCHEME, reqSig []byte) int {
+	return writeRequestVerificationHeader(buf, nil, nil, 0, nil, nil, 0, nil, nil, 0, 0, nil, pubKey, reqSig, scheme)
+}
+
+func writeRequestVerificationHeader[SCHEME ~int32](buf []byte, bodyPubKey []byte, bodySig []byte, bodyScheme SCHEME, metaPubKey []byte, metaSig []byte, metaScheme SCHEME, originPubKey []byte, originSig []byte, originScheme SCHEME, originLen int, writeOriginFn proto.WriteMessageFunc, reqPubKey []byte, reqSig []byte, reqScheme SCHEME) int {
+	off := refs.WriteSignatureField(buf, FieldRequestVerificationHeaderBodySignature, bodyPubKey, bodySig, bodyScheme)
+	off += refs.WriteSignatureField(buf[off:], FieldRequestVerificationHeaderMetaSignature, metaPubKey, metaSig, metaScheme)
+	off += refs.WriteSignatureField(buf[off:], FieldRequestVerificationHeaderOriginSignature, originPubKey, originSig, originScheme)
+	off += proto.WriteMessageField(buf[off:], FieldRequestVerificationHeaderOrigin, originLen, writeOriginFn)
+	off += refs.WriteSignatureField(buf[off:], FieldRequestVerificationHeaderRequestSignature, reqPubKey, reqSig, reqScheme)
+	return off
 }
 
 // MarshalStable writes the RequestVerificationHeader in Protocol Buffers V3
@@ -414,13 +570,10 @@ func (x *RequestVerificationHeader) MarshaledSize() int {
 // exactly [RequestVerificationHeader.MarshaledSize] first bytes of b.
 // MarshalStable is NPE-safe.
 func (x *RequestVerificationHeader) MarshalStable(b []byte) {
-	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldRequestVerificationHeaderBodySignature, x.BodySignature)
-		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderMetaSignature, x.MetaSignature)
-		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOriginSignature, x.OriginSignature)
-		off += proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderOrigin, x.Origin)
-		proto.MarshalToEmbedded(b[off:], FieldRequestVerificationHeaderRequestSignature, x.RequestSignature)
+	if x == nil {
+		return
 	}
+	writeRequestVerificationHeader(b, x.BodySignature.GetKey(), x.BodySignature.GetSign(), x.BodySignature.GetScheme(), x.MetaSignature.GetKey(), x.MetaSignature.GetSign(), x.MetaSignature.GetScheme(), x.OriginSignature.GetKey(), x.OriginSignature.GetSign(), x.OriginSignature.GetScheme(), x.Origin.MarshaledSize(), proto.WriteStablyMarshalledMessageFunc(x.Origin), x.RequestSignature.GetKey(), x.RequestSignature.GetSign(), x.RequestSignature.GetScheme())
 }
 
 // Field numbers of [ResponseVerificationHeader] message.

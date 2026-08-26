@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -113,8 +112,6 @@ type DefaultObjectWriter struct {
 
 	bufferPool *sync.Pool
 
-	versionLen        int
-	xHeadersLen       int
 	sessionV1TokenLen int
 	sessionV1TokenMsg *protosession.SessionToken
 	bearerTokenLen    int
@@ -124,8 +121,8 @@ type DefaultObjectWriter struct {
 	metaHdrLen        int
 	// === group of vars defined if shouldSignRequest only === //
 	signerPublicKeyBinary             []byte // corresponds to signer
-	metaHeaderSignature               neofscrypto.Signature
-	originVerificationHeaderSignature neofscrypto.Signature
+	metaHeaderSignature               []byte
+	originVerificationHeaderSignature []byte
 	needSignOrigin                    bool
 	// === //
 }
@@ -187,15 +184,15 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	}
 
 	initFldLen := mh.MarshaledSize()
-	bodyLen := calculatePutObjectHeadingRequestBodyLength(initFldLen)
+	bodyLen := protoobject.CalculatePutInitRequestBodyLength(initFldLen)
 
-	x.versionLen = x.apiVersion.MarshaledSize()
-	x.xHeadersLen = calculateRequestXHeadersLength(x.opts.xHeaders)
+	ttl := localFlagToTTL(x.opts.local)
+	xHdrLenFn := xHeadersLengthFunc(x.opts.xHeaders)
+	xHdrNum := len(x.opts.xHeaders) / 2
 
-	x.metaHdrLen = calculateRequestMetaHeaderFieldLengths(x.versionLen, x.opts.local, x.xHeadersLen, x.sessionV1TokenLen, x.bearerTokenLen, x.sessionV2TokenLen)
+	x.metaHdrLen = protosession.CalculateRequestMetaHeaderLength(x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, x.sessionV1TokenLen, x.bearerTokenLen, 0, x.sessionV2TokenLen)
 
-	bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
-	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
+	bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
 
 	// acquire buffer for body + meta header
 	var reqMemBuf *grpcprotobuf.MemBuffer
@@ -208,13 +205,19 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	}
 
 	// encode body
-	off := writePutObjectHeadingRequestBody(buf, bodyLen, initFldLen, mh)
+	writeInitFldFn := neofsproto.WriteStablyMarshalledMessageFunc(mh)
+	off := protoobject.WritePutInitRequestBodyToRequest(buf, bodyLen, initFldLen, writeInitFldFn)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]
 
 	// encode meta header
-	off += writeRequestMetaHeader(buf[off:], x.metaHdrLen, x.versionLen, x.apiVersion, x.opts.local, x.opts.xHeaders, x.sessionV1TokenLen, x.sessionV1TokenMsg, x.bearerTokenLen, x.bearerTokenMsg, x.sessionV2TokenLen, x.sessionV2TokenMsg)
+	writeXHeaderFn := writeXHeaderFunc(x.opts.xHeaders)
+	writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
+	writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
+	writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
+
+	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
 
 	var reqBuffers mem.BufferSlice
 	if x.shouldSignRequest {
@@ -223,7 +226,9 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		x.signerPublicKeyBinary = neofscrypto.PublicKeyBytes(x.signer.Public())
 
 		if multipleReqSignatures(x.apiVersion) {
-			bodySigVal, metaHdrSigVal, originVerifHdrSigVal, err := signRequestParts(x.signer, signedBody, buf[off-x.metaHdrLen:off], x.needSignOrigin)
+			var err error
+			var bodySig []byte
+			bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature, err = signRequestParts(x.signer, signedBody, buf[off-x.metaHdrLen:off], x.needSignOrigin)
 			if err != nil {
 				if reqMemBuf != nil {
 					reqMemBuf.Free()
@@ -232,14 +237,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 				return err
 			}
 
-			scheme := x.signer.Scheme()
-			bodySig := neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, bodySigVal)
-			x.metaHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, metaHdrSigVal)
-			if x.needSignOrigin {
-				x.originVerificationHeaderSignature = neofscrypto.NewSignatureFromRawKey(scheme, x.signerPublicKeyBinary, originVerifHdrSigVal)
-			}
-
-			reqBuffers = appendVerificationHeaderSignatures2(reqMemBuf, buf, bodyWithMetaHdrLen, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+			reqBuffers = appendVerificationHeaderSignatures2(reqMemBuf, buf, bodyWithMetaHdrLen, x.signerPublicKeyBinary, x.signer.Scheme(), bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 		} else {
 			sigRaw, err := x.signer.Sign(buf[:off])
 			if err != nil {
@@ -249,9 +247,8 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 				x.err = fmt.Errorf("sign request: %w", err)
 				return x.err
 			}
-			reqSig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, sigRaw)
 
-			reqBuffers = appendVerificationHeaderSignature(nil, reqMemBuf, buf, bodyWithMetaHdrLen, reqSig)
+			reqBuffers = appendVerificationHeaderSignature(nil, reqMemBuf, buf, bodyWithMetaHdrLen, x.signerPublicKeyBinary, sigRaw, x.signer.Scheme())
 		}
 	} else {
 		if reqMemBuf != nil {
@@ -287,10 +284,9 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		// the allocated buffer is filled, or when the last chunk is received.
 		// It is mentally assumed that allocating and filling the buffer is better than
 		// synchronous sending, but this needs to be tested.
-		bodyLen := calculatePutObjectPayloadChunkRequestBodyLength(ln)
+		bodyLen := protoobject.CalculatePutChunkRequestBodyLength(chunk[:ln])
 
-		bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
-		bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
+		bodyWithMetaHdrLen := neofsproto.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
 
 		// acquire buffer for body + meta header
 		bufItem := x.bufferPool.Get().(*[]byte)
@@ -306,18 +302,26 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		}
 
 		// encode body
-		off := writePutObjectPayloadChunkRequestBody(buf, bodyLen, chunk[:ln])
+		off := protoobject.WritePutChunkRequestBodyToRequest(buf, chunk[:ln])
 
 		bodyTo := off
 
 		// encode meta header
-		off += writeRequestMetaHeader(buf[off:], x.metaHdrLen, x.versionLen, x.apiVersion, x.opts.local, x.opts.xHeaders, x.sessionV1TokenLen, x.sessionV1TokenMsg, x.bearerTokenLen, x.bearerTokenMsg, x.sessionV2TokenLen, x.sessionV2TokenMsg)
+		ttl := localFlagToTTL(x.opts.local)
+		xHdrLenFn := xHeadersLengthFunc(x.opts.xHeaders)
+		xHdrNum := len(x.opts.xHeaders) / 2
+		writeXHeaderFn := writeXHeaderFunc(x.opts.xHeaders)
+		writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
+		writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
+		writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
+
+		off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
 
 		var reqBuffers mem.BufferSlice
 		if x.shouldSignRequest {
 			if multipleReqSignatures(x.apiVersion) {
 				// append verification header
-				bodySigVal, err := x.signer.Sign(buf[bodyTo-bodyLen : bodyTo])
+				bodySig, err := x.signer.Sign(buf[bodyTo-bodyLen : bodyTo])
 				if err != nil {
 					if reqMemBuf != nil {
 						reqMemBuf.Free()
@@ -326,9 +330,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 					return writtenBytes, x.err
 				}
 
-				bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
-
-				reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, off, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+				reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, off, x.signerPublicKeyBinary, x.signer.Scheme(), bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 			} else {
 				var sigRaw []byte
 				sigRaw, err = x.signer.Sign(buf[:off])
@@ -339,13 +341,8 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 					x.err = fmt.Errorf("sign request: %w", err)
 					return writtenBytes, x.err
 				}
-				var (
-					pubKey = make([]byte, x.signer.Public().MaxEncodedSize())
-					n      = x.signer.Public().Encode(pubKey)
-					reqSig = neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), pubKey[:n], sigRaw)
-				)
 
-				reqBuffers = appendVerificationHeaderSignature(reqMemBuf, nil, buf, bodyWithMetaHdrLen, reqSig)
+				reqBuffers = appendVerificationHeaderSignature(reqMemBuf, nil, buf, bodyWithMetaHdrLen, x.signerPublicKeyBinary, sigRaw, x.signer.Scheme())
 			}
 		} else {
 			reqSliceBuf := mem.SliceBuffer(buf[:off])
@@ -387,7 +384,7 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 	chunkOff := 1 + maxBodyVarlen + 1 + maxChunkVarlen                                  // first 1 for grpcprotobuf.TagBytes1, second for grpcprotobuf.TagBytes2
 
 	maxBodyWithMetaHdrLen := chunkOff + maxReadChunkLen
-	maxBodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, x.metaHdrLen)
+	maxBodyWithMetaHdrLen += neofsproto.CalculateRequestMetaHeaderFieldLength(x.metaHdrLen)
 
 	var writtenBytes int64
 
@@ -410,26 +407,32 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			chunkVarlen := protowire.SizeVarint(uint64(actualRead))
 			chunkFldOff := chunkOff - chunkVarlen - 1
 
-			buf[chunkFldOff] = grpcprotobuf.TagBytes2 // chunk
-			binary.PutUvarint(buf[chunkFldOff+1:], uint64(actualRead))
+			neofsproto.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunk, actualRead)
 
 			bodyLen := 1 + chunkVarlen + actualRead
 			bodyVarlen := protowire.SizeVarint(uint64(bodyLen))
 			bodyOff := chunkFldOff + -bodyVarlen - 1
 
-			buf[bodyOff] = grpcprotobuf.TagBytes1 // body
-			binary.PutUvarint(buf[bodyOff+1:], uint64(bodyLen))
+			neofsproto.WriteRequestBodyTagAndLength(buf[bodyOff:], bodyLen)
 
 			off := chunkOff + actualRead
 
 			// encode meta header
-			off += writeRequestMetaHeader(buf[off:], x.metaHdrLen, x.versionLen, x.apiVersion, x.opts.local, x.opts.xHeaders, x.sessionV1TokenLen, x.sessionV1TokenMsg, x.bearerTokenLen, x.bearerTokenMsg, x.sessionV2TokenLen, x.sessionV2TokenMsg)
+			ttl := localFlagToTTL(x.opts.local)
+			xHdrLenFn := xHeadersLengthFunc(x.opts.xHeaders)
+			xHdrNum := len(x.opts.xHeaders) / 2
+			writeXHeaderFn := writeXHeaderFunc(x.opts.xHeaders)
+			writeSessionV1TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV1TokenMsg)
+			writeBearerTokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
+			writeSessionV2TokenFn := neofsproto.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
+
+			off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
 
 			var reqBuffers mem.BufferSlice
 			if x.shouldSignRequest {
 				if multipleReqSignatures(x.apiVersion) {
 					// append verification header
-					bodySigVal, err := x.signer.Sign(buf[chunkFldOff : chunkOff+actualRead])
+					bodySig, err := x.signer.Sign(buf[chunkFldOff : chunkOff+actualRead])
 					if err != nil {
 						if reqMemBuf != nil {
 							reqMemBuf.Free()
@@ -437,9 +440,7 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 						return writtenBytes, fmt.Errorf("sign body: %w", err)
 					}
 
-					bodySig := neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), x.signerPublicKeyBinary, bodySigVal)
-
-					reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf[bodyOff:], off-bodyOff, bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
+					reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf[bodyOff:], off-bodyOff, x.signerPublicKeyBinary, x.signer.Scheme(), bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 				} else {
 					var sigRaw []byte
 					sigRaw, err = x.signer.Sign(buf[bodyOff:off])
@@ -450,13 +451,8 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 						x.err = fmt.Errorf("sign request: %w", err)
 						return writtenBytes, x.err
 					}
-					var (
-						pubKey = make([]byte, x.signer.Public().MaxEncodedSize())
-						n      = x.signer.Public().Encode(pubKey)
-						reqSig = neofscrypto.NewSignatureFromRawKey(x.signer.Scheme(), pubKey[:n], sigRaw)
-					)
 
-					reqBuffers = appendVerificationHeaderSignature(reqMemBuf, nil, buf[bodyOff:], off-bodyOff, reqSig)
+					reqBuffers = appendVerificationHeaderSignature(reqMemBuf, nil, buf[bodyOff:], off-bodyOff, x.signerPublicKeyBinary, sigRaw, x.signer.Scheme())
 				}
 			} else {
 				reqSliceBuf := mem.SliceBuffer(buf[bodyOff:off])

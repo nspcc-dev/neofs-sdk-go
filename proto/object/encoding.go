@@ -1,9 +1,12 @@
 package object
 
 import (
+	"crypto/sha256"
 	"fmt"
 
 	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	"google.golang.org/protobuf/encoding/protowire"
 )
 
 // Field numbers of [Header_Split] message.
@@ -254,18 +257,63 @@ const (
 	FieldGetRequestBodyExtendedRange
 )
 
+// CalculateGetRequestBodyLength calculates length of Get request body message
+// with static address and given dynamic fields.
+func CalculateGetRequestBodyLength(raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+	ln := proto.SizeEmbeddedLENField(FieldGetRequestBodyAddress, refs.ObjectAddressLength)
+	ln += calculateDynamicGetRequestBodyFieldsLength(raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast)
+	return ln
+}
+
+func calculateDynamicGetRequestBodyFieldsLength(raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+	ln := proto.SizeBool(FieldGetRequestBodyRaw, raw)
+	ln += proto.SizeEmbeddedLENField(FieldGetRequestBodyRange, CalculateRangeLength(rngOff, rngLen))
+	ln += proto.SizeBool(FieldGetRequestBodyPayloadOnly, payloadOnly)
+	ln += proto.SizeEmbeddedLENField(FieldGetRequestBodyExtendedRange, CalculateExtendedRangeLength(extRngFirst, extRngLast))
+	return ln
+}
+
 // MarshaledSize returns size of the GetRequest_Body in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *GetRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
+		var firstPos, lastPos *uint64
+		if x.ExtendedRange != nil {
+			firstPos, lastPos = x.ExtendedRange.FirstPos, x.ExtendedRange.LastPos
+		}
 		sz = proto.SizeEmbedded(FieldGetRequestBodyAddress, x.Address) +
-			proto.SizeBool(FieldGetRequestBodyRaw, x.Raw) +
-			proto.SizeEmbedded(FieldGetRequestBodyRange, x.Range) +
-			proto.SizeBool(FieldGetRequestBodyPayloadOnly, x.PayloadOnly) +
-			proto.SizeEmbedded(FieldGetRequestBodyExtendedRange, x.ExtendedRange)
+			calculateDynamicGetRequestBodyFieldsLength(x.Raw, x.Range.GetOffset(), x.Range.GetLength(), x.PayloadOnly, firstPos, lastPos)
 	}
 	return sz
+}
+
+// WriteGetRequestBodyToRequest writes Get request body field with given fields
+// into buf. Returns number of bytes written.
+func WriteGetRequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+	ln := CalculateGetRequestBodyLength(raw, rngLen, rngOff, payloadOnly, extRngFirst, extRngLast)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestBodyTagAndLength(buf, ln)
+	off += WriteGetRequestBody(buf[off:], cnr, obj, raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast)
+	return off
+}
+
+// WriteGetRequestBody writes Get request body message with given fields into
+// buf. Returns number of bytes written.
+func WriteGetRequestBody(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+	off := refs.WriteObjectAddressField(buf, FieldGetRequestBodyAddress, cnr, obj)
+	off += writeDynamicGetRequestBodyFields(buf[off:], raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast)
+	return off
+}
+
+func writeDynamicGetRequestBodyFields(buf []byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+	off := proto.MarshalToBool(buf, FieldGetRequestBodyRaw, raw)
+	off += WriteRangeField(buf[off:], FieldGetRequestBodyRange, rngOff, rngLen)
+	off += proto.MarshalToBool(buf[off:], FieldGetRequestBodyPayloadOnly, payloadOnly)
+	off += WriteExtendedRangeField(buf[off:], FieldGetRequestBodyExtendedRange, extRngFirst, extRngLast)
+	return off
 }
 
 // MarshalStable writes the GetRequest_Body in Protocol Buffers V3 format with
@@ -273,11 +321,12 @@ func (x *GetRequest_Body) MarshaledSize() int {
 // [GetRequest_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *GetRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
+		var firstPos, lastPos *uint64
+		if x.ExtendedRange != nil {
+			firstPos, lastPos = x.ExtendedRange.FirstPos, x.ExtendedRange.LastPos
+		}
 		off := proto.MarshalToEmbedded(b, FieldGetRequestBodyAddress, x.Address)
-		off += proto.MarshalToBool(b[off:], FieldGetRequestBodyRaw, x.Raw)
-		off += proto.MarshalToEmbedded(b[off:], FieldGetRequestBodyRange, x.Range)
-		off += proto.MarshalToBool(b[off:], FieldGetRequestBodyPayloadOnly, x.PayloadOnly)
-		proto.MarshalToEmbedded(b[off:], FieldGetRequestBodyExtendedRange, x.ExtendedRange)
+		writeDynamicGetRequestBodyFields(b[off:], x.Raw, x.Range.GetOffset(), x.Range.GetLength(), x.PayloadOnly, firstPos, lastPos)
 	}
 }
 
@@ -380,16 +429,55 @@ const (
 	FieldHeadRequestBodyRaw
 )
 
+// CalculateHeadRequestBodyLength calculates length of Head request body message
+// with static address and given dynamic fields.
+func CalculateHeadRequestBodyLength(raw bool) int {
+	ln := proto.SizeEmbeddedLENField(FieldHeadRequestBodyAddress, refs.ObjectAddressLength)
+	ln += calculateDynamicHeadRequestBodyFieldsLength(false, raw)
+	return ln
+}
+
+func calculateDynamicHeadRequestBodyFieldsLength(mainOnly bool, raw bool) int {
+	ln := proto.SizeBool(FieldHeadRequestBodyMainOnly, mainOnly)
+	ln += proto.SizeBool(FieldHeadRequestBodyRaw, raw)
+	return ln
+}
+
 // MarshaledSize returns size of the HeadRequest_Body in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *HeadRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = proto.SizeEmbedded(FieldHeadRequestBodyAddress, x.Address) +
-			proto.SizeBool(FieldHeadRequestBodyMainOnly, x.MainOnly) +
-			proto.SizeBool(FieldHeadRequestBodyRaw, x.Raw)
+			calculateDynamicHeadRequestBodyFieldsLength(x.MainOnly, x.Raw)
 	}
 	return sz
+}
+
+// WriteHeadRequestBodyToRequest writes Head request body field with given
+// fields into buf. Returns number of bytes written.
+func WriteHeadRequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool) int {
+	ln := CalculateHeadRequestBodyLength(raw)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestBodyTagAndLength(buf, ln)
+	off += WriteHeadRequestBody(buf[off:], cnr, obj, raw)
+	return off
+}
+
+// WriteHeadRequestBody writes Head request body message with given fields into
+// buf. Returns number of bytes written.
+func WriteHeadRequestBody(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool) int {
+	off := refs.WriteObjectAddressField(buf, FieldHeadRequestBodyAddress, cnr, obj)
+	off += writeDynamicHeadRequestBodyFields(buf[off:], false, raw)
+	return off
+}
+
+func writeDynamicHeadRequestBodyFields(buf []byte, mainOnly bool, raw bool) int {
+	off := proto.MarshalToBool(buf, FieldHeadRequestBodyMainOnly, mainOnly)
+	off += proto.MarshalToBool(buf[off:], FieldHeadRequestBodyRaw, raw)
+	return off
 }
 
 // MarshalStable writes the HeadRequest_Body in Protocol Buffers V3 format with
@@ -398,8 +486,7 @@ func (x *HeadRequest_Body) MarshaledSize() int {
 func (x *HeadRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, FieldHeadRequestBodyAddress, x.Address)
-		off += proto.MarshalToBool(b[off:], FieldHeadRequestBodyMainOnly, x.MainOnly)
-		proto.MarshalToBool(b[off:], FieldHeadRequestBodyRaw, x.Raw)
+		writeDynamicHeadRequestBodyFields(b[off:], x.MainOnly, x.Raw)
 	}
 }
 
@@ -499,15 +586,39 @@ const (
 	FieldRangeLength
 )
 
+// CalculateRangeLength calculates length of range message with given fields.
+func CalculateRangeLength(rngOff uint64, rngLen uint64) int {
+	ln := proto.SizeVarint(FieldRangeOffset, rngOff)
+	ln += proto.SizeVarint(FieldRangeLength, rngLen)
+	return ln
+}
+
 // MarshaledSize returns size of the Range in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Range) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeVarint(FieldRangeOffset, x.Offset) +
-			proto.SizeVarint(FieldRangeLength, x.Length)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return CalculateRangeLength(x.Offset, x.Length)
+}
+
+// WriteRangeField writes range field with given number and fields into
+// buf. Returns number of bytes written.
+func WriteRangeField(buf []byte, num protowire.Number, rngOff uint64, rngLen uint64) int {
+	ln := CalculateRangeLength(rngOff, rngLen)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteTagAndLength(buf, num, ln)
+	return off + WriteRange(buf[off:], rngOff, rngLen)
+}
+
+// WriteRange writes range message with given fields into buf. Returns number of
+// bytes written.
+func WriteRange(buf []byte, rngOff uint64, rngLen uint64) int {
+	off := proto.MarshalToVarint(buf, FieldRangeOffset, rngOff)
+	off += proto.MarshalToVarint(buf[off:], FieldRangeLength, rngLen)
+	return off
 }
 
 // MarshalStable writes the Range in Protocol Buffers V3 format with ascending
@@ -515,8 +626,7 @@ func (x *Range) MarshaledSize() int {
 // [Range.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Range) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldRangeOffset, x.Offset)
-		proto.MarshalToVarint(b[off:], FieldRangeLength, x.Length)
+		WriteRange(b, x.Offset, x.Length)
 	}
 }
 
@@ -527,15 +637,40 @@ const (
 	FieldExtendedRangeLastPos
 )
 
+// CalculateExtendedRangeLength calculates length of extended range message with
+// given fields.
+func CalculateExtendedRangeLength(first *uint64, last *uint64) int {
+	ln := proto.SizeOptionalVarint(FieldExtendedRangeFirstPos, first)
+	ln += proto.SizeOptionalVarint(FieldExtendedRangeLastPos, last)
+	return ln
+}
+
 // MarshaledSize returns size of the ExtendedRange in Protocol Buffers V3 format
 // in bytes. MarshaledSize is NPE-safe.
 func (x *ExtendedRange) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeOptionalVarint(FieldExtendedRangeFirstPos, x.FirstPos) +
-			proto.SizeOptionalVarint(FieldExtendedRangeLastPos, x.LastPos)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return CalculateExtendedRangeLength(x.FirstPos, x.LastPos)
+}
+
+// WriteExtendedRangeField writes extended range field with given number and fields into
+// buf. Returns number of bytes written.
+func WriteExtendedRangeField(buf []byte, num protowire.Number, first *uint64, last *uint64) int {
+	ln := CalculateExtendedRangeLength(first, last)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteTagAndLength(buf, num, ln)
+	return off + WriteExtendedRange(buf[off:], first, last)
+}
+
+// WriteExtendedRange writes extended range message with given fields into buf.
+// Returns number of bytes written.
+func WriteExtendedRange(buf []byte, first *uint64, last *uint64) int {
+	off := proto.MarshalToOptionalVarint(buf, FieldExtendedRangeFirstPos, first)
+	off += proto.MarshalToOptionalVarint(buf[off:], FieldExtendedRangeLastPos, last)
+	return off
 }
 
 // MarshalStable writes the ExtendedRange in Protocol Buffers V3 format with
@@ -543,8 +678,7 @@ func (x *ExtendedRange) MarshaledSize() int {
 // [ExtendedRange.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *ExtendedRange) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToOptionalVarint(b, FieldExtendedRangeFirstPos, x.FirstPos)
-		proto.MarshalToOptionalVarint(b[off:], FieldExtendedRangeLastPos, x.LastPos)
+		WriteExtendedRange(b, x.FirstPos, x.LastPos)
 	}
 }
 
@@ -736,6 +870,18 @@ const (
 	FieldPutRequestBodyChunk
 )
 
+// CalculatePutInitRequestBodyLength calculates length of initial Put request
+// body message with given fields.
+func CalculatePutInitRequestBodyLength(initFldLen int) int {
+	return proto.SizeEmbeddedLENField(FieldPutRequestBodyInit, initFldLen)
+}
+
+// CalculatePutChunkRequestBodyLength calculates length of chunk Put request body
+// message with given fields.
+func CalculatePutChunkRequestBodyLength(chunk []byte) int {
+	return proto.SizeBytes(FieldPutRequestBodyChunk, chunk)
+}
+
 // MarshaledSize returns size of the PutRequest_Body in Protocol Buffers V3
 // format in bytes. MarshaledSize is NPE-safe.
 func (x *PutRequest_Body) MarshaledSize() int {
@@ -746,12 +892,44 @@ func (x *PutRequest_Body) MarshaledSize() int {
 			panic(fmt.Sprintf("unexpected object part %T", x.ObjectPart))
 		case nil:
 		case *PutRequest_Body_Init_:
-			sz = proto.SizeEmbedded(FieldPutRequestBodyInit, p.Init)
+			sz = CalculatePutInitRequestBodyLength(p.Init.MarshaledSize())
 		case *PutRequest_Body_Chunk:
-			sz = proto.SizeBytes(FieldPutRequestBodyChunk, p.Chunk)
+			sz = CalculatePutChunkRequestBodyLength(p.Chunk)
 		}
 	}
 	return sz
+}
+
+// WritePutInitRequestBodyToRequest writes initial Put request body field with
+// given length and fields into buf. Returns number of bytes written.
+func WritePutInitRequestBodyToRequest(buf []byte, ln int, initFldLen int, writeInitFldFn proto.WriteMessageFunc) int {
+	off := proto.WriteRequestBodyTagAndLength(buf, ln)
+	off += WritePutInitRequestBody(buf[off:], initFldLen, writeInitFldFn)
+	return off
+}
+
+// WritePutInitRequestBody writes initial Put request body message with given
+// length and fields into buf. Returns number of bytes written.
+func WritePutInitRequestBody(buf []byte, initFldLen int, writeInitFldFn proto.WriteMessageFunc) int {
+	return proto.WriteMessageField(buf, FieldPutRequestBodyInit, initFldLen, writeInitFldFn)
+}
+
+// WritePutChunkRequestBodyToRequest writes chunk Put request body field with
+// given fields into buf. Returns number of bytes written.
+func WritePutChunkRequestBodyToRequest(buf []byte, chunk []byte) int {
+	ln := CalculatePutChunkRequestBodyLength(chunk)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestBodyTagAndLength(buf, ln)
+	off += WritePutChunkRequestBody(buf[off:], chunk)
+	return off
+}
+
+// WritePutChunkRequestBody writes chunk Put request body message with given
+// length and fields into buf. Returns number of bytes written.
+func WritePutChunkRequestBody(buf []byte, chunk []byte) int {
+	return proto.MarshalToBytes(buf, FieldPutRequestBodyChunk, chunk)
 }
 
 // MarshalStable writes the PutRequest_Body in Protocol Buffers V3 format with
@@ -764,9 +942,11 @@ func (x *PutRequest_Body) MarshalStable(b []byte) {
 			panic(fmt.Sprintf("unexpected object part %T", x.ObjectPart))
 		case nil:
 		case *PutRequest_Body_Init_:
-			proto.MarshalToEmbedded(b, FieldPutRequestBodyInit, p.Init)
+			initFldLen := p.Init.MarshaledSize()
+			writeInitFldFn := proto.WriteStablyMarshalledMessageFunc(p.Init)
+			WritePutInitRequestBody(b, initFldLen, writeInitFldFn)
 		case *PutRequest_Body_Chunk:
-			proto.MarshalToBytes(b, FieldPutRequestBodyChunk, p.Chunk)
+			WritePutChunkRequestBody(b, p.Chunk)
 		}
 	}
 }
@@ -856,16 +1036,31 @@ const (
 	FieldSearchFilterValue
 )
 
+// CalculateSearchFilterLength calculates length of search filter message with
+// given fields.
+func CalculateSearchFilterLength[MATCHER ~int32](matcher MATCHER, key string, value string) int {
+	ln := proto.SizeVarint(FieldSearchFilterMatcher, matcher)
+	ln += proto.SizeBytes(FieldSearchFilterKey, key)
+	ln += proto.SizeBytes(FieldSearchFilterValue, value)
+	return ln
+}
+
+// WriteSearchFilter writes search filter message with given fields into buf.
+// Returns number of bytes written.
+func WriteSearchFilter[MATCHER ~int32](buf []byte, matcher MATCHER, key string, value string) int {
+	off := proto.MarshalToVarint(buf, FieldSearchFilterMatcher, matcher)
+	off += proto.MarshalToBytes(buf[off:], FieldSearchFilterKey, key)
+	off += proto.MarshalToBytes(buf[off:], FieldSearchFilterValue, value)
+	return off
+}
+
 // MarshaledSize returns size of the SearchFilter in Protocol
 // Buffers V3 format in bytes. MarshaledSize is NPE-safe.
 func (x *SearchFilter) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeVarint(FieldSearchFilterMatcher, x.MatchType)
-		sz += proto.SizeBytes(FieldSearchFilterKey, x.Key)
-		sz += proto.SizeBytes(FieldSearchFilterValue, x.Value)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return CalculateSearchFilterLength(x.MatchType, x.Key, x.Value)
 }
 
 // MarshalStable writes the SearchFilter in Protocol Buffers V3
@@ -874,9 +1069,7 @@ func (x *SearchFilter) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *SearchFilter) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldSearchFilterMatcher, x.MatchType)
-		off += proto.MarshalToBytes(b[off:], FieldSearchFilterKey, x.Key)
-		proto.MarshalToBytes(b[off:], FieldSearchFilterValue, x.Value)
+		WriteSearchFilter(b, x.MatchType, x.Key, x.Value)
 	}
 }
 
@@ -947,18 +1140,76 @@ const (
 	FieldSearchV2RequestBodyAttributes
 )
 
+// CalculateSearchV2RequestBodyLength calculates length of SearchV2 request body
+// message with static container ID and given dynamic fields.
+func CalculateSearchV2RequestBodyLength(version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn proto.RepeatedMessageLenFunc) int {
+	ln := proto.SizeEmbeddedLENField(FieldSearchV2RequestBodyContainerID, refs.ContainerIDLength)
+	ln += calculateDynamicSearchV2RequestBodyFieldsLength(version, cursor, count, attributes, filterNum, filterLenFn)
+	return ln
+}
+
+func calculateDynamicSearchV2RequestBodyFieldsLength(version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn proto.RepeatedMessageLenFunc) int {
+	ln := proto.SizeVarint(FieldSearchV2RequestBodyVersion, version)
+	ln += proto.CalculateRepeatedFieldsLength(FieldSearchV2RequestBodyFilters, filterNum, filterLenFn)
+	ln += proto.SizeBytes(FieldSearchV2RequestBodyCursor, cursor)
+	ln += proto.SizeVarint(FieldSearchV2RequestBodyCount, count)
+	ln += proto.SizeRepeatedBytes(FieldSearchV2RequestBodyAttributes, attributes)
+	return ln
+}
+
+func (x *SearchV2Request_Body) getFilterLength(i int) int {
+	f := x.Filters[i]
+	if f == nil {
+		return 0
+	}
+	return CalculateSearchFilterLength(f.MatchType, f.Key, f.Value)
+}
+
 // MarshaledSize returns size of x in Protocol Buffers V3 format in bytes.
 // MarshaledSize is NPE-safe.
 func (x *SearchV2Request_Body) MarshaledSize() int {
 	if x != nil {
 		return proto.SizeEmbedded(FieldSearchV2RequestBodyContainerID, x.ContainerId) +
-			proto.SizeVarint(FieldSearchV2RequestBodyVersion, x.Version) +
-			proto.SizeRepeatedMessages(FieldSearchV2RequestBodyFilters, x.Filters) +
-			proto.SizeBytes(FieldSearchV2RequestBodyCursor, x.Cursor) +
-			proto.SizeVarint(FieldSearchV2RequestBodyCount, x.Count) +
-			proto.SizeRepeatedBytes(FieldSearchV2RequestBodyAttributes, x.Attributes)
+			calculateDynamicSearchV2RequestBodyFieldsLength(x.Version, x.Cursor, x.Count, x.Attributes, len(x.Filters), x.getFilterLength)
 	}
 	return 0
+}
+
+// WriteSearchV2RequestBodyToRequest writes SearchV2 request body field with
+// given fields into buf. Returns number of bytes written.
+func WriteSearchV2RequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn proto.RepeatedMessageLenFunc, writeFilterFn proto.WriteRepeatedMessageFunc) int {
+	ln := CalculateSearchV2RequestBodyLength(version, cursor, count, attributes, filterNum, filterLenFn)
+	if ln == 0 {
+		return 0
+	}
+	off := proto.WriteRequestBodyTagAndLength(buf, ln)
+	off += WriteSearchV2RequestBody(buf[off:], cnr, version, cursor, count, attributes, filterNum, filterLenFn, writeFilterFn)
+	return off
+}
+
+// WriteSearchV2RequestBody writes SearchV2 request body message with given
+// fields into buf. Returns number of bytes written.
+func WriteSearchV2RequestBody(buf []byte, cnr [sha256.Size]byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn proto.RepeatedMessageLenFunc, writeFilterFn proto.WriteRepeatedMessageFunc) int {
+	off := refs.WriteContainerIDField(buf, FieldSearchV2RequestBodyContainerID, cnr)
+	off += writeDynamicSearchV2RequestBodyFields(buf[off:], version, cursor, count, attributes, filterNum, filterLenFn, writeFilterFn)
+	return off
+}
+
+func writeDynamicSearchV2RequestBodyFields(buf []byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn proto.RepeatedMessageLenFunc, writeFilterFn proto.WriteRepeatedMessageFunc) int {
+	off := proto.MarshalToVarint(buf, FieldSearchV2RequestBodyVersion, version)
+	off += proto.WriteRepeatedFields(buf[off:], FieldSearchV2RequestBodyFilters, filterNum, filterLenFn, writeFilterFn)
+	off += proto.MarshalToBytes(buf[off:], FieldSearchV2RequestBodyCursor, cursor)
+	off += proto.MarshalToVarint(buf[off:], FieldSearchV2RequestBodyCount, count)
+	off += proto.MarshalToRepeatedBytes(buf[off:], FieldSearchV2RequestBodyAttributes, attributes)
+	return off
+}
+
+func (x *SearchV2Request_Body) writeFilter(buf []byte, i int) int {
+	f := x.Filters[i]
+	if f == nil {
+		return 0
+	}
+	return WriteSearchFilter(buf, f.MatchType, f.Key, f.Value)
 }
 
 // MarshalStable writes x in Protocol Buffers V3 format with ascending order of
@@ -968,11 +1219,7 @@ func (x *SearchV2Request_Body) MarshaledSize() int {
 func (x *SearchV2Request_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := proto.MarshalToEmbedded(b, FieldSearchV2RequestBodyContainerID, x.ContainerId)
-		off += proto.MarshalToVarint(b[off:], FieldSearchV2RequestBodyVersion, x.Version)
-		off += proto.MarshalToRepeatedMessages(b[off:], FieldSearchV2RequestBodyFilters, x.Filters)
-		off += proto.MarshalToBytes(b[off:], FieldSearchV2RequestBodyCursor, x.Cursor)
-		off += proto.MarshalToVarint(b[off:], FieldSearchV2RequestBodyCount, x.Count)
-		proto.MarshalToRepeatedBytes(b[off:], FieldSearchV2RequestBodyAttributes, x.Attributes)
+		writeDynamicSearchV2RequestBodyFields(b[off:], x.Version, x.Cursor, x.Count, x.Attributes, len(x.Filters), x.getFilterLength, x.writeFilter)
 	}
 }
 

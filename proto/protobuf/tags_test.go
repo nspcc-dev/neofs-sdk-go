@@ -45,6 +45,8 @@ func TestTags(t *testing.T) {
 			{tag: iprotobuf.TagVarint4, num: 4},
 			{tag: iprotobuf.TagVarint5, num: 5},
 			{tag: iprotobuf.TagVarint6, num: 6},
+			{tag: iprotobuf.TagVarint7, num: 7},
+			{tag: iprotobuf.TagVarint8, num: 8},
 		} {
 			require.EqualValues(t, protowire.EncodeTag(protowire.Number(tc.num), protowire.VarintType), tc.tag)
 

@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/binary"
 	"fmt"
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -82,11 +81,15 @@ func callUnary(ctx context.Context, conn *grpc.ClientConn, method string, reques
 
 func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version) (mem.BufferSlice, error) {
 	if multipleReqSignatures(vers) {
-		bodySig, metaHdrSig, originVerifHdrSig, err := calculateRequestSignatures(signer, body, metaHdr, vers)
+		bodySig, metaHdrSig, originVerifHdrSig, err := signRequestParts(signer, body, metaHdr, needsOriginSig(vers))
 		if err != nil {
 			return nil, err
 		}
-		return appendVerificationHeaderSignatures2(reqMemBuf, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig), nil
+
+		pubKeyBytes := neofscrypto.PublicKeyBytes(signer.Public())
+		scheme := signer.Scheme()
+
+		return appendVerificationHeaderSignatures2(reqMemBuf, reqBuf, bodyWithMetaHdrLen, pubKeyBytes, scheme, bodySig, metaHdrSig, originVerifHdrSig), nil
 	}
 
 	sigRaw, err := signer.Sign(reqBuf[:bodyWithMetaHdrLen])
@@ -96,21 +99,16 @@ func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.Mem
 	var (
 		pubKey = make([]byte, signer.Public().MaxEncodedSize())
 		n      = signer.Public().Encode(pubKey)
-		reqSig = neofscrypto.NewSignatureFromRawKey(signer.Scheme(), pubKey[:n], sigRaw)
 	)
 
-	return appendVerificationHeaderSignature(nil, reqMemBuf, reqBuf, bodyWithMetaHdrLen, reqSig), nil
+	return appendVerificationHeaderSignature(nil, reqMemBuf, reqBuf, bodyWithMetaHdrLen, pubKey[:n], sigRaw, signer.Scheme()), nil
 }
 
-func _appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
+func _appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, pubKey []byte, scheme neofscrypto.Scheme, bodySig, metaHdrSig, originVerifHdrSig []byte) mem.BufferSlice {
 	// pre-calculate verification header message lengths
-	bodySigMsgLen := calculateSignatureFieldLength(bodySig)
-	metaHdrSigMsgLen := calculateSignatureFieldLength(metaHdrSig)
-	originVerifHdrSigMsgLen := calculateSignatureFieldLength(originVerifHdrSig)
+	verifHdrLen := protosession.CalculateMultiSignatureRequestVerificationHeaderLength(pubKey, scheme, bodySig, metaHdrSig, originVerifHdrSig)
 
-	verifHdrLen := calculateRequestVerificationHeaderLength(bodySigMsgLen, metaHdrSigMsgLen, originVerifHdrSigMsgLen)
-
-	verifHdrFldLen := neofsproto.SizeEmbeddedLENField(protobuf.FieldRequestVerificationHeader, verifHdrLen)
+	verifHdrFldLen := neofsproto.CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
 
 	// acquire buffer for verification header
 	var verifHdrFldBuf []byte
@@ -140,25 +138,24 @@ func _appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 
 	}
 
 	// encode verification header
-	writeRequestVerificationHeader(verifHdrFldBuf, verifHdrLen, bodySigMsgLen, bodySig, metaHdrSigMsgLen, metaHdrSig, originVerifHdrSigMsgLen, originVerifHdrSig)
+	protosession.WriteMultiSignatureRequestVerificationHeaderToRequest(verifHdrFldBuf, pubKey, scheme, bodySig, metaHdrSig, originVerifHdrSig)
 
 	return reqBuffers
 }
 
-func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
-	return _appendVerificationHeaderSignatures(reqMemBuf, nil, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig)
+func appendVerificationHeaderSignatures(reqMemBuf *igrpc.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, pubKey []byte, scheme neofscrypto.Scheme, bodySig, metaHdrSig, originVerifHdrSig []byte) mem.BufferSlice {
+	return _appendVerificationHeaderSignatures(reqMemBuf, nil, reqBuf, bodyWithMetaHdrLen, pubKey, scheme, bodySig, metaHdrSig, originVerifHdrSig)
 }
 
-func appendVerificationHeaderSignatures2(reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, bodySig, metaHdrSig, originVerifHdrSig neofscrypto.Signature) mem.BufferSlice {
-	return _appendVerificationHeaderSignatures(nil, reqMemBuf, reqBuf, bodyWithMetaHdrLen, bodySig, metaHdrSig, originVerifHdrSig)
+func appendVerificationHeaderSignatures2(reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, pubKey []byte, scheme neofscrypto.Scheme, bodySig, metaHdrSig, originVerifHdrSig []byte) mem.BufferSlice {
+	return _appendVerificationHeaderSignatures(nil, reqMemBuf, reqBuf, bodyWithMetaHdrLen, pubKey, scheme, bodySig, metaHdrSig, originVerifHdrSig)
 }
 
-func appendVerificationHeaderSignature(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, reqSig neofscrypto.Signature) mem.BufferSlice {
+func appendVerificationHeaderSignature(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, pubKey []byte, value []byte, scheme neofscrypto.Scheme) mem.BufferSlice {
 	// pre-calculate verification header message lengths
 	var (
-		sigMsgLen      = calculateSignatureFieldLength(reqSig)
-		verifHdrLen    = neofsproto.SizeEmbeddedLENField(protosession.FieldRequestVerificationHeaderRequestSignature, sigMsgLen)
-		verifHdrFldLen = neofsproto.SizeEmbeddedLENField(protobuf.FieldRequestVerificationHeader, verifHdrLen)
+		verifHdrLen    = protosession.CalculateSingleSignatureRequestVerificationHeaderLength(pubKey, scheme, value)
+		verifHdrFldLen = neofsproto.CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
 	)
 
 	// acquire buffer for verification header
@@ -189,9 +186,7 @@ func appendVerificationHeaderSignature(reqMemBuf *igrpc.MemBuffer, reqMemBuf2 *p
 	}
 
 	// encode verification header
-	off := binary.PutUvarint(verifHdrFldBuf, protobuf.TagBytes3)
-	off += binary.PutUvarint(verifHdrFldBuf[off:], uint64(verifHdrLen))
-	writeEmbeddedSignatureField(verifHdrFldBuf[off:], protosession.FieldRequestVerificationHeaderRequestSignature, sigMsgLen, reqSig)
+	protosession.WriteSingleSignatureRequestVerificationHeaderToRequest(verifHdrFldBuf, pubKey, scheme, value)
 
 	return reqBuffers
 }
