@@ -442,18 +442,11 @@ func isMessageNil(m Message) bool {
 	return m == nil || reflect.ValueOf(m).IsNil()
 }
 
-// ProtoMessage is the marshaling interface provided by all NeoFS proto-level
-// structures.
-type ProtoMessage interface {
-	MarshaledSize() int
-	MarshalStable([]byte)
-}
-
 // EncodeRequest ONLY correctly encodes requests that have strictly ordered two
 // fields (excepting verification header): field #1 is body, field #2 is meta
 // header. Any other requests must be encoded differently. The second returned
 // value means buffer len occupied for req.
-func EncodeRequest[B, M ProtoMessage](buf []byte, reqBody B, reqMetaHeader M) ([]byte, int) {
+func EncodeRequest[B, M Message](buf []byte, reqBody B, reqMetaHeader M) ([]byte, int) {
 	var (
 		size int
 		bLen = reqBody.MarshaledSize()
