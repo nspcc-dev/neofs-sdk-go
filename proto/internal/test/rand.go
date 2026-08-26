@@ -4,9 +4,9 @@ import (
 	"encoding/base64"
 	"math/rand"
 
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -59,7 +59,7 @@ func RandStrings() []string {
 }
 
 // RandInteger returns random non-zero integer.
-func RandInteger[T proto.Varint]() T {
+func RandInteger[T protoencoding.Varint]() T {
 	for {
 		if i := rand.Uint64(); i != 0 {
 			return T(i)

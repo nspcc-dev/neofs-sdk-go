@@ -3,8 +3,8 @@ package audit_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/audit"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
@@ -18,7 +18,7 @@ func TestDataAuditResult_MarshalStable(t *testing.T) {
 		}
 
 		var dst audit.DataAuditResult
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ps := dst.GetPassSg()
 		require.Len(t, ps, 2)

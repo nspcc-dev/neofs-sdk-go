@@ -3,7 +3,7 @@ package session_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -25,7 +25,7 @@ func TestTarget_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.Target
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 		require.NotNil(t, dst.GetOwnerId())
 		require.Equal(t, src.GetOwnerId().GetValue(), dst.GetOwnerId().GetValue())
 	})
@@ -38,7 +38,7 @@ func TestTarget_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.Target
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 		require.Equal(t, src.GetNnsName(), dst.GetNnsName())
 	})
 
@@ -46,12 +46,12 @@ func TestTarget_MarshalStable(t *testing.T) {
 		src := &session.Target{}
 
 		var dst session.Target
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 	})
 
 	t.Run("nil target", func(t *testing.T) {
 		var src *session.Target
-		data := neofsproto.MarshalMessage(src)
+		data := protoencoding.MarshalMessage(src)
 		require.Empty(t, data)
 	})
 
@@ -70,7 +70,7 @@ func TestSessionContextV2_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.SessionContextV2
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		verbs := dst.GetVerbs()
 		require.Empty(t, verbs)
@@ -78,7 +78,7 @@ func TestSessionContextV2_MarshalStable(t *testing.T) {
 
 	t.Run("nil sessionContextV2", func(t *testing.T) {
 		var src *session.SessionContextV2
-		data := neofsproto.MarshalMessage(src)
+		data := protoencoding.MarshalMessage(src)
 		require.Empty(t, data)
 	})
 
@@ -102,7 +102,7 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.SessionTokenV2_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		subjects := dst.GetSubjects()
 		require.Len(t, subjects, 2)
@@ -116,7 +116,7 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.SessionTokenV2_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		contexts := dst.GetContexts()
 		require.Len(t, contexts, 2)
@@ -126,7 +126,7 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 
 	t.Run("nil body", func(t *testing.T) {
 		var src *session.SessionTokenV2_Body
-		data := neofsproto.MarshalMessage(src)
+		data := protoencoding.MarshalMessage(src)
 		require.Empty(t, data)
 	})
 
@@ -146,7 +146,7 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 func TestSessionTokenV2_MarshalStable(t *testing.T) {
 	t.Run("nil token", func(t *testing.T) {
 		var src *session.SessionTokenV2
-		data := neofsproto.MarshalMessage(src)
+		data := protoencoding.MarshalMessage(src)
 		require.Empty(t, data)
 	})
 
@@ -171,7 +171,7 @@ func TestTarget_MarshaledSize(t *testing.T) {
 
 	for _, test := range tests {
 		size := test.MarshaledSize()
-		data := neofsproto.MarshalMessage(test)
+		data := protoencoding.MarshalMessage(test)
 		require.Equal(t, size, len(data), "MarshaledSize should match actual marshaled data length")
 	}
 }
@@ -195,7 +195,7 @@ func TestSessionContextV2_MarshaledSize(t *testing.T) {
 
 	for _, test := range tests {
 		size := test.MarshaledSize()
-		data := neofsproto.MarshalMessage(test)
+		data := protoencoding.MarshalMessage(test)
 		require.Equal(t, size, len(data), "MarshaledSize should match actual marshaled data length")
 	}
 }
@@ -217,7 +217,7 @@ func TestSessionTokenV2_Body_MarshaledSize(t *testing.T) {
 
 	for _, test := range tests {
 		size := test.MarshaledSize()
-		data := neofsproto.MarshalMessage(test)
+		data := protoencoding.MarshalMessage(test)
 		require.Equal(t, size, len(data), "MarshaledSize should match actual marshaled data length")
 	}
 }
@@ -236,7 +236,7 @@ func TestSessionTokenV2_MarshaledSize(t *testing.T) {
 
 	for _, test := range tests {
 		size := test.MarshaledSize()
-		data := neofsproto.MarshalMessage(test)
+		data := protoencoding.MarshalMessage(test)
 		require.Equal(t, size, len(data), "MarshaledSize should match actual marshaled data length")
 	}
 }
@@ -244,10 +244,10 @@ func TestSessionTokenV2_MarshaledSize(t *testing.T) {
 func TestSessionTokenV2_RoundTrip(t *testing.T) {
 	original := prototest.RandSessionTokenV2(true)
 
-	data := neofsproto.MarshalMessage(original)
+	data := protoencoding.MarshalMessage(original)
 
 	var decoded session.SessionTokenV2
-	require.NoError(t, neofsproto.UnmarshalMessage(data, &decoded))
+	require.NoError(t, protoencoding.UnmarshalMessage(data, &decoded))
 
 	require.Equal(t, original.GetBody().GetVersion(), decoded.GetBody().GetVersion())
 	require.Equal(t, original.GetBody().GetAppdata(), decoded.GetBody().GetAppdata())

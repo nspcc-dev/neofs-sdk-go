@@ -9,10 +9,10 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/stretchr/testify/require"
@@ -46,7 +46,7 @@ var invalidValueTestcases = []invalidValueTestCase{
 func toProtoBytes(b []byte) []byte { return protowire.AppendBytes([]byte{10}, b) }
 
 func toProtoJSON(b []byte) []byte {
-	b, err := neofsproto.MarshalMessageJSON(&refs.ObjectID{Value: b})
+	b, err := protoencoding.MarshalMessageJSON(&refs.ObjectID{Value: b})
 	if err != nil {
 		panic(fmt.Sprintf("unexpected MarshalJSON error: %v", err))
 	}

@@ -9,7 +9,7 @@ import (
 	"github.com/google/uuid"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
@@ -184,7 +184,7 @@ func (x commonData) protoMessage(w contextWriter) *protosession.SessionToken {
 }
 
 func (x commonData) signedData(w contextWriter) []byte {
-	return neofsproto.MarshalMessage(x.fillBody(w))
+	return protoencoding.MarshalMessage(x.fillBody(w))
 }
 
 func (x *commonData) sign(signer neofscrypto.Signer, w contextWriter) error {
@@ -198,13 +198,13 @@ func (x commonData) verifySignature(w contextWriter) bool {
 }
 
 func (x commonData) marshal(w contextWriter) []byte {
-	return neofsproto.MarshalMessage(x.protoMessage(w))
+	return protoencoding.MarshalMessage(x.protoMessage(w))
 }
 
 func (x *commonData) unmarshal(data []byte, r contextReader) error {
 	var m protosession.SessionToken
 
-	err := neofsproto.UnmarshalMessage(data, &m)
+	err := protoencoding.UnmarshalMessage(data, &m)
 	if err != nil {
 		return err
 	}
@@ -213,13 +213,13 @@ func (x *commonData) unmarshal(data []byte, r contextReader) error {
 }
 
 func (x commonData) marshalJSON(w contextWriter) ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(x.protoMessage(w))
+	return protoencoding.MarshalMessageJSON(x.protoMessage(w))
 }
 
 func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
 	var m protosession.SessionToken
 
-	err := neofsproto.UnmarshalMessageJSON(data, &m)
+	err := protoencoding.UnmarshalMessageJSON(data, &m)
 	if err != nil {
 		return err
 	}

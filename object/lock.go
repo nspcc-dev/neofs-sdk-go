@@ -3,8 +3,8 @@ package object
 import (
 	"fmt"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protolock "github.com/nspcc-dev/neofs-sdk-go/proto/lock"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
@@ -69,7 +69,7 @@ func (x Lock) Marshal() []byte {
 	for i := range x.members {
 		m.Members[i] = x.members[i].ProtoMessage()
 	}
-	return neofsproto.MarshalMessage(m)
+	return protoencoding.MarshalMessage(m)
 }
 
 // Unmarshal decodes the [Lock] from its NeoFS protocol binary representation.
@@ -77,7 +77,7 @@ func (x Lock) Marshal() []byte {
 // See also [Lock.Marshal].
 func (x *Lock) Unmarshal(data []byte) error {
 	m := new(protolock.Lock)
-	err := neofsproto.UnmarshalMessage(data, m)
+	err := protoencoding.UnmarshalMessage(data, m)
 	if err != nil {
 		return err
 	}

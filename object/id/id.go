@@ -8,7 +8,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
@@ -121,22 +121,22 @@ func (id ID) CalculateIDSignature(signer neofscrypto.Signer) (neofscrypto.Signat
 
 // Marshal marshals ID into a protobuf binary form.
 func (id ID) Marshal() []byte {
-	return neofsproto.Marshal(id)
+	return protoencoding.Marshal(id)
 }
 
 // Unmarshal unmarshals protobuf binary representation of ID.
 func (id *ID) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, id)
+	return protoencoding.Unmarshal(data, id)
 }
 
 // MarshalJSON encodes ID to protobuf JSON format.
 func (id ID) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(id)
+	return protoencoding.MarshalJSON(id)
 }
 
 // UnmarshalJSON decodes ID from protobuf JSON format.
 func (id *ID) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSON(data, id)
+	return protoencoding.UnmarshalJSON(data, id)
 }
 
 // IsZero checks whether ID is zero.

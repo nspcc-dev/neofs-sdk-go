@@ -3,8 +3,8 @@ package acl_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/stretchr/testify/require"
 )
@@ -57,7 +57,7 @@ func TestBearerToken_MarshalStable(t *testing.T) {
 		}
 
 		var dst acl.BearerToken
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		rs := dst.GetBody().GetEaclTable().GetRecords()
 		require.Len(t, rs, 3)

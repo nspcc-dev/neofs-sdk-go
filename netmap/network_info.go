@@ -9,7 +9,7 @@ import (
 	"slices"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 )
 
@@ -143,7 +143,7 @@ func (x NetworkInfo) ProtoMessage() *protonetmap.NetworkInfo {
 //
 // See also Unmarshal.
 func (x NetworkInfo) Marshal() []byte {
-	return neofsproto.Marshal(x)
+	return protoencoding.Marshal(x)
 }
 
 // Unmarshal decodes NeoFS API protocol binary format into the NetworkInfo
@@ -152,7 +152,7 @@ func (x NetworkInfo) Marshal() []byte {
 //
 // See also Marshal.
 func (x *NetworkInfo) Unmarshal(data []byte) error {
-	return neofsproto.UnmarshalOptional(data, x, (*NetworkInfo).fromProtoMessage)
+	return protoencoding.UnmarshalOptional(data, x, (*NetworkInfo).fromProtoMessage)
 }
 
 // CurrentEpoch returns epoch set using SetCurrentEpoch.

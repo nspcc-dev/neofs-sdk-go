@@ -3,7 +3,7 @@ package tombstone_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/tombstone"
@@ -17,7 +17,7 @@ func TestTombstone_MarshalStable(t *testing.T) {
 		}
 
 		var dst tombstone.Tombstone
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ds := dst.GetMembers()
 		require.Len(t, ds, 2)

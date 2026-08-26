@@ -1,7 +1,7 @@
 package acl
 
 import (
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 )
 
 // Field numbers of [EACLTable] message.
@@ -16,9 +16,9 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLTable) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeEmbedded(FieldEACLTableVersion, x.Version) +
-			proto.SizeEmbedded(FieldEACLTableContainerID, x.ContainerId) +
-			proto.SizeRepeatedMessages(FieldEACLTableRecords, x.Records)
+		return protoencoding.SizeEmbedded(FieldEACLTableVersion, x.Version) +
+			protoencoding.SizeEmbedded(FieldEACLTableContainerID, x.ContainerId) +
+			protoencoding.SizeRepeatedMessages(FieldEACLTableRecords, x.Records)
 	}
 	return 0
 }
@@ -28,9 +28,9 @@ func (x *EACLTable) MarshaledSize() int {
 // [EACLTable.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *EACLTable) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldEACLTableVersion, x.Version)
-		off += proto.MarshalToEmbedded(b[off:], FieldEACLTableContainerID, x.ContainerId)
-		proto.MarshalToRepeatedMessages(b[off:], FieldEACLTableRecords, x.Records)
+		off := protoencoding.MarshalToEmbedded(b, FieldEACLTableVersion, x.Version)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldEACLTableContainerID, x.ContainerId)
+		protoencoding.MarshalToRepeatedMessages(b[off:], FieldEACLTableRecords, x.Records)
 	}
 }
 
@@ -48,11 +48,11 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *EACLRecord) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(FieldEACLRecordOperation, x.Operation) +
-			proto.SizeVarint(FieldEACLRecordAction, x.Action) +
-			proto.SizeRepeatedMessages(FieldEACLRecordFilters, x.Filters) +
-			proto.SizeRepeatedMessages(FieldEACLRecordTargets, x.Targets) +
-			proto.SizeBytes(FieldEACLRecordComment, x.Comment)
+		return protoencoding.SizeVarint(FieldEACLRecordOperation, x.Operation) +
+			protoencoding.SizeVarint(FieldEACLRecordAction, x.Action) +
+			protoencoding.SizeRepeatedMessages(FieldEACLRecordFilters, x.Filters) +
+			protoencoding.SizeRepeatedMessages(FieldEACLRecordTargets, x.Targets) +
+			protoencoding.SizeBytes(FieldEACLRecordComment, x.Comment)
 	}
 	return 0
 }
@@ -62,11 +62,11 @@ func (x *EACLRecord) MarshaledSize() int {
 // [EACLRecord.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *EACLRecord) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldEACLRecordOperation, x.Operation)
-		off += proto.MarshalToVarint(b[off:], FieldEACLRecordAction, x.Action)
-		off += proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordFilters, x.Filters)
-		off += proto.MarshalToRepeatedMessages(b[off:], FieldEACLRecordTargets, x.Targets)
-		proto.MarshalToBytes(b[off:], FieldEACLRecordComment, x.Comment)
+		off := protoencoding.MarshalToVarint(b, FieldEACLRecordOperation, x.Operation)
+		off += protoencoding.MarshalToVarint(b[off:], FieldEACLRecordAction, x.Action)
+		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldEACLRecordFilters, x.Filters)
+		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldEACLRecordTargets, x.Targets)
+		protoencoding.MarshalToBytes(b[off:], FieldEACLRecordComment, x.Comment)
 	}
 }
 
@@ -84,10 +84,10 @@ const (
 func (x *EACLRecord_Filter) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldEACLRecordFilterHeaderType, x.HeaderType) +
-			proto.SizeVarint(FieldEACLRecordFilterMatchType, x.MatchType) +
-			proto.SizeBytes(FieldEACLRecordFilterKey, x.Key) +
-			proto.SizeBytes(FieldEACLRecordFilterValue, x.Value)
+		sz = protoencoding.SizeVarint(FieldEACLRecordFilterHeaderType, x.HeaderType) +
+			protoencoding.SizeVarint(FieldEACLRecordFilterMatchType, x.MatchType) +
+			protoencoding.SizeBytes(FieldEACLRecordFilterKey, x.Key) +
+			protoencoding.SizeBytes(FieldEACLRecordFilterValue, x.Value)
 	}
 	return sz
 }
@@ -98,10 +98,10 @@ func (x *EACLRecord_Filter) MarshaledSize() int {
 // NPE-safe.
 func (x *EACLRecord_Filter) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldEACLRecordFilterHeaderType, x.HeaderType)
-		off += proto.MarshalToVarint(b[off:], FieldEACLRecordFilterMatchType, x.MatchType)
-		off += proto.MarshalToBytes(b[off:], FieldEACLRecordFilterKey, x.Key)
-		proto.MarshalToBytes(b[off:], FieldEACLRecordFilterValue, x.Value)
+		off := protoencoding.MarshalToVarint(b, FieldEACLRecordFilterHeaderType, x.HeaderType)
+		off += protoencoding.MarshalToVarint(b[off:], FieldEACLRecordFilterMatchType, x.MatchType)
+		off += protoencoding.MarshalToBytes(b[off:], FieldEACLRecordFilterKey, x.Key)
+		protoencoding.MarshalToBytes(b[off:], FieldEACLRecordFilterValue, x.Value)
 	}
 }
 
@@ -117,8 +117,8 @@ const (
 func (x *EACLRecord_Target) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldEACLRecordTargetRole, x.Role) +
-			proto.SizeRepeatedBytes(FieldEACLRecordTargetKeys, x.Keys)
+		sz = protoencoding.SizeVarint(FieldEACLRecordTargetRole, x.Role) +
+			protoencoding.SizeRepeatedBytes(FieldEACLRecordTargetKeys, x.Keys)
 	}
 	return sz
 }
@@ -129,8 +129,8 @@ func (x *EACLRecord_Target) MarshaledSize() int {
 // NPE-safe.
 func (x *EACLRecord_Target) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldEACLRecordTargetRole, x.Role)
-		proto.MarshalToRepeatedBytes(b[off:], FieldEACLRecordTargetKeys, x.Keys)
+		off := protoencoding.MarshalToVarint(b, FieldEACLRecordTargetRole, x.Role)
+		protoencoding.MarshalToRepeatedBytes(b[off:], FieldEACLRecordTargetKeys, x.Keys)
 	}
 }
 
@@ -147,9 +147,9 @@ const (
 func (x *BearerToken_Body_TokenLifetime) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldBearerTokenBodyTokenLifetimeExp, x.Exp) +
-			proto.SizeVarint(FieldBearerTokenBodyTokenLifetimeNbf, x.Nbf) +
-			proto.SizeVarint(FieldBearerTokenBodyTokenLifetimeIat, x.Iat)
+		sz = protoencoding.SizeVarint(FieldBearerTokenBodyTokenLifetimeExp, x.Exp) +
+			protoencoding.SizeVarint(FieldBearerTokenBodyTokenLifetimeNbf, x.Nbf) +
+			protoencoding.SizeVarint(FieldBearerTokenBodyTokenLifetimeIat, x.Iat)
 	}
 	return sz
 }
@@ -160,9 +160,9 @@ func (x *BearerToken_Body_TokenLifetime) MarshaledSize() int {
 // MarshalStable is NPE-safe.
 func (x *BearerToken_Body_TokenLifetime) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldBearerTokenBodyTokenLifetimeExp, x.Exp)
-		off += proto.MarshalToVarint(b[off:], FieldBearerTokenBodyTokenLifetimeNbf, x.Nbf)
-		proto.MarshalToVarint(b[off:], FieldBearerTokenBodyTokenLifetimeIat, x.Iat)
+		off := protoencoding.MarshalToVarint(b, FieldBearerTokenBodyTokenLifetimeExp, x.Exp)
+		off += protoencoding.MarshalToVarint(b[off:], FieldBearerTokenBodyTokenLifetimeNbf, x.Nbf)
+		protoencoding.MarshalToVarint(b[off:], FieldBearerTokenBodyTokenLifetimeIat, x.Iat)
 	}
 }
 
@@ -180,10 +180,10 @@ const (
 func (x *BearerToken_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldBearerTokenBodyEACLTable, x.EaclTable) +
-			proto.SizeEmbedded(FieldBearerTokenBodyOwnerID, x.OwnerId) +
-			proto.SizeEmbedded(FieldBearerTokenBodyLifetime, x.Lifetime) +
-			proto.SizeEmbedded(FieldBearerTokenBodyIssuer, x.Issuer)
+		sz = protoencoding.SizeEmbedded(FieldBearerTokenBodyEACLTable, x.EaclTable) +
+			protoencoding.SizeEmbedded(FieldBearerTokenBodyOwnerID, x.OwnerId) +
+			protoencoding.SizeEmbedded(FieldBearerTokenBodyLifetime, x.Lifetime) +
+			protoencoding.SizeEmbedded(FieldBearerTokenBodyIssuer, x.Issuer)
 	}
 	return sz
 }
@@ -193,10 +193,10 @@ func (x *BearerToken_Body) MarshaledSize() int {
 // [BearerToken_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *BearerToken_Body) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldBearerTokenBodyEACLTable, x.EaclTable)
-		off += proto.MarshalToEmbedded(b[off:], FieldBearerTokenBodyOwnerID, x.OwnerId)
-		off += proto.MarshalToEmbedded(b[off:], FieldBearerTokenBodyLifetime, x.Lifetime)
-		proto.MarshalToEmbedded(b[off:], FieldBearerTokenBodyIssuer, x.Issuer)
+		off := protoencoding.MarshalToEmbedded(b, FieldBearerTokenBodyEACLTable, x.EaclTable)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldBearerTokenBodyOwnerID, x.OwnerId)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldBearerTokenBodyLifetime, x.Lifetime)
+		protoencoding.MarshalToEmbedded(b[off:], FieldBearerTokenBodyIssuer, x.Issuer)
 	}
 }
 
@@ -212,8 +212,8 @@ const (
 func (x *BearerToken) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldBearerTokenBody, x.Body) +
-			proto.SizeEmbedded(FieldBearerTokenSignature, x.Signature)
+		sz = protoencoding.SizeEmbedded(FieldBearerTokenBody, x.Body) +
+			protoencoding.SizeEmbedded(FieldBearerTokenSignature, x.Signature)
 	}
 	return sz
 }
@@ -223,7 +223,7 @@ func (x *BearerToken) MarshaledSize() int {
 // [BearerToken.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *BearerToken) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldBearerTokenBody, x.Body)
-		proto.MarshalToEmbedded(b[off:], FieldBearerTokenSignature, x.Signature)
+		off := protoencoding.MarshalToEmbedded(b, FieldBearerTokenBody, x.Body)
+		protoencoding.MarshalToEmbedded(b[off:], FieldBearerTokenSignature, x.Signature)
 	}
 }

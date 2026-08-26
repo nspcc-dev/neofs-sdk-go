@@ -6,7 +6,7 @@ import (
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -172,7 +172,7 @@ func (x *Container) SignedData() []byte {
 // UnmarshalSignedData is a reverse op to [Container.SignedData].
 func (x *Container) UnmarshalSignedData(data []byte) error {
 	var body protosession.SessionToken_Body
-	err := neofsproto.UnmarshalMessage(data, &body)
+	err := protoencoding.UnmarshalMessage(data, &body)
 	if err != nil {
 		return fmt.Errorf("decode body: %w", err)
 	}

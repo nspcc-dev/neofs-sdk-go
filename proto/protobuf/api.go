@@ -9,10 +9,9 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/hash"
 	"github.com/nspcc-dev/neo-go/pkg/encoding/address"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
-	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
-	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
@@ -22,10 +21,9 @@ import (
 
 // Fixed message lengths.
 const (
-	ObjectIDLength      = 1 + 1 + oid.Size
-	ContainerIDLength   = 1 + 1 + cid.Size
-	ObjectAddressLength = 1 + 1 + ObjectIDLength +
-		1 + 1 + ContainerIDLength
+	ObjectIDLength      = protorefs.ObjectDLength
+	ContainerIDLength   = protorefs.ContainerIDLength
+	ObjectAddressLength = protorefs.ObjectAddressLength
 )
 
 // Message length limits.
@@ -40,9 +38,9 @@ const (
 
 // Common request field numbers.
 const (
-	FieldRequestBody               = 1
-	FieldRequestMetaHeader         = 2
-	FieldRequestVerificationHeader = 3
+	FieldRequestBody               = protoencoding.FieldRequestBody
+	FieldRequestMetaHeader         = protoencoding.FieldRequestMetaHeader
+	FieldRequestVerificationHeader = protoencoding.FieldRequestVerificationHeader
 )
 
 // Common response field numbers.

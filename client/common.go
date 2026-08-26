@@ -116,29 +116,25 @@ func signRequestParts(signer neofscrypto.Signer, body []byte, metaHdr []byte, si
 	return bodySigVal, metaHdrSigVal, originVerifHdrSigVal, nil
 }
 
-func calculateRequestSignatures(signer neofscrypto.Signer, body []byte, metaHdr []byte, vers *protorefs.Version) (neofscrypto.Signature, neofscrypto.Signature, neofscrypto.Signature, error) {
-	var (
-		originVerifHdrSig neofscrypto.Signature
-		signedOrigin      = needsOriginSig(vers)
-	)
-
-	bodySigVal, metaHdrSigVal, originVerifHdrSigVal, err := signRequestParts(signer, body, metaHdr, signedOrigin)
-	if err != nil {
-		return neofscrypto.Signature{}, neofscrypto.Signature{}, neofscrypto.Signature{}, err
-	}
-
-	pubKeyBytes := neofscrypto.PublicKeyBytes(signer.Public())
-	scheme := signer.Scheme()
-
-	bodySig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, bodySigVal)
-	metaHdrSig := neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, metaHdrSigVal)
-	if signedOrigin {
-		originVerifHdrSig = neofscrypto.NewSignatureFromRawKey(scheme, pubKeyBytes, originVerifHdrSigVal)
-	}
-
-	return bodySig, metaHdrSig, originVerifHdrSig, nil
-}
-
 func needsOriginSig(v *protorefs.Version) bool {
 	return v == nil || v.Major < 2 || (v.Major == 2 && v.Minor < 25)
+}
+
+func localFlagToTTL(local bool) uint32 {
+	if local {
+		return localRequestTTL
+	}
+	return defaultRequestTTL
+}
+
+func xHeadersLengthFunc(xHeaders []string) func(int) int {
+	return func(i int) int {
+		return protosession.CalculateXHeaderLength(xHeaders[i*2], xHeaders[i*2+1])
+	}
+}
+
+func writeXHeaderFunc(xHeaders []string) func([]byte, int) int {
+	return func(buf []byte, i int) int {
+		return protosession.WriteXHeader(buf, xHeaders[i*2], xHeaders[i*2+1])
+	}
 }

@@ -7,8 +7,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 )
 
 // Record represents an access rule operating in NeoFS access management. The
@@ -191,13 +191,13 @@ func (r *Record) fromProtoMessage(m *protoacl.EACLRecord) error {
 
 // Marshal marshals Record into a protobuf binary form.
 func (r Record) Marshal() []byte {
-	return neofsproto.MarshalMessage(r.toProtoMessage())
+	return protoencoding.MarshalMessage(r.toProtoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of Record.
 func (r *Record) Unmarshal(data []byte) error {
 	m := new(protoacl.EACLRecord)
-	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessage(data, m); err != nil {
 		return err
 	}
 	return r.fromProtoMessage(m)
@@ -205,13 +205,13 @@ func (r *Record) Unmarshal(data []byte) error {
 
 // MarshalJSON encodes Record to protobuf JSON format.
 func (r Record) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(r.toProtoMessage())
+	return protoencoding.MarshalMessageJSON(r.toProtoMessage())
 }
 
 // UnmarshalJSON decodes Record from protobuf JSON format.
 func (r *Record) UnmarshalJSON(data []byte) error {
 	m := new(protoacl.EACLRecord)
-	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessageJSON(data, m); err != nil {
 		return err
 	}
 	return r.fromProtoMessage(m)

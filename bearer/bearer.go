@@ -9,8 +9,8 @@ import (
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	"github.com/nspcc-dev/neofs-sdk-go/eacl"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -129,7 +129,7 @@ func (b Token) fillBody() *protoacl.BearerToken_Body {
 }
 
 func (b Token) signedData() []byte {
-	return neofsproto.MarshalMessage(b.fillBody())
+	return protoencoding.MarshalMessage(b.fillBody())
 }
 
 // ProtoMessage converts sg into message to transmit using the NeoFS API
@@ -294,7 +294,7 @@ func (b *Token) SignedData() []byte {
 // UnmarshalSignedData is a reverse op to [Token.SignedData].
 func (b *Token) UnmarshalSignedData(data []byte) error {
 	var body protoacl.BearerToken_Body
-	err := neofsproto.UnmarshalMessage(data, &body)
+	err := protoencoding.UnmarshalMessage(data, &body)
 	if err != nil {
 		return fmt.Errorf("decode body: %w", err)
 	}
@@ -331,7 +331,7 @@ func (b Token) VerifySignature() bool {
 //
 // See also Unmarshal.
 func (b Token) Marshal() []byte {
-	return neofsproto.Marshal(b)
+	return protoencoding.Marshal(b)
 }
 
 // Unmarshal decodes NeoFS API protocol binary data into the Token
@@ -340,7 +340,7 @@ func (b Token) Marshal() []byte {
 //
 // See also Marshal.
 func (b *Token) Unmarshal(data []byte) error {
-	return neofsproto.UnmarshalOptional(data, b, (*Token).fromProtoMessage)
+	return protoencoding.UnmarshalOptional(data, b, (*Token).fromProtoMessage)
 }
 
 // MarshalJSON encodes Token into a JSON format of the NeoFS API protocol
@@ -348,7 +348,7 @@ func (b *Token) Unmarshal(data []byte) error {
 //
 // See also UnmarshalJSON.
 func (b Token) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(b)
+	return protoencoding.MarshalJSON(b)
 }
 
 // UnmarshalJSON decodes NeoFS API protocol JSON data into the Token
@@ -356,7 +356,7 @@ func (b Token) MarshalJSON() ([]byte, error) {
 //
 // See also MarshalJSON.
 func (b *Token) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSONOptional(data, b, (*Token).fromProtoMessage)
+	return protoencoding.UnmarshalJSONOptional(data, b, (*Token).fromProtoMessage)
 }
 
 // SetIssuer sets NeoFS user ID of the Token issuer.

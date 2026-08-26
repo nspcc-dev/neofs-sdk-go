@@ -9,8 +9,8 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
@@ -399,7 +399,7 @@ func (o Object) CopyTo(dst *Object) {
 
 // MarshalHeaderJSON marshals object's header into JSON format.
 func (o Object) MarshalHeaderJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(o.header.protoMessage())
+	return protoencoding.MarshalMessageJSON(o.header.protoMessage())
 }
 
 // Address returns current object address made of its container and object IDs.
@@ -841,28 +841,28 @@ func (o *Object) ResetRelations() {
 //
 // See also [Object.Unmarshal].
 func (o Object) Marshal() []byte {
-	return neofsproto.Marshal(o)
+	return protoencoding.Marshal(o)
 }
 
 // Unmarshal unmarshals protobuf binary representation of object.
 //
 // See also [Object.Marshal].
 func (o *Object) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, o)
+	return protoencoding.Unmarshal(data, o)
 }
 
 // MarshalJSON encodes object to protobuf JSON format.
 //
 // See also [Object.UnmarshalJSON].
 func (o Object) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(o)
+	return protoencoding.MarshalJSON(o)
 }
 
 // UnmarshalJSON decodes object from protobuf JSON format.
 //
 // See also [Object.MarshalJSON].
 func (o *Object) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSON(data, o)
+	return protoencoding.UnmarshalJSON(data, o)
 }
 
 // HeaderLen returns length of the binary header.

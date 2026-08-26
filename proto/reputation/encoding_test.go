@@ -4,7 +4,7 @@ import (
 	"math/rand"
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
@@ -83,7 +83,7 @@ func TestAnnounceLocalTrustRequest_Body_MarshalStable(t *testing.T) {
 		}
 
 		var dst reputation.AnnounceLocalTrustRequest_Body
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ts := dst.GetTrusts()
 		require.Len(t, ts, 2)

@@ -3,7 +3,7 @@ package session_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -99,7 +99,7 @@ func TestObjectSessionContext_Target_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.ObjectSessionContext_Target
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		ids := dst.GetObjects()
 		require.Len(t, ids, 2)
@@ -175,7 +175,7 @@ func TestRequestMetaHeader_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.RequestMetaHeader
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		hs := dst.GetXHeaders()
 		require.Len(t, hs, 2)
@@ -195,7 +195,7 @@ func TestResponseMetaHeader_MarshalStable(t *testing.T) {
 		}
 
 		var dst session.ResponseMetaHeader
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		hs := dst.GetXHeaders()
 		require.Len(t, hs, 2)

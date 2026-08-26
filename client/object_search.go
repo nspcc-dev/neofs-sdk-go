@@ -11,10 +11,10 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
@@ -182,15 +182,19 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		sessionV2TokenLen = sessionV2TokenMsg.MarshaledSize()
 	}
 
-	bodyLen := calculateSearchObjectsRequestBodyLength(filters, len(cursor), opts.count, attrs)
+	filterLenFn := func(i int) int {
+		return protoobject.CalculateSearchFilterLength(filters[i].Operation(), filters[i].Header(), filters[i].Value())
+	}
 
-	versionLen := c.apiVersion.MarshaledSize()
-	xHeadersLen := calculateRequestXHeadersLength(opts.xHeaders)
+	bodyLen := protoobject.CalculateSearchV2RequestBodyLength(1, cursor, opts.count, attrs, len(filters), filterLenFn)
 
-	metaHdrLen := calculateRequestMetaHeaderFieldLengths(versionLen, opts.noForwarding, xHeadersLen, sessionV1TokenLen, bearerTokenLen, sessionV2TokenLen)
+	ttl := localFlagToTTL(opts.noForwarding)
+	xHdrLenFn := xHeadersLengthFunc(opts.xHeaders)
+	xHdrNum := len(opts.xHeaders) / 2
 
-	bodyWithMetaHdrLen := neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestBody, bodyLen)
-	bodyWithMetaHdrLen += neofsproto.SizeEmbeddedLENField(grpcprotobuf.FieldRequestMetaHeader, metaHdrLen)
+	metaHdrLen := protosession.CalculateRequestMetaHeaderLength(c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, sessionV2TokenLen)
+
+	bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
 
 	// acquire buffer for body + meta header
 	var reqMemBuf *grpcprotobuf.MemBuffer
@@ -203,18 +207,21 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	}
 
 	// encode body
-	off := writeSearchObjectsRequestBody(buf, bodyLen, cnr, filters, cursor, opts.count, attrs)
+	writeFilterFn := func(buf []byte, i int) int {
+		return protoobject.WriteSearchFilter(buf, filters[i].Operation(), filters[i].Header(), filters[i].Value())
+	}
+	off := protoobject.WriteSearchV2RequestBodyToRequest(buf, cnr, 1, cursor, opts.count, attrs, len(filters), filterLenFn, writeFilterFn)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]
 
 	// encode meta header
-	off += writeRequestMetaHeader(buf[off:], metaHdrLen, versionLen, c.apiVersion, opts.noForwarding, opts.xHeaders, sessionV1TokenLen, sessionV1TokenMsg, bearerTokenLen, bearerTokenMsg, sessionV2TokenLen, sessionV2TokenMsg)
+	writeXHeaderFn := writeXHeaderFunc(opts.xHeaders)
+	writeSessionV1TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV1TokenMsg)
+	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(bearerTokenMsg)
+	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(sessionV2TokenMsg)
 
-	var ttl uint32 = defaultRequestTTL
-	if opts.noForwarding {
-		ttl = localRequestTTL
-	}
+	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], c.apiVersion.Major, c.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, sessionV2TokenLen, writeSessionV2TokenFn)
 
 	var reqBuffers mem.BufferSlice
 	if c.shouldSignRequest(ttl) {

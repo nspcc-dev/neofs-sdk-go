@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	iproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/session"
 )
@@ -32,20 +32,19 @@ func newErrInvalidVerificationHeader(depth uint, cause error) error {
 
 // ProtoMessage is the marshaling interface provided by all NeoFS proto-level
 // structures.
-type ProtoMessage interface {
-	MarshaledSize() int
-	MarshalStable([]byte)
-}
+//
+// Deprecated: use [protoencoding.Message] instead.
+type ProtoMessage = protoencoding.Message
 
 // SignedRequest is a generic interface of a signed NeoFS API request.
-type SignedRequest[B ProtoMessage] interface {
+type SignedRequest[B protoencoding.Message] interface {
 	GetBody() B
 	GetMetaHeader() *session.RequestMetaHeader
 	GetVerifyHeader() *session.RequestVerificationHeader
 }
 
 // SignedResponse is a generic interface of a signed NeoFS API response.
-type SignedResponse[B ProtoMessage] interface {
+type SignedResponse[B protoencoding.Message] interface {
 	GetBody() B
 	GetMetaHeader() *session.ResponseMetaHeader
 	GetVerifyHeader() *session.ResponseVerificationHeader
@@ -56,12 +55,12 @@ type SignedResponse[B ProtoMessage] interface {
 // header to attach to this request.
 //
 // Buffer is optional and free after the call.
-func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
+func SignRequestWithBuffer[B protoencoding.Message](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
 	var ln int
 	var err error
 	metaHeader := r.GetMetaHeader()
 	if !multipleReqSignatures(metaHeader) {
-		buf, ln = iproto.EncodeRequest(buf, r.GetBody(), r.GetMetaHeader())
+		buf, ln = protoencoding.EncodeRequest(buf, r.GetBody(), r.GetMetaHeader())
 		s, err := signer.Sign(buf[:ln])
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignRequestFields, err)
@@ -119,7 +118,7 @@ func SignRequestWithBuffer[B ProtoMessage](signer Signer, r SignedRequest[B], bu
 // formed according to the NeoFS API protocol.
 //
 // Buffer is optional and free after the call.
-func VerifyRequestWithBuffer[B ProtoMessage](r SignedRequest[B], buf []byte) error {
+func VerifyRequestWithBuffer[B protoencoding.Message](r SignedRequest[B], buf []byte) error {
 	return VerifyRequestWithBufferN3(r, buf, nil)
 }
 
@@ -128,7 +127,7 @@ func VerifyRequestWithBuffer[B ProtoMessage](r SignedRequest[B], buf []byte) err
 // and checked if verifyN3 is non-nil.
 //
 // Buffer is optional and free after the call.
-func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+func VerifyRequestWithBufferN3[B protoencoding.Message](r SignedRequest[B], buf []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	v := r.GetVerifyHeader()
 	if v == nil {
 		return errMissingVerifyHdr
@@ -202,7 +201,7 @@ func VerifyRequestWithBufferN3[B ProtoMessage](r SignedRequest[B], buf []byte, v
 // resulting verification header to attach to this response.
 //
 // Buffer is optional and free after the call.
-func SignResponseWithBuffer[B ProtoMessage](signer Signer, r SignedResponse[B], buf []byte) (*session.ResponseVerificationHeader, error) {
+func SignResponseWithBuffer[B protoencoding.Message](signer Signer, r SignedResponse[B], buf []byte) (*session.ResponseVerificationHeader, error) {
 	var ln int
 	var err error
 	vhOriginal := r.GetVerifyHeader()
@@ -246,7 +245,7 @@ func SignResponseWithBuffer[B ProtoMessage](signer Signer, r SignedResponse[B], 
 // is formed according to the NeoFS API protocol.
 //
 // Buffer is optional and free after the call.
-func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) error {
+func VerifyResponseWithBuffer[B protoencoding.Message](r SignedResponse[B], buf []byte) error {
 	v := r.GetVerifyHeader()
 	if v == nil {
 		return errMissingVerifyHdr
@@ -301,22 +300,22 @@ func VerifyResponseWithBuffer[B ProtoMessage](r SignedResponse[B], buf []byte) e
 	}
 }
 
-func verifyRequestSignatureN3[B ProtoMessage](req SignedRequest[B], s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+func verifyRequestSignatureN3[B protoencoding.Message](req SignedRequest[B], s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
-		b, sz := iproto.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+		b, sz := protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
 		return verifyN3(b[:sz], s.Sign, s.Key)
 	}
 	return verifyRequestSignature(req, s, b)
 }
 
-func verifyRequestSignature[B ProtoMessage](req SignedRequest[B], s *refs.Signature, b []byte) error {
+func verifyRequestSignature[B protoencoding.Message](req SignedRequest[B], s *refs.Signature, b []byte) error {
 	pubKey, err := keyFromSignature(s)
 	if err != nil {
 		return err
 	}
 
 	var sz int
-	b, sz = iproto.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+	b, sz = protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
 	if !pubKey.Verify(b[:sz], s.Sign) {
 		return errors.New("signature mismatch")
 	}
@@ -324,7 +323,7 @@ func verifyRequestSignature[B ProtoMessage](req SignedRequest[B], s *refs.Signat
 	return nil
 }
 
-func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+func verifyMessageSignatureN3(m protoencoding.Message, s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
 	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
 		b, sz := encodeMessage(m, b)
 		return verifyN3(b[:sz], s.Sign, s.Key)
@@ -333,7 +332,7 @@ func verifyMessageSignatureN3(m ProtoMessage, s *refs.Signature, b []byte, verif
 }
 
 // VerifyMessageSignature verifies signature of m using buffer b.
-func VerifyMessageSignature(m ProtoMessage, s *refs.Signature, b []byte) error {
+func VerifyMessageSignature(m protoencoding.Message, s *refs.Signature, b []byte) error {
 	pubKey, err := keyFromSignature(s)
 	if err != nil {
 		return err
@@ -360,7 +359,7 @@ func keyFromSignature(s *refs.Signature) (PublicKey, error) {
 
 // marshals m into buffer and returns it. Second value means buffer len occupied
 // for m.
-func encodeMessage(m ProtoMessage, b []byte) ([]byte, int) {
+func encodeMessage(m protoencoding.Message, b []byte) ([]byte, int) {
 	s := m.MarshaledSize()
 	if len(b) < s {
 		b = make([]byte, s)
@@ -369,7 +368,7 @@ func encodeMessage(m ProtoMessage, b []byte) ([]byte, int) {
 	return b, s
 }
 
-func maxEncodedSize(ms ...ProtoMessage) int {
+func maxEncodedSize(ms ...protoencoding.Message) int {
 	res := ms[0].MarshaledSize()
 	for _, m := range ms[1:] {
 		if s := m.MarshaledSize(); s > res {

@@ -5,9 +5,9 @@ import (
 	"strconv"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
@@ -148,13 +148,13 @@ func (f *Filter) fromProtoMessage(m *protoacl.EACLRecord_Filter) error {
 
 // Marshal marshals Filter into a protobuf binary form.
 func (f Filter) Marshal() []byte {
-	return neofsproto.MarshalMessage(f.protoMessage())
+	return protoencoding.MarshalMessage(f.protoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of Filter.
 func (f *Filter) Unmarshal(data []byte) error {
 	m := new(protoacl.EACLRecord_Filter)
-	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessage(data, m); err != nil {
 		return err
 	}
 	return f.fromProtoMessage(m)
@@ -162,13 +162,13 @@ func (f *Filter) Unmarshal(data []byte) error {
 
 // MarshalJSON encodes Filter to protobuf JSON format.
 func (f Filter) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(f.protoMessage())
+	return protoencoding.MarshalMessageJSON(f.protoMessage())
 }
 
 // UnmarshalJSON decodes Filter from protobuf JSON format.
 func (f *Filter) UnmarshalJSON(data []byte) error {
 	m := new(protoacl.EACLRecord_Filter)
-	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessageJSON(data, m); err != nil {
 		return err
 	}
 	return f.fromProtoMessage(m)

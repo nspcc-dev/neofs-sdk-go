@@ -10,11 +10,11 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	objectgrpc "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/stretchr/testify/require"
@@ -126,7 +126,7 @@ func (x *testReplicationServer) Replicate(_ context.Context, req *objectgrpc.Rep
 			return &resp, nil
 		}
 
-		resp.ObjectSignature = neofsproto.Marshal(sig)
+		resp.ObjectSignature = protoencoding.Marshal(sig)
 	}
 
 	resp.Status = &status.Status{Code: x.respStatusCode}

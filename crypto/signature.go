@@ -3,7 +3,7 @@ package neofscrypto
 import (
 	"fmt"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 )
 
@@ -14,7 +14,7 @@ const (
 )
 
 // StablyMarshallable describes structs which can be marshalled transparently.
-type StablyMarshallable = neofsproto.Message
+type StablyMarshallable = protoencoding.Message
 
 // Signature represents a confirmation of data integrity received by the
 // digital signature mechanism.
@@ -198,10 +198,10 @@ func decodePublicKey(scheme Scheme, b []byte) (PublicKey, error) {
 // Marshal encodes x transmitted via NeoFS API protocol into a dynamically
 // allocated buffer.
 func (x Signature) Marshal() []byte {
-	return neofsproto.Marshal(x)
+	return protoencoding.Marshal(x)
 }
 
 // Unmarshal decodes x transmitted via NeoFS API protocol from data.
 func (x *Signature) Unmarshal(b []byte) error {
-	return neofsproto.Unmarshal(b, x)
+	return protoencoding.Unmarshal(b, x)
 }

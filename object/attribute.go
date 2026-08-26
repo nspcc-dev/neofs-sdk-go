@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strconv"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 )
 
@@ -109,7 +109,7 @@ func (a *Attribute) protoMessage() *protoobject.Header_Attribute {
 //
 // See also [Attribute.Unmarshal].
 func (a *Attribute) Marshal() []byte {
-	return neofsproto.MarshalMessage(a.protoMessage())
+	return protoencoding.MarshalMessage(a.protoMessage())
 }
 
 // Unmarshal unmarshals protobuf binary representation of [Attribute].
@@ -117,7 +117,7 @@ func (a *Attribute) Marshal() []byte {
 // See also [Attribute.Marshal].
 func (a *Attribute) Unmarshal(data []byte) error {
 	m := new(protoobject.Header_Attribute)
-	if err := neofsproto.UnmarshalMessage(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessage(data, m); err != nil {
 		return err
 	}
 	return a.fromProtoMessage(m, false)
@@ -127,7 +127,7 @@ func (a *Attribute) Unmarshal(data []byte) error {
 //
 // See also [Attribute.UnmarshalJSON].
 func (a *Attribute) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalMessageJSON(a.protoMessage())
+	return protoencoding.MarshalMessageJSON(a.protoMessage())
 }
 
 // UnmarshalJSON decodes [Attribute] from protobuf JSON format.
@@ -135,7 +135,7 @@ func (a *Attribute) MarshalJSON() ([]byte, error) {
 // See also [Attribute.MarshalJSON].
 func (a *Attribute) UnmarshalJSON(data []byte) error {
 	m := new(protoobject.Header_Attribute)
-	if err := neofsproto.UnmarshalMessageJSON(data, m); err != nil {
+	if err := protoencoding.UnmarshalMessageJSON(data, m); err != nil {
 		return err
 	}
 	return a.fromProtoMessage(m, false)

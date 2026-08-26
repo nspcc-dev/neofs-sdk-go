@@ -1,6 +1,8 @@
 package subnet
 
-import "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+import (
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+)
 
 // Field numbers of [SubnetInfo] message.
 const (
@@ -14,8 +16,8 @@ const (
 func (x *SubnetInfo) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldSubnetInfoID, x.Id)
-		sz += proto.SizeEmbedded(FieldSubnetInfoOwner, x.Owner)
+		sz = protoencoding.SizeEmbedded(FieldSubnetInfoID, x.Id)
+		sz += protoencoding.SizeEmbedded(FieldSubnetInfoOwner, x.Owner)
 	}
 	return sz
 }
@@ -25,7 +27,7 @@ func (x *SubnetInfo) MarshaledSize() int {
 // [SubnetInfo.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SubnetInfo) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldSubnetInfoID, x.Id)
-		proto.MarshalToEmbedded(b[off:], FieldSubnetInfoOwner, x.Owner)
+		off := protoencoding.MarshalToEmbedded(b, FieldSubnetInfoID, x.Id)
+		protoencoding.MarshalToEmbedded(b[off:], FieldSubnetInfoOwner, x.Owner)
 	}
 }

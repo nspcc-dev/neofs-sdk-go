@@ -15,11 +15,11 @@ import (
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	oidtest "github.com/nspcc-dev/neofs-sdk-go/object/id/test"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
@@ -124,12 +124,12 @@ func (x *rawPayloadTestStream) RecvMsg(dst any) error {
 
 func getObjectIDForHeaderResponseBody(resp *protoobject.HeadResponse_Body) oid.ID {
 	h := resp.GetHeader().GetHeader()
-	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
+	return oid.NewFromObjectHeaderBinary(protoencoding.MarshalMessage(h))
 }
 
 func getObjectIDForGetResponseBody(resp *protoobject.GetResponse_Body) oid.ID {
 	h := resp.GetInit().GetHeader()
-	return oid.NewFromObjectHeaderBinary(neofsproto.MarshalMessage(h))
+	return oid.NewFromObjectHeaderBinary(protoencoding.MarshalMessage(h))
 }
 
 type testCommonReadObjectRequestServerSettings struct {

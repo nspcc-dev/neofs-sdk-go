@@ -1,7 +1,17 @@
 package refs
 
 import (
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	"crypto/sha256"
+
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
+	"google.golang.org/protobuf/encoding/protowire"
+)
+
+// Fixed-length values.
+const (
+	ContainerIDLength   = 1 + 1 + sha256.Size
+	ObjectDLength       = 1 + 1 + sha256.Size
+	ObjectAddressLength = 1 + 1 + ContainerIDLength + 1 + 1 + ObjectDLength
 )
 
 // Field numbers of [OwnerID] message.
@@ -15,7 +25,7 @@ const (
 func (x *OwnerID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldOwnerIDValue, x.Value)
+		sz = protoencoding.SizeBytes(FieldOwnerIDValue, x.Value)
 	}
 	return sz
 }
@@ -25,7 +35,7 @@ func (x *OwnerID) MarshaledSize() int {
 // [OwnerID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *OwnerID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, FieldOwnerIDValue, x.Value)
+		protoencoding.MarshalToBytes(b, FieldOwnerIDValue, x.Value)
 	}
 }
 
@@ -40,9 +50,23 @@ const (
 func (x *ContainerID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldContainerIDValue, x.Value)
+		sz = protoencoding.SizeBytes(FieldContainerIDValue, x.Value)
 	}
 	return sz
+}
+
+// WriteContainerIDField writes container ID field with given number and fields
+// into buf. Returns number of bytes written.
+func WriteContainerIDField(buf []byte, num protowire.Number, value [sha256.Size]byte) int {
+	off := protoencoding.WriteTagAndLength(buf, num, ContainerIDLength)
+	return off + WriteContainerID(buf[off:], value)
+}
+
+// WriteContainerID writes container ID message with given fields into buf.
+// Returns number of bytes written.
+func WriteContainerID(buf []byte, value [sha256.Size]byte) int {
+	off := protoencoding.WriteTagAndLength(buf, FieldContainerIDValue, sha256.Size)
+	return off + copy(buf[off:], value[:])
 }
 
 // MarshalStable writes the ContainerID in Protocol Buffers V3 format with
@@ -50,7 +74,7 @@ func (x *ContainerID) MarshaledSize() int {
 // [ContainerID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *ContainerID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, FieldContainerIDValue, x.Value)
+		protoencoding.MarshalToBytes(b, FieldContainerIDValue, x.Value)
 	}
 }
 
@@ -65,9 +89,23 @@ const (
 func (x *ObjectID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldObjectIDValue, x.Value)
+		sz = protoencoding.SizeBytes(FieldObjectIDValue, x.Value)
 	}
 	return sz
+}
+
+// WriteObjectIDField writes object ID field with given number and fields into
+// buf. Returns number of bytes written.
+func WriteObjectIDField(buf []byte, num protowire.Number, value [sha256.Size]byte) int {
+	off := protoencoding.WriteTagAndLength(buf, num, ObjectDLength)
+	return off + WriteObjectID(buf[off:], value)
+}
+
+// WriteObjectID writes object ID message with given fields into buf. Returns
+// number of bytes written.
+func WriteObjectID(buf []byte, value [sha256.Size]byte) int {
+	off := protoencoding.WriteTagAndLength(buf, FieldObjectIDValue, sha256.Size)
+	return off + copy(buf[off:], value[:])
 }
 
 // MarshalStable writes the ObjectID in Protocol Buffers V3 format with
@@ -75,7 +113,7 @@ func (x *ObjectID) MarshaledSize() int {
 // [ObjectID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *ObjectID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToBytes(b, FieldObjectIDValue, x.Value)
+		protoencoding.MarshalToBytes(b, FieldObjectIDValue, x.Value)
 	}
 }
 
@@ -91,10 +129,19 @@ const (
 func (x *Address) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeEmbedded(FieldAddressContainerID, x.ContainerId) +
-			proto.SizeEmbedded(FieldAddressObjectID, x.ObjectId)
+		sz = protoencoding.SizeEmbedded(FieldAddressContainerID, x.ContainerId) +
+			protoencoding.SizeEmbedded(FieldAddressObjectID, x.ObjectId)
 	}
 	return sz
+}
+
+// WriteObjectAddressField writes object address field with given number and
+// fields into buf. Returns number of bytes written.
+func WriteObjectAddressField(buf []byte, num protowire.Number, cnr [sha256.Size]byte, obj [sha256.Size]byte) int {
+	off := protoencoding.WriteTagAndLength(buf, num, ObjectAddressLength)
+	off += WriteContainerIDField(buf[off:], FieldAddressContainerID, cnr)
+	off += WriteObjectIDField(buf[off:], FieldAddressObjectID, obj)
+	return off
 }
 
 // MarshalStable writes the Address in Protocol Buffers V3 format with ascending
@@ -102,8 +149,8 @@ func (x *Address) MarshaledSize() int {
 // [Address.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Address) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToEmbedded(b, FieldAddressContainerID, x.ContainerId)
-		proto.MarshalToEmbedded(b[off:], FieldAddressObjectID, x.ObjectId)
+		off := protoencoding.MarshalToEmbedded(b, FieldAddressContainerID, x.ContainerId)
+		protoencoding.MarshalToEmbedded(b[off:], FieldAddressObjectID, x.ObjectId)
 	}
 }
 
@@ -114,15 +161,40 @@ const (
 	FieldVersionMinor
 )
 
+// CalculateVersionLength calculates length of API version message with given
+// fields.
+func CalculateVersionLength(major uint32, minor uint32) int {
+	ln := protoencoding.SizeVarint(FieldVersionMajor, major)
+	ln += protoencoding.SizeVarint(FieldVersionMinor, minor)
+	return ln
+}
+
 // MarshaledSize returns size of the Version in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Version) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeVarint(FieldVersionMajor, x.Major) +
-			proto.SizeVarint(FieldVersionMinor, x.Minor)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return CalculateVersionLength(x.Major, x.Minor)
+}
+
+// WriteVersionField writes API version field with given number and fields into
+// buf. Returns number of bytes written.
+func WriteVersionField(buf []byte, num protowire.Number, major uint32, minor uint32) int {
+	ln := CalculateVersionLength(major, minor)
+	if ln == 0 {
+		return 0
+	}
+	off := protoencoding.WriteTagAndLength(buf, num, ln)
+	return off + WriteVersion(buf[off:], major, minor)
+}
+
+// WriteVersion writes API version message with given fields into buf. Returns
+// number of bytes written.
+func WriteVersion(buf []byte, major uint32, minor uint32) int {
+	off := protoencoding.MarshalToVarint(buf, FieldVersionMajor, major)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldVersionMinor, minor)
+	return off
 }
 
 // MarshalStable writes the Version in Protocol Buffers V3 format with ascending
@@ -130,8 +202,7 @@ func (x *Version) MarshaledSize() int {
 // [Version.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Version) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldVersionMajor, x.Major)
-		proto.MarshalToVarint(b[off:], FieldVersionMinor, x.Minor)
+		WriteVersion(b, x.Major, x.Minor)
 	}
 }
 
@@ -143,16 +214,42 @@ const (
 	FieldSignatureScheme
 )
 
+// CalculateSignatureLength calculates length of signature message with given
+// fields.
+func CalculateSignatureLength[SCHEME ~int32](pubKey []byte, value []byte, scheme SCHEME) int {
+	ln := protoencoding.SizeBytes(FieldSignatureKey, pubKey)
+	ln += protoencoding.SizeBytes(FieldSignatureValue, value)
+	ln += protoencoding.SizeVarint(FieldSignatureScheme, scheme)
+	return ln
+}
+
 // MarshaledSize returns size of the Signature in Protocol Buffers V3 format in
 // bytes. MarshaledSize is NPE-safe.
 func (x *Signature) MarshaledSize() int {
-	var sz int
-	if x != nil {
-		sz = proto.SizeBytes(FieldSignatureKey, x.Key) +
-			proto.SizeBytes(FieldSignatureValue, x.Sign) +
-			proto.SizeVarint(FieldSignatureScheme, x.Scheme)
+	if x == nil {
+		return 0
 	}
-	return sz
+	return CalculateSignatureLength(x.Key, x.Sign, x.Scheme)
+}
+
+// WriteSignatureField writes signature field with given number and fields into
+// buf. Returns number of bytes written.
+func WriteSignatureField[SCHEME ~int32](buf []byte, num protowire.Number, pubKey []byte, value []byte, scheme SCHEME) int {
+	ln := CalculateSignatureLength(pubKey, value, scheme)
+	if ln == 0 {
+		return 0
+	}
+	off := protoencoding.WriteTagAndLength(buf, num, ln)
+	return off + WriteSignature(buf[off:], pubKey, value, scheme)
+}
+
+// WriteSignature writes signature message with given fields into buf. Returns
+// number of bytes written.
+func WriteSignature[SCHEME ~int32](buf []byte, pubKey []byte, value []byte, scheme SCHEME) int {
+	off := protoencoding.MarshalToBytes(buf, FieldSignatureKey, pubKey)
+	off += protoencoding.MarshalToBytes(buf[off:], FieldSignatureValue, value)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldSignatureScheme, scheme)
+	return off
 }
 
 // MarshalStable writes the Signature in Protocol Buffers V3 format with
@@ -160,9 +257,7 @@ func (x *Signature) MarshaledSize() int {
 // [Signature.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Signature) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, FieldSignatureKey, x.Key)
-		off += proto.MarshalToBytes(b[off:], FieldSignatureValue, x.Sign)
-		proto.MarshalToVarint(b[off:], FieldSignatureScheme, x.Scheme)
+		WriteSignature(b, x.Key, x.Sign, x.Scheme)
 	}
 }
 
@@ -178,8 +273,8 @@ const (
 func (x *SignatureRFC6979) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeBytes(FieldSignatureRFC6979Key, x.Key) +
-			proto.SizeBytes(FieldSignatureRFC6979Value, x.Sign)
+		sz = protoencoding.SizeBytes(FieldSignatureRFC6979Key, x.Key) +
+			protoencoding.SizeBytes(FieldSignatureRFC6979Value, x.Sign)
 	}
 	return sz
 }
@@ -189,8 +284,8 @@ func (x *SignatureRFC6979) MarshaledSize() int {
 // [SignatureRFC6979.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SignatureRFC6979) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToBytes(b, FieldSignatureRFC6979Key, x.Key)
-		proto.MarshalToBytes(b[off:], FieldSignatureRFC6979Value, x.Sign)
+		off := protoencoding.MarshalToBytes(b, FieldSignatureRFC6979Key, x.Key)
+		protoencoding.MarshalToBytes(b[off:], FieldSignatureRFC6979Value, x.Sign)
 	}
 }
 
@@ -206,8 +301,8 @@ const (
 func (x *Checksum) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldChecksumType, x.Type) +
-			proto.SizeBytes(FieldChecksumValue, x.Sum)
+		sz = protoencoding.SizeVarint(FieldChecksumType, x.Type) +
+			protoencoding.SizeBytes(FieldChecksumValue, x.Sum)
 	}
 	return sz
 }
@@ -217,8 +312,8 @@ func (x *Checksum) MarshaledSize() int {
 // [Checksum.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Checksum) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldChecksumType, x.Type)
-		proto.MarshalToBytes(b[off:], FieldChecksumValue, x.Sum)
+		off := protoencoding.MarshalToVarint(b, FieldChecksumType, x.Type)
+		protoencoding.MarshalToBytes(b[off:], FieldChecksumValue, x.Sum)
 	}
 }
 
@@ -233,7 +328,7 @@ const (
 func (x *SubnetID) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeFixed32(FieldSubnetIDValue, x.Value)
+		sz = protoencoding.SizeFixed32(FieldSubnetIDValue, x.Value)
 	}
 	return sz
 }
@@ -243,6 +338,6 @@ func (x *SubnetID) MarshaledSize() int {
 // [SubnetID.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *SubnetID) MarshalStable(b []byte) {
 	if x != nil {
-		proto.MarshalToFixed32(b, FieldSubnetIDValue, x.Value)
+		protoencoding.MarshalToFixed32(b, FieldSubnetIDValue, x.Value)
 	}
 }

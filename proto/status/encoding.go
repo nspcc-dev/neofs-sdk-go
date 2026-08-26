@@ -1,7 +1,7 @@
 package status
 
 import (
-	"github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 )
 
 // Field numbers of [Status_Detail] message.
@@ -16,8 +16,8 @@ const (
 func (x *Status_Detail) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = proto.SizeVarint(FieldStatusDetailID, x.Id) +
-			proto.SizeBytes(FieldStatusDetailValue, x.Value)
+		sz = protoencoding.SizeVarint(FieldStatusDetailID, x.Id) +
+			protoencoding.SizeBytes(FieldStatusDetailValue, x.Value)
 	}
 	return sz
 }
@@ -27,8 +27,8 @@ func (x *Status_Detail) MarshaledSize() int {
 // [Status_Detail.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Status_Detail) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldStatusDetailID, x.Id)
-		proto.MarshalToBytes(b[off:], FieldStatusDetailValue, x.Value)
+		off := protoencoding.MarshalToVarint(b, FieldStatusDetailID, x.Id)
+		protoencoding.MarshalToBytes(b[off:], FieldStatusDetailValue, x.Value)
 	}
 }
 
@@ -44,9 +44,9 @@ const (
 // bytes. MarshaledSize is NPE-safe.
 func (x *Status) MarshaledSize() int {
 	if x != nil {
-		return proto.SizeVarint(FieldStatusCode, x.Code) +
-			proto.SizeBytes(FieldStatusMessage, x.Message) +
-			proto.SizeRepeatedMessages(FieldStatusDetails, x.Details)
+		return protoencoding.SizeVarint(FieldStatusCode, x.Code) +
+			protoencoding.SizeBytes(FieldStatusMessage, x.Message) +
+			protoencoding.SizeRepeatedMessages(FieldStatusDetails, x.Details)
 	}
 	return 0
 }
@@ -56,8 +56,8 @@ func (x *Status) MarshaledSize() int {
 // [Status.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Status) MarshalStable(b []byte) {
 	if x != nil {
-		off := proto.MarshalToVarint(b, FieldStatusCode, x.Code)
-		off += proto.MarshalToBytes(b[off:], FieldStatusMessage, x.Message)
-		proto.MarshalToRepeatedMessages(b[off:], FieldStatusDetails, x.Details)
+		off := protoencoding.MarshalToVarint(b, FieldStatusCode, x.Code)
+		off += protoencoding.MarshalToBytes(b[off:], FieldStatusMessage, x.Message)
+		protoencoding.MarshalToRepeatedMessages(b[off:], FieldStatusDetails, x.Details)
 	}
 }

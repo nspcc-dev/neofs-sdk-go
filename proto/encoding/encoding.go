@@ -1,7 +1,7 @@
 // Package proto contains helper functions for Protocol Buffers
 // (https://protobuf.dev) in addition to the ones from
 // [google.golang.org/protobuf/encoding/protowire] package.
-package proto
+package encoding
 
 import (
 	"encoding/binary"
@@ -12,6 +12,20 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/encoding/protowire"
 	"google.golang.org/protobuf/proto"
+)
+
+// Various function aliases.
+type (
+	RepeatedMessageLenFunc   = func(int) int
+	WriteMessageFunc         = func(buf []byte) int
+	WriteRepeatedMessageFunc = func(buf []byte, i int) int
+)
+
+// Common request field numbers.
+const (
+	FieldRequestBody               = 1
+	FieldRequestMetaHeader         = 2
+	FieldRequestVerificationHeader = 3
 )
 
 // Message is provided by protobuf 'message' types used in NeoFS for so-called
@@ -134,8 +148,7 @@ func MarshalToVarint[T Varint](b []byte, num protowire.Number, v T) int {
 	if v == 0 {
 		return 0
 	}
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.VarintType))
-	return off + binary.PutUvarint(b[off:], uint64(v))
+	return WriteTagAndVarint(b, num, protowire.VarintType, v)
 }
 
 // SizeOptionalVarint returns the encoded size of an optional varint protobuf
@@ -154,8 +167,7 @@ func MarshalToOptionalVarint[T Varint](b []byte, num protowire.Number, v *T) int
 	if v == nil {
 		return 0
 	}
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.VarintType))
-	return off + binary.PutUvarint(b[off:], uint64(*v))
+	return WriteTagAndVarint(b, num, protowire.VarintType, *v)
 }
 
 // SizeBool returns the encoded size of 'bool' protobuf field with given number
@@ -188,8 +200,7 @@ func MarshalToBytes[T Bytes](b []byte, num protowire.Number, v T) int {
 	if len(v) == 0 {
 		return 0
 	}
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
-	off += binary.PutUvarint(b[off:], uint64(len(v)))
+	off := WriteTagAndLength(b, num, len(v))
 	if len(b[off:]) < len(v) {
 		panic("too short buffer")
 	}
@@ -212,7 +223,7 @@ func MarshalToFixed32(b []byte, num protowire.Number, v uint32) int {
 	if v == 0 {
 		return 0
 	}
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.Fixed32Type))
+	off := WriteTag(b, num, protowire.Fixed32Type)
 	binary.LittleEndian.PutUint32(b[off:], v)
 	return off + protowire.SizeFixed32()
 }
@@ -233,7 +244,7 @@ func MarshalToFixed64(b []byte, num protowire.Number, v uint64) int {
 	if v == 0 {
 		return 0
 	}
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.Fixed64Type))
+	off := WriteTag(b, num, protowire.Fixed64Type)
 	binary.LittleEndian.PutUint64(b[off:], v)
 	return off + protowire.SizeFixed64()
 }
@@ -296,8 +307,7 @@ func MarshalToEmbeddedLength(b []byte, num protowire.Number, sz int, v Message) 
 }
 
 func marshalToEmbeddedLength(b []byte, num protowire.Number, sz int, v Message) int {
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
-	off += binary.PutUvarint(b[off:], uint64(sz))
+	off := WriteTagAndLength(b, num, sz)
 	v.MarshalStable(b[off:])
 	return off + sz
 }
@@ -327,8 +337,7 @@ func MarshalToRepeatedVarint[T Varint](b []byte, num protowire.Number, v []T) in
 	if len(v) == 0 {
 		return 0
 	}
-	off := binary.PutUvarint(b, protowire.EncodeTag(num, protowire.BytesType))
-	off += binary.PutUvarint(b[off:], uint64(sizeRepeatedVarint(v)))
+	off := WriteTagAndLength(b, num, sizeRepeatedVarint(v))
 	for i := range v {
 		off += binary.PutUvarint(b[off:], uint64(v[i]))
 	}
@@ -433,25 +442,11 @@ func isMessageNil(m Message) bool {
 	return m == nil || reflect.ValueOf(m).IsNil()
 }
 
-// ProtoMessage is the marshaling interface provided by all NeoFS proto-level
-// structures.
-type ProtoMessage interface {
-	MarshaledSize() int
-	MarshalStable([]byte)
-}
-
 // EncodeRequest ONLY correctly encodes requests that have strictly ordered two
 // fields (excepting verification header): field #1 is body, field #2 is meta
 // header. Any other requests must be encoded differently. The second returned
 // value means buffer len occupied for req.
-func EncodeRequest[B, M ProtoMessage](buf []byte, reqBody B, reqMetaHeader M) ([]byte, int) {
-	const (
-		bodyFieldNumber       = 1
-		metaHeaderFieldNumber = 2
-
-		tagBytes1 = 10
-		tagBytes2 = 18
-	)
+func EncodeRequest[B, M Message](buf []byte, reqBody B, reqMetaHeader M) ([]byte, int) {
 	var (
 		size int
 		bLen = reqBody.MarshaledSize()
@@ -459,26 +454,164 @@ func EncodeRequest[B, M ProtoMessage](buf []byte, reqBody B, reqMetaHeader M) ([
 		off  int
 	)
 
-	size += SizeEmbeddedLENField(bodyFieldNumber, bLen)
-	size += SizeEmbeddedLENField(metaHeaderFieldNumber, mLen)
+	size = CalculateRequestBodyWithMetaHeaderLength(bLen, mLen)
 	if len(buf) < size {
 		buf = make([]byte, size)
 	}
 
-	if bLen > 0 {
-		buf[0] = tagBytes1
-		off = 1 + binary.PutUvarint(buf[1:], uint64(bLen))
-		reqBody.MarshalStable(buf[off:])
-		off += bLen
-	}
-
-	if mLen > 0 {
-		buf[off] = tagBytes2
-		off++
-		off += binary.PutUvarint(buf[off:], uint64(mLen))
-		reqMetaHeader.MarshalStable(buf[off:])
-		off += mLen
-	}
+	off = WriteRequestBodyMessage(buf, reqBody)
+	off += WriteRequestMetaHeaderMessage(buf[off:], reqMetaHeader)
 
 	return buf, off
+}
+
+// WriteTag writes tag for the field of given number and type into buf. Returns
+// number of bytes written.
+func WriteTag(buf []byte, num protowire.Number, typ protowire.Type) int {
+	return binary.PutUvarint(buf, protowire.EncodeTag(num, typ))
+}
+
+// WriteTagAndLength writes tag for the LEN field of given number and its length
+// into buf. Returns number of bytes written.
+func WriteTagAndLength(buf []byte, num protowire.Number, ln int) int {
+	return WriteTagAndVarint(buf, num, protowire.BytesType, ln)
+}
+
+// WriteTagAndVarint writes tag for the field of given number and type followed
+// by varint into buf. Returns number of bytes written.
+func WriteTagAndVarint[T Varint](buf []byte, num protowire.Number, typ protowire.Type, v T) int {
+	off := WriteTag(buf, num, typ)
+	return off + binary.PutUvarint(buf[off:], uint64(v))
+}
+
+// WriteStablyMarshalledMessageFunc returns function for m writing.
+func WriteStablyMarshalledMessageFunc(m Message) WriteMessageFunc {
+	return func(buf []byte) int {
+		if isMessageNil(m) {
+			return 0
+		}
+		ln := m.MarshaledSize()
+		if ln == 0 {
+			return 0
+		}
+		m.MarshalStable(buf)
+		return ln
+	}
+}
+
+// WriteStablyMarshalledMessageField writes m field with given number into buf.
+// Returns number of bytes written.
+func WriteStablyMarshalledMessageField(buf []byte, num protowire.Number, m Message) int {
+	ln := m.MarshaledSize()
+	return WriteMessageField(buf, num, ln, func(buf []byte) int {
+		m.MarshalStable(buf)
+		return ln
+	})
+}
+
+// WriteMessageField writes LEN message with given field number into buf.
+// Returns number of bytes written.
+func WriteMessageField(buf []byte, num protowire.Number, ln int, writeFn WriteMessageFunc) int {
+	if ln == 0 {
+		return 0
+	}
+	off := WriteTagAndLength(buf, num, ln)
+	off += writeFn(buf[off:])
+	return off
+}
+
+// CalculateRepeatedFieldsLength returns length of specified number of repeated
+// messages with given field number.
+func CalculateRepeatedFieldsLength(num protowire.Number, count int, lenFn RepeatedMessageLenFunc) int {
+	var ln int
+	for i := range count {
+		lni := lenFn(i)
+		if lni == 0 {
+			ln += protowire.SizeTag(num) + protowire.SizeVarint(uint64(lni))
+		} else {
+			ln += SizeEmbeddedLENField(num, lni)
+		}
+	}
+	return ln
+}
+
+// WriteRepeatedFields writes specified number of repeated messages with given
+// field number into buf.
+func WriteRepeatedFields(buf []byte, num protowire.Number, count int, lenFn RepeatedMessageLenFunc, writeFn WriteRepeatedMessageFunc) int {
+	var off int
+	for i := range count {
+		off += WriteTagAndLength(buf[off:], num, lenFn(i))
+		off += writeFn(buf[off:], i)
+	}
+	return off
+}
+
+// CalculateRequestBodyFieldLength returns length of field for the request body
+// with given length.
+func CalculateRequestBodyFieldLength(ln int) int {
+	return SizeEmbeddedLENField(FieldRequestBody, ln)
+}
+
+// WriteRequestBodyTagAndLength writes request body field tag and length into
+// buf. Returns number of bytes written.
+func WriteRequestBodyTagAndLength(buf []byte, ln int) int {
+	return WriteTagAndLength(buf, FieldRequestBody, ln)
+}
+
+// WriteRequestBodyMessage writes request body field into buf. Returns number of
+// bytes written.
+func WriteRequestBodyMessage(buf []byte, m Message) int {
+	return WriteStablyMarshalledMessageField(buf, FieldRequestBody, m)
+}
+
+// CalculateRequestMetaHeaderFieldLength returns length of field for the request meta header
+// with given length.
+func CalculateRequestMetaHeaderFieldLength(ln int) int {
+	return SizeEmbeddedLENField(FieldRequestMetaHeader, ln)
+}
+
+// WriteRequestMetaHeaderTagAndLength writes request meta header field tag and
+// length into buf. Returns number of bytes written.
+func WriteRequestMetaHeaderTagAndLength(buf []byte, metaHdrLen int) int {
+	return WriteTagAndLength(buf, FieldRequestMetaHeader, metaHdrLen)
+}
+
+// WriteRequestMetaHeaderMessage writes request meta header field into buf.
+// Returns number of bytes written.
+func WriteRequestMetaHeaderMessage(buf []byte, m Message) int {
+	return WriteStablyMarshalledMessageField(buf, FieldRequestMetaHeader, m)
+}
+
+// CalculateRequestVerificationHeaderFieldLength returns length of field for the
+// request verification header with given length.
+func CalculateRequestVerificationHeaderFieldLength(ln int) int {
+	return SizeEmbeddedLENField(FieldRequestVerificationHeader, ln)
+}
+
+// WriteRequestVerificationHeaderTagAndLength writes request verification header
+// field tag and length into buf. Returns number of bytes written.
+func WriteRequestVerificationHeaderTagAndLength(buf []byte, ln int) int {
+	return WriteTagAndLength(buf, FieldRequestVerificationHeader, ln)
+}
+
+// WriteRequestVerificationHeaderMessage writes request verification header
+// field into buf. Returns number of bytes written.
+func WriteRequestVerificationHeaderMessage(buf []byte, m Message) int {
+	return WriteStablyMarshalledMessageField(buf, FieldRequestVerificationHeader, m)
+}
+
+// CalculateRequestBodyWithMetaHeaderLength returns length of request body and
+// meta header fields with specified lengths.
+func CalculateRequestBodyWithMetaHeaderLength(bodyLen int, metaHdrLen int) int {
+	ln := CalculateRequestBodyFieldLength(bodyLen)
+	ln += CalculateRequestMetaHeaderFieldLength(metaHdrLen)
+	return ln
+}
+
+// CalculateRequestLength returns length of request body, meta header and
+// verification header fields with specified lengths.
+func CalculateRequestLength(bodyLen int, metaHdrLen int, verifHdrLen int) int {
+	ln := CalculateRequestBodyWithMetaHeaderLength(bodyLen, metaHdrLen)
+	ln += CalculateRequestVerificationHeaderFieldLength(verifHdrLen)
+	return ln
 }

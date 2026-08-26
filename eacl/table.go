@@ -4,8 +4,8 @@ import (
 	"fmt"
 
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
 	protoacl "github.com/nspcc-dev/neofs-sdk-go/proto/acl"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
@@ -158,7 +158,7 @@ func (t Table) ProtoMessage() *protoacl.EACLTable {
 
 // Marshal marshals Table into a protobuf binary form.
 func (t Table) Marshal() []byte {
-	return neofsproto.Marshal(t)
+	return protoencoding.Marshal(t)
 }
 
 // SignedData returns actual payload to sign.
@@ -171,18 +171,18 @@ func (t Table) SignedData() []byte {
 // Unmarshal unmarshals protobuf binary representation of Table. Use [Unmarshal]
 // to decode data into a new Table.
 func (t *Table) Unmarshal(data []byte) error {
-	return neofsproto.Unmarshal(data, t)
+	return protoencoding.Unmarshal(data, t)
 }
 
 // MarshalJSON encodes Table to protobuf JSON format.
 func (t Table) MarshalJSON() ([]byte, error) {
-	return neofsproto.MarshalJSON(t)
+	return protoencoding.MarshalJSON(t)
 }
 
 // UnmarshalJSON decodes Table from protobuf JSON format. Use [UnmarshalJSON] to
 // decode data into a new Table.
 func (t *Table) UnmarshalJSON(data []byte) error {
-	return neofsproto.UnmarshalJSON(data, t)
+	return protoencoding.UnmarshalJSON(data, t)
 }
 
 // IsZero checks whether all fields of the table are zero/empty. The property

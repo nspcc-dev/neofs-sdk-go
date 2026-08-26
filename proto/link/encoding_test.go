@@ -3,7 +3,7 @@ package link_test
 import (
 	"testing"
 
-	neofsproto "github.com/nspcc-dev/neofs-sdk-go/internal/proto"
+	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/link"
 	"github.com/stretchr/testify/require"
@@ -34,7 +34,7 @@ func TestLink_MarshalStable(t *testing.T) {
 		}
 
 		var dst link.Link
-		require.NoError(t, neofsproto.UnmarshalMessage(neofsproto.MarshalMessage(src), &dst))
+		require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
 
 		cs := dst.GetChildren()
 		require.Len(t, cs, 2)
