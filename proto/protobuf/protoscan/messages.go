@@ -354,6 +354,7 @@ var (
 			protoobject.FieldGetResponseBodyInitObjectID:  NewMessageField("ID", FieldTypeNestedMessage),
 			protoobject.FieldGetResponseBodyInitSignature: NewMessageField("signature", FieldTypeNestedMessage),
 			protoobject.FieldGetResponseBodyInitHeader:    NewMessageField("header", FieldTypeNestedMessage),
+			protoobject.FieldObjectPayload:                NewMessageField("payload", FieldTypeBytes),
 		},
 		NestedMessageFields: map[protowire.Number]MessageScheme{
 			protoobject.FieldGetResponseBodyInitObjectID:  ObjectIDScheme,
