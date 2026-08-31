@@ -157,6 +157,9 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 		if key == "" {
 			return errors.New("empty attribute key")
 		}
+		if strings.ContainsRune(key, 0) {
+			return errors.New("attribute key contains zero byte")
+		}
 
 		_, was = mAttr[key]
 		if was {
@@ -166,9 +169,6 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 		val = attrs[i].GetValue()
 		if val == "" {
 			return fmt.Errorf("empty %q attribute value", key)
-		}
-		if strings.ContainsRune(key, 0) {
-			return errors.New("attribute key contains zero byte")
 		}
 		if strings.ContainsRune(val, 0) {
 			return errors.New("attribute value contains zero byte")

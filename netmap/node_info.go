@@ -60,11 +60,12 @@ func (x *NodeInfo) fromProtoMessage(m *protonetmap.NodeInfo, checkFieldPresence 
 		key := attributes[i].GetKey()
 		if key == "" {
 			return fmt.Errorf("empty key of the attribute #%d", i)
-		} else if _, ok := mAttr[key]; ok {
-			return fmt.Errorf("duplicated attribute %s", key)
 		}
 		if strings.ContainsRune(key, 0) {
 			return errors.New("attribute key contains zero byte")
+		}
+		if _, ok := mAttr[key]; ok {
+			return fmt.Errorf("duplicated attribute %s", key)
 		}
 
 		val := attributes[i].GetValue()
