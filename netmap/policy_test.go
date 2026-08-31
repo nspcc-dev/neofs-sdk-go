@@ -288,13 +288,13 @@ func TestPlacementPolicy_SetInitialPlacementPolicy(t *testing.T) {
 func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	m := &protonetmap.PlacementPolicy{
 		Replicas: []*protonetmap.Replica{
-			{Count: 2583748530, Selector: "selector_0"},
-			{Count: 358755354, Selector: "selector_1"},
+			{Count: 1, Selector: "selector_0"},
+			{Count: 2, Selector: "selector_1"},
 		},
-		ContainerBackupFactor: anyValidBackupFactor,
+		ContainerBackupFactor: 1,
 		Selectors: []*protonetmap.Selector{
-			{Name: "selector_0", Count: 1814781076, Clause: protonetmap.Clause_SAME, Attribute: "attribute_0", Filter: "filter_0"},
-			{Name: "selector_1", Count: 1814781076, Clause: protonetmap.Clause_DISTINCT, Attribute: "attribute_1", Filter: "filter_1"},
+			{Name: "selector_0", Count: 1, Clause: protonetmap.Clause_SAME, Attribute: "attribute_0", Filter: "filter_0"},
+			{Name: "selector_1", Count: 2, Clause: protonetmap.Clause_DISTINCT, Attribute: "attribute_1", Filter: "filter_1"},
 		},
 		Filters: []*protonetmap.Filter{
 			{Name: "filter_0", Op: protonetmap.Operation_AND, Filters: []*protonetmap.Filter{
@@ -309,34 +309,34 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 			}},
 		},
 		EcRules: []*protonetmap.PlacementPolicy_ECRule{
-			{DataPartNum: 1, ParityPartNum: 2, Selector: "slctr"},
+			{DataPartNum: 1, ParityPartNum: 2, Selector: ""},
 			{DataPartNum: 3, ParityPartNum: 4, Selector: ""},
 		},
 		Initial: &protonetmap.PlacementPolicy_Initial{
-			ReplicaLimits: []uint32{1, 2, 3},
-			MaxReplicas:   42,
+			ReplicaLimits: []uint32{1, 1, 1, 0},
+			MaxReplicas:   1,
 			PreferLocal:   true,
 		},
 	}
 
 	var val netmap.PlacementPolicy
 	require.NoError(t, val.FromProtoMessage(m))
-	require.EqualValues(t, anyValidBackupFactor, val.ContainerBackupFactor())
+	require.EqualValues(t, 1, val.ContainerBackupFactor())
 	rs := val.Replicas()
 	require.Len(t, rs, 2)
 	require.Equal(t, "selector_0", rs[0].SelectorName())
-	require.EqualValues(t, 2583748530, rs[0].NumberOfObjects())
+	require.EqualValues(t, 1, rs[0].NumberOfObjects())
 	require.Equal(t, "selector_1", rs[1].SelectorName())
-	require.EqualValues(t, 358755354, rs[1].NumberOfObjects())
+	require.EqualValues(t, 2, rs[1].NumberOfObjects())
 	ss := val.Selectors()
 	require.Len(t, ss, 2)
 	require.Equal(t, "selector_0", ss[0].Name())
-	require.EqualValues(t, 1814781076, ss[0].NumberOfNodes())
+	require.EqualValues(t, 1, ss[0].NumberOfNodes())
 	require.True(t, ss[0].IsSame())
 	require.Equal(t, "filter_0", ss[0].FilterName())
 	require.Equal(t, "attribute_0", ss[0].BucketAttribute())
 	require.Equal(t, "selector_1", ss[1].Name())
-	require.EqualValues(t, 1814781076, ss[1].NumberOfNodes())
+	require.EqualValues(t, 2, ss[1].NumberOfNodes())
 	require.True(t, ss[1].IsDistinct())
 	require.Equal(t, "filter_1", ss[1].FilterName())
 	require.Equal(t, "attribute_1", ss[1].BucketAttribute())
@@ -386,14 +386,14 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	require.Len(t, er, 2)
 	require.EqualValues(t, 1, er[0].DataPartNum())
 	require.EqualValues(t, 2, er[0].ParityPartNum())
-	require.EqualValues(t, "slctr", er[0].SelectorName())
+	require.Zero(t, er[0].SelectorName())
 	require.EqualValues(t, 3, er[1].DataPartNum())
 	require.EqualValues(t, 4, er[1].ParityPartNum())
 	require.Zero(t, er[1].SelectorName())
 	ip := val.Initial()
 	require.NotNil(t, ip)
-	require.Equal(t, []uint32{1, 2, 3}, ip.ReplicaLimits())
-	require.EqualValues(t, 42, ip.MaxReplicas())
+	require.Equal(t, []uint32{1, 1, 1, 0}, ip.ReplicaLimits())
+	require.EqualValues(t, 1, ip.MaxReplicas())
 	require.True(t, ip.PreferLocal())
 
 	// reset optional fields
@@ -403,16 +403,13 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	m2.EcRules = nil
 	m2.Initial = nil
 	val2 := val
-	require.NoError(t, val2.FromProtoMessage(m2))
-	require.Empty(t, val2.Selectors())
-	require.Empty(t, val2.Filters())
-	require.Empty(t, val2.ECRules())
-	require.Zero(t, val2.Initial())
+	require.EqualError(t, val2.FromProtoMessage(m2), `invalid REP rule #0: missing selector "selector_0"`)
 
 	m2 = proto.Clone(m).(*protonetmap.PlacementPolicy)
 	m2.Selectors = nil
 	m2.Filters = nil
 	m2.Replicas = nil
+	m2.Initial = nil
 	val2 = val
 	require.NoError(t, val2.FromProtoMessage(m2))
 	require.Empty(t, val2.Selectors())
@@ -448,6 +445,8 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].ParityPartNum = 65 }},
 			{name: "ec/too many total parts", err: "invalid EC rule #1: more than 64 total parts",
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].DataPartNum, m.EcRules[1].ParityPartNum = 32, 33 }},
+			{name: "replicas/too many objects", err: "invalid REP rule #0: more than 8 object replicas",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas[0].Count = 9 }},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				st := val
@@ -575,9 +574,8 @@ func TestPlacementPolicy_Unmarshal(t *testing.T) {
 	require.Empty(t, val.Filters())
 	require.Empty(t, val.ECRules())
 
-	// filled
-	require.NoError(t, val.Unmarshal(validBinPlacementPolicy))
-	require.Equal(t, validPlacementPolicy, val)
+	// semantically invalid
+	require.EqualError(t, val.Unmarshal(validBinPlacementPolicy), "invalid REP rule #0: more than 8 object replicas")
 
 	t.Run("EC", testPolicyUnmarshalEC)
 }
@@ -608,9 +606,8 @@ func TestPlacementPolicy_UnmarshalJSON(t *testing.T) {
 	require.Empty(t, val.Replicas())
 	require.Zero(t, val.ECRules())
 
-	// filled
-	require.NoError(t, val.UnmarshalJSON([]byte(validJSONPlacementPolicy)))
-	require.Equal(t, validPlacementPolicy, val)
+	// semantically invalid
+	require.EqualError(t, val.UnmarshalJSON([]byte(validJSONPlacementPolicy)), "invalid REP rule #0: more than 8 object replicas")
 
 	t.Run("EC", testPolicyUnmarshalJSONEC)
 }
