@@ -456,11 +456,14 @@ func (x *NodeInfo) SetAttributes(attrs [][2]string) {
 func (x *NodeInfo) SetAttribute(key, value string) {
 	if key == "" {
 		panic("empty key in SetAttribute")
-	} else if value == "" {
+	}
+	if value == "" {
 		panic("empty value in SetAttribute")
-	} else if strings.ContainsRune(key, 0) {
+	}
+	if strings.ContainsRune(key, 0) {
 		panic("attribute key contains zero byte")
-	} else if strings.ContainsRune(value, 0) {
+	}
+	if strings.ContainsRune(value, 0) {
 		panic("attribute value contains zero byte")
 	}
 

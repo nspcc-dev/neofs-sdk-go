@@ -350,11 +350,14 @@ func (x Container) PlacementPolicy() netmap.PlacementPolicy {
 func (x *Container) SetAttribute(key, value string) {
 	if key == "" {
 		panic("empty attribute key")
-	} else if value == "" {
+	}
+	if value == "" {
 		panic("empty attribute value")
-	} else if strings.ContainsRune(key, 0) {
+	}
+	if strings.ContainsRune(key, 0) {
 		panic("attribute key contains zero byte")
-	} else if strings.ContainsRune(value, 0) {
+	}
+	if strings.ContainsRune(value, 0) {
 		panic("attribute value contains zero byte")
 	}
 
