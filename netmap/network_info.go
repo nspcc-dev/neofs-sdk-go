@@ -7,6 +7,7 @@ import (
 	"iter"
 	"math"
 	"slices"
+	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
 	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
@@ -56,6 +57,9 @@ func (x *NetworkInfo) fromProtoMessage(m *protonetmap.NetworkInfo, checkFieldPre
 			return fmt.Errorf("nil parameter #%d", i)
 		}
 		name := string(prm.GetKey())
+		if strings.ContainsRune(name, 0) {
+			return errors.New("parameter key contains zero byte")
+		}
 
 		_, was := mNames[name]
 		if was {
@@ -216,10 +220,15 @@ func (x NetworkInfo) configValue(name string) []byte {
 // SetRawNetworkParameter sets named NeoFS network parameter whose value is
 // transmitted but not interpreted by the NeoFS API protocol.
 //
+// Name MUST NOT contain zero bytes.
+//
 // Argument MUST NOT be mutated, make a copy first.
 //
 // See also RawNetworkParameter.
 func (x *NetworkInfo) SetRawNetworkParameter(name string, value []byte) {
+	if strings.ContainsRune(name, 0) {
+		panic("parameter key contains zero byte")
+	}
 	x.setConfig(name, value)
 }
 

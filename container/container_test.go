@@ -497,6 +497,10 @@ func TestContainer_FromProtoMessage(t *testing.T) {
 				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "", "v2") }},
 			{name: "attributes/no value", err: `empty "k2" attribute value`,
 				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "k2", "") }},
+			{name: "attributes/zero byte in key", err: "attribute key contains zero byte",
+				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k\x001", "v1") }},
+			{name: "attributes/zero byte in value", err: "attribute value contains zero byte",
+				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v\x001") }},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
 				corrupt: func(m *protocontainer.Container) { setContainerAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "attributes/timestamp", err: "invalid attribute value Timestamp: foo (strconv.ParseInt: parsing \"foo\": invalid syntax)",
@@ -800,6 +804,8 @@ func TestContainer_SetAttribute(t *testing.T) {
 	var val container.Container
 	require.Panics(t, func() { val.SetAttribute("", "v") })
 	require.Panics(t, func() { val.SetAttribute("k", "") })
+	require.Panics(t, func() { val.SetAttribute("k\x00", "v") })
+	require.Panics(t, func() { val.SetAttribute("k", "v\x00") })
 	for range val.Attributes() {
 		t.Fatal("handler must not be called")
 	}

@@ -967,6 +967,18 @@ func TestObject_FromProtoMessage(t *testing.T) {
 						{Key: "k1", Value: "v1"}, {Key: "k2", Value: ""}, {Key: "k3", Value: "v3"},
 					}
 				}},
+			{name: "attributes/zero byte in key", err: "invalid header: invalid attribute #0: attribute key contains zero byte",
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Attributes = []*protoobject.Header_Attribute{
+						{Key: "k\x001", Value: "v1"}, {Key: "k2", Value: "v2"},
+					}
+				}},
+			{name: "attributes/zero byte in value", err: "invalid header: invalid attribute #0: attribute value contains zero byte",
+				corrupt: func(m *protoobject.Object) {
+					m.Header.Attributes = []*protoobject.Header_Attribute{
+						{Key: "k1", Value: "v\x001"}, {Key: "k2", Value: "v2"},
+					}
+				}},
 			{name: "attributes/duplicated", err: "invalid header: duplicated attribute k1",
 				corrupt: func(m *protoobject.Object) {
 					m.Header.Attributes = []*protoobject.Header_Attribute{

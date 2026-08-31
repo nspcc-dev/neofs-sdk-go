@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
@@ -80,6 +81,12 @@ func (a *Attribute) fromProtoMessage(m *protoobject.Header_Attribute, checkField
 	}
 	if checkFieldPresence && m.Value == "" {
 		return errors.New("missing value")
+	}
+	if strings.ContainsRune(m.Key, 0) {
+		return errors.New("attribute key contains zero byte")
+	}
+	if strings.ContainsRune(m.Value, 0) {
+		return errors.New("attribute value contains zero byte")
 	}
 	switch m.Key {
 	case AttributeExpirationEpoch:

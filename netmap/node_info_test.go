@@ -392,6 +392,8 @@ func TestNodeInfo_SetAttribute(t *testing.T) {
 	}
 	require.Panics(t, func() { n.SetAttribute("", "v") })
 	require.Panics(t, func() { n.SetAttribute("k", "") })
+	require.Panics(t, func() { n.SetAttribute("k\x00", "v") })
+	require.Panics(t, func() { n.SetAttribute("k", "v\x00") })
 
 	const k1, v1 = "k1", "v1"
 	const k2, v2 = "k2", "v2"
@@ -610,6 +612,10 @@ func TestNodeInfo_FromProtoMessage(t *testing.T) {
 				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "", "v2") }},
 			{name: "attributes/no value", err: `empty "k2" attribute value`,
 				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "") }},
+			{name: "attributes/zero byte in key", err: "attribute key contains zero byte",
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k\x001", "v1") }},
+			{name: "attributes/zero byte in value", err: "attribute value contains zero byte",
+				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v\x001") }},
 			{name: "attributes/duplicated", err: "duplicated attribute k1",
 				corrupt: func(m *protonetmap.NodeInfo) { setNodeAttributes(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "attributes/capacity", err: "invalid Capacity attribute: strconv.ParseUint: parsing \"foo\": invalid syntax",

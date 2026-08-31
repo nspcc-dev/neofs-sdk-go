@@ -167,6 +167,12 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 		if val == "" {
 			return fmt.Errorf("empty %q attribute value", key)
 		}
+		if strings.ContainsRune(key, 0) {
+			return errors.New("attribute key contains zero byte")
+		}
+		if strings.ContainsRune(val, 0) {
+			return errors.New("attribute value contains zero byte")
+		}
 
 		switch key {
 		case attributeTimestamp, sysAttrLockUntil:
@@ -330,10 +336,11 @@ func (x Container) PlacementPolicy() netmap.PlacementPolicy {
 }
 
 // SetAttribute sets Container attribute value by key. Both key and value
-// MUST NOT be empty. Attributes set by the creator (owner) are most commonly
-// ignored by the NeoFS system and used for application layer. Some attributes
-// are so-called system or well-known attributes: they are reserved for system
-// needs. System attributes SHOULD NOT be modified using SetAttribute, use
+// MUST NOT be empty or contain zero bytes. Attributes set by the creator
+// (owner) are most commonly ignored by the NeoFS system and used for
+// application layer. Some attributes are so-called system or well-known
+// attributes: they are reserved for system needs. System attributes SHOULD NOT
+// be modified using SetAttribute, use
 // corresponding methods/functions. List of the reserved keys is documented
 // in the particular protocol version.
 //
@@ -345,6 +352,8 @@ func (x *Container) SetAttribute(key, value string) {
 		panic("empty attribute key")
 	} else if value == "" {
 		panic("empty attribute value")
+	} else if strings.ContainsRune(key, 0) || strings.ContainsRune(value, 0) {
+		panic("attribute key or value contains zero byte")
 	}
 
 	for i := range x.attrs {
