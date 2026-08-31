@@ -352,8 +352,10 @@ func (x *Container) SetAttribute(key, value string) {
 		panic("empty attribute key")
 	} else if value == "" {
 		panic("empty attribute value")
-	} else if strings.ContainsRune(key, 0) || strings.ContainsRune(value, 0) {
-		panic("attribute key or value contains zero byte")
+	} else if strings.ContainsRune(key, 0) {
+		panic("attribute key contains zero byte")
+	} else if strings.ContainsRune(value, 0) {
+		panic("attribute value contains zero byte")
 	}
 
 	for i := range x.attrs {

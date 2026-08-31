@@ -440,8 +440,11 @@ func (x *NodeInfo) SetAttributes(attrs [][2]string) {
 		if attr[1] == "" {
 			panic(fmt.Errorf("empty value in SetAttributes for key: %s", attr[0]))
 		}
-		if strings.ContainsRune(attr[0], 0) || strings.ContainsRune(attr[1], 0) {
-			panic("attribute key or value contains zero byte")
+		if strings.ContainsRune(attr[0], 0) {
+			panic("attribute key contains zero byte")
+		}
+		if strings.ContainsRune(attr[1], 0) {
+			panic("attribute value contains zero byte")
 		}
 	}
 
@@ -455,8 +458,10 @@ func (x *NodeInfo) SetAttribute(key, value string) {
 		panic("empty key in SetAttribute")
 	} else if value == "" {
 		panic("empty value in SetAttribute")
-	} else if strings.ContainsRune(key, 0) || strings.ContainsRune(value, 0) {
-		panic("attribute key or value contains zero byte")
+	} else if strings.ContainsRune(key, 0) {
+		panic("attribute key contains zero byte")
+	} else if strings.ContainsRune(value, 0) {
+		panic("attribute value contains zero byte")
 	}
 
 	for i := range x.attrs {
