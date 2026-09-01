@@ -1,6 +1,6 @@
 module github.com/nspcc-dev/neofs-sdk-go
 
-go 1.26
+go 1.26.0
 
 require (
 	github.com/antlr4-go/antlr/v4 v4.13.1
@@ -9,7 +9,7 @@ require (
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 	github.com/mr-tron/base58 v1.3.0
 	github.com/nspcc-dev/hrw/v2 v2.0.4
-	github.com/nspcc-dev/neo-go v0.122.0
+	github.com/nspcc-dev/neo-go v0.123.0
 	github.com/stretchr/testify v1.12.1
 	github.com/testcontainers/testcontainers-go v0.44.0
 	go.uber.org/zap v1.28.0
@@ -67,11 +67,10 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.54.0 // indirect
+	golang.org/x/crypto v0.55.0 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
-	golang.org/x/net v0.56.0 // indirect
+	golang.org/x/net v0.58.0 // indirect
 	golang.org/x/sys v0.47.0 // indirect
-	golang.org/x/text v0.40.0 // indirect
+	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
