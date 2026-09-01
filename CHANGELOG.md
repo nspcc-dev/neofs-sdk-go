@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.0.0-rc.22] - 2026-09-01
+
+API 2.26 compatibility and optimizations, upgrade your applications to make
+NeoFS interactions faster.
+
+New features:
+ * Local request signature configuration for client (#837, #845)
+ * Single-signature requests following API 2.26 (#853)
+ * Exported library for efficient protobuf handling (#858)
+
+Behaviour changes:
+ * GetRangeHash operation is removed from object API (#843)
+ * TZ hash calculation is removed (#844)
+ * API v2.26 used by default (#853)
+ * Go 1.26+ required to build (#857)
+
+Improvements:
+ * More efficient buffer management for Head and Search APIs (#848)
+ * More efficient request encoding for Put operations (#845)
+ * Smaller buffers for non-payload requests (#850)
+ * Larger GRPC buffers (#852)
+ * Updated github.com/mr-tron/base58 dependency from v1.2.0 to v1.3.0 (#857)
+ * Updated NeoGo dependency from 0.121.0 to 0.123.0 (#857, #862)
+ * Updated go.uber.org/zap dependency from v1.27.1 to v1.28.0 (#857)
+ * Updated google.golang.org/grpc dependency from v1.82.1 to v1.83.1 (#857)
+ * Updated google.golang.org/protobuf dependency from v1.36.11 to v1.36.12 (#857)
+
+Bugs fixed:
+ * Potential buffer race in ObjectGetInit (#848)
+
 ## [1.0.0-rc.21] - 2026-07-30
 
 A set of API 2.25 features and a number of optimizations affecting all
@@ -511,6 +541,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.22]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.21...v1.0.0-rc.22
 [1.0.0-rc.21]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.20...v1.0.0-rc.21
 [1.0.0-rc.20]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.19...v1.0.0-rc.20
 [1.0.0-rc.19]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.18...v1.0.0-rc.19
