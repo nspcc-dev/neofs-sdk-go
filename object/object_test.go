@@ -517,6 +517,39 @@ func TestObject_SetAttributes(t *testing.T) {
 	require.Equal(t, []object.Attribute{a1, a2}, obj.UserAttributes())
 }
 
+func TestObject_ExpirationEpoch(t *testing.T) {
+	var obj object.Object
+
+	exp, ok := obj.ExpirationEpoch()
+	require.False(t, ok)
+	require.Zero(t, exp)
+
+	obj.SetExpirationEpoch(123)
+	exp, ok = obj.ExpirationEpoch()
+	require.True(t, ok)
+	require.EqualValues(t, 123, exp)
+
+	attrs := obj.Attributes()
+	require.Len(t, attrs, 1)
+	require.Equal(t, object.AttributeExpirationEpoch, attrs[0].Key())
+	require.Equal(t, "123", attrs[0].Value())
+
+	// overwrite
+	obj.SetExpirationEpoch(456)
+	exp, ok = obj.ExpirationEpoch()
+	require.True(t, ok)
+	require.EqualValues(t, 456, exp)
+	require.Len(t, obj.Attributes(), 1)
+
+	// alongside other attributes
+	obj.SetAttributes(object.NewAttribute("k1", "v1"))
+	obj.SetExpirationEpoch(789)
+	exp, ok = obj.ExpirationEpoch()
+	require.True(t, ok)
+	require.EqualValues(t, 789, exp)
+	require.Len(t, obj.Attributes(), 2)
+}
+
 func TestObject_AssociatedObject(t *testing.T) {
 	t.Run("deleted", func(t *testing.T) {
 		var obj object.Object
