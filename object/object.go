@@ -3,6 +3,7 @@ package object
 import (
 	"bytes"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -605,6 +606,41 @@ func (o Object) UserAttributes() []Attribute {
 // SetAttributes sets object attributes.
 func (o *Object) SetAttributes(v ...Attribute) {
 	o.header.attrs = v
+}
+
+// ExpirationEpoch returns the last NeoFS epoch number of the object lifetime
+// set via [object.AttributeExpirationEpoch] attribute. Zero epoch and false
+// value are returned if the attribute is missing meaning the object never
+// expires.
+//
+// See also [Object.SetExpirationEpoch].
+func (o Object) ExpirationEpoch() (uint64, bool) {
+	for i := range o.header.attrs {
+		if o.header.attrs[i].k == AttributeExpirationEpoch {
+			exp, err := strconv.ParseUint(o.header.attrs[i].v, 10, 64)
+			return exp, err == nil
+		}
+	}
+
+	return 0, false
+}
+
+// SetExpirationEpoch sets the last NeoFS epoch number of the object lifetime
+// via [object.AttributeExpirationEpoch] attribute. If the attribute is
+// already present, its value is overwritten.
+//
+// See also [Object.ExpirationEpoch].
+func (o *Object) SetExpirationEpoch(v uint64) {
+	str := strconv.FormatUint(v, 10)
+
+	for i := range o.header.attrs {
+		if o.header.attrs[i].k == AttributeExpirationEpoch {
+			o.header.attrs[i].v = str
+			return
+		}
+	}
+
+	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeExpirationEpoch, v: str})
 }
 
 // GetPreviousID returns identifier of the previous sibling object. Zero return
