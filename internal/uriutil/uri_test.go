@@ -21,6 +21,15 @@ func TestParseURI(t *testing.T) {
 		{s: "grpc://st1.storage.fs.neo.org:8080", host: "st1.storage.fs.neo.org:8080", withTLS: false},
 		{s: "grpcs://127.0.0.1:8082", host: "127.0.0.1:8082", withTLS: true},
 		{s: "grpcs://st1.storage.fs.neo.org:8082", host: "st1.storage.fs.neo.org:8082", withTLS: true},
+		// port 443 implies TLS when scheme is not specified
+		{s: "127.0.0.1:443", host: "127.0.0.1:443", withTLS: true},
+		{s: "st1.storage.fs.neo.org:443", host: "st1.storage.fs.neo.org:443", withTLS: true},
+		// explicit scheme is respected even for port 443
+		{s: "grpc://127.0.0.1:443", host: "127.0.0.1:443", withTLS: false},
+		{s: "grpc://st1.storage.fs.neo.org:443", host: "st1.storage.fs.neo.org:443", withTLS: false},
+		// grpcs scheme without port defaults to port 443
+		{s: "grpcs://127.0.0.1", host: "127.0.0.1:443", withTLS: true},
+		{s: "grpcs://st1.storage.fs.neo.org", host: "st1.storage.fs.neo.org:443", withTLS: true},
 	} {
 		host, withTLS, err := uriutil.Parse(tc.s)
 		require.NoError(t, err, tc.s)
