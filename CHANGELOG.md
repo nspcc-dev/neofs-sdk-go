@@ -5,6 +5,9 @@
 New features:
  * `Object.ExpirationEpoch`/`Object.SetExpirationEpoch` methods for version-independent access to the expiration epoch system attribute (#254)
 
+Bugs fixed:
+ * `apistatus.UnrecognizedStatus` is not `apistatus.Error` (#649)
+
 ## [1.0.0-rc.22] - 2026-09-01
 
 API 2.26 compatibility and optimizations, upgrade your applications to make
