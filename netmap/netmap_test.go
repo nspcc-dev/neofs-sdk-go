@@ -55,6 +55,7 @@ func init() {
 
 	validNetmap.SetEpoch(anyValidCurrentEpoch)
 	validNetmap.SetNodes(anyValidNodes)
+	validNetmap.SetVersion(anyValidNetmapVersion)
 }
 
 func TestNetMap_FromProtoMessage(t *testing.T) {
@@ -80,12 +81,14 @@ func TestNetMap_FromProtoMessage(t *testing.T) {
 				State: protonetmap.NodeInfo_MAINTENANCE,
 			},
 		},
+		Version: anyValidNetmapVersion,
 	}
 
 	var val netmap.NetMap
 	require.NoError(t, val.FromProtoMessage(m))
 
 	require.EqualValues(t, anyValidCurrentEpoch, val.Epoch())
+	require.EqualValues(t, anyValidNetmapVersion, val.Version())
 	ns := val.Nodes()
 	require.Len(t, ns, 2)
 	require.EqualValues(t, "public_key_0", ns[0].PublicKey())
@@ -126,10 +129,12 @@ func TestNetMap_FromProtoMessage(t *testing.T) {
 	// reset optional fields
 	m.Epoch = 0
 	m.Nodes = nil
+	m.Version = 0
 	val2 := val
 	require.NoError(t, val2.FromProtoMessage(m))
 	require.Zero(t, val2.Epoch())
 	require.Zero(t, val2.Nodes())
+	require.Zero(t, val2.Version())
 
 	t.Run("invalid", func(t *testing.T) {
 		for _, tc := range []struct {
@@ -176,6 +181,7 @@ func TestNetMap_ProtoMessage(t *testing.T) {
 	// filled
 	m = validNetmap.ProtoMessage()
 	require.EqualValues(t, anyValidCurrentEpoch, m.GetEpoch())
+	require.EqualValues(t, anyValidNetmapVersion, m.GetVersion())
 	ns := m.GetNodes()
 	require.Len(t, ns, 2)
 	require.EqualValues(t, "public_key_0", ns[0].GetPublicKey())
@@ -199,6 +205,17 @@ func TestNetMap_SetEpoch(t *testing.T) {
 
 	nm.SetEpoch(anyValidCurrentEpoch + 1)
 	require.EqualValues(t, anyValidCurrentEpoch+1, nm.Epoch())
+}
+
+func TestNetMap_SetVersion(t *testing.T) {
+	var nm netmap.NetMap
+	require.Zero(t, nm.Version())
+
+	nm.SetVersion(anyValidNetmapVersion)
+	require.EqualValues(t, anyValidNetmapVersion, nm.Version())
+
+	nm.SetVersion(anyValidNetmapVersion + 1)
+	require.EqualValues(t, anyValidNetmapVersion+1, nm.Version())
 }
 
 func TestNetMap_ContainerNodes(t *testing.T) {

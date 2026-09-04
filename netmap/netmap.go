@@ -18,9 +18,9 @@ import (
 //
 // Instances can be created using built-in var declaration.
 type NetMap struct {
-	epoch uint64
-
-	nodes []NodeInfo
+	epoch   uint64
+	version uint64
+	nodes   []NodeInfo
 }
 
 // FromProtoMessage validates msg according to the NeoFS API protocol and
@@ -47,6 +47,7 @@ func (m *NetMap) FromProtoMessage(msg *protonetmap.Netmap) error {
 	}
 
 	m.epoch = msg.Epoch
+	m.version = msg.Version
 
 	return nil
 }
@@ -57,7 +58,8 @@ func (m *NetMap) FromProtoMessage(msg *protonetmap.Netmap) error {
 // See also [NetMap.FromProtoMessage].
 func (m NetMap) ProtoMessage() *protonetmap.Netmap {
 	msg := &protonetmap.Netmap{
-		Epoch: m.epoch,
+		Epoch:   m.epoch,
+		Version: m.version,
 	}
 	if m.nodes != nil {
 		msg.Nodes = make([]*protonetmap.NodeInfo, len(m.nodes))
@@ -99,6 +101,20 @@ func (m *NetMap) SetEpoch(epoch uint64) {
 // Zero NetMap has zero revision.
 func (m NetMap) Epoch() uint64 {
 	return m.epoch
+}
+
+// SetVersion specifies revision number of the NetMap.
+//
+// See also Version.
+func (m *NetMap) SetVersion(version uint64) {
+	m.version = version
+}
+
+// Version returns version set using SetVersion.
+//
+// Zero NetMap has zero version.
+func (m NetMap) Version() uint64 {
+	return m.version
 }
 
 // nodes is a slice of NodeInfo instances needed for HRW sorting.
