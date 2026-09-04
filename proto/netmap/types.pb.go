@@ -629,9 +629,12 @@ func (x *NodeInfo) GetState() NodeInfo_State {
 type Netmap struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Network map revision number.
+	// DEPRECATED: Network maps are versioned since API v2.27.
 	Epoch uint64 `protobuf:"varint,1,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	// Nodes presented in network.
-	Nodes         []*NodeInfo `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	Nodes []*NodeInfo `protobuf:"bytes,2,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	// Network map version number.
+	Version       uint64 `protobuf:"varint,3,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -678,6 +681,13 @@ func (x *Netmap) GetNodes() []*NodeInfo {
 		return x.Nodes
 	}
 	return nil
+}
+
+func (x *Netmap) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
 }
 
 // NeoFS network configuration
@@ -737,6 +747,8 @@ type NetworkInfo struct {
 	MsPerBlock int64 `protobuf:"varint,3,opt,name=ms_per_block,json=msPerBlock,proto3" json:"ms_per_block,omitempty"`
 	// NeoFS network configuration
 	NetworkConfig *NetworkConfig `protobuf:"bytes,4,opt,name=network_config,json=networkConfig,proto3" json:"network_config,omitempty"`
+	// Network map version number.
+	NetmapVersion uint64 `protobuf:"varint,5,opt,name=netmap_version,json=netmapVersion,proto3" json:"netmap_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -797,6 +809,13 @@ func (x *NetworkInfo) GetNetworkConfig() *NetworkConfig {
 		return x.NetworkConfig
 	}
 	return nil
+}
+
+func (x *NetworkInfo) GetNetmapVersion() uint64 {
+	if x != nil {
+		return x.NetmapVersion
+	}
+	return 0
 }
 
 // Erasure coding rule for container objects.
@@ -1268,23 +1287,25 @@ const file_proto_netmap_types_proto_rawDesc = "" +
 	"\n" +
 	"\x06ONLINE\x10\x01\x12\v\n" +
 	"\aOFFLINE\x10\x02\x12\x0f\n" +
-	"\vMAINTENANCE\x10\x03\"P\n" +
+	"\vMAINTENANCE\x10\x03\"j\n" +
 	"\x06Netmap\x12\x14\n" +
 	"\x05epoch\x18\x01 \x01(\x04R\x05epoch\x120\n" +
-	"\x05nodes\x18\x02 \x03(\v2\x1a.neo.fs.v2.netmap.NodeInfoR\x05nodes\"\x8f\x01\n" +
+	"\x05nodes\x18\x02 \x03(\v2\x1a.neo.fs.v2.netmap.NodeInfoR\x05nodes\x12\x18\n" +
+	"\aversion\x18\x03 \x01(\x04R\aversion\"\x8f\x01\n" +
 	"\rNetworkConfig\x12I\n" +
 	"\n" +
 	"parameters\x18\x01 \x03(\v2).neo.fs.v2.netmap.NetworkConfig.ParameterR\n" +
 	"parameters\x1a3\n" +
 	"\tParameter\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\fR\x05value\"\xbf\x01\n" +
+	"\x05value\x18\x02 \x01(\fR\x05value\"\xe6\x01\n" +
 	"\vNetworkInfo\x12#\n" +
 	"\rcurrent_epoch\x18\x01 \x01(\x04R\fcurrentEpoch\x12!\n" +
 	"\fmagic_number\x18\x02 \x01(\x04R\vmagicNumber\x12 \n" +
 	"\fms_per_block\x18\x03 \x01(\x03R\n" +
 	"msPerBlock\x12F\n" +
-	"\x0enetwork_config\x18\x04 \x01(\v2\x1f.neo.fs.v2.netmap.NetworkConfigR\rnetworkConfig*g\n" +
+	"\x0enetwork_config\x18\x04 \x01(\v2\x1f.neo.fs.v2.netmap.NetworkConfigR\rnetworkConfig\x12%\n" +
+	"\x0enetmap_version\x18\x05 \x01(\x04R\rnetmapVersion*g\n" +
 	"\tOperation\x12\x19\n" +
 	"\x15OPERATION_UNSPECIFIED\x10\x00\x12\x06\n" +
 	"\x02EQ\x10\x01\x12\x06\n" +
