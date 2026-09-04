@@ -24,6 +24,7 @@ type NetworkInfo struct {
 	curEpoch   uint64
 	netMagic   uint64
 	msPerBlock int64
+	nmVersion  uint64
 	prms       [][2][]byte
 }
 
@@ -44,6 +45,7 @@ func (x *NetworkInfo) fromProtoMessage(m *protonetmap.NetworkInfo, checkFieldPre
 		x.curEpoch = m.CurrentEpoch
 		x.netMagic = m.MagicNumber
 		x.msPerBlock = m.MsPerBlock
+		x.nmVersion = m.NetmapVersion
 		return nil
 	}
 
@@ -105,6 +107,7 @@ func (x *NetworkInfo) fromProtoMessage(m *protonetmap.NetworkInfo, checkFieldPre
 	x.netMagic = m.MagicNumber
 	x.msPerBlock = m.MsPerBlock
 	x.prms = prms
+	x.nmVersion = m.NetmapVersion
 
 	return nil
 }
@@ -123,9 +126,10 @@ func (x *NetworkInfo) FromProtoMessage(m *protonetmap.NetworkInfo) error {
 // See also [NetworkInfo.FromProtoMessage].
 func (x NetworkInfo) ProtoMessage() *protonetmap.NetworkInfo {
 	m := &protonetmap.NetworkInfo{
-		CurrentEpoch: x.curEpoch,
-		MagicNumber:  x.netMagic,
-		MsPerBlock:   x.msPerBlock,
+		CurrentEpoch:  x.curEpoch,
+		MagicNumber:   x.netMagic,
+		MsPerBlock:    x.msPerBlock,
+		NetmapVersion: x.nmVersion,
 	}
 	if len(x.prms) > 0 {
 		m.NetworkConfig = &protonetmap.NetworkConfig{
@@ -165,6 +169,18 @@ func (x NetworkInfo) CurrentEpoch() uint64 {
 // SetCurrentEpoch sets current epoch of the NeoFS network.
 func (x *NetworkInfo) SetCurrentEpoch(epoch uint64) {
 	x.curEpoch = epoch
+}
+
+// NetmapVersion returns current network map version.
+//
+// Zero NetworkInfo has zero current version.
+func (x NetworkInfo) NetmapVersion() uint64 {
+	return x.nmVersion
+}
+
+// SetNetmapVersion sets current map version of the NeoFS network.
+func (x *NetworkInfo) SetNetmapVersion(version uint64) {
+	x.nmVersion = version
 }
 
 // MagicNumber returns magic number set using SetMagicNumber.

@@ -10,6 +10,7 @@ import (
 
 const (
 	anyValidCurrentEpoch           = uint64(10200868596141730080)
+	anyValidNetmapVersion          = uint64(17125437920320344597)
 	anyValidMagicNumber            = uint64(4418809875917597199)
 	anyValidMSPerBlock             = int64(6618240263362299360)
 	anyValidAuditFee               = uint64(439242513058661347)
@@ -46,6 +47,7 @@ var validNetworkInfo netmap.NetworkInfo
 
 func init() {
 	validNetworkInfo.SetCurrentEpoch(anyValidCurrentEpoch)
+	validNetworkInfo.SetNetmapVersion(anyValidNetmapVersion)
 	validNetworkInfo.SetMagicNumber(anyValidMagicNumber)
 	validNetworkInfo.SetMsPerBlock(anyValidMSPerBlock)
 	validNetworkInfo.SetRawNetworkParameter("k1", []byte("v1"))
@@ -78,7 +80,8 @@ var validBinNetworkInfo = []byte{
 	101, 114, 82, 105, 110, 103, 67, 97, 110, 100, 105, 100, 97, 116, 101, 70, 101, 101, 18, 8, 242, 109, 185, 165, 91, 239, 14, 144,
 	10, 27, 10, 22, 77, 97, 105, 110, 116, 101, 110, 97, 110, 99, 101, 77, 111, 100, 101, 65, 108, 108, 111, 119, 101, 100, 18, 1, 1, 10,
 	25, 10, 13, 77, 97, 120, 79, 98, 106, 101, 99, 116, 83, 105, 122, 101, 18, 8, 99, 232, 58, 182, 206, 12, 232, 19, 10, 23,
-	10, 11, 87, 105, 116, 104, 100, 114, 97, 119, 70, 101, 101, 18, 8, 255, 181, 25, 125, 221, 153, 238, 67,
+	10, 11, 87, 105, 116, 104, 100, 114, 97, 119, 70, 101, 101, 18, 8, 255, 181, 25, 125, 221, 153, 238, 67, 40, 149, 164, 203, 189, 221,
+	225, 241, 212, 237, 1,
 }
 
 func TestNetworkInfo_CurrentEpoch(t *testing.T) {
@@ -118,6 +121,19 @@ func TestNetworkInfo_MsPerBlock(t *testing.T) {
 	const ms2 = ms + 1
 	x.SetMsPerBlock(ms2)
 	require.EqualValues(t, ms2, x.MsPerBlock())
+}
+
+func TestNetworkInfo_NetmapVersion(t *testing.T) {
+	var x netmap.NetworkInfo
+	require.Zero(t, x.NetmapVersion())
+
+	const e = 235
+	x.SetNetmapVersion(e)
+	require.EqualValues(t, e, x.NetmapVersion())
+
+	const e2 = e + 1
+	x.SetNetmapVersion(e2)
+	require.EqualValues(t, e2, x.NetmapVersion())
 }
 
 func TestNetworkInfo_SetRawNetworkParameter(t *testing.T) {
@@ -261,9 +277,10 @@ func setNetworkPrms[T string | []byte](ni *protonetmap.NetworkInfo, els ...T) {
 
 func TestNetworkInfo_FromProtoMessage(t *testing.T) {
 	m := &protonetmap.NetworkInfo{
-		CurrentEpoch: anyValidCurrentEpoch,
-		MagicNumber:  anyValidMagicNumber,
-		MsPerBlock:   anyValidMSPerBlock,
+		CurrentEpoch:  anyValidCurrentEpoch,
+		MagicNumber:   anyValidMagicNumber,
+		MsPerBlock:    anyValidMSPerBlock,
+		NetmapVersion: anyValidNetmapVersion,
 		NetworkConfig: &protonetmap.NetworkConfig{
 			Parameters: []*protonetmap.NetworkConfig_Parameter{
 				{Key: []byte("k1"), Value: []byte("v1")},
@@ -309,6 +326,7 @@ func TestNetworkInfo_FromProtoMessage(t *testing.T) {
 	m.CurrentEpoch = 0
 	m.MagicNumber = 0
 	m.MsPerBlock = 0
+	m.NetmapVersion = 0
 	val2 := val
 	require.NoError(t, val2.FromProtoMessage(m))
 	require.EqualValues(t, "v1", val.RawNetworkParameter("k1"))
@@ -521,6 +539,7 @@ func TestNetworkInfo_Unmarshal(t *testing.T) {
 	require.Zero(t, val.MaintenanceModeAllowed())
 	require.Zero(t, val.MaxObjectSize())
 	require.Zero(t, val.WithdrawalFee())
+	require.Zero(t, val.NetmapVersion())
 
 	// filled
 	require.NoError(t, val.Unmarshal(validBinNetworkInfo))

@@ -36,6 +36,7 @@ func randNetworkInfo() *netmap.NetworkInfo {
 		MagicNumber:   prototest.RandUint64(),
 		MsPerBlock:    prototest.RandInt64(),
 		NetworkConfig: randNetworkConfig(),
+		NetmapVersion: prototest.RandUint64(),
 	}
 }
 
@@ -71,8 +72,9 @@ func randNodes() []*netmap.NodeInfo { return prototest.RandRepeated(randNode) }
 // returns random netmap.Netmap with all non-zero fields.
 func randNetmap() *netmap.Netmap {
 	return &netmap.Netmap{
-		Epoch: prototest.RandUint64(),
-		Nodes: randNodes(),
+		Epoch:   prototest.RandUint64(),
+		Nodes:   randNodes(),
+		Version: prototest.RandUint64(),
 	}
 }
 

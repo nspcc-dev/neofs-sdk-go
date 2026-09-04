@@ -269,6 +269,7 @@ const (
 	FieldNetworkInfoMagicNumber
 	FieldNetworkInfoMSPerBlock
 	FieldNetworkInfoConfig
+	FieldNetworkMapVersion
 )
 
 // MarshaledSize returns size of the NetworkInfo in Protocol Buffers V3 format
@@ -279,7 +280,8 @@ func (x *NetworkInfo) MarshaledSize() int {
 		sz = protoencoding.SizeVarint(FieldNetworkInfoCurrentEpoch, x.CurrentEpoch) +
 			protoencoding.SizeVarint(FieldNetworkInfoMagicNumber, x.MagicNumber) +
 			protoencoding.SizeVarint(FieldNetworkInfoMSPerBlock, x.MsPerBlock) +
-			protoencoding.SizeEmbedded(FieldNetworkInfoConfig, x.NetworkConfig)
+			protoencoding.SizeEmbedded(FieldNetworkInfoConfig, x.NetworkConfig) +
+			protoencoding.SizeVarint(FieldNetworkMapVersion, x.NetmapVersion)
 	}
 	return sz
 }
@@ -292,7 +294,8 @@ func (x *NetworkInfo) MarshalStable(b []byte) {
 		off := protoencoding.MarshalToVarint(b, FieldNetworkInfoCurrentEpoch, x.CurrentEpoch)
 		off += protoencoding.MarshalToVarint(b[off:], FieldNetworkInfoMagicNumber, x.MagicNumber)
 		off += protoencoding.MarshalToVarint(b[off:], FieldNetworkInfoMSPerBlock, x.MsPerBlock)
-		protoencoding.MarshalToEmbedded(b[off:], FieldNetworkInfoConfig, x.NetworkConfig)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldNetworkInfoConfig, x.NetworkConfig)
+		protoencoding.MarshalToVarint(b[off:], FieldNetworkMapVersion, x.NetmapVersion)
 	}
 }
 
@@ -366,6 +369,7 @@ const (
 	_ = iota
 	FieldNetmapEpoch
 	FieldNetmapNodes
+	FieldNetmapVersion
 )
 
 // MarshaledSize returns size of the Netmap in Protocol Buffers V3 format in
@@ -373,7 +377,8 @@ const (
 func (x *Netmap) MarshaledSize() int {
 	if x != nil {
 		return protoencoding.SizeVarint(FieldNetmapEpoch, x.Epoch) +
-			protoencoding.SizeRepeatedMessages(FieldNetmapNodes, x.Nodes)
+			protoencoding.SizeRepeatedMessages(FieldNetmapNodes, x.Nodes) +
+			protoencoding.SizeVarint(FieldNetmapVersion, x.Version)
 	}
 	return 0
 }
@@ -384,7 +389,8 @@ func (x *Netmap) MarshaledSize() int {
 func (x *Netmap) MarshalStable(b []byte) {
 	if x != nil {
 		off := protoencoding.MarshalToVarint(b, FieldNetmapEpoch, x.Epoch)
-		protoencoding.MarshalToRepeatedMessages(b[off:], FieldNetmapNodes, x.Nodes)
+		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldNetmapNodes, x.Nodes)
+		protoencoding.MarshalToVarint(b[off:], FieldNetmapVersion, x.Version)
 	}
 }
 

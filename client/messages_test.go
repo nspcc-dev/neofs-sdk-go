@@ -259,9 +259,10 @@ var (
 	}
 	// correct network info with all fields.
 	validFullProtoNetInfo = &protonetmap.NetworkInfo{
-		CurrentEpoch: 17416815529850981458,
-		MagicNumber:  8576993077569092248,
-		MsPerBlock:   9059417785180743518,
+		CurrentEpoch:  17416815529850981458,
+		MagicNumber:   8576993077569092248,
+		MsPerBlock:    9059417785180743518,
+		NetmapVersion: 2398462239453895983,
 		NetworkConfig: &protonetmap.NetworkConfig{
 			Parameters: []*protonetmap.NetworkConfig_Parameter{
 				{Key: []byte("k1"), Value: []byte("v1")},
