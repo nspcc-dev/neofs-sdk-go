@@ -7,6 +7,7 @@ import (
 	"iter"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/nspcc-dev/hrw/v2"
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -59,11 +60,18 @@ func (x *NodeInfo) fromProtoMessage(m *protonetmap.NodeInfo, checkFieldPresence 
 		key := attributes[i].GetKey()
 		if key == "" {
 			return fmt.Errorf("empty key of the attribute #%d", i)
-		} else if _, ok := mAttr[key]; ok {
+		}
+		if strings.ContainsRune(key, 0) {
+			return errors.New("attribute key contains zero byte")
+		}
+		if _, ok := mAttr[key]; ok {
 			return fmt.Errorf("duplicated attribute %s", key)
 		}
 
 		val := attributes[i].GetValue()
+		if strings.ContainsRune(val, 0) {
+			return errors.New("attribute value contains zero byte")
+		}
 		switch key {
 		case attrCapacity:
 			_, err = strconv.ParseUint(val, 10, 64)
@@ -421,7 +429,7 @@ func (x NodeInfo) GetAttributes() [][2]string {
 
 // SetAttributes sets list of node attributes.
 // Each attribute is a [2]string slice: {"key", "value"}.
-// Both key and value of attributes MUST NOT be empty.
+// Both key and value of attributes MUST NOT be empty or contain zero bytes.
 //
 // See also SetAttribute.
 func (x *NodeInfo) SetAttributes(attrs [][2]string) {
@@ -432,18 +440,31 @@ func (x *NodeInfo) SetAttributes(attrs [][2]string) {
 		if attr[1] == "" {
 			panic(fmt.Errorf("empty value in SetAttributes for key: %s", attr[0]))
 		}
+		if strings.ContainsRune(attr[0], 0) {
+			panic("attribute key contains zero byte")
+		}
+		if strings.ContainsRune(attr[1], 0) {
+			panic("attribute value contains zero byte")
+		}
 	}
 
 	x.attrs = attrs
 }
 
 // SetAttribute sets value of the node attribute value by the given key.
-// Both key and value MUST NOT be empty.
+// Both key and value MUST NOT be empty or contain zero bytes.
 func (x *NodeInfo) SetAttribute(key, value string) {
 	if key == "" {
 		panic("empty key in SetAttribute")
-	} else if value == "" {
+	}
+	if value == "" {
 		panic("empty value in SetAttribute")
+	}
+	if strings.ContainsRune(key, 0) {
+		panic("attribute key contains zero byte")
+	}
+	if strings.ContainsRune(value, 0) {
+		panic("attribute value contains zero byte")
 	}
 
 	for i := range x.attrs {

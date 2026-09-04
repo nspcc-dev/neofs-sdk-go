@@ -344,6 +344,8 @@ func TestNetworkInfo_FromProtoMessage(t *testing.T) {
 				}},
 			{name: "netconfig/prms/no value", err: `empty "k1" parameter value`,
 				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k1", "") }},
+			{name: "netconfig/prms/zero byte in key", err: "parameter key contains zero byte",
+				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k\x001", "v1") }},
 			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
 				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
 			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: invalid uint64 parameter length 9",

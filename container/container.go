@@ -157,6 +157,9 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 		if key == "" {
 			return errors.New("empty attribute key")
 		}
+		if strings.ContainsRune(key, 0) {
+			return errors.New("attribute key contains zero byte")
+		}
 
 		_, was = mAttr[key]
 		if was {
@@ -166,6 +169,9 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 		val = attrs[i].GetValue()
 		if val == "" {
 			return fmt.Errorf("empty %q attribute value", key)
+		}
+		if strings.ContainsRune(val, 0) {
+			return errors.New("attribute value contains zero byte")
 		}
 
 		switch key {
@@ -330,10 +336,11 @@ func (x Container) PlacementPolicy() netmap.PlacementPolicy {
 }
 
 // SetAttribute sets Container attribute value by key. Both key and value
-// MUST NOT be empty. Attributes set by the creator (owner) are most commonly
-// ignored by the NeoFS system and used for application layer. Some attributes
-// are so-called system or well-known attributes: they are reserved for system
-// needs. System attributes SHOULD NOT be modified using SetAttribute, use
+// MUST NOT be empty or contain zero bytes. Attributes set by the creator
+// (owner) are most commonly ignored by the NeoFS system and used for
+// application layer. Some attributes are so-called system or well-known
+// attributes: they are reserved for system needs. System attributes SHOULD NOT
+// be modified using SetAttribute, use
 // corresponding methods/functions. List of the reserved keys is documented
 // in the particular protocol version.
 //
@@ -343,8 +350,15 @@ func (x Container) PlacementPolicy() netmap.PlacementPolicy {
 func (x *Container) SetAttribute(key, value string) {
 	if key == "" {
 		panic("empty attribute key")
-	} else if value == "" {
+	}
+	if value == "" {
 		panic("empty attribute value")
+	}
+	if strings.ContainsRune(key, 0) {
+		panic("attribute key contains zero byte")
+	}
+	if strings.ContainsRune(value, 0) {
+		panic("attribute value contains zero byte")
 	}
 
 	for i := range x.attrs {
