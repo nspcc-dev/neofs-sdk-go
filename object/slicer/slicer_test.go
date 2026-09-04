@@ -120,7 +120,7 @@ func benchmarkSliceDataIntoObjects(b *testing.B, size, sizeLimit uint64) {
 
 func networkInfoFromOpts(opts slicer.Options) (netmap.NetworkInfo, error) {
 	var ni netmap.NetworkInfo
-	ni.SetRawNetworkParameter(string(testutil.RandByteSlice(10)), testutil.RandByteSlice(10))
+	ni.SetRawNetworkParameter("test", testutil.RandByteSlice(10))
 	ni.SetCurrentEpoch(opts.CurrentNeoFSEpoch())
 	ni.SetMaxObjectSize(opts.ObjectPayloadLimit())
 

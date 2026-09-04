@@ -94,7 +94,7 @@ func (m *mockClient) NetworkInfo(_ context.Context, _ client.PrmNetworkInfo) (ne
 		return ni, err
 	}
 
-	ni.SetRawNetworkParameter(string(testutil.RandByteSlice(16)), testutil.RandByteSlice(16))
+	ni.SetRawNetworkParameter("test", testutil.RandByteSlice(16))
 	ni.SetCurrentEpoch(uint64(time.Now().Unix()))
 	ni.SetMaxObjectSize(1024)
 
