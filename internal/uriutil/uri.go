@@ -52,7 +52,7 @@ func Parse(s string) (string, bool, error) {
 	}
 
 	if uri.Host == "" {
-		return "", false, errors.New("missing port in address")
+		return "", false, errors.New("missing host in address")
 	}
 
 	if uri.Port() == "" {

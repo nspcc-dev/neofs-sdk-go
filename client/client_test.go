@@ -227,7 +227,7 @@ func TestClient_Dial(t *testing.T) {
 					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "multiaddr", s: "/ip4/st1.storage.fs.neo.org/tcp/8080", assert: func(t testing.TB, err error) {
-					require.ErrorContains(t, err, "missing port in address")
+					require.ErrorContains(t, err, "missing host in address")
 					require.ErrorContains(t, err, "invalid server URI")
 				}},
 				{name: "host only", s: "st1.storage.fs.neo.org", assert: func(t testing.TB, err error) {

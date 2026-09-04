@@ -42,7 +42,7 @@ func TestParseURI(t *testing.T) {
 			{name: "port only", s: "8080", err: "address 8080: missing port in address"},
 			{name: "ip only", s: "127.0.0.1", err: "address 127.0.0.1: missing port in address"},
 			{name: "host only", s: "st1.storage.fs.neo.org", err: "address st1.storage.fs.neo.org: missing port in address"},
-			{name: "multiaddr", s: "/ip4/127.0.0.1/tcp/8080", err: "missing port in address"},
+			{name: "multiaddr", s: "/ip4/127.0.0.1/tcp/8080", err: "missing host in address"},
 			{name: "invalid port without scheme", s: "st1.storage.fs.neo.org:foo", err: "missing port in address"},
 			{name: "invalid port with scheme", s: "grpc://st1.storage.fs.neo.org:foo", err: `parse "grpc://st1.storage.fs.neo.org:foo": invalid port ":foo" after host`},
 		} {
