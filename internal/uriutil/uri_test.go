@@ -21,6 +21,11 @@ func TestParseURI(t *testing.T) {
 		{s: "grpc://st1.storage.fs.neo.org:8080", host: "st1.storage.fs.neo.org:8080", withTLS: false},
 		{s: "grpcs://127.0.0.1:8082", host: "127.0.0.1:8082", withTLS: true},
 		{s: "grpcs://st1.storage.fs.neo.org:8082", host: "st1.storage.fs.neo.org:8082", withTLS: true},
+		// scheme without port defaults to port 80 (grpc) or 443 (grpcs)
+		{s: "grpc://127.0.0.1", host: "127.0.0.1:80", withTLS: false},
+		{s: "grpc://st1.storage.fs.neo.org", host: "st1.storage.fs.neo.org:80", withTLS: false},
+		{s: "grpcs://127.0.0.1", host: "127.0.0.1:443", withTLS: true},
+		{s: "grpcs://st1.storage.fs.neo.org", host: "st1.storage.fs.neo.org:443", withTLS: true},
 	} {
 		host, withTLS, err := uriutil.Parse(tc.s)
 		require.NoError(t, err, tc.s)
@@ -37,9 +42,9 @@ func TestParseURI(t *testing.T) {
 			{name: "port only", s: "8080", err: "address 8080: missing port in address"},
 			{name: "ip only", s: "127.0.0.1", err: "address 127.0.0.1: missing port in address"},
 			{name: "host only", s: "st1.storage.fs.neo.org", err: "address st1.storage.fs.neo.org: missing port in address"},
-			{name: "multiaddr", s: "/ip4/127.0.0.1/tcp/8080", err: "missing port in address"},
-			{name: "ip with scheme without port", s: "grpc://127.0.0.1", err: "missing port in address"},
-			{name: "host with scheme without port", s: "grpc://st1.storage.fs.neo.org", err: "missing port in address"},
+			{name: "multiaddr", s: "/ip4/127.0.0.1/tcp/8080", err: "missing host in address"},
+			{name: "invalid port without scheme", s: "st1.storage.fs.neo.org:foo", err: "missing port in address"},
+			{name: "invalid port with scheme", s: "grpc://st1.storage.fs.neo.org:foo", err: `parse "grpc://st1.storage.fs.neo.org:foo": invalid port ":foo" after host`},
 		} {
 			t.Run(tc.name, func(t *testing.T) {
 				_, _, err := uriutil.Parse(tc.s)
