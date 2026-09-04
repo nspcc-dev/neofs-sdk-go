@@ -29,10 +29,9 @@ import (
 )
 
 const (
-	anyValidBackupFactor = 153493707
-	anyValidName         = "any container name"
-	anyValidDomainName   = "any domain name"
-	anyValidDomainZone   = "any domain zone"
+	anyValidName       = "any container name"
+	anyValidDomainName = "any domain name"
+	anyValidDomainZone = "any domain zone"
 )
 
 var (
@@ -53,21 +52,21 @@ func init() {
 	anyValidDomain.SetName(anyValidDomainName)
 	anyValidDomain.SetZone(anyValidDomainZone)
 
-	anyValidPolicy.SetContainerBackupFactor(anyValidBackupFactor)
+	anyValidPolicy.SetContainerBackupFactor(1)
 	rs := make([]netmap.ReplicaDescriptor, 2)
 	rs[0].SetSelectorName("selector_0")
-	rs[0].SetNumberOfObjects(2583748530)
+	rs[0].SetNumberOfObjects(1)
 	rs[1].SetSelectorName("selector_1")
-	rs[1].SetNumberOfObjects(358755354)
+	rs[1].SetNumberOfObjects(2)
 	anyValidPolicy.SetReplicas(rs)
 	ss := make([]netmap.Selector, 2)
 	ss[0].SetName("selector_0")
-	ss[0].SetNumberOfNodes(1814781076)
+	ss[0].SetNumberOfNodes(1)
 	ss[0].SelectSame()
 	ss[0].SetFilterName("filter_0")
 	ss[0].SelectByBucketAttribute("attribute_0")
 	ss[1].SetName("selector_1")
-	ss[1].SetNumberOfNodes(1505136737)
+	ss[1].SetNumberOfNodes(2)
 	ss[1].SelectDistinct()
 	ss[1].SetFilterName("filter_1")
 	ss[1].SelectByBucketAttribute("attribute_1")
@@ -113,6 +112,20 @@ func init() {
 	if err := validContainer.FromProtoMessage(m); err != nil {
 		panic(fmt.Errorf("unexpected encode-decode failure: %w", err))
 	}
+
+	validBinContainer = validContainer.Marshal()
+	b, err := json.MarshalIndent(validContainer, "", " ")
+	if err != nil {
+		panic(fmt.Errorf("unexpected JSON encoding failure: %w", err))
+	}
+	validJSONContainer = string(b)
+
+	var sig neofscrypto.Signature
+	if err = validContainer.CalculateSignature(&sig, neofsecdsa.SignerRFC6979(anyECDSAPrivateKey)); err != nil {
+		panic(fmt.Errorf("unexpected signature calculation failure: %w", err))
+	}
+	validContainerSignature = sig
+	validContainerSignatureBytes = sig.Value()
 }
 
 var (
@@ -338,13 +351,13 @@ func TestContainer_FromProtoMessage(t *testing.T) {
 		},
 		PlacementPolicy: &protonetmap.PlacementPolicy{
 			Replicas: []*protonetmap.Replica{
-				{Count: 2583748530, Selector: "selector_0"},
-				{Count: 358755354, Selector: "selector_1"},
+				{Count: 1, Selector: "selector_0"},
+				{Count: 2, Selector: "selector_1"},
 			},
-			ContainerBackupFactor: anyValidBackupFactor,
+			ContainerBackupFactor: 1,
 			Selectors: []*protonetmap.Selector{
-				{Name: "selector_0", Count: 1814781076, Clause: protonetmap.Clause_SAME, Attribute: "attribute_0", Filter: "filter_0"},
-				{Name: "selector_1", Count: 1814781076, Clause: protonetmap.Clause_DISTINCT, Attribute: "attribute_1", Filter: "filter_1"},
+				{Name: "selector_0", Count: 1, Clause: protonetmap.Clause_SAME, Attribute: "attribute_0", Filter: "filter_0"},
+				{Name: "selector_1", Count: 2, Clause: protonetmap.Clause_DISTINCT, Attribute: "attribute_1", Filter: "filter_1"},
 			},
 			Filters: []*protonetmap.Filter{
 				{Name: "filter_0", Op: protonetmap.Operation_AND, Filters: []*protonetmap.Filter{
@@ -377,22 +390,22 @@ func TestContainer_FromProtoMessage(t *testing.T) {
 	require.True(t, val.IsHomomorphicHashingDisabled())
 
 	pp := val.PlacementPolicy()
-	require.EqualValues(t, anyValidBackupFactor, pp.ContainerBackupFactor())
+	require.EqualValues(t, 1, pp.ContainerBackupFactor())
 	rs := pp.Replicas()
 	require.Len(t, rs, 2)
 	require.Equal(t, "selector_0", rs[0].SelectorName())
-	require.EqualValues(t, 2583748530, rs[0].NumberOfObjects())
+	require.EqualValues(t, 1, rs[0].NumberOfObjects())
 	require.Equal(t, "selector_1", rs[1].SelectorName())
-	require.EqualValues(t, 358755354, rs[1].NumberOfObjects())
+	require.EqualValues(t, 2, rs[1].NumberOfObjects())
 	ss := pp.Selectors()
 	require.Len(t, ss, 2)
 	require.Equal(t, "selector_0", ss[0].Name())
-	require.EqualValues(t, 1814781076, ss[0].NumberOfNodes())
+	require.EqualValues(t, 1, ss[0].NumberOfNodes())
 	require.True(t, ss[0].IsSame())
 	require.Equal(t, "filter_0", ss[0].FilterName())
 	require.Equal(t, "attribute_0", ss[0].BucketAttribute())
 	require.Equal(t, "selector_1", ss[1].Name())
-	require.EqualValues(t, 1814781076, ss[1].NumberOfNodes())
+	require.EqualValues(t, 2, ss[1].NumberOfNodes())
 	require.True(t, ss[1].IsDistinct())
 	require.Equal(t, "filter_1", ss[1].FilterName())
 	require.Equal(t, "attribute_1", ss[1].BucketAttribute())
@@ -547,24 +560,24 @@ func TestContainer_ProtoMessage(t *testing.T) {
 	}
 
 	mp := m.GetPlacementPolicy()
-	require.EqualValues(t, anyValidBackupFactor, mp.GetContainerBackupFactor())
+	require.EqualValues(t, 1, mp.GetContainerBackupFactor())
 
 	mrs := mp.GetReplicas()
 	require.Len(t, mrs, 2)
 	require.Equal(t, "selector_0", mrs[0].GetSelector())
-	require.EqualValues(t, 2583748530, mrs[0].GetCount())
+	require.EqualValues(t, 1, mrs[0].GetCount())
 	require.Equal(t, "selector_1", mrs[1].GetSelector())
-	require.EqualValues(t, 358755354, mrs[1].GetCount())
+	require.EqualValues(t, 2, mrs[1].GetCount())
 
 	mss := mp.GetSelectors()
 	require.Len(t, mss, 2)
 	require.Equal(t, "selector_0", mss[0].GetName())
-	require.EqualValues(t, 1814781076, mss[0].GetCount())
+	require.EqualValues(t, 1, mss[0].GetCount())
 	require.Equal(t, protonetmap.Clause_SAME, mss[0].GetClause())
 	require.Equal(t, "filter_0", mss[0].GetFilter())
 	require.Equal(t, "attribute_0", mss[0].GetAttribute())
 	require.Equal(t, "selector_1", mss[1].GetName())
-	require.EqualValues(t, 1505136737, mss[1].GetCount())
+	require.EqualValues(t, 2, mss[1].GetCount())
 	require.Equal(t, protonetmap.Clause_DISTINCT, mss[1].GetClause())
 	require.Equal(t, "filter_1", mss[1].GetFilter())
 	require.Equal(t, "attribute_1", mss[1].GetAttribute())
