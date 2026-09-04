@@ -134,59 +134,64 @@ func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, check
 		return errors.New("missing both REP and EC rules")
 	}
 
-	p.replicas = make([]ReplicaDescriptor, len(m.Replicas))
+	var policy PlacementPolicy
+
+	policy.replicas = make([]ReplicaDescriptor, len(m.Replicas))
 	for i, r := range m.Replicas {
 		if r == nil {
 			return fmt.Errorf("nil replica #%d", i)
 		}
-		p.replicas[i].fromProtoMessage(r)
+		policy.replicas[i].fromProtoMessage(r)
 	}
 
-	p.selectors = make([]Selector, len(m.Selectors))
+	policy.selectors = make([]Selector, len(m.Selectors))
 	for i, s := range m.Selectors {
 		if s == nil {
 			return fmt.Errorf("nil selector #%d", i)
 		}
-		if err := p.selectors[i].fromProtoMessage(s); err != nil {
+		if err := policy.selectors[i].fromProtoMessage(s); err != nil {
 			return fmt.Errorf("invalid selector #%d: %w", i, err)
 		}
 	}
 
-	p.filters = make([]Filter, len(m.Filters))
+	policy.filters = make([]Filter, len(m.Filters))
 	for i, f := range m.Filters {
 		if f == nil {
 			return fmt.Errorf("nil filter #%d", i)
 		}
-		if err := p.filters[i].fromProtoMessage(f); err != nil {
+		if err := policy.filters[i].fromProtoMessage(f); err != nil {
 			return fmt.Errorf("invalid filter #%d: %w", i, err)
 		}
 	}
 
 	if m.EcRules != nil {
-		p.ecRules = make([]ECRule, len(m.EcRules))
+		policy.ecRules = make([]ECRule, len(m.EcRules))
 		for i, r := range m.EcRules {
 			if r == nil {
 				return fmt.Errorf("nil EC rule #%d", i)
 			}
-			if err := p.ecRules[i].fromProtoMessage(r); err != nil {
+			if err := policy.ecRules[i].fromProtoMessage(r); err != nil {
 				return fmt.Errorf("invalid EC rule #%d: %w", i, err)
 			}
 		}
 	} else {
-		p.ecRules = nil
+		policy.ecRules = nil
 	}
 
 	if m.Initial != nil {
-		if p.initial == nil {
-			p.initial = new(InitialPlacementPolicy)
-		}
-		p.initial.fromProtoMessage(m.Initial)
+		policy.initial = new(InitialPlacementPolicy)
+		policy.initial.fromProtoMessage(m.Initial)
 	} else {
-		p.initial = nil
+		policy.initial = nil
 	}
 
-	p.backupFactor = m.GetContainerBackupFactor()
+	policy.backupFactor = m.GetContainerBackupFactor()
 
+	if err := policy.Verify(); err != nil {
+		return err
+	}
+
+	*p = policy
 	return nil
 }
 

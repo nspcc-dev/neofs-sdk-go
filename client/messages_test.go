@@ -114,14 +114,14 @@ var (
 		},
 		PlacementPolicy: &protonetmap.PlacementPolicy{
 			Replicas: []*protonetmap.Replica{
-				{Count: 3060437, Selector: "selector1"},
-				{Count: 156936495, Selector: "selector2"},
+				{Count: 1, Selector: "selector1"},
+				{Count: 2, Selector: "selector2"},
 			},
-			ContainerBackupFactor: 920231904,
+			ContainerBackupFactor: 1,
 			Selectors: []*protonetmap.Selector{
-				{Name: "selector1", Count: 1663184999, Clause: 1, Attribute: "attribute1", Filter: "filter1"},
-				{Name: "selector2", Count: 2649065896, Clause: 2, Attribute: "attribute2", Filter: "filter2"},
-				{Name: "selector_max", Count: 2649065896, Clause: math.MaxInt32, Attribute: "attribute_max", Filter: "filter_max"},
+				{Name: "selector1", Count: 1, Clause: 1, Attribute: "attribute1", Filter: "filter1"},
+				{Name: "selector2", Count: 2, Clause: 2, Attribute: "attribute2", Filter: "filter2"},
+				{Name: "selector_max", Count: 1, Clause: math.MaxInt32, Attribute: "attribute_max", Filter: "filter_max"},
 			},
 			Filters: []*protonetmap.Filter{
 				{Name: "filter1", Key: "key1", Op: 0, Value: "value1", Filters: []*protonetmap.Filter{

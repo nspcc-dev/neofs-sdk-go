@@ -17,7 +17,7 @@ var (
 
 // corresponds to validECPolicy.
 var validBinECPolicy = []byte{
-	50, 11, 8, 1, 16, 2, 26, 5, 115, 108, 99, 116, 114, 50, 4, 8, 31, 16, 32,
+	50, 4, 8, 1, 16, 2, 50, 4, 8, 3, 16, 4,
 }
 
 var validJSONECPolicy = `
@@ -31,11 +31,11 @@ var validJSONECPolicy = `
   {
    "dataPartNum": 1,
    "parityPartNum": 2,
-   "selector": "slctr"
+   "selector": ""
   },
   {
-   "dataPartNum": 31,
-   "parityPartNum": 32,
+   "dataPartNum": 3,
+   "parityPartNum": 4,
    "selector": ""
   }
  ],
@@ -46,9 +46,8 @@ var validJSONECPolicy = `
 func init() {
 	anyValidECRules[0].SetDataPartNum(1)
 	anyValidECRules[0].SetParityPartNum(2)
-	anyValidECRules[0].SetSelectorName("slctr")
-	anyValidECRules[1].SetDataPartNum(31)
-	anyValidECRules[1].SetParityPartNum(32)
+	anyValidECRules[1].SetDataPartNum(3)
+	anyValidECRules[1].SetParityPartNum(4)
 
 	validECPolicy.SetECRules(anyValidECRules)
 	validECPolicy.SetReplicas([]netmap.ReplicaDescriptor{})
@@ -239,10 +238,10 @@ func testPolicyProtoMessageEC(t *testing.T) {
 
 	require.EqualValues(t, 1, rs[0].DataPartNum)
 	require.EqualValues(t, 2, rs[0].ParityPartNum)
-	require.EqualValues(t, "slctr", rs[0].Selector)
+	require.Zero(t, rs[0].Selector)
 
-	require.EqualValues(t, 31, rs[1].DataPartNum)
-	require.EqualValues(t, 32, rs[1].ParityPartNum)
+	require.EqualValues(t, 3, rs[1].DataPartNum)
+	require.EqualValues(t, 4, rs[1].ParityPartNum)
 	require.Zero(t, rs[1].Selector)
 }
 
