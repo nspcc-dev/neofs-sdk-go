@@ -12,16 +12,17 @@ const (
 	grpcScheme    = "grpc"
 	grpcTLSScheme = "grpcs"
 
-	// tlsPort is the well-known port reserved for protocols running over
-	// TLS/SSL. It is used as the default port for the grpcs scheme when
-	// no port is specified explicitly.
-	tlsPort = "443"
+	// httpPort and tlsPort are the well-known ports used as defaults for the
+	// grpc and grpcs schemes respectively when no port is specified explicitly.
+	httpPort = "80"
+	tlsPort  = "443"
 )
 
 // Parse parses URI and returns a host and a flag indicating that TLS is
 // enabled.
 //
-// If grpcs scheme is specified without a port, port 443 is used by default.
+// If scheme is specified without a port, port 80 (grpc) or 443 (grpcs) is
+// used by default.
 func Parse(s string) (string, bool, error) {
 	uri, err := url.ParseRequestURI(s)
 	if err != nil {
@@ -50,12 +51,21 @@ func Parse(s string) (string, bool, error) {
 		return "", false, fmt.Errorf("unsupported scheme: %s", uri.Scheme)
 	}
 
+	if uri.Host == "" {
+		return "", false, errors.New("missing port in address")
+	}
+
 	if uri.Port() == "" {
-		if uri.Scheme != grpcTLSScheme {
+		if _, _, splitErr := net.SplitHostPort(uri.Host); splitErr == nil {
+			// port is present but invalid (e.g. non-numeric)
 			return "", false, errors.New("missing port in address")
 		}
-		// default TLS port for grpcs scheme without explicit port
-		uri.Host = net.JoinHostPort(uri.Host, tlsPort)
+		// no port specified explicitly, use the default one for the scheme
+		port := httpPort
+		if uri.Scheme == grpcTLSScheme {
+			port = tlsPort
+		}
+		uri.Host = net.JoinHostPort(uri.Host, port)
 	}
 
 	return uri.Host, uri.Scheme == grpcTLSScheme, nil

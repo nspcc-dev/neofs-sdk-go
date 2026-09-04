@@ -6,7 +6,7 @@ New features:
  * `Object.ExpirationEpoch`/`Object.SetExpirationEpoch` methods for version-independent access to the expiration epoch system attribute (#254)
 
 Behaviour changes:
- * `PrmDial.SetServerURI` now defaults to port 443 when `grpcs` scheme is specified without a port (#646)
+ * `PrmDial.SetServerURI` now defaults to port 80 (`grpc`) or 443 (`grpcs`) when scheme is specified without a port (#646)
 
 ## [1.0.0-rc.22] - 2026-09-01
 

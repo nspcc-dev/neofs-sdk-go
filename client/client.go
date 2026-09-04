@@ -332,7 +332,8 @@ type PrmDial struct {
 //	grpc
 //	grpcs
 //
-// If grpcs scheme is specified without a port, port 443 is used by default.
+// If scheme is specified without a port, port 80 (grpc) or 443 (grpcs) is
+// used by default.
 //
 // See also SetTLSConfig.
 func (x *PrmDial) SetServerURI(endpoint string) {
