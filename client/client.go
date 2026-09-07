@@ -325,12 +325,15 @@ type PrmDial struct {
 //
 // Format of the URI:
 //
-//	[scheme://]host:port
+//	[scheme://]host[:port]
 //
 // Supported schemes:
 //
 //	grpc
 //	grpcs
+//
+// If scheme is specified without a port, port 80 (grpc) or 443 (grpcs) is
+// used by default.
 //
 // See also SetTLSConfig.
 func (x *PrmDial) SetServerURI(endpoint string) {
