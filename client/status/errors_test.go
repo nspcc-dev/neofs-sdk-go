@@ -103,12 +103,15 @@ func TestErrors(t *testing.T) {
 
 		for i := range tc.errs {
 			require.ErrorIs(t, tc.errs[i], tc.errVariable)
+			require.ErrorIs(t, tc.errs[i], Error)
 
 			wrapped := fmt.Errorf("some message %w", tc.errs[i])
 			require.ErrorIs(t, wrapped, tc.errVariable)
+			require.ErrorIs(t, wrapped, Error)
 
 			wrappedTwice := fmt.Errorf("another message %w", wrapped)
 			require.ErrorIs(t, wrappedTwice, tc.errVariable)
+			require.ErrorIs(t, wrappedTwice, Error)
 		}
 	}
 }

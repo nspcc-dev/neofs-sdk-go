@@ -1,6 +1,8 @@
 package apistatus
 
 import (
+	"errors"
+
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 )
 
@@ -23,7 +25,7 @@ func (x UnrecognizedStatus) Error() string {
 func (x UnrecognizedStatus) Is(target error) bool {
 	switch target.(type) {
 	default:
-		return false
+		return errors.Is(Error, target)
 	case UnrecognizedStatus, *UnrecognizedStatus:
 		return true
 	}

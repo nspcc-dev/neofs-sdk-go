@@ -8,6 +8,9 @@ New features:
 Behaviour changes:
  * `PrmDial.SetServerURI` now defaults to port 80 (`grpc`) or 443 (`grpcs`) when scheme is specified without a port (#646)
 
+Bugs fixed:
+ * `apistatus.UnrecognizedStatus` is not `apistatus.Error` (#649)
+
 ## [1.0.0-rc.22] - 2026-09-01
 
 API 2.26 compatibility and optimizations, upgrade your applications to make
