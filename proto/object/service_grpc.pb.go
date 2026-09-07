@@ -28,6 +28,7 @@ const (
 	ObjectService_GetRange_FullMethodName     = "/neo.fs.v2.object.ObjectService/GetRange"
 	ObjectService_GetRangeHash_FullMethodName = "/neo.fs.v2.object.ObjectService/GetRangeHash"
 	ObjectService_Replicate_FullMethodName    = "/neo.fs.v2.object.ObjectService/Replicate"
+	ObjectService_ReplicateV2_FullMethodName  = "/neo.fs.v2.object.ObjectService/ReplicateV2"
 )
 
 // ObjectServiceClient is the client API for ObjectService service.
@@ -281,6 +282,30 @@ type ObjectServiceClient interface {
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     the container to which the replicated object is associated was not found.
 	Replicate(ctx context.Context, in *ReplicateRequest, opts ...grpc.CallOption) (*ReplicateResponse, error)
+	// Save replica of the object on the NeoFS storage node. Both client and
+	// server must be authenticated NeoFS storage nodes matching storage policy
+	// of the container referenced by the replicated object. Thus, this operation
+	// is purely system: regular users should not pay attention to it but use
+	// Put.
+	//
+	// First message is required and MUST contain `init` field only. `object_id`,
+	// `signature`, `header` and `node_signature` fields are required for it.
+	// Following messages must contain `payload_chunk` field only.
+	//
+	// Server may interrupt the stream with `OK` status if object already exists
+	// on it.
+	//
+	// Statuses:
+	//   - **OK** (0, SECTION_SUCCESS): \
+	//     the object has been successfully replicated;
+	//   - **INTERNAL_SERVER_ERROR** (1024, SECTION_FAILURE_COMMON): \
+	//     internal server error described in the text message;
+	//   - **ACCESS_DENIED** (2048, SECTION_OBJECT): \
+	//     the client does not authenticate any NeoFS storage node matching storage
+	//     policy of the container referenced by the replicated object
+	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
+	//     the container to which the replicated object is associated was not found.
+	ReplicateV2(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ReplicateV2Request, ReplicateV2Response], error)
 }
 
 type objectServiceClient struct {
@@ -410,6 +435,19 @@ func (c *objectServiceClient) Replicate(ctx context.Context, in *ReplicateReques
 	}
 	return out, nil
 }
+
+func (c *objectServiceClient) ReplicateV2(ctx context.Context, opts ...grpc.CallOption) (grpc.ClientStreamingClient[ReplicateV2Request, ReplicateV2Response], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &ObjectService_ServiceDesc.Streams[4], ObjectService_ReplicateV2_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ReplicateV2Request, ReplicateV2Response]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ObjectService_ReplicateV2Client = grpc.ClientStreamingClient[ReplicateV2Request, ReplicateV2Response]
 
 // ObjectServiceServer is the server API for ObjectService service.
 // All implementations should embed UnimplementedObjectServiceServer
@@ -662,6 +700,30 @@ type ObjectServiceServer interface {
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     the container to which the replicated object is associated was not found.
 	Replicate(context.Context, *ReplicateRequest) (*ReplicateResponse, error)
+	// Save replica of the object on the NeoFS storage node. Both client and
+	// server must be authenticated NeoFS storage nodes matching storage policy
+	// of the container referenced by the replicated object. Thus, this operation
+	// is purely system: regular users should not pay attention to it but use
+	// Put.
+	//
+	// First message is required and MUST contain `init` field only. `object_id`,
+	// `signature`, `header` and `node_signature` fields are required for it.
+	// Following messages must contain `payload_chunk` field only.
+	//
+	// Server may interrupt the stream with `OK` status if object already exists
+	// on it.
+	//
+	// Statuses:
+	//   - **OK** (0, SECTION_SUCCESS): \
+	//     the object has been successfully replicated;
+	//   - **INTERNAL_SERVER_ERROR** (1024, SECTION_FAILURE_COMMON): \
+	//     internal server error described in the text message;
+	//   - **ACCESS_DENIED** (2048, SECTION_OBJECT): \
+	//     the client does not authenticate any NeoFS storage node matching storage
+	//     policy of the container referenced by the replicated object
+	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
+	//     the container to which the replicated object is associated was not found.
+	ReplicateV2(grpc.ClientStreamingServer[ReplicateV2Request, ReplicateV2Response]) error
 }
 
 // UnimplementedObjectServiceServer should be embedded to have
@@ -697,6 +759,9 @@ func (UnimplementedObjectServiceServer) GetRangeHash(context.Context, *GetRangeH
 }
 func (UnimplementedObjectServiceServer) Replicate(context.Context, *ReplicateRequest) (*ReplicateResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method Replicate not implemented")
+}
+func (UnimplementedObjectServiceServer) ReplicateV2(grpc.ClientStreamingServer[ReplicateV2Request, ReplicateV2Response]) error {
+	return status.Error(codes.Unimplemented, "method ReplicateV2 not implemented")
 }
 func (UnimplementedObjectServiceServer) testEmbeddedByValue() {}
 
@@ -848,6 +913,13 @@ func _ObjectService_Replicate_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ObjectService_ReplicateV2_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(ObjectServiceServer).ReplicateV2(&grpc.GenericServerStream[ReplicateV2Request, ReplicateV2Response]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type ObjectService_ReplicateV2Server = grpc.ClientStreamingServer[ReplicateV2Request, ReplicateV2Response]
+
 // ObjectService_ServiceDesc is the grpc.ServiceDesc for ObjectService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -896,6 +968,11 @@ var ObjectService_ServiceDesc = grpc.ServiceDesc{
 			StreamName:    "GetRange",
 			Handler:       _ObjectService_GetRange_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "ReplicateV2",
+			Handler:       _ObjectService_ReplicateV2_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "proto/object/service.proto",
