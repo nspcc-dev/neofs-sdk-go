@@ -1,13 +1,16 @@
 package object_test
 
 import (
+	"bytes"
 	"testing"
 
+	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	prototest "github.com/nspcc-dev/neofs-sdk-go/proto/internal/test"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
 )
 
 // returns random object.Range with all non-zero fields.
@@ -468,4 +471,58 @@ func TestSearchV2Response_Body_MarshalStable(t *testing.T) {
 			Cursor: prototest.RandString(),
 		},
 	})
+}
+
+func TestWriteReplicateV2InitRequest(t *testing.T) {
+	obj := &object.Object{
+		ObjectId:  prototest.RandObjectID(),
+		Signature: prototest.RandSignature(),
+		Header:    randHeader(),
+	}
+	objHdrLen := obj.MarshaledSize()
+	sig := prototest.RandSignature()
+	sigLen := sig.MarshaledSize()
+	const signObject = true
+
+	initLen := object.CalculateReplicateV2InitLength(objHdrLen, sigLen, signObject)
+
+	ln := object.CalculateReplicateV2InitRequestLength(initLen)
+
+	buf := make([]byte, ln)
+
+	writeObjFn := protoencoding.WriteStablyMarshalledMessageFunc(obj)
+	writeSigFn := protoencoding.WriteStablyMarshalledMessageFunc(sig)
+
+	n := object.WriteReplicateV2InitRequest(buf, objHdrLen, writeObjFn, sigLen, writeSigFn, signObject)
+
+	require.EqualValues(t, ln, n)
+
+	var req object.ReplicateV2Request
+	require.NoError(t, proto.Unmarshal(buf, &req))
+
+	init := req.GetInit()
+	require.NotNil(t, init)
+
+	require.True(t, proto.Equal(obj, init.Object))
+	require.True(t, proto.Equal(sig, init.Signature))
+	require.EqualValues(t, signObject, init.SignObject)
+}
+
+func TestWriteReplicateV2ChunkRequest(t *testing.T) {
+	chunk := testutil.RandByteSlice(1024)
+
+	ln := object.CalculateReplicateV2ChunkRequestLength(chunk)
+
+	buf := make([]byte, ln)
+
+	n := object.WriteReplicateV2ChunkRequest(buf, chunk)
+
+	require.EqualValues(t, ln, n)
+
+	var req object.ReplicateV2Request
+	require.NoError(t, proto.Unmarshal(buf, &req))
+
+	gotChunk := req.GetPayloadChunk()
+	require.NotNil(t, gotChunk)
+	require.True(t, bytes.Equal(chunk, gotChunk))
 }
