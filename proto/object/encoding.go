@@ -1293,3 +1293,73 @@ const (
 	FieldReplicateResponseStatus
 	FieldReplicateResponseObjectSignature
 )
+
+// Field numbers of [ReplicateV2Request_Init] message.
+const (
+	_ = iota
+	FieldReplicateV2RequestInitObject
+	FieldReplicateV2RequestInitSignature
+	FieldReplicateV2RequestInitSignObject
+)
+
+// CalculateReplicateV2InitLength calculates length of ReplicateV2 request oneof
+// init message with given fields.
+func CalculateReplicateV2InitLength(objLen int, sigLen int, signObject bool) int {
+	ln := protoencoding.SizeEmbeddedLENField(FieldReplicateV2RequestInitObject, objLen)
+	ln += protoencoding.SizeEmbeddedLENField(FieldReplicateV2RequestInitSignature, sigLen)
+	ln += protoencoding.SizeBool(FieldReplicateV2RequestInitSignObject, signObject)
+	return ln
+}
+
+// WriteReplicateV2Init writes ReplicateV2 request init oneof field with given
+// fields into buf. Returns number of bytes written.
+func WriteReplicateV2Init(buf []byte, objLen int, writeObjFn protoencoding.WriteMessageFunc, sigLen int, writeSigFn protoencoding.WriteMessageFunc, signObject bool) int {
+	off := protoencoding.WriteMessageField(buf, FieldReplicateV2RequestInitObject, objLen, writeObjFn)
+	off += protoencoding.WriteMessageField(buf[off:], FieldReplicateV2RequestInitSignature, sigLen, writeSigFn)
+	off += protoencoding.MarshalToBool(buf[off:], FieldReplicateV2RequestInitSignObject, signObject)
+	return off
+}
+
+// Field numbers of [ReplicateV2Request] message.
+const (
+	_ = iota
+	FieldReplicateV2RequestInit
+	FieldReplicateV2RequestChunk
+)
+
+// CalculateReplicateV2InitRequestLength calculates length of initial
+// ReplicateV2 request message with given fields.
+func CalculateReplicateV2InitRequestLength(initLen int) int {
+	return protoencoding.SizeEmbeddedLENField(FieldReplicateV2RequestInit, initLen)
+}
+
+// CalculateReplicateV2ChunkRequestLength calculates length of chunk ReplicateV2
+// request message with given fields.
+func CalculateReplicateV2ChunkRequestLength(chunk []byte) int {
+	return protoencoding.SizeBytes(FieldReplicateV2RequestChunk, chunk)
+}
+
+// WriteReplicateV2InitRequest writes initial ReplicateV2 request with given
+// fields into buf. Returns number of bytes written.
+func WriteReplicateV2InitRequest(buf []byte, objLen int, writeObjFn protoencoding.WriteMessageFunc, nodeSigLen int, writeNodeSigFn protoencoding.WriteMessageFunc, signObject bool) int {
+	ln := CalculateReplicateV2InitLength(objLen, nodeSigLen, signObject)
+	if ln == 0 {
+		return 0
+	}
+	off := protoencoding.WriteTagAndLength(buf, FieldReplicateV2RequestInit, ln)
+	off += WriteReplicateV2Init(buf[off:], objLen, writeObjFn, nodeSigLen, writeNodeSigFn, signObject)
+	return off
+}
+
+// WriteReplicateV2ChunkRequest writes chunk ReplicateV2 request with given
+// length and fields into buf. Returns number of bytes written.
+func WriteReplicateV2ChunkRequest(buf []byte, chunk []byte) int {
+	return protoencoding.MarshalToBytes(buf, FieldReplicateV2RequestChunk, chunk)
+}
+
+// Field numbers of [ReplicateV2Response] message.
+const (
+	_ = iota
+	FieldReplicateV2ResponseStatus
+	FieldReplicateV2ResponseObjectSignature
+)
