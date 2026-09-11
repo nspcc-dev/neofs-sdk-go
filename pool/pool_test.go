@@ -133,6 +133,47 @@ func TestBuildPoolWrongSigner(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestSessionCacheSize(t *testing.T) {
+	newPool := func(t *testing.T, cacheSize int) *Pool {
+		t.Helper()
+
+		opts := InitParameters{
+			signer:     usertest.User().RFC6979,
+			nodeParams: []NodeParam{{1, anyValidPeerAddress(0), 1}},
+		}
+		if cacheSize >= 0 {
+			opts.SetSessionCacheSize(cacheSize)
+		}
+
+		p, err := NewPool(opts)
+		require.NoError(t, err)
+		return p
+	}
+
+	t.Run("default", func(t *testing.T) {
+		p := newPool(t, -1)
+
+		for i := range defaultSessionCacheSize + 1 {
+			p.cache.Put(strconv.Itoa(i), session.Object{})
+		}
+
+		require.Equal(t, defaultSessionCacheSize, p.cache.cache.Len())
+		require.False(t, p.cache.cache.Contains("0"))
+		require.True(t, p.cache.cache.Contains(strconv.Itoa(defaultSessionCacheSize)))
+	})
+
+	t.Run("custom", func(t *testing.T) {
+		p := newPool(t, 1)
+
+		p.cache.Put("first", session.Object{})
+		p.cache.Put("second", session.Object{})
+
+		require.Equal(t, 1, p.cache.cache.Len())
+		require.False(t, p.cache.cache.Contains("first"))
+		require.True(t, p.cache.cache.Contains("second"))
+	})
+}
+
 func TestOneNode(t *testing.T) {
 	signer1 := neofscryptotest.Signer()
 	mockClientBuilder := func(addr string) (internalClient, error) {
