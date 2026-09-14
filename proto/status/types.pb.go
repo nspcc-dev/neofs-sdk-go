@@ -293,6 +293,11 @@ const (
 	Container_CONTAINER_LOCKED Container = 2
 	// [**3075**] Async container operation timed out.
 	Container_CONTAINER_AWAIT_TIMEOUT Container = 3
+	// [**3076**] Requested operation with container is not in sync: container
+	// revision does not meet the server's one. Can be returned only if requester
+	// provides container version he has, see requests documentation for more
+	// info.
+	Container_CONTAINER_VERSION_MISMATCH Container = 4
 )
 
 // Enum value maps for Container.
@@ -302,12 +307,14 @@ var (
 		1: "EACL_NOT_FOUND",
 		2: "CONTAINER_LOCKED",
 		3: "CONTAINER_AWAIT_TIMEOUT",
+		4: "CONTAINER_VERSION_MISMATCH",
 	}
 	Container_value = map[string]int32{
-		"CONTAINER_NOT_FOUND":     0,
-		"EACL_NOT_FOUND":          1,
-		"CONTAINER_LOCKED":        2,
-		"CONTAINER_AWAIT_TIMEOUT": 3,
+		"CONTAINER_NOT_FOUND":        0,
+		"EACL_NOT_FOUND":             1,
+		"CONTAINER_LOCKED":           2,
+		"CONTAINER_AWAIT_TIMEOUT":    3,
+		"CONTAINER_VERSION_MISMATCH": 4,
 	}
 )
 
@@ -575,12 +582,13 @@ const file_proto_status_types_proto_rawDesc = "" +
 	"\x17LOCK_NON_REGULAR_OBJECT\x10\x03\x12\x1a\n" +
 	"\x16OBJECT_ALREADY_REMOVED\x10\x04\x12\x10\n" +
 	"\fOUT_OF_RANGE\x10\x05\x12\x12\n" +
-	"\x0eQUOTA_EXCEEDED\x10\x06*k\n" +
+	"\x0eQUOTA_EXCEEDED\x10\x06*\x8b\x01\n" +
 	"\tContainer\x12\x17\n" +
 	"\x13CONTAINER_NOT_FOUND\x10\x00\x12\x12\n" +
 	"\x0eEACL_NOT_FOUND\x10\x01\x12\x14\n" +
 	"\x10CONTAINER_LOCKED\x10\x02\x12\x1b\n" +
-	"\x17CONTAINER_AWAIT_TIMEOUT\x10\x03*1\n" +
+	"\x17CONTAINER_AWAIT_TIMEOUT\x10\x03\x12\x1e\n" +
+	"\x1aCONTAINER_VERSION_MISMATCH\x10\x04*1\n" +
 	"\aSession\x12\x13\n" +
 	"\x0fTOKEN_NOT_FOUND\x10\x00\x12\x11\n" +
 	"\rTOKEN_EXPIRED\x10\x01BMZ.github.com/nspcc-dev/neofs-sdk-go/proto/status\xaa\x02\x1aNeo.FileStorage.API.Statusb\x06proto3"

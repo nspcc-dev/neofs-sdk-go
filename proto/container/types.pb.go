@@ -43,8 +43,20 @@ type Container struct {
 	Attributes []*Container_Attribute `protobuf:"bytes,5,rep,name=attributes,proto3" json:"attributes,omitempty"`
 	// Placement policy for the object inside the container
 	PlacementPolicy *netmap.PlacementPolicy `protobuf:"bytes,6,opt,name=placement_policy,json=placementPolicy,proto3" json:"placement_policy,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Container revision. It increments every time container's properties are
+	// changed by the owner (or the owner itself is changed).
+	//
+	// Do not confuse it with API version: this field describes how many times
+	// container has been changed since its creation, while API version describes
+	// proto message format.
+	//
+	// It must only be set by storage nodes and must not be filled on the client
+	// side. The initial revision after a successful container creation call is 0.
+	//
+	// Versioned containers are available starting from API v2.27.0.
+	Revision      uint64 `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Container) Reset() {
@@ -117,6 +129,13 @@ func (x *Container) GetPlacementPolicy() *netmap.PlacementPolicy {
 		return x.PlacementPolicy
 	}
 	return nil
+}
+
+func (x *Container) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 // `Attribute` is a user-defined Key-Value metadata pair attached to the
@@ -259,7 +278,7 @@ var File_proto_container_types_proto protoreflect.FileDescriptor
 
 const file_proto_container_types_proto_rawDesc = "" +
 	"\n" +
-	"\x1bproto/container/types.proto\x12\x13neo.fs.v2.container\x1a\x18proto/netmap/types.proto\x1a\x16proto/refs/types.proto\"\xf2\x02\n" +
+	"\x1bproto/container/types.proto\x12\x13neo.fs.v2.container\x1a\x18proto/netmap/types.proto\x1a\x16proto/refs/types.proto\"\x8e\x03\n" +
 	"\tContainer\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x122\n" +
 	"\bowner_id\x18\x02 \x01(\v2\x17.neo.fs.v2.refs.OwnerIDR\aownerID\x12\x14\n" +
@@ -268,7 +287,8 @@ const file_proto_container_types_proto_rawDesc = "" +
 	"\n" +
 	"attributes\x18\x05 \x03(\v2(.neo.fs.v2.container.Container.AttributeR\n" +
 	"attributes\x12L\n" +
-	"\x10placement_policy\x18\x06 \x01(\v2!.neo.fs.v2.netmap.PlacementPolicyR\x0fplacementPolicy\x1a3\n" +
+	"\x10placement_policy\x18\x06 \x01(\v2!.neo.fs.v2.netmap.PlacementPolicyR\x0fplacementPolicy\x12\x1a\n" +
+	"\brevision\x18\a \x01(\x04R\brevision\x1a3\n" +
 	"\tAttribute\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05valueBSZ1github.com/nspcc-dev/neofs-sdk-go/proto/container\xaa\x02\x1dNeo.FileStorage.API.Containerb\x06proto3"

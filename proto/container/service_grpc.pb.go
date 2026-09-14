@@ -97,6 +97,9 @@ type ContainerServiceClient interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	SetExtendedACL(ctx context.Context, in *SetExtendedACLRequest, opts ...grpc.CallOption) (*SetExtendedACLResponse, error)
 	// Returns Extended ACL table and signature from `Container` smart contract
 	// storage.
@@ -131,6 +134,9 @@ type ContainerServiceClient interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	SetAttribute(ctx context.Context, in *SetAttributeRequest, opts ...grpc.CallOption) (*SetAttributeResponse, error)
 	// Sends transaction calling contract method to remove container attribute,
 	// and waits for the transaction to be executed. Deadline is determined by
@@ -143,6 +149,9 @@ type ContainerServiceClient interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	RemoveAttribute(ctx context.Context, in *RemoveAttributeRequest, opts ...grpc.CallOption) (*RemoveAttributeResponse, error)
 }
 
@@ -311,6 +320,9 @@ type ContainerServiceServer interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	SetExtendedACL(context.Context, *SetExtendedACLRequest) (*SetExtendedACLResponse, error)
 	// Returns Extended ACL table and signature from `Container` smart contract
 	// storage.
@@ -345,6 +357,9 @@ type ContainerServiceServer interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	SetAttribute(context.Context, *SetAttributeRequest) (*SetAttributeResponse, error)
 	// Sends transaction calling contract method to remove container attribute,
 	// and waits for the transaction to be executed. Deadline is determined by
@@ -357,6 +372,9 @@ type ContainerServiceServer interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	RemoveAttribute(context.Context, *RemoveAttributeRequest) (*RemoveAttributeResponse, error)
 }
 

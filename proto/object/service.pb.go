@@ -186,7 +186,8 @@ func (x *GetResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 	return nil
 }
 
-// PUT object request
+// PUT object request.
+// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type PutRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of put object request message.
@@ -322,7 +323,8 @@ func (x *PutResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 	return nil
 }
 
-// Object DELETE request
+// Object DELETE request.
+// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type DeleteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of delete object request message.
@@ -803,7 +805,8 @@ func (x *SearchResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 	return nil
 }
 
-// Object SearchV2 request
+// Object SearchV2 request.
+// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type SearchV2Request struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of search object request message.
