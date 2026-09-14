@@ -53,6 +53,7 @@ type Container struct {
 	basicACL acl.Basic
 	attrs    [][2]string
 	policy   *netmap.PlacementPolicy
+	revision uint64
 }
 
 const (
@@ -63,7 +64,7 @@ const (
 // CopyTo writes deep copy of the [Container] to dst.
 func (x Container) CopyTo(dst *Container) {
 	dst.SetBasicACL(x.BasicACL())
-
+	dst.revision = x.revision
 	dst.owner = x.owner
 
 	if x.version != nil {
@@ -188,6 +189,7 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 	}
 
 	x.basicACL.FromBits(m.BasicAcl)
+	x.revision = m.Revision
 
 	return nil
 }
@@ -207,6 +209,7 @@ func (x *Container) FromProtoMessage(m *protocontainer.Container) error {
 func (x Container) ProtoMessage() *protocontainer.Container {
 	m := &protocontainer.Container{
 		BasicAcl: x.basicACL.Bits(),
+		Revision: x.revision,
 	}
 	if x.version != nil {
 		m.Version = x.version.ProtoMessage()
@@ -562,6 +565,11 @@ func (x Container) Version() version.Version {
 		return *x.version
 	}
 	return version.Version{}
+}
+
+// Revision returns container revision number.
+func (x Container) Revision() uint64 {
+	return x.revision
 }
 
 // SetLockUntil sets attribute with removal lock timestamp in Unix Timestamp

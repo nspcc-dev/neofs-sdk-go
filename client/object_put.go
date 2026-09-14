@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	sync "sync"
 	"time"
 
@@ -69,6 +70,14 @@ type PrmObjectPutInit struct {
 // Deprecated: Specify max replicas in container's initial placement policy
 // instead. This parameter no longer has an effect.
 func (x *PrmObjectPutInit) SetCopiesNumber(uint32) {}
+
+// AttachContainerRevision allows attaching a container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
+// returned. If extended headers are manually changed with the container
+// revision header, behavior is undefined.
+func (x *PrmObjectPutInit) AttachContainerRevision(revision uint64) {
+	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+}
 
 // ResObjectPut groups the final result values of ObjectPutInit operation.
 type ResObjectPut struct {
@@ -521,6 +530,7 @@ func readFull(r io.Reader, b []byte) (int, error) {
 //   - [apistatus.ErrQuotaExceeded]
 //   - [apistatus.ErrSessionTokenNotFound]
 //   - [apistatus.ErrSessionTokenExpired]
+//   - [apistatus.ErrContainerRevisionMismatch]
 func (x *DefaultObjectWriter) Close() error {
 	if x.statisticCallback != nil {
 		defer func() {
@@ -593,6 +603,8 @@ func (x *DefaultObjectWriter) GetResult() ResObjectPut {
 //
 // Signer is required and must not be nil. The operation is executed on behalf of
 // the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
+//
+// Call supports container revision state check, see [PrmObjectPutInit.AttachContainerRevision].
 //
 // Returns errors:
 //   - [ErrMissingSigner]

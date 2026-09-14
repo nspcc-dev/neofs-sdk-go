@@ -19,6 +19,10 @@ var (
 	// ErrContainerAwaitTimeout is an instance of ContainerAwaitTimeout error status. It's expected to be used for [errors.Is]
 	// and MUST NOT be changed.
 	ErrContainerAwaitTimeout ContainerAwaitTimeout
+	// ErrContainerRevisionMismatch is an instance of ContainerRevisionMismatch
+	// error status. It's expected to be used for [errors.Is] and MUST NOT be
+	// changed.
+	ErrContainerRevisionMismatch ContainerRevisionMismatch
 )
 
 // ContainerNotFound describes status of the failure because of the missing container.
@@ -188,4 +192,51 @@ func (x ContainerAwaitTimeout) protoMessage() *protostatus.Status {
 		x.msg = defaultContainerAwaitTimeoutMsg
 	}
 	return &protostatus.Status{Code: protostatus.ContainerAwaitTimeout, Message: x.msg, Details: x.dts}
+}
+
+// ContainerRevisionMismatch is a status returned provided container revision
+// (if any) does not match server's one.
+type ContainerRevisionMismatch struct {
+	msg string
+	dts []*protostatus.Status_Detail
+}
+
+// NewContainerRevisionMismatch constructs ContainerRevisionMismatch with given message.
+func NewContainerRevisionMismatch(msg string) ContainerRevisionMismatch {
+	return ContainerRevisionMismatch{msg: msg}
+}
+
+const defaultContainerRevisionMismatchMsg = "container revision does not match"
+
+// Error implements built-in [error] interface.
+func (x ContainerRevisionMismatch) Error() string {
+	if x.msg == "" {
+		x.msg = defaultContainerRevisionMismatchMsg
+	}
+
+	return errMessageStatus(protostatus.ContainerRevisionMismatch, x.msg)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x ContainerRevisionMismatch) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case ContainerRevisionMismatch, *ContainerRevisionMismatch:
+		return true
+	}
+}
+
+// implements local interface defined in [ToError] func.
+func (x *ContainerRevisionMismatch) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
+}
+
+// implements local interface defined in [FromError] func.
+func (x ContainerRevisionMismatch) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultContainerRevisionMismatchMsg
+	}
+	return &protostatus.Status{Code: protostatus.ContainerRevisionMismatch, Message: x.msg, Details: x.dts}
 }

@@ -14,3 +14,11 @@ func TestNewContainerLocked(t *testing.T) {
 	e = apistatus.NewContainerLocked("some message")
 	require.EqualError(t, e, "status: code = 3074 message = some message")
 }
+
+func TestNewContainerRevisionMismatch(t *testing.T) {
+	var e apistatus.ContainerRevisionMismatch
+	require.EqualError(t, e, "status: code = 3076 message = container revision does not match")
+
+	e = apistatus.NewContainerRevisionMismatch("some message")
+	require.EqualError(t, e, "status: code = 3076 message = some message")
+}

@@ -42,6 +42,7 @@ var (
 	anyValidDomain       container.Domain       // set by init.
 	anyValidBasicACL     acl.Basic              // set by init.
 	anyValidPolicy       netmap.PlacementPolicy // set by init.
+	anyValidRevision     = uint64(3266021769)
 )
 
 var validContainer container.Container // set by init.
@@ -109,6 +110,7 @@ func init() {
 	m.Nonce = anyValidNonce[:]
 	m.Version.Major = 2
 	m.Version.Minor = 16
+	m.Revision = anyValidRevision
 	if err := validContainer.FromProtoMessage(m); err != nil {
 		panic(fmt.Errorf("unexpected encode-decode failure: %w", err))
 	}
@@ -130,9 +132,9 @@ var (
 		126, 136, 127, 95, 227, 148, 120, 101, 174, 116, 191, 113, 56}
 	// corresponds to validContainer and anyECDSAPrivateKey.
 	validContainerSignatureBytes = []byte{
-		5, 45, 167, 86, 90, 190, 4, 76, 116, 87, 254, 45, 189, 97, 5, 153, 201, 39, 241, 223, 200, 50, 202, 176,
-		213, 37, 89, 13, 211, 79, 236, 113, 171, 155, 76, 29, 224, 215, 221, 149, 129, 72, 184, 123, 102, 56, 170, 40,
-		91, 250, 49, 65, 239, 26, 94, 161, 112, 96, 208, 228, 145, 194, 162, 24,
+		250, 14, 91, 96, 14, 125, 75, 248, 61, 68, 106, 25, 151, 126, 112, 12, 71, 0, 135, 13, 172, 116, 193, 113,
+		136, 241, 145, 201, 184, 14, 107, 63, 226, 228, 117, 55, 142, 227, 239, 87, 205, 104, 66, 72, 150, 164, 157,
+		118, 170, 143, 124, 158, 117, 110, 155, 32, 203, 81, 155, 130, 146, 78, 51, 171,
 	}
 	validContainerSignature = neofscrypto.NewSignatureFromRawKey(neofscrypto.ECDSA_DETERMINISTIC_SHA256,
 		anyBinECDSAPublicKey, validContainerSignatureBytes)
@@ -166,7 +168,7 @@ var validBinContainer = []byte{
 	56, 56, 42, 44, 10, 10, 102, 105, 108, 116, 101, 114, 95, 49, 95, 50, 18, 7, 107, 101, 121, 95, 49, 95,
 	50, 24, 5, 34, 19, 51, 55, 50, 50, 54, 53, 54, 48, 54, 48, 51, 49, 55, 52, 56, 50, 51, 51, 53,
 	42, 44, 10, 10, 102, 105, 108, 116, 101, 114, 95, 49, 95, 51, 18, 7, 107, 101, 121, 95, 49, 95, 51, 24,
-	6, 34, 19, 49, 57, 53, 48, 53, 48, 52, 57, 56, 55, 55, 48, 53, 50, 56, 52, 56, 48, 53,
+	6, 34, 19, 49, 57, 53, 48, 53, 48, 52, 57, 56, 55, 55, 48, 53, 50, 56, 52, 56, 48, 53, 56, 137, 147, 174, 149, 12,
 }
 
 // corresponds to validContainer.
@@ -302,7 +304,8 @@ var validJSONContainer = `
   "subnetId": null,
   "ecRules": [],
   "initial": null
- }
+ },
+ "revision":"3266021769"
 }
 `
 

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -350,6 +351,14 @@ func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 	x.filters = filters
 }
 
+// AttachContainerRevision allows attaching a container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
+// returned. If extended headers are manually changed with the container
+// revision header, behavior is undefined.
+func (x *PrmObjectSearch) AttachContainerRevision(revision uint64) {
+	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+}
+
 // used part of [protoobject.ObjectService_SearchClient] simplifying test
 // implementations.
 type searchObjectsResponseStream interface {
@@ -464,6 +473,7 @@ func (x *ObjectListReader) Iterate(f func(oid.ID) bool) error {
 //   - [apistatus.ErrIncomplete]
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrSessionTokenExpired]
+//   - [apistatus.ErrContainerRevisionMismatch]
 func (x *ObjectListReader) Close() error {
 	var err error
 	if x.statisticCallback != nil {
@@ -492,6 +502,8 @@ func (x *ObjectListReader) Close() error {
 //
 // Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
 // the specified Signer, which is taken into account, in particular, for access control.
+//
+// Call supports container revision state check, see [PrmObjectPutInit.AttachContainerRevision].
 //
 // Return errors:
 //   - [ErrMissingSigner]
