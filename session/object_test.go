@@ -172,7 +172,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 			name: "context/missing", err: "missing session context",
 			corrupt: func(m *protosession.SessionToken) { m.Body.Context = nil },
 		}, invalidProtoTokenTestcase{
-			name: "context/wrong", err: "invalid context: invalid context *session.SessionToken_Body_Container",
+			name: "context/wrong", err: "invalid context: missing object context",
 			corrupt: func(m *protosession.SessionToken) { m.Body.Context = new(protosession.SessionToken_Body_Container) },
 		}, invalidProtoTokenTestcase{
 			name: "context/invalid verb", err: "invalid context: negative verb -1",
@@ -315,7 +315,7 @@ func TestObject_Unmarshal(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidBinTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Container",
+			name: "body/context/wrong oneof", err: "invalid context: missing object context",
 			b: []byte{10, 2, 50, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/container/empty value", err: "invalid context: invalid container ID: invalid length 0",
@@ -416,7 +416,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 			require.ErrorContains(t, err, "syntax error")
 		})
 		for _, tc := range append(invalidJSONTokenCommonTestcases, invalidJSONTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Container", j: `
+			name: "body/context/wrong oneof", err: "invalid context: missing object context", j: `
 {"body":{"container":{}}}
 `}, invalidJSONTokenTestcase{
 			name: "body/context/container/empty value", err: "invalid context: invalid container ID: invalid length 0", j: `
@@ -656,7 +656,7 @@ func TestObject_UnmarshalSignedData(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidSignedTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Container",
+			name: "body/context/wrong oneof", err: "invalid context: missing object context",
 			b: []byte{50, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/container/empty value", err: "invalid context: invalid container ID: invalid length 0",

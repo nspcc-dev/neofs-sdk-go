@@ -44,12 +44,11 @@ func (x Object) CopyTo(dst *Object) {
 	dst.objs = slices.Clone(x.objs)
 }
 
-func (x *Object) readContext(c any, checkFieldPresence bool) error {
-	cc, ok := c.(*protosession.SessionToken_Body_Object)
-	if !ok || cc == nil {
-		return fmt.Errorf("invalid context %T", c)
+func (x *Object) readContext(body *protosession.SessionToken_Body, checkFieldPresence bool) error {
+	cObj := body.GetObject()
+	if cObj == nil {
+		return errors.New("missing object context")
 	}
-	cObj := cc.Object
 
 	var err error
 
