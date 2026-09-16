@@ -176,7 +176,7 @@ func TestContainer_FromProtoMessage(t *testing.T) {
 			name: "context/missing", err: "missing session context",
 			corrupt: func(m *protosession.SessionToken) { m.Body.Context = nil },
 		}, invalidProtoTokenTestcase{
-			name: "context/wrong", err: "invalid context: invalid context *session.SessionToken_Body_Object",
+			name: "context/wrong", err: "invalid context: missing container context",
 			corrupt: func(m *protosession.SessionToken) { m.Body.Context = new(protosession.SessionToken_Body_Object) },
 		}, invalidProtoTokenTestcase{
 			name: "context/invalid verb", err: "invalid context: negative verb -1",
@@ -291,7 +291,7 @@ func TestContainer_Unmarshal(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidBinTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Object",
+			name: "body/context/wrong oneof", err: "invalid context: missing container context",
 			b: []byte{10, 4, 42, 2, 18, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag",
@@ -368,7 +368,7 @@ func TestContainer_UnmarshalJSON(t *testing.T) {
 			require.ErrorContains(t, err, "syntax error")
 		})
 		for _, tc := range append(invalidJSONTokenCommonTestcases, invalidJSONTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Object", j: `
+			name: "body/context/wrong oneof", err: "invalid context: missing container context", j: `
 {"body":{"object":{}}}
 `}, invalidJSONTokenTestcase{
 			name: "body/context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag", j: `
@@ -615,7 +615,7 @@ func TestContainer_UnmarshalSignedData(t *testing.T) {
 			require.ErrorContains(t, err, "cannot parse invalid wire-format data")
 		})
 		for _, tc := range append(invalidSignedTokenCommonTestcases, invalidBinTokenTestcase{
-			name: "body/context/wrong oneof", err: "invalid context: invalid context *session.SessionToken_Body_Object",
+			name: "body/context/wrong oneof", err: "invalid context: missing container context",
 			b: []byte{42, 2, 18, 0},
 		}, invalidBinTokenTestcase{
 			name: "body/context/both container and wildcard", err: "invalid context: container conflicts with wildcard flag",

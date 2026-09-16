@@ -954,7 +954,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 					b[len(b)-1]++
 					m.Header.SessionToken.Body.OwnerId.Value = b
 				}},
-			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
+			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: missing object context",
 				corrupt: func(m *protoobject.Object) {
 					m.Header.SessionToken.Body.Context = new(protosession.SessionToken_Body_Container)
 				}},
@@ -1397,7 +1397,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54, 207, 56, 98, 99, 136,
 					207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18, 17, 115, 101, 115, 115,
 					105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
+			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: missing object context",
 				b: []byte{26, 166, 1, 74, 163, 1, 10, 118, 10, 16, 118, 23, 219, 249, 117, 70, 64, 33, 157, 229, 102, 253, 142, 52,
 					17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229, 62, 150, 151, 159,
 					221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222, 183, 128, 228, 1, 16, 154,
@@ -1694,7 +1694,7 @@ func TestObject_Unmarshal(t *testing.T) {
 					233, 102, 232, 136, 68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54,
 					207, 56, 98, 99, 136, 207, 21, 18, 41, 10, 14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18,
 					17, 115, 101, 115, 115, 105, 111, 110, 32, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 170, 137, 252, 156, 4}},
-			{name: "header/split/parent/session/body/context/wrong oneof", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
+			{name: "header/split/parent/session/body/context/wrong oneof", err: "invalid header: invalid split header: invalid parent header: invalid session token: invalid context: missing object context",
 				b: []byte{26, 172, 1, 90, 169, 1, 34, 166, 1, 74, 163, 1, 10, 118, 10, 16, 118, 23, 219, 249, 117, 70, 64, 33, 157, 229,
 					102, 253, 142, 52, 17, 144, 18, 27, 10, 25, 53, 248, 195, 15, 196, 254, 124, 23, 169, 198, 208, 15, 219, 229,
 					62, 150, 151, 159, 221, 73, 224, 229, 106, 42, 222, 26, 32, 8, 210, 204, 150, 183, 128, 222, 183, 128,
@@ -1953,7 +1953,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQRkA==", "ownerID":{"value":"QjsPBTSD/8YIYim45e2M1zSB09Zake2JmQ=="}}}}}`},
 			{name: "header/session/body/issuer/value/checksum mismatch", err: "invalid header: invalid session token: invalid session issuer: checksum mismatch",
 				j: `{"header":{"sessionToken":{"body":{"id":"dhfb+XVGQCGd5Wb9jjQRkA==", "ownerID":{"value":"NTsPBTSD/8YIYim45e2M1zSB09Zake2Jmg=="}}}}}`},
-			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: invalid context *session.SessionToken_Body_Container",
+			{name: "header/session/body/context/wrong oneof", err: "invalid header: invalid session token: invalid context: missing object context",
 				j: `
 {
  "header": {

@@ -38,12 +38,11 @@ func (x Container) CopyTo(dst *Container) {
 }
 
 // readContext is a contextReader needed for commonData methods.
-func (x *Container) readContext(c any, checkFieldPresence bool) error {
-	cc, ok := c.(*protosession.SessionToken_Body_Container)
-	if !ok || cc == nil {
-		return fmt.Errorf("invalid context %T", c)
+func (x *Container) readContext(body *protosession.SessionToken_Body, checkFieldPresence bool) error {
+	cCnr := body.GetContainer()
+	if cCnr == nil {
+		return errors.New("missing container context")
 	}
-	cCnr := cc.Container
 
 	cnr := cCnr.GetContainerId()
 

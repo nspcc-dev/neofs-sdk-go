@@ -31,7 +31,7 @@ type commonData struct {
 	sig    neofscrypto.Signature
 }
 
-type contextReader func(any, bool) error
+type contextReader func(*protosession.SessionToken_Body, bool) error
 
 func (x commonData) copyTo(dst *commonData) {
 	dst.idSet = x.idSet
@@ -118,7 +118,7 @@ func (x *commonData) fromProtoMessageWithVersion(m *protosession.SessionToken, c
 
 	c := body.GetContext()
 	if c != nil {
-		err = r(c, checkFieldPresence)
+		err = r(body, checkFieldPresence)
 		if err != nil {
 			return fmt.Errorf("invalid context: %w", err)
 		}

@@ -41,7 +41,7 @@ var (
 		// + other cases in init
 	}
 	invalidObjectSessionTokenProtoTestcases = append(invalidCommonSessionTokenProtoTestcases, invalidSessionTokenProtoTestcase{
-		name: "context/wrong", msg: "invalid context: invalid context *session.SessionToken_Body_Container",
+		name: "context/wrong", msg: "invalid context: missing object context",
 		corrupt: func(valid *protosession.SessionToken) {
 			valid.Body.Context = new(protosession.SessionToken_Body_Container)
 		}},
