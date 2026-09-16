@@ -14,6 +14,16 @@ import (
 )
 
 const (
+	systemPrefix = "__NEOFS__"
+	// XHeaderContainerRevision is an extended header that can be added to
+	// the limited set of requests to attach known container revision.
+	// If server's version does not match it, ContainerRevisionMismatch
+	// will be returned. Value must be a positive base-10 integer
+	// counter with no leading zeros.
+	XHeaderContainerRevision = systemPrefix + "CONTAINER_REVISION"
+)
+
+const (
 	localRequestTTL   = 1
 	defaultRequestTTL = 2
 )

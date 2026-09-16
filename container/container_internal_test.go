@@ -125,6 +125,18 @@ func TestContainer_CopyTo(t *testing.T) {
 		require.Equal(t, cp, container.Version())
 	})
 
+	t.Run("change revision", func(t *testing.T) {
+		var dst Container
+		container.CopyTo(&dst)
+
+		require.Equal(t, container.Revision(), dst.Revision())
+
+		cp := container.revision
+		dst.revision = rand.Uint64()
+
+		require.NotEqual(t, cp, dst.Revision())
+	})
+
 	t.Run("change attributes", func(t *testing.T) {
 		var dst Container
 		container.CopyTo(&dst)

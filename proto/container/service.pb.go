@@ -570,7 +570,8 @@ func (x *ListResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 	return nil
 }
 
-// Set Extended ACL
+// Set Extended ACL.
+// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type SetExtendedACLRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of set extended acl request message.
@@ -984,7 +985,8 @@ func (x *AnnounceUsedSpaceResponse) GetVerifyHeader() *session.ResponseVerificat
 	return nil
 }
 
-// Attribute setting request
+// Attribute setting request.
+// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type SetAttributeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request payload.
@@ -1085,7 +1087,8 @@ func (x *SetAttributeResponse) GetStatus() *status.Status {
 	return nil
 }
 
-// Attribute removal request
+// Attribute removal request.
+// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type RemoveAttributeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request payload.

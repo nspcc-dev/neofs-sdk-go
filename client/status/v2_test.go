@@ -227,6 +227,17 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				return new(apistatus.ContainerRevisionMismatch)
+			},
+			code:           3076,
+			compatibleErrs: []error{apistatus.ErrContainerRevisionMismatch, apistatus.ContainerRevisionMismatch{}, &apistatus.ContainerRevisionMismatch{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.ContainerRevisionMismatch
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.SessionTokenNotFound)
 			},
 			code:           4096,

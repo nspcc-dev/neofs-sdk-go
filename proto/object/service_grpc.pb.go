@@ -104,6 +104,9 @@ type ObjectServiceClient interface {
 	//     size quota set by user was exceeded;
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     object storage container not found;
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	//   - **TOKEN_NOT_FOUND** (4096, SECTION_SESSION): \
 	//     (for trusted object preparation) session private key does not exist or has
 	//
@@ -136,6 +139,9 @@ type ObjectServiceClient interface {
 	//     deleting a locked object is prohibited;
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     object container not found;
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	//   - **TOKEN_EXPIRED** (4097, SECTION_SESSION): \
 	//     provided session token has expired.
 	Delete(ctx context.Context, in *DeleteRequest, opts ...grpc.CallOption) (*DeleteResponse, error)
@@ -189,6 +195,9 @@ type ObjectServiceClient interface {
 	//     access to operation SEARCH of the object is denied;
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     search container not found;
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	//   - **TOKEN_EXPIRED** (4097, SECTION_SESSION): \
 	//     provided session token has expired.
 	Search(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[SearchResponse], error)
@@ -522,6 +531,9 @@ type ObjectServiceServer interface {
 	//     size quota set by user was exceeded;
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     object storage container not found;
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	//   - **TOKEN_NOT_FOUND** (4096, SECTION_SESSION): \
 	//     (for trusted object preparation) session private key does not exist or has
 	//
@@ -554,6 +566,9 @@ type ObjectServiceServer interface {
 	//     deleting a locked object is prohibited;
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     object container not found;
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	//   - **TOKEN_EXPIRED** (4097, SECTION_SESSION): \
 	//     provided session token has expired.
 	Delete(context.Context, *DeleteRequest) (*DeleteResponse, error)
@@ -607,6 +622,9 @@ type ObjectServiceServer interface {
 	//     access to operation SEARCH of the object is denied;
 	//   - **CONTAINER_NOT_FOUND** (3072, SECTION_CONTAINER): \
 	//     search container not found;
+	//   - **CONTAINER_REVISION_MISMATCH** (3076, SECTION_CONTAINER): \
+	//     if requester attached container revision he knows and it does not match
+	//     the server's one.
 	//   - **TOKEN_EXPIRED** (4097, SECTION_SESSION): \
 	//     provided session token has expired.
 	Search(*SearchRequest, grpc.ServerStreamingServer[SearchResponse]) error

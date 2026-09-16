@@ -28,6 +28,7 @@ func randContainer() *container.Container {
 		BasicAcl:        prototest.RandUint32(),
 		Attributes:      randAttributes(),
 		PlacementPolicy: prototest.RandPlacementPolicy(),
+		Revision:        prototest.RandUint64(),
 	}
 }
 

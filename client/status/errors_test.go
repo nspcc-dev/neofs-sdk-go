@@ -85,6 +85,10 @@ func TestErrors(t *testing.T) {
 			errVariable: ErrContainerAwaitTimeout,
 		},
 		{
+			errs:        []error{ContainerRevisionMismatch{}, new(ContainerRevisionMismatch)},
+			errVariable: ErrContainerRevisionMismatch,
+		},
+		{
 			errs:        []error{SessionTokenExpired{}, new(SessionTokenExpired)},
 			errVariable: ErrSessionTokenExpired,
 		},

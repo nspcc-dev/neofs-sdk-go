@@ -21,6 +21,7 @@ const (
 	EACLNotFound              = 3073
 	ContainerLocked           = 3074
 	ContainerAwaitTimeout     = 3075
+	ContainerRevisionMismatch = 3076
 	SessionTokenNotFound      = 4096
 	SessionTokenExpired       = 4097
 )

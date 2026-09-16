@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -616,6 +617,14 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 	x.sig, x.sigSet = sig, true
 }
 
+// AttachContainerRevision allows attaching a container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
+// returned. If extended headers are manually changed with the container
+// revision header, behavior is undefined.
+func (x *PrmContainerSetEACL) AttachContainerRevision(revision uint64) {
+	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+}
+
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
 //
 // Any errors (local or remote, including returned status codes) are returned as Go errors,
@@ -629,6 +638,8 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 // recommended to always use context with timeout. Note that the context
 // includes all processing stages incl. network delays.
 //
+// Call supports container revision state check, see [PrmContainerSetEACL.AttachContainerRevision].
+//
 // Success can be verified by reading by identifier (see EACL).
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
@@ -640,6 +651,7 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 //   - [ErrMissingEACLContainer]
 //   - [ErrMissingSigner]
 //   - [apistatus.ErrContainerAwaitTimeout]
+//   - [apistatus.ErrContainerRevisionMismatch]
 //
 // Context is required and must not be nil. It is used for network communication.
 func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer user.Signer, prm PrmContainerSetEACL) error {

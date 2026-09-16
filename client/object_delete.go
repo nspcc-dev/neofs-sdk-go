@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -38,6 +39,14 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 	x.bearerToken = &t
 }
 
+// AttachContainerRevision allows attaching a container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
+// returned. If extended headers are manually changed with the container
+// revision header, behavior is undefined.
+func (x *PrmObjectDelete) AttachContainerRevision(revision uint64) {
+	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+}
+
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
 // As a marker, a special unit called a tombstone is placed in the container.
 // It confirms the user's intent to delete the object, and is itself a container object.
@@ -51,6 +60,8 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 // Signer is required and must not be nil. The operation is executed on behalf of
 // the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
 //
+// Call supports container revision state check, see [PrmObjectPutInit.AttachContainerRevision].
+//
 // Return errors:
 //   - global (see Client docs)
 //   - [ErrMissingSigner]
@@ -59,6 +70,7 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 //   - [apistatus.ErrObjectAccessDenied]
 //   - [apistatus.ErrObjectLocked]
 //   - [apistatus.ErrSessionTokenExpired]
+//   - [apistatus.ErrContainerRevisionMismatch]
 func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oid.ID, signer user.Signer, prm PrmObjectDelete) (oid.ID, error) {
 	var err error
 
