@@ -399,6 +399,7 @@ type InitParameters struct {
 	errorThreshold             uint32
 	errorThresholdWindowSize   time.Duration
 	nodeParams                 []NodeParam
+	sessionCacheSize           int
 	nodeSessionCacheSize       int
 	useV2Sessions              bool
 	disableSessionV2Delegation bool
@@ -482,6 +483,11 @@ func (x *InitParameters) isMissingClientBuilder() bool {
 // SetStatisticCallback makes the Pool to pass [stat.OperationCallback] for external statistic.
 func (x *InitParameters) SetStatisticCallback(statisticCallback stat.OperationCallback) {
 	x.statisticCallback = statisticCallback
+}
+
+// SetSessionCacheSize sets cache size for the session tokens created by the pool.
+func (x *InitParameters) SetSessionCacheSize(cacheSize int) {
+	x.sessionCacheSize = cacheSize
 }
 
 // SetNodeSessionCacheSize sets cache size for the basic sessions for node.
@@ -664,6 +670,7 @@ func NewFlatNodeParams(endpoints []string) []NodeParam {
 //
 // Default InitParameters values, if not set:
 // - SessionExpirationDuration: 100, in blocks
+// - SessionCacheSize: 700
 // - ErrorThreshold: 100
 // - ErrorThresholdWindowSize: 15, in seconds
 // - ClientRebalanceInterval: 25, in seconds
@@ -694,8 +701,11 @@ func NewPool(options InitParameters) (*Pool, error) {
 	if err != nil {
 		return nil, err
 	}
+	if options.sessionCacheSize == 0 {
+		options.sessionCacheSize = defaultSessionCacheSize
+	}
 
-	cache, err := newCache(defaultSessionCacheSize)
+	cache, err := newCache(options.sessionCacheSize)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't create cache: %w", err)
 	}
@@ -797,6 +807,9 @@ func fillDefaultInitParams(params *InitParameters, cache *sessionCache, statisti
 	}
 	if params.errorThresholdWindowSize == 0 {
 		params.errorThresholdWindowSize = defaultErrorThresholdWindowSize
+	}
+	if params.sessionCacheSize == 0 {
+		params.sessionCacheSize = defaultSessionCacheSize
 	}
 
 	if params.clientRebalanceInterval <= 0 {
