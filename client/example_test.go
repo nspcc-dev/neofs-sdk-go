@@ -21,13 +21,15 @@ func ExampleClient_createInstance() {
 	c, err := client.New(prm)
 	_ = err
 
+	ctx, cancel := context.WithTimeout(context.TODO(), 15*time.Second)
+	defer cancel()
+
 	// Connect to the NeoFS server
 	var prmDial client.PrmDial
 	prmDial.SetServerURI("grpc://localhost:8080") // endpoint address
-	prmDial.SetTimeout(15 * time.Second)
 	prmDial.SetStreamTimeout(15 * time.Second)
 
-	_ = c.Dial(prmDial)
+	_ = c.Dial(ctx, prmDial)
 }
 
 // Session created for the one node, and it will work only for this node. Other nodes don't have info about this session.
