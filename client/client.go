@@ -143,10 +143,6 @@ func (c *Client) setConn(conn *grpc.ClientConn) {
 // Returns an error describing failure reason. If failed, the Client
 // SHOULD NOT be used.
 //
-// Uses the context specified by SetContext if it was called with non-nil
-// argument, otherwise context.Background() is used. Dial returns context
-// errors, see context package docs for details.
-//
 // Panics if required parameters are set incorrectly, look carefully
 // at the method documentation.
 //
@@ -158,20 +154,11 @@ func (c *Client) setConn(conn *grpc.ClientConn) {
 //   - [ErrNonPositiveTimeout]
 //
 // See also [Client.Close].
-// nolint:contextcheck
-func (c *Client) Dial(prm PrmDial) error {
+func (c *Client) Dial(ctx context.Context, prm PrmDial) error {
 	if prm.endpoint == "" {
 		return ErrMissingServer
 	}
 	c.endpoint = prm.endpoint
-
-	if prm.timeoutDialSet {
-		if prm.timeoutDial <= 0 {
-			return ErrNonPositiveTimeout
-		}
-	} else {
-		prm.timeoutDial = 5 * time.Second
-	}
 
 	if prm.streamTimeoutSet {
 		if prm.streamTimeout <= 0 {
@@ -186,13 +173,6 @@ func (c *Client) Dial(prm PrmDial) error {
 	if err != nil {
 		return fmt.Errorf("invalid server URI: %w", err)
 	}
-
-	if prm.parentCtx == nil {
-		prm.parentCtx = context.Background()
-	}
-
-	ctx, cancel := context.WithTimeout(prm.parentCtx, prm.timeoutDial)
-	defer cancel()
 
 	var creds credentials.TransportCredentials
 	if withTLS {
@@ -309,13 +289,8 @@ type PrmDial struct {
 
 	tlsConfig *tls.Config
 
-	timeoutDialSet bool
-	timeoutDial    time.Duration
-
 	streamTimeoutSet bool
 	streamTimeout    time.Duration
-
-	parentCtx context.Context
 
 	customConnFunc connFunc
 }
@@ -348,26 +323,11 @@ func (x *PrmDial) SetTLSConfig(tlsConfig *tls.Config) {
 	x.tlsConfig = tlsConfig
 }
 
-// SetTimeout sets the timeout for connection to be established.
-// MUST BE positive. If not called, 5s timeout will be used by default.
-func (x *PrmDial) SetTimeout(timeout time.Duration) {
-	x.timeoutDialSet = true
-	x.timeoutDial = timeout
-}
-
 // SetStreamTimeout sets the timeout for individual operations in streaming RPC.
 // MUST BE positive. If not called, 10s timeout will be used by default.
 func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
 	x.streamTimeoutSet = true
 	x.streamTimeout = timeout
-}
-
-// SetContext allows to specify optional base context within which connection
-// should be established.
-//
-// Context SHOULD NOT be nil.
-func (x *PrmDial) SetContext(ctx context.Context) {
-	x.parentCtx = ctx
 }
 
 // allows to override default gRPC dialer for testing. The func must not be nil.

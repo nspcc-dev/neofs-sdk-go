@@ -37,13 +37,15 @@ func ExampleClient_ContainerPut() {
 		panic(fmt.Errorf("New: %w", err))
 	}
 
+	dialctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
 	// connect to NeoFS gateway
 	var prmDial client.PrmDial
 	prmDial.SetServerURI("grpc://localhost:8080") // endpoint address
-	prmDial.SetTimeout(15 * time.Second)
 	prmDial.SetStreamTimeout(15 * time.Second)
 
-	if err = c.Dial(prmDial); err != nil {
+	if err = c.Dial(dialctx, prmDial); err != nil {
 		panic(fmt.Errorf("dial %w", err))
 	}
 
