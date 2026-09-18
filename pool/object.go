@@ -132,6 +132,8 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
 //
+// Deprecated: use [Pool.SearchObjects] instead.
+//
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
 //
 // See details in [client.Client.ObjectSearchInit].

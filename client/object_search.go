@@ -494,6 +494,8 @@ func (x *ObjectListReader) Close() error {
 
 // ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
 //
+// Deprecated: use [Client.SearchObjects] instead.
+//
 // The call only opens the transmission channel, explicit fetching of matched objects
 // is done using the ObjectListReader. Exactly one return value is non-nil.
 // Resulting reader must be finally closed.
