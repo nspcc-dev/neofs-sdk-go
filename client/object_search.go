@@ -79,6 +79,14 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // Count returns limit for the search result.
 func (x SearchObjectsOptions) Count() uint32 { return x.count }
 
+// AttachContainerRevision allows attaching a container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
+// returned. If extended headers are manually changed with the container
+// revision header, behavior is undefined.
+func (x *SearchObjectsOptions) AttachContainerRevision(revision uint64) {
+	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+}
+
 // SearchObjects selects objects from a given container by applying specified
 // filters, collects values of requested attributes, and returns the sorted
 // result.
@@ -349,14 +357,6 @@ func (x *PrmObjectSearch) WithBearerToken(t bearer.Token) {
 // match unset/empty filters.
 func (x *PrmObjectSearch) SetFilters(filters object.SearchFilters) {
 	x.filters = filters
-}
-
-// AttachContainerRevision allows attaching a container revision to the request.
-// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
-// returned. If extended headers are manually changed with the container
-// revision header, behavior is undefined.
-func (x *PrmObjectSearch) AttachContainerRevision(revision uint64) {
-	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
 }
 
 // used part of [protoobject.ObjectService_SearchClient] simplifying test
