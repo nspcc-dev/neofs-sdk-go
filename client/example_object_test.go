@@ -62,14 +62,16 @@ func ExampleClient_ObjectGetInit() {
 		log.Fatal(fmt.Errorf("client init: %w", err))
 	}
 
+	dialctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
 	// Connect to NeoFS node
 	var prmDial client.PrmDial
 	prmDial.SetServerURI(testnetStorageNode)
 	// Optional settings
-	prmDial.SetTimeout(15 * time.Second)
 	prmDial.SetStreamTimeout(15 * time.Second)
 
-	if err = c.Dial(prmDial); err != nil {
+	if err = c.Dial(dialctx, prmDial); err != nil {
 		log.Fatal(fmt.Errorf("dial: %w", err))
 	}
 
@@ -173,14 +175,16 @@ func ExampleClient_ObjectPutInit() {
 		log.Fatal(fmt.Errorf("client init: %w", err))
 	}
 
+	dialctx, cancel := context.WithTimeout(ctx, 15*time.Second)
+	defer cancel()
+
 	// Connect to NeoFS node
 	var prmDial client.PrmDial
 	prmDial.SetServerURI(testnetStorageNode)
 	// Optional settings
-	prmDial.SetTimeout(15 * time.Second)
 	prmDial.SetStreamTimeout(15 * time.Second)
 
-	if err = c.Dial(prmDial); err != nil {
+	if err = c.Dial(dialctx, prmDial); err != nil {
 		log.Fatal(fmt.Errorf("dial: %w", err))
 	}
 

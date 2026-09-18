@@ -30,7 +30,7 @@ import (
 
 type noOtherClientCalls struct{}
 
-func (noOtherClientCalls) Dial(client.PrmDial) error { panic("must not be called") }
+func (noOtherClientCalls) Dial(context.Context, client.PrmDial) error { panic("must not be called") }
 
 func (noOtherClientCalls) BalanceGet(context.Context, client.PrmBalanceGet) (accounting.Decimal, error) {
 	panic("must not be called")
