@@ -43,6 +43,10 @@ const (
 	// AttributeECPartHashes is an attribute of EC parent objects which contains
 	// comma-separated hex-encoded EC parts' SHA-256 hashes.
 	AttributeECPartHashes = AttributeECPrefix + "PART_HASHES"
+	// AttributeNonce is an opaque data used to differentiate objects with
+	// otherwise the same payload/metadata, usually it's 8 base64-encoded
+	// bytes.
+	AttributeNonce = sysAttrPrefix + "NONCE"
 )
 
 // Attribute represents an object attribute.
