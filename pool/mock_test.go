@@ -35,7 +35,7 @@ type mockClient struct {
 	errOnPutObject       error
 }
 
-func (m *mockClient) Dial(_ context.Context, _ client.PrmDial) error {
+func (m *mockClient) DialEndpoint(_ context.Context, _ string) error {
 	if m.errorOnDial {
 		return errors.New("dial error")
 	}

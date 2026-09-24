@@ -36,7 +36,7 @@ const (
 )
 
 type sdkClientInterface interface {
-	Dial(ctx context.Context, prm sdkClient.PrmDial) error
+	DialEndpoint(ctx context.Context, endpoint string) error
 
 	BalanceGet(ctx context.Context, prm sdkClient.PrmBalanceGet) (accounting.Decimal, error)
 
@@ -185,6 +185,7 @@ func (x *wrapperPrm) getNewClient(statisticCallback stat.OperationCallback) (*sd
 	var prmInit sdkClient.PrmInit
 	prmInit.SetStatisticCallback(statisticCallback)
 	prmInit.SetSignMessageBuffers(x.buffers)
+	prmInit.SetStreamTimeout(x.streamTimeout)
 
 	return sdkClient.New(prmInit)
 }
@@ -245,11 +246,7 @@ func (c *clientWrapper) dial(ctx context.Context) error {
 	ctx, cancel := context.WithTimeout(ctx, c.prm.dialTimeout)
 	defer cancel()
 
-	var prmDial sdkClient.PrmDial
-	prmDial.SetServerURI(c.prm.address)
-	prmDial.SetStreamTimeout(c.prm.streamTimeout)
-
-	if err = cl.Dial(ctx, prmDial); err != nil {
+	if err = cl.DialEndpoint(ctx, c.prm.address); err != nil {
 		c.setUnhealthy()
 		return err
 	}
@@ -273,11 +270,7 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 		ctx, cancel := context.WithTimeout(ctx, c.prm.dialTimeout)
 		defer cancel()
 
-		var prmDial sdkClient.PrmDial
-		prmDial.SetServerURI(c.prm.address)
-		prmDial.SetStreamTimeout(c.prm.streamTimeout)
-
-		if err := cl.Dial(ctx, prmDial); err != nil {
+		if err := cl.DialEndpoint(ctx, c.prm.address); err != nil {
 			c.setUnhealthy()
 			return false, wasHealthy
 		}

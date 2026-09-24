@@ -109,9 +109,6 @@ func newCustomClient(t testing.TB, setPrm func(*PrmInit), svcs ...testService) *
 		setPrm(&prm)
 	}
 
-	c, err := New(prm)
-	require.NoError(t, err)
-
 	// serve dial RPC
 	const netmapSvcName = "neo.fs.v2.netmap.NetmapService"
 	const nodeInfoMtdName = "LocalNodeInfo"
@@ -179,10 +176,12 @@ loop:
 	lis := bufconn.Listen(10 << 10)
 	go func() { _ = srv.Serve(lis) }()
 
-	var dialPrm PrmDial
-	dialPrm.SetServerURI(testServerEndpoint)
-	dialPrm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
-	err = c.Dial(t.Context(), dialPrm)
+	prm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
+
+	c, err := New(prm)
+	require.NoError(t, err)
+
+	err = c.DialEndpoint(t.Context(), testServerEndpoint)
 	require.NoError(t, err)
 
 	return c
@@ -214,7 +213,7 @@ func TestClient_Dial(t *testing.T) {
 				assert func(t testing.TB, err error)
 			}{
 				{name: "missing", s: "", assert: func(t testing.TB, err error) {
-					require.ErrorIs(t, c.Dial(t.Context(), PrmDial{}), ErrMissingServer)
+					require.ErrorIs(t, c.Dial(PrmDial{}), ErrMissingServer)
 				}},
 				{name: "contains control char", s: "grpc://st1.storage.fs.neo.org:8080" + string(rune(0x7f)), assert: func(t testing.TB, err error) {
 					require.ErrorContains(t, err, "net/url: invalid control character in URL")
@@ -244,7 +243,7 @@ func TestClient_Dial(t *testing.T) {
 				t.Run(tc.name, func(t *testing.T) {
 					var p PrmDial
 					p.SetServerURI(tc.s)
-					tc.assert(t, c.Dial(t.Context(), p))
+					tc.assert(t, c.Dial(p))
 				})
 			}
 		})
@@ -252,9 +251,9 @@ func TestClient_Dial(t *testing.T) {
 			var p PrmDial
 			p.SetServerURI("grpc://localhost:8080")
 			p.SetStreamTimeout(0)
-			require.ErrorIs(t, c.Dial(t.Context(), p), ErrNonPositiveTimeout)
+			require.ErrorIs(t, c.Dial(p), ErrNonPositiveTimeout)
 			p.SetStreamTimeout(-1)
-			require.ErrorIs(t, c.Dial(t.Context(), p), ErrNonPositiveTimeout)
+			require.ErrorIs(t, c.Dial(p), ErrNonPositiveTimeout)
 		})
 		t.Run("context", func(t *testing.T) {
 			var anyValidPrm PrmDial
@@ -264,7 +263,8 @@ func TestClient_Dial(t *testing.T) {
 				cancel()
 
 				p := anyValidPrm
-				err := c.Dial(ctx, p)
+				p.SetContext(ctx)
+				err := c.Dial(p)
 				require.ErrorIs(t, err, context.Canceled)
 			})
 			t.Run("deadline", func(t *testing.T) {
@@ -272,7 +272,8 @@ func TestClient_Dial(t *testing.T) {
 				cancel()
 
 				p := anyValidPrm
-				err := c.Dial(ctx, p)
+				p.SetContext(ctx)
+				err := c.Dial(p)
 				require.ErrorIs(t, err, context.DeadlineExceeded)
 			})
 		})

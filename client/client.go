@@ -87,7 +87,7 @@ type Client struct {
 
 // New creates an instance of Client initialized with the given parameters.
 //
-// See docs of [PrmInit] methods for details. See also [Client.Dial]/[Client.Close].
+// See docs of [PrmInit] methods for details. See also [Client.DialEndpoint]/[Client.Close].
 func New(prm PrmInit) (*Client, error) {
 	var c = new(Client)
 	signer, err := randSigner()
@@ -106,6 +106,15 @@ func New(prm PrmInit) (*Client, error) {
 		}
 
 		c.buffers = newByteBufferPool(size)
+	}
+
+	if prm.streamTimeoutSet {
+		if prm.streamTimeout <= 0 {
+			return nil, ErrNonPositiveTimeout
+		}
+		c.streamTimeout = prm.streamTimeout
+	} else {
+		c.streamTimeout = defaultStreamMsgTimeout
 	}
 
 	c.prm = prm
@@ -139,44 +148,25 @@ func (c *Client) setConn(conn *grpc.ClientConn) {
 	c.session = protosession.NewSessionServiceClient(conn)
 }
 
-// Dial establishes a connection to the server from the NeoFS network.
+// DialEndpoint establishes a connection to the server from the NeoFS network.
 // Returns an error describing failure reason. If failed, the Client
 // SHOULD NOT be used.
-//
-// Panics if required parameters are set incorrectly, look carefully
-// at the method documentation.
 //
 // One-time method call during application start-up stage is expected.
 // Calling multiple times leads to undefined behavior.
 //
-// Return client errors:
-//   - [ErrMissingServer]
-//   - [ErrNonPositiveTimeout]
-//
 // See also [Client.Close].
-func (c *Client) Dial(ctx context.Context, prm PrmDial) error {
-	if prm.endpoint == "" {
-		return ErrMissingServer
-	}
-	c.endpoint = prm.endpoint
-
-	if prm.streamTimeoutSet {
-		if prm.streamTimeout <= 0 {
-			return ErrNonPositiveTimeout
-		}
-		c.streamTimeout = prm.streamTimeout
-	} else {
-		c.streamTimeout = defaultStreamMsgTimeout
-	}
-
-	addr, withTLS, err := uriutil.Parse(prm.endpoint)
+func (c *Client) DialEndpoint(ctx context.Context, endpoint string) error {
+	addr, withTLS, err := uriutil.Parse(endpoint)
 	if err != nil {
 		return fmt.Errorf("invalid server URI: %w", err)
 	}
 
+	c.endpoint = endpoint
+
 	var creds credentials.TransportCredentials
 	if withTLS {
-		creds = credentials.NewTLS(prm.tlsConfig)
+		creds = credentials.NewTLS(c.prm.tlsConfig)
 	} else {
 		creds = insecure.NewCredentials()
 	}
@@ -189,7 +179,7 @@ func (c *Client) Dial(ctx context.Context, prm PrmDial) error {
 		grpc.WithTransportCredentials(creds),
 		grpc.WithReturnConnectionError(),
 		grpc.FailOnNonTempDialError(true),
-		grpc.WithContextDialer(prm.customConnFunc),
+		grpc.WithContextDialer(c.prm.customConnFunc),
 		grpc.WithReadBufferSize(256*1024),
 		grpc.WithWriteBufferSize(256*1024),
 	)
@@ -200,6 +190,63 @@ func (c *Client) Dial(ctx context.Context, prm PrmDial) error {
 	c.setConn(conn)
 
 	return c.fetchNodeKeyAndAPI(ctx)
+}
+
+// Dial establishes a connection to the server from the NeoFS network.
+// Returns an error describing failure reason. If failed, the Client
+// SHOULD NOT be used.
+//
+// Uses the context specified by SetContext if it was called with non-nil
+// argument, otherwise context.Background() is used. Dial returns context
+// errors, see context package docs for details.
+//
+// Panics if required parameters are set incorrectly, look carefully
+// at the method documentation.
+//
+// One-time method call during application start-up stage is expected.
+// Calling multiple times leads to undefined behavior.
+//
+// Return client errors:
+//   - [ErrMissingServer]
+//   - [ErrNonPositiveTimeout]
+//
+// See also [Client.Close].
+//
+// Deprecated: use [Client.DialEndpoint] instead.
+//
+// nolint:contextcheck
+func (c *Client) Dial(prm PrmDial) error {
+	if prm.endpoint == "" {
+		return ErrMissingServer
+	}
+
+	if prm.timeoutDialSet {
+		if prm.timeoutDial <= 0 {
+			return ErrNonPositiveTimeout
+		}
+	} else {
+		prm.timeoutDial = 5 * time.Second
+	}
+
+	if prm.streamTimeoutSet {
+		if prm.streamTimeout <= 0 {
+			return ErrNonPositiveTimeout
+		}
+		c.streamTimeout = prm.streamTimeout
+	} else {
+		c.streamTimeout = defaultStreamMsgTimeout
+	}
+
+	if prm.parentCtx == nil {
+		prm.parentCtx = context.Background()
+	}
+
+	ctx, cancel := context.WithTimeout(prm.parentCtx, prm.timeoutDial)
+	defer cancel()
+
+	c.prm.tlsConfig = prm.tlsConfig
+
+	return c.DialEndpoint(ctx, prm.endpoint)
 }
 
 func (c *Client) fetchNodeKeyAndAPI(ctx context.Context) error {
@@ -261,6 +308,13 @@ type PrmInit struct {
 
 	signMessageBufferSizes uint64
 	buffers                *sync.Pool
+
+	tlsConfig *tls.Config
+
+	streamTimeoutSet bool
+	streamTimeout    time.Duration
+
+	customConnFunc connFunc
 }
 
 // SetSignMessageBufferSizes sets single buffer size to the buffers pool inside client.
@@ -279,20 +333,47 @@ func (x *PrmInit) SetStatisticCallback(statisticCallback stat.OperationCallback)
 	x.statisticCallback = statisticCallback
 }
 
+// SetTLSConfig sets tls.Config to open TLS client connection
+// to the NeoFS server. Nil (default) means insecure connection.
+func (x *PrmInit) SetTLSConfig(tlsConfig *tls.Config) {
+	x.tlsConfig = tlsConfig
+}
+
+// SetStreamTimeout sets the timeout for individual operations in streaming RPC.
+// MUST BE positive. If not called, 10s timeout will be used by default.
+func (x *PrmInit) SetStreamTimeout(timeout time.Duration) {
+	x.streamTimeoutSet = true
+	x.streamTimeout = timeout
+}
+
+// allows to override default gRPC dialer for testing. The func must not be nil.
+func (x *PrmInit) setDialFunc(connFunc connFunc) {
+	if connFunc == nil {
+		panic("nil func does not override the default")
+	}
+	x.customConnFunc = connFunc
+}
+
 type connFunc = func(ctx context.Context, addr string) (net.Conn, error)
 
 // PrmDial groups connection parameters for the Client.
 //
 // See also Dial.
+//
+// Deprecated: use [PrmInit] with [Client.DialEndpoint], any settings here
+// currently override [PrmInit].
 type PrmDial struct {
 	endpoint string
 
 	tlsConfig *tls.Config
 
+	timeoutDialSet bool
+	timeoutDial    time.Duration
+
 	streamTimeoutSet bool
 	streamTimeout    time.Duration
 
-	customConnFunc connFunc
+	parentCtx context.Context
 }
 
 // SetServerURI sets server URI in the NeoFS network.
@@ -323,6 +404,13 @@ func (x *PrmDial) SetTLSConfig(tlsConfig *tls.Config) {
 	x.tlsConfig = tlsConfig
 }
 
+// SetTimeout sets the timeout for connection to be established.
+// MUST BE positive. If not called, 5s timeout will be used by default.
+func (x *PrmDial) SetTimeout(timeout time.Duration) {
+	x.timeoutDialSet = true
+	x.timeoutDial = timeout
+}
+
 // SetStreamTimeout sets the timeout for individual operations in streaming RPC.
 // MUST BE positive. If not called, 10s timeout will be used by default.
 func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
@@ -330,12 +418,12 @@ func (x *PrmDial) SetStreamTimeout(timeout time.Duration) {
 	x.streamTimeout = timeout
 }
 
-// allows to override default gRPC dialer for testing. The func must not be nil.
-func (x *PrmDial) setDialFunc(connFunc connFunc) {
-	if connFunc == nil {
-		panic("nil func does not override the default")
-	}
-	x.customConnFunc = connFunc
+// SetContext allows to specify optional base context within which connection
+// should be established.
+//
+// Context SHOULD NOT be nil.
+func (x *PrmDial) SetContext(ctx context.Context) {
+	x.parentCtx = ctx
 }
 
 // NewGRPC constructs Client from the provided gRPC connection with options.
