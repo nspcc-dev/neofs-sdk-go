@@ -52,8 +52,7 @@ type GetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of get object request message.
 	Body *GetRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -187,13 +186,11 @@ func (x *GetResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 }
 
 // PUT object request.
-// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type PutRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of put object request message.
 	Body *PutRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -324,13 +321,11 @@ func (x *PutResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 }
 
 // Object DELETE request.
-// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type DeleteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of delete object request message.
 	Body *DeleteRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -466,8 +461,7 @@ type HeadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of head object request message.
 	Body *HeadRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -674,8 +668,7 @@ type SearchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of search object request message.
 	Body *SearchRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -806,13 +799,11 @@ func (x *SearchResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 }
 
 // Object SearchV2 request.
-// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type SearchV2Request struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of search object request message.
 	Body *SearchV2Request_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -1072,8 +1063,7 @@ type GetRangeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of get range object request message.
 	Body *GetRangeRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -1208,8 +1198,7 @@ type GetRangeHashRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of get range hash object request message.
 	Body *GetRangeHashRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -1961,9 +1950,14 @@ type PutRequest_Body_Init struct {
 	// object is processed according to the container's placement policy.
 	// DEPRECATED: use `PlacementPolicy.Initial.max_replicas` instead.
 	// Servers ignore this field.
-	CopiesNumber  uint32 `protobuf:"varint,4,opt,name=copies_number,json=copiesNumber,proto3" json:"copies_number,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	CopiesNumber uint32 `protobuf:"varint,4,opt,name=copies_number,json=copiesNumber,proto3" json:"copies_number,omitempty"`
+	// Starting from API v2.27.0, requester may attach container revision to
+	// ensure container state is up to date. If server's known revision does
+	// not match the requested one, it must return
+	// **CONTAINER_REVISION_MISMATCH** (3076) response status with no payload.
+	ContainerRevision uint64 `protobuf:"varint,5,opt,name=container_revision,json=containerRevision,proto3" json:"container_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PutRequest_Body_Init) Reset() {
@@ -2024,6 +2018,13 @@ func (x *PutRequest_Body_Init) GetCopiesNumber() uint32 {
 	return 0
 }
 
+func (x *PutRequest_Body_Init) GetContainerRevision() uint64 {
+	if x != nil {
+		return x.ContainerRevision
+	}
+	return 0
+}
+
 // PUT Object response body
 type PutResponse_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2074,9 +2075,14 @@ func (x *PutResponse_Body) GetObjectId() *refs.ObjectID {
 type DeleteRequest_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Address of the object to be deleted
-	Address       *refs.Address `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Address *refs.Address `protobuf:"bytes,1,opt,name=address,proto3" json:"address,omitempty"`
+	// Starting from API v2.27.0, requester may attach container revision to
+	// ensure container state is up to date. If server's known revision does
+	// not match the requested one, it must return
+	// **CONTAINER_REVISION_MISMATCH** (3076) response status with no payload.
+	ContainerRevision uint64 `protobuf:"varint,2,opt,name=container_revision,json=containerRevision,proto3" json:"container_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *DeleteRequest_Body) Reset() {
@@ -2114,6 +2120,13 @@ func (x *DeleteRequest_Body) GetAddress() *refs.Address {
 		return x.Address
 	}
 	return nil
+}
+
+func (x *DeleteRequest_Body) GetContainerRevision() uint64 {
+	if x != nil {
+		return x.ContainerRevision
+	}
+	return 0
 }
 
 // Object DELETE Response has an empty body.
@@ -2455,8 +2468,8 @@ type SearchV2Request_Body struct {
 	Version uint32 `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
 	// List of search expressions. Limited to 8. If additional attributes are
 	// requested (see attributes below) then the first filter's key MUST be
-	// the first requested attribute. '$Object:containerID' and
-	// '$Object:objectID' filters are prohibited. Numeric filters' values MUST
+	// the first requested attribute. '$Object:containerID', '$Object:objectID'
+	// and '__NEOFS__NONCE' filters are prohibited. Numeric filters' values MUST
 	// be in range [-MaxUint256, MaxUint256].
 	Filters []*SearchFilter `protobuf:"bytes,3,rep,name=filters,proto3" json:"filters,omitempty"`
 	// Cursor to continue search. Can be omitted or empty for the new search.
@@ -2469,12 +2482,18 @@ type SearchV2Request_Body struct {
 	// attributes also affect result ordering (result is ordered by the 1st one
 	// and then by OID). If additional attributes are requested, then the first
 	// filter's key (see filters above) MUST be the first requested attribute.
-	// '$Object:containerID' and '$Object:objectID' attributes are prohibited.
+	// '$Object:containerID', '$Object:objectID' and '__NEOFS__NONCE' attributes
+	// are prohibited.
 	// If meta_header.ttl = 1 and the first filter is not STRING_EQUAL,
 	// values of the first filtered attribute are requested  automatically.
-	Attributes    []string `protobuf:"bytes,6,rep,name=attributes,proto3" json:"attributes,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Attributes []string `protobuf:"bytes,6,rep,name=attributes,proto3" json:"attributes,omitempty"`
+	// Starting from API v2.27.0, requester may attach container revision to
+	// ensure container state is up to date. If server's known revision does
+	// not match the requested one, it must return
+	// **CONTAINER_REVISION_MISMATCH** (3076) response status with no payload.
+	ContainerRevision uint64 `protobuf:"varint,7,opt,name=container_revision,json=containerRevision,proto3" json:"container_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SearchV2Request_Body) Reset() {
@@ -2547,6 +2566,13 @@ func (x *SearchV2Request_Body) GetAttributes() []string {
 		return x.Attributes
 	}
 	return nil
+}
+
+func (x *SearchV2Request_Body) GetContainerRevision() uint64 {
+	if x != nil {
+		return x.ContainerRevision
+	}
+	return 0
 }
 
 // OID with additional requested metadata.
@@ -3047,21 +3073,22 @@ const file_proto_object_service_proto_rawDesc = "" +
 	"\tobject_id\x18\x01 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\bobjectId\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x120\n" +
 	"\x06header\x18\x03 \x01(\v2\x18.neo.fs.v2.object.HeaderR\x06headerB\r\n" +
-	"\vobject_part\"\x9b\x04\n" +
+	"\vobject_part\"\xca\x04\n" +
 	"\n" +
 	"PutRequest\x125\n" +
 	"\x04body\x18\x01 \x01(\v2!.neo.fs.v2.object.PutRequest.BodyR\x04body\x12E\n" +
 	"\vmeta_header\x18\x02 \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\n" +
 	"metaHeader\x12Q\n" +
-	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\xbb\x02\n" +
+	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\xea\x02\n" +
 	"\x04Body\x12<\n" +
 	"\x04init\x18\x01 \x01(\v2&.neo.fs.v2.object.PutRequest.Body.InitH\x00R\x04init\x12\x16\n" +
-	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunk\x1a\xcd\x01\n" +
+	"\x05chunk\x18\x02 \x01(\fH\x00R\x05chunk\x1a\xfc\x01\n" +
 	"\x04Init\x125\n" +
 	"\tobject_id\x18\x01 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\bobjectId\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x120\n" +
 	"\x06header\x18\x03 \x01(\v2\x18.neo.fs.v2.object.HeaderR\x06header\x12#\n" +
-	"\rcopies_number\x18\x04 \x01(\rR\fcopiesNumberB\r\n" +
+	"\rcopies_number\x18\x04 \x01(\rR\fcopiesNumber\x12-\n" +
+	"\x12container_revision\x18\x05 \x01(\x04R\x11containerRevisionB\r\n" +
 	"\vobject_part\"\xa0\x02\n" +
 	"\vPutResponse\x126\n" +
 	"\x04body\x18\x01 \x01(\v2\".neo.fs.v2.object.PutResponse.BodyR\x04body\x12F\n" +
@@ -3069,14 +3096,15 @@ const file_proto_object_service_proto_rawDesc = "" +
 	"metaHeader\x12R\n" +
 	"\rverify_header\x18\x03 \x01(\v2-.neo.fs.v2.session.ResponseVerificationHeaderR\fverifyHeader\x1a=\n" +
 	"\x04Body\x125\n" +
-	"\tobject_id\x18\x01 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\bobjectId\"\x9e\x02\n" +
+	"\tobject_id\x18\x01 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\bobjectId\"\xcd\x02\n" +
 	"\rDeleteRequest\x128\n" +
 	"\x04body\x18\x01 \x01(\v2$.neo.fs.v2.object.DeleteRequest.BodyR\x04body\x12E\n" +
 	"\vmeta_header\x18\x02 \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\n" +
 	"metaHeader\x12Q\n" +
-	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a9\n" +
+	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1ah\n" +
 	"\x04Body\x121\n" +
-	"\aaddress\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.AddressR\aaddress\"\xa6\x02\n" +
+	"\aaddress\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.AddressR\aaddress\x12-\n" +
+	"\x12container_revision\x18\x02 \x01(\x04R\x11containerRevision\"\xa6\x02\n" +
 	"\x0eDeleteResponse\x129\n" +
 	"\x04body\x18\x01 \x01(\v2%.neo.fs.v2.object.DeleteResponse.BodyR\x04body\x12F\n" +
 	"\vmeta_header\x18\x02 \x01(\v2%.neo.fs.v2.session.ResponseMetaHeaderR\n" +
@@ -3122,12 +3150,12 @@ const file_proto_object_service_proto_rawDesc = "" +
 	"metaHeader\x12R\n" +
 	"\rverify_header\x18\x03 \x01(\v2-.neo.fs.v2.session.ResponseVerificationHeaderR\fverifyHeader\x1a9\n" +
 	"\x04Body\x121\n" +
-	"\aid_list\x18\x01 \x03(\v2\x18.neo.fs.v2.refs.ObjectIDR\x06idList\"\xd2\x03\n" +
+	"\aid_list\x18\x01 \x03(\v2\x18.neo.fs.v2.refs.ObjectIDR\x06idList\"\x81\x04\n" +
 	"\x0fSearchV2Request\x12:\n" +
 	"\x04body\x18\x01 \x01(\v2&.neo.fs.v2.object.SearchV2Request.BodyR\x04body\x12E\n" +
 	"\vmeta_header\x18\x02 \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\n" +
 	"metaHeader\x12Q\n" +
-	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\xe8\x01\n" +
+	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\x97\x02\n" +
 	"\x04Body\x12>\n" +
 	"\fcontainer_id\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\rR\aversion\x128\n" +
@@ -3136,7 +3164,8 @@ const file_proto_object_service_proto_rawDesc = "" +
 	"\x05count\x18\x05 \x01(\rR\x05count\x12\x1e\n" +
 	"\n" +
 	"attributes\x18\x06 \x03(\tR\n" +
-	"attributes\"\xac\x03\n" +
+	"attributes\x12-\n" +
+	"\x12container_revision\x18\a \x01(\x04R\x11containerRevision\"\xac\x03\n" +
 	"\x10SearchV2Response\x12;\n" +
 	"\x04body\x18\x01 \x01(\v2'.neo.fs.v2.object.SearchV2Response.BodyR\x04body\x12F\n" +
 	"\vmeta_header\x18\x02 \x01(\v2%.neo.fs.v2.session.ResponseMetaHeaderR\n" +

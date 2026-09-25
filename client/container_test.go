@@ -51,6 +51,15 @@ func newTestContainerClient(t testing.TB, srv any) *Client {
 	return newClient(t, newDefaultContainerService(t, srv))
 }
 
+// returns Client of Container service provided by given server. Provided server
+// must implement [protocontainer.ContainerServiceServer]: the parameter is
+// not of this type to support generics.
+func newTestContainerClientWithVersion(t testing.TB, v *protorefs.Version, srv any) *Client {
+	return newCustomClient(t, nil, func(dial *testGetNodeInfoServer) {
+		dial.respondWithNodeVersion(v)
+	}, newDefaultContainerService(t, srv))
+}
+
 // for sharing between servers of requests with RFC 6979 signature of particular
 // data.
 type testRFC6979DataSignatureServerSettings[
@@ -1710,7 +1719,7 @@ func TestClient_ContainerEACL(t *testing.T) {
 
 func TestClient_ContainerSetEACL(t *testing.T) {
 	ctx := context.Background()
-	var anyValidOpts PrmContainerSetEACL
+	var anyValidOpts = PrmContainerSetEACL{containerRevisionSet: true, containerRevision: 1}
 	anyValidSigner := usertest.User().RFC6979
 
 	t.Run("messages", func(t *testing.T) {
@@ -1727,10 +1736,29 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 				srv.checkRequestEACL(anyValidEACL)
 				srv.authenticateRequestPayload(anyValidSigner)
 				srv.authenticateRequest(c.prm.signer)
-				err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, PrmContainerSetEACL{})
+				err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
 				require.NoError(t, err)
 			})
 			t.Run("options", func(t *testing.T) {
+				t.Run("container revision", func(t *testing.T) {
+					srv := newTestSetEACLServer()
+					c := newTestContainerClient(t, srv)
+
+					t.Run("missing revision for new server", func(t *testing.T) {
+						err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, PrmContainerSetEACL{})
+						require.ErrorContains(t, err, "attaching container revision is required after v2.27.0 API version")
+					})
+					t.Run("attached version for old server", func(t *testing.T) {
+						cnrV := &protorefs.Version{
+							Major: 2,
+							Minor: 26,
+						}
+
+						c := newTestContainerClientWithVersion(t, cnrV, srv)
+						err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
+						require.ErrorContains(t, err, unsupportedCnrRevErr(cnrV).Error())
+					})
+				})
 				t.Run("X-headers", func(t *testing.T) {
 					testRequestXHeaders(t, newTestSetEACLServer, newTestContainerClient, func(c *Client, xhs []string) error {
 						opts := anyValidOpts

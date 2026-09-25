@@ -559,7 +559,7 @@ func TestClient_ObjectSearch(t *testing.T) {
 			handler := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
 				collected = append(collected, collectedItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
 			}
-			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, svc)
+			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
 			// [Client.EndpointInfo] is always called to dial the server: this is also submitted
 			require.Len(t, collected, 1)
 			require.Nil(t, collected[0].pub) // server key is not yet received
@@ -651,6 +651,7 @@ type testSearchObjectsV2Server struct {
 		*protoobject.SearchV2Response_Body,
 		*protoobject.SearchV2Response,
 	]
+	testContainerRevisionServerSettings
 	count     *uint32
 	reqCursor *string // response also has cursor
 	attrs     []string
@@ -721,6 +722,11 @@ func (x *testSearchObjectsV2Server) verifyRequest(req *protoobject.SearchV2Reque
 		if !slices.ContainsFunc(body.Filters, func(f *protoobject.SearchFilter) bool { return f.GetKey() == body.Attributes[0] }) {
 			return newErrInvalidRequestField("attributes", fmt.Errorf("attribute %q is requested but not filtered", body.Attributes[0]))
 		}
+	}
+	// 7. container revision
+	err := x.verifyContainerRevision(req.Body.ContainerRevision)
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -838,6 +844,35 @@ func TestClient_SearchObjects(t *testing.T) {
 				assertSearchV2ResponseTransport(t, respBody, items, cursor)
 			})
 			t.Run("options", func(t *testing.T) {
+				t.Run("container revision", func(t *testing.T) {
+					t.Run("attached container revision", func(t *testing.T) {
+						srv := newTestSearchObjectsV2Server()
+						c := newTestObjectClient(t, srv)
+						const rev = 5
+						srv.checkContainerRevision(rev)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, SearchObjectsOptions{containerRevision: new(uint64(rev))})
+						require.NoError(t, err)
+					})
+
+					t.Run("missing container revision", func(t *testing.T) {
+						srv := newTestSearchObjectsV2Server()
+						c := newTestObjectClient(t, srv)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, SearchObjectsOptions{})
+						require.NoError(t, err)
+					})
+
+					t.Run("attached version for old server", func(t *testing.T) {
+						srv := newTestSearchObjectsV2Server()
+						cnrV := &protorefs.Version{
+							Major: 2,
+							Minor: 26,
+						}
+
+						c := newTestObjectClientWithVersion(t, srv, cnrV)
+						_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, SearchObjectsOptions{containerRevision: new(uint64(1))})
+						require.ErrorContains(t, err, unsupportedCnrRevErr(cnrV).Error())
+					})
+				})
 				t.Run("X-headers", func(t *testing.T) {
 					testRequestXHeaders(t, newTestSearchObjectsV2Server, newTestObjectClient, func(c *Client, xhs []string) error {
 						opts := anyValidOpts

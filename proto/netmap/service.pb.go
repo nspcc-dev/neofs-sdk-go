@@ -28,8 +28,7 @@ type LocalNodeInfoRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of the LocalNodeInfo request message
 	Body *LocalNodeInfoRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -164,8 +163,7 @@ type NetworkInfoRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of the NetworkInfo request message
 	Body *NetworkInfoRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -301,8 +299,7 @@ type NetmapSnapshotRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of get netmap snapshot request message.
 	Body *NetmapSnapshotRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of

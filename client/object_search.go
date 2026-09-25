@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -46,10 +45,11 @@ type SearchResultItem struct {
 // SearchObjectsOptions groups optional parameters of [Client.SearchObjects].
 type SearchObjectsOptions struct {
 	prmCommonMeta
-	sessionToken   *session.Object
-	sessionTokenV2 *sessionv2.Token
-	bearerToken    *bearer.Token
-	noForwarding   bool
+	sessionToken      *session.Object
+	sessionTokenV2    *sessionv2.Token
+	bearerToken       *bearer.Token
+	noForwarding      bool
+	containerRevision *uint64
 
 	count uint32
 }
@@ -79,12 +79,12 @@ func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 // Count returns limit for the search result.
 func (x SearchObjectsOptions) Count() uint32 { return x.count }
 
-// AttachContainerRevision allows attaching a container revision to the request.
-// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
-// returned. If extended headers are manually changed with the container
-// revision header, behavior is undefined.
+// AttachContainerRevision allows attaching container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] error
+// will be returned. If revision has been attached, but server does not support
+// container revisions, an error will be returned.
 func (x *SearchObjectsOptions) AttachContainerRevision(revision uint64) {
-	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+	x.containerRevision = &revision
 }
 
 // SearchObjects selects objects from a given container by applying specified
@@ -105,6 +105,8 @@ func (x *SearchObjectsOptions) AttachContainerRevision(revision uint64) {
 // [object.FilterContainerID] or [object.FilterID]. Filters using
 // [object.FilterRoot] and [object.FilterPhysical] must have zero value and matcher.
 //
+// Call supports container revision state check, see [SearchObjectsOptions.AttachContainerRevision].
+//
 // Note that if requested attribute is missing in the matching object, the
 // corresponding element in its [SearchResultItem.Attributes] is empty.
 func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.SearchFilters, attrs []string, cursor string,
@@ -115,6 +117,14 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		defer func() {
 			c.sendStatistic(stat.MethodObjectSearchV2, time.Since(startTime), err)
 		}()
+	}
+
+	var cnrRev uint64
+	if opts.containerRevision != nil {
+		if !containerRevisionsSupported(c.apiVersion) {
+			return nil, "", unsupportedCnrRevErr(c.apiVersion)
+		}
+		cnrRev = *opts.containerRevision
 	}
 
 	switch {
@@ -195,7 +205,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		return protoobject.CalculateSearchFilterLength(filters[i].Operation(), filters[i].Header(), filters[i].Value())
 	}
 
-	bodyLen := protoobject.CalculateSearchV2RequestBodyLength(1, cursor, opts.count, attrs, len(filters), filterLenFn)
+	bodyLen := protoobject.CalculateSearchV2RequestBodyLength(1, cursor, opts.count, attrs, len(filters), filterLenFn, cnrRev)
 
 	ttl := localFlagToTTL(opts.noForwarding)
 	xHdrLenFn := xHeadersLengthFunc(opts.xHeaders)
@@ -219,7 +229,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	writeFilterFn := func(buf []byte, i int) int {
 		return protoobject.WriteSearchFilter(buf, filters[i].Operation(), filters[i].Header(), filters[i].Value())
 	}
-	off := protoobject.WriteSearchV2RequestBodyToRequest(buf, cnr, 1, cursor, opts.count, attrs, len(filters), filterLenFn, writeFilterFn)
+	off := protoobject.WriteSearchV2RequestBodyToRequest(buf, cnr, 1, cursor, opts.count, attrs, len(filters), filterLenFn, writeFilterFn, cnrRev)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]
@@ -504,8 +514,6 @@ func (x *ObjectListReader) Close() error {
 //
 // Signer is required and must not be nil. The operation is executed on behalf of the account corresponding to
 // the specified Signer, which is taken into account, in particular, for access control.
-//
-// Call supports container revision state check, see [PrmObjectPutInit.AttachContainerRevision].
 //
 // Return errors:
 //   - [ErrMissingSigner]

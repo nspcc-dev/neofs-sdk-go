@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,16 +12,6 @@ import (
 	"google.golang.org/grpc/encoding"
 	"google.golang.org/grpc/encoding/proto"
 	"google.golang.org/grpc/mem"
-)
-
-const (
-	systemPrefix = "__NEOFS__"
-	// XHeaderContainerRevision is an extended header that can be added to
-	// the limited set of requests to attach known container revision.
-	// If server's version does not match it, ContainerRevisionMismatch
-	// will be returned. Value must be a positive base-10 integer
-	// counter with no leading zeros.
-	XHeaderContainerRevision = systemPrefix + "CONTAINER_REVISION"
 )
 
 const (
@@ -147,4 +138,17 @@ func writeXHeaderFunc(xHeaders []string) func([]byte, int) int {
 	return func(buf []byte, i int) int {
 		return protosession.WriteXHeader(buf, xHeaders[i*2], xHeaders[i*2+1])
 	}
+}
+
+func containerRevisionsSupported(v *protorefs.Version) bool {
+	return v != nil && ((v.Major == 2 && v.Minor >= 27) || v.Major > 2)
+}
+
+func unsupportedCnrRevErr(v *protorefs.Version) error {
+	const msg = "container revision was attached, but server does not support it"
+	if v == nil {
+		return errors.New(msg)
+	}
+
+	return fmt.Errorf(msg+" (server's version: v%d.%d)", v.Major, v.Minor)
 }
