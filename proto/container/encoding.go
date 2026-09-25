@@ -284,6 +284,7 @@ const (
 	_ = iota
 	FieldSetExtendedACLRequestBodyEACL
 	FieldSetExtendedACLRequestBodySignature
+	FieldSetExtendedACLRequestContainerRevision
 )
 
 // MarshaledSize returns size of the SetExtendedACLRequest_Body in Protocol
@@ -292,7 +293,8 @@ func (x *SetExtendedACLRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = protoencoding.SizeEmbedded(FieldSetExtendedACLRequestBodyEACL, x.Eacl) +
-			protoencoding.SizeEmbedded(FieldSetExtendedACLRequestBodySignature, x.Signature)
+			protoencoding.SizeEmbedded(FieldSetExtendedACLRequestBodySignature, x.Signature) +
+			protoencoding.SizeVarint(FieldSetExtendedACLRequestContainerRevision, x.ContainerRevision)
 	}
 	return sz
 }
@@ -304,7 +306,8 @@ func (x *SetExtendedACLRequest_Body) MarshaledSize() int {
 func (x *SetExtendedACLRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := protoencoding.MarshalToEmbedded(b, FieldSetExtendedACLRequestBodyEACL, x.Eacl)
-		protoencoding.MarshalToEmbedded(b[off:], FieldSetExtendedACLRequestBodySignature, x.Signature)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldSetExtendedACLRequestBodySignature, x.Signature)
+		protoencoding.MarshalToVarint(b[off:], FieldSetExtendedACLRequestContainerRevision, x.ContainerRevision)
 	}
 }
 

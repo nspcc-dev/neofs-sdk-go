@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -27,7 +26,8 @@ var (
 type PrmObjectDelete struct {
 	prmCommonMeta
 	sessionContainer
-	bearerToken *bearer.Token
+	bearerToken       *bearer.Token
+	containerRevision *uint64
 }
 
 // WithBearerToken attaches bearer token to be used for the operation.
@@ -39,12 +39,12 @@ func (x *PrmObjectDelete) WithBearerToken(t bearer.Token) {
 	x.bearerToken = &t
 }
 
-// AttachContainerRevision allows attaching a container revision to the request.
-// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
-// returned. If extended headers are manually changed with the container
-// revision header, behavior is undefined.
+// AttachContainerRevision allows attaching container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] error
+// will be returned. If revision has been attached, but server does not support
+// container revisions, an error will be returned.
 func (x *PrmObjectDelete) AttachContainerRevision(revision uint64) {
-	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+	x.containerRevision = &revision
 }
 
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
@@ -60,7 +60,7 @@ func (x *PrmObjectDelete) AttachContainerRevision(revision uint64) {
 // Signer is required and must not be nil. The operation is executed on behalf of
 // the account corresponding to the specified Signer, which is taken into account, in particular, for access control.
 //
-// Call supports container revision state check, see [PrmObjectPutInit.AttachContainerRevision].
+// Call supports container revision state check, see [PrmObjectDelete.AttachContainerRevision].
 //
 // Return errors:
 //   - global (see Client docs)
@@ -87,10 +87,18 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 	if prm.session != nil && prm.sessionV2 != nil {
 		return oid.ID{}, errSessionTokenBothVersionsSet
 	}
+	var cnrRev uint64
+	if prm.containerRevision != nil {
+		if !containerRevisionsSupported(c.apiVersion) {
+			return oid.ID{}, unsupportedCnrRevErr(c.apiVersion)
+		}
+		cnrRev = *prm.containerRevision
+	}
 
 	req := &protoobject.DeleteRequest{
 		Body: &protoobject.DeleteRequest_Body{
-			Address: oid.NewAddress(containerID, objectID).ProtoMessage(),
+			Address:           oid.NewAddress(containerID, objectID).ProtoMessage(),
+			ContainerRevision: cnrRev,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
 			Version: c.apiVersion,
