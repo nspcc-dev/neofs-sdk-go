@@ -51,7 +51,7 @@ type Container struct {
 	// proto message format.
 	//
 	// It must only be set by storage nodes and must not be filled on the client
-	// side. The initial revision after a successful container creation call is 0.
+	// side. The initial revision after a successful container creation call is 1.
 	//
 	// Versioned containers are available starting from API v2.27.0.
 	Revision      uint64 `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`

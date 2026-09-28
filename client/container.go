@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
@@ -579,6 +578,9 @@ type PrmContainerSetEACL struct {
 
 	sigSet bool
 	sig    neofscrypto.Signature
+
+	containerRevisionSet bool
+	containerRevision    uint64
 }
 
 // WithinSession specifies session within which extended ACL of the container
@@ -617,12 +619,12 @@ func (x *PrmContainerSetEACL) AttachSignature(sig neofscrypto.Signature) {
 	x.sig, x.sigSet = sig, true
 }
 
-// AttachContainerRevision allows attaching a container revision to the request.
-// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
-// returned. If extended headers are manually changed with the container
-// revision header, behavior is undefined.
+// AttachContainerRevision allows attaching container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] error
+// will be returned. If revision has been attached, but server does not support
+// container revisions, an error will be returned.
 func (x *PrmContainerSetEACL) AttachContainerRevision(revision uint64) {
-	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+	x.containerRevision, x.containerRevisionSet = revision, true
 }
 
 // ContainerSetEACL sends request to update eACL table of the NeoFS container.
@@ -638,7 +640,8 @@ func (x *PrmContainerSetEACL) AttachContainerRevision(revision uint64) {
 // recommended to always use context with timeout. Note that the context
 // includes all processing stages incl. network delays.
 //
-// Call supports container revision state check, see [PrmContainerSetEACL.AttachContainerRevision].
+// Call requires container revision setting to work correctly with servers
+// >= API v2.27.0, see [PrmContainerSetEACL.AttachContainerRevision].
 //
 // Success can be verified by reading by identifier (see EACL).
 //
@@ -677,6 +680,20 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
 		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
 	}
+	var cnrRev uint64
+	if containerRevisionsSupported(c.apiVersion) {
+		if !prm.containerRevisionSet {
+			return errors.New("attaching container revision is required after v2.27.0 API version")
+		}
+		if prm.containerRevision == 0 {
+			return fmt.Errorf("container revision must be positive, attached: %d", prm.containerRevision)
+		}
+		cnrRev = prm.containerRevision
+	} else {
+		if prm.containerRevisionSet {
+			return unsupportedCnrRevErr(c.apiVersion)
+		}
+	}
 
 	// sign the eACL table
 	mEACL := table.ProtoMessage()
@@ -694,6 +711,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 				Key:  prm.sig.PublicKeyBytes(),
 				Sign: prm.sig.Value(),
 			},
+			ContainerRevision: cnrRev,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
 			Version: c.apiVersion,

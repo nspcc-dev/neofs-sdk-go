@@ -240,6 +240,12 @@ func newTestObjectClient(t testing.TB, srv any) *Client {
 	return newClient(t, newDefaultObjectService(t, srv))
 }
 
+func newTestObjectClientWithVersion(t testing.TB, srv any, v *protorefs.Version) *Client {
+	return newCustomClient(t, nil, func(dial *testGetNodeInfoServer) {
+		dial.respondWithNodeVersion(v)
+	}, newDefaultObjectService(t, srv))
+}
+
 func assertObjectStreamTransportErr(t testing.TB, transportErr, err error) {
 	require.Error(t, err)
 	require.NotContains(t, err.Error(), "open stream") // gRPC client cannot catch this
@@ -267,6 +273,24 @@ func (x testLocalRequestServerSettings) verifyTTL(m *protosession.RequestMetaHea
 	}
 	if act := m.GetTtl(); act != exp {
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected %d", act, exp))
+	}
+	return nil
+}
+
+type testContainerRevisionServerSettings struct {
+	expectedRevision *uint64
+}
+
+func (x *testContainerRevisionServerSettings) checkContainerRevision(cnrRev uint64) {
+	x.expectedRevision = &cnrRev
+}
+
+func (x testContainerRevisionServerSettings) verifyContainerRevision(m uint64) error {
+	if x.expectedRevision == nil && m != 0 {
+		return fmt.Errorf("expected missing revision, but got %d", m)
+	}
+	if x.expectedRevision != nil && m != *x.expectedRevision {
+		return fmt.Errorf("expected revision %d, but got %d", *x.expectedRevision, m)
 	}
 	return nil
 }

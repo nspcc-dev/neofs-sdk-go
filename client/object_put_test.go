@@ -17,6 +17,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	sessiontest "github.com/nspcc-dev/neofs-sdk-go/session/test"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -58,6 +59,7 @@ type testPutObjectServer struct {
 	testObjectSessionServerSettings
 	testBearerTokenServerSettings
 	testLocalRequestServerSettings
+	testContainerRevisionServerSettings
 
 	reqHdr     *object.Object
 	reqPayload []byte
@@ -117,6 +119,10 @@ func (x *testPutObjectServer) verifyHeadingMessage(m *protoobject.PutRequest_Bod
 		Header: m.Header, Signature: m.Signature,
 	}); err != nil {
 		return fmt.Errorf("header with signature fields: %w", err)
+	}
+	// 5. container revision
+	if err := x.verifyContainerRevision(m.ContainerRevision); err != nil {
+		return err
 	}
 	return nil
 }
@@ -311,6 +317,41 @@ func TestClient_ObjectPut(t *testing.T) {
 				}
 			})
 			t.Run("options", func(t *testing.T) {
+				t.Run("container revision", func(t *testing.T) {
+					t.Run("attached container revision", func(t *testing.T) {
+						srv := newPutObjectServer()
+						c := newTestObjectClient(t, srv)
+						const rev = 5
+						srv.checkContainerRevision(rev)
+						w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, PrmObjectPutInit{containerRevision: new(uint64(rev))})
+						require.NoError(t, err)
+						_, err = w.Write([]byte{1})
+						require.NoError(t, err)
+						require.NoError(t, w.Close())
+					})
+
+					t.Run("missing container revision", func(t *testing.T) {
+						srv := newPutObjectServer()
+						c := newTestObjectClient(t, srv)
+						w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, PrmObjectPutInit{})
+						require.NoError(t, err)
+						_, err = w.Write([]byte{1})
+						require.NoError(t, err)
+						require.NoError(t, w.Close())
+					})
+
+					t.Run("attached version for old server", func(t *testing.T) {
+						srv := newTestDeleteObjectServer()
+						cnrV := &protorefs.Version{
+							Major: 2,
+							Minor: 26,
+						}
+
+						c := newTestObjectClientWithVersion(t, srv, cnrV)
+						_, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, PrmObjectPutInit{containerRevision: new(uint64(1))})
+						require.ErrorContains(t, err, unsupportedCnrRevErr(cnrV).Error())
+					})
+				})
 				t.Run("X-headers", func(t *testing.T) {
 					testRequestXHeaders(t, newPutObjectServer, newTestObjectClient, func(c *Client, xhs []string) error {
 						opts := anyValidOpts
@@ -699,7 +740,7 @@ func TestClient_ObjectPut(t *testing.T) {
 			handler := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
 				collected = append(collected, collectedItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
 			}
-			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, svc)
+			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
 			// [Client.EndpointInfo] is always called to dial the server: this is also submitted
 			require.Len(t, collected, 1)
 			require.Nil(t, collected[0].pub) // server key is not yet received
@@ -912,7 +953,7 @@ func TestDefaultObjectWriter_ReadFrom(t *testing.T) {
 		// buffer keeping max-size chunks
 		var (
 			srv     = newPutObjectServer()
-			c       = newCustomClient(t, func(prm *PrmInit) { prm.SetSignMessageBufferSizes(1 << 10) }, newDefaultObjectService(t, srv))
+			c       = newCustomClient(t, func(prm *PrmInit) { prm.SetSignMessageBufferSizes(1 << 10) }, nil, newDefaultObjectService(t, srv))
 			payload = testutil.RandByteSlice(4 << 20)
 			hdr     = anyValidHdr
 		)

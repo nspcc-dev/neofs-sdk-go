@@ -85,11 +85,13 @@ var (
 	testServerEndpoint     = "localhost:8080"
 	testServerSignerOnDial = neofscryptotest.Signer()
 	testServerStateOnDial  = struct {
-		pub   []byte
-		epoch uint64
+		pub     []byte
+		version *protorefs.Version
+		epoch   uint64
 	}{
-		pub:   neofscrypto.PublicKeyBytes(testServerSignerOnDial.Public()),
-		epoch: rand.Uint64(),
+		pub:     neofscrypto.PublicKeyBytes(testServerSignerOnDial.Public()),
+		version: version.Current().ProtoMessage(),
+		epoch:   rand.Uint64(),
 	}
 )
 
@@ -103,7 +105,7 @@ type testService struct {
 // are optional.
 //
 // nolint:contextcheck // Makes no sense to pass proper context here.
-func newCustomClient(t testing.TB, setPrm func(*PrmInit), svcs ...testService) *Client {
+func newCustomClient(t testing.TB, setPrm func(*PrmInit), overrideDialServer func(dial *testGetNodeInfoServer), svcs ...testService) *Client {
 	var prm PrmInit
 	if setPrm != nil {
 		setPrm(&prm)
@@ -133,6 +135,9 @@ loop:
 	dialSrv := newTestGetNodeInfoServer()
 	dialSrv.respondWithNodePublicKey(testServerStateOnDial.pub)
 	dialSrv.respondWithMeta(&protosession.ResponseMetaHeader{Epoch: testServerStateOnDial.epoch})
+	if overrideDialServer != nil {
+		overrideDialServer(dialSrv)
+	}
 	handleDial := func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
 		var req protonetmap.LocalNodeInfoRequest
 		if err := dec(&req); err != nil {
@@ -196,7 +201,7 @@ loop:
 // [Client] always receives testServerStateOnDial. Take this into account if the
 // test keeps track of all ops like stat test.
 func newClient(t testing.TB, svcs ...testService) *Client {
-	return newCustomClient(t, nil, svcs...)
+	return newCustomClient(t, nil, nil, svcs...)
 }
 
 func TestClient_Dial(t *testing.T) {
@@ -1120,6 +1125,11 @@ func testStatusResponses[SRV interface {
 			defaultErrMsg: "eACL not found",
 			err:           new(apistatus.EACLNotFound), constErr: apistatus.ErrEACLNotFound,
 		},
+		{name: "container revision mismatch",
+			code: 3076, details: make([]*protostatus.Status_Detail, 2),
+			defaultErrMsg: "container revision does not match",
+			err:           new(apistatus.ContainerRevisionMismatch), constErr: apistatus.ErrContainerRevisionMismatch,
+		},
 		{name: "missing session token",
 			code: 4096, details: make([]*protostatus.Status_Detail, 2),
 			defaultErrMsg: "session token not found",
@@ -1304,7 +1314,7 @@ func testStatistic[SRV interface {
 		require.Equal(t, err, collected[0].err)
 	}
 
-	c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, svc)
+	c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
 	// [Client.EndpointInfo] is always called to dial the server: this is also submitted
 	assertCommon(stat.MethodEndpointInfo, nil, nil) // server key is not yet received
 	collected = nil

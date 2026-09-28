@@ -1702,7 +1702,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			handler := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
 				collected = append(collected, collectedItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
 			}
-			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, svc)
+			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
 			// [Client.EndpointInfo] is always called to dial the server: this is also submitted
 			require.Len(t, collected, 1)
 			require.Nil(t, collected[0].pub) // server key is not yet received
@@ -2404,7 +2404,7 @@ func TestClient_ObjectRangeInit(t *testing.T) {
 			handler := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
 				collected = append(collected, collectedItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
 			}
-			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, svc)
+			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
 			// [Client.EndpointInfo] is always called to dial the server: this is also submitted
 			require.Len(t, collected, 1)
 			require.Nil(t, collected[0].pub) // server key is not yet received

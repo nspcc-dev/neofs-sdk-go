@@ -8,6 +8,7 @@ import (
 	"time"
 
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	"github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
@@ -324,6 +325,11 @@ func (x *testGetNodeInfoServer) respondWithNodePublicKey(pub []byte) {
 	b.NodeInfo.PublicKey = pub
 	b.Version = version.Current().ProtoMessage() // Dial() uses the response.
 	x.respondWithBody(b)
+}
+
+// makes the server to always respond with the given version.
+func (x *testGetNodeInfoServer) respondWithNodeVersion(v *refs.Version) {
+	x.respBody.Version = v
 }
 
 func (x *testGetNodeInfoServer) verifyRequest(req *protonetmap.LocalNodeInfoRequest) error {

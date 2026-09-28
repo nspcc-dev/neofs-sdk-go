@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"strconv"
 	sync "sync"
 	"time"
 
@@ -59,8 +58,9 @@ type shortStatisticCallback func(dur time.Duration, err error)
 type PrmObjectPutInit struct {
 	prmCommonMeta
 	sessionContainer
-	bearerToken *bearer.Token
-	local       bool
+	bearerToken       *bearer.Token
+	local             bool
+	containerRevision *uint64
 }
 
 // SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
@@ -71,12 +71,12 @@ type PrmObjectPutInit struct {
 // instead. This parameter no longer has an effect.
 func (x *PrmObjectPutInit) SetCopiesNumber(uint32) {}
 
-// AttachContainerRevision allows attaching a container revision to the request.
-// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] err is
-// returned. If extended headers are manually changed with the container
-// revision header, behavior is undefined.
+// AttachContainerRevision allows attaching container revision to the request.
+// If server's revision differs, [apistatus.ErrContainerRevisionMismatch] error
+// will be returned. If revision has been attached, but server does not support
+// container revisions, an error will be returned.
 func (x *PrmObjectPutInit) AttachContainerRevision(revision uint64) {
-	x.xHeaders = append(x.xHeaders, XHeaderContainerRevision, strconv.FormatUint(revision, 10))
+	x.containerRevision = &revision
 }
 
 // ResObjectPut groups the final result values of ObjectPutInit operation.
@@ -192,7 +192,12 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		x.sessionV2TokenLen = x.sessionV2TokenMsg.MarshaledSize()
 	}
 
-	initFldLen := mh.MarshaledSize()
+	var cnrRev uint64
+	if x.opts.containerRevision != nil {
+		cnrRev = *x.opts.containerRevision
+	}
+
+	initFldLen := mh.MarshaledSize() + protoencoding.SizeVarint(protoobject.FieldPutRequestBodyInitContainerRevision, cnrRev)
 	bodyLen := protoobject.CalculatePutInitRequestBodyLength(initFldLen)
 
 	ttl := localFlagToTTL(x.opts.local)
@@ -214,7 +219,11 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	}
 
 	// encode body
-	writeInitFldFn := protoencoding.WriteStablyMarshalledMessageFunc(mh)
+	writeInitFldFn := func(buf []byte) int {
+		off := protoencoding.WriteStablyMarshalledMessageFunc(mh)(buf)
+		off += protoencoding.MarshalToVarint(buf[off:], protoobject.FieldPutRequestBodyInitContainerRevision, cnrRev)
+		return off
+	}
 	off := protoobject.WritePutInitRequestBodyToRequest(buf, bodyLen, initFldLen, writeInitFldFn)
 
 	// memorize body for signing
@@ -624,6 +633,9 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 		}
 	}
 
+	if prm.containerRevision != nil && !containerRevisionsSupported(c.apiVersion) {
+		return nil, unsupportedCnrRevErr(c.apiVersion)
+	}
 	if signer == nil {
 		return nil, ErrMissingSigner
 	}

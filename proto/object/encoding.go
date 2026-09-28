@@ -835,6 +835,7 @@ const (
 	FieldPutRequestBodyInitSignature
 	FieldPutRequestBodyInitHeader
 	FieldPutRequestBodyInitCopiesNumber
+	FieldPutRequestBodyInitContainerRevision
 )
 
 // MarshaledSize returns size of the PutRequest_Body_Init in Protocol Buffers V3
@@ -845,7 +846,8 @@ func (x *PutRequest_Body_Init) MarshaledSize() int {
 		sz = protoencoding.SizeEmbedded(FieldPutRequestBodyInitID, x.ObjectId) +
 			protoencoding.SizeEmbedded(FieldPutRequestBodyInitSignature, x.Signature) +
 			protoencoding.SizeEmbedded(FieldPutRequestBodyInitHeader, x.Header) +
-			protoencoding.SizeVarint(FieldPutRequestBodyInitCopiesNumber, x.CopiesNumber)
+			protoencoding.SizeVarint(FieldPutRequestBodyInitCopiesNumber, x.CopiesNumber) +
+			protoencoding.SizeVarint(FieldPutRequestBodyInitContainerRevision, x.ContainerRevision)
 	}
 	return sz
 }
@@ -859,7 +861,8 @@ func (x *PutRequest_Body_Init) MarshalStable(b []byte) {
 		off := protoencoding.MarshalToEmbedded(b, FieldPutRequestBodyInitID, x.ObjectId)
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodyInitSignature, x.Signature)
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodyInitHeader, x.Header)
-		protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitCopiesNumber, x.CopiesNumber)
+		off += protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitCopiesNumber, x.CopiesNumber)
+		protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitContainerRevision, x.ContainerRevision)
 	}
 }
 
@@ -980,6 +983,7 @@ func (x *PutResponse_Body) MarshalStable(b []byte) {
 const (
 	_ = iota
 	FieldDeleteRequestBodyAddress
+	FieldDeleteRequestBodyContainerRevision
 )
 
 // MarshaledSize returns size of the DeleteRequest_Body in Protocol Buffers V3
@@ -987,7 +991,8 @@ const (
 func (x *DeleteRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
-		sz = protoencoding.SizeEmbedded(FieldDeleteRequestBodyAddress, x.Address)
+		sz = protoencoding.SizeEmbedded(FieldDeleteRequestBodyAddress, x.Address) +
+			protoencoding.SizeVarint(FieldDeleteRequestBodyContainerRevision, x.ContainerRevision)
 	}
 	return sz
 }
@@ -998,7 +1003,8 @@ func (x *DeleteRequest_Body) MarshaledSize() int {
 // NPE-safe.
 func (x *DeleteRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
-		protoencoding.MarshalToEmbedded(b, FieldDeleteRequestBodyAddress, x.Address)
+		off := protoencoding.MarshalToEmbedded(b, FieldDeleteRequestBodyAddress, x.Address)
+		protoencoding.MarshalToVarint(b[off:], FieldDeleteRequestBodyContainerRevision, x.ContainerRevision)
 	}
 }
 
@@ -1138,22 +1144,24 @@ const (
 	FieldSearchV2RequestBodyCursor
 	FieldSearchV2RequestBodyCount
 	FieldSearchV2RequestBodyAttributes
+	FieldSearchV2RequestBodyContainerRevision
 )
 
 // CalculateSearchV2RequestBodyLength calculates length of SearchV2 request body
 // message with static container ID and given dynamic fields.
-func CalculateSearchV2RequestBodyLength(version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc) int {
+func CalculateSearchV2RequestBodyLength(version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, cnrRev uint64) int {
 	ln := protoencoding.SizeEmbeddedLENField(FieldSearchV2RequestBodyContainerID, refs.ContainerIDLength)
-	ln += calculateDynamicSearchV2RequestBodyFieldsLength(version, cursor, count, attributes, filterNum, filterLenFn)
+	ln += calculateDynamicSearchV2RequestBodyFieldsLength(version, cursor, count, attributes, filterNum, filterLenFn, cnrRev)
 	return ln
 }
 
-func calculateDynamicSearchV2RequestBodyFieldsLength(version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc) int {
+func calculateDynamicSearchV2RequestBodyFieldsLength(version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, cnrRev uint64) int {
 	ln := protoencoding.SizeVarint(FieldSearchV2RequestBodyVersion, version)
 	ln += protoencoding.CalculateRepeatedFieldsLength(FieldSearchV2RequestBodyFilters, filterNum, filterLenFn)
 	ln += protoencoding.SizeBytes(FieldSearchV2RequestBodyCursor, cursor)
 	ln += protoencoding.SizeVarint(FieldSearchV2RequestBodyCount, count)
 	ln += protoencoding.SizeRepeatedBytes(FieldSearchV2RequestBodyAttributes, attributes)
+	ln += protoencoding.SizeVarint(FieldSearchV2RequestBodyContainerRevision, cnrRev)
 	return ln
 }
 
@@ -1170,37 +1178,38 @@ func (x *SearchV2Request_Body) getFilterLength(i int) int {
 func (x *SearchV2Request_Body) MarshaledSize() int {
 	if x != nil {
 		return protoencoding.SizeEmbedded(FieldSearchV2RequestBodyContainerID, x.ContainerId) +
-			calculateDynamicSearchV2RequestBodyFieldsLength(x.Version, x.Cursor, x.Count, x.Attributes, len(x.Filters), x.getFilterLength)
+			calculateDynamicSearchV2RequestBodyFieldsLength(x.Version, x.Cursor, x.Count, x.Attributes, len(x.Filters), x.getFilterLength, x.ContainerRevision)
 	}
 	return 0
 }
 
 // WriteSearchV2RequestBodyToRequest writes SearchV2 request body field with
 // given fields into buf. Returns number of bytes written.
-func WriteSearchV2RequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, writeFilterFn protoencoding.WriteRepeatedMessageFunc) int {
-	ln := CalculateSearchV2RequestBodyLength(version, cursor, count, attributes, filterNum, filterLenFn)
+func WriteSearchV2RequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, writeFilterFn protoencoding.WriteRepeatedMessageFunc, cnrRev uint64) int {
+	ln := CalculateSearchV2RequestBodyLength(version, cursor, count, attributes, filterNum, filterLenFn, cnrRev)
 	if ln == 0 {
 		return 0
 	}
 	off := protoencoding.WriteRequestBodyTagAndLength(buf, ln)
-	off += WriteSearchV2RequestBody(buf[off:], cnr, version, cursor, count, attributes, filterNum, filterLenFn, writeFilterFn)
+	off += WriteSearchV2RequestBody(buf[off:], cnr, version, cursor, count, attributes, filterNum, filterLenFn, writeFilterFn, cnrRev)
 	return off
 }
 
 // WriteSearchV2RequestBody writes SearchV2 request body message with given
 // fields into buf. Returns number of bytes written.
-func WriteSearchV2RequestBody(buf []byte, cnr [sha256.Size]byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, writeFilterFn protoencoding.WriteRepeatedMessageFunc) int {
+func WriteSearchV2RequestBody(buf []byte, cnr [sha256.Size]byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, writeFilterFn protoencoding.WriteRepeatedMessageFunc, cnrRev uint64) int {
 	off := refs.WriteContainerIDField(buf, FieldSearchV2RequestBodyContainerID, cnr)
-	off += writeDynamicSearchV2RequestBodyFields(buf[off:], version, cursor, count, attributes, filterNum, filterLenFn, writeFilterFn)
+	off += writeDynamicSearchV2RequestBodyFields(buf[off:], version, cursor, count, attributes, filterNum, filterLenFn, writeFilterFn, cnrRev)
 	return off
 }
 
-func writeDynamicSearchV2RequestBodyFields(buf []byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, writeFilterFn protoencoding.WriteRepeatedMessageFunc) int {
+func writeDynamicSearchV2RequestBodyFields(buf []byte, version uint32, cursor string, count uint32, attributes []string, filterNum int, filterLenFn protoencoding.RepeatedMessageLenFunc, writeFilterFn protoencoding.WriteRepeatedMessageFunc, cnrRev uint64) int {
 	off := protoencoding.MarshalToVarint(buf, FieldSearchV2RequestBodyVersion, version)
 	off += protoencoding.WriteRepeatedFields(buf[off:], FieldSearchV2RequestBodyFilters, filterNum, filterLenFn, writeFilterFn)
 	off += protoencoding.MarshalToBytes(buf[off:], FieldSearchV2RequestBodyCursor, cursor)
 	off += protoencoding.MarshalToVarint(buf[off:], FieldSearchV2RequestBodyCount, count)
 	off += protoencoding.MarshalToRepeatedBytes(buf[off:], FieldSearchV2RequestBodyAttributes, attributes)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldSearchV2RequestBodyContainerRevision, cnrRev)
 	return off
 }
 
@@ -1219,7 +1228,7 @@ func (x *SearchV2Request_Body) writeFilter(buf []byte, i int) int {
 func (x *SearchV2Request_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := protoencoding.MarshalToEmbedded(b, FieldSearchV2RequestBodyContainerID, x.ContainerId)
-		writeDynamicSearchV2RequestBodyFields(b[off:], x.Version, x.Cursor, x.Count, x.Attributes, len(x.Filters), x.getFilterLength, x.writeFilter)
+		writeDynamicSearchV2RequestBodyFields(b[off:], x.Version, x.Cursor, x.Count, x.Attributes, len(x.Filters), x.getFilterLength, x.writeFilter, x.ContainerRevision)
 	}
 }
 

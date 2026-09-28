@@ -30,8 +30,7 @@ type PutRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of container put request message.
 	Body *PutRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -166,8 +165,7 @@ type DeleteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of container delete request message.
 	Body *DeleteRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -303,8 +301,7 @@ type GetRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of container get request message.
 	Body *GetRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -439,8 +436,7 @@ type ListRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of list containers request message
 	Body *ListRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -571,13 +567,11 @@ func (x *ListResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 }
 
 // Set Extended ACL.
-// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type SetExtendedACLRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of set extended acl request message.
 	Body *SetExtendedACLRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -712,8 +706,7 @@ type GetExtendedACLRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of get extended acl request message.
 	Body *GetExtendedACLRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -851,8 +844,7 @@ type AnnounceUsedSpaceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of announce used space request message.
 	Body *AnnounceUsedSpaceRequest_Body `protobuf:"bytes,1,opt,name=body,proto3" json:"body,omitempty"`
-	// Carries request meta information. Header data is used only to regulate
-	// message transport and does not affect request execution.
+	// Carries request meta information.
 	MetaHeader *session.RequestMetaHeader `protobuf:"bytes,2,opt,name=meta_header,json=metaHeader,proto3" json:"meta_header,omitempty"`
 	// Carries request verification information. This header is used to
 	// authenticate the nodes of the message route and check the correctness of
@@ -1472,8 +1464,10 @@ type GetResponse_Body struct {
 	// Requested container structure
 	Container *Container `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
 	// Signature of a stable-marshalled container according to RFC-6979.
+	// DEPRECATED: nodes can omit this field, clients shouldn't check for it.
 	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Session token if the container has been created within the session
+	// DEPRECATED: nodes can omit this field, clients shouldn't check for it.
 	SessionToken  *session.SessionToken `protobuf:"bytes,3,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1629,9 +1623,14 @@ type SetExtendedACLRequest_Body struct {
 	// Extended ACL table to set for the container
 	Eacl *acl.EACLTable `protobuf:"bytes,1,opt,name=eacl,proto3" json:"eacl,omitempty"`
 	// Signature of stable-marshalled Extended ACL table according to RFC-6979.
-	Signature     *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Starting from API v2.27.0, requester must attach container revision to
+	// ensure container state is up to date. If server's known revision does
+	// not match the requested one, it must return
+	// **CONTAINER_REVISION_MISMATCH** (3076) response status with no payload.
+	ContainerRevision uint64 `protobuf:"varint,3,opt,name=container_revision,json=containerRevision,proto3" json:"container_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SetExtendedACLRequest_Body) Reset() {
@@ -1676,6 +1675,13 @@ func (x *SetExtendedACLRequest_Body) GetSignature() *refs.SignatureRFC6979 {
 		return x.Signature
 	}
 	return nil
+}
+
+func (x *SetExtendedACLRequest_Body) GetContainerRevision() uint64 {
+	if x != nil {
+		return x.ContainerRevision
+	}
+	return 0
 }
 
 // `SetExtendedACLResponse` has an empty body because the operation is
@@ -1771,8 +1777,10 @@ type GetExtendedACLResponse_Body struct {
 	// Extended ACL requested, if available
 	Eacl *acl.EACLTable `protobuf:"bytes,1,opt,name=eacl,proto3" json:"eacl,omitempty"`
 	// Signature of stable-marshalled Extended ACL according to RFC-6979.
+	// DEPRECATED: nodes can omit this field, clients shouldn't check for it.
 	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Session token if Extended ACL was set within a session
+	// DEPRECATED: nodes can omit this field, clients shouldn't check for it.
 	SessionToken  *session.SessionToken `protobuf:"bytes,3,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2381,15 +2389,16 @@ const file_proto_container_service_proto_rawDesc = "" +
 	"metaHeader\x12R\n" +
 	"\rverify_header\x18\x03 \x01(\v2-.neo.fs.v2.session.ResponseVerificationHeaderR\fverifyHeader\x1aH\n" +
 	"\x04Body\x12@\n" +
-	"\rcontainer_ids\x18\x01 \x03(\v2\x1b.neo.fs.v2.refs.ContainerIDR\fcontainerIds\"\xec\x02\n" +
+	"\rcontainer_ids\x18\x01 \x03(\v2\x1b.neo.fs.v2.refs.ContainerIDR\fcontainerIds\"\x9c\x03\n" +
 	"\x15SetExtendedACLRequest\x12C\n" +
 	"\x04body\x18\x01 \x01(\v2/.neo.fs.v2.container.SetExtendedACLRequest.BodyR\x04body\x12E\n" +
 	"\vmeta_header\x18\x02 \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\n" +
 	"metaHeader\x12Q\n" +
-	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1at\n" +
+	"\rverify_header\x18\x03 \x01(\v2,.neo.fs.v2.session.RequestVerificationHeaderR\fverifyHeader\x1a\xa3\x01\n" +
 	"\x04Body\x12,\n" +
 	"\x04eacl\x18\x01 \x01(\v2\x18.neo.fs.v2.acl.EACLTableR\x04eacl\x12>\n" +
-	"\tsignature\x18\x02 \x01(\v2 .neo.fs.v2.refs.SignatureRFC6979R\tsignature\"\x82\x02\n" +
+	"\tsignature\x18\x02 \x01(\v2 .neo.fs.v2.refs.SignatureRFC6979R\tsignature\x12-\n" +
+	"\x12container_revision\x18\x03 \x01(\x04R\x11containerRevision\"\x82\x02\n" +
 	"\x16SetExtendedACLResponse\x12D\n" +
 	"\x04body\x18\x01 \x01(\v20.neo.fs.v2.container.SetExtendedACLResponse.BodyR\x04body\x12F\n" +
 	"\vmeta_header\x18\x02 \x01(\v2%.neo.fs.v2.session.ResponseMetaHeaderR\n" +

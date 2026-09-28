@@ -32,6 +32,7 @@ type testDeleteObjectServer struct {
 	testObjectSessionServerSettings
 	testBearerTokenServerSettings
 	testObjectAddressServerSettings
+	testContainerRevisionServerSettings
 }
 
 // returns [protoobject.ObjectServiceServer] supporting Delete method only.
@@ -66,6 +67,10 @@ func (x *testDeleteObjectServer) verifyRequest(req *protoobject.DeleteRequest) e
 	}
 	// 1. address
 	if err := x.verifyObjectAddress(body.Address); err != nil {
+		return err
+	}
+	// 2. container revision
+	if err := x.verifyContainerRevision(body.ContainerRevision); err != nil {
 		return err
 	}
 	return nil
@@ -121,6 +126,35 @@ func TestClient_ObjectDelete(t *testing.T) {
 				require.NoError(t, err)
 			})
 			t.Run("options", func(t *testing.T) {
+				t.Run("container revision", func(t *testing.T) {
+					t.Run("attached container revision", func(t *testing.T) {
+						srv := newTestDeleteObjectServer()
+						c := newTestObjectClient(t, srv)
+						const rev = 5
+						srv.checkContainerRevision(rev)
+						_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, PrmObjectDelete{containerRevision: new(uint64(rev))})
+						require.NoError(t, err)
+					})
+
+					t.Run("missing container revision", func(t *testing.T) {
+						srv := newTestDeleteObjectServer()
+						c := newTestObjectClient(t, srv)
+						_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, PrmObjectDelete{})
+						require.NoError(t, err)
+					})
+
+					t.Run("attached version for old server", func(t *testing.T) {
+						srv := newTestDeleteObjectServer()
+						cnrV := &protorefs.Version{
+							Major: 2,
+							Minor: 26,
+						}
+
+						c := newTestObjectClientWithVersion(t, srv, cnrV)
+						_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, PrmObjectDelete{containerRevision: new(uint64(1))})
+						require.ErrorContains(t, err, unsupportedCnrRevErr(cnrV).Error())
+					})
+				})
 				t.Run("X-headers", func(t *testing.T) {
 					testRequestXHeaders(t, newTestDeleteObjectServer, newTestObjectClient, func(c *Client, xhs []string) error {
 						opts := anyValidOpts
