@@ -182,6 +182,8 @@ func (c *Client) DialEndpoint(ctx context.Context, endpoint string) error {
 		grpc.WithContextDialer(c.prm.customConnFunc),
 		grpc.WithReadBufferSize(256*1024),
 		grpc.WithWriteBufferSize(256*1024),
+		grpc.WithInitialWindowSize(64<<20),
+		grpc.WithInitialConnWindowSize(10*64<<20),
 	)
 	if err != nil {
 		return fmt.Errorf("gRPC dial: %w", err)
