@@ -74,3 +74,5 @@ require (
 	golang.org/x/text v0.41.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260526163538-3dc84a4a5aaa // indirect
 )
+
+replace google.golang.org/grpc => github.com/cthulhu-rider/grpc-go v0.0.0-20260928154303-fe2805fc7628
