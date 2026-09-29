@@ -3,12 +3,37 @@
 ## [Unreleased]
 
 New features:
+
+Behaviour changes:
+
+Improvements:
+
+Bugs fixed:
+
+## [1.0.0-rc.23] - 2026-09-29
+
+NeoFS API 2.27 features and a number of SDK API improvements.
+
+New features:
  * `Object.ExpirationEpoch`/`Object.SetExpirationEpoch` methods for version-independent access to the expiration epoch system attribute (#254)
+ * Versioned network map (#867)
+ * ReplicateV2 inter-node API (#868)
+ * Container revisions (#871, #874, #877)
+ * Configurable pool session cache size (#870)
+ * Nonce attribute (#873)
+ * Simplified Init/Dial client API (#875, #876)
 
 Behaviour changes:
  * `PrmDial.SetServerURI` now defaults to port 80 (`grpc`) or 443 (`grpcs`) when scheme is specified without a port (#646)
+ * API version 2.27 is used by default now (#868)
+ * Old object search API is deprecated and will be removed in the next release (#874)
+
+Improvements:
+ * Updated google.golang.org/grpc dependency from 1.83.1 to 1.83.2 (#869)
 
 Bugs fixed:
+ * Forbidden zero bytes not rejected in attributes (#859)
+ * Missing network map validation during decode (#860)
  * `apistatus.UnrecognizedStatus` is not `apistatus.Error` (#649)
 
 ## [1.0.0-rc.22] - 2026-09-01
@@ -552,6 +577,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.23]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.22...v1.0.0-rc.23
 [1.0.0-rc.22]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.21...v1.0.0-rc.22
 [1.0.0-rc.21]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.20...v1.0.0-rc.21
 [1.0.0-rc.20]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.19...v1.0.0-rc.20
