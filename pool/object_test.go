@@ -88,10 +88,6 @@ func (noOtherClientCalls) ObjectHead(context.Context, cid.ID, oid.ID, user.Signe
 	panic("must not be called")
 }
 
-func (noOtherClientCalls) ObjectRangeInit(context.Context, cid.ID, oid.ID, uint64, uint64, user.Signer, client.PrmObjectRange) (*client.ObjectRangeReader, error) {
-	panic("must not be called")
-}
-
 func (noOtherClientCalls) ObjectDelete(context.Context, cid.ID, oid.ID, user.Signer, client.PrmObjectDelete) (oid.ID, error) {
 	panic("must not be called")
 }
@@ -295,96 +291,6 @@ func TestPool_ObjectHead(t *testing.T) {
 	hdr, err := p.ObjectHead(context.Background(), cnrID, objID, usr, headOpts)
 	require.Equal(t, err, headClient.err)
 	require.Equal(t, hdr, &headClient.hdr)
-}
-
-type objectRangeOnlyClient struct {
-	noOtherClientCalls
-	// expected input
-	cnr     cid.ID
-	objID   oid.ID
-	off, ln uint64
-	sgnr    user.Signer
-	opts    client.PrmObjectRange
-	// ret
-	pld *client.ObjectRangeReader
-	err error
-}
-
-func (x objectRangeOnlyClient) ObjectRangeInit(ctx context.Context, cnr cid.ID, objID oid.ID, off, ln uint64, signer user.Signer, opts client.PrmObjectRange) (*client.ObjectRangeReader, error) {
-	switch {
-	case ctx == nil:
-		return nil, errors.New("[test] nil context")
-	case cnr != x.cnr:
-		return nil, errors.New("[test] wrong container")
-	case objID != x.objID:
-		return nil, errors.New("[test] wrong object ID")
-	case off != x.off:
-		return nil, errors.New("[test] wrong range offset")
-	case ln != x.ln:
-		return nil, errors.New("[test] wrong range length")
-	case !assert.ObjectsAreEqual(signer, x.sgnr):
-		return nil, errors.New("[test] wrong signer")
-	case !assert.ObjectsAreEqual(opts, x.opts):
-		return nil, errors.New("[test] wrong options")
-	}
-	return x.pld, x.err
-}
-
-type objectRangeOnlyClientWrapper struct {
-	mockedClientWrapper
-	c objectRangeOnlyClient
-}
-
-func (x objectRangeOnlyClientWrapper) getClient() (sdkClientInterface, error) { return x.c, nil }
-
-func TestPool_ObjectRangeInit(t *testing.T) {
-	ctx := context.Background()
-	cnrID := cidtest.ID()
-	objID := oidtest.ID()
-	const off, ln = 13, 42
-	usr := usertest.User()
-
-	var rangeOpts client.PrmObjectRange
-	rangeOpts.WithBearerToken(bearertest.Token())
-	rangeOpts.MarkRaw()
-	rangeOpts.MarkLocal()
-	rangeOpts.WithXHeaders("k1", "v1", "k2", "v2")
-
-	rangeClient := objectRangeOnlyClient{
-		cnr:   cnrID,
-		objID: objID,
-		off:   off,
-		ln:    ln,
-		sgnr:  usr,
-		opts:  rangeOpts,
-		pld:   nil, // no way to construct
-		err:   errors.New("any error"),
-	}
-	endpoints := []string{"localhost:8080", "localhost:8081"}
-	nodes := make([]NodeParam, len(endpoints))
-	cws := make([]objectRangeOnlyClientWrapper, len(endpoints))
-	for i := range endpoints {
-		nodes[i].address = endpoints[i]
-		cws[i].addr = endpoints[i]
-		cws[i].c = rangeClient
-	}
-
-	var poolOpts InitParameters
-	poolOpts.setClientBuilder(func(endpoint string) (internalClient, error) {
-		ind := slices.Index(endpoints, endpoint)
-		if ind < 0 {
-			return nil, fmt.Errorf("unexpected endpoint %q", endpoint)
-		}
-		return &cws[ind], nil
-	})
-	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
-	require.NoError(t, err)
-	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(func() { _ = p.Close })
-
-	pld, err := p.ObjectRangeInit(context.Background(), cnrID, objID, off, ln, usr, rangeOpts)
-	require.Equal(t, err, rangeClient.err)
-	require.Equal(t, pld, rangeClient.pld)
 }
 
 type objectSearchV2OnlyClient struct {
