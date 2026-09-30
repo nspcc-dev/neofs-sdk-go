@@ -130,21 +130,6 @@ func (p *Pool) ObjectDelete(ctx context.Context, containerID cid.ID, objectID oi
 	return id, err
 }
 
-// ObjectSearchInit initiates object selection through a remote server using NeoFS API protocol.
-//
-// Deprecated: use [Pool.SearchObjects] instead.
-//
-// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
-//
-// See details in [client.Client.ObjectSearchInit].
-func (p *Pool) ObjectSearchInit(ctx context.Context, containerID cid.ID, signer user.Signer, prm client.PrmObjectSearch) (*client.ObjectListReader, error) {
-	c, err := p.sdkClient()
-	if err != nil {
-		return nil, err
-	}
-	return c.ObjectSearchInit(ctx, containerID, signer, prm)
-}
-
 // SearchObjects selects a suitable connection from the pool and calls
 // [client.Client.SearchObjects] on it.
 func (p *Pool) SearchObjects(ctx context.Context, containerID cid.ID, filters object.SearchFilters, attrs []string, cursor string,
