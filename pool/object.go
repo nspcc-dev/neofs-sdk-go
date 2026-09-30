@@ -89,20 +89,6 @@ func (p *Pool) ObjectHead(ctx context.Context, containerID cid.ID, objectID oid.
 	return c.ObjectHead(ctx, containerID, objectID, signer, prm)
 }
 
-// ObjectRangeInit initiates reading an object's payload range through a remote
-//
-// Deprecated: use [Pool.ObjectGetInit] with [client.PrmObjectGet.SetRange] instead.
-// Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.
-//
-// See details in [client.Client.ObjectRangeInit].
-func (p *Pool) ObjectRangeInit(ctx context.Context, containerID cid.ID, objectID oid.ID, offset, length uint64, signer user.Signer, prm client.PrmObjectRange) (*client.ObjectRangeReader, error) {
-	c, err := p.sdkClient()
-	if err != nil {
-		return nil, err
-	}
-	return c.ObjectRangeInit(ctx, containerID, objectID, offset, length, signer, prm)
-}
-
 // ObjectDelete marks an object for deletion from the container using NeoFS API protocol.
 //
 // Operation is executed within a session automatically created by [Pool] unless parameters explicitly override session settings.

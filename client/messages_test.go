@@ -493,24 +493,6 @@ var (
 			SplitInfo: proto.Clone(validFullSplitInfo).(*protoobject.SplitInfo),
 		},
 	}
-	// correct ObjectService.GetRange chunk response payload with all fields.
-	validFullChunkObjectRangeResponseBody = &protoobject.GetRangeResponse_Body{
-		RangePart: &protoobject.GetRangeResponse_Body_Chunk{
-			Chunk: []byte("Hello, world!"),
-		},
-	}
-	// correct ObjectService.GetRange split info response payload with required fields only.
-	validMinObjectSplitInfoRangeResponseBody = &protoobject.GetRangeResponse_Body{
-		RangePart: &protoobject.GetRangeResponse_Body_SplitInfo{
-			SplitInfo: proto.Clone(validMinSplitInfo).(*protoobject.SplitInfo),
-		},
-	}
-	// correct ObjectService.GetRange split info response payload with all fields.
-	validFullObjectSplitInfoRangeResponseBody = &protoobject.GetRangeResponse_Body{
-		RangePart: &protoobject.GetRangeResponse_Body_SplitInfo{
-			SplitInfo: proto.Clone(validFullSplitInfo).(*protoobject.SplitInfo),
-		},
-	}
 	// correct ObjectService.SearchV2 response payload with required fields only.
 	validMinSearchV2ResponseBody = &protoobject.SearchV2Response_Body{}
 	// correct ObjectService.SearchV2 response payload with all fields.
