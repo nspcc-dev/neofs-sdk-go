@@ -293,7 +293,10 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 			containerID := testCreateContainer(ctxTimeout, t, signer, cont, pl)
 
-			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), pl)
+			cnt, err := pl.ContainerGet(ctx, containerID, client.PrmContainerGet{})
+			require.NoError(t, err)
+
+			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), pl, cnt.Revision())
 			cl, err := pl.RawClient()
 
 			require.NoError(t, err)
@@ -459,8 +462,12 @@ func testDeleteObject(ctx context.Context, t *testing.T, signer user.Signer, con
 	require.NoError(t, err)
 }
 
-func testSetEacl(ctx context.Context, t *testing.T, signer user.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
+func testSetEacl(ctx context.Context, t *testing.T, signer user.Signer, table eacl.Table, setter containerEaclSetter, revision uint64) eacl.Table {
 	var prm client.PrmContainerSetEACL
+
+	if revision > 0 {
+		prm.AttachContainerRevision(revision)
+	}
 
 	require.NoError(t, setter.ContainerSetEACL(ctx, table, signer, prm))
 
