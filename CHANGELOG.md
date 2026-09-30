@@ -5,6 +5,8 @@
 New features:
 
 Behaviour changes:
+ * Removed deprecated ObjectSearchInit client API (#879)
+ * Removed object/relations package (#879)
 
 Improvements:
 

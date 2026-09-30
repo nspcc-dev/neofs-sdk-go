@@ -96,10 +96,6 @@ func (noOtherClientCalls) ObjectDelete(context.Context, cid.ID, oid.ID, user.Sig
 	panic("must not be called")
 }
 
-func (noOtherClientCalls) ObjectSearchInit(context.Context, cid.ID, user.Signer, client.PrmObjectSearch) (*client.ObjectListReader, error) {
-	panic("must not be called")
-}
-
 func (noOtherClientCalls) SearchObjects(context.Context, cid.ID, object.SearchFilters, []string, string, neofscrypto.Signer, client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {
 	panic("must not be called")
 }
@@ -389,87 +385,6 @@ func TestPool_ObjectRangeInit(t *testing.T) {
 	pld, err := p.ObjectRangeInit(context.Background(), cnrID, objID, off, ln, usr, rangeOpts)
 	require.Equal(t, err, rangeClient.err)
 	require.Equal(t, pld, rangeClient.pld)
-}
-
-type objectSearchOnlyClient struct {
-	noOtherClientCalls
-	// expected input
-	cnr  cid.ID
-	sgnr user.Signer
-	opts client.PrmObjectSearch
-	// ret
-	rdr *client.ObjectListReader
-	err error
-}
-
-func (x objectSearchOnlyClient) ObjectSearchInit(ctx context.Context, cnr cid.ID, signer user.Signer, opts client.PrmObjectSearch) (*client.ObjectListReader, error) {
-	switch {
-	case ctx == nil:
-		return nil, errors.New("[test] nil context")
-	case cnr != x.cnr:
-		return nil, errors.New("[test] wrong container")
-	case !assert.ObjectsAreEqual(signer, x.sgnr):
-		return nil, errors.New("[test] wrong signer")
-	case !assert.ObjectsAreEqual(opts, x.opts):
-		return nil, errors.New("[test] wrong options")
-	}
-	return x.rdr, x.err
-}
-
-type objectSearchOnlyClientWrapper struct {
-	mockedClientWrapper
-	c objectSearchOnlyClient
-}
-
-func (x objectSearchOnlyClientWrapper) getClient() (sdkClientInterface, error) { return x.c, nil }
-
-func TestPool_ObjectSearchInit(t *testing.T) {
-	ctx := context.Background()
-	cnrID := cidtest.ID()
-	usr := usertest.User()
-
-	var sfs object.SearchFilters
-	sfs.AddFilter("k1", "v1", object.MatchStringEqual)
-	sfs.AddFilter("k2", "v2", object.MatchStringNotEqual)
-
-	var searchOpts client.PrmObjectSearch
-	searchOpts.WithBearerToken(bearertest.Token())
-	searchOpts.MarkLocal()
-	searchOpts.WithXHeaders("k1", "v1", "k2", "v2")
-	searchOpts.SetFilters(sfs)
-
-	searchClient := objectSearchOnlyClient{
-		cnr:  cnrID,
-		sgnr: usr,
-		opts: searchOpts,
-		rdr:  nil, // no way to construct
-		err:  errors.New("any error"),
-	}
-	endpoints := []string{"localhost:8080", "localhost:8081"}
-	nodes := make([]NodeParam, len(endpoints))
-	cws := make([]objectSearchOnlyClientWrapper, len(endpoints))
-	for i := range endpoints {
-		nodes[i].address = endpoints[i]
-		cws[i].addr = endpoints[i]
-		cws[i].c = searchClient
-	}
-
-	var poolOpts InitParameters
-	poolOpts.setClientBuilder(func(endpoint string) (internalClient, error) {
-		ind := slices.Index(endpoints, endpoint)
-		if ind < 0 {
-			return nil, fmt.Errorf("unexpected endpoint %q", endpoint)
-		}
-		return &cws[ind], nil
-	})
-	p, err := New(nodes, usertest.User().RFC6979, poolOpts)
-	require.NoError(t, err)
-	require.NoError(t, p.Dial(ctx))
-	t.Cleanup(func() { _ = p.Close })
-
-	rdr, err := p.ObjectSearchInit(context.Background(), cnrID, usr, searchOpts)
-	require.Equal(t, err, searchClient.err)
-	require.Equal(t, rdr, searchClient.rdr)
 }
 
 type objectSearchV2OnlyClient struct {
