@@ -63,7 +63,6 @@ type testPutObjectServer struct {
 
 	reqHdr     *object.Object
 	reqPayload []byte
-	reqCopies  uint32
 
 	reqPayloadLenCounter int
 	reqChunkLens         []int
@@ -74,10 +73,6 @@ type testPutObjectServer struct {
 // any valid message. The message flow is also strictly controlled. Some methods
 // allow to tune the behavior.
 func newPutObjectServer() *testPutObjectServer { return new(testPutObjectServer) }
-
-// makes the server to assert that any heading request caries given value in
-// copy num field. By default, the field must be zero.
-func (x *testPutObjectServer) checkRequestCopiesNumber(n uint32) { x.reqCopies = n }
 
 // makes the server to assert that any heading request carries given object
 // header. By default, any header is accepted.
@@ -90,10 +85,6 @@ func (x *testPutObjectServer) checkRequestPayload(data []byte) { x.reqPayload = 
 func (x *testPutObjectServer) verifyHeadingMessage(m *protoobject.PutRequest_Body_Init) error {
 	if m.Header == nil {
 		return errors.New("missing header field")
-	}
-	// 4. copies number
-	if x.reqCopies != m.CopiesNumber {
-		return fmt.Errorf("copies number field (client: %d, message: %d)", x.reqCopies, m.CopiesNumber)
 	}
 	if x.reqHdr == nil {
 		return nil
@@ -407,21 +398,6 @@ func TestClient_ObjectPut(t *testing.T) {
 					opts.WithBearerToken(bt)
 
 					srv.checkRequestBearerToken(bt)
-					w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, opts)
-					require.NoError(t, err)
-					_, err = w.Write([]byte{1})
-					require.NoError(t, err)
-					require.NoError(t, w.Close())
-				})
-				t.Run("copies number", func(t *testing.T) {
-					srv := newPutObjectServer()
-					c := newTestObjectClient(t, srv)
-
-					n := rand.Uint32()
-					opts := anyValidOpts
-					opts.SetCopiesNumber(n)
-
-					srv.checkRequestCopiesNumber(0)
 					w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, opts)
 					require.NoError(t, err)
 					_, err = w.Write([]byte{1})

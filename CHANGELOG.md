@@ -8,6 +8,7 @@ Behaviour changes:
  * Removed deprecated ObjectSearchInit client API (#880)
  * Removed object/relations package (#880)
  * Removed deprecated ObjectRangeInit client API (#880)
+ * Removed no-op deprecated PrmObjectPutInit.SetCopiesNumber method (#880)
 
 Improvements:
 

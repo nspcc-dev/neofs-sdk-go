@@ -63,14 +63,6 @@ type PrmObjectPutInit struct {
 	containerRevision *uint64
 }
 
-// SetCopiesNumber sets the minimal number of copies (out of the number specified by container placement policy) for
-// the object PUT operation to succeed. This means that object operation will return with successful status even before
-// container placement policy is completely satisfied.
-//
-// Deprecated: Specify max replicas in container's initial placement policy
-// instead. This parameter no longer has an effect.
-func (x *PrmObjectPutInit) SetCopiesNumber(uint32) {}
-
 // AttachContainerRevision allows attaching container revision to the request.
 // If server's revision differs, [apistatus.ErrContainerRevisionMismatch] error
 // will be returned. If revision has been attached, but server does not support
