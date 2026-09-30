@@ -14,11 +14,6 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 )
 
-// NetworkInfoExecutor describes methods to get network information.
-type NetworkInfoExecutor interface {
-	NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.NetworkInfo, error)
-}
-
 // PrmEndpointInfo groups parameters of EndpointInfo operation.
 type PrmEndpointInfo struct {
 	prmCommonMeta

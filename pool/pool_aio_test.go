@@ -66,7 +66,11 @@ var (
 )
 
 type (
-	newEpochTickerFunc func(context.Context, client.NetworkInfoExecutor) (int, error)
+	NetworkInfoExecutor interface {
+		NetworkInfo(ctx context.Context, prm client.PrmNetworkInfo) (netmap.NetworkInfo, error)
+	}
+
+	newEpochTickerFunc func(context.Context, NetworkInfoExecutor) (int, error)
 
 	dockerImage struct {
 		image   string
@@ -201,7 +205,7 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 
 	<-time.After(3 * time.Second)
 
-	tickNewEpoch = func(ctx context.Context, executor client.NetworkInfoExecutor) (int, error) {
+	tickNewEpoch = func(ctx context.Context, executor NetworkInfoExecutor) (int, error) {
 		ni, err := executor.NetworkInfo(ctx, client.PrmNetworkInfo{})
 		if err != nil {
 			return 0, err

@@ -9,6 +9,7 @@ Behaviour changes:
  * Removed object/relations package (#879)
  * Removed deprecated ObjectRangeInit client API (#879)
  * Removed no-op deprecated PrmObjectPutInit.SetCopiesNumber method (#879)
+ * Removed deprecated SyncContainerWithNetwork client function and associated container methods (#879)
 
 Improvements:
 
