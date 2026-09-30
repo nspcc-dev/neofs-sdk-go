@@ -1,6 +1,7 @@
 package protobuf_test
 
 import (
+	"bytes"
 	"io"
 	"math"
 	"testing"
@@ -263,4 +264,71 @@ func TestBuffersSlice_ParseUint64Field(t *testing.T) {
 		{},
 		maxUint64Varint,
 	})
+}
+
+func TestBuffersSlice_CopyBuffers(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		bs := iprotobuf.NewBuffersSlice(nil)
+		require.Zero(t, bs.Count())
+		require.Zero(t, bs.CopyBuffers(nil))
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		bs := iprotobuf.NewBuffersSlice(mem.BufferSlice{})
+		require.Zero(t, bs.Count())
+		require.Zero(t, bs.CopyBuffers(nil))
+	})
+
+	t.Run("multiple empty", func(t *testing.T) {
+		bs := iprotobuf.NewBuffersSlice(mem.BufferSlice{
+			mem.SliceBuffer{},
+			mem.SliceBuffer(nil),
+		})
+		require.Zero(t, bs.Count())
+		require.Zero(t, bs.CopyBuffers(nil))
+	})
+
+	t.Run("single buffer", func(t *testing.T) {
+		buf := mem.SliceBuffer{0, 1, 2}
+		bs := iprotobuf.NewBuffersSlice(mem.BufferSlice{buf})
+		require.EqualValues(t, 1, bs.Count())
+
+		dst := make([][]byte, 2)
+		require.EqualValues(t, 1, bs.CopyBuffers(dst))
+		require.True(t, bytes.Equal(dst[0], buf))
+		require.Nil(t, dst[1])
+
+		// mutate buffer to assert shallow copy
+		dst[0][0] = 255
+		require.EqualValues(t, 255, buf[0])
+	})
+
+	buf1 := mem.SliceBuffer{0, 1, 2}
+	buf2 := mem.SliceBuffer{4, 5, 6}
+	buf3 := mem.SliceBuffer{7, 8, 9}
+
+	bs := iprotobuf.NewBuffersSlice(mem.BufferSlice{
+		mem.SliceBuffer{},
+		buf1,
+		mem.SliceBuffer{},
+		buf2,
+		mem.SliceBuffer{},
+		buf3,
+	})
+	require.EqualValues(t, 3, bs.Count())
+
+	dst := make([][]byte, 4)
+	require.EqualValues(t, 3, bs.CopyBuffers(dst))
+	require.True(t, bytes.Equal(dst[0], buf1))
+	require.True(t, bytes.Equal(dst[1], buf2))
+	require.True(t, bytes.Equal(dst[2], buf3))
+	require.Nil(t, dst[3])
+
+	// mutate buffers to assert shallow copy
+	dst[0][0] = 255
+	require.EqualValues(t, 255, buf1[0])
+	dst[1][0] = 255
+	require.EqualValues(t, 255, buf2[0])
+	dst[2][0] = 255
+	require.EqualValues(t, 255, buf3[0])
 }
