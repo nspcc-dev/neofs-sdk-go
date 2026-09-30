@@ -393,7 +393,6 @@ func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, conta
 	var hdr = object.New(containerID, account)
 
 	var prm client.PrmObjectPutInit
-	prm.SetCopiesNumber(1)
 
 	w, err := putter.ObjectPutInit(ctx, *hdr, signer, prm)
 	require.NoError(t, err)
@@ -411,7 +410,6 @@ func testObjectPutInitReaderFrom(ctx context.Context, t *testing.T, account user
 	var hdr = object.New(containerID, account)
 
 	var prm client.PrmObjectPutInit
-	prm.SetCopiesNumber(1)
 
 	w, err := putter.ObjectPutInit(ctx, *hdr, signer, prm)
 	require.NoError(t, err)
