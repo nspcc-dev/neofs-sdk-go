@@ -66,7 +66,11 @@ var (
 )
 
 type (
-	newEpochTickerFunc func(context.Context, client.NetworkInfoExecutor) (int, error)
+	NetworkInfoExecutor interface {
+		NetworkInfo(ctx context.Context, prm client.PrmNetworkInfo) (netmap.NetworkInfo, error)
+	}
+
+	newEpochTickerFunc func(context.Context, NetworkInfoExecutor) (int, error)
 
 	dockerImage struct {
 		image   string
@@ -201,7 +205,7 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 
 	<-time.After(3 * time.Second)
 
-	tickNewEpoch = func(ctx context.Context, executor client.NetworkInfoExecutor) (int, error) {
+	tickNewEpoch = func(ctx context.Context, executor NetworkInfoExecutor) (int, error) {
 		ni, err := executor.NetworkInfo(ctx, client.PrmNetworkInfo{})
 		if err != nil {
 			return 0, err
@@ -289,7 +293,10 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 
 			containerID := testCreateContainer(ctxTimeout, t, signer, cont, pl)
 
-			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), pl)
+			cnt, err := pl.ContainerGet(ctx, containerID, client.PrmContainerGet{})
+			require.NoError(t, err)
+
+			eaclTable := testSetEacl(ctxTimeout, t, signer, testEaclTable(containerID), pl, cnt.Revision())
 			cl, err := pl.RawClient()
 
 			require.NoError(t, err)
@@ -393,7 +400,6 @@ func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, conta
 	var hdr = object.New(containerID, account)
 
 	var prm client.PrmObjectPutInit
-	prm.SetCopiesNumber(1)
 
 	w, err := putter.ObjectPutInit(ctx, *hdr, signer, prm)
 	require.NoError(t, err)
@@ -411,7 +417,6 @@ func testObjectPutInitReaderFrom(ctx context.Context, t *testing.T, account user
 	var hdr = object.New(containerID, account)
 
 	var prm client.PrmObjectPutInit
-	prm.SetCopiesNumber(1)
 
 	w, err := putter.ObjectPutInit(ctx, *hdr, signer, prm)
 	require.NoError(t, err)
@@ -457,8 +462,12 @@ func testDeleteObject(ctx context.Context, t *testing.T, signer user.Signer, con
 	require.NoError(t, err)
 }
 
-func testSetEacl(ctx context.Context, t *testing.T, signer user.Signer, table eacl.Table, setter containerEaclSetter) eacl.Table {
+func testSetEacl(ctx context.Context, t *testing.T, signer user.Signer, table eacl.Table, setter containerEaclSetter, revision uint64) eacl.Table {
 	var prm client.PrmContainerSetEACL
+
+	if revision > 0 {
+		prm.AttachContainerRevision(revision)
+	}
 
 	require.NoError(t, setter.ContainerSetEACL(ctx, table, signer, prm))
 

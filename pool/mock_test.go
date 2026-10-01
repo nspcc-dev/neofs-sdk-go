@@ -123,18 +123,8 @@ func (m *mockClient) ObjectHead(_ context.Context, _ cid.ID, _ oid.ID, _ user.Si
 	panic("implement me")
 }
 
-func (m *mockClient) ObjectRangeInit(_ context.Context, _ cid.ID, _ oid.ID, _, _ uint64, _ user.Signer, _ client.PrmObjectRange) (*client.ObjectRangeReader, error) {
-	// TODO implement me
-	panic("implement me")
-}
-
 func (m *mockClient) ObjectDelete(_ context.Context, _ cid.ID, _ oid.ID, _ user.Signer, _ client.PrmObjectDelete) (oid.ID, error) {
 	return oid.ID{}, nil
-}
-
-func (m *mockClient) ObjectSearchInit(_ context.Context, _ cid.ID, _ user.Signer, _ client.PrmObjectSearch) (*client.ObjectListReader, error) {
-	// TODO implement me
-	panic("implement me")
 }
 
 func (m *mockClient) SearchObjects(context.Context, cid.ID, object.SearchFilters, []string, string, neofscrypto.Signer, client.SearchObjectsOptions) ([]client.SearchResultItem, string, error) {

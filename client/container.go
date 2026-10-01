@@ -745,29 +745,6 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	return err
 }
 
-// SyncContainerWithNetwork requests network configuration using passed [NetworkInfoExecutor]
-// and applies/rewrites it to the container.
-//
-// Returns any network/parsing config errors.
-//
-// See also [client.Client.NetworkInfo], [container.Container.ApplyNetworkConfig].
-//
-// Deprecated: network settings should not affect containers.
-func SyncContainerWithNetwork(ctx context.Context, cnr *container.Container, c NetworkInfoExecutor) error {
-	if cnr == nil {
-		return errors.New("empty container")
-	}
-
-	res, err := c.NetworkInfo(ctx, PrmNetworkInfo{})
-	if err != nil {
-		return fmt.Errorf("network info call: %w", err)
-	}
-
-	cnr.ApplyNetworkConfig(res)
-
-	return nil
-}
-
 // SetContainerAttributeParameters groups signed parameters of
 // [Client.SetContainerAttribute].
 type SetContainerAttributeParameters struct {
