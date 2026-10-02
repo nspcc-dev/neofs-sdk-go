@@ -210,6 +210,32 @@ func (x BuffersSlice) WriteTo(w io.Writer) (int64, error) {
 	return n, nil
 }
 
+// Count returns total number of underlying buffers.
+func (x BuffersSlice) Count() int {
+	var n int
+	for _, b := range x.buffersSeq2 {
+		if len(b) > 0 {
+			n++
+		}
+	}
+	return n
+}
+
+// CopyBuffers makes shallow copy of all underlying buffers into bs. Returns
+// number of elements copied.
+//
+// CopyBuffers panics if bs length is less than [BuffersSlice.Count].
+func (x BuffersSlice) CopyBuffers(bs [][]byte) int {
+	var n int
+	for _, b := range x.buffersSeq2 {
+		if len(b) > 0 {
+			bs[n] = b
+			n++
+		}
+	}
+	return n
+}
+
 // bytesSeq is an [iter.Seq] over bytes remaining in x.
 func (x *BuffersSlice) bytesSeq(yield func(byte) bool) {
 	for i, b := range x.buffersSeq2 {
