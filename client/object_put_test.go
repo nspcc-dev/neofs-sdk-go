@@ -476,8 +476,7 @@ func TestClient_ObjectPut(t *testing.T) {
 										time.Sleep(50 * time.Millisecond) // give the response time to come
 									}
 									if ok {
-										t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/649")
-										require.EqualError(t, err, "server unexpectedly interrupted the stream with a response")
+										require.EqualError(t, err, "server unexpectedly interrupted the stream with status OK")
 									} else {
 										t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/648")
 										require.ErrorIs(t, err, apistatus.Error)
