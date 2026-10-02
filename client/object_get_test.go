@@ -1041,7 +1041,6 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 								srv.respondWithObject(validFullHeadingObjectGetResponseBody.GetInit(), nil)
 								srv.respondWithStatus(0, &protostatus.Status{Code: code})
-								//nolint:staticcheck // drop with t.Skip()
 								_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 								t.Skip("currently ignores header and returns status error")
 								require.EqualError(t, err, fmt.Sprintf("split info response returned with non-OK status code = %d", code))
@@ -1070,7 +1069,6 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 								srv.respondWithBody(0, validFullObjectSplitInfoGetResponseBody)
 								srv.respondWithStatus(0, &protostatus.Status{Code: code})
-								//nolint:staticcheck // drop with t.Skip()
 								_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 								t.Skip("currently ignores split info and returns status error")
 								require.EqualError(t, err, fmt.Sprintf("split info response returned with non-OK status code = %d", code))
@@ -1403,9 +1401,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			srv.respondWithBody(2, validFullChunkObjectGetResponseBody)
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
-			//nolint:staticcheck // drop with t.Skip()
 			_, err = io.Copy(io.Discard, r)
-			t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/659")
 			require.EqualError(t, err, "unexpected message after split info response")
 		})
 		t.Run("cut payload", func(t *testing.T) {
