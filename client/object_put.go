@@ -156,6 +156,9 @@ func (x *DefaultObjectWriter) sendRequest(req any) error {
 		}
 
 		x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+		if x.err == nil {
+			x.err = errors.New("server unexpectedly interrupted the stream with status OK")
+		}
 
 		x.streamClosed = true
 		x.cancelCtxStream()
