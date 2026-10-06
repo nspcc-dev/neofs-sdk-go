@@ -3,8 +3,10 @@ package object_test
 import (
 	"bytes"
 	"crypto/elliptic"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"testing"
 	"time"
@@ -27,6 +29,8 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/encoding/protojson"
+	"google.golang.org/protobuf/proto"
 )
 
 var (
@@ -78,13 +82,14 @@ func init() {
 	par.SetContainerID(anyValidContainers[0])
 	par.SetOwner(anyValidUsers[0])
 	par.SetCreationEpoch(anyValidCreationEpoch)
+	_ = par.SetExpirationTime(time.Unix(anyValidExpirationTime, 0))
 	par.SetPayloadSize(anyValidPayloadSize)
 	par.SetPayloadChecksum(anyValidChecksums[0])
 	par.SetType(anyValidType)
 	par.SetPayloadHomomorphicHash(anyValidChecksums[1])
 	par.SetAttributes(
 		object.NewAttribute("par_attr_key1", "par_attr_val1"),
-		object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "14208497712700580130"),
+		object.NewAttribute("par_attr_key3", "par_attr_val3"),
 		object.NewAttribute("par_attr_key2", "par_attr_val2"),
 	)
 
@@ -95,6 +100,7 @@ func init() {
 	validObject.SetContainerID(anyValidContainers[1])
 	validObject.SetOwner(anyValidUsers[1])
 	validObject.SetCreationEpoch(anyValidCreationEpoch + 1)
+	_ = validObject.SetExpirationTime(time.Unix(anyValidExpirationTime+1, 0))
 	validObject.SetPayloadSize(anyValidPayloadSize + 1)
 	validObject.SetPayloadChecksum(anyValidChecksums[2])
 	validObject.SetType(anyValidType + 1)
@@ -103,7 +109,7 @@ func init() {
 	validObject.SetSessionTokenV2(&anyValidSessionTokenV2)
 	validObject.SetAttributes(
 		object.NewAttribute("attr_key1", "attr_val1"),
-		object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "8516691293958955670"),
+		object.NewAttribute("attr_key3", "attr_val3"),
 		object.NewAttribute("attr_key2", "attr_val2"),
 	)
 	validObject.SetPreviousID(anyValidIDs[2])
@@ -114,13 +120,13 @@ func init() {
 }
 
 // corresponds to validObject.
-var validObjectID = oid.ID{54, 219, 206, 209, 228, 56, 25, 11, 114, 164, 66, 70, 36, 128, 77, 172, 35, 102, 44, 236, 34,
-	85, 121, 34, 68, 198, 194, 149, 188, 195, 10, 79}
+var validObjectID = oid.ID{192, 0, 154, 171, 201, 195, 160, 117, 246, 24, 198, 165, 171, 112, 121, 35, 162, 200, 195, 120, 185, 70,
+	113, 163, 83, 179, 102, 14, 122, 49, 141, 46}
 
 // corresponds to validObject.
 var validBinObject = []byte{
 	10, 34, 10, 32, 178, 74, 58, 219, 46, 3, 110, 125, 220, 81, 238, 35, 27, 6, 228, 193, 190, 224, 77, 44, 18, 56, 117, 173, 70, 246, 8, 139,
-	247, 174, 53, 60, 18, 20, 10, 5, 112, 117, 98, 95, 50, 18, 5, 115, 105, 103, 95, 50, 24, 171, 178, 212, 208, 4, 26, 202, 9, 10, 11, 8,
+	247, 174, 53, 60, 18, 20, 10, 5, 112, 117, 98, 95, 50, 18, 5, 115, 105, 103, 95, 50, 24, 171, 178, 212, 208, 4, 26, 169, 9, 10, 11, 8,
 	209, 134, 217, 250, 1, 16, 202, 208, 129, 82, 18, 34, 10, 32, 217, 213, 19, 152, 91, 248, 2, 180, 17, 177, 248, 226, 163, 200, 56, 31, 123, 24,
 	182, 144, 148, 180, 248, 192, 155, 253, 104, 220, 69, 102, 174, 5, 26, 27, 10, 25, 53, 214, 113, 220, 69, 70, 98, 242, 115, 99, 188, 86, 53, 223,
 	243, 238, 11, 245, 251, 169, 115, 202, 247, 184, 221, 32, 158, 188, 250, 184, 255, 160, 255, 210, 183, 1, 40, 189, 238, 172, 200, 143, 221, 203, 248, 76,
@@ -135,20 +141,20 @@ var validBinObject = []byte{
 	232, 136, 68, 233, 22, 158, 100, 49, 20, 181, 95, 219, 143, 53, 250, 237, 113, 64, 25, 48, 11, 54, 207, 56, 98, 99, 136, 207, 21, 18, 41, 10,
 	14, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 101, 114, 18, 17, 115, 101, 115, 115, 105, 111, 110, 95, 115, 105, 103, 110, 97, 116, 117,
 	114, 101, 24, 170, 137, 252, 156, 4, 82, 22, 10, 9, 97, 116, 116, 114, 95, 107, 101, 121, 49, 18, 9, 97, 116, 116, 114, 95, 118, 97, 108, 49,
-	82, 48, 10, 25, 95, 95, 78, 69, 79, 70, 83, 95, 95, 69, 88, 80, 73, 82, 65, 84, 73, 79, 78, 95, 69, 80, 79, 67, 72, 18, 19, 56,
-	53, 49, 54, 54, 57, 49, 50, 57, 51, 57, 53, 56, 57, 53, 53, 54, 55, 48, 82, 22, 10, 9, 97, 116, 116, 114, 95, 107, 101, 121, 50, 18,
-	9, 97, 116, 116, 114, 95, 118, 97, 108, 50, 90, 135, 4, 10, 34, 10, 32, 229, 77, 63, 235, 2, 9, 165, 123, 116, 123, 47, 65, 22, 34, 214,
+	82, 22, 10, 9, 97, 116, 116, 114, 95, 107, 101, 121, 51, 18, 9, 97, 116, 116, 114, 95, 118, 97, 108, 51,
+	82, 22, 10, 9, 97, 116, 116, 114, 95, 107, 101, 121, 50, 18,
+	9, 97, 116, 116, 114, 95, 118, 97, 108, 50, 90, 250, 3, 10, 34, 10, 32, 229, 77, 63, 235, 2, 9, 165, 123, 116, 123, 47, 65, 22, 34, 214,
 	76, 45, 225, 21, 46, 135, 32, 116, 172, 67, 213, 243, 57, 253, 127, 179, 235, 18, 34, 10, 32, 206, 228, 247, 217, 41, 247, 159, 215, 79, 226, 53,
 	153, 133, 16, 102, 104, 2, 234, 35, 220, 236, 112, 101, 24, 235, 126, 173, 229, 161, 202, 197, 242, 26, 20, 10, 5, 112, 117, 98, 95, 49, 18, 5,
-	115, 105, 103, 95, 49, 24, 184, 132, 246, 224, 4, 34, 132, 2, 10, 11, 8, 167, 167, 171, 42, 16, 221, 138, 221, 194, 7, 18, 34, 10, 32, 245,
+	115, 105, 103, 95, 49, 24, 184, 132, 246, 224, 4, 34, 247, 1, 10, 11, 8, 167, 167, 171, 42, 16, 221, 138, 221, 194, 7, 18, 34, 10, 32, 245,
 	94, 164, 207, 217, 233, 175, 75, 123, 153, 174, 8, 20, 135, 96, 204, 179, 93, 183, 250, 180, 255, 162, 182, 222, 220, 99, 125, 136, 117, 206, 34, 26,
 	27, 10, 25, 53, 59, 15, 5, 52, 131, 255, 198, 8, 98, 41, 184, 229, 237, 140, 215, 52, 129, 211, 214, 90, 145, 237, 137, 153, 32, 157, 188, 250,
 	184, 255, 160, 255, 210, 183, 1, 40, 188, 238, 172, 200, 143, 221, 203, 248, 76, 50, 18, 8, 222, 213, 182, 173, 7, 18, 10, 99, 104, 101, 99, 107,
 	115, 117, 109, 95, 49, 56, 223, 137, 251, 224, 7, 66, 18, 8, 240, 184, 222, 148, 7, 18, 10, 99, 104, 101, 99, 107, 115, 117, 109, 95, 50, 82,
 	30, 10, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 107, 101, 121, 49, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 118, 97, 108, 49, 82,
-	49, 10, 25, 95, 95, 78, 69, 79, 70, 83, 95, 95, 69, 88, 80, 73, 82, 65, 84, 73, 79, 78, 95, 69, 80, 79, 67, 72, 18, 20, 49, 52,
-	50, 48, 56, 52, 57, 55, 55, 49, 50, 55, 48, 48, 53, 56, 48, 49, 51, 48, 82, 30, 10, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 107,
-	101, 121, 50, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 118, 97, 108, 50, 42, 34, 10, 32, 173, 160, 45, 58, 200, 168, 116, 142, 235, 209,
+	30, 10, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 107, 101, 121, 51, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 118, 97, 108, 51,
+	82, 30, 10, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 107,
+	101, 121, 50, 18, 13, 112, 97, 114, 95, 97, 116, 116, 114, 95, 118, 97, 108, 50, 104, 128, 226, 207, 170, 6, 42, 34, 10, 32, 173, 160, 45, 58, 200, 168, 116, 142, 235, 209,
 	231, 80, 235, 186, 6, 132, 99, 95, 14, 39, 237, 139, 87, 66, 244, 72, 96, 69, 13, 83, 81, 172, 42, 34, 10, 32, 238, 167, 85, 68, 91, 254,
 	165, 81, 182, 145, 16, 91, 35, 224, 17, 46, 164, 138, 86, 50, 196, 148, 215, 210, 247, 29, 44, 153, 203, 20, 137, 169, 42, 34, 10, 32, 226, 165,
 	123, 249, 146, 166, 187, 202, 244, 12, 156, 43, 207, 204, 40, 230, 145, 34, 212, 152, 148, 112, 44, 21, 195, 207, 249, 112, 34, 81, 145, 194, 50, 16,
@@ -159,7 +165,7 @@ var validBinObject = []byte{
 	106, 42, 222, 42, 7, 8, 200, 3, 16, 123, 24, 123, 50, 40, 10, 34, 10, 32, 135, 89, 149, 219, 185, 209, 233, 137, 224, 211, 141, 70, 193, 205,
 	248, 254, 226, 30, 114, 177, 245, 171, 29, 90, 212, 15, 51, 86, 142, 101, 155, 141, 18, 2, 1, 2, 18, 47, 10, 17, 115, 101, 115, 115, 105, 111,
 	110, 95, 118, 50, 95, 115, 105, 103, 110, 101, 114, 18, 20, 115, 101, 115, 115, 105, 111, 110, 95, 118, 50, 95, 115, 105, 103, 110, 97, 116, 117, 114,
-	101, 24, 171, 137, 252, 156, 4, 34, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
+	101, 24, 171, 137, 252, 156, 4, 104, 129, 226, 207, 170, 6, 34, 13, 72, 101, 108, 108, 111, 44, 32, 119, 111, 114, 108, 100, 33,
 }
 
 // corresponds to validObject.
@@ -236,8 +242,8 @@ var validJSONObject = `
     "value": "attr_val1"
    },
    {
-    "key": "__NEOFS__EXPIRATION_EPOCH",
-    "value": "8516691293958955670"
+    "key": "attr_key3",
+    "value": "attr_val3"
    },
    {
     "key": "attr_key2",
@@ -285,8 +291,8 @@ var validJSONObject = `
       "value": "par_attr_val1"
      },
      {
-      "key": "__NEOFS__EXPIRATION_EPOCH",
-      "value": "14208497712700580130"
+      "key": "par_attr_key3",
+      "value": "par_attr_val3"
      },
      {
       "key": "par_attr_key2",
@@ -294,7 +300,8 @@ var validJSONObject = `
      }
     ],
     "split": null,
-    "sessionTokenV2": null
+    "sessionTokenV2": null,
+    "expirationTime": "1700000000"
    },
    "children": [
     {
@@ -350,7 +357,8 @@ var validJSONObject = `
     "scheme": 1134494891
    },
    "origin": null
-  }
+  },
+  "expirationTime": "1700000001"
  },
  "payload": "SGVsbG8sIHdvcmxkIQ=="
 }
@@ -515,6 +523,267 @@ func TestObject_SetAttributes(t *testing.T) {
 	obj.SetAttributes(a1, sa1, a2, sa2)
 	require.Equal(t, []object.Attribute{a1, sa1, a2, sa2}, obj.Attributes())
 	require.Equal(t, []object.Attribute{a1, a2}, obj.UserAttributes())
+}
+
+func TestObject_ExpirationTime(t *testing.T) {
+	t.Run("get and set", func(t *testing.T) {
+		var obj object.Object
+
+		require.True(t, obj.ExpirationTime().IsZero())
+
+		require.NoError(t, obj.SetExpirationTime(time.Unix(123, 0)))
+		require.Equal(t, time.Unix(123, 0), obj.ExpirationTime())
+
+		require.Empty(t, obj.Attributes())
+		require.EqualValues(t, 123, *obj.ProtoMessage().Header.ExpirationTime)
+
+		// overwrite
+		require.NoError(t, obj.SetExpirationTime(time.Unix(456, 0)))
+		require.Equal(t, time.Unix(456, 0), obj.ExpirationTime())
+		require.Empty(t, obj.Attributes())
+
+		// alongside other attributes
+		obj.SetAttributes(object.NewAttribute("k1", "v1"))
+		require.NoError(t, obj.SetExpirationTime(time.Unix(789, 0)))
+		require.Equal(t, time.Unix(789, 0), obj.ExpirationTime())
+		require.Equal(t, []object.Attribute{object.NewAttribute("k1", "v1")}, obj.Attributes())
+	})
+
+	t.Run("non-positive time", func(t *testing.T) {
+		for _, v := range []time.Time{time.Unix(-789, 0), time.Unix(0, -1), time.Unix(0, 0), time.Unix(0, 999999999), {}} {
+			var obj object.Object
+			require.EqualError(t, obj.SetExpirationTime(v), fmt.Sprintf("non-positive expiration time %d", v.Unix()))
+			require.Zero(t, obj)
+
+			require.NoError(t, obj.SetExpirationTime(time.Unix(123, 0)))
+			before := obj
+			require.Error(t, obj.SetExpirationTime(v))
+			require.Equal(t, before, obj)
+		}
+	})
+
+	t.Run("wire zero timestamp", func(t *testing.T) {
+		// Wire zero remains present, unlike the zero time used for absence.
+		msg := &protoobject.Object{Header: &protoobject.Header{ExpirationTime: new(uint64(0))}}
+		b := []byte{26, 2, 104, 0}
+		j := []byte(`{"header":{"expirationTime":"0"}}`)
+		var obj object.Object
+		for _, decode := range []func() error{
+			func() error { return obj.FromProtoMessage(msg) },
+			func() error { return obj.Unmarshal(b) },
+			func() error { return obj.UnmarshalJSON(j) },
+		} {
+			require.NoError(t, obj.SetExpirationTime(time.Unix(123, 0)))
+			require.NoError(t, decode())
+			require.False(t, obj.ExpirationTime().IsZero())
+			require.Equal(t, time.Unix(0, 0), obj.ExpirationTime())
+			require.NotNil(t, obj.ProtoMessage().Header.ExpirationTime)
+			require.Zero(t, *obj.ProtoMessage().Header.ExpirationTime)
+			require.Equal(t, b, obj.Marshal())
+			encodedJSON, err := obj.MarshalJSON()
+			require.NoError(t, err)
+			var encoded protoobject.Object
+			require.NoError(t, protojson.Unmarshal(encodedJSON, &encoded))
+			require.NotNil(t, encoded.Header.ExpirationTime)
+			require.Zero(t, *encoded.Header.ExpirationTime)
+
+			var copied, child, decoded object.Object
+			obj.CopyTo(&copied)
+			obj.ResetExpirationTime()
+			require.True(t, obj.ExpirationTime().IsZero())
+			require.Equal(t, b, copied.Marshal())
+			child.SetParent(&copied)
+			require.NoError(t, decoded.Unmarshal(child.Marshal()))
+			require.Equal(t, time.Unix(0, 0), decoded.Parent().ExpirationTime())
+
+			require.NoError(t, copied.FromProtoMessage(new(protoobject.Object)))
+			require.True(t, copied.ExpirationTime().IsZero())
+			require.Nil(t, copied.ProtoMessage().Header)
+		}
+	})
+
+	t.Run("invalid header", func(t *testing.T) {
+		for _, tc := range []struct {
+			name string
+			hdr  *protoobject.Header
+			err  string
+		}{
+			{
+				name: "mutually exclusive zero time",
+				hdr: &protoobject.Header{
+					ExpirationTime: new(uint64(0)),
+					Attributes: []*protoobject.Header_Attribute{
+						{Key: "__NEOFS__EXPIRATION_EPOCH", Value: "123"},
+					},
+				},
+				err: "expiration time and expiration epoch are mutually exclusive",
+			},
+			{
+				name: "mutually exclusive nonzero time",
+				hdr: &protoobject.Header{
+					ExpirationTime: new(uint64(456)),
+					Attributes: []*protoobject.Header_Attribute{
+						{Key: "__NEOFS__EXPIRATION_EPOCH", Value: "123"},
+					},
+				},
+				err: "expiration time and expiration epoch are mutually exclusive",
+			},
+			{
+				name: "Unix timestamp overflow",
+				hdr:  &protoobject.Header{ExpirationTime: new(uint64(1 << 63))},
+				err:  "expiration time exceeds maximum Unix timestamp 9223372036854775807",
+			},
+			{
+				name: "maximum uint64 timestamp",
+				hdr:  &protoobject.Header{ExpirationTime: new(uint64(1<<64 - 1))},
+				err:  "expiration time exceeds maximum Unix timestamp 9223372036854775807",
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				for _, parent := range []bool{false, true} {
+					msg := &protoobject.Object{Header: tc.hdr}
+					want := "invalid header: " + tc.err
+					if parent {
+						msg.Header = &protoobject.Header{Split: &protoobject.Header_Split{ParentHeader: tc.hdr}}
+						want = "invalid header: invalid split header: invalid parent header: " + tc.err
+					}
+					var obj object.Object
+					require.EqualError(t, obj.FromProtoMessage(msg), want)
+					b, err := proto.Marshal(msg)
+					require.NoError(t, err)
+					require.EqualError(t, obj.Unmarshal(b), want)
+					j, err := protojson.Marshal(msg)
+					require.NoError(t, err)
+					require.EqualError(t, obj.UnmarshalJSON(j), want)
+				}
+			})
+		}
+		var obj object.Object
+		require.Error(t, obj.UnmarshalJSON([]byte(`{"header":{"expirationTime":"-1"}}`)))
+	})
+
+	t.Run("round trip", func(t *testing.T) {
+		for _, v := range []time.Time{
+			time.Unix(1, 0),
+			time.Unix(789, 0),
+			time.Unix(anyValidExpirationTime, 123456789).In(time.FixedZone("test", 3600)),
+			time.Unix(1<<63-1, 0),
+		} {
+			t.Run(v.String(), func(t *testing.T) {
+				var src object.Object
+				require.NoError(t, src.SetExpirationTime(v))
+				msg := src.ProtoMessage()
+				require.NotNil(t, msg.Header)
+				require.NotNil(t, msg.Header.ExpirationTime)
+				require.Equal(t, uint64(v.Unix()), *msg.Header.ExpirationTime)
+				require.Empty(t, src.Attributes())
+
+				check := func(dst object.Object) {
+					exp := dst.ExpirationTime()
+					require.False(t, exp.IsZero())
+					require.Equal(t, v.Unix(), exp.Unix())
+					require.Zero(t, exp.Nanosecond())
+					require.NotNil(t, dst.ProtoMessage().Header.ExpirationTime)
+				}
+				var dst object.Object
+				require.NoError(t, dst.FromProtoMessage(msg))
+				check(dst)
+				require.NoError(t, dst.Unmarshal(src.Marshal()))
+				check(dst)
+				j, err := src.MarshalJSON()
+				require.NoError(t, err)
+				require.NoError(t, dst.UnmarshalJSON(j))
+				check(dst)
+
+				// Neither conversion direction may share mutable protobuf pointers.
+				*msg.Header.ExpirationTime = 123
+				check(src)
+				check(dst)
+				src.CopyTo(&dst)
+				check(dst)
+				require.NoError(t, src.SetExpirationTime(time.Unix(456, 0)))
+				check(dst)
+
+				// An absent field must reset an existing value on decode and copy.
+				var empty object.Object
+				require.NoError(t, dst.FromProtoMessage(empty.ProtoMessage()))
+				require.True(t, dst.ExpirationTime().IsZero())
+				empty.CopyTo(&src)
+				require.True(t, src.ExpirationTime().IsZero())
+			})
+		}
+	})
+
+	t.Run("parent", func(t *testing.T) {
+		var parent, child, copied, decoded object.Object
+		require.NoError(t, parent.SetExpirationTime(time.Unix(123, 0)))
+		child.SetParent(&parent)
+		child.CopyTo(&copied)
+		require.NoError(t, parent.SetExpirationTime(time.Unix(456, 0)))
+		require.Equal(t, time.Unix(123, 0), copied.Parent().ExpirationTime())
+		require.NoError(t, decoded.Unmarshal(copied.Marshal()))
+		require.NotNil(t, decoded.Parent())
+		require.Equal(t, time.Unix(123, 0), decoded.Parent().ExpirationTime())
+		require.True(t, decoded.ExpirationTime().IsZero())
+	})
+
+	t.Run("legacy epoch-only object", func(t *testing.T) {
+		// A pre-expiration-time header must retain its binary representation.
+		b := []byte{26, 34, 82, 32, 10, 25, 95, 95, 78, 69, 79, 70, 83, 95, 95,
+			69, 88, 80, 73, 82, 65, 84, 73, 79, 78, 95, 69, 80, 79, 67, 72, 18, 3, 49, 50, 51}
+		j := `{"header":{"attributes":[{"key":"__NEOFS__EXPIRATION_EPOCH","value":"123"}]}}`
+		var obj object.Object
+		for _, decode := range []func() error{
+			func() error { return obj.Unmarshal(b) },
+			func() error { return obj.UnmarshalJSON([]byte(j)) },
+		} {
+			// Decode into an object that already has expiration time set.
+			require.NoError(t, obj.SetExpirationTime(time.Unix(456, 0)))
+			require.NoError(t, decode())
+			require.True(t, obj.ExpirationTime().IsZero())
+			require.Nil(t, obj.ProtoMessage().Header.ExpirationTime)
+			require.Equal(t, []object.Attribute{object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "123")}, obj.Attributes())
+			require.Equal(t, b, obj.Marshal())
+		}
+	})
+
+	t.Run("reset", func(t *testing.T) {
+		var obj object.Object
+		attrs := []object.Attribute{object.NewAttribute("__NEOFS__EXPIRATION_EPOCH", "123")}
+		obj.SetAttributes(attrs...)
+		require.NoError(t, obj.SetExpirationTime(time.Unix(123, 0)))
+		require.Equal(t, time.Unix(123, 0), obj.ExpirationTime())
+		require.Equal(t, attrs, obj.Attributes())
+
+		obj.ResetExpirationTime()
+		require.True(t, obj.ExpirationTime().IsZero())
+		require.Nil(t, obj.ProtoMessage().Header.ExpirationTime)
+		require.Equal(t, attrs, obj.Attributes())
+		obj.ResetExpirationTime()
+	})
+
+	t.Run("object ID", func(t *testing.T) {
+		obj := objecttest.Object()
+		original, err := obj.CalculateID()
+		require.NoError(t, err)
+		require.NoError(t, obj.SetExpirationTime(time.Unix(1, 0)))
+		id, err := obj.CalculateID()
+		require.NoError(t, err)
+		require.NotEqual(t, original, id)
+
+		// Stable encoding must match the standard protobuf encoding.
+		b, err := proto.MarshalOptions{Deterministic: true}.Marshal(obj.ProtoMessage().Header)
+		require.NoError(t, err)
+		require.Equal(t, oid.ID(sha256.Sum256(b)), id)
+		require.NoError(t, obj.SetExpirationTime(time.Unix(2, 0)))
+		other, err := obj.CalculateID()
+		require.NoError(t, err)
+		require.NotEqual(t, id, other)
+		obj.ResetExpirationTime()
+		reset, err := obj.CalculateID()
+		require.NoError(t, err)
+		require.Equal(t, original, reset)
+	})
 }
 
 func TestObject_ExpirationEpoch(t *testing.T) {
@@ -782,6 +1051,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 			ContainerId:     protoContainerIDFromBytes(anyValidContainers[1][:]),
 			OwnerId:         protoUserIDFromBytes(anyValidUsers[1][:]),
 			CreationEpoch:   anyValidCreationEpoch + 1,
+			ExpirationTime:  new(uint64(anyValidExpirationTime + 1)),
 			PayloadLength:   anyValidPayloadSize + 1,
 			PayloadHash:     &refs.Checksum{Type: 126384577, Sum: []byte("checksum_3")},
 			ObjectType:      protoobject.ObjectType(anyValidType) + 1,
@@ -832,7 +1102,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 			},
 			Attributes: []*protoobject.Header_Attribute{
 				{Key: "attr_key1", Value: "attr_val1"},
-				{Key: "__NEOFS__EXPIRATION_EPOCH", Value: "8516691293958955670"},
+				{Key: "attr_key3", Value: "attr_val3"},
 				{Key: "attr_key2", Value: "attr_val2"},
 			},
 			Split: &protoobject.Header_Split{
@@ -844,13 +1114,14 @@ func TestObject_FromProtoMessage(t *testing.T) {
 					ContainerId:     protoContainerIDFromBytes(anyValidContainers[0][:]),
 					OwnerId:         protoUserIDFromBytes(anyValidUsers[0][:]),
 					CreationEpoch:   anyValidCreationEpoch,
+					ExpirationTime:  new(uint64(anyValidExpirationTime)),
 					PayloadLength:   anyValidPayloadSize,
 					PayloadHash:     &refs.Checksum{Type: 1974315742, Sum: []byte("checksum_1")},
 					ObjectType:      protoobject.ObjectType(anyValidType),
 					HomomorphicHash: &refs.Checksum{Type: 1922538608, Sum: []byte("checksum_2")},
 					Attributes: []*protoobject.Header_Attribute{
 						{Key: "par_attr_key1", Value: "par_attr_val1"},
-						{Key: "__NEOFS__EXPIRATION_EPOCH", Value: "14208497712700580130"},
+						{Key: "par_attr_key3", Value: "par_attr_val3"},
 						{Key: "par_attr_key2", Value: "par_attr_val2"},
 					},
 				},
@@ -1020,6 +1291,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 				}},
 			{name: "attributes/expiration", err: "invalid header: invalid attribute #1: invalid expiration epoch (must be a uint): strconv.ParseUint: parsing \"foo\": invalid syntax",
 				corrupt: func(m *protoobject.Object) {
+					m.Header.ExpirationTime = nil
 					m.Header.Attributes = []*protoobject.Header_Attribute{
 						{Key: "k1", Value: "v1"}, {Key: "__NEOFS__EXPIRATION_EPOCH", Value: "foo"}, {Key: "k3", Value: "v3"},
 					}
@@ -1141,6 +1413,8 @@ func TestObject_ProtoMessage(t *testing.T) {
 	require.Equal(t, anyValidContainers[1][:], mh.GetContainerId().GetValue())
 	require.Equal(t, anyValidUsers[1][:], mh.GetOwnerId().GetValue())
 	require.EqualValues(t, anyValidCreationEpoch+1, mh.GetCreationEpoch())
+	require.NotNil(t, mh.ExpirationTime)
+	require.Equal(t, uint64(anyValidExpirationTime+1), mh.GetExpirationTime())
 	require.EqualValues(t, anyValidPayloadSize+1, mh.GetPayloadLength())
 	require.EqualValues(t, 126384577, mh.GetPayloadHash().GetType())
 	require.EqualValues(t, "checksum_3", mh.GetPayloadHash().GetSum())
@@ -1192,8 +1466,8 @@ func TestObject_ProtoMessage(t *testing.T) {
 	require.Len(t, as, 3)
 	require.Equal(t, "attr_key1", as[0].GetKey())
 	require.Equal(t, "attr_val1", as[0].GetValue())
-	require.Equal(t, "__NEOFS__EXPIRATION_EPOCH", as[1].GetKey())
-	require.Equal(t, "8516691293958955670", as[1].GetValue())
+	require.Equal(t, "attr_key3", as[1].GetKey())
+	require.Equal(t, "attr_val3", as[1].GetValue())
 	require.Equal(t, "attr_key2", as[2].GetKey())
 	require.Equal(t, "attr_val2", as[2].GetValue())
 
@@ -1221,6 +1495,8 @@ func TestObject_ProtoMessage(t *testing.T) {
 	require.Equal(t, anyValidContainers[0][:], ph.GetContainerId().GetValue())
 	require.Equal(t, anyValidUsers[0][:], ph.GetOwnerId().GetValue())
 	require.EqualValues(t, anyValidCreationEpoch, ph.GetCreationEpoch())
+	require.NotNil(t, ph.ExpirationTime)
+	require.Equal(t, uint64(anyValidExpirationTime), ph.GetExpirationTime())
 	require.EqualValues(t, anyValidPayloadSize, ph.GetPayloadLength())
 	require.EqualValues(t, 1974315742, ph.GetPayloadHash().GetType())
 	require.EqualValues(t, "checksum_1", ph.GetPayloadHash().GetSum())
@@ -1232,8 +1508,8 @@ func TestObject_ProtoMessage(t *testing.T) {
 	require.Len(t, as, 3)
 	require.Equal(t, "par_attr_key1", as[0].GetKey())
 	require.Equal(t, "par_attr_val1", as[0].GetValue())
-	require.Equal(t, "__NEOFS__EXPIRATION_EPOCH", as[1].GetKey())
-	require.Equal(t, "14208497712700580130", as[1].GetValue())
+	require.Equal(t, "par_attr_key3", as[1].GetKey())
+	require.Equal(t, "par_attr_val3", as[1].GetValue())
 	require.Equal(t, "par_attr_key2", as[2].GetKey())
 	require.Equal(t, "par_attr_val2", as[2].GetValue())
 }
@@ -2326,7 +2602,7 @@ func TestObject_UnmarshalJSON(t *testing.T) {
 
 func TestObject_HeaderLen(t *testing.T) {
 	require.EqualValues(t, 0, object.Object{}.HeaderLen())
-	require.EqualValues(t, 1226, validObject.HeaderLen())
+	require.EqualValues(t, 1193, validObject.HeaderLen())
 }
 
 func TestObject_Address(t *testing.T) {

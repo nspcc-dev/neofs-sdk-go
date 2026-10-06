@@ -47,6 +47,7 @@ func (x header) copyTo(dst *header) {
 	dst.cnr = x.cnr
 	dst.owner = x.owner
 	dst.created = x.created
+	dst.expiration = x.expiration
 	dst.payloadLn = x.payloadLn
 	dst.typ = x.typ
 	dst.attrs = slices.Clone(x.attrs)
