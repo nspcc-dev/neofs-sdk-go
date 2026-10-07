@@ -196,7 +196,11 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	xHdrLenFn := xHeadersLengthFunc(x.opts.xHeaders)
 	xHdrNum := len(x.opts.xHeaders) / 2
 
-	x.metaHdrLen = protosession.CalculateRequestMetaHeaderLength(x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, x.sessionV1TokenLen, x.bearerTokenLen, 0, x.sessionV2TokenLen)
+	var validUntilTime uint64
+	if validUntilIsSupported(x.apiVersion) {
+		validUntilTime = uint64(time.Now().Unix() + int64(x.singleMsgTimeout/time.Second))
+	}
+	x.metaHdrLen = protosession.CalculateRequestMetaHeaderLength(x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, x.sessionV1TokenLen, x.bearerTokenLen, 0, x.sessionV2TokenLen, validUntilTime)
 
 	bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
 
@@ -227,7 +231,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
 	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
 
-	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
+	off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn, uint64(validUntilTime))
 
 	var reqBuffers mem.BufferSlice
 	if x.shouldSignRequest {
@@ -325,7 +329,11 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
 		writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
 
-		off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
+		var validUntilTime uint64
+		if validUntilIsSupported(x.apiVersion) {
+			validUntilTime = uint64(time.Now().Unix() + int64(x.singleMsgTimeout/time.Second))
+		}
+		off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn, validUntilTime)
 
 		var reqBuffers mem.BufferSlice
 		if x.shouldSignRequest {
@@ -436,7 +444,11 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			writeBearerTokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.bearerTokenMsg)
 			writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.sessionV2TokenMsg)
 
-			off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn)
+			var validUntilTime uint64
+			if validUntilIsSupported(x.apiVersion) {
+				validUntilTime = uint64(time.Now().Unix() + int64(x.singleMsgTimeout/time.Second))
+			}
+			off += protosession.WriteRequestMetaHeaderToRequest(buf[off:], x.apiVersion.Major, x.apiVersion.Minor, ttl, xHdrNum, xHdrLenFn, writeXHeaderFn, x.sessionV1TokenLen, writeSessionV1TokenFn, x.bearerTokenLen, writeBearerTokenFn, 0, x.sessionV2TokenLen, writeSessionV2TokenFn, validUntilTime)
 
 			var reqBuffers mem.BufferSlice
 			if x.shouldSignRequest {

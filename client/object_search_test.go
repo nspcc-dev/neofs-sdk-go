@@ -71,6 +71,9 @@ func (x commonSearchObjectsServerSettings) verifyRequest(mh *protosession.Reques
 	if err := x.verifyBearerToken(mh.GetBearerToken()); err != nil {
 		return err
 	}
+	if mh.ValidUntilTime == 0 {
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
+	}
 	// body
 	if body == nil {
 		return newInvalidRequestBodyErr(errors.New("missing body"))

@@ -89,8 +89,9 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 			Expiration: prm.exp,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)

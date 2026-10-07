@@ -60,6 +60,9 @@ func (x *testDeleteObjectServer) verifyRequest(req *protoobject.DeleteRequest) e
 	if err := x.verifyBearerToken(req.MetaHeader.BearerToken); err != nil {
 		return err
 	}
+	if req.MetaHeader.ValidUntilTime == 0 {
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
+	}
 	// body
 	body := req.Body
 	if body == nil {
