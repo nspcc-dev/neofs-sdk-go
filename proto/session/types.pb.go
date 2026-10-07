@@ -519,7 +519,8 @@ type RequestMetaHeader struct {
 	Epoch uint64 `protobuf:"varint,2,opt,name=epoch,proto3" json:"epoch,omitempty"`
 	// Maximum number of intermediate nodes in the request route
 	Ttl uint32 `protobuf:"varint,3,opt,name=ttl,proto3" json:"ttl,omitempty"`
-	// Request X-Headers
+	// Request X-Headers.
+	// DEPRECATED: field MUST NOT be set with `version` starting from v2.28.
 	XHeaders []*XHeader `protobuf:"bytes,4,rep,name=x_headers,json=xHeaders,proto3" json:"x_headers,omitempty"`
 	// Session token within which the request is sent
 	SessionToken *SessionToken `protobuf:"bytes,5,opt,name=session_token,json=sessionToken,proto3" json:"session_token,omitempty"`
@@ -534,9 +535,15 @@ type RequestMetaHeader struct {
 	Origin *RequestMetaHeader `protobuf:"bytes,7,opt,name=origin,proto3" json:"origin,omitempty"`
 	// NeoFS network magic. Must match the value for the network
 	// that the server belongs to.
-	MagicNumber   uint64 `protobuf:"varint,8,opt,name=magic_number,json=magicNumber,proto3" json:"magic_number,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	MagicNumber uint64 `protobuf:"varint,8,opt,name=magic_number,json=magicNumber,proto3" json:"magic_number,omitempty"`
+	// The time at which this request ceases to be valid. This value is
+	// an absolute point in time, expressed as a UTC Unix timestamp in seconds.
+	// The request is considered valid while `now < valid_until_time`; at or
+	// after this time it is expired and must not be accepted.
+	// Any request must fill this field since API v2.28.
+	ValidUntilTime uint64 `protobuf:"varint,10,opt,name=valid_until_time,json=validUntilTime,proto3" json:"valid_until_time,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *RequestMetaHeader) Reset() {
@@ -632,6 +639,13 @@ func (x *RequestMetaHeader) GetMagicNumber() uint64 {
 	return 0
 }
 
+func (x *RequestMetaHeader) GetValidUntilTime() uint64 {
+	if x != nil {
+		return x.ValidUntilTime
+	}
+	return 0
+}
+
 // Information about the response. For stream RPCs, non-status information
 // can be attached only to stream's first response message and must be
 // omitted for the subsequent ones. Error statuses are allowed to be
@@ -650,6 +664,7 @@ type ResponseMetaHeader struct {
 	// Response X-Headers. Optional in general, but for certain requests it can
 	// be required for correct result processing, read method's description for
 	// information.
+	// DEPRECATED: field MUST NOT be set with `version` starting from v2.28.
 	XHeaders []*XHeader `protobuf:"bytes,4,rep,name=x_headers,json=xHeaders,proto3" json:"x_headers,omitempty"`
 	// `ResponseMetaHeader` of the origin request.
 	//
@@ -1611,7 +1626,7 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\acontext\"1\n" +
 	"\aXHeader\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\xda\x03\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\x84\x04\n" +
 	"\x11RequestMetaHeader\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x10\n" +
@@ -1621,7 +1636,9 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\x10session_token_v2\x18\t \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x12=\n" +
 	"\fbearer_token\x18\x06 \x01(\v2\x1a.neo.fs.v2.acl.BearerTokenR\vbearerToken\x12<\n" +
 	"\x06origin\x18\a \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\x06origin\x12!\n" +
-	"\fmagic_number\x18\b \x01(\x04R\vmagicNumber\"\x99\x02\n" +
+	"\fmagic_number\x18\b \x01(\x04R\vmagicNumber\x12(\n" +
+	"\x10valid_until_time\x18\n" +
+	" \x01(\x04R\x0evalidUntilTime\"\x99\x02\n" +
 	"\x12ResponseMetaHeader\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x10\n" +
