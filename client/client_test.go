@@ -789,6 +789,8 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 	case len(metaHdr.XHeaders) != len(x.reqXHdrs)/2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("number of x-headers %d differs parameterized %d",
 			len(metaHdr.XHeaders), len(x.reqXHdrs)/2))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	for i := range metaHdr.XHeaders {
 		if metaHdr.XHeaders[i].Key != x.reqXHdrs[2*i] {

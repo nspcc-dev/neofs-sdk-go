@@ -56,6 +56,7 @@ const (
 // returned from all of them (pay attention to the presence of the pointer sign):
 //   - *[apistatus.ServerInternal] on internal server error;
 //   - *[apistatus.NodeUnderMaintenance] if a server is under maintenance;
+//   - *[apistatus.RequestExpired] if request is expired;
 //   - *[apistatus.SuccessDefaultV2] on default success.
 //
 // Client MUST NOT be copied by value: use pointer to Client instead.
@@ -488,4 +489,25 @@ func newByteBufferPool(ln uint64) *sync.Pool {
 
 func multipleReqSignatures(v *protorefs.Version) bool {
 	return v == nil || v.Major < 2 || (v.Major == 2 && v.Minor < 26)
+}
+
+func validUntilIsSupported(v *protorefs.Version) bool {
+	return v != nil && (v.Major == 2 && v.Minor >= 28 || v.Major > 2)
+}
+
+func validUntilTime(ctx context.Context, v *protorefs.Version) uint64 {
+	if !validUntilIsSupported(v) {
+		// request must have nothing about validity time, it is the same
+		// as attaching zero time
+		return 0
+	}
+
+	const defaultDeadline = 30 // in seconds
+
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return uint64(time.Now().Unix() + defaultDeadline)
+	}
+
+	return uint64(deadline.Unix())
 }

@@ -103,6 +103,20 @@ func TestToError(t *testing.T) {
 		},
 		{
 			new: func() error {
+				st := new(apistatus.RequestExpired)
+				st.SetMessage("request is not actual for now")
+
+				return st
+			},
+			code:           1030,
+			compatibleErrs: []error{apistatus.ErrRequestExpired, apistatus.RequestExpired{}, &apistatus.RequestExpired{}, apistatus.Error},
+			checkAsErr: func(err error) bool {
+				var target *apistatus.RequestExpired
+				return errors.As(err, &target)
+			},
+		},
+		{
+			new: func() error {
 				return new(apistatus.ObjectLocked)
 			},
 			code:           2050,

@@ -322,15 +322,16 @@ const (
 	FieldRequestMetaHeaderOrigin
 	FieldRequestMetaHeaderMagicNumber
 	FieldRequestMetaHeaderSessionTokenV2
+	FieldRequestMetaHeaderValidUntilTime
 )
 
 // CalculateRequestMetaHeaderLength calculates length of request meta header
 // message with given fields.
-func CalculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, magicNumber uint64, sessionV2TokenLen int) int {
-	return calculateRequestMetaHeaderLength(majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, magicNumber, sessionV2TokenLen)
+func CalculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, magicNumber uint64, sessionV2TokenLen int, validUntilTime uint64) int {
+	return calculateRequestMetaHeaderLength(majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, 0, magicNumber, sessionV2TokenLen, validUntilTime)
 }
 
-func calculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, originLen int, magicNumber uint64, sessionV2TokenLen int) int {
+func calculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, sessionV1TokenLen int, bearerTokenLen int, originLen int, magicNumber uint64, sessionV2TokenLen int, validUntilTime uint64) int {
 	ln := protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderVersion, refs.CalculateVersionLength(majorVersion, minorVersion))
 	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderEpoch, epoch)
 	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderTTL, ttl)
@@ -340,6 +341,7 @@ func calculateRequestMetaHeaderLength(majorVersion uint32, minorVersion uint32, 
 	ln += protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderOrigin, originLen)
 	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderMagicNumber, magicNumber)
 	ln += protoencoding.SizeEmbeddedLENField(FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen)
+	ln += protoencoding.SizeVarint(FieldRequestMetaHeaderValidUntilTime, validUntilTime)
 	return ln
 }
 
@@ -361,31 +363,31 @@ func (x *RequestMetaHeader) MarshaledSize() int {
 	bearerTokenLen := x.BearerToken.MarshaledSize()
 	originLen := x.Origin.MarshaledSize()
 	sessionV2TokenLen := x.SessionTokenV2.MarshaledSize()
-	return calculateRequestMetaHeaderLength(x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, sessionV1TokenLen, bearerTokenLen, originLen, x.MagicNumber, sessionV2TokenLen)
+	return calculateRequestMetaHeaderLength(x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, sessionV1TokenLen, bearerTokenLen, originLen, x.MagicNumber, sessionV2TokenLen, x.ValidUntilTime)
 }
 
 // WriteRequestMetaHeaderToRequest writes meta header field with given fields
 // into buf. Returns number of bytes written.
 func WriteRequestMetaHeaderToRequest(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, writeXHdrFn protoencoding.WriteRepeatedMessageFunc,
-	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc) int {
-	ln := CalculateRequestMetaHeaderLength(majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, magicNumber, sessionV2TokenLen)
+	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc, validUntilTime uint64) int {
+	ln := CalculateRequestMetaHeaderLength(majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, sessionV1TokenLen, bearerTokenLen, magicNumber, sessionV2TokenLen, validUntilTime)
 	if ln == 0 {
 		return 0
 	}
 	off := protoencoding.WriteRequestMetaHeaderTagAndLength(buf, ln)
-	off += WriteRequestMetaHeader(buf[off:], majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
+	off += WriteRequestMetaHeader(buf[off:], majorVersion, minorVersion, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn, validUntilTime)
 	return off
 }
 
 // WriteRequestMetaHeader writes request meta header message with given fields
 // into buf. Returns number of bytes written.
 func WriteRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, writeXHdrFn protoencoding.WriteRepeatedMessageFunc,
-	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc) int {
-	return writeRequestMetaHeader(buf, majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, nil, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
+	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc, validUntilTime uint64) int {
+	return writeRequestMetaHeader(buf, majorVersion, minorVersion, 0, ttl, xHdrNum, xHdrLenFn, writeXHdrFn, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, 0, nil, magicNumber, sessionV2TokenLen, writeSessionV2TokenFn, validUntilTime)
 }
 
 func writeRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32, epoch uint64, ttl uint32, xHdrNum int, xHdrLenFn protoencoding.RepeatedMessageLenFunc, writeXHdrFn protoencoding.WriteRepeatedMessageFunc,
-	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, originLen int, writeOriginFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc) int {
+	sessionV1TokenLen int, writeSessionV1TokenFn protoencoding.WriteMessageFunc, bearerTokenLen int, writeBearerTokenFn protoencoding.WriteMessageFunc, originLen int, writeOriginFn protoencoding.WriteMessageFunc, magicNumber uint64, sessionV2TokenLen int, writeSessionV2TokenFn protoencoding.WriteMessageFunc, validUntilTime uint64) int {
 	off := refs.WriteVersionField(buf, FieldRequestMetaHeaderVersion, majorVersion, minorVersion)
 	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderEpoch, epoch)
 	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderTTL, ttl)
@@ -395,6 +397,7 @@ func writeRequestMetaHeader(buf []byte, majorVersion uint32, minorVersion uint32
 	off += protoencoding.WriteMessageField(buf[off:], FieldRequestMetaHeaderOrigin, originLen, writeOriginFn)
 	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderMagicNumber, magicNumber)
 	off += protoencoding.WriteMessageField(buf[off:], FieldRequestMetaHeaderSessionTokenV2, sessionV2TokenLen, writeSessionV2TokenFn)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldRequestMetaHeaderValidUntilTime, validUntilTime)
 	return off
 }
 
@@ -422,7 +425,7 @@ func (x *RequestMetaHeader) MarshalStable(b []byte) {
 	writeOriginFn := protoencoding.WriteStablyMarshalledMessageFunc(x.Origin)
 	sessionV2TokenLen := x.SessionTokenV2.MarshaledSize()
 	writeSessionV2TokenFn := protoencoding.WriteStablyMarshalledMessageFunc(x.SessionTokenV2)
-	writeRequestMetaHeader(b, x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, x.writeXHeader, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, originLen, writeOriginFn, x.MagicNumber, sessionV2TokenLen, writeSessionV2TokenFn)
+	writeRequestMetaHeader(b, x.Version.GetMajor(), x.Version.GetMinor(), x.Epoch, x.Ttl, len(x.XHeaders), x.getXHeaderLen, x.writeXHeader, sessionV1TokenLen, writeSessionV1TokenFn, bearerTokenLen, writeBearerTokenFn, originLen, writeOriginFn, x.MagicNumber, sessionV2TokenLen, writeSessionV2TokenFn, x.ValidUntilTime)
 }
 
 // Field numbers of [ResponseMetaHeader] message.

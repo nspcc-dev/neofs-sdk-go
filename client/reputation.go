@@ -56,8 +56,9 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 			Trusts: make([]*protoreputation.Trust, len(trusts)),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	for i := range trusts {
@@ -130,8 +131,9 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 			Trust:     trust.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
