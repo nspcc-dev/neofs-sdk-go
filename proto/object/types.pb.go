@@ -437,6 +437,16 @@ type Header struct {
 	// integrity and authenticity out of Request scope.
 	// Only one of `session_token` or `session_token_v2` can be set.
 	SessionTokenV2 *session.SessionTokenV2 `protobuf:"bytes,12,opt,name=session_token_v2,json=sessionTokenV2,proto3" json:"session_token_v2,omitempty"`
+	// Unix timestamp in seconds after which the object expires and can be
+	// deleted by GC. The object is expired when the current Unix timestamp in
+	// seconds is strictly greater than this value. Sub-second precision is not
+	// supported.
+	// If absent, the deprecated `__NEOFS__EXPIRATION_EPOCH` attribute determines
+	// expiration. If neither is present, the object never expires.
+	// This field and the expiration epoch attribute MUST NOT both be set.
+	// LOCK and TOMBSTONE objects MUST have exactly one of this field or the
+	// expiration epoch attribute set.
+	ExpirationTime *uint64 `protobuf:"varint,13,opt,name=expiration_time,json=expirationTime,proto3,oneof" json:"expiration_time,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -553,6 +563,13 @@ func (x *Header) GetSessionTokenV2() *session.SessionTokenV2 {
 		return x.SessionTokenV2
 	}
 	return nil
+}
+
+func (x *Header) GetExpirationTime() uint64 {
+	if x != nil && x.ExpirationTime != nil {
+		return *x.ExpirationTime
+	}
+	return 0
 }
 
 // Object structure. Object is immutable and content-addressed. It means
@@ -715,6 +732,61 @@ func (x *SplitInfo) GetFirstPart() *refs.ObjectID {
 	return nil
 }
 
+// Unique ID of part obtained by erasure coding (EC) the object.
+type ECPartID struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Index of EC rule in the container placement policy.
+	RuleIndex uint32 `protobuf:"varint,1,opt,name=rule_index,json=ruleIndex,proto3" json:"rule_index,omitempty"`
+	// Index of the part in the object EC partition.
+	PartIndex     uint32 `protobuf:"varint,2,opt,name=part_index,json=partIndex,proto3" json:"part_index,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ECPartID) Reset() {
+	*x = ECPartID{}
+	mi := &file_proto_object_types_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ECPartID) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ECPartID) ProtoMessage() {}
+
+func (x *ECPartID) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_object_types_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ECPartID.ProtoReflect.Descriptor instead.
+func (*ECPartID) Descriptor() ([]byte, []int) {
+	return file_proto_object_types_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ECPartID) GetRuleIndex() uint32 {
+	if x != nil {
+		return x.RuleIndex
+	}
+	return 0
+}
+
+func (x *ECPartID) GetPartIndex() uint32 {
+	if x != nil {
+		return x.PartIndex
+	}
+	return 0
+}
+
 // `Attribute` is a user-defined Key-Value metadata pair attached to an
 // object.
 //
@@ -729,6 +801,8 @@ func (x *SplitInfo) GetFirstPart() *refs.ObjectID {
 //   - __NEOFS__EXPIRATION_EPOCH \
 //     Tells GC to delete object after that epoch (but object is available
 //     throughout the epoch specified in this attribute).
+//     MUST NOT be set together with the expiration_time header field.
+//     DEPRECATED: use the expiration time field in the object header instead.
 //   - __NEOFS__ASSOCIATE \
 //     Associated object. For TOMBSTONE, LOCK object types it defines object
 //     to delete and to lock accordingly. For objects of 2.18+ API version, it
@@ -792,7 +866,7 @@ type Header_Attribute struct {
 
 func (x *Header_Attribute) Reset() {
 	*x = Header_Attribute{}
-	mi := &file_proto_object_types_proto_msgTypes[5]
+	mi := &file_proto_object_types_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -804,7 +878,7 @@ func (x *Header_Attribute) String() string {
 func (*Header_Attribute) ProtoMessage() {}
 
 func (x *Header_Attribute) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_types_proto_msgTypes[5]
+	mi := &file_proto_object_types_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -868,7 +942,7 @@ type Header_Split struct {
 
 func (x *Header_Split) Reset() {
 	*x = Header_Split{}
-	mi := &file_proto_object_types_proto_msgTypes[6]
+	mi := &file_proto_object_types_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -880,7 +954,7 @@ func (x *Header_Split) String() string {
 func (*Header_Split) ProtoMessage() {}
 
 func (x *Header_Split) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_object_types_proto_msgTypes[6]
+	mi := &file_proto_object_types_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -963,7 +1037,7 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"objectType\x12%\n" +
 	"\x0epayload_length\x18\x05 \x01(\x04R\rpayloadLength\x12;\n" +
 	"\fpayload_hash\x18\x06 \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\vpayloadHash\x12C\n" +
-	"\x10homomorphic_hash\x18\a \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\x0fhomomorphicHash\"\xf8\b\n" +
+	"\x10homomorphic_hash\x18\a \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\x0fhomomorphicHash\"\xba\t\n" +
 	"\x06Header\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12>\n" +
 	"\fcontainer_id\x18\x02 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerID\x122\n" +
@@ -980,7 +1054,8 @@ const file_proto_object_types_proto_rawDesc = "" +
 	" \x03(\v2\".neo.fs.v2.object.Header.AttributeR\n" +
 	"attributes\x124\n" +
 	"\x05split\x18\v \x01(\v2\x1e.neo.fs.v2.object.Header.SplitR\x05split\x12K\n" +
-	"\x10session_token_v2\x18\f \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x1a3\n" +
+	"\x10session_token_v2\x18\f \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x12,\n" +
+	"\x0fexpiration_time\x18\r \x01(\x04H\x00R\x0eexpirationTime\x88\x01\x01\x1a3\n" +
 	"\tAttribute\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x1a\xf5\x02\n" +
@@ -991,7 +1066,8 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"\rparent_header\x18\x04 \x01(\v2\x18.neo.fs.v2.object.HeaderR\fparentHeader\x124\n" +
 	"\bchildren\x18\x05 \x03(\v2\x18.neo.fs.v2.refs.ObjectIDR\bchildren\x12\x19\n" +
 	"\bsplit_id\x18\x06 \x01(\fR\asplitID\x12.\n" +
-	"\x05first\x18\a \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\x05first\"\xc4\x01\n" +
+	"\x05first\x18\a \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\x05firstB\x12\n" +
+	"\x10_expiration_time\"\xc4\x01\n" +
 	"\x06Object\x125\n" +
 	"\tobject_id\x18\x01 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\bobjectID\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x120\n" +
@@ -1002,7 +1078,12 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"\tlast_part\x18\x02 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\blastPart\x12,\n" +
 	"\x04link\x18\x03 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\x04link\x127\n" +
 	"\n" +
-	"first_part\x18\x04 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\tfirstPart*O\n" +
+	"first_part\x18\x04 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\tfirstPart\"H\n" +
+	"\bECPartID\x12\x1d\n" +
+	"\n" +
+	"rule_index\x18\x01 \x01(\rR\truleIndex\x12\x1d\n" +
+	"\n" +
+	"part_index\x18\x02 \x01(\rR\tpartIndex*O\n" +
 	"\n" +
 	"ObjectType\x12\v\n" +
 	"\aREGULAR\x10\x00\x12\r\n" +
@@ -1038,7 +1119,7 @@ func file_proto_object_types_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_object_types_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_object_types_proto_msgTypes = make([]protoimpl.MessageInfo, 7)
+var file_proto_object_types_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_proto_object_types_proto_goTypes = []any{
 	(ObjectType)(0),                // 0: neo.fs.v2.object.ObjectType
 	(MatchType)(0),                 // 1: neo.fs.v2.object.MatchType
@@ -1047,46 +1128,47 @@ var file_proto_object_types_proto_goTypes = []any{
 	(*Header)(nil),                 // 4: neo.fs.v2.object.Header
 	(*Object)(nil),                 // 5: neo.fs.v2.object.Object
 	(*SplitInfo)(nil),              // 6: neo.fs.v2.object.SplitInfo
-	(*Header_Attribute)(nil),       // 7: neo.fs.v2.object.Header.Attribute
-	(*Header_Split)(nil),           // 8: neo.fs.v2.object.Header.Split
-	(*refs.Version)(nil),           // 9: neo.fs.v2.refs.Version
-	(*refs.OwnerID)(nil),           // 10: neo.fs.v2.refs.OwnerID
-	(*refs.Checksum)(nil),          // 11: neo.fs.v2.refs.Checksum
-	(*refs.ContainerID)(nil),       // 12: neo.fs.v2.refs.ContainerID
-	(*session.SessionToken)(nil),   // 13: neo.fs.v2.session.SessionToken
-	(*session.SessionTokenV2)(nil), // 14: neo.fs.v2.session.SessionTokenV2
-	(*refs.ObjectID)(nil),          // 15: neo.fs.v2.refs.ObjectID
-	(*refs.Signature)(nil),         // 16: neo.fs.v2.refs.Signature
+	(*ECPartID)(nil),               // 7: neo.fs.v2.object.ECPartID
+	(*Header_Attribute)(nil),       // 8: neo.fs.v2.object.Header.Attribute
+	(*Header_Split)(nil),           // 9: neo.fs.v2.object.Header.Split
+	(*refs.Version)(nil),           // 10: neo.fs.v2.refs.Version
+	(*refs.OwnerID)(nil),           // 11: neo.fs.v2.refs.OwnerID
+	(*refs.Checksum)(nil),          // 12: neo.fs.v2.refs.Checksum
+	(*refs.ContainerID)(nil),       // 13: neo.fs.v2.refs.ContainerID
+	(*session.SessionToken)(nil),   // 14: neo.fs.v2.session.SessionToken
+	(*session.SessionTokenV2)(nil), // 15: neo.fs.v2.session.SessionTokenV2
+	(*refs.ObjectID)(nil),          // 16: neo.fs.v2.refs.ObjectID
+	(*refs.Signature)(nil),         // 17: neo.fs.v2.refs.Signature
 }
 var file_proto_object_types_proto_depIdxs = []int32{
 	1,  // 0: neo.fs.v2.object.SearchFilter.match_type:type_name -> neo.fs.v2.object.MatchType
-	9,  // 1: neo.fs.v2.object.ShortHeader.version:type_name -> neo.fs.v2.refs.Version
-	10, // 2: neo.fs.v2.object.ShortHeader.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	10, // 1: neo.fs.v2.object.ShortHeader.version:type_name -> neo.fs.v2.refs.Version
+	11, // 2: neo.fs.v2.object.ShortHeader.owner_id:type_name -> neo.fs.v2.refs.OwnerID
 	0,  // 3: neo.fs.v2.object.ShortHeader.object_type:type_name -> neo.fs.v2.object.ObjectType
-	11, // 4: neo.fs.v2.object.ShortHeader.payload_hash:type_name -> neo.fs.v2.refs.Checksum
-	11, // 5: neo.fs.v2.object.ShortHeader.homomorphic_hash:type_name -> neo.fs.v2.refs.Checksum
-	9,  // 6: neo.fs.v2.object.Header.version:type_name -> neo.fs.v2.refs.Version
-	12, // 7: neo.fs.v2.object.Header.container_id:type_name -> neo.fs.v2.refs.ContainerID
-	10, // 8: neo.fs.v2.object.Header.owner_id:type_name -> neo.fs.v2.refs.OwnerID
-	11, // 9: neo.fs.v2.object.Header.payload_hash:type_name -> neo.fs.v2.refs.Checksum
+	12, // 4: neo.fs.v2.object.ShortHeader.payload_hash:type_name -> neo.fs.v2.refs.Checksum
+	12, // 5: neo.fs.v2.object.ShortHeader.homomorphic_hash:type_name -> neo.fs.v2.refs.Checksum
+	10, // 6: neo.fs.v2.object.Header.version:type_name -> neo.fs.v2.refs.Version
+	13, // 7: neo.fs.v2.object.Header.container_id:type_name -> neo.fs.v2.refs.ContainerID
+	11, // 8: neo.fs.v2.object.Header.owner_id:type_name -> neo.fs.v2.refs.OwnerID
+	12, // 9: neo.fs.v2.object.Header.payload_hash:type_name -> neo.fs.v2.refs.Checksum
 	0,  // 10: neo.fs.v2.object.Header.object_type:type_name -> neo.fs.v2.object.ObjectType
-	11, // 11: neo.fs.v2.object.Header.homomorphic_hash:type_name -> neo.fs.v2.refs.Checksum
-	13, // 12: neo.fs.v2.object.Header.session_token:type_name -> neo.fs.v2.session.SessionToken
-	7,  // 13: neo.fs.v2.object.Header.attributes:type_name -> neo.fs.v2.object.Header.Attribute
-	8,  // 14: neo.fs.v2.object.Header.split:type_name -> neo.fs.v2.object.Header.Split
-	14, // 15: neo.fs.v2.object.Header.session_token_v2:type_name -> neo.fs.v2.session.SessionTokenV2
-	15, // 16: neo.fs.v2.object.Object.object_id:type_name -> neo.fs.v2.refs.ObjectID
-	16, // 17: neo.fs.v2.object.Object.signature:type_name -> neo.fs.v2.refs.Signature
+	12, // 11: neo.fs.v2.object.Header.homomorphic_hash:type_name -> neo.fs.v2.refs.Checksum
+	14, // 12: neo.fs.v2.object.Header.session_token:type_name -> neo.fs.v2.session.SessionToken
+	8,  // 13: neo.fs.v2.object.Header.attributes:type_name -> neo.fs.v2.object.Header.Attribute
+	9,  // 14: neo.fs.v2.object.Header.split:type_name -> neo.fs.v2.object.Header.Split
+	15, // 15: neo.fs.v2.object.Header.session_token_v2:type_name -> neo.fs.v2.session.SessionTokenV2
+	16, // 16: neo.fs.v2.object.Object.object_id:type_name -> neo.fs.v2.refs.ObjectID
+	17, // 17: neo.fs.v2.object.Object.signature:type_name -> neo.fs.v2.refs.Signature
 	4,  // 18: neo.fs.v2.object.Object.header:type_name -> neo.fs.v2.object.Header
-	15, // 19: neo.fs.v2.object.SplitInfo.last_part:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 20: neo.fs.v2.object.SplitInfo.link:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 21: neo.fs.v2.object.SplitInfo.first_part:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 22: neo.fs.v2.object.Header.Split.parent:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 23: neo.fs.v2.object.Header.Split.previous:type_name -> neo.fs.v2.refs.ObjectID
-	16, // 24: neo.fs.v2.object.Header.Split.parent_signature:type_name -> neo.fs.v2.refs.Signature
+	16, // 19: neo.fs.v2.object.SplitInfo.last_part:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 20: neo.fs.v2.object.SplitInfo.link:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 21: neo.fs.v2.object.SplitInfo.first_part:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 22: neo.fs.v2.object.Header.Split.parent:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 23: neo.fs.v2.object.Header.Split.previous:type_name -> neo.fs.v2.refs.ObjectID
+	17, // 24: neo.fs.v2.object.Header.Split.parent_signature:type_name -> neo.fs.v2.refs.Signature
 	4,  // 25: neo.fs.v2.object.Header.Split.parent_header:type_name -> neo.fs.v2.object.Header
-	15, // 26: neo.fs.v2.object.Header.Split.children:type_name -> neo.fs.v2.refs.ObjectID
-	15, // 27: neo.fs.v2.object.Header.Split.first:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 26: neo.fs.v2.object.Header.Split.children:type_name -> neo.fs.v2.refs.ObjectID
+	16, // 27: neo.fs.v2.object.Header.Split.first:type_name -> neo.fs.v2.refs.ObjectID
 	28, // [28:28] is the sub-list for method output_type
 	28, // [28:28] is the sub-list for method input_type
 	28, // [28:28] is the sub-list for extension type_name
@@ -1099,13 +1181,14 @@ func file_proto_object_types_proto_init() {
 	if File_proto_object_types_proto != nil {
 		return
 	}
+	file_proto_object_types_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_object_types_proto_rawDesc), len(file_proto_object_types_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   7,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
