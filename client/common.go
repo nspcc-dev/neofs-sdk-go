@@ -29,6 +29,8 @@ type prmCommonMeta struct {
 // to be attached to the request. Must have an even length.
 //
 // Slice must not be mutated until the operation completes.
+//
+// Deprecated: Use dedicated options instead.
 func (x *prmCommonMeta) WithXHeaders(hs ...string) {
 	if len(hs)%2 != 0 {
 		panic("slice of X-Headers with odd length")
