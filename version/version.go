@@ -36,7 +36,7 @@ func UnmarshalJSON(b []byte) (Version, error) {
 	return res, res.UnmarshalJSON(b)
 }
 
-const sdkMjr, sdkMnr = 2, 27
+const sdkMjr, sdkMnr = 2, 28
 
 // Current returns Version instance that initialized to the
 // latest supported NeoFS API revision number in SDK.
