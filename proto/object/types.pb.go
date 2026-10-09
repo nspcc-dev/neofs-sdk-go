@@ -437,6 +437,16 @@ type Header struct {
 	// integrity and authenticity out of Request scope.
 	// Only one of `session_token` or `session_token_v2` can be set.
 	SessionTokenV2 *session.SessionTokenV2 `protobuf:"bytes,12,opt,name=session_token_v2,json=sessionTokenV2,proto3" json:"session_token_v2,omitempty"`
+	// Unix timestamp in seconds after which the object expires and can be
+	// deleted by GC. The object is expired when the current Unix timestamp in
+	// seconds is strictly greater than this value. Sub-second precision is not
+	// supported.
+	// If absent, the deprecated `__NEOFS__EXPIRATION_EPOCH` attribute determines
+	// expiration. If neither is present, the object never expires.
+	// This field and the expiration epoch attribute MUST NOT both be set.
+	// LOCK and TOMBSTONE objects MUST have exactly one of this field or the
+	// expiration epoch attribute set.
+	ExpirationTime *uint64 `protobuf:"varint,13,opt,name=expiration_time,json=expirationTime,proto3,oneof" json:"expiration_time,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -553,6 +563,13 @@ func (x *Header) GetSessionTokenV2() *session.SessionTokenV2 {
 		return x.SessionTokenV2
 	}
 	return nil
+}
+
+func (x *Header) GetExpirationTime() uint64 {
+	if x != nil && x.ExpirationTime != nil {
+		return *x.ExpirationTime
+	}
+	return 0
 }
 
 // Object structure. Object is immutable and content-addressed. It means
@@ -729,6 +746,8 @@ func (x *SplitInfo) GetFirstPart() *refs.ObjectID {
 //   - __NEOFS__EXPIRATION_EPOCH \
 //     Tells GC to delete object after that epoch (but object is available
 //     throughout the epoch specified in this attribute).
+//     MUST NOT be set together with the expiration_time header field.
+//     DEPRECATED: use the expiration time field in the object header instead.
 //   - __NEOFS__ASSOCIATE \
 //     Associated object. For TOMBSTONE, LOCK object types it defines object
 //     to delete and to lock accordingly. For objects of 2.18+ API version, it
@@ -963,7 +982,7 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"objectType\x12%\n" +
 	"\x0epayload_length\x18\x05 \x01(\x04R\rpayloadLength\x12;\n" +
 	"\fpayload_hash\x18\x06 \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\vpayloadHash\x12C\n" +
-	"\x10homomorphic_hash\x18\a \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\x0fhomomorphicHash\"\xf8\b\n" +
+	"\x10homomorphic_hash\x18\a \x01(\v2\x18.neo.fs.v2.refs.ChecksumR\x0fhomomorphicHash\"\xba\t\n" +
 	"\x06Header\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12>\n" +
 	"\fcontainer_id\x18\x02 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\vcontainerID\x122\n" +
@@ -980,7 +999,8 @@ const file_proto_object_types_proto_rawDesc = "" +
 	" \x03(\v2\".neo.fs.v2.object.Header.AttributeR\n" +
 	"attributes\x124\n" +
 	"\x05split\x18\v \x01(\v2\x1e.neo.fs.v2.object.Header.SplitR\x05split\x12K\n" +
-	"\x10session_token_v2\x18\f \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x1a3\n" +
+	"\x10session_token_v2\x18\f \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x12,\n" +
+	"\x0fexpiration_time\x18\r \x01(\x04H\x00R\x0eexpirationTime\x88\x01\x01\x1a3\n" +
 	"\tAttribute\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value\x1a\xf5\x02\n" +
@@ -991,7 +1011,8 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"\rparent_header\x18\x04 \x01(\v2\x18.neo.fs.v2.object.HeaderR\fparentHeader\x124\n" +
 	"\bchildren\x18\x05 \x03(\v2\x18.neo.fs.v2.refs.ObjectIDR\bchildren\x12\x19\n" +
 	"\bsplit_id\x18\x06 \x01(\fR\asplitID\x12.\n" +
-	"\x05first\x18\a \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\x05first\"\xc4\x01\n" +
+	"\x05first\x18\a \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\x05firstB\x12\n" +
+	"\x10_expiration_time\"\xc4\x01\n" +
 	"\x06Object\x125\n" +
 	"\tobject_id\x18\x01 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\bobjectID\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x120\n" +
@@ -1099,6 +1120,7 @@ func file_proto_object_types_proto_init() {
 	if File_proto_object_types_proto != nil {
 		return
 	}
+	file_proto_object_types_proto_msgTypes[2].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

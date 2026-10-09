@@ -15,6 +15,7 @@ import (
 
 const (
 	anyValidExpirationEpoch = uint64(6053221788077248524)
+	anyValidExpirationTime  = int64(1700000000)
 	anyValidCreationEpoch   = uint64(13233261290750647837)
 	anyValidPayloadSize     = uint64(5544264194415343420)
 	anyValidType            = object.Type(2082391263)

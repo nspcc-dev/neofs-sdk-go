@@ -15,16 +15,15 @@ import (
 const (
 	sysAttrPrefix = "__NEOFS__"
 	// AttributeExpirationEpoch is a key to an object attribute that determines
-	// after what epoch the object becomes expired. Objects that do not have this
-	// attribute never expire.
-	//
-	// Reaction of NeoFS system components to the objects' 'expired' property may
-	// vary. For example, in the basic scenario, expired objects are auto-deleted
-	// from the storage. Detailed behavior can be found in the NeoFS Specification.
+	// after what epoch the object becomes expired when no expiration time is set
+	// in the object header. This attribute and the expiration time field are
+	// mutually exclusive.
 	//
 	// Note that the value determines exactly the last epoch of the object's
 	// relevance: for example, with the value N, the object is relevant in epoch N
 	// and expired in any epoch starting from N+1.
+	//
+	// Deprecated: use [Object.SetExpirationTime] instead.
 	AttributeExpirationEpoch = sysAttrPrefix + "EXPIRATION_EPOCH"
 	// AttributeAssociatedObject is a key to an object attribute that determines
 	// associated object's ID. For [object.TypeTombstone] it defines object to

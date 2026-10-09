@@ -33,8 +33,9 @@ type Tombstone struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Last NeoFS epoch number of the tombstone lifetime. It's set by the tombstone
 	// creator depending on the current NeoFS network settings.
-	// DEPRECATED. Field ignored by servers, set corresponding object attribute
-	// `__NEOFS__EXPIRATION_EPOCH` only.
+	// DEPRECATED. Field ignored by servers, set the expiration time field in the
+	// object header instead.
+	// The deprecated `__NEOFS__EXPIRATION_EPOCH` attribute is still supported.
 	//
 	// Deprecated: Marked as deprecated in proto/tombstone/types.proto.
 	ExpirationEpoch uint64 `protobuf:"varint,1,opt,name=expiration_epoch,json=expirationEpoch,proto3" json:"expiration_epoch,omitempty"`

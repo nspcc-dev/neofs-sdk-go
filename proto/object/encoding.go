@@ -137,6 +137,7 @@ const (
 	FieldHeaderAttributes
 	FieldHeaderSplit
 	FieldHeaderSessionV2
+	FieldHeaderExpirationTime
 )
 
 // MarshaledSize returns size of the Header in Protocol Buffers V3 format in
@@ -154,7 +155,8 @@ func (x *Header) MarshaledSize() int {
 			protoencoding.SizeEmbedded(FieldHeaderSessionToken, x.SessionToken) +
 			protoencoding.SizeEmbedded(FieldHeaderSplit, x.Split) +
 			protoencoding.SizeRepeatedMessages(FieldHeaderAttributes, x.Attributes) +
-			protoencoding.SizeEmbedded(FieldHeaderSessionV2, x.SessionTokenV2)
+			protoencoding.SizeEmbedded(FieldHeaderSessionV2, x.SessionTokenV2) +
+			protoencoding.SizeOptionalVarint(FieldHeaderExpirationTime, x.ExpirationTime)
 	}
 	return 0
 }
@@ -175,7 +177,8 @@ func (x *Header) MarshalStable(b []byte) {
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldHeaderSessionToken, x.SessionToken)
 		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldHeaderAttributes, x.Attributes)
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldHeaderSplit, x.Split)
-		protoencoding.MarshalToEmbedded(b[off:], FieldHeaderSessionV2, x.SessionTokenV2)
+		off += protoencoding.MarshalToEmbedded(b[off:], FieldHeaderSessionV2, x.SessionTokenV2)
+		protoencoding.MarshalToOptionalVarint(b[off:], FieldHeaderExpirationTime, x.ExpirationTime)
 	}
 }
 

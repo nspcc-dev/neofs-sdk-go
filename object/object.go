@@ -3,8 +3,10 @@ package object
 import (
 	"bytes"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
@@ -43,6 +45,7 @@ type header struct {
 	sessionV2   *sessionv2.Token
 	attrs       []Attribute
 	split       split
+	expiration  time.Time
 }
 
 // Object represents in-memory structure of the NeoFS object.
@@ -183,7 +186,7 @@ func (x split) protoMessage() *protoobject.Header_Split {
 func (x header) isZero() bool {
 	return x.version == nil && x.owner.IsZero() && x.cnr.IsZero() && x.created == 0 && x.payloadLn == 0 &&
 		x.pldHash == nil && x.typ == 0 && x.pldHomoHash == nil && x.session == nil && x.sessionV2 == nil &&
-		len(x.attrs) == 0 && x.split.isZero()
+		len(x.attrs) == 0 && x.split.isZero() && x.expiration.IsZero()
 }
 
 func (x *header) fromProtoMessage(m *protoobject.Header) error {
@@ -281,6 +284,9 @@ func (x *header) fromProtoMessage(m *protoobject.Header) error {
 			if _, ok := done[ma[i].Key]; ok {
 				return fmt.Errorf("duplicated attribute %s", ma[i].Key)
 			}
+			if m.ExpirationTime != nil && ma[i].Key == AttributeExpirationEpoch {
+				return fmt.Errorf("expiration time and expiration epoch are mutually exclusive")
+			}
 			if err := x.attrs[i].fromProtoMessage(ma[i], true); err != nil {
 				return fmt.Errorf("invalid attribute #%d: %w", i, err)
 			}
@@ -289,9 +295,17 @@ func (x *header) fromProtoMessage(m *protoobject.Header) error {
 	} else {
 		x.attrs = nil
 	}
+	if m.GetExpirationTime() > math.MaxInt64 {
+		return fmt.Errorf("expiration time exceeds maximum Unix timestamp %d", int64(math.MaxInt64))
+	}
 	x.created = m.CreationEpoch
 	x.payloadLn = m.PayloadLength
 	x.typ = Type(m.ObjectType)
+	if m.ExpirationTime != nil {
+		x.expiration = time.Unix(int64(*m.ExpirationTime), 0)
+	} else {
+		x.expiration = time.Time{}
+	}
 	return nil
 }
 
@@ -300,6 +314,10 @@ func (x header) protoMessage() *protoobject.Header {
 		CreationEpoch: x.created,
 		PayloadLength: x.payloadLn,
 		ObjectType:    protoobject.ObjectType(x.typ),
+	}
+	if !x.expiration.IsZero() {
+		exp := uint64(x.expiration.Unix())
+		m.ExpirationTime = &exp
 	}
 	if x.version != nil {
 		m.Version = x.version.ProtoMessage()
@@ -608,12 +626,44 @@ func (o *Object) SetAttributes(v ...Attribute) {
 	o.header.attrs = v
 }
 
+// ExpirationTime returns the expiration time from the object header.
+// Zero time is returned if the field is absent. In this case,
+// the deprecated expiration epoch attribute may still determine expiration.
+// The field and the expiration epoch attribute are mutually exclusive.
+// The object expires when the current Unix timestamp in seconds is strictly
+// greater than the returned timestamp.
+//
+// See also [Object.SetExpirationTime], [Object.ResetExpirationTime].
+func (o Object) ExpirationTime() time.Time {
+	return o.header.expiration
+}
+
+// SetExpirationTime sets the time after which the object expires,
+// stored as a Unix timestamp in seconds. It returns an error if the timestamp
+// is not positive, leaving the object unchanged. Sub-second precision is dropped.
+// The expiration epoch attribute must not be set together with this field.
+//
+// See also [Object.ExpirationTime], [Object.ResetExpirationTime].
+func (o *Object) SetExpirationTime(v time.Time) error {
+	exp := v.Unix()
+	if exp <= 0 {
+		return fmt.Errorf("non-positive expiration time %d", exp)
+	}
+	o.header.expiration = time.Unix(exp, 0)
+	return nil
+}
+
+// ResetExpirationTime removes the expiration time field from the object header.
+// It does not remove the deprecated expiration epoch attribute.
+func (o *Object) ResetExpirationTime() {
+	o.header.expiration = time.Time{}
+}
+
 // ExpirationEpoch returns the last NeoFS epoch number of the object lifetime
 // set via [object.AttributeExpirationEpoch] attribute. Zero epoch and false
-// value are returned if the attribute is missing meaning the object never
-// expires.
+// are returned if the attribute is missing.
 //
-// See also [Object.SetExpirationEpoch].
+// Deprecated: use [Object.ExpirationTime] instead.
 func (o Object) ExpirationEpoch() (uint64, bool) {
 	for i := range o.header.attrs {
 		if o.header.attrs[i].k == AttributeExpirationEpoch {
@@ -627,9 +677,10 @@ func (o Object) ExpirationEpoch() (uint64, bool) {
 
 // SetExpirationEpoch sets the last NeoFS epoch number of the object lifetime
 // via [object.AttributeExpirationEpoch] attribute. If the attribute is
-// already present, its value is overwritten.
+// already present, its value is overwritten. The expiration time header field
+// must not be set together with this attribute.
 //
-// See also [Object.ExpirationEpoch].
+// Deprecated: use [Object.SetExpirationTime] instead.
 func (o *Object) SetExpirationEpoch(v uint64) {
 	str := strconv.FormatUint(v, 10)
 

@@ -60,6 +60,7 @@ func _randHeader(withParentHdr bool) *object.Header {
 		SessionTokenV2:  prototest.RandSessionTokenV2(true),
 		Attributes:      randAttributes(),
 		Split:           _randSplitHeader(withParentHdr),
+		ExpirationTime:  new(prototest.RandUint64()),
 	}
 }
 
@@ -202,6 +203,11 @@ func TestHeader_MarshalStable(t *testing.T) {
 
 	prototest.TestMarshalStable(t, []*object.Header{
 		randHeader(),
+		{ExpirationTime: proto.Uint64(0)},
+		{ExpirationTime: proto.Uint64(1)},
+		{ExpirationTime: proto.Uint64(1<<63 - 1)},
+		{ExpirationTime: proto.Uint64(1 << 63)},
+		{ExpirationTime: proto.Uint64(1<<64 - 1)},
 	})
 }
 
