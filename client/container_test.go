@@ -662,7 +662,7 @@ func TestClient_ContainerPut(t *testing.T) {
 				t.Run("X-headers", func(t *testing.T) {
 					testRequestXHeaders(t, newTestPutContainerServer, newTestContainerClient, func(c *Client, xhs []string) error {
 						opts := anyValidOpts
-						opts.WithXHeaders(xhs...)
+						opts.WithXHeaders(xhs...) //nolint:staticcheck
 						_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, opts)
 						return err
 					})
