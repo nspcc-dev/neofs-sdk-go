@@ -456,7 +456,8 @@ func (x *DeleteResponse) GetVerifyHeader() *session.ResponseVerificationHeader {
 
 // Object HEAD request
 //
-// Behavior with `body.ec_part_id` field is the same as in `GetRequest`.
+// Behavior with `body.ec_part_id` field is the same as in `GetRequest`, except
+// that `body.ec_part_id.part_index` field is required.
 type HeadRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Body of head object request message.
