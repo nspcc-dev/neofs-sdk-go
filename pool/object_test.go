@@ -172,7 +172,7 @@ func TestPool_ObjectGetInit(t *testing.T) {
 	getOpts.WithBearerToken(bearertest.Token())
 	getOpts.MarkRaw()
 	getOpts.MarkLocal()
-	getOpts.WithXHeaders("k1", "v1", "k2", "v2")
+	getOpts.WithXHeaders("k1", "v1", "k2", "v2") //nolint:staticcheck
 
 	getClient := objectGetOnlyClient{
 		cnr:   cnrID,
@@ -256,7 +256,7 @@ func TestPool_ObjectHead(t *testing.T) {
 	headOpts.WithBearerToken(bearertest.Token())
 	headOpts.MarkRaw()
 	headOpts.MarkLocal()
-	headOpts.WithXHeaders("k1", "v1", "k2", "v2")
+	headOpts.WithXHeaders("k1", "v1", "k2", "v2") //nolint:staticcheck
 
 	headClient := objectHeadOnlyClient{
 		cnr:   cnrID,
@@ -347,7 +347,7 @@ func TestPool_SearchObjects(t *testing.T) {
 	fs.AddFilter("k2", "v2", object.MatchStringNotEqual)
 
 	var opts client.SearchObjectsOptions
-	opts.WithXHeaders("k1", "v1", "k2", "v2")
+	opts.WithXHeaders("k1", "v1", "k2", "v2") //nolint:staticcheck
 	opts.DisableForwarding()
 	opts.WithBearerToken(bearertest.Token())
 	opts.SetCount(1000)
