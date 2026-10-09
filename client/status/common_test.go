@@ -188,3 +188,39 @@ func TestBusy(t *testing.T) {
 		require.Equal(t, msg, m.Message)
 	})
 }
+
+func TestRequestExpired(t *testing.T) {
+	t.Run("default", func(t *testing.T) {
+		var st apistatus.RequestExpired
+
+		require.Empty(t, st.Message())
+	})
+
+	t.Run("custom message", func(t *testing.T) {
+		var st apistatus.RequestExpired
+		msg := "some message"
+
+		st.SetMessage(msg)
+
+		m := apistatus.FromError(st)
+
+		require.Equal(t, msg, st.Message())
+		require.Equal(t, msg, m.Message)
+	})
+
+	t.Run("proto", func(t *testing.T) {
+		var st apistatus.RequestExpired
+
+		m := apistatus.FromError(st)
+
+		require.Equal(t, "request has expired", m.Message)
+
+		msg := "some other msg"
+
+		st.SetMessage(msg)
+
+		m = apistatus.FromError(st)
+
+		require.Equal(t, msg, m.Message)
+	})
+}

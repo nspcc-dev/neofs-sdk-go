@@ -198,6 +198,8 @@ func (x *testPutContainerServer) verifyRequest(req *protocontainer.PutRequest) e
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
 		return err
@@ -277,6 +279,8 @@ func (x *testGetContainerServer) verifyRequest(req *protocontainer.GetRequest) e
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	// bearer token
 	if req.MetaHeader.BearerToken != nil {
@@ -348,6 +352,8 @@ func (x *testListContainersServer) verifyRequest(req *protocontainer.ListRequest
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	// body
 	body := req.Body
@@ -420,6 +426,8 @@ func (x *testDeleteContainerServer) verifyRequest(req *protocontainer.DeleteRequ
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
 		return err
@@ -500,6 +508,8 @@ func (x *testGetEACLServer) verifyRequest(req *protocontainer.GetExtendedACLRequ
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	// body
 	body := req.Body
@@ -569,6 +579,8 @@ func (x *testSetEACLServer) verifyRequest(req *protocontainer.SetExtendedACLRequ
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
 		return err

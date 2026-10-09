@@ -165,6 +165,9 @@ func (x *testCommonReadObjectRequestServerSettings) verifyMeta(m *protosession.R
 	if err := x.verifyBearerToken(m.GetBearerToken()); err != nil {
 		return err
 	}
+	if m.ValidUntilTime == 0 {
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
+	}
 	return nil
 }
 

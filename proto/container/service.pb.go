@@ -978,7 +978,6 @@ func (x *AnnounceUsedSpaceResponse) GetVerifyHeader() *session.ResponseVerificat
 }
 
 // Attribute setting request.
-// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type SetAttributeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request payload.
@@ -1080,7 +1079,6 @@ func (x *SetAttributeResponse) GetStatus() *status.Status {
 }
 
 // Attribute removal request.
-// Behaviour can be augmented with __NEOFS__CONTAINER_REVISION x-header.
 type RemoveAttributeRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Request payload.

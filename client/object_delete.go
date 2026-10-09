@@ -101,8 +101,9 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 			ContainerRevision: cnrRev,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)

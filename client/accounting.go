@@ -56,8 +56,9 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 			OwnerId: prm.account.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)

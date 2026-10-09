@@ -160,6 +160,8 @@ const (
 	// processed. This is likely to be a transient state and request can be
 	// retried in future.
 	CommonFail_BUSY CommonFail = 5
+	// [**1030**] Request valid time period has passed.
+	CommonFail_REQUEST_EXPIRED CommonFail = 6
 )
 
 // Enum value maps for CommonFail.
@@ -171,6 +173,7 @@ var (
 		3: "NODE_UNDER_MAINTENANCE",
 		4: "BAD_REQUEST",
 		5: "BUSY",
+		6: "REQUEST_EXPIRED",
 	}
 	CommonFail_value = map[string]int32{
 		"INTERNAL":                    0,
@@ -179,6 +182,7 @@ var (
 		"NODE_UNDER_MAINTENANCE":      3,
 		"BAD_REQUEST":                 4,
 		"BUSY":                        5,
+		"REQUEST_EXPIRED":             6,
 	}
 )
 
@@ -565,7 +569,7 @@ const file_proto_status_types_proto_rawDesc = "" +
 	"\aSuccess\x12\x06\n" +
 	"\x02OK\x10\x00\x12\x0e\n" +
 	"\n" +
-	"INCOMPLETE\x10\x01*\x8a\x01\n" +
+	"INCOMPLETE\x10\x01*\x9f\x01\n" +
 	"\n" +
 	"CommonFail\x12\f\n" +
 	"\bINTERNAL\x10\x00\x12\x16\n" +
@@ -573,7 +577,8 @@ const file_proto_status_types_proto_rawDesc = "" +
 	"\x1bSIGNATURE_VERIFICATION_FAIL\x10\x02\x12\x1a\n" +
 	"\x16NODE_UNDER_MAINTENANCE\x10\x03\x12\x0f\n" +
 	"\vBAD_REQUEST\x10\x04\x12\b\n" +
-	"\x04BUSY\x10\x05*\x9c\x01\n" +
+	"\x04BUSY\x10\x05\x12\x13\n" +
+	"\x0fREQUEST_EXPIRED\x10\x06*\x9c\x01\n" +
 	"\x06Object\x12\x11\n" +
 	"\rACCESS_DENIED\x10\x00\x12\x14\n" +
 	"\x10OBJECT_NOT_FOUND\x10\x01\x12\n" +
