@@ -713,7 +713,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		extRngFirst, extRngLast = prm.extendedRange.FirstPos, prm.extendedRange.LastPos
 	}
 
-	bodyLen := protoobject.CalculateGetRequestBodyLength(prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast)
+	bodyLen := protoobject.CalculateGetRequestBodyLength(prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast, 0, 0)
 
 	ttl := localFlagToTTL(prm.local)
 	xHdrLenFn := xHeadersLengthFunc(prm.xHeaders)
@@ -734,7 +734,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	// encode body
-	off := protoobject.WriteGetRequestBodyToRequest(buf, containerID, objectID, prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast)
+	off := protoobject.WriteGetRequestBodyToRequest(buf, containerID, objectID, prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast, 0, 0)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]
@@ -877,7 +877,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		sessionV2TokenLen = sessionV2TokenMsg.MarshaledSize()
 	}
 
-	bodyLen := protoobject.CalculateHeadRequestBodyLength(prm.raw)
+	bodyLen := protoobject.CalculateHeadRequestBodyLength(prm.raw, 0, 0)
 
 	ttl := localFlagToTTL(prm.local)
 	xHdrLenFn := xHeadersLengthFunc(prm.xHeaders)
@@ -898,7 +898,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	}
 
 	// encode body
-	off := protoobject.WriteHeadRequestBodyToRequest(buf, containerID, objectID, prm.raw)
+	off := protoobject.WriteHeadRequestBodyToRequest(buf, containerID, objectID, prm.raw, 0, 0)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]

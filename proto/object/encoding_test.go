@@ -237,6 +237,10 @@ func TestGetRequest_Body_MarshalStable(t *testing.T) {
 		{Address: prototest.RandObjectAddress(), PayloadOnly: true},
 		{Address: prototest.RandObjectAddress(), Raw: true, Range: &object.Range{Offset: 1, Length: 2}, PayloadOnly: true},
 		{Address: prototest.RandObjectAddress(), ExtendedRange: &object.ExtendedRange{FirstPos: &first, LastPos: &last}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: prototest.RandUint32(), PartIndex: 0}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: 0, PartIndex: prototest.RandUint32()}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: prototest.RandUint32(), PartIndex: prototest.RandUint32()}},
 	})
 }
 
@@ -268,6 +272,10 @@ func TestHeadRequest_Body_MarshalStable(t *testing.T) {
 		{Address: prototest.RandObjectAddress(), MainOnly: true, Raw: false},
 		{Address: prototest.RandObjectAddress(), MainOnly: false, Raw: true},
 		{Address: prototest.RandObjectAddress(), MainOnly: true, Raw: true},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: prototest.RandUint32(), PartIndex: 0}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: 0, PartIndex: prototest.RandUint32()}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: prototest.RandUint32(), PartIndex: prototest.RandUint32()}},
 	})
 }
 

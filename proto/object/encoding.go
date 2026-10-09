@@ -250,6 +250,40 @@ func (x *SplitInfo) MarshalStable(b []byte) {
 	}
 }
 
+// Field numbers of [ECPartID] message.
+const (
+	_ = iota
+	FieldECPartIDRuleIndex
+	FieldECPartIDPartIndex
+)
+
+// CalculateECPartIDLength calculates length of EC part ID message with given
+// fields.
+func CalculateECPartIDLength(ruleIdx, partIdx uint32) int {
+	ln := protoencoding.SizeVarint(FieldECPartIDRuleIndex, ruleIdx)
+	ln += protoencoding.SizeVarint(FieldECPartIDPartIndex, partIdx)
+	return ln
+}
+
+// WriteECPartIDField writes EC part ID field with given number and fields into
+// buf. Returns number of bytes written.
+func WriteECPartIDField(buf []byte, num protowire.Number, ruleIdx uint32, partIdx uint32) int {
+	ln := CalculateECPartIDLength(ruleIdx, partIdx)
+	if ln == 0 {
+		return 0
+	}
+	off := protoencoding.WriteTagAndLength(buf, num, ln)
+	return off + WriteECPartID(buf[off:], ruleIdx, partIdx)
+}
+
+// WriteECPartID writes EC part ID message with given fields into buf. Returns
+// number of bytes written.
+func WriteECPartID(buf []byte, ruleIdx uint32, partIdx uint32) int {
+	off := protoencoding.MarshalToVarint(buf, FieldECPartIDRuleIndex, ruleIdx)
+	off += protoencoding.MarshalToVarint(buf[off:], FieldECPartIDPartIndex, partIdx)
+	return off
+}
+
 // Field numbers of [GetRequest_Body] message.
 const (
 	_ = iota
@@ -258,21 +292,23 @@ const (
 	FieldGetRequestBodyRange
 	FieldGetRequestBodyPayloadOnly
 	FieldGetRequestBodyExtendedRange
+	FieldGetRequestBodyECPartID
 )
 
 // CalculateGetRequestBodyLength calculates length of Get request body message
 // with static address and given dynamic fields.
-func CalculateGetRequestBodyLength(raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+func CalculateGetRequestBodyLength(raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	ln := protoencoding.SizeEmbeddedLENField(FieldGetRequestBodyAddress, refs.ObjectAddressLength)
-	ln += calculateDynamicGetRequestBodyFieldsLength(raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast)
+	ln += calculateDynamicGetRequestBodyFieldsLength(raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast, ecPartRuleIndex, ecPartIndex)
 	return ln
 }
 
-func calculateDynamicGetRequestBodyFieldsLength(raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+func calculateDynamicGetRequestBodyFieldsLength(raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	ln := protoencoding.SizeBool(FieldGetRequestBodyRaw, raw)
 	ln += protoencoding.SizeEmbeddedLENField(FieldGetRequestBodyRange, CalculateRangeLength(rngOff, rngLen))
 	ln += protoencoding.SizeBool(FieldGetRequestBodyPayloadOnly, payloadOnly)
 	ln += protoencoding.SizeEmbeddedLENField(FieldGetRequestBodyExtendedRange, CalculateExtendedRangeLength(extRngFirst, extRngLast))
+	ln += protoencoding.SizeEmbeddedLENField(FieldGetRequestBodyECPartID, CalculateECPartIDLength(ecPartRuleIndex, ecPartIndex))
 	return ln
 }
 
@@ -286,36 +322,37 @@ func (x *GetRequest_Body) MarshaledSize() int {
 			firstPos, lastPos = x.ExtendedRange.FirstPos, x.ExtendedRange.LastPos
 		}
 		sz = protoencoding.SizeEmbedded(FieldGetRequestBodyAddress, x.Address) +
-			calculateDynamicGetRequestBodyFieldsLength(x.Raw, x.Range.GetOffset(), x.Range.GetLength(), x.PayloadOnly, firstPos, lastPos)
+			calculateDynamicGetRequestBodyFieldsLength(x.Raw, x.Range.GetOffset(), x.Range.GetLength(), x.PayloadOnly, firstPos, lastPos, x.EcPartId.GetRuleIndex(), x.EcPartId.GetPartIndex())
 	}
 	return sz
 }
 
 // WriteGetRequestBodyToRequest writes Get request body field with given fields
 // into buf. Returns number of bytes written.
-func WriteGetRequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
-	ln := CalculateGetRequestBodyLength(raw, rngLen, rngOff, payloadOnly, extRngFirst, extRngLast)
+func WriteGetRequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64, ecPartRuleIndex uint32, ecPartIndex uint32) int {
+	ln := CalculateGetRequestBodyLength(raw, rngLen, rngOff, payloadOnly, extRngFirst, extRngLast, ecPartRuleIndex, ecPartIndex)
 	if ln == 0 {
 		return 0
 	}
 	off := protoencoding.WriteRequestBodyTagAndLength(buf, ln)
-	off += WriteGetRequestBody(buf[off:], cnr, obj, raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast)
+	off += WriteGetRequestBody(buf[off:], cnr, obj, raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast, ecPartRuleIndex, ecPartIndex)
 	return off
 }
 
 // WriteGetRequestBody writes Get request body message with given fields into
 // buf. Returns number of bytes written.
-func WriteGetRequestBody(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+func WriteGetRequestBody(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	off := refs.WriteObjectAddressField(buf, FieldGetRequestBodyAddress, cnr, obj)
-	off += writeDynamicGetRequestBodyFields(buf[off:], raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast)
+	off += writeDynamicGetRequestBodyFields(buf[off:], raw, rngOff, rngLen, payloadOnly, extRngFirst, extRngLast, ecPartRuleIndex, ecPartIndex)
 	return off
 }
 
-func writeDynamicGetRequestBodyFields(buf []byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64) int {
+func writeDynamicGetRequestBodyFields(buf []byte, raw bool, rngOff uint64, rngLen uint64, payloadOnly bool, extRngFirst *uint64, extRngLast *uint64, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	off := protoencoding.MarshalToBool(buf, FieldGetRequestBodyRaw, raw)
 	off += WriteRangeField(buf[off:], FieldGetRequestBodyRange, rngOff, rngLen)
 	off += protoencoding.MarshalToBool(buf[off:], FieldGetRequestBodyPayloadOnly, payloadOnly)
 	off += WriteExtendedRangeField(buf[off:], FieldGetRequestBodyExtendedRange, extRngFirst, extRngLast)
+	off += WriteECPartIDField(buf[off:], FieldGetRequestBodyECPartID, ecPartRuleIndex, ecPartIndex)
 	return off
 }
 
@@ -329,7 +366,7 @@ func (x *GetRequest_Body) MarshalStable(b []byte) {
 			firstPos, lastPos = x.ExtendedRange.FirstPos, x.ExtendedRange.LastPos
 		}
 		off := protoencoding.MarshalToEmbedded(b, FieldGetRequestBodyAddress, x.Address)
-		writeDynamicGetRequestBodyFields(b[off:], x.Raw, x.Range.GetOffset(), x.Range.GetLength(), x.PayloadOnly, firstPos, lastPos)
+		writeDynamicGetRequestBodyFields(b[off:], x.Raw, x.Range.GetOffset(), x.Range.GetLength(), x.PayloadOnly, firstPos, lastPos, x.EcPartId.GetRuleIndex(), x.EcPartId.GetPartIndex())
 	}
 }
 
@@ -430,19 +467,21 @@ const (
 	FieldHeadRequestBodyAddress
 	FieldHeadRequestBodyMainOnly
 	FieldHeadRequestBodyRaw
+	FieldHeadRequestECPartID
 )
 
 // CalculateHeadRequestBodyLength calculates length of Head request body message
 // with static address and given dynamic fields.
-func CalculateHeadRequestBodyLength(raw bool) int {
+func CalculateHeadRequestBodyLength(raw bool, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	ln := protoencoding.SizeEmbeddedLENField(FieldHeadRequestBodyAddress, refs.ObjectAddressLength)
-	ln += calculateDynamicHeadRequestBodyFieldsLength(false, raw)
+	ln += calculateDynamicHeadRequestBodyFieldsLength(false, raw, ecPartRuleIndex, ecPartIndex)
 	return ln
 }
 
-func calculateDynamicHeadRequestBodyFieldsLength(mainOnly bool, raw bool) int {
+func calculateDynamicHeadRequestBodyFieldsLength(mainOnly bool, raw bool, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	ln := protoencoding.SizeBool(FieldHeadRequestBodyMainOnly, mainOnly)
 	ln += protoencoding.SizeBool(FieldHeadRequestBodyRaw, raw)
+	ln += protoencoding.SizeEmbeddedLENField(FieldHeadRequestECPartID, CalculateECPartIDLength(ecPartRuleIndex, ecPartIndex))
 	return ln
 }
 
@@ -452,34 +491,35 @@ func (x *HeadRequest_Body) MarshaledSize() int {
 	var sz int
 	if x != nil {
 		sz = protoencoding.SizeEmbedded(FieldHeadRequestBodyAddress, x.Address) +
-			calculateDynamicHeadRequestBodyFieldsLength(x.MainOnly, x.Raw)
+			calculateDynamicHeadRequestBodyFieldsLength(x.MainOnly, x.Raw, x.EcPartId.GetRuleIndex(), x.EcPartId.GetPartIndex())
 	}
 	return sz
 }
 
 // WriteHeadRequestBodyToRequest writes Head request body field with given
 // fields into buf. Returns number of bytes written.
-func WriteHeadRequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool) int {
-	ln := CalculateHeadRequestBodyLength(raw)
+func WriteHeadRequestBodyToRequest(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, ecPartRuleIndex uint32, ecPartIndex uint32) int {
+	ln := CalculateHeadRequestBodyLength(raw, ecPartRuleIndex, ecPartIndex)
 	if ln == 0 {
 		return 0
 	}
 	off := protoencoding.WriteRequestBodyTagAndLength(buf, ln)
-	off += WriteHeadRequestBody(buf[off:], cnr, obj, raw)
+	off += WriteHeadRequestBody(buf[off:], cnr, obj, raw, ecPartRuleIndex, ecPartIndex)
 	return off
 }
 
 // WriteHeadRequestBody writes Head request body message with given fields into
 // buf. Returns number of bytes written.
-func WriteHeadRequestBody(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool) int {
+func WriteHeadRequestBody(buf []byte, cnr [sha256.Size]byte, obj [sha256.Size]byte, raw bool, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	off := refs.WriteObjectAddressField(buf, FieldHeadRequestBodyAddress, cnr, obj)
-	off += writeDynamicHeadRequestBodyFields(buf[off:], false, raw)
+	off += writeDynamicHeadRequestBodyFields(buf[off:], false, raw, ecPartRuleIndex, ecPartIndex)
 	return off
 }
 
-func writeDynamicHeadRequestBodyFields(buf []byte, mainOnly bool, raw bool) int {
+func writeDynamicHeadRequestBodyFields(buf []byte, mainOnly bool, raw bool, ecPartRuleIndex uint32, ecPartIndex uint32) int {
 	off := protoencoding.MarshalToBool(buf, FieldHeadRequestBodyMainOnly, mainOnly)
 	off += protoencoding.MarshalToBool(buf[off:], FieldHeadRequestBodyRaw, raw)
+	off += WriteECPartIDField(buf[off:], FieldHeadRequestECPartID, ecPartRuleIndex, ecPartIndex)
 	return off
 }
 
@@ -489,7 +529,7 @@ func writeDynamicHeadRequestBodyFields(buf []byte, mainOnly bool, raw bool) int 
 func (x *HeadRequest_Body) MarshalStable(b []byte) {
 	if x != nil {
 		off := protoencoding.MarshalToEmbedded(b, FieldHeadRequestBodyAddress, x.Address)
-		writeDynamicHeadRequestBodyFields(b[off:], x.MainOnly, x.Raw)
+		writeDynamicHeadRequestBodyFields(b[off:], x.MainOnly, x.Raw, x.EcPartId.GetRuleIndex(), x.EcPartId.GetPartIndex())
 	}
 }
 
