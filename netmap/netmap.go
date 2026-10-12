@@ -169,10 +169,10 @@ func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]Nod
 	pivot := slices.Clone(objectID[:])
 
 	h := hrw.WrapBytes(pivot)
-	wf := defaultWeightFunc(m.nodes)
 	result := make([][]NodeInfo, len(vectors))
 
 	for i := range vectors {
+		wf := defaultWeightFunc(vectors[i])
 		result[i] = slices.Clone(vectors[i])
 		hrw.SortWeighted(result[i], nodes(result[i]).weights(wf), h)
 	}
