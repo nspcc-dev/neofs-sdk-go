@@ -102,14 +102,14 @@ func (a *meanAgg) Compute() float64 {
 }
 
 func (a *minAgg) Add(n float64) {
-	if a.min == nil || n < *a.min {
+	if n != 0 && (a.min == nil || n < *a.min) {
 		a.min = &n
 	}
 }
 
 func (a *minAgg) Compute() float64 {
 	if a.min == nil {
-		return 0
+		return 1
 	}
 
 	return *a.min

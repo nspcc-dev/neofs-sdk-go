@@ -42,15 +42,15 @@ func TestMinAgg(t *testing.T) {
 	}{
 		{
 			vals: []float64{1, 2, 3, 4, 0, 100},
-			res:  0,
+			res:  1,
 		},
 		{
 			vals: []float64{0, 1, 3, 4, 5},
-			res:  0,
+			res:  1,
 		},
 		{
 			vals: []float64{0, 0, 0, 0},
-			res:  0,
+			res:  1,
 		},
 		{
 			vals: []float64{1, 1, 1, 1},
