@@ -164,8 +164,9 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 			},
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -259,8 +260,9 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 			ContainerId: id.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     2,
+			Version:        c.apiVersion,
+			Ttl:            2,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -325,8 +327,9 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 			OwnerId: ownerID.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -472,8 +475,9 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 			},
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -528,8 +532,9 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 			ContainerId: id.ProtoMessage(),
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -714,8 +719,9 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 			ContainerRevision: cnrRev,
 		},
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)

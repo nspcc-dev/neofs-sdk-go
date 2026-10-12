@@ -30,6 +30,9 @@ var (
 	// ErrBusy is an instance of Busy error status. It's expected
 	// to be used for [errors.Is] and MUST NOT be changed.
 	ErrBusy Busy
+	// ErrRequestExpired is an instance of RequestExpired error status. It's expected
+	// to be used for [errors.Is] and MUST NOT be changed.
+	ErrRequestExpired RequestExpired
 )
 
 // ServerInternal describes failure statuses related to internal server errors.
@@ -379,5 +382,63 @@ func (x *Busy) SetMessage(v string) {
 //
 // See also [SetMessage].
 func (x Busy) Message() string {
+	return x.msg
+}
+
+// RequestExpired describes failure status for requests with invalid
+// request validity time (a required meta header part since API 2.28).
+type RequestExpired struct {
+	msg string
+	dts []*protostatus.Status_Detail
+}
+
+const defaultRequestExpiredMsg = "request has expired"
+
+// Error implements the error interface.
+func (x RequestExpired) Error() string {
+	if x.msg == "" {
+		x.msg = defaultRequestExpiredMsg
+	}
+
+	return errMessageStatus(protostatus.RequestExpired, x.msg)
+}
+
+// Is implements interface for correct checking current error type with [errors.Is].
+func (x RequestExpired) Is(target error) bool {
+	switch target.(type) {
+	default:
+		return errors.Is(Error, target)
+	case RequestExpired, *RequestExpired:
+		return true
+	}
+}
+
+// implements local interface defined in [ToError] func.
+func (x *RequestExpired) fromProtoMessage(st *protostatus.Status) {
+	x.msg = st.Message
+	x.dts = st.Details
+}
+
+// implements local interface defined in [FromError] func.
+func (x RequestExpired) protoMessage() *protostatus.Status {
+	if x.msg == "" {
+		x.msg = defaultRequestExpiredMsg
+	}
+	return &protostatus.Status{Code: protostatus.RequestExpired, Message: x.msg, Details: x.dts}
+}
+
+// SetMessage sets details of server state.
+// Message should be used for debug purposes only.
+//
+// See also [Message].
+func (x *RequestExpired) SetMessage(v string) {
+	x.msg = v
+}
+
+// Message returns status message. Zero status returns empty message.
+// Message should be used for debug purposes only.
+//
+// See also [SetMessage].
+func (x RequestExpired) Message() string {
 	return x.msg
 }

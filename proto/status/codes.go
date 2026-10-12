@@ -10,6 +10,7 @@ const (
 	NodeUnderMaintenance      = 1027
 	BadRequest                = 1028
 	Busy                      = 1029
+	RequestExpired            = 1030
 	ObjectAccessDenied        = 2048
 	ObjectNotFound            = 2049
 	ObjectLocked              = 2050

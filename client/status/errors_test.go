@@ -41,6 +41,10 @@ func TestErrors(t *testing.T) {
 			errVariable: ErrBusy,
 		},
 		{
+			errs:        []error{RequestExpired{}, new(RequestExpired)},
+			errVariable: ErrRequestExpired,
+		},
+		{
 			errs:        []error{ObjectLocked{}, new(ObjectLocked)},
 			errVariable: ErrObjectLocked,
 		},

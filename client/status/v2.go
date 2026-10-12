@@ -20,6 +20,7 @@ import (
 //   - [protostatus.SignatureVerificationFail]: *[SignatureVerification].
 //   - [protostatus.WrongNetMagic]: *[WrongMagicNumber].
 //   - [protostatus.NodeUnderMaintenance]: *[NodeUnderMaintenance].
+//   - [protostatus.RequestExpired]: *[RequestExpired].
 //
 // Object failures:
 //   - [protostatus.ObjectLocked]: *[ObjectLocked];
@@ -69,6 +70,8 @@ func ToError(st *protostatus.Status) error {
 		decoder = new(BadRequest)
 	case protostatus.Busy:
 		decoder = new(Busy)
+	case protostatus.RequestExpired:
+		decoder = new(RequestExpired)
 	case protostatus.ObjectLocked:
 		decoder = new(ObjectLocked)
 	case protostatus.LockIrregularObject:

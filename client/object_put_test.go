@@ -160,6 +160,9 @@ func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 	if err := x.verifyBearerToken(metaHdr.GetBearerToken()); err != nil {
 		return err
 	}
+	if metaHdr.ValidUntilTime == 0 {
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
+	}
 	// body
 	body := req.Body
 	if body == nil {

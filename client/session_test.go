@@ -70,6 +70,8 @@ func (x *testCreateSessionServer) verifyRequest(req *protosession.CreateRequest)
 		return newInvalidRequestMetaHeaderErr(errors.New("session token attached while should not be"))
 	case metaHdr.BearerToken != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	// body
 	body := req.Body

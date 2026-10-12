@@ -68,8 +68,9 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 	req := &protonetmap.LocalNodeInfoRequest{
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	if prm.compatAPI {
@@ -155,8 +156,9 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	req := &protonetmap.NetworkInfoRequest{
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -222,8 +224,9 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	req := &protonetmap.NetmapSnapshotRequest{
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version: c.apiVersion,
-			Ttl:     defaultRequestTTL,
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
 		},
 	}
 
