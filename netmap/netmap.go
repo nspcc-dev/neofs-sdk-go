@@ -138,8 +138,7 @@ func (n nodes) Hash() uint64 {
 func (n nodes) weights() []float64 {
 	w := make([]float64, 0, len(n))
 	for i := range n {
-		invPrice := 1 / float64(max(1, n[i].Price()))
-		w = append(w, float64(n[i].Capacity())*invPrice)
+		w = append(w, n[i].weight())
 	}
 
 	return w

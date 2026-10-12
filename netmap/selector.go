@@ -45,9 +45,9 @@ func calcNodesCount(s Selector) (int, int) {
 }
 
 // calcBucketWeight computes weight for a node bucket.
-func calcBucketWeight(ns nodes, a aggregator, wf weightFunc) float64 {
+func calcBucketWeight(ns nodes, a aggregator) float64 {
 	for i := range ns {
-		a.Add(wf(ns[i]))
+		a.Add(ns[i].weight())
 	}
 
 	return a.Compute()
@@ -103,7 +103,7 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 	if len(c.hrwSeed) != 0 {
 		weights := make([]float64, len(res))
 		for i := range res {
-			weights[i] = calcBucketWeight(res[i], newMeanIQRAgg(), c.weightFunc)
+			weights[i] = calcBucketWeight(res[i], newMeanIQRAgg())
 		}
 
 		hrw.SortWeighted(res, weights, c.hrwSeedHash)

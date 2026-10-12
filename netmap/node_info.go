@@ -228,6 +228,13 @@ func (x NodeInfo) Hash() uint64 {
 	return hrw.Hash(x.PublicKey())
 }
 
+// weight returns node weight used for HRW sorting based on its price and
+// capacity.
+func (x NodeInfo) weight() float64 {
+	invPrice := 1 / float64(max(1, x.Price()))
+	return float64(x.Capacity()) * invPrice
+}
+
 func (x *NodeInfo) setNumericAttribute(key string, num uint64) {
 	x.SetAttribute(key, strconv.FormatUint(num, 10))
 }

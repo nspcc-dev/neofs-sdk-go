@@ -28,10 +28,6 @@ type context struct {
 	// hrw.Hash of hrwSeed
 	hrwSeedHash hrw.Hashable
 
-	// weightFunc is a weighting function for determining node priority
-	// which combines low price and high performance
-	weightFunc weightFunc
-
 	// container backup factor
 	cbf uint32
 }
@@ -58,8 +54,7 @@ func newContext(nm NetMap) *context {
 		processedSelectors: make(map[string]*Selector),
 		selections:         make(map[string][]nodes),
 
-		numCache:   make(map[string]uint64),
-		weightFunc: defaultWeightFunc(nm.nodes),
+		numCache: make(map[string]uint64),
 	}
 }
 
@@ -76,18 +71,4 @@ func (c *context) setCBF(cbf uint32) {
 	} else {
 		c.cbf = cbf
 	}
-}
-
-func defaultWeightFunc(ns nodes) weightFunc {
-	meanA := newMeanAgg()
-	minA := newMinAgg()
-
-	for i := range ns {
-		meanA.Add(float64(ns[i].Capacity()))
-		minA.Add(float64(ns[i].Price()))
-	}
-
-	return newWeightFunc(
-		newSigmoidNorm(meanA.Compute()),
-		newReverseMinNorm(minA.Compute()))
 }
