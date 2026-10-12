@@ -144,6 +144,43 @@ func (n nodes) weights() []float64 {
 	return w
 }
 
+// calcBucketWeight computes weight for a node bucket.
+func (n nodes) calcBucketWeight() float64 {
+	var l = len(n)
+	if l == 0 {
+		return 0
+	}
+
+	var weights = n.weights()
+
+	slices.Sort(weights)
+
+	var (
+		count      int
+		minV, maxV float64
+		start, end int
+		sum        float64
+	)
+
+	const minLn = 4
+
+	if l < minLn {
+		start, end = 0, l-1
+	} else {
+		start, end = l/minLn, l*3/minLn-1
+	}
+
+	minV, maxV = weights[start], weights[end]
+
+	for _, e := range weights {
+		if e >= minV && e <= maxV {
+			sum += e
+			count++
+		}
+	}
+	return sum / float64(count)
+}
+
 func flattenNodes(ns []nodes) nodes {
 	var sz, i int
 

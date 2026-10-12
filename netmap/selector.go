@@ -44,15 +44,6 @@ func calcNodesCount(s Selector) (int, int) {
 	return n, 1
 }
 
-// calcBucketWeight computes weight for a node bucket.
-func calcBucketWeight(ns nodes, a aggregator) float64 {
-	for i := range ns {
-		a.Add(ns[i].weight())
-	}
-
-	return a.Compute()
-}
-
 // getSelection returns nodes grouped by s.attribute.
 // Last argument specifies if more buckets can be used to fulfill CBF.
 func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
@@ -103,7 +94,7 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 	if len(c.hrwSeed) != 0 {
 		weights := make([]float64, len(res))
 		for i := range res {
-			weights[i] = calcBucketWeight(res[i], newMeanIQRAgg())
+			weights[i] = res[i].calcBucketWeight()
 		}
 
 		hrw.SortWeighted(res, weights, c.hrwSeedHash)
