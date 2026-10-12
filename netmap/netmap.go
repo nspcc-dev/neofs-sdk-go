@@ -135,10 +135,11 @@ func (n nodes) Hash() uint64 {
 }
 
 // weights returns slice of nodes weights W.
-func (n nodes) weights(wf weightFunc) []float64 {
+func (n nodes) weights() []float64 {
 	w := make([]float64, 0, len(n))
 	for i := range n {
-		w = append(w, wf(n[i]))
+		invPrice := 1 / float64(max(1, n[i].Price()))
+		w = append(w, float64(n[i].Capacity())*invPrice)
 	}
 
 	return w
@@ -181,9 +182,8 @@ func PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, erro
 	result := make([][]NodeInfo, len(vectors))
 
 	for i := range vectors {
-		wf := defaultWeightFunc(vectors[i])
 		result[i] = slices.Clone(vectors[i])
-		hrw.SortWeighted(result[i], nodes(result[i]).weights(wf), h)
+		hrw.SortWeighted(result[i], nodes(result[i]).weights(), h)
 	}
 
 	return result, nil

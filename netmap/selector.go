@@ -158,7 +158,7 @@ func (c *context) getSelectionBase(s Selector) []nodeAttrPair {
 
 	if len(c.hrwSeed) != 0 {
 		for i := range result {
-			hrw.SortWeighted(result[i].nodes, result[i].nodes.weights(c.weightFunc), c.hrwSeedHash)
+			hrw.SortWeighted(result[i].nodes, result[i].nodes.weights(), c.hrwSeedHash)
 		}
 	}
 
