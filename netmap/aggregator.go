@@ -154,7 +154,7 @@ func (a *meanIQRAgg) Compute() float64 {
 
 func (r *reverseMinNorm) Normalize(w float64) float64 {
 	if w == 0 {
-		return 0
+		return 1
 	}
 
 	return r.min / w
