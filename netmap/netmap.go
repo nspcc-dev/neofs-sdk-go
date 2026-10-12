@@ -165,7 +165,16 @@ func flattenNodes(ns []nodes) nodes {
 // For example, in order to build node list to store the object, binary-encoded
 // object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
+//
+// Deprecated: use [PlacementVectors] function that doesn't require a map.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
+	return PlacementVectors(vectors, objectID)
+}
+
+// PlacementVectors sorts container nodes returned by [NetMap.ContainerNodes] method
+// and returns placement vectors for the entity identified by the given object ID.
+// Result is deterministic for given parameters.
+func PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
 	pivot := slices.Clone(objectID[:])
 
 	h := hrw.WrapBytes(pivot)
