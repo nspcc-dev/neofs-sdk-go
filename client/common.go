@@ -141,7 +141,11 @@ func writeXHeaderFunc(xHeaders []string) func([]byte, int) int {
 }
 
 func containerRevisionsSupported(v *protorefs.Version) bool {
-	return v != nil && ((v.Major == 2 && v.Minor >= 27) || v.Major > 2)
+	return apiVersionGE(v, 2, 27)
+}
+
+func apiVersionGE(v *protorefs.Version, mjr uint32, mnr uint32) bool {
+	return v != nil && ((v.Major == mjr && v.Minor >= mnr) || v.Major > mjr)
 }
 
 func unsupportedCnrRevErr(v *protorefs.Version) error {

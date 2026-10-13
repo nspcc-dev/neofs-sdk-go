@@ -705,6 +705,7 @@ type testCommonRequestServerSettings[
 	reqCreds        *authCredentials
 	reqXHdrs        []string
 	requireUnsigned bool
+	apiVersion      *protorefs.Version
 }
 
 // makes the server to assert that any request has given X-headers. By default,
@@ -714,6 +715,12 @@ func (x *testCommonRequestServerSettings[_, _]) checkRequestXHeaders(xhdrs []str
 		panic("odd number of elements")
 	}
 	x.reqXHdrs = xhdrs
+}
+
+// makes the server to assert that any request has given API version. By
+// default, current API version must be used.
+func (x *testCommonRequestServerSettings[_, _]) checkRequestAPIVersion(apiVersion *protorefs.Version) {
+	x.apiVersion = apiVersion
 }
 
 // makes the server to assert that any request is signed by s. By default, any
@@ -764,17 +771,22 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		}
 	}
 	// meta header
-	curVersion := version.Current()
+	var ver version.Version
+	if x.apiVersion != nil {
+		ver = version.New(x.apiVersion.Major, x.apiVersion.Minor)
+	} else {
+		ver = version.Current()
+	}
 	switch {
 	case metaHdr == nil:
 		return newInvalidRequestErr(errors.New("missing meta header"))
 	case metaHdr.Version == nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("missing protocol version"))
-	case metaHdr.Version.Major != curVersion.Major() || metaHdr.Version.Minor != curVersion.Minor():
+	case metaHdr.Version.Major != ver.Major() || metaHdr.Version.Minor != ver.Minor():
 		_, isLocalNodeInfo := any(req).(*protonetmap.LocalNodeInfoRequest)
 		if !isLocalNodeInfo {
 			return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong protocol version v%d.%d, expected %s",
-				metaHdr.Version.Major, metaHdr.Version.Minor, curVersion))
+				metaHdr.Version.Major, metaHdr.Version.Minor, ver))
 		}
 		if metaHdr.Version.Major != 2 || metaHdr.Version.Minor != 24 {
 			return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong LocalNodeInfo protocol version v%d.%d, expected 2.24",
@@ -789,7 +801,7 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 	case len(metaHdr.XHeaders) != len(x.reqXHdrs)/2:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("number of x-headers %d differs parameterized %d",
 			len(metaHdr.XHeaders), len(x.reqXHdrs)/2))
-	case metaHdr.ValidUntilTime == 0:
+	case (metaHdr.Version.Major > 2 || metaHdr.Version.Major == 2 && metaHdr.Version.Minor >= 28) && metaHdr.ValidUntilTime == 0:
 		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	for i := range metaHdr.XHeaders {

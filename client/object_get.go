@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"hash"
 	"io"
+	"strconv"
 	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/bearer"
@@ -19,6 +20,7 @@ import (
 	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	grpcprotobuf "github.com/nspcc-dev/neofs-sdk-go/proto/protobuf"
+	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -38,6 +40,10 @@ type prmObjectRead struct {
 	local       bool
 
 	raw bool
+
+	ecPartIDSet bool
+	ecRuleIdx   uint32
+	ecPartIdx   *uint32
 }
 
 // MarkRaw marks an intent to read physically stored object.
@@ -57,6 +63,103 @@ func (x *prmObjectRead) MarkLocal() {
 // Must be signed.
 func (x *prmObjectRead) WithBearerToken(t bearer.Token) {
 	x.bearerToken = &t
+}
+
+// SelectECPart tells server to read specified part from EC partition of the
+// referenced object.
+func (x *prmObjectRead) SelectECPart(ruleIdx uint32, partIdx uint32) {
+	x.setECPartCommon(ruleIdx)
+	x.ecPartIdx = &partIdx
+}
+
+func (x *prmObjectRead) setECPartCommon(ruleIdx uint32) {
+	x.ecRuleIdx = ruleIdx
+	x.ecPartIDSet = true
+}
+
+func (x *prmObjectRead) preprocessECPart(apiVersion *protorefs.Version) error {
+	ecRuleIdxPos := -1
+	ecPartIdxPos := -1
+
+	for i := 0; i < len(x.xHeaders); i += 2 {
+		if x.xHeaders[i] == object.AttributeECRuleIndex {
+			if ecRuleIdxPos >= 0 {
+				return fmt.Errorf("duplicated X-header %s", x.xHeaders[i])
+			}
+			ecRuleIdxPos = i
+			continue
+		}
+		if x.xHeaders[i] == object.AttributeECPartIndex {
+			if ecPartIdxPos >= 0 {
+				return fmt.Errorf("duplicated X-header %s", x.xHeaders[i])
+			}
+			ecPartIdxPos = i
+		}
+	}
+
+	ecXHdrSet := ecRuleIdxPos >= 0 || ecPartIdxPos >= 0
+	ecFldSupported := getECPartIDFieldSupported(apiVersion)
+
+	if x.ecPartIDSet {
+		if ecXHdrSet {
+			return errors.New("EC part ID is specified by both option and X-headers")
+		}
+		if ecFldSupported {
+			return nil
+		}
+
+		x.xHeaders = append(x.xHeaders,
+			object.AttributeECRuleIndex, strconv.FormatUint(uint64(x.ecRuleIdx), 10),
+		)
+
+		if x.ecPartIdx != nil {
+			x.xHeaders = append(x.xHeaders,
+				object.AttributeECPartIndex, strconv.FormatUint(uint64(*x.ecPartIdx), 10),
+			)
+		}
+
+		x.ecPartIDSet = false
+
+		return nil
+	}
+
+	if !ecXHdrSet || !ecFldSupported {
+		return nil
+	}
+
+	if ecRuleIdxPos < 0 {
+		return fmt.Errorf("X-header %s is required for EC request", object.AttributeECRuleIndex) //nolint:staticcheck
+	}
+
+	// Replace X-headers with body field. Note that this is not required, but more
+	// compact and modern at the same time.
+
+	ruleIdx, err := strconv.ParseUint(x.xHeaders[ecRuleIdxPos+1], 10, 32)
+	if err != nil {
+		return fmt.Errorf("parse EC rule index X-header: %w", err)
+	}
+
+	if ecPartIdxPos >= 0 {
+		u, err := strconv.ParseUint(x.xHeaders[ecPartIdxPos+1], 10, 32)
+		if err != nil {
+			return fmt.Errorf("parse EC part index X-header: %w", err)
+		}
+
+		u32 := uint32(u)
+		x.ecPartIdx = new(u32)
+	}
+
+	xHeaders := make([]string, 0, len(x.xHeaders)-2)
+	for i := 0; i < len(x.xHeaders); i += 2 {
+		if x.xHeaders[i] != object.AttributeECRuleIndex && x.xHeaders[i] != object.AttributeECPartIndex {
+			xHeaders = append(xHeaders, x.xHeaders[i], x.xHeaders[i+1])
+		}
+	}
+
+	x.setECPartCommon(uint32(ruleIdx))
+	x.xHeaders = xHeaders
+
+	return nil
 }
 
 // PrmObjectGet groups optional parameters of ObjectGetInit operation.
@@ -114,6 +217,13 @@ func (x *PrmObjectGet) SetRangeFrom(first uint64) {
 func (x *PrmObjectGet) SetRangeSuffix(length uint64) {
 	x.rng = nil
 	x.extendedRange = &protoobject.ExtendedRange{LastPos: &length}
+}
+
+// SelectAnyECPart tells server to read the most suitable part from EC partition
+// of the referenced object.
+func (x *PrmObjectGet) SelectAnyECPart(ruleIdx uint32) {
+	x.setECPartCommon(ruleIdx)
+	x.ecPartIdx = nil
 }
 
 func resolvedRangeLength(rng *protoobject.Range, extendedRange *protoobject.ExtendedRange, payloadLen uint64) uint64 {
@@ -685,6 +795,9 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	if prm.session != nil && prm.sessionV2 != nil {
 		return hdr, nil, errSessionTokenBothVersionsSet
 	}
+	if err = prm.preprocessECPart(c.apiVersion); err != nil {
+		return hdr, nil, err
+	}
 
 	// pre-calculate body and meta header message lengths
 	var sessionV1TokenMsg *protosession.SessionToken
@@ -713,7 +826,14 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 		extRngFirst, extRngLast = prm.extendedRange.FirstPos, prm.extendedRange.LastPos
 	}
 
-	bodyLen := protoobject.CalculateGetRequestBodyLength(prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast, 0)
+	var ecPartIDLen int
+	var writeECPartIDFn func([]byte) int
+	if prm.ecPartIDSet {
+		ecPartIDLen = protoobject.CalculateECPartIDLength(prm.ecRuleIdx, prm.ecPartIdx)
+		writeECPartIDFn = func(buf []byte) int { return protoobject.WriteECPartID(buf, prm.ecRuleIdx, prm.ecPartIdx) }
+	}
+
+	bodyLen := protoobject.CalculateGetRequestBodyLength(prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast, ecPartIDLen)
 
 	ttl := localFlagToTTL(prm.local)
 	xHdrLenFn := xHeadersLengthFunc(prm.xHeaders)
@@ -734,7 +854,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	// encode body
-	off := protoobject.WriteGetRequestBodyToRequest(buf, containerID, objectID, prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast, 0, nil)
+	off := protoobject.WriteGetRequestBodyToRequest(buf, containerID, objectID, prm.raw, prm.rng.GetOffset(), prm.rng.GetLength(), prm.payloadOnly, extRngFirst, extRngLast, ecPartIDLen, writeECPartIDFn)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]
@@ -854,6 +974,9 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	if prm.session != nil && prm.sessionV2 != nil {
 		return nil, errSessionTokenBothVersionsSet
 	}
+	if err = prm.preprocessECPart(c.apiVersion); err != nil {
+		return nil, err
+	}
 
 	// pre-calculate body and meta header message lengths
 	var sessionV1TokenMsg *protosession.SessionToken
@@ -877,7 +1000,14 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		sessionV2TokenLen = sessionV2TokenMsg.MarshaledSize()
 	}
 
-	bodyLen := protoobject.CalculateHeadRequestBodyLength(prm.raw, 0)
+	var ecPartIDLen int
+	var writeECPartIDFn func([]byte) int
+	if prm.ecPartIDSet {
+		ecPartIDLen = protoobject.CalculateECPartIDLength(prm.ecRuleIdx, prm.ecPartIdx)
+		writeECPartIDFn = func(buf []byte) int { return protoobject.WriteECPartID(buf, prm.ecRuleIdx, prm.ecPartIdx) }
+	}
+
+	bodyLen := protoobject.CalculateHeadRequestBodyLength(prm.raw, ecPartIDLen)
 
 	ttl := localFlagToTTL(prm.local)
 	xHdrLenFn := xHeadersLengthFunc(prm.xHeaders)
@@ -898,7 +1028,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	}
 
 	// encode body
-	off := protoobject.WriteHeadRequestBodyToRequest(buf, containerID, objectID, prm.raw, 0, nil)
+	off := protoobject.WriteHeadRequestBodyToRequest(buf, containerID, objectID, prm.raw, ecPartIDLen, writeECPartIDFn)
 
 	// memorize body for signing
 	signedBody := buf[off-bodyLen : off]
@@ -1002,4 +1132,8 @@ func isECPart(hdr *protoobject.Header) bool {
 	}
 
 	return ruleIndFound && partIndFound
+}
+
+func getECPartIDFieldSupported(v *protorefs.Version) bool {
+	return apiVersionGE(v, 2, 28)
 }
