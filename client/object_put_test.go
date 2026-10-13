@@ -476,7 +476,7 @@ func TestClient_ObjectPut(t *testing.T) {
 									w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, anyValidOpts)
 									require.NoError(t, err)
 									if ok {
-										for i := 0; i < 10; i++ {
+										for range 10 {
 											n, err := w.Write([]byte{1})
 											require.NoError(t, err)
 											require.EqualValues(t, 1, n)
