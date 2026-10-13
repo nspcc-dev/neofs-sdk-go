@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"strconv"
 	"testing"
 	"testing/iotest"
 	"time"
@@ -130,7 +131,8 @@ type testCommonReadObjectRequestServerSettings struct {
 	testBearerTokenServerSettings
 	testObjectAddressServerSettings
 	testLocalRequestServerSettings
-	reqRaw bool
+	reqRaw   bool
+	ecPartID *protoobject.ECPartID
 }
 
 // makes the server to assert that any request is with set raw flag. By default,
@@ -141,6 +143,23 @@ func (x *testCommonReadObjectRequestServerSettings) verifyRawFlag(raw bool) erro
 	if x.reqRaw != raw {
 		return newErrInvalidRequestField("raw flag", fmt.Errorf("unexpected value (client: %t, message: %t)",
 			x.reqRaw, raw))
+	}
+	return nil
+}
+
+// makes the server to assert that any request has given EC part ID. By default,
+// request must be without it.
+func (x *testCommonReadObjectRequestServerSettings) checkRequestECPart(ruleIdx uint32, partIdx *uint32) {
+	x.ecPartID = &protoobject.ECPartID{
+		RuleIndex: ruleIdx,
+		PartIndex: partIdx,
+	}
+}
+
+func (x *testCommonReadObjectRequestServerSettings) verifyECPartID(ecPartID *protoobject.ECPartID) error {
+	if !proto.Equal(ecPartID, x.ecPartID) {
+		return newErrInvalidRequestField("EC part ID", fmt.Errorf("unexpected value (client: %v, message: %v)",
+			x.ecPartID, ecPartID))
 	}
 	return nil
 }
@@ -165,7 +184,8 @@ func (x *testCommonReadObjectRequestServerSettings) verifyMeta(m *protosession.R
 	if err := x.verifyBearerToken(m.GetBearerToken()); err != nil {
 		return err
 	}
-	if m.ValidUntilTime == 0 {
+	mjr := m.Version.GetMajor()
+	if (mjr > 2 || mjr == 2 && m.Version.Minor >= 28) && m.ValidUntilTime == 0 {
 		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
 	}
 	return nil
@@ -274,7 +294,11 @@ func (x *testGetObjectServer) verifyRequest(req *protoobject.GetRequest) error {
 		return newErrMissingRequestBodyField("payload_only")
 	}
 	// 3. raw
-	return x.verifyRawFlag(body.Raw)
+	if err := x.verifyRawFlag(body.Raw); err != nil {
+		return err
+	}
+	// 5. EC Part ID
+	return x.verifyECPartID(body.EcPartId)
 }
 
 func (x *testGetObjectServer) Get(req *protoobject.GetRequest, stream protoobject.ObjectService_GetServer) error {
@@ -482,6 +506,181 @@ func TestClient_ObjectHead(t *testing.T) {
 					opts.WithBearerToken(bt)
 
 					srv.checkRequestBearerToken(bt)
+					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+					require.NoError(t, err)
+				})
+				t.Run("EC", func(t *testing.T) {
+					const ruleIdx = 1
+					partIdx := uint32(2)
+
+					t.Run("X-headers", func(t *testing.T) {
+						xHdrVersion := &protorefs.Version{Major: 2, Minor: 27}
+
+						t.Run("with option", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectHead
+							opts.SelectECPart(ruleIdx, partIdx)
+							opts.WithXHeaders(
+								"__NEOFS__EC_RULE_IDX", "1",
+								"__NEOFS__EC_PART_IDX", "2",
+							)
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "EC part ID is specified by both option and X-headers")
+						})
+
+						t.Run("duplicated", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectHead
+							opts.SelectECPart(ruleIdx, partIdx)
+							opts.WithXHeaders(
+								"__NEOFS__EC_RULE_IDX", "1",
+								"__NEOFS__EC_RULE_IDX", "2",
+							)
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "duplicated X-header __NEOFS__EC_RULE_IDX")
+
+							opts.WithXHeaders(
+								"__NEOFS__EC_PART_IDX", "1",
+								"__NEOFS__EC_PART_IDX", "2",
+							)
+
+							_, err = c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "duplicated X-header __NEOFS__EC_PART_IDX")
+						})
+
+						t.Run("without rule index", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectHead
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_PART_IDX", "2",
+								"key2", "value2",
+							)
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "X-header __NEOFS__EC_RULE_IDX is required for EC request")
+						})
+
+						t.Run("invalid rule index", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectHead
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_RULE_IDX", "foo",
+								"key2", "value2",
+								"__NEOFS__EC_PART_IDX", "2",
+								"key3", "value3",
+							)
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.ErrorContains(t, err, "parse EC rule index X-header")
+							require.ErrorIs(t, err, strconv.ErrSyntax)
+						})
+
+						t.Run("invalid part index", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectHead
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_RULE_IDX", "1",
+								"key2", "value2",
+								"__NEOFS__EC_PART_IDX", "foo",
+								"key3", "value3",
+							)
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.ErrorContains(t, err, "parse EC part index X-header")
+							require.ErrorIs(t, err, strconv.ErrSyntax)
+						})
+
+						t.Run("old server", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							srv.checkRequestAPIVersion(xHdrVersion)
+
+							c := newTestObjectClientWithVersion(t, srv, xHdrVersion)
+
+							var opts PrmObjectHead
+							opts.SelectECPart(ruleIdx, partIdx)
+							opts.SkipChecksumVerification()
+
+							srv.checkRequestXHeaders([]string{
+								"__NEOFS__EC_RULE_IDX", "1",
+								"__NEOFS__EC_PART_IDX", "2",
+							})
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.NoError(t, err)
+						})
+
+						t.Run("any part", func(t *testing.T) {
+							srv := newTestHeadObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectHead
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_RULE_IDX", "1",
+								"key2", "value2",
+								"key3", "value3",
+							)
+							opts.SkipChecksumVerification()
+
+							srv.checkRequestECPart(ruleIdx, nil)
+							srv.checkRequestXHeaders([]string{
+								"key1", "value1",
+								"key2", "value2",
+								"key3", "value3",
+							})
+
+							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.NoError(t, err)
+						})
+
+						srv := newTestHeadObjectServer()
+						c := newTestObjectClient(t, srv)
+
+						var opts PrmObjectHead
+						opts.WithXHeaders(
+							"key1", "value1",
+							"__NEOFS__EC_RULE_IDX", "1",
+							"key2", "value2",
+							"__NEOFS__EC_PART_IDX", "2",
+							"key3", "value3",
+						)
+						opts.SkipChecksumVerification()
+
+						srv.checkRequestECPart(ruleIdx, &partIdx)
+						srv.checkRequestXHeaders([]string{
+							"key1", "value1",
+							"key2", "value2",
+							"key3", "value3",
+						})
+
+						_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
+						require.NoError(t, err)
+					})
+
+					srv := newTestHeadObjectServer()
+					c := newTestObjectClient(t, srv)
+
+					var opts PrmObjectHead
+					opts.SelectECPart(ruleIdx, partIdx)
+					opts.SkipChecksumVerification()
+
+					srv.checkRequestECPart(ruleIdx, &partIdx)
+
 					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)
 				})
@@ -944,6 +1143,217 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					var e *object.SplitInfoError
 					require.ErrorAs(t, err, &e)
 					require.NoError(t, checkSplitInfoTransport(*e.SplitInfo(), validFullObjectSplitInfoGetResponseBody.GetSplitInfo()))
+				})
+				t.Run("EC", func(t *testing.T) {
+					const ruleIdx = 1
+					partIdx := uint32(2)
+					fldVersion := &protorefs.Version{Major: 2, Minor: 28}
+
+					t.Run("X-headers", func(t *testing.T) {
+						xHdrVersion := &protorefs.Version{Major: 2, Minor: 27}
+
+						t.Run("with option", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectGet
+							opts.SelectECPart(ruleIdx, partIdx)
+							opts.WithXHeaders(
+								"__NEOFS__EC_RULE_IDX", "1",
+								"__NEOFS__EC_PART_IDX", "2",
+							)
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "EC part ID is specified by both option and X-headers")
+						})
+
+						t.Run("duplicated", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							c := newTestObjectClient(t, srv)
+
+							var opts PrmObjectGet
+							opts.SelectECPart(ruleIdx, partIdx)
+							opts.WithXHeaders(
+								"__NEOFS__EC_RULE_IDX", "1",
+								"__NEOFS__EC_RULE_IDX", "2",
+							)
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "duplicated X-header __NEOFS__EC_RULE_IDX")
+
+							opts.WithXHeaders(
+								"__NEOFS__EC_PART_IDX", "1",
+								"__NEOFS__EC_PART_IDX", "2",
+							)
+
+							_, _, err = c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "duplicated X-header __NEOFS__EC_PART_IDX")
+						})
+
+						t.Run("without rule index", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							srv.checkRequestAPIVersion(fldVersion)
+
+							c := newTestObjectClient(t, srv)
+							c.apiVersion = fldVersion // override current if lower
+
+							var opts PrmObjectGet
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_PART_IDX", "2",
+								"key2", "value2",
+							)
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.EqualError(t, err, "X-header __NEOFS__EC_RULE_IDX is required for EC request")
+						})
+
+						t.Run("invalid rule index", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							srv.checkRequestAPIVersion(fldVersion)
+
+							c := newTestObjectClient(t, srv)
+							c.apiVersion = fldVersion // override current if lower
+
+							var opts PrmObjectGet
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_RULE_IDX", "foo",
+								"key2", "value2",
+								"__NEOFS__EC_PART_IDX", "2",
+								"key3", "value3",
+							)
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.ErrorContains(t, err, "parse EC rule index X-header")
+							require.ErrorIs(t, err, strconv.ErrSyntax)
+						})
+
+						t.Run("invalid part index", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							srv.checkRequestAPIVersion(fldVersion)
+
+							c := newTestObjectClient(t, srv)
+							c.apiVersion = fldVersion // override current if lower
+
+							var opts PrmObjectGet
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_RULE_IDX", "1",
+								"key2", "value2",
+								"__NEOFS__EC_PART_IDX", "foo",
+								"key3", "value3",
+							)
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.ErrorContains(t, err, "parse EC part index X-header")
+							require.ErrorIs(t, err, strconv.ErrSyntax)
+						})
+
+						t.Run("old server", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							srv.checkRequestAPIVersion(xHdrVersion)
+
+							c := newTestObjectClientWithVersion(t, srv, xHdrVersion)
+
+							var opts PrmObjectGet
+							opts.SelectECPart(ruleIdx, partIdx)
+							opts.SkipChecksumVerification()
+
+							srv.checkRequestXHeaders([]string{
+								"__NEOFS__EC_RULE_IDX", "1",
+								"__NEOFS__EC_PART_IDX", "2",
+							})
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.NoError(t, err)
+						})
+
+						t.Run("any part", func(t *testing.T) {
+							srv := newTestGetObjectServer()
+							srv.checkRequestAPIVersion(fldVersion)
+
+							c := newTestObjectClientWithVersion(t, srv, fldVersion)
+							c.apiVersion = fldVersion // override current if lower
+
+							var opts PrmObjectGet
+							opts.WithXHeaders(
+								"key1", "value1",
+								"__NEOFS__EC_RULE_IDX", "1",
+								"key2", "value2",
+								"key3", "value3",
+							)
+							opts.SkipChecksumVerification()
+
+							srv.checkRequestECPart(ruleIdx, nil)
+							srv.checkRequestXHeaders([]string{
+								"key1", "value1",
+								"key2", "value2",
+								"key3", "value3",
+							})
+
+							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+							require.NoError(t, err)
+						})
+
+						srv := newTestGetObjectServer()
+						srv.checkRequestAPIVersion(fldVersion)
+
+						c := newTestObjectClientWithVersion(t, srv, fldVersion)
+						c.apiVersion = fldVersion // override current if lower
+
+						var opts PrmObjectGet
+						opts.WithXHeaders(
+							"key1", "value1",
+							"__NEOFS__EC_RULE_IDX", "1",
+							"key2", "value2",
+							"__NEOFS__EC_PART_IDX", "2",
+							"key3", "value3",
+						)
+						opts.SkipChecksumVerification()
+
+						srv.checkRequestECPart(ruleIdx, &partIdx)
+						srv.checkRequestXHeaders([]string{
+							"key1", "value1",
+							"key2", "value2",
+							"key3", "value3",
+						})
+
+						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+						require.NoError(t, err)
+					})
+
+					t.Run("any part", func(t *testing.T) {
+						srv := newTestGetObjectServer()
+						srv.checkRequestAPIVersion(fldVersion)
+
+						c := newTestObjectClientWithVersion(t, srv, fldVersion)
+						c.apiVersion = fldVersion // override current if lower
+
+						var opts PrmObjectGet
+						opts.SelectAnyECPart(ruleIdx)
+						opts.SkipChecksumVerification()
+
+						srv.checkRequestECPart(ruleIdx, nil)
+
+						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+						require.NoError(t, err)
+					})
+
+					srv := newTestGetObjectServer()
+					srv.checkRequestAPIVersion(fldVersion)
+
+					c := newTestObjectClientWithVersion(t, srv, fldVersion)
+					c.apiVersion = fldVersion // override current if lower
+
+					var opts PrmObjectGet
+					opts.SelectECPart(ruleIdx, partIdx)
+					opts.SkipChecksumVerification()
+
+					srv.checkRequestECPart(ruleIdx, &partIdx)
+
+					_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+					require.NoError(t, err)
 				})
 			})
 		})

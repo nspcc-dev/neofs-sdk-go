@@ -737,8 +737,9 @@ type ECPartID struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Index of EC rule in the container placement policy.
 	RuleIndex uint32 `protobuf:"varint,1,opt,name=rule_index,json=ruleIndex,proto3" json:"rule_index,omitempty"`
-	// Index of the part in the object EC partition.
-	PartIndex     uint32 `protobuf:"varint,2,opt,name=part_index,json=partIndex,proto3" json:"part_index,omitempty"`
+	// Index of the part in the object EC partition. Omitted value depends on the
+	// context.
+	PartIndex     *uint32 `protobuf:"varint,2,opt,name=part_index,json=partIndex,proto3,oneof" json:"part_index,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -781,8 +782,8 @@ func (x *ECPartID) GetRuleIndex() uint32 {
 }
 
 func (x *ECPartID) GetPartIndex() uint32 {
-	if x != nil {
-		return x.PartIndex
+	if x != nil && x.PartIndex != nil {
+		return *x.PartIndex
 	}
 	return 0
 }
@@ -1078,12 +1079,13 @@ const file_proto_object_types_proto_rawDesc = "" +
 	"\tlast_part\x18\x02 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\blastPart\x12,\n" +
 	"\x04link\x18\x03 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\x04link\x127\n" +
 	"\n" +
-	"first_part\x18\x04 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\tfirstPart\"H\n" +
+	"first_part\x18\x04 \x01(\v2\x18.neo.fs.v2.refs.ObjectIDR\tfirstPart\"\\\n" +
 	"\bECPartID\x12\x1d\n" +
 	"\n" +
-	"rule_index\x18\x01 \x01(\rR\truleIndex\x12\x1d\n" +
+	"rule_index\x18\x01 \x01(\rR\truleIndex\x12\"\n" +
 	"\n" +
-	"part_index\x18\x02 \x01(\rR\tpartIndex*O\n" +
+	"part_index\x18\x02 \x01(\rH\x00R\tpartIndex\x88\x01\x01B\r\n" +
+	"\v_part_index*O\n" +
 	"\n" +
 	"ObjectType\x12\v\n" +
 	"\aREGULAR\x10\x00\x12\r\n" +
@@ -1182,6 +1184,7 @@ func file_proto_object_types_proto_init() {
 		return
 	}
 	file_proto_object_types_proto_msgTypes[2].OneofWrappers = []any{}
+	file_proto_object_types_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

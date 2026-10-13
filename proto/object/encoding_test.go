@@ -229,7 +229,33 @@ func TestSplitInfo_MarshalStable(t *testing.T) {
 }
 
 func TestGetRequest_Body_MarshalStable(t *testing.T) {
+	t.Run("EC part ID", func(t *testing.T) {
+		t.Run("nil", func(t *testing.T) {
+			src := &object.GetRequest_Body{
+				EcPartId: nil,
+			}
+
+			var dst object.GetRequest_Body
+			require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
+
+			require.Nil(t, dst.EcPartId)
+		})
+		t.Run("zero", func(t *testing.T) {
+			src := &object.GetRequest_Body{
+				EcPartId: new(object.ECPartID),
+			}
+
+			var dst object.GetRequest_Body
+			require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
+
+			require.NotNil(t, dst.EcPartId)
+			require.Zero(t, dst.EcPartId.RuleIndex)
+			require.Nil(t, dst.EcPartId.PartIndex)
+		})
+	})
+
 	first, last := uint64(1), uint64(2)
+	ecPartIdx := prototest.RandUint32()
 	prototest.TestMarshalStable(t, []*object.GetRequest_Body{
 		{Address: prototest.RandObjectAddress(), Raw: false},
 		{Address: prototest.RandObjectAddress(), Raw: true},
@@ -237,6 +263,7 @@ func TestGetRequest_Body_MarshalStable(t *testing.T) {
 		{Address: prototest.RandObjectAddress(), PayloadOnly: true},
 		{Address: prototest.RandObjectAddress(), Raw: true, Range: &object.Range{Offset: 1, Length: 2}, PayloadOnly: true},
 		{Address: prototest.RandObjectAddress(), ExtendedRange: &object.ExtendedRange{FirstPos: &first, LastPos: &last}},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: prototest.RandUint32(), PartIndex: &ecPartIdx}},
 	})
 }
 
@@ -263,11 +290,38 @@ func TestGetResponse_Body_MarshalStable(t *testing.T) {
 }
 
 func TestHeadRequest_Body_MarshalStable(t *testing.T) {
+	t.Run("EC part ID", func(t *testing.T) {
+		t.Run("nil", func(t *testing.T) {
+			src := &object.GetRequest_Body{
+				EcPartId: nil,
+			}
+
+			var dst object.GetRequest_Body
+			require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
+
+			require.Nil(t, dst.EcPartId)
+		})
+		t.Run("zero", func(t *testing.T) {
+			src := &object.GetRequest_Body{
+				EcPartId: new(object.ECPartID),
+			}
+
+			var dst object.GetRequest_Body
+			require.NoError(t, protoencoding.UnmarshalMessage(protoencoding.MarshalMessage(src), &dst))
+
+			require.NotNil(t, dst.EcPartId)
+			require.Zero(t, dst.EcPartId.RuleIndex)
+			require.Nil(t, dst.EcPartId.PartIndex)
+		})
+	})
+
+	ecPartIdx := prototest.RandUint32()
 	prototest.TestMarshalStable(t, []*object.HeadRequest_Body{
 		{Address: prototest.RandObjectAddress(), MainOnly: false, Raw: false},
 		{Address: prototest.RandObjectAddress(), MainOnly: true, Raw: false},
 		{Address: prototest.RandObjectAddress(), MainOnly: false, Raw: true},
 		{Address: prototest.RandObjectAddress(), MainOnly: true, Raw: true},
+		{Address: prototest.RandObjectAddress(), EcPartId: &object.ECPartID{RuleIndex: prototest.RandUint32(), PartIndex: &ecPartIdx}},
 	})
 }
 
