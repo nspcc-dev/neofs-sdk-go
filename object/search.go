@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
@@ -142,6 +143,7 @@ const (
 	FilterSplitID                = reservedFilterPrefix + "split.splitID"
 	FilterFirstSplitObject       = reservedFilterPrefix + "split.first"
 	FilterCreationEpoch          = reservedFilterPrefix + "creationEpoch"
+	FilterExpirationTime         = reservedFilterPrefix + "expirationTime"
 	FilterPayloadSize            = reservedFilterPrefix + "payloadLength"
 )
 
@@ -358,6 +360,12 @@ func (f *SearchFilters) AddPayloadHashFilter(m SearchMatchType, sum [sha256.Size
 // AddCreationEpochFilter adds filter by creation epoch.
 func (f *SearchFilters) AddCreationEpochFilter(m SearchMatchType, epoch uint64) {
 	f.addFilter(m, FilterCreationEpoch, strconv.FormatUint(epoch, 10))
+}
+
+// AddExpirationTimeFilter adds filter by object expiration time.
+// The time is encoded as a base-10 Unix timestamp in seconds, ignoring sub-second precision.
+func (f *SearchFilters) AddExpirationTimeFilter(m SearchMatchType, expirationTime time.Time) {
+	f.addFilter(m, FilterExpirationTime, strconv.FormatInt(expirationTime.Unix(), 10))
 }
 
 // AddPayloadSizeFilter adds filter by payload size.

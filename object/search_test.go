@@ -8,6 +8,7 @@ import (
 	"math/rand/v2"
 	"slices"
 	"testing"
+	"time"
 
 	"github.com/nspcc-dev/neofs-sdk-go/checksum"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
@@ -63,9 +64,10 @@ func init() {
 	validSearchFilters.AddFilter(object.FilterContainerID, anyValidContainers[0].String(), 102)
 	validSearchFilters.AddObjectOwnerIDFilter(103, anyValidUsers[0])
 	validSearchFilters.AddCreationEpochFilter(104, anyValidCreationEpoch)
-	validSearchFilters.AddPayloadSizeFilter(105, anyValidPayloadSize)
-	validSearchFilters.AddPayloadHashFilter(106, anySHA256Hash)
-	validSearchFilters.AddTypeFilter(107, anyValidType)
+	validSearchFilters.AddExpirationTimeFilter(105, time.Unix(1_726_000_000, 0))
+	validSearchFilters.AddPayloadSizeFilter(106, anyValidPayloadSize)
+	validSearchFilters.AddPayloadHashFilter(107, anySHA256Hash)
+	validSearchFilters.AddTypeFilter(108, anyValidType)
 	validSearchFilters.AddParentIDFilter(109, anyValidIDs[1])
 	validSearchFilters.AddSplitIDFilter(110, *anyValidSplitID)
 	validSearchFilters.AddFirstSplitObjectFilter(111, anyValidIDs[2])
@@ -92,9 +94,10 @@ var validSearchFiltersProto = []struct {
 	{"$Object:containerID", 102, "HWpbBkyxCi7nhDnn4W3v5rYt2mDfH2wedknQzRkTwquj"},
 	{"$Object:ownerID", 103, "NRJF3hqhZAe4NeWpABW6Q3ajkfhFUkY2ek"},
 	{"$Object:creationEpoch", 104, "13233261290750647837"},
-	{"$Object:payloadLength", 105, "5544264194415343420"},
-	{"$Object:payloadHash", 106, "e9cc25bd0f92d28ab24ad58dc7f95e144985109af19803cd65d2998d8b1ed87d"},
-	{"$Object:objectType", 107, "2082391263"},
+	{"$Object:expirationTime", 105, "1726000000"},
+	{"$Object:payloadLength", 106, "5544264194415343420"},
+	{"$Object:payloadHash", 107, "e9cc25bd0f92d28ab24ad58dc7f95e144985109af19803cd65d2998d8b1ed87d"},
+	{"$Object:objectType", 108, "2082391263"},
 	{"$Object:split.parent", 109, "GS6gbvdEKHZQf3EZRYd3fSdep3HAqEueJ1jz7iZDuoBG"},
 	{"$Object:split.splitID", 110, "e0840350-202c-45b8-b920-e2c9cec49329"},
 	{"$Object:split.first", 111, "EvdVD3NXuxFK1PWYSsvZwcbeqsv42SQV39TwXgs6jUQH"},
@@ -180,16 +183,21 @@ var validJSONSearchFilters = `
  },
  {
   "matchType": 105,
+  "key": "$Object:expirationTime",
+  "value": "1726000000"
+ },
+ {
+  "matchType": 106,
   "key": "$Object:payloadLength",
   "value": "5544264194415343420"
  },
  {
-  "matchType": 106,
+  "matchType": 107,
   "key": "$Object:payloadHash",
   "value": "e9cc25bd0f92d28ab24ad58dc7f95e144985109af19803cd65d2998d8b1ed87d"
  },
  {
-  "matchType": 107,
+  "matchType": 108,
   "key": "$Object:objectType",
   "value": "2082391263"
  },
@@ -389,6 +397,27 @@ func TestSearchFilters_AddCreationEpochFilter(t *testing.T) {
 	assertSearchFilter(t, fs, 0, object.FilterCreationEpoch, anyValidSearchMatcher, "13233261290750647837", true)
 }
 
+func TestSearchFilters_AddExpirationTimeFilter(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		time time.Time
+		want string
+	}{
+		{name: "timestamp", time: time.Unix(1_726_000_000, 0), want: "1726000000"},
+		{name: "sub-second precision", time: time.Unix(1_726_000_000, 999_999_999), want: "1726000000"},
+		{name: "time zone", time: time.Unix(1_726_000_000, 0).In(time.FixedZone("UTC+3", 3*60*60)), want: "1726000000"},
+		{name: "Unix epoch", time: time.Unix(0, 0), want: "0"},
+		{name: "before Unix epoch", time: time.Unix(-1, 0), want: "-1"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddExpirationTimeFilter(anyValidSearchMatcher, tc.time)
+			require.Len(t, fs, 1)
+			assertSearchFilter(t, fs, 0, object.FilterExpirationTime, anyValidSearchMatcher, tc.want, true)
+		})
+	}
+}
+
 func TestSearchFilters_AddPayloadSizeFilter(t *testing.T) {
 	var fs object.SearchFilters
 	fs.AddPayloadSizeFilter(anyValidSearchMatcher, anyValidPayloadSize)
@@ -401,7 +430,7 @@ func TestNewSearchFilters(t *testing.T) {
 }
 
 func TestSearchFilters_ProtoMessage(t *testing.T) {
-	const nFilters = 21
+	const nFilters = 22
 	require.Len(t, validSearchFiltersProto, nFilters, "not all applied filters are asserted")
 	var fs object.SearchFilters
 
