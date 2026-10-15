@@ -35,9 +35,9 @@ func (x ECRule) verify() error {
 		return errors.New("zero parity part num")
 	}
 
-	if x.dataPartNum > maxTotalECParts || x.parityPartNum > maxTotalECParts ||
-		x.dataPartNum+x.parityPartNum > maxTotalECParts {
-		return fmt.Errorf("more than %d total parts", maxTotalECParts)
+	if x.dataPartNum > MaxTotalECParts || x.parityPartNum > MaxTotalECParts ||
+		x.dataPartNum+x.parityPartNum > MaxTotalECParts {
+		return fmt.Errorf("more than %d total parts", MaxTotalECParts)
 	}
 
 	return nil
