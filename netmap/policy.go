@@ -21,7 +21,9 @@ const (
 	maxREPRules             = 256
 	maxContainerNodes       = 512
 	maxECRules              = 4
-	maxTotalECParts         = maxContainerNodesInSet
+	// MaxTotalECParts is a maximum number of data, parity and total parts in any
+	// object's EC partition.
+	MaxTotalECParts = maxContainerNodesInSet
 )
 
 // PlacementPolicy declares policy to store objects in the NeoFS container.
