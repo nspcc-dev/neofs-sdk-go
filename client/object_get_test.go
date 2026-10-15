@@ -15,6 +15,7 @@ import (
 	bearertest "github.com/nspcc-dev/neofs-sdk-go/bearer/test"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 	"github.com/nspcc-dev/neofs-sdk-go/object"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
@@ -644,6 +645,25 @@ func TestClient_ObjectHead(t *testing.T) {
 								"key3", "value3",
 							})
 
+							var parent object.Object
+							parent.SetID(anyOID)
+
+							var partObj object.Object
+							partObj.SetParent(&parent)
+							partObj.SetAttributes(
+								object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+								object.NewAttribute("__NEOFS__EC_PART_IDX", "3"),
+							)
+
+							srv.respondWithBody(&protoobject.HeadResponse_Body{
+								Head: &protoobject.HeadResponse_Body_Header{
+									Header: &protoobject.HeaderWithSignature{
+										Signature: neofscryptotest.Signature().ProtoMessage(),
+										Header:    partObj.ProtoMessage().Header,
+									},
+								},
+							})
+
 							_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
 							require.NoError(t, err)
 						})
@@ -668,6 +688,25 @@ func TestClient_ObjectHead(t *testing.T) {
 							"key3", "value3",
 						})
 
+						var parent object.Object
+						parent.SetID(anyOID)
+
+						var partObj object.Object
+						partObj.SetParent(&parent)
+						partObj.SetAttributes(
+							object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+							object.NewAttribute("__NEOFS__EC_PART_IDX", "2"),
+						)
+
+						srv.respondWithBody(&protoobject.HeadResponse_Body{
+							Head: &protoobject.HeadResponse_Body_Header{
+								Header: &protoobject.HeaderWithSignature{
+									Signature: neofscryptotest.Signature().ProtoMessage(),
+									Header:    partObj.ProtoMessage().Header,
+								},
+							},
+						})
+
 						_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
 						require.NoError(t, err)
 					})
@@ -680,6 +719,25 @@ func TestClient_ObjectHead(t *testing.T) {
 					opts.SkipChecksumVerification()
 
 					srv.checkRequestECPart(ruleIdx, &partIdx)
+
+					var parent object.Object
+					parent.SetID(anyOID)
+
+					var partObj object.Object
+					partObj.SetParent(&parent)
+					partObj.SetAttributes(
+						object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+						object.NewAttribute("__NEOFS__EC_PART_IDX", "2"),
+					)
+
+					srv.respondWithBody(&protoobject.HeadResponse_Body{
+						Head: &protoobject.HeadResponse_Body_Header{
+							Header: &protoobject.HeaderWithSignature{
+								Signature: neofscryptotest.Signature().ProtoMessage(),
+								Header:    partObj.ProtoMessage().Header,
+							},
+						},
+					})
 
 					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)
@@ -1292,6 +1350,22 @@ func TestClient_ObjectGetInit(t *testing.T) {
 								"key3", "value3",
 							})
 
+							var parent object.Object
+							parent.SetID(anyOID)
+
+							var partObj object.Object
+							partObj.SetParent(&parent)
+							partObj.SetAttributes(
+								object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+								object.NewAttribute("__NEOFS__EC_PART_IDX", "3"),
+							)
+
+							srv.respondWithObject(&protoobject.GetResponse_Body_Init{
+								ObjectId:  oidtest.ID().ProtoMessage(),
+								Signature: neofscryptotest.Signature().ProtoMessage(),
+								Header:    partObj.ProtoMessage().Header,
+							}, nil)
+
 							_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
 							require.NoError(t, err)
 						})
@@ -1319,6 +1393,22 @@ func TestClient_ObjectGetInit(t *testing.T) {
 							"key3", "value3",
 						})
 
+						var parent object.Object
+						parent.SetID(anyOID)
+
+						var partObj object.Object
+						partObj.SetParent(&parent)
+						partObj.SetAttributes(
+							object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+							object.NewAttribute("__NEOFS__EC_PART_IDX", "2"),
+						)
+
+						srv.respondWithObject(&protoobject.GetResponse_Body_Init{
+							ObjectId:  oidtest.ID().ProtoMessage(),
+							Signature: neofscryptotest.Signature().ProtoMessage(),
+							Header:    partObj.ProtoMessage().Header,
+						}, nil)
+
 						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
 						require.NoError(t, err)
 					})
@@ -1336,6 +1426,22 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 						srv.checkRequestECPart(ruleIdx, nil)
 
+						var parent object.Object
+						parent.SetID(anyOID)
+
+						var partObj object.Object
+						partObj.SetParent(&parent)
+						partObj.SetAttributes(
+							object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+							object.NewAttribute("__NEOFS__EC_PART_IDX", "3"),
+						)
+
+						srv.respondWithObject(&protoobject.GetResponse_Body_Init{
+							ObjectId:  oidtest.ID().ProtoMessage(),
+							Signature: neofscryptotest.Signature().ProtoMessage(),
+							Header:    partObj.ProtoMessage().Header,
+						}, nil)
+
 						_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
 						require.NoError(t, err)
 					})
@@ -1351,6 +1457,22 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					opts.SkipChecksumVerification()
 
 					srv.checkRequestECPart(ruleIdx, &partIdx)
+
+					var parent object.Object
+					parent.SetID(anyOID)
+
+					var partObj object.Object
+					partObj.SetParent(&parent)
+					partObj.SetAttributes(
+						object.NewAttribute("__NEOFS__EC_RULE_IDX", "1"),
+						object.NewAttribute("__NEOFS__EC_PART_IDX", "2"),
+					)
+
+					srv.respondWithObject(&protoobject.GetResponse_Body_Init{
+						ObjectId:  oidtest.ID().ProtoMessage(),
+						Signature: neofscryptotest.Signature().ProtoMessage(),
+						Header:    partObj.ProtoMessage().Header,
+					}, nil)
 
 					_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
 					require.NoError(t, err)

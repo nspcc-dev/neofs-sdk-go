@@ -32,6 +32,12 @@ import (
 
 var errInvalidSplitInfo = errors.New("invalid split info")
 
+type ecPartPrm struct {
+	ecPartIDSet bool
+	ecRuleIdx   uint32
+	ecPartIdx   *uint32
+}
+
 // shared parameters of GET/HEAD/RANGE.
 type prmObjectRead struct {
 	prmCommonMeta
@@ -41,9 +47,7 @@ type prmObjectRead struct {
 
 	raw bool
 
-	ecPartIDSet bool
-	ecRuleIdx   uint32
-	ecPartIdx   *uint32
+	ecPartPrm
 }
 
 // MarkRaw marks an intent to read physically stored object.
@@ -291,6 +295,8 @@ type PayloadReader struct {
 
 	payloadHashCheck []byte
 	payloadHashGot   hash.Hash
+
+	ecPartPrm
 }
 
 type rawPayloadChunk struct {
@@ -374,11 +380,17 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
-	if x.verifyChecksums {
-		hb := protoencoding.MarshalMessage(partInit.Header)
-		if oid.NewFromObjectHeaderBinary(hb) != x.requestedOID {
-			x.err = errors.New("received header mismatches ID")
+	if x.ecPartIDSet {
+		if x.err = verifyReceivedECPart(x.ecPartPrm, x.requestedOID, *dst, partInit.Header, x.verifyChecksums); x.err != nil {
 			return false
+		}
+	}
+
+	if x.verifyChecksums {
+		if !x.ecPartIDSet {
+			if x.err = verifyObjectHeaderAgainstID(partInit.Header, x.requestedOID); x.err != nil {
+				return false
+			}
 		}
 
 		if partInit.Header.PayloadHash == nil {
@@ -915,6 +927,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 			c.sendStatistic(stat.MethodObjectGetStream, dur, err)
 		}
 	}
+	r.ecPartPrm = prm.ecPartPrm
 
 	if !prm.payloadOnly {
 		if !r.readHeader(&hdr) {
@@ -1108,10 +1121,13 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 			return nil, fmt.Errorf("invalid header response: %w", err)
 		}
 
-		if !prm.skipChecksumVerification {
-			hb := protoencoding.MarshalMessage(v.Header.Header)
-			if oid.NewFromObjectHeaderBinary(hb) != objectID {
-				return nil, errors.New("received header mismatches ID")
+		if prm.ecPartIDSet {
+			if err = verifyReceivedECPart(prm.ecPartPrm, objectID, obj, v.Header.Header, !prm.skipChecksumVerification); err != nil {
+				return nil, err
+			}
+		} else if !prm.skipChecksumVerification {
+			if err = verifyObjectHeaderAgainstID(v.Header.Header, objectID); err != nil {
+				return nil, err
 			}
 		}
 
@@ -1136,4 +1152,67 @@ func isECPart(hdr *protoobject.Header) bool {
 
 func getECPartIDFieldSupported(v *protorefs.Version) bool {
 	return apiVersionGE(v, 2, 28)
+}
+
+func verifyReceivedECPart(prm ecPartPrm, parentID oid.ID, partObj object.Object, partHdr *protoobject.Header, verifyChecksums bool) error {
+	parentHdr := partHdr.GetSplit().GetParentHeader()
+	if parentHdr == nil {
+		return errors.New("missing parent header in EC part")
+	}
+
+	if got := partObj.GetParentID(); got != parentID {
+		return fmt.Errorf("parent ID in EC part mismatch: requested %s, got %s", parentID, got) // defer
+	}
+
+	var ruleIdxAttrWas, partIdxAttrWas bool
+
+	for _, attr := range partObj.Attributes() {
+		switch key := attr.Key(); key {
+		case object.AttributeECRuleIndex:
+			if ruleIdxAttrWas {
+				return fmt.Errorf("duplicated %s attribute", key)
+			}
+			ruleIdxAttrWas = true
+			if val := attr.Value(); val != strconv.FormatUint(uint64(prm.ecRuleIdx), 10) {
+				return fmt.Errorf("wrong EC rule index: requested %d, got %s", prm.ecRuleIdx, val)
+			}
+		case object.AttributeECPartIndex:
+			if partIdxAttrWas {
+				return fmt.Errorf("duplicated %s attribute", key) // defer
+			}
+			partIdxAttrWas = true
+
+			if prm.ecPartIdx == nil {
+				continue
+			}
+
+			if val := attr.Value(); val != strconv.FormatUint(uint64(*prm.ecPartIdx), 10) {
+				return fmt.Errorf("wrong EC part index: requested %d, got %s", prm.ecRuleIdx, val) // defer
+			}
+		}
+	}
+
+	if !ruleIdxAttrWas {
+		return fmt.Errorf("missing %s attribute", object.AttributeECRuleIndex)
+	}
+
+	if !partIdxAttrWas {
+		return fmt.Errorf("missing %s attribute", object.AttributeECPartIndex)
+	}
+
+	if verifyChecksums {
+		if err := verifyObjectHeaderAgainstID(parentHdr, parentID); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func verifyObjectHeaderAgainstID(hdr *protoobject.Header, id oid.ID) error {
+	hb := protoencoding.MarshalMessage(hdr)
+	if oid.NewFromObjectHeaderBinary(hb) != id {
+		return errors.New("received header mismatches ID")
+	}
+	return nil
 }
