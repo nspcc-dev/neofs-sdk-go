@@ -135,13 +135,50 @@ func (n nodes) Hash() uint64 {
 }
 
 // weights returns slice of nodes weights W.
-func (n nodes) weights(wf weightFunc) []float64 {
+func (n nodes) weights() []float64 {
 	w := make([]float64, 0, len(n))
 	for i := range n {
-		w = append(w, wf(n[i]))
+		w = append(w, n[i].weight())
 	}
 
 	return w
+}
+
+// calcBucketWeight computes weight for a node bucket.
+func (n nodes) calcBucketWeight() float64 {
+	var l = len(n)
+	if l == 0 {
+		return 0
+	}
+
+	var weights = n.weights()
+
+	slices.Sort(weights)
+
+	var (
+		count      int
+		minV, maxV float64
+		start, end int
+		sum        float64
+	)
+
+	const minLn = 4
+
+	if l < minLn {
+		start, end = 0, l-1
+	} else {
+		start, end = l/minLn, l*3/minLn-1
+	}
+
+	minV, maxV = weights[start], weights[end]
+
+	for _, e := range weights {
+		if e >= minV && e <= maxV {
+			sum += e
+			count++
+		}
+	}
+	return sum / float64(count)
 }
 
 func flattenNodes(ns []nodes) nodes {
@@ -165,16 +202,24 @@ func flattenNodes(ns []nodes) nodes {
 // For example, in order to build node list to store the object, binary-encoded
 // object identifier can be used as pivot. Result is deterministic for
 // the fixed NetMap and parameters.
+//
+// Deprecated: use [PlacementVectors] function that doesn't require a map.
 func (m NetMap) PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
+	return PlacementVectors(vectors, objectID)
+}
+
+// PlacementVectors sorts container nodes returned by [NetMap.ContainerNodes] method
+// and returns placement vectors for the entity identified by the given object ID.
+// Result is deterministic for given parameters.
+func PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, error) {
 	pivot := slices.Clone(objectID[:])
 
 	h := hrw.WrapBytes(pivot)
-	wf := defaultWeightFunc(m.nodes)
 	result := make([][]NodeInfo, len(vectors))
 
 	for i := range vectors {
 		result[i] = slices.Clone(vectors[i])
-		hrw.SortWeighted(result[i], nodes(result[i]).weights(wf), h)
+		hrw.SortWeighted(result[i], nodes(result[i]).weights(), h)
 	}
 
 	return result, nil
