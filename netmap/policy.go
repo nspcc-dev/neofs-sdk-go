@@ -20,7 +20,8 @@ const (
 	maxContainerNodesInSet  = 64
 	maxREPRules             = 256
 	maxContainerNodes       = 512
-	maxECRules              = 4
+	// MaxECRules is a maximum number of EC rules in container storage policy.
+	MaxECRules = 4
 	// MaxTotalECParts is a maximum number of data, parity and total parts in any
 	// object's EC partition.
 	MaxTotalECParts = maxContainerNodesInSet
@@ -1241,8 +1242,8 @@ func (p PlacementPolicy) Verify() error {
 		return fmt.Errorf("more than %d REP rules", maxREPRules)
 	}
 	es := p.ECRules()
-	if len(es) > maxECRules {
-		return fmt.Errorf("more than %d EC rules", maxECRules)
+	if len(es) > MaxECRules {
+		return fmt.Errorf("more than %d EC rules", MaxECRules)
 	}
 	ss := p.Selectors()
 	bf := p.ContainerBackupFactor()
