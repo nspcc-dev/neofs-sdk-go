@@ -469,19 +469,34 @@ func TestClient_ObjectPut(t *testing.T) {
 										}
 									}
 									srv.respondAfterRequest(tc.n)
-									srv.respondWithStatus(&protostatus.Status{Code: code})
+									if ok {
+										srv.respondWithBodyAndStatus(validFullPutObjectResponseBody, nil)
+									} else {
+										srv.respondWithStatus(&protostatus.Status{Code: code})
+									}
 									ctx, cancel := context.WithTimeout(ctx, 10*time.Second) // prevent hanging
 									t.Cleanup(cancel)
 									w, err := c.ObjectPutInit(ctx, anyValidHdr, anyValidSigner, anyValidOpts)
 									require.NoError(t, err)
+									if ok {
+										for range 10 {
+											n, err := w.Write([]byte{1})
+											require.NoError(t, err)
+											require.EqualValues(t, 1, n)
+											time.Sleep(50 * time.Millisecond) // give the response time to come
+										}
+										n, err := w.ReadFrom(bytes.NewReader([]byte{1, 2, 3}))
+										require.NoError(t, err)
+										require.EqualValues(t, 3, n)
+										require.NoError(t, w.Close())
+										require.NoError(t, checkObjectIDTransport(w.GetResult().StoredObjectID(), validFullPutObjectResponseBody.GetObjectId()))
+										return
+									}
 									for err == nil {
 										_, err = w.Write([]byte{1})
 										time.Sleep(50 * time.Millisecond) // give the response time to come
 									}
-									if ok {
-										t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/649")
-										require.EqualError(t, err, "server unexpectedly interrupted the stream with a response")
-									} else {
+									{
 										t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/648")
 										require.ErrorIs(t, err, apistatus.Error)
 									}

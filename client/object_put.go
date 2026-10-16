@@ -156,11 +156,30 @@ func (x *DefaultObjectWriter) sendRequest(req any) error {
 		}
 
 		x.err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+		if x.err == nil {
+			// server may finish the stream with OK ahead of the full payload,
+			// e.g. if the object already exists. This is not a failure.
+			x.err = x.setResultID(resp)
+		}
 
 		x.streamClosed = true
 		x.cancelCtxStream()
 	}
 	return x.err
+}
+
+// setResultID reads object ID from resp and saves it to the result.
+func (x *DefaultObjectWriter) setResultID(resp *protoobject.PutResponse) error {
+	const fieldID = "ID"
+
+	idV2 := resp.GetBody().GetObjectId()
+	if idV2 == nil {
+		return newErrMissingResponseField(fieldID)
+	}
+	if err := x.res.obj.FromProtoMessage(idV2); err != nil {
+		return newErrInvalidResponseField(fieldID, err)
+	}
+	return nil
 }
 
 // writeHeader writes header of the object. Result means success.
@@ -282,6 +301,11 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 // WritePayloadChunk writes chunk of the object payload. Result means success.
 // Failure reason can be received via [DefaultObjectWriter.Close].
 func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
+	if x.streamClosed {
+		// server has already finished the stream, nothing to send
+		return len(chunk), x.err
+	}
+
 	var writtenBytes int
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
@@ -377,7 +401,7 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		}
 		if x.streamClosed {
 			// server gracefully finished the stream ahead of the full payload
-			return writtenBytes, nil
+			return writtenBytes + len(chunk), nil
 		}
 
 		writtenBytes += len(chunk[:ln])
@@ -405,6 +429,10 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 	maxBodyWithMetaHdrLen += protoencoding.CalculateRequestMetaHeaderFieldLength(x.metaHdrLen)
 
 	var writtenBytes int64
+
+	if x.streamClosed {
+		return x.discard(r, writtenBytes)
+	}
 
 	for {
 		// acquire buffer for body + meta header
@@ -490,11 +518,11 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 				return writtenBytes, writeErr
 			}
 
-			if x.streamClosed {
-				return writtenBytes, io.ErrShortWrite
-			}
-
 			writtenBytes += int64(actualRead)
+
+			if x.streamClosed {
+				return x.discard(r, writtenBytes)
+			}
 		} else if reqMemBuf != nil {
 			reqMemBuf.Free()
 		}
@@ -507,6 +535,15 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 			return writtenBytes, err
 		}
 	}
+}
+
+// discard drops the rest of r after the server has finished the stream.
+func (x *DefaultObjectWriter) discard(r io.Reader, written int64) (int64, error) {
+	n, err := io.Copy(io.Discard, r)
+	if err != nil {
+		return written + n, err
+	}
+	return written + n, x.err
 }
 
 // readFull reads from r until b is full or r fails.
@@ -552,7 +589,7 @@ func (x *DefaultObjectWriter) Close() error {
 	}
 
 	if x.streamClosed {
-		return nil
+		return x.err
 	}
 
 	defer x.cancelCtxStream()
