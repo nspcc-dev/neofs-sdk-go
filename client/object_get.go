@@ -291,6 +291,8 @@ type PayloadReader struct {
 	hasRange     bool
 	payloadOnly  bool
 
+	chunkReceived bool
+
 	verifyChecksums bool
 
 	payloadHashCheck []byte
@@ -342,6 +344,10 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 			return false
 		}
 		x.err = object.NewSplitInfoError(&si)
+		x.checkNothingAfterSplitInfo(func() error {
+			_, err := x.stream.Recv()
+			return err
+		})
 		return false
 	case *protoobject.GetResponse_Body_Init_:
 		if v == nil || v.Init == nil {
@@ -402,6 +408,20 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	}
 
 	return true
+}
+
+// checkNothingAfterSplitInfo checks that the stream is finished after the
+// split info message. Must be called when x.err is set to split info error.
+func (x *PayloadReader) checkNothingAfterSplitInfo(recv func() error) {
+	err := dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, recv)
+	if errors.Is(err, io.EOF) {
+		return
+	}
+	if err != nil {
+		x.err = err
+		return
+	}
+	x.err = errors.New("unexpected message after split info response")
 }
 
 func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
@@ -588,7 +608,7 @@ func (x *PayloadReader) parseRawGetResponseBody(body grpcprotobuf.BuffersSlice) 
 			}
 			return payload, true
 		case protoobject.FieldGetResponseBodySplitInfo:
-			if !x.payloadOnly {
+			if x.chunkReceived {
 				x.err = fmt.Errorf("unexpected message instead of chunk part: %T", (*protoobject.GetResponse_Body_SplitInfo)(nil))
 				return grpcprotobuf.BuffersSlice{}, false
 			}
@@ -683,8 +703,18 @@ func (x *PayloadReader) recvRawChunk(rawStream getObjectResponseStream) (rawPayl
 	payload, ok := x.parseRawGetResponse(grpcprotobuf.NewBuffersSlice(buffers))
 	if !ok {
 		buffers.Free()
+		var splitErr *object.SplitInfoError
+		if errors.As(x.err, &splitErr) {
+			x.checkNothingAfterSplitInfo(func() error {
+				var next mem.BufferSlice
+				err := rawStream.RecvMsg(&next)
+				next.Free()
+				return err
+			})
+		}
 		return rawPayloadChunk{}, false
 	}
+	x.chunkReceived = true
 
 	return rawPayloadChunk{payload: payload, buffers: buffers}, true
 }
