@@ -196,15 +196,6 @@ func createDockerContainer(ctx context.Context, t *testing.T, image string) test
 	})
 	require.NoError(t, err)
 
-	// Have to wait this time. Required for new tick event processing.
-	// Should be removed after fix epochs in AIO start.
-	<-time.After(3 * time.Second)
-
-	_, _, err = aioC.Exec(ctx, tickEpochCmdBuilder(3))
-	require.NoError(t, err)
-
-	<-time.After(3 * time.Second)
-
 	tickNewEpoch = func(ctx context.Context, executor NetworkInfoExecutor) (int, error) {
 		ni, err := executor.NetworkInfo(ctx, client.PrmNetworkInfo{})
 		if err != nil {
