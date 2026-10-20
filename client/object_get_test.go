@@ -1041,6 +1041,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 								srv.respondWithObject(validFullHeadingObjectGetResponseBody.GetInit(), nil)
 								srv.respondWithStatus(0, &protostatus.Status{Code: code})
+								//nolint:staticcheck // drop with t.Skip()
 								_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 								t.Skip("currently ignores header and returns status error")
 								require.EqualError(t, err, fmt.Sprintf("split info response returned with non-OK status code = %d", code))
@@ -1069,6 +1070,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 
 								srv.respondWithBody(0, validFullObjectSplitInfoGetResponseBody)
 								srv.respondWithStatus(0, &protostatus.Status{Code: code})
+								//nolint:staticcheck // drop with t.Skip()
 								_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 								t.Skip("currently ignores split info and returns status error")
 								require.EqualError(t, err, fmt.Sprintf("split info response returned with non-OK status code = %d", code))
