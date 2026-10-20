@@ -140,6 +140,11 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		statusError = err
 	}
 
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return oid.ID{}, err
+	}
+
 	const fieldTombstone = "tombstone"
 
 	mt := resp.GetBody().GetTombstone().GetObjectId()

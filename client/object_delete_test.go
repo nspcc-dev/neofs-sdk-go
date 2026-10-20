@@ -289,7 +289,7 @@ func TestClient_ObjectDelete(t *testing.T) {
 					// missing fields
 					tcs := []testcase{
 						{name: "nil", body: nil, assertErr: func(t testing.TB, err error) {
-							require.EqualError(t, err, "missing tombstone field in the response")
+							require.EqualError(t, err, "missing body field in the response")
 						}},
 						{name: "empty", body: new(protoobject.DeleteResponse_Body), assertErr: func(t testing.TB, err error) {
 							require.EqualError(t, err, "missing tombstone field in the response")

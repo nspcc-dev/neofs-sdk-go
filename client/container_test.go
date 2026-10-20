@@ -777,7 +777,7 @@ func TestClient_ContainerPut(t *testing.T) {
 						{name: "missing", body: nil,
 							assertErr: func(t testing.TB, err error) {
 								require.ErrorIs(t, err, MissingResponseFieldErr{})
-								require.EqualError(t, err, "missing container ID field in the response")
+								require.EqualError(t, err, "missing body field in the response")
 							}},
 						{name: "empty", body: new(protocontainer.PutResponse_Body),
 							assertErr: func(t testing.TB, err error) {
@@ -1105,7 +1105,7 @@ func TestClient_ContainerGet(t *testing.T) {
 					tcs := []testcase{
 						{name: "missing", body: nil,
 							assertErr: func(t testing.TB, err error) {
-								require.EqualError(t, err, "missing container in response")
+								require.EqualError(t, err, "missing body field in the response")
 							}},
 						{name: "empty", body: new(protocontainer.GetResponse_Body),
 							assertErr: func(t testing.TB, err error) {
@@ -1638,7 +1638,7 @@ func TestClient_ContainerEACL(t *testing.T) {
 					tcs := []testcase{
 						{name: "missing", body: nil, assertErr: func(t testing.TB, err error) {
 							require.ErrorIs(t, err, MissingResponseFieldErr{})
-							require.EqualError(t, err, "missing eACL field in the response")
+							require.EqualError(t, err, "missing body field in the response")
 						}},
 						{name: "empty", body: new(protocontainer.GetExtendedACLResponse_Body), assertErr: func(t testing.TB, err error) {
 							require.ErrorIs(t, err, MissingResponseFieldErr{})

@@ -450,7 +450,7 @@ func TestClient_EndpointInfo(t *testing.T) {
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protonetmap.LocalNodeInfoResponse_Body]
 					tcs := []testcase{{name: "missing", body: nil, assertErr: func(t testing.TB, err error) {
-						require.EqualError(t, err, "missing version field in the response")
+						require.EqualError(t, err, "missing body field in the response")
 					}}}
 
 					type corruptedBodyTestcase = struct {
@@ -584,7 +584,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 					tcs := []testcase{
 						{name: "missing", body: nil,
 							assertErr: func(t testing.TB, err error) {
-								require.EqualError(t, err, "missing network map field in the response")
+								require.EqualError(t, err, "missing body field in the response")
 							}},
 						{name: "empty", body: new(protonetmap.NetmapSnapshotResponse_Body),
 							assertErr: func(t testing.TB, err error) {
@@ -713,7 +713,7 @@ func TestClient_NetworkInfo(t *testing.T) {
 					tcs := []testcase{
 						{name: "missing", body: nil,
 							assertErr: func(t testing.TB, err error) {
-								require.EqualError(t, err, "missing network info field in the response")
+								require.EqualError(t, err, "missing body field in the response")
 							}},
 						{name: "empty", body: new(protonetmap.NetworkInfoResponse_Body),
 							assertErr: func(t testing.TB, err error) {

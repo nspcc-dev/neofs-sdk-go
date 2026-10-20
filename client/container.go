@@ -218,6 +218,11 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		statusError = err
 	}
 
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return res, err
+	}
+
 	const fieldCnrID = "container ID"
 
 	mCID := resp.GetBody().GetContainerId()
@@ -284,6 +289,11 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
 		return res, err
 	}
 
@@ -557,6 +567,11 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return res, err
+	}
+
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
 		return res, err
 	}
 

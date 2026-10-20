@@ -195,7 +195,7 @@ func TestClient_BalanceGet(t *testing.T) {
 						{name: "missing", body: nil,
 							assertErr: func(t testing.TB, err error) {
 								require.ErrorIs(t, err, MissingResponseFieldErr{})
-								require.EqualError(t, err, "missing balance field in the response")
+								require.EqualError(t, err, "missing body field in the response")
 							}},
 						{name: "missing", body: new(protoaccounting.BalanceResponse_Body),
 							assertErr: func(t testing.TB, err error) {
