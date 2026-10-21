@@ -130,6 +130,7 @@ func newTestObject(t testing.TB) object.Object {
 	obj.SetParentID(oidtest.ID())
 	obj.SetSessionTokenV2(&st)
 	obj.SetPayload(testutil.RandByteSlice(1024))
+	require.NoError(t, obj.SetExpirationTime(time.Unix(1<<40, 0)))
 
 	require.NoError(t, obj.SetIDWithSignature(owner))
 
