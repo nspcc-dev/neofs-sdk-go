@@ -581,6 +581,11 @@ func (x *DefaultObjectWriter) Close() error {
 		statusError = x.err
 	}
 
+	if resp.GetBody() == nil {
+		x.err = newErrMissingResponseField("body")
+		return x.err
+	}
+
 	const fieldID = "ID"
 
 	idV2 := resp.GetBody().GetObjectId()

@@ -819,14 +819,14 @@ func TestClient_ObjectHead(t *testing.T) {
 					c := newClient(t, svc)
 
 					_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-					require.EqualError(t, err, "unexpected header type <nil>")
+					require.EqualError(t, err, "missing body field in the response")
 				})
 				t.Run("payloads", func(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protoobject.HeadResponse_Body]
 					tcs := []testcase{
 						{name: "missing", body: nil,
 							assertErr: func(t testing.TB, err error) {
-								require.EqualError(t, err, "unexpected header type <nil>")
+								require.EqualError(t, err, "missing body field in the response")
 							}},
 						{name: "empty", body: new(protoobject.HeadResponse_Body),
 							assertErr: func(t testing.TB, err error) {
@@ -1673,7 +1673,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 					}
 					c := newClient(t, svc)
 					_, _, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
-					require.EqualError(t, err, "read header: unexpected message instead of heading part: <nil>")
+					require.EqualError(t, err, "read header: missing body field in the response")
 				})
 				t.Run("payloads", func(t *testing.T) {
 					t.Run("split info", func(t *testing.T) {

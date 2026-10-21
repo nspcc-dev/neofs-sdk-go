@@ -205,7 +205,7 @@ func TestClient_SessionCreate(t *testing.T) {
 					type testcase = invalidResponseBodyTestcase[protosession.CreateResponse_Body]
 					tcs := []testcase{
 						{name: "missing", body: nil, assertErr: func(t testing.TB, err error) {
-							require.EqualError(t, err, "missing session id field in the response")
+							require.EqualError(t, err, "missing body field in the response")
 						}},
 						{name: "ID/missing", body: &protosession.CreateResponse_Body{
 							SessionKey: validFullCreateSessionResponseBody.SessionKey,

@@ -115,6 +115,11 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 		return nil, err
 	}
 
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return nil, err
+	}
+
 	body := resp.GetBody()
 	var res ResSessionCreate
 	if res.id = body.GetId(); len(res.id) == 0 {

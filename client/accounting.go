@@ -84,6 +84,11 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 		return res, err
 	}
 
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return res, err
+	}
+
 	const fieldBalance = "balance"
 
 	bal := resp.GetBody().GetBalance()

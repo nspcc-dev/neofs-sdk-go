@@ -325,6 +325,11 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 		return false
 	}
 
+	if resp.GetBody() == nil {
+		x.err = newErrMissingResponseField("body")
+		return false
+	}
+
 	var partInit *protoobject.GetResponse_Body_Init
 
 	switch v := resp.GetBody().GetObjectPart().(type) {
@@ -1080,6 +1085,11 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	}
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
+		return nil, err
+	}
+
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
 		return nil, err
 	}
 

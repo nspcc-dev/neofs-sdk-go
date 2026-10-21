@@ -97,6 +97,11 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 		return nil, err
 	}
 
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return nil, err
+	}
+
 	body := resp.GetBody()
 
 	const fieldVersion = "version"
@@ -184,6 +189,11 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 		return res, err
 	}
 
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return res, err
+	}
+
 	const fieldNetInfo = "network info"
 
 	mn := resp.GetBody().GetNetworkInfo()
@@ -249,6 +259,11 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	if err = apistatus.ToError(resp.GetMetaHeader().GetStatus()); err != nil {
 		return res, err
+	}
+
+	if resp.GetBody() == nil {
+		err = newErrMissingResponseField("body")
+		return netmap.NetMap{}, err
 	}
 
 	const fieldNetMap = "network map"

@@ -521,7 +521,7 @@ func TestClient_ObjectPut(t *testing.T) {
 					tcs := []testcase{
 						{name: "missing", body: nil, assertErr: func(t testing.TB, err error) {
 							require.ErrorIs(t, err, ErrMissingResponseField)
-							require.EqualError(t, err, "missing ID field in the response")
+							require.EqualError(t, err, "missing body field in the response")
 						}},
 						{name: "empty", body: new(protoobject.PutResponse_Body), assertErr: func(t testing.TB, err error) {
 							require.ErrorIs(t, err, ErrMissingResponseField)
