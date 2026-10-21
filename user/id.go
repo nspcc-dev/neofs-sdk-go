@@ -51,7 +51,7 @@ func DecodeString(s string) (ID, error) {
 	return id, id.DecodeString(s)
 }
 
-// DecodeBytes creates new ID and makes [ID.decodeBytes].
+// DecodeBytes decodes b into a new ID.
 func DecodeBytes(b []byte) (ID, error) {
 	var id ID
 	return id, id.decodeBytes(b)
