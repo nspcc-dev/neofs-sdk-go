@@ -227,6 +227,7 @@ var (
 			protoobject.FieldHeaderAttributes:      NewMessageField("attribute", FieldTypeNestedMessage),
 			protoobject.FieldHeaderSplit:           NewMessageField("split", FieldTypeNestedMessage),
 			protoobject.FieldHeaderSessionV2:       NewMessageField("session token", FieldTypeNestedMessage),
+			protoobject.FieldHeaderExpirationTime:  NewMessageField("expiration time", FieldTypeUint64),
 		},
 		NestedMessageFields: map[protowire.Number]MessageScheme{
 			protoobject.FieldHeaderVersion:         VersionScheme,
