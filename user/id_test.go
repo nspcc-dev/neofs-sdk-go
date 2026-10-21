@@ -95,6 +95,32 @@ func TestID_DecodeString(t *testing.T) {
 	})
 }
 
+func TestDecodeBytes(t *testing.T) {
+	id, err := user.DecodeBytes(validBytes[:])
+	require.NoError(t, err)
+	require.Equal(t, user.ID(validBytes), id)
+
+	invalidChecksum := validBytes
+	invalidChecksum[len(invalidChecksum)-1]++
+	for _, tc := range []struct {
+		name string
+		val  []byte
+		err  string
+	}{
+		{name: "nil value", err: "invalid length 0, expected 25"},
+		{name: "empty value", val: []byte{}, err: "invalid length 0, expected 25"},
+		{name: "undersized value", val: validBytes[:24], err: "invalid length 24, expected 25"},
+		{name: "oversized value", val: append(validBytes[:], 1), err: "invalid length 26, expected 25"},
+		{name: "prefix", val: append([]byte{0x42}, validBytes[1:]...), err: "invalid prefix byte 0x42, expected 0x35"},
+		{name: "checksum", val: invalidChecksum[:], err: "checksum mismatch"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := user.DecodeBytes(tc.val)
+			require.EqualError(t, err, tc.err)
+		})
+	}
+}
+
 func TestIDComparable(t *testing.T) {
 	x := usertest.ID()
 	y := x

@@ -51,6 +51,12 @@ func DecodeString(s string) (ID, error) {
 	return id, id.DecodeString(s)
 }
 
+// DecodeBytes creates new ID and makes [ID.decodeBytes].
+func DecodeBytes(b []byte) (ID, error) {
+	var id ID
+	return id, id.decodeBytes(b)
+}
+
 func (x *ID) decodeBytes(b []byte) error {
 	switch {
 	case len(b) != IDSize:
