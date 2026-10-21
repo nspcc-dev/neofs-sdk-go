@@ -53,53 +53,74 @@ func ToError(st *protostatus.Status) error {
 		Error() string
 	}
 
-	switch code := st.GetCode(); code {
-	case protostatus.OK:
-		return nil
-	case protostatus.IncompleteSuccess:
-		decoder = new(Incomplete)
-	case protostatus.InternalServerError:
-		decoder = new(ServerInternal)
-	case protostatus.WrongNetMagic:
-		decoder = new(WrongMagicNumber)
-	case protostatus.SignatureVerificationFail:
-		decoder = new(SignatureVerification)
-	case protostatus.NodeUnderMaintenance:
-		decoder = new(NodeUnderMaintenance)
-	case protostatus.BadRequest:
-		decoder = new(BadRequest)
-	case protostatus.Busy:
-		decoder = new(Busy)
-	case protostatus.RequestExpired:
-		decoder = new(RequestExpired)
-	case protostatus.ObjectLocked:
-		decoder = new(ObjectLocked)
-	case protostatus.LockIrregularObject:
-		decoder = new(LockNonRegularObject)
-	case protostatus.ObjectAccessDenied:
-		decoder = new(ObjectAccessDenied)
-	case protostatus.ObjectNotFound:
-		decoder = new(ObjectNotFound)
-	case protostatus.ObjectAlreadyRemoved:
-		decoder = new(ObjectAlreadyRemoved)
-	case protostatus.OutOfRange:
-		decoder = new(ObjectOutOfRange)
-	case protostatus.QuotaExceeded:
-		decoder = new(QuotaExceeded)
-	case protostatus.ContainerNotFound:
-		decoder = new(ContainerNotFound)
-	case protostatus.EACLNotFound:
-		decoder = new(EACLNotFound)
-	case protostatus.ContainerLocked:
-		decoder = new(ContainerLocked)
-	case protostatus.ContainerAwaitTimeout:
-		decoder = new(ContainerAwaitTimeout)
-	case protostatus.ContainerRevisionMismatch:
-		decoder = new(ContainerRevisionMismatch)
-	case protostatus.SessionTokenNotFound:
-		decoder = new(SessionTokenNotFound)
-	case protostatus.SessionTokenExpired:
-		decoder = new(SessionTokenExpired)
+	var (
+		code    = st.GetCode()
+		offset  = code % 1024
+		section = code / 1024
+	)
+
+	switch protostatus.Section(section) {
+	case protostatus.Section_SECTION_SUCCESS:
+		switch protostatus.Success(offset) {
+		case protostatus.Success_OK:
+			return nil
+		case protostatus.Success_INCOMPLETE:
+			decoder = new(Incomplete)
+		}
+	case protostatus.Section_SECTION_FAILURE_COMMON:
+		switch protostatus.CommonFail(offset) {
+		case protostatus.CommonFail_INTERNAL:
+			decoder = new(ServerInternal)
+		case protostatus.CommonFail_WRONG_MAGIC_NUMBER:
+			decoder = new(WrongMagicNumber)
+		case protostatus.CommonFail_SIGNATURE_VERIFICATION_FAIL:
+			decoder = new(SignatureVerification)
+		case protostatus.CommonFail_NODE_UNDER_MAINTENANCE:
+			decoder = new(NodeUnderMaintenance)
+		case protostatus.CommonFail_BAD_REQUEST:
+			decoder = new(BadRequest)
+		case protostatus.CommonFail_BUSY:
+			decoder = new(Busy)
+		case protostatus.CommonFail_REQUEST_EXPIRED:
+			decoder = new(RequestExpired)
+		}
+	case protostatus.Section_SECTION_OBJECT:
+		switch protostatus.Object(offset) {
+		case protostatus.Object_ACCESS_DENIED:
+			decoder = new(ObjectAccessDenied)
+		case protostatus.Object_OBJECT_NOT_FOUND:
+			decoder = new(ObjectNotFound)
+		case protostatus.Object_LOCKED:
+			decoder = new(ObjectLocked)
+		case protostatus.Object_LOCK_NON_REGULAR_OBJECT:
+			decoder = new(LockNonRegularObject)
+		case protostatus.Object_OBJECT_ALREADY_REMOVED:
+			decoder = new(ObjectAlreadyRemoved)
+		case protostatus.Object_OUT_OF_RANGE:
+			decoder = new(ObjectOutOfRange)
+		case protostatus.Object_QUOTA_EXCEEDED:
+			decoder = new(QuotaExceeded)
+		}
+	case protostatus.Section_SECTION_CONTAINER:
+		switch protostatus.Container(offset) {
+		case protostatus.Container_CONTAINER_NOT_FOUND:
+			decoder = new(ContainerNotFound)
+		case protostatus.Container_EACL_NOT_FOUND:
+			decoder = new(EACLNotFound)
+		case protostatus.Container_CONTAINER_LOCKED:
+			decoder = new(ContainerLocked)
+		case protostatus.Container_CONTAINER_AWAIT_TIMEOUT:
+			decoder = new(ContainerAwaitTimeout)
+		case protostatus.Container_CONTAINER_VERSION_MISMATCH:
+			decoder = new(ContainerRevisionMismatch)
+		}
+	case protostatus.Section_SECTION_SESSION:
+		switch protostatus.Session(offset) {
+		case protostatus.Session_TOKEN_NOT_FOUND:
+			decoder = new(SessionTokenNotFound)
+		case protostatus.Session_TOKEN_EXPIRED:
+			decoder = new(SessionTokenExpired)
+		}
 	}
 
 	if decoder == nil {
