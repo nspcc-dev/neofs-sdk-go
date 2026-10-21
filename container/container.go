@@ -77,9 +77,7 @@ func (x Container) CopyTo(dst *Container) {
 	// do we need to set the different nonce?
 	dst.nonce = x.nonce
 
-	if len(x.attrs) > 0 {
-		dst.attrs = slices.Clone(x.attrs)
-	}
+	dst.attrs = slices.Clone(x.attrs)
 
 	if x.policy != nil {
 		dst.policy = new(netmap.PlacementPolicy)
@@ -151,6 +149,8 @@ func (x *Container) fromProtoMessage(m *protocontainer.Container, checkFieldPres
 	var was bool
 	if attrs != nil {
 		x.attrs = make([][2]string, len(attrs))
+	} else {
+		x.attrs = nil
 	}
 
 	for i := range attrs {

@@ -45,6 +45,12 @@ func (x Object) CopyTo(dst *Object) {
 }
 
 func (x *Object) readContext(body *protosession.SessionToken_Body, checkFieldPresence bool) error {
+	if body.GetContext() == nil {
+		x.verb = 0
+		x.cnr = cid.ID{}
+		x.objs = nil
+		return nil
+	}
 	cObj := body.GetObject()
 	if cObj == nil {
 		return errors.New("missing object context")

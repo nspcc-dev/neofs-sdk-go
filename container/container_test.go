@@ -1069,3 +1069,17 @@ func TestContainer_GetLockUntil(t *testing.T) {
 		require.True(t, got.Equal(time.Unix(tc.n, 0)))
 	}
 }
+
+func TestCopyToResetsDst(t *testing.T) {
+	var src, dst container.Container
+	dst.SetAttribute("key", "val")
+	src.CopyTo(&dst)
+	require.Zero(t, dst.Attribute("key"))
+}
+
+func TestUnmarshalResetsAttributes(t *testing.T) {
+	var c container.Container
+	c.SetAttribute("key", "val")
+	require.NoError(t, c.Unmarshal(nil))
+	require.Zero(t, c.Attribute("key"))
+}
