@@ -486,7 +486,7 @@ func (x *PayloadReader) parseRawGetResponseBody(body grpcprotobuf.BuffersSlice) 
 			}
 			return payload, true
 		case protoobject.FieldGetResponseBodySplitInfo:
-			if x.chunkReceived {
+			if !x.payloadOnly || x.chunkReceived {
 				x.err = fmt.Errorf("unexpected message instead of chunk part: %T", (*protoobject.GetResponse_Body_SplitInfo)(nil))
 				return grpcprotobuf.BuffersSlice{}, false
 			}
@@ -581,8 +581,7 @@ func (x *PayloadReader) recvRawChunk(rawStream getObjectResponseStream) (rawPayl
 	payload, ok := x.parseRawGetResponse(grpcprotobuf.NewBuffersSlice(buffers))
 	if !ok {
 		buffers.Free()
-		var splitErr *object.SplitInfoError
-		if errors.As(x.err, &splitErr) {
+		if _, ok := errors.AsType[*object.SplitInfoError](x.err); ok {
 			x.checkNothingAfterSplitInfo(func() error {
 				var next mem.BufferSlice
 				err := rawStream.RecvMsg(&next)
