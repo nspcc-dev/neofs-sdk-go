@@ -1934,14 +1934,26 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			srv := newTestGetObjectServer()
 			c := newTestObjectClient(t, srv)
 
+			opts := anyValidOpts
+			opts.MarkPayloadOnly()
+
+			srv.respondWithBody(0, validMinObjectSplitInfoGetResponseBody)
+			srv.respondWithBody(1, validFullChunkObjectGetResponseBody)
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, opts)
+			require.NoError(t, err)
+			_, err = io.Copy(io.Discard, r)
+			require.EqualError(t, err, "unexpected message after split info response")
+		})
+		t.Run("chunk after header and split info", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
 			srv.respondWithBody(1, validMinObjectSplitInfoGetResponseBody)
 			srv.respondWithBody(2, validFullChunkObjectGetResponseBody)
 			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 			require.NoError(t, err)
-			//nolint:staticcheck // drop with t.Skip()
 			_, err = io.Copy(io.Discard, r)
-			t.Skip("https://github.com/nspcc-dev/neofs-sdk-go/issues/659")
-			require.EqualError(t, err, "unexpected message after split info response")
+			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetResponse_Body_SplitInfo")
 		})
 		t.Run("cut payload", func(t *testing.T) {
 			srv := newTestGetObjectServer()
