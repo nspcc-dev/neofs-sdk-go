@@ -51,7 +51,7 @@ func (x commonData) copyTo(dst *commonData) {
 // reads commonData and custom context from the session.Token message.
 // If checkFieldPresence is set, returns an error on absence of any protocol-required
 // field. Verifies format of any presented field according to NeoFS API V2 protocol.
-// Calls contextReader if session context is set. Passes checkFieldPresence into contextReader.
+// Always calls contextReader (it must reset context if it is unset). Passes checkFieldPresence into contextReader.
 func (x *commonData) fromProtoMessage(m *protosession.SessionToken, checkFieldPresence bool, r contextReader) error {
 	return x.fromProtoMessageWithVersion(m, checkFieldPresence, r, nil)
 }
@@ -71,7 +71,7 @@ func isVersionWithMandatoryLifetime(version *version.Version) bool {
 // If checkFieldPresence is set, returns an error on absence of any protocol-required
 // field. Verifies format of any presented field according to NeoFS API V2 protocol.
 // If version is not nil, some field validations may be skipped for older versions.
-// Calls contextReader if session context is set. Passes checkFieldPresence into contextReader.
+// Always calls contextReader (it must reset context if it is unset). Passes checkFieldPresence into contextReader.
 func (x *commonData) fromProtoMessageWithVersion(m *protosession.SessionToken, checkFieldPresence bool, r contextReader, version *version.Version) error {
 	var err error
 
@@ -116,14 +116,12 @@ func (x *commonData) fromProtoMessageWithVersion(m *protosession.SessionToken, c
 		return errors.New("missing session public key")
 	}
 
-	c := body.GetContext()
-	if c != nil {
-		err = r(body, checkFieldPresence)
-		if err != nil {
-			return fmt.Errorf("invalid context: %w", err)
-		}
-	} else if checkFieldPresence {
+	if checkFieldPresence && body.GetContext() == nil {
 		return errors.New("missing session context")
+	}
+	err = r(body, checkFieldPresence)
+	if err != nil {
+		return fmt.Errorf("invalid context: %w", err)
 	}
 
 	if x.sigSet = m.Signature != nil; x.sigSet {

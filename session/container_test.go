@@ -702,3 +702,10 @@ func TestContainer_SetIat(t *testing.T) {
 func TestContainer_SetNbf(t *testing.T) {
 	testLifetimeClaim(t, session.Container.Nbf, (*session.Container).SetNbf)
 }
+
+func TestContainer_UnmarshalResetsContext(t *testing.T) {
+	var c session.Container
+	c.ForVerb(1)
+	require.NoError(t, c.Unmarshal(nil))
+	require.False(t, c.AssertVerb(1))
+}
