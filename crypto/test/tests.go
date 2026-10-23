@@ -26,6 +26,25 @@ func FailSigner(s neofscrypto.Signer) neofscrypto.Signer {
 	return failedSigner{s}
 }
 
+type failedAfterSigner struct {
+	successSignature int
+	neofscrypto.Signer
+}
+
+// FailAfterSigner wraps s and can successfully Sign success number of calls,
+// then it will always fail.
+func FailAfterSigner(s neofscrypto.Signer, success int) neofscrypto.Signer {
+	return &failedAfterSigner{successSignature: success, Signer: s}
+}
+
+func (x *failedAfterSigner) Sign(data []byte) ([]byte, error) {
+	x.successSignature--
+	if x.successSignature < 0 {
+		return nil, errors.New("[test] failed to sign")
+	}
+	return x.Signer.Sign(data)
+}
+
 // Signature returns random neofscrypto.Signature.
 func Signature() neofscrypto.Signature {
 	sig := testutil.RandByteSlice(1 + rand.Intn(128))
