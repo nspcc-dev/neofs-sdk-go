@@ -666,7 +666,7 @@ func TestClient_ContainerPut(t *testing.T) {
 
 				srv.checkRequestContainer(anyValidContainer)
 				srv.authenticateRequestPayload(anyValidSigner)
-				srv.authenticateRequest(c.prm.signer)
+				srv.authenticateRequest(anyValidSigner)
 				_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, PrmContainerPut{})
 				require.NoError(t, err)
 			})
@@ -999,7 +999,7 @@ func TestClient_ContainerPut(t *testing.T) {
 	})
 	t.Run("sign request failure", func(t *testing.T) {
 		testSignRequestFailure(t, func(c *Client) error {
-			_, err := c.ContainerPut(ctx, anyValidContainer, anyValidSigner, anyValidOpts)
+			_, err := c.ContainerPut(ctx, anyValidContainer, neofscryptotest.FailAfterSigner(anyValidSigner, 1), anyValidOpts)
 			return err
 		})
 	})
@@ -1399,7 +1399,7 @@ func TestClient_ContainerDelete(t *testing.T) {
 
 				srv.checkRequestContainerID(anyID)
 				srv.authenticateRequestPayload(anyValidSigner)
-				srv.authenticateRequest(c.prm.signer)
+				srv.authenticateRequest(anyValidSigner)
 				err := c.ContainerDelete(ctx, anyID, anyValidSigner, PrmContainerDelete{})
 				require.NoError(t, err)
 			})
@@ -1545,7 +1545,7 @@ func TestClient_ContainerDelete(t *testing.T) {
 	})
 	t.Run("sign request failure", func(t *testing.T) {
 		testSignRequestFailure(t, func(c *Client) error {
-			return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
+			return c.ContainerDelete(ctx, anyID, neofscryptotest.FailAfterSigner(anyValidSigner, 1), anyValidOpts)
 		})
 	})
 	t.Run("transport failure", func(t *testing.T) {
@@ -1747,7 +1747,7 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 
 				srv.checkRequestEACL(anyValidEACL)
 				srv.authenticateRequestPayload(anyValidSigner)
-				srv.authenticateRequest(c.prm.signer)
+				srv.authenticateRequest(anyValidSigner)
 				err := c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
 				require.NoError(t, err)
 			})
@@ -1899,7 +1899,7 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 	})
 	t.Run("sign request failure", func(t *testing.T) {
 		testSignRequestFailure(t, func(c *Client) error {
-			return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
+			return c.ContainerSetEACL(ctx, anyValidEACL, user.NewSigner(neofscryptotest.FailAfterSigner(anyValidSigner, 1), anyValidSigner.UserID()), anyValidOpts)
 		})
 	})
 	t.Run("transport failure", func(t *testing.T) {
