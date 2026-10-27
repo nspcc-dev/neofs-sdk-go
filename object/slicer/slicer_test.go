@@ -1334,3 +1334,61 @@ func BenchmarkKnownPayloadSize(b *testing.B) {
 		})
 	}
 }
+
+func TestPutPayloadSizeFromSeeker(t *testing.T) {
+	ctx := context.Background()
+	payload := testutil.RandByteSlice(100)
+
+	var opts slicer.Options
+	opts.SetObjectPayloadLimit(1000)
+
+	put := func(t *testing.T, r io.Reader, opts slicer.Options) (*memoryWriter, error) {
+		w := &memoryWriter{opts: opts}
+		var hdr object.Object
+		hdr.SetContainerID(cidtest.ID())
+		hdr.SetOwner(usertest.ID())
+		_, err := slicer.Put(ctx, w, hdr, usertest.User(), r, opts)
+		return w, err
+	}
+
+	t.Run("seeker", func(t *testing.T) {
+		w, err := put(t, bytes.NewReader(payload), opts)
+		require.NoError(t, err)
+		require.Len(t, w.headers, 1)
+		require.EqualValues(t, len(payload), w.headers[0].PayloadSize())
+	})
+
+	t.Run("seeker with offset", func(t *testing.T) {
+		r := bytes.NewReader(payload)
+		_, err := r.Seek(30, io.SeekStart)
+		require.NoError(t, err)
+
+		w, err := put(t, r, opts)
+		require.NoError(t, err)
+		require.Len(t, w.headers, 1)
+		require.EqualValues(t, len(payload)-30, w.headers[0].PayloadSize())
+	})
+
+	t.Run("not a seeker", func(t *testing.T) {
+		w, err := put(t, io.MultiReader(bytes.NewReader(payload)), opts)
+		require.NoError(t, err)
+		require.Len(t, w.headers, 1)
+		require.EqualValues(t, len(payload), w.headers[0].PayloadSize())
+	})
+
+	t.Run("explicit size takes precedence", func(t *testing.T) {
+		o := opts
+		o.SetPayloadSize(uint64(len(payload)) + 1)
+		_, err := put(t, bytes.NewReader(payload), o)
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	})
+
+	t.Run("reader shorter than seek reported", func(t *testing.T) {
+		r := struct {
+			io.Reader
+			io.Seeker
+		}{io.LimitReader(bytes.NewReader(payload), 50), bytes.NewReader(payload)}
+		_, err := put(t, r, opts)
+		require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	})
+}
