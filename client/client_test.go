@@ -1432,3 +1432,20 @@ func TestNewGRPC(t *testing.T) {
 
 	require.Equal(t, anyStreamMsgTimeout, c.streamTimeout)
 }
+
+func TestWrapCtxErr(t *testing.T) {
+	grpcErr := status.Error(codes.Canceled, "context canceled")
+
+	ctx, cancel := context.WithCancel(context.Background())
+	require.NotErrorIs(t, wrapCtxErr(ctx, grpcErr), context.Canceled)
+	cancel()
+	err := wrapCtxErr(ctx, grpcErr)
+	require.ErrorIs(t, err, context.Canceled)
+	require.ErrorIs(t, err, grpcErr)
+	require.Equal(t, codes.Canceled, status.Code(err))
+	require.NoError(t, wrapCtxErr(ctx, nil))
+
+	ctx, cancel = context.WithTimeout(context.Background(), 0)
+	defer cancel()
+	require.ErrorIs(t, wrapCtxErr(ctx, status.Error(codes.DeadlineExceeded, "")), context.DeadlineExceeded)
+}

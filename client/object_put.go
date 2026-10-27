@@ -92,6 +92,7 @@ type ObjectWriter interface {
 //
 // Must be initialized using [Client.ObjectPutInit], any other usage is unsafe.
 type DefaultObjectWriter struct {
+	ctx             context.Context
 	cancelCtxStream context.CancelFunc
 
 	stream           putObjectStream
@@ -141,12 +142,12 @@ func (x *PrmObjectPutInit) MarkLocal() {
 
 // sendRequest transmits signed req to the server recording the result in x.err.
 func (x *DefaultObjectWriter) sendRequest(req any) error {
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	x.err = dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		return x.stream.SendMsg(req)
 	})
 	if x.err != nil && errors.Is(x.err, io.EOF) {
 		var resp *protoobject.PutResponse
-		x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+		x.err = dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, func() error {
 			var err error
 			resp, err = x.stream.CloseAndRecv()
 			return err
@@ -292,7 +293,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		}
 	}
 
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	x.err = dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		return x.stream.SendMsg(reqBuffers)
 	})
 	return x.err
@@ -602,7 +603,7 @@ func (x *DefaultObjectWriter) Close() error {
 	}
 
 	var resp *protoobject.PutResponse
-	if x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	if x.err = dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		var err error
 		resp, err = x.stream.CloseAndRecv()
 		return err
@@ -701,6 +702,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	w.apiVersion = c.apiVersion
 	w.signer = signer
 	w.shouldSignRequest = !prm.local || !c.skipSignatureForLocalRequests
+	w.ctx = ctx
 	w.cancelCtxStream = cancel
 	w.stream = &grpc.GenericClientStream[protoobject.PutRequest, protoobject.PutResponse]{ClientStream: stream}
 	w.singleMsgTimeout = c.streamTimeout

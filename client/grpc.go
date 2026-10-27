@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -11,7 +12,9 @@ import (
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/mem"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/proto"
 )
 
@@ -34,10 +37,29 @@ var (
 	}
 )
 
+// wrapCtxErr makes err match [context.Canceled] or [context.DeadlineExceeded]
+// via [errors.Is] if err is a gRPC status of the same kind and ctx is done.
+// Server-side cancellations are left untouched. The original error is kept in
+// the chain.
+func wrapCtxErr(ctx context.Context, err error) error {
+	if err == nil || ctx == nil {
+		return err
+	}
+	ctxErr := ctx.Err()
+	if ctxErr == nil || errors.Is(err, ctxErr) {
+		return err
+	}
+	switch status.Code(err) {
+	case codes.Canceled, codes.DeadlineExceeded:
+		return fmt.Errorf("%w: %w", ctxErr, err)
+	}
+	return err
+}
+
 func openStream(ctx context.Context, conn *grpc.ClientConn, streamDesc *grpc.StreamDesc, method string) (grpc.ClientStream, error) {
 	stream, err := conn.NewStream(ctx, streamDesc, method, grpcCallOptions...)
 	if err != nil {
-		return nil, fmt.Errorf("stream opening failed: %w", err)
+		return nil, fmt.Errorf("stream opening failed: %w", wrapCtxErr(ctx, err))
 	}
 
 	return stream, nil
@@ -51,7 +73,7 @@ func sendRequest(ctx context.Context, conn *grpc.ClientConn, method string, stre
 	}
 
 	if err = stream.SendMsg(request); err != nil {
-		return nil, fmt.Errorf("send request: %w", err)
+		return nil, fmt.Errorf("send request: %w", wrapCtxErr(ctx, err))
 	}
 
 	return stream, nil
@@ -64,7 +86,7 @@ func callServerStream(ctx context.Context, conn *grpc.ClientConn, method string,
 	}
 
 	if err = stream.CloseSend(); err != nil {
-		return nil, fmt.Errorf("close send: %w", err)
+		return nil, fmt.Errorf("close send: %w", wrapCtxErr(ctx, err))
 	}
 
 	return stream, nil
@@ -76,7 +98,7 @@ func callUnary(ctx context.Context, conn *grpc.ClientConn, method string, reques
 		return err
 	}
 
-	return stream.RecvMsg(response)
+	return wrapCtxErr(ctx, stream.RecvMsg(response))
 }
 
 func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version) (mem.BufferSlice, error) {

@@ -269,6 +269,7 @@ type getObjectResponseStream interface {
 // Must be initialized using Client.ObjectGetInit, any other
 // usage is unsafe.
 type PayloadReader struct {
+	ctx             context.Context
 	cancelCtxStream context.CancelFunc
 
 	stream           getObjectResponseStream
@@ -314,7 +315,7 @@ func (x rawPayloadChunk) free() {
 // Failure reason can be received via Close.
 func (x *PayloadReader) readHeader(dst *object.Object) bool {
 	var resp *protoobject.GetResponse
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	x.err = dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		var err error
 		resp, err = x.stream.Recv()
 		return err
@@ -418,7 +419,7 @@ func (x *PayloadReader) readHeader(dst *object.Object) bool {
 // checkNothingAfterSplitInfo checks that the stream is finished after the
 // split info message. Must be called when x.err is set to split info error.
 func (x *PayloadReader) checkNothingAfterSplitInfo(recv func() error) {
-	err := dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, recv)
+	err := dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, recv)
 	if errors.Is(err, io.EOF) {
 		return
 	}
@@ -698,7 +699,7 @@ func (x *PayloadReader) parseRawGetResponse(msg grpcprotobuf.BuffersSlice) (grpc
 
 func (x *PayloadReader) recvRawChunk(rawStream getObjectResponseStream) (rawPayloadChunk, bool) {
 	var buffers mem.BufferSlice
-	x.err = dowithTimeout(x.singleMsgTimeout, x.cancelCtxStream, func() error {
+	x.err = dowithTimeout(x.ctx, x.singleMsgTimeout, x.cancelCtxStream, func() error {
 		return rawStream.RecvMsg(&buffers)
 	})
 	if x.err != nil {
@@ -952,6 +953,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 	r.enforcePayloadLen = !r.payloadOnly || prm.rng != nil
 	r.verifyChecksums = !prm.skipChecksumVerification && !r.hasRange && !r.payloadOnly
+	r.ctx = ctx
 	r.cancelCtxStream = cancel
 	r.stream = &grpc.GenericClientStream[protoobject.GetRequest, protoobject.GetResponse]{ClientStream: stream}
 	r.singleMsgTimeout = c.streamTimeout
