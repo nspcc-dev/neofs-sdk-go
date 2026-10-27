@@ -5,15 +5,41 @@
 New features:
 
 Behaviour changes:
+
+Improvements:
+
+Bugs fixed:
+
+## [1.0.0-rc.24] - 2026-10-27
+
+New features:
+ * Expration time header field support (#885, #889, #895)
+ * Valid until meta header field support (#886)
+
+Behaviour changes:
  * Removed deprecated ObjectSearchInit client API (#880)
  * Removed object/relations package (#880)
  * Removed deprecated ObjectRangeInit client API (#880)
  * Removed no-op deprecated PrmObjectPutInit.SetCopiesNumber method (#880)
  * Removed deprecated SyncContainerWithNetwork client function and associated container methods (#880)
+ * API version 2.28 is used by default now (#886)
+ * New methods for EC part selection in client Get (#887)
+ * X-Headers are deprecated and will be removed in future releases (#887)
 
 Improvements:
+ * Access method for protobuf buffer list (#881)
+ * EC rule limit constants are exported now (#890, #891)
+ * OID placement function is detached from network map now (#888)
+ * Missing response body is a separate client error now (#894)
+ * user.DecodeBytes function (#897)
+ * Container requests signed with explicit signer now (#898)
 
 Bugs fixed:
+ * Incorrect verification for EC parts in client Get (#890)
+ * Zero capacity and/or price leading to zero weights during object placement calculations (#888)
+ * Stale state not reset in some CopyTo/Unmarshal methods (#896)
+ * Incorrect handling of premature OK response from server on object Put (#883)
+ * Incorrect client handling of wrong server responses for Get streams (#882)
 
 ## [1.0.0-rc.23] - 2026-09-29
 
@@ -582,6 +608,7 @@ Bugs fixed:
 
 See git log.
 
+[1.0.0-rc.24]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.23...v1.0.0-rc.24
 [1.0.0-rc.23]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.22...v1.0.0-rc.23
 [1.0.0-rc.22]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.21...v1.0.0-rc.22
 [1.0.0-rc.21]: https://github.com/nspcc-dev/neofs-sdk-go/compare/v1.0.0-rc.20...v1.0.0-rc.21
