@@ -52,8 +52,9 @@ func wrapCtxErr(ctx context.Context, err error) error {
 	switch status.Code(err) {
 	case codes.Canceled, codes.DeadlineExceeded:
 		return fmt.Errorf("%w: %w", ctxErr, err)
+	default:
+		return err
 	}
-	return err
 }
 
 func openStream(ctx context.Context, conn *grpc.ClientConn, streamDesc *grpc.StreamDesc, method string) (grpc.ClientStream, error) {
