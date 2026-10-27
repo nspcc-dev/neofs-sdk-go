@@ -7,6 +7,7 @@ import (
 	"iter"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/nspcc-dev/neo-go/pkg/vm/stackitem"
@@ -76,13 +77,11 @@ func (x *NetworkInfo) fromProtoMessage(m *protonetmap.NetworkInfo, checkFieldPre
 				return fmt.Errorf("empty %q parameter value", name)
 			}
 		case configEigenTrustAlpha:
-			var num uint64
+			var alpha float64
 
-			num, err = decodeConfigValueUint64(prm.GetValue())
-			if err == nil {
-				if alpha := math.Float64frombits(num); alpha < 0 || alpha > 1 {
-					err = fmt.Errorf("EigenTrust alpha value %0.2f is out of range [0, 1]", alpha)
-				}
+			alpha, err = strconv.ParseFloat(string(prm.GetValue()), 64)
+			if err == nil && (math.IsNaN(alpha) || alpha < 0 || alpha > 1) {
+				err = fmt.Errorf("EigenTrust alpha value %0.2f is out of range [0, 1]", alpha)
 			}
 		case
 			configAuditFee,
@@ -437,15 +436,19 @@ func (x *NetworkInfo) SetEigenTrustAlpha(alpha float64) {
 		panic(fmt.Sprintf("EigenTrust alpha parameter MUST be in range [0, 1], got %.2f", alpha))
 	}
 
-	x.setConfigUint64(configEigenTrustAlpha, math.Float64bits(alpha))
+	x.setConfig(configEigenTrustAlpha, []byte(strconv.FormatFloat(alpha, 'f', -1, 64)))
 }
 
 // EigenTrustAlpha returns EigenTrust parameter set using SetEigenTrustAlpha.
 //
 // Zero NetworkInfo has zero alpha parameter.
 func (x NetworkInfo) EigenTrustAlpha() float64 {
-	alpha := math.Float64frombits(x.configUint64(configEigenTrustAlpha))
-	if alpha < 0 || alpha > 1 {
+	b := x.configValue(configEigenTrustAlpha)
+	if len(b) == 0 {
+		return 0
+	}
+	alpha, err := strconv.ParseFloat(string(b), 64)
+	if err != nil || math.IsNaN(alpha) || alpha < 0 || alpha > 1 {
 		panic(fmt.Sprintf("unexpected invalid %s parameter value %.2f", configEigenTrustAlpha, alpha))
 	}
 

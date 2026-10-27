@@ -32,7 +32,7 @@ var (
 	anyValidBinStoragePrice           = []byte{104, 130, 96, 83, 33, 0, 37, 245}
 	anyValidBinNamedContainerFee      = []byte{26, 4, 8, 97, 213, 193, 193, 115}
 	anyValidBinContainerFee           = []byte{204, 40, 13, 175, 156, 180, 106, 96}
-	anyValidBinEigenTrustAlpha        = []byte{101, 74, 97, 37, 57, 3, 170, 63}
+	anyValidBinEigenTrustAlpha        = []byte("0.0508058412675794")
 	anyValidBinEigenTrustIterations   = []byte{252, 245, 23, 186, 96, 18, 94, 185}
 	anyValidBinEpochDuration          = []byte{33, 124, 4, 168, 192, 187, 213, 216}
 	anyValidBinHomoHashDisabled       = []byte{1}
@@ -68,12 +68,12 @@ func init() {
 
 var validBinNetworkInfo = []byte{
 	8, 160, 210, 220, 139, 145, 254, 176, 200, 141, 1, 16, 143, 212, 185, 192, 185, 133, 177, 169, 61, 24, 224, 139, 151, 255,
-	197, 206, 173, 236, 91, 34, 239, 2, 10, 8, 10, 2, 107, 49, 18, 2, 118, 49, 10, 8, 10, 2, 107, 50, 18, 2, 118, 50, 10, 20,
+	197, 206, 173, 236, 91, 34, 249, 2, 10, 8, 10, 2, 107, 49, 18, 2, 118, 49, 10, 8, 10, 2, 107, 50, 18, 2, 118, 50, 10, 20,
 	10, 8, 65, 117, 100, 105, 116, 70, 101, 101, 18, 8, 227, 131, 28, 9, 189, 128, 24, 6, 10, 27, 10, 15, 66, 97, 115, 105, 99, 73,
 	110, 99, 111, 109, 101, 82, 97, 116, 101, 18, 8, 104, 130, 96, 83, 33, 0, 37, 245, 10, 29, 10, 17, 67, 111, 110, 116, 97, 105, 110,
 	101, 114, 65, 108, 105, 97, 115, 70, 101, 101, 18, 8, 26, 4, 8, 97, 213, 193, 193, 115, 10, 24, 10, 12, 67, 111, 110, 116, 97, 105,
-	110, 101, 114, 70, 101, 101, 18, 8, 204, 40, 13, 175, 156, 180, 106, 96, 10, 27, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115,
-	116, 65, 108, 112, 104, 97, 18, 8, 101, 74, 97, 37, 57, 3, 170, 63, 10, 32, 10, 20, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116,
+	110, 101, 114, 70, 101, 101, 18, 8, 204, 40, 13, 175, 156, 180, 106, 96, 10, 37, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115,
+	116, 65, 108, 112, 104, 97, 18, 18, 48, 46, 48, 53, 48, 56, 48, 53, 56, 52, 49, 50, 54, 55, 53, 55, 57, 52, 10, 32, 10, 20, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116,
 	73, 116, 101, 114, 97, 116, 105, 111, 110, 115, 18, 8, 252, 245, 23, 186, 96, 18, 94, 185, 10, 25, 10, 13, 69, 112, 111, 99, 104,
 	68, 117, 114, 97, 116, 105, 111, 110, 18, 8, 33, 124, 4, 168, 192, 187, 213, 216, 10, 31, 10, 26, 72, 111, 109, 111, 109, 111, 114,
 	112, 104, 105, 99, 72, 97, 115, 104, 105, 110, 103, 68, 105, 115, 97, 98, 108, 101, 100, 18, 1, 1, 10, 33, 10, 21, 73, 110, 110,
@@ -366,15 +366,15 @@ func TestNetworkInfo_FromProtoMessage(t *testing.T) {
 				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k\x001", "v1") }},
 			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
 				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "k1", "v1", "k2", "v2", "k1", "v3") }},
-			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: invalid uint64 parameter length 9",
+			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 123456789.00 is out of range [0, 1]",
 				corrupt: func(m *protonetmap.NetworkInfo) { setNetworkPrms(m, "EigenTrustAlpha", "123456789") }},
 			{name: "netconfig/prms/eigen trust alpha/negative", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value -0.50 is out of range [0, 1]",
 				corrupt: func(m *protonetmap.NetworkInfo) {
-					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte{0, 0, 0, 0, 0, 0, 224, 191})
+					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte("-0.5"))
 				}},
 			{name: "netconfig/prms/eigen trust alpha/too big", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 1.50 is out of range [0, 1]",
 				corrupt: func(m *protonetmap.NetworkInfo) {
-					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte{0, 0, 0, 0, 0, 0, 248, 63})
+					setNetworkPrms(m, []byte("EigenTrustAlpha"), []byte("1.5"))
 				}},
 			{name: "netconfig/prms/homo hash disabled/overflow", err: "invalid HomomorphicHashingDisabled parameter: invalid bool parameter contract format too big: integer",
 				corrupt: func(m *protonetmap.NetworkInfo) {
@@ -473,15 +473,12 @@ func TestNetworkInfo_Unmarshal(t *testing.T) {
 			{name: "netconfig/prms/duplicated", err: "duplicated parameter name: k1",
 				b: []byte{34, 30, 10, 8, 10, 2, 107, 49, 18, 2, 118, 49, 10, 8, 10, 2, 107, 50, 18, 2, 118, 50, 10, 8, 10, 2, 107,
 					49, 18, 2, 118, 51}},
-			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: invalid uint64 parameter length 9",
-				b: []byte{34, 30, 10, 28, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 9, 49, 50,
-					51, 52, 53, 54, 55, 56, 57}},
+			{name: "netconfig/prms/eigen trust alpha/overflow", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 123456789.00 is out of range [0, 1]",
+				b: []byte{34, 30, 10, 28, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 9, 49, 50, 51, 52, 53, 54, 55, 56, 57}},
 			{name: "netconfig/prms/eigen trust alpha/negative", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value -0.50 is out of range [0, 1]",
-				b: []byte{34, 29, 10, 27, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 8, 0, 0,
-					0, 0, 0, 0, 224, 191}},
+				b: []byte{34, 25, 10, 23, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 4, 45, 48, 46, 53}},
 			{name: "netconfig/prms/eigen trust alpha/too big", err: "invalid EigenTrustAlpha parameter: EigenTrust alpha value 1.50 is out of range [0, 1]",
-				b: []byte{34, 29, 10, 27, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 8, 0, 0,
-					0, 0, 0, 0, 248, 63}},
+				b: []byte{34, 24, 10, 22, 10, 15, 69, 105, 103, 101, 110, 84, 114, 117, 115, 116, 65, 108, 112, 104, 97, 18, 3, 49, 46, 53}},
 			{name: "netconfig/prms/homo hash disabled/overflow", err: "invalid HomomorphicHashingDisabled parameter: invalid bool parameter contract format too big: integer",
 				b: []byte{34, 65, 10, 63, 10, 26, 72, 111, 109, 111, 109, 111, 114, 112, 104, 105, 99, 72, 97, 115, 104, 105, 110, 103,
 					68, 105, 115, 97, 98, 108, 101, 100, 18, 33, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
