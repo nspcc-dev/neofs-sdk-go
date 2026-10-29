@@ -1538,7 +1538,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 								},
 								testcase{name: tc.name + " with multiple payload chunks", bodies: bodies{
 									heading: tc.heading,
-									chunks:  [][]byte{bigChunkTwice[:bigChunkSize], []byte("small"), {}, bigChunkTwice[bigChunkSize:]},
+									chunks:  [][]byte{bigChunkTwice[:bigChunkSize], []byte("small"), bigChunkTwice[bigChunkSize:]},
 								}, assert: assertObject},
 							)
 						}
@@ -1919,6 +1919,16 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			require.NoError(t, err)
 			_, err = io.Copy(io.Discard, r)
 			require.EqualError(t, err, "unexpected message instead of chunk part: *object.GetResponse_Body_Init_")
+		})
+		t.Run("empty chunk message", func(t *testing.T) {
+			srv := newTestGetObjectServer()
+			c := newTestObjectClient(t, srv)
+
+			srv.respondWithBody(2, &protoobject.GetResponse_Body{ObjectPart: &protoobject.GetResponse_Body_Chunk{Chunk: []byte{}}})
+			_, r, err := c.ObjectGetInit(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
+			require.NoError(t, err)
+			_, err = io.Copy(io.Discard, r)
+			require.ErrorContains(t, err, "empty data chunk")
 		})
 		t.Run("non-first split info message", func(t *testing.T) {
 			srv := newTestGetObjectServer()
