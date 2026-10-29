@@ -15,6 +15,7 @@ type ECRule struct {
 	selector      string
 	dataPartNum   uint32
 	parityPartNum uint32
+	minPartNum    uint32
 }
 
 // NewECRules constructs new ECRule instance.
@@ -40,6 +41,10 @@ func (x ECRule) verify() error {
 		return fmt.Errorf("more than %d total parts", MaxTotalECParts)
 	}
 
+	if x.minPartNum != 0 && (x.minPartNum < x.dataPartNum || x.minPartNum > x.dataPartNum+x.parityPartNum) {
+		return fmt.Errorf("minimum part num %d is outside [%d, %d]", x.minPartNum, x.dataPartNum, x.dataPartNum+x.parityPartNum)
+	}
+
 	return nil
 }
 
@@ -48,6 +53,7 @@ func (x ECRule) verify() error {
 func (x *ECRule) fromProtoMessage(m *protonetmap.PlacementPolicy_ECRule) error {
 	x.dataPartNum = m.DataPartNum
 	x.parityPartNum = m.ParityPartNum
+	x.minPartNum = m.MinPartNum
 	x.selector = m.Selector
 
 	return x.verify()
@@ -60,6 +66,7 @@ func (x ECRule) protoMessage() *protonetmap.PlacementPolicy_ECRule {
 		DataPartNum:   x.dataPartNum,
 		ParityPartNum: x.parityPartNum,
 		Selector:      x.selector,
+		MinPartNum:    x.minPartNum,
 	}
 }
 
@@ -81,6 +88,18 @@ func (x *ECRule) SetParityPartNum(n uint32) {
 // ParityPartNum returns number of parity parts payload is split into.
 func (x ECRule) ParityPartNum() uint32 {
 	return x.parityPartNum
+}
+
+// SetMinPartNum sets the minimum number of parts required for a successful PUT.
+// Zero requires all parts to be stored.
+func (x *ECRule) SetMinPartNum(n uint32) {
+	x.minPartNum = n
+}
+
+// MinPartNum returns the minimum number of parts required for a successful PUT.
+// Zero means all parts are required.
+func (x ECRule) MinPartNum() uint32 {
+	return x.minPartNum
 }
 
 // SetSelectorName sets name of the corresponding [Selector].
@@ -124,6 +143,13 @@ func (p *policyVisitor) VisitEcStmt(ctx *parser.EcStmtContext) any {
 
 	res.DataPartNum = uint32(dataPartNum)
 	res.ParityPartNum = uint32(parityPartNum)
+	if n := ctx.GetMinPartNum(); n != nil {
+		minPartNum, err := strconv.ParseUint(n.GetText(), 10, 32)
+		if err != nil {
+			return p.reportError(errInvalidNumber)
+		}
+		res.MinPartNum = uint32(minPartNum)
+	}
 
 	return &res
 }

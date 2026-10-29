@@ -769,13 +769,19 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 		if err = writeLnIfNeeded(); err != nil {
 			return err
 		}
-		if r.selector != "" {
-			_, err = w.WriteString(fmt.Sprintf("EC %d/%d IN %s", r.dataPartNum, r.parityPartNum, r.selector))
-		} else {
-			_, err = w.WriteString(fmt.Sprintf("EC %d/%d", r.dataPartNum, r.parityPartNum))
-		}
+		_, err = w.WriteString(fmt.Sprintf("EC %d/%d", r.dataPartNum, r.parityPartNum))
 		if err != nil {
 			return err
+		}
+		if r.minPartNum != 0 {
+			if _, err = w.WriteString(fmt.Sprintf(" MINPARTS %d", r.minPartNum)); err != nil {
+				return err
+			}
+		}
+		if r.selector != "" {
+			if _, err = w.WriteString(fmt.Sprintf(" IN %s", r.selector)); err != nil {
+				return err
+			}
 		}
 	}
 

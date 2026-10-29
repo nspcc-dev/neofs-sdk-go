@@ -843,13 +843,17 @@ func (x *NetworkInfo) GetNetmapVersion() uint64 {
 // indexes `m * n + i` (`n = data_part_num + parity_part_num`,
 // `m = 1, ..., CBF-1`). If all nodes for the `i`-th part
 // are unavailable, nodes for the `i+1`-th (0 for the last) part are tried,
-// and so on.
+// and so on. An applied EC rule attempts to store all part objects. For PUT
+// to succeed, at least `min_part_num` distinct part objects must be stored
+// on distinct nodes. This does not change the total number of parts or the
+// target placement. If `min_part_num` is zero, all parts must be stored for
+// PUT to succeed.
 //
 // Once part objects are stored in the container, the original object remains
 // available if at least `data_part_num` of any part objects are available.
-// In other words, unavailability (including complete loss) of any of
+// In other words, unavailability (including complete loss) of up to
 // `parity_part_num` part objects does not violate availability of the
-// original one.
+// original one. Parts not stored during PUT count towards this limit.
 //
 // Objects of TOMBSTONE and LOCK types are not encoded and stored as they are
 // because they have no payload.
@@ -860,7 +864,11 @@ type PlacementPolicy_ECRule struct {
 	// Number of parity parts
 	ParityPartNum uint32 `protobuf:"varint,2,opt,name=parity_part_num,json=parityPartNum,proto3" json:"parity_part_num,omitempty"`
 	// Name of the linked selector
-	Selector      string `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	Selector string `protobuf:"bytes,3,opt,name=selector,proto3" json:"selector,omitempty"`
+	// Minimum number of parts to store for a successful PUT. Zero requires all
+	// parts; otherwise, MUST be between `data_part_num` and the sum of
+	// `data_part_num` and `parity_part_num`, inclusive.
+	MinPartNum    uint32 `protobuf:"varint,4,opt,name=min_part_num,json=minPartNum,proto3" json:"min_part_num,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -916,6 +924,13 @@ func (x *PlacementPolicy_ECRule) GetSelector() string {
 	return ""
 }
 
+func (x *PlacementPolicy_ECRule) GetMinPartNum() uint32 {
+	if x != nil {
+		return x.MinPartNum
+	}
+	return 0
+}
+
 // Rules applied during initial data placement.
 //
 // `replica_limits` allows to override `Replica.count` and EC partitions. If
@@ -923,8 +938,8 @@ func (x *PlacementPolicy_ECRule) GetSelector() string {
 // (`RN`) and `ec_rules` length. Each of first `RN` elements of
 // `replica_limits` must be less than or equal to corresponding
 // `Replica.count`. The remaining elements must be either 0 (corresponding
-// EC rule is skipped) or 1 (done). At least one `replica_limits` element
-// must be non-zero.
+// EC rule is skipped) or 1 (applied according to its `min_part_num`). At
+// least one `replica_limits` element must be non-zero.
 //
 // `max_replicas` allows to limit total number of replicas and EC partitions
 // for successful operation. If set, `max_replicas` must not overflow total
@@ -1253,7 +1268,7 @@ const file_proto_netmap_types_proto_rawDesc = "" +
 	"\x06filter\x18\x05 \x01(\tR\x06filter\";\n" +
 	"\aReplica\x12\x14\n" +
 	"\x05count\x18\x01 \x01(\rR\x05count\x12\x1a\n" +
-	"\bselector\x18\x02 \x01(\tR\bselector\"\x9d\x05\n" +
+	"\bselector\x18\x02 \x01(\tR\bselector\"\xc0\x05\n" +
 	"\x0fPlacementPolicy\x125\n" +
 	"\breplicas\x18\x01 \x03(\v2\x19.neo.fs.v2.netmap.ReplicaR\breplicas\x126\n" +
 	"\x17container_backup_factor\x18\x02 \x01(\rR\x15containerBackupFactor\x128\n" +
@@ -1261,11 +1276,13 @@ const file_proto_netmap_types_proto_rawDesc = "" +
 	"\afilters\x18\x04 \x03(\v2\x18.neo.fs.v2.netmap.FilterR\afilters\x129\n" +
 	"\tsubnet_id\x18\x05 \x01(\v2\x18.neo.fs.v2.refs.SubnetIDB\x02\x18\x01R\bsubnetId\x12C\n" +
 	"\bec_rules\x18\x06 \x03(\v2(.neo.fs.v2.netmap.PlacementPolicy.ECRuleR\aecRules\x12C\n" +
-	"\ainitial\x18\a \x01(\v2).neo.fs.v2.netmap.PlacementPolicy.InitialR\ainitial\x1ap\n" +
+	"\ainitial\x18\a \x01(\v2).neo.fs.v2.netmap.PlacementPolicy.InitialR\ainitial\x1a\x92\x01\n" +
 	"\x06ECRule\x12\"\n" +
 	"\rdata_part_num\x18\x01 \x01(\rR\vdataPartNum\x12&\n" +
 	"\x0fparity_part_num\x18\x02 \x01(\rR\rparityPartNum\x12\x1a\n" +
-	"\bselector\x18\x03 \x01(\tR\bselector\x1av\n" +
+	"\bselector\x18\x03 \x01(\tR\bselector\x12 \n" +
+	"\fmin_part_num\x18\x04 \x01(\rR\n" +
+	"minPartNum\x1av\n" +
 	"\aInitial\x12%\n" +
 	"\x0ereplica_limits\x18\x01 \x03(\rR\rreplicaLimits\x12!\n" +
 	"\fmax_replicas\x18\x02 \x01(\rR\vmaxReplicas\x12!\n" +

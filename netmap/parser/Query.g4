@@ -14,6 +14,7 @@ repStmt:
 
 ecStmt:
     EC DataPartNum = NUMBER1 EC_SEP ParityPartNum = NUMBER1
+    (MINPARTS MinPartNum = (NUMBER1 | ZERO))?
     (IN Selector = ident)?; // optional selector name
 
 cbfStmt: CBF BackupFactor = NUMBER1; // container backup factor
@@ -47,6 +48,6 @@ expr:
 filterKey : ident | STRING;
 filterValue : ident | number | STRING;
 number : ZERO | NUMBER1;
-keyword : REP | IN | AS | SELECT | FROM | FILTER | EC;
+keyword : REP | IN | AS | SELECT | FROM | FILTER | EC | MINPARTS;
 ident : keyword | IDENT;
 identWC : ident | WILDCARD;

@@ -111,6 +111,7 @@ const (
 	FieldPlacementPolicyECRuleDataPartNum
 	FieldPlacementPolicyECRuleParityPartNum
 	FieldPlacementPolicyECRuleSelector
+	FieldPlacementPolicyECRuleMinPartNum
 )
 
 // MarshaledSize returns size of the PlacementPolicy_ECRule in Protocol Buffers
@@ -119,7 +120,8 @@ func (x *PlacementPolicy_ECRule) MarshaledSize() int {
 	if x != nil {
 		return protoencoding.SizeVarint(FieldPlacementPolicyECRuleDataPartNum, x.DataPartNum) +
 			protoencoding.SizeVarint(FieldPlacementPolicyECRuleParityPartNum, x.ParityPartNum) +
-			protoencoding.SizeBytes(FieldPlacementPolicyECRuleSelector, x.Selector)
+			protoencoding.SizeBytes(FieldPlacementPolicyECRuleSelector, x.Selector) +
+			protoencoding.SizeVarint(FieldPlacementPolicyECRuleMinPartNum, x.MinPartNum)
 	}
 	return 0
 }
@@ -132,7 +134,8 @@ func (x *PlacementPolicy_ECRule) MarshalStable(b []byte) {
 	if x != nil {
 		off := protoencoding.MarshalToVarint(b, FieldPlacementPolicyECRuleDataPartNum, x.DataPartNum)
 		off += protoencoding.MarshalToVarint(b[off:], FieldPlacementPolicyECRuleParityPartNum, x.ParityPartNum)
-		protoencoding.MarshalToBytes(b[off:], FieldPlacementPolicyECRuleSelector, x.Selector)
+		off += protoencoding.MarshalToBytes(b[off:], FieldPlacementPolicyECRuleSelector, x.Selector)
+		protoencoding.MarshalToVarint(b[off:], FieldPlacementPolicyECRuleMinPartNum, x.MinPartNum)
 	}
 }
 
