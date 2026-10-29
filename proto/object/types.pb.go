@@ -417,7 +417,8 @@ type Header struct {
 	// Object creation Epoch
 	CreationEpoch uint64 `protobuf:"varint,4,opt,name=creation_epoch,json=creationEpoch,proto3" json:"creation_epoch,omitempty"`
 	// Size of payload in bytes.
-	// `0xFFFFFFFFFFFFFFFF` means `payload_length` is unknown.
+	// For not yet signed objects, missing, zero and 0xFFFFFFFFFFFFFFFF values
+	// mean `payload_length` is unknown.
 	PayloadLength uint64 `protobuf:"varint,5,opt,name=payload_length,json=payloadLength,proto3" json:"payload_length,omitempty"`
 	// SHA256 hash of payload bytes
 	PayloadHash *refs.Checksum `protobuf:"bytes,6,opt,name=payload_hash,json=payloadHash,proto3" json:"payload_hash,omitempty"`
