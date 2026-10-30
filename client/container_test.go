@@ -1929,6 +1929,18 @@ type testSetContainerAttributeServer struct {
 	prm    *SetContainerAttributeParameters
 	prmSig *neofscrypto.Signature
 
+	// v2
+	testCommonRequestServerSettings[
+		*protocontainer.SetAttributeV2Request_Body,
+		*protocontainer.SetAttributeV2Request,
+	]
+	testRequiredContainerIDServerSettings
+	testCommonResponseServerSettings[
+		*protocontainer.SetAttributeV2Response_Body,
+		*protocontainer.SetAttributeV2Response,
+	]
+	prmV2 *PrmAddContainerAttribute
+
 	respStatus *protostatus.Status
 }
 
@@ -1944,6 +1956,12 @@ func newTestSetContainerAttributeServer() *testSetContainerAttributeServer {
 // default, any parameters are accepted.
 func (x *testSetContainerAttributeServer) checkRequestParameters(prm SetContainerAttributeParameters) {
 	x.prm = &prm
+}
+
+// makes the server to assert that any request carries given parameters. By
+// default, any parameters are accepted.
+func (x *testSetContainerAttributeServer) checkRequestParametersV2(prm PrmAddContainerAttribute) {
+	x.prmV2 = &prm
 }
 
 // makes the server to always respond with the given status. By default, status
@@ -2008,6 +2026,62 @@ func (x *testSetContainerAttributeServer) verifyRequest(req *protocontainer.SetA
 	return nil
 }
 
+func (x *testSetContainerAttributeServer) verifyRequestV2(req *protocontainer.SetAttributeV2Request) error {
+	err := x.testCommonRequestServerSettings.verifyRequest(req)
+	if err != nil {
+		return err
+	}
+
+	// session token
+	switch metaHdr := req.MetaHeader; {
+	case metaHdr.Ttl != 2:
+		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
+	case metaHdr.BearerToken != nil:
+		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
+	}
+	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
+		return err
+	}
+	// bearer token
+	if req.MetaHeader.BearerToken != nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	}
+	// body
+	body := req.Body
+	if body == nil {
+		return newInvalidRequestBodyErr(errors.New("missing body"))
+	}
+	if x.prmV2 != nil {
+		// ID
+		mc := body.GetContainerId()
+		if err := x.verifyRequestContainerID(mc); err != nil {
+			return err
+		}
+		// key
+		mK := body.GetAttribute()
+		if x.prmV2.attribute != mK {
+			return fmt.Errorf("attribute key (client: %q, message: %q)", x.prmV2.attribute, mK)
+		}
+		// value
+		mV := body.GetValue()
+		if x.prmV2.value != mV {
+			return fmt.Errorf("attribute value (client: %q, message: %q)", x.prmV2.value, mV)
+		}
+		// container revision
+		mR := body.GetContainerRevision()
+		if x.prmV2.containerRevision != mR {
+			return fmt.Errorf("container revision (client: %d, message: %d)", x.prmV2.containerRevision, mR)
+		}
+	}
+
+	return nil
+}
+
 func (x *testSetContainerAttributeServer) SetAttribute(_ context.Context, req *protocontainer.SetAttributeRequest) (*protocontainer.SetAttributeResponse, error) {
 	time.Sleep(x.handlerSleepDur)
 
@@ -2022,6 +2096,34 @@ func (x *testSetContainerAttributeServer) SetAttribute(_ context.Context, req *p
 	return &protocontainer.SetAttributeResponse{
 		Status: x.respStatus,
 	}, nil
+}
+
+func (x *testSetContainerAttributeServer) SetAttributeV2(_ context.Context, req *protocontainer.SetAttributeV2Request) (*protocontainer.SetAttributeV2Response, error) {
+	time.Sleep(x.handlerSleepDur)
+
+	if err := x.verifyRequestV2(req); err != nil {
+		return nil, err
+	}
+
+	if x.handlerErr != nil {
+		return nil, x.handlerErr
+	}
+
+	resp := &protocontainer.SetAttributeV2Response{
+		MetaHeader: x.respMeta,
+	}
+	if resp.MetaHeader == nil {
+		resp.MetaHeader = &protosession.ResponseMetaHeader{
+			Status: x.respStatus,
+		}
+	}
+	if x.respBodyForced {
+		resp.Body = x.respBody
+	} else {
+		resp.Body = new(protocontainer.SetAttributeV2Response_Body)
+	}
+
+	return resp, nil
 }
 
 func TestClient_SetContainerAttribute(t *testing.T) {
@@ -2136,6 +2238,101 @@ func TestClient_SetContainerAttribute(t *testing.T) {
 	})
 }
 
+func TestClient_AddContainerAttribute(t *testing.T) {
+	var (
+		ctx            = context.Background()
+		anyValidSigner = usertest.User().RFC6979
+		anyValidPrm    PrmAddContainerAttribute
+	)
+	anyValidPrm.SetContainerID(cidtest.ID())
+	anyValidPrm.SetAttribute("attribute")
+	anyValidPrm.SetAttributeValue("value")
+	anyValidPrm.AttachContainerRevision(123)
+
+	t.Run("messages", func(t *testing.T) {
+		/*
+			This test is dedicated for cases when user input results in sending a certain
+			request to the server and receiving a specific response to it. For user input
+			errors, transport, client internals, etc. see/add other tests.
+		*/
+		t.Run("requests", func(t *testing.T) {
+			t.Run("required data", func(t *testing.T) {
+				srv := newTestSetContainerAttributeServer()
+				c := newTestContainerClient(t, srv)
+
+				srv.checkRequestParametersV2(anyValidPrm)
+				srv.authenticateRequestPayload(anyValidSigner)
+
+				err := c.AddContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+				require.NoError(t, err)
+			})
+			t.Run("options", func(t *testing.T) {
+				t.Run("session token", func(t *testing.T) {
+					srv := newTestSetContainerAttributeServer()
+					srv.checkRequestParametersV2(anyValidPrm)
+
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					prms := anyValidPrm
+					prms.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
+					err := c.AddContainerAttribute(ctx, anyValidSigner, prms)
+					require.NoError(t, err)
+				})
+			})
+		})
+		t.Run("responses", func(t *testing.T) {
+			t.Run("valid", func(t *testing.T) {
+				t.Run("statuses", func(t *testing.T) {
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestSetContainerAttributeServer()
+						srv.checkRequestParametersV2(anyValidPrm)
+
+						c := newTestContainerClient(t, srv)
+
+						srv.respondWithStatus(&protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+
+						err := c.AddContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+					})
+
+					testStatusResponses(t, newTestSetContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+						return c.AddContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+					})
+				})
+			})
+			t.Run("invalid", func(t *testing.T) {
+				t.Run("format", func(t *testing.T) {
+					testIncorrectUnaryRPCResponseFormat(t, "container.ContainerService", "SetAttributeV2", func(c *Client) error {
+						return c.AddContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+					})
+				})
+			})
+		})
+	})
+	t.Run("context", func(t *testing.T) {
+		testContextErrors(t, newTestSetContainerAttributeServer, newTestContainerClient, func(ctx context.Context, c *Client) error {
+			return c.AddContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+		})
+	})
+	t.Run("sign request failure", func(t *testing.T) {
+		testSignRequestFailure(t, func(c *Client) error {
+			return c.AddContainerAttribute(ctx, neofscryptotest.FailSigner(anyValidSigner), anyValidPrm)
+		})
+	})
+	t.Run("transport failure", func(t *testing.T) {
+		testTransportFailure(t, newTestSetContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+			return c.AddContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+		})
+	})
+}
+
 type testRemoveContainerAttributeServer struct {
 	protocontainer.UnimplementedContainerServiceServer
 	testCommonServerSettings
@@ -2144,6 +2341,18 @@ type testRemoveContainerAttributeServer struct {
 
 	prm    *RemoveContainerAttributeParameters
 	prmSig *neofscrypto.Signature
+
+	// v2
+	testCommonRequestServerSettings[
+		*protocontainer.RemoveAttributeV2Request_Body,
+		*protocontainer.RemoveAttributeV2Request,
+	]
+	testRequiredContainerIDServerSettings
+	testCommonResponseServerSettings[
+		*protocontainer.RemoveAttributeV2Response_Body,
+		*protocontainer.RemoveAttributeV2Response,
+	]
+	prmV2 *PrmDeleteContainerAttribute
 
 	respStatus *protostatus.Status
 }
@@ -2160,6 +2369,12 @@ func newTestRemoveContainerAttributeServer() *testRemoveContainerAttributeServer
 // default, any parameters are accepted.
 func (x *testRemoveContainerAttributeServer) checkRequestParameters(prm RemoveContainerAttributeParameters) {
 	x.prm = &prm
+}
+
+// makes the server to assert that any request carries given parameters. By
+// default, any parameters are accepted.
+func (x *testRemoveContainerAttributeServer) checkRequestParametersV2(prm PrmDeleteContainerAttribute) {
+	x.prmV2 = &prm
 }
 
 // makes the server to always respond with the given status. By default, status
@@ -2219,6 +2434,57 @@ func (x *testRemoveContainerAttributeServer) verifyRequest(req *protocontainer.R
 	return nil
 }
 
+func (x *testRemoveContainerAttributeServer) verifyRequestV2(req *protocontainer.RemoveAttributeV2Request) error {
+	err := x.testCommonRequestServerSettings.verifyRequest(req)
+	if err != nil {
+		return err
+	}
+
+	// session token
+	switch metaHdr := req.MetaHeader; {
+	case metaHdr.Ttl != 2:
+		return newInvalidRequestMetaHeaderErr(fmt.Errorf("wrong TTL %d, expected 2", metaHdr.Ttl))
+	case metaHdr.BearerToken != nil:
+		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	case metaHdr.ValidUntilTime == 0:
+		return newInvalidRequestMetaHeaderErr(errors.New("missing valid until time"))
+	}
+	if err := x.verifySessionToken(req.MetaHeader.SessionToken); err != nil {
+		return err
+	}
+	if err := x.verifySessionTokenV2(req.MetaHeader.SessionTokenV2); err != nil {
+		return err
+	}
+	// bearer token
+	if req.MetaHeader.BearerToken != nil {
+		return newInvalidRequestMetaHeaderErr(errors.New("bearer token attached while should not be"))
+	}
+	// body
+	body := req.Body
+	if body == nil {
+		return newInvalidRequestBodyErr(errors.New("missing body"))
+	}
+	if x.prmV2 != nil {
+		// ID
+		mc := body.GetContainerId()
+		if err := x.verifyRequestContainerID(mc); err != nil {
+			return err
+		}
+		// key
+		mK := body.GetAttribute()
+		if x.prmV2.attribute != mK {
+			return fmt.Errorf("attribute (client: %q, message: %q)", x.prmV2.attribute, mK)
+		}
+		// container revision
+		mR := body.GetContainerRevision()
+		if x.prmV2.containerRevision != mR {
+			return fmt.Errorf("container revision (client: %d, message: %d)", x.prmV2.containerRevision, mR)
+		}
+	}
+
+	return nil
+}
+
 func (x *testRemoveContainerAttributeServer) RemoveAttribute(_ context.Context, req *protocontainer.RemoveAttributeRequest) (*protocontainer.RemoveAttributeResponse, error) {
 	time.Sleep(x.handlerSleepDur)
 
@@ -2233,6 +2499,34 @@ func (x *testRemoveContainerAttributeServer) RemoveAttribute(_ context.Context, 
 	return &protocontainer.RemoveAttributeResponse{
 		Status: x.respStatus,
 	}, nil
+}
+
+func (x *testRemoveContainerAttributeServer) RemoveAttributeV2(_ context.Context, req *protocontainer.RemoveAttributeV2Request) (*protocontainer.RemoveAttributeV2Response, error) {
+	time.Sleep(x.handlerSleepDur)
+
+	if err := x.verifyRequestV2(req); err != nil {
+		return nil, err
+	}
+
+	if x.handlerErr != nil {
+		return nil, x.handlerErr
+	}
+
+	resp := &protocontainer.RemoveAttributeV2Response{
+		MetaHeader: x.respMeta,
+	}
+	if resp.MetaHeader == nil {
+		resp.MetaHeader = &protosession.ResponseMetaHeader{
+			Status: x.respStatus,
+		}
+	}
+	if x.respBodyForced {
+		resp.Body = x.respBody
+	} else {
+		resp.Body = new(protocontainer.RemoveAttributeV2Response_Body)
+	}
+
+	return resp, nil
 }
 
 func TestClient_RemoveContainerAttribute(t *testing.T) {
@@ -2343,5 +2637,95 @@ func TestClient_RemoveContainerAttribute(t *testing.T) {
 				return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
 			},
 		)
+	})
+}
+
+func TestClient_DeleteContainerAttribute(t *testing.T) {
+	var (
+		ctx            = context.Background()
+		anyValidSigner = usertest.User().RFC6979
+		anyValidPrm    PrmDeleteContainerAttribute
+	)
+	anyValidPrm.SetContainerID(cidtest.ID())
+	anyValidPrm.SetAttribute("attribute")
+	anyValidPrm.AttachContainerRevision(123)
+
+	t.Run("messages", func(t *testing.T) {
+		/*
+			This test is dedicated for cases when user input results in sending a certain
+			request to the server and receiving a specific response to it. For user input
+			errors, transport, client internals, etc. see/add other tests.
+		*/
+		t.Run("requests", func(t *testing.T) {
+			t.Run("required data", func(t *testing.T) {
+				srv := newTestRemoveContainerAttributeServer()
+				c := newTestContainerClient(t, srv)
+
+				srv.checkRequestParametersV2(anyValidPrm)
+				srv.authenticateRequestPayload(anyValidSigner)
+
+				err := c.DeleteContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+				require.NoError(t, err)
+			})
+			t.Run("options", func(t *testing.T) {
+				t.Run("session token", func(t *testing.T) {
+					srv := newTestRemoveContainerAttributeServer()
+					c := newTestContainerClient(t, srv)
+
+					st := sessiontest.TokenSigned(usertest.User())
+					prms := anyValidPrm
+					prms.WithinSessionV2(st)
+
+					srv.checkRequestSessionTokenV2(st)
+					err := c.DeleteContainerAttribute(ctx, anyValidSigner, prms)
+					require.NoError(t, err)
+				})
+			})
+		})
+		t.Run("responses", func(t *testing.T) {
+			t.Run("valid", func(t *testing.T) {
+				t.Run("statuses", func(t *testing.T) {
+					t.Run("await timeout", func(t *testing.T) {
+						srv := newTestRemoveContainerAttributeServer()
+						c := newTestContainerClient(t, srv)
+
+						srv.respondWithStatus(&protostatus.Status{
+							Code:    3075,
+							Message: "some context about stuck transaction",
+						})
+
+						err := c.DeleteContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+						require.ErrorIs(t, err, apistatus.ErrContainerAwaitTimeout)
+						require.EqualError(t, err, "status: code = 3075 message = some context about stuck transaction")
+					})
+
+					testStatusResponses(t, newTestRemoveContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+						return c.DeleteContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+					})
+				})
+			})
+			t.Run("invalid", func(t *testing.T) {
+				t.Run("format", func(t *testing.T) {
+					testIncorrectUnaryRPCResponseFormat(t, "container.ContainerService", "RemoveAttributeV2", func(c *Client) error {
+						return c.DeleteContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+					})
+				})
+			})
+		})
+	})
+	t.Run("context", func(t *testing.T) {
+		testContextErrors(t, newTestRemoveContainerAttributeServer, newTestContainerClient, func(ctx context.Context, c *Client) error {
+			return c.DeleteContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+		})
+	})
+	t.Run("sign request failure", func(t *testing.T) {
+		testSignRequestFailure(t, func(c *Client) error {
+			return c.DeleteContainerAttribute(ctx, neofscryptotest.FailSigner(anyValidSigner), anyValidPrm)
+		})
+	})
+	t.Run("transport failure", func(t *testing.T) {
+		testTransportFailure(t, newTestRemoveContainerAttributeServer, newTestContainerClient, func(c *Client) error {
+			return c.DeleteContainerAttribute(ctx, anyValidSigner, anyValidPrm)
+		})
 	})
 }
