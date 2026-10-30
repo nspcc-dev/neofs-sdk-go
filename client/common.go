@@ -82,7 +82,7 @@ func (x onlyBinarySendingCodec) Unmarshal(data mem.BufferSlice, msg any) error {
 //
 // Copy-pasted from https://github.com/nspcc-dev/neofs-api-go/blob/4d4eaa29436e2b1ce9bcdddd6551133c388a1cdb/rpc/grpc/init.go#L53.
 // TODO: https://github.com/nspcc-dev/neofs-sdk-go/issues/640.
-func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func() error) error {
+func dowithTimeout(ctx context.Context, timeout time.Duration, cancel context.CancelFunc, action func() error) error {
 	ch := make(chan error, 1)
 	go func() {
 		ch <- action()
@@ -93,7 +93,7 @@ func dowithTimeout(timeout time.Duration, cancel context.CancelFunc, action func
 
 	select {
 	case err := <-ch:
-		return err
+		return wrapCtxErr(ctx, err)
 	case <-tt.C:
 		cancel()
 		return context.DeadlineExceeded
