@@ -776,6 +776,9 @@ type SetContainerAttributeParameters struct {
 }
 
 // GetSignedSetContainerAttributeParameters returns signed message for prm.
+//
+// Deprecated: use [Client.AddContainerAttribute] with a correct signer,
+// not [Client.SetContainerAttribute].
 func GetSignedSetContainerAttributeParameters(prm SetContainerAttributeParameters) []byte {
 	return protoencoding.MarshalMessage(&protocontainer.SetAttributeRequest_Body_Parameters{
 		ContainerId: prm.ID.ProtoMessage(),
@@ -786,6 +789,9 @@ func GetSignedSetContainerAttributeParameters(prm SetContainerAttributeParameter
 }
 
 // SignSetContainerAttributeParameters signs given prm.
+//
+// Deprecated: use [Client.AddContainerAttribute] with a correct signer,
+// not [Client.SetContainerAttribute].
 func SignSetContainerAttributeParameters(signer neofscrypto.Signer, prm SetContainerAttributeParameters) (neofscrypto.Signature, error) {
 	sig, err := signer.Sign(GetSignedSetContainerAttributeParameters(prm))
 	if err != nil {
@@ -854,6 +860,8 @@ func (x *SetContainerAttributeOptions) AttachSessionTokenV1(tok session.Containe
 // necessary, caller can continue the wait via [Client.ContainerGet]. It is
 // recommended to always use context with timeout. Note that the context
 // includes all processing stages incl. network delays.
+//
+// Deprecated: use [Client.AddContainerAttribute].
 func (c *Client) SetContainerAttribute(ctx context.Context, prm SetContainerAttributeParameters, prmSig neofscrypto.Signature, opts SetContainerAttributeOptions) error {
 	var err error
 	if c.prm.statisticCallback != nil {
@@ -920,6 +928,121 @@ func (c *Client) SetContainerAttribute(ctx context.Context, prm SetContainerAttr
 	return err
 }
 
+type attrsManagementCommonOpts struct {
+	session *sessionv2.Token
+}
+
+// WithinSessionV2 specifies session token V2 within which container attributes
+// should be managed.
+//
+// Creator of the session acquires the authorship of the request. This affects
+// the execution of an operation (e.g. access control).
+//
+// V2 tokens support multiple subjects, delegation chains, and unified contexts.
+//
+// Must be signed.
+func (prm *attrsManagementCommonOpts) WithinSessionV2(s sessionv2.Token) {
+	prm.session = &s
+}
+
+// AddContainerAttributeOptions groups optional parameters of
+// [Client.AddContainerAttribute] operation.
+type AddContainerAttributeOptions struct {
+	attrsManagementCommonOpts
+}
+
+// AddContainerAttribute sets container attribute.
+//
+// Context is required and must not be nil. It is used for network communication.
+//
+// If container does not have the attribute, it is added. Otherwise, its value
+// is swapped.
+//
+// Attribute must be one of:
+//   - CORS
+//   - __NEOFS__LOCK_UNTIL
+//   - S3_TAGS
+//   - S3_SETTINGS
+//   - S3_NOTIFICATIONS
+//
+// In general, requirements for attribute are the same as for container creation.
+// Attribute-specific requirements:
+//   - __NEOFS__LOCK_UNTIL: new timestamp must be after the current one if any
+//   - S3_TAGS: must be a valid JSON object
+//   - S3_SETTINGS: must be a valid JSON object
+//   - S3_NOTIFICATIONS: must be a valid JSON object
+//
+// The signer must not be nil. It must be either container owner's or session
+// subject's signature when using [AddContainerAttributeOptions.WithinSessionV2].
+// If session is used, the token must be issued by the container owner and
+// include the same cnr + [sessionv2.VerbContainerSetAttribute] context.
+//
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerGet]. It is
+// recommended to always use context with timeout. Note that the context
+// includes all processing stages incl. network delays.
+func (c *Client) AddContainerAttribute(ctx context.Context, signer neofscrypto.Signer, cnr cid.ID, attribute string, value string, containerRevision uint64, opts *AddContainerAttributeOptions) error {
+	var err error
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerSetAttribute, time.Since(startTime), err)
+		}()
+	}
+
+	if signer == nil {
+		err = ErrMissingSigner
+		return ErrMissingSigner
+	}
+	if cnr.IsZero() {
+		err = errors.New("missing container ID")
+		return err
+	}
+	if !newContainerAttrManagementMethods(c.apiVersion) {
+		err = fmt.Errorf("server has %s version, it does not support %s method", c.apiVersion, stat.MethodContainerSetAttribute)
+		return err
+	}
+
+	req := &protocontainer.SetAttributeV2Request{
+		Body: &protocontainer.SetAttributeV2Request_Body{
+			ContainerId:       cnr.ProtoMessage(),
+			Attribute:         attribute,
+			Value:             value,
+			ContainerRevision: containerRevision,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
+		},
+	}
+
+	if opts != nil && opts.session != nil {
+		req.MetaHeader.SessionTokenV2 = opts.session.ProtoMessage()
+	}
+
+	reqMemBuf := defaultRequestBufferPool.Get()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetAttributeV2Request_Body](signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
+	}
+
+	resp, err := c.container.SetAttributeV2(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
+
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
+}
+
 // RemoveContainerAttributeParameters groups signed parameters of
 // [Client.RemoveContainerAttribute].
 type RemoveContainerAttributeParameters struct {
@@ -929,6 +1052,9 @@ type RemoveContainerAttributeParameters struct {
 }
 
 // GetSignedRemoveContainerAttributeParameters returns signed message for prm.
+//
+// Deprecated: use [Client.DeleteContainerAttribute] with a correct signer,
+// not [Client.RemoveContainerAttribute].
 func GetSignedRemoveContainerAttributeParameters(prm RemoveContainerAttributeParameters) []byte {
 	return protoencoding.MarshalMessage(&protocontainer.RemoveAttributeRequest_Body_Parameters{
 		ContainerId: prm.ID.ProtoMessage(),
@@ -938,6 +1064,9 @@ func GetSignedRemoveContainerAttributeParameters(prm RemoveContainerAttributePar
 }
 
 // SignRemoveContainerAttributeParameters signs given prm.
+//
+// Deprecated: use [Client.DeleteContainerAttribute] with a correct signer,
+// not [Client.RemoveContainerAttribute].
 func SignRemoveContainerAttributeParameters(signer neofscrypto.Signer, prm RemoveContainerAttributeParameters) (neofscrypto.Signature, error) {
 	sig, err := signer.Sign(GetSignedRemoveContainerAttributeParameters(prm))
 	if err != nil {
@@ -1003,6 +1132,8 @@ func (x *RemoveContainerAttributeOptions) AttachSessionTokenV1(tok session.Conta
 // necessary, caller can continue the wait via [Client.ContainerGet]. It is
 // recommended to always use context with timeout. Note that the context
 // includes all processing stages incl. network delays.
+//
+// Deprecated: use [Client.DeleteContainerAttribute].
 func (c *Client) RemoveContainerAttribute(ctx context.Context, prm RemoveContainerAttributeParameters, prmSig neofscrypto.Signature, opts RemoveContainerAttributeOptions) error {
 	var err error
 	if c.prm.statisticCallback != nil {
@@ -1066,4 +1197,101 @@ func (c *Client) RemoveContainerAttribute(ctx context.Context, prm RemoveContain
 	err = apistatus.ToError(resp.Status)
 
 	return err
+}
+
+// DeleteContainerAttributeOptions groups optional parameters of
+// [Client.DeleteContainerAttribute] operation.
+type DeleteContainerAttributeOptions struct {
+	attrsManagementCommonOpts
+}
+
+// DeleteContainerAttribute removes container attribute.
+//
+// Context is required and must not be nil. It is used for network communication.
+//
+// If container does not have the attribute, server does nothing and responds
+// without an error.
+//
+// Attribute must be one of:
+//   - CORS
+//   - __NEOFS__LOCK_UNTIL
+//   - S3_TAGS
+//   - S3_SETTINGS
+//   - S3_NOTIFICATIONS
+//
+// Attribute-specific requirements:
+//   - __NEOFS__LOCK_UNTIL: current timestamp must have already passed if any
+//
+// The signer must not be nil. It must be either container owner's or session
+// subject's signature when using [DeleteContainerAttributeOptions.WithinSessionV2].
+// If session is used, the token must be issued by the container owner and
+// include the same cnr + [sessionv2.VerbContainerRemoveAttribute] context.
+//
+// Operation is async/await. Deadline is determined from ctx. If ctx has no
+// deadline, server waits 15s after submitting the transaction. On timeout,
+// [apistatus.ErrContainerAwaitTimeout] is returned. This error indicates a
+// delay in transaction execution, meaning the operation may still succeed. If
+// necessary, caller can continue the wait via [Client.ContainerGet]. It is
+// recommended to always use context with timeout. Note that the context
+// includes all processing stages incl. network delays.
+func (c *Client) DeleteContainerAttribute(ctx context.Context, signer neofscrypto.Signer, cnr cid.ID, attribute string, containerRevision uint64, opts *DeleteContainerAttributeOptions) error {
+	var err error
+	if c.prm.statisticCallback != nil {
+		startTime := time.Now()
+		defer func() {
+			c.sendStatistic(stat.MethodContainerRemoveAttribute, time.Since(startTime), err)
+		}()
+	}
+
+	if signer == nil {
+		err = ErrMissingSigner
+		return err
+	}
+	if cnr.IsZero() {
+		err = errors.New("missing container ID")
+		return err
+	}
+	if !newContainerAttrManagementMethods(c.apiVersion) {
+		err = fmt.Errorf("server has %s version, it does not support %s method", c.apiVersion, stat.MethodContainerRemoveAttribute)
+		return err
+	}
+
+	req := &protocontainer.RemoveAttributeV2Request{
+		Body: &protocontainer.RemoveAttributeV2Request_Body{
+			ContainerId:       cnr.ProtoMessage(),
+			Attribute:         attribute,
+			ContainerRevision: containerRevision,
+		},
+		MetaHeader: &protosession.RequestMetaHeader{
+			Version:        c.apiVersion,
+			Ttl:            defaultRequestTTL,
+			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
+		},
+	}
+
+	if opts != nil && opts.session != nil {
+		req.MetaHeader.SessionTokenV2 = opts.session.ProtoMessage()
+	}
+
+	reqMemBuf := defaultRequestBufferPool.Get()
+
+	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.RemoveAttributeV2Request_Body](signer, req, reqMemBuf.SliceBuffer)
+	reqMemBuf.Free()
+	if err != nil {
+		err = fmt.Errorf("%w: %w", errSignRequest, err)
+		return err
+	}
+
+	resp, err := c.container.RemoveAttributeV2(ctx, req)
+	if err != nil {
+		err = rpcErr(err)
+		return err
+	}
+
+	err = apistatus.ToError(resp.GetMetaHeader().GetStatus())
+	return err
+}
+
+func newContainerAttrManagementMethods(v *refs.Version) bool {
+	return apiVersionGE(v, 2, 29)
 }
