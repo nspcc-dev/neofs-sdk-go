@@ -217,6 +217,7 @@ func RandECRule() *netmap.PlacementPolicy_ECRule {
 		DataPartNum:   RandUint32(),
 		ParityPartNum: RandUint32(),
 		Selector:      RandString(),
+		MinPartNum:    RandUint32(),
 	}
 }
 

@@ -309,7 +309,7 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 			}},
 		},
 		EcRules: []*protonetmap.PlacementPolicy_ECRule{
-			{DataPartNum: 1, ParityPartNum: 2, Selector: ""},
+			{DataPartNum: 1, ParityPartNum: 2, Selector: "", MinPartNum: 2},
 			{DataPartNum: 3, ParityPartNum: 4, Selector: ""},
 		},
 		Initial: &protonetmap.PlacementPolicy_Initial{
@@ -386,6 +386,7 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 	require.Len(t, er, 2)
 	require.EqualValues(t, 1, er[0].DataPartNum())
 	require.EqualValues(t, 2, er[0].ParityPartNum())
+	require.EqualValues(t, 2, er[0].MinPartNum())
 	require.Zero(t, er[0].SelectorName())
 	require.EqualValues(t, 3, er[1].DataPartNum())
 	require.EqualValues(t, 4, er[1].ParityPartNum())
@@ -445,6 +446,10 @@ func TestPlacementPolicy_FromProtoMessage(t *testing.T) {
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].ParityPartNum = 65 }},
 			{name: "ec/too many total parts", err: "invalid EC rule #1: more than 64 total parts",
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].DataPartNum, m.EcRules[1].ParityPartNum = 32, 33 }},
+			{name: "ec/minimum below data parts", err: "invalid EC rule #1: minimum part num 2 is outside [3, 7]",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].MinPartNum = 2 }},
+			{name: "ec/minimum above total parts", err: "invalid EC rule #1: minimum part num 8 is outside [3, 7]",
+				corrupt: func(m *protonetmap.PlacementPolicy) { m.EcRules[1].MinPartNum = 8 }},
 			{name: "replicas/too many objects", err: "invalid REP rule #0: more than 8 object replicas",
 				corrupt: func(m *protonetmap.PlacementPolicy) { m.Replicas[0].Count = 9 }},
 		} {

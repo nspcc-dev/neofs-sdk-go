@@ -17,7 +17,7 @@ var (
 
 // corresponds to validECPolicy.
 var validBinECPolicy = []byte{
-	50, 4, 8, 1, 16, 2, 50, 4, 8, 3, 16, 4,
+	50, 6, 8, 1, 16, 2, 32, 2, 50, 4, 8, 3, 16, 4,
 }
 
 var validJSONECPolicy = `
@@ -31,12 +31,14 @@ var validJSONECPolicy = `
   {
    "dataPartNum": 1,
    "parityPartNum": 2,
-   "selector": ""
+   "selector": "",
+   "minPartNum": 2
   },
   {
    "dataPartNum": 3,
    "parityPartNum": 4,
-   "selector": ""
+   "selector": "",
+   "minPartNum": 0
   }
  ],
  "initial": null
@@ -46,6 +48,7 @@ var validJSONECPolicy = `
 func init() {
 	anyValidECRules[0].SetDataPartNum(1)
 	anyValidECRules[0].SetParityPartNum(2)
+	anyValidECRules[0].SetMinPartNum(2)
 	anyValidECRules[1].SetDataPartNum(3)
 	anyValidECRules[1].SetParityPartNum(4)
 
@@ -76,6 +79,14 @@ func TestECRule_SetParityPartNum(t *testing.T) {
 
 	r.SetParityPartNum(123)
 	require.EqualValues(t, 123, r.ParityPartNum())
+}
+
+func TestECRule_SetMinPartNum(t *testing.T) {
+	var r netmap.ECRule
+	require.Zero(t, r.MinPartNum())
+
+	r.SetMinPartNum(14)
+	require.EqualValues(t, 14, r.MinPartNum())
 }
 
 func TestECRule_SetSelector(t *testing.T) {
@@ -124,6 +135,12 @@ EC 20/21`)
 	p.SetECRules(rs)
 	check(t, `EC 10/11
 EC 20/21 IN slctr`)
+
+	rs[0].SetMinPartNum(14)
+	rs[1].SetMinPartNum(40)
+	p.SetECRules(rs)
+	check(t, `EC 10/11 MINPARTS 14
+EC 20/21 MINPARTS 40 IN slctr`)
 }
 
 func testPolicyDecodeStringEC(t *testing.T) {
@@ -133,6 +150,8 @@ func testPolicyDecodeStringEC(t *testing.T) {
 			"EC", "EC 1", "EC a", "EC 1 2", "EC 1,2",
 			"EC /", "EC /2", "EC 1/", "EC a/2", "EC 1/a",
 			"EC 1.5/2", "EC 1/2.5",
+			"EC 1/2 MINPARTS", "EC 2/2 MINPARTS 1",
+			"EC 1/2 MINPARTS 4", "EC 1/2 MINPARTS 4294967296",
 		} {
 			t.Run(s, func(t *testing.T) {
 				require.Error(t, new(netmap.PlacementPolicy).DecodeString(s))
@@ -145,6 +164,9 @@ func testPolicyDecodeStringEC(t *testing.T) {
 		s   string
 		cmp func(t *testing.T, p netmap.PlacementPolicy)
 	}{
+		{s: "EC 1/2 MINPARTS 0", cmp: func(t *testing.T, p netmap.PlacementPolicy) {
+			require.Zero(t, p.ECRules()[0].MinPartNum())
+		}},
 		{s: "EC 1/2", cmp: func(t *testing.T, p netmap.PlacementPolicy) {
 			require.Equal(t, []netmap.ECRule{
 				netmap.NewECRule(1, 2),
@@ -239,6 +261,7 @@ func testPolicyProtoMessageEC(t *testing.T) {
 	require.EqualValues(t, 1, rs[0].DataPartNum)
 	require.EqualValues(t, 2, rs[0].ParityPartNum)
 	require.Zero(t, rs[0].Selector)
+	require.EqualValues(t, 2, rs[0].MinPartNum)
 
 	require.EqualValues(t, 3, rs[1].DataPartNum)
 	require.EqualValues(t, 4, rs[1].ParityPartNum)
@@ -282,6 +305,15 @@ func testPolicyVerifyEC(t *testing.T) {
 	policy.SetSelectors(validSs)
 	require.NoError(t, policy.Verify())
 
+	t.Run("minimum part boundaries", func(t *testing.T) {
+		for _, minParts := range []uint32{0, 10, 15, 30} {
+			var cp netmap.PlacementPolicy
+			policy.CopyTo(&cp)
+			cp.ECRules()[1].SetMinPartNum(minParts)
+			require.NoError(t, cp.Verify())
+		}
+	})
+
 	for _, tc := range []struct {
 		name    string
 		err     string
@@ -310,6 +342,12 @@ func testPolicyVerifyEC(t *testing.T) {
 		{name: "too many total parts", err: "invalid EC rule #1: more than 64 total parts", corrupt: func(p *netmap.PlacementPolicy) {
 			p.ECRules()[1].SetDataPartNum(32)
 			p.ECRules()[1].SetParityPartNum(33)
+		}},
+		{name: "minimum below data parts", err: "invalid EC rule #1: minimum part num 9 is outside [10, 30]", corrupt: func(p *netmap.PlacementPolicy) {
+			p.ECRules()[1].SetMinPartNum(9)
+		}},
+		{name: "minimum above total parts", err: "invalid EC rule #1: minimum part num 31 is outside [10, 30]", corrupt: func(p *netmap.PlacementPolicy) {
+			p.ECRules()[1].SetMinPartNum(31)
 		}},
 		{name: "missing selector", err: `invalid EC rule #1: missing selector "SEL3"`, corrupt: func(p *netmap.PlacementPolicy) {
 			p.ECRules()[1].SetSelectorName("SEL3")
