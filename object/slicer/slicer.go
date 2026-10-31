@@ -152,6 +152,9 @@ func NewWithV1Token(ctx context.Context, nw NetworkedClient, signer user.Signer,
 // resulting object's metadata. Keys SHOULD NOT start with system-reserved
 // '__NEOFS__' prefix.
 //
+// If data implements [io.Seeker] and the payload size is not set explicitly,
+// the size is derived from the data's remaining length.
+//
 // See [New] for details.
 func (x *Slicer) Put(ctx context.Context, data io.Reader, attrs []object.Attribute) (oid.ID, error) {
 	x.hdr.SetAttributes(attrs...)
@@ -189,6 +192,13 @@ func childPayloadSizeLimit(opts Options) uint64 {
 }
 
 func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.Reader, signer user.Signer, opts Options) (oid.ID, error) {
+	if !opts.payloadSizeFixed {
+		if sz, ok := remainingSize(data); ok {
+			opts.payloadSizeFixed = true
+			opts.payloadSize = sz
+		}
+	}
+
 	writer, err := initPayloadStream(ctx, ow, header, signer, opts)
 	if err != nil {
 		return oid.ID{}, fmt.Errorf("init writter: %w", err)
@@ -207,6 +217,30 @@ func slice(ctx context.Context, ow ObjectWriter, header object.Object, data io.R
 	}
 
 	return writer.ID(), nil
+}
+
+// remainingSize returns the number of bytes left to read from data if it
+// implements [io.Seeker]. The read position is left unchanged.
+func remainingSize(data io.Reader) (uint64, bool) {
+	s, ok := data.(io.Seeker)
+	if !ok {
+		return 0, false
+	}
+	cur, err := s.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return 0, false
+	}
+	end, err := s.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0, false
+	}
+	if _, err = s.Seek(cur, io.SeekStart); err != nil {
+		return 0, false
+	}
+	if end < cur {
+		return 0, false
+	}
+	return uint64(end - cur), true
 }
 
 // headerData extract required fields from header, otherwise throw the error.
