@@ -128,9 +128,6 @@ func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
 }
 
 func testEaclTable(containerID cid.ID) eacl.Table {
-	var table eacl.Table
-	table.SetCID(containerID)
-
 	r := eacl.Record{}
 	r.SetOperation(eacl.OperationPut)
 	r.SetAction(eacl.ActionAllow)
@@ -138,9 +135,8 @@ func testEaclTable(containerID cid.ID) eacl.Table {
 	var target eacl.Target
 	target.SetRole(eacl.RoleOthers)
 	r.SetTargets(target)
-	table.SetRecords([]eacl.Record{r})
 
-	return table
+	return eacl.NewTableForContainer(containerID, []eacl.Record{r})
 }
 
 func TestPoolAio(t *testing.T) {
