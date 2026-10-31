@@ -235,3 +235,22 @@ func TestRemoveAttributeRequest_Body_MarshalStable(t *testing.T) {
 		},
 	})
 }
+
+func TestSetAttributeV2Request_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*container.SetAttributeV2Request_Body{
+		{
+			ContainerId: prototest.RandContainerID(),
+			Attribute:   prototest.RandString(),
+			Value:       prototest.RandString(),
+		},
+	})
+}
+
+func TestRemoveAttributeV2Request_Body_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*container.RemoveAttributeV2Request_Body{
+		{
+			ContainerId: prototest.RandContainerID(),
+			Attribute:   prototest.RandString(),
+		},
+	})
+}
