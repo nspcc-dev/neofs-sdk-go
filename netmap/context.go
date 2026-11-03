@@ -64,11 +64,3 @@ func (c *context) setPivot(pivot []byte) {
 		c.hrwSeedHash = hrw.WrapBytes(pivot)
 	}
 }
-
-func (c *context) setCBF(cbf uint32) {
-	if cbf == 0 {
-		c.cbf = defaultContainerBackupFactor
-	} else {
-		c.cbf = cbf
-	}
-}
