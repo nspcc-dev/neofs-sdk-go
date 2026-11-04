@@ -1,6 +1,7 @@
 package netmap_test
 
 import (
+	"math"
 	"slices"
 	"testing"
 
@@ -239,6 +240,99 @@ func TestNetMap_ContainerNodes(t *testing.T) {
 				require.Subset(t, nodes, set)
 			}
 		})
+	})
+
+	t.Run("flexible CBF", func(t *testing.T) {
+		var nm netmap.NetMap
+
+		repRules := make([]netmap.ReplicaDescriptor, 1)
+		repRules[0].SetNumberOfObjects(3)
+
+		var policy netmap.PlacementPolicy
+		policy.SetContainerBackupFactor(math.MaxUint32)
+
+		policy.SetReplicas(repRules)
+
+		assertOK := func(expLen int) {
+			require.NoError(t, policy.Verify())
+			res, err := nm.ContainerNodes(policy, cidtest.ID())
+			require.NoError(t, err)
+			require.EqualValues(t, 1, len(res))
+			require.EqualValues(t, expLen, len(res[0]))
+		}
+		assertNotEnoughNodes := func() {
+			_, err := nm.ContainerNodes(policy, cidtest.ID())
+			require.ErrorIs(t, err, netmap.ErrNotEnoughNodes)
+		}
+
+		nm.SetNodes(nNodes(3))
+		assertOK(3)
+		nm.SetNodes(nNodes(7))
+		assertOK(3)
+		nm.SetNodes(nNodes(2))
+		assertNotEnoughNodes()
+
+		selectors := make([]netmap.Selector, 1)
+		policy.SetSelectors(selectors)
+
+		selectors[0].SetFilterName("*")
+
+		// any selector
+		selectors[0].SetNumberOfNodes(4)
+
+		nm.SetNodes(nNodes(3))
+		assertOK(3)
+		nm.SetNodes(nNodes(5))
+		assertOK(4)
+		nm.SetNodes(nNodes(2))
+		assertNotEnoughNodes()
+
+		// single selector
+		repRules[0].SetSelectorName("selector1")
+		selectors[0].SetName("selector1")
+
+		selectors[0].SetNumberOfNodes(4)
+
+		nm.SetNodes(nNodes(3))
+		assertOK(3)
+		nm.SetNodes(nNodes(5))
+		assertOK(4)
+		nm.SetNodes(nNodes(2))
+		assertNotEnoughNodes()
+
+		// EC
+		policy.SetReplicas(nil)
+		ecRules := make([]netmap.ECRule, 1)
+		policy.SetECRules(ecRules)
+
+		ecRules[0] = netmap.NewECRule(3, 1)
+
+		nm.SetNodes(nNodes(4))
+		assertOK(4)
+		nm.SetNodes(nNodes(7))
+		assertOK(4)
+		nm.SetNodes(nNodes(3))
+		assertNotEnoughNodes()
+
+		// any selector
+		selectors[0].SetNumberOfNodes(5)
+
+		nm.SetNodes(nNodes(4))
+		assertOK(4)
+		nm.SetNodes(nNodes(6))
+		assertOK(5)
+		nm.SetNodes(nNodes(3))
+		assertNotEnoughNodes()
+
+		// single selector
+		ecRules[0].SetSelectorName("selector1")
+
+		nm.SetNodes(nNodes(4))
+		assertOK(4)
+		nm.SetNodes(nNodes(6))
+		assertOK(5)
+		nm.SetNodes(nNodes(3))
+		assertNotEnoughNodes()
 	})
 }
 

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"slices"
 	"strconv"
 
@@ -382,6 +383,17 @@ func (p *PlacementPolicy) SetContainerBackupFactor(f uint32) {
 // See also [PlacementPolicy.SetContainerBackupFactor].
 func (p *PlacementPolicy) ContainerBackupFactor() uint32 {
 	return p.backupFactor
+}
+
+func (p PlacementPolicy) cbf() uint32 {
+	if p.backupFactor != 0 {
+		return p.backupFactor
+	}
+	return defaultContainerBackupFactor
+}
+
+func isFlexibleCBF(cbf uint32) bool {
+	return cbf == math.MaxUint32 // speciial API-defined value
 }
 
 // Selector describes the bucket selection operator: choose a number of nodes
@@ -1252,10 +1264,7 @@ func (p PlacementPolicy) Verify() error {
 		return fmt.Errorf("more than %d EC rules", MaxECRules)
 	}
 	ss := p.Selectors()
-	bf := p.ContainerBackupFactor()
-	if bf == 0 {
-		bf = defaultContainerBackupFactor
-	}
+	bf := p.cbf()
 	var cnrNodeCount uint32
 	for i := range rs {
 		rNum := rs[i].NumberOfObjects()
@@ -1272,7 +1281,10 @@ func (p PlacementPolicy) Verify() error {
 		} else {
 			sNum = rNum
 		}
-		nodesInSet := bf * sNum
+		nodesInSet := sNum
+		if !isFlexibleCBF(bf) {
+			nodesInSet *= bf
+		}
 		if nodesInSet > maxContainerNodesInSet {
 			return fmt.Errorf("%w #%d: more than %d nodes", errInvalidREPRule, i, maxContainerNodesInSet)
 		}
@@ -1296,7 +1308,10 @@ func (p PlacementPolicy) Verify() error {
 		} else {
 			sNum = es[i].DataPartNum() + es[i].ParityPartNum()
 		}
-		nodesInSet := bf * sNum
+		nodesInSet := sNum
+		if !isFlexibleCBF(bf) {
+			nodesInSet *= bf
+		}
 		if nodesInSet > maxContainerNodesInSet {
 			return fmt.Errorf("%w #%d: more than %d nodes", errInvalidECRule, i, maxContainerNodesInSet)
 		}

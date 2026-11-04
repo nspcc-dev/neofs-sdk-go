@@ -197,6 +197,14 @@ func flattenNodes(ns []nodes) nodes {
 	return result
 }
 
+func countNodes(ns []nodes) int {
+	var n int
+	for i := range ns {
+		n += len(ns[i])
+	}
+	return n
+}
+
 // PlacementVectors sorts container nodes returned by ContainerNodes method
 // and returns placement vectors for the entity identified by the given object id.
 // For example, in order to build node list to store the object, binary-encoded
@@ -241,7 +249,7 @@ func PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, erro
 // current network map because of a lack of container nodes.
 func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeInfo, error) {
 	c := newContext(m)
-	c.setCBF(p.backupFactor)
+	c.cbf = p.cbf()
 
 	pivot := slices.Clone(containerID[:])
 	c.setPivot(pivot)
@@ -255,13 +263,15 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 	}
 
 	result := make([][]NodeInfo, len(p.replicas)+len(p.ecRules))
+	flexibleCBF := isFlexibleCBF(c.cbf)
 
 	for i := range p.replicas {
 		sName := p.replicas[i].SelectorName()
+		minNodes := p.replicas[i].NumberOfObjects()
 		if sName == "" {
 			if len(p.selectors) == 0 {
 				var s Selector
-				s.SetNumberOfNodes(p.replicas[i].NumberOfObjects())
+				s.SetNumberOfNodes(minNodes)
 				s.SetFilterName(mainFilterName)
 
 				nodes, err := c.getSelection(p, s)
@@ -269,8 +279,27 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 					return nil, err
 				}
 
+				if flexibleCBF {
+					nodeCount := countNodes(nodes)
+					if nodeCount < int(minNodes) {
+						return nil, newNotEnoughNodesREPError(minNodes, nodeCount)
+					}
+				} // else count is checked in getSelection()
+
 				result[i] = flattenNodes(nodes)
+
+				continue
 			}
+
+			if flexibleCBF {
+				var nodeCount int
+				for i := range p.selectors {
+					nodeCount += countNodes(c.selections[p.selectors[i].Name()])
+				}
+				if nodeCount < int(minNodes) {
+					return nil, newNotEnoughNodesREPError(minNodes, nodeCount)
+				}
+			} // else count is checked in getSelection()
 
 			for _, s := range p.selectors {
 				result[i] = append(result[i], flattenNodes(c.selections[s.Name()])...)
@@ -284,16 +313,24 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 			return nil, fmt.Errorf("selector not found: REPLICA '%s'", sName)
 		}
 
+		if flexibleCBF {
+			nodeCount := countNodes(nodes)
+			if nodeCount < int(minNodes) {
+				return nil, newNotEnoughNodesREPError(minNodes, nodeCount)
+			}
+		} // else count is checked in getSelection()
+
 		result[i] = append(result[i], flattenNodes(nodes)...)
 	}
 
 	for j, r := range p.ecRules {
 		i := len(p.replicas) + j
 		sName := r.SelectorName()
+		minNodes := r.DataPartNum() + r.ParityPartNum()
 		if sName == "" {
 			if len(p.selectors) == 0 {
 				var s Selector
-				s.SetNumberOfNodes(r.DataPartNum() + r.ParityPartNum())
+				s.SetNumberOfNodes(minNodes)
 				s.SetFilterName(mainFilterName)
 
 				nodes, err := c.getSelection(p, s)
@@ -301,8 +338,27 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 					return nil, err
 				}
 
+				if flexibleCBF {
+					nodeCount := countNodes(nodes)
+					if nodeCount < int(minNodes) {
+						return nil, newNotEnoughNodesECError(r, nodeCount)
+					}
+				} // else count is checked in getSelection()
+
 				result[i] = flattenNodes(nodes)
+
+				continue
 			}
+
+			if flexibleCBF {
+				var nodeCount int
+				for i := range p.selectors {
+					nodeCount += countNodes(c.selections[p.selectors[i].Name()])
+				}
+				if nodeCount < int(minNodes) {
+					return nil, newNotEnoughNodesECError(r, nodeCount)
+				}
+			} // else count is checked in getSelection()
 
 			for _, s := range p.selectors {
 				result[i] = append(result[i], flattenNodes(c.selections[s.Name()])...)
@@ -316,8 +372,23 @@ func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeI
 			return nil, fmt.Errorf("selector not found: EC '%s'", sName)
 		}
 
+		if flexibleCBF {
+			nodeCount := countNodes(nodes)
+			if nodeCount < int(minNodes) {
+				return nil, newNotEnoughNodesECError(r, nodeCount)
+			}
+		} // else count is checked in getSelection()
+
 		result[i] = append(result[i], flattenNodes(nodes)...)
 	}
 
 	return result, nil
+}
+
+func newNotEnoughNodesREPError(rep uint32, nodeCount int) error {
+	return fmt.Errorf("%w: REP %d, nodes %d", ErrNotEnoughNodes, rep, nodeCount)
+}
+
+func newNotEnoughNodesECError(ecRule ECRule, nodeCount int) error {
+	return fmt.Errorf("%w: EC %d/%d, nodes %d", ErrNotEnoughNodes, ecRule.DataPartNum(), ecRule.ParityPartNum(), nodeCount)
 }

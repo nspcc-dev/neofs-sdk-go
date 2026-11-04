@@ -50,7 +50,9 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 	bucketCount, nodesInBucket := calcNodesCount(s)
 	buckets := c.getSelectionBase(s)
 
-	if len(buckets) < bucketCount {
+	rigidCBF := !isFlexibleCBF(c.cbf)
+
+	if rigidCBF && len(buckets) < bucketCount {
 		return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.Name())
 	}
 
@@ -70,7 +72,10 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 		}
 	}
 
-	maxNodesInBucket := nodesInBucket * int(c.cbf)
+	maxNodesInBucket := nodesInBucket
+	if rigidCBF {
+		maxNodesInBucket *= int(c.cbf)
+	}
 	res := make([]nodes, 0, len(buckets))
 	fallback := make([]nodes, 0, len(buckets))
 
@@ -86,7 +91,7 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 	if len(res) < bucketCount {
 		// Fallback to using minimum allowed backup factor (1).
 		res = append(res, fallback...)
-		if len(res) < bucketCount {
+		if rigidCBF && len(res) < bucketCount {
 			return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.Name())
 		}
 	}
@@ -99,6 +104,8 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 
 		hrw.SortWeighted(res, weights, c.hrwSeedHash)
 	}
+
+	bucketCount = min(bucketCount, len(res))
 
 	if s.BucketAttribute() == "" {
 		res, fallback = res[:bucketCount], res[bucketCount:]
