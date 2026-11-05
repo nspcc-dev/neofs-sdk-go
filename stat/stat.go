@@ -40,6 +40,8 @@ const (
 	MethodObjectSearchV2
 	MethodContainerSetAttribute
 	MethodContainerRemoveAttribute
+	MethodContainerSetAttributeV2
+	MethodContainerRemoveAttributeV2
 	// MethodLast is no a valid method name, it's a system anchor for tests, etc.
 	MethodLast
 )
@@ -101,6 +103,10 @@ func (m Method) String() string {
 		return "containerSetAttribute"
 	case MethodContainerRemoveAttribute:
 		return "containerRemoveAttribute"
+	case MethodContainerSetAttributeV2:
+		return "containerSetAttributeV2"
+	case MethodContainerRemoveAttributeV2:
+		return "containerRemoveAttributeV2"
 	case MethodLast:
 		return "it's a system name rather than a method"
 	default:
