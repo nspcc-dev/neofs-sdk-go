@@ -2,9 +2,11 @@ package protobuf
 
 import (
 	"io"
+	"net"
 	"sync"
 	"sync/atomic"
 
+	"golang.org/x/sys/unix"
 	"google.golang.org/grpc/mem"
 )
 
@@ -199,6 +201,27 @@ func (x BuffersSlice) CopyTo(buf []byte) int {
 
 // WriteTo implements [io.WriterTo] by writing all data in x into w.
 func (x BuffersSlice) WriteTo(w io.Writer) (int64, error) {
+	var fd = -1
+
+	tc, ok := w.(*net.TCPConn)
+	if ok {
+		rc, err := tc.SyscallConn()
+		if err == nil {
+			err = rc.Control(func(f uintptr) {
+				fd = int(f)
+			})
+			if err != nil {
+				fd = -1
+			}
+		}
+	}
+	if fd != -1 {
+		bs := make([][]byte, x.Count())
+		x.CopyBuffers(bs)
+		i, err := unix.Writev(fd, bs)
+		return int64(i), err
+	}
+
 	var n int64
 	for _, b := range x.buffersSeq2 {
 		n2, err := w.Write(b)
