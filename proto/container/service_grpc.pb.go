@@ -27,7 +27,9 @@ const (
 	ContainerService_GetExtendedACL_FullMethodName    = "/neo.fs.v2.container.ContainerService/GetExtendedACL"
 	ContainerService_AnnounceUsedSpace_FullMethodName = "/neo.fs.v2.container.ContainerService/AnnounceUsedSpace"
 	ContainerService_SetAttribute_FullMethodName      = "/neo.fs.v2.container.ContainerService/SetAttribute"
+	ContainerService_SetAttributeV2_FullMethodName    = "/neo.fs.v2.container.ContainerService/SetAttributeV2"
 	ContainerService_RemoveAttribute_FullMethodName   = "/neo.fs.v2.container.ContainerService/RemoveAttribute"
+	ContainerService_RemoveAttributeV2_FullMethodName = "/neo.fs.v2.container.ContainerService/RemoveAttributeV2"
 )
 
 // ContainerServiceClient is the client API for ContainerService service.
@@ -134,7 +136,12 @@ type ContainerServiceClient interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//
+	// DEPRECATED: since v2.29, SetAttributeV2 should be used.
 	SetAttribute(ctx context.Context, in *SetAttributeRequest, opts ...grpc.CallOption) (*SetAttributeResponse, error)
+	// V2 version of SetAttribute following generic request/response structures
+	// within NeoFS.
+	SetAttributeV2(ctx context.Context, in *SetAttributeV2Request, opts ...grpc.CallOption) (*SetAttributeV2Response, error)
 	// Sends transaction calling contract method to remove container attribute,
 	// and waits for the transaction to be executed. Deadline is determined by
 	// the transport protocol (e.g. `grpc-timeout` header). If the deadline is
@@ -146,7 +153,12 @@ type ContainerServiceClient interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//
+	// DEPRECATED: since v2.29, RemoveAttributeV2 should be used.
 	RemoveAttribute(ctx context.Context, in *RemoveAttributeRequest, opts ...grpc.CallOption) (*RemoveAttributeResponse, error)
+	// V2 version of RemoveAttribute following generic request/response structures
+	// within NeoFS.
+	RemoveAttributeV2(ctx context.Context, in *RemoveAttributeV2Request, opts ...grpc.CallOption) (*RemoveAttributeV2Response, error)
 }
 
 type containerServiceClient struct {
@@ -237,10 +249,30 @@ func (c *containerServiceClient) SetAttribute(ctx context.Context, in *SetAttrib
 	return out, nil
 }
 
+func (c *containerServiceClient) SetAttributeV2(ctx context.Context, in *SetAttributeV2Request, opts ...grpc.CallOption) (*SetAttributeV2Response, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(SetAttributeV2Response)
+	err := c.cc.Invoke(ctx, ContainerService_SetAttributeV2_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *containerServiceClient) RemoveAttribute(ctx context.Context, in *RemoveAttributeRequest, opts ...grpc.CallOption) (*RemoveAttributeResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(RemoveAttributeResponse)
 	err := c.cc.Invoke(ctx, ContainerService_RemoveAttribute_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *containerServiceClient) RemoveAttributeV2(ctx context.Context, in *RemoveAttributeV2Request, opts ...grpc.CallOption) (*RemoveAttributeV2Response, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(RemoveAttributeV2Response)
+	err := c.cc.Invoke(ctx, ContainerService_RemoveAttributeV2_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -351,7 +383,12 @@ type ContainerServiceServer interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//
+	// DEPRECATED: since v2.29, SetAttributeV2 should be used.
 	SetAttribute(context.Context, *SetAttributeRequest) (*SetAttributeResponse, error)
+	// V2 version of SetAttribute following generic request/response structures
+	// within NeoFS.
+	SetAttributeV2(context.Context, *SetAttributeV2Request) (*SetAttributeV2Response, error)
 	// Sends transaction calling contract method to remove container attribute,
 	// and waits for the transaction to be executed. Deadline is determined by
 	// the transport protocol (e.g. `grpc-timeout` header). If the deadline is
@@ -363,7 +400,12 @@ type ContainerServiceServer interface {
 	//   - Common failures (SECTION_FAILURE_COMMON);
 	//   - **CONTAINER_AWAIT_TIMEOUT** (3075, SECTION_CONTAINER): \
 	//     transaction was sent but not executed within the deadline.
+	//
+	// DEPRECATED: since v2.29, RemoveAttributeV2 should be used.
 	RemoveAttribute(context.Context, *RemoveAttributeRequest) (*RemoveAttributeResponse, error)
+	// V2 version of RemoveAttribute following generic request/response structures
+	// within NeoFS.
+	RemoveAttributeV2(context.Context, *RemoveAttributeV2Request) (*RemoveAttributeV2Response, error)
 }
 
 // UnimplementedContainerServiceServer should be embedded to have
@@ -397,8 +439,14 @@ func (UnimplementedContainerServiceServer) AnnounceUsedSpace(context.Context, *A
 func (UnimplementedContainerServiceServer) SetAttribute(context.Context, *SetAttributeRequest) (*SetAttributeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetAttribute not implemented")
 }
+func (UnimplementedContainerServiceServer) SetAttributeV2(context.Context, *SetAttributeV2Request) (*SetAttributeV2Response, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetAttributeV2 not implemented")
+}
 func (UnimplementedContainerServiceServer) RemoveAttribute(context.Context, *RemoveAttributeRequest) (*RemoveAttributeResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveAttribute not implemented")
+}
+func (UnimplementedContainerServiceServer) RemoveAttributeV2(context.Context, *RemoveAttributeV2Request) (*RemoveAttributeV2Response, error) {
+	return nil, status.Error(codes.Unimplemented, "method RemoveAttributeV2 not implemented")
 }
 func (UnimplementedContainerServiceServer) testEmbeddedByValue() {}
 
@@ -564,6 +612,24 @@ func _ContainerService_SetAttribute_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ContainerService_SetAttributeV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetAttributeV2Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).SetAttributeV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_SetAttributeV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).SetAttributeV2(ctx, req.(*SetAttributeV2Request))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ContainerService_RemoveAttribute_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RemoveAttributeRequest)
 	if err := dec(in); err != nil {
@@ -578,6 +644,24 @@ func _ContainerService_RemoveAttribute_Handler(srv interface{}, ctx context.Cont
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(ContainerServiceServer).RemoveAttribute(ctx, req.(*RemoveAttributeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ContainerService_RemoveAttributeV2_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveAttributeV2Request)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ContainerServiceServer).RemoveAttributeV2(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ContainerService_RemoveAttributeV2_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ContainerServiceServer).RemoveAttributeV2(ctx, req.(*RemoveAttributeV2Request))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -622,8 +706,16 @@ var ContainerService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _ContainerService_SetAttribute_Handler,
 		},
 		{
+			MethodName: "SetAttributeV2",
+			Handler:    _ContainerService_SetAttributeV2_Handler,
+		},
+		{
 			MethodName: "RemoveAttribute",
 			Handler:    _ContainerService_RemoveAttribute_Handler,
+		},
+		{
+			MethodName: "RemoveAttributeV2",
+			Handler:    _ContainerService_RemoveAttributeV2_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
