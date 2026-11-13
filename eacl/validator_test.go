@@ -137,6 +137,102 @@ func TestFilterMatch(t *testing.T) {
 	})
 }
 
+func TestUnavailableObjectFilters(t *testing.T) {
+	v := NewValidator()
+	targets := []Target{NewTargetByRole(RoleOthers)}
+	hs := headers{obj: makeHeaders(
+		FilterObjectContainerID, "container",
+		FilterObjectID, "object",
+		FilterObjectOwnerID, "owner",
+		FilterObjectPayloadSize, "10",
+		"classified", "secret",
+	)}
+	for _, op := range []Operation{
+		OperationSearch, OperationDelete,
+		OperationGet, OperationHead, OperationPut, OperationRange, OperationRangeHash,
+	} {
+		t.Run(op.String(), func(t *testing.T) {
+			for _, tc := range []struct {
+				name        string
+				filters     []Filter
+				unavailable bool
+			}{
+				{
+					name:        "absent object attribute",
+					filters:     []Filter{NewObjectPropertyFilter("missing", MatchNotPresent, "")},
+					unavailable: true,
+				},
+				{
+					name:        "supplied object attribute",
+					filters:     []Filter{NewObjectPropertyFilter("classified", MatchStringEqual, "secret")},
+					unavailable: true,
+				},
+				{
+					name:        "object header field",
+					filters:     []Filter{NewObjectPropertyFilter(FilterObjectOwnerID, MatchStringEqual, "owner")},
+					unavailable: true,
+				},
+				{
+					name:        "numeric object header field",
+					filters:     []Filter{NewObjectPropertyFilter(FilterObjectPayloadSize, MatchNumGT, "9")},
+					unavailable: true,
+				},
+				{
+					name: "whole rule is inapplicable",
+					filters: []Filter{
+						NewObjectPropertyFilter(FilterObjectContainerID, MatchStringEqual, "container"),
+						NewObjectPropertyFilter("missing", MatchNotPresent, ""),
+					},
+					unavailable: true,
+				},
+				{
+					name:    "container ID",
+					filters: []Filter{NewObjectPropertyFilter(FilterObjectContainerID, MatchStringEqual, "container")},
+				},
+				{
+					name:    "object ID",
+					filters: []Filter{NewObjectPropertyFilter(FilterObjectID, MatchStringEqual, "object")},
+				},
+				{
+					name:    "absent request header",
+					filters: []Filter{NewRequestHeaderFilter("missing", MatchNotPresent, "")},
+				},
+			} {
+				t.Run(tc.name, func(t *testing.T) {
+					for _, action := range []Action{ActionAllow, ActionDeny} {
+						t.Run(action.String(), func(t *testing.T) {
+							fallback := ActionAllow
+							if action == ActionAllow {
+								fallback = ActionDeny
+							}
+							table := ConstructTable([]Record{
+								ConstructRecord(action, op, targets, tc.filters...),
+								ConstructRecord(fallback, op, targets),
+							})
+							var original Table
+							table.CopyTo(&original)
+							unit := newValidationUnit(RoleOthers, nil, &table).
+								WithOperation(op).WithHeaderSource(hs)
+							expected := action
+							if tc.unavailable && (op == OperationSearch || op == OperationDelete) {
+								expected = fallback
+							}
+							checkAction(t, expected, v, unit)
+							require.Equal(t, original, table, "validation must not mutate the table")
+							if tc.unavailable && (op == OperationSearch || op == OperationDelete) {
+								// Inapplicable rules do not need a header source.
+								checkAction(t, fallback, v, unit.WithHeaderSource(nil))
+								singleRule := ConstructTable([]Record{table.Records()[0]})
+								checkDefaultAction(t, v, unit.WithEACLTable(&singleRule))
+							}
+						})
+					}
+				})
+			}
+		})
+	}
+}
+
 func TestOperationMatch(t *testing.T) {
 	tgt := Target{}
 	tgt.SetRole(RoleOthers)

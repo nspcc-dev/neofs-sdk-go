@@ -29,9 +29,13 @@ func NewValidator() *Validator {
 // can't be processed because of missing headers [ActionAllow] is returned and
 // the second return value is false.
 //
+// Search and Delete skip rules requiring object fields other than container
+// and object IDs.
+//
 // Note that if some rule imposes requirements on the format of values (like
 // numeric), but they do not comply with it - such a rule does not match.
 func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool, error) {
+nextRecord:
 	for _, record := range unit.table.Records() {
 		// check type of operation
 		if record.Operation() != unit.op {
@@ -41,6 +45,16 @@ func (v *Validator) CalculateAction(unit *ValidationUnit) (Action, bool, error) 
 		// check target
 		if !targetMatches(unit, &record) {
 			continue
+		}
+
+		if unit.op == OperationSearch || unit.op == OperationDelete {
+			// Unavailable attributes must not match NOT_PRESENT.
+			for _, f := range record.Filters() {
+				if f.From() == HeaderFromObject &&
+					f.Key() != FilterObjectContainerID && f.Key() != FilterObjectID {
+					continue nextRecord
+				}
+			}
 		}
 
 		// check headers
