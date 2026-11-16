@@ -2,6 +2,7 @@ package eacl
 
 import (
 	"bytes"
+	"errors"
 	"math/big"
 )
 
@@ -80,82 +81,67 @@ func matchFilters(hdrSrc TypedHeaderSource, filters []Filter) (int, error) {
 	matched := 0
 	var nv, nf big.Int
 
-nextFilter:
 	for _, filter := range filters {
-		headers, ok, err := hdrSrc.HeadersOfType(filter.From())
+		value, err := hdrSrc.HeaderValue(filter.From(), filter.Key())
 		if err != nil {
+			if errors.Is(err, ErrHeaderUnavailable) {
+				return -1, nil
+			}
 			return 0, err
-		}
-		if !ok {
-			return -1, nil
 		}
 
 		m := filter.Matcher()
-		if m == MatchNumGT || m == MatchNumGE || m == MatchNumLT || m == MatchNumLE {
-			if _, ok = nf.SetString(filter.Value(), 10); !ok {
-				continue
-			}
-		}
-
-		// get headers of filtering type
-		for _, header := range headers {
-			// prevent NPE
-			if header == nil {
-				continue
-			}
-
-			// check header name
-			if header.Key() != filter.Key() {
-				continue
-			}
-
-			// check match
-			switch m {
-			default:
-				continue
-			case MatchNotPresent:
-				continue nextFilter
-			case MatchStringEqual:
-				if header.Value() != filter.Value() {
-					continue
-				}
-			case MatchStringNotEqual:
-				if header.Value() == filter.Value() {
-					continue
-				}
-			case MatchNumGT, MatchNumGE, MatchNumLT, MatchNumLE:
-				// TODO: big math simplifies coding but almost always not efficient
-				//  enough, try to optimize
-				if _, ok = nv.SetString(header.Value(), 10); !ok {
-					continue
-				}
-				switch nv.Cmp(&nf) {
-				default:
-					continue // should never happen but just in case
-				case -1:
-					if m == MatchNumGT || m == MatchNumGE {
-						continue
-					}
-				case 0:
-					if m == MatchNumGT || m == MatchNumLT {
-						continue
-					}
-				case 1:
-					if m == MatchNumLT || m == MatchNumLE {
-						continue
-					}
-				}
-			}
-
-			// increment match counter
-			matched++
-
-			break
-		}
-
 		if m == MatchNotPresent {
-			matched++
+			if value == nil {
+				matched++
+			}
+			continue
 		}
+		if value == nil {
+			continue
+		}
+		if m == MatchNumGT || m == MatchNumGE || m == MatchNumLT || m == MatchNumLE {
+			if _, ok := nf.SetString(filter.Value(), 10); !ok {
+				continue
+			}
+		}
+
+		switch m {
+		default:
+			continue
+		case MatchStringEqual:
+			if string(value) != filter.Value() {
+				continue
+			}
+		case MatchStringNotEqual:
+			if string(value) == filter.Value() {
+				continue
+			}
+		case MatchNumGT, MatchNumGE, MatchNumLT, MatchNumLE:
+			// TODO: big math simplifies coding but almost always not efficient
+			//  enough, try to optimize
+			if _, ok := nv.SetString(string(value), 10); !ok {
+				continue
+			}
+			switch nv.Cmp(&nf) {
+			default:
+				continue // should never happen but just in case
+			case -1:
+				if m == MatchNumGT || m == MatchNumGE {
+					continue
+				}
+			case 0:
+				if m == MatchNumGT || m == MatchNumLT {
+					continue
+				}
+			case 1:
+				if m == MatchNumLT || m == MatchNumLE {
+					continue
+				}
+			}
+		}
+
+		matched++
 	}
 
 	return len(filters) - matched, nil

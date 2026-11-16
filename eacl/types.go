@@ -1,6 +1,8 @@
 package eacl
 
 import (
+	"errors"
+
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
@@ -11,15 +13,17 @@ type Header interface {
 	Value() string
 }
 
-// TypedHeaderSource is the interface that wraps
-// method for selecting typed headers by type.
+// ErrHeaderUnavailable indicates that headers of the requested type cannot be
+// obtained. The validator reports a non-final action in this case.
+var ErrHeaderUnavailable = errors.New("header unavailable")
+
+// TypedHeaderSource provides a single value for each header type and key.
 type TypedHeaderSource interface {
-	// HeadersOfType returns the list of key-value headers
-	// of particular type.
-	//
-	// It returns any problem encountered through the boolean
-	// false value.
-	HeadersOfType(FilterHeaderType) ([]Header, bool, error)
+	// HeaderValue returns nil if the key is absent. A non-nil empty slice is a
+	// present empty value. If headers of the requested type cannot be obtained,
+	// it returns [ErrHeaderUnavailable] instead of reporting an absent key.
+	// Returned bytes must remain valid until the next call to HeaderValue.
+	HeaderValue(FilterHeaderType, string) ([]byte, error)
 }
 
 // ValidationUnit represents unit of check for Validator.

@@ -2,6 +2,8 @@ package eacl
 
 import (
 	"bytes"
+	"errors"
+	"fmt"
 	"slices"
 	"testing"
 
@@ -442,15 +444,28 @@ func makeHeaders(kv ...string) []Header {
 	return hs
 }
 
-func (h headers) HeadersOfType(ht FilterHeaderType) ([]Header, bool, error) {
+func (h headers) HeaderValue(ht FilterHeaderType, key string) ([]byte, error) {
+	var hs []Header
 	switch ht {
 	case HeaderFromRequest:
-		return h.req, true, nil
+		hs = h.req
 	case HeaderFromObject:
-		return h.obj, true, nil
+		hs = h.obj
 	default:
-		return nil, true, nil
+		return nil, nil
 	}
+	for _, header := range hs {
+		if header != nil && header.Key() == key {
+			return []byte(header.Value()), nil
+		}
+	}
+	return nil, nil
+}
+
+type testHeaderSource func(FilterHeaderType, string) ([]byte, error)
+
+func (f testHeaderSource) HeaderValue(typ FilterHeaderType, key string) ([]byte, error) {
+	return f(typ, key)
 }
 
 func newRecord(a Action, op Operation, tgt ...Target) Record {
@@ -553,6 +568,134 @@ func TestNumericRules(t *testing.T) {
 			require.Zero(t, v, tc)
 		} else {
 			require.Positive(t, v, tc)
+		}
+	}
+}
+
+func TestHeaderValueMatch(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		matcher  Match
+		expected string
+		value    []byte
+		matches  bool
+	}{
+		{name: "equal", matcher: MatchStringEqual, expected: "secret", value: []byte("secret"), matches: true},
+		{name: "unequal", matcher: MatchStringEqual, expected: "secret", value: []byte("public")},
+		{name: "empty value", matcher: MatchStringEqual, value: []byte{}, matches: true},
+		{name: "missing value", matcher: MatchStringEqual},
+		{name: "not equal", matcher: MatchStringNotEqual, expected: "secret", value: []byte("public"), matches: true},
+		{name: "not equal missing value", matcher: MatchStringNotEqual, expected: "secret"},
+		{name: "absent", matcher: MatchNotPresent, matches: true},
+		{name: "present empty", matcher: MatchNotPresent, value: []byte{}},
+		{name: "present", matcher: MatchNotPresent, value: []byte("secret")},
+		{name: "unknown matcher", matcher: Match(255), value: []byte("secret")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			source := testHeaderSource(func(typ FilterHeaderType, key string) ([]byte, error) {
+				require.Equal(t, HeaderFromObject, typ)
+				require.Equal(t, "classified", key)
+				return tc.value, nil
+			})
+			table := ConstructTable([]Record{ConstructRecord(ActionDeny, OperationGet,
+				[]Target{NewTargetByRole(RoleOthers)}, NewObjectPropertyFilter("classified", tc.matcher, tc.expected))})
+			unit := newValidationUnit(RoleOthers, nil, &table).WithOperation(OperationGet).WithHeaderSource(source)
+			expected := ActionAllow
+			if tc.matches {
+				expected = ActionDeny
+			}
+			checkAction(t, expected, NewValidator(), unit)
+		})
+	}
+}
+
+func TestTypedHeaderSourceValidation(t *testing.T) {
+	targets := []Target{NewTargetByRole(RoleOthers)}
+	deny := ConstructRecord(ActionDeny, OperationGet, targets,
+		NewObjectPropertyFilter("classified", MatchStringEqual, "secret"))
+	newUnit := func(records ...Record) *ValidationUnit {
+		table := ConstructTable(records)
+		return newValidationUnit(RoleOthers, nil, &table).WithOperation(OperationGet)
+	}
+	validator := NewValidator()
+	unreadable := testHeaderSource(func(FilterHeaderType, string) ([]byte, error) {
+		return nil, errors.New("unexpected header lookup")
+	})
+
+	t.Run("first matching record wins", func(t *testing.T) {
+		allow := ConstructRecord(ActionAllow, OperationGet, targets)
+		checkAction(t, ActionAllow, validator, newUnit(allow, deny).WithHeaderSource(unreadable))
+	})
+	t.Run("operation and target checked first", func(t *testing.T) {
+		otherOp := deny
+		otherOp.SetOperation(OperationPut)
+		otherTarget := deny
+		otherTarget.SetTargets(NewTargetByRole(RoleUser))
+		checkDefaultAction(t, validator, newUnit(otherOp, otherTarget).WithHeaderSource(unreadable))
+	})
+	t.Run("mismatch does not hide later unavailable headers", func(t *testing.T) {
+		rule := ConstructRecord(ActionDeny, OperationGet, targets,
+			NewObjectPropertyFilter("classified", MatchStringEqual, "secret"),
+			NewRequestHeaderFilter("probe", MatchStringEqual, "yes"))
+		source := testHeaderSource(func(typ FilterHeaderType, _ string) ([]byte, error) {
+			if typ == HeaderFromRequest {
+				return nil, ErrHeaderUnavailable
+			}
+			return nil, nil
+		})
+		action, final, err := validator.CalculateAction(newUnit(rule).WithHeaderSource(source))
+		require.NoError(t, err)
+		require.Equal(t, ActionAllow, action)
+		require.False(t, final)
+	})
+	t.Run("unfiltered rules do not allocate", func(t *testing.T) {
+		unit := newUnit(ConstructRecord(ActionAllow, OperationGet, targets))
+		allocs := testing.AllocsPerRun(100, func() {
+			checkAction(t, ActionAllow, validator, unit)
+		})
+		require.Zero(t, allocs)
+	})
+	t.Run("string matching does not allocate", func(t *testing.T) {
+		value := []byte("secret")
+		source := testHeaderSource(func(FilterHeaderType, string) ([]byte, error) { return value, nil })
+		for _, count := range []int{1, 20} {
+			filters := make([]Filter, count)
+			for i := range filters {
+				filters[i] = NewObjectPropertyFilter("classified", MatchStringEqual, "secret")
+			}
+			unit := newUnit(ConstructRecord(ActionDeny, OperationGet, targets, filters...)).WithHeaderSource(source)
+			allocs := testing.AllocsPerRun(100, func() {
+				checkAction(t, ActionDeny, validator, unit)
+			})
+			require.Zero(t, allocs)
+		}
+	})
+}
+
+func TestTypedHeaderSourceErrors(t *testing.T) {
+	errSource := errors.New("invalid header")
+	for _, tc := range []struct {
+		name   string
+		err    error
+		action Action
+		want   error
+	}{
+		{"unavailable", ErrHeaderUnavailable, ActionAllow, nil},
+		{"wrapped unavailable", fmt.Errorf("lookup: %w", ErrHeaderUnavailable), ActionAllow, nil},
+		{"invalid", errSource, ActionDeny, errSource},
+		{"wrapped invalid", fmt.Errorf("lookup: %w", errSource), ActionDeny, errSource},
+	} {
+		for _, matcher := range []Match{MatchStringEqual, MatchNotPresent, MatchNumGT, Match(255)} {
+			t.Run(fmt.Sprintf("%s/%s", tc.name, matcher), func(t *testing.T) {
+				source := testHeaderSource(func(FilterHeaderType, string) ([]byte, error) { return nil, tc.err })
+				table := ConstructTable([]Record{ConstructRecord(ActionDeny, OperationGet,
+					[]Target{NewTargetByRole(RoleOthers)}, NewObjectPropertyFilter("classified", matcher, "invalid"))})
+				unit := newValidationUnit(RoleOthers, nil, &table).WithOperation(OperationGet).WithHeaderSource(source)
+				action, final, err := NewValidator().CalculateAction(unit)
+				require.ErrorIs(t, err, tc.want)
+				require.Equal(t, tc.action, action)
+				require.False(t, final)
+			})
 		}
 	}
 }
