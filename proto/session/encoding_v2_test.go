@@ -132,6 +132,7 @@ func TestSessionTokenV2_Body_MarshalStable(t *testing.T) {
 
 	prototest.TestMarshalStable(t, []*session.SessionTokenV2_Body{
 		prototest.RandSessionTokenV2Body(),
+		{Final: true, OriginHash: prototest.RandBytes()},
 		{
 			Version:  1,
 			Appdata:  prototest.RandBytes(),
@@ -202,6 +203,7 @@ func TestSessionContextV2_MarshaledSize(t *testing.T) {
 
 func TestSessionTokenV2_Body_MarshaledSize(t *testing.T) {
 	tests := []*session.SessionTokenV2_Body{
+		{Final: true, OriginHash: prototest.RandBytes()},
 		nil,
 		{},
 		prototest.RandSessionTokenV2Body(),

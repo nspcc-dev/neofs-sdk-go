@@ -37,6 +37,7 @@ var (
 		245, 67, 148, 205, 119, 58, 223, 219, 209, 220, 113, 215, 134, 228, 101, 249, 34, 218}
 	anyValidSignatureBytes = []byte("any_signature") // valid structurally, not logically
 	anyValidSignature      = neofscrypto.NewSignatureFromRawKey(anyValidSignatureScheme, anyValidIssuerPublicKeyBytes, anyValidSignatureBytes)
+	anyValidOriginHash     = []byte{29, 51, 93, 182, 171, 89, 180, 221, 52, 249, 160, 121, 193, 64, 140, 221, 132, 189, 225, 216, 39, 20, 92, 169, 253, 173, 143, 122, 19, 254, 144, 229}
 )
 
 var validProto = func() *protosession.SessionTokenV2 {
@@ -59,7 +60,8 @@ var validProto = func() *protosession.SessionTokenV2 {
 					Verbs:     []protosession.Verb{anyValidObjectVerb},
 				},
 			},
-			Final: true,
+			Final:      true,
+			OriginHash: anyValidOriginHash,
 		},
 		Origin: &protosession.SessionTokenV2{
 			Body: &protosession.SessionTokenV2_Body{
@@ -238,12 +240,12 @@ var validToken = func() session.Token {
 
 // validBinToken is the binary encoding of validToken.
 // This should match the output of validToken.Marshal().
-var validBinToken = []byte{10, 161, 1, 8, 2, 18, 11, 97, 110, 121, 95, 97, 112, 112, 100, 97, 116, 97, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165,
+var validBinToken = []byte{10, 195, 1, 8, 2, 18, 11, 97, 110, 121, 95, 97, 112, 112, 100, 97, 116, 97, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165,
 	28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92, 34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238,
 	215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192, 4, 50, 39, 10, 34, 10, 32, 243, 245, 75, 198, 48, 107, 141, 121, 255, 49,
 	51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18, 1, 8, 50, 39, 10, 34, 10, 32, 243,
 	245, 75, 198, 48, 107, 141, 121, 255, 49, 51, 168, 21, 254, 62, 66, 6, 147, 43, 35, 99, 242, 163, 20, 26, 30, 147, 240, 79, 114, 252, 227, 18,
-	1, 1, 56, 1, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209,
+	1, 1, 56, 1, 66, 32, 29, 51, 93, 182, 171, 89, 180, 221, 52, 249, 160, 121, 193, 64, 140, 221, 132, 189, 225, 216, 39, 20, 92, 169, 253, 173, 143, 122, 19, 254, 144, 229, 18, 56, 10, 33, 3, 202, 217, 142, 98, 209, 190, 188, 145, 123, 174, 21, 173, 239, 239, 245, 67, 148, 205, 119, 58, 223, 219, 209,
 	220, 113, 215, 134, 228, 101, 249, 34, 218, 18, 13, 97, 110, 121, 95, 115, 105, 103, 110, 97, 116, 117, 114, 101, 24, 236, 236, 175, 192, 4, 26, 163,
 	1, 10, 103, 26, 27, 10, 25, 53, 51, 5, 166, 111, 29, 20, 101, 192, 165, 28, 167, 57, 160, 82, 80, 41, 203, 20, 254, 30, 138, 195, 17, 92,
 	34, 11, 18, 9, 97, 108, 105, 99, 101, 46, 110, 101, 111, 42, 18, 8, 238, 215, 164, 15, 16, 183, 189, 151, 204, 221, 2, 24, 190, 132, 217, 192,
@@ -261,9 +263,9 @@ var validJSONToken = `
 "subjects":[{"nnsName":"alice.neo"}], 
 "lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, 
 "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["CONTAINER_PUT"]}, {"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}],
-"final":true},"signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532},
+"final":true,"origin_hash":"HTNdtqtZtN00+aB5wUCM3YS94dgnFFyp/a2PehP+kOU="},"signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532},
 "origin":{"body":{"version":0, "appdata":"", "issuer":{"value":"NTMFpm8dFGXApRynOaBSUCnLFP4eisMRXA=="}, "subjects":[{"nnsName":"alice.neo"}], 
-"lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}], "final":false}, 
+"lifetime":{"exp":"32058350", "nbf":"93843742391", "iat":"1209418302"}, "contexts":[{"container":{"value":"8/VLxjBrjXn/MTOoFf4+QgaTKyNj8qMUGh6T8E9y/OM="}, "verbs":["OBJECT_PUT"]}], "final":false,"origin_hash":""},
 "signature":{"key":"A8rZjmLRvryRe64Vre/v9UOUzXc639vR3HHXhuRl+SLa", "signature":"YW55X3NpZ25hdHVyZQ==", "scheme":1208743532}, "origin":null}}
 `
 

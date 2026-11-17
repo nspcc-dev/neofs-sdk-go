@@ -2,6 +2,7 @@ package session_test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"fmt"
 	"slices"
 	"sort"
@@ -149,6 +150,7 @@ func newValidSignedToken(t *testing.T) session.Token {
 
 func newTokenForDelegation(t *testing.T, issuer user.ID, subject session.Target) session.Token {
 	var tok session.Token
+	tok.SetVersion(session.TokenCurrentVersion)
 	tok.SetIssuer(issuer)
 	require.NoError(t, tok.AddSubject(subject))
 	tok.SetIat(time.Unix(100, 0))
@@ -166,7 +168,7 @@ func TestToken_ValidateFields(t *testing.T) {
 		err  string
 		fn   func(tok *session.Token)
 	}{
-		{"wrong version", "depth 0: invalid fields: invalid token version: expected 0, got 2", func(tok *session.Token) {
+		{"wrong version", "depth 0: invalid fields: invalid token version: expected at most 1, got 2", func(tok *session.Token) {
 			tok.SetVersion(2)
 		}},
 		{"missing issuer", "depth 0: invalid fields: issuer is not set", func(tok *session.Token) {
@@ -320,6 +322,161 @@ func TestToken_ValidateFields(t *testing.T) {
 
 			err := invalidTok.Validate(noopNNSResolver{})
 			require.ErrorContains(t, err, "too many verbs")
+		})
+	})
+}
+
+func TestToken_OriginHash(t *testing.T) {
+	owner, delegate := usertest.User(), usertest.User()
+	origin := newTokenForDelegation(t, owner.UserID(), session.NewTargetUser(delegate.UserID()))
+	require.NoError(t, origin.Sign(owner))
+	tok := newTokenForDelegation(t, delegate.UserID(), session.NewTargetUser(usertest.ID()))
+	tok.SetVersion(1)
+	tok.SetOrigin(&origin)
+	require.NoError(t, tok.Sign(delegate))
+
+	t.Run("hash covers complete origin", func(t *testing.T) {
+		expected := sha256.Sum256(origin.Marshal())
+		require.Equal(t, expected[:], tok.ProtoMessage().Body.OriginHash)
+		require.NoError(t, tok.Validate(noopNNSResolver{}))
+	})
+
+	for _, tc := range []struct {
+		name string
+		edit func(*protosession.SessionTokenV2)
+		err  string
+	}{
+		{"swapped origin", func(m *protosession.SessionTokenV2) {
+			otherOwner := usertest.User()
+			other := newTokenForDelegation(t, otherOwner.UserID(), session.NewTargetUser(delegate.UserID()))
+			require.NoError(t, other.Sign(otherOwner))
+			m.Origin = other.ProtoMessage()
+		}, "origin hash mismatch"},
+		{"origin body changed", func(m *protosession.SessionTokenV2) {
+			m.Origin.Body.Appdata = []byte("changed")
+		}, "origin hash mismatch"},
+		{"origin signature changed", func(m *protosession.SessionTokenV2) {
+			m.Origin.Signature.Sign = []byte("changed")
+		}, "origin hash mismatch"},
+		{"missing hash", func(m *protosession.SessionTokenV2) { m.Body.OriginHash = nil }, "origin hash must contain 32 bytes"},
+		{"short hash", func(m *protosession.SessionTokenV2) { m.Body.OriginHash = make([]byte, 31) }, "origin hash must contain 32 bytes"},
+		{"long hash", func(m *protosession.SessionTokenV2) { m.Body.OriginHash = make([]byte, 33) }, "origin hash must contain 32 bytes"},
+		{"wrong hash", func(m *protosession.SessionTokenV2) { m.Body.OriginHash = make([]byte, 32) }, "origin hash mismatch"},
+		{"hash without origin", func(m *protosession.SessionTokenV2) { m.Origin = nil }, "origin hash must be empty"},
+		{"legacy chain with hash", func(m *protosession.SessionTokenV2) { m.Body.Version = 0 }, "origin hash must be empty"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			m := tok.ProtoMessage()
+			tc.edit(m)
+			var decoded session.Token
+			require.NoError(t, decoded.FromProtoMessage(m))
+			require.ErrorContains(t, decoded.Validate(noopNNSResolver{}), tc.err)
+			if tc.name == "swapped origin" || tc.name == "origin body changed" || tc.name == "origin signature changed" || tc.name == "hash without origin" {
+				require.True(t, decoded.VerifySignature())
+			} else {
+				require.False(t, decoded.VerifySignature())
+			}
+		})
+	}
+
+	t.Run("standalone tokens", func(t *testing.T) {
+		for _, version := range []uint32{0, 1} {
+			root := newValidToken(t)
+			root.SetVersion(version)
+			require.NoError(t, root.Sign(owner))
+			require.NoError(t, root.Validate(noopNNSResolver{}))
+			require.Empty(t, root.ProtoMessage().Body.OriginHash)
+		}
+	})
+
+	t.Run("round trips", func(t *testing.T) {
+		var decoded session.Token
+		require.NoError(t, decoded.Unmarshal(tok.Marshal()))
+		require.Equal(t, tok, decoded)
+		require.True(t, decoded.VerifySignature())
+		require.NoError(t, decoded.Validate(noopNNSResolver{}))
+		data, err := tok.MarshalJSON()
+		require.NoError(t, err)
+		require.NoError(t, decoded.UnmarshalJSON(data))
+		require.Equal(t, tok, decoded)
+		var body session.Token
+		require.NoError(t, body.UnmarshalSignedData(tok.SignedData()))
+		require.Equal(t, tok.SignedData(), body.SignedData())
+	})
+
+	t.Run("copy and clear", func(t *testing.T) {
+		var copied session.Token
+		tok.CopyTo(&copied)
+		require.Equal(t, tok, copied)
+		require.NoError(t, copied.Validate(noopNNSResolver{}))
+		copied.ProtoMessage().Body.OriginHash[0] ^= 0xff
+		require.True(t, tok.VerifySignature())
+		copied.SetOrigin(nil)
+		require.Empty(t, copied.ProtoMessage().Body.OriginHash)
+		require.NoError(t, copied.Sign(delegate))
+		require.NoError(t, copied.Validate(noopNNSResolver{}))
+		// Decoding a root into a previously chained token must clear the chain.
+		require.NoError(t, copied.FromProtoMessage(origin.ProtoMessage()))
+		require.Empty(t, copied.Origin())
+		require.Empty(t, copied.ProtoMessage().Body.OriginHash)
+	})
+
+	t.Run("legacy root in version 1 chain", func(t *testing.T) {
+		root := origin
+		root.SetVersion(0)
+		require.NoError(t, root.Sign(owner))
+		child := tok
+		child.SetOrigin(&root)
+		require.NoError(t, child.Sign(delegate))
+		require.NoError(t, child.Validate(noopNNSResolver{}))
+	})
+
+	t.Run("legacy chains remain accepted", func(t *testing.T) {
+		root := origin
+		root.SetVersion(0)
+		require.NoError(t, root.Sign(owner))
+		m := tok.ProtoMessage()
+		m.Body.Version = 0
+		m.Body.OriginHash = nil
+		m.Origin = root.ProtoMessage()
+		var legacy session.Token
+		require.NoError(t, legacy.FromProtoMessage(m))
+		require.NoError(t, legacy.SetSubjects([]session.Target{session.NewTargetUser(delegate.UserID())}))
+		require.NoError(t, legacy.Sign(delegate))
+		require.NoError(t, legacy.Validate(noopNNSResolver{}))
+		var decoded session.Token
+		require.NoError(t, decoded.Unmarshal(legacy.Marshal()))
+		require.Equal(t, legacy.Marshal(), decoded.Marshal())
+		require.True(t, decoded.VerifySignature())
+		require.NoError(t, decoded.Validate(noopNNSResolver{}))
+
+		t.Run("nested in version 1", func(t *testing.T) {
+			child := newTokenForDelegation(t, delegate.UserID(), session.NewTargetUser(usertest.ID()))
+			child.SetOrigin(&legacy)
+			require.NoError(t, child.Sign(delegate))
+			require.NoError(t, child.Validate(noopNNSResolver{}))
+
+			// The v1 parent binds the entire legacy chain, including its origin.
+			otherOwner := usertest.User()
+			otherRoot := root
+			require.NoError(t, otherRoot.Sign(otherOwner))
+			m := child.ProtoMessage()
+			m.Origin.Origin = otherRoot.ProtoMessage()
+			var swapped session.Token
+			require.NoError(t, swapped.FromProtoMessage(m))
+			require.True(t, swapped.VerifySignature())
+			require.ErrorContains(t, swapped.Validate(noopNNSResolver{}), "origin hash mismatch")
+		})
+
+		t.Run("origin remains unbound in version 0", func(t *testing.T) {
+			otherRoot := root
+			require.NoError(t, otherRoot.Sign(usertest.User()))
+			m := legacy.ProtoMessage()
+			m.Origin = otherRoot.ProtoMessage()
+			var swapped session.Token
+			require.NoError(t, swapped.FromProtoMessage(m))
+			require.True(t, swapped.VerifySignature())
+			require.NoError(t, swapped.Validate(noopNNSResolver{}))
 		})
 	})
 }
