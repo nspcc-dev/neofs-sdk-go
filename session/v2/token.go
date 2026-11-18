@@ -2,6 +2,7 @@ package session
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"slices"
@@ -15,7 +16,7 @@ import (
 )
 
 // TokenCurrentVersion is the current [Token] version.
-const TokenCurrentVersion = 0
+const TokenCurrentVersion = 1
 
 // Verb represents all possible operations in NeoFS
 // that can be authorized via session tokens or delegation chains.
@@ -326,7 +327,8 @@ type Token struct {
 	contexts []Context
 	final    bool
 
-	origin *Token
+	origin     *Token
+	originHash []byte
 
 	sigSet bool
 	sig    neofscrypto.Signature
@@ -349,6 +351,7 @@ func (x Token) CopyTo(dst *Token) {
 		}
 	}
 	dst.final = x.final
+	dst.originHash = bytes.Clone(x.originHash)
 	if x.origin != nil {
 		originCopy := new(Token)
 		x.origin.CopyTo(originCopy)
@@ -484,8 +487,17 @@ func (x Token) IsFinal() bool {
 }
 
 // SetOrigin sets the origin token for delegation chain.
-// This creates a link to the token that was delegated to create this token.
+// This creates a link to the token that was delegated to create this token
+// and stores the SHA-256 hash of its complete encoding. The origin must be
+// fully signed before this call and must not be changed afterwards.
+// Use version 1 or later for delegated tokens.
 func (x *Token) SetOrigin(origin *Token) {
+	if origin == nil {
+		x.originHash = nil
+	} else {
+		h := sha256.Sum256(origin.Marshal())
+		x.originHash = h[:]
+	}
 	x.origin = origin
 }
 
@@ -509,6 +521,7 @@ func (x *Token) fromProtoMessage(m *protosession.SessionTokenV2, checkFieldPrese
 	x.version = body.GetVersion()
 	x.appdata = body.GetAppdata()
 	x.final = body.GetFinal()
+	x.originHash = body.GetOriginHash()
 
 	issuer := body.GetIssuer()
 	if issuer != nil {
@@ -568,6 +581,8 @@ func (x *Token) fromProtoMessage(m *protosession.SessionTokenV2, checkFieldPrese
 		if err := x.origin.fromProtoMessage(m.Origin, checkFieldPresence); err != nil {
 			return fmt.Errorf("invalid origin token: %w", err)
 		}
+	} else {
+		x.origin = nil
 	}
 
 	if x.sigSet = m.Signature != nil; x.sigSet {
@@ -583,9 +598,10 @@ func (x *Token) fromProtoMessage(m *protosession.SessionTokenV2, checkFieldPrese
 
 func (x Token) fillBody() *protosession.SessionTokenV2_Body {
 	body := &protosession.SessionTokenV2_Body{
-		Version: x.version,
-		Appdata: x.appdata,
-		Final:   x.final,
+		Version:    x.version,
+		Appdata:    x.appdata,
+		Final:      x.final,
+		OriginHash: x.originHash,
 	}
 
 	if !x.issuer.IsZero() {
@@ -717,6 +733,8 @@ type NNSResolver interface {
 // Validate performs comprehensive validation of the token.
 // It includes field checks, depth checks, delegation chain validation,
 // narrowing of authorized verbs and lifetimes and issuer authorization checks.
+// Version 1 delegated tokens require a matching hash of the complete origin
+// token. Version 0 chains remain temporarily accepted for compatibility without origin binding.
 // The chain is built using recursive origin tokens, with a maximum depth of MaxDelegationDepth.
 // The nnsResolver checks if a user ID is authorized under a given NNS name.
 // nnsResolver must not be nil.
@@ -790,14 +808,29 @@ func (x *Token) validate(depth int, nnsResolver NNSResolver) error {
 		return fmt.Errorf("depth %d: origin token lifetime is outside this token's lifetime", depth)
 	}
 
-	depth++
-	return x.origin.validate(depth, nnsResolver)
+	if err := x.origin.validate(depth+1, nnsResolver); err != nil {
+		return err
+	}
+	if x.version >= 1 {
+		h := sha256.Sum256(x.origin.Marshal())
+		if !bytes.Equal(x.originHash, h[:]) {
+			return fmt.Errorf("depth %d: origin hash mismatch", depth)
+		}
+	}
+	return nil
 }
 
 // validateFields checks individual fields of the token for validity.
 func (x Token) validateFields() error {
-	if x.version != TokenCurrentVersion {
-		return fmt.Errorf("invalid token version: expected %d, got %d", TokenCurrentVersion, x.version)
+	if x.version > TokenCurrentVersion {
+		return fmt.Errorf("invalid token version: expected at most %d, got %d", TokenCurrentVersion, x.version)
+	}
+	if x.version == 0 || x.origin == nil {
+		if len(x.originHash) != 0 {
+			return errors.New("origin hash must be empty for version 0 or without an origin")
+		}
+	} else if len(x.originHash) != sha256.Size {
+		return errors.New("origin hash must contain 32 bytes")
 	}
 
 	if len(x.appdata) > MaxAppDataSize {

@@ -65,7 +65,8 @@ func init() {
 	anyValidObjectToken.AttachSignature(neofscrypto.NewSignatureFromRawKey(1134494890, []byte("session_signer"), []byte("session_signature")))
 
 	_ = anyValidSessionTokenV2.SetAppData([]byte("any_app_data"))
-	anyValidSessionTokenV2.SetVersion(sessionv2.TokenCurrentVersion)
+	// Keep version 0 to cover existing object encodings and IDs.
+	anyValidSessionTokenV2.SetVersion(0)
 	anyValidSessionTokenV2.SetIssuer(anyValidUsers[1])
 	anyValidSessionTokenV2.SetIat(time.Unix(123, 0))
 	anyValidSessionTokenV2.SetNbf(time.Unix(123, 0))
@@ -349,7 +350,8 @@ var validJSONObject = `
       ]
      }
     ],
-    "final": false
+    "final": false,
+    "origin_hash": ""
    },
    "signature": {
     "key": "c2Vzc2lvbl92Ml9zaWduZXI=",
@@ -1078,7 +1080,7 @@ func TestObject_FromProtoMessage(t *testing.T) {
 			},
 			SessionTokenV2: &protosession.SessionTokenV2{
 				Body: &protosession.SessionTokenV2_Body{
-					Version: sessionv2.TokenCurrentVersion,
+					Version: 0,
 					Appdata: []byte("any_app_data"),
 					Issuer:  protoUserIDFromBytes(anyValidUsers[1][:]),
 					Subjects: []*protosession.Target{{
@@ -1447,7 +1449,7 @@ func TestObject_ProtoMessage(t *testing.T) {
 	mht2 := mh.GetSessionTokenV2()
 	mht2b := mht2.GetBody()
 	require.EqualValues(t, []byte("any_app_data"), mht2b.GetAppdata())
-	require.EqualValues(t, sessionv2.TokenCurrentVersion, mht2b.GetVersion())
+	require.EqualValues(t, 0, mht2b.GetVersion())
 	require.Equal(t, anyValidUsers[1][:], mht2b.GetIssuer().GetValue())
 	require.EqualValues(t, 123, mht2b.GetLifetime().GetIat())
 	require.EqualValues(t, 123, mht2b.GetLifetime().GetNbf())

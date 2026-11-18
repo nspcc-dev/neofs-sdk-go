@@ -34,7 +34,8 @@ func TestV2_CopyTo(t *testing.T) {
 				verbs:     []Verb{VerbObjectGet, VerbObjectPut},
 			},
 		},
-		final: false,
+		final:      false,
+		originHash: bytes.Repeat([]byte{1}, 32),
 		origin: &Token{
 			Lifetime: Lifetime{
 				iat: time.Unix(1, 0),
@@ -59,6 +60,15 @@ func TestV2_CopyTo(t *testing.T) {
 		require.Equal(t, data, dst)
 		require.Equal(t, data.Marshal(), dst.Marshal())
 		require.Equal(t, data.issuer, dst.issuer)
+	})
+
+	t.Run("origin hash is independent and overwritten", func(t *testing.T) {
+		var dst Token
+		data.CopyTo(&dst)
+		dst.originHash[0] ^= 0xff
+		require.NotEqual(t, data.originHash, dst.originHash)
+		Token{}.CopyTo(&dst)
+		require.Nil(t, dst.originHash)
 	})
 
 	t.Run("change version", func(t *testing.T) {

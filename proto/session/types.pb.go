@@ -1490,7 +1490,14 @@ type SessionTokenV2_Body struct {
 	Contexts []*SessionContextV2 `protobuf:"bytes,6,rep,name=contexts,proto3" json:"contexts,omitempty"`
 	// final is a flag indicating whether further delegation is allowed.
 	// If set to true, subjects of this token cannot delegate their rights further.
-	Final         bool `protobuf:"varint,7,opt,name=final,proto3" json:"final,omitempty"`
+	Final bool `protobuf:"varint,7,opt,name=final,proto3" json:"final,omitempty"`
+	// SHA-256 hash of the complete origin token (including its body, signature
+	// and nested origin), encoded in Protocol Buffers V3 format with fields in
+	// ascending order by field number recursively.
+	// Binds the signed body to the delegation chain.
+	// For version >= 1 with an origin, must contain exactly 32 bytes and match
+	// the hash of that origin. Must be empty otherwise.
+	OriginHash    []byte `protobuf:"bytes,8,opt,name=origin_hash,proto3" json:"origin_hash,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1572,6 +1579,13 @@ func (x *SessionTokenV2_Body) GetFinal() bool {
 		return x.Final
 	}
 	return false
+}
+
+func (x *SessionTokenV2_Body) GetOriginHash() []byte {
+	if x != nil {
+		return x.OriginHash
+	}
+	return nil
 }
 
 var File_proto_session_types_proto protoreflect.FileDescriptor
@@ -1668,11 +1682,11 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\x03iat\x18\x03 \x01(\x04R\x03iat\"|\n" +
 	"\x10SessionContextV2\x129\n" +
 	"\tcontainer\x18\x01 \x01(\v2\x1b.neo.fs.v2.refs.ContainerIDR\tcontainer\x12-\n" +
-	"\x05verbs\x18\x02 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\xfa\x03\n" +
+	"\x05verbs\x18\x02 \x03(\x0e2\x17.neo.fs.v2.session.VerbR\x05verbs\"\x9c\x04\n" +
 	"\x0eSessionTokenV2\x12:\n" +
 	"\x04body\x18\x01 \x01(\v2&.neo.fs.v2.session.SessionTokenV2.BodyR\x04body\x127\n" +
 	"\tsignature\x18\x02 \x01(\v2\x19.neo.fs.v2.refs.SignatureR\tsignature\x129\n" +
-	"\x06origin\x18\x03 \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x06origin\x1a\xb7\x02\n" +
+	"\x06origin\x18\x03 \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x06origin\x1a\xd9\x02\n" +
 	"\x04Body\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\rR\aversion\x12\x18\n" +
 	"\aappdata\x18\x02 \x01(\fR\aappdata\x12/\n" +
@@ -1680,7 +1694,8 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\bsubjects\x18\x04 \x03(\v2\x19.neo.fs.v2.session.TargetR\bsubjects\x12<\n" +
 	"\blifetime\x18\x05 \x01(\v2 .neo.fs.v2.session.TokenLifetimeR\blifetime\x12?\n" +
 	"\bcontexts\x18\x06 \x03(\v2#.neo.fs.v2.session.SessionContextV2R\bcontexts\x12\x14\n" +
-	"\x05final\x18\a \x01(\bR\x05final*\x96\x02\n" +
+	"\x05final\x18\a \x01(\bR\x05final\x12 \n" +
+	"\vorigin_hash\x18\b \x01(\fR\vorigin_hash*\x96\x02\n" +
 	"\x04Verb\x12\x14\n" +
 	"\x10VERB_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +

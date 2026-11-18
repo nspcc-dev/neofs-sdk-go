@@ -118,6 +118,7 @@ const (
 	FieldSessionTokenV2BodyLifetime
 	FieldSessionTokenV2BodyContexts
 	FieldSessionTokenV2BodyFinal
+	FieldSessionTokenV2BodyOriginHash
 )
 
 // MarshaledSize returns size of the SessionTokenV2_Body in Protocol Buffers V3
@@ -131,7 +132,8 @@ func (x *SessionTokenV2_Body) MarshaledSize() int {
 			protoencoding.SizeRepeatedMessages(FieldSessionTokenV2BodySubjects, x.Subjects) +
 			protoencoding.SizeEmbedded(FieldSessionTokenV2BodyLifetime, x.Lifetime) +
 			protoencoding.SizeRepeatedMessages(FieldSessionTokenV2BodyContexts, x.Contexts) +
-			protoencoding.SizeBool(FieldSessionTokenV2BodyFinal, x.Final)
+			protoencoding.SizeBool(FieldSessionTokenV2BodyFinal, x.Final) +
+			protoencoding.SizeBytes(FieldSessionTokenV2BodyOriginHash, x.OriginHash)
 	}
 	return sz
 }
@@ -148,7 +150,8 @@ func (x *SessionTokenV2_Body) MarshalStable(b []byte) {
 		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldSessionTokenV2BodySubjects, x.Subjects)
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldSessionTokenV2BodyLifetime, x.Lifetime)
 		off += protoencoding.MarshalToRepeatedMessages(b[off:], FieldSessionTokenV2BodyContexts, x.Contexts)
-		protoencoding.MarshalToBool(b[off:], FieldSessionTokenV2BodyFinal, x.Final)
+		off += protoencoding.MarshalToBool(b[off:], FieldSessionTokenV2BodyFinal, x.Final)
+		protoencoding.MarshalToBytes(b[off:], FieldSessionTokenV2BodyOriginHash, x.OriginHash)
 	}
 }
 

@@ -92,13 +92,14 @@ var (
 	}
 	SessionTokenBodyScheme = MessageScheme{
 		Fields: map[protowire.Number]MessageField{
-			protosession.FieldSessionTokenV2BodyVersion:  NewMessageField("version", FieldTypeUint32),
-			protosession.FieldSessionTokenV2BodyAppdata:  NewMessageField("appdata", FieldTypeBytes),
-			protosession.FieldSessionTokenV2BodyIssuer:   NewMessageField("issuer", FieldTypeNestedMessage),
-			protosession.FieldSessionTokenV2BodySubjects: NewMessageField("subject", FieldTypeNestedMessage),
-			protosession.FieldSessionTokenV2BodyLifetime: NewMessageField("lifetime", FieldTypeNestedMessage),
-			protosession.FieldSessionTokenV2BodyContexts: NewMessageField("contexts", FieldTypeNestedMessage),
-			protosession.FieldSessionTokenV2BodyFinal:    NewMessageField("final", FieldTypeBool),
+			protosession.FieldSessionTokenV2BodyVersion:    NewMessageField("version", FieldTypeUint32),
+			protosession.FieldSessionTokenV2BodyAppdata:    NewMessageField("appdata", FieldTypeBytes),
+			protosession.FieldSessionTokenV2BodyIssuer:     NewMessageField("issuer", FieldTypeNestedMessage),
+			protosession.FieldSessionTokenV2BodySubjects:   NewMessageField("subject", FieldTypeNestedMessage),
+			protosession.FieldSessionTokenV2BodyLifetime:   NewMessageField("lifetime", FieldTypeNestedMessage),
+			protosession.FieldSessionTokenV2BodyContexts:   NewMessageField("contexts", FieldTypeNestedMessage),
+			protosession.FieldSessionTokenV2BodyFinal:      NewMessageField("final", FieldTypeBool),
+			protosession.FieldSessionTokenV2BodyOriginHash: NewMessageField("origin_hash", FieldTypeBytes),
 		},
 		NestedMessageFields: map[protowire.Number]MessageScheme{
 			protosession.FieldSessionTokenV2BodyIssuer:   UserIDScheme,
