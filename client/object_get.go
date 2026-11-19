@@ -456,11 +456,6 @@ func (x *PayloadReader) readChunk(buf []byte) (int, bool) {
 			return read, false
 		}
 		chunkLen := chunk.payload.Len()
-		if chunkLen == 0 {
-			// just skip empty chunks since they are not prohibited by protocol
-			chunk.free()
-			continue
-		}
 
 		if x.verifyChecksums {
 			_, _ = chunk.payload.WriteTo(x.payloadHashGot)
@@ -610,6 +605,10 @@ func (x *PayloadReader) parseRawGetResponseBody(body grpcprotobuf.BuffersSlice) 
 			payload, err := body.ParseLENField(num, typ)
 			if err != nil {
 				x.err = err
+				return grpcprotobuf.BuffersSlice{}, false
+			}
+			if payload.IsEmpty() {
+				x.err = errors.New("empty data chunk")
 				return grpcprotobuf.BuffersSlice{}, false
 			}
 			return payload, true
@@ -763,11 +762,6 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 			}
 			return written, err
 		}
-		if chunk.payload.Len() == 0 {
-			chunk.free()
-			continue
-		}
-
 		if x.verifyChecksums {
 			_, _ = chunk.payload.WriteTo(x.payloadHashGot)
 		}
