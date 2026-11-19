@@ -126,11 +126,13 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 	}
 
 	if signer == nil {
-		return cid.ID{}, ErrMissingSigner
+		err = ErrMissingSigner
+		return cid.ID{}, err
 	}
 	sessV1Set, sessV2Set := prm.session != nil, prm.sessionV2 != nil
 	if sessV1Set && sessV2Set {
-		return cid.ID{}, errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return cid.ID{}, err
 	}
 	if prm.eACL != nil {
 		if sessV1Set {
@@ -237,7 +239,8 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 		return res, err
 	}
 
-	return res, statusError
+	err = statusError
+	return res, err
 }
 
 // PrmContainerGet groups optional parameters of ContainerGet operation.
@@ -458,13 +461,16 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 	}
 
 	if signer == nil {
-		return ErrMissingSigner
+		err = ErrMissingSigner
+		return err
 	}
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+		err = fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+		return err
 	}
 	if prm.tok != nil && prm.tokV2 != nil {
-		return errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return err
 	}
 
 	if !prm.sigSet {
@@ -687,10 +693,12 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 	}
 
 	if signer == nil {
-		return ErrMissingSigner
+		err = ErrMissingSigner
+		return err
 	}
 	if prm.session != nil && prm.sessionV2 != nil {
-		return errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return err
 	}
 
 	if table.GetCID().IsZero() {
@@ -698,20 +706,24 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 		return err
 	}
 	if signer.Scheme() != neofscrypto.ECDSA_DETERMINISTIC_SHA256 {
-		return fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+		err = fmt.Errorf("%w: expected ECDSA_DETERMINISTIC_SHA256 scheme", neofscrypto.ErrIncorrectSigner)
+		return err
 	}
 	var cnrRev uint64
 	if containerRevisionsSupported(c.apiVersion) {
 		if !prm.containerRevisionSet {
-			return errors.New("attaching container revision is required after v2.27.0 API version")
+			err = errors.New("attaching container revision is required after v2.27.0 API version")
+			return err
 		}
 		if prm.containerRevision == 0 {
-			return fmt.Errorf("container revision must be positive, attached: %d", prm.containerRevision)
+			err = fmt.Errorf("container revision must be positive, attached: %d", prm.containerRevision)
+			return err
 		}
 		cnrRev = prm.containerRevision
 	} else {
 		if prm.containerRevisionSet {
-			return unsupportedCnrRevErr(c.apiVersion)
+			err = unsupportedCnrRevErr(c.apiVersion)
+			return err
 		}
 	}
 

@@ -1291,8 +1291,9 @@ func testIncorrectUnaryRPCResponseFormat(t testing.TB, svcName, method string, o
 // performing communication with built test server. All operations must comply
 // with the tested service.
 //
-// If non-stat failure cases are specified, they must include request signature
-// failure caused by the op signer parameter.
+// If opSigner is set, the op signs requests with its signer parameter instead of
+// the [Client] one, and customStatFailures must include request signature
+// failure caused by it.
 func testStatistic[SRV interface {
 	setSleepDuration(time.Duration)
 	setHandlerError(error)
@@ -1301,7 +1302,7 @@ func testStatistic[SRV interface {
 	newSrv func() SRV,
 	newSvc func(t testing.TB, srv any) testService,
 	expMtd stat.Method,
-	customNonStatFailures []testedClientOp,
+	opSigner bool,
 	customStatFailures []testedClientOp,
 	validInputCall testedClientOp,
 ) {
@@ -1337,14 +1338,6 @@ func testStatistic[SRV interface {
 		assertCommon(expMtd, testServerStateOnDial.pub, err)
 	}
 
-	// custom non-stat failures
-	for _, getNonStatErr := range customNonStatFailures {
-		err := getNonStatErr(c)
-		require.Error(t, err)
-		assert(nil)
-		collected = nil
-	}
-
 	// custom stat failures
 	for _, getStatErr := range customStatFailures {
 		err := getStatErr(c)
@@ -1353,7 +1346,7 @@ func testStatistic[SRV interface {
 		collected = nil
 	}
 
-	if len(customNonStatFailures) == 0 {
+	if !opSigner {
 		// sign request failure
 		signerCp := c.prm.signer
 		c.prm.signer = neofscryptotest.FailSigner(c.prm.signer)

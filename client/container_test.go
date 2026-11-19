@@ -1012,11 +1012,11 @@ func TestClient_ContainerPut(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestPutContainerServer, newDefaultContainerService, stat.MethodContainerPut,
+			true,
 			[]testedClientOp{func(c *Client) error {
 				_, err := c.ContainerPut(ctx, anyValidContainer, nil, anyValidOpts)
 				return err
-			}},
-			[]testedClientOp{func(c *Client) error {
+			}, func(c *Client) error {
 				_, err := c.ContainerPut(ctx, anyValidContainer, neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
 				return err
 			}, func(c *Client) error {
@@ -1231,7 +1231,7 @@ func TestClient_ContainerGet(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetContainerServer, newDefaultContainerService, stat.MethodContainerGet,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				_, err := c.ContainerGet(ctx, anyID, anyValidOpts)
 				return err
 			},
@@ -1373,7 +1373,7 @@ func TestClient_ContainerList(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestListContainersServer, newDefaultContainerService, stat.MethodContainerList,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				_, err := c.ContainerList(ctx, anyUser, anyValidOpts)
 				return err
 			},
@@ -1556,9 +1556,9 @@ func TestClient_ContainerDelete(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestDeleteContainerServer, newDefaultContainerService, stat.MethodContainerDelete,
-			[]testedClientOp{func(c *Client) error {
+			true, []testedClientOp{func(c *Client) error {
 				return c.ContainerDelete(ctx, anyID, nil, anyValidOpts)
-			}}, []testedClientOp{func(c *Client) error {
+			}, func(c *Client) error {
 				return c.ContainerDelete(ctx, anyID, neofscryptotest.FailSigner(anyValidSigner), anyValidOpts)
 			}}, func(c *Client) error {
 				return c.ContainerDelete(ctx, anyID, anyValidSigner, anyValidOpts)
@@ -1722,7 +1722,7 @@ func TestClient_ContainerEACL(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetEACLServer, newDefaultContainerService, stat.MethodContainerEACL,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				_, err := c.ContainerEACL(ctx, anyID, anyValidOpts)
 				return err
 			},
@@ -1910,9 +1910,9 @@ func TestClient_ContainerSetEACL(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestSetEACLServer, newDefaultContainerService, stat.MethodContainerSetEACL,
-			[]testedClientOp{func(c *Client) error {
+			true, []testedClientOp{func(c *Client) error {
 				return c.ContainerSetEACL(ctx, anyValidEACL, nil, anyValidOpts)
-			}}, []testedClientOp{func(c *Client) error {
+			}, func(c *Client) error {
 				return c.ContainerSetEACL(ctx, anyValidEACL, usertest.FailSigner(anyValidSigner), anyValidOpts)
 			}}, func(c *Client) error {
 				return c.ContainerSetEACL(ctx, anyValidEACL, anyValidSigner, anyValidOpts)
@@ -2240,7 +2240,7 @@ func TestClient_SetContainerAttribute(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestSetContainerAttributeServer, newDefaultContainerService, stat.MethodContainerSetAttribute,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				return c.SetContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
 			},
 		)
@@ -2350,19 +2350,15 @@ func TestClient_AddContainerAttribute(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestSetContainerAttributeServer, newDefaultContainerService, stat.MethodContainerSetAttribute,
-			[]testedClientOp{
-				// for `AddContainerAttribute` default signer is not acceptable,
-				// explicit one must be used instead, so default `testStatistic`
-				// cannot test it, override its default checks with our own ones
-				func(c *Client) error {
-					c.sendStatistic(stat.MethodContainerSetAttribute, time.Duration(1), nil)
-					return errors.New("[test]: suppressing hardcoded signer tests")
-				},
-			},
+			true,
 			[]testedClientOp{
 				// nil signer
 				func(c *Client) error {
 					return c.AddContainerAttribute(ctx, nil, cnr, attr, val, cnrRev, nil)
+				},
+				// sign request failure
+				func(c *Client) error {
+					return c.AddContainerAttribute(ctx, neofscryptotest.FailSigner(anyValidSigner), cnr, attr, val, cnrRev, nil)
 				},
 				// zero container
 				func(c *Client) error {
@@ -2693,7 +2689,7 @@ func TestClient_RemoveContainerAttribute(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestRemoveContainerAttributeServer, newDefaultContainerService, stat.MethodContainerRemoveAttribute,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				return c.RemoveContainerAttribute(ctx, anyValidPrm, anyValidSignature, anyValidOpts)
 			},
 		)
@@ -2797,19 +2793,15 @@ func TestClient_DeleteContainerAttribute(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestRemoveContainerAttributeServer, newDefaultContainerService, stat.MethodContainerRemoveAttribute,
-			[]testedClientOp{
-				// for `DeleteContainerAttribute` default signer is not acceptable,
-				// explicit one must be used instead, so default `testStatistic`
-				// cannot test it, override its default checks with our own ones
-				func(c *Client) error {
-					c.sendStatistic(stat.MethodContainerRemoveAttribute, time.Duration(1), nil)
-					return errors.New("[test]: suppressing hardcoded signer tests")
-				},
-			},
+			true,
 			[]testedClientOp{
 				// nil signer
 				func(c *Client) error {
 					return c.DeleteContainerAttribute(ctx, nil, cnr, attr, cnrRev, nil)
+				},
+				// sign request failure
+				func(c *Client) error {
+					return c.DeleteContainerAttribute(ctx, neofscryptotest.FailSigner(anyValidSigner), cnr, attr, cnrRev, nil)
 				},
 				// zero container
 				func(c *Client) error {

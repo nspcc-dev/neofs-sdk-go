@@ -341,7 +341,7 @@ func TestClient_AnnounceIntermediateTrust(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestAnnounceIntermediateReputationServer, newDefaultReputationServiceDesc, stat.MethodAnnounceIntermediateTrust,
-			nil, []testedClientOp{func(c *Client) error {
+			false, []testedClientOp{func(c *Client) error {
 				return c.AnnounceIntermediateTrust(ctx, 0, anyValidTrust, anyValidOpts)
 			},
 			}, func(c *Client) error {
@@ -449,7 +449,7 @@ func TestClient_AnnounceLocalTrust(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestAnnounceLocalTrustServer, newDefaultReputationServiceDesc, stat.MethodAnnounceLocalTrust,
-			nil, []testedClientOp{func(c *Client) error {
+			false, []testedClientOp{func(c *Client) error {
 				return c.AnnounceLocalTrust(ctx, 0, anyValidTrusts, anyValidOpts)
 			}, func(c *Client) error {
 				return c.AnnounceLocalTrust(ctx, anyValidEpoch, nil, anyValidOpts)

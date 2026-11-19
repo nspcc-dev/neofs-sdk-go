@@ -516,7 +516,7 @@ func TestClient_EndpointInfo(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetNodeInfoServer, newDefaultNetmapServiceDesc, stat.MethodEndpointInfo,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				_, err := c.EndpointInfo(ctx, anyValidOpts)
 				return err
 			},
@@ -637,7 +637,7 @@ func TestClient_NetMapSnapshot(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestNetmapSnapshotServer, newDefaultNetmapServiceDesc, stat.MethodNetMapSnapshot,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				_, err := c.NetMapSnapshot(ctx, anyValidOpts)
 				return err
 			},
@@ -765,7 +765,7 @@ func TestClient_NetworkInfo(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestNetworkInfoServer, newDefaultNetmapServiceDesc, stat.MethodNetworkInfo,
-			nil, nil, func(c *Client) error {
+			false, nil, func(c *Client) error {
 				_, err := c.NetworkInfo(ctx, anyValidOpts)
 				return err
 			},

@@ -960,10 +960,13 @@ func TestClient_ObjectHead(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestHeadObjectServer, newDefaultObjectService, stat.MethodObjectHead,
-			[]testedClientOp{func(c *Client) error {
+			true, []testedClientOp{func(c *Client) error {
 				_, err := c.ObjectHead(ctx, anyCID, anyOID, nil, anyValidOpts)
 				return err
-			}}, nil, func(c *Client) error {
+			}, func(c *Client) error {
+				_, err := c.ObjectHead(ctx, anyCID, anyOID, usertest.FailSigner(anyValidSigner), anyValidOpts)
+				return err
+			}}, func(c *Client) error {
 				_, err := c.ObjectHead(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 				return err
 			},
@@ -2138,7 +2141,7 @@ func TestClient_ObjectGetInit(t *testing.T) {
 			collected := *cl
 			require.Len(t, *cl, 1)
 			require.Equal(t, stat.MethodObjectGet, collected[0].mtd)
-			require.NoError(t, collected[0].err)
+			require.Equal(t, err, collected[0].err)
 		})
 		t.Run("sign request", func(t *testing.T) {
 			_, c, cl := bind()

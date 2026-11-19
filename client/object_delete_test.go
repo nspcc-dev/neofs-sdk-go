@@ -347,10 +347,13 @@ func TestClient_ObjectDelete(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestDeleteObjectServer, newDefaultObjectService, stat.MethodObjectDelete,
-			[]testedClientOp{func(c *Client) error {
+			true, []testedClientOp{func(c *Client) error {
 				_, err := c.ObjectDelete(ctx, anyCID, anyOID, nil, anyValidOpts)
 				return err
-			}}, nil, func(c *Client) error {
+			}, func(c *Client) error {
+				_, err := c.ObjectDelete(ctx, anyCID, anyOID, usertest.FailSigner(anyValidSigner), anyValidOpts)
+				return err
+			}}, func(c *Client) error {
 				_, err := c.ObjectDelete(ctx, anyCID, anyOID, anyValidSigner, anyValidOpts)
 				return err
 			},

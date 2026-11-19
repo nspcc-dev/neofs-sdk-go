@@ -646,6 +646,7 @@ func TestClient_SearchObjects(t *testing.T) {
 			filters object.SearchFilters
 			attrs   []string
 		}{
+			{cnr: anyCID},
 			{cnr: cid.ID{}, signer: anyValidSigner},
 			{cnr: anyCID, count: 1001, signer: anyValidSigner},
 			{cnr: anyCID, signer: neofscryptotest.FailSigner(anyValidSigner)},
@@ -663,12 +664,7 @@ func TestClient_SearchObjects(t *testing.T) {
 			})
 		}
 
-		testStatistic(t, newTestSearchObjectsV2Server, newDefaultObjectService, stat.MethodObjectSearchV2, []testedClientOp{
-			func(c *Client) error {
-				_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, nil, anyValidOpts)
-				return err
-			},
-		}, statFailures, func(c *Client) error {
+		testStatistic(t, newTestSearchObjectsV2Server, newDefaultObjectService, stat.MethodObjectSearchV2, true, statFailures, func(c *Client) error {
 			_, _, err := c.SearchObjects(ctx, anyCID, anyValidFilters, anyValidAttrs, anyRequestCursor, anyValidSigner, anyValidOpts)
 			return err
 		})

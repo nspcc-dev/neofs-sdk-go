@@ -82,15 +82,18 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 	}
 
 	if signer == nil {
-		return oid.ID{}, ErrMissingSigner
+		err = ErrMissingSigner
+		return oid.ID{}, err
 	}
 	if prm.session != nil && prm.sessionV2 != nil {
-		return oid.ID{}, errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return oid.ID{}, err
 	}
 	var cnrRev uint64
 	if prm.containerRevision != nil {
 		if !containerRevisionsSupported(c.apiVersion) {
-			return oid.ID{}, unsupportedCnrRevErr(c.apiVersion)
+			err = unsupportedCnrRevErr(c.apiVersion)
+			return oid.ID{}, err
 		}
 		cnrRev = *prm.containerRevision
 	}
@@ -160,5 +163,6 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 		return oid.ID{}, err
 	}
 
-	return res, statusError
+	err = statusError
+	return res, err
 }

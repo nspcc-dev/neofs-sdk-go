@@ -117,14 +117,16 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 	var cnrRev uint64
 	if opts.containerRevision != nil {
 		if !containerRevisionsSupported(c.apiVersion) {
-			return nil, "", unsupportedCnrRevErr(c.apiVersion)
+			err = unsupportedCnrRevErr(c.apiVersion)
+			return nil, "", err
 		}
 		cnrRev = *opts.containerRevision
 	}
 
 	switch {
 	case signer == nil:
-		return nil, "", ErrMissingSigner
+		err = ErrMissingSigner
+		return nil, "", err
 	case opts.sessionToken != nil && opts.sessionTokenV2 != nil:
 		err = errSessionTokenBothVersionsSet
 		return nil, "", err
@@ -314,7 +316,8 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 		res[i].Attributes = r.Attributes
 	}
 
-	return res, resp.Body.Cursor, statusError
+	err = statusError
+	return res, resp.Body.Cursor, err
 }
 
 func verifySearchFilter(f object.SearchFilter) error {

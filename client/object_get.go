@@ -834,13 +834,16 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 	}
 
 	if signer == nil {
-		return hdr, nil, ErrMissingSigner
+		err = ErrMissingSigner
+		return hdr, nil, err
 	}
 	if prm.rng != nil && prm.rng.GetLength() == 0 && prm.rng.GetOffset() != 0 {
-		return hdr, nil, ErrZeroRangeLength
+		err = ErrZeroRangeLength
+		return hdr, nil, err
 	}
 	if prm.session != nil && prm.sessionV2 != nil {
-		return hdr, nil, errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return hdr, nil, err
 	}
 	if err = prm.preprocessECPart(c.apiVersion); err != nil {
 		return hdr, nil, err
@@ -1018,10 +1021,12 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 	}
 
 	if signer == nil {
-		return nil, ErrMissingSigner
+		err = ErrMissingSigner
+		return nil, err
 	}
 	if prm.session != nil && prm.sessionV2 != nil {
-		return nil, errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return nil, err
 	}
 	if err = prm.preprocessECPart(c.apiVersion); err != nil {
 		return nil, err
@@ -1142,7 +1147,8 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 		return nil, err
 	case *protoobject.HeadResponse_Body_Header:
 		if v == nil {
-			return nil, errors.New("empty header")
+			err = errors.New("empty header")
+			return nil, err
 		}
 		if v.Header.Header == nil {
 			err = newErrMissingResponseField("header")
@@ -1159,7 +1165,8 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 			Signature: v.Header.Signature,
 			Header:    v.Header.Header,
 		}); err != nil {
-			return nil, fmt.Errorf("invalid header response: %w", err)
+			err = fmt.Errorf("invalid header response: %w", err)
+			return nil, err
 		}
 
 		if prm.ecPartIDSet {

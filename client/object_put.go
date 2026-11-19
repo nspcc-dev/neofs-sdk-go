@@ -681,13 +681,16 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 	}
 
 	if prm.containerRevision != nil && !containerRevisionsSupported(c.apiVersion) {
-		return nil, unsupportedCnrRevErr(c.apiVersion)
+		err = unsupportedCnrRevErr(c.apiVersion)
+		return nil, err
 	}
 	if signer == nil {
-		return nil, ErrMissingSigner
+		err = ErrMissingSigner
+		return nil, err
 	}
 	if prm.session != nil && prm.sessionV2 != nil {
-		return nil, errSessionTokenBothVersionsSet
+		err = errSessionTokenBothVersionsSet
+		return nil, err
 	}
 
 	ctx, cancel := context.WithCancel(ctx)
