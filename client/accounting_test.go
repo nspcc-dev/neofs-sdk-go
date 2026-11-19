@@ -232,7 +232,7 @@ func TestClient_BalanceGet(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestGetBalanceServer, newDefaultAccountingService, stat.MethodBalanceGet,
-			nil,
+			false,
 			[]testedClientOp{func(c *Client) error {
 				_, err := c.BalanceGet(ctx, PrmBalanceGet{})
 				return err

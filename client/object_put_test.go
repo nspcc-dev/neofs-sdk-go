@@ -761,7 +761,7 @@ func TestClient_ObjectPut(t *testing.T) {
 			collected := *cl
 			require.Len(t, collected, 1)
 			require.Equal(t, stat.MethodObjectPut, collected[0].mtd)
-			require.NoError(t, collected[0].err)
+			require.Equal(t, err, collected[0].err)
 		})
 		t.Run("sign heading request failure", func(t *testing.T) {
 			_, c, cl := bind()

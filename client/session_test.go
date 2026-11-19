@@ -254,12 +254,16 @@ func TestClient_SessionCreate(t *testing.T) {
 	})
 	t.Run("exec statistics", func(t *testing.T) {
 		testStatistic(t, newTestCreateSessionInfoServer, newDefaultSessionServiceDesc, stat.MethodSessionCreate,
-			[]testedClientOp{
+			true, []testedClientOp{
 				func(c *Client) error {
 					_, err := c.SessionCreate(ctx, nil, anyValidOpts)
 					return err
 				},
-			}, nil, func(c *Client) error {
+				func(c *Client) error {
+					_, err := c.SessionCreate(ctx, usertest.FailSigner(anyUsr), anyValidOpts)
+					return err
+				},
+			}, func(c *Client) error {
 				_, err := c.SessionCreate(ctx, anyUsr, anyValidOpts)
 				return err
 			},

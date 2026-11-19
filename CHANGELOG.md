@@ -9,6 +9,7 @@ Behaviour changes:
 Improvements:
 
 Bugs fixed:
+ * Missing errors of some failed calls in client operation statistics (#911)
 
 ## [1.0.0-rc.24] - 2026-10-27
 

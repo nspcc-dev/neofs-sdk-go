@@ -80,7 +80,8 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 	}
 
 	if signer == nil {
-		return nil, ErrMissingSigner
+		err = ErrMissingSigner
+		return nil, err
 	}
 
 	req := &protosession.CreateRequest{
