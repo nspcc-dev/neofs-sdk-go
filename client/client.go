@@ -495,6 +495,10 @@ func validUntilIsSupported(v *protorefs.Version) bool {
 	return v != nil && (v.Major == 2 && v.Minor >= 28 || v.Major > 2)
 }
 
+func orderedStream(v *protorefs.Version) bool {
+	return apiVersionGE(v, 2, 29)
+}
+
 func validUntilTime(ctx context.Context, v *protorefs.Version) uint64 {
 	if !validUntilIsSupported(v) {
 		// request must have nothing about validity time, it is the same

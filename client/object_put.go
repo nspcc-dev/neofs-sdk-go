@@ -2,6 +2,8 @@ package client
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -94,6 +96,10 @@ type ObjectWriter interface {
 type DefaultObjectWriter struct {
 	ctx             context.Context
 	cancelCtxStream context.CancelFunc
+
+	// non-zero for API 2.29+
+	streamID    uint64
+	chunkSeqNum uint64
 
 	stream           putObjectStream
 	singleMsgTimeout time.Duration
@@ -204,12 +210,22 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 		x.sessionV2TokenLen = x.sessionV2TokenMsg.MarshaledSize()
 	}
 
+	if orderedStream(x.apiVersion) {
+		for x.streamID == 0 {
+			var b [8]byte
+			_, _ = rand.Read(b[:])
+			x.streamID = binary.LittleEndian.Uint64(b[:])
+		}
+	}
+
 	var cnrRev uint64
 	if x.opts.containerRevision != nil {
 		cnrRev = *x.opts.containerRevision
 	}
 
-	initFldLen := mh.MarshaledSize() + protoencoding.SizeVarint(protoobject.FieldPutRequestBodyInitContainerRevision, cnrRev)
+	initFldLen := mh.MarshaledSize() +
+		protoencoding.SizeVarint(protoobject.FieldPutRequestBodyInitContainerRevision, cnrRev) +
+		protoencoding.SizeVarint(protoobject.FieldPutRequestBodyInitStreamId, x.streamID)
 	bodyLen := protoobject.CalculatePutInitRequestBodyLength(initFldLen)
 
 	ttl := localFlagToTTL(x.opts.local)
@@ -238,6 +254,7 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 	writeInitFldFn := func(buf []byte) int {
 		off := protoencoding.WriteStablyMarshalledMessageFunc(mh)(buf)
 		off += protoencoding.MarshalToVarint(buf[off:], protoobject.FieldPutRequestBodyInitContainerRevision, cnrRev)
+		off += protoencoding.MarshalToVarint(buf[off:], protoobject.FieldPutRequestBodyInitStreamId, x.streamID)
 		return off
 	}
 	off := protoobject.WritePutInitRequestBodyToRequest(buf, bodyLen, initFldLen, writeInitFldFn)
@@ -307,7 +324,10 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		return len(chunk), x.err
 	}
 
-	var writtenBytes int
+	var (
+		writtenBytes int
+		dataChunk    protoobject.PutRequest_Body_ChunkData // API 2.29+
+	)
 
 	for ln := len(chunk); ln > 0; ln = len(chunk) {
 		if ln > maxChunkLen {
@@ -323,7 +343,18 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 		// the allocated buffer is filled, or when the last chunk is received.
 		// It is mentally assumed that allocating and filling the buffer is better than
 		// synchronous sending, but this needs to be tested.
-		bodyLen := protoobject.CalculatePutChunkRequestBodyLength(chunk[:ln])
+		var bodyLen int
+		if x.streamID == 0 {
+			bodyLen = protoobject.CalculatePutChunkRequestBodyLength(chunk[:ln])
+		} else {
+			dataChunk.StreamId = x.streamID
+			dataChunk.Payload = chunk[:ln]
+			dataChunk.SequenceNumber = x.chunkSeqNum
+
+			x.chunkSeqNum++
+
+			bodyLen = protoobject.CalculatePutPayloadChunkRequestBodyLength(dataChunk.MarshaledSize())
+		}
 
 		bodyWithMetaHdrLen := protoencoding.CalculateRequestBodyWithMetaHeaderLength(bodyLen, x.metaHdrLen)
 
@@ -340,8 +371,13 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 			buf = make([]byte, bodyWithMetaHdrLen)
 		}
 
+		var off int
 		// encode body
-		off := protoobject.WritePutChunkRequestBodyToRequest(buf, chunk[:ln])
+		if x.streamID == 0 {
+			off = protoobject.WritePutChunkRequestBodyToRequest(buf, chunk[:ln])
+		} else {
+			off = protoobject.WritePutPayloadChunkRequestBodyToRequest(buf, bodyLen, dataChunk.MarshaledSize(), protoencoding.WriteStablyMarshalledMessageFunc(&dataChunk))
+		}
 
 		bodyTo := off
 
@@ -423,8 +459,13 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 	}
 
 	maxChunkVarlen := protowire.SizeVarint(uint64(maxReadChunkLen))
-	maxBodyVarlen := protowire.SizeVarint(uint64(1 + maxChunkVarlen + maxReadChunkLen)) // 1 for grpcprotobuf.TagBytes1
-	chunkOff := 1 + maxBodyVarlen + 1 + maxChunkVarlen                                  // first 1 for grpcprotobuf.TagBytes1, second for grpcprotobuf.TagBytes2
+	maxBodyFldsLen := 1 + maxChunkVarlen + maxReadChunkLen // 1 for payload tag
+	if x.streamID != 0 {
+		maxBodyFldsLen += 1 + binary.MaxVarintLen64 + // sequence number
+			protoencoding.SizeVarint(protoobject.FieldPutRequestBodyChunkDataStreamId, x.streamID)
+		maxBodyFldsLen += 1 + protowire.SizeVarint(uint64(maxBodyFldsLen)) // ChunkData tag and length
+	}
+	chunkOff := 1 + protowire.SizeVarint(uint64(maxBodyFldsLen)) + maxBodyFldsLen - maxReadChunkLen // 1 for body tag
 
 	maxBodyWithMetaHdrLen := chunkOff + maxReadChunkLen
 	maxBodyWithMetaHdrLen += protoencoding.CalculateRequestMetaHeaderFieldLength(x.metaHdrLen)
@@ -451,12 +492,23 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 
 		actualRead, err := readFull(r, buf[chunkOff:][:maxReadChunkLen])
 		if actualRead > 0 {
-			chunkVarlen := protowire.SizeVarint(uint64(actualRead))
-			chunkFldOff := chunkOff - chunkVarlen - 1
+			chunkFldOff := chunkOff - protowire.SizeVarint(uint64(actualRead)) - 1
+			if x.streamID == 0 {
+				protoencoding.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunk, actualRead)
+			} else {
+				protoencoding.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunkDataPayload, actualRead)
+				chunkFldOff -= protoencoding.SizeVarint(protoobject.FieldPutRequestBodyChunkDataStreamId, x.streamID)
+				protoencoding.MarshalToVarint(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunkDataStreamId, x.streamID)
+				chunkFldOff -= protoencoding.SizeVarint(protoobject.FieldPutRequestBodyChunkDataSequenceNumber, x.chunkSeqNum)
+				protoencoding.MarshalToVarint(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunkDataSequenceNumber, x.chunkSeqNum)
+				x.chunkSeqNum++
 
-			protoencoding.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyChunk, actualRead)
+				dataLen := chunkOff + actualRead - chunkFldOff
+				chunkFldOff -= 1 + protowire.SizeVarint(uint64(dataLen))
+				protoencoding.WriteTagAndLength(buf[chunkFldOff:], protoobject.FieldPutRequestBodyPayloadChunk, dataLen)
+			}
 
-			bodyLen := 1 + chunkVarlen + actualRead
+			bodyLen := chunkOff + actualRead - chunkFldOff
 			bodyVarlen := protowire.SizeVarint(uint64(bodyLen))
 			bodyOff := chunkFldOff + -bodyVarlen - 1
 
