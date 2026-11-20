@@ -64,6 +64,7 @@ type testPutObjectServer struct {
 	reqHdr     *object.Object
 	reqPayload []byte
 
+	reqPayloadID         uint64
 	reqPayloadLenCounter int
 	reqChunkLens         []int
 }
@@ -86,6 +87,7 @@ func (x *testPutObjectServer) verifyHeadingMessage(m *protoobject.PutRequest_Bod
 	if m.Header == nil {
 		return errors.New("missing header field")
 	}
+	x.reqPayloadID = m.StreamId
 	if x.reqHdr == nil {
 		return nil
 	}
@@ -115,6 +117,10 @@ func (x *testPutObjectServer) verifyHeadingMessage(m *protoobject.PutRequest_Bod
 	if err := x.verifyContainerRevision(m.ContainerRevision); err != nil {
 		return err
 	}
+	// 6. stream ID
+	if m.StreamId == 0 {
+		return errors.New("stream ID is zero")
+	}
 	return nil
 }
 
@@ -129,6 +135,29 @@ func (x *testPutObjectServer) verifyPayloadChunkMessage(chunk []byte) error {
 	x.reqChunkLens = append(x.reqChunkLens, ln)
 	if x.reqPayload == nil {
 		return nil
+	}
+	if exp := x.reqPayload[x.reqPayloadLenCounter:]; !bytes.HasPrefix(exp, chunk) {
+		return fmt.Errorf("wrong payload chunk (remains: %dB, message: %dB)", len(exp), len(chunk))
+	}
+	x.reqPayloadLenCounter += ln
+	return nil
+}
+
+func (x *testPutObjectServer) verifyDataChunkMessage(m *protoobject.PutRequest_Body_ChunkData) error {
+	chunk := m.Payload
+	ln := len(chunk)
+	if ln == 0 {
+		return errors.New("empty payload chunk")
+	}
+	if ln > maxChunkLen {
+		return fmt.Errorf("intermediate chunk exceeds the expected size limit: %dB > %dB", ln, maxChunkLen)
+	}
+	x.reqChunkLens = append(x.reqChunkLens, ln)
+	if x.reqPayload == nil {
+		return nil
+	}
+	if x.reqPayloadID != m.StreamId {
+		return fmt.Errorf("wrong payload stream ID, initial: %d, received: %d", x.reqPayloadID, m.StreamId)
 	}
 	if exp := x.reqPayload[x.reqPayloadLenCounter:]; !bytes.HasPrefix(exp, chunk) {
 		return fmt.Errorf("wrong payload chunk (remains: %dB, message: %dB)", len(exp), len(chunk))
@@ -185,10 +214,23 @@ func (x *testPutObjectServer) verifyRequest(req *protoobject.PutRequest) error {
 			return newErrInvalidRequestField("heading part", err)
 		}
 	case *protoobject.PutRequest_Body_Chunk:
+		if x.reqPayloadID != 0 {
+			return newErrInvalidRequestField("object part", errors.New("deprecated chunk field sent in an ordered stream"))
+		}
 		if x.reqCounter <= 1 {
 			return newErrInvalidRequestField("object part", errors.New("payload chunk must not be a 1st stream message"))
 		}
+		// nolint:staticcheck // this is a test
 		if err := x.verifyPayloadChunkMessage(v.Chunk); err != nil {
+			return newErrInvalidRequestField("chunk part", err)
+		}
+	case *protoobject.PutRequest_Body_PayloadChunk:
+		// sequence is starting from the second request, the first one is for
+		// initial header
+		if uint64(x.reqCounter) != v.PayloadChunk.SequenceNumber+2 {
+			return newErrInvalidRequestField("object part", fmt.Errorf("request #%d but payload sequence is %d", x.reqCounter, v.PayloadChunk.SequenceNumber))
+		}
+		if err := x.verifyDataChunkMessage(v.PayloadChunk); err != nil {
 			return newErrInvalidRequestField("chunk part", err)
 		}
 	}

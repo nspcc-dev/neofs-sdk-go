@@ -3,6 +3,7 @@
 ## [Unreleased]
 
 New features:
+ * PUT streams are a strict sequence of messages with unique IDs now (#909)
 
 Behaviour changes:
 
