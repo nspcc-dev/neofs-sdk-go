@@ -1425,11 +1425,8 @@ func (x *RemoveAttributeV2Response) GetMetaHeader() *session.ResponseMetaHeader 
 	return nil
 }
 
-// Container creation request has container structure's signature as a
-// separate field. It's not stored in FS chain, just verified on container
-// creation by `Container` smart contract. `ContainerID` is a SHA256 hash of
-// the stable-marshalled container strucutre, hence there is no need for
-// additional signature checks.
+// Put request must be signed by either container owner or one of
+// the subjects in session token V2 (if any).
 //
 // Optional `eacl` field allows to set extended access rules for the
 // container. It must be either set or unset along with `eacl_signature`.
@@ -1441,6 +1438,8 @@ type PutRequest_Body struct {
 	// Container structure to register in NeoFS
 	Container *Container `protobuf:"bytes,1,opt,name=container,proto3" json:"container,omitempty"`
 	// Signature of a stable-marshalled container according to RFC-6979.
+	// DEPRECATED: it should be omitted since API 2.29, the whole request
+	// signature is used instead.
 	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Extended ACL for the container.
 	Eacl *acl.EACLTable `protobuf:"bytes,3,opt,name=eacl,proto3" json:"eacl,omitempty"`
@@ -1448,6 +1447,8 @@ type PutRequest_Body struct {
 	// authenticate either container owner or one of subjects in
 	// the `eacl_session_token` field if any. Signature according to
 	// `ECDSA_RFC6979_SHA256` scheme is also supported.
+	// DEPRECATED: it should be omitted since API 2.29, the whole request
+	// signature is used instead.
 	EaclSignature *refs.SignatureRFC6979 `protobuf:"bytes,4,opt,name=eacl_signature,json=eaclSignature,proto3" json:"eacl_signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1560,14 +1561,15 @@ func (x *PutResponse_Body) GetContainerId() *refs.ContainerID {
 	return nil
 }
 
-// Container removal request body has signed `ContainerID` as a proof of
-// the container owner's intent. The signature will be verified by `Container`
-// smart contract, so signing algorithm must be supported by NeoVM.
+// Delete request must be signed by either container owner or one of
+// the subjects in session token V2 (if any).
 type DeleteRequest_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Identifier of the container to delete from NeoFS
 	ContainerId *refs.ContainerID `protobuf:"bytes,1,opt,name=container_id,json=containerId,proto3" json:"container_id,omitempty"`
 	// `ContainerID` signed with the container owner's key according to RFC-6979.
+	// DEPRECATED: it should be omitted since API 2.29, the whole request
+	// signature is used instead.
 	Signature     *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1860,13 +1862,15 @@ func (x *ListResponse_Body) GetContainerIds() []*refs.ContainerID {
 	return nil
 }
 
-// Set Extended ACL request body does not have separate `ContainerID`
-// reference. It will be taken from `EACLTable.container_id` field.
+// Set EACL request must be signed by either container owner or one of
+// the subjects in session token V2 (if any).
 type SetExtendedACLRequest_Body struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Extended ACL table to set for the container
 	Eacl *acl.EACLTable `protobuf:"bytes,1,opt,name=eacl,proto3" json:"eacl,omitempty"`
 	// Signature of stable-marshalled Extended ACL table according to RFC-6979.
+	// DEPRECATED: it should be omitted since API 2.29, the whole request
+	// signature is used instead.
 	Signature *refs.SignatureRFC6979 `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
 	// Starting from API v2.27.0, requester must attach container revision to
 	// ensure container state is up to date. If server's known revision does

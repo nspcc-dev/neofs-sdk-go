@@ -892,6 +892,7 @@ const (
 	FieldPutRequestBodyInitHeader
 	FieldPutRequestBodyInitCopiesNumber
 	FieldPutRequestBodyInitContainerRevision
+	FieldPutRequestBodyInitStreamId
 )
 
 // MarshaledSize returns size of the PutRequest_Body_Init in Protocol Buffers V3
@@ -903,7 +904,8 @@ func (x *PutRequest_Body_Init) MarshaledSize() int {
 			protoencoding.SizeEmbedded(FieldPutRequestBodyInitSignature, x.Signature) +
 			protoencoding.SizeEmbedded(FieldPutRequestBodyInitHeader, x.Header) +
 			protoencoding.SizeVarint(FieldPutRequestBodyInitCopiesNumber, x.CopiesNumber) +
-			protoencoding.SizeVarint(FieldPutRequestBodyInitContainerRevision, x.ContainerRevision)
+			protoencoding.SizeVarint(FieldPutRequestBodyInitContainerRevision, x.ContainerRevision) +
+			protoencoding.SizeVarint(FieldPutRequestBodyInitStreamId, x.StreamId)
 	}
 	return sz
 }
@@ -918,7 +920,40 @@ func (x *PutRequest_Body_Init) MarshalStable(b []byte) {
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodyInitSignature, x.Signature)
 		off += protoencoding.MarshalToEmbedded(b[off:], FieldPutRequestBodyInitHeader, x.Header)
 		off += protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitCopiesNumber, x.CopiesNumber)
-		protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitContainerRevision, x.ContainerRevision)
+		off += protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitContainerRevision, x.ContainerRevision)
+		protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyInitStreamId, x.StreamId)
+	}
+}
+
+// Field numbers of [PutRequest_Body_ChunkData] message.
+const (
+	_ = iota
+	FieldPutRequestBodyChunkDataSequenceNumber
+	FieldPutRequestBodyChunkDataStreamId
+	FieldPutRequestBodyChunkDataPayload
+)
+
+// MarshaledSize returns size of the PutRequest_Body_ChunkData in Protocol Buffers V3
+// format in bytes. MarshaledSize is NPE-safe.
+func (x *PutRequest_Body_ChunkData) MarshaledSize() int {
+	var sz int
+	if x != nil {
+		sz = protoencoding.SizeVarint(FieldPutRequestBodyChunkDataSequenceNumber, x.SequenceNumber) +
+			protoencoding.SizeVarint(FieldPutRequestBodyChunkDataStreamId, x.StreamId) +
+			protoencoding.SizeBytes(FieldPutRequestBodyChunkDataPayload, x.Payload)
+	}
+	return sz
+}
+
+// MarshalStable writes the PutRequest_Body_ChunkData in Protocol Buffers V3 format
+// with ascending order of fields by number into b. MarshalStable uses exactly
+// [PutRequest_Body_ChunkData.MarshaledSize] first bytes of b. MarshalStable is
+// NPE-safe.
+func (x *PutRequest_Body_ChunkData) MarshalStable(b []byte) {
+	if x != nil {
+		off := protoencoding.MarshalToVarint(b, FieldPutRequestBodyChunkDataSequenceNumber, x.SequenceNumber)
+		off += protoencoding.MarshalToVarint(b[off:], FieldPutRequestBodyChunkDataStreamId, x.StreamId)
+		protoencoding.MarshalToBytes(b[off:], FieldPutRequestBodyChunkDataPayload, x.Payload)
 	}
 }
 
@@ -927,6 +962,7 @@ const (
 	_ = iota
 	FieldPutRequestBodyInit
 	FieldPutRequestBodyChunk
+	FieldPutRequestBodyPayloadChunk
 )
 
 // CalculatePutInitRequestBodyLength calculates length of initial Put request
@@ -939,6 +975,12 @@ func CalculatePutInitRequestBodyLength(initFldLen int) int {
 // message with given fields.
 func CalculatePutChunkRequestBodyLength(chunk []byte) int {
 	return protoencoding.SizeBytes(FieldPutRequestBodyChunk, chunk)
+}
+
+// CalculatePutPayloadChunkRequestBodyLength calculates length of payload chunk Put
+// request body message with given fields.
+func CalculatePutPayloadChunkRequestBodyLength(payloadChunkLen int) int {
+	return protoencoding.SizeEmbeddedLENField(FieldPutRequestBodyPayloadChunk, payloadChunkLen)
 }
 
 // MarshaledSize returns size of the PutRequest_Body in Protocol Buffers V3
@@ -954,6 +996,8 @@ func (x *PutRequest_Body) MarshaledSize() int {
 			sz = CalculatePutInitRequestBodyLength(p.Init.MarshaledSize())
 		case *PutRequest_Body_Chunk:
 			sz = CalculatePutChunkRequestBodyLength(p.Chunk)
+		case *PutRequest_Body_PayloadChunk:
+			sz = CalculatePutPayloadChunkRequestBodyLength(p.PayloadChunk.MarshaledSize())
 		}
 	}
 	return sz
@@ -991,6 +1035,21 @@ func WritePutChunkRequestBody(buf []byte, chunk []byte) int {
 	return protoencoding.MarshalToBytes(buf, FieldPutRequestBodyChunk, chunk)
 }
 
+// WritePutPayloadChunkRequestBodyToRequest writes ordered payload chunk Put
+// request body field with given fields into buf. Returns number of bytes
+// written.
+func WritePutPayloadChunkRequestBodyToRequest(buf []byte, ln int, payloadChunkFldLen int, writePayloadChunkFldFn protoencoding.WriteMessageFunc) int {
+	off := protoencoding.WriteRequestBodyTagAndLength(buf, ln)
+	off += WritePutPayloadChunkRequestBody(buf[off:], payloadChunkFldLen, writePayloadChunkFldFn)
+	return off
+}
+
+// WritePutPayloadChunkRequestBody writes ordered payload chunk Put request body
+// message with given length and fields into buf. Returns number of bytes written.
+func WritePutPayloadChunkRequestBody(buf []byte, chunkFldLen int, writeChunkFldFn protoencoding.WriteMessageFunc) int {
+	return protoencoding.WriteMessageField(buf, FieldPutRequestBodyPayloadChunk, chunkFldLen, writeChunkFldFn)
+}
+
 // MarshalStable writes the PutRequest_Body in Protocol Buffers V3 format with
 // ascending order of fields by number into b. MarshalStable uses exactly
 // [PutRequest_Body.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
@@ -1006,6 +1065,10 @@ func (x *PutRequest_Body) MarshalStable(b []byte) {
 			WritePutInitRequestBody(b, initFldLen, writeInitFldFn)
 		case *PutRequest_Body_Chunk:
 			WritePutChunkRequestBody(b, p.Chunk)
+		case *PutRequest_Body_PayloadChunk:
+			dataChunkLen := p.PayloadChunk.MarshaledSize()
+			writeDataChunkFn := protoencoding.WriteStablyMarshalledMessageFunc(p.PayloadChunk)
+			WritePutPayloadChunkRequestBody(b, dataChunkLen, writeDataChunkFn)
 		}
 	}
 }
