@@ -1333,7 +1333,8 @@ func (x *GetRangeHashResponse) GetVerifyHeader() *session.ResponseVerificationHe
 // Replicate RPC request
 type ReplicateRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Object to be replicated.
+	// Object to be replicated. Notice that this is a sealed object, so it can
+	// have API version different from current minimal one for the network.
 	Object *Object `protobuf:"bytes,1,opt,name=object,proto3" json:"object,omitempty"`
 	// Signature of `object.object_id.value` field.
 	Signature *refs.Signature `protobuf:"bytes,2,opt,name=signature,proto3" json:"signature,omitempty"`
@@ -1989,7 +1990,7 @@ type PutRequest_Body_Init struct {
 	// **CONTAINER_REVISION_MISMATCH** (3076) response status with no payload.
 	ContainerRevision uint64 `protobuf:"varint,5,opt,name=container_revision,json=containerRevision,proto3" json:"container_revision,omitempty"`
 	// Unique context for every object stream, must be the same for every
-	// further Chunk message. Required since API v2.29.
+	// further Chunk message. It MUST NOT be zero. Required since API v2.29.
 	StreamId      uint64 `protobuf:"varint,6,opt,name=stream_id,json=streamId,proto3" json:"stream_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
