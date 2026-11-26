@@ -191,7 +191,13 @@ func (c *Client) DialEndpoint(ctx context.Context, endpoint string) error {
 
 	c.setConn(conn)
 
-	return c.fetchNodeKeyAndAPI(ctx)
+	if err = c.fetchNodeKeyAndAPI(ctx); err != nil {
+		_ = conn.Close()
+		c.conn = nil
+		return err
+	}
+
+	return nil
 }
 
 // Dial establishes a connection to the server from the NeoFS network.
