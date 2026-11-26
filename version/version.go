@@ -90,7 +90,7 @@ func (v *Version) FromProtoMessage(m *refs.Version) error {
 	return nil
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.
@@ -136,7 +136,7 @@ func EncodeToString(v Version) string {
 // MarshalJSON encodes Version into a JSON format of the NeoFS API
 // protocol (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [Version.UnmarshalJSON].
 func (v Version) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(v)
 }
@@ -145,7 +145,7 @@ func (v Version) MarshalJSON() ([]byte, error) {
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 // Use [UnmarshalJSON] to decode data into a new Version.
 //
-// See also MarshalJSON.
+// See also [Version.MarshalJSON].
 func (v *Version) UnmarshalJSON(data []byte) error {
 	var m refs.Version
 

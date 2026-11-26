@@ -51,7 +51,7 @@ type SignedResponse[B protoencoding.Message] interface {
 	GetVerifyHeader() *session.ResponseVerificationHeader
 }
 
-// SignRequestWithBuffer signs request parts using provided [neofscrypto.Signer]
+// SignRequestWithBuffer signs request parts using provided [Signer]
 // according to the NeoFS API protocol, and returns resulting verification
 // header to attach to this request.
 //
@@ -62,7 +62,7 @@ func SignRequestWithBuffer[B protoencoding.Message](signer Signer, r SignedReque
 	return signRequestWithBuffer(signer, r, buf, 0, "", false)
 }
 
-// SignRequest signs request parts using provided [neofscrypto.Signer]
+// SignRequest signs request parts using provided [Signer]
 // according to the NeoFS API protocol, binding magic and canonical gRPC method
 // via [refs.RequestSignData] starting from API v2.29.
 //
@@ -253,7 +253,7 @@ func verifyRequestWithBufferN3[B protoencoding.Message](r SignedRequest[B], buf 
 }
 
 // SignResponseWithBuffer signs response parts using provided
-// [neofscrypto.Signer] according to the NeoFS API protocol, and returns
+// [Signer] according to the NeoFS API protocol, and returns
 // resulting verification header to attach to this response.
 //
 // Buffer is optional and free after the call.

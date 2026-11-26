@@ -32,14 +32,14 @@ type Basic uint32
 
 // FromBits decodes Basic from the numerical representation.
 //
-// See also Bits.
+// See also [Basic.Bits].
 func (x *Basic) FromBits(bits uint32) {
 	*x = Basic(bits)
 }
 
 // Bits returns numerical encoding of Basic.
 //
-// See also FromBits.
+// See also [Basic.FromBits].
 func (x Basic) Bits() uint32 {
 	return uint32(x)
 }
@@ -64,12 +64,12 @@ const (
 // DisableExtension makes Basic FINAL. FINAL indicates the ACL non-extendability
 // in the related container.
 //
-// See also Extendable.
+// See also [Basic.Extendable].
 func (x *Basic) DisableExtension() {
 	setBit((*uint32)(x), bitPosFinal)
 }
 
-// Extendable checks if Basic is NOT made FINAL using DisableExtension.
+// Extendable checks if Basic is NOT made FINAL using [Basic.DisableExtension].
 //
 // Zero Basic is extendable.
 func (x Basic) Extendable() bool {
@@ -79,12 +79,12 @@ func (x Basic) Extendable() bool {
 // MakeSticky makes Basic STICKY. STICKY indicates that only the owner of any
 // particular object is allowed to operate on it.
 //
-// See also Sticky.
+// See also [Basic.Sticky].
 func (x *Basic) MakeSticky() {
 	setBit((*uint32)(x), bitPosSticky)
 }
 
-// Sticky checks if Basic is made STICKY using MakeSticky.
+// Sticky checks if Basic is made STICKY using [Basic.MakeSticky].
 //
 // Zero Basic is NOT STICKY.
 func (x Basic) Sticky() bool {
@@ -121,7 +121,7 @@ func isReplicationOp(op Op) bool {
 //	OpObjectSearch
 //	OpObjectHash
 //
-// See also IsOpAllowed.
+// See also [Basic.IsOpAllowed].
 func (x *Basic) AllowOp(op Op, role Role) {
 	var bitPos uint8
 
@@ -168,7 +168,7 @@ func (x *Basic) AllowOp(op Op, role Role) {
 // Zero Basic prevents any role from accessing any operation in the absence
 // of default rights.
 //
-// See also AllowOp.
+// See also [Basic.AllowOp].
 func (x Basic) IsOpAllowed(op Op, role Role) bool {
 	var bitPos uint8
 
@@ -204,13 +204,13 @@ func (x Basic) IsOpAllowed(op Op, role Role) bool {
 // AllowBearerRules allows bearer to provide extended ACL rules for the given
 // operation. Bearer rules doesn't depend on container ACL extensibility.
 //
-// See also AllowedBearerRules.
+// See also [Basic.AllowedBearerRules].
 func (x *Basic) AllowBearerRules(op Op) {
 	setOpBit((*uint32)(x), op, opBitPosBearer)
 }
 
-// AllowedBearerRules checks if bearer rules are allowed using AllowBearerRules.
-// Op MUST be one of the Op enumeration.
+// AllowedBearerRules checks if bearer rules are allowed using [Basic.AllowBearerRules].
+// Op MUST be one of the [Op] enumeration.
 //
 // Zero Basic disallows bearer rules for any op.
 func (x Basic) AllowedBearerRules(op Op) bool {
@@ -219,7 +219,7 @@ func (x Basic) AllowedBearerRules(op Op) bool {
 
 // EncodeToString encodes Basic into hexadecimal string.
 //
-// See also DecodeString.
+// See also [Basic.DecodeString].
 func (x Basic) EncodeToString() string {
 	return strconv.FormatUint(uint64(x), 16)
 }
@@ -248,7 +248,7 @@ const (
 	PublicAppendExtended = Basic(0x0FBF9FFF) // eacl-public-append
 )
 
-// DecodeString decodes string calculated using EncodeToString. Also supports
+// DecodeString decodes string calculated using [Basic.EncodeToString]. Also supports
 // human-readable names (Name* constants).
 func (x *Basic) DecodeString(s string) (e error) {
 	switch s {

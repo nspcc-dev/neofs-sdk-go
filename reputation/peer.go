@@ -77,7 +77,7 @@ func ComparePeerKey(peer PeerID, key []byte) bool {
 //
 // Zero PeerID is base58 encoding of PeerIDSize zeros.
 //
-// See also DecodeString.
+// See also [PeerID.DecodeString].
 func (x PeerID) EncodeToString() string {
 	return base58.Encode(x.key)
 }
@@ -85,7 +85,7 @@ func (x PeerID) EncodeToString() string {
 // DecodeString decodes string into PeerID according to NeoFS API protocol.
 // Returns an error if s is malformed.
 //
-// See also DecodeString.
+// See also [PeerID.EncodeToString].
 func (x *PeerID) DecodeString(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
@@ -97,10 +97,10 @@ func (x *PeerID) DecodeString(s string) error {
 	return nil
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [PeerID.EncodeToString]. String MUST NOT
 // be used to encode ID into NeoFS protocol string.
 func (x PeerID) String() string {
 	return x.EncodeToString()

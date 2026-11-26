@@ -11,10 +11,10 @@ import (
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
 )
 
-// PublicKey is a wrapper over ecdsa.PublicKey used for NeoFS needs.
-// Provides neofscrypto.PublicKey interface.
+// PublicKey is a wrapper over [ecdsa.PublicKey] used for NeoFS needs.
+// Provides [neofscrypto.PublicKey] interface.
 //
-// Instances MUST be initialized from ecdsa.PublicKey using type conversion.
+// Instances MUST be initialized from [ecdsa.PublicKey] using type conversion.
 type PublicKey ecdsa.PublicKey
 
 // MaxEncodedSize returns size of the compressed ECDSA public key.
@@ -23,11 +23,11 @@ func (x PublicKey) MaxEncodedSize() int {
 }
 
 // Encode encodes ECDSA public key in compressed form into buf.
-// Uses exactly MaxEncodedSize bytes of the buf.
+// Uses exactly [PublicKey.MaxEncodedSize] bytes of the buf.
 //
-// Encode panics if buf length is less than MaxEncodedSize.
+// Encode panics if buf length is less than [PublicKey.MaxEncodedSize].
 //
-// See also Decode.
+// See also [PublicKey.Decode].
 func (x PublicKey) Encode(buf []byte) int {
 	if len(buf) < 33 {
 		panic(fmt.Sprintf("too short buffer %d", len(buf)))
@@ -38,7 +38,7 @@ func (x PublicKey) Encode(buf []byte) int {
 
 // Decode decodes compressed binary representation of the PublicKey.
 //
-// See also Encode.
+// See also [PublicKey.Encode].
 func (x *PublicKey) Decode(data []byte) error {
 	pub, err := keys.NewPublicKeyFromBytes(data, elliptic.P256())
 	if err != nil {
@@ -77,10 +77,10 @@ func (x PublicKey) Verify(data, signature []byte) bool {
 	return r != nil && s != nil && ecdsa.Verify((*ecdsa.PublicKey)(&x), h[:], r, s)
 }
 
-// PublicKeyRFC6979 is a wrapper over ecdsa.PublicKey used for NeoFS needs.
-// Provides neofscrypto.PublicKey interface.
+// PublicKeyRFC6979 is a wrapper over [ecdsa.PublicKey] used for NeoFS needs.
+// Provides [neofscrypto.PublicKey] interface.
 //
-// Instances MUST be initialized from ecdsa.PublicKey using type conversion.
+// Instances MUST be initialized from [ecdsa.PublicKey] using type conversion.
 type PublicKeyRFC6979 ecdsa.PublicKey
 
 // MaxEncodedSize returns size of the compressed ECDSA public key.
@@ -89,11 +89,11 @@ func (x PublicKeyRFC6979) MaxEncodedSize() int {
 }
 
 // Encode encodes ECDSA public key in compressed form into buf.
-// Uses exactly MaxEncodedSize bytes of the buf.
+// Uses exactly [PublicKeyRFC6979.MaxEncodedSize] bytes of the buf.
 //
-// Encode panics if buf length is less than MaxEncodedSize.
+// Encode panics if buf length is less than [PublicKeyRFC6979.MaxEncodedSize].
 //
-// See also Decode.
+// See also [PublicKeyRFC6979.Decode].
 func (x PublicKeyRFC6979) Encode(buf []byte) int {
 	if len(buf) < 33 {
 		panic(fmt.Sprintf("too short buffer %d", len(buf)))
@@ -104,7 +104,7 @@ func (x PublicKeyRFC6979) Encode(buf []byte) int {
 
 // Decode decodes binary representation of the ECDSA public key.
 //
-// See also Encode.
+// See also [PublicKeyRFC6979.Encode].
 func (x *PublicKeyRFC6979) Decode(data []byte) error {
 	pub, err := keys.NewPublicKeyFromBytes(data, elliptic.P256())
 	if err != nil {

@@ -39,7 +39,7 @@ func newAutoResolvedSigner(s neofscrypto.Signer, pubKey ecdsa.PublicKey) Signer 
 	return NewSigner(s, NewFromScriptHash((*keys.PublicKey)(&pubKey).GetScriptHash()))
 }
 
-// NewAutoIDSigner returns [Signer] with neofscrypto.ECDSA_SHA512
+// NewAutoIDSigner returns [Signer] with [neofscrypto.ECDSA_SHA512]
 // signature scheme and user [ID] automatically resolved from the ECDSA public
 // key.
 //
