@@ -2,6 +2,7 @@ package netmap
 
 import (
 	"cmp"
+	"errors"
 	"fmt"
 	"slices"
 
@@ -34,23 +35,45 @@ func (c *context) processSelectors(p PlacementPolicy) error {
 	return nil
 }
 
-// calcNodesCount returns number of buckets and minimum number of nodes in every bucket
-// for the given selector.
-func calcNodesCount(s Selector) (int, int) {
-	n := int(s.NumberOfNodes())
-	if s.IsSame() {
-		return 1, n
-	}
-	return n, 1
-}
-
 // getSelection returns nodes grouped by s.attribute.
 // Last argument specifies if more buckets can be used to fulfill CBF.
-func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
-	bucketCount, nodesInBucket := calcNodesCount(s)
+func (c *context) getSelection(policy PlacementPolicy, s Selector) ([]nodes, error) {
+	var bucketCount int
+	nodesInBucket := int(s.NumberOfNodes())
+
 	buckets := c.getSelectionBase(s)
 
 	rigidCBF := !isFlexibleCBF(c.cbf)
+
+	selectAll := nodesInBucket == 0
+
+	var maxNodesInBucket int
+	if selectAll {
+		if rigidCBF {
+			return nil, errors.New("SELECT * with non-flexible CBF")
+		}
+
+		if s.IsSame() {
+			bucketCount = 1
+			if n := getMinRequiredNodeCountForSelector(policy, s.Name()); n > 0 {
+				nodesInBucket = n
+			} // else keep 0 so that every bucket fits
+		} else { // distinct
+			bucketCount = len(buckets)
+		}
+	} else {
+		if s.IsSame() {
+			bucketCount = 1
+		} else { // distinct
+			bucketCount = nodesInBucket
+			nodesInBucket = 1
+		}
+
+		maxNodesInBucket = nodesInBucket
+		if rigidCBF {
+			maxNodesInBucket *= int(c.cbf)
+		}
+	}
 
 	if rigidCBF && len(buckets) < bucketCount {
 		return nil, fmt.Errorf("%w: '%s'", ErrNotEnoughNodes, s.Name())
@@ -72,16 +95,23 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 		}
 	}
 
-	maxNodesInBucket := nodesInBucket
-	if rigidCBF {
-		maxNodesInBucket *= int(c.cbf)
-	}
 	res := make([]nodes, 0, len(buckets))
-	fallback := make([]nodes, 0, len(buckets))
+	var fallback []nodes
+	if !selectAll {
+		fallback = make([]nodes, 0, len(buckets))
+	}
 
 	for i := range buckets {
 		ns := buckets[i].nodes
-		if len(ns) >= maxNodesInBucket {
+		if selectAll {
+			if s.IsSame() {
+				if len(ns) >= nodesInBucket {
+					res = append(res, ns)
+				}
+			} else { // distinct
+				res = append(res, ns[:1])
+			}
+		} else if len(ns) >= maxNodesInBucket {
 			res = append(res, ns[:maxNodesInBucket])
 		} else if len(ns) >= nodesInBucket {
 			fallback = append(fallback, ns)
@@ -107,7 +137,7 @@ func (c *context) getSelection(_ PlacementPolicy, s Selector) ([]nodes, error) {
 
 	bucketCount = min(bucketCount, len(res))
 
-	if s.BucketAttribute() == "" {
+	if !selectAll && s.BucketAttribute() == "" {
 		res, fallback = res[:bucketCount], res[bucketCount:]
 		for i := range fallback {
 			index := i % bucketCount
@@ -161,4 +191,29 @@ func (c *context) getSelectionBase(s Selector) []nodeAttrPair {
 	}
 
 	return result
+}
+
+func getMinRequiredNodeCountForSelector(policy PlacementPolicy, sel string) int {
+	m := -1
+	for _, r := range policy.Replicas() {
+		match := (sel != "" && r.SelectorName() == sel) || (r.SelectorName() == "" && len(policy.Selectors()) == 1)
+		if !match {
+			continue
+		}
+		n := int(r.NumberOfObjects())
+		if n > m {
+			m = n
+		}
+	}
+	for _, r := range policy.ecRules {
+		match := (sel != "" && r.SelectorName() == sel) || (r.SelectorName() == "" && len(policy.Selectors()) == 1)
+		if !match {
+			continue
+		}
+		n := int(r.DataPartNum() + r.ParityPartNum())
+		if n > m {
+			m = n
+		}
+	}
+	return m
 }

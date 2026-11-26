@@ -208,12 +208,15 @@ FILTER @FromRU AND Rating GT 7 AS Good`,
 		`REP 7 IN SPB
 SELECT 1 IN City FROM SPBSSD AS SPB
 FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
+
+		`REP 1
+SELECT * FROM *`,
 	}
 
 	var p netmap.PlacementPolicy
 
 	for _, testCase := range testCases {
-		require.NoError(t, p.DecodeString(testCase))
+		require.NoError(t, p.DecodeString(testCase), testCase)
 
 		var b strings.Builder
 		require.NoError(t, p.WriteStringTo(&b))
@@ -223,6 +226,8 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 	invalidTestCases := []string{
 		`?REP 1`,
 		`REP 1 trailing garbage`,
+		`REP 1 SELECT 0`,
+		`REP 1 SELECT ?`,
 	}
 
 	for i := range invalidTestCases {
@@ -626,7 +631,9 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 	validSs[0].SetName("SEL1")
 	validRs[1].SetSelectorName("SEL2")
 	validSs[1].SetName("SEL2")
+	validSs[0].SetNumberOfNodes(7)
 	validRs[0].SetNumberOfObjects(7)
+	validSs[1].SetNumberOfNodes(8)
 	validRs[1].SetNumberOfObjects(8)
 
 	var validInitial netmap.InitialPlacementPolicy

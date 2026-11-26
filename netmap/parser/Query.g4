@@ -20,7 +20,7 @@ ecStmt:
 cbfStmt: CBF BackupFactor = NUMBER1; // container backup factor
 
 selectStmt:
-    SELECT Count = NUMBER1       // number of nodes to select without container backup factor *)
+    SELECT Count = (NUMBER1 | WILDCARD)       // number of nodes to select without container backup factor *)
     (IN clause? Bucket = ident)? // bucket name
     FROM Filter = identWC        // filter reference or whole netmap
     (AS Name = ident)?           // optional selector name
