@@ -208,12 +208,15 @@ FILTER @FromRU AND Rating GT 7 AS Good`,
 		`REP 7 IN SPB
 SELECT 1 IN City FROM SPBSSD AS SPB
 FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
+
+		`REP 1
+SELECT * FROM *`,
 	}
 
 	var p netmap.PlacementPolicy
 
 	for _, testCase := range testCases {
-		require.NoError(t, p.DecodeString(testCase))
+		require.NoError(t, p.DecodeString(testCase), testCase)
 
 		var b strings.Builder
 		require.NoError(t, p.WriteStringTo(&b))
@@ -223,6 +226,8 @@ FILTER City EQ SPB AND SSD EQ true OR City EQ SPB AND Rating GE 5 AS SPBSSD`,
 	invalidTestCases := []string{
 		`?REP 1`,
 		`REP 1 trailing garbage`,
+		`REP 1 SELECT 0`,
+		`REP 1 SELECT ?`,
 	}
 
 	for i := range invalidTestCases {
@@ -472,7 +477,7 @@ func TestPlacementPolicy_ProtoMessage(t *testing.T) {
 	require.Zero(t, m.GetReplicas())
 	require.Zero(t, m.GetSelectors())
 	require.Zero(t, m.GetFilters())
-	require.Zero(t, m.GetSubnetId()) //nolint: staticcheck // must be supported still
+	require.Zero(t, m.GetSubnetId()) // nolint: staticcheck // must be supported still
 	require.Zero(t, m.GetInitial())
 
 	// filled
@@ -626,7 +631,9 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 	validSs[0].SetName("SEL1")
 	validRs[1].SetSelectorName("SEL2")
 	validSs[1].SetName("SEL2")
+	validSs[0].SetNumberOfNodes(7)
 	validRs[0].SetNumberOfObjects(7)
+	validSs[1].SetNumberOfNodes(8)
 	validRs[1].SetNumberOfObjects(8)
 
 	var validInitial netmap.InitialPlacementPolicy
@@ -789,8 +796,13 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 		})
 		t.Run("replica limits", func(t *testing.T) {
 			t.Run("wrong len", func(t *testing.T) {
+				repRules := make([]netmap.ReplicaDescriptor, 3)
+				repRules[0].SetNumberOfObjects(1)
+				repRules[1].SetNumberOfObjects(2)
+				repRules[2].SetNumberOfObjects(3)
+
 				var p netmap.PlacementPolicy
-				p.SetReplicas(make([]netmap.ReplicaDescriptor, 3))
+				p.SetReplicas(repRules)
 				p.SetECRules([]netmap.ECRule{netmap.NewECRule(1, 2), netmap.NewECRule(3, 4)})
 
 				var ip netmap.InitialPlacementPolicy
@@ -805,8 +817,13 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 				assertError(t, p, "ReplicaLimits has len 6 while main policy has 3 REP and 2 EC rules")
 			})
 			t.Run("all zeros", func(t *testing.T) {
+				repRules := make([]netmap.ReplicaDescriptor, 3)
+				repRules[0].SetNumberOfObjects(1)
+				repRules[1].SetNumberOfObjects(2)
+				repRules[2].SetNumberOfObjects(3)
+
 				var p netmap.PlacementPolicy
-				p.SetReplicas(make([]netmap.ReplicaDescriptor, 3))
+				p.SetReplicas(repRules)
 
 				ecRules := make([]netmap.ECRule, 4)
 				for i := range ecRules {
@@ -824,6 +841,7 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 				var p netmap.PlacementPolicy
 
 				repRules := make([]netmap.ReplicaDescriptor, 2)
+				repRules[0].SetNumberOfObjects(1)
 				repRules[1].SetNumberOfObjects(7)
 				p.SetReplicas(repRules)
 
@@ -882,6 +900,7 @@ func TestPlacementPolicy_Verify(t *testing.T) {
 
 			repRules := make([]netmap.ReplicaDescriptor, 2)
 			repRules[0].SetNumberOfObjects(2)
+			repRules[1].SetNumberOfObjects(2)
 			p.SetReplicas(repRules)
 
 			repLimits := make([]uint32, 2)

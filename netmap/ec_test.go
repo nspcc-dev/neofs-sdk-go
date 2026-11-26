@@ -298,8 +298,10 @@ func testPolicyVerifyEC(t *testing.T) {
 	validRs[1] = netmap.NewECRule(10, 20)
 	validRs[0].SetSelectorName("SEL1")
 	validSs[0].SetName("SEL1")
+	validSs[0].SetNumberOfNodes(1)
 	validRs[1].SetSelectorName("SEL2")
 	validSs[1].SetName("SEL2")
+	validSs[1].SetNumberOfNodes(2)
 
 	policy.SetECRules(validRs)
 	policy.SetSelectors(validSs)

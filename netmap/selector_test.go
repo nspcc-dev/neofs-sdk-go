@@ -194,6 +194,14 @@ func TestPlacementPolicy_ProcessSelectors(t *testing.T) {
 	require.NoError(t, c.processFilters(p))
 	require.NoError(t, c.processSelectors(p))
 
+	calcNodesCount := func(s Selector) (int, int) {
+		n := int(s.NumberOfNodes())
+		if s.IsSame() {
+			return 1, n
+		}
+		return n, 1
+	}
+
 	for _, s := range p.selectors {
 		sel := c.selections[s.Name()]
 		s := c.processedSelectors[s.Name()]

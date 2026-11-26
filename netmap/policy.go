@@ -450,7 +450,7 @@ func (s Selector) Name() string {
 
 // SetNumberOfNodes sets number of nodes to select from the bucket.
 //
-// Zero Selector selects nothing.
+// Zero value means all nodes.
 //
 // See also [Selector.NumberOfNodes].
 func (s *Selector) SetNumberOfNodes(num uint32) {
@@ -459,7 +459,7 @@ func (s *Selector) SetNumberOfNodes(num uint32) {
 
 // NumberOfNodes returns number of nodes to select from the bucket.
 //
-// Zero Selector selects nothing.
+// Zero value means all nodes.
 //
 // See also [Selector.SetNumberOfNodes].
 func (s Selector) NumberOfNodes() uint32 {
@@ -817,7 +817,11 @@ func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 			return err
 		}
 
-		_, err = w.WriteString(fmt.Sprintf("SELECT %d", p.selectors[i].NumberOfNodes()))
+		if n := p.selectors[i].NumberOfNodes(); n == 0 {
+			_, err = w.WriteString("SELECT *")
+		} else {
+			_, err = w.WriteString(fmt.Sprintf("SELECT %d", n))
+		}
 		if err != nil {
 			return err
 		}
@@ -1078,13 +1082,15 @@ func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 
 // VisitSelectStmt implements parser.QueryVisitor interface.
 func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
-	res, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
-	if err != nil {
-		return p.reportError(errInvalidNumber)
-	}
-
 	s := new(protonetmap.Selector)
-	s.Count = uint32(res)
+
+	if count := ctx.GetCount(); count.GetTokenType() != parser.QueryWILDCARD {
+		res, err := strconv.ParseUint(count.GetText(), 10, 32)
+		if err != nil {
+			return p.reportError(errInvalidNumber)
+		}
+		s.Count = uint32(res)
+	}
 
 	if clStmt := ctx.Clause(); clStmt != nil {
 		s.Clause = clauseFromString(clStmt.GetText())
@@ -1265,9 +1271,20 @@ func (p PlacementPolicy) Verify() error {
 	}
 	ss := p.Selectors()
 	bf := p.cbf()
+	flexibleCBF := isFlexibleCBF(bf)
+	if !flexibleCBF {
+		for i := range ss {
+			if ss[i].NumberOfNodes() == 0 { // SELECT *
+				return fmt.Errorf("invalid selector #%d: zero count is allowed with flexible CBF only", i)
+			}
+		}
+	}
 	var cnrNodeCount uint32
 	for i := range rs {
 		rNum := rs[i].NumberOfObjects()
+		if rNum == 0 {
+			return fmt.Errorf("%w #%d: zero count", errInvalidREPRule, i)
+		}
 		if rNum > maxObjectReplicasPerSet {
 			return fmt.Errorf("%w #%d: more than %d object replicas", errInvalidREPRule, i, maxObjectReplicasPerSet)
 		}
@@ -1282,7 +1299,7 @@ func (p PlacementPolicy) Verify() error {
 			sNum = rNum
 		}
 		nodesInSet := sNum
-		if !isFlexibleCBF(bf) {
+		if !flexibleCBF {
 			nodesInSet *= bf
 		}
 		if nodesInSet > maxContainerNodesInSet {
@@ -1309,7 +1326,7 @@ func (p PlacementPolicy) Verify() error {
 			sNum = es[i].DataPartNum() + es[i].ParityPartNum()
 		}
 		nodesInSet := sNum
-		if !isFlexibleCBF(bf) {
+		if !flexibleCBF {
 			nodesInSet *= bf
 		}
 		if nodesInSet > maxContainerNodesInSet {

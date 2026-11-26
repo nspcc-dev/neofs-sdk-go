@@ -94,7 +94,9 @@ var (
 			253, 122, 191, 90, 168, 187, 245}},
 		Nonce: []byte{207, 5, 57, 28, 224, 103, 76, 207, 133, 186, 108, 96, 185, 52, 37, 205},
 		PlacementPolicy: &protonetmap.PlacementPolicy{
-			Replicas: make([]*protonetmap.Replica, 1),
+			Replicas: []*protonetmap.Replica{
+				{Count: 3},
+			},
 		},
 	}
 	// correct container with all fields.
