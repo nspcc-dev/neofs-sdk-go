@@ -12,6 +12,7 @@ Improvements:
 
 Bugs fixed:
  * Missing errors of some failed calls in client operation statistics (#911)
+ * Connection leaks on client dial failure and pool node recovery (#916)
 
 ## [1.0.0-rc.24] - 2026-10-27
 

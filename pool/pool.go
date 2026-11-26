@@ -274,8 +274,13 @@ func (c *clientWrapper) restartIfUnhealthy(ctx context.Context) (healthy, change
 		}
 
 		c.clientMutex.Lock()
+		old := c.client
 		c.client = cl
 		c.clientMutex.Unlock()
+
+		if old != nil {
+			_ = old.Close()
+		}
 	} else {
 		wasHealthy = true
 	}
