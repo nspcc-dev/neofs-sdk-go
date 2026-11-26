@@ -9,7 +9,7 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 )
 
-// Container returns random container.Container.
+// Container returns random [container.Container].
 func Container() (x container.Container) {
 	owner := usertest.ID()
 
@@ -22,7 +22,7 @@ func Container() (x container.Container) {
 	return x
 }
 
-// BasicACL returns random acl.Basic.
+// BasicACL returns random [acl.Basic].
 func BasicACL() (x acl.Basic) {
 	x.FromBits(rand.Uint32())
 	return

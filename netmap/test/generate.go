@@ -16,12 +16,12 @@ func filter(withInner bool) (x netmap.Filter) {
 	return x
 }
 
-// Filter returns random netmap.Filter.
+// Filter returns random [netmap.Filter].
 func Filter() netmap.Filter {
 	return filter(true)
 }
 
-// Replica returns random netmap.ReplicaDescriptor.
+// Replica returns random [netmap.ReplicaDescriptor].
 func Replica() (x netmap.ReplicaDescriptor) {
 	x.SetNumberOfObjects(666)
 	x.SetSelectorName("selector")
@@ -29,7 +29,7 @@ func Replica() (x netmap.ReplicaDescriptor) {
 	return
 }
 
-// Selector returns random netmap.Selector.
+// Selector returns random [netmap.Selector].
 func Selector() (x netmap.Selector) {
 	x.SetNumberOfNodes(11)
 	x.SetName("name")
@@ -40,7 +40,7 @@ func Selector() (x netmap.Selector) {
 	return
 }
 
-// PlacementPolicy returns random netmap.PlacementPolicy.
+// PlacementPolicy returns random [netmap.PlacementPolicy].
 func PlacementPolicy() (p netmap.PlacementPolicy) {
 	p.SetContainerBackupFactor(9)
 	p.SetFilters([]netmap.Filter{Filter(), Filter()})
@@ -50,7 +50,7 @@ func PlacementPolicy() (p netmap.PlacementPolicy) {
 	return
 }
 
-// NetworkInfo returns random netmap.NetworkInfo.
+// NetworkInfo returns random [netmap.NetworkInfo].
 func NetworkInfo() (x netmap.NetworkInfo) {
 	x.SetCurrentEpoch(21)
 	x.SetMagicNumber(32)
@@ -68,7 +68,7 @@ func NetworkInfo() (x netmap.NetworkInfo) {
 	return
 }
 
-// NodeInfo returns random netmap.NodeInfo.
+// NodeInfo returns random [netmap.NodeInfo].
 func NodeInfo() (x netmap.NodeInfo) {
 	x.SetPublicKey(testutil.RandByteSlice(33))
 	x.SetNetworkEndpoints("1", "2", "3")

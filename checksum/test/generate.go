@@ -8,7 +8,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 )
 
-// Checksum returns random checksum.Checksum.
+// Checksum returns random [checksum.Checksum].
 func Checksum() checksum.Checksum {
 	data := testutil.RandByteSlice(sha256.Size)
 	res, err := checksum.NewFromData(checksum.SHA256, data)

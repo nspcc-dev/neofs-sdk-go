@@ -6,12 +6,12 @@ import (
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 )
 
-// ID returns random oid.ID.
+// ID returns random [oid.ID].
 func ID() oid.ID {
 	return oid.ID(testutil.RandByteSlice(oid.Size))
 }
 
-// OtherID returns random oid.ID other than any given one.
+// OtherID returns random [oid.ID] other than any given one.
 func OtherID(vs ...oid.ID) oid.ID {
 loop:
 	for {
@@ -25,7 +25,7 @@ loop:
 	}
 }
 
-// IDs returns n random oid.ID instances.
+// IDs returns n random [oid.ID] instances.
 func IDs(n int) []oid.ID {
 	res := make([]oid.ID, n)
 	for i := range res {
@@ -34,7 +34,7 @@ func IDs(n int) []oid.ID {
 	return res
 }
 
-// Address returns random oid.Address.
+// Address returns random [oid.Address].
 func Address() oid.Address {
 	var x oid.Address
 
@@ -44,7 +44,7 @@ func Address() oid.Address {
 	return x
 }
 
-// OtherAddress returns random oid.Address other than any given one.
+// OtherAddress returns random [oid.Address] other than any given one.
 func OtherAddress(vs ...oid.Address) oid.Address {
 loop:
 	for {
@@ -58,7 +58,7 @@ loop:
 	}
 }
 
-// Addresses returns n random oid.Address instances.
+// Addresses returns n random [oid.Address] instances.
 func Addresses(n int) []oid.Address {
 	res := make([]oid.Address, n)
 	for i := range res {

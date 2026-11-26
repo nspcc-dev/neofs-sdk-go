@@ -9,12 +9,12 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 )
 
-// ID returns random user.ID.
+// ID returns random [user.ID].
 func ID() user.ID {
 	return user.NewFromScriptHash(testutil.RandScriptHash())
 }
 
-// OtherID returns random user.ID other than any given one.
+// OtherID returns random [user.ID] other than any given one.
 func OtherID(vs ...user.ID) user.ID {
 loop:
 	for {
@@ -28,7 +28,7 @@ loop:
 	}
 }
 
-// IDs returns n random user.ID instances.
+// IDs returns n random [user.ID] instances.
 func IDs(n int) []user.ID {
 	res := make([]user.ID, n)
 	for i := range res {

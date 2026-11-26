@@ -16,7 +16,7 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 )
 
-// Container returns random session.Container.
+// Container returns random [session.Container].
 //
 // Resulting token is unsigned.
 func Container() session.Container {
@@ -38,7 +38,7 @@ func Container() session.Container {
 	return tok
 }
 
-// ContainerSigned returns signed random session.Container.
+// ContainerSigned returns signed random [session.Container].
 //
 // Panics if token could not be signed (actually unexpected).
 func ContainerSigned(signer user.Signer) session.Container {
@@ -52,7 +52,7 @@ func ContainerSigned(signer user.Signer) session.Container {
 	return tok
 }
 
-// Object returns random session.Object.
+// Object returns random [session.Object].
 //
 // Resulting token is unsigned.
 func Object() session.Object {
@@ -75,7 +75,7 @@ func Object() session.Object {
 	return tok
 }
 
-// ObjectSigned returns signed random session.Object.
+// ObjectSigned returns signed random [session.Object].
 //
 // Panics if token could not be signed (actually unexpected).
 func ObjectSigned(signer user.Signer) session.Object {
@@ -89,7 +89,7 @@ func ObjectSigned(signer user.Signer) session.Object {
 	return tok
 }
 
-// Token returns random session.Token.
+// Token returns random [sessionv2.Token].
 //
 // Resulting token is unsigned.
 func Token() sessionv2.Token {
@@ -120,7 +120,7 @@ func Token() sessionv2.Token {
 	return tok
 }
 
-// TokenSigned returns signed random session.Token.
+// TokenSigned returns signed random [sessionv2.Token].
 //
 // Panics if token could not be signed (actually unexpected).
 func TokenSigned(signer user.Signer) sessionv2.Token {

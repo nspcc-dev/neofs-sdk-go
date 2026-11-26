@@ -5,12 +5,12 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/internal/testutil"
 )
 
-// ID returns random cid.ID.
+// ID returns random [cid.ID].
 func ID() cid.ID {
 	return cid.ID(testutil.RandByteSlice(cid.Size))
 }
 
-// IDs returns n random cid.ID instances.
+// IDs returns n random [cid.ID] instances.
 func IDs(n int) []cid.ID {
 	res := make([]cid.ID, n)
 	for i := range res {
@@ -19,7 +19,7 @@ func IDs(n int) []cid.ID {
 	return res
 }
 
-// OtherID returns random cid.ID other than any given one.
+// OtherID returns random [cid.ID] other than any given one.
 func OtherID(vs ...cid.ID) cid.ID {
 loop:
 	for {
