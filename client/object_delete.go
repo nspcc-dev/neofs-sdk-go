@@ -122,7 +122,7 @@ func (c *Client) ObjectDelete(ctx context.Context, containerID cid.ID, objectID 
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoobject.DeleteRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protoobject.DeleteRequest_Body](signer, req, c.netMagic, protoobject.ObjectService_Delete_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)

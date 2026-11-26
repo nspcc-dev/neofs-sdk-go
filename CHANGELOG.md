@@ -4,6 +4,7 @@
 
 New features:
  * PUT streams are a strict sequence of messages with unique IDs now (#909)
+ * NeoFS API v2.29 request signature scheme (#918)
 
 Behaviour changes:
 

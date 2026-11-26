@@ -99,7 +99,7 @@ func (c *Client) SessionCreate(ctx context.Context, signer user.Signer, prm PrmS
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protosession.CreateRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protosession.CreateRequest_Body](signer, req, c.netMagic, protosession.SessionService_Create_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)

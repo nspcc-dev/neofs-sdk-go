@@ -913,7 +913,7 @@ func (c *Client) ObjectGetInit(ctx context.Context, containerID cid.ID, objectID
 
 	var reqBuffers mem.BufferSlice
 	if c.shouldSignRequest(ttl) {
-		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion, c.netMagic, protoobject.ObjectService_Get_FullMethodName)
 		if err != nil {
 			if reqMemBuf != nil {
 				reqMemBuf.Free()
@@ -1091,7 +1091,7 @@ func (c *Client) ObjectHead(ctx context.Context, containerID cid.ID, objectID oi
 
 	var reqBuffers mem.BufferSlice
 	if c.shouldSignRequest(ttl) {
-		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion, c.netMagic, protoobject.ObjectService_Head_FullMethodName)
 		if err != nil {
 			if reqMemBuf != nil {
 				reqMemBuf.Free()

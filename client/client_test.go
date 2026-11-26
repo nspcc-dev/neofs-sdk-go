@@ -20,9 +20,13 @@ import (
 	neofsecdsa "github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	eacltest "github.com/nspcc-dev/neofs-sdk-go/eacl/test"
+	protoaccounting "github.com/nspcc-dev/neofs-sdk-go/proto/accounting"
+	protocontainer "github.com/nspcc-dev/neofs-sdk-go/proto/container"
 	protoencoding "github.com/nspcc-dev/neofs-sdk-go/proto/encoding"
 	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
+	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 	protorefs "github.com/nspcc-dev/neofs-sdk-go/proto/refs"
+	protoreputation "github.com/nspcc-dev/neofs-sdk-go/proto/reputation"
 	protosession "github.com/nspcc-dev/neofs-sdk-go/proto/session"
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
@@ -88,10 +92,12 @@ var (
 		pub     []byte
 		version *protorefs.Version
 		epoch   uint64
+		magic   uint64
 	}{
 		pub:     neofscrypto.PublicKeyBytes(testServerSignerOnDial.Public()),
 		version: version.Current().ProtoMessage(),
 		epoch:   rand.Uint64(),
+		magic:   rand.Uint64() | 1,
 	}
 )
 
@@ -114,23 +120,28 @@ func newCustomClient(t testing.TB, setPrm func(*PrmInit), overrideDialServer fun
 	// serve dial RPC
 	const netmapSvcName = "neo.fs.v2.netmap.NetmapService"
 	const nodeInfoMtdName = "LocalNodeInfo"
+	const netInfoMtdName = "NetworkInfo"
 	netmapSvcInd := -1
 	nodeInfoMtdInd := -1
-loop:
+	netInfoMtdInd := -1
 	for i := range svcs {
 		if svcs[i].desc.ServiceName == netmapSvcName {
 			netmapSvcInd = i
 			for j := range svcs[i].desc.Methods {
-				if svcs[i].desc.Methods[j].MethodName == nodeInfoMtdName {
+				switch svcs[i].desc.Methods[j].MethodName {
+				case nodeInfoMtdName:
 					nodeInfoMtdInd = j
-					break loop
+				case netInfoMtdName:
+					netInfoMtdInd = j
 				}
 			}
+			break
 		}
 	}
 
-	type nodeInfoServer interface {
+	type dialNetmapServer interface {
 		LocalNodeInfo(context.Context, *protonetmap.LocalNodeInfoRequest) (*protonetmap.LocalNodeInfoResponse, error)
+		NetworkInfo(context.Context, *protonetmap.NetworkInfoRequest) (*protonetmap.NetworkInfoResponse, error)
 	}
 	dialSrv := newTestGetNodeInfoServer()
 	dialSrv.respondWithNodePublicKey(testServerStateOnDial.pub)
@@ -146,12 +157,30 @@ loop:
 		return dialSrv.LocalNodeInfo(ctx, &req)
 	}
 
+	dialNetInfoSrv := newTestNetworkInfoServer()
+	dialNetInfoSrv.checkRequestAPIVersion(version.New(2, 28).ProtoMessage())
+	dialNetInfoBody := proto.Clone(validMinNetInfoResponseBody).(*protonetmap.NetworkInfoResponse_Body)
+	dialNetInfoBody.NetworkInfo.MagicNumber = testServerStateOnDial.magic
+	dialNetInfoSrv.respondWithBody(dialNetInfoBody)
+	handleDialNetInfo := func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+		var req protonetmap.NetworkInfoRequest
+		if err := dec(&req); err != nil {
+			return nil, err
+		}
+		return dialNetInfoSrv.NetworkInfo(ctx, &req)
+	}
+
+	needDialNetInfo := newSignatureScheme(dialSrv.respBody.GetVersion())
+
 	if netmapSvcInd < 0 {
 		svcs = append(svcs, testService{
 			desc: &grpc.ServiceDesc{
 				ServiceName: netmapSvcName,
-				HandlerType: (*nodeInfoServer)(nil),
-				Methods:     []grpc.MethodDesc{{MethodName: nodeInfoMtdName, Handler: handleDial}},
+				HandlerType: (*dialNetmapServer)(nil),
+				Methods: []grpc.MethodDesc{
+					{MethodName: nodeInfoMtdName, Handler: handleDial},
+					{MethodName: netInfoMtdName, Handler: handleDialNetInfo},
+				},
 			},
 		})
 	} else {
@@ -166,6 +195,19 @@ loop:
 				if !called {
 					called = true
 					return handleDial(srv, ctx, dec, in)
+				}
+				return originalHandler(srv, ctx, dec, in)
+			}
+		}
+		if netInfoMtdInd < 0 {
+			dcp.Methods = append(dcp.Methods, grpc.MethodDesc{MethodName: netInfoMtdName, Handler: handleDialNetInfo})
+		} else if needDialNetInfo {
+			originalHandler := dcp.Methods[netInfoMtdInd].Handler
+			called := false
+			dcp.Methods[netInfoMtdInd].Handler = func(srv any, ctx context.Context, dec func(any) error, in grpc.UnaryServerInterceptor) (any, error) {
+				if !called {
+					called = true
+					return handleDialNetInfo(srv, ctx, dec, in)
 				}
 				return originalHandler(srv, ctx, dec, in)
 			}
@@ -706,6 +748,13 @@ type testCommonRequestServerSettings[
 	reqXHdrs        []string
 	requireUnsigned bool
 	apiVersion      *protorefs.Version
+	netMagic        uint64
+	netMagicSet     bool
+}
+
+func (x *testCommonRequestServerSettings[_, _]) checkRequestNetworkMagic(magic uint64) {
+	x.netMagic = magic
+	x.netMagicSet = true
 }
 
 // makes the server to assert that any request has given X-headers. By default,
@@ -736,6 +785,53 @@ func (x *testCommonRequestServerSettings[_, _]) requireUnsignedRequest() {
 	x.requireUnsigned = true
 }
 
+func requestFullMethodName(req any) (string, error) {
+	switch req.(type) {
+	case *protoaccounting.BalanceRequest:
+		return protoaccounting.AccountingService_Balance_FullMethodName, nil
+	case *protocontainer.PutRequest:
+		return protocontainer.ContainerService_Put_FullMethodName, nil
+	case *protocontainer.GetRequest:
+		return protocontainer.ContainerService_Get_FullMethodName, nil
+	case *protocontainer.ListRequest:
+		return protocontainer.ContainerService_List_FullMethodName, nil
+	case *protocontainer.DeleteRequest:
+		return protocontainer.ContainerService_Delete_FullMethodName, nil
+	case *protocontainer.GetExtendedACLRequest:
+		return protocontainer.ContainerService_GetExtendedACL_FullMethodName, nil
+	case *protocontainer.SetExtendedACLRequest:
+		return protocontainer.ContainerService_SetExtendedACL_FullMethodName, nil
+	case *protocontainer.SetAttributeV2Request:
+		return protocontainer.ContainerService_SetAttributeV2_FullMethodName, nil
+	case *protocontainer.RemoveAttributeV2Request:
+		return protocontainer.ContainerService_RemoveAttributeV2_FullMethodName, nil
+	case *protonetmap.LocalNodeInfoRequest:
+		return protonetmap.NetmapService_LocalNodeInfo_FullMethodName, nil
+	case *protonetmap.NetworkInfoRequest:
+		return protonetmap.NetmapService_NetworkInfo_FullMethodName, nil
+	case *protonetmap.NetmapSnapshotRequest:
+		return protonetmap.NetmapService_NetmapSnapshot_FullMethodName, nil
+	case *protoobject.GetRequest:
+		return protoobject.ObjectService_Get_FullMethodName, nil
+	case *protoobject.PutRequest:
+		return protoobject.ObjectService_Put_FullMethodName, nil
+	case *protoobject.DeleteRequest:
+		return protoobject.ObjectService_Delete_FullMethodName, nil
+	case *protoobject.HeadRequest:
+		return protoobject.ObjectService_Head_FullMethodName, nil
+	case *protoobject.SearchV2Request:
+		return protoobject.ObjectService_SearchV2_FullMethodName, nil
+	case *protoreputation.AnnounceLocalTrustRequest:
+		return protoreputation.ReputationService_AnnounceLocalTrust_FullMethodName, nil
+	case *protoreputation.AnnounceIntermediateResultRequest:
+		return protoreputation.ReputationService_AnnounceIntermediateResult_FullMethodName, nil
+	case *protosession.CreateRequest:
+		return protosession.SessionService_Create_FullMethodName, nil
+	default:
+		return "", fmt.Errorf("unexpected request type %T", req)
+	}
+}
+
 func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) error {
 	body := req.GetBody()
 	metaHdr := req.GetMetaHeader()
@@ -763,9 +859,26 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("meta signature: %w", err))
 			}
 		} else {
-			rawReq, _ := protoencoding.EncodeRequest(nil, body, metaHdr)
+			rawReq, ln := protoencoding.EncodeRequest(nil, body, metaHdr)
+			dataToVerify := rawReq[:ln]
+			if newSignatureScheme(metaHdr.Version) {
+				method, err := requestFullMethodName(req)
+				if err != nil {
+					return newInvalidRequestVerificationHeaderErr(err)
+				}
+				magic := testServerStateOnDial.magic
+				if x.netMagicSet {
+					magic = x.netMagic
+				}
+				hash := sha256.Sum256(dataToVerify)
+				dataToVerify = protoencoding.MarshalMessage(&protorefs.RequestSignData{
+					MagicNumber: magic,
+					Method:      method,
+					RequestHash: hash[:],
+				})
+			}
 			if err := verifyDataSignature(
-				rawReq, verifyHdr.RequestSignature, x.reqCreds); err != nil {
+				dataToVerify, verifyHdr.RequestSignature, x.reqCreds); err != nil {
 				return newInvalidRequestVerificationHeaderErr(fmt.Errorf("request signature: %w", err))
 			}
 		}
@@ -794,8 +907,8 @@ func (x testCommonRequestServerSettings[REQBODY, REQ]) verifyRequest(req REQ) er
 		}
 	case metaHdr.Epoch != 0:
 		return newInvalidRequestMetaHeaderErr(fmt.Errorf("non-zero epoch #%d", metaHdr.Epoch))
-	case metaHdr.MagicNumber != 0:
-		return newInvalidRequestMetaHeaderErr(fmt.Errorf("non-zero network magic #%d", metaHdr.MagicNumber))
+	case metaHdr.MagicNumber != 0: //nolint:staticcheck
+		return newInvalidRequestMetaHeaderErr(fmt.Errorf("non-zero network magic #%d", metaHdr.MagicNumber)) //nolint:staticcheck
 	case metaHdr.Origin != nil:
 		return newInvalidRequestMetaHeaderErr(errors.New("origin header is presented while should not be"))
 	case len(metaHdr.XHeaders) != len(x.reqXHdrs)/2:
@@ -1287,6 +1400,28 @@ func testIncorrectUnaryRPCResponseFormat(t testing.TB, svcName, method string, o
 	require.Equal(t, codes.Internal, st.Code())
 }
 
+type collectedStatItem struct {
+	pub      []byte
+	endpoint string
+	mtd      stat.Method
+	dur      time.Duration
+	err      error
+}
+
+func assertDialStatistics(t testing.TB, collected []collectedStatItem) {
+	require.Len(t, collected, 2)
+	require.Nil(t, collected[0].pub)
+	require.Equal(t, testServerEndpoint, collected[0].endpoint)
+	require.Equal(t, stat.MethodEndpointInfo, collected[0].mtd)
+	require.Positive(t, collected[0].dur)
+	require.NoError(t, collected[0].err)
+	require.Equal(t, testServerStateOnDial.pub, collected[1].pub)
+	require.Equal(t, testServerEndpoint, collected[1].endpoint)
+	require.Equal(t, stat.MethodNetworkInfo, collected[1].mtd)
+	require.Positive(t, collected[1].dur)
+	require.NoError(t, collected[1].err)
+}
+
 // checks that the [Client] correctly keeps exec statistics of specified ops
 // performing communication with built test server. All operations must comply
 // with the tested service.
@@ -1309,16 +1444,9 @@ func testStatistic[SRV interface {
 	srv := newSrv()
 	svc := newSvc(t, srv)
 
-	type collectedItem struct {
-		pub      []byte
-		endpoint string
-		mtd      stat.Method
-		dur      time.Duration
-		err      error
-	}
-	var collected []collectedItem
+	var collected []collectedStatItem
 	handler := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
-		collected = append(collected, collectedItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
+		collected = append(collected, collectedStatItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
 	}
 	assertCommon := func(mtd stat.Method, pub []byte, err error) {
 		require.Len(t, collected, 1)
@@ -1330,8 +1458,7 @@ func testStatistic[SRV interface {
 	}
 
 	c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
-	// [Client.EndpointInfo] is always called to dial the server: this is also submitted
-	assertCommon(stat.MethodEndpointInfo, nil, nil) // server key is not yet received
+	assertDialStatistics(t, collected)
 	collected = nil
 
 	assert := func(err error) {
@@ -1441,4 +1568,117 @@ func TestWrapCtxErr(t *testing.T) {
 	ctx, cancel = context.WithTimeout(context.Background(), 0)
 	defer cancel()
 	require.ErrorIs(t, wrapCtxErr(ctx, status.Error(codes.DeadlineExceeded, "")), context.DeadlineExceeded)
+}
+
+func TestClient_DialRequestSignData(t *testing.T) {
+	t.Run("v2.29 fetches magic and signs with RequestSignData", func(t *testing.T) {
+		srv := newTestNetmapSnapshotServer()
+		c := newTestNetmapClient(t, srv)
+
+		require.Equal(t, testServerStateOnDial.magic, c.netMagic)
+		_, err := c.NetMapSnapshot(t.Context(), PrmNetMapSnapshot{})
+		require.NoError(t, err)
+
+		srv.checkRequestNetworkMagic(testServerStateOnDial.magic + 1)
+		_, err = c.NetMapSnapshot(t.Context(), PrmNetMapSnapshot{})
+		require.ErrorContains(t, err, "request signature")
+	})
+
+	t.Run("v2.28 skips NetworkInfo on dial and signs raw request", func(t *testing.T) {
+		v228 := version.New(2, 28).ProtoMessage()
+		snapSrv := newTestNetmapSnapshotServer()
+		snapSrv.checkRequestAPIVersion(v228)
+
+		var netInfoCalled bool
+		netInfoSrv := newTestNetworkInfoServer()
+		netInfoSrv.checkRequestAPIVersion(v228)
+
+		svc := testService{
+			desc: &grpc.ServiceDesc{
+				ServiceName: "neo.fs.v2.netmap.NetmapService",
+				Methods: []grpc.MethodDesc{
+					{
+						MethodName: "NetworkInfo",
+						Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+							netInfoCalled = true
+							var req protonetmap.NetworkInfoRequest
+							if err := dec(&req); err != nil {
+								return nil, err
+							}
+							return netInfoSrv.NetworkInfo(ctx, &req)
+						},
+					},
+					{
+						MethodName: "NetmapSnapshot",
+						Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+							var req protonetmap.NetmapSnapshotRequest
+							if err := dec(&req); err != nil {
+								return nil, err
+							}
+							return snapSrv.NetmapSnapshot(ctx, &req)
+						},
+					},
+				},
+			},
+		}
+
+		c := newCustomClient(t, nil, func(dial *testGetNodeInfoServer) {
+			dial.respondWithNodeVersion(v228)
+		}, svc)
+
+		require.False(t, netInfoCalled)
+		require.Zero(t, c.netMagic)
+		_, err := c.NetMapSnapshot(t.Context(), PrmNetMapSnapshot{})
+		require.NoError(t, err)
+	})
+
+	t.Run("v2.29 dial fails when NetworkInfo fails", func(t *testing.T) {
+		dialSrv := newTestGetNodeInfoServer()
+		dialSrv.respondWithNodePublicKey(testServerStateOnDial.pub)
+
+		netInfoErr := errors.New("network info unavailable")
+		netInfoSrv := newTestNetworkInfoServer()
+		netInfoSrv.checkRequestAPIVersion(version.New(2, 28).ProtoMessage())
+		netInfoSrv.setHandlerError(netInfoErr)
+
+		srv := grpc.NewServer()
+		srv.RegisterService(&grpc.ServiceDesc{
+			ServiceName: "neo.fs.v2.netmap.NetmapService",
+			Methods: []grpc.MethodDesc{
+				{
+					MethodName: "LocalNodeInfo",
+					Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+						var req protonetmap.LocalNodeInfoRequest
+						if err := dec(&req); err != nil {
+							return nil, err
+						}
+						return dialSrv.LocalNodeInfo(ctx, &req)
+					},
+				},
+				{
+					MethodName: "NetworkInfo",
+					Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+						var req protonetmap.NetworkInfoRequest
+						if err := dec(&req); err != nil {
+							return nil, err
+						}
+						return netInfoSrv.NetworkInfo(ctx, &req)
+					},
+				},
+			},
+		}, nil)
+
+		lis := bufconn.Listen(10 << 10)
+		go func() { _ = srv.Serve(lis) }()
+		t.Cleanup(srv.Stop)
+
+		var prm PrmInit
+		prm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
+
+		c, err := New(prm)
+		require.NoError(t, err)
+
+		err = c.DialEndpoint(t.Context(), testServerEndpoint)
+		assertTransportErr(t, netInfoErr, err)
+	})
 }

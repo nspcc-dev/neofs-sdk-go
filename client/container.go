@@ -199,7 +199,7 @@ func (c *Client) ContainerPut(ctx context.Context, cont container.Container, sig
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.PutRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.PutRequest_Body](signer, req, c.netMagic, protocontainer.ContainerService_Put_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -278,7 +278,7 @@ func (c *Client) ContainerGet(ctx context.Context, id cid.ID, prm PrmContainerGe
 	var res container.Container
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.GetRequest_Body](c.prm.signer, req, c.netMagic, protocontainer.ContainerService_Get_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -349,7 +349,7 @@ func (c *Client) ContainerList(ctx context.Context, ownerID user.ID, prm PrmCont
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.ListRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.ListRequest_Body](c.prm.signer, req, c.netMagic, protocontainer.ContainerService_List_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -506,7 +506,7 @@ func (c *Client) ContainerDelete(ctx context.Context, id cid.ID, signer neofscry
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.DeleteRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.DeleteRequest_Body](signer, req, c.netMagic, protocontainer.ContainerService_Delete_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -559,7 +559,7 @@ func (c *Client) ContainerEACL(ctx context.Context, id cid.ID, prm PrmContainerE
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.GetExtendedACLRequest_Body](c.prm.signer, req, c.netMagic, protocontainer.ContainerService_GetExtendedACL_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -761,7 +761,7 @@ func (c *Client) ContainerSetEACL(ctx context.Context, table eacl.Table, signer 
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetExtendedACLRequest_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.SetExtendedACLRequest_Body](signer, req, c.netMagic, protocontainer.ContainerService_SetExtendedACL_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -1038,7 +1038,7 @@ func (c *Client) AddContainerAttribute(ctx context.Context, signer neofscrypto.S
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.SetAttributeV2Request_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.SetAttributeV2Request_Body](signer, req, c.netMagic, protocontainer.ContainerService_SetAttributeV2_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -1287,7 +1287,7 @@ func (c *Client) DeleteContainerAttribute(ctx context.Context, signer neofscrypt
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protocontainer.RemoveAttributeV2Request_Body](signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protocontainer.RemoveAttributeV2Request_Body](signer, req, c.netMagic, protocontainer.ContainerService_RemoveAttributeV2_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)

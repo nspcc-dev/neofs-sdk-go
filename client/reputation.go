@@ -68,7 +68,7 @@ func (c *Client) AnnounceLocalTrust(ctx context.Context, epoch uint64, trusts []
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protoreputation.AnnounceLocalTrustRequest_Body](c.prm.signer, req, c.netMagic, protoreputation.ReputationService_AnnounceLocalTrust_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -140,7 +140,7 @@ func (c *Client) AnnounceIntermediateTrust(ctx context.Context, epoch uint64, tr
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protoreputation.AnnounceIntermediateResultRequest_Body](c.prm.signer, req, c.netMagic, protoreputation.ReputationService_AnnounceIntermediateResult_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
