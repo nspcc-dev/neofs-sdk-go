@@ -174,7 +174,7 @@ func Put(ctx context.Context, ow ObjectWriter, header object.Object, signer user
 	return slice(ctx, ow, header, data, signer, opts)
 }
 
-// InitPut works similar to [Put], but provides [ObjectWriter] allowing
+// InitPut works similar to [Put], but provides [PayloadWriter] allowing
 // the caller to write data himself.
 func InitPut(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
 	return initPayloadStream(ctx, ow, header, signer, opts)

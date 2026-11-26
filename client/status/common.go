@@ -8,7 +8,7 @@ import (
 )
 
 // Error describes common error which is a grouping type for any [apistatus] errors. Any [apistatus] error may be checked
-// explicitly via it's type or just check the group via [errors.Is] with [Error].
+// explicitly via it's type or just check the group via [errors.Is] with Error.
 var Error = errors.New("api error")
 
 var (

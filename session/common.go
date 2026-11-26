@@ -233,7 +233,7 @@ func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
 //
-// See also [Object.ExpiredAt].
+// See also [Container.ValidAt], [Object.ValidAt], [Object.ExpiredAt].
 func (x *commonData) SetExp(exp uint64) {
 	x.exp = exp
 }
@@ -362,8 +362,9 @@ func (x *commonData) AttachSignature(sig neofscrypto.Signature) {
 }
 
 // Signature returns token signature. If the signature is missing, false is
-// returned. Use SignedData method for verification. If signature instance
-// itself is not needed, use VerifySignature method.
+// returned. Use [Container.SignedData] / [Object.SignedData] method for
+// verification. If signature instance itself is not needed, use
+// [Container.VerifySignature] / [Object.VerifySignature] method.
 func (x commonData) Signature() (neofscrypto.Signature, bool) {
 	return x.sig, x.sigSet
 }
