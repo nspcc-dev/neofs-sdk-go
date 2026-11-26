@@ -25,7 +25,7 @@ type Trust struct {
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
 // x from it.
 //
-// See also [Table.ProtoMessage].
+// See also [Trust.ProtoMessage].
 func (x *Trust) FromProtoMessage(m *protoreputation.Trust) error {
 	if m.Value < 0 || m.Value > 1 {
 		return fmt.Errorf("invalid trust value %v", m.Value)
@@ -48,7 +48,7 @@ func (x *Trust) FromProtoMessage(m *protoreputation.Trust) error {
 // ProtoMessage converts t into message to transmit using the NeoFS API
 // protocol.
 //
-// See also [Table.FromProtoMessage].
+// See also [Trust.FromProtoMessage].
 func (x Trust) ProtoMessage() *protoreputation.Trust {
 	m := &protoreputation.Trust{
 		Value: x.val,
@@ -201,7 +201,7 @@ type GlobalTrust struct {
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
 // x from it.
 //
-// See also [PeerID.ProtoMessage].
+// See also [GlobalTrust.ProtoMessage].
 func (x *GlobalTrust) FromProtoMessage(m *protoreputation.GlobalTrust) error {
 	if m.Version == nil {
 		return errors.New("missing version")

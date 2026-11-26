@@ -12,10 +12,10 @@ import (
 	"google.golang.org/protobuf/testing/protocmp"
 )
 
-// TestMarshalStable tests that all given proto.Message instances encode into
+// TestMarshalStable tests that all given [stdproto.Message] instances encode into
 // Protocol Buffers V3 correctly. TestMarshalStable also checks that
-// [proto.Message.MarshalStable] panics if buffer length is less than
-// [proto.Message.MarshaledSize]. Nil and zeroed PTR cases are also tested so no
+// [protoencoding.Message.MarshalStable] panics if buffer length is less than
+// [protoencoding.Message.MarshaledSize]. Nil and zeroed PTR cases are also tested so no
 // need to add them to xs. The xs may be left empty if message has no fields.
 func TestMarshalStable[T any, PTR interface {
 	*T

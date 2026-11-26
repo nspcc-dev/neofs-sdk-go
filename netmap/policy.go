@@ -443,7 +443,7 @@ func (s *Selector) SetName(name string) {
 //
 // Zero Selector is unnamed.
 //
-// See also [Selector.Name].
+// See also [Selector.SetName].
 func (s Selector) Name() string {
 	return s.name
 }

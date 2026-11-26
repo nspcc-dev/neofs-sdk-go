@@ -98,7 +98,7 @@ func (v Version) String() string {
 	return EncodeToString(v)
 }
 
-// DecodeString is the inverse of [String], it parses string representation
+// DecodeString is the inverse of [Version.String], it parses string representation
 // of [Version] and sets the value accordingly.
 func (v *Version) DecodeString(s string) error {
 	if len(s) < 4 { // v0.0

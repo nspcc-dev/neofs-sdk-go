@@ -29,7 +29,9 @@ type ID [IDSize]byte
 // ErrZeroID is an error returned on zero [ID] encounter.
 var ErrZeroID = errors.New("zero user ID")
 
-// NewFromScriptHash creates new ID and makes [ID.SetScriptHash].
+// NewFromScriptHash creates new [ID] from the given Neo3 script hash.
+//
+// See also [ID.ScriptHash].
 func NewFromScriptHash(scriptHash util.Uint160) ID {
 	var x ID
 	x[0] = address.Prefix
@@ -40,7 +42,7 @@ func NewFromScriptHash(scriptHash util.Uint160) ID {
 
 // NewFromECDSAPublicKey creates new ID corresponding to Neo3 verification
 // script hash of the given ECDSA public key. The point must be on the
-// [elliptic.P256] curve.
+// [crypto/elliptic.P256] curve.
 func NewFromECDSAPublicKey(pub ecdsa.PublicKey) ID {
 	return NewFromScriptHash((*keys.PublicKey)(&pub).GetScriptHash())
 }

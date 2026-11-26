@@ -28,7 +28,7 @@ var ErrZero = errors.New("zero container ID")
 // NewFromMarshalledContainer returns new ID calculated from the given NeoFS
 // container encoded into Protocol Buffers V3 with ascending order of fields by
 // number. It's callers responsibility to ensure the format of b. See
-// [container.Container.Marshal].
+// [github.com/nspcc-dev/neofs-sdk-go/container.Container.Marshal].
 func NewFromMarshalledContainer(b []byte) ID { return sha256.Sum256(b) }
 
 // DecodeBytes creates new ID and makes [ID.Decode].

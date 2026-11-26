@@ -379,7 +379,7 @@ func (b Token) Issuer() user.ID {
 // resolution when explicit issuer ID is unset. Returns zero [user.ID] when
 // neither issuer is set nor key resolution succeeds.
 //
-// See also [Token.SigningKeyBytes], [Token.Sign].
+// See also [Token.Sign].
 func (b Token) ResolveIssuer() user.ID {
 	if !b.issuer.IsZero() {
 		return b.issuer

@@ -88,7 +88,7 @@ func WriteInternalServerErr(x *ServerInternal, err error) {
 }
 
 // WrongMagicNumber describes failure status related to incorrect network magic.
-// Instances provide [StatusV2] and error interfaces.
+// Instances provide the error interface.
 type WrongMagicNumber struct {
 	msg string
 	dts []*protostatus.Status_Detail
@@ -313,7 +313,7 @@ func (x BadRequest) protoMessage() *protostatus.Status {
 // SetMessage sets details for why the request is bad.
 // Message should be used for debug purposes only.
 //
-// See also [Message].
+// See also [BadRequest.Message].
 func (x *BadRequest) SetMessage(v string) {
 	x.msg = v
 }
@@ -321,7 +321,7 @@ func (x *BadRequest) SetMessage(v string) {
 // Message returns status message. Zero status returns empty message.
 // Message should be used for debug purposes only.
 //
-// See also [SetMessage].
+// See also [BadRequest.SetMessage].
 func (x BadRequest) Message() string {
 	return x.msg
 }
@@ -372,7 +372,7 @@ func (x Busy) protoMessage() *protostatus.Status {
 // SetMessage sets details of server state.
 // Message should be used for debug purposes only.
 //
-// See also [Message].
+// See also [Busy.Message].
 func (x *Busy) SetMessage(v string) {
 	x.msg = v
 }
@@ -380,7 +380,7 @@ func (x *Busy) SetMessage(v string) {
 // Message returns status message. Zero status returns empty message.
 // Message should be used for debug purposes only.
 //
-// See also [SetMessage].
+// See also [Busy.SetMessage].
 func (x Busy) Message() string {
 	return x.msg
 }
@@ -430,7 +430,7 @@ func (x RequestExpired) protoMessage() *protostatus.Status {
 // SetMessage sets details of server state.
 // Message should be used for debug purposes only.
 //
-// See also [Message].
+// See also [RequestExpired.Message].
 func (x *RequestExpired) SetMessage(v string) {
 	x.msg = v
 }
@@ -438,7 +438,7 @@ func (x *RequestExpired) SetMessage(v string) {
 // Message returns status message. Zero status returns empty message.
 // Message should be used for debug purposes only.
 //
-// See also [SetMessage].
+// See also [RequestExpired.SetMessage].
 func (x RequestExpired) Message() string {
 	return x.msg
 }

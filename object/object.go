@@ -355,7 +355,7 @@ func (x header) protoMessage() *protoobject.Header {
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
 // o from it.
 //
-// See also [Table.ProtoMessage].
+// See also [Object.ProtoMessage].
 func (o *Object) FromProtoMessage(m *protoobject.Object) error {
 	// ID
 	if m.ObjectId != nil {
@@ -530,7 +530,7 @@ func (o Object) Owner() user.ID {
 
 // SetOwner sets identifier of the object owner.
 //
-// See also [Object.GetOwner].
+// See also [Object.Owner].
 func (o *Object) SetOwner(v user.ID) {
 	o.header.owner = v
 }

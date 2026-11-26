@@ -531,8 +531,8 @@ func (x Container) ReadDomain() (res Domain) {
 // is expected to be called after all the [Container] data is filled and before
 // saving the [Container] in the NeoFS network. Note that мany subsequent change
 // will most likely break the signature. signer MUST be of
-// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example, [neofsecdsa.SignerRFC6979]
-// can be used.
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example,
+// [github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa.SignerRFC6979] can be used.
 //
 // See also [Container.VerifySignature], [Container.SignedData].
 //

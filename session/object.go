@@ -35,7 +35,7 @@ type Object struct {
 	objs []oid.ID
 }
 
-// CopyTo writes deep copy of the [Container] to dst.
+// CopyTo writes deep copy of the [Object] to dst.
 func (x Object) CopyTo(dst *Object) {
 	x.copyTo(&dst.commonData)
 

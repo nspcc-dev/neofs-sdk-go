@@ -65,7 +65,7 @@ func (x *Target) MarshaledSize() int {
 
 // MarshalStable writes the Target in Protocol Buffers V3 format with
 // ascending order of fields by number into b. MarshalStable uses exactly
-// [Account.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
+// [Target.MarshaledSize] first bytes of b. MarshalStable is NPE-safe.
 func (x *Target) MarshalStable(b []byte) {
 	if x != nil {
 		switch id := x.Identifier.(type) {

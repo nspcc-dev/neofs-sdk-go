@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Method is an enumerator to describe [client.Client] methods.
+// Method is an enumerator to describe [github.com/nspcc-dev/neofs-sdk-go/client.Client] methods.
 type Method int
 
 // Various client methods.

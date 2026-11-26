@@ -56,8 +56,7 @@ const (
 // returned from all of them (pay attention to the presence of the pointer sign):
 //   - *[apistatus.ServerInternal] on internal server error;
 //   - *[apistatus.NodeUnderMaintenance] if a server is under maintenance;
-//   - *[apistatus.RequestExpired] if request is expired;
-//   - *[apistatus.SuccessDefaultV2] on default success.
+//   - *[apistatus.RequestExpired] if request is expired.
 //
 // Client MUST NOT be copied by value: use pointer to Client instead.
 //

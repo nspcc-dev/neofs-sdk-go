@@ -239,7 +239,7 @@ func RandPlacementPolicy() *netmap.PlacementPolicy {
 	}
 }
 
-// RandPlacementPolicy returns random [netmap.InitialPlacementPolicy] with all
+// RandInitialPlacementPolicy returns random [netmap.PlacementPolicy_Initial] with all
 // non-zero fields.
 func RandInitialPlacementPolicy() *netmap.PlacementPolicy_Initial {
 	return &netmap.PlacementPolicy_Initial{

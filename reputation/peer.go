@@ -44,7 +44,7 @@ func (x PeerID) ProtoMessage() *protoreputation.PeerID {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// Parameter key is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Parameter key is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
 //
 // See also [ComparePeerKey].
 func (x *PeerID) SetPublicKey(key []byte) {
@@ -56,8 +56,8 @@ func (x *PeerID) SetPublicKey(key []byte) {
 // Zero [PeerID] has zero key which is incorrect according to NeoFS API
 // protocol.
 //
-// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
-// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+// The resulting slice of bytes is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
+// Use [github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -68,7 +68,7 @@ func (x PeerID) PublicKey() []byte {
 // ComparePeerKey checks if the given PeerID corresponds to the party
 // authenticated by the given binary public key.
 //
-// The key parameter is a slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// The key parameter is a slice of bytes is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
 func ComparePeerKey(peer PeerID, key []byte) bool {
 	return bytes.Equal(peer.PublicKey(), key)
 }

@@ -67,7 +67,7 @@ func (id ID) ProtoMessage() *refs.ObjectID {
 // Decode decodes src bytes into ID. Use [DecodeBytes] to decode src into a new
 // ID.
 //
-// Decode expects that src has [IDSize] bytes length. If the input is malformed,
+// Decode expects that src has [Size] bytes length. If the input is malformed,
 // Decode returns an error describing format violation. In this case ID
 // remains unchanged.
 //
