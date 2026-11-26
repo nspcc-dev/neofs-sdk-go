@@ -1282,6 +1282,9 @@ func (p PlacementPolicy) Verify() error {
 	var cnrNodeCount uint32
 	for i := range rs {
 		rNum := rs[i].NumberOfObjects()
+		if rNum == 0 {
+			return fmt.Errorf("%w #%d: zero count", errInvalidREPRule, i)
+		}
 		if rNum > maxObjectReplicasPerSet {
 			return fmt.Errorf("%w #%d: more than %d object replicas", errInvalidREPRule, i, maxObjectReplicasPerSet)
 		}
