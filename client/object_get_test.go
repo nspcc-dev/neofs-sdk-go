@@ -2110,32 +2110,19 @@ func TestClient_ObjectGetInit(t *testing.T) {
 		})
 	})
 	t.Run("exec statistics", func(t *testing.T) {
-		type collectedItem struct {
-			pub      []byte
-			endpoint string
-			mtd      stat.Method
-			dur      time.Duration
-			err      error
-		}
-		bind := func() (*testGetObjectServer, *Client, *[]collectedItem) {
+		bind := func() (*testGetObjectServer, *Client, *[]collectedStatItem) {
 			srv := newTestGetObjectServer()
 			svc := newDefaultObjectService(t, srv)
-			var collected []collectedItem
+			var collected []collectedStatItem
 			handler := func(pub []byte, endpoint string, mtd stat.Method, dur time.Duration, err error) {
-				collected = append(collected, collectedItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
+				collected = append(collected, collectedStatItem{pub: pub, endpoint: endpoint, mtd: mtd, dur: dur, err: err})
 			}
 			c := newCustomClient(t, func(prm *PrmInit) { prm.SetStatisticCallback(handler) }, nil, svc)
-			// [Client.EndpointInfo] is always called to dial the server: this is also submitted
-			require.Len(t, collected, 1)
-			require.Nil(t, collected[0].pub) // server key is not yet received
-			require.Equal(t, testServerEndpoint, collected[0].endpoint)
-			require.Equal(t, stat.MethodEndpointInfo, collected[0].mtd)
-			require.Positive(t, collected[0].dur)
-			require.NoError(t, collected[0].err)
+			assertDialStatistics(t, collected)
 			collected = nil
 			return srv, c, &collected
 		}
-		assertCommon := func(c *[]collectedItem) {
+		assertCommon := func(c *[]collectedStatItem) {
 			collected := *c
 			for i := range collected {
 				require.Equal(t, testServerStateOnDial.pub, collected[i].pub)

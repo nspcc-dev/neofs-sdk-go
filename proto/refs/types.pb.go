@@ -551,6 +551,86 @@ func (x *Signature) GetScheme() SignatureScheme {
 	return SignatureScheme_ECDSA_SHA512
 }
 
+// RequestSignData contains the data to be signed for a NeoFS API request.
+//
+// Starting from NeoFS API version 2.29, request signatures MUST be calculated
+// over the stable marshaled representation of this message.
+//
+// The stable-marshaling format of the `request_hash` field MUST be deterministic
+// and MUST be encoded in Protocol Buffers V3 format with fields in ascending
+// order by field number recursively. Fields are cryptographically bound to
+// the request and prevent a signature from being reused across NeoFS networks
+// or API methods.
+type RequestSignData struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// NeoFS network magic number. It identifies the NeoFS network for which
+	// the signature is valid. Servers must compare these fields to their own
+	// magic numbers.
+	MagicNumber uint64 `protobuf:"varint,1,opt,name=magic_number,json=magicNumber,proto3" json:"magic_number,omitempty"`
+	// Full canonical gRPC method name of the called RPC as defined by this API,
+	// i.e. "/<package>.<Service>/<Method>", e.g.
+	// "/neo.fs.v2.object.ObjectService/Put". Case-sensitive.
+	Method string `protobuf:"bytes,2,opt,name=method,proto3" json:"method,omitempty"`
+	// SHA256 hash of stable-marshaled representation of the request message with
+	// the `verify_header` field omitted completely (attaching no bytes), i.e. the
+	// same data that was signed before API v2.29. For streaming RPCs, each
+	// stream message is signed separately.
+	RequestHash   []byte `protobuf:"bytes,3,opt,name=request_hash,json=requestHash,proto3" json:"request_hash,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RequestSignData) Reset() {
+	*x = RequestSignData{}
+	mi := &file_proto_refs_types_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RequestSignData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RequestSignData) ProtoMessage() {}
+
+func (x *RequestSignData) ProtoReflect() protoreflect.Message {
+	mi := &file_proto_refs_types_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RequestSignData.ProtoReflect.Descriptor instead.
+func (*RequestSignData) Descriptor() ([]byte, []int) {
+	return file_proto_refs_types_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *RequestSignData) GetMagicNumber() uint64 {
+	if x != nil {
+		return x.MagicNumber
+	}
+	return 0
+}
+
+func (x *RequestSignData) GetMethod() string {
+	if x != nil {
+		return x.Method
+	}
+	return ""
+}
+
+func (x *RequestSignData) GetRequestHash() []byte {
+	if x != nil {
+		return x.RequestHash
+	}
+	return nil
+}
+
 // RFC 6979 signature.
 type SignatureRFC6979 struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -565,7 +645,7 @@ type SignatureRFC6979 struct {
 
 func (x *SignatureRFC6979) Reset() {
 	*x = SignatureRFC6979{}
-	mi := &file_proto_refs_types_proto_msgTypes[7]
+	mi := &file_proto_refs_types_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -577,7 +657,7 @@ func (x *SignatureRFC6979) String() string {
 func (*SignatureRFC6979) ProtoMessage() {}
 
 func (x *SignatureRFC6979) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_refs_types_proto_msgTypes[7]
+	mi := &file_proto_refs_types_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -590,7 +670,7 @@ func (x *SignatureRFC6979) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SignatureRFC6979.ProtoReflect.Descriptor instead.
 func (*SignatureRFC6979) Descriptor() ([]byte, []int) {
-	return file_proto_refs_types_proto_rawDescGZIP(), []int{7}
+	return file_proto_refs_types_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *SignatureRFC6979) GetKey() []byte {
@@ -626,7 +706,7 @@ type Checksum struct {
 
 func (x *Checksum) Reset() {
 	*x = Checksum{}
-	mi := &file_proto_refs_types_proto_msgTypes[8]
+	mi := &file_proto_refs_types_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -638,7 +718,7 @@ func (x *Checksum) String() string {
 func (*Checksum) ProtoMessage() {}
 
 func (x *Checksum) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_refs_types_proto_msgTypes[8]
+	mi := &file_proto_refs_types_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -651,7 +731,7 @@ func (x *Checksum) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Checksum.ProtoReflect.Descriptor instead.
 func (*Checksum) Descriptor() ([]byte, []int) {
-	return file_proto_refs_types_proto_rawDescGZIP(), []int{8}
+	return file_proto_refs_types_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Checksum) GetType() ChecksumType {
@@ -690,7 +770,11 @@ const file_proto_refs_types_proto_rawDesc = "" +
 	"\tSignature\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12\x17\n" +
 	"\x04sign\x18\x02 \x01(\fR\tsignature\x127\n" +
-	"\x06scheme\x18\x03 \x01(\x0e2\x1f.neo.fs.v2.refs.SignatureSchemeR\x06scheme\"=\n" +
+	"\x06scheme\x18\x03 \x01(\x0e2\x1f.neo.fs.v2.refs.SignatureSchemeR\x06scheme\"o\n" +
+	"\x0fRequestSignData\x12!\n" +
+	"\fmagic_number\x18\x01 \x01(\x04R\vmagicNumber\x12\x16\n" +
+	"\x06method\x18\x02 \x01(\tR\x06method\x12!\n" +
+	"\frequest_hash\x18\x03 \x01(\fR\vrequestHash\"=\n" +
 	"\x10SignatureRFC6979\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\fR\x03key\x12\x17\n" +
 	"\x04sign\x18\x02 \x01(\fR\tsignature\"N\n" +
@@ -721,7 +805,7 @@ func file_proto_refs_types_proto_rawDescGZIP() []byte {
 }
 
 var file_proto_refs_types_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_proto_refs_types_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_proto_refs_types_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_proto_refs_types_proto_goTypes = []any{
 	(SignatureScheme)(0),     // 0: neo.fs.v2.refs.SignatureScheme
 	(ChecksumType)(0),        // 1: neo.fs.v2.refs.ChecksumType
@@ -732,8 +816,9 @@ var file_proto_refs_types_proto_goTypes = []any{
 	(*SubnetID)(nil),         // 6: neo.fs.v2.refs.SubnetID
 	(*Version)(nil),          // 7: neo.fs.v2.refs.Version
 	(*Signature)(nil),        // 8: neo.fs.v2.refs.Signature
-	(*SignatureRFC6979)(nil), // 9: neo.fs.v2.refs.SignatureRFC6979
-	(*Checksum)(nil),         // 10: neo.fs.v2.refs.Checksum
+	(*RequestSignData)(nil),  // 9: neo.fs.v2.refs.RequestSignData
+	(*SignatureRFC6979)(nil), // 10: neo.fs.v2.refs.SignatureRFC6979
+	(*Checksum)(nil),         // 11: neo.fs.v2.refs.Checksum
 }
 var file_proto_refs_types_proto_depIdxs = []int32{
 	4, // 0: neo.fs.v2.refs.Address.container_id:type_name -> neo.fs.v2.refs.ContainerID
@@ -758,7 +843,7 @@ func file_proto_refs_types_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_refs_types_proto_rawDesc), len(file_proto_refs_types_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   9,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

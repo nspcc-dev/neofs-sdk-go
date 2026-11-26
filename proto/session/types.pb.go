@@ -535,6 +535,10 @@ type RequestMetaHeader struct {
 	Origin *RequestMetaHeader `protobuf:"bytes,7,opt,name=origin,proto3" json:"origin,omitempty"`
 	// NeoFS network magic. Must match the value for the network
 	// that the server belongs to.
+	//
+	// DEPRECATED: should be omitted since API v2.29.
+	//
+	// Deprecated: Marked as deprecated in proto/session/types.proto.
 	MagicNumber uint64 `protobuf:"varint,8,opt,name=magic_number,json=magicNumber,proto3" json:"magic_number,omitempty"`
 	// The time at which this request ceases to be valid. This value is
 	// an absolute point in time, expressed as a UTC Unix timestamp in seconds.
@@ -632,6 +636,7 @@ func (x *RequestMetaHeader) GetOrigin() *RequestMetaHeader {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in proto/session/types.proto.
 func (x *RequestMetaHeader) GetMagicNumber() uint64 {
 	if x != nil {
 		return x.MagicNumber
@@ -773,6 +778,11 @@ type RequestVerificationHeader struct {
 	// Request signature. It is a signature of the whole request marshaled, except
 	// for the verification header itself (the verification header field must be
 	// omitted completely, attaching no bytes to the signed data).
+	//
+	// Starting from NeoFS API version 2.29, the signature MUST be calculated
+	// over the stable marshaled neo.fs.v2.refs.RequestSignData message with
+	// correctly filled fields for the network, the API method and the request
+	// it is attached to. See RequestSignData's description for more details.
 	RequestSignature *refs.Signature `protobuf:"bytes,5,opt,name=request_signature,json=requestSignature,proto3" json:"request_signature,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -1640,7 +1650,7 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\acontext\"1\n" +
 	"\aXHeader\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\x84\x04\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\x88\x04\n" +
 	"\x11RequestMetaHeader\x121\n" +
 	"\aversion\x18\x01 \x01(\v2\x17.neo.fs.v2.refs.VersionR\aversion\x12\x14\n" +
 	"\x05epoch\x18\x02 \x01(\x04R\x05epoch\x12\x10\n" +
@@ -1649,8 +1659,8 @@ const file_proto_session_types_proto_rawDesc = "" +
 	"\rsession_token\x18\x05 \x01(\v2\x1f.neo.fs.v2.session.SessionTokenR\fsessionToken\x12K\n" +
 	"\x10session_token_v2\x18\t \x01(\v2!.neo.fs.v2.session.SessionTokenV2R\x0esessionTokenV2\x12=\n" +
 	"\fbearer_token\x18\x06 \x01(\v2\x1a.neo.fs.v2.acl.BearerTokenR\vbearerToken\x12<\n" +
-	"\x06origin\x18\a \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\x06origin\x12!\n" +
-	"\fmagic_number\x18\b \x01(\x04R\vmagicNumber\x12(\n" +
+	"\x06origin\x18\a \x01(\v2$.neo.fs.v2.session.RequestMetaHeaderR\x06origin\x12%\n" +
+	"\fmagic_number\x18\b \x01(\x04B\x02\x18\x01R\vmagicNumber\x12(\n" +
 	"\x10valid_until_time\x18\n" +
 	" \x01(\x04R\x0evalidUntilTime\"\x99\x02\n" +
 	"\x12ResponseMetaHeader\x121\n" +

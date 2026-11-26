@@ -241,7 +241,7 @@ func (c *Client) SearchObjects(ctx context.Context, cnr cid.ID, filters object.S
 
 	var reqBuffers mem.BufferSlice
 	if c.shouldSignRequest(ttl) {
-		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion)
+		reqBuffers, err = appendVerificationHeader(signer, reqMemBuf, buf, bodyWithMetaHdrLen, signedBody, buf[off-metaHdrLen:off], c.apiVersion, c.netMagic, protoobject.ObjectService_SearchV2_FullMethodName)
 		if err != nil {
 			if reqMemBuf != nil {
 				reqMemBuf.Free()

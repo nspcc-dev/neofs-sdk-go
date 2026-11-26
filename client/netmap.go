@@ -80,7 +80,11 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	if prm.compatAPI {
+		req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	} else {
+		req.VerifyHeader, err = neofscrypto.SignRequest[*protonetmap.LocalNodeInfoRequest_Body](c.prm.signer, req, c.netMagic, protonetmap.NetmapService_LocalNodeInfo_FullMethodName, reqMemBuf.SliceBuffer)
+	}
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -140,6 +144,8 @@ func (c *Client) EndpointInfo(ctx context.Context, prm PrmEndpointInfo) (*ResEnd
 // PrmNetworkInfo groups parameters of NetworkInfo operation.
 type PrmNetworkInfo struct {
 	prmCommonMeta
+	// Used internally during dial to ensure compatibility.
+	compatAPI bool
 }
 
 // NetworkInfo requests information about the NeoFS network of which the remote server is a part.
@@ -159,11 +165,15 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 		}()
 	}
 
+	reqVer := c.apiVersion
+	if prm.compatAPI {
+		reqVer = version.New(2, 28).ProtoMessage()
+	}
 	req := &protonetmap.NetworkInfoRequest{
 		MetaHeader: &protosession.RequestMetaHeader{
-			Version:        c.apiVersion,
+			Version:        reqVer,
 			Ttl:            defaultRequestTTL,
-			ValidUntilTime: validUntilTime(ctx, c.apiVersion),
+			ValidUntilTime: validUntilTime(ctx, reqVer),
 		},
 	}
 	writeXHeadersToMeta(prm.xHeaders, req.MetaHeader)
@@ -172,7 +182,11 @@ func (c *Client) NetworkInfo(ctx context.Context, prm PrmNetworkInfo) (netmap.Ne
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	if prm.compatAPI {
+		req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	} else {
+		req.VerifyHeader, err = neofscrypto.SignRequest[*protonetmap.NetworkInfoRequest_Body](c.prm.signer, req, c.netMagic, protonetmap.NetmapService_NetworkInfo_FullMethodName, reqMemBuf.SliceBuffer)
+	}
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)
@@ -244,7 +258,7 @@ func (c *Client) NetMapSnapshot(ctx context.Context, _ PrmNetMapSnapshot) (netma
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protonetmap.NetmapSnapshotRequest_Body](c.prm.signer, req, c.netMagic, protonetmap.NetmapService_NetmapSnapshot_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)

@@ -5,8 +5,10 @@ import (
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/sha512"
+	"errors"
 	"fmt"
 	"math/rand/v2"
+	"strings"
 	"testing"
 
 	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
@@ -179,7 +181,7 @@ var (
 			},
 			Signature: &refs.Signature{Key: []byte("any_pub"), Sign: []byte("any_sig"), Scheme: 1375722142},
 		},
-		MagicNumber: 14001122173143970642,
+		MagicNumber: 14001122173143970642, //nolint:staticcheck // compatibility test fixture
 	}
 	reqMetaHdrBinV225 = []byte{10, 4, 8, 2, 16, 25, 16, 181, 247, 213, 227, 229, 150, 238, 219, 255, 1, 24, 158, 158, 235, 171, 1, 34, 32, 10, 14, 120, 45, 104,
 		101, 97, 100, 101, 114, 45, 49, 45, 107, 101, 121, 18, 14, 120, 45, 104, 101, 97, 100, 101, 114, 45, 49, 45, 118, 97, 108, 34, 32, 10,
@@ -267,7 +269,7 @@ var (
 			},
 			Signature: &refs.Signature{Key: []byte("any_pub"), Sign: []byte("any_sig"), Scheme: 1375722142},
 		},
-		MagicNumber: 14001122173143970642,
+		MagicNumber: 14001122173143970642, //nolint:staticcheck // compatibility test fixture
 	}
 )
 
@@ -531,6 +533,187 @@ func TestVerifyRequestWithBuffer(t *testing.T) {
 				})
 			}
 		})
+	})
+}
+
+func TestSignAndVerifyRequest(t *testing.T) {
+	const (
+		magic  uint64 = 15405
+		method        = protoobject.ObjectService_Get_FullMethodName
+	)
+
+	anySigner := neofscryptotest.Signer()
+	pub := &anySigner.ECDSAPrivateKey.PublicKey
+
+	makeReq := func(major, minor uint32) *protoobject.GetRequest {
+		req := proto.Clone(getObjectUnsignedRequest).(*protoobject.GetRequest)
+		req.MetaHeader.Version = &refs.Version{Major: major, Minor: minor}
+		req.MetaHeader.MagicNumber = 0 //nolint:staticcheck // omitted since v2.29
+		return req
+	}
+
+	expectedSignData := func(req *protoobject.GetRequest, m uint64, mtd string) []byte {
+		rawReq, ln := protoencoding.EncodeRequest(nil, req.GetBody(), req.GetMetaHeader())
+		h := sha256.Sum256(rawReq[:ln])
+		return protoencoding.MarshalMessage(&refs.RequestSignData{
+			MagicNumber: m,
+			Method:      mtd,
+			RequestHash: h[:],
+		})
+	}
+
+	t.Run("signer failure v2.29", func(t *testing.T) {
+		req := makeReq(2, 29)
+		_, err := neofscrypto.SignRequest[*protoobject.GetRequest_Body](neofscryptotest.FailSigner(anySigner), req, magic, method, nil)
+		require.ErrorContains(t, err, "failed to sign request fields")
+	})
+
+	for _, tc := range []struct {
+		name       string
+		signer     neofscrypto.Signer
+		verifyData func(t testing.TB, data, sig []byte)
+	}{
+		{
+			name:   "ECDSA_SHA512",
+			signer: anySigner,
+			verifyData: func(t testing.TB, data, sig []byte) {
+				h := sha512.Sum512(data)
+				verifyECDSAWithSHA512Signature(t, pub, h[:], sig)
+			},
+		},
+		{
+			name:   "ECDSA_SHA256_RFC6979",
+			signer: anySigner.RFC6979,
+			verifyData: func(t testing.TB, data, sig []byte) {
+				h := sha256.Sum256(data)
+				verifyECDSAWithSHA256RFC6979Signature(t, pub, h[:], sig)
+			},
+		},
+		{
+			name:   "ECDSA_SHA256_WalletConnect",
+			signer: anySigner.WalletConnect,
+			verifyData: func(t testing.TB, data, sig []byte) {
+				verifyWalletConnectSignature(t, pub, data, sig)
+			},
+		},
+	} {
+		t.Run("v2.29/"+tc.name, func(t *testing.T) {
+			req := makeReq(2, 29)
+			vh, err := neofscrypto.SignRequest[*protoobject.GetRequest_Body](tc.signer, req, magic, method, nil)
+			require.NoError(t, err)
+			require.NotNil(t, vh)
+			require.NotNil(t, vh.RequestSignature)
+			require.Nil(t, vh.Origin)
+			require.EqualValues(t, tc.signer.Scheme(), vh.RequestSignature.Scheme)
+			require.Equal(t, anySigner.PublicKeyBytes, vh.RequestSignature.Key)
+
+			tc.verifyData(t, expectedSignData(req, magic, method), vh.RequestSignature.Sign)
+
+			req.VerifyHeader = vh
+			require.NoError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic, method, nil))
+			require.EqualError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic+1, method, nil), "signature mismatch")
+			require.EqualError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic, protoobject.ObjectService_Head_FullMethodName, nil), "signature mismatch")
+			require.EqualError(t, neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil), "signature mismatch")
+		})
+	}
+
+	t.Run("v2.29/long method", func(t *testing.T) {
+		longMethod := "/" + strings.Repeat("a", 200) + "/Call"
+		req := makeReq(2, 29)
+		vh, err := neofscrypto.SignRequest[*protoobject.GetRequest_Body](anySigner.RFC6979, req, magic, longMethod, nil)
+		require.NoError(t, err)
+		req.VerifyHeader = vh
+		require.NoError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic, longMethod, nil))
+		require.EqualError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic, longMethod+"x", nil), "signature mismatch")
+	})
+
+	t.Run("v2.28 ignores magic and method", func(t *testing.T) {
+		req := makeReq(2, 28)
+		vh, err := neofscrypto.SignRequest[*protoobject.GetRequest_Body](anySigner.RFC6979, req, magic, method, nil)
+		require.NoError(t, err)
+		req.VerifyHeader = vh
+
+		require.NoError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic+1, "/other/Method", nil))
+		require.NoError(t, neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil))
+	})
+
+	t.Run("v2.25 ignores magic and method", func(t *testing.T) {
+		req := proto.Clone(getObjectUnsignedRequestV225).(*protoobject.GetRequest)
+		vh, err := neofscrypto.SignRequest[*protoobject.GetRequest_Body](anySigner.RFC6979, req, magic, method, nil)
+		require.NoError(t, err)
+		req.VerifyHeader = vh
+
+		require.NoError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](req, magic+1, "/other/Method", nil))
+		require.NoError(t, neofscrypto.VerifyRequestWithBuffer[*protoobject.GetRequest_Body](req, nil))
+	})
+
+	t.Run("VerifyRequestN3", func(t *testing.T) {
+		invoc := []byte("invocation_script")
+		verif := []byte("verification_script")
+
+		t.Run("v2.29", func(t *testing.T) {
+			req := makeReq(2, 29)
+			req.VerifyHeader = &protosession.RequestVerificationHeader{
+				RequestSignature: &refs.Signature{
+					Key:    verif,
+					Sign:   invoc,
+					Scheme: refs.SignatureScheme_N3,
+				},
+			}
+
+			var gotData, gotInvoc, gotVerif []byte
+			err := neofscrypto.VerifyRequestN3[*protoobject.GetRequest_Body](req, magic, method, nil, func(data, invocScript, verifScript []byte) error {
+				gotData = bytes.Clone(data)
+				gotInvoc = invocScript
+				gotVerif = verifScript
+				return nil
+			})
+			require.NoError(t, err)
+			require.Equal(t, expectedSignData(req, magic, method), gotData)
+			require.Equal(t, invoc, gotInvoc)
+			require.Equal(t, verif, gotVerif)
+
+			wantErr := errors.New("n3 witness rejected")
+			err = neofscrypto.VerifyRequestN3[*protoobject.GetRequest_Body](req, magic, method, nil, func(_, _, _ []byte) error {
+				return wantErr
+			})
+			require.ErrorIs(t, err, wantErr)
+		})
+
+		t.Run("v2.28", func(t *testing.T) {
+			req := makeReq(2, 28)
+			req.VerifyHeader = &protosession.RequestVerificationHeader{
+				RequestSignature: &refs.Signature{
+					Key:    verif,
+					Sign:   invoc,
+					Scheme: refs.SignatureScheme_N3,
+				},
+			}
+
+			rawReq, ln := protoencoding.EncodeRequest(nil, req.GetBody(), req.GetMetaHeader())
+			var gotData []byte
+			err := neofscrypto.VerifyRequestN3[*protoobject.GetRequest_Body](req, magic, method, nil, func(data, _, _ []byte) error {
+				gotData = bytes.Clone(data)
+				return nil
+			})
+			require.NoError(t, err)
+			require.Equal(t, rawReq[:ln], gotData)
+		})
+	})
+
+	t.Run("v2.29 invalid verification header", func(t *testing.T) {
+		req := makeReq(2, 29)
+		vh, err := neofscrypto.SignRequest[*protoobject.GetRequest_Body](anySigner.RFC6979, req, magic, method, nil)
+		require.NoError(t, err)
+		req.VerifyHeader = vh
+
+		for _, tc := range corruptSigTestcases {
+			t.Run(tc.name, func(t *testing.T) {
+				cloned := proto.Clone(req).(*protoobject.GetRequest)
+				tc.corrupt(cloned.VerifyHeader.RequestSignature)
+				require.EqualError(t, neofscrypto.VerifyRequest[*protoobject.GetRequest_Body](cloned, magic, method, nil), tc.msg)
+			})
+		}
 	})
 }
 

@@ -102,7 +102,23 @@ func callUnary(ctx context.Context, conn *grpc.ClientConn, method string, reques
 	return wrapCtxErr(ctx, stream.RecvMsg(response))
 }
 
-func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version) (mem.BufferSlice, error) {
+func signRequest(signer neofscrypto.Signer, vers *protorefs.Version, magic uint64, method string, rawReq []byte) ([]byte, error) {
+	var (
+		sigRaw []byte
+		err    error
+	)
+	if newSignatureScheme(vers) {
+		sigRaw, err = neofscrypto.SignRequestData(signer, magic, method, rawReq)
+	} else {
+		sigRaw, err = signer.Sign(rawReq)
+	}
+	if err != nil {
+		return nil, fmt.Errorf("sign request: %w", err)
+	}
+	return sigRaw, nil
+}
+
+func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.MemBuffer, reqBuf []byte, bodyWithMetaHdrLen int, body []byte, metaHdr []byte, vers *protorefs.Version, magic uint64, method string) (mem.BufferSlice, error) {
 	if multipleReqSignatures(vers) {
 		bodySig, metaHdrSig, originVerifHdrSig, err := signRequestParts(signer, body, metaHdr, needsOriginSig(vers))
 		if err != nil {
@@ -115,9 +131,9 @@ func appendVerificationHeader(signer neofscrypto.Signer, reqMemBuf *protobuf.Mem
 		return appendVerificationHeaderSignatures2(reqMemBuf, reqBuf, bodyWithMetaHdrLen, pubKeyBytes, scheme, bodySig, metaHdrSig, originVerifHdrSig), nil
 	}
 
-	sigRaw, err := signer.Sign(reqBuf[:bodyWithMetaHdrLen])
+	sigRaw, err := signRequest(signer, vers, magic, method, reqBuf[:bodyWithMetaHdrLen])
 	if err != nil {
-		return nil, fmt.Errorf("sign request: %w", err)
+		return nil, err
 	}
 	var (
 		pubKey = make([]byte, signer.Public().MaxEncodedSize())

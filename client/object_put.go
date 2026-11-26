@@ -111,6 +111,7 @@ type DefaultObjectWriter struct {
 	err               error
 
 	apiVersion *refs.Version
+	netMagic   uint64
 	opts       PrmObjectPutInit
 
 	statisticCallback shortStatisticCallback
@@ -290,12 +291,12 @@ func (x *DefaultObjectWriter) writeHeader(hdr object.Object) error {
 
 			reqBuffers = appendVerificationHeaderSignatures2(reqMemBuf, buf, bodyWithMetaHdrLen, x.signerPublicKeyBinary, x.signer.Scheme(), bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 		} else {
-			sigRaw, err := x.signer.Sign(buf[:off])
+			sigRaw, err := signRequest(x.signer, x.apiVersion, x.netMagic, protoobject.ObjectService_Put_FullMethodName, buf[:off])
 			if err != nil {
 				if reqMemBuf != nil {
 					reqMemBuf.Free()
 				}
-				x.err = fmt.Errorf("sign request: %w", err)
+				x.err = err
 				return x.err
 			}
 
@@ -412,12 +413,12 @@ func (x *DefaultObjectWriter) Write(chunk []byte) (n int, err error) {
 				reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf, off, x.signerPublicKeyBinary, x.signer.Scheme(), bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 			} else {
 				var sigRaw []byte
-				sigRaw, err = x.signer.Sign(buf[:off])
+				sigRaw, err = signRequest(x.signer, x.apiVersion, x.netMagic, protoobject.ObjectService_Put_FullMethodName, buf[:off])
 				if err != nil {
 					if reqMemBuf != nil {
 						reqMemBuf.Free()
 					}
-					x.err = fmt.Errorf("sign request: %w", err)
+					x.err = err
 					return writtenBytes, x.err
 				}
 
@@ -546,12 +547,12 @@ func (x *DefaultObjectWriter) ReadFrom(r io.Reader) (int64, error) {
 					reqBuffers = appendVerificationHeaderSignatures(reqMemBuf, buf[bodyOff:], off-bodyOff, x.signerPublicKeyBinary, x.signer.Scheme(), bodySig, x.metaHeaderSignature, x.originVerificationHeaderSignature)
 				} else {
 					var sigRaw []byte
-					sigRaw, err = x.signer.Sign(buf[bodyOff:off])
+					sigRaw, err = signRequest(x.signer, x.apiVersion, x.netMagic, protoobject.ObjectService_Put_FullMethodName, buf[bodyOff:off])
 					if err != nil {
 						if reqMemBuf != nil {
 							reqMemBuf.Free()
 						}
-						x.err = fmt.Errorf("sign request: %w", err)
+						x.err = err
 						return writtenBytes, x.err
 					}
 
@@ -755,6 +756,7 @@ func (c *Client) ObjectPutInit(ctx context.Context, hdr object.Object, signer us
 
 	w.bufferPool = c.buffers
 	w.apiVersion = c.apiVersion
+	w.netMagic = c.netMagic
 	w.signer = signer
 	w.shouldSignRequest = !prm.local || !c.skipSignatureForLocalRequests
 	w.ctx = ctx

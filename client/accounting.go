@@ -67,7 +67,7 @@ func (c *Client) BalanceGet(ctx context.Context, prm PrmBalanceGet) (accounting.
 
 	reqMemBuf := defaultRequestBufferPool.Get()
 
-	req.VerifyHeader, err = neofscrypto.SignRequestWithBuffer[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, reqMemBuf.SliceBuffer)
+	req.VerifyHeader, err = neofscrypto.SignRequest[*protoaccounting.BalanceRequest_Body](c.prm.signer, req, c.netMagic, protoaccounting.AccountingService_Balance_FullMethodName, reqMemBuf.SliceBuffer)
 	reqMemBuf.Free()
 	if err != nil {
 		err = fmt.Errorf("%w: %w", errSignRequest, err)

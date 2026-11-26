@@ -78,6 +78,7 @@ type Client struct {
 	nodeKey  []byte
 
 	apiVersion *protorefs.Version
+	netMagic   uint64
 
 	buffers *sync.Pool
 
@@ -268,6 +269,15 @@ func (c *Client) fetchNodeKeyAndAPI(ctx context.Context) error {
 	}
 	c.apiVersion = clientAPI.ProtoMessage()
 
+	if newSignatureScheme(c.apiVersion) {
+		netInfo, err := c.NetworkInfo(ctx, PrmNetworkInfo{compatAPI: true})
+		if err != nil {
+			return err
+		}
+
+		c.netMagic = netInfo.MagicNumber()
+	}
+
 	return nil
 }
 
@@ -302,8 +312,6 @@ func (c *Client) sendStatistic(m stat.Method, dur time.Duration, err error) {
 // See also [New].
 type PrmInit struct {
 	signer neofscrypto.Signer
-
-	netMagic uint64 //nolint:unused // https://github.com/nspcc-dev/neofs-sdk-go/issues/671
 
 	statisticCallback stat.OperationCallback
 
@@ -496,6 +504,10 @@ func validUntilIsSupported(v *protorefs.Version) bool {
 }
 
 func orderedStream(v *protorefs.Version) bool {
+	return apiVersionGE(v, 2, 29)
+}
+
+func newSignatureScheme(v *protorefs.Version) bool {
 	return apiVersionGE(v, 2, 29)
 }
 

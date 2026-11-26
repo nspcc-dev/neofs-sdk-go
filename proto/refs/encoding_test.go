@@ -63,6 +63,21 @@ func TestSignature_MarshalStable(t *testing.T) {
 	})
 }
 
+func TestRequestSignData_MarshalStable(t *testing.T) {
+	prototest.TestMarshalStable(t, []*refs.RequestSignData{
+		{MagicNumber: prototest.RandUint64()},
+		{Method: ""},
+		{Method: prototest.RandString()},
+		{RequestHash: []byte{}},
+		{RequestHash: prototest.RandBytes()},
+		{
+			MagicNumber: prototest.RandUint64(),
+			Method:      prototest.RandString(),
+			RequestHash: prototest.RandBytes(),
+		},
+	})
+}
+
 func TestSignatureRFC6979_MarshalStable(t *testing.T) {
 	prototest.TestMarshalStable(t, []*refs.SignatureRFC6979{
 		{Key: []byte{}},

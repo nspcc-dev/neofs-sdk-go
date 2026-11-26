@@ -1,6 +1,7 @@
 package neofscrypto
 
 import (
+	"crypto/sha256"
 	"errors"
 	"fmt"
 
@@ -55,13 +56,45 @@ type SignedResponse[B protoencoding.Message] interface {
 // header to attach to this request.
 //
 // Buffer is optional and free after the call.
+//
+// Use [SignRequest] for NeoFS API v2.29+ requests.
 func SignRequestWithBuffer[B protoencoding.Message](signer Signer, r SignedRequest[B], buf []byte) (*session.RequestVerificationHeader, error) {
+	return signRequestWithBuffer(signer, r, buf, 0, "", false)
+}
+
+// SignRequest signs request parts using provided [neofscrypto.Signer]
+// according to the NeoFS API protocol, binding magic and canonical gRPC method
+// via [refs.RequestSignData] starting from API v2.29.
+//
+// Buffer is optional and free after the call.
+func SignRequest[B protoencoding.Message](signer Signer, r SignedRequest[B], magic uint64, method string, buf []byte) (*session.RequestVerificationHeader, error) {
+	return signRequestWithBuffer(signer, r, buf, magic, method, true)
+}
+
+// requestSignDataBufSize fits a marshaled [refs.RequestSignData] with a
+// 32-byte SHA-256 hash, up to 10-byte varint magic, tags, and typical gRPC
+// method names (~40-60 bytes) without heap allocation.
+const requestSignDataBufSize = 128
+
+// SignRequestData signs stably marshaled request bytes (without verification
+// header) using [refs.RequestSignData].
+func SignRequestData(signer Signer, magic uint64, method string, rawReq []byte) ([]byte, error) {
+	var stackBuf [requestSignDataBufSize]byte
+	return signer.Sign(encodeRequestSignData(stackBuf[:], magic, method, rawReq))
+}
+
+func signRequestWithBuffer[B protoencoding.Message](signer Signer, r SignedRequest[B], buf []byte, magic uint64, method string, allowNewSignatures bool) (*session.RequestVerificationHeader, error) {
 	var ln int
 	var err error
 	metaHeader := r.GetMetaHeader()
 	if !multipleReqSignatures(metaHeader) {
-		buf, ln = protoencoding.EncodeRequest(buf, r.GetBody(), r.GetMetaHeader())
-		s, err := signer.Sign(buf[:ln])
+		buf, ln = protoencoding.EncodeRequest(buf, r.GetBody(), metaHeader)
+		var s []byte
+		if allowNewSignatures && newSignatureScheme(metaHeader) {
+			s, err = SignRequestData(signer, magic, method, buf[:ln])
+		} else {
+			s, err = signer.Sign(buf[:ln])
+		}
 		if err != nil {
 			return nil, fmt.Errorf("%w: %w", errSignRequestFields, err)
 		}
@@ -118,6 +151,8 @@ func SignRequestWithBuffer[B protoencoding.Message](signer Signer, r SignedReque
 // formed according to the NeoFS API protocol.
 //
 // Buffer is optional and free after the call.
+//
+// Use [VerifyRequest] for NeoFS API v2.29+ requests.
 func VerifyRequestWithBuffer[B protoencoding.Message](r SignedRequest[B], buf []byte) error {
 	return VerifyRequestWithBufferN3(r, buf, nil)
 }
@@ -127,23 +162,44 @@ func VerifyRequestWithBuffer[B protoencoding.Message](r SignedRequest[B], buf []
 // and checked if verifyN3 is non-nil.
 //
 // Buffer is optional and free after the call.
+//
+// Use [VerifyRequestN3] for NeoFS API v2.29+ requests.
 func VerifyRequestWithBufferN3[B protoencoding.Message](r SignedRequest[B], buf []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+	return verifyRequestWithBufferN3(r, buf, verifyN3, 0, "", false)
+}
+
+// VerifyRequest checks whether verification header of the request is formed
+// according to the NeoFS API protocol, verifying [refs.RequestSignData] with
+// magic and canonical gRPC method starting from API v2.29.
+//
+// Buffer is optional and free after the call.
+func VerifyRequest[B protoencoding.Message](r SignedRequest[B], magic uint64, method string, buf []byte) error {
+	return VerifyRequestN3(r, magic, method, buf, nil)
+}
+
+// VerifyRequestN3 behaves like [VerifyRequest] and additionally checks [N3]
+// signatures via verifyN3 when non-nil.
+func VerifyRequestN3[B protoencoding.Message](r SignedRequest[B], magic uint64, method string, buf []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
+	return verifyRequestWithBufferN3(r, buf, verifyN3, magic, method, true)
+}
+
+func verifyRequestWithBufferN3[B protoencoding.Message](r SignedRequest[B], buf []byte, verifyN3 func(data, invocScript, verifScript []byte) error, magic uint64, method string, allowNewSignatures bool) error {
 	v := r.GetVerifyHeader()
 	if v == nil {
 		return errMissingVerifyHdr
 	}
 
-	b := r.GetBody()
 	m := r.GetMetaHeader()
-	bs := maxEncodedSize(b, m, v)
 
 	if !multipleReqSignatures(m) {
 		if v.RequestSignature == nil {
 			return errMissingRequestSig
 		}
-		return verifyRequestSignatureN3(r, v.RequestSignature, buf, verifyN3)
+		return verifyRequestSignatureN3(r, v.RequestSignature, buf, verifyN3, magic, method, allowNewSignatures && newSignatureScheme(m))
 	}
 
+	b := r.GetBody()
+	bs := maxEncodedSize(b, m, v)
 	checkOrigin := needsOriginSig(m)
 
 	if checkOrigin {
@@ -300,27 +356,47 @@ func VerifyResponseWithBuffer[B protoencoding.Message](r SignedResponse[B], buf 
 	}
 }
 
-func verifyRequestSignatureN3[B protoencoding.Message](req SignedRequest[B], s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
-	if s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil {
-		b, sz := protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
-		return verifyN3(b[:sz], s.Sign, s.Key)
-	}
-	return verifyRequestSignature(req, s, b)
-}
-
-func verifyRequestSignature[B protoencoding.Message](req SignedRequest[B], s *refs.Signature, b []byte) error {
-	pubKey, err := keyFromSignature(s)
-	if err != nil {
-		return err
+func verifyRequestSignatureN3[B protoencoding.Message](req SignedRequest[B], s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error, magic uint64, method string, newSignatures bool) error {
+	var pubKey PublicKey
+	isN3 := s.Scheme == refs.SignatureScheme_N3 && verifyN3 != nil
+	if !isN3 {
+		var err error
+		pubKey, err = keyFromSignature(s)
+		if err != nil {
+			return err
+		}
 	}
 
-	var sz int
-	b, sz = protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
-	if !pubKey.Verify(b[:sz], s.Sign) {
+	b, sz := protoencoding.EncodeRequest(b, req.GetBody(), req.GetMetaHeader())
+	data := b[:sz]
+	var stackBuf [requestSignDataBufSize]byte
+	if newSignatures {
+		data = encodeRequestSignData(stackBuf[:], magic, method, data)
+	}
+
+	if isN3 {
+		return verifyN3(data, s.Sign, s.Key)
+	}
+	if !pubKey.Verify(data, s.Sign) {
 		return errors.New("signature mismatch")
 	}
 
 	return nil
+}
+
+func encodeRequestSignData(dst []byte, magic uint64, method string, rawReq []byte) []byte {
+	hash := sha256.Sum256(rawReq)
+	sd := refs.RequestSignData{
+		MagicNumber: magic,
+		Method:      method,
+		RequestHash: hash[:],
+	}
+	ln := sd.MarshaledSize()
+	if len(dst) < ln {
+		dst = make([]byte, ln)
+	}
+	sd.MarshalStable(dst)
+	return dst[:ln]
 }
 
 func verifyMessageSignatureN3(m protoencoding.Message, s *refs.Signature, b []byte, verifyN3 func(data, invocScript, verifScript []byte) error) error {
@@ -384,4 +460,8 @@ func needsOriginSig(m *session.RequestMetaHeader) bool {
 
 func multipleReqSignatures(m *session.RequestMetaHeader) bool {
 	return m == nil || m.Version == nil || m.Version.Major < 2 || (m.Version.Major == 2 && m.Version.Minor < 26)
+}
+
+func newSignatureScheme(m *session.RequestMetaHeader) bool {
+	return m != nil && m.Version != nil && (m.Version.Major > 2 || (m.Version.Major == 2 && m.Version.Minor >= 29))
 }
