@@ -8,7 +8,7 @@ import (
 )
 
 // Error describes common error which is a grouping type for any [apistatus] errors. Any [apistatus] error may be checked
-// explicitly via it's type of just check the group via errors.Is(err, [apistatus.Error]).
+// explicitly via it's type or just check the group via [errors.Is] with [Error].
 var Error = errors.New("api error")
 
 var (
@@ -198,7 +198,7 @@ func (x SignatureVerification) protoMessage() *protostatus.Status {
 // SetMessage writes signature verification failure message.
 // Message should be used for debug purposes only.
 //
-// See also Message.
+// See also [SignatureVerification.Message].
 func (x *SignatureVerification) SetMessage(v string) {
 	x.msg = v
 }
@@ -206,7 +206,7 @@ func (x *SignatureVerification) SetMessage(v string) {
 // Message returns status message. Zero status returns empty message.
 // Message should be used for debug purposes only.
 //
-// See also SetMessage.
+// See also [SignatureVerification.SetMessage].
 func (x SignatureVerification) Message() string {
 	return x.msg
 }
@@ -255,7 +255,7 @@ func (x NodeUnderMaintenance) protoMessage() *protostatus.Status {
 // SetMessage writes signature verification failure message.
 // Message should be used for debug purposes only.
 //
-// See also Message.
+// See also [NodeUnderMaintenance.Message].
 func (x *NodeUnderMaintenance) SetMessage(v string) {
 	x.msg = v
 }
@@ -263,7 +263,7 @@ func (x *NodeUnderMaintenance) SetMessage(v string) {
 // Message returns status message. Zero status returns empty message.
 // Message should be used for debug purposes only.
 //
-// See also SetMessage.
+// See also [NodeUnderMaintenance.SetMessage].
 func (x NodeUnderMaintenance) Message() string {
 	return x.msg
 }

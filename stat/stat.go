@@ -44,7 +44,7 @@ const (
 	MethodLast
 )
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 func (m Method) String() string {
 	switch m {
 	case MethodBalanceGet:

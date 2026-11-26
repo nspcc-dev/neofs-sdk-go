@@ -132,7 +132,7 @@ func ToError(st *protostatus.Status) error {
 	return decoder
 }
 
-// FromError converts error to status.Status message structure. Inverse to [ToError] operation.
+// FromError converts error to [protostatus.Status] message structure. Inverse to [ToError] operation.
 //
 // Nil corresponds to [protostatus.OK] code, any unknown error to
 // [protostatus.InternalServerError].

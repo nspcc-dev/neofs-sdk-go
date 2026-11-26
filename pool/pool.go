@@ -426,14 +426,14 @@ func (x *InitParameters) SetNodeStreamTimeout(timeout time.Duration) {
 
 // SetHealthcheckTimeout specifies the timeout for request to node to decide if it is alive.
 //
-// See also Pool.Dial.
+// See also [Pool.Dial].
 func (x *InitParameters) SetHealthcheckTimeout(timeout time.Duration) {
 	x.healthcheckTimeout = timeout
 }
 
 // SetClientRebalanceInterval specifies the interval for updating nodes health status.
 //
-// See also Pool.Dial.
+// See also [Pool.Dial].
 func (x *InitParameters) SetClientRebalanceInterval(interval time.Duration) {
 	x.clientRebalanceInterval = interval
 }
@@ -548,22 +548,22 @@ func (x *NodeParam) SetWeight(weight float64) {
 // Pool represents virtual connection to the NeoFS network to communicate
 // with multiple NeoFS servers without thinking about switching between servers
 // due to load balancing proportions or their unavailability.
-// It is designed to provide a convenient abstraction from the multiple sdkClient.client types.
+// It is designed to provide a convenient abstraction from the multiple [sdkClient.Client] types.
 //
-// Pool can be created and initialized using NewPool function.
+// Pool can be created and initialized using [NewPool] function.
 // Before executing the NeoFS operations using the Pool, connection to the
-// servers MUST BE correctly established (see Dial method).
+// servers MUST BE correctly established (see [Pool.Dial] method).
 // Using the Pool before connecting have been established can lead to a panic.
-// After the work, the Pool SHOULD BE closed (see Close method): it frees internal
+// After the work, the Pool SHOULD BE closed (see [Pool.Close] method): it frees internal
 // and system resources which were allocated for the period of work of the Pool.
-// Calling Dial/Close methods during the communication process step strongly discouraged
+// Calling [Pool.Dial]/[Pool.Close] methods during the communication process step strongly discouraged
 // as it leads to undefined behavior.
 //
 // Pool automatically manages session tokens for operations. By default, it uses
 // legacy session tokens. New session tokens v2 can be enabled using
-// InitParameters.UseV2Sessions method. By default, session tokens v2 that passed
+// [InitParameters.UseV2Sessions] method. By default, session tokens v2 that passed
 // via parameters to specific requests are delegated to nodes.
-// To disable delegation, use InitParameters.DisableSessionV2Delegation method.
+// To disable delegation, use [InitParameters.DisableSessionV2Delegation] method.
 //
 // Each method which produces a NeoFS API call may return an error.
 // Status of underlying server response is casted to built-in error instance.
@@ -624,7 +624,7 @@ func DefaultOptions() InitParameters {
 
 // New creates connection pool using simple set of endpoints and parameters.
 //
-// See also [pool.DefaultOptions] and [pool.NewFlatNodeParams] for details.
+// See also [DefaultOptions] and [NewFlatNodeParams] for details.
 //
 // Returned errors:
 //   - [neofscrypto.ErrIncorrectSigner]
@@ -738,7 +738,7 @@ func NewPool(options InitParameters) (*Pool, error) {
 //
 // If failed, the Pool SHOULD NOT be used.
 //
-// See also InitParameters.SetClientRebalanceInterval.
+// See also [InitParameters.SetClientRebalanceInterval].
 func (p *Pool) Dial(ctx context.Context) error {
 	var (
 		atLeastOneHealthy bool
