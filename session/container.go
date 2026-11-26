@@ -111,7 +111,7 @@ func (x Container) ProtoMessage() *protosession.SessionToken {
 // Marshal encodes Container into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [Container.Unmarshal].
 func (x Container) Marshal() []byte {
 	return x.marshal(x.writeContext)
 }
@@ -120,7 +120,7 @@ func (x Container) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [Container.Marshal].
 func (x *Container) Unmarshal(data []byte) error {
 	return x.unmarshal(data, x.readContext)
 }
@@ -128,7 +128,7 @@ func (x *Container) Unmarshal(data []byte) error {
 // MarshalJSON encodes Container into a JSON format of the NeoFS API protocol
 // (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [Container.UnmarshalJSON].
 func (x Container) MarshalJSON() ([]byte, error) {
 	return x.marshalJSON(x.writeContext)
 }
@@ -136,7 +136,7 @@ func (x Container) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Container
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [Container.MarshalJSON].
 func (x *Container) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
@@ -188,14 +188,14 @@ func (x *Container) UnmarshalSignedData(data []byte) error {
 //
 // Zero Container fails the check.
 //
-// See also Sign.
+// See also [Container.Sign].
 func (x Container) VerifySignature() bool {
 	return x.verifySignature(x.writeContext)
 }
 
 // ApplyOnlyTo limits session scope to a given author container.
 //
-// See also AppliedTo.
+// See also [Container.AppliedTo].
 func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 	x.cnr = cnr
 }
@@ -204,7 +204,7 @@ func (x *Container) ApplyOnlyTo(cnr cid.ID) {
 //
 // Zero Container is applied to all author's containers.
 //
-// See also ApplyOnlyTo.
+// See also [Container.ApplyOnlyTo].
 func (x Container) AppliedTo(cnr cid.ID) bool {
 	return x.cnr.IsZero() || x.cnr == cnr
 }
@@ -225,7 +225,7 @@ const (
 // ForVerb specifies the container operation of the session scope. Each
 // Container is related to the single operation.
 //
-// See also AssertVerb.
+// See also [Container.AssertVerb].
 func (x *Container) ForVerb(verb ContainerVerb) {
 	x.verb = verb
 }
@@ -234,14 +234,14 @@ func (x *Container) ForVerb(verb ContainerVerb) {
 //
 // Zero Container relates to zero (unspecified) verb.
 //
-// See also ForVerb.
+// See also [Container.ForVerb].
 func (x Container) AssertVerb(verb ContainerVerb) bool {
 	return x.verb == verb
 }
 
 // IssuedBy checks if Container session is issued by the given user.
 //
-// See also Container.Issuer.
+// See also [Container.Issuer].
 func IssuedBy(cnr Container, id user.ID) bool {
 	return cnr.Issuer() == id
 }

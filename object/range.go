@@ -1,6 +1,6 @@
 package object
 
-// Range represents v2 [object.Range] object payload range.
+// Range represents v2 [protoobject.Range] object payload range.
 type Range struct{ off, ln uint64 }
 
 // NewRange creates and initializes blank [Range].

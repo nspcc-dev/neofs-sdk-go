@@ -660,7 +660,7 @@ func (o *Object) ResetExpirationTime() {
 }
 
 // ExpirationEpoch returns the last NeoFS epoch number of the object lifetime
-// set via [object.AttributeExpirationEpoch] attribute. Zero epoch and false
+// set via [AttributeExpirationEpoch] attribute. Zero epoch and false
 // are returned if the attribute is missing.
 //
 // Deprecated: use [Object.ExpirationTime] instead.
@@ -676,7 +676,7 @@ func (o Object) ExpirationEpoch() (uint64, bool) {
 }
 
 // SetExpirationEpoch sets the last NeoFS epoch number of the object lifetime
-// via [object.AttributeExpirationEpoch] attribute. If the attribute is
+// via [AttributeExpirationEpoch] attribute. If the attribute is
 // already present, its value is overwritten. The expiration time header field
 // must not be set together with this attribute.
 //
@@ -862,7 +862,7 @@ func (o *Object) SetType(v Type) {
 }
 
 // AssociateDeleted makes this object to delete another object.
-// See also [object.AttributeAssociatedObject].
+// See also [AttributeAssociatedObject].
 func (o *Object) AssociateDeleted(id oid.ID) {
 	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeAssociatedObject, v: id.EncodeToString()})
 	o.header.typ = TypeTombstone
@@ -870,7 +870,7 @@ func (o *Object) AssociateDeleted(id oid.ID) {
 }
 
 // AssociateLocked makes this object to lock another object from deletion.
-// See also [object.AttributeAssociatedObject].
+// See also [AttributeAssociatedObject].
 func (o *Object) AssociateLocked(id oid.ID) {
 	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeAssociatedObject, v: id.EncodeToString()})
 	o.header.typ = TypeLock
@@ -878,7 +878,7 @@ func (o *Object) AssociateLocked(id oid.ID) {
 }
 
 // AssociateObject associates object with the current one. See also
-// [object.AttributeAssociatedObject] attribute.
+// [AttributeAssociatedObject] attribute.
 func (o *Object) AssociateObject(id oid.ID) {
 	o.header.attrs = append(o.header.attrs, Attribute{k: AttributeAssociatedObject, v: id.EncodeToString()})
 }
@@ -886,7 +886,7 @@ func (o *Object) AssociateObject(id oid.ID) {
 // AssociatedObject returns associated object with the current one. Returns
 // zero object ID of no association has been made or if associated object
 // ID is incorrect. If more than one association has been made, retuned
-// result is undefined. See also [object.AttributeAssociatedObject].
+// result is undefined. See also [AttributeAssociatedObject].
 func (o *Object) AssociatedObject() oid.ID {
 	var id oid.ID
 	for _, attr := range o.header.attrs {

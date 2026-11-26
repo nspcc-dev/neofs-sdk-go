@@ -76,12 +76,12 @@ func (m NetMap) ProtoMessage() *protonetmap.Netmap {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also Nodes.
+// See also [NetMap.Nodes].
 func (m *NetMap) SetNodes(nodes []NodeInfo) {
 	m.nodes = nodes
 }
 
-// Nodes returns nodes set using SetNodes.
+// Nodes returns nodes set using [NetMap.SetNodes].
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -91,12 +91,12 @@ func (m NetMap) Nodes() []NodeInfo {
 
 // SetEpoch specifies revision number of the NetMap.
 //
-// See also Epoch.
+// See also [NetMap.Epoch].
 func (m *NetMap) SetEpoch(epoch uint64) {
 	m.epoch = epoch
 }
 
-// Epoch returns epoch set using SetEpoch.
+// Epoch returns epoch set using [NetMap.SetEpoch].
 //
 // Zero NetMap has zero revision.
 func (m NetMap) Epoch() uint64 {
@@ -105,12 +105,12 @@ func (m NetMap) Epoch() uint64 {
 
 // SetVersion specifies revision number of the NetMap.
 //
-// See also Version.
+// See also [NetMap.Version].
 func (m *NetMap) SetVersion(version uint64) {
 	m.version = version
 }
 
-// Version returns version set using SetVersion.
+// Version returns version set using [NetMap.SetVersion].
 //
 // Zero NetMap has zero version.
 func (m NetMap) Version() uint64 {
@@ -240,12 +240,12 @@ func PlacementVectors(vectors [][]NodeInfo, objectID oid.ID) ([][]NodeInfo, erro
 // the policy, and then selected by Selector list. Result is not deterministic and
 // node order in each vector may vary for call.
 //
-// Result can be used in PlacementVectors.
+// Result can be used in [PlacementVectors].
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
 //
-// Returns ErrNotEnoughNodes if placement policy cannot be satisfied in the
+// Returns [ErrNotEnoughNodes] if placement policy cannot be satisfied in the
 // current network map because of a lack of container nodes.
 func (m NetMap) ContainerNodes(p PlacementPolicy, containerID cid.ID) ([][]NodeInfo, error) {
 	c := newContext(m)

@@ -155,7 +155,7 @@ func (x Object) ProtoMessage() *protosession.SessionToken {
 // Marshal encodes Object into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [Object.Unmarshal].
 func (x Object) Marshal() []byte {
 	return x.marshal(x.writeContext)
 }
@@ -164,7 +164,7 @@ func (x Object) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [Object.Marshal].
 func (x *Object) Unmarshal(data []byte) error {
 	return x.unmarshal(data, x.readContext)
 }
@@ -172,7 +172,7 @@ func (x *Object) Unmarshal(data []byte) error {
 // MarshalJSON encodes Object into a JSON format of the NeoFS API protocol
 // (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [Object.UnmarshalJSON].
 func (x Object) MarshalJSON() ([]byte, error) {
 	return x.marshalJSON(x.writeContext)
 }
@@ -180,7 +180,7 @@ func (x Object) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Object
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [Object.MarshalJSON].
 func (x *Object) UnmarshalJSON(data []byte) error {
 	return x.unmarshalJSON(data, x.readContext)
 }
@@ -230,7 +230,7 @@ func (x *Object) UnmarshalSignedData(data []byte) error {
 //
 // Zero Object fails the check.
 //
-// See also Sign.
+// See also [Object.Sign].
 func (x Object) VerifySignature() bool {
 	// TODO: (#233) check owner<->key relation
 	return x.verifySignature(x.writeContext)
@@ -239,7 +239,7 @@ func (x Object) VerifySignature() bool {
 // BindContainer binds the Object session to a given container. Each session
 // MUST be bound to exactly one container.
 //
-// See also AssertContainer.
+// See also [Object.AssertContainer].
 func (x *Object) BindContainer(cnr cid.ID) {
 	x.cnr = cnr
 }
@@ -249,7 +249,7 @@ func (x *Object) BindContainer(cnr cid.ID) {
 // Zero Object isn't bound to any container which is incorrect according to
 // NeoFS API protocol.
 //
-// See also BindContainer.
+// See also [Object.BindContainer].
 func (x Object) AssertContainer(cnr cid.ID) bool {
 	return x.cnr == cnr
 }
@@ -259,7 +259,7 @@ func (x Object) AssertContainer(cnr cid.ID) bool {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also AssertObject.
+// See also [Object.AssertObject].
 func (x *Object) LimitByObjects(objs ...oid.ID) {
 	x.objs = objs
 }
@@ -268,7 +268,7 @@ func (x *Object) LimitByObjects(objs ...oid.ID) {
 //
 // Zero Object is applied to all objects in the container.
 //
-// See also LimitByObjects.
+// See also [Object.LimitByObjects].
 func (x Object) AssertObject(obj oid.ID) bool {
 	if len(x.objs) == 0 {
 		return true
@@ -295,7 +295,7 @@ const (
 // ForVerb specifies the object operation of the session scope. Each
 // Object is related to the single operation.
 //
-// See also AssertVerb.
+// See also [Object.AssertVerb].
 func (x *Object) ForVerb(verb ObjectVerb) {
 	x.verb = verb
 }
@@ -304,7 +304,7 @@ func (x *Object) ForVerb(verb ObjectVerb) {
 //
 // Zero Object relates to zero (unspecified) verb.
 //
-// See also ForVerb.
+// See also [Object.ForVerb].
 func (x Object) AssertVerb(verbs ...ObjectVerb) bool {
 	return slices.Contains(verbs, x.verb)
 }
@@ -313,7 +313,7 @@ func (x Object) AssertVerb(verbs ...ObjectVerb) bool {
 //
 // Zero Object is expired in any epoch.
 //
-// See also SetExp.
+// See also [Object.SetExp].
 func (x Object) ExpiredAt(epoch uint64) bool {
 	return x.expiredAt(epoch)
 }

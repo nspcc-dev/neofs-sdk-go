@@ -132,7 +132,7 @@ func (x NodeInfo) ProtoMessage() *protonetmap.NodeInfo {
 // Marshal encodes NodeInfo into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [NodeInfo.Unmarshal].
 func (x NodeInfo) Marshal() []byte {
 	return protoencoding.Marshal(x)
 }
@@ -141,7 +141,7 @@ func (x NodeInfo) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [NodeInfo.Marshal].
 func (x *NodeInfo) Unmarshal(data []byte) error {
 	return protoencoding.UnmarshalOptional(data, x, (*NodeInfo).fromProtoMessage)
 }
@@ -149,7 +149,7 @@ func (x *NodeInfo) Unmarshal(data []byte) error {
 // MarshalJSON encodes NodeInfo into a JSON format of the NeoFS API protocol
 // (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [NodeInfo.UnmarshalJSON].
 func (x NodeInfo) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(x)
 }
@@ -157,7 +157,7 @@ func (x NodeInfo) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the NodeInfo
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [NodeInfo.MarshalJSON].
 func (x *NodeInfo) UnmarshalJSON(data []byte) error {
 	return protoencoding.UnmarshalJSONOptional(data, x, (*NodeInfo).fromProtoMessage)
 }
@@ -206,7 +206,7 @@ func (x *NodeInfo) SetNetworkEndpoints(v ...string) {
 
 // NumberOfNetworkEndpoints returns number of network endpoints announced by the node.
 //
-// See also SetNetworkEndpoints.
+// See also [NodeInfo.SetNetworkEndpoints].
 func (x NodeInfo) NumberOfNetworkEndpoints() int {
 	return len(x.addrs)
 }
@@ -217,10 +217,10 @@ func (x NodeInfo) NetworkEndpoints() iter.Seq[string] {
 	return slices.Values(x.addrs)
 }
 
-// assert NodeInfo type provides hrw.Hasher required for HRW sorting.
+// assert NodeInfo type provides hrw.Hashable required for HRW sorting.
 var _ hrw.Hashable = NodeInfo{}
 
-// Hash implements hrw.Hasher interface.
+// Hash implements [hrw.Hashable] interface.
 //
 // Hash is needed to support weighted HRW therefore sort function sorts nodes
 // based on their public key. Hash isn't expected to be used directly.
@@ -298,12 +298,12 @@ const (
 // impossible to unambiguously attribute the node to any location from UN/LOCODE
 // database.
 //
-// See also LOCODE.
+// See also [NodeInfo.LOCODE].
 func (x *NodeInfo) SetLOCODE(locode string) {
 	x.SetAttribute(attrUNLOCODE, locode)
 }
 
-// LOCODE returns node's location code set using SetLOCODE.
+// LOCODE returns node's location code set using [NodeInfo.SetLOCODE].
 //
 // Zero NodeInfo has empty location code which is invalid according to
 // NeoFS API system requirement.
@@ -411,7 +411,7 @@ const (
 
 // NumberOfAttributes returns number of attributes announced by the node.
 //
-// See also SetAttribute.
+// See also [NodeInfo.SetAttribute].
 func (x NodeInfo) NumberOfAttributes() int {
 	return len(x.attrs)
 }
@@ -430,7 +430,7 @@ func (x NodeInfo) Attributes() iter.Seq2[string, string] {
 // GetAttributes returns all the node attributes.
 // Each attribute is a [2]string slice: {"key", "value"}.
 //
-// See also Attribute.
+// See also [NodeInfo.Attribute].
 func (x NodeInfo) GetAttributes() [][2]string {
 	return x.attrs
 }
@@ -439,7 +439,7 @@ func (x NodeInfo) GetAttributes() [][2]string {
 // Each attribute is a [2]string slice: {"key", "value"}.
 // Both key and value of attributes MUST NOT be empty or contain zero bytes.
 //
-// See also SetAttribute.
+// See also [NodeInfo.SetAttribute].
 func (x *NodeInfo) SetAttributes(attrs [][2]string) {
 	for _, attr := range attrs {
 		if attr[0] == "" {
@@ -485,7 +485,7 @@ func (x *NodeInfo) SetAttribute(key, value string) {
 	x.attrs = append(x.attrs, [2]string{key, value})
 }
 
-// Attribute returns value of the node attribute set using SetAttribute by the
+// Attribute returns value of the node attribute set using [NodeInfo.SetAttribute] by the
 // given key. Returns empty string if attribute is missing.
 func (x NodeInfo) Attribute(key string) string {
 	for i := range x.attrs {
@@ -497,7 +497,7 @@ func (x NodeInfo) Attribute(key string) string {
 	return ""
 }
 
-// SortAttributes sorts node attributes set using SetAttribute lexicographically.
+// SortAttributes sorts node attributes set using [NodeInfo.SetAttribute] lexicographically.
 // The method is only needed to make NodeInfo consistent, e.g. for signing.
 func (x *NodeInfo) SortAttributes() {
 	if len(x.attrs) == 0 {
@@ -524,7 +524,7 @@ func (x *NodeInfo) SetOffline() {
 // Zero NodeInfo has undefined state which is not offline (note that it does not
 // mean online).
 //
-// See also SetOffline.
+// See also [NodeInfo.SetOffline].
 func (x NodeInfo) IsOffline() bool {
 	return x.state == protonetmap.NodeInfo_OFFLINE
 }
@@ -533,7 +533,7 @@ func (x NodeInfo) IsOffline() bool {
 // information about itself in the network map, this
 // action is interpreted as an intention to enter the network.
 //
-// See also IsOnline.
+// See also [NodeInfo.IsOnline].
 func (x *NodeInfo) SetOnline() {
 	x.state = protonetmap.NodeInfo_ONLINE
 }
@@ -543,7 +543,7 @@ func (x *NodeInfo) SetOnline() {
 // Zero NodeInfo has undefined state which is not online (note that it does not
 // mean offline).
 //
-// See also SetOnline.
+// See also [NodeInfo.SetOnline].
 func (x NodeInfo) IsOnline() bool {
 	return x.state == protonetmap.NodeInfo_ONLINE
 }
@@ -552,7 +552,7 @@ func (x NodeInfo) IsOnline() bool {
 // information about itself in the network map, this
 // state declares temporal unavailability for a node.
 //
-// See also IsMaintenance.
+// See also [NodeInfo.IsMaintenance].
 func (x *NodeInfo) SetMaintenance() {
 	x.state = protonetmap.NodeInfo_MAINTENANCE
 }
@@ -561,7 +561,7 @@ func (x *NodeInfo) SetMaintenance() {
 //
 // Zero NodeInfo has undefined state.
 //
-// See also SetMaintenance.
+// See also [NodeInfo.SetMaintenance].
 func (x NodeInfo) IsMaintenance() bool {
 	return x.state == protonetmap.NodeInfo_MAINTENANCE
 }

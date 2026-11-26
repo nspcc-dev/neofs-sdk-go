@@ -19,7 +19,7 @@ type Link struct {
 
 // WriteLink writes a link to the Object, and sets its type to [TypeLink].
 //
-// See also ReadLink.
+// See also [Object.ReadLink].
 func (o *Object) WriteLink(l Link) {
 	o.SetType(TypeLink)
 	o.SetPayload(l.Marshal())

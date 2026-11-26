@@ -78,7 +78,7 @@ func (x Address) ProtoMessage() *refs.Address {
 // MarshalJSON encodes Address into a JSON format of the NeoFS API protocol
 // (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [Address.UnmarshalJSON].
 func (x Address) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(x)
 }
@@ -86,7 +86,7 @@ func (x Address) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Address
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [Address.MarshalJSON].
 func (x *Address) UnmarshalJSON(data []byte) error {
 	var m refs.Address
 
@@ -103,33 +103,33 @@ func (x *Address) UnmarshalJSON(data []byte) error {
 // Zero Address has zero container ID, which is incorrect according to NeoFS
 // API protocol.
 //
-// See also SetContainer.
+// See also [Address.SetContainer].
 func (x Address) Container() cid.ID {
 	return x.cnr
 }
 
 // SetContainer sets unique identifier of the NeoFS object container.
 //
-// See also Container.
+// See also [Address.Container].
 func (x *Address) SetContainer(id cid.ID) {
 	x.cnr = id
 }
 
 // Object returns unique identifier of the object in the container
-// identified by Container().
+// identified by [Address.Container].
 //
 // Zero Address has zero object ID, which is incorrect according to NeoFS
 // API protocol.
 //
-// See also SetObject.
+// See also [Address.SetObject].
 func (x Address) Object() ID {
 	return x.obj
 }
 
 // SetObject sets unique identifier of the object in the container
-// identified by Container().
+// identified by [Address.Container].
 //
-// See also Object.
+// See also [Address.Object].
 func (x *Address) SetObject(id ID) {
 	x.obj = id
 }
@@ -140,7 +140,7 @@ const idDelimiter = "/"
 // EncodeToString encodes Address into NeoFS API protocol string: concatenation
 // of the string-encoded container and object IDs delimited by a slash.
 //
-// See also DecodeString.
+// See also [Address.DecodeString].
 func (x Address) EncodeToString() string {
 	return x.cnr.EncodeToString() + "/" + x.obj.EncodeToString()
 }
@@ -149,7 +149,7 @@ func (x Address) EncodeToString() string {
 // Returns an error if s is malformed. Use [DecodeAddressString] to decode s
 // into a new ID.
 //
-// See also DecodeString.
+// See also [Address.EncodeToString].
 func (x *Address) DecodeString(s string) error {
 	before, after, ok := strings.Cut(s, idDelimiter)
 	if !ok {
@@ -172,7 +172,7 @@ func (x *Address) DecodeString(s string) error {
 // String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [Address.EncodeToString]. String MUST NOT
 // be used to encode Address into NeoFS protocol string.
 func (x Address) String() string {
 	return x.EncodeToString()

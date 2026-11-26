@@ -149,7 +149,7 @@ func (x NetworkInfo) ProtoMessage() *protonetmap.NetworkInfo {
 // Marshal encodes NetworkInfo into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [NetworkInfo.Unmarshal].
 func (x NetworkInfo) Marshal() []byte {
 	return protoencoding.Marshal(x)
 }
@@ -158,12 +158,12 @@ func (x NetworkInfo) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [NetworkInfo.Marshal].
 func (x *NetworkInfo) Unmarshal(data []byte) error {
 	return protoencoding.UnmarshalOptional(data, x, (*NetworkInfo).fromProtoMessage)
 }
 
-// CurrentEpoch returns epoch set using SetCurrentEpoch.
+// CurrentEpoch returns epoch set using [NetworkInfo.SetCurrentEpoch].
 //
 // Zero NetworkInfo has zero current epoch.
 func (x NetworkInfo) CurrentEpoch() uint64 {
@@ -187,7 +187,7 @@ func (x *NetworkInfo) SetNetmapVersion(version uint64) {
 	x.nmVersion = version
 }
 
-// MagicNumber returns magic number set using SetMagicNumber.
+// MagicNumber returns magic number set using [NetworkInfo.SetMagicNumber].
 //
 // Zero NetworkInfo has zero magic.
 func (x NetworkInfo) MagicNumber() uint64 {
@@ -196,19 +196,19 @@ func (x NetworkInfo) MagicNumber() uint64 {
 
 // SetMagicNumber sets magic number of the NeoFS Sidechain.
 //
-// See also MagicNumber.
+// See also [NetworkInfo.MagicNumber].
 func (x *NetworkInfo) SetMagicNumber(epoch uint64) {
 	x.netMagic = epoch
 }
 
-// MsPerBlock returns network parameter set using SetMsPerBlock.
+// MsPerBlock returns network parameter set using [NetworkInfo.SetMsPerBlock].
 func (x NetworkInfo) MsPerBlock() int64 {
 	return x.msPerBlock
 }
 
 // SetMsPerBlock sets MillisecondsPerBlock network parameter of the NeoFS Sidechain.
 //
-// See also MsPerBlock.
+// See also [NetworkInfo.MsPerBlock].
 func (x *NetworkInfo) SetMsPerBlock(v int64) {
 	x.msPerBlock = v
 }
@@ -240,7 +240,7 @@ func (x NetworkInfo) configValue(name string) []byte {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// See also RawNetworkParameter.
+// See also [NetworkInfo.RawNetworkParameter].
 func (x *NetworkInfo) SetRawNetworkParameter(name string, value []byte) {
 	if strings.ContainsRune(name, 0) {
 		panic("parameter key contains zero byte")
@@ -363,12 +363,12 @@ const configAuditFee = "AuditFee"
 
 // SetAuditFee sets the configuration value of the audit fee for the Inner Ring.
 //
-// See also AuditFee.
+// See also [NetworkInfo.AuditFee].
 func (x *NetworkInfo) SetAuditFee(fee uint64) {
 	x.setConfigUint64(configAuditFee, fee)
 }
 
-// AuditFee returns audit fee set using SetAuditFee.
+// AuditFee returns audit fee set using [NetworkInfo.SetAuditFee].
 //
 // Zero NetworkInfo has zero audit fee.
 func (x NetworkInfo) AuditFee() uint64 {
@@ -380,12 +380,12 @@ const configStoragePrice = "BasicIncomeRate"
 // SetStoragePrice sets the price per gigabyte of data storage that data owners
 // pay to storage nodes.
 //
-// See also StoragePrice.
+// See also [NetworkInfo.StoragePrice].
 func (x *NetworkInfo) SetStoragePrice(price uint64) {
 	x.setConfigUint64(configStoragePrice, price)
 }
 
-// StoragePrice returns storage price set using SetStoragePrice.
+// StoragePrice returns storage price set using [NetworkInfo.SetStoragePrice].
 //
 // Zero NetworkInfo has zero storage price.
 func (x NetworkInfo) StoragePrice() uint64 {
@@ -397,12 +397,12 @@ const configContainerFee = "ContainerFee"
 // SetContainerFee sets fee for the container creation that creator pays to
 // each Alphabet node.
 //
-// See also ContainerFee.
+// See also [NetworkInfo.ContainerFee].
 func (x *NetworkInfo) SetContainerFee(fee uint64) {
 	x.setConfigUint64(configContainerFee, fee)
 }
 
-// ContainerFee returns container fee set using SetContainerFee.
+// ContainerFee returns container fee set using [NetworkInfo.SetContainerFee].
 //
 // Zero NetworkInfo has zero container fee.
 func (x NetworkInfo) ContainerFee() uint64 {
@@ -414,12 +414,12 @@ const configNamedContainerFee = "ContainerAliasFee"
 // SetNamedContainerFee sets fee for creation of the named container creation
 // that creator pays to each Alphabet node.
 //
-// See also NamedContainerFee.
+// See also [NetworkInfo.NamedContainerFee].
 func (x *NetworkInfo) SetNamedContainerFee(fee uint64) {
 	x.setConfigUint64(configNamedContainerFee, fee)
 }
 
-// NamedContainerFee returns container fee set using SetNamedContainerFee.
+// NamedContainerFee returns container fee set using [NetworkInfo.SetNamedContainerFee].
 //
 // Zero NetworkInfo has zero container fee.
 func (x NetworkInfo) NamedContainerFee() uint64 {
@@ -431,7 +431,7 @@ const configEigenTrustAlpha = "EigenTrustAlpha"
 // SetEigenTrustAlpha sets alpha parameter for EigenTrust algorithm used in
 // reputation system of the storage nodes. Value MUST be in range [0, 1].
 //
-// See also EigenTrustAlpha.
+// See also [NetworkInfo.EigenTrustAlpha].
 func (x *NetworkInfo) SetEigenTrustAlpha(alpha float64) {
 	if alpha < 0 || alpha > 1 {
 		panic(fmt.Sprintf("EigenTrust alpha parameter MUST be in range [0, 1], got %.2f", alpha))
@@ -440,7 +440,7 @@ func (x *NetworkInfo) SetEigenTrustAlpha(alpha float64) {
 	x.setConfigUint64(configEigenTrustAlpha, math.Float64bits(alpha))
 }
 
-// EigenTrustAlpha returns EigenTrust parameter set using SetEigenTrustAlpha.
+// EigenTrustAlpha returns EigenTrust parameter set using [NetworkInfo.SetEigenTrustAlpha].
 //
 // Zero NetworkInfo has zero alpha parameter.
 func (x NetworkInfo) EigenTrustAlpha() float64 {
@@ -458,13 +458,13 @@ const configEigenTrustNumberOfIterations = "EigenTrustIterations"
 // algorithm to perform. The algorithm is used by the storage nodes for
 // calculating the reputation values.
 //
-// See also NumberOfEigenTrustIterations.
+// See also [NetworkInfo.NumberOfEigenTrustIterations].
 func (x *NetworkInfo) SetNumberOfEigenTrustIterations(num uint64) {
 	x.setConfigUint64(configEigenTrustNumberOfIterations, num)
 }
 
 // NumberOfEigenTrustIterations returns number of EigenTrust iterations set
-// using SetNumberOfEigenTrustIterations.
+// using [NetworkInfo.SetNumberOfEigenTrustIterations].
 //
 // Zero NetworkInfo has zero iteration number.
 func (x NetworkInfo) NumberOfEigenTrustIterations() uint64 {
@@ -476,12 +476,12 @@ const configEpochDuration = "EpochDuration"
 // SetEpochDuration sets NeoFS epoch duration measured in number of blocks of
 // the NeoFS Sidechain.
 //
-// See also EpochDuration.
+// See also [NetworkInfo.EpochDuration].
 func (x *NetworkInfo) SetEpochDuration(blocks uint64) {
 	x.setConfigUint64(configEpochDuration, blocks)
 }
 
-// EpochDuration returns epoch duration set using SetEpochDuration.
+// EpochDuration returns epoch duration set using [NetworkInfo.SetEpochDuration].
 //
 // Zero NetworkInfo has zero iteration number.
 func (x NetworkInfo) EpochDuration() uint64 {
@@ -492,12 +492,12 @@ const configIRCandidateFee = "InnerRingCandidateFee"
 
 // SetIRCandidateFee sets fee for Inner Ring entrance paid by a new member.
 //
-// See also IRCandidateFee.
+// See also [NetworkInfo.IRCandidateFee].
 func (x *NetworkInfo) SetIRCandidateFee(fee uint64) {
 	x.setConfigUint64(configIRCandidateFee, fee)
 }
 
-// IRCandidateFee returns IR entrance fee set using SetIRCandidateFee.
+// IRCandidateFee returns IR entrance fee set using [NetworkInfo.SetIRCandidateFee].
 //
 // Zero NetworkInfo has zero fee.
 func (x NetworkInfo) IRCandidateFee() uint64 {
@@ -510,12 +510,12 @@ const configMaxObjSize = "MaxObjectSize"
 // storage nodes (physical objects). Binary representation of any physically
 // stored object MUST NOT overflow the limit.
 //
-// See also MaxObjectSize.
+// See also [NetworkInfo.MaxObjectSize].
 func (x *NetworkInfo) SetMaxObjectSize(sz uint64) {
 	x.setConfigUint64(configMaxObjSize, sz)
 }
 
-// MaxObjectSize returns maximum object size set using SetMaxObjectSize.
+// MaxObjectSize returns maximum object size set using [NetworkInfo.SetMaxObjectSize].
 //
 // Zero NetworkInfo has zero maximum size.
 func (x NetworkInfo) MaxObjectSize() uint64 {
@@ -527,12 +527,12 @@ const configWithdrawalFee = "WithdrawFee"
 // SetWithdrawalFee sets fee for withdrawals from the NeoFS accounts that
 // account owners pay to each Alphabet node.
 //
-// See also WithdrawalFee.
+// See also [NetworkInfo.WithdrawalFee].
 func (x *NetworkInfo) SetWithdrawalFee(sz uint64) {
 	x.setConfigUint64(configWithdrawalFee, sz)
 }
 
-// WithdrawalFee returns withdrawal fee set using SetWithdrawalFee.
+// WithdrawalFee returns withdrawal fee set using [NetworkInfo.SetWithdrawalFee].
 //
 // Zero NetworkInfo has zero fee.
 func (x NetworkInfo) WithdrawalFee() uint64 {
@@ -544,7 +544,7 @@ const configHomomorphicHashingDisabled = "HomomorphicHashingDisabled"
 // DisableHomomorphicHashing sets flag requiring to disable homomorphic
 // hashing of the containers in the network.
 //
-// See also HomomorphicHashingDisabled.
+// See also [NetworkInfo.HomomorphicHashingDisabled].
 //
 // Deprecated: Tillich-Zémor checksum is not supported for objects starting
 // from API 2.23+.
@@ -567,7 +567,7 @@ const configMaintenanceModeAllowed = "MaintenanceModeAllowed"
 
 // AllowMaintenanceMode sets the flag allowing nodes to go into maintenance mode.
 //
-// See also MaintenanceModeAllowed.
+// See also [NetworkInfo.MaintenanceModeAllowed].
 func (x *NetworkInfo) AllowMaintenanceMode() {
 	x.setConfigBool(configMaintenanceModeAllowed, true)
 }
