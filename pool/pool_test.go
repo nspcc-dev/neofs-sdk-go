@@ -9,8 +9,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"slices"
 	"strconv"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,15 +22,20 @@ import (
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	cid "github.com/nspcc-dev/neofs-sdk-go/container/id"
 	cidtest "github.com/nspcc-dev/neofs-sdk-go/container/id/test"
+	neofscrypto "github.com/nspcc-dev/neofs-sdk-go/crypto"
 	neofscryptotest "github.com/nspcc-dev/neofs-sdk-go/crypto/test"
 	oid "github.com/nspcc-dev/neofs-sdk-go/object/id"
 	objecttest "github.com/nspcc-dev/neofs-sdk-go/object/test"
+	protonetmap "github.com/nspcc-dev/neofs-sdk-go/proto/netmap"
 	"github.com/nspcc-dev/neofs-sdk-go/session"
 	sessionv2 "github.com/nspcc-dev/neofs-sdk-go/session/v2"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
 )
 
 type noopNNSResolver struct{}
@@ -1064,5 +1072,128 @@ func TestSessionTokenV2Delegation(t *testing.T) {
 
 		_, ok = pool.cache.GetV2(cacheKey)
 		require.False(t, ok, "delegated token should be removed from cache on SessionTokenNotFound")
+	})
+}
+
+type trackedConn struct {
+	net.Conn
+	closeOnce sync.Once
+	onClose   func()
+}
+
+func (c *trackedConn) Close() error {
+	c.closeOnce.Do(c.onClose)
+	return c.Conn.Close()
+}
+
+type trackingListener struct {
+	net.Listener
+	accepted atomic.Int32
+	open     atomic.Int32
+}
+
+func (l *trackingListener) Accept() (net.Conn, error) {
+	conn, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
+	}
+	l.accepted.Add(1)
+	l.open.Add(1)
+	return &trackedConn{
+		Conn:    conn,
+		onClose: func() { l.open.Add(-1) },
+	}, nil
+}
+
+type testLocalNodeInfoServer struct {
+	protonetmap.UnimplementedNetmapServiceServer
+	pub  []byte
+	addr string
+	fail atomic.Bool
+}
+
+func (s *testLocalNodeInfoServer) LocalNodeInfo(context.Context, *protonetmap.LocalNodeInfoRequest) (*protonetmap.LocalNodeInfoResponse, error) {
+	if s.fail.Load() {
+		return nil, errors.New("node unavailable")
+	}
+	return &protonetmap.LocalNodeInfoResponse{
+		Body: &protonetmap.LocalNodeInfoResponse_Body{
+			Version: version.New(2, 28).ProtoMessage(),
+			NodeInfo: &protonetmap.NodeInfo{
+				PublicKey: s.pub,
+				Addresses: []string{s.addr},
+			},
+		},
+	}, nil
+}
+
+func startTestLocalNodeInfoServer(t testing.TB) (*trackingListener, *testLocalNodeInfoServer) {
+	t.Helper()
+
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	tl := &trackingListener{Listener: lis}
+	nodeSrv := &testLocalNodeInfoServer{
+		pub:  neofscrypto.PublicKeyBytes(neofscryptotest.Signer().Public()),
+		addr: lis.Addr().String(),
+	}
+
+	srv := grpc.NewServer()
+	protonetmap.RegisterNetmapServiceServer(srv, nodeSrv)
+	go func() { _ = srv.Serve(tl) }()
+	t.Cleanup(srv.Stop)
+
+	return tl, nodeSrv
+}
+
+func newTestClientWrapper(t testing.TB, addr string) *clientWrapper {
+	t.Helper()
+
+	w, err := newWrapper(wrapperPrm{
+		address:                  addr,
+		dialTimeout:              5 * time.Second,
+		streamTimeout:            5 * time.Second,
+		errorThreshold:           1,
+		errorThresholdWindowSize: time.Second,
+	})
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = w.Close() })
+
+	return w
+}
+
+func TestClientWrapperRestartIfUnhealthyClosesConns(t *testing.T) {
+	t.Run("closes replaced client", func(t *testing.T) {
+		tl, _ := startTestLocalNodeInfoServer(t)
+		w := newTestClientWrapper(t, tl.Addr().String())
+
+		require.NoError(t, w.dial(t.Context()))
+		oldConn := w.client.Conn()
+		require.NotNil(t, oldConn)
+
+		w.setUnhealthy()
+		healthy, changed := w.restartIfUnhealthy(t.Context())
+		require.True(t, healthy)
+		require.True(t, changed)
+
+		newConn := w.client.Conn()
+		require.NotNil(t, newConn)
+		require.NotSame(t, oldConn, newConn)
+		require.Equal(t, connectivity.Shutdown, oldConn.GetState())
+		require.Eventually(t, func() bool { return tl.open.Load() == 1 }, time.Second, 10*time.Millisecond)
+	})
+
+	t.Run("failed redial does not leak connection", func(t *testing.T) {
+		tl, nodeSrv := startTestLocalNodeInfoServer(t)
+		nodeSrv.fail.Store(true)
+		w := newTestClientWrapper(t, tl.Addr().String())
+
+		w.setUnhealthy()
+		healthy, changed := w.restartIfUnhealthy(t.Context())
+		require.False(t, healthy)
+		require.False(t, changed)
+		require.Positive(t, tl.accepted.Load())
+		require.Eventually(t, func() bool { return tl.open.Load() == 0 }, time.Second, 10*time.Millisecond)
 	})
 }

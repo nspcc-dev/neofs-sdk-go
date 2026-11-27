@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1641,44 +1642,89 @@ func TestClient_DialRequestSignData(t *testing.T) {
 		netInfoSrv.checkRequestAPIVersion(version.New(2, 28).ProtoMessage())
 		netInfoSrv.setHandlerError(netInfoErr)
 
-		srv := grpc.NewServer()
-		srv.RegisterService(&grpc.ServiceDesc{
-			ServiceName: "neo.fs.v2.netmap.NetmapService",
-			Methods: []grpc.MethodDesc{
-				{
-					MethodName: "LocalNodeInfo",
-					Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
-						var req protonetmap.LocalNodeInfoRequest
-						if err := dec(&req); err != nil {
-							return nil, err
-						}
-						return dialSrv.LocalNodeInfo(ctx, &req)
-					},
-				},
-				{
-					MethodName: "NetworkInfo",
-					Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
-						var req protonetmap.NetworkInfoRequest
-						if err := dec(&req); err != nil {
-							return nil, err
-						}
-						return netInfoSrv.NetworkInfo(ctx, &req)
-					},
-				},
-			},
-		}, nil)
-
-		lis := bufconn.Listen(10 << 10)
-		go func() { _ = srv.Serve(lis) }()
-		t.Cleanup(srv.Stop)
-
-		var prm PrmInit
-		prm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) { return lis.DialContext(ctx) })
-
-		c, err := New(prm)
-		require.NoError(t, err)
-
-		err = c.DialEndpoint(t.Context(), testServerEndpoint)
-		assertTransportErr(t, netInfoErr, err)
+		assertFailedDialClosesConn(t, dialSrv, netInfoSrv, netInfoErr)
 	})
+}
+
+func TestClient_DialEndpointClosesConnOnError(t *testing.T) {
+	nodeInfoErr := errors.New("node info unavailable")
+	dialSrv := newTestGetNodeInfoServer()
+	dialSrv.setHandlerError(nodeInfoErr)
+
+	assertFailedDialClosesConn(t, dialSrv, nil, nodeInfoErr)
+}
+
+type trackedConn struct {
+	net.Conn
+	closeOnce sync.Once
+	onClose   func()
+}
+
+func (c *trackedConn) Close() error {
+	c.closeOnce.Do(c.onClose)
+	return c.Conn.Close()
+}
+
+func assertFailedDialClosesConn(t testing.TB, dialSrv *testGetNodeInfoServer, netInfoSrv *testGetNetworkInfoServer, wantErr error) {
+	t.Helper()
+
+	methods := []grpc.MethodDesc{
+		{
+			MethodName: "LocalNodeInfo",
+			Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+				var req protonetmap.LocalNodeInfoRequest
+				if err := dec(&req); err != nil {
+					return nil, err
+				}
+				return dialSrv.LocalNodeInfo(ctx, &req)
+			},
+		},
+	}
+	if netInfoSrv != nil {
+		methods = append(methods, grpc.MethodDesc{
+			MethodName: "NetworkInfo",
+			Handler: func(_ any, ctx context.Context, dec func(any) error, _ grpc.UnaryServerInterceptor) (any, error) {
+				var req protonetmap.NetworkInfoRequest
+				if err := dec(&req); err != nil {
+					return nil, err
+				}
+				return netInfoSrv.NetworkInfo(ctx, &req)
+			},
+		})
+	}
+
+	srv := grpc.NewServer()
+	srv.RegisterService(&grpc.ServiceDesc{
+		ServiceName: "neo.fs.v2.netmap.NetmapService",
+		Methods:     methods,
+	}, nil)
+
+	lis := bufconn.Listen(10 << 10)
+	go func() { _ = srv.Serve(lis) }()
+	t.Cleanup(srv.Stop)
+
+	var dialed, open atomic.Int32
+	var prm PrmInit
+	prm.setDialFunc(func(ctx context.Context, _ string) (net.Conn, error) {
+		conn, err := lis.DialContext(ctx)
+		if err != nil {
+			return nil, err
+		}
+		dialed.Add(1)
+		open.Add(1)
+		return &trackedConn{
+			Conn:    conn,
+			onClose: func() { open.Add(-1) },
+		}, nil
+	})
+
+	c, err := New(prm)
+	require.NoError(t, err)
+
+	err = c.DialEndpoint(t.Context(), testServerEndpoint)
+	assertTransportErr(t, wantErr, err)
+	require.Positive(t, dialed.Load())
+	require.Nil(t, c.Conn())
+	require.Eventually(t, func() bool { return open.Load() == 0 }, time.Second, 10*time.Millisecond)
+	require.NoError(t, c.Close())
 }
