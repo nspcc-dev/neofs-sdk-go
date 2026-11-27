@@ -39,10 +39,10 @@ const (
 //
 // Client can be created using [New].
 // Before executing the NeoFS operations using the Client, connection to the
-// server MUST BE correctly established (see Dial method and pay attention
+// server MUST BE correctly established (see [Client.Dial] method and pay attention
 // to the mandatory parameters). Using the Client before connecting have
 // been established can lead to a panic. After the work, the Client SHOULD BE
-// closed (see Close method): it frees internal and system resources which were
+// closed (see [Client.Close] method): it frees internal and system resources which were
 // allocated for the period of work of the Client. Calling [Client.Dial]/[Client.Close] method
 // during the communication process step strongly discouraged as it leads to
 // undefined behavior.
@@ -56,8 +56,7 @@ const (
 // returned from all of them (pay attention to the presence of the pointer sign):
 //   - *[apistatus.ServerInternal] on internal server error;
 //   - *[apistatus.NodeUnderMaintenance] if a server is under maintenance;
-//   - *[apistatus.RequestExpired] if request is expired;
-//   - *[apistatus.SuccessDefaultV2] on default success.
+//   - *[apistatus.RequestExpired] if request is expired.
 //
 // Client MUST NOT be copied by value: use pointer to Client instead.
 //
@@ -198,9 +197,9 @@ func (c *Client) DialEndpoint(ctx context.Context, endpoint string) error {
 // Returns an error describing failure reason. If failed, the Client
 // SHOULD NOT be used.
 //
-// Uses the context specified by SetContext if it was called with non-nil
-// argument, otherwise context.Background() is used. Dial returns context
-// errors, see context package docs for details.
+// Uses the context specified by [PrmDial.SetContext] if it was called with non-nil
+// argument, otherwise [context.Background] is used. Dial returns context
+// errors, see [context] package docs for details.
 //
 // Panics if required parameters are set incorrectly, look carefully
 // at the method documentation.
@@ -286,7 +285,7 @@ func (c *Client) fetchNodeKeyAndAPI(ctx context.Context) error {
 // use, but may be required to use services not supported by the Client.
 func (c *Client) Conn() *grpc.ClientConn { return c.conn }
 
-// Close closes underlying connection to the NeoFS server. Implements io.Closer.
+// Close closes underlying connection to the NeoFS server. Implements [io.Closer].
 // Can be called concurrently to server operations in other goroutines: in this
 // case they are likely to fail due to a connection error.
 //
@@ -342,7 +341,7 @@ func (x *PrmInit) SetStatisticCallback(statisticCallback stat.OperationCallback)
 	x.statisticCallback = statisticCallback
 }
 
-// SetTLSConfig sets tls.Config to open TLS client connection
+// SetTLSConfig sets [tls.Config] to open TLS client connection
 // to the NeoFS server. Nil (default) means insecure connection.
 func (x *PrmInit) SetTLSConfig(tlsConfig *tls.Config) {
 	x.tlsConfig = tlsConfig
@@ -367,7 +366,7 @@ type connFunc = func(ctx context.Context, addr string) (net.Conn, error)
 
 // PrmDial groups connection parameters for the Client.
 //
-// See also Dial.
+// See also [Client.Dial].
 //
 // Deprecated: use [PrmInit] with [Client.DialEndpoint], any settings here
 // currently override [PrmInit].
@@ -400,15 +399,15 @@ type PrmDial struct {
 // If scheme is specified without a port, port 80 (grpc) or 443 (grpcs) is
 // used by default.
 //
-// See also SetTLSConfig.
+// See also [PrmDial.SetTLSConfig].
 func (x *PrmDial) SetServerURI(endpoint string) {
 	x.endpoint = endpoint
 }
 
-// SetTLSConfig sets tls.Config to open TLS client connection
+// SetTLSConfig sets [tls.Config] to open TLS client connection
 // to the NeoFS server. Nil (default) means insecure connection.
 //
-// See also SetServerURI.
+// See also [PrmDial.SetServerURI].
 func (x *PrmDial) SetTLSConfig(tlsConfig *tls.Config) {
 	x.tlsConfig = tlsConfig
 }

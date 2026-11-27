@@ -203,7 +203,7 @@ func (b Token) ValidAt(epoch uint64) bool {
 	return b.Nbf() <= epoch && b.Iat() <= epoch && b.Exp() >= epoch
 }
 
-// SetEACLTable sets eacl.Table that replaces the one from the issuer's
+// SetEACLTable sets [eacl.Table] that replaces the one from the issuer's
 // container. If table has specified container, bearer token can be used only
 // for operations within this specific container. Otherwise, Token can be used
 // within any issuer's container.
@@ -211,15 +211,15 @@ func (b Token) ValidAt(epoch uint64) bool {
 // SetEACLTable MUST be called if Token is going to be transmitted over
 // NeoFS API V2 protocol.
 //
-// See also EACLTable, AssertContainer.
+// See also [Token.EACLTable], [Token.AssertContainer].
 func (b *Token) SetEACLTable(table eacl.Table) {
 	b.eaclTable = table
 	b.eaclTableSet = true
 }
 
-// EACLTable returns extended ACL table set by SetEACLTable.
+// EACLTable returns extended ACL table set by [Token.SetEACLTable].
 //
-// Zero Token has zero eacl.Table.
+// Zero Token has zero [eacl.Table].
 func (b Token) EACLTable() eacl.Table {
 	if b.eaclTableSet {
 		return b.eaclTable
@@ -235,7 +235,7 @@ func (b Token) EACLTable() eacl.Table {
 //
 // Zero Token is valid in any container.
 //
-// See also SetEACLTable.
+// See also [Token.SetEACLTable].
 func (b Token) AssertContainer(cnr cid.ID) bool {
 	if !b.eaclTableSet {
 		return true
@@ -250,7 +250,7 @@ func (b Token) AssertContainer(cnr cid.ID) bool {
 //
 // Optional: by default, any user has access to Token usage.
 //
-// See also AssertUser.
+// See also [Token.AssertUser].
 func (b *Token) ForUser(id user.ID) {
 	b.targetUser = id
 }
@@ -259,7 +259,7 @@ func (b *Token) ForUser(id user.ID) {
 //
 // Zero Token is available to any user.
 //
-// See also ForUser.
+// See also [Token.ForUser].
 func (b Token) AssertUser(id user.ID) bool {
 	return b.targetUser.IsZero() || b.targetUser == id
 }
@@ -320,7 +320,7 @@ func (b Token) Signature() (neofscrypto.Signature, bool) {
 //
 // Zero Token fails the check.
 //
-// See also Sign.
+// See also [Token.Sign].
 func (b Token) VerifySignature() bool {
 	// TODO: (#233) check owner<->key relation
 	return b.sigSet && b.sig.Verify(b.signedData())
@@ -329,7 +329,7 @@ func (b Token) VerifySignature() bool {
 // Marshal encodes Token into a binary format of the NeoFS API protocol
 // (Protocol Buffers V3 with direct field order).
 //
-// See also Unmarshal.
+// See also [Token.Unmarshal].
 func (b Token) Marshal() []byte {
 	return protoencoding.Marshal(b)
 }
@@ -338,7 +338,7 @@ func (b Token) Marshal() []byte {
 // (Protocol Buffers V3 with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [Token.Marshal].
 func (b *Token) Unmarshal(data []byte) error {
 	return protoencoding.UnmarshalOptional(data, b, (*Token).fromProtoMessage)
 }
@@ -346,7 +346,7 @@ func (b *Token) Unmarshal(data []byte) error {
 // MarshalJSON encodes Token into a JSON format of the NeoFS API protocol
 // (Protocol Buffers V3 JSON).
 //
-// See also UnmarshalJSON.
+// See also [Token.UnmarshalJSON].
 func (b Token) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(b)
 }
@@ -354,7 +354,7 @@ func (b Token) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON data into the Token
 // (Protocol Buffers V3 JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [Token.MarshalJSON].
 func (b *Token) UnmarshalJSON(data []byte) error {
 	return protoencoding.UnmarshalJSONOptional(data, b, (*Token).fromProtoMessage)
 }
@@ -379,7 +379,7 @@ func (b Token) Issuer() user.ID {
 // resolution when explicit issuer ID is unset. Returns zero [user.ID] when
 // neither issuer is set nor key resolution succeeds.
 //
-// See also [Token.SigningKeyBytes], [Token.Sign].
+// See also [Token.Sign].
 func (b Token) ResolveIssuer() user.ID {
 	if !b.issuer.IsZero() {
 		return b.issuer

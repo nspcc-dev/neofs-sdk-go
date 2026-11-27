@@ -40,9 +40,9 @@ const (
 // instance SHOULD be declared, initialized using Init method and filled using
 // dedicated methods. Once container is saved in the NeoFS network, it can't be
 // changed: containers stored in the system are immutable, and NeoFS is a CAS
-// of containers that are identified by a fixed length value (see cid.ID type).
+// of containers that are identified by a fixed length value (see [cid.ID] type).
 // Instances for existing containers can be initialized using decoding methods
-// (e.g Unmarshal).
+// (e.g [Container.Unmarshal]).
 //
 // Container is mutually compatible with [protocontainer.Container]
 // message. See [Container.FromProtoMessage] / [Container.ProtoMessage] methods.
@@ -235,7 +235,7 @@ func (x Container) ProtoMessage() *protocontainer.Container {
 // Marshal encodes Container into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [Container.Unmarshal].
 func (x Container) Marshal() []byte {
 	return protoencoding.Marshal(x)
 }
@@ -251,7 +251,7 @@ func (x Container) SignedData() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [Container.Marshal].
 func (x *Container) Unmarshal(data []byte) error {
 	return protoencoding.UnmarshalOptional(data, x, (*Container).fromProtoMessage)
 }
@@ -259,7 +259,7 @@ func (x *Container) Unmarshal(data []byte) error {
 // MarshalJSON encodes Container into a JSON format of the NeoFS API protocol
 // (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [Container.UnmarshalJSON].
 func (x Container) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(x)
 }
@@ -267,7 +267,7 @@ func (x Container) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the Container
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [Container.MarshalJSON].
 func (x *Container) UnmarshalJSON(data []byte) error {
 	return protoencoding.UnmarshalJSONOptional(data, x, (*Container).fromProtoMessage)
 }
@@ -290,12 +290,12 @@ func (x *Container) Init() {
 // one owner, so SetOwner MUST be called for instances to be saved in the
 // NeoFS.
 //
-// See also Owner.
+// See also [Container.Owner].
 func (x *Container) SetOwner(owner user.ID) {
 	x.owner = owner
 }
 
-// Owner returns owner of the Container set using SetOwner.
+// Owner returns owner of the Container set using [Container.SetOwner].
 //
 // Zero Container has no owner which is incorrect according to NeoFS API
 // protocol.
@@ -306,12 +306,12 @@ func (x Container) Owner() user.ID {
 // SetBasicACL specifies basic part of the Container ACL. Basic ACL is used
 // to control access inside container storage.
 //
-// See also BasicACL.
+// See also [Container.BasicACL].
 func (x *Container) SetBasicACL(basicACL acl.Basic) {
 	x.basicACL = basicACL
 }
 
-// BasicACL returns basic ACL set using SetBasicACL.
+// BasicACL returns basic ACL set using [Container.SetBasicACL].
 //
 // Zero Container has zero basic ACL which structurally correct but doesn't
 // make sense since it denies any access to any party.
@@ -322,12 +322,12 @@ func (x Container) BasicACL() acl.Basic {
 // SetPlacementPolicy sets placement policy for the objects within the Container.
 // NeoFS storage layer strives to follow the specified policy.
 //
-// See also PlacementPolicy.
+// See also [Container.PlacementPolicy].
 func (x *Container) SetPlacementPolicy(policy netmap.PlacementPolicy) {
 	x.policy = &policy
 }
 
-// PlacementPolicy returns placement policy set using SetPlacementPolicy.
+// PlacementPolicy returns placement policy set using [Container.SetPlacementPolicy].
 //
 // Zero Container has no placement policy which is incorrect according to
 // NeoFS API protocol.
@@ -349,7 +349,7 @@ func (x Container) PlacementPolicy() netmap.PlacementPolicy {
 //
 // SetAttribute overwrites existing attribute value.
 //
-// See also Attribute.
+// See also [Container.Attribute].
 func (x *Container) SetAttribute(key, value string) {
 	if key == "" {
 		panic("empty attribute key")
@@ -377,7 +377,7 @@ func (x *Container) SetAttribute(key, value string) {
 // Attribute reads value of the Container attribute by key. Empty result means
 // attribute absence.
 //
-// See also SetAttribute.
+// See also [Container.SetAttribute].
 func (x Container) Attribute(key string) string {
 	for i := range x.attrs {
 		if x.attrs[i][0] == key {
@@ -413,12 +413,12 @@ func (x Container) UserAttributes() iter.Seq2[string, string] {
 
 // SetName sets human-readable name of the Container. Name MUST NOT be empty.
 //
-// See also Name.
+// See also [Container.Name].
 func (x *Container) SetName(name string) {
 	x.SetAttribute(attributeName, name)
 }
 
-// Name returns container name set using SetName.
+// Name returns container name set using [Container.SetName].
 //
 // Zero Container has no name.
 func (x Container) Name() string {
@@ -427,12 +427,12 @@ func (x Container) Name() string {
 
 // SetCreationTime writes container's creation time in Unix Timestamp format.
 //
-// See also CreatedAt.
+// See also [Container.CreatedAt].
 func (x *Container) SetCreationTime(t time.Time) {
 	x.SetAttribute(attributeTimestamp, strconv.FormatInt(t.Unix(), 10))
 }
 
-// CreatedAt returns container's creation time set using SetCreationTime.
+// CreatedAt returns container's creation time set using [Container.SetCreationTime].
 //
 // Zero Container has zero timestamp (in seconds).
 func (x Container) CreatedAt() time.Time {
@@ -456,7 +456,7 @@ const attributeHomoHashEnabled = "true"
 // DisableHomomorphicHashing sets flag to disable homomorphic hashing of the
 // Container data.
 //
-// See also IsHomomorphicHashingDisabled.
+// See also [Container.IsHomomorphicHashingDisabled].
 //
 // Deprecated: Tillich-Zémor checksum is not supported for objects starting
 // from API 2.23+.
@@ -464,7 +464,7 @@ func (x *Container) DisableHomomorphicHashing() {
 	x.SetAttribute(sysAttrDisableHomohash, attributeHomoHashEnabled)
 }
 
-// IsHomomorphicHashingDisabled checks if DisableHomomorphicHashing was called.
+// IsHomomorphicHashingDisabled checks if [Container.DisableHomomorphicHashing] was called.
 //
 // Zero Container has enabled hashing.
 //
@@ -531,8 +531,8 @@ func (x Container) ReadDomain() (res Domain) {
 // is expected to be called after all the [Container] data is filled and before
 // saving the [Container] in the NeoFS network. Note that мany subsequent change
 // will most likely break the signature. signer MUST be of
-// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example, [neofsecdsa.SignerRFC6979]
-// can be used.
+// [neofscrypto.ECDSA_DETERMINISTIC_SHA256] scheme, for example,
+// [github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa.SignerRFC6979] can be used.
 //
 // See also [Container.VerifySignature], [Container.SignedData].
 //
@@ -545,7 +545,7 @@ func (x Container) CalculateSignature(dst *neofscrypto.Signature, signer neofscr
 	return dst.Calculate(signer, x.Marshal())
 }
 
-// VerifySignature verifies Container signature calculated using CalculateSignature.
+// VerifySignature verifies Container signature calculated using [Container.CalculateSignature].
 // Result means signature correctness.
 func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
 	return sig.Verify(x.Marshal())
@@ -554,7 +554,7 @@ func (x Container) VerifySignature(sig neofscrypto.Signature) bool {
 // AssertID checks if the given Container matches its identifier in CAS of the
 // NeoFS containers.
 //
-// See also CalculateID.
+// See also [cid.NewFromMarshalledContainer].
 func (x Container) AssertID(id cid.ID) bool {
 	return id == cid.NewFromMarshalledContainer(x.Marshal())
 }

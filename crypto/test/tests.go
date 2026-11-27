@@ -45,7 +45,7 @@ func (x *failedAfterSigner) Sign(data []byte) ([]byte, error) {
 	return x.Signer.Sign(data)
 }
 
-// Signature returns random neofscrypto.Signature.
+// Signature returns random [neofscrypto.Signature].
 func Signature() neofscrypto.Signature {
 	sig := testutil.RandByteSlice(1 + rand.Intn(128))
 	return neofscrypto.NewSignature(neofscrypto.Scheme(rand.Int31()%3), Signer().Public(), sig)

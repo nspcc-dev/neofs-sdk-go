@@ -52,7 +52,7 @@ const (
 //   - [MatchNumGE]: NUM_GE
 //   - [MatchNumLT]: NUM_LT
 //   - [MatchNumLE]: NUM_LE
-//   - [MatchUnknown]: MATCH_TYPE_UNSPECIFIED
+//   - [MatchUnspecified]: MATCH_TYPE_UNSPECIFIED
 //
 // All other values are base-10 integers.
 //

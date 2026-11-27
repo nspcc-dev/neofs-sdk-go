@@ -23,7 +23,7 @@ const (
 	opLast // extreme value for testing
 )
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 func (x Op) String() string {
 	switch x {
 	default:
@@ -64,7 +64,7 @@ const (
 	roleLast // extreme value for testing
 )
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 func (x Role) String() string {
 	switch x {
 	default:

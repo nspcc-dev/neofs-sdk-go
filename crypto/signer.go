@@ -28,7 +28,7 @@ const (
 	N3                         // Neo N3 witness
 )
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 func (x Scheme) String() string {
 	return refs.SignatureScheme(x).String()
 }
@@ -56,7 +56,7 @@ func RegisterScheme(scheme Scheme, f func() PublicKey) {
 // in NeoFS. Unites secret and public parts. For example, an ECDSA private key
 // or external auth service.
 //
-// See also PublicKey.
+// See also [PublicKey].
 type Signer interface {
 	// Scheme returns corresponding signature scheme.
 	Scheme() Scheme
@@ -73,7 +73,7 @@ type Signer interface {
 // PublicKey represents a public key using fixed signature scheme supported by
 // NeoFS.
 //
-// See also Signer.
+// See also [Signer].
 type PublicKey interface {
 	// MaxEncodedSize returns maximum size required for binary-encoded
 	// public key.
@@ -89,14 +89,14 @@ type PublicKey interface {
 	// MaxEncodedSize (*). Encode MUST return negative value
 	// on any failure except (*).
 	//
-	// Encode is a reverse operation to Decode.
+	// Encode is a reverse operation to [PublicKey.Decode].
 	//
 	// [PublicKeyBytes] may be used to skip explicit buffer allocation.
 	Encode(buf []byte) int
 
 	// Decode decodes binary public key.
 	//
-	// Decode is a reverse operation to Encode.
+	// Decode is a reverse operation to [PublicKey.Encode].
 	Decode([]byte) error
 
 	// Verify checks signature of the given data. True means correct signature.

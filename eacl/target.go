@@ -86,7 +86,7 @@ func (t *Target) SetRawSubjects(subjs [][]byte) {
 
 // RawSubjects returns list of public keys or [user.ID] to identify target subject in a binary format.
 //
-// If element length is 33, it is a serialized compressed public key. See [elliptic.MarshalCompressed], [keys.PublicKey.GetScriptHash].
+// If element length is 33, it is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed], [github.com/nspcc-dev/neo-go/pkg/crypto/keys.PublicKey.GetScriptHash].
 // If element length is 25, it is a [user.ID]. Use `id := user.ID(element)`.
 //
 // Using this method is your responsibility.

@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Method is an enumerator to describe [client.Client] methods.
+// Method is an enumerator to describe [github.com/nspcc-dev/neofs-sdk-go/client.Client] methods.
 type Method int
 
 // Various client methods.
@@ -44,7 +44,7 @@ const (
 	MethodLast
 )
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 func (m Method) String() string {
 	switch m {
 	case MethodBalanceGet:

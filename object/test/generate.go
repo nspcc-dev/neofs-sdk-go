@@ -14,7 +14,7 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 )
 
-// Range returns random object.Range.
+// Range returns random [object.Range].
 func Range() object.Range {
 	x := object.NewRange()
 
@@ -24,12 +24,12 @@ func Range() object.Range {
 	return *x
 }
 
-// Attribute returns random object.Attribute.
+// Attribute returns random [object.Attribute].
 func Attribute() object.Attribute {
 	return object.NewAttribute("key", "value")
 }
 
-// SplitID returns random object.SplitID.
+// SplitID returns random [object.SplitID].
 func SplitID() object.SplitID {
 	x := object.NewSplitID()
 
@@ -70,12 +70,12 @@ func generate(withParent bool) object.Object {
 	return *x
 }
 
-// Object returns random object.Object.
+// Object returns random [object.Object].
 func Object() object.Object {
 	return generate(true)
 }
 
-// Tombstone returns random object.Tombstone.
+// Tombstone returns random [object.Tombstone].
 func Tombstone() object.Tombstone {
 	x := object.NewTombstone()
 
@@ -87,7 +87,7 @@ func Tombstone() object.Tombstone {
 	return *x
 }
 
-// SplitInfo returns random object.SplitInfo.
+// SplitInfo returns random [object.SplitInfo].
 func SplitInfo() object.SplitInfo {
 	x := object.NewSplitInfo()
 
@@ -99,7 +99,7 @@ func SplitInfo() object.SplitInfo {
 	return *x
 }
 
-// SearchFilters returns random object.SearchFilters.
+// SearchFilters returns random [object.SearchFilters].
 func SearchFilters() object.SearchFilters {
 	x := object.NewSearchFilters()
 
@@ -108,7 +108,7 @@ func SearchFilters() object.SearchFilters {
 	return x
 }
 
-// Lock returns random object.Lock.
+// Lock returns random [object.Lock].
 func Lock() *object.Lock {
 	var l object.Lock
 	l.WriteMembers([]oid.ID{oidtest.ID(), oidtest.ID()})
@@ -116,7 +116,7 @@ func Lock() *object.Lock {
 	return &l
 }
 
-// Link returns random object.Link.
+// Link returns random [object.Link].
 func Link() *object.Link {
 	ms := make([]object.MeasuredObject, rand.Int()%10)
 	for i := range ms {

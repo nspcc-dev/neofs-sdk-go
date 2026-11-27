@@ -12,7 +12,7 @@ import (
 // Lock represents record with locked objects. It is compatible with
 // NeoFS API V2 protocol.
 //
-// Lock instance can be written to the [Object], see WriteLock/ReadLock.
+// Lock instance can be written to the [Object], see [Object.WriteLock]/[Object.ReadLock].
 //
 // DEPRECATED: use [Object.AssociateLocked] instead, locking exactly one object
 // per Lock.
@@ -22,7 +22,7 @@ type Lock struct {
 
 // WriteLock writes [Lock] to the [Object], and sets its type to [TypeLock].
 //
-// See also ReadLock.
+// See also [Object.ReadLock].
 func (o *Object) WriteLock(l Lock) {
 	o.SetType(TypeLock)
 	o.SetPayload(l.Marshal())

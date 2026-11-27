@@ -144,7 +144,7 @@ type Target struct {
 	nnsName string
 }
 
-// NewTargetUser creates a new Target from user.ID.
+// NewTargetUser creates a new [Target] from [user.ID].
 func NewTargetUser(id user.ID) Target {
 	return Target{ownerID: id}
 }

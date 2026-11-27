@@ -44,7 +44,7 @@ func (x PeerID) ProtoMessage() *protoreputation.PeerID {
 //
 // Argument MUST NOT be mutated, make a copy first.
 //
-// Parameter key is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// Parameter key is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
 //
 // See also [ComparePeerKey].
 func (x *PeerID) SetPublicKey(key []byte) {
@@ -56,8 +56,8 @@ func (x *PeerID) SetPublicKey(key []byte) {
 // Zero [PeerID] has zero key which is incorrect according to NeoFS API
 // protocol.
 //
-// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
-// Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
+// The resulting slice of bytes is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
+// Use [github.com/nspcc-dev/neofs-sdk-go/crypto/ecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.
 // Make a copy if you need to change it.
@@ -68,7 +68,7 @@ func (x PeerID) PublicKey() []byte {
 // ComparePeerKey checks if the given PeerID corresponds to the party
 // authenticated by the given binary public key.
 //
-// The key parameter is a slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// The key parameter is a slice of bytes is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
 func ComparePeerKey(peer PeerID, key []byte) bool {
 	return bytes.Equal(peer.PublicKey(), key)
 }
@@ -77,7 +77,7 @@ func ComparePeerKey(peer PeerID, key []byte) bool {
 //
 // Zero PeerID is base58 encoding of PeerIDSize zeros.
 //
-// See also DecodeString.
+// See also [PeerID.DecodeString].
 func (x PeerID) EncodeToString() string {
 	return base58.Encode(x.key)
 }
@@ -85,7 +85,7 @@ func (x PeerID) EncodeToString() string {
 // DecodeString decodes string into PeerID according to NeoFS API protocol.
 // Returns an error if s is malformed.
 //
-// See also DecodeString.
+// See also [PeerID.EncodeToString].
 func (x *PeerID) DecodeString(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
@@ -97,10 +97,10 @@ func (x *PeerID) DecodeString(s string) error {
 	return nil
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [PeerID.EncodeToString]. String MUST NOT
 // be used to encode ID into NeoFS protocol string.
 func (x PeerID) String() string {
 	return x.EncodeToString()

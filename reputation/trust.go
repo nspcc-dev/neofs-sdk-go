@@ -25,7 +25,7 @@ type Trust struct {
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
 // x from it.
 //
-// See also [Table.ProtoMessage].
+// See also [Trust.ProtoMessage].
 func (x *Trust) FromProtoMessage(m *protoreputation.Trust) error {
 	if m.Value < 0 || m.Value > 1 {
 		return fmt.Errorf("invalid trust value %v", m.Value)
@@ -48,7 +48,7 @@ func (x *Trust) FromProtoMessage(m *protoreputation.Trust) error {
 // ProtoMessage converts t into message to transmit using the NeoFS API
 // protocol.
 //
-// See also [Table.FromProtoMessage].
+// See also [Trust.FromProtoMessage].
 func (x Trust) ProtoMessage() *protoreputation.Trust {
 	m := &protoreputation.Trust{
 		Value: x.val,
@@ -62,14 +62,14 @@ func (x Trust) ProtoMessage() *protoreputation.Trust {
 // SetPeer specifies identifier of the participant of the NeoFS reputation system
 // to which the Trust relates.
 //
-// See also Peer.
+// See also [Trust.Peer].
 func (x *Trust) SetPeer(id PeerID) {
 	x.peer = id
 }
 
-// Peer returns peer identifier set using SetPeer.
+// Peer returns peer identifier set using [Trust.SetPeer].
 //
-// Zero Trust returns zero PeerID which is incorrect according to the NeoFS API
+// Zero Trust returns zero [PeerID] which is incorrect according to the NeoFS API
 // protocol.
 func (x Trust) Peer() PeerID {
 	return x.peer
@@ -77,7 +77,7 @@ func (x Trust) Peer() PeerID {
 
 // SetValue sets the Trust value. Value MUST be in range [0;1].
 //
-// See also Value.
+// See also [Trust.Value].
 func (x *Trust) SetValue(val float64) {
 	if val < 0 || val > 1 {
 		panic(fmt.Sprintf("trust value is out-of-range %v", val))
@@ -85,7 +85,7 @@ func (x *Trust) SetValue(val float64) {
 	x.val = val
 }
 
-// Value returns value set using SetValue.
+// Value returns value set using [Trust.SetValue].
 //
 // Zero Trust has zero value.
 func (x Trust) Value() float64 {
@@ -151,12 +151,12 @@ func (x PeerToPeerTrust) ProtoMessage() *protoreputation.PeerToPeerTrust {
 // SetTrustingPeer specifies the peer from which trust comes in terms of the
 // NeoFS reputation system.
 //
-// See also TrustingPeer.
+// See also [PeerToPeerTrust.TrustingPeer].
 func (x *PeerToPeerTrust) SetTrustingPeer(id PeerID) {
 	x.peer = id
 }
 
-// TrustingPeer returns peer set using SetTrustingPeer.
+// TrustingPeer returns peer set using [PeerToPeerTrust.SetTrustingPeer].
 //
 // Zero PeerToPeerTrust has no trusting peer which is incorrect according
 // to the NeoFS API protocol.
@@ -167,12 +167,12 @@ func (x PeerToPeerTrust) TrustingPeer() PeerID {
 // SetTrust sets trust value of the trusting peer to another participant
 // of the NeoFS reputation system.
 //
-// See also Trust.
+// See also [PeerToPeerTrust.Trust].
 func (x *PeerToPeerTrust) SetTrust(t Trust) {
 	x.trust = &t
 }
 
-// Trust returns trust set using SetTrust.
+// Trust returns trust set using [PeerToPeerTrust.SetTrust].
 //
 // Zero PeerToPeerTrust returns zero Trust which is incorrect according to the
 // NeoFS API protocol.
@@ -201,7 +201,7 @@ type GlobalTrust struct {
 // FromProtoMessage validates m according to the NeoFS API protocol and restores
 // x from it.
 //
-// See also [PeerID.ProtoMessage].
+// See also [GlobalTrust.ProtoMessage].
 func (x *GlobalTrust) FromProtoMessage(m *protoreputation.GlobalTrust) error {
 	if m.Version == nil {
 		return errors.New("missing version")
@@ -296,12 +296,12 @@ func (x *GlobalTrust) Init() {
 // SetManager sets identifier of the NeoFS reputation system's participant which
 // performed trust estimation.
 //
-// See also Manager.
+// See also [GlobalTrust.Manager].
 func (x *GlobalTrust) SetManager(id PeerID) {
 	x.manager = id
 }
 
-// Manager returns peer set using SetManager.
+// Manager returns peer set using [GlobalTrust.SetManager].
 //
 // Zero GlobalTrust has zero manager which is incorrect according to the
 // NeoFS API protocol.
@@ -312,12 +312,12 @@ func (x GlobalTrust) Manager() PeerID {
 // SetTrust sets the global trust score of the network to a specific network
 // member.
 //
-// See also Trust.
+// See also [GlobalTrust.Trust].
 func (x *GlobalTrust) SetTrust(trust Trust) {
 	x.trust = &trust
 }
 
-// Trust returns trust set using SetTrust.
+// Trust returns trust set using [GlobalTrust.SetTrust].
 //
 // Zero GlobalTrust return zero Trust which is incorrect according to the
 // NeoFS API protocol.
@@ -361,7 +361,7 @@ func (x *GlobalTrust) SignedData() []byte {
 //
 // Zero GlobalTrust fails the check.
 //
-// See also Sign.
+// See also [GlobalTrust.Sign].
 func (x GlobalTrust) VerifySignature() bool {
 	return x.sig != nil && x.sig.Verify(x.SignedData())
 }
@@ -369,7 +369,7 @@ func (x GlobalTrust) VerifySignature() bool {
 // Marshal encodes GlobalTrust into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [GlobalTrust.Unmarshal].
 func (x GlobalTrust) Marshal() []byte {
 	return protoencoding.Marshal(x)
 }
@@ -378,7 +378,7 @@ func (x GlobalTrust) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [GlobalTrust.Marshal].
 func (x *GlobalTrust) Unmarshal(data []byte) error {
 	return protoencoding.Unmarshal(data, x)
 }

@@ -63,7 +63,7 @@ func (x *PrmObjectDelete) AttachContainerRevision(revision uint64) {
 // Call supports container revision state check, see [PrmObjectDelete.AttachContainerRevision].
 //
 // Return errors:
-//   - global (see Client docs)
+//   - global (see [Client] docs)
 //   - [ErrMissingSigner]
 //   - [apistatus.ErrContainerNotFound]
 //   - [apistatus.ErrIncomplete]

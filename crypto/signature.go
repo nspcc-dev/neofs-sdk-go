@@ -86,12 +86,12 @@ func (x Signature) ProtoMessage() *refs.Signature {
 	}
 }
 
-// Calculate signs data using Signer and encodes public key for subsequent
+// Calculate signs data using [Signer] and encodes public key for subsequent
 // verification.
 //
 // Signer MUST NOT be nil.
 //
-// See also Verify.
+// See also [Signature.Verify].
 func (x *Signature) Calculate(signer Signer, data []byte) error {
 	signature, err := signer.Sign(data)
 	if err != nil {
@@ -106,9 +106,9 @@ func (x *Signature) Calculate(signer Signer, data []byte) error {
 // Verify verifies data signature using encoded public key. True means valid
 // signature.
 //
-// Verify fails if signature scheme is not supported (see RegisterScheme).
+// Verify fails if signature scheme is not supported (see [RegisterScheme]).
 //
-// See also Calculate.
+// See also [Signature.Calculate].
 func (x Signature) Verify(data []byte) bool {
 	key, err := decodePublicKey(x.scheme, x.pub)
 

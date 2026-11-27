@@ -65,7 +65,7 @@ func NewSHA256(h [sha256.Size]byte) Checksum {
 }
 
 // NewFromHash constructs new Checksum of specified type from accumulated
-// hash.Hash. It is the caller's responsibility to ensure that the hash matches
+// [hash.Hash]. It is the caller's responsibility to ensure that the hash matches
 // the type.
 func NewFromHash(t Type, h hash.Hash) Checksum {
 	return New(t, h.Sum(nil))
@@ -133,7 +133,7 @@ func (c Checksum) Value() []byte {
 	return c.val
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.
@@ -141,7 +141,7 @@ func (c Checksum) String() string {
 	return fmt.Sprintf("%s:%s", c.Type(), hex.EncodeToString(c.Value()))
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
 // SDK versions.

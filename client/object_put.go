@@ -625,7 +625,7 @@ func readFull(r io.Reader, b []byte) (int, error) {
 // codes are returned as error.
 //
 // Return errors:
-//   - global (see Client docs)
+//   - global (see [Client] docs)
 //   - [apistatus.ErrContainerNotFound]
 //   - [apistatus.ErrIncomplete]
 //   - [apistatus.ErrObjectAccessDenied]

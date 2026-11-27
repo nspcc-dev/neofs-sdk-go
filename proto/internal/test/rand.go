@@ -106,41 +106,41 @@ func RandRepeatedValue[T any](randFunc func() T) []T {
 	return vs
 }
 
-// RandVersion returns random refs.Version with all non-zero fields.
+// RandVersion returns random [refs.Version] with all non-zero fields.
 func RandVersion() *refs.Version { return &refs.Version{Major: RandUint32(), Minor: RandUint32()} }
 
-// RandOwnerID returns random refs.OwnerID with all non-zero fields.
+// RandOwnerID returns random [refs.OwnerID] with all non-zero fields.
 func RandOwnerID() *refs.OwnerID { return &refs.OwnerID{Value: RandBytes()} }
 
-// RandContainerID returns random refs.ContainerID with all non-zero fields.
+// RandContainerID returns random [refs.ContainerID] with all non-zero fields.
 func RandContainerID() *refs.ContainerID { return &refs.ContainerID{Value: RandBytes()} }
 
-// RandContainerIDs returns non-empty list of refs.ContainerID up to 10
+// RandContainerIDs returns non-empty list of [refs.ContainerID] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandContainerIDs() []*refs.ContainerID { return RandRepeated(RandContainerID) }
 
-// RandObjectID returns random refs.ObjectID with all non-zero fields.
+// RandObjectID returns random [refs.ObjectID] with all non-zero fields.
 func RandObjectID() *refs.ObjectID { return &refs.ObjectID{Value: RandBytes()} }
 
-// RandObjectIDs returns non-empty list of refs.ObjectID up to 10 elements. Each
+// RandObjectIDs returns non-empty list of [refs.ObjectID] up to 10 elements. Each
 // element may be nil and pointer to zero.
 func RandObjectIDs() []*refs.ObjectID { return RandRepeated(RandObjectID) }
 
-// RandObjectAddress returns random refs.Address with all non-zero fields.
+// RandObjectAddress returns random [refs.Address] with all non-zero fields.
 func RandObjectAddress() *refs.Address {
 	return &refs.Address{ContainerId: RandContainerID(), ObjectId: RandObjectID()}
 }
 
-// RandObjectAddresses returns non-empty list of refs.Address up to 10 elements.
+// RandObjectAddresses returns non-empty list of [refs.Address] up to 10 elements.
 // Each element may be nil and pointer to zero.
 func RandObjectAddresses() []*refs.Address { return RandRepeated(RandObjectAddress) }
 
-// RandChecksum returns random refs.Checksum with all non-zero fields.
+// RandChecksum returns random [refs.Checksum] with all non-zero fields.
 func RandChecksum() *refs.Checksum {
 	return &refs.Checksum{Type: RandInteger[refs.ChecksumType](), Sum: RandBytes()}
 }
 
-// RandSignature returns random refs.Signature with all non-zero fields.
+// RandSignature returns random [refs.Signature] with all non-zero fields.
 func RandSignature() *refs.Signature {
 	return &refs.Signature{
 		Key:    RandBytes(),
@@ -149,27 +149,27 @@ func RandSignature() *refs.Signature {
 	}
 }
 
-// RandSignatureRFC6979 returns random refs.SignatureRFC6979 with all non-zero
+// RandSignatureRFC6979 returns random [refs.SignatureRFC6979] with all non-zero
 // fields.
 func RandSignatureRFC6979() *refs.SignatureRFC6979 {
 	return &refs.SignatureRFC6979{Key: RandBytes(), Sign: RandBytes()}
 }
 
-// RandSubnetID returns random refs.SubnetID with all non-zero fields.
+// RandSubnetID returns random [refs.SubnetID] with all non-zero fields.
 func RandSubnetID() *refs.SubnetID {
 	return &refs.SubnetID{Value: RandUint32()}
 }
 
-// RandPlacementReplica returns random netmap.Replica with all non-zero fields.
+// RandPlacementReplica returns random [netmap.Replica] with all non-zero fields.
 func RandPlacementReplica() *netmap.Replica {
 	return &netmap.Replica{Count: RandUint32(), Selector: RandString()}
 }
 
-// RandPlacementReplicas returns non-empty list of netmap.Replica up to 10
+// RandPlacementReplicas returns non-empty list of [netmap.Replica] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandPlacementReplicas() []*netmap.Replica { return RandRepeated(RandPlacementReplica) }
 
-// RandPlacementSelector returns random netmap.Selector with all non-zero
+// RandPlacementSelector returns random [netmap.Selector] with all non-zero
 // fields.
 func RandPlacementSelector() *netmap.Selector {
 	return &netmap.Selector{
@@ -181,7 +181,7 @@ func RandPlacementSelector() *netmap.Selector {
 	}
 }
 
-// RandPlacementSelectors returns non-empty list of netmap.Selector up to 10
+// RandPlacementSelectors returns non-empty list of [netmap.Selector] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandPlacementSelectors() []*netmap.Selector { return RandRepeated(RandPlacementSelector) }
 
@@ -203,14 +203,14 @@ func randPlacementFilters(withSubs bool) []*netmap.Filter {
 	return RandRepeated(func() *netmap.Filter { return randPlacementFilter(withSubs) })
 }
 
-// RandPlacementFilter returns random netmap.Filter with all non-zero fields.
+// RandPlacementFilter returns random [netmap.Filter] with all non-zero fields.
 func RandPlacementFilter() *netmap.Filter { return randPlacementFilter(true) }
 
-// RandPlacementFilters returns non-empty list of netmap.Filter up to 10
+// RandPlacementFilters returns non-empty list of [netmap.Filter] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandPlacementFilters() []*netmap.Filter { return randPlacementFilters(true) }
 
-// RandECRule returns random netmap.PlacementPolicy_ECRule with all non-zero
+// RandECRule returns random [netmap.PlacementPolicy_ECRule] with all non-zero
 // fields.
 func RandECRule() *netmap.PlacementPolicy_ECRule {
 	return &netmap.PlacementPolicy_ECRule{
@@ -221,11 +221,11 @@ func RandECRule() *netmap.PlacementPolicy_ECRule {
 	}
 }
 
-// RandECRules returns non-empty list of netmap.PlacementPolicy_ECRule up to 10
+// RandECRules returns non-empty list of [netmap.PlacementPolicy_ECRule] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandECRules() []*netmap.PlacementPolicy_ECRule { return RandRepeated(RandECRule) }
 
-// RandPlacementPolicy returns random netmap.PlacementPolicy with all non-zero
+// RandPlacementPolicy returns random [netmap.PlacementPolicy] with all non-zero
 // fields.
 func RandPlacementPolicy() *netmap.PlacementPolicy {
 	return &netmap.PlacementPolicy{
@@ -239,7 +239,7 @@ func RandPlacementPolicy() *netmap.PlacementPolicy {
 	}
 }
 
-// RandPlacementPolicy returns random [netmap.InitialPlacementPolicy] with all
+// RandInitialPlacementPolicy returns random [netmap.PlacementPolicy_Initial] with all
 // non-zero fields.
 func RandInitialPlacementPolicy() *netmap.PlacementPolicy_Initial {
 	return &netmap.PlacementPolicy_Initial{
@@ -250,7 +250,7 @@ func RandInitialPlacementPolicy() *netmap.PlacementPolicy_Initial {
 }
 
 // RandSessionTokenLifetime returns random
-// session.SessionToken_Body_TokenLifetime with all non-zero fields.
+// [session.SessionToken_Body_TokenLifetime] with all non-zero fields.
 func RandSessionTokenLifetime() *session.SessionToken_Body_TokenLifetime {
 	return &session.SessionToken_Body_TokenLifetime{
 		Exp: RandUint64(),
@@ -259,7 +259,7 @@ func RandSessionTokenLifetime() *session.SessionToken_Body_TokenLifetime {
 	}
 }
 
-// RandObjectSessionTarget returns random session.ObjectSessionContext_Target
+// RandObjectSessionTarget returns random [session.ObjectSessionContext_Target]
 // with all non-zero fields.
 func RandObjectSessionTarget() *session.ObjectSessionContext_Target {
 	return &session.ObjectSessionContext_Target{
@@ -268,7 +268,7 @@ func RandObjectSessionTarget() *session.ObjectSessionContext_Target {
 	}
 }
 
-// RandObjectSessionContext returns random session.ObjectSessionContext with all
+// RandObjectSessionContext returns random [session.ObjectSessionContext] with all
 // non-zero fields.
 func RandObjectSessionContext() *session.ObjectSessionContext {
 	return &session.ObjectSessionContext{
@@ -277,7 +277,7 @@ func RandObjectSessionContext() *session.ObjectSessionContext {
 	}
 }
 
-// RandContainerSessionContext returns random session.ContainerSessionContext
+// RandContainerSessionContext returns random [session.ContainerSessionContext]
 // with all non-zero fields.
 func RandContainerSessionContext() *session.ContainerSessionContext {
 	return &session.ContainerSessionContext{
@@ -287,7 +287,7 @@ func RandContainerSessionContext() *session.ContainerSessionContext {
 	}
 }
 
-// RandSessionTokenBody returns random session.SessionToken_Body with all
+// RandSessionTokenBody returns random [session.SessionToken_Body] with all
 // non-zero fields.
 func RandSessionTokenBody() *session.SessionToken_Body {
 	v := &session.SessionToken_Body{
@@ -306,7 +306,7 @@ func RandSessionTokenBody() *session.SessionToken_Body {
 	return v
 }
 
-// RandSessionToken returns random session.SessionToken with all non-zero
+// RandSessionToken returns random [session.SessionToken] with all non-zero
 // fields.
 func RandSessionToken() *session.SessionToken {
 	return &session.SessionToken{
@@ -315,7 +315,7 @@ func RandSessionToken() *session.SessionToken {
 	}
 }
 
-// RandTarget returns random session.Target with all non-zero fields.
+// RandTarget returns random [session.Target] with all non-zero fields.
 func RandTarget() *session.Target {
 	v := &session.Target{}
 	switch rand.Uint32() % 2 {
@@ -327,11 +327,11 @@ func RandTarget() *session.Target {
 	return v
 }
 
-// RandTargets returns non-empty list of session.Target up to 10 elements. Each
+// RandTargets returns non-empty list of [session.Target] up to 10 elements. Each
 // element may be nil and pointer to zero.
 func RandTargets() []*session.Target { return RandRepeated(RandTarget) }
 
-// RandVerbs returns random list of session.Verb with 1 to 5 elements.
+// RandVerbs returns random list of [session.Verb] with 1 to 5 elements.
 func RandVerbs() []session.Verb {
 	verbs := make([]session.Verb, 1+rand.Uint32()%5)
 	for i := range verbs {
@@ -340,7 +340,7 @@ func RandVerbs() []session.Verb {
 	return verbs
 }
 
-// RandSessionContextV2 returns random session.SessionContextV2 with all
+// RandSessionContextV2 returns random [session.SessionContextV2] with all
 // non-zero fields.
 func RandSessionContextV2() *session.SessionContextV2 {
 	return &session.SessionContextV2{
@@ -349,13 +349,13 @@ func RandSessionContextV2() *session.SessionContextV2 {
 	}
 }
 
-// RandSessionContextV2s returns non-empty list of session.SessionContextV2 up
+// RandSessionContextV2s returns non-empty list of [session.SessionContextV2] up
 // to 10 elements. Each element may be nil and pointer to zero.
 func RandSessionContextV2s() []*session.SessionContextV2 {
 	return RandRepeated(RandSessionContextV2)
 }
 
-// RandSessionTokenV2Lifetime returns random session.TokenLifetime with all
+// RandSessionTokenV2Lifetime returns random [session.TokenLifetime] with all
 // non-zero fields.
 func RandSessionTokenV2Lifetime() *session.TokenLifetime {
 	return &session.TokenLifetime{
@@ -378,7 +378,7 @@ func RandSessionTokenV2Body() *session.SessionTokenV2_Body {
 	}
 }
 
-// RandSessionTokenV2 returns random session.SessionTokenV2_Body with all
+// RandSessionTokenV2 returns random [session.SessionTokenV2] with all
 // non-zero fields. If original is true, Origin field is filled with another
 // random token.
 func RandSessionTokenV2(original bool) *session.SessionTokenV2 {
@@ -394,7 +394,7 @@ func RandSessionTokenV2(original bool) *session.SessionTokenV2 {
 	}
 }
 
-// RandEACLFilter returns random acl.EACLRecord_Filter with all non-zero fields.
+// RandEACLFilter returns random [acl.EACLRecord_Filter] with all non-zero fields.
 func RandEACLFilter() *acl.EACLRecord_Filter {
 	return &acl.EACLRecord_Filter{
 		HeaderType: RandInteger[acl.HeaderType](),
@@ -404,11 +404,11 @@ func RandEACLFilter() *acl.EACLRecord_Filter {
 	}
 }
 
-// RandEACLFilters returns non-empty list of acl.EACLRecord_Filter up to 10
+// RandEACLFilters returns non-empty list of [acl.EACLRecord_Filter] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandEACLFilters() []*acl.EACLRecord_Filter { return RandRepeated(RandEACLFilter) }
 
-// RandEACLTarget returns random acl.EACLRecord_Target with all non-zero fields.
+// RandEACLTarget returns random [acl.EACLRecord_Target] with all non-zero fields.
 func RandEACLTarget() *acl.EACLRecord_Target {
 	return &acl.EACLRecord_Target{
 		Role: RandInteger[acl.Role](),
@@ -416,11 +416,11 @@ func RandEACLTarget() *acl.EACLRecord_Target {
 	}
 }
 
-// RandEACLTargets returns non-empty list of acl.EACLRecord_Target up to 10
+// RandEACLTargets returns non-empty list of [acl.EACLRecord_Target] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandEACLTargets() []*acl.EACLRecord_Target { return RandRepeated(RandEACLTarget) }
 
-// RandEACLRecord returns random acl.EACLRecord with all non-zero fields.
+// RandEACLRecord returns random [acl.EACLRecord] with all non-zero fields.
 func RandEACLRecord() *acl.EACLRecord {
 	return &acl.EACLRecord{
 		Operation: RandInteger[acl.Operation](),
@@ -431,11 +431,11 @@ func RandEACLRecord() *acl.EACLRecord {
 	}
 }
 
-// RandEACLRecords returns non-empty list of acl.EACLRecord up to 10 elements.
+// RandEACLRecords returns non-empty list of [acl.EACLRecord] up to 10 elements.
 // Each element may be nil and pointer to zero.
 func RandEACLRecords() []*acl.EACLRecord { return RandRepeated(RandEACLRecord) }
 
-// RandEACL returns random acl.EACLTable with all non-zero fields.
+// RandEACL returns random [acl.EACLTable] with all non-zero fields.
 func RandEACL() *acl.EACLTable {
 	return &acl.EACLTable{
 		Version:     RandVersion(),
@@ -444,7 +444,7 @@ func RandEACL() *acl.EACLTable {
 	}
 }
 
-// RandBearerTokenLifetime returns random acl.BearerToken_Body_TokenLifetime
+// RandBearerTokenLifetime returns random [acl.BearerToken_Body_TokenLifetime]
 // with all non-zero fields.
 func RandBearerTokenLifetime() *acl.BearerToken_Body_TokenLifetime {
 	return &acl.BearerToken_Body_TokenLifetime{
@@ -454,7 +454,7 @@ func RandBearerTokenLifetime() *acl.BearerToken_Body_TokenLifetime {
 	}
 }
 
-// RandBearerTokenBody returns random acl.BearerToken_Body with all non-zero
+// RandBearerTokenBody returns random [acl.BearerToken_Body] with all non-zero
 // fields.
 func RandBearerTokenBody() *acl.BearerToken_Body {
 	return &acl.BearerToken_Body{
@@ -465,7 +465,7 @@ func RandBearerTokenBody() *acl.BearerToken_Body {
 	}
 }
 
-// RandBearerToken returns random acl.BearerToken with all non-zero fields.
+// RandBearerToken returns random [acl.BearerToken] with all non-zero fields.
 func RandBearerToken() *acl.BearerToken {
 	return &acl.BearerToken{
 		Body:      RandBearerTokenBody(),
@@ -473,7 +473,7 @@ func RandBearerToken() *acl.BearerToken {
 	}
 }
 
-// RandStatusDetail returns random status.Status_Detail with all non-zero
+// RandStatusDetail returns random [status.Status_Detail] with all non-zero
 // fields.
 func RandStatusDetail() *status.Status_Detail {
 	return &status.Status_Detail{
@@ -482,11 +482,11 @@ func RandStatusDetail() *status.Status_Detail {
 	}
 }
 
-// RandStatusDetails returns non-empty list of status.Status_Detail up to 10
+// RandStatusDetails returns non-empty list of [status.Status_Detail] up to 10
 // elements. Each element may be nil and pointer to zero.
 func RandStatusDetails() []*status.Status_Detail { return RandRepeated(RandStatusDetail) }
 
-// RandStatus returns random status.Status with all non-zero fields.
+// RandStatus returns random [status.Status] with all non-zero fields.
 func RandStatus() *status.Status {
 	return &status.Status{
 		Code:    RandUint32(),

@@ -10,7 +10,7 @@ import (
 	protoobject "github.com/nspcc-dev/neofs-sdk-go/proto/object"
 )
 
-// SplitInfo is an SDK representation of [object.SplitInfo].
+// SplitInfo is an SDK representation of [protoobject.SplitInfo].
 type SplitInfo struct {
 	splitID []byte
 	last    oid.ID
@@ -126,14 +126,14 @@ func (s *SplitInfo) Unmarshal(data []byte) error {
 	return protoencoding.Unmarshal(data, s)
 }
 
-// MarshalJSON implements json.Marshaler.
+// MarshalJSON implements [json.Marshaler].
 //
 // See also [SplitInfo.UnmarshalJSON].
 func (s SplitInfo) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(s)
 }
 
-// UnmarshalJSON implements json.Unmarshaler.
+// UnmarshalJSON implements [json.Unmarshaler].
 //
 // See also [SplitInfo.MarshalJSON].
 func (s *SplitInfo) UnmarshalJSON(data []byte) error {

@@ -6,7 +6,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/accounting"
 )
 
-// Decimal returns random accounting.Decimal.
+// Decimal returns random [accounting.Decimal].
 func Decimal() accounting.Decimal {
 	var d accounting.Decimal
 	d.SetValue(rand.Int64())

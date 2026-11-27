@@ -67,7 +67,7 @@ func (id ID) ProtoMessage() *refs.ObjectID {
 // Decode decodes src bytes into ID. Use [DecodeBytes] to decode src into a new
 // ID.
 //
-// Decode expects that src has [IDSize] bytes length. If the input is malformed,
+// Decode expects that src has [Size] bytes length. If the input is malformed,
 // Decode returns an error describing format violation. In this case ID
 // remains unchanged.
 //
@@ -86,7 +86,7 @@ func (id *ID) Decode(src []byte) error {
 //
 // Zero ID is base58 encoding of [Size] zeros.
 //
-// See also DecodeString.
+// See also [ID.DecodeString].
 func (id ID) EncodeToString() string {
 	return base58.Encode(id[:])
 }
@@ -94,7 +94,7 @@ func (id ID) EncodeToString() string {
 // DecodeString decodes string into ID according to NeoFS API protocol. Returns
 // an error if s is malformed. Use [DecodeString] to decode s into a new ID.
 //
-// See also DecodeString.
+// See also [ID.EncodeToString].
 func (id *ID) DecodeString(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
@@ -107,7 +107,7 @@ func (id *ID) DecodeString(s string) error {
 // String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [ID.EncodeToString]. String MUST NOT
 // be used to encode ID into NeoFS protocol string.
 func (id ID) String() string {
 	return id.EncodeToString()

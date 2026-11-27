@@ -266,7 +266,7 @@ type getObjectResponseStream interface {
 // PayloadReader is a data stream of the particular NeoFS object. Implements
 // [io.ReadCloser].
 //
-// Must be initialized using Client.ObjectGetInit, any other
+// Must be initialized using [Client.ObjectGetInit], any other
 // usage is unsafe.
 type PayloadReader struct {
 	ctx             context.Context
@@ -524,7 +524,7 @@ func (x *PayloadReader) Close() error {
 	return err
 }
 
-// Read implements io.Reader of the object payload.
+// Read implements [io.Reader] of the object payload.
 func (x *PayloadReader) Read(p []byte) (int, error) {
 	n, ok := x.readChunk(p)
 	consumeErr := x.consumePayload(n)
@@ -796,9 +796,9 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 // Use [PrmObjectGet.SetRange], [PrmObjectGet.SetRangeBounds],
 // [PrmObjectGet.SetRangeFrom], or [PrmObjectGet.SetRangeSuffix] to request a
 // payload range.
-// If [PrmObjectGet.MarkPayloadOnly] is used, the returned object.Object is empty.
+// If [PrmObjectGet.MarkPayloadOnly] is used, the returned [object.Object] is empty.
 //
-// Exactly one return value is non-nil. Resulting PayloadReader must be finally closed.
+// Exactly one return value is non-nil. Resulting [PayloadReader] must be finally closed.
 //
 // Context is required and must not be nil. It is used for network communication.
 //
@@ -806,9 +806,9 @@ func (x *PayloadReader) WriteTo(w io.Writer) (int64, error) {
 // the specified Signer, which is taken into account, in particular, for access control.
 //
 // Return errors:
-//   - global (see Client docs)
+//   - global (see [Client] docs)
 //   - [ErrMissingSigner]
-//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectGet.MakeRaw)
+//   - *[object.SplitInfoError] (returned on virtual objects with [PrmObjectGet.MarkRaw])
 //   - [apistatus.ErrContainerNotFound]
 //   - [apistatus.ErrObjectNotFound]
 //   - [apistatus.ErrObjectAccessDenied]
@@ -996,9 +996,9 @@ func (x *PrmObjectHead) SkipChecksumVerification() {
 // the specified Signer, which is taken into account, in particular, for access control.
 //
 // Return errors:
-//   - global (see Client docs)
+//   - global (see [Client] docs)
 //   - [ErrMissingSigner]
-//   - *[object.SplitInfoError] (returned on virtual objects with PrmObjectHead.MakeRaw)
+//   - *[object.SplitInfoError] (returned on virtual objects with [PrmObjectHead.MarkRaw])
 //   - [apistatus.ErrContainerNotFound]
 //   - [apistatus.ErrObjectNotFound]
 //   - [apistatus.ErrObjectAccessDenied]

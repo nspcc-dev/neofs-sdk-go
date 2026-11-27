@@ -119,7 +119,7 @@ func NewContainerLocked(msg string) ContainerLocked {
 
 const defaultContainerLockedMsg = "container is locked"
 
-// Error implements built-in [error] interface.
+// Error implements built-in error interface.
 func (x ContainerLocked) Error() string {
 	if x.msg == "" {
 		x.msg = defaultContainerLockedMsg
@@ -161,7 +161,7 @@ type ContainerAwaitTimeout struct {
 
 const defaultContainerAwaitTimeoutMsg = "container transaction await timeout"
 
-// Error implements built-in [error] interface.
+// Error implements built-in error interface.
 func (x ContainerAwaitTimeout) Error() string {
 	if x.msg == "" {
 		x.msg = defaultContainerAwaitTimeoutMsg
@@ -208,7 +208,7 @@ func NewContainerRevisionMismatch(msg string) ContainerRevisionMismatch {
 
 const defaultContainerRevisionMismatchMsg = "container revision does not match"
 
-// Error implements built-in [error] interface.
+// Error implements built-in error interface.
 func (x ContainerRevisionMismatch) Error() string {
 	if x.msg == "" {
 		x.msg = defaultContainerRevisionMismatchMsg

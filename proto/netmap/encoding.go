@@ -181,7 +181,7 @@ func (x *PlacementPolicy) MarshalStable(b []byte) {
 	}
 }
 
-// Field numbers of [InitialPlacementPolicy] message.
+// Field numbers of [PlacementPolicy_Initial] message.
 const (
 	_ = iota
 	FieldInitialPlacementPolicyReplicaLimits
@@ -202,7 +202,7 @@ func (x *PlacementPolicy_Initial) MarshaledSize() int {
 
 // MarshalStable writes x in Protocol Buffers V3 format with ascending order of
 // fields by number into b. MarshalStable uses exactly
-// [InitialPlacementPolicy.MarshaledSize] first bytes of b. MarshalStable is
+// [PlacementPolicy_Initial.MarshaledSize] first bytes of b. MarshalStable is
 // NPE-safe.
 func (x *PlacementPolicy_Initial) MarshalStable(b []byte) {
 	if x != nil {

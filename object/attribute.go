@@ -26,8 +26,8 @@ const (
 	// Deprecated: use [Object.SetExpirationTime] instead.
 	AttributeExpirationEpoch = sysAttrPrefix + "EXPIRATION_EPOCH"
 	// AttributeAssociatedObject is a key to an object attribute that determines
-	// associated object's ID. For [object.TypeTombstone] it defines object to
-	// delete. For [object.TypeLock] it defines object to lock.
+	// associated object's ID. For [TypeTombstone] it defines object to
+	// delete. For [TypeLock] it defines object to lock.
 	AttributeAssociatedObject = sysAttrPrefix + "ASSOCIATE"
 	// AttributeECPrefix is a prefix of EC object attributes.
 	AttributeECPrefix = sysAttrPrefix + "EC_"

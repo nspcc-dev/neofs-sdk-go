@@ -202,7 +202,7 @@ func (p *PlacementPolicy) fromProtoMessage(m *protonetmap.PlacementPolicy, check
 // Marshal encodes PlacementPolicy into a binary format of the NeoFS API
 // protocol (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [PlacementPolicy.Unmarshal].
 func (p PlacementPolicy) Marshal() []byte {
 	return protoencoding.Marshal(p)
 }
@@ -211,7 +211,7 @@ func (p PlacementPolicy) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [PlacementPolicy.Marshal].
 func (p *PlacementPolicy) Unmarshal(data []byte) error {
 	return protoencoding.UnmarshalOptional(data, p, (*PlacementPolicy).fromProtoMessage)
 }
@@ -219,7 +219,7 @@ func (p *PlacementPolicy) Unmarshal(data []byte) error {
 // MarshalJSON encodes PlacementPolicy into a JSON format of the NeoFS API
 // protocol (Protocol Buffers JSON).
 //
-// See also UnmarshalJSON.
+// See also [PlacementPolicy.UnmarshalJSON].
 func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
 	return protoencoding.MarshalJSON(p)
 }
@@ -227,7 +227,7 @@ func (p PlacementPolicy) MarshalJSON() ([]byte, error) {
 // UnmarshalJSON decodes NeoFS API protocol JSON format into the PlacementPolicy
 // (Protocol Buffers JSON). Returns an error describing a format violation.
 //
-// See also MarshalJSON.
+// See also [PlacementPolicy.MarshalJSON].
 func (p *PlacementPolicy) UnmarshalJSON(data []byte) error {
 	return protoencoding.UnmarshalJSONOptional(data, p, (*PlacementPolicy).fromProtoMessage)
 }
@@ -443,7 +443,7 @@ func (s *Selector) SetName(name string) {
 //
 // Zero Selector is unnamed.
 //
-// See also [Selector.Name].
+// See also [Selector.SetName].
 func (s Selector) Name() string {
 	return s.name
 }
@@ -524,7 +524,7 @@ func (s *Selector) IsDistinct() bool {
 //
 // Zero Selector has no filtering reference.
 //
-// See also Filter.SetName.
+// See also [Filter.SetName].
 func (s *Selector) SetFilterName(f string) {
 	s.filter = f
 }
@@ -742,7 +742,7 @@ func (p *PlacementPolicy) SetFilters(fs []Filter) {
 // WriteStringTo encodes PlacementPolicy into human-readably query and writes
 // the result into w. Returns w's errors directly.
 //
-// See also DecodeString.
+// See also [PlacementPolicy.DecodeString].
 func (p PlacementPolicy) WriteStringTo(w io.StringWriter) (err error) {
 	writtenSmth := false
 
@@ -984,7 +984,7 @@ func (p *policyVisitor) reportError(err error) any {
 	return nil
 }
 
-// VisitPolicy implements parser.QueryVisitor interface.
+// VisitPolicy implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitPolicy(ctx *parser.PolicyContext) any {
 	if len(p.errors) != 0 {
 		return nil
@@ -1063,7 +1063,7 @@ func (p *policyVisitor) VisitCbfStmt(ctx *parser.CbfStmtContext) any {
 	return uint32(cbf)
 }
 
-// VisitRepStmt implements parser.QueryVisitor interface.
+// VisitRepStmt implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 	num, err := strconv.ParseUint(ctx.GetCount().GetText(), 10, 32)
 	if err != nil {
@@ -1080,7 +1080,7 @@ func (p *policyVisitor) VisitRepStmt(ctx *parser.RepStmtContext) any {
 	return rs
 }
 
-// VisitSelectStmt implements parser.QueryVisitor interface.
+// VisitSelectStmt implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
 	s := new(protonetmap.Selector)
 
@@ -1108,7 +1108,7 @@ func (p *policyVisitor) VisitSelectStmt(ctx *parser.SelectStmtContext) any {
 	return s
 }
 
-// VisitFilterStmt implements parser.QueryVisitor interface.
+// VisitFilterStmt implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitFilterStmt(ctx *parser.FilterStmtContext) any {
 	f := p.VisitFilterExpr(ctx.GetExpr().(*parser.FilterExprContext)).(*protonetmap.Filter)
 	f.Name = ctx.GetName().GetText()
@@ -1143,7 +1143,7 @@ func (p *policyVisitor) VisitFilterExpr(ctx *parser.FilterExprContext) any {
 	return f
 }
 
-// VisitFilterKey implements parser.QueryVisitor interface.
+// VisitFilterKey implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitFilterKey(ctx *parser.FilterKeyContext) any {
 	if id := ctx.Ident(); id != nil {
 		return id.GetText()
@@ -1166,7 +1166,7 @@ func (p *policyVisitor) VisitFilterValue(ctx *parser.FilterValueContext) any {
 	return str[1 : len(str)-1]
 }
 
-// VisitExpr implements parser.QueryVisitor interface.
+// VisitExpr implements [parser.QueryVisitor] interface.
 func (p *policyVisitor) VisitExpr(ctx *parser.ExprContext) any {
 	f := new(protonetmap.Filter)
 	if flt := ctx.GetFilter(); flt != nil {

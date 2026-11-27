@@ -57,9 +57,9 @@ func (x *PrmContainerPut) WithEACL(eACL eacl.Table, signature *neofscrypto.Signa
 // the execution of an operation (e.g. access control).
 //
 // Session is optional, if set the following requirements apply:
-//   - session operation MUST be session.VerbContainerPut (ForVerb)
+//   - session operation MUST be [session.VerbContainerPut] ([session.Container.ForVerb])
 //   - token MUST be signed using private signer of the owner of the container to be saved
-//   - MUST NOT be used together with WithinSessionV2
+//   - MUST NOT be used together with [PrmContainerPut.WithinSessionV2]
 func (x *PrmContainerPut) WithinSession(s session.Container) {
 	x.session = &s
 }
@@ -72,7 +72,7 @@ func (x *PrmContainerPut) WithinSession(s session.Container) {
 // V2 tokens support multiple subjects, delegation chains, and unified contexts.
 //
 // Must be signed.
-// MUST NOT be used together with WithinSession.
+// MUST NOT be used together with [PrmContainerPut.WithinSession].
 func (x *PrmContainerPut) WithinSessionV2(s sessionv2.Token) {
 	x.sessionV2 = &s
 }
@@ -109,7 +109,7 @@ func (x *PrmContainerPut) AttachSignature(sig neofscrypto.Signature) {
 // Context is required and must not be nil. It is used for network communication.
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// Signer's scheme MUST be [neofscrypto.ECDSA_DETERMINISTIC_SHA256]. For example, you can use [neofsecdsa.SignerRFC6979].
 // If signature already exists, use [PrmContainerPut.AttachSignature]:
 // then signer will not be used.
 //
@@ -437,12 +437,12 @@ func (x *PrmContainerDelete) AttachSignature(sig neofscrypto.Signature) {
 // recommended to always use context with timeout. Note that the context
 // includes all processing stages incl. network delays.
 //
-// Success can be verified by reading by identifier (see GetContainer).
+// Success can be verified by reading by identifier (see [Client.ContainerGet]).
 //
 // Context is required and must not be nil. It is used for network communication.
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// Signer's scheme MUST be [neofscrypto.ECDSA_DETERMINISTIC_SHA256]. For example, you can use [neofsecdsa.SignerRFC6979].
 // If signature already exists, use [PrmContainerDelete.AttachSignature]:
 // then signer will not be used.
 //
@@ -616,11 +616,11 @@ type PrmContainerSetEACL struct {
 // the execution of an operation (e.g. access control).
 //
 // Session is optional, if set the following requirements apply:
-//   - if particular container is specified (ApplyOnlyTo), it MUST equal the container
+//   - if particular container is specified ([session.Container.ApplyOnlyTo]), it MUST equal the container
 //     for which extended ACL is going to be set
-//   - session operation MUST be session.VerbContainerSetEACL (ForVerb)
+//   - session operation MUST be [session.VerbContainerSetEACL] ([session.Container.ForVerb])
 //   - token MUST be signed using private signer of the owner of the container to be saved
-//   - MUST NOT be used together with WithinSessionV2
+//   - MUST NOT be used together with [PrmContainerSetEACL.WithinSessionV2]
 func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 	x.session = &s
 }
@@ -633,7 +633,7 @@ func (x *PrmContainerSetEACL) WithinSession(s session.Container) {
 // V2 tokens support multiple subjects, delegation chains, and unified contexts.
 //
 // Must be signed.
-// MUST NOT be used together with WithinSession.
+// MUST NOT be used together with [PrmContainerSetEACL.WithinSession].
 func (x *PrmContainerSetEACL) WithinSessionV2(s sessionv2.Token) {
 	x.sessionV2 = &s
 }
@@ -669,10 +669,10 @@ func (x *PrmContainerSetEACL) AttachContainerRevision(revision uint64) {
 // Call requires container revision setting to work correctly with servers
 // >= API v2.27.0, see [PrmContainerSetEACL.AttachContainerRevision].
 //
-// Success can be verified by reading by identifier (see EACL).
+// Success can be verified by reading by identifier (see [Client.ContainerEACL]).
 //
 // Signer is required and must not be nil. The account corresponding to the specified Signer will be charged for the operation.
-// Signer's scheme MUST be neofscrypto.ECDSA_DETERMINISTIC_SHA256. For example, you can use neofsecdsa.SignerRFC6979.
+// Signer's scheme MUST be [neofscrypto.ECDSA_DETERMINISTIC_SHA256]. For example, you can use [neofsecdsa.SignerRFC6979].
 // If signature already exists, use [PrmContainerSetEACL.AttachSignature]:
 // then signer will not be used.
 //

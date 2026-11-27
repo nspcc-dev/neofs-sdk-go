@@ -233,7 +233,7 @@ func (x *commonData) unmarshalJSON(data []byte, r contextReader) error {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.4.
 //
-// See also ExpiredAt.
+// See also [Container.ValidAt], [Object.ValidAt], [Object.ExpiredAt].
 func (x *commonData) SetExp(exp uint64) {
 	x.exp = exp
 }
@@ -250,7 +250,7 @@ func (x commonData) Exp() uint64 {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.5.
 //
-// See also ValidAt.
+// See also [Container.ValidAt], [Object.ValidAt].
 func (x *commonData) SetNbf(nbf uint64) {
 	x.nbf = nbf
 }
@@ -266,7 +266,7 @@ func (x commonData) Nbf() uint64 {
 //
 // Naming is inspired by https://datatracker.ietf.org/doc/html/rfc7519#section-4.1.6.
 //
-// See also ValidAt.
+// See also [Container.ValidAt], [Object.ValidAt].
 func (x *commonData) SetIat(iat uint64) {
 	x.iat = iat
 }
@@ -290,28 +290,28 @@ func (x commonData) ValidAt(epoch uint64) bool {
 // assigned in a manner that ensures that there is a negligible probability
 // that the same value will be accidentally assigned to a different session.
 //
-// ID format MUST be UUID version 4 (random). uuid.New can be used to generate
+// ID format MUST be UUID version 4 (random). [uuid.New] can be used to generate
 // a new ID. See https://datatracker.ietf.org/doc/html/rfc4122 and
-// github.com/google/uuid package docs for details.
+// [github.com/google/uuid] package docs for details.
 //
-// See also ID.
+// See also [Container.ID], [Object.ID].
 func (x *commonData) SetID(id uuid.UUID) {
 	x.id, x.idSet = id, true
 }
 
 // ID returns a unique identifier for the session.
 //
-// Zero session has empty UUID (all zeros, see uuid.Nil) which is legitimate
+// Zero session has empty UUID (all zeros, see [uuid.Nil]) which is legitimate
 // but most likely not suitable.
 //
-// See also SetID.
+// See also [Container.SetID], [Object.SetID].
 func (x commonData) ID() uuid.UUID {
 	return x.id
 }
 
 // SetAuthKey public key corresponding to the private key bound to the session.
 //
-// See also AssertAuthKey.
+// See also [Container.AssertAuthKey], [Object.AssertAuthKey].
 func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
 	x.authKey = neofscrypto.PublicKeyBytes(key)
 }
@@ -319,7 +319,7 @@ func (x *commonData) SetAuthKey(key neofscrypto.PublicKey) {
 // AuthUser returns user ID derived from the public key bound to the session.
 // Zero session fails the check.
 //
-// See also SetAuthKey and AssertAuthKey.
+// See also [Container.SetAuthKey], [Object.SetAuthKey], [Container.AssertAuthKey], [Object.AssertAuthKey].
 func (x *commonData) AuthUser() (user.ID, error) {
 	var authKey neofsecdsa.PublicKey
 	err := authKey.Decode(x.authKey)
@@ -340,7 +340,7 @@ func (x *commonData) SetIssuer(id user.ID) {
 //
 // Zero session fails the check.
 //
-// See also SetAuthKey.
+// See also [Container.SetAuthKey], [Object.SetAuthKey].
 func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
 	return bytes.Equal(neofscrypto.PublicKeyBytes(key), x.authKey)
 }
@@ -348,22 +348,23 @@ func (x commonData) AssertAuthKey(key neofscrypto.PublicKey) bool {
 // Issuer returns user ID of the session issuer.
 //
 // Makes sense only for signed session instances. For unsigned instances,
-// Issuer returns zero user.ID.
+// Issuer returns zero [user.ID].
 //
-// See also Sign.
+// See also [Container.Sign], [Object.Sign].
 func (x commonData) Issuer() user.ID {
 	return x.issuer
 }
 
-// AttachSignature attaches given signature to the token. Use SignedData method
-// for calculation. If signature instance itself is not needed, use Sign method.
+// AttachSignature attaches given signature to the token. Use [Container.SignedData] / [Object.SignedData] method
+// for calculation. If signature instance itself is not needed, use [Container.Sign] / [Object.Sign] method.
 func (x *commonData) AttachSignature(sig neofscrypto.Signature) {
 	x.sig, x.sigSet = sig, true
 }
 
 // Signature returns token signature. If the signature is missing, false is
-// returned. Use SignedData method for verification. If signature instance
-// itself is not needed, use VerifySignature method.
+// returned. Use [Container.SignedData] / [Object.SignedData] method for
+// verification. If signature instance itself is not needed, use
+// [Container.VerifySignature] / [Object.VerifySignature] method.
 func (x commonData) Signature() (neofscrypto.Signature, bool) {
 	return x.sig, x.sigSet
 }

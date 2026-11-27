@@ -67,8 +67,8 @@ func (x *SearchObjectsOptions) WithSessionTokenV2(st sessionv2.Token) { x.sessio
 // must be issued by the container owner for the request signer.
 func (x *SearchObjectsOptions) WithBearerToken(bt bearer.Token) { x.bearerToken = &bt }
 
-// SetCount limits the search result to a given number. Must be in [1, [client.MaxSearchObjectsCount]]
-// range. Defaults to [client.MaxSearchObjectsCount].
+// SetCount limits the search result to a given number. Must be in [1, [MaxSearchObjectsCount]]
+// range. Defaults to [MaxSearchObjectsCount].
 func (x *SearchObjectsOptions) SetCount(count uint32) { x.count = count }
 
 // Count returns limit for the search result.

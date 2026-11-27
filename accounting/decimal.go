@@ -8,7 +8,7 @@ import (
 // Decimal represents decimal number for accounting operations.
 //
 // Decimal is mutually compatible with [protoaccounting.Decimal] message. See
-// [Decimal.FromProtoMessage] / [Decimal.FromProtoMessage] methods.
+// [Decimal.FromProtoMessage] / [Decimal.ProtoMessage] methods.
 //
 // Instances can be created using built-in var declaration.
 type Decimal struct {
@@ -41,14 +41,14 @@ func (d Decimal) ProtoMessage() *protoaccounting.Decimal {
 //
 // Zero Decimal has zero value.
 //
-// See also SetValue.
+// See also [Decimal.SetValue].
 func (d Decimal) Value() int64 {
 	return d.val
 }
 
 // SetValue sets value of the decimal number.
 //
-// See also Value.
+// See also [Decimal.Value].
 func (d *Decimal) SetValue(v int64) {
 	d.val = v
 }
@@ -57,14 +57,14 @@ func (d *Decimal) SetValue(v int64) {
 //
 // Zero Decimal has zero precision.
 //
-// See also SetPrecision.
+// See also [Decimal.SetPrecision].
 func (d Decimal) Precision() uint32 {
 	return d.prec
 }
 
 // SetPrecision sets precision of the decimal number.
 //
-// See also Precision.
+// See also [Decimal.Precision].
 func (d *Decimal) SetPrecision(p uint32) {
 	d.prec = p
 }
@@ -72,7 +72,7 @@ func (d *Decimal) SetPrecision(p uint32) {
 // Marshal encodes Decimal into a binary format of the NeoFS API protocol
 // (Protocol Buffers with direct field order).
 //
-// See also Unmarshal.
+// See also [Decimal.Unmarshal].
 func (d Decimal) Marshal() []byte {
 	return protoencoding.Marshal(d)
 }
@@ -81,7 +81,7 @@ func (d Decimal) Marshal() []byte {
 // (Protocol Buffers with direct field order). Returns an error describing
 // a format violation.
 //
-// See also Marshal.
+// See also [Decimal.Marshal].
 func (d *Decimal) Unmarshal(data []byte) error {
 	return protoencoding.Unmarshal(data, d)
 }

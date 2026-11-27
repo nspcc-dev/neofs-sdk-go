@@ -22,7 +22,7 @@ func NewPoolStatistic() *PoolStat {
 	}
 }
 
-// OperationCallback implements [stat.OperationCallback].
+// OperationCallback implements [OperationCallback].
 func (s *PoolStat) OperationCallback(nodeKey []byte, endpoint string, method Method, duration time.Duration, err error) {
 	if len(nodeKey) == 0 {
 		// situation when we initialize the client connection and make first EndpointInfo call.

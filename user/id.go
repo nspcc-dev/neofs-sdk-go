@@ -29,7 +29,9 @@ type ID [IDSize]byte
 // ErrZeroID is an error returned on zero [ID] encounter.
 var ErrZeroID = errors.New("zero user ID")
 
-// NewFromScriptHash creates new ID and makes [ID.SetScriptHash].
+// NewFromScriptHash creates new [ID] from the given Neo3 script hash.
+//
+// See also [ID.ScriptHash].
 func NewFromScriptHash(scriptHash util.Uint160) ID {
 	var x ID
 	x[0] = address.Prefix
@@ -40,7 +42,7 @@ func NewFromScriptHash(scriptHash util.Uint160) ID {
 
 // NewFromECDSAPublicKey creates new ID corresponding to Neo3 verification
 // script hash of the given ECDSA public key. The point must be on the
-// [elliptic.P256] curve.
+// [crypto/elliptic.P256] curve.
 func NewFromECDSAPublicKey(pub ecdsa.PublicKey) ID {
 	return NewFromScriptHash((*keys.PublicKey)(&pub).GetScriptHash())
 }
@@ -97,7 +99,7 @@ func (x ID) ScriptHash() util.Uint160 {
 
 // EncodeToString encodes ID into NeoFS API V2 protocol string.
 //
-// See also DecodeString.
+// See also [ID.DecodeString].
 func (x ID) EncodeToString() string {
 	return base58.Encode(x[:])
 }
@@ -107,7 +109,7 @@ func (x ID) EncodeToString() string {
 //
 // DecodeString always changes the ID.
 //
-// See also EncodeToString.
+// See also [ID.EncodeToString].
 func (x *ID) DecodeString(s string) error {
 	b, err := base58.Decode(s)
 	if err != nil {
@@ -117,10 +119,10 @@ func (x *ID) DecodeString(s string) error {
 	return x.decodeBytes(b)
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [ID.EncodeToString]. String MUST NOT
 // be used to encode ID into NeoFS protocol string.
 func (x ID) String() string {
 	return x.EncodeToString()

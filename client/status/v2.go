@@ -7,13 +7,13 @@ import (
 	protostatus "github.com/nspcc-dev/neofs-sdk-go/proto/status"
 )
 
-// ToError converts [status.Status] message structure to error. Inverse to [FromError] operation.
+// ToError converts [protostatus.Status] message structure to error. Inverse to [FromError] operation.
 //
 // Below is the mapping of return codes to status instance types (with a description of parsing details).
 // Note: notice if the return type is a pointer.
 //
 // Successes:
-//   - [status.OK]: nil (this also includes nil argument).
+//   - [protostatus.OK]: nil (this also includes nil argument).
 //
 // Common failures:
 //   - [protostatus.InternalServerError]: *[ServerInternal];
@@ -132,7 +132,7 @@ func ToError(st *protostatus.Status) error {
 	return decoder
 }
 
-// FromError converts error to status.Status message structure. Inverse to [ToError] operation.
+// FromError converts error to [protostatus.Status] message structure. Inverse to [ToError] operation.
 //
 // Nil corresponds to [protostatus.OK] code, any unknown error to
 // [protostatus.InternalServerError].

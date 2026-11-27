@@ -50,7 +50,7 @@ const (
 	FieldResponseVerificationHeader = 3
 )
 
-// ParseAPIVersionField parses version.Version from the next field with known
+// ParseAPIVersionField parses [version.Version] from the next field with known
 // number and type at given offset. Also returns field length.
 func ParseAPIVersionField(buf []byte, fNum protowire.Number, fTyp protowire.Type) (version.Version, int, error) {
 	lnf, nf, err := ParseLENField(buf, fNum, fTyp)
@@ -148,7 +148,7 @@ func ParseUserIDField(buf []byte, fNum protowire.Number, fTyp protowire.Type) ([
 	return buf, nf + lnf, nil
 }
 
-// ParseChecksum parses checksum.Checksum from the next field with known number
+// ParseChecksum parses [checksum.Checksum] from the next field with known number
 // and type at given offset. Also returns field length.
 func ParseChecksum(buf []byte, fNum protowire.Number, fTyp protowire.Type) (checksum.Checksum, int, error) {
 	lnf, nf, err := ParseLENField(buf, fNum, fTyp)

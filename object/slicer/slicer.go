@@ -58,18 +58,18 @@ type Slicer struct {
 	hdr object.Object
 }
 
-// New constructs Slicer which writes sliced ready-to-go objects owned by
-// particular user into the specified container using provided ObjectWriter.
-// All objects are signed using provided neofscrypto.Signer.
+// New constructs [Slicer] which writes sliced ready-to-go objects owned by
+// particular user into the specified container using provided [ObjectWriter].
+// All objects are signed using provided [neofscrypto.Signer].
 //
-// If ObjectWriter returns data streams which provide io.Closer, they are closed
-// in Slicer.Slice after the payload of any object has been written. In this
-// case, Slicer.Slice fails immediately on Close error.
+// If [ObjectWriter] returns data streams which provide [io.Closer], they are closed
+// in [Slicer.Put] after the payload of any object has been written. In this
+// case, [Slicer.Put] fails immediately on Close error.
 //
-// NetworkedClient parameter allows to extract all required network-depended information for default Slicer behavior
+// [NetworkedClient] parameter allows to extract all required network-depended information for default Slicer behavior
 // tuning.
 //
-// If payload size limit is specified via Options.SetObjectPayloadLimit,
+// If payload size limit is specified via [Options.SetObjectPayloadLimit],
 // outgoing objects has payload not bigger than the limit. NeoFS stores the
 // corresponding value in the network configuration. Ignore this option if you
 // don't (want to) have access to it. By default, single object is limited by
@@ -174,7 +174,7 @@ func Put(ctx context.Context, ow ObjectWriter, header object.Object, signer user
 	return slice(ctx, ow, header, data, signer, opts)
 }
 
-// InitPut works similar to [slicer.Put], but provides [ObjectWriter] allowing
+// InitPut works similar to [Put], but provides [PayloadWriter] allowing
 // the caller to write data himself.
 func InitPut(ctx context.Context, ow ObjectWriter, header object.Object, signer user.Signer, opts Options) (*PayloadWriter, error) {
 	return initPayloadStream(ctx, ow, header, signer, opts)

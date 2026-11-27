@@ -28,7 +28,7 @@ var ErrZero = errors.New("zero container ID")
 // NewFromMarshalledContainer returns new ID calculated from the given NeoFS
 // container encoded into Protocol Buffers V3 with ascending order of fields by
 // number. It's callers responsibility to ensure the format of b. See
-// [container.Container.Marshal].
+// [github.com/nspcc-dev/neofs-sdk-go/container.Container.Marshal].
 func NewFromMarshalledContainer(b []byte) ID { return sha256.Sum256(b) }
 
 // DecodeBytes creates new ID and makes [ID.Decode].
@@ -85,7 +85,7 @@ func (id *ID) Decode(src []byte) error {
 //
 // Zero ID is base58 encoding of [Size] zeros.
 //
-// See also DecodeString.
+// See also [ID.DecodeString].
 func (id ID) EncodeToString() string {
 	return base58.Encode(id[:])
 }
@@ -93,7 +93,7 @@ func (id ID) EncodeToString() string {
 // DecodeString decodes string into ID according to NeoFS API protocol. Returns
 // an error if s is malformed. Use [DecodeString] to decode s into a new ID.
 //
-// See also DecodeString.
+// See also [ID.EncodeToString].
 func (id *ID) DecodeString(s string) error {
 	data, err := base58.Decode(s)
 	if err != nil {
@@ -103,10 +103,10 @@ func (id *ID) DecodeString(s string) error {
 	return id.Decode(data)
 }
 
-// String implements fmt.Stringer.
+// String implements [fmt.Stringer].
 //
 // String is designed to be human-readable, and its format MAY differ between
-// SDK versions. String MAY return same result as EncodeToString. String MUST NOT
+// SDK versions. String MAY return same result as [ID.EncodeToString]. String MUST NOT
 // be used to encode ID into NeoFS protocol string.
 func (id ID) String() string {
 	return id.EncodeToString()

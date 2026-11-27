@@ -163,7 +163,7 @@ func (t Table) Marshal() []byte {
 
 // SignedData returns actual payload to sign.
 //
-// See also [client.Client.ContainerSetEACL].
+// See also [github.com/nspcc-dev/neofs-sdk-go/client.Client.ContainerSetEACL].
 func (t Table) SignedData() []byte {
 	return t.Marshal()
 }

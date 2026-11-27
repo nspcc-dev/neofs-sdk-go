@@ -9,7 +9,7 @@ type ResponseMetaInfo struct {
 
 // ResponderKey returns responder's public key in a binary format.
 //
-// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// The resulting slice of bytes is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.

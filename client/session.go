@@ -48,7 +48,7 @@ func (x ResSessionCreate) ID() []byte {
 
 // PublicKey returns public key of the opened session in a binary NeoFS API protocol format.
 //
-// The resulting slice of bytes is a serialized compressed public key. See [elliptic.MarshalCompressed].
+// The resulting slice of bytes is a serialized compressed public key. See [crypto/elliptic.MarshalCompressed].
 // Use [neofsecdsa.PublicKey.Decode] to decode it into a type-specific structure.
 //
 // The value returned shares memory with the structure itself, so changing it can lead to data corruption.

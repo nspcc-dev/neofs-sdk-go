@@ -6,7 +6,7 @@ import (
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
 )
 
-// Token returns random bearer.Token.
+// Token returns random [bearer.Token].
 //
 // Resulting token is unsigned.
 func Token() (tok bearer.Token) {

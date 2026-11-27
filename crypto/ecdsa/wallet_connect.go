@@ -17,21 +17,21 @@ import (
 
 const saltLen = 16
 
-// SignerWalletConnect is similar to SignerRFC6979 with 2 changes:
+// SignerWalletConnect is similar to [SignerRFC6979] with 2 changes:
 // 1. The data is base64 encoded before signing/verifying.
 // 2. The signature is a concatenation of the signature itself and 16-byte salt.
 //
-// Instances MUST be initialized from ecdsa.PrivateKey using type conversion.
+// Instances MUST be initialized from [ecdsa.PrivateKey] using type conversion.
 type SignerWalletConnect ecdsa.PrivateKey
 
-// Scheme returns neofscrypto.ECDSA_WALLETCONNECT.
-// Implements neofscrypto.Signer.
+// Scheme returns [neofscrypto.ECDSA_WALLETCONNECT].
+// Implements [neofscrypto.Signer].
 func (x SignerWalletConnect) Scheme() neofscrypto.Scheme {
 	return neofscrypto.ECDSA_WALLETCONNECT
 }
 
 // Sign signs data using ECDSA algorithm with SHA-512 hashing.
-// Implements neofscrypto.Signer.
+// Implements [neofscrypto.Signer].
 func (x SignerWalletConnect) Sign(data []byte) ([]byte, error) {
 	b64 := make([]byte, base64.StdEncoding.EncodedLen(len(data)))
 	base64.StdEncoding.Encode(b64, data)
@@ -44,16 +44,16 @@ func (x SignerWalletConnect) Sign(data []byte) ([]byte, error) {
 	return append(sig, salt[:]...), nil
 }
 
-// Public initializes PublicKey and returns it as neofscrypto.PublicKey.
-// Implements neofscrypto.Signer.
+// Public initializes [PublicKeyWalletConnect] and returns it as [neofscrypto.PublicKey].
+// Implements [neofscrypto.Signer].
 func (x SignerWalletConnect) Public() neofscrypto.PublicKey {
 	return (*PublicKeyWalletConnect)(&x.PublicKey)
 }
 
-// PublicKeyWalletConnect is a wrapper over ecdsa.PublicKey used for NeoFS needs.
-// Provides neofscrypto.PublicKey interface.
+// PublicKeyWalletConnect is a wrapper over [ecdsa.PublicKey] used for NeoFS needs.
+// Provides [neofscrypto.PublicKey] interface.
 //
-// Instances MUST be initialized from ecdsa.PublicKey using type conversion.
+// Instances MUST be initialized from [ecdsa.PublicKey] using type conversion.
 type PublicKeyWalletConnect ecdsa.PublicKey
 
 // MaxEncodedSize returns size of the compressed ECDSA public key.
@@ -62,11 +62,11 @@ func (x PublicKeyWalletConnect) MaxEncodedSize() int {
 }
 
 // Encode encodes ECDSA public key in compressed form into buf.
-// Uses exactly MaxEncodedSize bytes of the buf.
+// Uses exactly [PublicKeyWalletConnect.MaxEncodedSize] bytes of the buf.
 //
-// Encode panics if buf length is less than MaxEncodedSize.
+// Encode panics if buf length is less than [PublicKeyWalletConnect.MaxEncodedSize].
 //
-// See also Decode.
+// See also [PublicKeyWalletConnect.Decode].
 func (x PublicKeyWalletConnect) Encode(buf []byte) int {
 	if len(buf) < 33 {
 		panic(fmt.Sprintf("too short buffer %d", len(buf)))
@@ -77,7 +77,7 @@ func (x PublicKeyWalletConnect) Encode(buf []byte) int {
 
 // Decode decodes compressed binary representation of the PublicKeyWalletConnect.
 //
-// See also Encode.
+// See also [PublicKeyWalletConnect.Encode].
 func (x *PublicKeyWalletConnect) Decode(data []byte) error {
 	pub, err := keys.NewPublicKeyFromBytes(data, elliptic.P256())
 	if err != nil {
