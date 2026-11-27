@@ -9,11 +9,13 @@ import (
 	"crypto/elliptic"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"testing"
 	"time"
 
 	"github.com/nspcc-dev/neo-go/pkg/crypto/keys"
+	"github.com/nspcc-dev/neofs-sdk-go/bearer"
 	"github.com/nspcc-dev/neofs-sdk-go/client"
 	apistatus "github.com/nspcc-dev/neofs-sdk-go/client/status"
 	"github.com/nspcc-dev/neofs-sdk-go/container"
@@ -30,6 +32,7 @@ import (
 	"github.com/nspcc-dev/neofs-sdk-go/stat"
 	"github.com/nspcc-dev/neofs-sdk-go/user"
 	usertest "github.com/nspcc-dev/neofs-sdk-go/user/test"
+	"github.com/nspcc-dev/neofs-sdk-go/version"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -110,33 +113,41 @@ type (
 	}
 )
 
-func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
-	signer := usertest.User().RFC6979
-	account := signer.UserID()
-
+func testContainer(account user.ID, basicACL acl.Basic) container.Container {
 	containerName := strconv.FormatInt(time.Now().UnixNano(), 16)
 	creationTime := time.Now()
 
 	var cont container.Container
 	cont.Init()
-	cont.SetBasicACL(acl.PublicRWExtended)
+	cont.SetBasicACL(basicACL)
 	cont.SetOwner(account)
 	cont.SetName(containerName)
 	cont.SetCreationTime(creationTime)
 
-	return account, signer, cont
+	return cont
 }
 
-func testEaclTable(containerID cid.ID) eacl.Table {
-	r := eacl.Record{}
-	r.SetOperation(eacl.OperationPut)
-	r.SetAction(eacl.ActionAllow)
+func testData(_ *testing.T) (user.ID, user.Signer, container.Container) {
+	signer := usertest.User().RFC6979
+	account := signer.UserID()
+
+	return account, signer, testContainer(account, acl.PublicRWExtended)
+}
+
+func testEaclOthersTable(containerID cid.ID, op eacl.Operation, action eacl.Action) eacl.Table {
+	var r eacl.Record
+	r.SetOperation(op)
+	r.SetAction(action)
 
 	var target eacl.Target
 	target.SetRole(eacl.RoleOthers)
 	r.SetTargets(target)
 
 	return eacl.NewTableForContainer(containerID, []eacl.Record{r})
+}
+
+func testEaclTable(containerID cid.ID) eacl.Table {
+	return testEaclOthersTable(containerID, eacl.OperationPut, eacl.ActionAllow)
 }
 
 func TestPoolAio(t *testing.T) {
@@ -381,10 +392,623 @@ func testPoolInterfaceWithAIO(t *testing.T, nodeAddr string) {
 			require.NoError(t, isContainerDeleted(ctxTimeout, cl, containerID))
 		})
 	})
+
+	t.Run("search", func(t *testing.T) {
+		testSearchObjectsWithAIO(ctx, t, pl, poolStat, nodeAddr, signer)
+	})
+}
+
+func sortOIDs(ids []oid.ID) []oid.ID {
+	sorted := slices.Clone(ids)
+	slices.SortFunc(sorted, oid.ID.Compare)
+	return sorted
+}
+
+func extractOIDs(items []client.SearchResultItem) []oid.ID {
+	ids := make([]oid.ID, len(items))
+	for i := range items {
+		ids[i] = items[i].ID
+	}
+	return ids
+}
+
+func testCreateContainerWithCleanup(ctx context.Context, t *testing.T, pl *pool.Pool, cl *client.Client, signer user.Signer, cont container.Container) cid.ID {
+	ctxCreate, cancelCreate := context.WithTimeout(ctx, defaultTimeOut)
+	defer cancelCreate()
+
+	containerID := testCreateContainer(ctxCreate, t, signer, cont, pl)
+	require.NoError(t, isContainerCreated(ctxCreate, cl, containerID))
+	t.Cleanup(func() {
+		ctxCleanup, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		defer cancel()
+
+		testDeleteContainer(ctxCleanup, t, signer, containerID, pl)
+		require.NoError(t, isContainerDeleted(ctxCleanup, cl, containerID))
+	})
+
+	return containerID
+}
+
+func testSearchStat(t *testing.T, poolStat *stat.PoolStat, nodeAddr string) (uint64, uint64, uint64) {
+	st := poolStat.Statistic()
+	nodeStat, err := st.Node(nodeAddr)
+	require.NoError(t, err)
+
+	snap, err := nodeStat.Snapshot(stat.MethodObjectSearchV2)
+	require.NoError(t, err)
+
+	return snap.AllRequests(), snap.AllTime(), nodeStat.OverallErrors()
+}
+
+func testSearchObjectsWithAIO(ctx context.Context, t *testing.T, pl *pool.Pool, poolStat *stat.PoolStat, nodeAddr string, signer user.Signer) {
+	account := signer.UserID()
+
+	cl, err := pl.RawClient()
+	require.NoError(t, err)
+
+	containerID := testCreateContainerWithCleanup(ctx, t, pl, cl, signer, testContainer(account, acl.PublicRWExtended))
+
+	t.Run("empty", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		reqBefore, timeBefore, _ := testSearchStat(t, poolStat, nodeAddr)
+
+		items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, nil, nil, "", signer, client.SearchObjectsOptions{})
+		require.NoError(t, err)
+		require.Empty(t, items)
+		require.Empty(t, cursor)
+
+		reqAfter, timeAfter, _ := testSearchStat(t, poolStat, nodeAddr)
+		require.Equal(t, reqBefore+1, reqAfter)
+		require.Greater(t, timeAfter, timeBefore)
+	})
+
+	type fixtureSpec struct {
+		size  int
+		tag   string
+		group string
+		score string
+		opt   string
+	}
+	specs := []fixtureSpec{
+		{size: 10, tag: "alpha-1", group: "g1", score: "2", opt: "present-0"},
+		{size: 20, tag: "alpha-2", group: "g1", score: "10"},
+		{size: 30, tag: "beta-1", group: "g2", score: "100", opt: "present-2"},
+		{size: 40, tag: "alpha-3", group: "g2", score: "20"},
+		{size: 50, tag: "gamma", group: "g1", score: "3", opt: "present-4"},
+	}
+
+	ctxUpload, cancelUpload := context.WithTimeout(ctx, defaultTimeOut)
+	defer cancelUpload()
+
+	ids := make([]oid.ID, len(specs))
+	for i, sp := range specs {
+		payload := bytes.Repeat([]byte{byte(i + 1)}, sp.size)
+		attrs := []object.Attribute{
+			object.NewAttribute("tag", sp.tag),
+			object.NewAttribute("group", sp.group),
+			object.NewAttribute("score", sp.score),
+		}
+		if sp.opt != "" {
+			attrs = append(attrs, object.NewAttribute("opt", sp.opt))
+		}
+		ids[i] = testObjectPutInitWithHeader(ctxUpload, t, account, containerID, signer, payload, pl, func(hdr *object.Object) {
+			hdr.SetAttributes(attrs...)
+		})
+	}
+	sortedAllOIDs := sortOIDs(ids)
+
+	t.Run("pagination", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		var opts client.SearchObjectsOptions
+		opts.SetCount(2)
+
+		var (
+			got    []oid.ID
+			cursor string
+			pages  int
+		)
+		for {
+			items, nextCursor, err := pl.SearchObjects(ctxTimeout, containerID, nil, nil, cursor, signer, opts)
+			require.NoError(t, err)
+			require.LessOrEqual(t, len(items), 2)
+
+			for _, item := range items {
+				require.Empty(t, item.Attributes)
+				got = append(got, item.ID)
+			}
+			pages++
+
+			if nextCursor == "" {
+				break
+			}
+			require.NotEqual(t, cursor, nextCursor)
+			cursor = nextCursor
+		}
+
+		require.Equal(t, 3, pages)
+		require.Equal(t, sortedAllOIDs, got)
+	})
+
+	t.Run("filters and attributes", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		t.Run("string equal", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("tag", "beta-1", object.MatchStringEqual)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{{ID: ids[2]}}, items)
+		})
+
+		t.Run("string not equal", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("tag", "gamma", object.MatchStringNotEqual)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{"tag"}, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{
+				{ID: ids[0], Attributes: []string{"alpha-1"}},
+				{ID: ids[1], Attributes: []string{"alpha-2"}},
+				{ID: ids[3], Attributes: []string{"alpha-3"}},
+				{ID: ids[2], Attributes: []string{"beta-1"}},
+			}, items)
+		})
+
+		t.Run("common prefix with optional attribute", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("tag", "alpha-", object.MatchCommonPrefix)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{"tag", "opt"}, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{
+				{ID: ids[0], Attributes: []string{"alpha-1", "present-0"}},
+				{ID: ids[1], Attributes: []string{"alpha-2", ""}},
+				{ID: ids[3], Attributes: []string{"alpha-3", ""}},
+			}, items)
+		})
+
+		t.Run("not present", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("opt", "", object.MatchNotPresent)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, sortOIDs([]oid.ID{ids[1], ids[3]}), extractOIDs(items))
+		})
+
+		t.Run("multi-filter conjunction", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("tag", "alpha-", object.MatchCommonPrefix)
+			fs.AddFilter("group", "g1", object.MatchStringEqual)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{"tag", "group"}, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{
+				{ID: ids[0], Attributes: []string{"alpha-1", "g1"}},
+				{ID: ids[1], Attributes: []string{"alpha-2", "g1"}},
+			}, items)
+		})
+
+		t.Run("numeric matchers", func(t *testing.T) {
+			cases := []struct {
+				name string
+				op   object.SearchMatchType
+				val  string
+				want []client.SearchResultItem
+			}{
+				{
+					name: "gt",
+					op:   object.MatchNumGT,
+					val:  "2",
+					want: []client.SearchResultItem{
+						{ID: ids[4], Attributes: []string{"3"}},
+						{ID: ids[1], Attributes: []string{"10"}},
+						{ID: ids[3], Attributes: []string{"20"}},
+						{ID: ids[2], Attributes: []string{"100"}},
+					},
+				},
+				{
+					name: "ge",
+					op:   object.MatchNumGE,
+					val:  "10",
+					want: []client.SearchResultItem{
+						{ID: ids[1], Attributes: []string{"10"}},
+						{ID: ids[3], Attributes: []string{"20"}},
+						{ID: ids[2], Attributes: []string{"100"}},
+					},
+				},
+				{
+					name: "lt",
+					op:   object.MatchNumLT,
+					val:  "20",
+					want: []client.SearchResultItem{
+						{ID: ids[0], Attributes: []string{"2"}},
+						{ID: ids[4], Attributes: []string{"3"}},
+						{ID: ids[1], Attributes: []string{"10"}},
+					},
+				},
+				{
+					name: "le",
+					op:   object.MatchNumLE,
+					val:  "10",
+					want: []client.SearchResultItem{
+						{ID: ids[0], Attributes: []string{"2"}},
+						{ID: ids[4], Attributes: []string{"3"}},
+						{ID: ids[1], Attributes: []string{"10"}},
+					},
+				},
+			}
+
+			for _, tc := range cases {
+				t.Run(tc.name, func(t *testing.T) {
+					var fs object.SearchFilters
+					fs.AddFilter("score", tc.val, tc.op)
+
+					items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{"score"}, "", signer, client.SearchObjectsOptions{})
+					require.NoError(t, err)
+					require.Empty(t, cursor)
+					require.Equal(t, tc.want, items)
+				})
+			}
+
+			t.Run("range", func(t *testing.T) {
+				var fs object.SearchFilters
+				fs.AddFilter("score", "3", object.MatchNumGE)
+				fs.AddFilter("score", "20", object.MatchNumLE)
+
+				items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{"score"}, "", signer, client.SearchObjectsOptions{})
+				require.NoError(t, err)
+				require.Empty(t, cursor)
+				require.Equal(t, []client.SearchResultItem{
+					{ID: ids[4], Attributes: []string{"3"}},
+					{ID: ids[1], Attributes: []string{"10"}},
+					{ID: ids[3], Attributes: []string{"20"}},
+				}, items)
+			})
+		})
+	})
+
+	t.Run("system filters", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		t.Run("payload size", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddPayloadSizeFilter(object.MatchNumGE, 30)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{object.FilterPayloadSize}, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{
+				{ID: ids[2], Attributes: []string{"30"}},
+				{ID: ids[3], Attributes: []string{"40"}},
+				{ID: ids[4], Attributes: []string{"50"}},
+			}, items)
+		})
+
+		t.Run("creation epoch", func(t *testing.T) {
+			headFirst, err := pl.ObjectHead(ctxTimeout, containerID, ids[0], signer, client.PrmObjectHead{})
+			require.NoError(t, err)
+			headLast, err := pl.ObjectHead(ctxTimeout, containerID, ids[len(ids)-1], signer, client.PrmObjectHead{})
+			require.NoError(t, err)
+
+			var fs object.SearchFilters
+			fs.AddCreationEpochFilter(object.MatchNumGE, headFirst.CreationEpoch())
+			fs.AddCreationEpochFilter(object.MatchNumLE, headLast.CreationEpoch())
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.ElementsMatch(t, ids, extractOIDs(items))
+
+			var fsEmpty object.SearchFilters
+			fsEmpty.AddCreationEpochFilter(object.MatchNumGT, headLast.CreationEpoch())
+
+			items, cursor, err = pl.SearchObjects(ctxTimeout, containerID, fsEmpty, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Empty(t, items)
+		})
+
+		t.Run("owner ID", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddObjectOwnerIDFilter(object.MatchStringEqual, account)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, sortedAllOIDs, extractOIDs(items))
+
+			var fsOther object.SearchFilters
+			fsOther.AddObjectOwnerIDFilter(object.MatchStringEqual, usertest.User().RFC6979.UserID())
+
+			items, cursor, err = pl.SearchObjects(ctxTimeout, containerID, fsOther, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Empty(t, items)
+		})
+
+		t.Run("type", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddTypeFilter(object.MatchStringEqual, object.TypeRegular)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, sortedAllOIDs, extractOIDs(items))
+
+			var fsLock object.SearchFilters
+			fsLock.AddTypeFilter(object.MatchStringEqual, object.TypeLock)
+
+			items, cursor, err = pl.SearchObjects(ctxTimeout, containerID, fsLock, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Empty(t, items)
+		})
+
+		t.Run("root", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddRootFilter()
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, sortedAllOIDs, extractOIDs(items))
+		})
+
+		t.Run("phy", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddPhyFilter()
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, client.SearchObjectsOptions{})
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, sortedAllOIDs, extractOIDs(items))
+		})
+	})
+
+	t.Run("local", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		var opts client.SearchObjectsOptions
+		opts.DisableForwarding()
+
+		t.Run("equality filter", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("tag", "beta-1", object.MatchStringEqual)
+
+			items, cursor, err := cl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, opts)
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{{ID: ids[2]}}, items)
+		})
+
+		t.Run("non-equality filter without requested attributes", func(t *testing.T) {
+			var fs object.SearchFilters
+			fs.AddFilter("tag", "alpha-", object.MatchCommonPrefix)
+
+			items, cursor, err := cl.SearchObjects(ctxTimeout, containerID, fs, nil, "", signer, opts)
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, []client.SearchResultItem{
+				{ID: ids[0], Attributes: []string{"alpha-1"}},
+				{ID: ids[1], Attributes: []string{"alpha-2"}},
+				{ID: ids[3], Attributes: []string{"alpha-3"}},
+			}, items)
+		})
+	})
+
+	t.Run("container revision", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		cnt, err := pl.ContainerGet(ctxTimeout, containerID, client.PrmContainerGet{})
+		require.NoError(t, err)
+
+		if rev := cnt.Revision(); rev > 0 {
+			var okOpts client.SearchObjectsOptions
+			okOpts.AttachContainerRevision(rev)
+
+			items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, nil, nil, "", signer, okOpts)
+			require.NoError(t, err)
+			require.Empty(t, cursor)
+			require.Equal(t, sortedAllOIDs, extractOIDs(items))
+
+			var badOpts client.SearchObjectsOptions
+			badOpts.AttachContainerRevision(rev + 1)
+
+			_, _, err = pl.SearchObjects(ctxTimeout, containerID, nil, nil, "", signer, badOpts)
+			require.ErrorIs(t, err, apistatus.ErrContainerRevisionMismatch)
+		} else {
+			var revOpts client.SearchObjectsOptions
+			revOpts.AttachContainerRevision(1)
+
+			_, _, err = pl.SearchObjects(ctxTimeout, containerID, nil, nil, "", signer, revOpts)
+			require.ErrorContains(t, err, "container revision was attached, but server does not support it")
+		}
+	})
+
+	t.Run("access control", func(t *testing.T) {
+		testSearchObjectsAccessControlWithAIO(ctx, t, pl, cl, poolStat, nodeAddr, signer)
+	})
+
+	t.Run("deleted object", func(t *testing.T) {
+		ctxDel, cancelDel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancelDel)
+
+		deletedID := ids[len(ids)-1]
+		expectedRemaining := sortOIDs(ids[:len(ids)-1])
+
+		testDeleteObject(ctxDel, t, signer, containerID, deletedID, pl)
+		require.NoError(t, isObjectDeleted(ctxDel, cl, containerID, deletedID, signer))
+
+		ctxSearch, cancelSearch := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancelSearch)
+
+		var rootFilter object.SearchFilters
+		rootFilter.AddRootFilter()
+
+		require.Eventually(t, func() bool {
+			allItems, cursor, err := pl.SearchObjects(ctxSearch, containerID, nil, nil, "", signer, client.SearchObjectsOptions{})
+			if err != nil || cursor != "" || slices.Contains(extractOIDs(allItems), deletedID) {
+				return false
+			}
+
+			rootItems, cursor, err := pl.SearchObjects(ctxSearch, containerID, rootFilter, nil, "", signer, client.SearchObjectsOptions{})
+			if err != nil || cursor != "" {
+				return false
+			}
+			return slices.Equal(expectedRemaining, extractOIDs(rootItems))
+		}, defaultTimeOut, tickInterval)
+	})
+
+	t.Run("expiration time", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		epInfo, err := cl.EndpointInfo(ctxTimeout, client.PrmEndpointInfo{})
+		require.NoError(t, err)
+		if epInfo.LatestVersion().Compare(version.New(2, 28)) < 0 {
+			t.Skipf("node API %s does not support expiration time filter", epInfo.LatestVersion())
+		}
+
+		expTime := time.Now().Add(2 * time.Hour).Truncate(time.Second)
+		expObjID := testObjectPutInitWithHeader(ctxTimeout, t, account, containerID, signer, []byte("expiring-obj"), pl, func(hdr *object.Object) {
+			require.NoError(t, hdr.SetExpirationTime(expTime))
+		})
+
+		var fs object.SearchFilters
+		fs.AddExpirationTimeFilter(object.MatchNumGE, expTime)
+
+		items, cursor, err := pl.SearchObjects(ctxTimeout, containerID, fs, []string{object.FilterExpirationTime}, "", signer, client.SearchObjectsOptions{})
+		require.NoError(t, err)
+		require.Empty(t, cursor)
+		require.Equal(t, []client.SearchResultItem{
+			{ID: expObjID, Attributes: []string{strconv.FormatInt(expTime.Unix(), 10)}},
+		}, items)
+
+		var fsAfter object.SearchFilters
+		fsAfter.AddExpirationTimeFilter(object.MatchNumGT, expTime)
+
+		items, cursor, err = pl.SearchObjects(ctxTimeout, containerID, fsAfter, nil, "", signer, client.SearchObjectsOptions{})
+		require.NoError(t, err)
+		require.Empty(t, cursor)
+		require.Empty(t, items)
+	})
+}
+
+func testSearchObjectsAccessControlWithAIO(ctx context.Context, t *testing.T, pl *pool.Pool, cl *client.Client, poolStat *stat.PoolStat, nodeAddr string, signer user.Signer) {
+	account := signer.UserID()
+	aclCnrID := testCreateContainerWithCleanup(ctx, t, pl, cl, signer, testContainer(account, acl.PublicRWExtended))
+
+	ctxEACL, cancelEACL := context.WithTimeout(ctx, defaultTimeOut)
+	defer cancelEACL()
+
+	aclCnt, err := pl.ContainerGet(ctxEACL, aclCnrID, client.PrmContainerGet{})
+	require.NoError(t, err)
+
+	denyTable := testEaclOthersTable(aclCnrID, eacl.OperationSearch, eacl.ActionDeny)
+	testSetEacl(ctxEACL, t, signer, denyTable, pl, aclCnt.Revision())
+	require.NoError(t, isEACLCreated(ctxEACL, cl, aclCnrID, denyTable))
+
+	aclObjID := testObjectPutInit(ctxEACL, t, account, aclCnrID, signer, []byte("acl-obj"), pl)
+
+	otherSigner := usertest.User().RFC6979
+
+	ni, err := pl.NetworkInfo(ctxEACL, client.PrmNetworkInfo{})
+	require.NoError(t, err)
+	curEpoch := ni.CurrentEpoch()
+
+	t.Run("unauthorized", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		reqBefore, _, errBefore := testSearchStat(t, poolStat, nodeAddr)
+
+		_, _, err := pl.SearchObjects(ctxTimeout, aclCnrID, nil, nil, "", otherSigner, client.SearchObjectsOptions{})
+		require.ErrorIs(t, err, apistatus.ErrObjectAccessDenied)
+
+		reqAfter, _, errAfter := testSearchStat(t, poolStat, nodeAddr)
+		require.Equal(t, reqBefore+1, reqAfter)
+		require.Equal(t, errBefore+1, errAfter)
+	})
+
+	t.Run("bearer token", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		var bt bearer.Token
+		bt.SetEACLTable(testEaclOthersTable(aclCnrID, eacl.OperationSearch, eacl.ActionAllow))
+		bt.ForUser(otherSigner.UserID())
+		bt.SetIat(curEpoch)
+		bt.SetNbf(curEpoch)
+		bt.SetExp(curEpoch + 10)
+		require.NoError(t, bt.Sign(signer))
+
+		var opts client.SearchObjectsOptions
+		opts.WithBearerToken(bt)
+
+		items, cursor, err := pl.SearchObjects(ctxTimeout, aclCnrID, nil, nil, "", otherSigner, opts)
+		require.NoError(t, err)
+		require.Empty(t, cursor)
+		require.Equal(t, []client.SearchResultItem{{ID: aclObjID}}, items)
+	})
+
+	t.Run("session token v2", func(t *testing.T) {
+		ctxTimeout, cancel := context.WithTimeout(ctx, defaultTimeOut)
+		t.Cleanup(cancel)
+
+		epInfo, err := cl.EndpointInfo(ctxTimeout, client.PrmEndpointInfo{})
+		require.NoError(t, err)
+		if epInfo.LatestVersion().Compare(version.New(2, 22)) < 0 {
+			t.Skipf("node API %s does not support session token v2 in request meta header", epInfo.LatestVersion())
+		}
+
+		var stV2 sessionv2.Token
+		stV2.SetVersion(0) // nodes prior to API 2.29 only accept token version 0
+
+		now := time.Now()
+		stV2.SetIat(now.Add(-time.Minute))
+		stV2.SetNbf(now.Add(-time.Minute))
+		stV2.SetExp(now.Add(time.Duration(sessionExpirationInSeconds) * time.Second))
+		require.NoError(t, stV2.AddSubject(sessionv2.NewTargetUser(otherSigner.UserID())))
+
+		sCtx, err := sessionv2.NewContext(aclCnrID, []sessionv2.Verb{sessionv2.VerbObjectSearch})
+		require.NoError(t, err)
+		require.NoError(t, stV2.AddContext(sCtx))
+		require.NoError(t, stV2.Sign(signer))
+
+		var opts client.SearchObjectsOptions
+		opts.WithSessionTokenV2(stV2)
+
+		items, cursor, err := pl.SearchObjects(ctxTimeout, aclCnrID, nil, nil, "", otherSigner, opts)
+		require.NoError(t, err)
+		require.Empty(t, cursor)
+		require.Equal(t, []client.SearchResultItem{{ID: aclObjID}}, items)
+	})
 }
 
 func testObjectPutInit(ctx context.Context, t *testing.T, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter) oid.ID {
-	var hdr = object.New(containerID, account)
+	return testObjectPutInitWithHeader(ctx, t, account, containerID, signer, payload, putter, nil)
+}
+
+func testObjectPutInitWithHeader(ctx context.Context, t *testing.T, account user.ID, containerID cid.ID, signer user.Signer, payload []byte, putter objectPutIniter, modify func(*object.Object)) oid.ID {
+	hdr := object.New(containerID, account)
+	if modify != nil {
+		modify(hdr)
+	}
 
 	var prm client.PrmObjectPutInit
 
